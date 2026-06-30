@@ -702,3 +702,179 @@ select
     / greatest((select count(*) from profiles), 1),
     3
   ) as viral_coefficient;
+
+-- ───────────────────────────── push notifications ─────────────────────────────
+-- Server-sent (not local-timer) pushes for: a circle-mate checked in, someone reacted to
+-- your check-in, and a nightly sweep for streaks about to lapse. Needs the pg_net and
+-- pg_cron extensions enabled on this project (Supabase dashboard -> Database -> Extensions
+-- if the `create extension` lines below fail for permission reasons).
+
+create extension if not exists pg_net;
+create extension if not exists pg_cron;
+
+create table if not exists push_tokens (
+  user_id uuid not null references profiles (id) on delete cascade,
+  token text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, token)
+);
+
+alter table push_tokens enable row level security;
+
+drop policy if exists "push_tokens: manage own" on push_tokens;
+create policy "push_tokens: manage own" on push_tokens for all using (user_id = auth.uid());
+
+-- Fire-and-forget push send to every registered device for the given users via Expo's push
+-- API. No response handling/token cleanup yet — dead tokens just no-op on Expo's end.
+create or replace function notify_push(p_user_ids uuid[], p_title text, p_body text, p_data jsonb default '{}'::jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_messages jsonb;
+begin
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'to', t.token,
+    'title', p_title,
+    'body', p_body,
+    'data', p_data,
+    'sound', 'default'
+  )), '[]'::jsonb)
+  into v_messages
+  from push_tokens t
+  where t.user_id = any(p_user_ids);
+
+  if jsonb_array_length(v_messages) = 0 then
+    return;
+  end if;
+
+  perform net.http_post(
+    url := 'https://exp.host/--/api/v2/push/send',
+    headers := '{"Content-Type": "application/json", "Accept": "application/json"}'::jsonb,
+    body := v_messages
+  );
+end;
+$$;
+
+-- "Friend checked in" — notify every other member of the circle.
+create or replace function notify_group_of_check_in()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_group_name text;
+  v_poster_name text;
+  v_recipient_ids uuid[];
+begin
+  select name into v_group_name from groups where id = new.group_id;
+  select display_name into v_poster_name from profiles where id = new.user_id;
+
+  select coalesce(array_agg(user_id), '{}')
+  into v_recipient_ids
+  from group_members
+  where group_id = new.group_id and user_id <> new.user_id;
+
+  if array_length(v_recipient_ids, 1) > 0 then
+    perform notify_push(
+      v_recipient_ids,
+      v_group_name,
+      coalesce(v_poster_name, 'Someone') || ' just checked in 🔥',
+      jsonb_build_object('type', 'check_in', 'group_id', new.group_id)
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_check_in_notify on check_ins;
+create trigger on_check_in_notify
+  after insert on check_ins
+  for each row execute function notify_group_of_check_in();
+
+-- "Someone reacted to your check-in" — notify the check-in's owner only, and only if
+-- someone else reacted (reacting to your own check-in shouldn't page you).
+create or replace function notify_reaction()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner_id uuid;
+  v_reactor_name text;
+begin
+  select user_id into v_owner_id from check_ins where id = new.check_in_id;
+  if v_owner_id is null or v_owner_id = new.user_id then
+    return new;
+  end if;
+
+  select display_name into v_reactor_name from profiles where id = new.user_id;
+
+  perform notify_push(
+    array[v_owner_id],
+    'New reaction',
+    coalesce(v_reactor_name, 'Someone') || ' reacted ' || new.emoji || ' to your check-in',
+    jsonb_build_object('type', 'reaction', 'check_in_id', new.check_in_id)
+  );
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_reaction_notify on reactions;
+create trigger on_reaction_notify
+  after insert on reactions
+  for each row execute function notify_reaction();
+
+-- "Your streak is about to break" — nightly sweep for members with an active streak in a
+-- circle who haven't checked in to it yet today (UTC day).
+create or replace function notify_streaks_at_risk()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r record;
+begin
+  for r in
+    select gm.user_id, g.id as group_id, g.name as group_name, gm.current_streak
+    from group_members gm
+    join groups g on g.id = gm.group_id
+    where gm.current_streak > 0
+      and not exists (
+        select 1 from check_ins ci
+        where ci.group_id = gm.group_id
+          and ci.user_id = gm.user_id
+          and (ci.created_at at time zone 'utc')::date = current_date
+      )
+  loop
+    perform notify_push(
+      array[r.user_id],
+      r.group_name,
+      'Your ' || r.current_streak || '-day streak breaks at midnight — lock in 🔥',
+      jsonb_build_object('type', 'streak_risk', 'group_id', r.group_id)
+    );
+  end loop;
+end;
+$$;
+
+-- 8pm UTC daily. Re-running this file re-schedules idempotently instead of erroring on a
+-- duplicate job name.
+do $$
+begin
+  if exists (select 1 from cron.job where jobname = 'philoi-streak-risk-check') then
+    perform cron.unschedule('philoi-streak-risk-check');
+  end if;
+end $$;
+
+select cron.schedule(
+  'philoi-streak-risk-check',
+  '0 20 * * *',
+  $$select notify_streaks_at_risk();$$
+);

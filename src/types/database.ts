@@ -200,6 +200,12 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      push_tokens: {
+        Row: { user_id: string; token: string; created_at: string };
+        Insert: { user_id: string; token: string };
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

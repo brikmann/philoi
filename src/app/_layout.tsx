@@ -16,6 +16,7 @@ import { PostHogProvider } from 'posthog-react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useHasAnyCircle } from '@/hooks/use-has-any-circle';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
+import { registerPushToken } from '@/lib/notifications';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
 import { posthog } from '@/lib/posthog';
 
@@ -54,6 +55,15 @@ function RootNavigator() {
   useEffect(() => {
     if (hasCircle) markOnboardingDone().then(() => setOnboardingDone(true));
   }, [hasCircle]);
+
+  // Register for server-sent pushes once the user is fully onboarded (past handle + consent) —
+  // not on raw sign-in, so we're not prompting for OS notification permission before the
+  // person has even named their first circle.
+  useEffect(() => {
+    if (appReady && session && !needsHandle && !needsConsent) {
+      registerPushToken(session.user.id);
+    }
+  }, [appReady, session, needsHandle, needsConsent]);
 
   // First-run guided path: signed in, handle set, consent done, never had a circle,
   // hasn't finished/skipped onboarding yet — push to create-circle instead of empty Today.

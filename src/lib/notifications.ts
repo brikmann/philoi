@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+
+import { supabase } from '@/lib/supabase';
 
 const REMINDER_MAP_KEY = 'philoi_group_reminders';
 
@@ -20,6 +23,35 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   if (current.granted) return true;
   const requested = await Notifications.requestPermissionsAsync();
   return requested.granted;
+}
+
+// Registers this device for server-sent pushes (friend checked in / reaction / streak at
+// risk — see notify_push and its triggers in supabase/schema.sql). Best-effort: a user who
+// declines the OS permission prompt just doesn't get these, same as local reminders.
+export async function registerPushToken(userId: string): Promise<void> {
+  if (Platform.OS === 'web') return;
+  try {
+    const granted = await requestNotificationPermissions();
+    if (!granted) return;
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Philoi',
+        importance: Notifications.AndroidImportance.DEFAULT,
+      });
+    }
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+    if (!token) return;
+
+    await supabase.from('push_tokens').upsert(
+      { user_id: userId, token },
+      { onConflict: 'user_id,token' }
+    );
+  } catch (e) {
+    console.warn('[notifications] failed to register push token:', e);
+  }
 }
 
 export async function getGroupReminder(groupId: string) {

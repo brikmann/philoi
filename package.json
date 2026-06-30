@@ -10,6 +10,8 @@
     "@supabase/supabase-js": "^2.108.2",
     "base64-arraybuffer": "^1.0.2",
     "expo": "^57.0.0",
+    "expo-asset": "~57.0.2",
+    "expo-audio": "~57.0.0",
     "expo-auth-session": "~57.0.1",
     "expo-clipboard": "~57.0.0",
     "expo-constants": "~57.0.2",
@@ -53,6 +55,7 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
+    "seed:demo": "node ./scripts/seed-demo-circles.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",

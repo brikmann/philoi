@@ -15,6 +15,7 @@ import { postCheckIn } from '@/lib/api/check-ins';
 import { fetchGroup, fetchInviteLink } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
+import { useSparkSound } from '@/lib/sound';
 
 export default function CheckInScreen() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function CheckInScreen() {
   const celebrateStyle = useAnimatedStyle(() => ({
     transform: [{ scale: celebrateScale.value }],
   }));
+  const playSpark = useSparkSound();
 
   // Camera-only, deliberately — a library photo isn't proof you showed up today.
   async function takePhoto() {
@@ -72,6 +74,7 @@ export default function CheckInScreen() {
     try {
       await postCheckIn({ groupId, userId: session.user.id, photoUri, caption });
       setPosted(true);
+      playSpark();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // eslint-disable-next-line react-hooks/immutability -- mutating .value is the documented Reanimated API
       celebrateScale.value = withSequence(withSpring(1.2), withSpring(1));
