@@ -15,6 +15,11 @@ export type MyGroup = Group & {
   checked_in_today: boolean;
 };
 
+export async function deleteMyAccount(): Promise<void> {
+  const { error } = await supabase.rpc('delete_my_account', {});
+  if (error) throw error;
+}
+
 export async function deleteGroup(groupId: string): Promise<void> {
   // RPC, not a direct table delete — see delete_group() in schema.sql for why (RLS blocks
   // the cascade across other members' rows otherwise).

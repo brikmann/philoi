@@ -22,7 +22,7 @@ import { posthog } from '@/lib/posthog';
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-  const { ready, error, session, needsHandle } = useAuth();
+  const { ready, error, session, needsHandle, needsConsent } = useAuth();
   const { hasCircle, refetch: refetchHasCircle } = useHasAnyCircle();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
   const router = useRouter();
@@ -55,20 +55,21 @@ function RootNavigator() {
     if (hasCircle) markOnboardingDone().then(() => setOnboardingDone(true));
   }, [hasCircle]);
 
-  // First-run guided path: signed in, handle set, never had a circle, hasn't finished/skipped
-  // onboarding yet — push to the create-circle flow instead of an empty Today screen.
+  // First-run guided path: signed in, handle set, consent done, never had a circle,
+  // hasn't finished/skipped onboarding yet — push to create-circle instead of empty Today.
   useEffect(() => {
     if (
       appReady &&
       session &&
       !needsHandle &&
+      !needsConsent &&
       hasCircle === false &&
       onboardingDone === false &&
       pathname !== '/group/create'
     ) {
       router.replace('/group/create?onboarding=true');
     }
-  }, [appReady, session, needsHandle, hasCircle, onboardingDone, pathname, router]);
+  }, [appReady, session, needsHandle, needsConsent, hasCircle, onboardingDone, pathname, router]);
 
   if (!appReady) return null;
 
@@ -95,7 +96,11 @@ function RootNavigator() {
         <Stack.Screen name="setup-handle" options={{ headerShown: false }} />
       </Stack.Protected>
 
-      <Stack.Protected guard={Boolean(session) && !needsHandle}>
+      <Stack.Protected guard={Boolean(session) && !needsHandle && needsConsent}>
+        <Stack.Screen name="setup-consent" options={{ headerShown: false }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={Boolean(session) && !needsHandle && !needsConsent}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="group/[groupId]/index" options={{ title: '' }} />
         <Stack.Screen
@@ -104,6 +109,8 @@ function RootNavigator() {
         />
         <Stack.Screen name="group/create" options={{ presentation: 'modal', title: 'Start a circle' }} />
         <Stack.Screen name="university-leaderboard" options={{ title: '' }} />
+        <Stack.Screen name="report" options={{ presentation: 'modal', title: 'Report' }} />
+        <Stack.Screen name="legal" options={{ title: '' }} />
       </Stack.Protected>
 
       {/* Public — reachable via philoi://join?code=ABC123 whether or not the user is signed in. */}

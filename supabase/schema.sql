@@ -17,8 +17,17 @@ create table if not exists profiles (
   university text,
   is_pro boolean not null default false,
   pro_until timestamptz,
+  -- Legal / store requirements: 18+ attestation + consent to Terms/Privacy.
+  -- Null = user signed up before this gate existed (treat as needing consent).
+  has_consented boolean not null default false,
+  consented_at timestamptz,
+  consent_version text,  -- policy version string, e.g. "2026-06-30"
   created_at timestamptz not null default now()
 );
+
+alter table profiles add column if not exists has_consented boolean not null default false;
+alter table profiles add column if not exists consented_at timestamptz;
+alter table profiles add column if not exists consent_version text;
 
 create table if not exists groups (
   id uuid primary key default gen_random_uuid(),
@@ -448,6 +457,43 @@ begin
 end;
 $$;
 
+-- Wipes everything tied to the caller's account: their circles (cascade), memberships,
+-- check-ins, reactions, invites, events, and finally the profile row + auth user.
+-- SECURITY DEFINER so the cascade can cross table-owner RLS boundaries (same reason as
+-- delete_group). This is required by Google Play + Apple in-app account deletion policy.
+-- Hard-deletes immediately; Storage photos are orphaned and should be cleaned up by a
+-- scheduled job or Cloud Function within 30 days per the Privacy Policy.
+create or replace function delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid := auth.uid();
+begin
+  if v_user_id is null then
+    raise exception 'Not authenticated.';
+  end if;
+
+  -- Delete circles the caller owns (cascades to group_members, check_ins, reactions, invites).
+  delete from groups where owner_id = v_user_id;
+
+  -- Remove memberships in circles owned by others (doesn't touch other members' data).
+  delete from group_members where user_id = v_user_id;
+
+  -- Remaining direct rows.
+  delete from reactions where user_id = v_user_id;
+  delete from check_ins where user_id = v_user_id;
+  delete from invites where inviter_id = v_user_id;
+  delete from events where user_id = v_user_id;
+  delete from profiles where id = v_user_id;
+
+  -- Remove the auth user last — this invalidates the JWT so no further requests succeed.
+  delete from auth.users where id = v_user_id;
+end;
+$$;
+
 -- Dropped first: CREATE OR REPLACE can't change an existing function's RETURNS TABLE columns
 -- (this file originally shipped get_group_leaderboard without goal_target).
 drop function if exists get_group_leaderboard(uuid);
@@ -569,6 +615,41 @@ create policy "check-in-photos: upload own if member" on storage.objects for ins
     and is_group_member(((storage.foldername(name))[1])::uuid)
     and (storage.foldername(name))[2] = auth.uid()::text
   );
+
+-- ───────────────────────────── moderation ─────────────────────────────
+-- Required for Google Play + Apple social-app review. Every report is preserved;
+-- hard-delete only happens after a human moderator reviews it (see Tier B spec).
+-- Admins query this via the Supabase Table Editor (service role bypasses RLS).
+
+create table if not exists moderation_reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid references profiles (id) on delete set null,
+  reported_check_in_id uuid references check_ins (id) on delete set null,
+  reported_user_id uuid references profiles (id) on delete set null,
+  reason text not null,
+  status text not null default 'pending' check (status in ('pending', 'reviewed', 'actioned', 'dismissed')),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists blocked_users (
+  blocker_id uuid not null references profiles (id) on delete cascade,
+  blocked_id uuid not null references profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id)
+);
+
+alter table moderation_reports enable row level security;
+alter table blocked_users enable row level security;
+
+-- Authenticated users can file a report; only service role can read/update.
+drop policy if exists "moderation_reports: insert own" on moderation_reports;
+create policy "moderation_reports: insert own" on moderation_reports
+  for insert with check (reporter_id = auth.uid());
+
+-- Block: only see your own block list.
+drop policy if exists "blocked_users: manage own" on blocked_users;
+create policy "blocked_users: manage own" on blocked_users
+  for all using (blocker_id = auth.uid());
 
 -- ───────────────────────────── analytics views ─────────────────────────────
 -- Query these from the Supabase SQL editor (service role bypasses RLS) — there's

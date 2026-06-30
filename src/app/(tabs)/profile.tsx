@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
@@ -11,7 +11,8 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useEntitlement } from '@/hooks/use-entitlement';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { useAuth } from '@/lib/auth/auth-context';
-import { fetchUniversityMemberCount } from '@/lib/api/groups';
+import { deleteMyAccount, fetchUniversityMemberCount } from '@/lib/api/groups';
+import { getErrorMessage } from '@/lib/errors';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -19,6 +20,32 @@ export default function ProfileScreen() {
   const { groups } = useMyGroups();
   const { isMember, devOverride, setDevOverride } = useEntitlement();
   const [universityCount, setUniversityCount] = useState<number | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Delete account',
+      'This permanently deletes your profile, all your circles you own, check-ins, and photos. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete my account',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingAccount(true);
+            try {
+              await deleteMyAccount();
+              await signOut();
+            } catch (e) {
+              Alert.alert('Could not delete account', getErrorMessage(e, 'Try again or contact support@getphiloi.com.'));
+            } finally {
+              setDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
+  }
 
   const totalActiveStreaks = groups.filter((g) => g.current_streak > 0).length;
   const longestStreak = groups.reduce((max, g) => Math.max(max, g.longest_streak), 0);
@@ -64,7 +91,7 @@ export default function ProfileScreen() {
       <View style={styles.statsRow}>
         <Card style={styles.statCard}>
           <Text style={styles.statValue}>{totalActiveStreaks}</Text>
-          <Text style={styles.statLabel}>active streaks</Text>
+          <Text style={styles.statLabel}>{totalActiveStreaks === 1 ? 'active streak' : 'active streaks'}</Text>
         </Card>
         <Card style={styles.statCard}>
           <Text style={styles.statValue}>{longestStreak}</Text>
@@ -104,6 +131,24 @@ export default function ProfileScreen() {
       </Card>
 
       <SecondaryButton label="Sign out" onPress={signOut} />
+
+      {/* Legal links — required for store listing + Apple/Google review */}
+      <Card style={styles.section}>
+        <Text style={styles.sectionTitle}>About</Text>
+        <Pressable onPress={() => router.push('/legal?page=privacy')} style={styles.legalRow}>
+          <Text style={styles.legalLink}>Privacy Policy</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/legal?page=terms')} style={styles.legalRow}>
+          <Text style={styles.legalLink}>Terms of Service</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/legal?page=child-safety')} style={styles.legalRow}>
+          <Text style={styles.legalLink}>Child Safety Standards</Text>
+        </Pressable>
+      </Card>
+
+      <Pressable onPress={handleDeleteAccount} disabled={deletingAccount}>
+        <Text style={styles.deleteLink}>{deletingAccount ? 'Deleting…' : 'Delete account'}</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -203,5 +248,20 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     color: Colors.ink,
     flex: 1,
+  },
+  legalRow: {
+    paddingVertical: Spacing.two,
+  },
+  legalLink: {
+    fontFamily: Fonts.body,
+    color: Colors.coral,
+    fontSize: 14,
+  },
+  deleteLink: {
+    fontFamily: Fonts.bodySemiBold,
+    color: Colors.muted,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+    paddingVertical: Spacing.two,
   },
 });

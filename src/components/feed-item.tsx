@@ -1,10 +1,13 @@
 import { Image } from 'expo-image';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { ReactionBar } from '@/components/reaction-bar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { FeedCheckIn } from '@/lib/api/check-ins';
+import { useAuth } from '@/lib/auth/auth-context';
+import { supabase } from '@/lib/supabase';
 
 function formatRelativeTime(isoDate: string) {
   const diffMs = Date.now() - new Date(isoDate).getTime();
@@ -22,11 +25,39 @@ type FeedItemProps = {
 };
 
 export function FeedItem({ item, onReactionChanged }: FeedItemProps) {
+  const router = useRouter();
+  const { session } = useAuth();
+  const isOwnPost = item.user_id === session?.user.id;
+
+  function handleMore() {
+    const options = isOwnPost
+      ? [{ text: 'Cancel', style: 'cancel' as const }]
+      : [
+          { text: 'Report', onPress: () => router.push(`/report?checkInId=${item.id}&userId=${item.user_id}`) },
+          {
+            text: 'Block user',
+            style: 'destructive' as const,
+            onPress: async () => {
+              if (!session) return;
+              await supabase.from('blocked_users').insert({ blocker_id: session.user.id, blocked_id: item.user_id });
+              Alert.alert('User blocked', "You won't see their posts anymore.");
+            },
+          },
+          { text: 'Cancel', style: 'cancel' as const },
+        ];
+    Alert.alert(isOwnPost ? 'Options' : 'Report or block', '', options);
+  }
+
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.name}>{item.profiles.display_name}</Text>
-        <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>
+        <View style={styles.headerRight}>
+          <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>
+          <Pressable onPress={handleMore} hitSlop={8}>
+            <Text style={styles.more}>···</Text>
+          </Pressable>
+        </View>
       </View>
 
       {item.signedPhotoUrl && <Image source={{ uri: item.signedPhotoUrl }} style={styles.photo} />}
@@ -46,7 +77,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: Spacing.two,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
   name: {
     fontFamily: Fonts.bodyBold,
@@ -56,6 +93,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.muted,
+  },
+  more: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.muted,
+    fontSize: 16,
+    letterSpacing: 1,
   },
   photo: {
     width: '100%',

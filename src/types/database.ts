@@ -11,6 +11,10 @@ export type Profile = {
   /** Has an active paid Philoi membership. Unused for gating during free early access — see use-entitlement.ts. */
   is_pro: boolean;
   pro_until: string | null;
+  /** 18+ attestation + ToS/Privacy consent. Null or false = must complete setup-age-consent screen. */
+  has_consented: boolean;
+  consented_at: string | null;
+  consent_version: string | null;
   created_at: string;
 };
 
@@ -184,6 +188,18 @@ export type Database = {
         Update: Partial<AnalyticsEvent>;
         Relationships: [];
       };
+      moderation_reports: {
+        Row: { id: string; reporter_id: string | null; reported_check_in_id: string | null; reported_user_id: string | null; reason: string; status: string; created_at: string };
+        Insert: { reporter_id?: string | null; reported_check_in_id?: string | null; reported_user_id?: string | null; reason: string };
+        Update: { status?: string };
+        Relationships: [];
+      };
+      blocked_users: {
+        Row: { blocker_id: string; blocked_id: string; created_at: string };
+        Insert: { blocker_id: string; blocked_id: string };
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -208,6 +224,7 @@ export type Database = {
       ensure_personal_invite: { Args: Record<string, never>; Returns: string };
       set_my_goal_target: { Args: { p_group_id: string; p_goal_target: string | null }; Returns: undefined };
       delete_group: { Args: { p_group_id: string }; Returns: undefined };
+      delete_my_account: { Args: Record<string, never>; Returns: undefined };
       get_university_leaderboard: {
         Args: { p_university: string; p_limit?: number };
         Returns: UniversityLeaderboardRow[];

@@ -15,6 +15,8 @@ type AuthContextValue = {
   error: string | null;
   /** True when signed in but the profile is missing a handle — show the handle-setup screen. */
   needsHandle: boolean;
+  /** True when signed in but the user hasn't completed the 18+ attestation + consent screen. */
+  needsConsent: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -108,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ready,
     error,
     needsHandle: Boolean(session && profile && !profile.handle),
+    needsConsent: Boolean(session && profile && !profile.has_consented),
     refreshProfile: async () => loadProfileFor(session?.user),
     signOut: async () => {
       await supabase.auth.signOut();
