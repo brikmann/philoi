@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
@@ -10,15 +11,23 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useEntitlement } from '@/hooks/use-entitlement';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { useAuth } from '@/lib/auth/auth-context';
+import { fetchUniversityMemberCount } from '@/lib/api/groups';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, signOut } = useAuth();
   const { groups } = useMyGroups();
-  const { isPro, devOverride, setDevOverride } = useEntitlement();
+  const { isMember, devOverride, setDevOverride } = useEntitlement();
+  const [universityCount, setUniversityCount] = useState<number | null>(null);
 
   const totalActiveStreaks = groups.filter((g) => g.current_streak > 0).length;
   const longestStreak = groups.reduce((max, g) => Math.max(max, g.longest_streak), 0);
+
+  useEffect(() => {
+    if (profile?.university) {
+      fetchUniversityMemberCount(profile.university).then(setUniversityCount);
+    }
+  }, [profile?.university]);
 
   if (!profile) return null;
 
@@ -35,9 +44,22 @@ export default function ProfileScreen() {
         <View>
           <Text style={styles.name}>{profile.display_name}</Text>
           <Text style={styles.handle}>@{profile.handle}</Text>
-          {isPro && <Chip label="Philoi Pro" tone="pro" />}
+          {isMember && <Chip label="Philoi Member" tone="pro" />}
         </View>
       </View>
+
+      {profile.university && (
+        <Pressable onPress={() => router.push('/university-leaderboard')}>
+          <Text style={styles.universityLine}>
+            📍 {profile.university}
+            {universityCount !== null && universityCount > 1
+              ? ` — ${universityCount} people here are on Philoi`
+              : ''}
+            {'  '}
+            <Text style={styles.universityLink}>See leaderboard →</Text>
+          </Text>
+        </Pressable>
+      )}
 
       <View style={styles.statsRow}>
         <Card style={styles.statCard}>
@@ -50,11 +72,13 @@ export default function ProfileScreen() {
         </Card>
       </View>
 
-      {!isPro && (
-        <Card style={styles.proCard}>
-          <Text style={styles.proTitle}>Get Philoi Pro</Text>
-          <Text style={styles.proBody}>For the ones who go all in — themes, badges, advanced stats.</Text>
-          <SecondaryButton label="See Philoi Pro" onPress={() => router.push('/paywall')} />
+      {!isMember && (
+        <Card style={styles.membershipCard}>
+          <Text style={styles.membershipTitle}>Free during early access</Text>
+          <Text style={styles.membershipBody}>
+            Everything&apos;s unlocked while we build this out together — no ads, no catch.
+          </Text>
+          <SecondaryButton label="What's coming later" onPress={() => router.push('/paywall')} onDark />
         </Card>
       )}
 
@@ -70,7 +94,7 @@ export default function ProfileScreen() {
       <Card style={styles.section}>
         <Text style={styles.sectionTitle}>Dev tools</Text>
         <View style={styles.devRow}>
-          <Text style={styles.devLabel}>Force Philoi Pro (testing only)</Text>
+          <Text style={styles.devLabel}>Simulate active membership (testing only)</Text>
           <Switch
             value={devOverride}
             onValueChange={setDevOverride}
@@ -120,6 +144,15 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     marginBottom: Spacing.one,
   },
+  universityLine: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.muted,
+  },
+  universityLink: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.coral,
+  },
   statsRow: {
     flexDirection: 'row',
     gap: Spacing.three,
@@ -138,17 +171,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.muted,
   },
-  proCard: {
+  membershipCard: {
     gap: Spacing.two,
     backgroundColor: Colors.plum,
     borderColor: Colors.plum,
   },
-  proTitle: {
+  membershipTitle: {
     fontFamily: Fonts.display,
     fontSize: 18,
     color: Colors.ember,
   },
-  proBody: {
+  membershipBody: {
     fontFamily: Fonts.body,
     color: Colors.cream,
   },

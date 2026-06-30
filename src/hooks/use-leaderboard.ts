@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { fetchLeaderboard } from '@/lib/api/groups';
+import { getErrorMessage } from '@/lib/errors';
 import type { LeaderboardRow } from '@/types/database';
 
 export function useLeaderboard(groupId: string) {
@@ -13,7 +14,7 @@ export function useLeaderboard(groupId: string) {
       setError(null);
       setRows(await fetchLeaderboard(groupId));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load the leaderboard.');
+      setError(getErrorMessage(e, 'Could not load the leaderboard.'));
     } finally {
       setLoading(false);
     }

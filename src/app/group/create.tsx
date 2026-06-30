@@ -1,14 +1,17 @@
 import * as Clipboard from 'expo-clipboard';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { SecondaryButton } from '@/components/ui/secondary-button';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { track } from '@/lib/analytics';
 import { createGroup, fetchInviteLink } from '@/lib/api/groups';
+import { getErrorMessage } from '@/lib/errors';
+import { markOnboardingDone } from '@/lib/onboarding';
 import type { GoalType } from '@/types/database';
 
 const EMOJI_OPTIONS = ['🔥', '🏋️', '🏃', '📚', '🧘', '🎯'];
@@ -19,12 +22,23 @@ const GOAL_TYPES: { value: GoalType; label: string }[] = [
   { value: 'custom', label: 'Custom' },
 ];
 
+// Cadence presets adapt to the goal — "study" is framed in hours, not session counts.
+const CADENCE_PRESETS: Record<GoalType, string[]> = {
+  gym: ['3x/week', '4x/week', '5x/week', 'Daily'],
+  run: ['3x/week', '4x/week', '5x/week', 'Daily'],
+  study: ['5 hrs/week', '10 hrs/week', '15 hrs/week', '20 hrs/week'],
+  custom: ['3x/week', '4x/week', 'Daily', 'Weekly'],
+};
+
 export default function CreateGroupScreen() {
   const router = useRouter();
+  const { onboarding } = useLocalSearchParams<{ onboarding?: string }>();
+  const isOnboarding = onboarding === 'true';
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState(EMOJI_OPTIONS[0]);
   const [goalType, setGoalType] = useState<GoalType>('gym');
-  const [cadence, setCadence] = useState('4x/week');
+  const [cadence, setCadence] = useState(CADENCE_PRESETS.gym[1]);
+  const [isPublic, setIsPublic] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invite, setInvite] = useState<{ groupId: string; deepLink: string } | null>(null);
@@ -38,11 +52,17 @@ export default function CreateGroupScreen() {
     setLoading(true);
     setError(null);
     try {
-      const group = await createGroup({ name: name.trim(), emoji, goalType, cadence: cadence.trim() });
+      const group = await createGroup({
+        name: name.trim(),
+        emoji,
+        goalType,
+        cadence: cadence.trim(),
+        isPublic,
+      });
       const link = await fetchInviteLink(group.id, group.join_code);
       setInvite({ groupId: group.id, deepLink: link.deepLink });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not create your circle.');
+      setError(getErrorMessage(e, 'Could not create your circle.'));
     } finally {
       setLoading(false);
     }
@@ -52,6 +72,7 @@ export default function CreateGroupScreen() {
     if (!invite) return;
     await Clipboard.setStringAsync(invite.deepLink);
     setCopied(true);
+    track('invite_sent', { group_id: invite.groupId, source: 'create' });
   }
 
   if (invite) {
@@ -65,17 +86,38 @@ export default function CreateGroupScreen() {
           <Text style={styles.linkText}>{invite.deepLink}</Text>
         </Card>
 
-        <PrimaryButton label={copied ? 'Copied!' : 'Copy invite link'} onPress={handleCopy} />
-        <SecondaryButton
-          label="Go to my circle"
-          onPress={() => router.replace(`/group/${invite.groupId}`)}
+        <SecondaryButton label={copied ? 'Copied!' : 'Copy invite link'} onPress={handleCopy} />
+
+        <PrimaryButton
+          label={isOnboarding ? 'Take my first photo' : 'Go to my circle'}
+          onPress={async () => {
+            await markOnboardingDone();
+            router.replace(isOnboarding ? `/group/${invite.groupId}/check-in` : `/group/${invite.groupId}`);
+          }}
         />
+
+        {isOnboarding && (
+          <Text
+            style={styles.skipLink}
+            onPress={async () => {
+              await markOnboardingDone();
+              router.replace(`/group/${invite.groupId}`);
+            }}>
+            I&apos;ll check in later
+          </Text>
+        )}
       </ScrollView>
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {isOnboarding && (
+        <Text style={styles.onboardingIntro}>
+          Pick a goal and name your circle — you can invite friends right after.
+        </Text>
+      )}
+
       <Text style={styles.label}>Circle name</Text>
       <TextInput placeholder="e.g. Morning Lifters" value={name} onChangeText={setName} maxLength={40} />
 
@@ -96,7 +138,10 @@ export default function CreateGroupScreen() {
         {GOAL_TYPES.map((option) => (
           <Pressable
             key={option.value}
-            onPress={() => setGoalType(option.value)}
+            onPress={() => {
+              setGoalType(option.value);
+              setCadence(CADENCE_PRESETS[option.value][0]);
+            }}
             style={[styles.chip, goalType === option.value && styles.chipSelected]}>
             <Text style={[styles.chipText, goalType === option.value && styles.chipTextSelected]}>
               {option.label}
@@ -106,10 +151,45 @@ export default function CreateGroupScreen() {
       </View>
 
       <Text style={styles.label}>Cadence</Text>
-      <TextInput placeholder="e.g. 4x/week" value={cadence} onChangeText={setCadence} maxLength={20} />
+      <View style={styles.row}>
+        {CADENCE_PRESETS[goalType].map((preset) => (
+          <Pressable
+            key={preset}
+            onPress={() => setCadence(preset)}
+            style={[styles.chip, cadence === preset && styles.chipSelected]}>
+            <Text style={[styles.chipText, cadence === preset && styles.chipTextSelected]}>{preset}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <TextInput placeholder="Or type a custom cadence" value={cadence} onChangeText={setCadence} maxLength={20} />
+
+      <View style={styles.discoverRow}>
+        <View style={styles.discoverText}>
+          <Text style={styles.label}>Make discoverable</Text>
+          <Text style={styles.discoverHint}>
+            Others with the same goal (especially at your school) can find and join without a code.
+          </Text>
+        </View>
+        <Switch
+          value={isPublic}
+          onValueChange={setIsPublic}
+          trackColor={{ true: Colors.coral, false: Colors.line }}
+        />
+      </View>
 
       {error && <Text style={styles.error}>{error}</Text>}
       <PrimaryButton label="Build my circle" onPress={handleCreate} loading={loading} />
+
+      {isOnboarding && (
+        <Text
+          style={styles.skipLink}
+          onPress={async () => {
+            await markOnboardingDone();
+            router.replace('/');
+          }}>
+          Skip for now
+        </Text>
+      )}
     </ScrollView>
   );
 }
@@ -164,6 +244,35 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: '#FFFFFF',
+  },
+  onboardingIntro: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    color: Colors.muted,
+    marginBottom: Spacing.two,
+  },
+  skipLink: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 14,
+    color: Colors.muted,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+    marginTop: Spacing.two,
+  },
+  discoverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    marginTop: Spacing.three,
+  },
+  discoverText: {
+    flex: 1,
+    gap: Spacing.half,
+  },
+  discoverHint: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.muted,
   },
   error: {
     fontFamily: Fonts.body,

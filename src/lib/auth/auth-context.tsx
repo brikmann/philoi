@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 
+import { identify, track } from '@/lib/analytics';
+import { getErrorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/types/database';
 
@@ -23,21 +25,27 @@ async function ensureProfile(user: User): Promise<Profile> {
   const { data: existing } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
   if (existing) return existing;
 
+  // Upsert, not insert — getSession() and onAuthStateChange's INITIAL_SESSION event both fire
+  // this on first sign-in, racing on the insert otherwise (duplicate key on profiles_pkey).
+  // Only touches id/display_name/avatar_url on conflict, so handle/university/is_pro on an
+  // existing row are never clobbered.
   const meta = user.user_metadata ?? {};
-  const { data: created, error } = await supabase
+  const { data: row, error } = await supabase
     .from('profiles')
-    .insert({
-      id: user.id,
-      handle: null,
-      display_name: meta.full_name ?? meta.name ?? user.email?.split('@')[0] ?? 'New friend',
-      avatar_url: meta.avatar_url ?? meta.picture ?? null,
-      is_pro: false,
-    })
+    .upsert(
+      {
+        id: user.id,
+        display_name: meta.full_name ?? meta.name ?? user.email?.split('@')[0] ?? 'New friend',
+        avatar_url: meta.avatar_url ?? meta.picture ?? null,
+      },
+      { onConflict: 'id' }
+    )
     .select('*')
     .single();
 
   if (error) throw error;
-  return created;
+  track('signed_up');
+  return row;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -53,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const row = await ensureProfile(user);
     setProfile(row);
+    identify(row.id, { handle: row.handle, university: row.university, display_name: row.display_name });
   }
 
   useEffect(() => {
@@ -67,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch((e) => {
         console.error('[auth] failed to restore session/profile:', e);
-        if (mounted) setError(e instanceof Error ? e.message : String(e));
+        if (mounted) setError(getErrorMessage(e, 'Something went wrong restoring your session.'));
       })
       .finally(() => {
         if (mounted) setReady(true);
@@ -81,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setError(null);
       } catch (e) {
         console.error('[auth] failed to load profile on auth change:', e);
-        setError(e instanceof Error ? e.message : String(e));
+        setError(getErrorMessage(e, 'Something went wrong loading your profile.'));
       } finally {
         setReady(true);
       }

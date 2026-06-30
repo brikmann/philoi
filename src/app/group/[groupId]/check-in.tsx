@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, Share, StyleSheet, Text } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -10,8 +10,11 @@ import { Screen } from '@/components/ui/screen';
 import { SecondaryButton } from '@/components/ui/secondary-button';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { track } from '@/lib/analytics';
 import { postCheckIn } from '@/lib/api/check-ins';
+import { fetchGroup, fetchInviteLink } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
+import { getErrorMessage } from '@/lib/errors';
 
 export default function CheckInScreen() {
   const router = useRouter();
@@ -22,30 +25,40 @@ export default function CheckInScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   const celebrateScale = useSharedValue(0);
   const celebrateStyle = useAnimatedStyle(() => ({
     transform: [{ scale: celebrateScale.value }],
   }));
 
-  async function pickFrom(source: 'camera' | 'library') {
-    const permission =
-      source === 'camera'
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setError('Philoi needs that permission to post a check-in photo.');
-      return;
-    }
+  // Camera-only, deliberately — a library photo isn't proof you showed up today.
+  async function takePhoto() {
+    setError(null);
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setError('Philoi needs camera access to post a check-in photo.');
+        return;
+      }
 
-    const result =
-      source === 'camera'
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+      console.log('[check-in] launching camera...');
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
+      console.log('[check-in] camera result:', {
+        canceled: result.canceled,
+        assetCount: result.canceled ? 0 : result.assets.length,
+      });
 
-    if (!result.canceled && result.assets[0]) {
+      if (result.canceled) return;
+      if (!result.assets[0]) {
+        setError('No photo came back from the camera — try again.');
+        return;
+      }
       setPhotoUri(result.assets[0].uri);
-      setError(null);
+    } catch (e) {
+      console.error('[check-in] camera failed:', e);
+      setError(getErrorMessage(e, 'Could not open the camera.'));
     }
   }
 
@@ -62,11 +75,27 @@ export default function CheckInScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // eslint-disable-next-line react-hooks/immutability -- mutating .value is the documented Reanimated API
       celebrateScale.value = withSequence(withSpring(1.2), withSpring(1));
-      setTimeout(() => router.replace(`/group/${groupId}`), 1100);
+
+      // Highest-converting moment to grow the circle — no auto-dismiss timer here, the
+      // user picks "Invite" or "Done" themselves.
+      const group = await fetchGroup(groupId);
+      const link = await fetchInviteLink(group.id, group.join_code);
+      setInviteLink(link.deepLink);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not post your check-in.');
+      setError(getErrorMessage(e, 'Could not post your check-in.'));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleShareInvite() {
+    if (!inviteLink) return;
+    setSharing(true);
+    try {
+      track('invite_sent', { group_id: groupId, source: 'post_check_in' });
+      await Share.share({ message: `I just locked in on Philoi 🔥 Join my circle and keep me honest: ${inviteLink}` });
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -76,6 +105,10 @@ export default function CheckInScreen() {
         <Animated.Text style={[styles.celebrateEmoji, celebrateStyle]}>🔥</Animated.Text>
         <Text style={styles.celebrateText}>Logged. Your circle saw that.</Text>
         <Text style={styles.celebrateSubtext}>Streak +1</Text>
+
+        <Text style={styles.inviteNudge}>Who&apos;s keeping you honest? Add them.</Text>
+        <PrimaryButton label="Invite a friend" onPress={handleShareInvite} loading={sharing} disabled={!inviteLink} />
+        <SecondaryButton label="Done" onPress={() => router.replace(`/group/${groupId}`)} onDark />
       </Screen>
     );
   }
@@ -87,16 +120,11 @@ export default function CheckInScreen() {
           <Image source={{ uri: photoUri }} style={styles.preview} />
         </Pressable>
       ) : (
-        <View style={styles.pickerRow}>
-          <Pressable style={styles.pickerOption} onPress={() => pickFrom('camera')}>
-            <Text style={styles.pickerEmoji}>📸</Text>
-            <Text style={styles.pickerLabel}>Take a photo</Text>
-          </Pressable>
-          <Pressable style={styles.pickerOption} onPress={() => pickFrom('library')}>
-            <Text style={styles.pickerEmoji}>🖼️</Text>
-            <Text style={styles.pickerLabel}>Choose from library</Text>
-          </Pressable>
-        </View>
+        <Pressable style={styles.pickerOption} onPress={takePhoto}>
+          <Text style={styles.pickerEmoji}>📸</Text>
+          <Text style={styles.pickerLabel}>Take a photo</Text>
+          <Text style={styles.pickerHint}>Proof, not claims — camera only.</Text>
+        </Pressable>
       )}
 
       <TextInput
@@ -119,12 +147,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingTop: Spacing.three,
   },
-  pickerRow: {
-    flexDirection: 'row',
-    gap: Spacing.three,
-  },
   pickerOption: {
-    flex: 1,
     aspectRatio: 1,
     borderRadius: Radius.card,
     borderWidth: 2,
@@ -135,13 +158,19 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   pickerEmoji: {
-    fontSize: 32,
+    fontSize: 40,
   },
   pickerLabel: {
     fontFamily: Fonts.bodySemiBold,
+    fontSize: 17,
     color: Colors.ink,
     textAlign: 'center',
     paddingHorizontal: Spacing.two,
+  },
+  pickerHint: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.muted,
   },
   preview: {
     width: '100%',
@@ -156,6 +185,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,
+    paddingHorizontal: Spacing.four,
   },
   celebrateEmoji: {
     fontSize: 72,
@@ -169,5 +199,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyExtraBold,
     fontSize: 16,
     color: Colors.ember,
+  },
+  inviteNudge: {
+    fontFamily: Fonts.body,
+    fontSize: 15,
+    color: Colors.cream,
+    textAlign: 'center',
+    marginTop: Spacing.four,
   },
 });

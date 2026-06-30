@@ -2,6 +2,7 @@ import { decode } from 'base64-arraybuffer';
 import * as Crypto from 'expo-crypto';
 import { File } from 'expo-file-system';
 
+import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 import type { CheckIn, CheckInStatus, Reaction } from '@/types/database';
 
@@ -67,5 +68,6 @@ export async function postCheckIn(input: {
     .select('*')
     .single();
   if (error) throw error;
+  track('check_in_completed', { group_id: input.groupId, photo: true });
   return data;
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { fetchFeed, type FeedCheckIn } from '@/lib/api/check-ins';
+import { getErrorMessage } from '@/lib/errors';
 
 export function useFeed(groupId: string) {
   const [items, setItems] = useState<FeedCheckIn[]>([]);
@@ -12,7 +13,7 @@ export function useFeed(groupId: string) {
       setError(null);
       setItems(await fetchFeed(groupId));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load the feed.');
+      setError(getErrorMessage(e, 'Could not load the feed.'));
     } finally {
       setLoading(false);
     }

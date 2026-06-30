@@ -1,16 +1,25 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FlameIcon } from '@/components/flame-icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
+import { SecondaryButton } from '@/components/ui/secondary-button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useEntitlement } from '@/hooks/use-entitlement';
-import { PRO_FEATURES, PRO_PRICING, purchasePro } from '@/lib/billing';
+import { useAuth } from '@/lib/auth/auth-context';
+import { signInWithGoogle } from '@/lib/auth/providers';
+import { MEMBERSHIP_PITCH, MEMBERSHIP_PRICING, purchaseMembership } from '@/lib/billing';
+import { getErrorMessage } from '@/lib/errors';
 
+// Voluntary preview only — Philoi is free for everyone during early access (no gating
+// anywhere routes here). See use-entitlement.ts for why isMember/devOverride still exist.
 export default function PaywallScreen() {
-  const { setDevOverride } = useEntitlement();
-  const [plan, setPlan] = useState<keyof typeof PRO_PRICING>('yearly');
+  const router = useRouter();
+  const { session } = useAuth();
+  const { isMember, setDevOverride } = useEntitlement();
+  const [plan, setPlan] = useState<keyof typeof MEMBERSHIP_PRICING>('yearly');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -18,23 +27,39 @@ export default function PaywallScreen() {
     setLoading(true);
     setError(null);
     try {
-      await purchasePro(plan);
+      await purchaseMembership(plan);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Purchases are not available yet.');
+      setError(getErrorMessage(e, 'Membership isn’t available yet.'));
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!session) {
+    return (
+      <Screen dark style={styles.centeredContainer}>
+        <FlameIcon size={64} />
+        <Text style={styles.title}>Philoi Membership</Text>
+        <Text style={styles.subtitle}>Sign in to see what&apos;s coming.</Text>
+        <PrimaryButton label="Continue with Google" onPress={() => signInWithGoogle().catch((e) => setError(e.message))} />
+        {error && <Text style={styles.error}>{error}</Text>}
+      </Screen>
+    );
   }
 
   return (
     <Screen dark>
       <ScrollView contentContainerStyle={styles.container}>
         <FlameIcon size={64} />
-        <Text style={styles.title}>Philoi Pro</Text>
-        <Text style={styles.subtitle}>For the ones who go all in.</Text>
+        <Text style={styles.title}>Philoi is free right now</Text>
+        <Text style={styles.subtitle}>
+          {isMember
+            ? 'Dev override is on — this is a preview of what membership will look like.'
+            : "We're in early access — everything's unlocked. Here's a preview of what membership will look like later:"}
+        </Text>
 
         <View style={styles.features}>
-          {PRO_FEATURES.map((feature) => (
+          {MEMBERSHIP_PITCH.map((feature) => (
             <Text key={feature} style={styles.feature}>
               ✨ {feature}
             </Text>
@@ -42,23 +67,24 @@ export default function PaywallScreen() {
         </View>
 
         <View style={styles.plans}>
-          {(Object.keys(PRO_PRICING) as (keyof typeof PRO_PRICING)[]).map((key) => (
+          {(Object.keys(MEMBERSHIP_PRICING) as (keyof typeof MEMBERSHIP_PRICING)[]).map((key) => (
             <Text
               key={key}
               onPress={() => setPlan(key)}
               style={[styles.planChip, plan === key && styles.planChipActive]}>
-              {PRO_PRICING[key].label}
+              {MEMBERSHIP_PRICING[key].label}
             </Text>
           ))}
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <PrimaryButton label="Unlock Philoi Pro" onPress={handlePurchase} loading={loading} />
+        <PrimaryButton label="Join (coming later)" onPress={handlePurchase} loading={loading} />
+        <SecondaryButton label="Back to Philoi" onPress={() => router.back()} onDark />
 
         {__DEV__ && (
-          <Text style={styles.devLink} onPress={() => setDevOverride(true)}>
-            Dev: force Pro without billing
+          <Text style={styles.devLink} onPress={() => setDevOverride(!isMember)}>
+            Dev: {isMember ? 'clear' : 'simulate'} membership override
           </Text>
         )}
       </ScrollView>
@@ -72,14 +98,23 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingVertical: Spacing.six,
   },
+  centeredContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.three,
+    padding: Spacing.four,
+  },
   title: {
     fontFamily: Fonts.display,
     fontSize: 30,
     color: Colors.ember,
+    textAlign: 'center',
   },
   subtitle: {
     fontFamily: Fonts.body,
     color: Colors.cream,
+    textAlign: 'center',
   },
   features: {
     gap: Spacing.two,

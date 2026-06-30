@@ -6,8 +6,10 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { signInWithGoogle } from '@/lib/auth/providers';
+import { getErrorMessage } from '@/lib/errors';
 import { joinGroupWithCode } from '@/lib/api/groups';
 
 export default function JoinScreen() {
@@ -28,9 +30,10 @@ export default function JoinScreen() {
     setError(null);
     try {
       const group = await joinGroupWithCode(joinCode.trim());
+      track('invite_accepted', { group_id: group.id });
       router.replace(`/group/${group.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not find that circle.');
+      setError(getErrorMessage(e, 'Could not find that circle.'));
     } finally {
       setLoading(false);
     }
@@ -52,7 +55,10 @@ export default function JoinScreen() {
             Join {params.code ? `with code ${params.code.toUpperCase()}` : 'a circle'}
           </Text>
           <Text style={[styles.body, styles.bodyOnDark]}>Sign in first — your circle’s waiting.</Text>
-          <PrimaryButton label="Continue with Google" onPress={() => signInWithGoogle().catch((e) => setError(e.message))} />
+          <PrimaryButton
+            label="Continue with Google"
+            onPress={() => signInWithGoogle().catch((e) => setError(getErrorMessage(e, 'Something went wrong — try again.')))}
+          />
           {error && <Text style={styles.error}>{error}</Text>}
         </View>
       </Screen>

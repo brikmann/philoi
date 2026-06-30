@@ -7,6 +7,8 @@ export type Profile = {
   handle: string | null;
   display_name: string;
   avatar_url: string | null;
+  university: string | null;
+  /** Has an active paid Philoi membership. Unused for gating during free early access — see use-entitlement.ts. */
   is_pro: boolean;
   pro_until: string | null;
   created_at: string;
@@ -20,7 +22,18 @@ export type Group = {
   join_code: string;
   goal_type: GoalType;
   cadence: string;
+  is_public: boolean;
   created_at: string;
+};
+
+export type DiscoverableGroup = {
+  id: string;
+  name: string;
+  emoji: string;
+  goal_type: GoalType;
+  cadence: string;
+  member_count: number;
+  owner_university: string | null;
 };
 
 export type GroupMember = {
@@ -30,6 +43,8 @@ export type GroupMember = {
   joined_at: string;
   current_streak: number;
   longest_streak: number;
+  /** Personal target within the circle, e.g. "A in CHEM101" — set via set_my_goal_target(). */
+  goal_target: string | null;
 };
 
 export type CheckIn = {
@@ -57,6 +72,22 @@ export type Invite = {
   created_at: string;
 };
 
+export type AnalyticsEventName =
+  | 'signed_up'
+  | 'circle_created'
+  | 'circle_joined'
+  | 'invite_sent'
+  | 'invite_accepted'
+  | 'check_in_completed';
+
+export type AnalyticsEvent = {
+  id: string;
+  user_id: string | null;
+  name: AnalyticsEventName;
+  properties: Record<string, unknown>;
+  created_at: string;
+};
+
 export type LeaderboardRow = {
   user_id: string;
   handle: string;
@@ -64,6 +95,17 @@ export type LeaderboardRow = {
   avatar_url: string | null;
   is_pro: boolean;
   current_streak: number;
+  goal_target: string | null;
+  check_ins_this_week: number;
+};
+
+export type UniversityLeaderboardRow = {
+  user_id: string;
+  handle: string;
+  display_name: string;
+  avatar_url: string | null;
+  is_pro: boolean;
+  best_streak: number;
   check_ins_this_week: number;
 };
 
@@ -136,17 +178,40 @@ export type Database = {
         Update: Partial<Invite>;
         Relationships: [];
       };
+      events: {
+        Row: AnalyticsEvent;
+        Insert: Partial<AnalyticsEvent> & { user_id: string; name: AnalyticsEventName };
+        Update: Partial<AnalyticsEvent>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
       get_group_leaderboard: { Args: { p_group_id: string }; Returns: LeaderboardRow[] };
       get_weekly_recap: { Args: { p_user_id: string }; Returns: WeeklyRecap[] };
       create_group_with_owner: {
-        Args: { p_name: string; p_emoji: string; p_goal_type: GoalType; p_cadence: string };
+        Args: {
+          p_name: string;
+          p_emoji: string;
+          p_goal_type: GoalType;
+          p_cadence: string;
+          p_is_public?: boolean;
+        };
         Returns: Group;
       };
       join_group_with_code: { Args: { p_code: string }; Returns: Group };
+      join_public_group: { Args: { p_group_id: string }; Returns: Group };
+      get_discoverable_groups: {
+        Args: { p_goal_type?: GoalType | null; p_limit?: number };
+        Returns: DiscoverableGroup[];
+      };
       ensure_personal_invite: { Args: Record<string, never>; Returns: string };
+      set_my_goal_target: { Args: { p_group_id: string; p_goal_target: string | null }; Returns: undefined };
+      delete_group: { Args: { p_group_id: string }; Returns: undefined };
+      get_university_leaderboard: {
+        Args: { p_university: string; p_limit?: number };
+        Returns: UniversityLeaderboardRow[];
+      };
     };
   };
 };

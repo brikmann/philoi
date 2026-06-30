@@ -7,6 +7,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { signInWithGoogle } from '@/lib/auth/providers';
+import { getErrorMessage } from '@/lib/errors';
 
 export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
@@ -18,7 +19,7 @@ export default function SignInScreen() {
     try {
       await signInWithGoogle();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong — try again.');
+      setError(getErrorMessage(e, 'Something went wrong — try again.'));
     } finally {
       setLoading(false);
     }
@@ -28,9 +29,9 @@ export default function SignInScreen() {
     <Screen dark style={styles.container}>
       <View style={styles.hero}>
         <FlameIcon size={96} />
-        <Logo size={36} showFlame={false} />
+        <Logo size={36} showFlame={false} dark />
         <Text style={styles.tagline}>Lock in — together.</Text>
-        <Text style={styles.subtitle}>Philoi — Greek for your people.</Text>
+        <Text style={styles.subtitle}>FEE-loy — Greek for &quot;friends&quot;.</Text>
       </View>
 
       <View style={styles.footer}>

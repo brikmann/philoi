@@ -6,11 +6,15 @@ create extension if not exists pgcrypto;
 
 -- ───────────────────────────── tables ─────────────────────────────
 
+-- profiles.is_pro / pro_until now mean "has an active paid Philoi membership"
+-- (hard paywall after the trial window — see TRIAL_DAYS in src/lib/billing.ts),
+-- not a cosmetic upsell tier.
 create table if not exists profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   handle text unique,
   display_name text not null,
   avatar_url text,
+  university text,
   is_pro boolean not null default false,
   pro_until timestamptz,
   created_at timestamptz not null default now()
@@ -24,8 +28,13 @@ create table if not exists groups (
   join_code text not null unique default upper(substr(md5(random()::text), 1, 6)),
   goal_type text not null default 'custom' check (goal_type in ('gym', 'run', 'study', 'custom')),
   cadence text not null default '7x/week',
+  is_public boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+-- Additive columns for projects that already ran this file before university/is_public existed.
+alter table profiles add column if not exists university text;
+alter table groups add column if not exists is_public boolean not null default false;
 
 create table if not exists group_members (
   group_id uuid not null references groups (id) on delete cascade,
@@ -34,8 +43,13 @@ create table if not exists group_members (
   joined_at timestamptz not null default now(),
   current_streak integer not null default 0,
   longest_streak integer not null default 0,
+  -- Personal target within the circle — e.g. "A in CHEM101" for a study group. Self-reported,
+  -- set via set_my_goal_target() (not a direct column update — see RLS note below).
+  goal_target text,
   primary key (group_id, user_id)
 );
+
+alter table group_members add column if not exists goal_target text;
 
 create table if not exists check_ins (
   id uuid primary key default gen_random_uuid(),
@@ -63,9 +77,27 @@ create table if not exists invites (
   created_at timestamptz not null default now()
 );
 
+-- Traction analytics — see src/lib/analytics.ts track() and the analytics_* views below.
+-- No read policy for normal users on purpose: query this via the SQL editor / table editor
+-- (service role bypasses RLS), not from the client.
+create table if not exists events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles (id) on delete set null,
+  -- No enum check — the event vocabulary is still settling (see AnalyticsEventName in
+  -- src/types/database.ts for the current set); a DB check constraint just adds migration
+  -- friction every time it changes. PostHog is the source of truth for analysis anyway.
+  name text not null,
+  properties jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+alter table events drop constraint if exists events_name_check;
+
 create index if not exists check_ins_group_created_idx on check_ins (group_id, created_at desc);
 create index if not exists check_ins_user_group_idx on check_ins (user_id, group_id, created_at desc);
 create index if not exists reactions_check_in_idx on reactions (check_in_id);
+create index if not exists events_user_created_idx on events (user_id, created_at desc);
+create index if not exists events_name_created_idx on events (name, created_at desc);
 
 -- ───────────────────────── helper: membership check ─────────────────────────
 
@@ -90,6 +122,7 @@ alter table group_members enable row level security;
 alter table check_ins enable row level security;
 alter table reactions enable row level security;
 alter table invites enable row level security;
+alter table events enable row level security;
 
 drop policy if exists "profiles: read any" on profiles;
 create policy "profiles: read any" on profiles for select using (true);
@@ -103,17 +136,29 @@ create policy "profiles: insert own" on profiles for insert with check (id = aut
 drop policy if exists "groups: read if member" on groups;
 create policy "groups: read if member" on groups for select using (is_group_member(id));
 
+drop policy if exists "groups: read if public" on groups;
+create policy "groups: read if public" on groups for select using (is_public = true);
+
 drop policy if exists "groups: insert as self" on groups;
 create policy "groups: insert as self" on groups for insert with check (owner_id = auth.uid());
 
 drop policy if exists "groups: owner can update" on groups;
 create policy "groups: owner can update" on groups for update using (owner_id = auth.uid());
 
+drop policy if exists "groups: owner can delete" on groups;
+create policy "groups: owner can delete" on groups for delete using (owner_id = auth.uid());
+
 drop policy if exists "group_members: read if member" on group_members;
 create policy "group_members: read if member" on group_members for select using (is_group_member(group_id));
 
 drop policy if exists "group_members: insert self" on group_members;
 create policy "group_members: insert self" on group_members for insert with check (user_id = auth.uid());
+
+-- Members can leave; owners must delete the whole circle instead (avoids an orphaned circle).
+drop policy if exists "group_members: leave if not owner" on group_members;
+create policy "group_members: leave if not owner" on group_members for delete using (
+  user_id = auth.uid() and role <> 'owner'
+);
 
 drop policy if exists "check_ins: read if member" on check_ins;
 create policy "check_ins: read if member" on check_ins for select using (is_group_member(group_id));
@@ -149,6 +194,9 @@ create policy "invites: read own or for my groups" on invites for select using (
 
 drop policy if exists "invites: insert own" on invites;
 create policy "invites: insert own" on invites for insert with check (inviter_id = auth.uid());
+
+drop policy if exists "events: insert own" on events;
+create policy "events: insert own" on events for insert with check (user_id = auth.uid());
 
 -- ───────────────────────────── streak trigger ─────────────────────────────
 
@@ -237,7 +285,8 @@ create or replace function create_group_with_owner(
   p_name text,
   p_emoji text,
   p_goal_type text,
-  p_cadence text
+  p_cadence text,
+  p_is_public boolean default false
 )
 returns groups
 language plpgsql
@@ -247,8 +296,8 @@ as $$
 declare
   v_group groups;
 begin
-  insert into groups (name, emoji, owner_id, goal_type, cadence)
-  values (p_name, coalesce(p_emoji, '🔥'), auth.uid(), p_goal_type, p_cadence)
+  insert into groups (name, emoji, owner_id, goal_type, cadence, is_public)
+  values (p_name, coalesce(p_emoji, '🔥'), auth.uid(), p_goal_type, p_cadence, coalesce(p_is_public, false))
   returning * into v_group;
 
   insert into group_members (group_id, user_id, role)
@@ -284,6 +333,68 @@ begin
 end;
 $$;
 
+create or replace function join_public_group(p_group_id uuid)
+returns groups
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_group groups;
+begin
+  select * into v_group from groups where id = p_group_id and is_public = true;
+
+  if v_group.id is null then
+    raise exception 'That circle is not open for discovery.';
+  end if;
+
+  insert into group_members (group_id, user_id, role)
+  values (v_group.id, auth.uid(), 'member')
+  on conflict (group_id, user_id) do nothing;
+
+  return v_group;
+end;
+$$;
+
+-- Cold-start discovery: public circles the caller isn't already in yet,
+-- ranked by same-university match first, then by goal type match, then recency.
+create or replace function get_discoverable_groups(p_goal_type text default null, p_limit int default 20)
+returns table (
+  id uuid,
+  name text,
+  emoji text,
+  goal_type text,
+  cadence text,
+  member_count bigint,
+  owner_university text
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    g.id,
+    g.name,
+    g.emoji,
+    g.goal_type,
+    g.cadence,
+    (select count(*) from group_members gm2 where gm2.group_id = g.id) as member_count,
+    owner.university as owner_university
+  from groups g
+  join profiles owner on owner.id = g.owner_id
+  where g.is_public = true
+    and not exists (
+      select 1 from group_members gm
+      where gm.group_id = g.id and gm.user_id = auth.uid()
+    )
+    and (p_goal_type is null or g.goal_type = p_goal_type)
+  order by
+    (owner.university is not null and owner.university = (select p.university from profiles p where p.id = auth.uid())) desc,
+    g.created_at desc
+  limit p_limit;
+$$;
+
 create or replace function ensure_personal_invite()
 returns text
 language plpgsql
@@ -303,7 +414,45 @@ begin
 end;
 $$;
 
-create or replace function get_group_leaderboard(p_group_id uuid)
+-- Personal target inside a circle (e.g. "A in CHEM101") — RPC-gated rather than a direct
+-- "update own row" RLS policy, so members can't also use that policy to self-edit their streaks.
+create or replace function set_my_goal_target(p_group_id uuid, p_goal_target text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update group_members
+  set goal_target = nullif(trim(p_goal_target), '')
+  where group_id = p_group_id and user_id = auth.uid();
+end;
+$$;
+
+-- Deleting a group cascades to group_members/check_ins/reactions/invites for every member,
+-- not just the owner's own rows — RLS on those tables only ever permits touching your own
+-- row, so a plain client-side `delete from groups` gets blocked mid-cascade and the whole
+-- transaction rolls back. Security definer bypasses that for this one owner-gated operation.
+create or replace function delete_group(p_group_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from groups where id = p_group_id and owner_id = auth.uid()) then
+    raise exception 'Only the owner can delete this circle.';
+  end if;
+
+  delete from groups where id = p_group_id;
+end;
+$$;
+
+-- Dropped first: CREATE OR REPLACE can't change an existing function's RETURNS TABLE columns
+-- (this file originally shipped get_group_leaderboard without goal_target).
+drop function if exists get_group_leaderboard(uuid);
+
+create function get_group_leaderboard(p_group_id uuid)
 returns table (
   user_id uuid,
   handle text,
@@ -311,6 +460,7 @@ returns table (
   avatar_url text,
   is_pro boolean,
   current_streak integer,
+  goal_target text,
   check_ins_this_week bigint
 )
 language sql
@@ -325,6 +475,7 @@ as $$
     p.avatar_url,
     p.is_pro,
     gm.current_streak,
+    gm.goal_target,
     coalesce((
       select count(*) from check_ins ci
       where ci.group_id = p_group_id
@@ -361,6 +512,41 @@ as $$
   group by g.id, g.name;
 $$;
 
+-- School-wide leaderboard: ranks every member.university match by their single best
+-- active streak across any circle (not summed — joining lots of circles shouldn't itself
+-- improve rank), tie-broken by total check-ins this week across all their circles.
+create or replace function get_university_leaderboard(p_university text, p_limit int default 50)
+returns table (
+  user_id uuid,
+  handle text,
+  display_name text,
+  avatar_url text,
+  is_pro boolean,
+  best_streak integer,
+  check_ins_this_week bigint
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    p.id as user_id,
+    p.handle,
+    p.display_name,
+    p.avatar_url,
+    p.is_pro,
+    coalesce((select max(gm.current_streak) from group_members gm where gm.user_id = p.id), 0) as best_streak,
+    coalesce((
+      select count(*) from check_ins ci
+      where ci.user_id = p.id and ci.created_at >= date_trunc('week', now())
+    ), 0) as check_ins_this_week
+  from profiles p
+  where p.university = p_university
+  order by best_streak desc, check_ins_this_week desc, p.display_name asc
+  limit p_limit;
+$$;
+
 -- ───────────────────────────── storage ─────────────────────────────
 -- Bucket layout: check-in-photos/{group_id}/{user_id}/{check_in_id}.jpg
 -- so policies can read the group id straight out of the object path.
@@ -383,3 +569,55 @@ create policy "check-in-photos: upload own if member" on storage.objects for ins
     and is_group_member(((storage.foldername(name))[1])::uuid)
     and (storage.foldername(name))[2] = auth.uid()::text
   );
+
+-- ───────────────────────────── analytics views ─────────────────────────────
+-- Query these from the Supabase SQL editor (service role bypasses RLS) — there's
+-- no in-app dashboard for these on purpose. This is what decides when/how to charge.
+
+create or replace view analytics_daily_signups as
+select date_trunc('day', created_at)::date as day, count(*) as signups
+from profiles
+group by 1
+order by 1;
+
+create or replace view analytics_event_counts as
+select name, date_trunc('day', created_at)::date as day, count(*) as count
+from events
+group by 1, 2
+order by 2 desc, 1;
+
+-- Per-signup-day-cohort D1/D7 retention. "Active" = fired any event on that calendar day.
+create or replace view analytics_retention as
+with signups as (
+  select id as user_id, date_trunc('day', created_at)::date as signup_day
+  from profiles
+),
+activity as (
+  select user_id, date_trunc('day', created_at)::date as active_day
+  from events
+  group by 1, 2
+)
+select
+  s.signup_day,
+  count(distinct s.user_id) as cohort_size,
+  count(distinct a1.user_id) as d1_active,
+  count(distinct a7.user_id) as d7_active,
+  round(100.0 * count(distinct a1.user_id) / greatest(count(distinct s.user_id), 1), 1) as d1_retention_pct,
+  round(100.0 * count(distinct a7.user_id) / greatest(count(distinct s.user_id), 1), 1) as d7_retention_pct
+from signups s
+left join activity a1 on a1.user_id = s.user_id and a1.active_day = s.signup_day + 1
+left join activity a7 on a7.user_id = s.user_id and a7.active_day = s.signup_day + 7
+group by s.signup_day
+order by s.signup_day;
+
+-- invites_accepted per signup — the "would they actually pull friends in" signal.
+create or replace view analytics_viral_coefficient as
+select
+  (select count(*) from profiles) as total_signups,
+  (select count(*) from events where name = 'invite_sent') as invites_sent,
+  (select count(*) from events where name = 'invite_accepted') as invites_accepted,
+  round(
+    (select count(*) from events where name = 'invite_accepted')::numeric
+    / greatest((select count(*) from profiles), 1),
+    3
+  ) as viral_coefficient;

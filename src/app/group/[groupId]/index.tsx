@@ -5,6 +5,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'rea
 
 import { FeedItem } from '@/components/feed-item';
 import { LeaderboardRow } from '@/components/leaderboard-row';
+import { MyGoalTarget } from '@/components/my-goal-target';
 import { RecapStrip } from '@/components/recap-strip';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -13,6 +14,7 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useFeed } from '@/hooks/use-feed';
 import { useGroup } from '@/hooks/use-group';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { track } from '@/lib/analytics';
 import { fetchInviteLink, fetchWeeklyRecap } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 
@@ -42,6 +44,7 @@ export default function GroupScreen() {
     const link = await fetchInviteLink(group.id, group.join_code);
     await Clipboard.setStringAsync(link.deepLink);
     setCopied(true);
+    track('invite_sent', { group_id: group.id, source: 'group_screen' });
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -94,6 +97,15 @@ export default function GroupScreen() {
           keyExtractor={(item) => item.user_id}
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.coral} />}
+          ListHeaderComponent={
+            group?.goal_type === 'study' && session ? (
+              <MyGoalTarget
+                groupId={groupId}
+                current={leaderboard.rows.find((r) => r.user_id === session.user.id)?.goal_target ?? null}
+                onSaved={leaderboard.refetch}
+              />
+            ) : null
+          }
           renderItem={({ item, index }) => (
             <LeaderboardRow rank={index + 1} row={item} isMe={item.user_id === session?.user.id} />
           )}

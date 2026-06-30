@@ -82,6 +82,9 @@ const config: ExpoConfig = {
       },
     ],
   ],
+  runtimeVersion: {
+    policy: 'sdkVersion',
+  },
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
@@ -92,6 +95,8 @@ const config: ExpoConfig = {
     // TODO: RevenueCat — public SDK keys go here once billing is wired up.
     revenueCatIosKey: process.env.REVENUECAT_IOS_KEY ?? null,
     revenueCatAndroidKey: process.env.REVENUECAT_ANDROID_KEY ?? null,
+    posthogApiKey: process.env.POSTHOG_API_KEY ?? null,
+    posthogHost: process.env.POSTHOG_HOST ?? 'https://us.i.posthog.com',
     eas: {
       projectId: 'f1031c6d-fd56-4d27-880a-0e87a7953f05',
     },

@@ -6,18 +6,27 @@ import {
   Nunito_700Bold,
   Nunito_800ExtraBold,
 } from '@expo-google-fonts/nunito';
-import { Stack } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { PostHogProvider } from 'posthog-react-native';
 
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { useHasAnyCircle } from '@/hooks/use-has-any-circle';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
+import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
+import { posthog } from '@/lib/posthog';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { ready, error, session, needsHandle } = useAuth();
+  const { hasCircle, refetch: refetchHasCircle } = useHasAnyCircle();
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
   const [fredokaLoaded] = useFredokaFonts({ Fredoka_500Medium, Fredoka_600SemiBold });
   const [nunitoLoaded] = useNunitoFonts({
     Nunito_400Regular,
@@ -32,12 +41,41 @@ function RootNavigator() {
     if (appReady) SplashScreen.hideAsync();
   }, [appReady]);
 
+  useEffect(() => {
+    isOnboardingDone().then(setOnboardingDone);
+  }, []);
+
+  // Re-check membership on every navigation — cheap count query, and it's what keeps the
+  // "force onboarding" redirect below from going stale right after creating a circle.
+  useEffect(() => {
+    refetchHasCircle();
+  }, [pathname, refetchHasCircle]);
+
+  useEffect(() => {
+    if (hasCircle) markOnboardingDone().then(() => setOnboardingDone(true));
+  }, [hasCircle]);
+
+  // First-run guided path: signed in, handle set, never had a circle, hasn't finished/skipped
+  // onboarding yet — push to the create-circle flow instead of an empty Today screen.
+  useEffect(() => {
+    if (
+      appReady &&
+      session &&
+      !needsHandle &&
+      hasCircle === false &&
+      onboardingDone === false &&
+      pathname !== '/group/create'
+    ) {
+      router.replace('/group/create?onboarding=true');
+    }
+  }, [appReady, session, needsHandle, hasCircle, onboardingDone, pathname, router]);
+
   if (!appReady) return null;
 
   if (error) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Couldn't connect to Philoi</Text>
+        <Text style={styles.errorTitle}>Couldn&apos;t connect to Philoi</Text>
         <Text style={styles.errorBody}>{error}</Text>
         <Text style={styles.errorHint}>
           Check SUPABASE_URL / SUPABASE_ANON_KEY in .env, that supabase/schema.sql ran with no
@@ -65,20 +103,35 @@ function RootNavigator() {
           options={{ presentation: 'modal', title: 'Check in' }}
         />
         <Stack.Screen name="group/create" options={{ presentation: 'modal', title: 'Start a circle' }} />
-        <Stack.Screen name="paywall" options={{ presentation: 'modal', title: '' }} />
+        <Stack.Screen name="university-leaderboard" options={{ title: '' }} />
       </Stack.Protected>
 
       {/* Public — reachable via philoi://join?code=ABC123 whether or not the user is signed in. */}
       <Stack.Screen name="join" options={{ headerShown: false }} />
+
+      {/* Public — the Google OAuth redirect lands here mid-sign-in, before session exists. */}
+      <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+
+      {/* Public, voluntary preview of Philoi membership — dormant until pricing ships. */}
+      <Stack.Screen name="paywall" options={{ headerShown: false, presentation: 'modal' }} />
     </Stack>
   );
 }
 
 export default function RootLayout() {
-  return (
+  const content = (
     <AuthProvider>
       <RootNavigator />
     </AuthProvider>
+  );
+
+  // Required for react-native-gesture-handler's Gesture API (drag-to-trash on Today) to work
+  // reliably, especially on Android.
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* No-op wrapper when POSTHOG_API_KEY isn't set — see src/lib/posthog.ts. */}
+      {posthog ? <PostHogProvider client={posthog}>{content}</PostHogProvider> : content}
+    </GestureHandlerRootView>
   );
 }
 

@@ -54,11 +54,11 @@ export async function setGroupReminder(input: {
       title: `${input.groupName} — don't break the streak 🔥`,
       body: "Your circle's counting on you. Lock in today.",
     },
+    // DAILY, not CALENDAR — CALENDAR triggers are iOS-only in expo-notifications.
     trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour: input.hour,
       minute: input.minute,
-      repeats: true,
     },
   });
 

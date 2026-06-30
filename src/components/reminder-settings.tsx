@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { getErrorMessage } from '@/lib/errors';
 import { clearGroupReminder, getGroupReminder, setGroupReminder } from '@/lib/notifications';
 
 const PRESET_TIMES = [
@@ -37,7 +38,7 @@ export function ReminderSettings({ groupId, groupName }: { groupId: string; grou
       }
     } catch (e) {
       setEnabled(!value);
-      setError(e instanceof Error ? e.message : 'Could not update reminders.');
+      setError(getErrorMessage(e, 'Could not update reminders.'));
     }
   }
 

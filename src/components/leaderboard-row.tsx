@@ -28,11 +28,9 @@ export function LeaderboardRow({ rank, row, isMe }: LeaderboardRowProps) {
           {isMe ? ' (you)' : ''}
         </Text>
         <Text style={styles.handle}>@{row.handle ?? 'newcomer'}</Text>
+        {row.goal_target && <Text style={styles.target}>🎯 {row.goal_target}</Text>}
       </View>
-      <View style={styles.badges}>
-        {rank === 1 && <Chip label="achiever" tone="achiever" />}
-        {row.is_pro && <Chip label="PRO" tone="pro" />}
-      </View>
+      <View style={styles.badges}>{rank === 1 && <Chip label="achiever" tone="achiever" />}</View>
       <Text style={styles.streak}>🔥 {row.current_streak}</Text>
     </View>
   );
@@ -81,6 +79,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.muted,
+  },
+  target: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.plum,
   },
   badges: {
     flexDirection: 'row',

@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { fetchMyGroups, type MyGroup } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
+import { getErrorMessage } from '@/lib/errors';
 
 export function useMyGroups() {
   const { session } = useAuth();
@@ -17,7 +18,7 @@ export function useMyGroups() {
       const data = await fetchMyGroups(session.user.id);
       setGroups(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load your circles.');
+      setError(getErrorMessage(e, 'Could not load your circles.'));
     } finally {
       setLoading(false);
     }
