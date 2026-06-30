@@ -35,7 +35,7 @@ const PERSONAS = [
 ];
 
 const CIRCLES = [
-  { name: 'Morning Lifters', emoji: '🏋️', goal_type: 'gym', cadence: '5x/week', owner: 0, joiners: [2] },
+  { name: 'Sunrise Lift Club', emoji: '🏋️', goal_type: 'gym', cadence: '5x/week', owner: 0, joiners: [2] },
   { name: 'Couch to 5K Crew', emoji: '🏃', goal_type: 'run', cadence: '4x/week', owner: 1, joiners: [3] },
   { name: 'Push Day Collective', emoji: '💪', goal_type: 'gym', cadence: '6x/week', owner: 2, joiners: [0] },
   { name: 'Sunday Long Run Club', emoji: '🏃‍♀️', goal_type: 'run', cadence: '7x/week', owner: 3, joiners: [1] },
@@ -73,7 +73,15 @@ async function ensurePersona(persona) {
 }
 
 async function ensureCircle(circle, ownerId) {
-  const { data: existing } = await admin.from('groups').select('id').eq('name', circle.name).maybeSingle();
+  // Match on name AND owner — matching on name alone risks colliding with a real user's
+  // circle that happens to share a demo circle's name (this bit us once: a real "Morning
+  // Lifters" circle absorbed a demo joiner before this owner check existed).
+  const { data: existing } = await admin
+    .from('groups')
+    .select('id')
+    .eq('name', circle.name)
+    .eq('owner_id', ownerId)
+    .maybeSingle();
   if (existing) return existing.id;
 
   const { data: group, error } = await admin
