@@ -17,6 +17,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.philoi.app',
+    googleServicesFile: './google-services.json',
     adaptiveIcon: {
       backgroundColor: '#3A2E5C',
       foregroundImage: './assets/images/android-icon-foreground.png',

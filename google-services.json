@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "67103346571",
+    "project_id": "philoi-56a71",
+    "storage_bucket": "philoi-56a71.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:67103346571:android:d993c8735b88d62d99e98e",
+        "android_client_info": {
+          "package_name": "com.philoi.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1gOspiN-wRD0C4FMZnzVl6QrnuJCzFT4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
