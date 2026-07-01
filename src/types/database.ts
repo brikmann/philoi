@@ -15,6 +15,10 @@ export type Profile = {
   has_consented: boolean;
   consented_at: string | null;
   consent_version: string | null;
+  /** Whether chat push notifications show the message body on the lock screen. Off by default. */
+  show_message_previews: boolean;
+  /** Fake account created by scripts/seed-demo-circles.js — used by the dev-tools RPCs, never a real user. */
+  is_demo: boolean;
   created_at: string;
 };
 
@@ -49,6 +53,8 @@ export type GroupMember = {
   longest_streak: number;
   /** Personal target within the circle, e.g. "A in CHEM101" — set via set_my_goal_target(). */
   goal_target: string | null;
+  /** Chat push notifications (mentions + batched general messages) muted for this circle. */
+  chat_muted: boolean;
 };
 
 export type CheckIn = {
@@ -274,6 +280,11 @@ export type Database = {
         Args: { p_university: string; p_limit?: number };
         Returns: UniversityLeaderboardRow[];
       };
+      set_chat_muted: { Args: { p_group_id: string; p_muted: boolean }; Returns: undefined };
+      send_test_notification: { Args: Record<string, never>; Returns: undefined };
+      dev_seed_my_demo_circle: { Args: Record<string, never>; Returns: Group };
+      dev_simulate_friend_checkin: { Args: { p_group_id: string; p_fake_user_id: string }; Returns: undefined };
+      dev_reset_my_checkins: { Args: { p_group_id?: string | null }; Returns: undefined };
     };
   };
 };

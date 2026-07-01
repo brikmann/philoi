@@ -7,6 +7,7 @@ import {
   Nunito_800ExtraBold,
 } from '@expo-google-fonts/nunito';
 import { Stack, usePathname, useRouter } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -80,14 +81,28 @@ function RootNavigator() {
     if (hasCircle) markOnboardingDone().then(() => setOnboardingDone(true));
   }, [hasCircle]);
 
-  // Register for server-sent pushes once the user is fully onboarded (past handle + consent) —
-  // not on raw sign-in, so we're not prompting for OS notification permission before the
-  // person has even named their first circle.
+  // Register for server-sent pushes once the user has actually joined/created their first
+  // circle — not right after consent, so the OS permission prompt has real in-context
+  // meaning ("notify me about my circle") instead of firing cold before there's anything to
+  // be notified about.
   useEffect(() => {
-    if (appReady && session && !needsHandle && !needsConsent) {
+    if (appReady && session && !needsHandle && !needsConsent && hasCircle) {
       registerPushToken(session.user.id);
     }
-  }, [appReady, session, needsHandle, needsConsent]);
+  }, [appReady, session, needsHandle, needsConsent, hasCircle]);
+
+  // Tapping a notification (from background or a cold start) deep-links to the relevant
+  // circle — every push we send includes group_id in its data payload (see notify_push()'s
+  // callers in schema.sql).
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const groupId = response.notification.request.content.data?.group_id;
+      if (typeof groupId === 'string') {
+        router.push(`/group/${groupId}`);
+      }
+    });
+    return () => subscription.remove();
+  }, [router]);
 
   // First-run guided path: signed in, handle set, consent done, never had a circle,
   // hasn't finished/skipped onboarding yet — push to create-circle instead of empty Today.

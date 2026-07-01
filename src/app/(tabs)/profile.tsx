@@ -3,6 +3,8 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { ChatMuteToggle } from '@/components/chat-mute-toggle';
+import { DevTools } from '@/components/dev-tools';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { SecondaryButton } from '@/components/ui/secondary-button';
@@ -14,6 +16,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { deleteMyAccount, fetchUniversityMemberCount } from '@/lib/api/groups';
 import { getErrorMessage } from '@/lib/errors';
 import { loadRewardPreferences, setHapticsEnabled, setSoundEnabled } from '@/lib/reward-settings';
+import { supabase } from '@/lib/supabase';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -24,6 +27,7 @@ export default function ProfileScreen() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [soundEnabled, setSoundEnabledState] = useState(true);
   const [hapticsEnabled, setHapticsEnabledState] = useState(true);
+  const [showPreviews, setShowPreviews] = useState(profile?.show_message_previews ?? false);
 
   useEffect(() => {
     loadRewardPreferences().then((prefs) => {
@@ -31,6 +35,15 @@ export default function ProfileScreen() {
       setHapticsEnabledState(prefs.haptics);
     });
   }, []);
+
+  async function handleTogglePreviews(value: boolean) {
+    setShowPreviews(value);
+    try {
+      await supabase.from('profiles').update({ show_message_previews: value }).eq('id', profile?.id ?? '');
+    } catch {
+      setShowPreviews(!value);
+    }
+  }
 
   function handleToggleSound(value: boolean) {
     setSoundEnabledState(value);
@@ -142,6 +155,23 @@ export default function ProfileScreen() {
         </Card>
       )}
 
+      {groups.length > 0 && (
+        <Card style={styles.section}>
+          <Text style={styles.sectionTitle}>Chat notifications</Text>
+          <View style={styles.devRow}>
+            <Text style={styles.devLabel}>Show message previews on lock screen</Text>
+            <Switch
+              value={showPreviews}
+              onValueChange={handleTogglePreviews}
+              trackColor={{ true: Colors.coral, false: Colors.line }}
+            />
+          </View>
+          {groups.map((group) => (
+            <ChatMuteToggle key={group.id} groupId={group.id} initialMuted={group.chat_muted} />
+          ))}
+        </Card>
+      )}
+
       <Card style={styles.section}>
         <Text style={styles.sectionTitle}>Sound &amp; haptics</Text>
         <View style={styles.devRow}>
@@ -162,17 +192,7 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Dev tools</Text>
-        <View style={styles.devRow}>
-          <Text style={styles.devLabel}>Simulate active membership (testing only)</Text>
-          <Switch
-            value={devOverride}
-            onValueChange={setDevOverride}
-            trackColor={{ true: Colors.coral, false: Colors.line }}
-          />
-        </View>
-      </Card>
+      <DevTools devOverride={devOverride} setDevOverride={setDevOverride} groups={groups} />
 
       <SecondaryButton label="Sign out" onPress={signOut} />
 

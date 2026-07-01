@@ -961,7 +961,16 @@ create policy "push_tokens: manage own" on push_tokens for all using (user_id = 
 
 -- Fire-and-forget push send to every registered device for the given users via Expo's push
 -- API. No response handling/token cleanup yet — dead tokens just no-op on Expo's end.
-create or replace function notify_push(p_user_ids uuid[], p_title text, p_body text, p_data jsonb default '{}'::jsonb)
+-- p_channel_id routes to the matching Android notification channel (see
+-- src/lib/notifications.ts) — "accountability" (check-ins/reactions/streaks, high priority)
+-- vs "messages" (chat), so chat volume can never bury the accountability signal.
+create or replace function notify_push(
+  p_user_ids uuid[],
+  p_title text,
+  p_body text,
+  p_data jsonb default '{}'::jsonb,
+  p_channel_id text default 'accountability'
+)
 returns void
 language plpgsql
 security definer
@@ -975,7 +984,8 @@ begin
     'title', p_title,
     'body', p_body,
     'data', p_data,
-    'sound', 'default'
+    'sound', 'default',
+    'channelId', p_channel_id
   )), '[]'::jsonb)
   into v_messages
   from push_tokens t
@@ -1113,3 +1123,285 @@ select cron.schedule(
   '0 20 * * *',
   $$select notify_streaks_at_risk();$$
 );
+
+-- ───────────────────────────── chat notifications ─────────────────────────────
+-- @mentions/replies always notify immediately (handled by the trigger below); general
+-- messages are batched into one push per group every 5 minutes instead of one push per
+-- message. Both respect group_members.chat_muted and profiles.show_message_previews.
+
+alter table group_members add column if not exists chat_muted boolean not null default false;
+alter table profiles add column if not exists show_message_previews boolean not null default false;
+
+-- RPC-gated (not a direct "update own row" policy) for the same reason set_my_goal_target()
+-- is — group_members has no general update policy, so members can't use one to touch
+-- current_streak/longest_streak.
+create or replace function set_chat_muted(p_group_id uuid, p_muted boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update group_members
+  set chat_muted = p_muted
+  where group_id = p_group_id and user_id = auth.uid();
+end;
+$$;
+
+-- Immediate push for @handle mentions / direct replies — resolves each mention against
+-- profiles.handle scoped to members of the same circle (so "@sam" in one circle can't
+-- accidentally notify an unrelated "sam" elsewhere), skips muted recipients and the author.
+create or replace function notify_message_mentions()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_group_name text;
+  v_sender_name text;
+  v_handles text[];
+  v_recipient_ids uuid[];
+begin
+  select array_agg(lower(m[1])) into v_handles
+  from regexp_matches(new.body, '@([a-z0-9_]{3,20})', 'gi') as m;
+
+  if v_handles is null then
+    return new;
+  end if;
+
+  select name into v_group_name from groups where id = new.group_id;
+  select display_name into v_sender_name from profiles where id = new.user_id;
+
+  select coalesce(array_agg(distinct p.id), '{}')
+  into v_recipient_ids
+  from profiles p
+  join group_members gm on gm.user_id = p.id and gm.group_id = new.group_id
+  where lower(p.handle) = any(v_handles)
+    and p.id <> new.user_id
+    and gm.chat_muted = false;
+
+  if array_length(v_recipient_ids, 1) > 0 then
+    perform notify_push(
+      v_recipient_ids,
+      v_group_name,
+      coalesce(v_sender_name, 'Someone') || ' mentioned you',
+      jsonb_build_object('type', 'mention', 'group_id', new.group_id),
+      'messages'
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_message_mention on messages;
+create trigger on_message_mention
+  after insert on messages
+  for each row execute function notify_message_mentions();
+
+-- Tracks the last time each member was sent a batched "N new messages" push per circle, so
+-- the 5-minute sweep only counts what's actually new since then.
+create table if not exists message_notify_state (
+  group_id uuid not null references groups (id) on delete cascade,
+  user_id uuid not null references profiles (id) on delete cascade,
+  last_notified_at timestamptz not null default now(),
+  primary key (group_id, user_id)
+);
+
+alter table message_notify_state enable row level security;
+-- No client policies — this is bookkeeping for notify_message_batches() only, never read or
+-- written directly by the app.
+
+-- Every 5 minutes: for each (circle, member) with unseen messages from other people since
+-- their last batch, send one push — "3 new messages in [Circle]" by default, or the last
+-- message's actual body if the member opted into lock-screen previews. Lock-screen privacy:
+-- title never includes body content unless show_message_previews is on.
+create or replace function notify_message_batches()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r record;
+  v_body text;
+begin
+  for r in
+    select
+      gm.group_id,
+      gm.user_id,
+      g.name as group_name,
+      p.show_message_previews,
+      coalesce(mns.last_notified_at, gm.joined_at) as since,
+      count(m.id) as new_count,
+      (array_agg(m.body order by m.created_at desc))[1] as latest_body
+    from group_members gm
+    join groups g on g.id = gm.group_id
+    join profiles p on p.id = gm.user_id
+    left join message_notify_state mns on mns.group_id = gm.group_id and mns.user_id = gm.user_id
+    join messages m on m.group_id = gm.group_id
+      and m.user_id <> gm.user_id
+      and m.deleted_at is null
+      and m.created_at > coalesce(mns.last_notified_at, gm.joined_at)
+    where gm.chat_muted = false
+    group by gm.group_id, gm.user_id, g.name, p.show_message_previews, mns.last_notified_at, gm.joined_at
+  loop
+    v_body := case
+      when r.new_count = 1 and r.show_message_previews then r.latest_body
+      when r.new_count = 1 then 'New message'
+      else r.new_count || ' new messages'
+    end;
+
+    perform notify_push(
+      array[r.user_id],
+      r.group_name,
+      v_body,
+      jsonb_build_object('type', 'chat_batch', 'group_id', r.group_id),
+      'messages'
+    );
+
+    insert into message_notify_state (group_id, user_id, last_notified_at)
+    values (r.group_id, r.user_id, now())
+    on conflict (group_id, user_id) do update set last_notified_at = excluded.last_notified_at;
+  end loop;
+end;
+$$;
+
+do $$
+begin
+  if exists (select 1 from cron.job where jobname = 'philoi-chat-batch-notify') then
+    perform cron.unschedule('philoi-chat-batch-notify');
+  end if;
+end $$;
+
+select cron.schedule(
+  'philoi-chat-batch-notify',
+  '*/5 * * * *',
+  $$select notify_message_batches();$$
+);
+
+-- ───────────────────────────── dev tools (dev builds only) ─────────────────────────────
+-- Client gates all of these behind __DEV__ (src/components/dev-tools.tsx) — they're callable
+-- by any authenticated user at the DB layer, same trust level as every other RPC here, but
+-- dev_simulate_friend_checkin is restricted to profiles.is_demo accounts specifically so it
+-- can't be used to fake a check-in as a real person.
+
+alter table profiles add column if not exists is_demo boolean not null default false;
+
+create or replace function send_test_notification()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform notify_push(
+    array[auth.uid()],
+    'Test notification',
+    'If you see this, push is wired up correctly.',
+    jsonb_build_object('type', 'test'),
+    'accountability'
+  );
+end;
+$$;
+
+-- Creates a demo circle owned by the caller, populated with up to 3 existing is_demo members
+-- (from scripts/seed-demo-circles.js — profiles.id has a hard FK to auth.users, so this RPC
+-- can't fabricate brand-new fake accounts inline; it borrows real ones that already exist)
+-- plus a few backdated check-ins per member, so feed/leaderboard/streaks render populated
+-- without needing real friends. If no is_demo profiles exist yet, still creates the (empty)
+-- circle and raises a notice telling you to run the seed script first.
+create or replace function dev_seed_my_demo_circle()
+returns groups
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_group groups;
+  v_fake_id uuid;
+  v_day integer;
+  v_found boolean := false;
+begin
+  insert into groups (name, emoji, owner_id, goal_type, cadence, is_public)
+  values ('Dev Test Circle', '🧪', auth.uid(), 'gym', '7x/week', false)
+  returning * into v_group;
+
+  insert into group_members (group_id, user_id, role)
+  values (v_group.id, auth.uid(), 'owner');
+
+  for v_fake_id in select id from profiles where is_demo = true limit 3 loop
+    v_found := true;
+    insert into group_members (group_id, user_id, role)
+    values (v_group.id, v_fake_id, 'member')
+    on conflict (group_id, user_id) do nothing;
+
+    for v_day in 0..2 loop
+      insert into check_ins (group_id, user_id, photo_url, status, created_at)
+      values (
+        v_group.id, v_fake_id, 'dev-tools/placeholder.jpg', 'on_time',
+        now() - (v_day || ' days')::interval
+      );
+    end loop;
+  end loop;
+
+  if not v_found then
+    raise notice 'No is_demo profiles exist yet — run `npm run seed:demo` (scripts/seed-demo-circles.js), then call dev_seed_my_demo_circle() again to actually populate members.';
+  end if;
+
+  return v_group;
+end;
+$$;
+
+-- Inserts a check-in as a fake friend, triggering the real check-in notification path to
+-- everyone else in the circle (including the real caller) — this is the one that actually
+-- exercises the friend-checked-in -> push flow with a single physical device.
+create or replace function dev_simulate_friend_checkin(p_group_id uuid, p_fake_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not is_group_member(p_group_id) then
+    raise exception 'Not a member of that circle.';
+  end if;
+
+  if not exists (
+    select 1 from profiles where id = p_fake_user_id and is_demo = true
+  ) then
+    raise exception 'dev_simulate_friend_checkin only works with is_demo profiles.';
+  end if;
+
+  if not exists (
+    select 1 from group_members where group_id = p_group_id and user_id = p_fake_user_id
+  ) then
+    insert into group_members (group_id, user_id, role) values (p_group_id, p_fake_user_id, 'member');
+  end if;
+
+  insert into check_ins (group_id, user_id, photo_url, status)
+  values (p_group_id, p_fake_user_id, 'dev-tools/placeholder.jpg', 'on_time');
+end;
+$$;
+
+-- Clears the caller's own check-ins in one circle (or all circles if p_group_id is null) and
+-- recomputes streaks, so onboarding/empty-state flows can be re-tested without a fresh account.
+create or replace function dev_reset_my_checkins(p_group_id uuid default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r record;
+begin
+  for r in
+    select distinct group_id from check_ins
+    where user_id = auth.uid() and (p_group_id is null or group_id = p_group_id)
+  loop
+    delete from check_ins where user_id = auth.uid() and group_id = r.group_id;
+    perform recompute_streak(r.group_id, auth.uid());
+  end loop;
+end;
+$$;

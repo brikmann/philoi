@@ -64,7 +64,7 @@ async function ensurePersona(persona) {
   const { error: profileError } = await admin
     .from('profiles')
     .upsert(
-      { id: userId, display_name: persona.display_name, university: persona.university },
+      { id: userId, display_name: persona.display_name, university: persona.university, is_demo: true },
       { onConflict: 'id' }
     );
   if (profileError) throw profileError;

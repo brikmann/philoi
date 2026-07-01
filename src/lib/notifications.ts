@@ -18,6 +18,24 @@ Notifications.setNotificationHandler({
 });
 
 const REMINDER_MAP_KEY = 'philoi_group_reminders';
+const LAST_PUSH_TOKEN_KEY = 'philoi_last_push_token';
+
+// "Accountability" stays a separate, higher-priority channel from "Messages" so chat volume
+// can never bury a friend-checked-in / streak-at-risk notification — see notify_push()'s
+// p_channel_id param in schema.sql, which routes each push to one of these by name.
+async function ensureNotificationChannels() {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('accountability', {
+    name: 'Accountability',
+    description: 'Friend check-ins, reactions, and streak reminders.',
+    importance: Notifications.AndroidImportance.HIGH,
+  });
+  await Notifications.setNotificationChannelAsync('messages', {
+    name: 'Messages',
+    description: 'Circle chat.',
+    importance: Notifications.AndroidImportance.DEFAULT,
+  });
+}
 
 type ReminderMap = Record<string, { hour: number; minute: number; notificationId: string }>;
 
@@ -38,20 +56,17 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 }
 
 // Registers this device for server-sent pushes (friend checked in / reaction / streak at
-// risk — see notify_push and its triggers in supabase/schema.sql). Best-effort: a user who
-// declines the OS permission prompt just doesn't get these, same as local reminders.
+// risk / chat mentions / batched chat — see notify_push and its triggers in schema.sql).
+// Best-effort: a user who declines the OS permission prompt just doesn't get these, same as
+// local reminders. Called once the user has actually joined/created their first circle (see
+// _layout.tsx) rather than cold on launch, so the permission prompt has real context.
 export async function registerPushToken(userId: string): Promise<void> {
   if (Platform.OS === 'web') return;
   try {
     const granted = await requestNotificationPermissions();
     if (!granted) return;
 
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'Philoi',
-        importance: Notifications.AndroidImportance.DEFAULT,
-      });
-    }
+    await ensureNotificationChannels();
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
@@ -61,8 +76,21 @@ export async function registerPushToken(userId: string): Promise<void> {
       { user_id: userId, token },
       { onConflict: 'user_id,token' }
     );
+    await AsyncStorage.setItem(LAST_PUSH_TOKEN_KEY, token);
   } catch (e) {
     console.warn('[notifications] failed to register push token:', e);
+  }
+}
+
+// Removes just this device's token, not every device the user's signed in on elsewhere.
+export async function unregisterPushToken(userId: string): Promise<void> {
+  try {
+    const token = await AsyncStorage.getItem(LAST_PUSH_TOKEN_KEY);
+    if (!token) return;
+    await supabase.from('push_tokens').delete().eq('user_id', userId).eq('token', token);
+    await AsyncStorage.removeItem(LAST_PUSH_TOKEN_KEY);
+  } catch (e) {
+    console.warn('[notifications] failed to unregister push token:', e);
   }
 }
 
@@ -80,12 +108,7 @@ export async function setGroupReminder(input: {
   const granted = await requestNotificationPermissions();
   if (!granted) throw new Error('Notification permission was not granted.');
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('reminders', {
-      name: 'Streak reminders',
-      importance: Notifications.AndroidImportance.DEFAULT,
-    });
-  }
+  await ensureNotificationChannels();
 
   const map = await getReminderMap();
   const existing = map[input.groupId];
@@ -103,6 +126,7 @@ export async function setGroupReminder(input: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour: input.hour,
       minute: input.minute,
+      channelId: 'accountability',
     },
   });
 

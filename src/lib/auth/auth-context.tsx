@@ -3,6 +3,7 @@ import type { Session, User } from '@supabase/supabase-js';
 
 import { identify, track } from '@/lib/analytics';
 import { getErrorMessage } from '@/lib/errors';
+import { unregisterPushToken } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/types/database';
 
@@ -113,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     needsConsent: Boolean(session && profile && !profile.has_consented),
     refreshProfile: async () => loadProfileFor(session?.user),
     signOut: async () => {
+      if (session?.user.id) await unregisterPushToken(session.user.id);
       await supabase.auth.signOut();
     },
   };

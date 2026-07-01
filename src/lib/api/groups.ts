@@ -13,6 +13,7 @@ export type MyGroup = Group & {
   current_streak: number;
   longest_streak: number;
   checked_in_today: boolean;
+  chat_muted: boolean;
 };
 
 export async function deleteMyAccount(): Promise<void> {
@@ -35,7 +36,7 @@ export async function leaveGroup(groupId: string, userId: string): Promise<void>
 export async function fetchMyGroups(userId: string): Promise<MyGroup[]> {
   const { data: memberships, error } = await supabase
     .from('group_members')
-    .select('current_streak, longest_streak, groups(*)')
+    .select('current_streak, longest_streak, chat_muted, groups(*)')
     .eq('user_id', userId);
   if (error) throw error;
 
@@ -57,6 +58,7 @@ export async function fetchMyGroups(userId: string): Promise<MyGroup[]> {
       ...(m.groups as unknown as Group),
       current_streak: m.current_streak,
       longest_streak: m.longest_streak,
+      chat_muted: m.chat_muted,
       checked_in_today: checkedInGroupIds.has((m.groups as unknown as Group).id),
     }));
 }
@@ -65,6 +67,11 @@ export async function fetchGroup(groupId: string): Promise<Group> {
   const { data, error } = await supabase.from('groups').select('*').eq('id', groupId).single();
   if (error) throw error;
   return data;
+}
+
+export async function setChatMuted(groupId: string, muted: boolean): Promise<void> {
+  const { error } = await supabase.rpc('set_chat_muted', { p_group_id: groupId, p_muted: muted });
+  if (error) throw error;
 }
 
 export async function fetchMyStreak(
