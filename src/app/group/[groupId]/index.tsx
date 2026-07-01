@@ -50,6 +50,7 @@ export default function GroupScreen() {
 
   const refreshing = tab === 'feed' ? feed.loading : leaderboard.loading;
   const onRefresh = tab === 'feed' ? feed.refetch : leaderboard.refetch;
+  const activeError = tab === 'feed' ? feed.error : leaderboard.error;
 
   return (
     <Screen padded={false}>
@@ -72,6 +73,8 @@ export default function GroupScreen() {
           <Text style={[styles.tabLabel, tab === 'leaderboard' && styles.tabLabelActive]}>Leaderboard</Text>
         </Pressable>
       </View>
+
+      {activeError && <Text style={styles.error}>{activeError}</Text>}
 
       {tab === 'feed' ? (
         <FlatList
@@ -160,5 +163,12 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: Spacing.four,
+  },
+  error: {
+    fontFamily: Fonts.body,
+    color: Colors.coral,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.two,
   },
 });

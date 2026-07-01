@@ -714,6 +714,27 @@ create policy "check-in-photos: upload own if member" on storage.objects for ins
     and (storage.foldername(name))[2] = auth.uid()::text
   );
 
+-- Public (unlike check-in-photos) — avatars show up everywhere a profile does: feed,
+-- leaderboards, other people's circles. Bucket layout: avatars/{user_id}.jpg — one file per
+-- user, re-uploading overwrites via upsert rather than accumulating old versions.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 5242880, array['image/jpeg', 'image/png'])
+on conflict (id) do update set
+  public = true,
+  file_size_limit = 5242880,
+  allowed_mime_types = array['image/jpeg', 'image/png'];
+
+drop policy if exists "avatars: read any" on storage.objects;
+create policy "avatars: read any" on storage.objects for select using (bucket_id = 'avatars');
+
+drop policy if exists "avatars: write own" on storage.objects;
+create policy "avatars: write own" on storage.objects for insert
+  with check (bucket_id = 'avatars' and (storage.filename(name)) = auth.uid()::text || '.jpg');
+
+drop policy if exists "avatars: update own" on storage.objects;
+create policy "avatars: update own" on storage.objects for update
+  using (bucket_id = 'avatars' and (storage.filename(name)) = auth.uid()::text || '.jpg');
+
 -- ───────────────────────────── moderation ─────────────────────────────
 -- Required for Google Play + Apple social-app review. Every report is preserved;
 -- hard-delete only happens after a human moderator reviews it (see Tier B spec).

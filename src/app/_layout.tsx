@@ -13,6 +13,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PostHogProvider } from 'posthog-react-native';
 
+import { OfflineBanner } from '@/components/offline-banner';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useHasAnyCircle } from '@/hooks/use-has-any-circle';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
@@ -37,9 +38,22 @@ function RootNavigator() {
   });
 
   const appReady = ready && fredokaLoaded && nunitoLoaded;
+  const [stuck, setStuck] = useState(false);
 
   useEffect(() => {
     if (appReady) SplashScreen.hideAsync();
+  }, [appReady]);
+
+  // Auth restore / font loading has no built-in timeout — if either genuinely hangs (e.g. a
+  // stalled fetch on a bad connection), appReady never flips and the app would otherwise
+  // show a blank screen forever with no way for the user to recover.
+  useEffect(() => {
+    if (appReady) {
+      setStuck(false);
+      return;
+    }
+    const timer = setTimeout(() => setStuck(true), 15000);
+    return () => clearTimeout(timer);
   }, [appReady]);
 
   useEffect(() => {
@@ -81,7 +95,16 @@ function RootNavigator() {
     }
   }, [appReady, session, needsHandle, needsConsent, hasCircle, onboardingDone, pathname, router]);
 
-  if (!appReady) return null;
+  if (!appReady) {
+    if (!stuck) return null;
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>This is taking longer than expected</Text>
+        <Text style={styles.errorBody}>Philoi is having trouble starting up.</Text>
+        <Text style={styles.errorHint}>Check your connection, then close and reopen the app.</Text>
+      </View>
+    );
+  }
 
   if (error) {
     return (
@@ -121,6 +144,7 @@ function RootNavigator() {
         <Stack.Screen name="university-leaderboard" options={{ title: '' }} />
         <Stack.Screen name="report" options={{ presentation: 'modal', title: 'Report' }} />
         <Stack.Screen name="legal" options={{ title: '' }} />
+        <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
       </Stack.Protected>
 
       {/* Public — reachable via philoi://join?code=ABC123 whether or not the user is signed in. */}
@@ -139,6 +163,7 @@ export default function RootLayout() {
   const content = (
     <AuthProvider>
       <RootNavigator />
+      <OfflineBanner />
     </AuthProvider>
   );
 

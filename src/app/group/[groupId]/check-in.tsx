@@ -11,7 +11,7 @@ import { SecondaryButton } from '@/components/ui/secondary-button';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
-import { postCheckIn } from '@/lib/api/check-ins';
+import { postCheckIn, type CheckInPhase } from '@/lib/api/check-ins';
 import { fetchGroup, fetchInviteLink } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -24,6 +24,7 @@ export default function CheckInScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState<CheckInPhase | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -72,7 +73,7 @@ export default function CheckInScreen() {
     setLoading(true);
     setError(null);
     try {
-      await postCheckIn({ groupId, userId: session.user.id, photoUri, caption });
+      await postCheckIn({ groupId, userId: session.user.id, photoUri, caption, onPhaseChange: setPhase });
       setPosted(true);
       playSpark();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -88,6 +89,7 @@ export default function CheckInScreen() {
       setError(getErrorMessage(e, 'Could not post your check-in.'));
     } finally {
       setLoading(false);
+      setPhase(null);
     }
   }
 
@@ -139,6 +141,10 @@ export default function CheckInScreen() {
 
       {error && <Text style={styles.error}>{error}</Text>}
 
+      {phase && (
+        <Text style={styles.uploadStatus}>{phase === 'uploading' ? 'Uploading photo…' : 'Locking in…'}</Text>
+      )}
+
       <PrimaryButton label="Lock in" onPress={handlePost} loading={loading} disabled={!photoUri} />
       <SecondaryButton label="Cancel" onPress={() => router.back()} />
     </Screen>
@@ -183,6 +189,12 @@ const styles = StyleSheet.create({
   error: {
     fontFamily: Fonts.body,
     color: Colors.coral,
+  },
+  uploadStatus: {
+    fontFamily: Fonts.body,
+    color: Colors.muted,
+    textAlign: 'center',
+    fontSize: 13,
   },
   celebrateContainer: {
     alignItems: 'center',

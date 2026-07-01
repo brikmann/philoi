@@ -52,15 +52,19 @@ function inferCadenceStatus(): CheckInStatus {
   return 'on_time';
 }
 
+export type CheckInPhase = 'uploading' | 'saving';
+
 export async function postCheckIn(input: {
   groupId: string;
   userId: string;
   photoUri: string;
   caption: string;
+  onPhaseChange?: (phase: CheckInPhase) => void;
 }): Promise<CheckIn> {
   const checkInId = Crypto.randomUUID();
   const path = `${input.groupId}/${input.userId}/${checkInId}.jpg`;
 
+  input.onPhaseChange?.('uploading');
   const base64 = await new File(input.photoUri).base64();
 
   const { error: uploadError } = await supabase.storage
@@ -68,6 +72,7 @@ export async function postCheckIn(input: {
     .upload(path, decode(base64), { contentType: 'image/jpeg', upsert: false });
   if (uploadError) throw uploadError;
 
+  input.onPhaseChange?.('saving');
   const { data, error } = await supabase
     .from('check_ins')
     .insert({

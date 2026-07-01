@@ -75,6 +75,10 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <Pressable onPress={() => router.push('/edit-profile')}>
+        <Text style={styles.editProfileLink}>Edit profile</Text>
+      </Pressable>
+
       {profile.university && (
         <Pressable onPress={() => router.push('/university-leaderboard')}>
           <Text style={styles.universityLine}>
@@ -188,6 +192,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     color: Colors.muted,
     marginBottom: Spacing.one,
+  },
+  editProfileLink: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.coral,
+    fontSize: 14,
   },
   universityLine: {
     fontFamily: Fonts.body,
