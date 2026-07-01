@@ -5,6 +5,18 @@ import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 
+// Without this, expo-notifications silently swallows the banner/sound for any push that
+// arrives while the app is in the foreground — the OS still receives it, but nothing shows
+// on screen. Registered at module scope so it's set before the app can possibly receive one.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 const REMINDER_MAP_KEY = 'philoi_group_reminders';
 
 type ReminderMap = Record<string, { hour: number; minute: number; notificationId: string }>;
