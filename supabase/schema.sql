@@ -457,12 +457,51 @@ begin
 end;
 $$;
 
+-- Bulk-deletes Storage objects via the Storage API (not by deleting storage.objects rows
+-- directly — that only removes the metadata catalog entry, not the underlying blob in the
+-- backing object store). Needs the project's service_role key in Supabase Vault under the
+-- name 'service_role_key' — see the one-time setup note above delete_my_account().
+create or replace function delete_storage_prefixes(p_bucket text, p_paths text[])
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_service_key text;
+begin
+  if p_paths is null or array_length(p_paths, 1) is null then
+    return;
+  end if;
+
+  select decrypted_secret into v_service_key from vault.decrypted_secrets where name = 'service_role_key';
+  if v_service_key is null then
+    raise warning 'delete_storage_prefixes: service_role_key not found in Vault — skipping Storage cleanup for bucket %', p_bucket;
+    return;
+  end if;
+
+  perform net.http_delete(
+    url := 'https://coaqgcquzywadrghzbfj.supabase.co/storage/v1/object/' || p_bucket,
+    headers := jsonb_build_object(
+      'Authorization', 'Bearer ' || v_service_key,
+      'apikey', v_service_key,
+      'Content-Type', 'application/json'
+    ),
+    body := jsonb_build_object('prefixes', to_jsonb(p_paths))
+  );
+end;
+$$;
+
 -- Wipes everything tied to the caller's account: their circles (cascade), memberships,
--- check-ins, reactions, invites, events, and finally the profile row + auth user.
--- SECURITY DEFINER so the cascade can cross table-owner RLS boundaries (same reason as
+-- check-ins, reactions, invites, events, Storage photos, and finally the profile row + auth
+-- user. SECURITY DEFINER so the cascade can cross table-owner RLS boundaries (same reason as
 -- delete_group). This is required by Google Play + Apple in-app account deletion policy.
--- Hard-deletes immediately; Storage photos are orphaned and should be cleaned up by a
--- scheduled job or Cloud Function within 30 days per the Privacy Policy.
+--
+-- One-time setup required for the Storage cleanup step to work: run this once in the SQL
+-- editor with your project's service_role key (Project Settings -> API):
+--   select vault.create_secret('<your service_role key>', 'service_role_key');
+-- Without it, this function still deletes everything else — it just logs a warning and
+-- leaves that user's Storage photos orphaned instead of failing the whole deletion.
 create or replace function delete_my_account()
 returns void
 language plpgsql
@@ -471,10 +510,18 @@ set search_path = public
 as $$
 declare
   v_user_id uuid := auth.uid();
+  v_photo_paths text[];
 begin
   if v_user_id is null then
     raise exception 'Not authenticated.';
   end if;
+
+  select coalesce(array_agg(name), '{}')
+  into v_photo_paths
+  from storage.objects
+  where bucket_id = 'check-in-photos' and (storage.foldername(name))[2] = v_user_id::text;
+
+  perform delete_storage_prefixes('check-in-photos', v_photo_paths);
 
   -- Delete circles the caller owns (cascades to group_members, check_ins, reactions, invites).
   delete from groups where owner_id = v_user_id;
