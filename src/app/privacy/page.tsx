@@ -94,7 +94,7 @@ export default function PrivacyPage() {
         <li>Delete your account and all associated data at any time from Settings.</li>
         <li>
           Contact us at{" "}
-          <a href="mailto:hello@getphiloi.com">hello@getphiloi.com</a> for any other privacy
+          <a href="mailto:legal@getphiloi.com">legal@getphiloi.com</a> for any other privacy
           request.
         </li>
       </ul>
@@ -115,7 +115,7 @@ export default function PrivacyPage() {
       <h2>Contact</h2>
       <p>
         Questions about this policy or your data? Email{" "}
-        <a href="mailto:hello@getphiloi.com">hello@getphiloi.com</a>.
+        <a href="mailto:legal@getphiloi.com">legal@getphiloi.com</a>.
       </p>
     </LegalLayout>
   );

@@ -43,7 +43,7 @@ export default function LegalLayout({
             <Link href="/child-safety" className="hover:text-ink transition-colors">
               Child Safety
             </Link>
-            <a href="mailto:hello@getphiloi.com" className="hover:text-ink transition-colors">
+            <a href="mailto:legal@getphiloi.com" className="hover:text-ink transition-colors">
               Contact
             </a>
           </div>

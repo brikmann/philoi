@@ -50,7 +50,7 @@ export default function ChildSafetyPage() {
         In the app, tap the <strong>&middot;&middot;&middot;</strong> menu on any check-in and
         choose <strong>Report</strong>, then <strong>Child safety / CSAE</strong>. You can also
         email us directly at{" "}
-        <a href="mailto:safety@getphiloi.com">safety@getphiloi.com</a>.
+        <a href="mailto:legal@getphiloi.com">legal@getphiloi.com</a>.
       </p>
       <p>
         For urgent concerns, or to report CSAE content or behavior outside of Philoi as well,
@@ -64,7 +64,7 @@ export default function ChildSafetyPage() {
       <h2>Contact</h2>
       <p>
         Questions about this policy?{" "}
-        <a href="mailto:safety@getphiloi.com">safety@getphiloi.com</a>.
+        <a href="mailto:legal@getphiloi.com">legal@getphiloi.com</a>.
       </p>
     </LegalLayout>
   );

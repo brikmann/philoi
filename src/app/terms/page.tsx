@@ -94,7 +94,7 @@ export default function TermsPage() {
       <h2>11. Contact</h2>
       <p>
         Questions about these terms? Email{" "}
-        <a href="mailto:hello@getphiloi.com">hello@getphiloi.com</a>.
+        <a href="mailto:legal@getphiloi.com">legal@getphiloi.com</a>.
       </p>
     </LegalLayout>
   );
