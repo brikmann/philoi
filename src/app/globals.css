@@ -24,3 +24,33 @@ body {
   color: #2C2538;
   font-family: var(--font-nunito), system-ui, sans-serif;
 }
+
+.legal-content h2 {
+  font-family: var(--font-fredoka), sans-serif;
+  font-weight: 600;
+  font-size: 1.25rem;
+  color: #2C2538;
+  margin-top: 2rem;
+}
+
+.legal-content p,
+.legal-content li {
+  color: #2C2538;
+}
+
+.legal-content ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.legal-content a {
+  color: #E0612C;
+  text-decoration: underline;
+}
+
+.legal-content strong {
+  font-weight: 700;
+}

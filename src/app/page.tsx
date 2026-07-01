@@ -288,23 +288,36 @@ export default async function Page({
 
       {/* ── Footer ── */}
       <footer className="border-t border-line bg-cream">
-        <div className="mx-auto max-w-5xl px-6 py-12 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex flex-col items-center sm:items-start gap-1">
-            <Logo size="sm" />
-            <p className="font-body text-xs text-muted">Lock in — together.</p>
+        <div className="mx-auto max-w-5xl px-6 py-12 flex flex-col gap-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex flex-col items-center sm:items-start gap-1">
+              <Logo size="sm" />
+              <p className="font-body text-xs text-muted">Lock in — together.</p>
+            </div>
+            <div className="flex gap-6 font-body text-sm text-muted">
+              <a href="mailto:hello@getphiloi.com" className="hover:text-ink transition-colors">
+                Contact
+              </a>
+              <a href="#" className="hover:text-ink transition-colors">
+                Instagram
+              </a>
+              <a href="#" className="hover:text-ink transition-colors">
+                X / Twitter
+              </a>
+            </div>
+            <p className="font-body text-xs text-muted">© 2026 Philoi</p>
           </div>
-          <div className="flex gap-6 font-body text-sm text-muted">
-            <a href="mailto:hello@getphiloi.com" className="hover:text-ink transition-colors">
-              Contact
+          <div className="flex justify-center sm:justify-start gap-6 font-body text-xs text-muted border-t border-line pt-6">
+            <a href="/privacy" className="hover:text-ink transition-colors">
+              Privacy
             </a>
-            <a href="#" className="hover:text-ink transition-colors">
-              Instagram
+            <a href="/terms" className="hover:text-ink transition-colors">
+              Terms
             </a>
-            <a href="#" className="hover:text-ink transition-colors">
-              X / Twitter
+            <a href="/child-safety" className="hover:text-ink transition-colors">
+              Child Safety
             </a>
           </div>
-          <p className="font-body text-xs text-muted">© 2026 Philoi</p>
         </div>
       </footer>
     </div>
