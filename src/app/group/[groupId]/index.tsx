@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { ChatPanel } from '@/components/chat-panel';
 import { FeedItem } from '@/components/feed-item';
 import { LeaderboardRow } from '@/components/leaderboard-row';
 import { MyGoalTarget } from '@/components/my-goal-target';
@@ -10,6 +11,7 @@ import { RecapStrip } from '@/components/recap-strip';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
+import { CHAT_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useFeed } from '@/hooks/use-feed';
 import { useGroup } from '@/hooks/use-group';
@@ -18,7 +20,7 @@ import { track } from '@/lib/analytics';
 import { fetchInviteLink, fetchWeeklyRecap } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 
-type Tab = 'feed' | 'leaderboard';
+type Tab = 'feed' | 'leaderboard' | 'chat';
 
 export default function GroupScreen() {
   const router = useRouter();
@@ -48,9 +50,9 @@ export default function GroupScreen() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const refreshing = tab === 'feed' ? feed.loading : leaderboard.loading;
+  const refreshing = tab === 'feed' ? feed.loading : tab === 'leaderboard' ? leaderboard.loading : false;
   const onRefresh = tab === 'feed' ? feed.refetch : leaderboard.refetch;
-  const activeError = tab === 'feed' ? feed.error : leaderboard.error;
+  const activeError = tab === 'feed' ? feed.error : tab === 'leaderboard' ? leaderboard.error : null;
 
   return (
     <Screen padded={false}>
@@ -72,11 +74,18 @@ export default function GroupScreen() {
           style={[styles.tab, tab === 'leaderboard' && styles.tabActive]}>
           <Text style={[styles.tabLabel, tab === 'leaderboard' && styles.tabLabelActive]}>Leaderboard</Text>
         </Pressable>
+        {CHAT_ENABLED && (
+          <Pressable onPress={() => setTab('chat')} style={[styles.tab, tab === 'chat' && styles.tabActive]}>
+            <Text style={[styles.tabLabel, tab === 'chat' && styles.tabLabelActive]}>Chat</Text>
+          </Pressable>
+        )}
       </View>
 
       {activeError && <Text style={styles.error}>{activeError}</Text>}
 
-      {tab === 'feed' ? (
+      {tab === 'chat' && session ? (
+        <ChatPanel groupId={groupId} myUserId={session.user.id} />
+      ) : tab === 'feed' ? (
         <FlatList
           data={feed.items}
           keyExtractor={(item) => item.id}

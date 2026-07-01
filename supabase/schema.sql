@@ -580,9 +580,12 @@ begin
   -- Remove memberships in circles owned by others (doesn't touch other members' data).
   delete from group_members where user_id = v_user_id;
 
-  -- Remaining direct rows.
+  -- Remaining direct rows. Safe to hard-delete messages here even if one is under a pending
+  -- report — snapshot_reported_content() already copied its body onto the report row at
+  -- report-time, independent of this row's lifecycle (reported_message_id just goes null).
   delete from reactions where user_id = v_user_id;
   delete from check_ins where user_id = v_user_id;
+  delete from messages where user_id = v_user_id;
   delete from invites where inviter_id = v_user_id;
   delete from events where user_id = v_user_id;
   delete from profiles where id = v_user_id;
@@ -769,6 +772,119 @@ create policy "moderation_reports: insert own" on moderation_reports
 drop policy if exists "blocked_users: manage own" on blocked_users;
 create policy "blocked_users: manage own" on blocked_users
   for all using (blocker_id = auth.uid());
+
+-- ───────────────────────────── messaging (Phase 7, Tier B) ─────────────────────────────
+-- Circle-scoped chat only — no DMs, no cross-circle visibility. Encryption in transit (TLS)
+-- and at rest is provided by the Supabase/Postgres infrastructure itself, not app code; this
+-- is explicitly NOT end-to-end encrypted per spec, since reports/moderation need to read
+-- message content. Client-side, this stays behind the CHAT_ENABLED flag
+-- (src/constants/feature-flags.ts) until the Tier-B acceptance checklist has actually been
+-- walked through by a human — a schema existing here doesn't mean it's safe to ship.
+
+create table if not exists messages (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references groups (id) on delete cascade,
+  user_id uuid not null references profiles (id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now(),
+  -- Soft delete only (see delete_my_message() below) — a hard delete here would destroy
+  -- evidence for any pending report on this message, which is exactly what the snapshot
+  -- trigger further down exists to prevent, but soft-delete is the belt-and-suspenders half.
+  deleted_at timestamptz
+);
+
+alter table messages drop constraint if exists messages_body_length;
+alter table messages add constraint messages_body_length check (char_length(body) between 1 and 2000);
+
+create index if not exists messages_group_created_idx on messages (group_id, created_at desc);
+
+alter table messages enable row level security;
+
+drop policy if exists "messages: read if member" on messages;
+create policy "messages: read if member" on messages for select using (is_group_member(group_id));
+
+drop policy if exists "messages: insert own if member" on messages;
+create policy "messages: insert own if member" on messages for insert
+  with check (user_id = auth.uid() and is_group_member(group_id));
+
+-- Required for subscribeToMessages() (src/lib/api/messages.ts) to receive postgres_changes
+-- events at all — RLS above still governs who can actually read them. No "if not exists"
+-- form for ALTER PUBLICATION ... ADD TABLE, so guard manually for idempotency.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'messages'
+  ) then
+    alter publication supabase_realtime add table messages;
+  end if;
+end $$;
+
+-- No direct UPDATE/DELETE policy — soft-deleting your own message goes through this RPC
+-- instead of a raw update, so a client can't rewrite `body` on someone else's message by
+-- crafting a matching-id update.
+create or replace function delete_my_message(p_message_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update messages
+  set deleted_at = now()
+  where id = p_message_id and user_id = auth.uid();
+end;
+$$;
+
+-- Extends the existing report flow to cover messages, and captures a point-in-time snapshot
+-- of whatever's being reported (message body, or check-in caption/photo path) directly on
+-- the report row. Retention carve-out: without this, deleting the account/message later
+-- (delete_my_account, delete_my_message) would silently wipe the evidence a pending report
+-- depends on — the FKs below are all `on delete set null` for exactly that reason, and the
+-- snapshot is what actually survives that.
+alter table moderation_reports add column if not exists reported_message_id uuid references messages (id) on delete set null;
+alter table moderation_reports add column if not exists reported_content_snapshot jsonb;
+
+create or replace function snapshot_reported_content()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.reported_message_id is not null then
+    select jsonb_build_object('type', 'message', 'body', body, 'user_id', user_id, 'created_at', created_at)
+    into new.reported_content_snapshot
+    from messages where id = new.reported_message_id;
+  elsif new.reported_check_in_id is not null then
+    select jsonb_build_object('type', 'check_in', 'caption', caption, 'photo_url', photo_url, 'user_id', user_id, 'created_at', created_at)
+    into new.reported_content_snapshot
+    from check_ins where id = new.reported_check_in_id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_moderation_report_insert on moderation_reports;
+create trigger on_moderation_report_insert
+  before insert on moderation_reports
+  for each row execute function snapshot_reported_content();
+
+-- Audit log for moderator actions taken on a report (remove content / disable account /
+-- report to authorities / dismiss). No RLS policies at all = default-deny for every client
+-- role; only the service role (which bypasses RLS) can read or write it, same as
+-- moderation_reports. Filled in manually by whoever reviews reports via the Table Editor —
+-- there's no in-app admin UI, matching how moderation_reports itself is already handled.
+create table if not exists moderation_actions (
+  id uuid primary key default gen_random_uuid(),
+  report_id uuid references moderation_reports (id) on delete set null,
+  action_type text not null check (action_type in ('removed_content', 'disabled_account', 'reported_to_authorities', 'dismissed')),
+  target_user_id uuid references profiles (id) on delete set null,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+alter table moderation_actions enable row level security;
 
 -- ───────────────────────────── analytics views ─────────────────────────────
 -- Query these from the Supabase SQL editor (service role bypasses RLS) — there's

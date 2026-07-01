@@ -20,7 +20,11 @@ type Reason = (typeof REASONS)[number];
 
 export default function ReportScreen() {
   const router = useRouter();
-  const { checkInId, userId } = useLocalSearchParams<{ checkInId?: string; userId?: string }>();
+  const { checkInId, messageId, userId } = useLocalSearchParams<{
+    checkInId?: string;
+    messageId?: string;
+    userId?: string;
+  }>();
   const [reason, setReason] = useState<Reason | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,6 +39,7 @@ export default function ReportScreen() {
       const { error: insertError } = await supabase.from('moderation_reports').insert({
         reporter_id: session.session?.user.id ?? null,
         reported_check_in_id: checkInId ?? null,
+        reported_message_id: messageId ?? null,
         reported_user_id: userId ?? null,
         reason,
       });

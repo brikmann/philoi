@@ -76,6 +76,15 @@ export type Invite = {
   created_at: string;
 };
 
+export type Message = {
+  id: string;
+  group_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  deleted_at: string | null;
+};
+
 export type AnalyticsEventName =
   | 'signed_up'
   | 'circle_created'
@@ -188,9 +197,38 @@ export type Database = {
         Update: Partial<AnalyticsEvent>;
         Relationships: [];
       };
+      messages: {
+        Row: Message;
+        Insert: Partial<Message> & { group_id: string; user_id: string; body: string };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: 'messages_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       moderation_reports: {
-        Row: { id: string; reporter_id: string | null; reported_check_in_id: string | null; reported_user_id: string | null; reason: string; status: string; created_at: string };
-        Insert: { reporter_id?: string | null; reported_check_in_id?: string | null; reported_user_id?: string | null; reason: string };
+        Row: {
+          id: string;
+          reporter_id: string | null;
+          reported_check_in_id: string | null;
+          reported_message_id: string | null;
+          reported_user_id: string | null;
+          reason: string;
+          status: string;
+          created_at: string;
+        };
+        Insert: {
+          reporter_id?: string | null;
+          reported_check_in_id?: string | null;
+          reported_message_id?: string | null;
+          reported_user_id?: string | null;
+          reason: string;
+        };
         Update: { status?: string };
         Relationships: [];
       };
@@ -231,6 +269,7 @@ export type Database = {
       set_my_goal_target: { Args: { p_group_id: string; p_goal_target: string | null }; Returns: undefined };
       delete_group: { Args: { p_group_id: string }; Returns: undefined };
       delete_my_account: { Args: Record<string, never>; Returns: undefined };
+      delete_my_message: { Args: { p_message_id: string }; Returns: undefined };
       get_university_leaderboard: {
         Args: { p_university: string; p_limit?: number };
         Returns: UniversityLeaderboardRow[];
