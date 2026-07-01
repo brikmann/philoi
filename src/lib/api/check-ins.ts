@@ -15,11 +15,24 @@ export type FeedCheckIn = CheckIn & {
 const PHOTO_BUCKET = 'check-in-photos';
 
 export async function fetchFeed(groupId: string): Promise<FeedCheckIn[]> {
-  const { data, error } = await supabase
+  const { data: session } = await supabase.auth.getSession();
+  const viewerId = session.session?.user.id;
+
+  const { data: blocked } = viewerId
+    ? await supabase.from('blocked_users').select('blocked_id').eq('blocker_id', viewerId)
+    : { data: null };
+  const blockedIds = (blocked ?? []).map((b) => b.blocked_id);
+
+  let query = supabase
     .from('check_ins')
     .select('*, profiles(display_name, avatar_url, handle), reactions(*)')
     .eq('group_id', groupId)
     .order('created_at', { ascending: false });
+  if (blockedIds.length > 0) {
+    query = query.not('user_id', 'in', `(${blockedIds.join(',')})`);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as FeedCheckIn[];

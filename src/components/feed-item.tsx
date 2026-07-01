@@ -40,6 +40,7 @@ export function FeedItem({ item, onReactionChanged }: FeedItemProps) {
             onPress: async () => {
               if (!session) return;
               await supabase.from('blocked_users').insert({ blocker_id: session.user.id, blocked_id: item.user_id });
+              onReactionChanged();
               Alert.alert('User blocked', "You won't see their posts anymore.");
             },
           },
