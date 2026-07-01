@@ -20,7 +20,9 @@ import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { registerPushToken } from '@/lib/notifications';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
 import { posthog } from '@/lib/posthog';
+import { loadRewardPreferences } from '@/lib/reward-settings';
 import { Sentry } from '@/lib/sentry';
+import { preloadRewardSounds } from '@/lib/sound';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -59,6 +61,13 @@ function RootNavigator() {
 
   useEffect(() => {
     isOnboardingDone().then(setOnboardingDone);
+  }, []);
+
+  // Preload RewardBurst audio + settings once at startup so the first check-in has zero
+  // playback latency and doesn't wait on an AsyncStorage read.
+  useEffect(() => {
+    preloadRewardSounds();
+    loadRewardPreferences();
   }, []);
 
   // Re-check membership on every navigation — cheap count query, and it's what keeps the

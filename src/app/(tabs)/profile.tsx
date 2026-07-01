@@ -13,6 +13,7 @@ import { useMyGroups } from '@/hooks/use-my-groups';
 import { useAuth } from '@/lib/auth/auth-context';
 import { deleteMyAccount, fetchUniversityMemberCount } from '@/lib/api/groups';
 import { getErrorMessage } from '@/lib/errors';
+import { loadRewardPreferences, setHapticsEnabled, setSoundEnabled } from '@/lib/reward-settings';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -21,6 +22,25 @@ export default function ProfileScreen() {
   const { isMember, devOverride, setDevOverride } = useEntitlement();
   const [universityCount, setUniversityCount] = useState<number | null>(null);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [soundEnabled, setSoundEnabledState] = useState(true);
+  const [hapticsEnabled, setHapticsEnabledState] = useState(true);
+
+  useEffect(() => {
+    loadRewardPreferences().then((prefs) => {
+      setSoundEnabledState(prefs.sound);
+      setHapticsEnabledState(prefs.haptics);
+    });
+  }, []);
+
+  function handleToggleSound(value: boolean) {
+    setSoundEnabledState(value);
+    setSoundEnabled(value);
+  }
+
+  function handleToggleHaptics(value: boolean) {
+    setHapticsEnabledState(value);
+    setHapticsEnabled(value);
+  }
 
   function handleDeleteAccount() {
     Alert.alert(
@@ -121,6 +141,26 @@ export default function ProfileScreen() {
           ))}
         </Card>
       )}
+
+      <Card style={styles.section}>
+        <Text style={styles.sectionTitle}>Sound &amp; haptics</Text>
+        <View style={styles.devRow}>
+          <Text style={styles.devLabel}>Check-in sound</Text>
+          <Switch
+            value={soundEnabled}
+            onValueChange={handleToggleSound}
+            trackColor={{ true: Colors.coral, false: Colors.line }}
+          />
+        </View>
+        <View style={styles.devRow}>
+          <Text style={styles.devLabel}>Haptics</Text>
+          <Switch
+            value={hapticsEnabled}
+            onValueChange={handleToggleHaptics}
+            trackColor={{ true: Colors.coral, false: Colors.line }}
+          />
+        </View>
+      </Card>
 
       <Card style={styles.section}>
         <Text style={styles.sectionTitle}>Dev tools</Text>

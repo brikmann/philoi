@@ -67,6 +67,20 @@ export async function fetchGroup(groupId: string): Promise<Group> {
   return data;
 }
 
+export async function fetchMyStreak(
+  groupId: string,
+  userId: string
+): Promise<{ current_streak: number; longest_streak: number }> {
+  const { data, error } = await supabase
+    .from('group_members')
+    .select('current_streak, longest_streak')
+    .eq('group_id', groupId)
+    .eq('user_id', userId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function createGroup(input: {
   name: string;
   emoji: string;
