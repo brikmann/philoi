@@ -10,7 +10,10 @@ export function useSparkSound() {
   const player = useAudioPlayer(SPARK_SOUND);
 
   return function playSpark() {
-    player.seekTo(0);
+    // A freshly created player is already at position 0 — no need to seek before playing,
+    // and seekTo() is async, so firing it without awaiting risked racing play() on a player
+    // that wasn't done loading yet.
+    player.volume = 1;
     player.play();
   };
 }
