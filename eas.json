@@ -21,7 +21,8 @@
         "SUPABASE_URL": "https://coaqgcquzywadrghzbfj.supabase.co",
         "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvYXFnY3F1enl3YWRyZ2h6YmZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1OTE0NDUsImV4cCI6MjA5ODE2NzQ0NX0.CuJD8tYsF8eYm96TVEFXke2Tlnse_d67mvBNeKGj_Qs",
         "POSTHOG_API_KEY": "phc_mqNBQujdHrWsZoquwHCH3FvotLpiiNuFFUCMFKDDPBZe",
-        "POSTHOG_HOST": "https://us.i.posthog.com"
+        "POSTHOG_HOST": "https://us.i.posthog.com",
+        "SENTRY_DSN": "https://1d9e6cd52b688abc9b138fc1314b69e1@o4511657755803648.ingest.us.sentry.io/4511657760129029"
       },
       "android": {
         "buildType": "apk"
@@ -33,7 +34,8 @@
         "SUPABASE_URL": "https://coaqgcquzywadrghzbfj.supabase.co",
         "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvYXFnY3F1enl3YWRyZ2h6YmZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1OTE0NDUsImV4cCI6MjA5ODE2NzQ0NX0.CuJD8tYsF8eYm96TVEFXke2Tlnse_d67mvBNeKGj_Qs",
         "POSTHOG_API_KEY": "phc_mqNBQujdHrWsZoquwHCH3FvotLpiiNuFFUCMFKDDPBZe",
-        "POSTHOG_HOST": "https://us.i.posthog.com"
+        "POSTHOG_HOST": "https://us.i.posthog.com",
+        "SENTRY_DSN": "https://1d9e6cd52b688abc9b138fc1314b69e1@o4511657755803648.ingest.us.sentry.io/4511657760129029"
       }
     }
   },

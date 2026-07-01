@@ -52,6 +52,13 @@ const config: ExpoConfig = {
     'expo-web-browser',
     'expo-audio',
     [
+      '@sentry/react-native/expo',
+      {
+        organization: 'philoi',
+        project: 'react-native',
+      },
+    ],
+    [
       'expo-font',
       {
         fonts: [
@@ -102,6 +109,7 @@ const config: ExpoConfig = {
     revenueCatAndroidKey: process.env.REVENUECAT_ANDROID_KEY ?? null,
     posthogApiKey: process.env.POSTHOG_API_KEY ?? null,
     posthogHost: process.env.POSTHOG_HOST ?? 'https://us.i.posthog.com',
+    sentryDsn: process.env.SENTRY_DSN ?? null,
     eas: {
       projectId: 'f1031c6d-fd56-4d27-880a-0e87a7953f05',
     },

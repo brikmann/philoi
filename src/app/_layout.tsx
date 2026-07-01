@@ -20,6 +20,7 @@ import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { registerPushToken } from '@/lib/notifications';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
 import { posthog } from '@/lib/posthog';
+import { Sentry } from '@/lib/sentry';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -159,7 +160,7 @@ function RootNavigator() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const content = (
     <AuthProvider>
       <RootNavigator />
@@ -176,6 +177,10 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap adds automatic native crash capture + navigation tracing — no-ops harmlessly
+// when SENTRY_DSN isn't set (see src/lib/sentry.ts).
+export default Sentry.wrap(RootLayout);
 
 const styles = StyleSheet.create({
   errorContainer: {
