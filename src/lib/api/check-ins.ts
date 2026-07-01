@@ -80,7 +80,14 @@ export async function postCheckIn(input: {
     })
     .select('*')
     .single();
-  if (error) throw error;
+  if (error) {
+    // Don't leave the just-uploaded photo orphaned in Storage when the insert fails.
+    await supabase.storage.from(PHOTO_BUCKET).remove([path]);
+    if (error.code === '23505') {
+      throw new Error("You've already checked in today for this circle — come back tomorrow.");
+    }
+    throw error;
+  }
   track('check_in_completed', { group_id: input.groupId, photo: true });
   return data;
 }

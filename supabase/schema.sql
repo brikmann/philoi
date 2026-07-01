@@ -108,6 +108,47 @@ create index if not exists reactions_check_in_idx on reactions (check_in_id);
 create index if not exists events_user_created_idx on events (user_id, created_at desc);
 create index if not exists events_name_created_idx on events (name, created_at desc);
 
+-- ───────────────────────── input validation ─────────────────────────
+-- Client-side maxLength props (caption 140, group name 40, cadence 20) are UX guardrails,
+-- not security — a raw REST call bypasses them entirely. These CHECK constraints are the
+-- real backstop; bounds are generous relative to the UI limits so legitimate input never
+-- hits them.
+
+alter table check_ins drop constraint if exists check_ins_caption_length;
+alter table check_ins add constraint check_ins_caption_length check (caption is null or char_length(caption) <= 280);
+
+alter table groups drop constraint if exists groups_name_length;
+alter table groups add constraint groups_name_length check (char_length(name) between 1 and 60);
+
+-- Cadence is intentionally free text in the UI ("Or type a custom cadence"), not a closed
+-- enum — e.g. study circles use "10 hrs/week" — so this only bounds length, not format.
+alter table groups drop constraint if exists groups_cadence_length;
+alter table groups add constraint groups_cadence_length check (char_length(cadence) <= 30);
+
+alter table groups drop constraint if exists groups_emoji_length;
+alter table groups add constraint groups_emoji_length check (char_length(emoji) <= 8);
+
+-- Storage-layer backstop for photo uploads — matches the image/jpeg contentType check-ins.ts
+-- always uploads with, and caps size well above what a quality:0.7 camera capture produces.
+update storage.buckets
+set file_size_limit = 8388608, -- 8 MB
+    allowed_mime_types = array['image/jpeg']
+where id = 'check-in-photos';
+
+-- ───────────────────────── rate limiting ─────────────────────────
+-- One check-in per user per group per UTC day — closes the obvious streak-farming exploit
+-- (posting many check-ins back-to-back) and matches recompute_streak()'s existing
+-- calendar-day semantics, so this isn't a new restriction, just an enforced one.
+create unique index if not exists check_ins_one_per_day
+  on check_ins (group_id, user_id, ((created_at at time zone 'utc')::date));
+
+-- At most one personal (non-group) invite code per user — closes the gap where the
+-- "invites: insert own" RLS policy (with check: inviter_id = auth.uid()) would otherwise
+-- let a client bypass ensure_personal_invite()'s dedup by inserting directly and
+-- generating unlimited codes.
+create unique index if not exists invites_one_personal_per_user
+  on invites (inviter_id) where group_id is null;
+
 -- ───────────────────────── helper: membership check ─────────────────────────
 
 create or replace function is_group_member(p_group_id uuid)
@@ -416,7 +457,17 @@ begin
   select code into v_code from invites where inviter_id = auth.uid() and group_id is null limit 1;
 
   if v_code is null then
-    insert into invites (inviter_id, group_id) values (auth.uid(), null) returning code into v_code;
+    -- ON CONFLICT DO NOTHING against invites_one_personal_per_user (see rate limiting
+    -- section above) so two concurrent calls for the same user race safely instead of one
+    -- of them throwing a unique-violation.
+    insert into invites (inviter_id, group_id)
+    values (auth.uid(), null)
+    on conflict (inviter_id) where group_id is null do nothing
+    returning code into v_code;
+
+    if v_code is null then
+      select code into v_code from invites where inviter_id = auth.uid() and group_id is null limit 1;
+    end if;
   end if;
 
   return v_code;

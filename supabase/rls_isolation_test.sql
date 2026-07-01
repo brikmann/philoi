@@ -130,3 +130,75 @@ begin
 
   raise notice 'PASS Test 5: moderation_reports exists with RLS enabled.';
 end $$;
+
+
+-- ── Test 6 & 7: check-in photo Storage access is actually RLS-enforced ───────
+-- Tests 1-5 above run as the `postgres` role, which has BYPASSRLS and never actually hits
+-- any policy — they only prove the is_group_member() helper's own logic is correct. This
+-- test does `set local role authenticated` so the check-in-photos storage.objects policies
+-- (schema.sql, "check-in-photos: read if member") are genuinely enforced, then proves both
+-- a real member CAN see the row and a real outsider CANNOT — testing only the "denied" half
+-- would trivially pass if the policy were broken to deny everyone.
+
+do $$
+declare
+  v_group_id      uuid;
+  v_member_id     uuid;
+  v_outsider_id   uuid;
+  v_photo_path    text;
+  v_visible_count integer;
+begin
+  select ci.group_id, ci.photo_url, ci.user_id
+  into v_group_id, v_photo_path, v_member_id
+  from check_ins ci
+  where ci.group_id in (select id from groups where is_public = false)
+  limit 1;
+
+  if v_photo_path is null then
+    raise notice 'SKIP Test 6/7: No check-in photos in a private circle found — post one first.';
+    return;
+  end if;
+
+  select id into v_outsider_id from profiles
+  where id not in (select user_id from group_members where group_id = v_group_id)
+  limit 1;
+
+  if v_outsider_id is null then
+    raise notice 'SKIP Test 6/7: Could not find an outsider user — create a second account.';
+    return;
+  end if;
+
+  -- Test 6: the member CAN see it.
+  perform set_config('request.jwt.claims', json_build_object('sub', v_member_id, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+
+  select count(*) into v_visible_count
+  from storage.objects
+  where bucket_id = 'check-in-photos' and name = v_photo_path;
+
+  reset role;
+
+  if v_visible_count = 0 then
+    raise exception 'FAIL Test 6: A real circle member (uid=%) cannot see their own circle''s check-in photo (%) — policy is over-restrictive.',
+      v_member_id, v_photo_path;
+  end if;
+
+  raise notice 'PASS Test 6: A real circle member can see the check-in photo via RLS.';
+
+  -- Test 7: the outsider CANNOT see it.
+  perform set_config('request.jwt.claims', json_build_object('sub', v_outsider_id, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+
+  select count(*) into v_visible_count
+  from storage.objects
+  where bucket_id = 'check-in-photos' and name = v_photo_path;
+
+  reset role;
+
+  if v_visible_count > 0 then
+    raise exception 'FAIL Test 7: An outsider (uid=%) can see a private circle''s check-in photo (%) via storage.objects RLS.',
+      v_outsider_id, v_photo_path;
+  end if;
+
+  raise notice 'PASS Test 7: A non-member correctly cannot see the private circle''s check-in photo via RLS.';
+end $$;
