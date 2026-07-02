@@ -69,7 +69,12 @@ export default function EditProfileScreen() {
     <Screen style={styles.container}>
       <Stack.Screen options={{ title: 'Edit profile' }} />
 
-      <Pressable onPress={handlePickAvatar} style={styles.avatarPicker} disabled={uploadingAvatar}>
+      <Pressable
+        onPress={handlePickAvatar}
+        style={styles.avatarPicker}
+        disabled={uploadingAvatar}
+        accessibilityLabel="Change profile photo"
+        accessibilityRole="button">
         {avatarUri ? (
           <Image source={{ uri: avatarUri }} style={styles.avatar} />
         ) : (

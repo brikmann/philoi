@@ -108,7 +108,9 @@ export default function TodayScreen() {
           <View style={styles.header}>
             <Logo size={24} />
             <Text style={styles.headerTitle}>Today</Text>
-            <Text style={styles.hint}>Hold and drag a circle down to the trash to delete or leave it.</Text>
+            {groups.length > 0 && (
+              <Text style={styles.hint}>Hold and drag a circle down to the trash to delete or leave it.</Text>
+            )}
             {error && <Text style={styles.error}>{error}</Text>}
           </View>
         }
@@ -194,6 +196,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.plum,
     textAlign: 'center',
+    flexShrink: 1,
   },
   footerActions: {
     gap: Spacing.three,

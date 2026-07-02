@@ -55,7 +55,12 @@ export function FeedItem({ item, onReactionChanged }: FeedItemProps) {
         <Text style={styles.name}>{item.profiles.display_name}</Text>
         <View style={styles.headerRight}>
           <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>
-          <Pressable onPress={handleMore} hitSlop={8}>
+          <Pressable
+            onPress={handleMore}
+            hitSlop={12}
+            style={styles.moreButton}
+            accessibilityLabel={isOwnPost ? 'Post options' : 'Report or block'}
+            accessibilityRole="button">
             <Text style={styles.more}>···</Text>
           </Pressable>
         </View>
@@ -94,6 +99,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.muted,
+  },
+  moreButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   more: {
     fontFamily: Fonts.bodyBold,

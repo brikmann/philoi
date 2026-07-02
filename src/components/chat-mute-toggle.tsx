@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { setChatMuted } from '@/lib/api/groups';
 import { getErrorMessage } from '@/lib/errors';
@@ -26,7 +27,7 @@ export function ChatMuteToggle({ groupId, initialMuted }: { groupId: string; ini
         <Text style={styles.label}>Mute chat notifications</Text>
         {error && <Text style={styles.error}>{error}</Text>}
       </View>
-      <Switch value={muted} onValueChange={handleToggle} trackColor={{ true: Colors.coral, false: Colors.line }} />
+      <Toggle value={muted} onValueChange={handleToggle} />
     </View>
   );
 }
@@ -44,7 +45,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.ink,
   },
   error: {
     fontFamily: Fonts.body,

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { SecondaryButton } from '@/components/ui/secondary-button';
+import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import {
   fetchOneDemoMember,
@@ -60,7 +61,7 @@ export function DevTools({ devOverride, setDevOverride, groups }: DevToolsProps)
       <Text style={styles.sectionTitle}>Dev tools</Text>
       <View style={styles.row}>
         <Text style={styles.label}>Simulate active membership</Text>
-        <Switch value={devOverride} onValueChange={setDevOverride} trackColor={{ true: Colors.coral, false: Colors.line }} />
+        <Toggle value={devOverride} onValueChange={setDevOverride} />
       </View>
 
       <SecondaryButton

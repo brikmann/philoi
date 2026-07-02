@@ -1,13 +1,15 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatMuteToggle } from '@/components/chat-mute-toggle';
 import { DevTools } from '@/components/dev-tools';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { SecondaryButton } from '@/components/ui/secondary-button';
+import { Toggle } from '@/components/ui/toggle';
 import { ReminderSettings } from '@/components/reminder-settings';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useEntitlement } from '@/hooks/use-entitlement';
@@ -92,6 +94,7 @@ export default function ProfileScreen() {
   if (!profile) return null;
 
   return (
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
         {profile.avatar_url ? (
@@ -142,7 +145,7 @@ export default function ProfileScreen() {
           <Text style={styles.membershipBody}>
             Everything&apos;s unlocked while we build this out together — no ads, no catch.
           </Text>
-          <SecondaryButton label="What's coming later" onPress={() => router.push('/paywall')} onDark />
+          <SecondaryButton label="What's coming later" onPress={() => router.push('/paywall')} onDark solid />
         </Card>
       )}
 
@@ -150,7 +153,7 @@ export default function ProfileScreen() {
         <Card style={styles.section}>
           <Text style={styles.sectionTitle}>Reminders</Text>
           {groups.map((group) => (
-            <ReminderSettings key={group.id} groupId={group.id} groupName={group.name} />
+            <ReminderSettings key={group.id} groupId={group.id} groupName={group.name} groupEmoji={group.emoji} />
           ))}
         </Card>
       )}
@@ -160,11 +163,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Chat notifications</Text>
           <View style={styles.devRow}>
             <Text style={styles.devLabel}>Show message previews on lock screen</Text>
-            <Switch
-              value={showPreviews}
-              onValueChange={handleTogglePreviews}
-              trackColor={{ true: Colors.coral, false: Colors.line }}
-            />
+            <Toggle value={showPreviews} onValueChange={handleTogglePreviews} />
           </View>
           {groups.map((group) => (
             <ChatMuteToggle key={group.id} groupId={group.id} initialMuted={group.chat_muted} />
@@ -176,19 +175,11 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Sound &amp; haptics</Text>
         <View style={styles.devRow}>
           <Text style={styles.devLabel}>Check-in sound</Text>
-          <Switch
-            value={soundEnabled}
-            onValueChange={handleToggleSound}
-            trackColor={{ true: Colors.coral, false: Colors.line }}
-          />
+          <Toggle value={soundEnabled} onValueChange={handleToggleSound} />
         </View>
         <View style={styles.devRow}>
           <Text style={styles.devLabel}>Haptics</Text>
-          <Switch
-            value={hapticsEnabled}
-            onValueChange={handleToggleHaptics}
-            trackColor={{ true: Colors.coral, false: Colors.line }}
-          />
+          <Toggle value={hapticsEnabled} onValueChange={handleToggleHaptics} />
         </View>
       </Card>
 
@@ -214,14 +205,18 @@ export default function ProfileScreen() {
         <Text style={styles.deleteLink}>{deletingAccount ? 'Deleting…' : 'Delete account'}</Text>
       </Pressable>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.cream,
+  },
   container: {
     padding: Spacing.four,
     gap: Spacing.three,
-    backgroundColor: Colors.cream,
   },
   headerRow: {
     flexDirection: 'row',
@@ -262,6 +257,8 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.muted,
+    flexShrink: 1,
+    lineHeight: 18,
   },
   universityLink: {
     fontFamily: Fonts.bodyBold,

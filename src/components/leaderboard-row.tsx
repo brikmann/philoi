@@ -30,7 +30,7 @@ export function LeaderboardRow({ rank, row, isMe }: LeaderboardRowProps) {
         <Text style={styles.handle}>@{row.handle ?? 'newcomer'}</Text>
         {row.goal_target && <Text style={styles.target}>🎯 {row.goal_target}</Text>}
       </View>
-      <View style={styles.badges}>{rank === 1 && <Chip label="achiever" tone="achiever" />}</View>
+      <View style={styles.badges}>{rank === 1 && <Chip label="🔥 Top streak" tone="achiever" />}</View>
       <Text style={styles.streak}>🔥 {row.current_streak}</Text>
     </View>
   );

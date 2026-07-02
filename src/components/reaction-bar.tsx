@@ -35,15 +35,26 @@ export function ReactionBar({ checkInId, reactions, onChanged }: ReactionBarProp
       {QUICK_EMOJI.map((emoji) => {
         const count = reactions.filter((r) => r.emoji === emoji).length;
         const mine = reactions.some((r) => r.emoji === emoji && r.user_id === myId);
+        const label = `React ${emoji}${mine ? ', tap to remove' : ''}`;
         if (count === 0) {
           return (
-            <Pressable key={emoji} onPress={() => toggle(emoji)} style={styles.ghostPill}>
+            <Pressable
+              key={emoji}
+              onPress={() => toggle(emoji)}
+              style={styles.ghostPill}
+              accessibilityLabel={label}
+              accessibilityRole="button">
               <Text style={styles.emoji}>{emoji}</Text>
             </Pressable>
           );
         }
         return (
-          <Pressable key={emoji} onPress={() => toggle(emoji)} style={[styles.pill, mine && styles.pillActive]}>
+          <Pressable
+            key={emoji}
+            onPress={() => toggle(emoji)}
+            style={[styles.pill, mine && styles.pillActive]}
+            accessibilityLabel={`${label}, ${count} ${count === 1 ? 'reaction' : 'reactions'}`}
+            accessibilityRole="button">
             <Text style={styles.emoji}>{emoji}</Text>
             <Text style={[styles.count, mine && styles.countActive]}>{count}</Text>
           </Pressable>

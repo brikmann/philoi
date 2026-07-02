@@ -145,7 +145,14 @@ function RootNavigator() {
   }
 
   return (
-    <Stack screenOptions={{ contentStyle: { backgroundColor: Colors.cream } }}>
+    <Stack
+      screenOptions={{
+        contentStyle: { backgroundColor: Colors.cream },
+        headerStyle: { backgroundColor: Colors.cream },
+        headerShadowVisible: false,
+        headerTintColor: Colors.ink,
+        headerTitleStyle: { fontFamily: Fonts.bodyBold },
+      }}>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       </Stack.Protected>

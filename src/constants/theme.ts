@@ -9,7 +9,7 @@ export const Colors = {
   sky: '#4FB0E5',
   plum: '#3A2E5C',
   ink: '#2C2538',
-  muted: '#8C7F9B',
+  muted: '#766A88',
   cream: '#FFF6EC',
   card: '#FFFFFF',
   line: '#EFE7DB',

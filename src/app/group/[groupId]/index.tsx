@@ -1,7 +1,6 @@
-import * as Clipboard from 'expo-clipboard';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
 
 import { ChatPanel } from '@/components/chat-panel';
 import { FeedItem } from '@/components/feed-item';
@@ -31,7 +30,7 @@ export default function GroupScreen() {
   const leaderboard = useLeaderboard(groupId);
   const [tab, setTab] = useState<Tab>('feed');
   const [checkInsThisWeek, setCheckInsThisWeek] = useState(0);
-  const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -43,11 +42,16 @@ export default function GroupScreen() {
 
   async function handleInvite() {
     if (!group) return;
-    const link = await fetchInviteLink(group.id, group.join_code);
-    await Clipboard.setStringAsync(link.deepLink);
-    setCopied(true);
-    track('invite_sent', { group_id: group.id, source: 'group_screen' });
-    setTimeout(() => setCopied(false), 2000);
+    setSharing(true);
+    try {
+      const link = await fetchInviteLink(group.id, group.join_code);
+      track('invite_sent', { group_id: group.id, source: 'group_screen' });
+      await Share.share({
+        message: `Join my circle on Philoi 🔥 Code: ${link.code} — or tap: ${link.deepLink}`,
+      });
+    } finally {
+      setSharing(false);
+    }
   }
 
   const refreshing = tab === 'feed' ? feed.loading : tab === 'leaderboard' ? leaderboard.loading : false;
@@ -60,8 +64,12 @@ export default function GroupScreen() {
 
       <View style={styles.topBar}>
         <RecapStrip checkInsThisWeek={checkInsThisWeek} />
-        <Pressable onPress={handleInvite} style={styles.inviteButton}>
-          <Text style={styles.inviteLabel}>{copied ? 'Copied!' : 'Invite'}</Text>
+        <Pressable
+          onPress={handleInvite}
+          style={styles.inviteButton}
+          disabled={sharing}
+          accessibilityLabel="Invite a friend">
+          <Text style={styles.inviteLabel}>Invite</Text>
         </Pressable>
       </View>
 

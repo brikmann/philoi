@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { FlameIcon } from '@/components/flame-icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
@@ -68,6 +69,9 @@ export default function JoinScreen() {
   return (
     <Screen style={styles.container}>
       <View style={styles.form}>
+        <View style={styles.icon}>
+          <FlameIcon size={48} />
+        </View>
         <Text style={styles.title}>Join a circle</Text>
         <Text style={styles.body}>Paste or type the code your friend shared.</Text>
         <TextInput
@@ -93,6 +97,9 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: Spacing.three,
+  },
+  icon: {
+    alignSelf: 'center',
   },
   title: {
     fontFamily: Fonts.display,

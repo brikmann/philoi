@@ -1,12 +1,12 @@
-import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { SecondaryButton } from '@/components/ui/secondary-button';
 import { TextInput } from '@/components/ui/text-input';
+import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import { createGroup, fetchInviteLink } from '@/lib/api/groups';
@@ -38,11 +38,12 @@ export default function CreateGroupScreen() {
   const [emoji, setEmoji] = useState(EMOJI_OPTIONS[0]);
   const [goalType, setGoalType] = useState<GoalType>('gym');
   const [cadence, setCadence] = useState(CADENCE_PRESETS.gym[1]);
+  const [customCadence, setCustomCadence] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [invite, setInvite] = useState<{ groupId: string; deepLink: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [invite, setInvite] = useState<{ groupId: string; deepLink: string; code: string } | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   async function handleCreate() {
     if (!name.trim()) {
@@ -60,7 +61,7 @@ export default function CreateGroupScreen() {
         isPublic,
       });
       const link = await fetchInviteLink(group.id, group.join_code);
-      setInvite({ groupId: group.id, deepLink: link.deepLink });
+      setInvite({ groupId: group.id, deepLink: link.deepLink, code: link.code });
     } catch (e) {
       setError(getErrorMessage(e, 'Could not create your circle.'));
     } finally {
@@ -68,11 +69,17 @@ export default function CreateGroupScreen() {
     }
   }
 
-  async function handleCopy() {
+  async function handleShare() {
     if (!invite) return;
-    await Clipboard.setStringAsync(invite.deepLink);
-    setCopied(true);
-    track('invite_sent', { group_id: invite.groupId, source: 'create' });
+    setSharing(true);
+    try {
+      track('invite_sent', { group_id: invite.groupId, source: 'create' });
+      await Share.share({
+        message: `Join my circle on Philoi 🔥 Code: ${invite.code} — or tap: ${invite.deepLink}`,
+      });
+    } finally {
+      setSharing(false);
+    }
   }
 
   if (invite) {
@@ -83,10 +90,11 @@ export default function CreateGroupScreen() {
         <Text style={styles.successBody}>Pull your people in — Philoi works better together.</Text>
 
         <Card style={styles.linkCard}>
-          <Text style={styles.linkText}>{invite.deepLink}</Text>
+          <Text style={styles.linkLabel}>Invite code</Text>
+          <Text style={styles.linkText}>{invite.code}</Text>
         </Card>
 
-        <SecondaryButton label={copied ? 'Copied!' : 'Copy invite link'} onPress={handleCopy} />
+        <SecondaryButton label="Share invite" onPress={handleShare} disabled={sharing} />
 
         <PrimaryButton
           label={isOnboarding ? 'Take my first photo' : 'Go to my circle'}
@@ -141,6 +149,7 @@ export default function CreateGroupScreen() {
             onPress={() => {
               setGoalType(option.value);
               setCadence(CADENCE_PRESETS[option.value][0]);
+              setCustomCadence(false);
             }}
             style={[styles.chip, goalType === option.value && styles.chipSelected]}>
             <Text style={[styles.chipText, goalType === option.value && styles.chipTextSelected]}>
@@ -155,13 +164,31 @@ export default function CreateGroupScreen() {
         {CADENCE_PRESETS[goalType].map((preset) => (
           <Pressable
             key={preset}
-            onPress={() => setCadence(preset)}
-            style={[styles.chip, cadence === preset && styles.chipSelected]}>
-            <Text style={[styles.chipText, cadence === preset && styles.chipTextSelected]}>{preset}</Text>
+            onPress={() => {
+              setCadence(preset);
+              setCustomCadence(false);
+            }}
+            style={[styles.chip, !customCadence && cadence === preset && styles.chipSelected]}>
+            <Text style={[styles.chipText, !customCadence && cadence === preset && styles.chipTextSelected]}>
+              {preset}
+            </Text>
           </Pressable>
         ))}
+        <Pressable
+          onPress={() => {
+            setCustomCadence(true);
+            setCadence('');
+          }}
+          style={[styles.chip, customCadence && styles.chipSelected]}>
+          <Text style={[styles.chipText, customCadence && styles.chipTextSelected]}>Custom</Text>
+        </Pressable>
       </View>
-      <TextInput placeholder="Or type a custom cadence" value={cadence} onChangeText={setCadence} maxLength={20} />
+      {/* Free text only for "Custom" — the chips above already cover every preset, so showing
+          both at once just duplicated the same info (a chip AND a text field both reading
+          e.g. "4x/week"). */}
+      {customCadence && (
+        <TextInput placeholder="e.g. 2x/week, every other day" value={cadence} onChangeText={setCadence} maxLength={20} />
+      )}
 
       <View style={styles.discoverRow}>
         <View style={styles.discoverText}>
@@ -170,11 +197,7 @@ export default function CreateGroupScreen() {
             Others with the same goal (especially at your school) can find and join without a code.
           </Text>
         </View>
-        <Switch
-          value={isPublic}
-          onValueChange={setIsPublic}
-          trackColor={{ true: Colors.coral, false: Colors.line }}
-        />
+        <Toggle value={isPublic} onValueChange={setIsPublic} />
       </View>
 
       {error && <Text style={styles.error}>{error}</Text>}
@@ -303,9 +326,18 @@ const styles = StyleSheet.create({
   },
   linkCard: {
     width: '100%',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  linkLabel: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.muted,
   },
   linkText: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.display,
+    fontSize: 28,
+    letterSpacing: 4,
     color: Colors.plum,
     textAlign: 'center',
   },

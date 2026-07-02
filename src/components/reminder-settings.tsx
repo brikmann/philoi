@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { getErrorMessage } from '@/lib/errors';
 import { clearGroupReminder, getGroupReminder, setGroupReminder } from '@/lib/notifications';
@@ -12,7 +13,15 @@ const PRESET_TIMES = [
   { label: '8:00 PM', hour: 20, minute: 0 },
 ];
 
-export function ReminderSettings({ groupId, groupName }: { groupId: string; groupName: string }) {
+export function ReminderSettings({
+  groupId,
+  groupName,
+  groupEmoji,
+}: {
+  groupId: string;
+  groupName: string;
+  groupEmoji: string;
+}) {
   const [enabled, setEnabled] = useState(false);
   const [time, setTime] = useState(PRESET_TIMES[2]);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +61,9 @@ export function ReminderSettings({ groupId, groupName }: { groupId: string; grou
   return (
     <View style={styles.row}>
       <View style={styles.labelColumn}>
-        <Text style={styles.name}>{groupName}</Text>
+        <Text style={styles.name}>
+          {groupEmoji} {groupName}
+        </Text>
         {enabled && (
           <View style={styles.timeRow}>
             {PRESET_TIMES.map((option) => (
@@ -66,11 +77,7 @@ export function ReminderSettings({ groupId, groupName }: { groupId: string; grou
         )}
         {error && <Text style={styles.error}>{error}</Text>}
       </View>
-      <Switch
-        value={enabled}
-        onValueChange={handleToggle}
-        trackColor={{ true: Colors.coral, false: Colors.line }}
-      />
+      <Toggle value={enabled} onValueChange={handleToggle} />
     </View>
   );
 }
