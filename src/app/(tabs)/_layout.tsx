@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 
+import { EmojiTabIcon } from '@/components/emoji-tab-icon';
 import { FlameIcon } from '@/components/flame-icon';
 import { Colors, Fonts } from '@/constants/theme';
 
@@ -17,15 +18,29 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Today',
+          title: 'Circles',
           tabBarIcon: ({ focused }) => <FlameIcon size={26} background={focused ? Colors.plum : null} />,
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboards"
+        options={{
+          title: 'Leaderboards',
+          tabBarIcon: ({ focused }) => <EmojiTabIcon emoji="🏆" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="challenges"
+        options={{
+          title: 'Challenges',
+          tabBarIcon: ({ focused }) => <EmojiTabIcon emoji="🎯" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <Text style={[styles.glyph, { color }]}>{'☺'}</Text>,
+          tabBarIcon: ({ focused }) => <EmojiTabIcon emoji="🙂" focused={focused} />,
         }}
       />
     </Tabs>
@@ -36,8 +51,5 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-  },
-  glyph: {
-    fontSize: 22,
   },
 });

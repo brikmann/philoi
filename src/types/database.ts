@@ -97,7 +97,9 @@ export type AnalyticsEventName =
   | 'circle_joined'
   | 'invite_sent'
   | 'invite_accepted'
-  | 'check_in_completed';
+  | 'check_in_completed'
+  | 'challenge_created'
+  | 'challenge_completed';
 
 export type AnalyticsEvent = {
   id: string;
@@ -131,6 +133,69 @@ export type UniversityLeaderboardRow = {
 export type WeeklyRecap = {
   group_id: string;
   group_name: string;
+  check_ins_this_week: number;
+};
+
+export type ChallengeType = 'steps' | 'gym_visits' | 'study_hours' | 'custom';
+export type ChallengePeriod = 'day' | 'week';
+export type ChallengeVisibility = 'circle' | 'private';
+
+export type Challenge = {
+  id: string;
+  user_id: string;
+  circle_id: string | null;
+  type: ChallengeType;
+  label: string | null;
+  target: number;
+  unit: string;
+  period: ChallengePeriod;
+  progress: number;
+  visibility: ChallengeVisibility;
+  period_start: string;
+  completed_at: string | null;
+  created_at: string;
+};
+
+export type ChallengeLog = {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  amount: number;
+  note: string | null;
+  created_at: string;
+};
+
+export type ChallengeFeedEvent = {
+  id: string;
+  group_id: string;
+  user_id: string;
+  challenge_id: string;
+  challenge_type: ChallengeType;
+  challenge_label: string | null;
+  target: number;
+  unit: string;
+  created_at: string;
+};
+
+export type ChallengeLeaderboardRow = {
+  user_id: string;
+  handle: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  is_pro: boolean;
+  progress: number;
+  target: number;
+  unit: string;
+  completed_at: string | null;
+};
+
+export type MyCircleRank = {
+  group_id: string;
+  group_name: string;
+  group_emoji: string;
+  my_rank: number;
+  member_count: number;
+  current_streak: number;
   check_ins_this_week: number;
 };
 
@@ -250,6 +315,40 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      challenges: {
+        Row: Challenge;
+        Insert: Partial<Challenge> & { user_id: string; type: ChallengeType; target: number; unit: string };
+        Update: Partial<Challenge>;
+        Relationships: [
+          {
+            foreignKeyName: 'challenges_circle_id_fkey';
+            columns: ['circle_id'];
+            isOneToOne: false;
+            referencedRelation: 'groups';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      challenge_logs: {
+        Row: ChallengeLog;
+        Insert: Partial<ChallengeLog> & { challenge_id: string; user_id: string; amount: number };
+        Update: never;
+        Relationships: [];
+      };
+      challenge_feed_events: {
+        Row: ChallengeFeedEvent;
+        Insert: never;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: 'challenge_feed_events_group_id_fkey';
+            columns: ['group_id'];
+            isOneToOne: false;
+            referencedRelation: 'groups';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -285,6 +384,15 @@ export type Database = {
       dev_seed_my_demo_circle: { Args: Record<string, never>; Returns: Group };
       dev_simulate_friend_checkin: { Args: { p_group_id: string; p_fake_user_id: string }; Returns: undefined };
       dev_reset_my_checkins: { Args: { p_group_id?: string | null }; Returns: undefined };
+      log_challenge_progress: {
+        Args: { p_challenge_id: string; p_amount: number; p_note?: string | null };
+        Returns: (Challenge & { just_completed: boolean })[];
+      };
+      get_challenge_leaderboard: {
+        Args: { p_circle_id: string; p_type: ChallengeType };
+        Returns: ChallengeLeaderboardRow[];
+      };
+      get_my_circle_ranks: { Args: Record<string, never>; Returns: MyCircleRank[] };
     };
   };
 };

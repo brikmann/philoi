@@ -174,6 +174,8 @@ function RootNavigator() {
         />
         <Stack.Screen name="group/create" options={{ presentation: 'modal', title: 'Start a circle' }} />
         <Stack.Screen name="university-leaderboard" options={{ title: '' }} />
+        <Stack.Screen name="challenge/create" options={{ presentation: 'modal', title: 'New challenge' }} />
+        <Stack.Screen name="challenge-leaderboard" options={{ title: '' }} />
         <Stack.Screen name="report" options={{ presentation: 'modal', title: 'Report' }} />
         <Stack.Screen name="legal" options={{ title: '' }} />
         <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />

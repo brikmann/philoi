@@ -5,6 +5,7 @@ import type {
   Group,
   GoalType,
   LeaderboardRow,
+  MyCircleRank,
   UniversityLeaderboardRow,
   WeeklyRecap,
 } from '@/types/database';
@@ -158,6 +159,12 @@ export async function fetchUniversityLeaderboard(university: string): Promise<Un
     p_university: university,
     p_limit: 50,
   });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function fetchMyCircleRanks(): Promise<MyCircleRank[]> {
+  const { data, error } = await supabase.rpc('get_my_circle_ranks');
   if (error) throw error;
   return data ?? [];
 }

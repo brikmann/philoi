@@ -1412,3 +1412,281 @@ begin
   end loop;
 end;
 $$;
+
+-- ───────────────────────────── challenges ─────────────────────────────
+-- Quantified personal goals (steps / gym visits / study hours / custom) that go beyond the
+-- binary "checked in or not". Kept social by design — a challenge can attach to a circle so
+-- progress is visible to friends and feeds a leaderboard; a private solo tracker would be a
+-- commodity feature, the peer-visibility is what's differentiated here. v1 logging is manual
+-- (no Apple Health / Google Fit sync) and a challenge is a single-instance goal, not an
+-- auto-resetting recurring one — completing it is permanent (period/period_start are for
+-- display + this-week leaderboard scoping, not a cron-driven rollover).
+
+create table if not exists challenges (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles (id) on delete cascade,
+  circle_id uuid references groups (id) on delete cascade,
+  type text not null check (type in ('steps', 'gym_visits', 'study_hours', 'custom')),
+  label text,
+  target numeric not null check (target > 0),
+  unit text not null,
+  period text not null default 'week' check (period in ('day', 'week')),
+  progress numeric not null default 0 check (progress >= 0),
+  visibility text not null default 'circle' check (visibility in ('circle', 'private')),
+  period_start date not null default date_trunc('week', now())::date,
+  completed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists challenges_user_idx on challenges (user_id);
+create index if not exists challenges_circle_idx on challenges (circle_id) where circle_id is not null;
+
+alter table challenges enable row level security;
+
+drop policy if exists "challenges: read own" on challenges;
+create policy "challenges: read own" on challenges for select using (user_id = auth.uid());
+
+drop policy if exists "challenges: read circle if visible" on challenges;
+create policy "challenges: read circle if visible" on challenges for select using (
+  visibility = 'circle' and circle_id is not null and is_group_member(circle_id)
+);
+
+drop policy if exists "challenges: insert own" on challenges;
+create policy "challenges: insert own" on challenges for insert with check (
+  user_id = auth.uid() and (circle_id is null or is_group_member(circle_id))
+);
+
+drop policy if exists "challenges: update own" on challenges;
+create policy "challenges: update own" on challenges for update using (user_id = auth.uid());
+
+drop policy if exists "challenges: delete own" on challenges;
+create policy "challenges: delete own" on challenges for delete using (user_id = auth.uid());
+
+create table if not exists challenge_logs (
+  id uuid primary key default gen_random_uuid(),
+  challenge_id uuid not null references challenges (id) on delete cascade,
+  user_id uuid not null references profiles (id) on delete cascade,
+  amount numeric not null check (amount > 0),
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists challenge_logs_challenge_idx on challenge_logs (challenge_id, created_at desc);
+
+alter table challenge_logs enable row level security;
+
+drop policy if exists "challenge_logs: read own" on challenge_logs;
+create policy "challenge_logs: read own" on challenge_logs for select using (user_id = auth.uid());
+
+drop policy if exists "challenge_logs: read circle if visible" on challenge_logs;
+create policy "challenge_logs: read circle if visible" on challenge_logs for select using (
+  exists (
+    select 1 from challenges c
+    where c.id = challenge_logs.challenge_id
+      and c.visibility = 'circle'
+      and c.circle_id is not null
+      and is_group_member(c.circle_id)
+  )
+);
+
+-- Logging always goes through log_challenge_progress() (security definer) below, which
+-- validates ownership and updates challenges.progress in the same transaction — there's no
+-- direct insert policy for regular users, so client code can't fabricate progress on a
+-- challenge_logs row without also owning the parent challenge (server-trusted totals).
+
+-- Circle-visible feed of challenge completions — a dedicated table rather than reusing
+-- check_ins, so the one-check-in-per-day unique index and photo_url-not-null invariant on
+-- check_ins stay untouched. The group screen's Feed tab merges this in alongside check-ins
+-- client-side, ordered by created_at.
+create table if not exists challenge_feed_events (
+  id uuid primary key default gen_random_uuid(),
+  group_id uuid not null references groups (id) on delete cascade,
+  user_id uuid not null references profiles (id) on delete cascade,
+  challenge_id uuid not null references challenges (id) on delete cascade,
+  challenge_type text not null,
+  challenge_label text,
+  target numeric not null,
+  unit text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists challenge_feed_events_group_idx on challenge_feed_events (group_id, created_at desc);
+
+alter table challenge_feed_events enable row level security;
+
+drop policy if exists "challenge_feed_events: read if member" on challenge_feed_events;
+create policy "challenge_feed_events: read if member" on challenge_feed_events for select using (
+  is_group_member(group_id)
+);
+
+-- Inserted only by log_challenge_progress() (security definer) on completion — no direct
+-- insert policy for regular users.
+
+drop function if exists log_challenge_progress(uuid, numeric, text);
+
+create or replace function log_challenge_progress(p_challenge_id uuid, p_amount numeric, p_note text default null)
+returns table (
+  id uuid,
+  user_id uuid,
+  circle_id uuid,
+  type text,
+  label text,
+  target numeric,
+  unit text,
+  period text,
+  progress numeric,
+  visibility text,
+  period_start date,
+  completed_at timestamptz,
+  created_at timestamptz,
+  just_completed boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_challenge challenges;
+  v_was_complete boolean;
+  v_group_name text;
+  v_poster_name text;
+  v_recipient_ids uuid[];
+begin
+  select * into v_challenge from challenges where challenges.id = p_challenge_id and challenges.user_id = auth.uid();
+  if v_challenge.id is null then
+    raise exception 'Challenge not found.';
+  end if;
+
+  insert into challenge_logs (challenge_id, user_id, amount, note)
+  values (p_challenge_id, auth.uid(), p_amount, p_note);
+
+  v_was_complete := v_challenge.completed_at is not null;
+
+  update challenges
+  set progress = challenges.progress + p_amount,
+      completed_at = case
+        when challenges.completed_at is null and challenges.progress + p_amount >= challenges.target then now()
+        else challenges.completed_at
+      end
+  where challenges.id = p_challenge_id
+  returning * into v_challenge;
+
+  if not v_was_complete and v_challenge.completed_at is not null and v_challenge.circle_id is not null and v_challenge.visibility = 'circle' then
+    insert into challenge_feed_events (group_id, user_id, challenge_id, challenge_type, challenge_label, target, unit)
+    values (v_challenge.circle_id, auth.uid(), v_challenge.id, v_challenge.type, v_challenge.label, v_challenge.target, v_challenge.unit);
+
+    select name into v_group_name from groups where groups.id = v_challenge.circle_id;
+    select display_name into v_poster_name from profiles where profiles.id = auth.uid();
+
+    select coalesce(array_agg(gm.user_id), '{}')
+    into v_recipient_ids
+    from group_members gm
+    where gm.group_id = v_challenge.circle_id and gm.user_id <> auth.uid();
+
+    if array_length(v_recipient_ids, 1) > 0 then
+      perform notify_push(
+        v_recipient_ids,
+        v_group_name,
+        coalesce(v_poster_name, 'Someone') || ' just hit their ' || coalesce(v_challenge.label, v_challenge.type) || ' challenge 🎯',
+        jsonb_build_object('type', 'challenge_completed', 'group_id', v_challenge.circle_id)
+      );
+    end if;
+  end if;
+
+  return query select
+    v_challenge.id, v_challenge.user_id, v_challenge.circle_id, v_challenge.type, v_challenge.label,
+    v_challenge.target, v_challenge.unit, v_challenge.period, v_challenge.progress, v_challenge.visibility,
+    v_challenge.period_start, v_challenge.completed_at, v_challenge.created_at,
+    (not v_was_complete and v_challenge.completed_at is not null);
+end;
+$$;
+
+-- Per-challenge-type leaderboard within a circle (comparing steps vs study hours wouldn't
+-- rank sensibly, so callers scope by circle_id + type — mirrors get_group_leaderboard's shape).
+create or replace function get_challenge_leaderboard(p_circle_id uuid, p_type text)
+returns table (
+  user_id uuid,
+  handle text,
+  display_name text,
+  avatar_url text,
+  is_pro boolean,
+  progress numeric,
+  target numeric,
+  unit text,
+  completed_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    c.user_id,
+    p.handle,
+    p.display_name,
+    p.avatar_url,
+    p.is_pro,
+    c.progress,
+    c.target,
+    c.unit,
+    c.completed_at
+  from challenges c
+  join profiles p on p.id = c.user_id
+  where c.circle_id = p_circle_id
+    and c.type = p_type
+    and c.visibility = 'circle'
+    and is_group_member(p_circle_id)
+  order by c.progress desc, c.completed_at asc nulls last;
+$$;
+
+-- Per-user rank + streak snapshot across every circle they're in, for the global Leaderboards
+-- tab's "My Circles" view — one round trip instead of N calls to get_group_leaderboard(),
+-- ranked by the same rule (current_streak desc, check_ins_this_week desc) that
+-- get_group_leaderboard() uses.
+create or replace function get_my_circle_ranks()
+returns table (
+  group_id uuid,
+  group_name text,
+  group_emoji text,
+  my_rank bigint,
+  member_count bigint,
+  current_streak integer,
+  check_ins_this_week bigint
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  with weekly as (
+    select
+      gm.group_id,
+      gm.user_id,
+      gm.current_streak,
+      coalesce((
+        select count(*) from check_ins ci
+        where ci.group_id = gm.group_id and ci.user_id = gm.user_id and ci.created_at >= date_trunc('week', now())
+      ), 0) as check_ins_this_week
+    from group_members gm
+    where is_group_member(gm.group_id)
+  ),
+  ranked as (
+    select
+      w.*,
+      rank() over (partition by w.group_id order by w.current_streak desc, w.check_ins_this_week desc) as rnk,
+      count(*) over (partition by w.group_id) as member_count
+    from weekly w
+  )
+  select
+    g.id as group_id,
+    g.name as group_name,
+    g.emoji as group_emoji,
+    r.rnk as my_rank,
+    r.member_count,
+    r.current_streak,
+    r.check_ins_this_week
+  from ranked r
+  join groups g on g.id = r.group_id
+  where r.user_id = auth.uid()
+  order by g.name;
+$$;

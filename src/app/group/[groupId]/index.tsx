@@ -1,7 +1,8 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
 
+import { ChallengeCompletionCard } from '@/components/challenge-completion-card';
 import { ChatPanel } from '@/components/chat-panel';
 import { FeedItem } from '@/components/feed-item';
 import { LeaderboardRow } from '@/components/leaderboard-row';
@@ -12,25 +13,49 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
 import { CHAT_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { useChallengeFeed } from '@/hooks/use-challenge-feed';
 import { useFeed } from '@/hooks/use-feed';
 import { useGroup } from '@/hooks/use-group';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
 import { track } from '@/lib/analytics';
+import type { FeedCheckIn } from '@/lib/api/check-ins';
+import type { FeedChallengeEvent } from '@/lib/api/challenges';
 import { fetchInviteLink, fetchWeeklyRecap } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 
 type Tab = 'feed' | 'leaderboard' | 'chat';
 
+type FeedRow = { kind: 'check_in'; id: string; created_at: string; data: FeedCheckIn } | { kind: 'challenge'; id: string; created_at: string; data: FeedChallengeEvent };
+
 export default function GroupScreen() {
   const router = useRouter();
-  const { groupId } = useLocalSearchParams<{ groupId: string }>();
+  const { groupId, tab: initialTab } = useLocalSearchParams<{ groupId: string; tab?: Tab }>();
   const { session } = useAuth();
   const { group } = useGroup(groupId);
   const feed = useFeed(groupId);
   const leaderboard = useLeaderboard(groupId);
-  const [tab, setTab] = useState<Tab>('feed');
+  const challengeFeed = useChallengeFeed(groupId);
+  const [tab, setTab] = useState<Tab>(initialTab === 'leaderboard' || initialTab === 'chat' ? initialTab : 'feed');
   const [checkInsThisWeek, setCheckInsThisWeek] = useState(0);
   const [sharing, setSharing] = useState(false);
+
+  const feedRows = useMemo<FeedRow[]>(() => {
+    const checkInRows: FeedRow[] = feed.items.map((item) => ({
+      kind: 'check_in',
+      id: item.id,
+      created_at: item.created_at,
+      data: item,
+    }));
+    const challengeRows: FeedRow[] = challengeFeed.events.map((event) => ({
+      kind: 'challenge',
+      id: event.id,
+      created_at: event.created_at,
+      data: event,
+    }));
+    return [...checkInRows, ...challengeRows].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [feed.items, challengeFeed.events]);
 
   useEffect(() => {
     if (!session) return;
@@ -54,9 +79,9 @@ export default function GroupScreen() {
     }
   }
 
-  const refreshing = tab === 'feed' ? feed.loading : tab === 'leaderboard' ? leaderboard.loading : false;
-  const onRefresh = tab === 'feed' ? feed.refetch : leaderboard.refetch;
-  const activeError = tab === 'feed' ? feed.error : tab === 'leaderboard' ? leaderboard.error : null;
+  const refreshing = tab === 'feed' ? feed.loading || challengeFeed.loading : tab === 'leaderboard' ? leaderboard.loading : false;
+  const onRefresh = tab === 'feed' ? () => Promise.all([feed.refetch(), challengeFeed.refetch()]) : leaderboard.refetch;
+  const activeError = tab === 'feed' ? (feed.error ?? challengeFeed.error) : tab === 'leaderboard' ? leaderboard.error : null;
 
   return (
     <Screen padded={false}>
@@ -95,14 +120,20 @@ export default function GroupScreen() {
         <ChatPanel groupId={groupId} myUserId={session.user.id} />
       ) : tab === 'feed' ? (
         <FlatList
-          data={feed.items}
-          keyExtractor={(item) => item.id}
+          data={feedRows}
+          keyExtractor={(row) => row.id}
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.coral} />}
-          renderItem={({ item }) => <FeedItem item={item} onReactionChanged={feed.refetch} />}
+          renderItem={({ item: row }) =>
+            row.kind === 'check_in' ? (
+              <FeedItem item={row.data} onReactionChanged={feed.refetch} />
+            ) : (
+              <ChallengeCompletionCard event={row.data} />
+            )
+          }
           ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
           ListEmptyComponent={
-            !feed.loading ? (
+            !feed.loading && !challengeFeed.loading ? (
               <EmptyState
                 title="No check-ins yet"
                 body="Be the first to show up — your circle's watching 👀"
