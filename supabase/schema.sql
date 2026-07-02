@@ -964,6 +964,13 @@ create policy "push_tokens: manage own" on push_tokens for all using (user_id = 
 -- p_channel_id routes to the matching Android notification channel (see
 -- src/lib/notifications.ts) — "accountability" (check-ins/reactions/streaks, high priority)
 -- vs "messages" (chat), so chat volume can never bury the accountability signal.
+--
+-- Dropped first: CREATE OR REPLACE doesn't replace a function whose parameter list changed
+-- (adding p_channel_id here) — it silently creates a second overload instead, and every
+-- 4-arg call site then fails with "function notify_push(uuid[], text, text, jsonb) is not
+-- unique" because Postgres can't tell the two overloads apart.
+drop function if exists notify_push(uuid[], text, text, jsonb);
+
 create or replace function notify_push(
   p_user_ids uuid[],
   p_title text,
