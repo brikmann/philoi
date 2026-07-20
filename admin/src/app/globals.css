@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-csae: #dc2626;
+}
+
+body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
