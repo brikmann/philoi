@@ -14,6 +14,11 @@ const config: ExpoConfig = {
     bundleIdentifier: 'com.philoi.app',
     icon: './assets/images/icon.png',
     associatedDomains: ['applinks:getphiloi.com'],
+    infoPlist: {
+    ITSAppUsesNonExemptEncryption: false,
+    NSHealthShareUsageDescription:
+      'Philoi reads only the activity your challenge needs — like steps or distance — to verify it automatically. Your health data stays on your device.',
+  },
   },
   android: {
     package: 'com.philoi.app',
@@ -39,6 +44,16 @@ const config: ExpoConfig = {
         category: ['BROWSABLE', 'DEFAULT'],
       },
     ],
+    // Health Connect (§17/19b) — minimal, read-only, one entry per record type this app
+    // actually reads. Expo's own `android.permissions` field merges these into the manifest
+    // directly; the rationale intent-filter half is react-native-health-connect's bundled
+    // plugin, below in the plugins array.
+    permissions: [
+      'android.permission.health.READ_STEPS',
+      'android.permission.health.READ_DISTANCE',
+      'android.permission.health.READ_ACTIVE_CALORIES_BURNED',
+      'android.permission.health.READ_EXERCISE',
+    ],
   },
   web: {
     output: 'static',
@@ -51,6 +66,7 @@ const config: ExpoConfig = {
     'expo-status-bar',
     'expo-web-browser',
     'expo-audio',
+    'expo-sharing',
     [
       '@sentry/react-native/expo',
       {
@@ -62,12 +78,9 @@ const config: ExpoConfig = {
       'expo-font',
       {
         fonts: [
-          'node_modules/@expo-google-fonts/fredoka/500Medium/Fredoka_500Medium.ttf',
-          'node_modules/@expo-google-fonts/fredoka/600SemiBold/Fredoka_600SemiBold.ttf',
-          'node_modules/@expo-google-fonts/nunito/400Regular/Nunito_400Regular.ttf',
-          'node_modules/@expo-google-fonts/nunito/600SemiBold/Nunito_600SemiBold.ttf',
-          'node_modules/@expo-google-fonts/nunito/700Bold/Nunito_700Bold.ttf',
-          'node_modules/@expo-google-fonts/nunito/800ExtraBold/Nunito_800ExtraBold.ttf',
+          'node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf',
+          'node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf',
+          'node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf',
         ],
       },
     ],
@@ -86,6 +99,49 @@ const config: ExpoConfig = {
         cameraPermission: 'Philoi uses your camera so your circle can see you show up.',
       },
     ],
+    [
+      'expo-media-library',
+      {
+        photosPermission: 'Philoi needs photo access to save a campfire photo to your library.',
+        savePhotosPermission: 'Philoi needs photo access to save a campfire photo to your library.',
+        isAccessMediaLocationEnabled: false,
+      },
+    ],
+    [
+      '@kingstinct/react-native-healthkit',
+      {
+        // §17 — read-only, minimal scope. NSHealthUpdateUsageDescription: false opts OUT of the
+        // write/update capability description entirely (the plugin otherwise adds a generic one
+        // by default) since this app never calls a save*/write API. background: false skips the
+        // background-delivery entitlement too — foreground sync only for this pass; wiring true
+        // background delivery is left for later, not something to declare-and-not-use.
+        NSHealthShareUsageDescription:
+          'Philoi reads only the activity your challenge needs — e.g. steps — to verify it automatically. Your health data stays on your device.',
+        NSHealthUpdateUsageDescription: false,
+        background: false,
+      },
+    ],
+    [
+      'expo-build-properties',
+      {
+        // Health Connect on Android 14+ is part of the OS; older versions use the installable
+        // APK (react-native-health-connect / src/lib/health-connect.ts detects and falls back
+        // to manual entry — never a hard crash). These SDK levels are what its own setup docs
+        // call for.
+        android: {
+          // Bumped to 36: newer AndroidX libs (androidx.activity 1.11.0, androidx.core 1.18.0,
+          // pulled in transitively) require compiling against Android API 36+ (AAR metadata check).
+          // compileSdk (which APIs compile) is independent of targetSdk (runtime behavior opt-in),
+          // so target stays 35 — no new runtime behavior changes to re-test.
+          compileSdkVersion: 36,
+          targetSdkVersion: 35,
+          minSdkVersion: 26,
+        },
+      },
+    ],
+    // Adds the OS "why does this app want my health data" rationale intent-filter — the
+    // permission declarations themselves are android.permissions above.
+    'react-native-health-connect',
     [
       'expo-notifications',
       {
@@ -110,6 +166,13 @@ const config: ExpoConfig = {
     posthogApiKey: process.env.POSTHOG_API_KEY ?? null,
     posthogHost: process.env.POSTHOG_HOST ?? 'https://us.i.posthog.com',
     sentryDsn: process.env.SENTRY_DSN ?? null,
+    // Public half of the Strava OAuth app only (§17) — safe client-side, it's the value in
+    // every Strava authorize URL. The client secret lives ONLY in Supabase's Edge Function
+    // secrets (supabase/functions/strava-*), never here.
+    stravaClientId: process.env.STRAVA_CLIENT_ID ?? null,
+    // Same deal for Whoop (§17) — public client id only. WHOOP_CLIENT_SECRET lives ONLY in
+    // Supabase's Edge Function secrets (supabase/functions/whoop-*), never here.
+    whoopClientId: process.env.WHOOP_CLIENT_ID ?? null,
     eas: {
       projectId: 'f1031c6d-fd56-4d27-880a-0e87a7953f05',
     },
