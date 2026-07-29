@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "www.philoi.app" }],
+      "destination": "https://philoi.app/",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.philoi.app" }],
+      "destination": "https://philoi.app/:path*",
+      "permanent": true
+    }
+  ]
+}

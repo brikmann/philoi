@@ -1,0 +1,5 @@
+README.md
+_assets/
+.env
+.env.*
+.vercel

@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Philoi — Lock in. Together.</title>
+<meta name="description" content="Philoi is a social accountability app for students. Set a goal, lock in with your campfire, and earn XP, ranks and streaks for actually showing up.">
+<link rel="canonical" href="https://philoi.app/">
+<meta name="theme-color" content="#14111C">
+<meta name="color-scheme" content="dark">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Philoi">
+<meta property="og:url" content="https://philoi.app/">
+<meta property="og:title" content="Philoi — Lock in. Together.">
+<meta property="og:description" content="A social accountability app for students. Set a goal, lock in with your campfire, and earn XP, ranks and streaks for actually showing up.">
+<meta property="og:image" content="https://philoi.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Philoi — Lock in. Together.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Philoi — Lock in. Together.">
+<meta name="twitter:description" content="A social accountability app for students. Set a goal, lock in with your campfire, and earn XP, ranks and streaks for actually showing up.">
+<meta name="twitter:image" content="https://philoi.app/og.png">
+
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+
+<style>
+/* ── Tokens: mirrored 1:1 from the app's src/constants/theme.ts ────────── */
+:root{
+  --twilight-900:#14111C;
+  --twilight-800:#1B1726;
+  --twilight-700:#241C38;
+  --twilight-600:#2D2740;
+  --forge:#17131F;      /* Colors.forgeBg — the rank-up stage floor */
+  --plum:#3A2E5C;
+  --coral:#E0612C;
+  --amber:#F2A33C;
+  --ember:#FFD27A;
+  --flare:#FFE9C2;      /* rank-up-celebration.tsx FLASH_COLOR */
+  --green:#3DA85C;
+  --ink:#FFF6EC;
+  --muted:#A99CBD;
+  --tertiary:#7C7194;
+  --tool:#FFF3DC;       /* lock-in-flame.tsx TOOL_COLOR */
+  --line:rgba(255,255,255,.08);
+  --line-strong:rgba(255,255,255,.14);
+  --radius:14px;
+  --radius-lg:20px;
+  --shell:1120px;
+  --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{
+  margin:0;
+  font-family:var(--font);
+  font-size:17px;
+  line-height:1.65;
+  color:var(--ink);
+  background:var(--twilight-800);
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+img,svg{max-width:100%;display:block}
+h1,h2,h3{line-height:1.15;margin:0;letter-spacing:-.02em;font-weight:600}
+p{margin:0}
+a{color:var(--ember);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--ember);outline-offset:3px;border-radius:6px}
+
+.shell{width:100%;max-width:var(--shell);margin-inline:auto;padding-inline:20px}
+@media (min-width:720px){.shell{padding-inline:32px}}
+
+.skip{
+  position:absolute;left:12px;top:-64px;z-index:100;
+  background:var(--coral);color:#1B1726;font-weight:600;
+  padding:10px 16px;border-radius:10px;transition:top .15s;
+}
+.skip:focus{top:12px;text-decoration:none}
+
+/* ── Header ────────────────────────────────────────────────────────────── */
+.site-header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(20,17,28,.78);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.site-header .shell{display:flex;align-items:center;gap:16px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink);font-weight:600;font-size:19px;letter-spacing:-.02em}
+.brand:hover{text-decoration:none}
+.brand svg{filter:drop-shadow(0 2px 10px rgba(224,97,44,.45))}
+.nav{margin-left:auto;display:none;align-items:center;gap:28px}
+@media (min-width:820px){.nav{display:flex}}
+.nav a{color:var(--muted);font-size:15px;font-weight:500}
+.nav a:hover{color:var(--ink);text-decoration:none}
+.nav .btn-sm{
+  color:#1B1726;background:linear-gradient(135deg,var(--coral),var(--amber));
+  padding:9px 18px;border-radius:999px;font-weight:600;
+}
+.nav .btn-sm:hover{color:#1B1726;filter:brightness(1.07)}
+
+/* ── Shared bits ───────────────────────────────────────────────────────── */
+section{position:relative}
+.band{padding:76px 0}
+@media (min-width:820px){.band{padding:110px 0}}
+.eyebrow{
+  display:inline-block;font-size:12px;font-weight:600;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ember);margin-bottom:18px;
+}
+.lede{color:var(--muted);font-size:clamp(17px,1.6vw,19px);max-width:62ch}
+h2{font-size:clamp(28px,4.2vw,42px);margin-bottom:18px}
+h3{font-size:clamp(22px,2.6vw,28px);margin-bottom:12px}
+.hr{height:1px;background:linear-gradient(90deg,transparent,var(--line-strong),transparent);border:0;margin:0}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-family:inherit;font-size:16px;font-weight:600;line-height:1;
+  padding:15px 26px;border-radius:var(--radius);border:0;cursor:pointer;
+  text-decoration:none;transition:transform .15s ease,filter .15s ease,box-shadow .15s ease;
+}
+.btn-primary{
+  color:#1B1726;background:linear-gradient(135deg,var(--coral) 10%,var(--amber));
+  box-shadow:0 10px 30px -8px rgba(224,97,44,.6);
+}
+.btn-primary:hover{filter:brightness(1.06);transform:translateY(-1px);text-decoration:none}
+.btn:disabled{opacity:.6;cursor:default;transform:none}
+@media (prefers-reduced-motion:reduce){.btn:hover{transform:none}}
+
+/* ── Hero ──────────────────────────────────────────────────────────────── */
+.hero{
+  padding:64px 0 72px;
+  background:
+    radial-gradient(1000px 520px at 50% -8%,rgba(224,97,44,.20),transparent 62%),
+    radial-gradient(760px 420px at 82% 6%,rgba(242,163,60,.11),transparent 60%),
+    radial-gradient(620px 400px at 10% 34%,rgba(58,46,92,.5),transparent 62%),
+    linear-gradient(180deg,var(--twilight-900),var(--twilight-800) 72%);
+  overflow:hidden;
+  text-align:center;
+}
+@media (min-width:820px){.hero{padding:96px 0 76px}}
+.wordmark{
+  font-size:clamp(15px,2vw,17px);font-weight:600;letter-spacing:.34em;
+  text-transform:uppercase;color:var(--ember);margin-bottom:20px;
+}
+.hero h1{
+  font-size:clamp(42px,8.4vw,80px);font-weight:700;letter-spacing:-.035em;
+  margin-bottom:20px;
+}
+.hero h1 .flicker{
+  background:linear-gradient(100deg,var(--coral),var(--amber) 48%,var(--ember));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero .lede{margin:0 auto 34px;max-width:56ch;font-size:clamp(17px,1.9vw,20px)}
+.hero-actions{display:flex;flex-direction:column;align-items:center;gap:14px}
+
+.hero-note{margin:0;font-size:15px;color:var(--tertiary)}
+.link-quiet{color:var(--muted);font-size:15px;font-weight:500}
+.link-quiet:hover{color:var(--ink)}
+
+/* ── Feature rows ──────────────────────────────────────────────────────── */
+.feature{display:grid;gap:36px;align-items:center;padding:60px 0}
+.feature + .feature{border-top:1px solid var(--line)}
+@media (max-width:700px){.fuel-rail{bottom:18px}}
+@media (min-width:940px){
+  .feature{grid-template-columns:1fr 1fr;gap:72px;padding:84px 0}
+  .feature--flip .feature-copy{order:2}
+}
+.feature-copy p{color:var(--muted);font-size:16.5px;max-width:48ch}
+.feature-copy .kicker{
+  display:inline-block;font-size:11.5px;font-weight:600;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--coral);margin-bottom:14px;
+}
+.feature-note{margin-top:16px;font-size:14.5px;color:var(--tertiary)}
+
+/* ── Challenges ────────────────────────────────────────────────────────── */
+.challenges{
+  background:
+    radial-gradient(760px 380px at 88% 12%,rgba(224,97,44,.14),transparent 62%),
+    var(--twilight-900);
+  border-block:1px solid var(--line);
+}
+.split{display:grid;gap:40px}
+@media (min-width:900px){.split{grid-template-columns:1.05fr .95fr;gap:64px;align-items:center}}
+.chips{display:flex;flex-wrap:wrap;gap:9px;margin:26px 0 0}
+.chip{
+  font-size:13.5px;font-weight:500;color:var(--ember);
+  background:#3A2A22;border:1px solid rgba(255,210,122,.18);
+  padding:7px 14px;border-radius:999px;
+}
+.panel{
+  background:linear-gradient(180deg,var(--twilight-700),#1E1730);
+  border:1px solid var(--line);border-radius:var(--radius-lg);padding:10px;
+}
+.src{display:flex;align-items:center;gap:14px;padding:16px 14px;border-radius:12px}
+.src + .src{border-top:1px solid var(--line)}
+.src-dot{
+  width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+  background:var(--twilight-600);
+}
+.src-dot svg{width:18px;height:18px}
+.src-text{min-width:0}
+.src-name{display:block;font-weight:500;font-size:15.5px}
+.src-meta{display:block;font-size:13.5px;color:var(--tertiary);margin-top:1px}
+.src-state{
+  margin-left:auto;font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);background:#3A3350;padding:5px 11px;border-radius:999px;white-space:nowrap;
+}
+.panel-foot{padding:14px;font-size:13.5px;color:var(--tertiary);border-top:1px solid var(--line)}
+
+/* ── Closing ───────────────────────────────────────────────────────────── */
+.closing{
+  text-align:center;
+  background:
+    radial-gradient(760px 400px at 50% 100%,rgba(224,97,44,.17),transparent 66%),
+    var(--twilight-800);
+}
+.contact-line{margin-top:28px;color:var(--muted);font-size:15.5px}
+
+/* ── Footer ────────────────────────────────────────────────────────────── */
+.site-footer{background:var(--twilight-900);border-top:1px solid var(--line);padding:36px 0}
+.site-footer .shell{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;
+  font-size:14.5px;color:var(--tertiary);
+}
+.site-footer a{color:var(--muted)}
+.site-footer a:hover{color:var(--ink)}
+.site-footer .spacer{margin-left:auto}
+
+
+/* ════════════════════════════════════════════════════════════════════════
+   MOTION
+   Ported from the app's real Reanimated components — durations, easings,
+   offsets and colors are the same numbers, not approximations. Cited per
+   block. Every looping property is transform or opacity only.
+
+   Architecture: the BASE state of every stage is a clean static
+   illustration (what you get with JS off, or with reduced motion). The
+   JS adds `.is-live` when a stage scrolls into view, and only then do the
+   animations attach — so re-entering the viewport restarts the sequence.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.stage{
+  position:relative;width:100%;aspect-ratio:5/4;max-height:420px;min-height:290px;
+  /* rank-up-celebration.tsx ForgeBackdrop: radial 120% 80% at 50% 46% */
+  background:radial-gradient(120% 80% at 50% 46%,#241528 0%,var(--forge) 62%);
+  border:1px solid var(--line);border-radius:var(--radius-lg);
+  overflow:hidden;display:grid;place-items:center;
+  contain:paint;
+}
+.stage-cap{
+  position:absolute;left:0;right:0;bottom:0;padding:12px 16px;
+  font-size:12.5px;color:var(--tertiary);letter-spacing:.02em;
+  background:linear-gradient(180deg,transparent,rgba(20,17,28,.72));
+  text-align:center;
+}
+/* Short stages can't fit the flame, the chip rail AND a footnote — the same
+   point is made in the body copy, so the caption goes first. */
+@media (max-width:700px){.stage-cap{display:none}}
+
+/* — the campfire mark, shared by every stage (app-icon flame via <use>) — */
+.flame{width:auto}
+.flame--sm{height:64px;width:51px}
+.flame--md{height:96px;width:77px}
+.flame--lg{height:150px;width:120px}
+
+/* Roar — CampfireFlame in rank-up-celebration.tsx: scaleY 1→1.13,
+   scaleX 1→0.94, 500ms each way, alternating forever. */
+@keyframes roar{
+  from{transform:scaleY(1) scaleX(1)}
+  to{transform:scaleY(1.13) scaleX(.94)}
+}
+/* Breathe — lock-in-flame.tsx: 1 → 1.08 over 900ms, alternating. */
+@keyframes breathe{from{transform:scale(1)}to{transform:scale(1.08)}}
+
+/* Embers — lock-in-flame.tsx / rank-up-celebration.tsx Ember:
+   translateY 0→-74/-90, scale .6→1, opacity [0,.15,.75,1]→[0,1,.5,0]. */
+@keyframes ember{
+  0%  {opacity:0;transform:translate3d(var(--x,0),0,0) scale(.6)}
+  15% {opacity:1}
+  75% {opacity:.5}
+  100%{opacity:0;transform:translate3d(var(--x,0),var(--rise,-90px),0) scale(1)}
+}
+.ember{
+  position:absolute;bottom:var(--bottom,20px);left:50%;
+  width:6px;height:6px;border-radius:50%;background:var(--ember);
+  opacity:0;
+}
+.stage.is-live .ember,.hero-fire.is-live .ember{
+  animation:ember var(--dur,2600ms) cubic-bezier(.25,.46,.45,.94) var(--delay,0ms) infinite;
+}
+
+/* Smoke — rank-up-celebration.tsx Smoke: 3000ms, translateY -150,
+   scale .6→2.2, peak opacity .36, color #9a90ad. */
+@keyframes smoke{
+  0%  {opacity:0;transform:translate3d(var(--x,0),0,0) scale(.6)}
+  20% {opacity:.36}
+  100%{opacity:0;transform:translate3d(var(--x,0),-150px,0) scale(2.2)}
+}
+.smoke{
+  position:absolute;bottom:var(--bottom,60px);left:50%;
+  width:14px;height:14px;border-radius:50%;background:#9a90ad;opacity:0;
+}
+.stage.is-live .smoke,.hero-fire.is-live .smoke{
+  animation:smoke 3000ms cubic-bezier(.25,.46,.45,.94) var(--delay,0ms) infinite;
+}
+
+/* ── (1) HERO — the living campfire ─────────────────────────────────── */
+.hero-fire{
+  position:relative;width:180px;height:190px;margin:0 auto 26px;
+  display:grid;place-items:center;
+}
+.hero-fire .glow{
+  position:absolute;width:190px;height:190px;border-radius:50%;
+  background:radial-gradient(circle,rgba(242,163,60,.42),transparent 66%);
+  opacity:.55;
+}
+.hero-fire.is-live .glow{animation:glowPulse 1800ms ease-in-out infinite alternate}
+@keyframes glowPulse{from{opacity:.42;transform:scale(1)}to{opacity:.7;transform:scale(1.1)}}
+.hero-fire .flame{filter:drop-shadow(0 12px 44px rgba(224,97,44,.55));transform-origin:50% 92%}
+.hero-fire.is-live .flame{animation:roar 500ms ease-in-out infinite alternate}
+
+/* ── (2) LOCK IN — goal objects igniting in sequence ─────────────────── */
+/* Six fuel objects = the app's six GOAL_TYPES, in GOAL_TYPE_FLAME_META
+   order, one per 2.5s stage → 15s loop. The app's real stage interval is
+   STAGE_INTERVAL_SECONDS (5 min) capped at MAX_STAGE 6; the demo clock
+   below runs at 120× so a full six-stage session reads in one loop. */
+.lockin{position:relative;display:grid;place-items:center;gap:0;width:100%;height:100%}
+.lockin .fire{position:relative;display:grid;place-items:center;width:100%;height:62%}
+.lockin .glow{
+  position:absolute;width:200px;height:200px;border-radius:50%;
+  background:radial-gradient(circle,rgba(242,163,60,.38),transparent 64%);
+}
+.stage.is-live .glow{animation:lockGlow 15s steps(1,end) infinite}
+/* intensity 0.35 + stage*0.11, scale 1.6 + stage*0.15 (lock-in-flame.tsx) */
+@keyframes lockGlow{
+  0%    {opacity:.35;transform:scale(1)}
+  16.67%{opacity:.46;transform:scale(1.06)}
+  33.33%{opacity:.57;transform:scale(1.12)}
+  50%   {opacity:.68;transform:scale(1.18)}
+  66.67%{opacity:.79;transform:scale(1.24)}
+  83.33%{opacity:.90;transform:scale(1.30)}
+}
+/* Shockwave ring on every stage-up: 700ms of each 2.5s beat,
+   scale 1→2.4, opacity .55→0, easing out cubic. */
+.lockin .shock{
+  position:absolute;width:110px;height:110px;border-radius:50%;
+  border:3px solid var(--amber);opacity:0;
+}
+.stage.is-live .shock{animation:shock 2500ms cubic-bezier(.215,.61,.355,1) infinite}
+@keyframes shock{
+  0%  {opacity:.55;transform:scale(1)}
+  28% {opacity:0;transform:scale(2.4)}
+  100%{opacity:0;transform:scale(2.4)}
+}
+/* Nested transforms: growth (stepped, 15s) › pop (spring-ish, per beat) › breathe. */
+.lockin .grow{position:relative;display:grid;place-items:center}
+.stage.is-live .grow{animation:lockGrow 15s steps(1,end) infinite}
+@keyframes lockGrow{        /* scale 1 + stage*0.08 */
+  0%{transform:scale(1)}      16.67%{transform:scale(1.08)}
+  33.33%{transform:scale(1.16)} 50%{transform:scale(1.24)}
+  66.67%{transform:scale(1.32)} 83.33%{transform:scale(1.40)}
+}
+.stage.is-live .pop{animation:pop 2500ms cubic-bezier(.34,1.56,.64,1) infinite}
+@keyframes pop{
+  0%{transform:scale(1)} 6%{transform:scale(1.35)} 20%,100%{transform:scale(1)}
+}
+.lockin .breathe{transform-origin:50% 92%}
+.stage.is-live .breathe{animation:breathe 900ms ease-in-out infinite alternate}
+/* The goal object burning inside the flame — GOAL_TYPE_FLAME_META emoji. */
+.lockin .fuel{
+  position:absolute;bottom:14%;font-size:30px;line-height:1;
+  filter:drop-shadow(0 0 10px rgba(255,243,220,.55));
+}
+.lockin .fuel[data-i="0"]{opacity:1}
+.lockin .fuel:not([data-i="0"]){opacity:0}
+.stage.is-live .fuel{
+  animation:gate 15s linear infinite;
+  animation-delay:calc(var(--i) * 2.5s);
+}
+/* One shared gate: N equal windows tiled by animation-delay. Used by every
+   stage that cycles through equal-length states. */
+@keyframes gate{
+  0%     {opacity:0;transform:translateY(6px) scale(.86)}
+  2%     {opacity:1;transform:translateY(0) scale(1)}
+  15.5%  {opacity:1;transform:translateY(0) scale(1)}
+  17.5%  {opacity:0;transform:translateY(-4px) scale(.94)}
+  100%   {opacity:0;transform:translateY(-4px) scale(.94)}
+}
+/* Fuel chip rail */
+.fuel-rail{
+  position:absolute;bottom:46px;left:0;right:0;
+  display:flex;justify-content:center;flex-wrap:wrap;gap:7px;padding:0 14px;
+}
+.fuel-chip{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:500;color:var(--muted);
+  background:var(--twilight-700);border:1px solid var(--line);
+  padding:5px 10px;border-radius:999px;white-space:nowrap;
+}
+.fuel-chip[data-i="0"]{color:var(--ember);border-color:rgba(255,210,122,.32);background:#3A2A22}
+.stage.is-live .fuel-chip{
+  animation:chipLight 15s linear infinite;
+  animation-delay:calc(var(--i) * 2.5s);
+}
+/* The lit swap is a discrete step 6× per loop (like the tier metals below),
+   not a continuous tween — nothing repaints between beats. */
+@keyframes chipLight{
+  0%      {transform:scale(1.06);color:var(--ember);border-color:rgba(255,210,122,.32);background:#3A2A22}
+  16.67%  {transform:scale(1.06);color:var(--ember);border-color:rgba(255,210,122,.32);background:#3A2A22}
+  16.68%  {transform:scale(1);color:var(--muted);border-color:var(--line);background:var(--twilight-700)}
+  100%    {transform:scale(1);color:var(--muted);border-color:var(--line);background:var(--twilight-700)}
+}
+/* Timer readout */
+.timer{
+  position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:9px;
+  background:rgba(20,17,28,.66);border:1px solid var(--line);
+  padding:7px 14px;border-radius:999px;
+}
+.timer .dot{width:7px;height:7px;border-radius:50%;background:var(--coral)}
+.stage.is-live .timer .dot{animation:blink 1400ms ease-in-out infinite alternate}
+@keyframes blink{from{opacity:.35;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+.timer .val{
+  font-size:15px;font-weight:600;color:var(--ink);
+  font-variant-numeric:tabular-nums;letter-spacing:.02em;
+}
+.timer .lbl{font-size:11.5px;color:var(--tertiary);letter-spacing:.1em;text-transform:uppercase}
+
+/* ── (3) CAMPFIRES — avatars gathering, flame grows ──────────────────── */
+.gathering{position:relative;width:min(280px,88%);aspect-ratio:1;display:grid;place-items:center}
+.gathering .glow{
+  position:absolute;width:170px;height:170px;border-radius:50%;
+  background:radial-gradient(circle,rgba(242,163,60,.40),transparent 66%);
+}
+.stage.is-live .glow{animation:gatherGlow 12s steps(1,end) infinite}
+@keyframes gatherGlow{
+  0%   {opacity:.34;transform:scale(.86)}
+  6.7% {opacity:.45;transform:scale(.94)}
+  15.8%{opacity:.56;transform:scale(1.02)}
+  25%  {opacity:.67;transform:scale(1.10)}
+  34.2%{opacity:.78;transform:scale(1.18)}
+  43.3%{opacity:.90;transform:scale(1.26)}
+}
+.gathering .grow{display:grid;place-items:center}
+.stage.is-live .grow{animation:gatherGrow 12s steps(1,end) infinite}
+@keyframes gatherGrow{
+  0%   {transform:scale(.82)} 6.7%{transform:scale(.88)} 15.8%{transform:scale(.94)}
+  25%  {transform:scale(1)}   34.2%{transform:scale(1.06)} 43.3%{transform:scale(1.12)}
+}
+.gathering .breathe{transform-origin:50% 92%}
+.stage.is-live .breathe{animation:roar 500ms ease-in-out infinite alternate}
+.avatar{
+  position:absolute;width:44px;height:44px;border-radius:50%;
+  display:grid;place-items:center;
+  background:var(--plum);border:2px solid var(--twilight-800);
+  font-size:15px;font-weight:600;color:var(--ink);
+  box-shadow:0 6px 18px -6px rgba(0,0,0,.8);
+}
+/* Ring positions around the fire (LockInFlame's participants row, fanned). */
+.avatar[data-i="0"]{top:6%;left:50%;margin-left:-22px}
+.avatar[data-i="1"]{top:30%;right:2%}
+.avatar[data-i="2"]{bottom:12%;right:12%}
+.avatar[data-i="3"]{bottom:12%;left:12%}
+.avatar[data-i="4"]{top:30%;left:2%}
+/* ZoomIn.springify() → overshoot to 1.15 then settle; staggered arrivals,
+   all leaving together so each loop reads as one gathering. */
+.stage.is-live .avatar[data-i="0"]{animation:gather0 12s ease-out infinite}
+.stage.is-live .avatar[data-i="1"]{animation:gather1 12s ease-out infinite}
+.stage.is-live .avatar[data-i="2"]{animation:gather2 12s ease-out infinite}
+.stage.is-live .avatar[data-i="3"]{animation:gather3 12s ease-out infinite}
+.stage.is-live .avatar[data-i="4"]{animation:gather4 12s ease-out infinite}
+@keyframes gather0{
+  0%,6.7%{opacity:0;transform:scale(.4)}9.7%{opacity:1;transform:scale(1.15)}
+  12.7%,86.7%{opacity:1;transform:scale(1)}90%,100%{opacity:0;transform:scale(.85)}}
+@keyframes gather1{
+  0%,15.8%{opacity:0;transform:scale(.4)}18.8%{opacity:1;transform:scale(1.15)}
+  21.8%,86.7%{opacity:1;transform:scale(1)}90%,100%{opacity:0;transform:scale(.85)}}
+@keyframes gather2{
+  0%,25%{opacity:0;transform:scale(.4)}28%{opacity:1;transform:scale(1.15)}
+  31%,86.7%{opacity:1;transform:scale(1)}90%,100%{opacity:0;transform:scale(.85)}}
+@keyframes gather3{
+  0%,34.2%{opacity:0;transform:scale(.4)}37.2%{opacity:1;transform:scale(1.15)}
+  40.2%,86.7%{opacity:1;transform:scale(1)}90%,100%{opacity:0;transform:scale(.85)}}
+@keyframes gather4{
+  0%,43.3%{opacity:0;transform:scale(.4)}46.3%{opacity:1;transform:scale(1.15)}
+  49.3%,86.7%{opacity:1;transform:scale(1)}90%,100%{opacity:0;transform:scale(.85)}}
+
+/* ── (4) RANKS — the forge, condensed ────────────────────────────────── */
+/* rank-up-celebration.tsx, real numbers: rise starts at 500ms, runs 3900ms
+   with bezier(.25,.55,.25,1); rotateY 0→1080° on out-cubic; FLARE_DELAY_MS
+   3700 fires the #FFE9C2 flash (800ms) and the coral ring at 3850 (1200ms,
+   scale 1→5). Condensed here to a 4.4s per-tier cycle — the flare still
+   lands on 3700ms — and four tiers tile a 17.6s loop. */
+.forge{position:relative;width:100%;height:100%;display:grid;place-items:center}
+/* Campfire sits so its flames land on the hex's rise origin (130px below the
+   settled hexzone), the way the app's forge stage is laid out. */
+.forge .campfire{position:absolute;bottom:20%;display:grid;place-items:center}
+.stage.is-live .campfire .breathe{animation:roar 500ms ease-in-out infinite alternate}
+.forge .campfire .breathe{transform-origin:50% 92%}
+.hexzone{position:absolute;top:8%;left:0;right:0;height:150px;display:grid;place-items:center}
+/* perspective must sit on .spin's direct parent for the 1080° rotateY to read as 3-D */
+.riser{grid-area:1/1;display:grid;place-items:center;perspective:800px}
+.stage.is-live .riser{animation:hexRise 4.4s cubic-bezier(.25,.55,.25,1) infinite}
+@keyframes hexRise{               /* HEX_RISE_DISTANCE 130px, out of the flames */
+  0%   {opacity:0;transform:translate3d(0,130px,0) scale(.1)}
+  11.4%{opacity:0;transform:translate3d(0,130px,0) scale(.1)}   /* the 500ms lead-in */
+  100% {opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+.spin{display:grid;place-items:center}
+.stage.is-live .spin{animation:hexSpin 4.4s cubic-bezier(.215,.61,.355,1) infinite}
+@keyframes hexSpin{0%,11.4%{transform:rotateY(0)}100%{transform:rotateY(1080deg)}}
+.hex{width:96px;height:96px;grid-area:1/1}
+.hex-numeral{font-family:var(--font);font-size:32px;font-weight:600;text-anchor:middle;dominant-baseline:central}
+/* Only one tier visible per 4.4s window; base state shows Gold (the static
+   illustration you get with reduced motion or no JS). */
+.tier{grid-area:1/1;display:grid;place-items:center;opacity:0}
+.tier[data-tier="gold"]{opacity:1}
+/* A delayed animation leaves the BASE style showing until it starts, so the
+   statically-visible tier has to be muted once the loop is driving things —
+   otherwise Gold sits under Bronze for the first 4.4s. Same fix pattern is
+   applied to every other delay-tiled gate below. */
+.stage.is-live .tier[data-tier="gold"],
+.stage.is-live .tier-label[data-tier="gold"]{opacity:0}
+.stage.is-live .tier{
+  animation:tierGate 17.6s linear infinite;
+  animation-delay:calc(var(--i) * 4.4s);
+}
+@keyframes tierGate{0%{opacity:0}0.01%,24.9%{opacity:1}25%,100%{opacity:0}}
+/* Infernal's two-layer aura (hexagon-badge.tsx: .09→.20 and .03→.09). */
+.aura{position:absolute;border-radius:50%;pointer-events:none}
+.aura-1{width:170px;height:170px;background:radial-gradient(circle,#F7B85A,transparent 70%);opacity:.09}
+.aura-2{width:200px;height:200px;background:radial-gradient(circle,#F7B85A,transparent 70%);opacity:.03}
+.stage.is-live .aura-1{animation:aura1 1400ms ease-in-out infinite alternate}
+.stage.is-live .aura-2{animation:aura2 1400ms ease-in-out 75ms infinite alternate}
+@keyframes aura1{from{opacity:.09;transform:scale(1)}to{opacity:.20;transform:scale(1.05)}}
+@keyframes aura2{from{opacity:.03;transform:scale(1.04)}to{opacity:.09;transform:scale(1.14)}}
+/* The flare beat — warm flash + expanding coral ring, both at 3700ms/4.4s. */
+.flash{
+  position:absolute;width:160px;height:160px;border-radius:50%;
+  background:radial-gradient(circle,var(--flare),rgba(255,233,194,0) 68%);opacity:0;
+}
+.stage.is-live .flash{animation:flash 4.4s linear infinite}
+@keyframes flash{                 /* 0→0.95→0, from 3700ms to the end of the cycle */
+  0%,84.1%{opacity:0}
+  87.5%   {opacity:.95}
+  100%    {opacity:0}
+}
+.ring{
+  position:absolute;width:50px;height:50px;border-radius:50%;
+  border:3px solid var(--coral);opacity:0;
+}
+.stage.is-live .ring{animation:ring 4.4s cubic-bezier(.215,.61,.355,1) infinite}
+@keyframes ring{
+  0%,87.4%{opacity:0;transform:scale(1)}
+  87.5%   {opacity:.7;transform:scale(1)}
+  100%    {opacity:0;transform:scale(5)}
+}
+/* Tier wash — the full-stage tier-colored flush at the flare (TierFlashOverlay:
+   450ms in, 350ms hold, 950ms out). One element per tier so the color stays
+   static and only opacity animates. */
+.wash{position:absolute;inset:0;opacity:0;pointer-events:none}
+.wash[data-tier="bronze"]{background:#B87333}
+.wash[data-tier="gold"]{background:#F5C542}
+.wash[data-tier="diamond"]{background:#7FE0E8}
+.wash[data-tier="infernal"]{background:var(--coral)}
+.stage.is-live .wash{
+  animation:wash 17.6s linear infinite;
+  animation-delay:calc(var(--i) * 4.4s);
+}
+@keyframes wash{
+  0%,21%  {opacity:0}
+  23.6%   {opacity:.6}
+  25.6%   {opacity:.6}
+  31%,100%{opacity:0}
+}
+.stage.is-live .wash[data-tier="infernal"]{animation-name:washHot}
+@keyframes washHot{
+  0%,21%  {opacity:0}
+  23.6%   {opacity:.9}
+  25.6%   {opacity:.9}
+  31%,100%{opacity:0}
+}
+/* Tier caption under the stage */
+.tier-label{
+  position:absolute;bottom:16px;left:0;right:0;text-align:center;
+  font-size:14px;font-weight:600;color:var(--ember);opacity:0;
+}
+.tier-label[data-tier="gold"]{opacity:1}
+.stage.is-live .tier-label{
+  animation:tierGate 17.6s linear infinite;
+  animation-delay:calc(var(--i) * 4.4s);
+}
+
+/* ── (5) ADD A FRIEND — Add → Requested → Accept → Friends ───────────── */
+/* Pills match add-friend.tsx exactly: coral pill / disabled-grey pending /
+   hairline-bordered Friends, 7px×14px padding, pill radius, 12px labels. */
+.friend-card{
+  width:min(360px,86%);background:var(--twilight-700);
+  border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px;display:grid;gap:12px;
+}
+.friend-row{display:flex;align-items:center;gap:12px}
+.friend-row .avatar{position:static;width:38px;height:38px;font-size:14px;flex:none;box-shadow:none}
+.friend-id{min-width:0;flex:1}
+.friend-name{display:block;font-size:14.5px;font-weight:500;color:var(--ink)}
+.friend-handle{display:block;font-size:12.5px;color:var(--tertiary)}
+.slot{position:relative;display:grid;place-items:center end;min-width:104px;min-height:32px}
+.pill{
+  grid-area:1/1;display:inline-flex;align-items:center;gap:4px;
+  font-size:12px;line-height:1;padding:7px 14px;border-radius:999px;
+  white-space:nowrap;border:1px solid transparent;
+}
+.pill-add{background:var(--coral);color:var(--ink);font-weight:500}
+.pill-pending{background:var(--twilight-600);color:var(--muted)}
+.pill-friends{border-color:var(--line);color:var(--tertiary)}
+.pill svg{width:13px;height:13px}
+.slot .pill{opacity:0}
+.slot .pill-friends{opacity:1}          /* static state = already friends */
+.stage.is-live .slot .pill-friends[data-i]{opacity:0}
+/* [data-i] only — the second row's pill is a static "already friends" prop
+   and must not join the cycle (without --i its delay would collapse to 0). */
+.stage.is-live .slot .pill[data-i]{
+  animation:gateSlow 8.8s linear infinite;
+  animation-delay:calc(var(--i) * 2.2s);
+}
+@keyframes gateSlow{
+  0%      {opacity:0;transform:translateY(5px) scale(.94)}
+  2.5%    {opacity:1;transform:translateY(0) scale(1)}
+  22%     {opacity:1;transform:translateY(0) scale(1)}
+  24.5%   {opacity:0;transform:translateY(-4px) scale(.97)}
+  100%    {opacity:0;transform:translateY(-4px) scale(.97)}
+}
+/* A tap ripple on the button at each state change. */
+.tap{
+  position:absolute;right:14px;width:34px;height:34px;border-radius:50%;
+  border:2px solid var(--ember);opacity:0;pointer-events:none;
+}
+.stage.is-live .tap{animation:tap 2.2s cubic-bezier(.215,.61,.355,1) infinite}
+@keyframes tap{
+  0%  {opacity:.6;transform:scale(.5)}
+  22% {opacity:0;transform:scale(1.7)}
+  100%{opacity:0;transform:scale(1.7)}
+}
+/* The green confirm tick on the Friends beat (Colors.green). */
+.confirm{
+  position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;
+  background:var(--green);display:grid;place-items:center;opacity:0;
+}
+.confirm svg{width:12px;height:12px}
+.stage.is-live .confirm{animation:confirm 8.8s cubic-bezier(.34,1.56,.64,1) infinite}
+@keyframes confirm{
+  0%,75%{opacity:0;transform:scale(.2)}
+  79%   {opacity:1;transform:scale(1.25)}
+  82%,97%{opacity:1;transform:scale(1)}
+  100%  {opacity:0;transform:scale(1)}
+}
+.friend-card .static-row .pill-friends{opacity:1}
+
+/* ── (6) DAILY FIRE — the vertical flame meter ───────────────────────── */
+/* flame-meter.tsx: tiers empty / low / high (≥66%) / full; fill animates on
+   700ms bezier(.2,.7,.3,1); coral fill, amber at full; sub-100% glow pulses
+   on 1300ms, full holds steady; ember counts 6 / 10 / 8 by tier; the full
+   tier rings the whole perimeter with outward-pointing licks. */
+.meter-wrap{display:flex;align-items:center;gap:28px}
+.meter{
+  position:relative;width:34px;height:210px;border-radius:999px;
+  background:var(--twilight-700);border:1px solid var(--line);
+}
+.meter-clip{position:absolute;inset:0;border-radius:999px;overflow:hidden}
+/* Base state = the finished illustration (full meter). The animation drives
+   it back down to empty and refills; nothing here starts hidden. */
+.fill{
+  position:absolute;inset:0;background:var(--coral);
+  transform:translateY(0);will-change:transform;
+}
+.stage.is-live .fill{animation:fill 11.2s linear infinite}
+/* Four 2.8s states. The XP value flips on each boundary and the bar chases it
+   over 700ms (6.25% of the loop) — the same "value first, fill animates to it"
+   order the app has. The last 5% drains: tomorrow's fire starts cold. */
+@keyframes fill{
+  0%,25%    {transform:translateY(100%);animation-timing-function:cubic-bezier(.2,.7,.3,1)}
+  31.25%,50%{transform:translateY(66.6%);animation-timing-function:cubic-bezier(.2,.7,.3,1)}
+  56.25%,75%{transform:translateY(33.3%);animation-timing-function:cubic-bezier(.2,.7,.3,1)}
+  81.25%,95%{transform:translateY(0);animation-timing-function:cubic-bezier(.4,0,.8,.4)}
+  100%      {transform:translateY(100%)}
+}
+/* Full tier turns amber — a discrete swap at the crossing, not a live tween. */
+.fill-hot{background:var(--amber);opacity:1}
+.stage.is-live .fill-hot{animation:fill 11.2s linear infinite,hotSwap 11.2s steps(1,end) infinite}
+@keyframes hotSwap{0%,81%{opacity:0}81.25%,95%{opacity:1}100%{opacity:0}}
+.meter-glow{
+  position:absolute;inset:-14px;border-radius:999px;
+  background:radial-gradient(circle,rgba(242,163,60,.34),transparent 68%);opacity:.5;
+}
+.stage.is-live .meter-glow{animation:meterGlow 11.2s linear infinite}
+@keyframes meterGlow{
+  0%,25%{opacity:0}      /* empty tier: no glow at all */
+  33%  {opacity:.5}
+  45%  {opacity:.28}     /* sub-100%: the 1300ms-each-way pulse */
+  57%  {opacity:.5}
+  69%  {opacity:.3}
+  81.25%,95%{opacity:.62}/* full tier: a steady glow, no pulsing */
+  100% {opacity:0}
+}
+/* Embers rising inside the fill (translateY -46, scale .55→.12). */
+.meter .ember{--rise:-46px;bottom:auto;top:auto;width:5px;height:5px}
+.meter-embers{position:absolute;inset:0;border-radius:999px;overflow:hidden;opacity:1}
+.stage.is-live .meter-embers{animation:emberGate 11.2s steps(1,end) infinite}
+@keyframes emberGate{0%,25%{opacity:0}31%,95%{opacity:1}100%{opacity:0}}
+/* At rest the embers hold flame-meter.tsx's own `emberStatic` opacity (0.6). */
+.meter-embers .ember{
+  position:absolute;left:var(--l);bottom:var(--b);
+  opacity:.6;
+}
+.stage.is-live .meter-embers .ember{
+  animation:emberUp var(--dur,1700ms) cubic-bezier(.25,.46,.45,.94) var(--delay,0ms) infinite;
+}
+@keyframes emberUp{
+  0%  {opacity:0;transform:translate3d(0,0,0) scale(.55)}
+  14% {opacity:.95}
+  70% {opacity:.5}
+  100%{opacity:0;transform:translate3d(var(--x,0),-46px,0) scale(.12)}
+}
+/* Perimeter ring at the full tier — PerimeterFlame: scale .9↔1.15 on 400ms,
+   staggered 90ms, amber licks at 0.45 opacity pointing outward. */
+.licks{position:absolute;inset:-11px;opacity:1}
+.stage.is-live .licks{animation:licksGate 11.2s steps(1,end) infinite}
+@keyframes licksGate{0%,81%{opacity:0}81.25%,95%{opacity:1}100%{opacity:0}}
+/* Teardrops pointing outward — the tip is the rounded end, so they read as
+   small licks rather than notches. Rotation is set per-lick via --r. */
+.lick{
+  position:absolute;width:6px;height:10px;background:var(--amber);opacity:.45;
+  border-radius:50% 50% 50% 50% / 62% 62% 38% 38%;
+  transform-origin:50% 100%;
+}
+.stage.is-live .lick{animation:lick 800ms ease-in-out var(--delay,0ms) infinite alternate}
+@keyframes lick{from{transform:rotate(var(--r,0deg)) scale(.9)}to{transform:rotate(var(--r,0deg)) scale(1.15)}}
+/* Read-out column */
+.meter-read{display:grid;gap:6px;min-width:170px}
+.meter-head{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--ink)}
+.meter-head svg{width:13px;height:13px}
+.xp{position:relative;height:22px}
+.xp b{
+  position:absolute;left:0;top:0;font-size:15px;font-weight:600;color:var(--ember);
+  font-variant-numeric:tabular-nums;opacity:0;
+}
+.xp b[data-i="3"]{opacity:1}
+.stage.is-live .xp b[data-i="3"],.stage.is-live .note span[data-i="3"]{opacity:0}
+.stage.is-live .xp b{animation:gateQuarter 11.2s linear infinite;animation-delay:calc(var(--i) * 2.8s)}
+@keyframes gateQuarter{
+  0%     {opacity:0;transform:translateY(4px)}
+  2%     {opacity:1;transform:translateY(0)}
+  23%    {opacity:1;transform:translateY(0)}
+  25%,100%{opacity:0;transform:translateY(-3px)}
+}
+.note{position:relative;height:34px}
+.note span{
+  position:absolute;left:0;top:0;font-size:12.5px;color:var(--tertiary);opacity:0;max-width:180px;
+}
+.note span[data-i="3"]{opacity:1;color:var(--ember)}
+.stage.is-live .note span{animation:gateQuarter 11.2s linear infinite;animation-delay:calc(var(--i) * 2.8s)}
+/* Embers flying from the meter to the counter at the completion beat. */
+.fly{
+  position:absolute;left:26px;top:60%;width:6px;height:6px;border-radius:50%;
+  background:var(--ember);opacity:0;
+}
+.stage.is-live .fly{animation:fly 11.2s cubic-bezier(.4,0,.3,1) infinite}
+@keyframes fly{
+  0%,81%{opacity:0;transform:translate3d(0,0,0) scale(.4)}
+  83%   {opacity:1;transform:translate3d(0,0,0) scale(1)}
+  92%   {opacity:0;transform:translate3d(var(--dx),var(--dy),0) scale(.25)}
+  100%  {opacity:0;transform:translate3d(var(--dx),var(--dy),0) scale(.25)}
+}
+.stage.is-live .xp{animation:counterPop 11.2s cubic-bezier(.34,1.56,.64,1) infinite}
+@keyframes counterPop{
+  0%,90%{transform:scale(1)} 93%{transform:scale(1.12)} 97%,100%{transform:scale(1)}
+}
+
+/* ── Reduced motion: hard stop. Every stage falls back to the base state,
+      which is already a complete static illustration. ─────────────────── */
+@media (prefers-reduced-motion:reduce){
+  .stage *,.hero-fire *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<!-- The app-icon campfire, defined once and re-used by every stage below
+     (src/components/flame-icon.tsx — same paths, same token colors). -->
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <defs>
+    <linearGradient id="gOuter" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F2A33C"/><stop offset="55%" stop-color="#E0612C"/><stop offset="100%" stop-color="#C24A1E"/>
+    </linearGradient>
+    <linearGradient id="gMid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFD27A"/><stop offset="100%" stop-color="#F2A33C"/>
+    </linearGradient>
+    <symbol id="campfire" viewBox="0 0 120 150">
+      <rect x="30" y="112" width="60" height="9" rx="4" fill="#8A5A2B" transform="rotate(18 60 116)"/>
+      <rect x="30" y="112" width="60" height="9" rx="4" fill="#6E4423" transform="rotate(-18 60 116)"/>
+      <circle cx="60" cy="116" r="4" fill="#F2A33C"/>
+      <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="url(#gOuter)"/>
+      <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="url(#gMid)"/>
+      <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="site-header">
+  <div class="shell">
+    <a class="brand" href="/">
+      <svg width="22" height="27" viewBox="0 0 120 150" aria-hidden="true" focusable="false">
+        <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/>
+        <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/>
+        <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
+      </svg>
+      Philoi
+    </a>
+    <nav class="nav" aria-label="Primary">
+      <a href="#how">How it works</a>
+      <a href="#challenges">Challenges</a>
+      <a href="/privacy.html">Privacy</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ── (1) Hero — the living campfire ───────────────────────────────── -->
+  <section class="hero">
+    <div class="shell">
+      <div class="hero-fire" data-stage role="img" aria-label="A campfire burning, embers drifting up from it">
+        <span class="glow"></span>
+        <span class="smoke" style="--x:-14px;--delay:600ms"></span>
+        <span class="smoke" style="--x:10px;--delay:1200ms"></span>
+        <span class="smoke" style="--x:-4px;--delay:1800ms"></span>
+        <span class="smoke" style="--x:16px;--delay:2400ms"></span>
+        <span class="ember" style="--x:-22px;--delay:0ms;--bottom:34px"></span>
+        <span class="ember" style="--x:14px;--delay:500ms;--bottom:34px"></span>
+        <span class="ember" style="--x:-6px;--delay:950ms;--bottom:34px"></span>
+        <span class="ember" style="--x:26px;--delay:1400ms;--bottom:34px"></span>
+        <svg class="flame flame--md"><use href="#campfire"/></svg>
+      </div>
+
+      <p class="wordmark">Philoi</p>
+      <h1>Lock in.<br><span class="flicker">Together.</span></h1>
+      <p class="lede">Philoi is a social accountability app for students — set a goal, lock in with your friends, and earn XP, ranks and streaks for actually showing up.</p>
+
+      <div class="hero-actions">
+        <p class="hero-note">Coming to iOS &amp; Android.</p>
+        <a class="link-quiet" href="#how">See how it works ↓</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── What it is ───────────────────────────────────────────────────── -->
+  <section class="band" id="what">
+    <div class="shell">
+      <p class="eyebrow">What it is</p>
+      <h2>Motivation is a group project.</h2>
+      <p class="lede">You show up when your people are showing up. Philoi takes the thing that already works — a friend texting "library in 20?" — and turns it into the app you open instead of doom-scrolling.</p>
+      <p class="lede" style="margin-top:16px">Set a goal, start a session, and your <strong style="color:var(--ink);font-weight:500">campfire</strong> sees your fire light up in real time. Studying, workouts, runs, job applications: if it takes consistency, it counts.</p>
+    </div>
+  </section>
+
+  <hr class="hr">
+
+  <!-- ── How it works — five animated feature rows ────────────────────── -->
+  <section class="band" id="how" style="padding-bottom:20px">
+    <div class="shell">
+      <p class="eyebrow">How it works</p>
+      <h2>The loop that keeps you consistent.</h2>
+      <p class="lede">No feed, no strangers, no engagement bait. Five things, and they all feed the same fire.</p>
+    </div>
+  </section>
+
+  <div class="shell">
+
+    <!-- ── (2) Lock in ────────────────────────────────────────────────── -->
+    <article class="feature">
+      <div class="feature-copy">
+        <span class="kicker">Lock in</span>
+        <h3>Start a session. Feed the fire.</h3>
+        <p>Pick a goal — a problem set, a lift, ten job applications — and start a focused, timed session. The thing you're working on is what's burning: a flaming pen for study, a dumbbell for the gym.</p>
+        <p style="margin-top:14px">Every five minutes you stay in it, the fire grows a stage. Your campfire sees it burning live.</p>
+        <p class="feature-note">Six goal types, six stages of growth.</p>
+      </div>
+
+      <div class="stage lockin" data-stage data-timer role="img"
+           aria-label="A lock-in session: a timer counting up while goal objects — a dumbbell, a pen, a shoe — burn in a growing flame">
+        <div class="timer">
+          <span class="dot"></span>
+          <span class="val" data-timer-out>00:00</span>
+          <span class="lbl">Locked in</span>
+        </div>
+
+        <div class="fire">
+            <span class="glow"></span>
+            <span class="shock"></span>
+            <span class="ember" style="--x:-18px;--delay:0ms;--rise:-74px;--bottom:26%"></span>
+            <span class="ember" style="--x:10px;--delay:550ms;--rise:-74px;--bottom:26%"></span>
+            <span class="ember" style="--x:-4px;--delay:1100ms;--rise:-74px;--bottom:26%"></span>
+            <span class="ember" style="--x:22px;--delay:1650ms;--rise:-74px;--bottom:26%"></span>
+            <div class="grow">
+              <div class="pop">
+                <div class="breathe" style="position:relative;display:grid;place-items:center">
+                  <svg class="flame flame--md"><use href="#campfire"/></svg>
+                  <!-- GOAL_TYPE_FLAME_META, in GOAL_TYPES order -->
+                  <span class="fuel" data-i="0" style="--i:0">🏋️</span>
+                  <span class="fuel" data-i="1" style="--i:1">✏️</span>
+                  <span class="fuel" data-i="2" style="--i:2">👟</span>
+                  <span class="fuel" data-i="3" style="--i:3">📝</span>
+                  <span class="fuel" data-i="4" style="--i:4">📖</span>
+                  <span class="fuel" data-i="5" style="--i:5">🎯</span>
+                </div>
+              </div>
+            </div>
+        </div>
+
+        <div class="fuel-rail">
+          <span class="fuel-chip" data-i="0" style="--i:0">🏋️ Gym</span>
+          <span class="fuel-chip" data-i="1" style="--i:1">✏️ Study</span>
+          <span class="fuel-chip" data-i="2" style="--i:2">👟 Run</span>
+          <span class="fuel-chip" data-i="3" style="--i:3">📝 Job apps</span>
+          <span class="fuel-chip" data-i="4" style="--i:4">📖 Read</span>
+          <span class="fuel-chip" data-i="5" style="--i:5">🎯 Custom</span>
+        </div>
+        <p class="stage-cap">The session clock runs 120× here — one loop is a real 30-minute lock-in.</p>
+      </div>
+    </article>
+
+    <!-- ── (3) Campfires ──────────────────────────────────────────────── -->
+    <article class="feature feature--flip">
+      <div class="feature-copy">
+        <span class="kicker">Campfires</span>
+        <h3>Small groups. Real ones.</h3>
+        <p>A campfire is four or five friends you actually know — not a feed of strangers. Everyone's sessions, streaks and check-ins land in one place, with a chat for the part where you drag each other out of bed.</p>
+        <p style="margin-top:14px">The more of you who show up, the bigger the fire burns.</p>
+        <p class="feature-note">Invite-only. No public profiles, nothing to perform for.</p>
+      </div>
+
+      <div class="stage" data-stage role="img"
+           aria-label="Five friends joining one by one around a campfire, the flame growing with each arrival">
+        <div class="gathering">
+          <span class="glow"></span>
+          <span class="ember" style="--x:-18px;--delay:0ms;--rise:-80px;--bottom:70px"></span>
+          <span class="ember" style="--x:12px;--delay:700ms;--rise:-80px;--bottom:70px"></span>
+          <span class="ember" style="--x:-2px;--delay:1300ms;--rise:-80px;--bottom:70px"></span>
+          <div class="grow">
+            <div class="breathe"><svg class="flame flame--md"><use href="#campfire"/></svg></div>
+          </div>
+          <span class="avatar" data-i="0">M</span>
+          <span class="avatar" data-i="1">J</span>
+          <span class="avatar" data-i="2">A</span>
+          <span class="avatar" data-i="3">R</span>
+          <span class="avatar" data-i="4">T</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- ── (4) Ranks — the forge ──────────────────────────────────────── -->
+    <article class="feature">
+      <div class="feature-copy">
+        <span class="kicker">Ranks &amp; streaks</span>
+        <h3>Forged from the days you showed up.</h3>
+        <p>Every session earns XP. Cross enough of it and your rank is forged out of the fire — Bronze, Silver, Gold, Platinum, Diamond, and at the top, Infernal.</p>
+        <p style="margin-top:14px">Keep your streak alive and climb your university's leaderboard. Drop it and the fire goes cold, which is exactly the point.</p>
+        <p class="feature-note">Six tiers, three divisions each. Infernal has no divisions.</p>
+      </div>
+
+      <div class="stage" data-stage role="img"
+           aria-label="A rank badge rising out of a campfire, spinning and flaring as it hardens — cycling through Bronze, Gold, Diamond and Infernal">
+        <div class="forge">
+          <span class="wash" data-tier="bronze" style="--i:0"></span>
+          <span class="wash" data-tier="gold" style="--i:1"></span>
+          <span class="wash" data-tier="diamond" style="--i:2"></span>
+          <span class="wash" data-tier="infernal" style="--i:3"></span>
+
+          <div class="campfire">
+            <span class="ember" style="--x:-22px;--delay:0ms;--rise:-90px;--bottom:18px"></span>
+            <span class="ember" style="--x:14px;--delay:500ms;--rise:-90px;--bottom:18px"></span>
+            <span class="ember" style="--x:-6px;--delay:950ms;--rise:-90px;--bottom:18px"></span>
+            <span class="ember" style="--x:26px;--delay:1400ms;--rise:-90px;--bottom:18px"></span>
+            <span class="smoke" style="--x:-14px;--delay:600ms;--bottom:52px"></span>
+            <span class="smoke" style="--x:12px;--delay:1500ms;--bottom:52px"></span>
+            <div class="breathe"><svg class="flame flame--sm"><use href="#campfire"/></svg></div>
+          </div>
+
+          <div class="hexzone">
+            <span class="flash"></span>
+            <span class="ring"></span>
+            <div class="riser">
+              <div class="spin">
+                <!-- Two-tone tier metals, straight from src/lib/rank-tiers.ts -->
+                <span class="tier" data-tier="bronze" style="--i:0">
+                  <svg class="hex" viewBox="0 0 100 100">
+                    <polygon points="50,4 89.8,27 89.8,73 50,96 10.2,73 10.2,27" fill="#6E4423" stroke="rgba(255,255,255,.08)" stroke-width="3"/>
+                    <polygon points="50,9.4 85.15,29.69 85.15,70.31 50,90.6 14.85,70.31 14.85,29.69" fill="#B87333"/>
+                    <circle cx="50" cy="85" r="4" fill="#B87333"/>
+                    <text class="hex-numeral" x="50" y="50" fill="#3A2410">III</text>
+                  </svg>
+                </span>
+                <span class="tier" data-tier="gold" style="--i:1">
+                  <svg class="hex" viewBox="0 0 100 100">
+                    <polygon points="50,4 89.8,27 89.8,73 50,96 10.2,73 10.2,27" fill="#9A6A12" stroke="rgba(255,255,255,.08)" stroke-width="3"/>
+                    <polygon points="50,9.4 85.15,29.69 85.15,70.31 50,90.6 14.85,70.31 14.85,29.69" fill="#F5C542"/>
+                    <circle cx="50" cy="85" r="4" fill="#F5C542"/>
+                    <text class="hex-numeral" x="50" y="50" fill="#4A3406">II</text>
+                  </svg>
+                </span>
+                <span class="tier" data-tier="diamond" style="--i:2">
+                  <svg class="hex" viewBox="0 0 100 100">
+                    <polygon points="50,4 89.8,27 89.8,73 50,96 10.2,73 10.2,27" fill="#2C6E76" stroke="rgba(255,255,255,.08)" stroke-width="3"/>
+                    <polygon points="50,9.4 85.15,29.69 85.15,70.31 50,90.6 14.85,70.31 14.85,29.69" fill="#7FE0E8"/>
+                    <circle cx="50" cy="85" r="4" fill="#7FE0E8"/>
+                    <text class="hex-numeral" x="50" y="50" fill="#06323A">I</text>
+                  </svg>
+                </span>
+                <!-- Infernal: molten, no numeral — the brand flame crest + twin aura -->
+                <span class="tier" data-tier="infernal" style="--i:3">
+                  <span class="aura aura-2"></span>
+                  <span class="aura aura-1"></span>
+                  <svg class="hex" viewBox="0 0 100 100">
+                    <polygon points="50,4 89.8,27 89.8,73 50,96 10.2,73 10.2,27" fill="#B0431E" stroke="rgba(255,255,255,.08)" stroke-width="3"/>
+                    <polygon points="50,9.4 85.15,29.69 85.15,70.31 50,90.6 14.85,70.31 14.85,29.69" fill="#F2A33C"/>
+                    <g transform="translate(38,35) scale(0.2)">
+                      <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#B0431E"/>
+                      <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#E0612C"/>
+                    </g>
+                  </svg>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <span class="tier-label" data-tier="bronze" style="--i:0">Reached Bronze III</span>
+          <span class="tier-label" data-tier="gold" style="--i:1">Reached Gold II</span>
+          <span class="tier-label" data-tier="diamond" style="--i:2">Reached Diamond I</span>
+          <span class="tier-label" data-tier="infernal" style="--i:3">Reached Infernal</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- ── (5) Add a friend ───────────────────────────────────────────── -->
+    <article class="feature feature--flip">
+      <div class="feature-copy">
+        <span class="kicker">Your people</span>
+        <h3>Add a friend in two taps.</h3>
+        <p>Search a handle, hit Add, and it's done the moment they accept. No follower counts, no suggested-for-you, no strangers in your feed — just the people you asked for.</p>
+        <p style="margin-top:14px">Friends are who you build campfires from, who you challenge, and who sees you show up.</p>
+        <p class="feature-note">Requests can be cancelled or declined, always.</p>
+      </div>
+
+      <div class="stage friends-stage" data-stage role="img"
+           aria-label="A friend request moving through its states: Add, then Requested, then Accept, then Friends">
+        <div class="friend-card">
+          <div class="friend-row">
+            <span class="avatar">J</span>
+            <span class="friend-id">
+              <span class="friend-name">Jordan Reyes</span>
+              <span class="friend-handle">@jordanr</span>
+            </span>
+            <span class="slot">
+              <span class="tap"></span>
+              <span class="pill pill-add" data-i="0" style="--i:0">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                Add
+              </span>
+              <span class="pill pill-pending" data-i="1" style="--i:1">Requested</span>
+              <span class="pill pill-add" data-i="2" style="--i:2">Accept</span>
+              <span class="pill pill-friends" data-i="3" style="--i:3">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>
+                Friends
+                <span class="confirm">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#14111C" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>
+                </span>
+              </span>
+            </span>
+          </div>
+
+          <div class="friend-row static-row" style="border-top:1px solid var(--line);padding-top:12px">
+            <span class="avatar">M</span>
+            <span class="friend-id">
+              <span class="friend-name">Maya Osei</span>
+              <span class="friend-handle">@mayao</span>
+            </span>
+            <span class="slot">
+              <span class="pill pill-friends">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>
+                Friends
+              </span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- ── (6) Daily fire ─────────────────────────────────────────────── -->
+    <article class="feature">
+      <div class="feature-copy">
+        <span class="kicker">Daily fire</span>
+        <h3>One fire to keep alive today.</h3>
+        <p>Your rank is forever; today's fire is just today. Lock in enough and the meter fills — a third, two thirds, then full, when it catches properly and pays out.</p>
+        <p style="margin-top:14px">It resets every night. That's the whole trick: a small, finishable target you can actually hit before bed.</p>
+        <p class="feature-note">Completing it earns bonus XP and embers.</p>
+      </div>
+
+      <div class="stage daily" data-stage role="img"
+           aria-label="A daily fire meter filling to a third, two thirds, then full, with embers flying off to an XP counter">
+        <div class="meter-wrap">
+          <div class="meter">
+            <span class="meter-glow"></span>
+            <span class="meter-clip">
+              <span class="fill"></span>
+              <span class="fill fill-hot"></span>
+            </span>
+            <span class="meter-embers">
+              <span class="ember" style="--l:16%;--b:8px;--x:3px;--dur:1900ms;--delay:0ms"></span>
+              <span class="ember" style="--l:44%;--b:10px;--x:-4px;--dur:1650ms;--delay:280ms"></span>
+              <span class="ember" style="--l:68%;--b:6px;--x:5px;--dur:2050ms;--delay:520ms"></span>
+              <span class="ember" style="--l:30%;--b:14px;--x:-2px;--dur:1750ms;--delay:820ms"></span>
+              <span class="ember" style="--l:58%;--b:12px;--x:4px;--dur:1550ms;--delay:1150ms"></span>
+              <span class="ember" style="--l:24%;--b:9px;--x:-5px;--dur:1850ms;--delay:1480ms"></span>
+            </span>
+            <!-- Full-tier perimeter ring: licks pointing outward (PerimeterRing) -->
+            <span class="licks">
+              <span class="lick" style="left:-3px;top:14%;--r:-90deg;--delay:0ms"></span>
+              <span class="lick" style="left:-3px;top:34%;--r:-90deg;--delay:90ms"></span>
+              <span class="lick" style="left:-3px;top:54%;--r:-90deg;--delay:180ms"></span>
+              <span class="lick" style="left:-3px;top:74%;--r:-90deg;--delay:270ms"></span>
+              <span class="lick" style="right:-3px;top:14%;--r:90deg;--delay:40ms"></span>
+              <span class="lick" style="right:-3px;top:34%;--r:90deg;--delay:130ms"></span>
+              <span class="lick" style="right:-3px;top:54%;--r:90deg;--delay:220ms"></span>
+              <span class="lick" style="right:-3px;top:74%;--r:90deg;--delay:310ms"></span>
+              <span class="lick" style="left:40%;top:-5px;--r:0deg;--delay:70ms"></span>
+              <span class="lick" style="left:40%;bottom:-5px;--r:180deg;--delay:150ms"></span>
+            </span>
+            <span class="fly" style="--dx:74px;--dy:-58px"></span>
+            <span class="fly" style="--dx:80px;--dy:-44px"></span>
+            <span class="fly" style="--dx:68px;--dy:-70px"></span>
+            <span class="fly" style="--dx:86px;--dy:-52px"></span>
+          </div>
+
+          <div class="meter-read">
+            <span class="meter-head">
+              <svg viewBox="0 0 24 24" fill="#F2A33C" aria-hidden="true"><path d="M12 2c3 5 6.5 7.5 5.5 12A5.5 5.5 0 0 1 12 21a5.5 5.5 0 0 1-5.5-7C5.5 9.5 9 7 12 2Z"/></svg>
+              Today's fire
+            </span>
+            <span class="xp">
+              <b data-i="0" style="--i:0">0 / 120 XP</b>
+              <b data-i="1" style="--i:1">40 / 120 XP</b>
+              <b data-i="2" style="--i:2">80 / 120 XP</b>
+              <b data-i="3" style="--i:3">120 / 120 XP</b>
+            </span>
+            <span class="note">
+              <span data-i="0" style="--i:0">Lock in to start today's fire.</span>
+              <span data-i="1" style="--i:1">Nice start — keep feeding it.</span>
+              <span data-i="2" style="--i:2">1 more lock-in to complete today's fire.</span>
+              <span data-i="3" style="--i:3">Today's fire is complete! +50 XP · +5 embers</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- ── Challenges ───────────────────────────────────────────────────── -->
+  <section class="band challenges" id="challenges" style="margin-top:60px">
+    <div class="shell split">
+      <div>
+        <p class="eyebrow">Challenges</p>
+        <h2>Put it on the line.</h2>
+        <p class="lede">Steps this week. Hours studied. Workouts logged. Challenge your campfire — or your whole university — to a friendly, time-boxed contest with a live leaderboard.</p>
+        <p class="lede" style="margin-top:16px">Fitness challenges can verify themselves. Connect Apple Health, Garmin or Strava and Philoi reads only the single metric the challenge needs, only for the days it runs. Connections are opt-in and read-only, and you can disconnect at any time.</p>
+        <div class="chips">
+          <span class="chip">Steps</span>
+          <span class="chip">Study time</span>
+          <span class="chip">Workouts</span>
+          <span class="chip">Distance</span>
+          <span class="chip">Job applications</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="src">
+          <span class="src-dot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FFD27A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-9.3A4 4 0 0 1 12 7a4 4 0 0 1 7 3.7C19 15.6 12 20 12 20Z"/></svg>
+          </span>
+          <span class="src-text">
+            <span class="src-name">Apple Health</span>
+            <span class="src-meta">Steps, workouts, distance</span>
+          </span>
+          <span class="src-state">Connect</span>
+        </div>
+        <div class="src">
+          <span class="src-dot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FFD27A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.3l3 1.7"/></svg>
+          </span>
+          <span class="src-text">
+            <span class="src-name">Garmin</span>
+            <span class="src-meta">Steps, activities, distance</span>
+          </span>
+          <span class="src-state">Connect</span>
+        </div>
+        <div class="src">
+          <span class="src-dot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FFD27A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18 10 5l6 13"/><path d="M13.5 13 17 20l3.2-7"/></svg>
+          </span>
+          <span class="src-text">
+            <span class="src-name">Strava</span>
+            <span class="src-meta">Runs, rides, distance</span>
+          </span>
+          <span class="src-state">Connect</span>
+        </div>
+        <p class="panel-foot">Your health data is yours. Raw data from a connected source is visible only to you — only the agreed challenge metric is shared with the people you chose to compete against. <a href="/privacy.html">Read the privacy policy</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Closing ──────────────────────────────────────────────────────── -->
+  <section class="band closing" id="contact">
+    <div class="shell">
+      <h2>Lock in with your people.</h2>
+      <p class="lede" style="margin-inline:auto">We're opening Philoi campus by campus, coming to iOS &amp; Android.</p>
+
+      <p class="contact-line">Questions, press, or partnerships — <a href="mailto:nb@philoi.app">nb@philoi.app</a></p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="shell">
+    <span>&copy; 2026 Philoi</span>
+    <a href="mailto:nb@philoi.app">nb@philoi.app</a>
+    <a class="spacer" href="/privacy.html">Privacy Policy</a>
+  </div>
+</footer>
+
+<script>
+/* ── Stage playback ──────────────────────────────────────────────────────
+   The only thing JS does for motion: add `.is-live` while a stage is on
+   screen, remove it when it leaves (so re-entering replays the sequence).
+   Every stage's un-lived state is already a finished static illustration,
+   so with JS off — or with reduced motion — the page just shows those. */
+(function () {
+  var stages = document.querySelectorAll('[data-stage]');
+  if (!stages.length) return;
+
+  var still = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (still.matches || !('IntersectionObserver' in window)) return;
+
+  var timers = new WeakMap();
+
+  // The lock-in stage's session clock. The CSS loop is 15s across six
+  // 2.5s stages; the app's real STAGE_INTERVAL_SECONDS is 5 minutes, so
+  // this ticks 12 session-seconds every 100ms to stay in lockstep with it
+  // (150 ticks x 12s = 1800s = the 30-minute six-stage session).
+  function startClock(stage) {
+    var out = stage.querySelector('[data-timer-out]');
+    if (!out || timers.has(stage)) return;
+    var seconds = 0;
+    var id = setInterval(function () {
+      seconds = (seconds + 12) % 1800;
+      var m = Math.floor(seconds / 60), s = seconds % 60;
+      out.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }, 100);
+    timers.set(stage, id);
+  }
+
+  function stopClock(stage) {
+    var id = timers.get(stage);
+    if (id == null) return;
+    clearInterval(id);
+    timers.delete(stage);
+    var out = stage.querySelector('[data-timer-out]');
+    if (out) out.textContent = '00:00';
+  }
+
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      var stage = entry.target;
+      if (entry.isIntersecting) {
+        stage.classList.add('is-live');
+        if (stage.hasAttribute('data-timer')) startClock(stage);
+      } else {
+        stage.classList.remove('is-live');
+        if (stage.hasAttribute('data-timer')) stopClock(stage);
+      }
+    });
+  }, { threshold: 0.25, rootMargin: '0px 0px -8% 0px' });
+
+  stages.forEach(function (s) { io.observe(s); });
+
+  // A tab in the background shouldn't burn frames on six looping stages.
+  document.addEventListener('visibilitychange', function () {
+    stages.forEach(function (s) {
+      if (document.hidden) {
+        s.classList.remove('is-live');
+        stopClock(s);
+      }
+    });
+  });
+})();
+
+</script>
+</body>
+</html>
