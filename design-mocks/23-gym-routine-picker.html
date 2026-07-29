@@ -1,0 +1,79 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;color:#FFF6EC}
+.dim{flex:1;background:#120f1a;opacity:.5}
+.sheet{background:#241c38;border-radius:20px 20px 26px 26px;padding:8px 15px 16px;box-shadow:0 -10px 30px rgba(0,0,0,.4)}
+.grab{width:36px;height:4px;border-radius:999px;background:#4a4460;margin:4px auto 12px}
+.h{font-weight:500;font-size:16px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.goal{background:#1b1726;border:1.5px solid transparent;border-radius:12px;padding:9px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer}
+.goal.on{border-color:#E0612C;background:#2b2036}
+.goal .ic{color:#F2A33C;font-size:18px}
+.goal .lb{font-size:11.5px;font-weight:500}
+.goal.on .lb{color:#FFD27A}
+.rlbl{font-size:11px;color:#7c7194;margin:14px 0 7px;display:flex;align-items:center;justify-content:space-between}
+.rlbl .frommem{color:#F2A33C;font-size:10.5px;display:inline-flex;align-items:center;gap:4px}
+.rt{display:flex;align-items:center;gap:10px;background:#1b1726;border:1.5px solid transparent;border-radius:12px;padding:10px 11px;margin-bottom:7px;cursor:pointer}
+.rt.on{border-color:#E0612C;background:#2b2036}
+.rt .ic{width:30px;height:30px;border-radius:8px;background:#3a2a22;color:#F2A33C;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none}
+.rt .m{flex:1;min-width:0}
+.rt .nm{font-size:13px;font-weight:500}
+.rt.on .nm{color:#FFD27A}
+.rt .ex{font-size:10.5px;color:#a99cbd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.rt .meta{font-size:10.5px;color:#7c7194;flex:none}
+.rt.free .ic{background:#2d2740;color:#cbbfe0}
+.rnew{display:flex;align-items:center;justify-content:center;gap:6px;border:1px dashed rgba(255,255,255,.16);border-radius:12px;padding:9px;color:#F2A33C;font-size:12px;cursor:pointer;margin-bottom:4px}
+.moods{display:flex;gap:6px}
+.mood{flex:1;text-align:center;background:#1b1726;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:8px 4px;cursor:pointer;font-size:11.5px;font-weight:500;color:#a99cbd}
+.mood.on{border-color:#E0612C;background:#2b2036;color:#FFD27A}
+.mood i{display:block;font-size:15px;margin-bottom:3px;color:#F2A33C}
+.mood .s{display:block;font-size:9px;color:#7c7194;margin-top:2px;font-weight:400}
+.mood.on .s{color:#e7c9b8}
+.mode{display:flex;gap:8px;margin-top:12px}
+.pill{flex:1;text-align:center;background:#1b1726;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:9px;font-size:12px;color:#a99cbd;cursor:pointer}
+.pill.on{border-color:#E0612C;color:#FFD27A;background:#2b2036}
+.pill .s{display:block;font-size:10px;color:#7c7194;margin-top:2px}
+.pill.on .s{color:#e7c9b8}
+.start{width:100%;border:0;border-radius:14px;padding:14px;margin-top:13px;background:#E0612C;color:#fff;font-family:var(--font-sans);font-weight:500;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="dim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="h">What are you locking in for?</div>
+      <div class="grid">
+        <div class="goal on"><i class="ti ti-barbell ic" aria-hidden="true"></i><span class="lb">Gym</span></div>
+        <div class="goal"><i class="ti ti-pencil ic" aria-hidden="true"></i><span class="lb">Study</span></div>
+        <div class="goal"><i class="ti ti-run ic" aria-hidden="true"></i><span class="lb">Run</span></div>
+      </div>
+      <div class="rlbl"><span>Today's routine</span><span class="frommem"><i class="ti ti-history" aria-hidden="true"></i>from your routines</span></div>
+      <div class="rt on"><span class="ic"><i class="ti ti-barbell" aria-hidden="true"></i></span><div class="m"><div class="nm">Push day</div><div class="ex">Bench · OHP · Incline DB · Triceps</div></div><span class="meta">4 lifts</span></div>
+      <div class="rt"><span class="ic"><i class="ti ti-barbell" aria-hidden="true"></i></span><div class="m"><div class="nm">Pull day</div><div class="ex">Deadlift · Rows · Pulldown · Curls</div></div><span class="meta">4 lifts</span></div>
+      <div class="rt free"><span class="ic"><i class="ti ti-bolt" aria-hidden="true"></i></span><div class="m"><div class="nm">Freestyle</div><div class="ex">Log exercises as you go</div></div></div>
+      <div class="rnew"><i class="ti ti-plus" aria-hidden="true"></i>New routine</div>
+      <div class="rlbl"><span>Energy today</span><span style="color:#7c7194;font-size:10px">sets today's targets</span></div>
+      <div class="moods" id="moods">
+        <div class="mood" data-m="light"><i class="ti ti-feather" aria-hidden="true"></i>Light<span class="s">ease it off</span></div>
+        <div class="mood on" data-m="same"><i class="ti ti-equal" aria-hidden="true"></i>Same<span class="s">as usual</span></div>
+        <div class="mood" data-m="dialed"><i class="ti ti-bolt" aria-hidden="true"></i>Dialed<span class="s">push it</span></div>
+      </div>
+      <div class="mode">
+        <div class="pill on">With the campfire<span class="s">3 locked in — join them</span></div>
+        <div class="pill">Solo<span class="s">just you</span></div>
+      </div>
+      <button class="start"><i class="ti ti-lock" aria-hidden="true"></i>Start lock-in</button>
+    </div>
+  </div></div>
+  <div class="cap">Toggling <b>Gym</b> reveals "Today's routine" (saved from memory / Freestyle) + a one-tap <b>energy</b> state — Light / Same / Dialed nudges today's target numbers down/flat/up, and carries into the chat log ("…was feeling dialed today").</div>
+</div>
+<script>
+document.querySelectorAll('.rt,.rnew').forEach(function(el){el.addEventListener('click',function(){if(el.classList.contains('rnew'))return;document.querySelectorAll('.rt').forEach(function(r){r.classList.toggle('on',r===el);});});});
+document.querySelector('.mode').addEventListener('click',function(e){var p=e.target.closest('.pill');if(!p)return;[].forEach.call(this.children,function(c){c.classList.toggle('on',c===p);});});
+document.getElementById('moods').addEventListener('click',function(e){var m=e.target.closest('.mood');if(!m)return;[].forEach.call(this.children,function(c){c.classList.toggle('on',c===m);});});
+</script>

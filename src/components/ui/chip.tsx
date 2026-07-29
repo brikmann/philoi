@@ -4,11 +4,15 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 type ChipProps = {
   label: string;
-  tone?: 'achiever' | 'pro' | 'neutral';
+  tone?: 'achiever' | 'cold' | 'solo' | 'pro' | 'neutral';
 };
 
+// Roaring / Going cold / Solo — the exact 3-state chip from PHILOI_UI_SPEC.md §7.
+// `pro`/`neutral` are extra tones for call sites outside that spec'd trio.
 const TONE_STYLES = {
   achiever: { backgroundColor: Colors.achieverBg, color: Colors.achieverText },
+  cold: { backgroundColor: Colors.coldChipBg, color: Colors.coldChipText },
+  solo: { backgroundColor: Colors.disabled, color: Colors.soloChipText },
   pro: { backgroundColor: Colors.plum, color: Colors.ember },
   neutral: { backgroundColor: Colors.line, color: Colors.ink },
 } as const;

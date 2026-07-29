@@ -1,0 +1,137 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:radial-gradient(120% 80% at 50% 46%,#241528 0%,#17131f 62%);border-radius:26px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#FFF6EC}
+.fx{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:6}
+/* campfire at the bottom (phase 1 hero) */
+.campfire{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);z-index:1}
+.campfire .fl{transform-origin:50% 90%;animation:roar 1s ease-in-out infinite}
+.smoke{position:absolute;bottom:110px;left:50%;width:16px;height:16px;border-radius:999px;background:#a99cbd;opacity:.45;filter:blur(1px);animation:smk 3s ease-out infinite}
+/* the rising hexagon */
+.hexstage{position:relative;z-index:3;width:110px;height:120px;display:flex;align-items:center;justify-content:center;margin-bottom:6px}
+.hex{width:96px;height:104px;clip-path:polygon(50% 2%,95% 26%,95% 74%,50% 98%,5% 74%,5% 26%);background:#2a2233;display:flex;align-items:center;justify-content:center}
+.hexin{width:82px;height:89px;clip-path:polygon(50% 2%,95% 26%,95% 74%,50% 98%,5% 74%,5% 26%);background:#3a3348;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:30px;color:#2a2118}
+.hexaura{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:150px;height:160px;border-radius:999px;background:radial-gradient(circle,rgba(242,163,60,.5),rgba(224,97,44,.25) 45%,transparent 70%);filter:blur(9px);opacity:0;z-index:-1;pointer-events:none}
+.hexaura.on{animation:aura 2.8s ease-in-out infinite}
+@keyframes aura{0%,100%{opacity:.12;transform:translate(-50%,-50%) scale(1)}50%{opacity:.26;transform:translate(-50%,-50%) scale(1.06)}}
+/* result block (phase 2) — reserves space so nothing jumps */
+.result{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 24px;opacity:0;transform:translateY(10px);transition:opacity .5s,transform .5s}
+.result.show{opacity:1;transform:none}
+.head{font-family:var(--font-sans);font-weight:600;font-size:18px;line-height:1.3;padding:0 6px}
+.tierline{font-size:15px;font-weight:500;margin-top:8px}
+.meta{font-size:12px;color:#a99cbd;margin-top:5px}
+.snd{font-size:11px;color:#7c7194;margin-top:12px;display:inline-flex;align-items:center;gap:5px;background:#241c38;border:1px solid rgba(255,255,255,.1);padding:4px 10px;border-radius:999px}
+.actions{display:flex;flex-direction:column;gap:9px;width:210px;margin-top:18px}
+.share{border:0;border-radius:13px;padding:13px;background:#E0612C;color:#fff;font-family:var(--font-sans);font-weight:500;font-size:14.5px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.cont{border:1px solid rgba(255,255,255,.16);border-radius:13px;padding:11px;background:transparent;color:#a99cbd;font-family:var(--font-sans);font-size:13.5px;cursor:pointer}
+/* fx primitives */
+.tint{position:absolute;inset:0}.sweep{position:absolute;top:-20%;left:0;width:70%;height:140%}
+.sparkle{position:absolute}.prism{position:absolute;width:3px;border-radius:999px}
+.flame-p{position:absolute;bottom:-14px;border-radius:50% 50% 46% 46%/60% 60% 40% 40%;background:linear-gradient(#FFF3DC,#F2A33C 52%,#E0612C);transform-origin:50% 100%}
+.vignette{position:absolute;inset:0;box-shadow:inset 0 -60px 70px -20px rgba(224,97,44,.6),inset 0 0 60px rgba(224,97,44,.25)}
+.flare{position:absolute;top:50%;left:50%;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:999px;border:2px solid #fff;opacity:0}
+.controls{display:flex;gap:6px}
+.controls button{border:1px solid rgba(255,255,255,.14);background:#2d2740;color:#e7ddf5;border-radius:999px;padding:7px 12px;font-size:12px;font-family:var(--font-sans);cursor:pointer}
+.controls button.on{border-color:#E0612C;background:#2b2036;color:#FFD27A}
+.controls button.replay{border-color:#E0612C;color:#FFD27A}
+@keyframes roar{0%,100%{transform:scaleY(1) scaleX(1)}30%{transform:scaleY(1.13) scaleX(.94)}60%{transform:scaleY(1.05) scaleX(1.02)}}
+@keyframes smk{0%{transform:translate(-50%,0) scale(.6);opacity:0}25%{opacity:.5}100%{transform:translate(-50%,-100px) scale(2);opacity:0}}
+@keyframes hlick{0%,100%{transform:scaleY(1)}45%{transform:scaleY(1.3) translateY(-2px)}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage" id="stage">
+    <div class="fx" id="fx"></div>
+    <div class="campfire" id="campfire">
+      <svg width="96" height="110" viewBox="0 0 120 150" aria-hidden="true"><rect x="30" y="112" width="60" height="9" rx="4" fill="#8a5a2b" transform="rotate(18 60 116)"/><rect x="30" y="112" width="60" height="9" rx="4" fill="#6e4423" transform="rotate(-18 60 116)"/><g class="fl"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/><path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/></g></svg>
+    </div>
+    <div class="hexstage" id="hexstage"><div class="hexaura" id="hexaura"></div><div class="hex" id="hex"><div class="hexin" id="hexin"></div></div></div>
+    <div class="result" id="result">
+      <div class="head" id="head">Rank up, Noah!</div>
+      <div class="tierline" id="tierline">Reached Gold I</div>
+      <div class="meta">forged from a 6-day streak</div>
+      <div class="snd" id="snd"><i class="ti ti-music"></i>shiny ching</div>
+      <div class="actions">
+        <button class="share"><i class="ti ti-share-2"></i>Share to your story</button>
+        <button class="cont">Continue</button>
+      </div>
+    </div>
+  </div></div>
+  <div class="controls" id="controls">
+    <button data-t="silver">Silver</button>
+    <button data-t="gold" class="on">Gold</button>
+    <button data-t="diamond">Diamond</button>
+    <button data-t="infernal">Infernal</button>
+    <button class="replay" id="replay"><i class="ti ti-refresh"></i></button>
+  </div>
+  <div class="cap">Full sequence: <b>1)</b> the rank rises + forges out of the campfire (mock 05), <b>2)</b> at the flare it hits the splash — the tier flash fires (mock 31) and the result settles in with the <b>Share to your story</b> option. Pick a tier, tap replay.</div>
+</div>
+<script>
+(function(){
+  var fx=document.getElementById('fx'),hexstage=document.getElementById('hexstage'),hex=document.getElementById('hex'),hexin=document.getElementById('hexin'),
+      hexaura=document.getElementById('hexaura'),campfire=document.getElementById('campfire'),result=document.getElementById('result'),
+      head=document.getElementById('head'),tierline=document.getElementById('tierline'),snd=document.getElementById('snd'),stage=document.getElementById('stage');
+  var HEADS=["Rank up, Noah!","Forged in fire 🔥","New heights, Noah."];
+  var FLAME='<svg width="34" height="40" viewBox="0 0 120 150"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#B0431E"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#E0612C"/></svg>';
+  var T={
+    silver:{c:'#C4CBD6',ci:'#E8ECF2',name:'Silver',div:'I',sound:'coin ching',fx:'sweep',
+      personal:["Stunning","You're shining","Silver-forged","Sterling focus","Razor sharp","Pure reflection","Silver streak","Cut from steel","Clean execution","High frequency","Mirror finish"],
+      social:["They're watching your streak.","Your group chat is taking notes.","Dragging your squad's average up.","Making your Campfire look good.","Setting the bar on campus.","They can't call fraud on this."]},
+    gold:{c:'#F5C542',ci:'#FFE9A8',name:'Gold',div:'I',sound:'shiny ching',fx:'sparkle',
+      personal:["Struck gold","Make that money","Golden","Midas touch","Pure gold","Crown achieved","Heavy metal","Standard set","Pacesetter"],
+      social:["Your squad rides on your back.","Puts the whole leaderboard on watch.","The standard for your Campfire.","Making Laurier look dialed.","They're trying to catch your flame.","Leading from the front."]},
+    diamond:{c:'#7FE0E8',ci:'#CFF6FA',name:'Diamond',div:'I',sound:'rising angelic “haaa”',fx:'prism',
+      personal:["Shiny","Unbreakable","Crystal clear","Pressured into perfection","Flawless cut","Prism power","Hardened core","Shatterproof"],
+      social:["Your entire Campfire is in your shadow.","Top of the campus radar.","Making the rest of the group look idle.","They talk about this tier.","Carrying the Golden Hawks.","The whole library knows."]},
+    infernal:{c:'#E0612C',ci:'#FFD27A',name:'Infernal',div:'',sound:'intense flame roar',fx:'flame',
+      personal:["Your fire is eternal","You're infernal","The blaze never dies","Unquenchable","Inferno locked","Scorched earth","Pure plasma"],
+      social:["The entire campus feels your heat.","Your Campfire bows to the blaze.","There's no one left to challenge you.","They'll be trying to match this for semesters.","You just put Waterloo on Fraud Watch.","The arena belongs to you.","Your squad is living in your orbit."]}};
+  function pick(a){return a[Math.floor(Math.random()*a.length)];}
+  var current='gold', smokes=[];
+  function el(c){var d=document.createElement('span');d.className=c;return d;}
+  for(var i=0;i<5;i++){var s=el('smoke');s.style.left=(44+Math.random()*12)+'%';s.style.animationDelay=(i*0.6).toFixed(2)+'s';campfire.appendChild(s);}
+  function runFlash(t,d){
+    var tint=el('tint');tint.style.background=d.c;fx.appendChild(tint);
+    tint.animate([{opacity:0},{opacity:t==='diamond'?.5:.38,offset:.18},{opacity:0}],{duration:750}).onfinish=function(){tint.remove();};
+    var sw=el('sweep');sw.style.background='linear-gradient(105deg,transparent,'+d.ci+'cc 50%,transparent)';fx.appendChild(sw);
+    sw.animate([{transform:'translateX(-160%) skewX(-14deg)'},{transform:'translateX(300%) skewX(-14deg)'}],{duration:820,easing:'ease-in-out'}).onfinish=function(){sw.remove();};
+    if(d.fx==='sparkle'){for(var i=0;i<14;i++){(function(i){var p=el('sparkle');p.textContent='✦';p.style.color='#FFE9A8';p.style.left=(8+Math.random()*84)+'%';p.style.top='-6%';p.style.fontSize=(10+Math.random()*8)+'px';p.style.textShadow='0 0 6px #FFE9A8';fx.appendChild(p);p.animate([{transform:'translateY(0) scale(.4)',opacity:0},{opacity:1,offset:.2},{transform:'translateY('+(220+Math.random()*220)+'px)',opacity:0}],{duration:1000+Math.random()*400,delay:i*45}).onfinish=function(){p.remove();};})(i);}}
+    else if(d.fx==='prism'){var cols=['#CFF6FA','#7FE0E8','#fff','#c9a8ff','#a8fff0'];for(var q=0;q<22;q++){(function(q){var p=el('sparkle');p.textContent=Math.random()<.5?'✦':'✧';var col=cols[q%cols.length];p.style.color=col;p.style.left=(3+Math.random()*94)+'%';p.style.top=(5+Math.random()*82)+'%';p.style.fontSize=(8+Math.random()*11)+'px';p.style.textShadow='0 0 7px '+col;fx.appendChild(p);p.animate([{transform:'scale(.2) rotate(0)',opacity:0},{transform:'scale(1.15) rotate(90deg)',opacity:1,offset:.4},{transform:'scale(.3) rotate(170deg)',opacity:0}],{duration:640+Math.random()*500,delay:q*33}).onfinish=function(){p.remove();};})(q);}}
+    else if(d.fx==='flame'){var vg=el('vignette');fx.appendChild(vg);vg.animate([{opacity:0},{opacity:1,offset:.3},{opacity:.85}],{duration:700,fill:'forwards'});for(var f=0;f<16;f++){(function(f){var fl=el('flame-p');fl.style.width=(10+Math.random()*10)+'px';fl.style.height=(40+Math.random()*60)+'px';fl.style.left=(Math.random()*96)+'%';fx.appendChild(fl);fl.animate([{transform:'translateY(20px) scaleY(.6)',opacity:0},{opacity:.9,offset:.25},{transform:'translateY(-'+(120+Math.random()*160)+'px)',opacity:0}],{duration:1100+Math.random()*500,delay:f*55}).onfinish=function(){fl.remove();};})(f);}}
+  }
+  function flare(d){var fr=el('flare');fr.style.borderColor=d.ci;fx.appendChild(fr);fr.animate([{transform:'scale(.3)',opacity:.9},{transform:'scale(2.4)',opacity:0}],{duration:650,easing:'ease-out'}).onfinish=function(){fr.remove();};}
+  function play(t){
+    current=t;var d=T[t];
+    fx.innerHTML='';hexaura.classList.remove('on');result.classList.remove('show');
+    hex.style.background='#2a2233';hexin.style.background='#3a3348';hexin.innerHTML='';
+    campfire.style.opacity='1';
+    // PHASE 1 — forge: rise + materialize + rotate out of the fire
+    hexstage.animate([
+      {transform:'translateY(150px) scale(.16) rotateY(0deg)',opacity:.15},
+      {opacity:1,offset:.4},
+      {transform:'translateY(0) scale(1) rotateY(1080deg)',opacity:1}
+    ],{duration:3000,easing:'cubic-bezier(.25,.55,.25,1)',fill:'forwards'});
+    // PHASE 2 — flare → splash + tier flash
+    setTimeout(function(){
+      hex.style.background=d.c;hexin.style.background=d.ci;hexin.innerHTML=(t==='infernal')?FLAME:d.div;
+      // every rank settles with a soft aura tinted to its tier (Infernal's = molten coral)
+      hexaura.style.background='radial-gradient(circle,'+d.c+'99,'+d.c+'40 45%,transparent 70%)';
+      hexaura.classList.add('on');
+      flare(d);runFlash(t,d);
+      campfire.animate([{opacity:1},{opacity:.22}],{duration:600,fill:'forwards'});
+    },3020);
+    setTimeout(function(){
+      head.textContent=pick(d.personal)+', Noah. '+pick(d.social);   // composed: [personal], name. [social]
+      tierline.textContent='Reached '+d.name+(d.div?(' '+d.div):'');
+      snd.innerHTML='<i class="ti ti-music"></i>'+d.sound;
+      result.classList.add('show');
+    },3450);
+  }
+  document.getElementById('controls').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||b.id==='replay')return;[].forEach.call(this.querySelectorAll('[data-t]'),function(c){c.classList.toggle('on',c===b);});play(b.dataset.t);});
+  document.getElementById('replay').addEventListener('click',function(){play(current);});
+  play('gold');
+})();
+</script>

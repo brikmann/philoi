@@ -1,0 +1,71 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:15px 14px 12px;box-sizing:border-box;color:#FFF6EC}
+.hd{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.hd .bk{color:#a99cbd;font-size:20px}
+.hd .t{font-family:var(--font-sans);font-weight:500;font-size:17px;flex:1}
+.hd .cnt{background:#3a2a22;color:#FFD27A;font-size:11px;font-weight:600;border-radius:999px;padding:3px 9px}
+.sub{display:flex;align-items:center;justify-content:space-between;margin:10px 2px 12px}
+.sub .g{font-size:11.5px;color:#a99cbd}
+.sub .all{font-size:12px;color:#F2A33C;cursor:pointer;font-weight:500}
+.list{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:9px}
+.req{background:#241c38;border-radius:14px;padding:11px 12px;transition:opacity .25s,transform .25s}
+.req.go{opacity:0;transform:translateX(30px)}
+.rtop{display:flex;align-items:center;gap:10px}
+.av{width:38px;height:38px;border-radius:999px;background:#3a2a22;display:flex;align-items:center;justify-content:center;font-size:14px;color:#FFD27A;flex:none}
+.who{flex:1;min-width:0}
+.nm{font-size:13.5px;font-weight:500}
+.un{font-size:11px;color:#a99cbd}
+.ctx{font-size:11px;color:#7c7194;margin-top:9px;display:flex;align-items:center;gap:6px}
+.acts{display:flex;gap:8px;margin-top:10px}
+.app{flex:1;border:0;border-radius:10px;padding:9px;background:#E0612C;color:#fff;font-size:12.5px;font-weight:500;font-family:var(--font-sans);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.den{flex:1;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:9px;background:transparent;color:#a99cbd;font-size:12.5px;font-family:var(--font-sans);cursor:pointer}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#7c7194;gap:10px;display:none}
+.empty .fl{animation:flick 1.9s ease-in-out infinite;transform-origin:50% 88%}
+.empty .e1{font-size:14px;color:#a99cbd;font-weight:500}
+.empty .e2{font-size:12px}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.05) scaleX(.97)}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="hd"><i class="ti ti-arrow-left bk" aria-hidden="true"></i><span class="t">Join requests</span><span class="cnt" id="cnt">3</span></div>
+    <div class="sub"><span class="g">Push day collective · gated</span><span class="all" id="all">Approve all</span></div>
+    <div class="list" id="list">
+      <div class="req">
+        <div class="rtop"><span class="av">R</span><div class="who"><div class="nm">Ravi Patel</div><div class="un">@ravipx</div></div></div>
+        <div class="ctx"><i class="ti ti-map-pin" aria-hidden="true"></i>Wilfrid Laurier · 2 mutual friends</div>
+        <div class="acts"><button class="app"><i class="ti ti-check"></i>Approve</button><button class="den">Deny</button></div>
+      </div>
+      <div class="req">
+        <div class="rtop"><span class="av">J</span><div class="who"><div class="nm">Jenna Fox</div><div class="un">@jennaf</div></div></div>
+        <div class="ctx"><i class="ti ti-map-pin" aria-hidden="true"></i>Wilfrid Laurier · in "Late night library"</div>
+        <div class="acts"><button class="app"><i class="ti ti-check"></i>Approve</button><button class="den">Deny</button></div>
+      </div>
+      <div class="req">
+        <div class="rtop"><span class="av">K</span><div class="who"><div class="nm">Kai Nguyen</div><div class="un">@kmain</div></div></div>
+        <div class="ctx"><i class="ti ti-map-pin" aria-hidden="true"></i>UWaterloo · 1 mutual friend</div>
+        <div class="acts"><button class="app"><i class="ti ti-check"></i>Approve</button><button class="den">Deny</button></div>
+      </div>
+    </div>
+    <div class="empty" id="empty">
+      <svg width="44" height="52" viewBox="0 0 120 150" aria-hidden="true"><g class="fl"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/></g></svg>
+      <div class="e1">No pending requests</div>
+      <div class="e2">New requests to join show up here.</div>
+    </div>
+  </div></div>
+  <div class="cap">Owner-only. Approve adds them to the campfire; Deny dismisses. Reached from the campfire options sheet (mock 19). Only appears for gated campfires.</div>
+</div>
+<script>
+(function(){
+  var list=document.getElementById('list'),cnt=document.getElementById('cnt'),empty=document.getElementById('empty');
+  function refresh(){var n=list.querySelectorAll('.req:not(.go)').length;cnt.textContent=n;if(n===0){list.style.display='none';empty.style.display='flex';}}
+  function remove(req){req.classList.add('go');setTimeout(function(){req.remove();refresh();},250);}
+  list.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;remove(b.closest('.req'));});
+  document.getElementById('all').addEventListener('click',function(){list.querySelectorAll('.req:not(.go)').forEach(remove);});
+})();
+</script>

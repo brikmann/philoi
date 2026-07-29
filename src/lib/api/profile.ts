@@ -2,6 +2,7 @@ import { decode } from 'base64-arraybuffer';
 import { File } from 'expo-file-system';
 
 import { supabase } from '@/lib/supabase';
+import type { PhotoVisibility, Profile, RankTierName } from '@/types/database';
 
 const AVATAR_BUCKET = 'avatars';
 
@@ -10,6 +11,59 @@ function normalizeHandle(input: string) {
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9_]/g, '');
+}
+
+export async function setMyPhotoVisibility(visibility: PhotoVisibility): Promise<void> {
+  const { error } = await supabase.rpc('set_my_photo_visibility', { p_visibility: visibility });
+  if (error) throw error;
+}
+
+export async function fetchMyLockInStats(): Promise<{ lockin_count: number; total_seconds: number }> {
+  const { data, error } = await supabase.rpc('get_my_lockin_stats');
+  if (error) throw error;
+  return data[0];
+}
+
+// For viewing someone else's profile (design-mocks/15) — stats aren't privacy-gated, same
+// as leaderboards already exposing XP/streak for everyone.
+export async function fetchUserLockInStats(userId: string): Promise<{ lockin_count: number; total_seconds: number }> {
+  const { data, error } = await supabase.rpc('get_user_lockin_stats', { p_user_id: userId });
+  if (error) throw error;
+  return data[0];
+}
+
+export type UserRank = {
+  score: number;
+  tier: RankTierName;
+  division: number;
+  xp_into_tier: number;
+  xp_for_next_tier: number;
+};
+
+// The profile screen's single overall rank hexagon for someone else — mirrors useMyRanks()'s
+// universal scope, which is what's shown on your own profile.
+export async function fetchUserRank(userId: string): Promise<UserRank | null> {
+  const { data, error } = await supabase.rpc('get_user_rank', { p_user_id: userId });
+  if (error) throw error;
+  return data[0] ?? null;
+}
+
+// Any profile is readable ("profiles: read any" RLS) — used when viewing someone else's
+// profile screen (own profile reads straight from useAuth() instead).
+export async function fetchProfileById(userId: string): Promise<Profile> {
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchMyStreak(userId: string): Promise<{ current_streak: number; longest_streak: number }> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('current_streak, longest_streak')
+    .eq('id', userId)
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 export async function updateProfile(

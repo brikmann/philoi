@@ -4,18 +4,24 @@ import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { ChallengeCard } from '@/components/challenge-card';
 import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
+import { SocialChallengeCard } from '@/components/social-challenge-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
+import { TabHeader } from '@/components/ui/tab-header';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { useAuth } from '@/lib/auth/auth-context';
 import { useMyChallenges } from '@/hooks/use-my-challenges';
 import { useMyGroups } from '@/hooks/use-my-groups';
+import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { deleteChallenge } from '@/lib/api/challenges';
 import type { Challenge } from '@/types/database';
 
 export default function ChallengesScreen() {
   const router = useRouter();
+  const { session } = useAuth();
   const { challenges, loading, error, refetch } = useMyChallenges();
+  const { challenges: socialChallenges, loading: socialLoading, refetch: refetchSocial } = useSocialChallenges();
   const { groups } = useMyGroups();
   const [celebrating, setCelebrating] = useState(false);
   const [fireToken, setFireToken] = useState(0);
@@ -49,18 +55,41 @@ export default function ChallengesScreen() {
 
   return (
     <Screen padded={false}>
-      {celebrating && <RewardBurst ref={rewardBurstRef} tier="bloom" />}
+      <TabHeader title="Challenges" />
+      {celebrating && <RewardBurst ref={rewardBurstRef} cue="settle" />}
       <FlatList
         data={sections}
         keyExtractor={(item: Challenge) => item.id}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.coral} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading || socialLoading}
+            onRefresh={() => {
+              refetch();
+              refetchSocial();
+            }}
+            tintColor={Colors.coral}
+          />
+        }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Challenges</Text>
-            <Text style={styles.headerSubtitle}>Quantified goals your circle can see.</Text>
-            <PrimaryButton label="New challenge" onPress={() => router.push('/challenge/create')} />
+            <PrimaryButton label="Start a challenge" onPress={() => router.push('/challenge/create')} />
             {error && <Text style={styles.error}>{error}</Text>}
+
+            {socialChallenges.length > 0 && (
+              <View style={styles.socialList}>
+                {socialChallenges.map((c) => (
+                  <SocialChallengeCard
+                    key={c.id}
+                    challenge={c}
+                    myUserId={session?.user.id ?? ''}
+                    onChanged={refetchSocial}
+                  />
+                ))}
+              </View>
+            )}
+
+            {sections.length > 0 && <Text style={styles.sectionLabel}>Personal goals</Text>}
           </View>
         }
         renderItem={({ item }) => {
@@ -85,12 +114,15 @@ export default function ChallengesScreen() {
         }}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
         ListEmptyComponent={
-          !loading ? (
+          // No action button here — the header's "New challenge" button above is always
+          // visible regardless of whether the list is empty, so a second one here was a
+          // duplicate CTA, not a fallback. Only shown when there's truly nothing at all —
+          // personal goals AND social challenges both empty.
+          !loading && !socialLoading && socialChallenges.length === 0 ? (
             <EmptyState
               emoji="🎯"
               title="No challenges yet"
-              body="Set a quantified goal — steps, gym visits, study hours — and let your circle keep you honest."
-              action={<PrimaryButton label="New challenge" onPress={() => router.push('/challenge/create')} />}
+              body="Challenge a friend, race your Campfire, or set a quantified personal goal."
             />
           ) : null
         }
@@ -103,19 +135,18 @@ const styles = StyleSheet.create({
   header: {
     gap: Spacing.two,
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
+    paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
   },
-  headerTitle: {
-    fontFamily: Fonts.display,
-    fontSize: 32,
-    color: Colors.ink,
+  socialList: {
+    gap: Spacing.three,
+    marginTop: Spacing.three,
   },
-  headerSubtitle: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.muted,
-    marginBottom: Spacing.one,
+  sectionLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    color: Colors.textTertiary,
+    marginTop: Spacing.four,
   },
   listContent: {
     paddingHorizontal: Spacing.four,

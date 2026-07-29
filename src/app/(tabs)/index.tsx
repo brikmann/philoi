@@ -1,227 +1,946 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { DiscoverCircleCard } from '@/components/discover-circle-card';
-import { GroupCard } from '@/components/group-card';
-import { Logo } from '@/components/logo';
-import { TrashTarget } from '@/components/trash-target';
+import { CampfireFlameStage, heatToFlameState, type CampfireFlameState } from '@/components/campfire-flame-stage';
+import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
+import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
+import { FireVerticalBar } from '@/components/fire-vertical-bar';
+import { HexagonBadge } from '@/components/hexagon-badge';
+import { LockinGoalPicker } from '@/components/lockin-goal-picker';
+import { VerticalFillBar } from '@/components/vertical-fill-bar';
 import { PrimaryButton } from '@/components/ui/primary-button';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
-import { SecondaryButton } from '@/components/ui/secondary-button';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { useDiscoverGroups } from '@/hooks/use-discover-groups';
+import { TabHeader, TAB_HEADER_HEIGHT, TAB_HEADER_PADDING_TOP } from '@/components/ui/tab-header';
+import { TextInput } from '@/components/ui/text-input';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
+import { useCampfireHeat } from '@/hooks/use-campfire-heat';
+import { useDailyFire } from '@/hooks/use-daily-fire';
 import { useMyGroups } from '@/hooks/use-my-groups';
-import { deleteGroup, fetchUniversityMemberCount, joinPublicGroup, leaveGroup, type MyGroup } from '@/lib/api/groups';
+import { useTodayLockInCount } from '@/hooks/use-today-lockin-count';
+import { useActiveSession } from '@/lib/active-session-context';
+import { fetchMyRecentLockIns, type MyRecentLockIn } from '@/lib/api/check-ins';
+import { fetchMyRanks } from '@/lib/api/goals';
+import { fetchDiscoverableGroups, type MyGroup } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
-import { getErrorMessage } from '@/lib/errors';
+import { formatSessionDuration } from '@/lib/format';
+import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { pickGreeting } from '@/lib/greeting';
+import { formatRankTier, formatXpProgressCompact, xpProgressRatio } from '@/lib/rank-tiers';
+import type { DiscoverableGroup, MyRank } from '@/types/database';
 
-function UniversitySocialProof() {
-  const { profile } = useAuth();
-  const [count, setCount] = useState<number | null>(null);
+// Both hero-row bars share these exact dimensions so the fire (today) and rank (forever)
+// columns read as a matched pair (design-mocks/30 option B) — position alone carries the
+// "today vs. lifetime" meaning, so no extra labeling is needed either.
+const HERO_BADGE_SIZE = 34;
+const HERO_BAR_WIDTH = 14;
+// Trimmed down from the mock's literal 92px (Dispatch review) so the bars sit beside the
+// campfire instead of towering over it.
+const HERO_BAR_HEIGHT = 72;
 
-  useEffect(() => {
-    if (profile?.university) {
-      fetchUniversityMemberCount(profile.university).then(setCount);
-    }
-  }, [profile?.university]);
-
-  if (!profile?.university || !count || count < 2) return null;
-
-  return (
-    <Text style={styles.socialProof}>
-      🔥 {count} people at {profile.university} are already on Philoi
-    </Text>
-  );
+function findUniversal(ranks: MyRank[]): MyRank | undefined {
+  return ranks.find((r) => r.scope === 'universal');
 }
 
-function DiscoverCircles({ onJoined }: { onJoined: () => void }) {
-  const { groups, refetch } = useDiscoverGroups();
-  const [joiningId, setJoiningId] = useState<string | null>(null);
+// ─────────────────────────── Page 1: Your fire ───────────────────────────
 
-  if (groups.length === 0) return null;
+// "Locked in with you" (design-mocks/25) on the home flame — only meaningful when the active
+// session is circle-scoped, so this is its own component (calls useActiveCircleLockIns
+// unconditionally per mount) rather than a conditional hook call inside YourFirePage.
+function LockedInBodyDoublesLine({ circleId, excludeUserId }: { circleId: string; excludeUserId: string }) {
+  const activeLockIns = useActiveCircleLockIns(circleId);
+  const others = activeLockIns.filter((a) => a.session.user_id !== excludeUserId);
+  if (others.length === 0) return null;
 
-  async function handleJoin(groupId: string) {
-    setJoiningId(groupId);
-    try {
-      await joinPublicGroup(groupId);
-      await refetch();
-      onJoined();
-    } finally {
-      setJoiningId(null);
-    }
-  }
+  const names = others.map((a) => a.display_name);
+  const text =
+    names.length === 1
+      ? `${names[0]} locked in with you`
+      : names.length === 2
+        ? `${names[0]} & ${names[1]} locked in with you`
+        : `${names[0]}, ${names[1]} & ${others.length - 2} more locked in with you`;
 
   return (
-    <View style={styles.discoverSection}>
-      <Text style={styles.discoverTitle}>Don&apos;t have 3 friends to invite yet?</Text>
-      <Text style={styles.discoverBody}>These circles are open — jump in and start your streak today.</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.discoverList}>
-        {groups.map((group) => (
-          <DiscoverCircleCard
-            key={group.id}
-            group={group}
-            onJoin={() => handleJoin(group.id)}
-            joining={joiningId === group.id}
-          />
-        ))}
-      </ScrollView>
+    <View style={styles.livenow}>
+      <Ionicons name="people" size={12} color={Colors.achieverText} />
+      <Text style={styles.livenowText}>{text}</Text>
     </View>
   );
 }
 
-export default function TodayScreen() {
+function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: () => void }) {
   const router = useRouter();
-  const { session } = useAuth();
-  const { groups, loading, error, refetch } = useMyGroups();
-  const [draggingGroup, setDraggingGroup] = useState<MyGroup | null>(null);
-  const [overTrash, setOverTrash] = useState(false);
+  const { session, profile } = useAuth();
+  const { session: activeSession } = useActiveSession();
+  const todayCount = useTodayLockInCount();
+  const { dailyFire, error: dailyFireError } = useDailyFire();
+  const [recentLockIns, setRecentLockIns] = useState<MyRecentLockIn[]>([]);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const streak = profile?.current_streak ?? 0;
 
-  async function handleDropOnTrash(group: MyGroup) {
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => subscription.remove();
+  }, []);
+
+  // Today's fire (left column) — capped at 100 so the bar can never render past full even if
+  // progress_xp overshoots goal_xp (Dispatch review: corrupted data once showed 258/20). The
+  // completed state is read straight from the backend's own flag, not re-derived from the
+  // (now-capped) percentage, so it stays correct even once progress naturally exceeds goal.
+  const firePct = dailyFire && dailyFire.goal_xp > 0 ? Math.min(100, (dailyFire.progress_xp / dailyFire.goal_xp) * 100) : 0;
+  const fireComplete = dailyFire?.completed ?? false;
+  // Personal flame dims when *you've* gone quiet — no one else's activity feeds this fire
+  // (PHILOI_UI_SPEC.md §12: "no chat, no feed... a private nudge") — UNLESS a lock-in is
+  // actively running right now, which always reads as roaring (design-mocks/25).
+  const flameState = activeSession ? 'roar' : streak > 0 ? 'steady' : 'dead';
+
+  const name = profile?.display_name?.split(' ')[0] ?? 'there';
+  const previousGreetingRef = useRef<string | undefined>(undefined);
+  // Picked once per (count, hour-bucket) change, not on every render — otherwise the line
+  // would reroll on every unrelated re-render instead of just when the inputs it's actually
+  // driven by change (PHILOI_UI_SPEC.md §5: "rotate variants... so regulars don't see the
+  // same line twice," which only makes sense against a stable pick, not a flickering one).
+  const greeting = useMemo(() => {
+    if (activeSession) return null;
+    const line = pickGreeting(todayCount, new Date().getHours(), name, previousGreetingRef.current);
+    previousGreetingRef.current = line;
+    return line;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately excludes `name`/previousGreetingRef so a display-name change alone doesn't reroll the line
+  }, [activeSession, todayCount]);
+
+  useEffect(() => {
     if (!session) return;
-    const isOwner = group.owner_id === session.user.id;
-    try {
-      if (isOwner) {
-        await deleteGroup(group.id);
-      } else {
-        await leaveGroup(group.id, session.user.id);
-      }
-      refetch();
-    } catch (e) {
-      console.error('[today] failed to delete/leave circle:', e);
-      Alert.alert(
-        'Something went wrong',
-        getErrorMessage(e, `Could not ${isOwner ? 'delete' : 'leave'} this circle — try again.`)
-      );
-    }
-  }
+    // A generous limit (not just 3) — this section now claims the freed vertical space below
+    // the CTA (see styles.journal), so it needs enough real content to actually fill it.
+    fetchMyRecentLockIns(session.user.id, 12)
+      .then(setRecentLockIns)
+      .catch(() => {
+        // The journal is a nice-to-have recap here, not core data — a failed fetch just hides it.
+      });
+  }, [session]);
 
   return (
-    <Screen padded={false}>
-      <FlatList
-        data={groups}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.coral} />}
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <Logo size={24} />
-            <Text style={styles.headerTitle}>Today</Text>
-            {groups.length > 0 && (
-              <Text style={styles.hint}>Hold and drag a circle down to the trash to delete or leave it.</Text>
-            )}
-            {error && <Text style={styles.error}>{error}</Text>}
-          </View>
-        }
-        renderItem={({ item }) => (
-          <GroupCard
-            group={item}
-            onLockIn={() => router.push(`/group/${item.id}/check-in`)}
-            onOpen={() => router.push(`/group/${item.id}`)}
-            onDragStateChange={(dragging) => setDraggingGroup(dragging ? item : null)}
-            onHoverTrashChange={setOverTrash}
-            onDropOnTrash={() => handleDropOnTrash(item)}
-          />
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
-        ListEmptyComponent={
-          !loading ? (
-            <EmptyState
-              title="No circles yet"
-              body="Philoi works better with your people — pull 3 friends in."
-              action={
-                <View style={styles.emptyActions}>
-                  <UniversitySocialProof />
-                  <PrimaryButton label="Start a circle" onPress={() => router.push('/group/create')} />
-                  <SecondaryButton label="Join with a code" onPress={() => router.push('/join')} />
-                  <DiscoverCircles onJoined={refetch} />
-                </View>
-              }
-            />
-          ) : null
-        }
-        ListFooterComponent={
-          groups.length > 0 ? (
-            <View style={styles.footerActions}>
-              <SecondaryButton label="Start a new circle" onPress={() => router.push('/group/create')} />
-              <SecondaryButton label="Join with a code" onPress={() => router.push('/join')} />
-            </View>
-          ) : null
+    <View style={styles.page}>
+      {/* Friends ("Your people", mock 21) is the ONE right-side action here (PHILOI_UI_SPEC.md
+          §4b) — the single Friends entry point app-wide, moved off Profile. No profile avatar
+          here — the bottom Profile tab already covers that. */}
+      <TabHeader
+        title="Your fire"
+        icon="flame"
+        right={
+          <Pressable onPress={() => router.push('/people')} hitSlop={8} accessibilityLabel="Your people">
+            <Ionicons name="people-outline" size={20} color={Colors.muted} />
+          </Pressable>
         }
       />
 
-      <TrashTarget
-        visible={draggingGroup !== null}
-        hot={overTrash}
-        label={
-          draggingGroup && session && draggingGroup.owner_id === session.user.id
-            ? 'Drop to delete'
-            : 'Drop to leave'
-        }
+      <View style={styles.pageContent}>
+      {greeting && <Text style={styles.greet}>{greeting}</Text>}
+
+      {/* Hero row (design-mocks/30 option B) — fire (today, left) flanks the campfire; rank
+          (forever, right) flanks the other side. Position alone carries that meaning. */}
+      <View style={styles.heroRow}>
+        <View style={styles.heroCol}>
+          <View style={styles.heroBadge}>
+            <Ionicons name="flame" size={18} color={Colors.amber} />
+          </View>
+          <FireVerticalBar pct={firePct} width={HERO_BAR_WIDTH} height={HERO_BAR_HEIGHT} />
+          {dailyFireError ? (
+            <Text style={styles.heroErrorXp}>—</Text>
+          ) : fireComplete ? (
+            <Ionicons name="checkmark-circle" size={16} color={Colors.amber} />
+          ) : (
+            <Text style={styles.heroXp}>
+              {dailyFire ? formatXpProgressCompact(dailyFire.progress_xp, dailyFire.goal_xp) : ' '}
+            </Text>
+          )}
+          <Text style={styles.heroCaption} numberOfLines={2}>
+            {dailyFireError ? "Couldn't load" : fireComplete ? "Today's fire complete" : "Today's fire"}
+          </Text>
+        </View>
+
+        <View style={styles.heroCenter}>
+          <CampfireFlameStage state={flameState} size={80} />
+          {activeSession?.circleId && session ? (
+            <LockedInBodyDoublesLine circleId={activeSession.circleId} excludeUserId={session.user.id} />
+          ) : !activeSession ? (
+            <View style={styles.streakRow}>
+              <Ionicons name="flame" size={13} color={Colors.ember} />
+              <Text style={styles.streakText}>{streak}-day streak</Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.heroCol}>
+          {rank ? (
+            <>
+              <HexagonBadge tier={rank.tier} division={rank.division} size={HERO_BADGE_SIZE} />
+              <VerticalFillBar
+                ratio={xpProgressRatio(rank.xp_into_tier, rank.xp_for_next_tier)}
+                width={HERO_BAR_WIDTH}
+                height={HERO_BAR_HEIGHT}
+                color={Colors.coral}
+                reduceMotion={reduceMotion}
+              />
+              <Text style={styles.heroXp}>{formatXpProgressCompact(rank.xp_into_tier, rank.xp_for_next_tier)}</Text>
+              <Text style={styles.heroCaption} numberOfLines={2}>
+                {formatRankTier(rank.tier, rank.division)}
+              </Text>
+            </>
+          ) : (
+            <View style={{ width: HERO_BADGE_SIZE, height: HERO_BADGE_SIZE + HERO_BAR_HEIGHT }} />
+          )}
+        </View>
+      </View>
+
+      <PrimaryButton
+        label={activeSession ? 'Return to your lock-in' : 'Lock in'}
+        onPress={activeSession ? () => router.push('/lock-in') : onLockIn}
       />
+
+      {/* flex:1 (see styles.journal) — this claims all the space the hero row + CTA didn't use,
+          so the screen reads top -> Lock in -> recents filling downward with no dead gap. */}
+      <View style={styles.journal}>
+        <Text style={styles.journalLbl}>Your recent lock-ins</Text>
+        {recentLockIns.length > 0 ? (
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.journalScroll}>
+            {recentLockIns.map((r) => (
+              <View key={r.id} style={styles.journalRow}>
+                <View style={styles.journalIcon}>
+                  <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={16} color={Colors.amber} />
+                </View>
+                <Text style={styles.journalText}>
+                  {GOAL_TYPE_META[r.goal_type].label}
+                  {r.goal_detail ? <Text style={styles.journalDetail}> · {r.goal_detail}</Text> : null}
+                </Text>
+                <Text style={styles.journalDur}>{formatSessionDuration(r.duration_seconds ?? 0)}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.journalEmpty}>
+            <Ionicons name="flame-outline" size={22} color={Colors.textTertiary} />
+            <Text style={styles.journalEmptyText}>No lock-ins yet — start your first one above.</Text>
+          </View>
+        )}
+      </View>
+      </View>
+    </View>
+  );
+}
+
+// ─────────────────────────── Page 2: the valley ───────────────────────────
+
+// Deterministic per-id placement isn't enough on its own here — with potentially dozens of
+// campfires, plain per-id hashing can land two nodes on top of each other. Instead, campfires
+// are assigned to a small fixed set of pre-spread, non-overlapping slots (most-central slots
+// go to the most active fires, matching "roaring = big + foreground"), so spacing is
+// guaranteed regardless of how many are on screen.
+function hashUnit(id: string, salt: number): number {
+  let h = salt;
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return (h % 1000) / 1000;
+}
+
+const SLOT_COLS = [18, 50, 82];
+const SLOT_ROWS = [16, 40, 64, 88];
+const SLOTS: { left: number; top: number }[] = [];
+SLOT_ROWS.forEach((row, ri) => {
+  const offset = ri % 2 === 1 ? 12 : 0;
+  SLOT_COLS.forEach((col) => SLOTS.push({ left: Math.min(92, col + offset), top: row }));
+});
+const SORTED_SLOTS = [...SLOTS].sort(
+  (a, b) => Math.abs(a.left - 50) + Math.abs(a.top - 50) - (Math.abs(b.left - 50) + Math.abs(b.top - 50))
+);
+
+const STATE_WEIGHT: Record<CampfireFlameState, number> = { roar: 2, steady: 1, dead: 0 };
+
+function layoutValleyNodes<T>(items: T[], idOf: (t: T) => string, stateOf: (t: T) => CampfireFlameState) {
+  const sorted = [...items].sort((a, b) => {
+    const byState = STATE_WEIGHT[stateOf(b)] - STATE_WEIGHT[stateOf(a)];
+    return byState !== 0 ? byState : idOf(a).localeCompare(idOf(b));
+  });
+  return sorted.map((item, i) => {
+    const slot = SORTED_SLOTS[i % SORTED_SLOTS.length];
+    const wrap = Math.floor(i / SORTED_SLOTS.length);
+    const jitter = wrap > 0 ? (hashUnit(idOf(item), 31 + wrap) - 0.5) * 16 : 0;
+    return {
+      item,
+      left: Math.min(94, Math.max(6, slot.left + jitter)),
+      top: Math.min(92, Math.max(8, slot.top + jitter * 0.6)),
+    };
+  });
+}
+
+// design-mocks/04's sizeFor(): roaring reads big/foreground, steady medium, cold/dead small.
+const SIZE_FOR_STATE: Record<CampfireFlameState, number> = { roar: 56, steady: 42, dead: 32 };
+
+// No live heat/activity data exists for circles you haven't joined (lock_in_sessions' RLS
+// scopes visibility to circle-mates only) — member_count is the honest proxy for discovery
+// nodes, bucketed into the same three visual sizes.
+function stateForMemberCount(count: number): CampfireFlameState {
+  if (count >= 15) return 'roar';
+  if (count >= 4) return 'steady';
+  return 'dead';
+}
+
+// PHILOI_UI_SPEC.md §10's performance rule: "Fully animate only the few roaring fires; render
+// steady/cold/distant ones as low-frame or static flames." Only 'roar' gets
+// CampfireFlameStage's continuous sparks+pulse loop — steady/dead render one static FlameSvg
+// frame with no Reanimated loop running at all.
+function ValleyFlame({ state, size }: { state: CampfireFlameState; size: number }) {
+  if (state === 'roar') return <CampfireFlameStage state="roar" size={size} />;
+  const height = size / FLAME_ASPECT_RATIO;
+  return (
+    <View style={[styles.staticFlame, { width: size, height, opacity: state === 'dead' ? 0.5 : 1 }]}>
+      <FlameSvg width={size} height={height} />
+    </View>
+  );
+}
+
+function ValleyNode({
+  id,
+  name,
+  cue,
+  state,
+  gated,
+  left,
+  top,
+  dimmed,
+  active,
+  onPress,
+}: {
+  id: string;
+  name: string;
+  cue: string;
+  state: CampfireFlameState;
+  gated: boolean;
+  left: number;
+  top: number;
+  dimmed: boolean;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    scale.value = withTiming(active ? 1.7 : 1, { duration: 380, easing: Easing.bezier(0.22, 0.61, 0.36, 1) });
+  }, [active, scale]);
+
+  useEffect(() => {
+    opacity.value = withTiming(dimmed ? 0.15 : 1, { duration: 350 });
+  }, [dimmed, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View
+      style={[styles.node, { left: `${left}%`, top: `${top}%`, zIndex: active ? 9 : 2 }, animatedStyle]}
+      pointerEvents={dimmed ? 'none' : 'auto'}
+      key={id}>
+      <Pressable onPress={onPress} style={styles.nodeTouch}>
+        <ValleyFlame state={state} size={SIZE_FOR_STATE[state]} />
+        <View style={styles.nodeLabelRow}>
+          {gated && <Ionicons name="lock-closed" size={9} color={Colors.textTertiary} style={styles.nodeLockIcon} />}
+          <Text style={styles.nodeLabel} numberOfLines={1}>
+            {name}
+          </Text>
+        </View>
+        <Text style={styles.nodeCue}>{cue}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// "Mine" nodes need their own live "N locked in now" cue — a dedicated component so that hook
+// is called unconditionally per real node instance.
+function MyFireValleyNode({
+  group,
+  heat,
+  left,
+  top,
+  dimmed,
+  active,
+  onPress,
+}: {
+  group: MyGroup;
+  heat: number;
+  left: number;
+  top: number;
+  dimmed: boolean;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const activeLockIns = useActiveCircleLockIns(group.id);
+  const state = heatToFlameState(heat);
+  const cue = activeLockIns.length > 0 ? `${activeLockIns.length} locked in` : state === 'dead' ? 'gone cold' : 'steady';
+
+  return (
+    <ValleyNode
+      id={group.id}
+      name={group.name}
+      cue={cue}
+      state={state}
+      gated={false}
+      left={left}
+      top={top}
+      dimmed={dimmed}
+      active={active}
+      onPress={onPress}
+    />
+  );
+}
+
+type Filter = 'mine' | 'school' | 'classes' | 'popular';
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: 'mine', label: 'My fires' },
+  { key: 'school', label: 'My school' },
+  { key: 'classes', label: 'Classes' },
+  { key: 'popular', label: 'Popular' },
+];
+
+function ValleyPage({ myGroups, heatByGroupId }: { myGroups: MyGroup[]; heatByGroupId: Record<string, number> }) {
+  const router = useRouter();
+  const { profile } = useAuth();
+  const [filter, setFilter] = useState<Filter>('mine');
+  const [search, setSearch] = useState('');
+  const [discoverable, setDiscoverable] = useState<DiscoverableGroup[]>([]);
+  const [previewGroupId, setPreviewGroupId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (filter === 'mine') return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const data = await fetchDiscoverableGroups(undefined, search, 50);
+        if (!cancelled) setDiscoverable(data);
+      } catch {
+        if (!cancelled) setDiscoverable([]);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [filter, search]);
+
+  // Switching filters repopulates the valley (PHILOI_UI_SPEC.md §10).
+  const discoveryPool = useMemo(() => {
+    let pool = discoverable;
+    if (filter === 'school' && profile?.university) {
+      pool = pool.filter((g) => (g.school ?? g.owner_university) === profile.university);
+    } else if (filter === 'classes') {
+      pool = pool.filter((g) => g.course_code != null);
+    } else if (filter === 'popular') {
+      pool = [...pool].sort((a, b) => b.member_count - a.member_count);
+    }
+    return pool;
+  }, [filter, discoverable, profile]);
+
+  const mineFiltered = useMemo(
+    () => myGroups.filter((g) => g.name.toLowerCase().includes(search.toLowerCase())),
+    [myGroups, search]
+  );
+
+  const laidOutMine = useMemo(
+    () => layoutValleyNodes(mineFiltered, (g) => g.id, (g) => heatToFlameState(heatByGroupId[g.id] ?? 0)),
+    [mineFiltered, heatByGroupId]
+  );
+  const laidOutDiscovery = useMemo(
+    () => layoutValleyNodes(discoveryPool, (g) => g.id, (g) => stateForMemberCount(g.member_count)),
+    [discoveryPool]
+  );
+
+  return (
+    // 'position' behavior (not 'padding') — the discovery search bar (styles.disc) is
+    // absolutely positioned at the bottom, which padding-based avoidance can't reach at all
+    // (padding only affects normal-flow layout). 'position' shifts this whole wrapped view,
+    // absolutely-positioned children included, so the search bar actually clears the keyboard
+    // (PHILOI_UI_SPEC.md §4b — "no input should ever sit behind the keyboard").
+    <KeyboardAvoidingView style={styles.valley} behavior={Platform.OS === 'ios' ? 'position' : undefined}>
+      <View style={styles.stage2}>
+        {filter === 'mine'
+          ? laidOutMine.map(({ item: group, left, top }) => (
+              <MyFireValleyNode
+                key={group.id}
+                group={group}
+                heat={heatByGroupId[group.id] ?? 0}
+                left={left}
+                top={top}
+                dimmed={previewGroupId !== null && previewGroupId !== group.id}
+                active={previewGroupId === group.id}
+                onPress={() => setPreviewGroupId(group.id)}
+              />
+            ))
+          : laidOutDiscovery.map(({ item: group, left, top }) => (
+              <ValleyNode
+                key={group.id}
+                id={group.id}
+                name={group.name}
+                cue={
+                  filter === 'classes' && group.course_code
+                    ? `class · ${group.member_count} in`
+                    : `${group.member_count} member${group.member_count === 1 ? '' : 's'}`
+                }
+                state={stateForMemberCount(group.member_count)}
+                gated={group.privacy === 'gated'}
+                left={left}
+                top={top}
+                dimmed={previewGroupId !== null && previewGroupId !== group.id}
+                active={previewGroupId === group.id}
+                onPress={() => setPreviewGroupId(group.id)}
+              />
+            ))}
+      </View>
+
+      <View style={styles.disc}>
+        <View style={styles.search}>
+          <Ionicons name="search" size={13} color={Colors.textTertiary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search campfires, courses, schools"
+            placeholderTextColor={Colors.textTertiary}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+
+        <View style={styles.chips}>
+          {FILTERS.map((f) => (
+            <Pressable
+              key={f.key}
+              style={[styles.chip, filter === f.key && styles.chipOn]}
+              onPress={() => setFilter(f.key)}>
+              <Text style={[styles.chipLabel, filter === f.key && styles.chipLabelOn]} numberOfLines={1}>
+                {f.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Pressable style={styles.codeRow} onPress={() => router.push('/join')}>
+          <Ionicons name="key-outline" size={12} color={Colors.muted} />
+          <Text style={styles.codeLabel}>Have a code? Join a private campfire</Text>
+        </Pressable>
+
+        <Pressable style={styles.startRow} onPress={() => router.push('/group/create')}>
+          <Ionicons name="add" size={13} color={Colors.amber} />
+          <Text style={styles.startLabel}>Start a campfire of your own</Text>
+        </Pressable>
+      </View>
+
+      <CampfirePreviewSheet groupId={previewGroupId} onClose={() => setPreviewGroupId(null)} />
+    </KeyboardAvoidingView>
+  );
+}
+
+// ─────────────────────────── Shell: the two-page pager ───────────────────────────
+
+type PagerPage = 'yourFire' | 'valley';
+const PAGES: PagerPage[] = ['yourFire', 'valley'];
+
+export default function TodayScreen() {
+  const router = useRouter();
+  const { groups } = useMyGroups();
+  const heatByGroupId = useCampfireHeat();
+  const [rank, setRank] = useState<MyRank | undefined>(undefined);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [lockInPickerVisible, setLockInPickerVisible] = useState(false);
+  const { width } = useWindowDimensions();
+  const listRef = useRef<FlatList<PagerPage>>(null);
+  // A tapped "lock in?" nudge (design-mocks/21) deep-links here with ?lockin=1 — pop the goal
+  // picker straight away, then clear the param so it doesn't re-fire on the next render.
+  const { lockin } = useLocalSearchParams<{ lockin?: string }>();
+  useEffect(() => {
+    if (lockin === '1') {
+      setLockInPickerVisible(true);
+      router.setParams({ lockin: undefined });
+    }
+  }, [lockin, router]);
+
+  useEffect(() => {
+    fetchMyRanks()
+      .then((ranks) => setRank(findUniversal(ranks)))
+      .catch(() => {
+        // Rank is contextual flavor here, not core data — a failed fetch just hides the stat.
+      });
+  }, []);
+
+  return (
+    <Screen padded={false} style={styles.screen}>
+      {/* Overlaid on the header band, not stacked above it — as a normal-flow row it added ~19px
+          of height that the other three tabs don't have, pushing "Your fire" below their titles.
+          Absolute + the shared TabHeader geometry puts the dots in the header's empty centre and
+          the title at the exact same Y as Leaderboard/Challenges/Profile. */}
+      <View style={styles.dotsRow} pointerEvents="none">
+        {PAGES.map((p, i) => (
+          <View key={p} style={[styles.dot, i === pageIndex && styles.dotOn]} />
+        ))}
+      </View>
+
+      <FlatList
+        ref={listRef}
+        style={styles.pager}
+        data={PAGES}
+        keyExtractor={(item) => item}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => setPageIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
+        renderItem={({ item }) => (
+          <View style={{ width }}>
+            {item === 'yourFire' && <YourFirePage rank={rank} onLockIn={() => setLockInPickerVisible(true)} />}
+            {item === 'valley' && <ValleyPage myGroups={groups} heatByGroupId={heatByGroupId} />}
+          </View>
+        )}
+      />
+
+      <LockinGoalPicker visible={lockInPickerVisible} onClose={() => setLockInPickerVisible(false)} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  list: {
+  screen: {
+    backgroundColor: Colors.cream,
+  },
+  page: {
+    flex: 1,
+  },
+  // Horizontal padding only — TabHeader supplies its own matching top inset above this, and
+  // stacking page's own paddingTop on top of it would push the title further down than the
+  // other three tabs' (see TabHeader's comment).
+  pageContent: {
+    flex: 1,
     paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.six,
+    paddingBottom: Spacing.four,
   },
-  header: {
-    gap: Spacing.one,
-    paddingVertical: Spacing.three,
+  greet: {
+    fontFamily: Fonts.display,
+    fontSize: 22,
+    lineHeight: 26.4,
+    color: Colors.ink,
+    marginTop: 14,
   },
-  hint: {
+  // The hero row (design-mocks/30 option B) — fire flanks the left, rank flanks the right, the
+  // living campfire flame centers between them. Sized to its own content (not flex:1) so the
+  // freed vertical space goes to `journal` below instead — see that style's comment.
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    // Breathing room before the CTA — the column captions ("Today's fire" / rank name) were
+    // reading cramped right against the Lock in button (Dispatch review).
+    marginBottom: Spacing.four,
+  },
+  heroCol: {
+    width: 84,
+    alignItems: 'center',
+    gap: 9,
+  },
+  heroBadge: {
+    width: HERO_BADGE_SIZE,
+    height: HERO_BADGE_SIZE,
+    borderRadius: 10,
+    backgroundColor: Colors.achieverBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  heroXp: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.ember,
+  },
+  heroErrorXp: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.textTertiary,
   },
-  headerTitle: {
-    fontFamily: Fonts.display,
-    fontSize: 32,
-    color: Colors.ink,
-  },
-  error: {
-    fontFamily: Fonts.body,
-    color: Colors.coral,
-  },
-  emptyActions: {
-    gap: Spacing.three,
-    width: '100%',
-  },
-  socialProof: {
+  // Shared style for both "Today's fire" and the rank name (e.g. "Bronze I") — same size/weight
+  // so the two columns read as a matched pair, per this layout's explicit normalization rule.
+  heroCaption: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.plum,
-    textAlign: 'center',
-    flexShrink: 1,
-  },
-  footerActions: {
-    gap: Spacing.three,
-    marginTop: Spacing.four,
-  },
-  discoverSection: {
-    marginTop: Spacing.four,
-    gap: Spacing.one,
-    width: '100%',
-  },
-  discoverTitle: {
-    fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.ink,
     textAlign: 'center',
   },
-  discoverBody: {
+  streakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 2,
+  },
+  livenow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  livenowText: {
+    fontFamily: Fonts.body,
+    fontSize: 12.5,
+    color: Colors.achieverText,
+  },
+  streakText: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
-    textAlign: 'center',
-    marginBottom: Spacing.two,
+    color: Colors.ember,
   },
-  discoverList: {
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.one,
+  // flex:1 so this claims whatever vertical space the hero row + CTA didn't use — "recents
+  // fills the freed bottom third" now that the old stacked bars no longer eat that space.
+  journal: {
+    flex: 1,
+    marginTop: 15,
+  },
+  journalLbl: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
+    marginBottom: 6,
+  },
+  journalScroll: {
+    gap: Spacing.one,
+    paddingBottom: Spacing.four,
+  },
+  journalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.card,
+  },
+  journalIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: Colors.achieverBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  journalText: {
+    flex: 1,
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.ink,
+  },
+  journalDetail: {
+    fontSize: 11,
+    color: Colors.muted,
+  },
+  journalDur: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12.5,
+    color: Colors.ember,
+  },
+  journalEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    paddingBottom: Spacing.six,
+  },
+  journalEmptyText: {
+    fontFamily: Fonts.body,
+    fontSize: 12.5,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.six,
+  },
+  // ── valley ──
+  // Was Colors.twilight900 (a deliberate darker "twilight-valley" look from earlier in this
+  // project) — PHILOI_UI_SPEC.md §4b now mandates ONE background everywhere except the tab bar
+  // and the two immersive routes, explicitly naming "campfire interior/valley" as the repeat
+  // offender. Flagging the tension with §10's older "twilight-900 night" field description in
+  // the report — following §4b here since it's the newer, more explicit instruction.
+  valley: {
+    flex: 1,
+    backgroundColor: Colors.cream,
+  },
+  stage2: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    // Was 44 to clear the now-removed "Your fire · swipe back" hint bar — tightened now that
+    // there's nothing up there to clear.
+    top: 16,
+    bottom: 150,
+  },
+  node: {
+    position: 'absolute',
+    alignItems: 'center',
+    width: 100,
+    marginLeft: -50,
+  },
+  nodeTouch: {
+    alignItems: 'center',
+  },
+  staticFlame: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  nodeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 2,
+    maxWidth: 100,
+  },
+  nodeLockIcon: {
+    marginTop: 1,
+  },
+  nodeLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+    color: Colors.ink,
+    flexShrink: 1,
+  },
+  nodeCue: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    color: Colors.achieverText,
+  },
+  disc: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.cream,
+    borderTopWidth: 1,
+    borderTopColor: Colors.line,
+    paddingTop: 11,
+    paddingHorizontal: 12,
+    paddingBottom: 13,
+  },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: 11,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 0,
+    fontSize: 12.5,
+    color: Colors.ink,
+  },
+  chips: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 9,
+  },
+  chip: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: Radius.pill,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  chipOn: {
+    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.coral,
+  },
+  chipLabel: {
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    color: Colors.muted,
+  },
+  chipLabelOn: {
+    color: Colors.achieverText,
+  },
+  codeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.line,
+    borderRadius: Radius.pill,
+    paddingVertical: 7,
+  },
+  codeLabel: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.muted,
+  },
+  startRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 9,
+  },
+  startLabel: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.amber,
+  },
+  // ── pager ──
+  pager: {
+    flex: 1,
+  },
+  dotsRow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
+    height: TAB_HEADER_HEIGHT,
+    paddingTop: TAB_HEADER_PADDING_TOP,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: Colors.lineStrong,
+  },
+  dotOn: {
+    backgroundColor: Colors.coral,
+    width: 18,
   },
 });

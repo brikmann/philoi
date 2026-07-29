@@ -1,0 +1,66 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:#17131f;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:20px 16px 14px;box-sizing:border-box;color:#FFF6EC}
+.top{text-align:center}
+.cf{font-size:12px;color:#7c7194}
+.goal{margin-top:5px;display:inline-flex;align-items:center;gap:6px;background:#3a2a22;color:#FFD27A;font-size:13px;font-weight:500;padding:5px 12px;border-radius:999px}
+.obj{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.firewrap{position:relative;width:150px;height:170px;display:flex;align-items:flex-end;justify-content:center}
+.fl{transform-origin:50% 90%;animation:roar 1s ease-in-out infinite}
+.tool{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);color:#FFF3DC;font-size:50px;z-index:2}
+.ember{position:absolute;left:50%;bottom:60px;width:5px;height:5px;border-radius:999px;background:#F2A33C;opacity:0;animation:emb 2.6s ease-out infinite}
+.timer{font-family:var(--font-sans);font-weight:500;font-size:46px;letter-spacing:1px;margin-top:6px}
+.locked{font-size:12px;color:#a99cbd;letter-spacing:1px;margin-top:-2px}
+.doubles{margin-top:16px;width:100%;background:#201a2c;border-radius:14px;padding:10px 12px}
+.doubles .lbl{font-size:11px;color:#7c7194;margin-bottom:8px}
+.dbl{display:flex;align-items:center;gap:9px;padding:4px 0}
+.dbl .av{width:28px;height:28px;border-radius:999px;background:#3a2a22;border:1.5px solid #E0612C;display:flex;align-items:center;justify-content:center;font-size:11px;color:#FFD27A;flex:none}
+.dbl .n{flex:1;font-size:12.5px}
+.dbl .n span{color:#a99cbd;font-size:11px}
+.dbl .tm{font-size:12.5px;color:#FFD27A;font-weight:500}
+.acts{display:flex;align-items:center;gap:12px;margin-top:14px;width:100%}
+.cam{width:52px;height:52px;border-radius:999px;background:#241c38;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#FFF6EC;font-size:22px;flex:none;cursor:pointer;position:relative}
+.cam .b{position:absolute;top:-4px;right:-4px;background:#E0612C;color:#fff;font-size:10px;min-width:16px;height:16px;border-radius:999px;display:flex;align-items:center;justify-content:center}
+.stop{flex:1;border:0;border-radius:16px;padding:16px;background:#2d2740;color:#FFF6EC;font-family:var(--font-sans);font-weight:500;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+@keyframes roar{0%,100%{transform:scaleY(1) scaleX(1)}30%{transform:scaleY(1.12) scaleX(.94)}60%{transform:scaleY(1.05) scaleX(1.02)}}
+@keyframes emb{0%{opacity:0;transform:translate(-50%,0) scale(1)}15%{opacity:.85}100%{opacity:0;transform:translate(calc(-50% + var(--ex)),-120px) scale(.3)}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="top"><div class="cf">Push day collective</div><div class="goal"><i class="ti ti-barbell" aria-hidden="true"></i>Gym · leg day</div></div>
+    <div class="obj">
+      <div class="firewrap" id="fw">
+        <svg width="150" height="170" viewBox="0 0 120 150" aria-hidden="true"><g class="fl">
+          <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/>
+          <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/>
+          <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
+        </g></svg>
+        <i class="ti ti-barbell tool" aria-hidden="true"></i>
+      </div>
+      <div class="timer" id="timer">12:04</div>
+      <div class="locked">LOCKED IN</div>
+    </div>
+    <div class="doubles">
+      <div class="lbl">Locked in with you</div>
+      <div class="dbl"><div class="av">A</div><div class="n">Aidan <span>· Gym</span></div><div class="tm" id="t2">18:31</div></div>
+      <div class="dbl"><div class="av">M</div><div class="n">Maya <span>· Study</span></div><div class="tm" id="t3">04:17</div></div>
+    </div>
+    <div class="acts">
+      <button class="cam"><i class="ti ti-camera" aria-hidden="true"></i><span class="b">2</span></button>
+      <button class="stop"><i class="ti ti-player-stop" aria-hidden="true"></i>Stop lock-in</button>
+    </div>
+  </div></div>
+</div>
+<script>
+(function(){
+  function mk(el,base){var s=base;return function(){s++;var m=Math.floor(s/60),ss=s%60;el.textContent=(m<10?'0':'')+m+':'+(ss<10?'0':'')+ss;};}
+  var a=mk(document.getElementById('timer'),724),b=mk(document.getElementById('t2'),1111),c=mk(document.getElementById('t3'),257);
+  setInterval(function(){a();b();c();},1000);
+  var fw=document.getElementById('fw');
+  for(var i=0;i<5;i++){var e=document.createElement('span');e.className='ember';e.style.setProperty('--ex',((Math.random()-.5)*40).toFixed(0)+'px');e.style.left=(44+Math.random()*12)+'%';e.style.animationDelay=(Math.random()*2.6).toFixed(2)+'s';fw.appendChild(e);}
+})();
+</script>

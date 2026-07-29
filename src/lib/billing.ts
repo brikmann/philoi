@@ -9,7 +9,7 @@ export const MEMBERSHIP_PRICING = {
 } as const;
 
 export const MEMBERSHIP_PITCH = [
-  'Unlimited circles, friends, and check-ins',
+  'Unlimited Campfires, friends, and check-ins',
   'Streaks, leaderboards, and the full feed',
   'Reminders so you never break a streak by accident',
   "You're in — no ads, no algorithm, just your people",

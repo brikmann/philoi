@@ -1,0 +1,124 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:320px;line-height:1.55}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#17131f;border-radius:26px;overflow:auto;padding:15px 14px;box-sizing:border-box;color:#FFF6EC}
+.stage::-webkit-scrollbar{display:none}
+/* header */
+.hdr{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.timer{background:#20182f;border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600;color:#FFD27A;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+.goalchip{font-size:11.5px;color:#a99cbd}
+.goalchip b{color:#FFF6EC;font-weight:500}
+.clipcount{margin-left:auto;display:flex;align-items:center;gap:4px;font-size:11px;color:#7c7194}
+.clipcount svg{width:13px;height:13px;stroke:#7c7194;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* exercise card */
+.ex{background:#20182f;border-radius:15px;padding:13px 13px 8px;margin-bottom:12px}
+.exhd{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
+.exnm{font-size:15px;font-weight:600}
+.exsub{font-size:10.5px;color:#7c7194}
+.exmenu{margin-left:auto;color:#7c7194;font-size:16px;letter-spacing:1px}
+/* set row */
+.set{display:flex;align-items:center;gap:10px;padding:8px 4px;border-top:1px solid #2a2140}
+.set:first-of-type{border-top:0}
+.setno{width:20px;font-size:11px;color:#7c7194;flex:none}
+.wr{font-size:14.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.wr .x{color:#7c7194;font-weight:400;margin:0 3px;font-size:12px}
+.pr{display:inline-flex;align-items:center;gap:3px;background:#3a2a22;color:#FFD27A;border-radius:6px;padding:2px 6px;font-size:9.5px;font-weight:700;letter-spacing:.5px;margin-left:7px}
+.pr svg{width:10px;height:10px;fill:#F2A33C}
+.spacer{flex:1}
+.done{width:22px;height:22px;border-radius:999px;background:#213524;display:flex;align-items:center;justify-content:center;flex:none}
+.done svg{width:12px;height:12px;stroke:#3DA85C;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+/* camera affordance — idle */
+.cambtn{width:30px;height:30px;border-radius:999px;border:1px solid #3a3350;background:transparent;display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer}
+.cambtn svg{width:15px;height:15px;stroke:#8a7fa6;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+/* camera affordance — recorded clip thumbnail */
+.clip{position:relative;width:34px;height:44px;border-radius:8px;overflow:hidden;flex:none;background:linear-gradient(150deg,#3a2a22,#20182f);border:1px solid #4a3a2a}
+.clip .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.clip .play svg{width:14px;height:14px;fill:#FFF6EC;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+.clip .dur{position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;font-size:8px;padding:0 3px;border-radius:3px;font-variant-numeric:tabular-nums}
+/* PR film prompt */
+.prompt{margin:4px 4px 8px;background:#2b2036;border:1px solid #E0612C;border-radius:12px;padding:10px 11px;display:flex;align-items:center;gap:10px}
+.prompt .pic{width:30px;height:30px;border-radius:8px;background:#3a2a22;display:flex;align-items:center;justify-content:center;flex:none}
+.prompt .pic svg{width:16px;height:16px;stroke:#FFD27A;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.prompt .txt{flex:1;min-width:0}
+.prompt .t1{font-size:12.5px;font-weight:600;color:#FFF6EC}
+.prompt .t2{font-size:10px;color:#a99cbd;margin-top:1px}
+.pbtns{display:flex;gap:6px;flex:none}
+.film{background:#E0612C;color:#fff;border:0;border-radius:999px;padding:6px 12px;font-size:11.5px;font-weight:600;font-family:var(--font-sans);cursor:pointer}
+.skip{background:transparent;color:#8a7fa6;border:0;font-size:11px;font-family:var(--font-sans);cursor:pointer;padding:6px 2px}
+/* add set */
+.addset{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;margin-top:2px;font-size:12px;color:#8a7fa6;border-top:1px dashed #2a2140}
+.addset svg{width:13px;height:13px;stroke:#8a7fa6;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* recording overlay (inset demo) */
+.reclabel{display:flex;align-items:center;gap:5px;font-size:10px;color:#E86A5A;margin:2px 4px 10px;font-weight:500}
+.reclabel .dot{width:7px;height:7px;border-radius:999px;background:#E86A5A;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+
+    <div class="hdr">
+      <span class="timer">12:47</span>
+      <span class="goalchip">Gym · <b>Push day</b></span>
+      <span class="clipcount"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>3 left this month</span>
+    </div>
+
+    <!-- Bench press -->
+    <div class="ex">
+      <div class="exhd"><span class="exnm">Bench Press</span><span class="exsub">3 sets</span><span class="exmenu">⋯</span></div>
+
+      <!-- set 1: done, camera idle -->
+      <div class="set">
+        <span class="setno">1</span>
+        <span class="wr">135<span class="x">×</span>10</span>
+        <span class="spacer"></span>
+        <span class="done"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
+        <button class="cambtn" title="Film this set"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
+      </div>
+
+      <!-- set 2: done, clip recorded -->
+      <div class="set">
+        <span class="setno">2</span>
+        <span class="wr">155<span class="x">×</span>8</span>
+        <span class="spacer"></span>
+        <span class="done"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
+        <div class="clip" title="Tap to play"><span class="play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><span class="dur">0:12</span></div>
+      </div>
+
+      <!-- set 3: just saved a PR -->
+      <div class="set">
+        <span class="setno">3</span>
+        <span class="wr">175<span class="x">×</span>5</span>
+        <span class="pr"><svg viewBox="0 0 24 24"><path d="M13 2L5 14h6l-1 8 9-12h-6z"/></svg>PR</span>
+        <span class="spacer"></span>
+        <span class="done"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
+        <button class="cambtn" title="Film this set"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
+      </div>
+
+      <!-- auto-prompt on the PR -->
+      <div class="prompt">
+        <span class="pic"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>
+        <div class="txt"><div class="t1">New PR — film it?</div><div class="t2">10s clip · post to your campfire</div></div>
+        <div class="pbtns"><button class="skip">Skip</button><button class="film">Film</button></div>
+      </div>
+
+      <div class="addset"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add set</div>
+    </div>
+
+    <!-- Incline (recording state demo) -->
+    <div class="ex">
+      <div class="exhd"><span class="exnm">Incline DB Press</span><span class="exsub">recording set 1…</span><span class="exmenu">⋯</span></div>
+      <div class="reclabel"><span class="dot"></span>REC 0:06 · release to stop · 10s max</div>
+      <div class="set">
+        <span class="setno">1</span>
+        <span class="wr">50<span class="x">×</span>12</span>
+        <span class="spacer"></span>
+        <div class="clip" style="background:linear-gradient(150deg,#5a2a1a,#3a1f24);border-color:#E86A5A"><span class="play"><svg viewBox="0 0 24 24" style="fill:#E86A5A"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></span></div>
+      </div>
+    </div>
+
+  </div></div>
+  <div class="cap">Per-set video (§23 phase 2). Every set row carries a <b>camera affordance</b> — outline circle = film this set (idle), <b>thumbnail w/ ▶ + duration</b> = clip recorded. Filming is <b>opt-in per set</b>, never automatic. On a saved <b>PR</b>, an auto-prompt <b>"New PR — film it?"</b> (Film / Skip) surfaces the one moment worth capturing. Record is length-capped to the tier (10s free); clip posts to the campfire chat card. Quota is <b>per month, NOT per session</b> (free 10/mo · paid unlimited) — the header counter shows monthly clips remaining and appears <b>only for free users</b>.</div>
+</div>

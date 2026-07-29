@@ -76,7 +76,7 @@ export default function ChallengeLeaderboardScreen() {
         }}
         ListEmptyComponent={
           !loading ? (
-            <EmptyState title="Nobody's logged yet" body={error ?? 'Be the first in this circle to start this challenge.'} />
+            <EmptyState title="Nobody's logged yet" body={error ?? 'Be the first in this Campfire to start this challenge.'} />
           ) : null
         }
       />

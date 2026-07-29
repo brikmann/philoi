@@ -78,6 +78,13 @@ export function ChatPanel({ groupId, myUserId }: { groupId: string; myUserId: st
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+      <Pressable
+        style={styles.rulesRow}
+        onPress={() => router.push('/legal?page=child-safety')}
+        accessibilityRole="link">
+        <Text style={styles.rulesLabel}>Chat rules & reporting</Text>
+      </Pressable>
+
       {chat.error && <Text style={styles.error}>{chat.error}</Text>}
 
       <FlatList
@@ -85,7 +92,7 @@ export function ChatPanel({ groupId, myUserId }: { groupId: string; myUserId: st
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          !chat.loading ? <EmptyState title="No messages yet" body="Say something to your circle." /> : null
+          !chat.loading ? <EmptyState title="No messages yet" body="Say something to your Campfire." /> : null
         }
         renderItem={({ item }) => {
           const isOwn = item.user_id === myUserId;
@@ -106,7 +113,7 @@ export function ChatPanel({ groupId, myUserId }: { groupId: string; myUserId: st
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
-          placeholder="Message your circle…"
+          placeholder="Message your Campfire…"
           value={draft}
           onChangeText={setDraft}
           maxLength={2000}
@@ -123,6 +130,18 @@ export function ChatPanel({ groupId, myUserId }: { groupId: string; myUserId: st
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  rulesRow: {
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.four,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.line,
+  },
+  rulesLabel: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.muted,
+    textDecorationLine: 'underline',
   },
   error: {
     fontFamily: Fonts.body,
@@ -167,7 +186,7 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
   bodyOwn: {
-    color: '#FFFFFF',
+    color: Colors.ink,
   },
   time: {
     fontFamily: Fonts.body,
@@ -197,7 +216,7 @@ const styles = StyleSheet.create({
   },
   sendLabel: {
     fontFamily: Fonts.bodyBold,
-    color: '#FFFFFF',
+    color: Colors.ink,
     fontSize: 14,
   },
 });

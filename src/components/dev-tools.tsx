@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { RankUpCelebration } from '@/components/rank-up-celebration';
 import { Card } from '@/components/ui/card';
 import { SecondaryButton } from '@/components/ui/secondary-button';
 import { Toggle } from '@/components/ui/toggle';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useAuth } from '@/lib/auth/auth-context';
 import {
   fetchOneDemoMember,
   resetMyCheckIns,
@@ -14,6 +16,28 @@ import {
 } from '@/lib/api/dev-tools';
 import { getErrorMessage } from '@/lib/errors';
 import type { MyGroup } from '@/lib/api/groups';
+import { formatRankTier, RANK_TIER_COLOR } from '@/lib/rank-tiers';
+import type { RankTierName } from '@/types/database';
+
+// Every rank in ladder order, low → high (PHILOI_UI_SPEC.md §11). Division 1 is the TOP
+// sub-tier within a tier (I), 3 is the bottom (III) — matches formatRankTier/rank_tier_for_score.
+// Platinum is a legacy tier not in the spec's forge table, so it's intentionally skipped here —
+// the 13 previewable ranks are Bronze/Silver/Gold/Diamond × III/II/I, then singular Infernal.
+const RANK_LADDER: { tier: RankTierName; division: number }[] = [
+  { tier: 'bronze', division: 3 },
+  { tier: 'bronze', division: 2 },
+  { tier: 'bronze', division: 1 },
+  { tier: 'silver', division: 3 },
+  { tier: 'silver', division: 2 },
+  { tier: 'silver', division: 1 },
+  { tier: 'gold', division: 3 },
+  { tier: 'gold', division: 2 },
+  { tier: 'gold', division: 1 },
+  { tier: 'diamond', division: 3 },
+  { tier: 'diamond', division: 2 },
+  { tier: 'diamond', division: 1 },
+  { tier: 'infernal', division: 1 },
+];
 
 type DevToolsProps = {
   devOverride: boolean;
@@ -25,8 +49,20 @@ type DevToolsProps = {
 // "dev tools" section in schema.sql) — this component just keeps them out of the UI real
 // users see, which is the actual safety boundary the spec asks for.
 export function DevTools({ devOverride, setDevOverride, groups }: DevToolsProps) {
+  const { profile } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  // Index into RANK_LADDER of the rank currently being previewed, or null when the overlay is closed.
+  const [previewRank, setPreviewRank] = useState<number | null>(null);
+  // Bumped on every pill tap and folded into the celebration's key, so each tap forces a fresh
+  // remount even for the same rank — re-running composeRankUpHeadline (new {personal}/{social}
+  // combo) and replaying the flash/sound. Tap "Diamond II" ten times → ten different headlines.
+  const [previewTap, setPreviewTap] = useState(0);
+
+  function previewRankUp(index: number) {
+    setPreviewRank(index);
+    setPreviewTap((n) => n + 1);
+  }
 
   if (!__DEV__) return null;
 
@@ -86,6 +122,68 @@ export function DevTools({ devOverride, setDevOverride, groups }: DevToolsProps)
       />
 
       {status && <Text style={styles.status}>{status}</Text>}
+
+      {/* Pure client-side rank-up preview — mounts RankUpCelebration with mock props for any rank
+          so the forge → flash → sound → aura → composed headline can be eyeballed without earning
+          XP or touching the DB. `from` is the immediately-lower rank in the ladder (itself for the
+          Bronze III floor), which is what drives the component's tier-cross vs. division-bump logic. */}
+      <Text style={styles.subheading}>Simulate rank-up</Text>
+      <View style={styles.rankGrid}>
+        {RANK_LADDER.map((rank, i) => (
+          <Pressable
+            key={`${rank.tier}-${rank.division}`}
+            style={[styles.rankPill, { borderColor: RANK_TIER_COLOR[rank.tier] }]}
+            onPress={() => previewRankUp(i)}>
+            <Text style={styles.rankPillText}>{formatRankTier(rank.tier, rank.division)}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Modal visible={previewRank !== null} animationType="fade" onRequestClose={() => setPreviewRank(null)}>
+        {previewRank !== null &&
+          (() => {
+            const to = RANK_LADDER[previewRank];
+            // Bronze III is the floor — reuse it as its own "from" so it reads as an entry, not a cross.
+            const from = RANK_LADDER[Math.max(0, previewRank - 1)];
+            return (
+              <View style={styles.overlay}>
+                <RankUpCelebration
+                  // Keyed on the tap counter (not just the rank) so every tap — even re-tapping the
+                  // same rank — remounts and re-fires the once-per-mount headline + animation timeline.
+                  key={previewTap}
+                  tier={to.tier}
+                  division={to.division}
+                  fromTier={from.tier}
+                  fromDivision={from.division}
+                  streakDays={6}
+                  firstName={profile?.display_name?.split(' ')[0] ?? 'You'}
+                  university={profile?.university}
+                  onContinue={() => setPreviewRank(null)}
+                  onShare={() => setPreviewRank(null)}
+                />
+                {/* Dev-only bar over the celebration: Re-roll remounts in place (bumps the key →
+                    fresh headline + replayed flash/sound, same rank) so you don't have to dismiss
+                    and re-tap between rolls. box-none lets taps fall through to the celebration's
+                    own CTAs; only the two buttons capture. */}
+                <View style={styles.devBar} pointerEvents="box-none">
+                  <Pressable
+                    style={styles.devBarBtn}
+                    hitSlop={8}
+                    onPress={() => setPreviewRank(null)}>
+                    <Text style={styles.devBarText}>Close</Text>
+                  </Pressable>
+                  <Text style={styles.devBarLabel}>{formatRankTier(to.tier, to.division)}</Text>
+                  <Pressable
+                    style={styles.devBarBtn}
+                    hitSlop={8}
+                    onPress={() => setPreviewTap((n) => n + 1)}>
+                    <Text style={styles.devBarText}>Re-roll ↻</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })()}
+      </Modal>
     </Card>
   );
 }
@@ -114,5 +212,60 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.muted,
+  },
+  subheading: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.muted,
+    marginTop: Spacing.two,
+  },
+  rankGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  rankPill: {
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.twelve,
+  },
+  rankPillText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.ink,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: Colors.forgeBg,
+  },
+  devBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 52,
+    paddingHorizontal: Spacing.three,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  devBarBtn: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    borderRadius: Radius.pill,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.twelve,
+  },
+  devBarText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.ink,
+  },
+  devBarLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.ember,
   },
 });

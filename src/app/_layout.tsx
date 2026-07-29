@@ -1,11 +1,4 @@
-import { useFonts as useFredokaFonts, Fredoka_500Medium, Fredoka_600SemiBold } from '@expo-google-fonts/fredoka';
-import {
-  useFonts as useNunitoFonts,
-  Nunito_400Regular,
-  Nunito_600SemiBold,
-  Nunito_700Bold,
-  Nunito_800ExtraBold,
-} from '@expo-google-fonts/nunito';
+import { useFonts as useInterFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
@@ -14,34 +7,39 @@ import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PostHogProvider } from 'posthog-react-native';
 
+import { LIVE_SESSION_BAR_HEIGHT, LiveSessionBar, LOCK_IN_PATHNAME } from '@/components/live-session-bar';
 import { OfflineBanner } from '@/components/offline-banner';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useHasAnyCircle } from '@/hooks/use-has-any-circle';
+import { ActiveSessionProvider, useActiveSession } from '@/lib/active-session-context';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
+import { fetchMyActiveLockInSession } from '@/lib/api/lock-ins';
 import { registerPushToken } from '@/lib/notifications';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
 import { posthog } from '@/lib/posthog';
 import { loadRewardPreferences } from '@/lib/reward-settings';
 import { Sentry } from '@/lib/sentry';
 import { preloadRewardSounds } from '@/lib/sound';
+import { checkForAppUpdate } from '@/lib/updates';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-  const { ready, error, session, needsHandle, needsConsent } = useAuth();
+  const { ready, error, session, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
   const { hasCircle, refetch: refetchHasCircle } = useHasAnyCircle();
+  const { session: activeSession } = useActiveSession();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const [fredokaLoaded] = useFredokaFonts({ Fredoka_500Medium, Fredoka_600SemiBold });
-  const [nunitoLoaded] = useNunitoFonts({
-    Nunito_400Regular,
-    Nunito_600SemiBold,
-    Nunito_700Bold,
-    Nunito_800ExtraBold,
-  });
+  const [interLoaded] = useInterFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold });
 
-  const appReady = ready && fredokaLoaded && nunitoLoaded;
+  // Global live-session inset (PHILOI_UI_SPEC.md §5/§5b) — reserves space for the floating
+  // mini-map at ONE shared layout wrapper (this Stack's contentStyle) instead of every screen
+  // doing its own spacing. Zero when idle, so no space is wasted when nothing's running.
+  // Suppressed on the running-session route to match the bar itself being suppressed there.
+  const topInset = activeSession && pathname !== LOCK_IN_PATHNAME ? LIVE_SESSION_BAR_HEIGHT : 0;
+
+  const appReady = ready && interLoaded;
   const [stuck, setStuck] = useState(false);
 
   useEffect(() => {
@@ -71,10 +69,19 @@ function RootNavigator() {
     loadRewardPreferences();
   }, []);
 
+  // OTA update check, once per cold start — see lib/updates.ts.
+  useEffect(() => {
+    checkForAppUpdate();
+  }, []);
+
   // Re-check membership on every navigation — cheap count query, and it's what keeps the
   // "force onboarding" redirect below from going stale right after creating a circle.
+  // Also re-read the persisted onboarding flag here so "Skip for now" (which writes the flag
+  // then navigates) actually takes effect — otherwise the in-memory state stays false and the
+  // redirect below immediately bounces the user back to /group/create.
   useEffect(() => {
     refetchHasCircle();
+    isOnboardingDone().then(setOnboardingDone);
   }, [pathname, refetchHasCircle]);
 
   useEffect(() => {
@@ -86,23 +93,44 @@ function RootNavigator() {
   // meaning ("notify me about my circle") instead of firing cold before there's anything to
   // be notified about.
   useEffect(() => {
-    if (appReady && session && !needsHandle && !needsConsent && hasCircle) {
+    if (appReady && session && !needsHandle && !needsConsent && !needsAccountDisabled && hasCircle) {
       registerPushToken(session.user.id);
     }
-  }, [appReady, session, needsHandle, needsConsent, hasCircle]);
+  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, hasCircle]);
 
   // Tapping a notification (from background or a cold start) deep-links to the relevant
   // circle — every push we send includes group_id in its data payload (see notify_push()'s
-  // callers in schema.sql).
+  // callers in schema.sql). The "still here?" lock-in reminder is keyed by session_id
+  // instead (it's a personal session, not circle-scoped) — the lock-in screen itself takes
+  // a goalId route param, so this looks up which goal the caller's one allowed active
+  // session belongs to (see lock_in_sessions_one_active_per_user) and routes there; the
+  // screen resumes that session automatically and shows the "still here?" banner once the
+  // elapsed time crosses the same threshold the server-side reminder used.
   useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const groupId = response.notification.request.content.data?.group_id;
+    const subscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
+      const data = response.notification.request.content.data;
+      const groupId = data?.group_id;
       if (typeof groupId === 'string') {
         router.push(`/group/${groupId}`);
+        return;
+      }
+      if (data?.type === 'lockin_still_here' && session) {
+        try {
+          const active = await fetchMyActiveLockInSession(session.user.id);
+          if (active) router.push('/lock-in');
+        } catch (e) {
+          console.error('[notifications] failed to resolve active lock-in session:', e);
+        }
+        return;
+      }
+      // A friend's "lock in?" nudge (design-mocks/21) — open the lock-in goal picker (Step 4).
+      // The home screen reads ?lockin=1 and pops the picker; no setup, straight to starting.
+      if (data?.type === 'lock_in_nudge') {
+        router.push('/?lockin=1');
       }
     });
     return () => subscription.remove();
-  }, [router]);
+  }, [router, session]);
 
   // First-run guided path: signed in, handle set, consent done, never had a circle,
   // hasn't finished/skipped onboarding yet — push to create-circle instead of empty Today.
@@ -112,13 +140,15 @@ function RootNavigator() {
       session &&
       !needsHandle &&
       !needsConsent &&
+      !needsAccountDisabled &&
       hasCircle === false &&
       onboardingDone === false &&
-      pathname !== '/group/create'
+      pathname !== '/group/create' &&
+      pathname !== '/join'
     ) {
       router.replace('/group/create?onboarding=true');
     }
-  }, [appReady, session, needsHandle, needsConsent, hasCircle, onboardingDone, pathname, router]);
+  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, hasCircle, onboardingDone, pathname, router]);
 
   if (!appReady) {
     if (!stuck) return null;
@@ -147,7 +177,7 @@ function RootNavigator() {
   return (
     <Stack
       screenOptions={{
-        contentStyle: { backgroundColor: Colors.cream },
+        contentStyle: { backgroundColor: Colors.cream, paddingTop: topInset },
         headerStyle: { backgroundColor: Colors.cream },
         headerShadowVisible: false,
         headerTintColor: Colors.ink,
@@ -157,23 +187,34 @@ function RootNavigator() {
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       </Stack.Protected>
 
-      <Stack.Protected guard={Boolean(session) && needsHandle}>
+      <Stack.Protected guard={Boolean(session) && (needsHandle || needsConsent)}>
         <Stack.Screen name="setup-handle" options={{ headerShown: false }} />
       </Stack.Protected>
 
-      <Stack.Protected guard={Boolean(session) && !needsHandle && needsConsent}>
-        <Stack.Screen name="setup-consent" options={{ headerShown: false }} />
+      <Stack.Protected guard={Boolean(session) && !needsHandle && !needsConsent && needsAccountDisabled}>
+        <Stack.Screen name="account-disabled" options={{ headerShown: false }} />
       </Stack.Protected>
 
-      <Stack.Protected guard={Boolean(session) && !needsHandle && !needsConsent}>
+      <Stack.Protected guard={Boolean(session) && !needsHandle && !needsConsent && !needsAccountDisabled}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="group/[groupId]/index" options={{ title: '' }} />
+        <Stack.Screen name="group/[groupId]/edit" options={{ presentation: 'modal', title: 'Edit Campfire' }} />
+        <Stack.Screen name="group/[groupId]/invite" options={{ presentation: 'modal', title: '', headerShown: false }} />
+        <Stack.Screen name="group/[groupId]/join-requests" options={{ headerShown: false }} />
+        <Stack.Screen name="group/[groupId]/leaderboard" options={{ title: '' }} />
         <Stack.Screen
-          name="group/[groupId]/check-in"
-          options={{ presentation: 'modal', title: 'Check in' }}
+          name="lock-in/index"
+          options={{ presentation: 'modal', title: 'Lock in', headerShown: false }}
         />
-        <Stack.Screen name="group/create" options={{ presentation: 'modal', title: 'Start a circle' }} />
+        <Stack.Screen name="goal/create" options={{ presentation: 'modal', title: 'New goal' }} />
+        <Stack.Screen name="group/create" options={{ presentation: 'modal', title: 'Start a Campfire' }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+        <Stack.Screen name="settings-notifications" options={{ title: 'Notifications' }} />
+        <Stack.Screen name="connected-apps" options={{ headerShown: false }} />
+        <Stack.Screen name="health-connect-rationale" options={{ headerShown: false }} />
         <Stack.Screen name="university-leaderboard" options={{ title: '' }} />
+        <Stack.Screen name="people" options={{ headerShown: false }} />
+        <Stack.Screen name="add-friend" options={{ headerShown: false }} />
         <Stack.Screen name="challenge/create" options={{ presentation: 'modal', title: 'New challenge' }} />
         <Stack.Screen name="challenge-leaderboard" options={{ title: '' }} />
         <Stack.Screen name="report" options={{ presentation: 'modal', title: 'Report' }} />
@@ -196,8 +237,11 @@ function RootNavigator() {
 function RootLayout() {
   const content = (
     <AuthProvider>
-      <RootNavigator />
-      <OfflineBanner />
+      <ActiveSessionProvider>
+        <RootNavigator />
+        <LiveSessionBar />
+        <OfflineBanner />
+      </ActiveSessionProvider>
     </AuthProvider>
   );
 

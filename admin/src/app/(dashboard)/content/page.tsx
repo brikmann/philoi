@@ -3,6 +3,10 @@ import { requireAdmin } from '@/lib/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import type { Group, Profile } from '@/lib/types';
 
+// See metrics/page.tsx — Next's fetch Data Cache can serve stale Supabase results here too.
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 export default async function ContentBrowserPage({
   searchParams,
 }: {

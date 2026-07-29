@@ -10,9 +10,14 @@ import type { Challenge, ChallengeType } from '@/types/database';
 
 const TYPE_META: Record<ChallengeType, { icon: string; quickAdds: number[] }> = {
   steps: { icon: '👟', quickAdds: [1000, 2500, 5000] },
+  run_distance: { icon: '🏃', quickAdds: [1, 5, 10] },
+  ride_distance: { icon: '🚴', quickAdds: [5, 10, 20] },
   gym_visits: { icon: '🏋️', quickAdds: [1] },
   study_hours: { icon: '📚', quickAdds: [1, 2] },
   custom: { icon: '🎯', quickAdds: [1] },
+  workout_minutes: { icon: '⏱️', quickAdds: [15, 30, 60] },
+  strain: { icon: '💪', quickAdds: [1, 2] },
+  sleep_hours: { icon: '😴', quickAdds: [1] },
 };
 
 function challengeTitle(challenge: Challenge): string {
@@ -24,6 +29,10 @@ function challengeTitle(challenge: Challenge): string {
       return `${challenge.target}× gym`;
     case 'study_hours':
       return `${challenge.target}h study`;
+    case 'run_distance':
+      return `${challenge.target}km run`;
+    case 'ride_distance':
+      return `${challenge.target}km ride`;
     default:
       return `${challenge.target} ${challenge.unit}`;
   }
@@ -241,7 +250,7 @@ const styles = StyleSheet.create({
   },
   logButtonLabel: {
     fontFamily: Fonts.bodyBold,
-    color: '#FFFFFF',
+    color: Colors.ink,
   },
   error: {
     fontFamily: Fonts.body,

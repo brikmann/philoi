@@ -5,6 +5,10 @@ import { createClient } from '@/lib/supabase/server';
 import { logAdminEvent } from '@/lib/audit';
 import type { ChatMessage, CheckIn, Group } from '@/lib/types';
 
+// See metrics/page.tsx — Next's fetch Data Cache can serve stale Supabase results here too.
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 const PHOTO_BUCKET = 'check-in-photos';
 
 type Member = { user_id: string; role: string; display_name: string; handle: string | null };

@@ -4,15 +4,18 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 
 type EmptyStateProps = {
   emoji?: string;
+  /** Overrides the emoji with a custom graphic (e.g. a dim FlameSvg) — used when a plain emoji
+   * doesn't carry enough of the brand's own visual identity for the moment. */
+  icon?: React.ReactNode;
   title: string;
   body: string;
   action?: React.ReactNode;
 };
 
-export function EmptyState({ emoji = '🔥', title, body, action }: EmptyStateProps) {
+export function EmptyState({ emoji = '🔥', icon, title, body, action }: EmptyStateProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.emoji}>{emoji}</Text>
+      {icon ?? <Text style={styles.emoji}>{emoji}</Text>}
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.body}>{body}</Text>
       {action}

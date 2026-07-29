@@ -67,6 +67,7 @@ const config: ExpoConfig = {
     'expo-web-browser',
     'expo-audio',
     'expo-sharing',
+    'expo-updates',
     [
       '@sentry/react-native/expo',
       {
@@ -151,7 +152,20 @@ const config: ExpoConfig = {
     ],
   ],
   runtimeVersion: {
-    policy: 'sdkVersion',
+    // 'fingerprint' (NOT 'sdkVersion') — the runtime is derived from the actual native
+    // fingerprint, so EAS Update only ever delivers an OTA to a binary whose native side
+    // matches. Switched after 'sdkVersion' let JS that referenced newly-added native modules
+    // ship OTA onto an older binary that lacked them → native crash with nothing in Sentry.
+    // With fingerprint, a native change bumps the runtime and correctly forces a fresh build.
+    policy: 'fingerprint',
+  },
+  // OTA JS updates via EAS Update — matched to the eas.json build profiles' own `channel` field
+  // (development/preview/production), so a build only ever pulls updates published to its own
+  // channel. Runtime-version-gated by the policy above: an update only applies to a build whose
+  // native runtime it's actually compatible with, never silently skipping a required native
+  // rebuild (e.g. this session's Health Connect/HealthKit/Strava native additions).
+  updates: {
+    url: 'https://u.expo.dev/f1031c6d-fd56-4d27-880a-0e87a7953f05',
   },
   experiments: {
     typedRoutes: true,

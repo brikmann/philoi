@@ -7,9 +7,14 @@ import type { ChallengeType } from '@/types/database';
 
 const TYPE_ICON: Record<ChallengeType, string> = {
   steps: '👟',
+  run_distance: '🏃',
+  ride_distance: '🚴',
   gym_visits: '🏋️',
   study_hours: '📚',
   custom: '🎯',
+  workout_minutes: '⏱️',
+  strain: '💪',
+  sleep_hours: '😴',
 };
 
 function formatRelativeTime(isoDate: string) {
@@ -28,9 +33,17 @@ export function ChallengeCompletionCard({ event }: { event: FeedChallengeEvent }
     <Card style={styles.card}>
       <Text style={styles.icon}>{TYPE_ICON[event.challenge_type]}</Text>
       <View style={styles.body}>
-        <Text style={styles.text}>
-          <Text style={styles.name}>{event.profiles.display_name}</Text> hit their {goal} challenge 🎉
-        </Text>
+        {event.is_completion ? (
+          <Text style={styles.text}>
+            <Text style={styles.name}>{event.profiles.display_name}</Text> hit their {goal} challenge 🎉
+          </Text>
+        ) : (
+          <Text style={styles.text}>
+            <Text style={styles.name}>{event.profiles.display_name}</Text> logged +
+            {(event.amount ?? 0).toLocaleString()} {event.unit} toward {goal}
+            {event.progress != null && ` (${event.progress.toLocaleString()}/${event.target.toLocaleString()})`}
+          </Text>
+        )}
         <Text style={styles.time}>{formatRelativeTime(event.created_at)}</Text>
       </View>
     </Card>

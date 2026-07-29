@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Group } from '@/types/database';
+import type { GoalType, Group } from '@/types/database';
 
 export async function sendTestNotification(): Promise<void> {
   const { error } = await supabase.rpc('send_test_notification', {});
@@ -34,7 +34,7 @@ export async function simulateFriendCheckIn(groupId: string, fakeUserId: string)
   if (error) throw error;
 }
 
-export async function resetMyCheckIns(groupId?: string): Promise<void> {
-  const { error } = await supabase.rpc('dev_reset_my_checkins', { p_group_id: groupId ?? null });
+export async function resetMyCheckIns(goalType?: GoalType): Promise<void> {
+  const { error } = await supabase.rpc('dev_reset_my_checkins', { p_goal_type: goalType ?? null });
   if (error) throw error;
 }

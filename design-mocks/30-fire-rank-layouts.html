@@ -1,0 +1,109 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.wrap{display:flex;gap:22px;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}
+.tag{color:#FFD27A;font-size:13px;font-weight:600;letter-spacing:.5px}
+.tagsub{color:#a99cbd;font-size:11px;margin-top:-6px}
+.phone{width:290px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:16px 16px 14px;box-sizing:border-box;color:#FFF6EC}
+.hd{display:flex;align-items:center;gap:8px}
+.hd .fi{width:24px;height:24px;border-radius:7px;background:#3a2a22;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:14px}
+.hd .t{font-weight:500;font-size:15px}
+.greet{font-size:18px;font-weight:500;margin:10px 2px 14px}
+.cta{width:100%;border:0;border-radius:14px;padding:13px;font-size:15px;font-weight:500;font-family:var(--font-sans);color:#fff;background:#E0612C;cursor:pointer}
+/* shared badge sizes */
+.hex{width:34px;height:37px;clip-path:polygon(50% 2%,95% 26%,95% 74%,50% 98%,5% 74%,5% 26%);background:#9A6A12;display:flex;align-items:center;justify-content:center;flex:none;color:#4A3406;font-weight:600;font-size:13px}
+.firebadge{width:34px;height:34px;border-radius:10px;background:#3a2a22;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:18px;flex:none}
+/* HORIZONTAL layout */
+.hrow{display:flex;align-items:center;gap:11px;margin-top:16px}
+.hbody{flex:1;min-width:0}
+.htop{display:flex;justify-content:space-between;align-items:baseline}
+.hlabel{font-size:14px;font-weight:500}
+.hxp{font-size:12px;color:#FFD27A;font-weight:500}
+.hbar{height:8px;background:#2d2740;border-radius:999px;margin-top:6px;overflow:hidden}
+.hbar i{display:block;height:100%;border-radius:999px}
+.fire-fill{background:linear-gradient(90deg,#E0612C,#F2A33C)}
+.rank-fill{background:#E0612C}
+/* VERTICAL layout */
+.vcols{display:flex;justify-content:space-between;margin-top:20px;padding:0 8px}
+.vcol{display:flex;flex-direction:column;align-items:center;gap:9px;width:96px}
+.vbar{width:14px;height:104px;background:#2d2740;border-radius:999px;overflow:hidden;display:flex;align-items:flex-end}
+.vbar i{width:100%;border-radius:999px}
+.vxp{font-size:12px;color:#FFD27A;font-weight:500}
+.vname{font-size:14px;font-weight:500}
+.vcap{font-size:11px;color:#7c7194;margin-top:-4px}
+.herorow{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:0 2px}
+.herorow .vcol{width:72px}
+.herorow .vbar{height:92px}
+.herocenter{display:flex;flex-direction:column;align-items:center;gap:8px}
+.streak{font-size:12.5px;color:#FFD27A;display:flex;align-items:center;gap:5px}
+/* recents (faded context) */
+.recents{margin-top:auto;opacity:.5}
+.rlbl{font-size:11px;color:#7c7194;margin-bottom:6px}
+.rrow{display:flex;align-items:center;gap:9px;font-size:13px;padding:3px 0}
+.rrow .ic{width:26px;height:26px;border-radius:7px;background:#241c38;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:13px}
+.rrow .nm{flex:1}.rrow .tm{color:#FFD27A;font-size:12px}
+.flick{transform-origin:50% 88%;animation:flick 1.7s ease-in-out infinite}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.05) scaleX(.97)}}
+</style>
+<div class="wrap">
+
+  <!-- ================= HORIZONTAL ================= -->
+  <div class="col">
+    <div class="tag">A · Horizontal</div>
+    <div class="tagsub">two matched bars, stacked</div>
+    <div class="phone"><div class="stage">
+      <div class="hd"><span class="fi"><i class="ti ti-flame"></i></span><span class="t">Your fire</span></div>
+      <div class="greet">The fire's roaring, Noah.</div>
+      <button class="cta">Lock in</button>
+
+      <div class="hrow">
+        <span class="firebadge"><i class="ti ti-flame"></i></span>
+        <div class="hbody"><div class="htop"><span class="hlabel">Today's fire</span><span class="hxp">210 / 300 XP</span></div><div class="hbar"><i class="fire-fill" style="width:70%"></i></div></div>
+      </div>
+      <div class="hrow">
+        <span class="hex">I</span>
+        <div class="hbody"><div class="htop"><span class="hlabel">Bronze I</span><span class="hxp">287 / 338 XP</span></div><div class="hbar"><i class="rank-fill" style="width:85%"></i></div></div>
+      </div>
+
+      <div class="recents"><div class="rlbl">Your recent lock-ins</div>
+        <div class="rrow"><span class="ic"><i class="ti ti-barbell"></i></span><span class="nm">Gym</span><span class="tm">32m</span></div>
+        <div class="rrow"><span class="ic"><i class="ti ti-pencil"></i></span><span class="nm">Study</span><span class="tm">50m</span></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ================= VERTICAL ================= -->
+  <div class="col">
+    <div class="tag">B · Vertical</div>
+    <div class="tagsub">bars flank the campfire</div>
+    <div class="phone"><div class="stage">
+      <div class="hd"><span class="fi"><i class="ti ti-flame"></i></span><span class="t">Your fire</span></div>
+      <div class="greet">The fire's roaring, Noah.</div>
+
+      <div class="herorow">
+        <div class="vcol">
+          <span class="firebadge"><i class="ti ti-flame"></i></span>
+          <div class="vbar"><i class="fire-fill" style="height:70%"></i></div>
+          <span class="vxp">210 / 300</span>
+          <span class="vcap">Today's fire</span>
+        </div>
+        <div class="herocenter">
+          <svg width="72" height="84" viewBox="0 0 120 150" aria-hidden="true"><rect x="30" y="112" width="60" height="9" rx="4" fill="#8a5a2b" transform="rotate(18 60 116)"/><rect x="30" y="112" width="60" height="9" rx="4" fill="#6e4423" transform="rotate(-18 60 116)"/><g class="flick"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/><path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/></g></svg>
+          <div class="streak"><i class="ti ti-flame"></i>3-day streak</div>
+        </div>
+        <div class="vcol">
+          <span class="hex">I</span>
+          <div class="vbar"><i class="rank-fill" style="height:85%"></i></div>
+          <span class="vxp">287 / 338</span>
+          <span class="vname">Bronze I</span>
+        </div>
+      </div>
+
+      <button class="cta" style="margin-top:20px">Lock in</button>
+    </div></div>
+  </div>
+
+</div>

@@ -1,0 +1,101 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--surface-2:#2d2740;--border:rgba(255,255,255,.1);--text-primary:#FFF6EC;--text-secondary:#a99cbd;--text-muted:#7c7194;--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.vp{width:100%;height:100%;border-radius:26px;overflow:hidden;position:relative;background:#1b1726;touch-action:pan-y}
+.track{display:flex;height:100%;transition:transform .35s cubic-bezier(.22,.61,.36,1)}
+.page{width:100%;height:100%;flex:0 0 100%;box-sizing:border-box;position:relative;color:#FFF6EC}
+.p1{display:flex;flex-direction:column;padding:18px 16px 16px}
+.hd{display:flex;align-items:center;gap:8px}
+.hd .fi{width:26px;height:26px;border-radius:8px;background:#3a2a22;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:15px}
+.hd .t{font-weight:500;font-size:16px}
+.greet{font-size:21px;font-weight:500;line-height:1.25;margin:14px 2px 0}
+.bigflame{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.bigflame .fl{transform-origin:50% 88%;animation:flick 1.7s ease-in-out infinite}
+.streak{font-size:13px;color:#FFD27A;margin-top:6px;display:flex;align-items:center;gap:6px}
+.cta{width:100%;border:0;border-radius:14px;padding:14px;font-size:15px;font-weight:500;font-family:var(--font-sans);color:#fff;background:#E0612C;cursor:pointer}
+.rank{display:flex;align-items:center;gap:10px;margin-top:14px}
+.hex{width:34px;height:37px;clip-path:polygon(50% 2%,95% 26%,95% 74%,50% 98%,5% 74%,5% 26%);background:#9A6A12;display:flex;align-items:center;justify-content:center;flex:none;color:#4A3406;font-weight:500;font-size:12px}
+.rk{flex:1}
+.rk .top{display:flex;justify-content:space-between;font-size:11.5px;color:#a99cbd}
+.trk{height:7px;background:#2d2740;border-radius:999px;margin-top:5px;overflow:hidden}
+.trk i{display:block;height:100%;width:76%;background:#E0612C;border-radius:999px}
+.recent{margin-top:14px}
+.recent .h{font-size:11px;color:#7c7194;margin-bottom:8px}
+.rrow{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:13px}
+.rrow .ic{width:30px;height:30px;border-radius:8px;background:#241c38;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:15px}
+.rrow .nm{flex:1}.rrow .tm{color:#FFD27A;font-size:12px}
+.p2{position:relative;background:#14111c}
+.p2 .vhd{position:absolute;top:14px;left:14px;font-size:13px;color:#a99cbd;z-index:3;display:flex;align-items:center;gap:6px}
+.stage2{position:absolute;left:0;right:0;top:44px;bottom:150px}
+.node{position:absolute;transform:translate(-50%,-50%);text-align:center;width:110px}
+.node .fl{transform-origin:50% 88%;animation:flick 1.7s ease-in-out infinite}
+.node.roar .fl{animation:roar .9s ease-in-out infinite}
+.node .lbl{font-size:11.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .cue{font-size:10px;color:#FFD27A}
+.disc{position:absolute;left:0;right:0;bottom:0;background:#1b1726;border-top:1px solid rgba(255,255,255,.08);padding:11px 12px 13px}
+.search{background:#241c38;border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:9px 11px;display:flex;align-items:center;gap:8px;color:#7c7194;font-size:12.5px}
+.chips{display:flex;gap:6px;margin-top:9px}
+.chip{flex:1;text-align:center;background:#241c38;border:1px solid transparent;border-radius:999px;padding:6px 4px;font-size:10.5px;color:#a99cbd;white-space:nowrap}
+.chip.on{background:#2b2036;border-color:#E0612C;color:#FFD27A}
+.startrow{text-align:center;margin-top:9px}
+.startrow span{color:#F2A33C;font-size:12px;display:inline-flex;align-items:center;gap:5px}
+.ctrls{display:flex;gap:14px;align-items:center}
+.nav{background:var(--surface-2);border:.5px solid var(--border);width:32px;height:32px;border-radius:999px;cursor:pointer;color:var(--text-secondary);display:flex;align-items:center;justify-content:center}
+.dots{display:flex;gap:6px}.dot{width:7px;height:7px;border-radius:999px;background:rgba(255,255,255,.25)}.dot.on{background:#E0612C;width:18px}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.05) scaleX(.97)}}
+@keyframes roar{0%,100%{transform:scaleY(1) scaleX(1)}30%{transform:scaleY(1.13) scaleX(.94)}60%{transform:scaleY(1.06) scaleX(1.02)}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="vp"><div class="track" id="track">
+
+    <div class="page p1">
+      <div class="hd"><span class="fi"><i class="ti ti-flame" aria-hidden="true"></i></span><span class="t">Your fire</span></div>
+      <div class="greet">Hey Noah,<br>let's lock in today</div>
+      <div class="bigflame">
+        <svg width="96" height="112" viewBox="0 0 120 150" aria-hidden="true"><rect x="30" y="112" width="60" height="9" rx="4" fill="#8a5a2b" transform="rotate(18 60 116)"/><rect x="30" y="112" width="60" height="9" rx="4" fill="#6e4423" transform="rotate(-18 60 116)"/><g class="fl"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/><path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/></g></svg>
+        <div class="streak"><i class="ti ti-flame" aria-hidden="true"></i>1-day streak</div>
+      </div>
+      <button class="cta">Lock in</button>
+      <div class="rank"><div class="hex">III</div><div class="rk"><div class="top"><span>Bronze III</span><span>152 / 200 XP</span></div><div class="trk"><i></i></div></div></div>
+      <div class="recent"><div class="h">Your recent lock-ins</div>
+        <div class="rrow"><span class="ic"><i class="ti ti-barbell"></i></span><span class="nm">Gym</span><span class="tm">32m</span></div>
+        <div class="rrow"><span class="ic"><i class="ti ti-pencil"></i></span><span class="nm">Study</span><span class="tm">50m</span></div>
+      </div>
+    </div>
+
+    <div class="page p2">
+      <div class="stage2">
+        <div class="node roar" style="left:26%;top:22%"><svg width="52" height="61" viewBox="0 0 120 150"><rect x="30" y="112" width="60" height="9" rx="4" fill="#8a5a2b" transform="rotate(18 60 116)"/><rect x="30" y="112" width="60" height="9" rx="4" fill="#6e4423" transform="rotate(-18 60 116)"/><g class="fl"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/></g></svg><div class="lbl">Laurier gym crew</div><div class="cue">18 locked in</div></div>
+        <div class="node" style="left:72%;top:34%"><svg width="42" height="49" viewBox="0 0 120 150"><rect x="30" y="112" width="60" height="9" rx="4" fill="#8a5a2b" transform="rotate(18 60 116)"/><rect x="30" y="112" width="60" height="9" rx="4" fill="#6e4423" transform="rotate(-18 60 116)"/><g class="fl"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/></g></svg><div class="lbl">gym baddies</div><div class="cue">steady</div></div>
+        <div class="node" style="left:40%;top:68%"><svg width="42" height="49" viewBox="0 0 120 150"><rect x="30" y="112" width="60" height="9" rx="4" fill="#8a5a2b" transform="rotate(18 60 116)"/><rect x="30" y="112" width="60" height="9" rx="4" fill="#6e4423" transform="rotate(-18 60 116)"/><g class="fl"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/></g></svg><div class="lbl">Late night library</div><div class="cue">11 locked in</div></div>
+      </div>
+      <div class="disc">
+        <div class="search"><i class="ti ti-search"></i><span>Search campfires, courses, schools</span></div>
+        <div class="chips"><span class="chip on">My fires</span><span class="chip">My school</span><span class="chip">Classes</span><span class="chip">Popular</span></div>
+        <div class="startrow"><span><i class="ti ti-plus"></i>Start a campfire of your own</span></div>
+      </div>
+    </div>
+
+  </div></div></div>
+  <div class="ctrls">
+    <button class="nav" id="prev"><i class="ti ti-chevron-left"></i></button>
+    <div class="dots" id="dots"><span class="dot on"></span><span class="dot"></span></div>
+    <button class="nav" id="next"><i class="ti ti-chevron-right"></i></button>
+  </div>
+  <div class="cap">Two pages only: <b>Your fire</b> (lock in) ↔ <b>the valley</b> (discover). No scroll wheel, no Saturn button — swipe between them. Full interactive valley is mock 04.</div>
+</div>
+<script>
+(function(){
+  var track=document.getElementById('track'),i=0,dots=document.getElementById('dots').children;
+  function upd(){track.style.transform='translateX(-'+(i*100)+'%)';[].forEach.call(dots,function(d,k){d.className='dot'+(k===i?' on':'');});}
+  document.getElementById('prev').onclick=function(){i=Math.max(0,i-1);upd();};
+  document.getElementById('next').onclick=function(){i=Math.min(1,i+1);upd();};
+  var vp=document.querySelector('.vp'),x0=null,drag=false;
+  vp.addEventListener('pointerdown',function(e){x0=e.clientX;drag=true;});
+  window.addEventListener('pointerup',function(e){if(!drag)return;drag=false;var dx=e.clientX-x0;if(dx<-40&&i<1)i++;else if(dx>40&&i>0)i--;upd();});
+})();
+</script>

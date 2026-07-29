@@ -1,0 +1,51 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:auto;padding:16px 15px;box-sizing:border-box;color:#FFF6EC}
+.seclbl{font-size:10px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin:16px 2px 8px}
+.seclbl:first-child{margin-top:0}
+/* the marker chip */
+.chip{display:inline-flex;align-items:center;gap:6px;background:#2b2036;border:1px solid #E0612C;border-radius:999px;padding:5px 11px;font-size:11.5px;color:#FFD27A;font-weight:500}
+.chip .dot{width:6px;height:6px;border-radius:999px;background:#E0612C;animation:pulse 1.4s ease-in-out infinite;flex:none}
+.chip svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.chip .t{font-size:11px;color:#a99cbd;font-weight:400}
+.chiprow{display:flex;gap:8px;flex-wrap:wrap}
+/* placement cards */
+.card{background:#211a30;border-radius:13px;padding:11px 12px;margin-top:2px}
+.pr{display:flex;align-items:center;gap:10px}
+.av{width:38px;height:38px;border-radius:999px;background:#3a2a22;display:flex;align-items:center;justify-content:center;font-size:14px;color:#FFD27A;flex:none}
+.who{flex:1;min-width:0}.nm{font-size:13.5px;font-weight:500}.un{font-size:11px;color:#a99cbd}
+.watch{font-size:11px;color:#FFD27A;background:#3a2a22;border-radius:999px;padding:5px 10px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+
+    <div class="seclbl">The marker</div>
+    <div class="chiprow">
+      <span class="chip"><span class="dot"></span><svg viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 9-11h-6z"/></svg>🏋️ vs Aidan <span class="t">· 18h</span></span>
+      <span class="chip"><span class="dot"></span><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="9" r="2.4"/><path d="M3 19c0-2.6 2.2-4 5-4s5 1.4 5 4"/></svg>📚 Group · 5× <span class="t">· 4d</span></span>
+    </div>
+
+    <div class="seclbl">On your fire — you see your own</div>
+    <div class="card">
+      <div class="pr"><span class="av">N</span><div class="who"><div class="nm">Noah Brikman</div><div class="un">Bronze III</div></div></div>
+      <div style="margin-top:9px"><span class="chip"><span class="dot"></span><svg viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 9-11h-6z"/></svg>vs Aidan <span class="t">· Most XP · 18h left · you're ahead</span></span></div>
+    </div>
+
+    <div class="seclbl">In a campfire — members see it</div>
+    <div class="card">
+      <div class="pr"><span class="av">A</span><div class="who"><div class="nm">Aidan T</div><div class="un"><span class="chip" style="padding:3px 9px;font-size:10.5px"><span class="dot"></span><svg viewBox="0 0 24 24" style="width:11px;height:11px"><path d="M13 3L5 14h6l-1 7 9-11h-6z"/></svg>vs Maya · 2d</span></div></div><span class="watch">Watch</span></div>
+    </div>
+
+    <div class="seclbl">On a friend — friends see it</div>
+    <div class="card">
+      <div class="pr"><span class="av">M</span><div class="who"><div class="nm">Maya R</div><div class="un">@mayar</div></div><span class="chip" style="padding:4px 10px;font-size:10.5px"><span class="dot"></span>In a challenge · 18h</span></div>
+    </div>
+
+  </div></div>
+  <div class="cap">The <b>active-challenge marker</b> — a live pulsing chip. Type icon is by challenge type (<b>⚡ lightning = H2H</b>, <b>👥 people = group</b>); the <b>activity emoji</b> (🏋️/📚/🏃…) is <b>user-picked at creation</b>. You see your own on Your fire; campfire members see yours (tap <b>Watch</b> to spectate); friends see it on your friend row / profile.</div>
+</div>

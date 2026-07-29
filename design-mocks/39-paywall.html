@@ -1,0 +1,226 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:330px;line-height:1.55}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:auto;color:#FFF6EC}
+.stage::-webkit-scrollbar{display:none}
+.inner{padding:15px 15px 22px}
+.close{font-size:20px;color:#7c7194;line-height:1}
+.htitle{text-align:center;font-size:21px;font-weight:700;letter-spacing:-.3px;margin-top:2px}
+.htitle .fire{background:linear-gradient(180deg,#F2A33C,#E0612C);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hsub{text-align:center;font-size:11.5px;color:#a99cbd;margin:3px 0 12px}
+/* ===== flame growth strip ===== */
+.growth{background:#17131f;border-radius:16px;padding:14px 6px 8px;margin-bottom:14px;position:relative;overflow:hidden}
+.gtitle{text-align:center;font-size:10px;color:#7c7194;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.grow-row{display:flex;align-items:flex-end;justify-content:space-around;height:96px}
+.gcol{display:flex;flex-direction:column;align-items:center;gap:4px;position:relative}
+.flholder{position:relative;display:flex;align-items:flex-end;justify-content:center;height:78px}
+.flame{transform-origin:50% 100%;animation:flick 1.7s ease-in-out infinite}
+.flame.i2{animation:flick 1.35s ease-in-out infinite}
+.flame.i3{animation:flick 1.05s ease-in-out infinite}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1) translateY(0)}50%{transform:scaleY(1.07) scaleX(.95) translateY(-1px)}}
+.glow{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);border-radius:50%;filter:blur(9px);z-index:-1}
+.glow.g2{width:44px;height:30px;background:rgba(242,163,60,.28)}
+.glow.g3{width:64px;height:42px;background:rgba(224,97,44,.42);animation:pulseGlow 1.6s ease-in-out infinite}
+@keyframes pulseGlow{0%,100%{opacity:.7}50%{opacity:1}}
+.glbl{font-size:10.5px;font-weight:600;color:#e7ddf5}
+.gp{font-size:8.5px;color:#7c7194}
+/* embers on blaze */
+.emb{position:absolute;bottom:16px;width:3px;height:3px;border-radius:50%;background:#FFD27A;opacity:0;animation:rise 2.2s ease-out infinite}
+@keyframes rise{0%{opacity:0;transform:translateY(0) scale(1)}15%{opacity:.9}100%{opacity:0;transform:translateY(-58px) scale(.3)}}
+/* ===== toggle ===== */
+.toggle{display:flex;background:#241c38;border-radius:999px;padding:3px;margin:0 auto 14px;width:210px}
+.toggle .opt{flex:1;text-align:center;font-size:12px;font-weight:500;padding:7px 0;border-radius:999px;color:#a99cbd;position:relative}
+.toggle .opt.on{background:#3a2e5c;color:#FFF6EC}
+.savebadge{position:absolute;top:-9px;right:0;background:#3DA85C;color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:999px}
+/* ===== tier cards ===== */
+.tier{border-radius:15px;padding:12px 13px;margin-bottom:10px;background:#241c38;border:1px solid transparent}
+.tier.cur{opacity:.85}
+.tier.ignite{border-color:#E0612C;background:#251b2e;box-shadow:0 0 0 1px #E0612C,0 8px 22px -12px rgba(224,97,44,.5)}
+.tier.blaze{border-color:#F2A33C;background:linear-gradient(160deg,#2a2035,#241c38)}
+.trow{display:flex;align-items:center;gap:8px}
+.tflame{width:20px;display:flex;justify-content:center}
+.tname{font-size:15.5px;font-weight:700}
+.ribbon{font-size:8.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#fff;background:#E0612C;padding:2px 7px;border-radius:999px;margin-left:auto}
+.ribbon.b{background:#F2A33C;color:#3a2410}.ribbon.f{background:#2d2740;color:#a99cbd}
+.price{display:flex;align-items:baseline;gap:5px;margin:5px 0 2px}
+.price .big{font-size:20px;font-weight:700}.price .per{font-size:11px;color:#a99cbd}
+.annual{font-size:10px;color:#7c7194;margin-bottom:8px}.annual b{color:#FFD27A;font-weight:600}
+.perks{list-style:none;margin:0 0 11px;padding:0}
+.perks li{display:flex;align-items:flex-start;gap:7px;font-size:11px;color:#e7ddf5;line-height:1.45;margin-bottom:4px}
+.perks li svg{width:12px;height:12px;stroke:#3DA85C;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;flex:none;margin-top:1.5px}
+.perks li.hd{color:#a99cbd;font-weight:600;font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;gap:0}
+.cta{width:100%;border:0;border-radius:11px;padding:10px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer}
+.cta.ignite{background:#E0612C;color:#fff}.cta.blaze{background:#F2A33C;color:#3a2410}.cta.cur{background:#2d2740;color:#8a7fa6}
+/* ===== unlock previews ===== */
+.sechd{display:flex;align-items:center;gap:7px;margin:18px 2px 9px}
+.sechd .l{font-size:13px;font-weight:700}
+.sechd .r{margin-left:auto;font-size:9.5px;color:#7c7194}
+.showcase{background:#20182f;border-radius:14px;padding:12px;margin-bottom:6px}
+/* forge pass track */
+.fp-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.fp-season{font-size:11.5px;font-weight:600;color:#FFD27A}
+.fp-left{font-size:9.5px;color:#7c7194}
+.track{display:flex;gap:0;overflow-x:auto;padding-bottom:2px}
+.track::-webkit-scrollbar{display:none}
+.node{flex:none;width:46px;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative}
+.node:not(:last-child):after{content:"";position:absolute;top:26px;left:50%;width:100%;height:2px;background:#2d2740;z-index:0}
+.tier-n{font-size:8px;color:#7c7194}
+.rw{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;z-index:1;font-size:14px}
+.rw.free{background:#2d2740}
+.rw.prem{background:linear-gradient(150deg,#3a2a22,#5a3a1a);border:1px solid #F2A33C;position:relative}
+.rw.prem .lock{position:absolute;right:-3px;bottom:-3px;font-size:9px}
+.rw svg{width:15px;height:15px}
+.lane{font-size:8px;color:#7c7194;text-align:left;margin:6px 0 2px}
+/* loot box rarity row */
+.boxes{display:flex;gap:8px;overflow-x:auto}
+.boxes::-webkit-scrollbar{display:none}
+.box{flex:none;width:52px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.chest{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center}
+.chest svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.bname{font-size:8px;text-align:center;line-height:1.2}
+/* cosmetics */
+.cos-row{display:flex;gap:9px;margin-bottom:11px}
+.cos{flex:1;background:#241c38;border-radius:10px;padding:9px 4px 7px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.cos .lbl{font-size:8.5px;color:#a99cbd}
+.skin{height:30px;display:flex;align-items:flex-end;justify-content:center}
+.hexf{width:30px;height:34px}
+.badgei{width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.shine{position:relative;overflow:hidden}
+.shine:after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.25),transparent);animation:sweep 2.8s linear infinite}
+@keyframes sweep{0%{left:-60%}60%,100%{left:130%}}
+/* trust */
+.trust{text-align:center;font-size:10px;color:#7c7194;line-height:1.6;margin-top:12px}
+.trust b{color:#a99cbd;font-weight:600}
+.restore{text-align:center;font-size:11px;color:#8a7fa6;margin-top:8px;text-decoration:underline}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage"><div class="inner">
+
+    <div class="close">✕</div>
+    <div class="htitle">Philoi <span class="fire">Fire</span></div>
+    <div class="hsub">The more you bring, the bigger it burns.</div>
+
+    <!-- ===== flame growth strip ===== -->
+    <div class="growth">
+      <div class="gtitle">Your fire grows with your tier</div>
+      <div class="grow-row">
+        <!-- FREE small -->
+        <div class="gcol"><div class="flholder">
+          <svg class="flame" width="26" height="30" viewBox="0 0 46 52"><path d="M23 4C26 14 37 18 37 31a14 14 0 0 1-28 0C9 24 14 22 16 18c1 5 4 6 4 6C20 16 21 9 23 4z" fill="#E0612C"/><path d="M24 16c2 6 8 8 8 16a9 9 0 0 1-18 0c0-5 3-7 5-10 .5 3 2.5 4 2.5 4C21.5 25 22.5 20 24 16z" fill="#F2A33C"/></svg>
+        </div><div class="glbl">Free</div><div class="gp">a spark</div></div>
+        <!-- IGNITE medium -->
+        <div class="gcol"><div class="flholder">
+          <div class="glow g2"></div>
+          <svg class="flame i2" width="40" height="46" viewBox="0 0 46 52"><path d="M23 4C26 14 37 18 37 31a14 14 0 0 1-28 0C9 24 14 22 16 18c1 5 4 6 4 6C20 16 21 9 23 4z" fill="#E0612C"/><path d="M24 16c2 6 8 8 8 16a9 9 0 0 1-18 0c0-5 3-7 5-10 .5 3 2.5 4 2.5 4C21.5 25 22.5 20 24 16z" fill="#F2A33C"/><path d="M24 27c1.4 3 4 4 4 8a5 5 0 0 1-10 0c0-3 2.4-4.5 3.4-6.5.4 2 1.3 2.6 1.3 2.6C22 36 22.8 31 24 27z" fill="#FFD27A"/></svg>
+        </div><div class="glbl">Ignite</div><div class="gp">a flame</div></div>
+        <!-- BLAZE large + embers -->
+        <div class="gcol"><div class="flholder">
+          <div class="glow g3"></div>
+          <span class="emb" style="left:38%;animation-delay:0s"></span><span class="emb" style="left:52%;animation-delay:.7s"></span><span class="emb" style="left:60%;animation-delay:1.3s"></span><span class="emb" style="left:44%;animation-delay:1.8s"></span>
+          <svg class="flame i3" width="56" height="64" viewBox="0 0 46 52"><path d="M23 4C26 14 37 18 37 31a14 14 0 0 1-28 0C9 24 14 22 16 18c1 5 4 6 4 6C20 16 21 9 23 4z" fill="#E0612C"/><path d="M24 16c2 6 8 8 8 16a9 9 0 0 1-18 0c0-5 3-7 5-10 .5 3 2.5 4 2.5 4C21.5 25 22.5 20 24 16z" fill="#F2A33C"/><path d="M24 27c1.4 3 4 4 4 8a5 5 0 0 1-10 0c0-3 2.4-4.5 3.4-6.5.4 2 1.3 2.6 1.3 2.6C22 36 22.8 31 24 27z" fill="#FFD27A"/></svg>
+        </div><div class="glbl" style="color:#FFD27A">Blaze</div><div class="gp">a bonfire</div></div>
+      </div>
+    </div>
+
+    <!-- ===== billing toggle ===== -->
+    <div class="toggle"><div class="opt">Monthly</div><div class="opt on">Annual <span class="savebadge">SAVE 30%</span></div></div>
+
+    <!-- ===== tier cards ===== -->
+    <div class="tier cur">
+      <div class="trow"><span class="tflame"><svg width="13" height="16" viewBox="0 0 46 52"><path d="M23 4C26 14 37 18 37 31a14 14 0 0 1-28 0C9 24 14 22 16 18c1 5 4 6 4 6C20 16 21 9 23 4z" fill="#8a7fa6"/></svg></span><span class="tname">Free</span><span class="ribbon f">Current</span></div>
+      <div class="price"><span class="big">$0</span><span class="per">forever</span></div>
+      <ul class="perks">
+        <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>All lock-ins, campfires & challenges</li>
+        <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>Earn embers, badges & ranks</li>
+        <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>10 workout clips / mo</li>
+      </ul>
+      <button class="cta cur">Your plan</button>
+    </div>
+
+    <div class="tier ignite">
+      <div class="trow"><span class="tflame"><svg class="flame" width="15" height="18" viewBox="0 0 46 52"><path d="M23 4C26 14 37 18 37 31a14 14 0 0 1-28 0C9 24 14 22 16 18c1 5 4 6 4 6z" fill="#E0612C"/><path d="M24 16c2 6 8 8 8 16a9 9 0 0 1-18 0c0-5 3-7 5-10 .5 3 2.5 4 2.5 4z" fill="#F2A33C"/></svg></span><span class="tname">Ignite</span><span class="ribbon">Most popular</span></div>
+      <div class="price"><span class="big">$4.99</span><span class="per">/ mo</span></div>
+      <div class="annual">or <b>$39.99/yr</b> — 2 months free</div>
+      <ul class="perks">
+        <li class="hd">Everything in Free, plus</li>
+        <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>Monthly ember stipend</li>
+        <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>Flame skins & cosmetics</li>
+        <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>Forge Pass — standard track</li>
+        <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>Unlimited workout clips</li>
+      </ul>
+      <button class="cta ignite">Get Ignite</button>
+    </div>
+
+    <div class="tier blaze">
+      <div class="trow"><span class="tflame"><svg class="flame i3" width="17" height="20" viewBox="0 0 46 52"><path d="M23 4C26 14 37 18 37 31a14 14 0 0 1-28 0C9 24 14 22 16 18c1 5 4 6 4 6z" fill="#E0612C"/><path d="M24 16c2 6 8 8 8 16a9 9 0 0 1-18 0c0-5 3-7 5-10z" fill="#F2A33C"/><path d="M24 27c1.4 3 4 4 4 8a5 5 0 0 1-10 0c0-3 2.4-4.5 3.4-6.5z" fill="#FFD27A"/></svg></span><span class="tname">Blaze</span><span class="ribbon b">Premium</span></div>
+      <div class="price"><span class="big">$8.99</span><span class="per">/ mo</span></div>
+      <div class="annual">or <b>$74.99/yr</b> — 2 months free</div>
+      <ul class="perks">
+        <li class="hd">Everything in Ignite, plus</li>
+        <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>Forge Pass — premium track</li>
+        <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>Bigger ember stipend</li>
+        <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>Exclusive Blaze cosmetics + badge</li>
+        <li><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>1080p / 60fps video · early drops</li>
+      </ul>
+      <button class="cta blaze">Go Blaze</button>
+    </div>
+
+    <!-- ===== FORGE PASS preview ===== -->
+    <div class="sechd"><span class="l">🔥 Forge Pass</span><span class="r">included with Fire</span></div>
+    <div class="showcase">
+      <div class="fp-top"><span class="fp-season">Season 2 · Emberfall</span><span class="fp-left">5 weeks left</span></div>
+      <div class="lane">PREMIUM</div>
+      <div class="track">
+        <div class="node"><div class="rw prem">💎<span class="lock">🔒</span></div><div class="tier-n">1</div></div>
+        <div class="node"><div class="rw prem">🎁<span class="lock">🔒</span></div><div class="tier-n">2</div></div>
+        <div class="node"><div class="rw prem">🔥<span class="lock">🔒</span></div><div class="tier-n">3</div></div>
+        <div class="node"><div class="rw prem">🏅<span class="lock">🔒</span></div><div class="tier-n">4</div></div>
+        <div class="node"><div class="rw prem">👑<span class="lock">🔒</span></div><div class="tier-n">5</div></div>
+      </div>
+      <div class="lane">FREE</div>
+      <div class="track">
+        <div class="node"><div class="rw free">✦</div><div class="tier-n">1</div></div>
+        <div class="node"><div class="rw free">✦</div><div class="tier-n">2</div></div>
+        <div class="node"><div class="rw free">🎁</div><div class="tier-n">3</div></div>
+        <div class="node"><div class="rw free">✦</div><div class="tier-n">4</div></div>
+        <div class="node"><div class="rw free">🏅</div><div class="tier-n">5</div></div>
+      </div>
+    </div>
+
+    <!-- ===== LOOT BOXES preview ===== -->
+    <div class="sechd"><span class="l">🎁 Loot boxes</span><span class="r">earn or unlock</span></div>
+    <div class="showcase">
+      <div class="boxes">
+        <div class="box"><div class="chest" style="background:#3a3350"><svg viewBox="0 0 24 24"><path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M12 9v10"/></svg></div><div class="bname" style="color:#8a7fa6">Kindling</div></div>
+        <div class="box"><div class="chest" style="background:#1f5a34"><svg viewBox="0 0 24 24"><path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M12 9v10"/></svg></div><div class="bname" style="color:#3DA85C">Ignition</div></div>
+        <div class="box"><div class="chest" style="background:#1d5a72"><svg viewBox="0 0 24 24"><path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M12 9v10"/></svg></div><div class="bname" style="color:#4FB0E5">Furnace</div></div>
+        <div class="box"><div class="chest" style="background:#4a2a6e"><svg viewBox="0 0 24 24"><path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M12 9v10"/></svg></div><div class="bname" style="color:#a06cd5">Hestia</div></div>
+        <div class="box"><div class="chest shine" style="background:#8a5a12"><svg viewBox="0 0 24 24"><path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M12 9v10"/></svg></div><div class="bname" style="color:#F2A33C">Hephaestus</div></div>
+        <div class="box"><div class="chest shine" style="background:#8a2a1a"><svg viewBox="0 0 24 24"><path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M12 9v10"/></svg></div><div class="bname" style="color:#E0612C">Prometheus</div></div>
+      </div>
+    </div>
+
+    <!-- ===== COSMETICS preview ===== -->
+    <div class="sechd"><span class="l">✨ Sample cosmetics</span><span class="r">flame skins · frames · badges</span></div>
+    <div class="showcase">
+      <div class="cos-row">
+        <div class="cos"><div class="skin"><svg class="flame" width="26" height="30" viewBox="0 0 46 52"><path d="M23 4C26 14 37 18 37 31a14 14 0 0 1-28 0C9 24 14 22 16 18z" fill="#2C6E8A"/><path d="M24 16c2 6 8 8 8 16a9 9 0 0 1-18 0c0-5 3-7 5-10z" fill="#4FB0E5"/><path d="M24 27c1.4 3 4 4 4 8a5 5 0 0 1-10 0c0-3 2.4-4.5 3.4-6.5z" fill="#BDE8FF"/></svg></div><div class="lbl">Azure</div></div>
+        <div class="cos"><div class="skin"><svg class="flame i2" width="26" height="30" viewBox="0 0 46 52"><path d="M23 4C26 14 37 18 37 31a14 14 0 0 1-28 0C9 24 14 22 16 18z" fill="#6C3AB0"/><path d="M24 16c2 6 8 8 8 16a9 9 0 0 1-18 0c0-5 3-7 5-10z" fill="#A06CD5"/><path d="M24 27c1.4 3 4 4 4 8a5 5 0 0 1-10 0c0-3 2.4-4.5 3.4-6.5z" fill="#E6CCFF"/></svg></div><div class="lbl">Violet</div></div>
+        <div class="cos"><div class="skin"><svg class="flame i3" width="26" height="30" viewBox="0 0 46 52"><path d="M23 4C26 14 37 18 37 31a14 14 0 0 1-28 0C9 24 14 22 16 18z" fill="#1F7A44"/><path d="M24 16c2 6 8 8 8 16a9 9 0 0 1-18 0c0-5 3-7 5-10z" fill="#3DA85C"/><path d="M24 27c1.4 3 4 4 4 8a5 5 0 0 1-10 0c0-3 2.4-4.5 3.4-6.5z" fill="#B8F0C8"/></svg></div><div class="lbl">Emerald</div></div>
+      </div>
+      <div class="cos-row">
+        <div class="cos"><div class="badgei shine"><svg class="hexf" viewBox="0 0 24 24"><path d="M12 2l8.5 5v10L12 22 3.5 17V7z" fill="none" stroke="#F2A33C" stroke-width="1.6"/><path d="M12 7l3 5-3 5-3-5z" fill="#F2A33C"/></svg></div><div class="lbl">Rank frame</div></div>
+        <div class="cos"><div class="badgei">🏆</div><div class="lbl">Season badge</div></div>
+        <div class="cos"><div class="badgei">⚡</div><div class="lbl">Founder flair</div></div>
+      </div>
+    </div>
+
+    <div class="trust"><b>You can't buy XP, rank, or streaks.</b><br>Fire only unlocks looks & convenience — effort stays earned.</div>
+    <div class="restore">Restore purchases</div>
+
+  </div></div></div>
+  <div class="cap">Paywall v2 (step 1/7). <b>Animated flame-growth strip</b> up top — Free = a spark, Ignite = a flame (glow), Blaze = a bonfire (roaring + rising embers) — the visual hook. Then the 3 tier cards, each with its own scaled live flame. Below, inline <b>showcases</b> so value is visible before paying: <b>Forge Pass</b> track (free vs locked-premium lanes), the <b>loot-box rarity ladder</b> (Kindling→Prometheus, shimmering high tiers), and <b>sample cosmetics</b> (flame skins, rank frame, badges). Trust line still anchors: effort is never for sale.</div>
+</div>

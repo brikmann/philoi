@@ -1,0 +1,66 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--surface-2:#2d2740;--border:rgba(255,255,255,.1);--text-primary:#FFF6EC;--text-secondary:#a99cbd;--text-muted:#7c7194;--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.vp{width:100%;height:100%;border-radius:26px;background:#1b1726;color:#FFF6EC;padding:18px 16px 16px;box-sizing:border-box;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.hd{display:flex;align-items:center;justify-content:space-between;z-index:3}
+.nm{font-family:var(--font-sans);font-weight:500;font-size:17px}
+.sub{font-size:12px;color:#a99cbd;margin-top:2px}
+.chip{font-size:11px;padding:3px 9px;border-radius:999px;font-weight:500;background:#3a2a22;color:#FFD27A}
+.stage{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.fire{width:150px;height:170px;position:relative;display:flex;align-items:flex-end;justify-content:center;z-index:2}
+.fl{transform-origin:50% 88%;animation:roar .9s ease-in-out infinite}
+.spk{position:absolute;top:35%;left:50%;width:6px;height:6px;border-radius:999px;background:#F2A33C;opacity:0;z-index:4}
+.ph{position:absolute;width:50px;background:#fff;border-radius:5px;padding:4px 4px 3px;z-index:1}
+.ph .im{height:44px;border-radius:3px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85)}
+.ph .cap{font-size:8px;color:#3a3350;margin-top:2px;text-align:center;font-weight:500}
+.ph.fresh{outline:2px solid #E0612C;outline-offset:0}
+.pres{font-size:12.5px;margin-top:8px;text-align:center;color:#FFD27A;z-index:3}
+.ring{display:flex;margin-top:10px;justify-content:center;z-index:3}
+.av{width:32px;height:32px;border-radius:999px;background:#2d2740;border:2px solid #17141f;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;margin-left:-8px;color:#cbbfe0}
+.av.lit{border-color:#E0612C;color:#FFD27A;background:#3a2a22}
+.av.off{opacity:.45}
+.ftr{margin-top:auto;z-index:3}
+.lvl{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.hex{width:34px;height:34px;background:#3a2a22;border:1.5px solid #F2A33C;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#FFD27A;font-weight:500;font-size:14px;transform:rotate(45deg)}
+.hex span{transform:rotate(-45deg)}
+.bar{flex:1}
+.bar .t{font-size:12px;color:#a99cbd;margin-bottom:4px;display:flex;justify-content:space-between}
+.bar .t b{color:#FFF6EC;font-weight:500}
+.trk{height:6px;background:#2d2740;border-radius:999px;overflow:hidden}
+.trk i{display:block;height:100%;width:68%;background:#E0612C;border-radius:999px}
+.streak{font-size:12px;color:#a99cbd;margin-bottom:12px;display:flex;align-items:center;gap:5px}
+.cta{width:100%;border:0;border-radius:14px;padding:14px;font-size:15px;font-weight:500;color:#fff;background:#E0612C;cursor:pointer;font-family:var(--font-sans)}
+@keyframes roar{0%,100%{transform:scaleY(1) scaleX(1)}30%{transform:scaleY(1.13) scaleX(.94)}60%{transform:scaleY(1.06) scaleX(1.02)}}
+@keyframes rise{0%{transform:translateY(0) scale(1);opacity:.9}100%{transform:translateY(-95px) scale(.3);opacity:0}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="vp" id="vp">
+    <div class="hd"><div><div class="nm">Push day collective</div><div class="sub">6 in this campfire</div></div><span class="chip">Roaring</span></div>
+    <div class="stage" id="stage">
+      <div class="ph fresh" style="top:14%;left:2%;transform:rotate(-9deg)"><div class="im" style="background:#4a5a2b"><i class="ti ti-barbell" aria-hidden="true"></i></div><div class="cap">Aidan</div></div>
+      <div class="ph" style="top:10%;right:1%;transform:rotate(8deg)"><div class="im" style="background:#5a3a2b"><i class="ti ti-run" aria-hidden="true"></i></div><div class="cap">Sam</div></div>
+      <div class="ph fresh" style="bottom:30%;right:0;transform:rotate(6deg)"><div class="im" style="background:#3a4a5a"><i class="ti ti-stretching" aria-hidden="true"></i></div><div class="cap">Maya</div></div>
+      <div class="ph" style="bottom:32%;left:0;transform:rotate(-7deg)"><div class="im" style="background:#4a3a5a"><i class="ti ti-barbell" aria-hidden="true"></i></div><div class="cap">Dee</div></div>
+      <div class="fire" id="fire"></div>
+      <div class="pres">Aidan &amp; 2 others locked in now</div>
+      <div class="ring"><div class="av lit">A</div><div class="av lit">M</div><div class="av lit">S</div><div class="av off">+3</div></div>
+    </div>
+    <div class="ftr">
+      <div class="lvl"><div class="hex"><span>7</span></div>
+        <div class="bar"><div class="t"><span>Campfire level 7</span><span><b>2,180</b> / 3,200 XP</span></div><div class="trk"><i></i></div></div></div>
+      <div class="streak"><i class="ti ti-flame" aria-hidden="true" style="color:#F2A33C"></i>12-day group streak · keep it lit</div>
+      <button class="cta">Lock in with them</button>
+    </div>
+  </div></div>
+</div>
+<script>
+(function(){
+  var f=document.getElementById('fire');
+  f.innerHTML='<svg width="150" height="170" viewBox="0 0 120 150" aria-hidden="true"><g class="fl"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/><path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/></g></svg>';
+  var log=f.querySelector('svg');var logs=document.createElementNS('http://www.w3.org/2000/svg','g');
+  for(var i=0;i<6;i++){var s=document.createElement('span');s.className='spk';s.style.left=(55+Math.random()*40)+'px';s.style.bottom=(70+Math.random()*22)+'px';s.style.animationDelay=(Math.random()*1.4)+'s';s.style.animation='rise 1.4s ease-out '+(Math.random()*1.4).toFixed(2)+'s infinite';f.appendChild(s);}
+})();
+</script>

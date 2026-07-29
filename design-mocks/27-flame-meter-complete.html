@@ -1,0 +1,106 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:radial-gradient(120% 80% at 50% 36%,#2a1c2a 0%,#1b1726 55%);border-radius:26px;overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:14px 16px 16px;box-sizing:border-box;color:#FFF6EC}
+.topbar{width:100%;display:flex;align-items:center;justify-content:space-between}
+.recap{display:inline-flex;align-items:center;gap:5px;background:#3a2a22;color:#FFD27A;font-weight:500;padding:3px 10px;border-radius:999px;font-size:11px}
+.embercount{display:inline-flex;align-items:center;gap:6px;background:#241c38;border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:3px 5px 3px 4px}
+.embercount.bump{animation:bump .3s ease}
+.embercount .av{width:22px;height:22px;border-radius:999px;background:radial-gradient(circle at 50% 40%,#FFD27A,#E0612C);display:flex;align-items:center;justify-content:center;color:#4a2600;font-size:12px}
+.embercount .n{font-size:12.5px;font-weight:600;color:#FFD27A;min-width:24px;text-align:left}
+.celebrate{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;width:100%}
+.burst{position:absolute;top:30%;width:120px;height:120px;border-radius:999px;border:2px solid #F2A33C;opacity:0;animation:burst 1s ease-out .25s forwards}
+.fire{animation:pop .7s cubic-bezier(.2,.8,.3,1) both;position:relative}
+.fire .fl{transform-origin:50% 90%;animation:roar 1s ease-in-out infinite}
+.spark{position:absolute;width:5px;height:5px;border-radius:999px;background:#F2A33C;left:50%;bottom:42px}
+.head{font-family:var(--font-sans);font-weight:600;font-size:22px;margin-top:12px;text-align:center;background:linear-gradient(90deg,#FFD27A,#F2A33C);-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0;animation:rise .5s ease-out .55s both}
+.done-pill{display:inline-flex;align-items:center;gap:6px;background:#2b2036;border:1px solid #E0612C;border-radius:999px;padding:6px 12px;margin-top:11px;font-size:12px;font-weight:500;color:#FFD27A;opacity:0;animation:rise .5s ease-out .7s both}
+.xpline{display:flex;gap:8px;justify-content:center;margin-top:12px;opacity:0;animation:rise .5s ease-out .8s both}
+.xpchip{display:inline-flex;align-items:center;gap:5px;background:#241c38;border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:500;color:#FFF6EC}
+.xpchip i{color:#FFD27A;font-size:14px}
+.xpchip.bonus{background:#3a2416;color:#F2A33C;border:1px solid rgba(242,163,60,.4)}
+.xpchip.bonus i{color:#F2A33C}
+.rank{display:flex;align-items:center;gap:10px;width:100%;margin-top:14px;opacity:0;animation:rise .5s ease-out .9s both}
+.hex{width:32px;height:35px;clip-path:polygon(50% 2%,95% 26%,95% 74%,50% 98%,5% 74%,5% 26%);background:#9A6A12;display:flex;align-items:center;justify-content:center;flex:none;color:#4A3406;font-weight:500;font-size:11px}
+.rk{flex:1}
+.rk .top{display:flex;justify-content:space-between;font-size:11px;color:#a99cbd}
+.trk{height:7px;background:#2d2740;border-radius:999px;margin-top:5px;overflow:hidden}
+.trk i{display:block;height:100%;width:50%;background:#E0612C;border-radius:999px;transition:width 1s ease .9s}
+.actions{width:100%;margin-top:15px;opacity:0;animation:rise .5s ease-out 1.05s both}
+.share{width:100%;border:0;border-radius:14px;padding:14px;background:#E0612C;color:#fff;font-family:var(--font-sans);font-weight:500;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.subacts{display:flex;justify-content:center;gap:16px;margin-top:11px;font-size:12.5px}
+.subacts a{color:#a99cbd;text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.subacts a.post{color:#FFD27A}
+.ember-fly{position:absolute;width:9px;height:12px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:linear-gradient(#FFF3DC,#F2A33C 55%,#E0612C);pointer-events:none;z-index:30;filter:drop-shadow(0 0 3px rgba(242,163,60,.6))}
+@keyframes pop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.1);opacity:1}100%{transform:scale(1)}}
+@keyframes roar{0%,100%{transform:scaleY(1) scaleX(1)}30%{transform:scaleY(1.14) scaleX(.93)}60%{transform:scaleY(1.06) scaleX(1.02)}}
+@keyframes burst{0%{transform:scale(.4);opacity:.7}100%{transform:scale(2.6);opacity:0}}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes riseSpark{0%{transform:translateY(0) scale(1);opacity:.9}100%{transform:translateY(-120px) scale(.3);opacity:0}}
+@keyframes bump{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage" id="stage">
+    <div class="topbar">
+      <span class="recap"><i class="ti ti-barbell"></i>Gym · leg day · 48:12</span>
+      <span class="embercount" id="counter"><span class="av"><i class="ti ti-flame"></i></span><span class="n" id="embernum">122</span></span>
+    </div>
+
+    <div class="celebrate">
+      <div class="burst"></div>
+      <div class="fire" id="fire">
+        <svg width="128" height="146" viewBox="0 0 120 150" aria-hidden="true"><rect x="30" y="112" width="60" height="9" rx="4" fill="#8a5a2b" transform="rotate(18 60 116)"/><rect x="30" y="112" width="60" height="9" rx="4" fill="#6e4423" transform="rotate(-18 60 116)"/><g class="fl"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/><path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/></g></svg>
+      </div>
+      <div class="head">You're on fire, Noah!</div>
+      <div class="done-pill"><i class="ti ti-flame" style="color:#F2A33C"></i>Today's fire complete</div>
+      <div class="xpline">
+        <span class="xpchip"><i class="ti ti-bolt"></i>+96 XP</span>
+        <span class="xpchip bonus"><i class="ti ti-flame"></i>+50 fire bonus</span>
+      </div>
+    </div>
+
+    <div class="rank">
+      <div class="hex">I</div>
+      <div class="rk"><div class="top"><span>Gold I</span><span>1,436 / 2,500</span></div><div class="trk"><i id="fill"></i></div></div>
+    </div>
+
+    <div class="actions">
+      <button class="share"><i class="ti ti-share-2"></i>Share to your story</button>
+      <div class="subacts"><a class="post"><i class="ti ti-send"></i>Post to the campfire</a><a>Done</a></div>
+    </div>
+  </div></div>
+  <div class="cap">Meter-complete done screen: <b>+96 XP</b> (lock-in) beside <b>+50</b> orange fire bonus, and <b>+5 embers</b> fly out of the campfire as tiny flames, arc to the top-right, and clump onto the ember balance (122 → 127) — a currency-collection loop. Reload to replay.</div>
+</div>
+<script>
+(function(){
+  var fire=document.getElementById('fire'), stage=document.getElementById('stage'),
+      counter=document.getElementById('counter'), numEl=document.getElementById('embernum'),
+      fill=document.getElementById('fill');
+  // continuous sparks off the fire
+  for(var i=0;i<6;i++){var s=document.createElement('span');s.className='spark';s.style.left=(46+Math.random()*10)+'%';s.style.animation='riseSpark '+(1.2+Math.random()*0.8).toFixed(2)+'s ease-out '+(Math.random()*1.5).toFixed(2)+'s infinite';fire.appendChild(s);}
+  // XP bar fills (lock-in + bonus) after reveal
+  setTimeout(function(){ fill.style.width='57.4%'; }, 50);
+  // ember collection: 5 tiny flames arc from the campfire to the counter, +1 each
+  var val=122;
+  function bump(){ val++; numEl.textContent=val; counter.classList.add('bump'); setTimeout(function(){counter.classList.remove('bump');},300); }
+  function fly(i){
+    var sRect=stage.getBoundingClientRect(), fRect=fire.getBoundingClientRect(), cRect=counter.getBoundingClientRect();
+    var sx=fRect.left+fRect.width/2 - sRect.left, sy=fRect.top+fRect.height*0.42 - sRect.top;
+    var ex=cRect.left+cRect.width*0.32 - sRect.left, ey=cRect.top+cRect.height/2 - sRect.top;
+    var p=document.createElement('span'); p.className='ember-fly'; p.style.left=sx+'px'; p.style.top=sy+'px'; stage.appendChild(p);
+    var mx=sx+(ex-sx)*0.5 + (Math.random()*44-22), my=Math.min(sy,ey)-40-Math.random()*20;
+    var anim=p.animate([
+      {transform:'translate(-50%,-50%) scale(.7)',opacity:0},
+      {transform:'translate(-50%,-50%) scale(1)',opacity:1,offset:.12},
+      {transform:'translate(calc(-50% + '+(mx-sx)+'px),calc(-50% + '+(my-sy)+'px)) scale(.9)',opacity:1,offset:.55},
+      {transform:'translate(calc(-50% + '+(ex-sx)+'px),calc(-50% + '+(ey-sy)+'px)) scale(.35)',opacity:.9}
+    ],{duration:850+Math.random()*180,delay:1500+i*150,easing:'cubic-bezier(.4,0,.5,1)',fill:'forwards'});
+    anim.onfinish=function(){ p.remove(); bump(); };
+  }
+  for(var k=0;k<5;k++) fly(k);
+})();
+</script>

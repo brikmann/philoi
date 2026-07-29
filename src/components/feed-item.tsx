@@ -2,11 +2,13 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { PhotoGallery } from '@/components/photo-gallery';
 import { Card } from '@/components/ui/card';
 import { ReactionBar } from '@/components/reaction-bar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { FeedCheckIn } from '@/lib/api/check-ins';
 import { useAuth } from '@/lib/auth/auth-context';
+import { GOAL_TYPE_META } from '@/lib/goal-types';
 import { supabase } from '@/lib/supabase';
 
 function formatRelativeTime(isoDate: string) {
@@ -49,10 +51,15 @@ export function FeedItem({ item, onReactionChanged }: FeedItemProps) {
     Alert.alert(isOwnPost ? 'Options' : 'Report or block', '', options);
   }
 
+  const goalLabel = item.goal_label || GOAL_TYPE_META[item.goal_type].label;
+
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.name}>{item.profiles.display_name}</Text>
+        <Text style={styles.name}>
+          {item.profiles.display_name}
+          <Text style={styles.lockedInOn}> locked in on {goalLabel}</Text>
+        </Text>
         <View style={styles.headerRight}>
           <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>
           <Pressable
@@ -66,7 +73,11 @@ export function FeedItem({ item, onReactionChanged }: FeedItemProps) {
         </View>
       </View>
 
-      {item.signedPhotoUrl && <Image source={{ uri: item.signedPhotoUrl }} style={styles.photo} />}
+      {item.signedPhotoUrls.length > 1 ? (
+        <PhotoGallery uris={item.signedPhotoUrls} />
+      ) : (
+        item.signedPhotoUrls[0] && <Image source={{ uri: item.signedPhotoUrls[0] }} style={styles.photo} />
+      )}
 
       {item.caption && <Text style={styles.caption}>{item.caption}</Text>}
 
@@ -94,6 +105,11 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: Fonts.bodyBold,
     color: Colors.ink,
+    flexShrink: 1,
+  },
+  lockedInOn: {
+    fontFamily: Fonts.body,
+    color: Colors.muted,
   },
   time: {
     fontFamily: Fonts.body,

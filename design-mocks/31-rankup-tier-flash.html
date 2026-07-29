@@ -1,0 +1,120 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:radial-gradient(120% 80% at 50% 40%,#241528 0%,#17131f 60%);border-radius:26px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#FFF6EC}
+.fx{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
+.content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 24px}
+.hexwrap{position:relative;width:110px;height:120px;display:flex;align-items:center;justify-content:center}
+.hex{width:96px;height:104px;clip-path:polygon(50% 2%,95% 26%,95% 74%,50% 98%,5% 74%,5% 26%);display:flex;align-items:center;justify-content:center;transition:background .3s}
+.hexin{width:82px;height:89px;clip-path:polygon(50% 2%,95% 26%,95% 74%,50% 98%,5% 74%,5% 26%);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:30px;color:#2a2118;transition:background .3s}
+.head{font-family:var(--font-sans);font-weight:600;font-size:18px;line-height:1.3;margin-top:18px;padding:0 6px}
+.tier{font-size:15px;font-weight:500;margin-top:8px}
+.meta{font-size:12px;color:#a99cbd;margin-top:6px}
+.snd{font-size:11px;color:#7c7194;margin-top:14px;display:inline-flex;align-items:center;gap:5px;background:#241c38;border:1px solid rgba(255,255,255,.1);padding:4px 10px;border-radius:999px}
+.controls{display:flex;gap:7px}
+.controls button{border:1px solid rgba(255,255,255,.14);background:#2d2740;color:#e7ddf5;border-radius:999px;padding:7px 13px;font-size:12px;font-family:var(--font-sans);cursor:pointer}
+.controls button.on{border-color:#E0612C;background:#2b2036;color:#FFD27A}
+/* fx primitives */
+.tint{position:absolute;inset:0}
+.sweep{position:absolute;top:-20%;left:0;width:70%;height:140%}
+.sparkle{position:absolute;color:#FFE9A8;font-size:12px}
+.prism{position:absolute;width:3px;border-radius:999px}
+.flame-p{position:absolute;bottom:-14px;border-radius:50% 50% 46% 46%/60% 60% 40% 40%;background:linear-gradient(#FFF3DC,#F2A33C 52%,#E0612C);transform-origin:50% 100%}
+.hexfire{position:absolute;inset:0;pointer-events:none}
+.hexfire .lick{position:absolute;bottom:0;border-radius:50% 50% 46% 46%/60% 60% 42% 42%;background:linear-gradient(#FFF3DC,#F2A33C 50%,#E0612C);transform-origin:50% 100%;filter:blur(.5px);animation:hlick .5s ease-in-out infinite}
+.vignette{position:absolute;inset:0;box-shadow:inset 0 -60px 70px -20px rgba(224,97,44,.6),inset 0 0 60px rgba(224,97,44,.25)}
+@keyframes hlick{0%,100%{transform:scaleY(1)}45%{transform:scaleY(1.3) translateY(-2px)}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="fx" id="fx"></div>
+    <div class="content">
+      <div class="hexwrap"><div class="hex" id="hex"><div class="hexin" id="hexin">I</div></div><div class="hexfire" id="hexfire"></div></div>
+      <div class="head" id="head">Rank up, Noah!</div>
+      <div class="tier" id="tier">Reached Silver I</div>
+      <div class="meta">forged from a 6-day streak</div>
+      <div class="snd" id="snd"><i class="ti ti-music"></i>coin ching</div>
+    </div>
+  </div></div>
+  <div class="controls" id="controls">
+    <button data-t="silver" class="on">Silver</button>
+    <button data-t="gold">Gold</button>
+    <button data-t="diamond">Diamond</button>
+    <button data-t="infernal">Infernal</button>
+  </div>
+  <div class="controls"><button id="minor">Division bump (lighter): off</button></div>
+  <div class="cap">Tier-crossing flash + tier-colored badge + a rotating celebratory headline + the per-tier sound placeholder. EVERY rank-up flushes the screen with a full <b>colour wash</b> in its tier's colour (Silver silver · Gold gold · Diamond cyan · Infernal orange) — that's what nails a division-up. Tap a tier for the full crossing (wash + sweep + tier particles). Toggle <b>"Division bump"</b> — a within-tier rank gets the same full wash, minus the sweep/particles. Infernal is singular (always the big one).</div>
+</div>
+<script>
+(function(){
+  var fx=document.getElementById('fx'), hex=document.getElementById('hex'), hexin=document.getElementById('hexin'),
+      head=document.getElementById('head'), tier=document.getElementById('tier'), snd=document.getElementById('snd'),
+      hexfire=document.getElementById('hexfire');
+  var HEADS=["Rank up, Noah!","Forged in fire 🔥","New heights, Noah."];
+  var T={
+    silver:{c:'#C4CBD6',ci:'#E8ECF2',name:'Silver',div:'I',sound:'coin ching',fx:'sweep',
+      personal:["Stunning","You're shining","Silver-forged","Sterling focus","Razor sharp","Pure reflection","Silver streak","Cut from steel","Clean execution","High frequency","Mirror finish"],
+      social:["They're watching your streak.","Your group chat is taking notes.","Dragging your squad's average up.","Making your Campfire look good.","Setting the bar on campus.","They can't call fraud on this."]},
+    gold:{c:'#F5C542',ci:'#FFE9A8',name:'Gold',div:'I',sound:'shiny ching',fx:'sparkle',
+      personal:["Struck gold","Make that money","Golden","Midas touch","Pure gold","Crown achieved","Heavy metal","Standard set","Pacesetter"],
+      social:["Your squad rides on your back.","Puts the whole leaderboard on watch.","The standard for your Campfire.","Making Laurier look dialed.","They're trying to catch your flame.","Leading from the front."]},
+    diamond:{c:'#7FE0E8',ci:'#CFF6FA',name:'Diamond',div:'I',sound:'rising angelic “haaa”',fx:'prism',
+      personal:["Shiny","Unbreakable","Crystal clear","Pressured into perfection","Flawless cut","Prism power","Hardened core","Shatterproof"],
+      social:["Your entire Campfire is in your shadow.","Top of the campus radar.","Making the rest of the group look idle.","They talk about this tier.","Carrying the Golden Hawks.","The whole library knows."]},
+    infernal:{c:'#E0612C',ci:'#FFD27A',name:'Infernal',div:'',sound:'intense flame roar',fx:'flame',
+      personal:["Your fire is eternal","You're infernal","The blaze never dies","Unquenchable","Inferno locked","Scorched earth","Pure plasma"],
+      social:["The entire campus feels your heat.","Your Campfire bows to the blaze.","There's no one left to challenge you.","They'll be trying to match this for semesters.","You just put Waterloo on Fraud Watch.","The arena belongs to you.","Your squad is living in your orbit."]}
+  };
+  function pick(a){return a[Math.floor(Math.random()*a.length)];}
+  var minor=false, current='silver';
+  function el(cls){var d=document.createElement('span');d.className=cls;return d;}
+  function runFx(t,d){
+    fx.innerHTML=''; hexfire.innerHTML='';
+    var mn=(minor && t!=='infernal');  // Infernal is singular → always major
+    // EVERY rank-up: a full-screen COLOUR WASH in the tier's colour (this alone IS the division-up flash)
+    var tint=el('tint'); tint.style.background=d.c; fx.appendChild(tint);
+    tint.animate([{opacity:0},{opacity:t==='diamond'?.55:.5,offset:.18},{opacity:0}],{duration:720,easing:'ease-out'}).onfinish=function(){tint.remove();};
+    if(mn) return;   // division bump = the full colour wash only — the tier crossing adds sweep + particles on top
+    // sweep (tier crossing only)
+    var sw=el('sweep'); sw.style.background='linear-gradient(105deg,transparent 0%,'+d.ci+'cc 50%,transparent 100%)'; fx.appendChild(sw);
+    sw.animate([{transform:'translateX(-160%) skewX(-14deg)'},{transform:'translateX(300%) skewX(-14deg)'}],{duration:820,easing:'ease-in-out'}).onfinish=function(){sw.remove();};
+    if(d.fx==='sparkle'){
+      for(var i=0;i<14;i++){(function(i){var s=el('sparkle');s.textContent='✦';s.style.left=(8+Math.random()*84)+'%';s.style.top='-6%';fx.appendChild(s);
+        s.animate([{transform:'translateY(0) scale(.4)',opacity:0},{opacity:1,offset:.2},{transform:'translateY('+(220+Math.random()*220)+'px) scale(1)',opacity:0}],{duration:900+Math.random()*500,delay:i*45,easing:'ease-in'}).onfinish=function(){s.remove();};})(i);}
+    } else if(d.fx==='prism'){
+      // lots of twinkling prismatic glints — the sparkliest tier
+      var cols=['#CFF6FA','#7FE0E8','#ffffff','#c9a8ff','#a8fff0'];
+      for(var p=0;p<22;p++){(function(p){var s=el('sparkle');s.textContent=Math.random()<.5?'✦':'✧';var col=cols[p%cols.length];s.style.color=col;s.style.left=(3+Math.random()*94)+'%';s.style.top=(5+Math.random()*82)+'%';s.style.fontSize=(8+Math.random()*11)+'px';s.style.textShadow='0 0 7px '+col;fx.appendChild(s);
+        s.animate([{transform:'scale(.2) rotate(0deg)',opacity:0},{transform:'scale(1.15) rotate(90deg)',opacity:1,offset:.4},{transform:'scale(.3) rotate(170deg)',opacity:0}],{duration:620+Math.random()*520,delay:p*33,easing:'ease-in-out'}).onfinish=function(){s.remove();};})(p);}
+      // a few refraction shards under the glints
+      for(var q=0;q<5;q++){(function(q){var pr=el('prism');var h=70+Math.random()*70;pr.style.height=h+'px';pr.style.left=(14+Math.random()*72)+'%';pr.style.top=(10+Math.random()*44)+'%';pr.style.background=cols[q%cols.length];pr.style.transform='rotate('+(Math.random()*50-25)+'deg)';fx.appendChild(pr);
+        pr.animate([{opacity:0},{opacity:.7,offset:.3},{opacity:0}],{duration:760,delay:q*45,easing:'ease-out'}).onfinish=function(){pr.remove();};})(q);}
+    } else if(d.fx==='flame'){
+      var vg=el('vignette'); fx.appendChild(vg); vg.animate([{opacity:0},{opacity:1,offset:.3},{opacity:.85}],{duration:700,fill:'forwards'});
+      for(var f=0;f<16;f++){(function(f){var fl=el('flame-p');var w=10+Math.random()*10,h=40+Math.random()*60;fl.style.width=w+'px';fl.style.height=h+'px';fl.style.left=(Math.random()*96)+'%';fx.appendChild(fl);
+        fl.animate([{transform:'translateY(20px) scaleY(.6)',opacity:0},{opacity:.9,offset:.25},{transform:'translateY(-'+(120+Math.random()*160)+'px) scaleY(1.1)',opacity:0}],{duration:1100+Math.random()*500,delay:f*55,easing:'ease-out'}).onfinish=function(){fl.remove();};})(f);}
+      // the hex itself burns
+      for(var x=6;x<82;x+=11){var lk=document.createElement('span');lk.className='lick';lk.style.left=x+'px';lk.style.width='8px';lk.style.height=(8+Math.random()*6)+'px';lk.style.animationDelay=(-(Math.random()*.5))+'s';hexfire.appendChild(lk);}
+    }
+  }
+  function show(t){
+    var d=T[t];
+    hex.style.background=d.c; document.getElementById('hexin').style.background=d.ci;
+    hexin.innerHTML = t==='infernal' ? '<svg width="34" height="40" viewBox="0 0 120 150" aria-hidden="true"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#B0431E"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#E0612C"/></svg>' : d.div;
+    var lite=(minor && t!=='infernal');
+    // composed headline: [personal], name. [social] — same pool for bump or crossing; only the flash intensity differs
+    head.textContent=pick(d.personal)+', Noah. '+pick(d.social);
+    tier.textContent='Reached '+d.name+(d.div?(' '+d.div):'');
+    snd.innerHTML='<i class="ti ti-music"></i>'+(lite?d.sound+' (soft)':d.sound);
+    current=t;
+    runFx(t,d);
+  }
+  document.getElementById('controls').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;[].forEach.call(this.children,function(c){c.classList.toggle('on',c===b);});show(b.dataset.t);});
+  document.getElementById('minor').addEventListener('click',function(){minor=!minor;this.textContent='Division bump (lighter): '+(minor?'on':'off');this.classList.toggle('on',minor);show(current);});
+  show('silver');
+})();
+</script>

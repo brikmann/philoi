@@ -1,0 +1,129 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.field{width:100%;height:100%;border-radius:26px;background:#14111c;position:relative;overflow:hidden;color:#FFF6EC}
+.star{position:absolute;width:2px;height:2px;border-radius:999px;background:#a99cbd;opacity:.3}
+.back{position:absolute;top:14px;left:12px;z-index:8;width:34px;height:34px;border-radius:999px;background:#241c38;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#FFF6EC;font-size:18px;cursor:pointer}
+.stagearea{position:absolute;left:0;right:0;top:52px;bottom:150px}
+.node{position:absolute;transform:translate(-50%,-50%);text-align:center;cursor:pointer;width:110px}
+.flame{position:relative;display:inline-flex;align-items:flex-end;justify-content:center}
+.flame .fl{transform-origin:50% 88%;animation:flick 1.7s ease-in-out infinite}
+.flame.roar .fl{animation:roar .9s ease-in-out infinite}
+.flame.dead .fl{filter:grayscale(1) brightness(.5);opacity:.55;animation:flick 3.2s ease-in-out infinite}
+.lock{position:absolute;top:-2px;right:14px;width:17px;height:17px;border-radius:999px;background:#2d2740;border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:9px;color:#cbbfe0}
+.spark{position:absolute;width:4px;height:4px;border-radius:999px;background:#F2A33C;animation:rise 1.5s ease-out infinite}
+.smoke{position:absolute;width:10px;height:10px;border-radius:999px;background:#8a80a0;opacity:.25;animation:smk 3.4s ease-out infinite}
+.lbl{font-size:11.5px;font-weight:500;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cue{font-size:10px;color:#FFD27A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cue.cold{color:#7c7194}
+.mine .cue{color:#a99cbd}
+.disc{position:absolute;left:0;right:0;bottom:0;background:#1b1726;border-top:1px solid rgba(255,255,255,.08);padding:11px 12px 13px;z-index:5}
+.search{background:#241c38;border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:9px 11px;display:flex;align-items:center;gap:8px;color:#7c7194;font-size:12.5px}
+.search input{background:transparent;border:0;outline:0;color:#FFF6EC;font-size:12.5px;font-family:var(--font-sans);flex:1}
+.chips{display:flex;gap:6px;margin-top:9px}
+.chip{flex:1;text-align:center;background:#241c38;border:1px solid transparent;border-radius:999px;padding:6px 4px;font-size:10.5px;color:#a99cbd;cursor:pointer;white-space:nowrap}
+.chip.on{background:#2b2036;border-color:#E0612C;color:#FFD27A}
+.code{display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 11px;background:#20182f;border:1px dashed rgba(255,255,255,.14);border-radius:11px;cursor:pointer;font-size:11.5px;color:#cbbfe0}
+.code .k{color:#F2A33C;font-size:15px}
+.code .go{margin-left:auto;color:#7c7194;font-size:15px}
+.startrow{text-align:center;margin-top:9px}
+.startrow button{background:none;border:0;color:#F2A33C;font-size:12px;font-family:var(--font-sans);cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+/* preview sheet */
+.scrim{position:absolute;inset:0;background:rgba(8,6,12,.62);opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+.scrim.show{opacity:1;pointer-events:auto}
+.pv{position:absolute;left:0;right:0;bottom:0;background:#241c38;border-radius:22px 22px 26px 26px;padding:8px 15px 18px;z-index:10;transform:translateY(105%);transition:transform .26s cubic-bezier(.2,.7,.3,1)}
+.pv.show{transform:translateY(0)}
+.grab{width:38px;height:4px;border-radius:999px;background:#4a4460;margin:6px auto 12px}
+.pvh{display:flex;align-items:center;gap:10px}
+.pvh .fi{width:38px;height:38px;border-radius:11px;background:#3a2a22;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:19px;flex:none}
+.pvh .nm{font-size:15px;font-weight:500}
+.pvh .lv{font-size:11px;color:#FFD27A;margin-top:1px}
+.pvh .tag{margin-left:auto;font-size:10.5px;color:#cbbfe0;background:#2d2740;border-radius:999px;padding:4px 9px;display:inline-flex;align-items:center;gap:4px}
+.pvmeta{display:flex;align-items:center;gap:8px;margin-top:12px}
+.avs{display:flex}
+.avs span{width:26px;height:26px;border-radius:999px;background:#3a2a22;border:1.5px solid #241c38;margin-left:-7px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#FFD27A}
+.avs span:first-child{margin-left:0}
+.pvmeta .mt{font-size:11.5px;color:#a99cbd}
+.pvphotos{display:flex;gap:6px;margin-top:12px}
+.pvphotos span{flex:1;height:52px;border-radius:9px}
+.pvcta{width:100%;border:0;border-radius:13px;padding:13px;margin-top:14px;background:#E0612C;color:#fff;font-family:var(--font-sans);font-weight:500;font-size:14.5px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.pvnote{text-align:center;font-size:11px;color:#7c7194;margin-top:9px}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.05) scaleX(.97)}}
+@keyframes roar{0%,100%{transform:scaleY(1) scaleX(1)}30%{transform:scaleY(1.13) scaleX(.94)}60%{transform:scaleY(1.06) scaleX(1.02)}}
+@keyframes rise{0%{transform:translateY(0) scale(1);opacity:.9}100%{transform:translateY(-46px) scale(.3);opacity:0}}
+@keyframes smk{0%{transform:translateY(0) scale(.7);opacity:.28}100%{transform:translateY(-54px) scale(1.7);opacity:0}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="field" id="field">
+    <div class="back" title="Back to your fire"><i class="ti ti-arrow-left" aria-hidden="true"></i></div>
+    <div class="stagearea" id="stage"></div>
+    <div class="disc" id="disc">
+      <div class="search"><i class="ti ti-search" aria-hidden="true"></i><input id="q" placeholder="Search campfires, courses, schools" /></div>
+      <div class="chips" id="chips"><div class="chip on" data-f="mine">My fires</div><div class="chip" data-f="school">My school</div><div class="chip" data-f="classes">Classes</div><div class="chip" data-f="popular">Popular</div></div>
+      <div class="code"><i class="ti ti-lock k" aria-hidden="true"></i>Have a code? Join a private campfire<i class="ti ti-chevron-right go" aria-hidden="true"></i></div>
+      <div class="startrow"><button id="start"><i class="ti ti-plus" aria-hidden="true"></i>Start a campfire of your own</button></div>
+    </div>
+    <div class="scrim" id="scrim"></div>
+    <div class="pv" id="pv">
+      <div class="grab"></div>
+      <div class="pvh"><span class="fi"><i class="ti ti-flame" aria-hidden="true"></i></span><div><div class="nm" id="pvnm">Laurier gym crew</div><div class="lv" id="pvlv">Campfire level 4</div></div><span class="tag" id="pvtag"><i class="ti ti-flame"></i>Open</span></div>
+      <div class="pvmeta"><div class="avs"><span>A</span><span>M</span><span>S</span><span>+15</span></div><div class="mt" id="pvmt">18 members · 3 locked in now</div></div>
+      <div class="pvphotos"><span style="background:#4a5a2b"></span><span style="background:#3a4a5a"></span><span style="background:#5a3a4a"></span></div>
+      <button class="pvcta" id="pvcta"><i class="ti ti-flame" aria-hidden="true"></i>Join Laurier gym crew</button>
+      <div class="pvnote" id="pvnote"></div>
+    </div>
+  </div></div>
+  <div class="cap">Page 2 of home (swipe from Your fire). Fires spaced out; a lock badge = gated. Tap a fire → preview (members, level, photos) → Join (open) / Request (gated). "Have a code?" joins private groups.</div>
+</div>
+<script>
+(function(){
+  var field=document.getElementById('field'),stage=document.getElementById('stage'),q=document.getElementById('q');
+  for(var k=0;k<12;k++){var st=document.createElement('div');st.className='star';st.style.left=(Math.random()*100)+'%';st.style.top=(Math.random()*36)+'%';field.appendChild(st);}
+  function flame(w,state){var h=Math.round(w*1.17);return '<div class="flame '+state+'"><svg width="'+w+'" height="'+h+'" viewBox="0 0 120 150" aria-hidden="true"><rect x="30" y="112" width="60" height="9" rx="4" fill="#8a5a2b" transform="rotate(18 60 116)"/><rect x="30" y="112" width="60" height="9" rx="4" fill="#6e4423" transform="rotate(-18 60 116)"/><circle cx="60" cy="116" r="4" fill="#F2A33C"/><g class="fl"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/><path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/></g></svg></div>';}
+  // well-separated slots (%): spread horizontally, staggered vertically
+  var slots=[[24,20],[70,16],[78,46],[30,52],[64,74],[22,80]];
+  var data={
+    mine:[{n:'Push day collective',c:'3 locked in',s:'roar',j:'mine',lv:5,m:6},{n:'Run club',c:'1 locked in',s:'steady',j:'mine',lv:2,m:5},{n:'gym baddies',c:'steady',s:'steady',j:'mine',lv:2,m:4},{n:'Sunrise lift',c:'gone cold',s:'dead',j:'mine',lv:1,m:4}],
+    school:[{n:'Laurier gym crew',c:'18 locked in',s:'roar',j:'open',lv:4,m:18},{n:'Late night library',c:'11 locked in',s:'roar',j:'open',lv:6,m:23},{n:'5AM runners',c:'2 locked in',s:'steady',j:'gated',lv:2,m:9},{n:'Res floor 3',c:'gone cold',s:'dead',j:'gated',lv:1,m:12}],
+    classes:[{n:'CP164 Data Struct',c:'2 helpers here',s:'roar',j:'open',lv:3,m:14},{n:'BU111 Business',c:'class · 9 in',s:'steady',j:'gated',lv:2,m:31},{n:'EC120 Micro',c:'class · 5 in',s:'steady',j:'open',lv:2,m:20}],
+    popular:[{n:'Deep work club',c:'22 locked in',s:'roar',j:'open',lv:7,m:140},{n:'Laurier gym crew',c:'18 locked in',s:'roar',j:'open',lv:4,m:18},{n:'Couch to 5K',c:'7 locked in',s:'steady',j:'gated',lv:3,m:44}]
+  };
+  var filter='mine';
+  function sizeFor(s){return s==='roar'?54:(s==='dead'?32:42);}
+  function render(){
+    stage.innerHTML='';
+    var items=data[filter].filter(function(it){return it.n.toLowerCase().indexOf(q.value.toLowerCase())>-1;});
+    items.forEach(function(d,i){
+      var pos=slots[i%slots.length];var w=sizeFor(d.s);
+      var node=document.createElement('div');node.className='node'+(d.mine?' mine':'');
+      node.style.left=pos[0]+'%';node.style.top=pos[1]+'%';
+      var lock=(d.j==='gated')?'<span class="lock"><i class="ti ti-lock"></i></span>':'';
+      node.innerHTML=flame(w,d.s)+lock+'<div class="lbl">'+d.n+'</div><div class="cue'+(d.s==='dead'?' cold':'')+'">'+d.c+'</div>';
+      var fl=node.querySelector('.flame');
+      if(d.s==='roar'){for(var j=0;j<4;j++){var sp=document.createElement('span');sp.className='spark';sp.style.left=(w*0.42+Math.random()*w*0.2)+'px';sp.style.bottom=(w*0.5)+'px';sp.style.animationDelay=(Math.random()*1.5)+'s';fl.appendChild(sp);}}
+      if(d.s==='dead'){for(var m=0;m<2;m++){var sm=document.createElement('span');sm.className='smoke';sm.style.left=(w*0.44)+'px';sm.style.bottom=(w*0.55)+'px';sm.style.animationDelay=(m*1.3)+'s';fl.appendChild(sm);}}
+      node.addEventListener('click',function(){openPreview(d);});
+      stage.appendChild(node);
+    });
+  }
+  function openPreview(d){
+    document.getElementById('pvnm').textContent=d.n;
+    document.getElementById('pvlv').textContent='Campfire level '+d.lv;
+    document.getElementById('pvmt').textContent=d.m+' member'+(d.m>1?'s':'')+' · '+d.c;
+    var tag=document.getElementById('pvtag'),cta=document.getElementById('pvcta'),note=document.getElementById('pvnote');
+    if(d.j==='mine'){tag.innerHTML='<i class="ti ti-flame"></i>Joined';cta.innerHTML='<i class="ti ti-arrow-right"></i>Open '+d.n;note.textContent='';}
+    else if(d.j==='gated'){tag.innerHTML='<i class="ti ti-lock"></i>Gated';cta.innerHTML='<i class="ti ti-hand-stop"></i>Request to join';note.textContent='The owner approves new members.';}
+    else{tag.innerHTML='<i class="ti ti-flame"></i>Open';cta.innerHTML='<i class="ti ti-flame"></i>Join '+d.n;note.textContent='Open campfire — you’re in instantly.';}
+    document.getElementById('scrim').classList.add('show');document.getElementById('pv').classList.add('show');
+  }
+  function closePreview(){document.getElementById('scrim').classList.remove('show');document.getElementById('pv').classList.remove('show');}
+  document.getElementById('scrim').addEventListener('click',closePreview);
+  document.getElementById('chips').addEventListener('click',function(e){var t=e.target.closest('.chip');if(!t)return;filter=t.dataset.f;[].forEach.call(this.children,function(c){c.classList.toggle('on',c===t);});render();});
+  q.addEventListener('input',render);
+  render();
+})();
+</script>

@@ -20,11 +20,18 @@ type Reason = (typeof REASONS)[number];
 
 export default function ReportScreen() {
   const router = useRouter();
-  const { checkInId, messageId, userId } = useLocalSearchParams<{
+  // groupId = reporting the circle itself (maps to reported_group_id). circleId = context only,
+  // for a profile report made from inside a specific circle (e.g. the leaderboard) — the other
+  // target types (message/check-in) don't need it, snapshot_reported_content() in schema.sql
+  // fills circle_id in for those automatically.
+  const { checkInId, messageId, userId, groupId, circleId } = useLocalSearchParams<{
     checkInId?: string;
     messageId?: string;
     userId?: string;
+    groupId?: string;
+    circleId?: string;
   }>();
+  const isCircleReport = Boolean(groupId) && !checkInId && !messageId && !userId;
   const [reason, setReason] = useState<Reason | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -41,6 +48,8 @@ export default function ReportScreen() {
         reported_check_in_id: checkInId ?? null,
         reported_message_id: messageId ?? null,
         reported_user_id: userId ?? null,
+        reported_group_id: isCircleReport ? groupId : null,
+        circle_id: circleId ?? null,
         reason,
       });
       if (insertError) throw insertError;

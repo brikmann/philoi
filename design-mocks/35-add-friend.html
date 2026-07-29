@@ -1,0 +1,63 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:15px 14px 12px;box-sizing:border-box;color:#FFF6EC}
+.hd{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.hd .bk{color:#a99cbd;font-size:20px;line-height:1}.hd .t{font-weight:500;font-size:17px}
+.search{display:flex;align-items:center;gap:9px;background:#241c38;border:1px solid rgba(224,97,44,.4);border-radius:12px;padding:10px 12px;margin-bottom:16px}
+.search svg{width:16px;height:16px;stroke:#a99cbd;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.search .q{flex:1;font-size:13px;color:#FFF6EC}
+.search .cur{width:1.5px;height:15px;background:#E0612C;display:inline-block;animation:blink 1s step-end infinite}
+.seclbl{font-size:10.5px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin:0 2px 9px}
+.row{display:flex;align-items:center;gap:10px;padding:8px 4px}
+.av{width:38px;height:38px;border-radius:999px;background:#3a2a22;display:flex;align-items:center;justify-content:center;font-size:14px;color:#FFD27A;flex:none}
+.who{flex:1;min-width:0}.nm{font-size:13.5px;font-weight:500}.un{font-size:11px;color:#a99cbd}
+.sub{font-size:10.5px;color:#7c7194;margin-top:1px}
+.btn{border:0;border-radius:999px;padding:7px 15px;font-size:12px;font-weight:500;font-family:var(--font-sans);cursor:pointer;flex:none;display:flex;align-items:center;gap:5px}
+.btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.add{background:#E0612C;color:#fff}
+.accept{background:#E0612C;color:#fff}
+.pending{background:#2d2740;color:#a99cbd;cursor:default}
+.friends{background:transparent;color:#7c7194;border:1px solid rgba(255,255,255,.14);cursor:default}
+.wants{font-size:10px;color:#FFD27A}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="hd"><span class="bk">‹</span><span class="t">Add friends</span></div>
+
+    <div class="search">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.2-3.2"/></svg>
+      <span class="q">ma</span><span class="cur"></span>
+    </div>
+
+    <div class="seclbl">Results</div>
+    <div id="list">
+      <div class="row"><span class="av">M</span><div class="who"><div class="nm">Maya Rivera</div><div class="un">@mayar</div><div class="sub">4 mutual friends</div></div>
+        <button class="btn add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button></div>
+      <div class="row"><span class="av">M</span><div class="who"><div class="nm">Marcus Webb</div><div class="un">@marcusw</div><div class="sub">Wilfrid Laurier</div></div>
+        <button class="btn pending" disabled>Requested</button></div>
+      <div class="row"><span class="av">M</span><div class="who"><div class="nm">Mateo Diaz</div><div class="un">@mateod</div><div class="sub wants">wants to add you</div></div>
+        <button class="btn accept">Accept</button></div>
+      <div class="row"><span class="av">M</span><div class="who"><div class="nm">Mara Lee</div><div class="un">@maral</div></div>
+        <button class="btn friends"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>Friends</button></div>
+    </div>
+
+    <div class="seclbl" style="margin-top:16px">Suggested · from your campfires</div>
+    <div class="row"><span class="av">P</span><div class="who"><div class="nm">Priya Shah</div><div class="un">@priyas</div><div class="sub">in Push day collective</div></div>
+      <button class="btn add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button></div>
+    <div class="row"><span class="av">L</span><div class="who"><div class="nm">Leo Brooks</div><div class="un">@leob</div><div class="sub">2 mutual friends</div></div>
+      <button class="btn add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add</button></div>
+  </div></div>
+  <div class="cap">Add-friend flow: search by <b>@username</b> or name → tap <b>Add</b> to send a request (→ "Requested"). If they already requested you it shows <b>Accept</b>; already-connected shows <b>Friends ✓</b>. "Suggested" surfaces people from shared campfires / mutuals. Tap the buttons.</div>
+</div>
+<script>
+document.getElementById('list').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  if(b.classList.contains('add')){b.className='btn pending';b.textContent='Requested';b.disabled=true;}
+  else if(b.classList.contains('accept')){b.className='btn friends';b.innerHTML='<svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M5 12l5 5L20 7"/></svg>Friends';b.disabled=true;}
+});
+document.querySelectorAll('.pcwrap .stage .row .btn.add').forEach(function(b){b.addEventListener('click',function(){b.className='btn pending';b.textContent='Requested';b.disabled=true;});});
+</script>

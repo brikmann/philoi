@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
   },
   timeChipActive: {
-    color: '#FFFFFF',
+    color: Colors.ink,
     backgroundColor: Colors.coral,
     borderColor: Colors.coral,
   },

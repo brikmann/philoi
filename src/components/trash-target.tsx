@@ -57,6 +57,6 @@ const styles = StyleSheet.create({
     color: Colors.cream,
   },
   labelHot: {
-    color: '#FFFFFF',
+    color: Colors.ink,
   },
 });

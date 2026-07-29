@@ -1,0 +1,64 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:16px 14px 12px;box-sizing:border-box;color:#FFF6EC}
+.h1{font-family:var(--font-sans);font-weight:500;font-size:18px;margin-bottom:12px}
+.start{width:100%;border:0;border-radius:14px;padding:13px;background:#E0612C;color:#fff;font-family:var(--font-sans);font-weight:500;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;margin-bottom:14px}
+.list{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:11px}
+.card{background:#241c38;border-radius:14px;padding:12px}
+.card.invite{border:1px solid #E0612C;background:#2b2036}
+.lbl{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.lbl .t{font-size:11px;color:#FFD27A;display:flex;align-items:center;gap:5px;font-weight:500}
+.lbl .clk{font-size:11px;color:#a99cbd;display:flex;align-items:center;gap:4px}
+.ttl{font-size:13.5px;font-weight:500;margin-bottom:9px}
+.vs{display:flex;align-items:center;gap:8px}
+.who{display:flex;align-items:center;gap:7px;flex:1}
+.who.r{flex-direction:row-reverse;text-align:right}
+.av{width:30px;height:30px;border-radius:999px;background:#3a2a22;border:1.5px solid #E0612C;display:flex;align-items:center;justify-content:center;font-size:12px;color:#FFD27A;flex:none}
+.av.g{border-color:#4a4460;color:#cbbfe0;background:#2d2740}
+.who .nm{font-size:12px;font-weight:500}
+.who .sc{font-size:11px;color:#a99cbd}
+.vtxt{font-size:11px;color:#7c7194;font-weight:500}
+.split{height:7px;border-radius:999px;background:#2d2740;overflow:hidden;display:flex;margin-top:9px}
+.split .a{background:#E0612C}.split .b{background:#4a4460}
+.foot{font-size:11.5px;color:#FFD27A;margin-top:9px;display:flex;align-items:center;gap:5px}
+.dots{display:flex;gap:5px;margin:9px 0}
+.dots span{flex:1;height:6px;border-radius:999px;background:#2d2740}
+.dots span.on{background:#3DA85C}
+.acts{display:flex;gap:8px;margin-top:4px}
+.acc{flex:1;border:0;border-radius:10px;padding:9px;background:#E0612C;color:#fff;font-size:12.5px;font-weight:500;font-family:var(--font-sans);cursor:pointer}
+.dec{flex:1;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:9px;background:transparent;color:#a99cbd;font-size:12.5px;font-family:var(--font-sans);cursor:pointer}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="h1">Challenges</div>
+    <button class="start"><i class="ti ti-plus" aria-hidden="true"></i>Start a challenge</button>
+    <div class="list">
+      <div class="card invite">
+        <div class="lbl"><span class="t"><i class="ti ti-swords" aria-hidden="true"></i>Head-to-head</span><span class="clk">Maya challenged you</span></div>
+        <div class="ttl">XP race · who earns more in 24h</div>
+        <div class="foot"><i class="ti ti-trophy" aria-hidden="true"></i>winner +200 XP</div>
+        <div class="acts"><button class="acc">Accept</button><button class="dec">Decline</button></div>
+      </div>
+      <div class="card">
+        <div class="lbl"><span class="t"><i class="ti ti-swords" aria-hidden="true"></i>Head-to-head</span><span class="clk"><i class="ti ti-clock" aria-hidden="true"></i>18h left</span></div>
+        <div class="vs">
+          <div class="who"><div class="av">Y</div><div><div class="nm">You</div><div class="sc">420 XP</div></div></div>
+          <div class="vtxt">vs</div>
+          <div class="who r"><div class="av g">A</div><div><div class="nm">Aidan</div><div class="sc">380 XP</div></div></div>
+        </div>
+        <div class="split"><div class="a" style="width:52%"></div><div class="b" style="width:48%"></div></div>
+        <div class="foot"><i class="ti ti-trophy" aria-hidden="true"></i>winner +200 XP · you're ahead</div>
+      </div>
+      <div class="card">
+        <div class="lbl"><span class="t"><i class="ti ti-users" aria-hidden="true"></i>Group · all or nothing</span><span class="clk"><i class="ti ti-clock" aria-hidden="true"></i>4d left</span></div>
+        <div class="ttl">Everyone locks in 5× this week</div>
+        <div class="dots"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div>
+        <div class="foot"><i class="ti ti-trophy" aria-hidden="true"></i>4 of 6 done · +300 XP each if everyone finishes</div>
+      </div>
+    </div>
+  </div></div>
+</div>

@@ -32,7 +32,7 @@ async function ensureNotificationChannels() {
   });
   await Notifications.setNotificationChannelAsync('messages', {
     name: 'Messages',
-    description: 'Circle chat.',
+    description: 'Campfire chat.',
     importance: Notifications.AndroidImportance.DEFAULT,
   });
 }
@@ -119,7 +119,7 @@ export async function setGroupReminder(input: {
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
       title: `${input.groupName} — don't break the streak 🔥`,
-      body: "Your circle's counting on you. Lock in today.",
+      body: "Your Campfire's counting on you. Lock in today.",
     },
     // DAILY, not CALENDAR — CALENDAR triggers are iOS-only in expo-notifications.
     trigger: {

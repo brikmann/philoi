@@ -1,0 +1,65 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:18px 16px 14px;box-sizing:border-box;color:#FFF6EC}
+.hd{font-weight:500;font-size:22px}
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.hero .fl{transform-origin:50% 100%;animation:flick 1.6s ease-in-out infinite}
+.start{font-size:15px;font-weight:500;margin-top:10px}
+.pills{display:flex;gap:9px;margin-top:14px;width:100%}
+.pill{flex:1;border:0;border-radius:14px;padding:13px 8px;font-size:13.5px;font-weight:500;font-family:var(--font-sans);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px}
+.pill.friend{background:#E0612C;color:#fff}
+.pill.camp{background:#2b2036;border:1px solid #E0612C;color:#FFD27A}
+.pill svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* challenge log */
+.log{margin-top:16px}
+.log .h{font-size:11px;color:#7c7194;margin-bottom:9px}
+.crow{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px}
+.crow .ic{width:28px;height:28px;border-radius:8px;background:#241c38;display:flex;align-items:center;justify-content:center;flex:none;color:#a99cbd}
+.crow .ic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.crow .m{flex:1;min-width:0}
+.crow .nm{font-weight:500}
+.crow .sub{font-size:10.5px;color:#7c7194}
+.crow .res{font-size:12.5px;font-weight:500}
+.win{color:#3DA85C}.loss{color:#E86A5A}.neutral{color:#FFD27A}
+.rematch{border:1px solid #E0612C;background:transparent;color:#FFD27A;border-radius:999px;padding:3px 10px;font-size:10.5px;font-weight:500;font-family:var(--font-sans);cursor:pointer;margin-top:3px}
+.rescol{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.05) scaleX(.97)}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="hd">Challenges</div>
+
+    <div class="hero">
+      <!-- flaming arrow struck in the target -->
+      <svg width="140" height="118" viewBox="0 0 140 118" fill="none" stroke="#cbbfe0" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="84" cy="60" r="36"/><circle cx="84" cy="60" r="23"/><circle cx="84" cy="60" r="10"/>
+        <circle cx="84" cy="60" r="2.6" fill="#cbbfe0" stroke="none"/>
+        <line x1="16" y1="16" x2="80" y2="57"/>
+        <path d="M80 57 l-11 0 M80 57 l0 -11"/>
+        <path d="M16 16 l8 -3 M16 16 l3 8"/>
+        <g class="fl">
+          <path d="M31 25 c4 4 6 8 3 11 c-2 2 -5 1 -5 -2 c1 1 3 1 3 0 c1 -1 0 -3 -1 -4"/>
+          <path d="M45 36 c3 3 5 6 2 8 c-2 1 -4 0 -4 -2 c1 1 2 1 2 0"/>
+        </g>
+      </svg>
+      <div class="start">Start a challenge</div>
+      <div class="pills">
+        <button class="pill friend"><svg viewBox="0 0 24 24"><path d="M13 6l4 4M15 4l5 5-9 9-5 1 1-5z"/><path d="M4 20l4-1"/></svg>Challenge a friend</button>
+        <button class="pill camp"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="16" cy="9" r="2.4"/><path d="M4 19c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5"/><path d="M14.5 15c2.2.2 3.5 1.8 3.5 4"/></svg>Challenge a campfire</button>
+      </div>
+    </div>
+
+    <div class="log">
+      <div class="h">Challenge log</div>
+      <div class="crow"><span class="ic"><svg viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 9-11h-6z"/></svg></span><div class="m"><div class="nm">vs Aidan</div><div class="sub">🏋️ Most XP · 24h</div></div><span class="res win">Won +200</span></div>
+      <div class="crow"><span class="ic"><svg viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 9-11h-6z"/></svg></span><div class="m"><div class="nm">vs Maya</div><div class="sub">📚 Lock-in time · 3 days</div></div><span class="rescol"><span class="res loss">Lost</span><button class="rematch">Rematch?</button></span></div>
+      <div class="crow"><span class="ic"><svg viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 9-11h-6z"/></svg></span><div class="m"><div class="nm">vs Dee</div><div class="sub">🏃 Most XP · 24h · rematch</div></div><span class="res win">Redemption +300</span></div>
+      <div class="crow"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="16" cy="9" r="2.4"/><path d="M4 19c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5"/></svg></span><div class="m"><div class="nm">Push day collective</div><div class="sub">🏋️ Everyone 5× · 2nd of 6</div></div><span class="res neutral">+1.5× · 450</span></div>
+    </div>
+  </div></div>
+  <div class="cap">Challenges hero (like home): crisp grey arrow-target + "Start a challenge" + two pills (<b>Challenge a friend</b> / <b>Challenge a campfire</b>). Below, the <b>Challenge log</b> — friend wins <span style="color:#3DA85C">green</span>, losses <span style="color:#E86A5A">red</span> with a <b>Rematch?</b> button; a won rematch = <span style="color:#3DA85C">Redemption +300</span> (worth more than the original +200). Group = neutral with a <b>placement reward</b> (2nd of 6 → +1.5×). Each row also carries the challenge's user-picked activity emoji.</div>
+</div>

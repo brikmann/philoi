@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { fetchMyGroups, type MyGroup } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -18,7 +18,7 @@ export function useMyGroups() {
       const data = await fetchMyGroups(session.user.id);
       setGroups(data);
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not load your circles.'));
+      setError(getErrorMessage(e, 'Could not load your Campfires.'));
     } finally {
       setLoading(false);
     }
@@ -29,6 +29,15 @@ export function useMyGroups() {
       refetch();
     }, [refetch])
   );
+
+  // useFocusEffect only re-fires on an actual focus event, not on `refetch`'s identity
+  // changing — if this hook's consumer (e.g. the valley page) is already focused at the
+  // moment auth restore finishes (session flips from null to real), the effect above never
+  // reruns and `groups` stays permanently empty until the user leaves and returns to the tab.
+  // This plain effect closes that race (e.g. "My fires shows nothing though I'm in a campfire").
+  useEffect(() => {
+    if (session) refetch();
+  }, [session, refetch]);
 
   return { groups, loading, error, refetch };
 }

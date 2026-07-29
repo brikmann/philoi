@@ -3,6 +3,14 @@ import { createClient } from '@/lib/supabase/server';
 import { StatTile } from '@/components/stat-tile';
 import { MetricChart } from '@/components/metric-chart';
 
+// Next's fetch Data Cache can still cache the Supabase REST calls this page makes even
+// though the route itself renders dynamically (cookies() usage already forces that) — the
+// content browser's dynamic [groupId]/[userId] segments incidentally bust that cache on
+// every navigation, but this page hits the exact same query every time, so it was the one
+// place stale data actually surfaced (fixed by refresh only after a new session/token).
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 type DailySignups = { day: string; signups: number };
 type DailyActive = { day: string; dau: number };
 type WeeklyActive = { week: string; wau: number };

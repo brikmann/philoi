@@ -4,6 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import { logAdminEvent } from '@/lib/audit';
 import type { ChatMessage, CheckIn, Profile } from '@/lib/types';
 
+// See metrics/page.tsx — Next's fetch Data Cache can serve stale Supabase results here too.
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 export default async function UserDetailPage({
   params,
 }: {

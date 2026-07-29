@@ -5,6 +5,10 @@ import { logAdminEvent } from '@/lib/audit';
 import { ActionButtons } from '@/components/action-buttons';
 import type { ChatMessage, ModerationReport, Profile } from '@/lib/types';
 
+// See metrics/page.tsx — Next's fetch Data Cache can serve stale Supabase results here too.
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 const PHOTO_BUCKET = 'check-in-photos';
 
 export default async function ReportDetailPage({

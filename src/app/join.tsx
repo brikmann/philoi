@@ -34,7 +34,7 @@ export default function JoinScreen() {
       track('invite_accepted', { group_id: group.id });
       router.replace(`/group/${group.id}`);
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not find that circle.'));
+      setError(getErrorMessage(e, 'Could not find that Campfire.'));
     } finally {
       setLoading(false);
     }
@@ -53,9 +53,9 @@ export default function JoinScreen() {
       <Screen dark style={styles.container}>
         <View style={styles.signInPrompt}>
           <Text style={[styles.title, styles.titleOnDark]}>
-            Join {params.code ? `with code ${params.code.toUpperCase()}` : 'a circle'}
+            Join {params.code ? `with code ${params.code.toUpperCase()}` : 'a Campfire'}
           </Text>
-          <Text style={[styles.body, styles.bodyOnDark]}>Sign in first — your circle’s waiting.</Text>
+          <Text style={[styles.body, styles.bodyOnDark]}>Sign in first — your Campfire’s waiting.</Text>
           <PrimaryButton
             label="Continue with Google"
             onPress={() => signInWithGoogle().catch((e) => setError(getErrorMessage(e, 'Something went wrong — try again.')))}
@@ -72,7 +72,7 @@ export default function JoinScreen() {
         <View style={styles.icon}>
           <FlameIcon size={48} />
         </View>
-        <Text style={styles.title}>Join a circle</Text>
+        <Text style={styles.title}>Join a Campfire</Text>
         <Text style={styles.body}>Paste or type the code your friend shared.</Text>
         <TextInput
           autoCapitalize="characters"
@@ -82,7 +82,7 @@ export default function JoinScreen() {
           maxLength={6}
         />
         {error && <Text style={styles.error}>{error}</Text>}
-        <PrimaryButton label="Join circle" onPress={() => handleJoin(code)} loading={loading} />
+        <PrimaryButton label="Join Campfire" onPress={() => handleJoin(code)} loading={loading} />
       </View>
     </Screen>
   );

@@ -1,0 +1,62 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--border:rgba(255,255,255,.1);--border-strong:rgba(255,255,255,.2);--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:16px 14px 12px;box-sizing:border-box;color:#FFF6EC}
+.h1{font-family:var(--font-sans);font-weight:500;font-size:18px;margin-bottom:12px}
+.pills{display:flex;gap:6px}
+.pill{flex:1;text-align:center;background:#241c38;border-radius:999px;padding:8px 4px;font-size:11.5px;color:#a99cbd;cursor:pointer;border:1px solid transparent}
+.pill.on{background:#2b2036;border-color:#E0612C;color:#FFD27A}
+.metric{display:flex;gap:6px;margin-top:8px}
+.metric .pill{flex:none;padding:6px 16px;font-size:12px}
+.list{flex:1;overflow:hidden;margin-top:12px;display:flex;flex-direction:column;gap:2px}
+.row{display:flex;align-items:center;gap:9px;padding:8px 8px;border-radius:12px}
+.row.you{background:#2b2036;border:1px solid #E0612C}
+.pos{width:18px;text-align:center;font-size:12px;color:#7c7194;font-weight:500;flex:none}
+.av{width:30px;height:30px;border-radius:999px;background:#3a2a22;display:flex;align-items:center;justify-content:center;font-size:12px;color:#FFD27A;flex:none}
+.who{flex:1;min-width:0}
+.nm{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{font-size:10.5px;color:#a99cbd}
+.hx{width:15px;height:16px;clip-path:polygon(50% 2%,95% 26%,95% 74%,50% 98%,5% 74%,5% 26%);flex:none}
+.val{font-size:13px;font-weight:500;color:#FFF6EC;white-space:nowrap}
+.val span{font-size:10px;color:#a99cbd;font-weight:400}
+.gap{text-align:center;color:#4a4460;font-size:14px;letter-spacing:2px;padding:2px}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="h1">Leaderboard</div>
+    <div class="pills" id="scopes"><div class="pill on" data-s="camp">Campfires</div><div class="pill" data-s="uni">My uni</div><div class="pill" data-s="vs">Vs. unis</div></div>
+    <div class="metric" id="metrics"><div class="pill on" data-m="xp">XP</div><div class="pill" data-m="streak">Streaks</div></div>
+    <div class="list" id="list"></div>
+  </div></div>
+</div>
+<script>
+(function(){
+  var tierCol={Bronze:'#B87333',Silver:'#C4CBD6',Gold:'#F5C542',Diamond:'#7FE0E8',Infernal:'#E0612C'};
+  var camp=[{n:'Aidan T',xp:8420,st:14,t:'Gold'},{n:'You',xp:7100,st:9,t:'Gold',you:1},{n:'Maya R',xp:6890,st:11,t:'Gold'},{n:'Sam K',xp:5100,st:6,t:'Silver'},{n:'Dee L',xp:4300,st:4,t:'Silver'},{n:'Noor A',xp:3820,st:7,t:'Silver'}];
+  var uni=[{n:'Priya S',xp:21400,st:31,t:'Diamond'},{n:'Marcus W',xp:18300,st:22,t:'Diamond'},{n:'Jenna F',xp:15600,st:12,t:'Diamond'},{n:'Leo B',xp:12800,st:19,t:'Gold'},{n:'You',xp:7100,st:9,t:'Gold',you:1,rank:142}];
+  var vs=[{n:'Wilfrid Laurier',xp:1240000,you:1},{n:'UWaterloo',xp:980000},{n:'UofT',xp:870000}];
+  var scope='camp',metric='xp',list=document.getElementById('list');
+  function hex(t){return '<span class="hx" style="background:'+tierCol[t]+'"></span>';}
+  function fmt(n){return n.toLocaleString();}
+  function render(){
+    document.getElementById('metrics').style.display = scope==='vs' ? 'none' : 'flex';
+    var m = scope==='vs' ? 'xp' : metric;
+    list.innerHTML='';
+    if(scope==='vs'){vs.forEach(function(s,i){list.innerHTML+='<div class="row'+(s.you?' you':'')+'"><span class="pos">'+(i+1)+'</span><span class="av"><i class="ti ti-building-community" aria-hidden="true"></i></span><div class="who"><div class="nm">'+s.n+(s.you?' · you':'')+'</div><div class="sub">campus total</div></div><div class="val">'+fmt(s.xp)+' <span>XP</span></div></div>';});return;}
+    var data=(scope==='camp'?camp:uni).slice();
+    data.sort(function(a,b){return m==='xp'? b.xp-a.xp : b.st-a.st;});
+    data.forEach(function(p,i){
+      var val = m==='xp' ? (fmt(p.xp)+' <span>XP</span>') : ('<i class="ti ti-flame" aria-hidden="true" style="color:#F2A33C;font-size:12px"></i> '+p.st+'<span>d</span>');
+      var pos = (scope==='uni'&&p.rank)? p.rank : (i+1);
+      list.innerHTML+='<div class="row'+(p.you?' you':'')+'"><span class="pos">'+pos+'</span><span class="av">'+p.n.charAt(0)+'</span><div class="who"><div class="nm">'+p.n+'</div><div class="sub">'+p.t+'</div></div>'+hex(p.t)+'<div class="val">'+val+'</div></div>';
+      if(scope==='uni'&&i===3){list.innerHTML+='<div class="gap">···</div>';}
+    });
+  }
+  document.getElementById('scopes').addEventListener('click',function(e){var t=e.target.closest('.pill');if(!t)return;scope=t.dataset.s;[].forEach.call(this.children,function(c){c.classList.toggle('on',c===t);});render();});
+  document.getElementById('metrics').addEventListener('click',function(e){var t=e.target.closest('.pill');if(!t)return;metric=t.dataset.m;[].forEach.call(this.children,function(c){c.classList.toggle('on',c===t);});render();});
+  render();
+})();
+</script>

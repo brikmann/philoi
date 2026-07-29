@@ -7,20 +7,27 @@ type PrimaryButtonProps = {
   onPress?: (e: GestureResponderEvent) => void;
   disabled?: boolean;
   loading?: boolean;
+  variant?: 'primary' | 'cold';
 };
 
-export function PrimaryButton({ label, onPress, disabled, loading }: PrimaryButtonProps) {
+export function PrimaryButton({ label, onPress, disabled, loading, variant = 'primary' }: PrimaryButtonProps) {
   const isDisabled = disabled || loading;
+  const isCold = variant === 'cold';
   return (
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
       style={({ pressed }) => [
         styles.button,
+        isCold && styles.buttonCold,
         isDisabled && styles.disabled,
         pressed && !isDisabled && styles.pressed,
       ]}>
-      {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.label}>{label}</Text>}
+      {loading ? (
+        <ActivityIndicator color={isCold ? Colors.coldButtonText : Colors.ink} />
+      ) : (
+        <Text style={[styles.label, isCold && styles.labelCold]}>{label}</Text>
+      )}
     </Pressable>
   );
 }
@@ -35,6 +42,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...Shadow.primaryButton,
   },
+  buttonCold: {
+    backgroundColor: Colors.coldChipBg,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   disabled: {
     backgroundColor: Colors.disabled,
     shadowOpacity: 0,
@@ -44,8 +56,11 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   label: {
-    color: '#FFFFFF',
+    color: Colors.ink,
     fontFamily: Fonts.display,
     fontSize: 16,
+  },
+  labelCold: {
+    color: Colors.coldButtonText,
   },
 });

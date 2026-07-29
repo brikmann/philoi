@@ -61,6 +61,7 @@ export async function logChallengeProgress(
   const row = (data ?? [])[0];
   if (!row) throw new Error('Could not log progress — try again.');
   const { just_completed, ...challenge } = row;
+  track('challenge_logged', { challenge_id: challengeId, type: challenge.type, amount });
   if (just_completed) {
     track('challenge_completed', { challenge_id: challengeId, type: challenge.type });
   }

@@ -1,0 +1,141 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:16px 16px 16px;box-sizing:border-box;color:#FFF6EC}
+.hd{display:flex;align-items:center;gap:8px}
+.hd .fi{width:24px;height:24px;border-radius:7px;background:#3a2a22;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:14px}
+.hd .t{font-weight:500;font-size:15px}
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.hero .fl{transform-origin:50% 88%;animation:flick 1.7s ease-in-out infinite}
+.streak{font-size:12px;color:#FFD27A;margin-top:5px}
+.cta{width:100%;border:0;border-radius:14px;padding:13px;font-size:15px;font-weight:500;font-family:var(--font-sans);color:#fff;background:#E0612C;cursor:pointer;margin-top:6px}
+/* ---- FLAME METER ---- */
+.fm{margin-top:16px}
+.fmhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.fmhead .lbl{font-weight:500;font-size:13px;display:flex;align-items:center;gap:6px}
+.fmhead .lbl i{color:#F2A33C}
+.fmval{color:#FFD27A;font-weight:500;font-size:12px}
+.fmbar{position:relative;height:20px;border-radius:999px;background:#241c38;border:1px solid rgba(255,255,255,.07)}
+.fmfill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg,#E0612C,#F2A33C);transition:width .7s cubic-bezier(.2,.7,.3,1);animation:fillglow 2.6s ease-in-out infinite;overflow:hidden;will-change:box-shadow}
+.fmfill::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 22%,rgba(255,243,220,.28) 50%,transparent 78%);background-size:220% 100%;animation:shimmer 3s linear infinite}
+.fmbar.full .fmfill{background:linear-gradient(90deg,#E0612C,#F2A33C,#FFD27A);animation:none;box-shadow:0 0 11px rgba(242,163,60,.42)}
+.parts{position:absolute;inset:0;overflow:visible;pointer-events:none}
+.ember{position:absolute;bottom:4px;border-radius:999px;background:radial-gradient(circle at 50% 40%,#FFF3DC,#F2A33C 70%);opacity:0;animation:emb var(--d,1.9s) cubic-bezier(.35,0,.45,1) infinite;will-change:transform,opacity}
+.flame{position:absolute;width:0;height:0;transform-origin:0 0}
+.lick{position:absolute;bottom:0;border-radius:50% 50% 46% 46%/60% 60% 42% 42%;background:linear-gradient(#FFE9C7,#F2A33C 55%,#E0612C);transform-origin:50% 100%;filter:blur(1.1px);opacity:.45;animation:lick var(--ld,.7s) ease-in-out infinite;will-change:transform,opacity}
+.fmnote{font-size:11px;color:#7c7194;margin-top:8px}
+.done{margin-top:10px;background:#2b2036;border:1px solid #E0612C;border-radius:12px;padding:10px 12px;display:none;align-items:center;gap:9px}
+.done.show{display:flex}
+.done .ic{color:#F2A33C;font-size:20px}
+.done .a{font-size:12.5px;font-weight:500;color:#FFD27A}
+.done .b{font-size:10.5px;color:#a99cbd;margin-top:1px}
+.done .share{margin-left:auto;font-size:10.5px;color:#FFD27A;background:#3a2a22;border-radius:999px;padding:5px 9px;display:inline-flex;gap:4px;align-items:center}
+/* rank below */
+.rank{display:flex;align-items:center;gap:10px;margin-top:16px}
+.hex{width:32px;height:35px;clip-path:polygon(50% 2%,95% 26%,95% 74%,50% 98%,5% 74%,5% 26%);background:#9A6A12;display:flex;align-items:center;justify-content:center;flex:none;color:#4A3406;font-weight:500;font-size:11px}
+.rk{flex:1}
+.rk .top{display:flex;justify-content:space-between;font-size:11px;color:#a99cbd}
+.trk{height:6px;background:#2d2740;border-radius:999px;margin-top:5px;overflow:hidden}
+.trk i{display:block;height:100%;width:76%;background:#4a4460;border-radius:999px}
+.demo{display:flex;gap:6px}
+.demo button{background:#2d2740;border:1px solid rgba(255,255,255,.12);color:#cbbfe0;border-radius:999px;padding:6px 12px;font-size:12px;font-family:var(--font-sans);cursor:pointer}
+.demo button.on{background:#2b2036;border-color:#E0612C;color:#FFD27A}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.05) scaleX(.97)}}
+@keyframes emb{0%{transform:translate(0,0) scale(.55);opacity:0}14%{opacity:.95}70%{opacity:.5}100%{transform:translate(var(--dx,0),-34px) scale(.12);opacity:0}}
+@keyframes lick{0%,100%{transform:scaleY(1) scaleX(1) skewX(0);opacity:.38}30%{transform:scaleY(1.12) scaleX(.95) translateY(-1px) skewX(2deg);opacity:.5}62%{transform:scaleY(.97) scaleX(1.03) skewX(-2deg);opacity:.34}}
+@keyframes shimmer{0%{background-position:180% 0}100%{background-position:-80% 0}}
+@keyframes fillglow{0%,100%{box-shadow:0 0 9px rgba(224,97,44,.35)}50%{box-shadow:0 0 15px rgba(242,163,60,.5)}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="hd"><span class="fi"><i class="ti ti-flame" aria-hidden="true"></i></span><span class="t">Your fire</span></div>
+    <div class="hero">
+      <svg width="70" height="82" viewBox="0 0 120 150" aria-hidden="true"><rect x="30" y="112" width="60" height="9" rx="4" fill="#8a5a2b" transform="rotate(18 60 116)"/><rect x="30" y="112" width="60" height="9" rx="4" fill="#6e4423" transform="rotate(-18 60 116)"/><g class="fl"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/><path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/></g></svg>
+      <div class="streak"><i class="ti ti-flame" aria-hidden="true"></i> 1-day streak</div>
+    </div>
+    <button class="cta">Lock in</button>
+
+    <div class="fm">
+      <div class="fmhead"><span class="lbl"><i class="ti ti-flame" aria-hidden="true"></i>Today's fire</span><span class="fmval" id="fmval">100 / 300 XP</span></div>
+      <div class="fmbar" id="fmbar"><div class="fmfill" id="fmfill" style="width:33%"></div><div class="parts" id="parts"></div></div>
+      <div class="fmnote" id="fmnote">Nice start — keep feeding it.</div>
+      <div class="done" id="done"><i class="ti ti-flame ic" aria-hidden="true"></i><div><div class="a">Today's fire is complete!</div><div class="b">+50 XP · +5 embers</div></div><span class="share"><i class="ti ti-send"></i>Share</span></div>
+    </div>
+
+    <div class="rank"><div class="hex">III</div><div class="rk"><div class="top"><span>Bronze III</span><span>152 / 200 XP</span></div><div class="trk"><i></i></div></div></div>
+  </div></div>
+  <div class="demo">
+    <button data-p="0">Empty</button>
+    <button class="on" data-p="33">⅓</button>
+    <button data-p="66">⅔</button>
+    <button data-p="100">Full 🔥</button>
+  </div>
+  <div class="cap">Daily <b>flame meter</b> — an XP goal for the day, sits below the Lock-in hero, above your rank. ⅓ = slow embers · ⅔ = more particles · full = the bar burns — small flames ring the whole perimeter (pointing outward) + steady rising embers (+bonus XP, embers, a fill sound). Completing it can publish to campfires (opt-in).</div>
+</div>
+<script>
+(function(){
+  var bar=document.getElementById('fmbar'),fill=document.getElementById('fmfill'),parts=document.getElementById('parts'),
+      val=document.getElementById('fmval'),note=document.getElementById('fmnote'),done=document.getElementById('done'),
+      goal=300;
+  var notes={0:"Lock in to start today's fire.",33:"Nice start — keep feeding it.",66:"1 more lock-in to complete today's fire.",100:"Today's fire is roaring."};
+  function render(pct){
+    fill.style.width=pct+'%';
+    val.textContent=Math.round(goal*pct/100)+' / '+goal+' XP';
+    note.style.display = pct>=100 ? 'none':'block';
+    note.textContent=notes[pct]||'';
+    bar.classList.toggle('full',pct>=100);
+    done.classList.toggle('show',pct>=100);
+    parts.innerHTML='';
+    var w=bar.clientWidth, filled=w*pct/100;
+    if(pct<=0) return;
+    var count = pct>=100?8 : Math.max(5,Math.round(pct/100*13));
+    var base  = pct>=100?1.7 : (pct>=66?1.6:2.1);    // rise duration (full = calmer)
+    for(var i=0;i<count;i++){
+      var e=document.createElement('span');e.className='ember';
+      // even spread across the filled width + small jitter → no clumping
+      var frac=(i+Math.random()*0.7)/count;
+      e.style.left=(4+frac*Math.max(2,filled-8)).toFixed(1)+'px';
+      var d=base*(0.85+Math.random()*0.4);
+      e.style.setProperty('--d',d.toFixed(2)+'s');
+      e.style.setProperty('--dx',((Math.random()-0.5)*12).toFixed(0)+'px');
+      // negative, phase-spread delay → stream starts already mid-flight, continuous
+      e.style.animationDelay=(-(i/count)*d).toFixed(2)+'s';
+      var s=(pct>=66?4:3)+Math.random()*1.6;
+      e.style.width=e.style.height=s.toFixed(1)+'px';
+      parts.appendChild(e);
+    }
+    if(pct>=100){ // full = flames burning around the whole PERIMETER of the bar (pointing outward)
+      var H=bar.clientHeight||20, r=H/2, W=filled, step=9;
+      function addFlame(px,py,rot){
+        var f=document.createElement('span');f.className='flame';
+        f.style.left=px.toFixed(1)+'px';f.style.top=py.toFixed(1)+'px';
+        f.style.transform='rotate('+rot.toFixed(1)+'deg)';
+        var l=document.createElement('span');l.className='lick';
+        var w=4+Math.random()*2, h=4+Math.random()*2.5, ld=0.6+Math.random()*0.4;
+        l.style.width=w.toFixed(0)+'px';l.style.height=h.toFixed(0)+'px';l.style.left=(-w/2).toFixed(1)+'px';
+        l.style.setProperty('--ld',ld.toFixed(2)+'s');
+        l.style.animationDelay=(-(Math.random()*ld)).toFixed(2)+'s';
+        f.appendChild(l);parts.appendChild(f);
+      }
+      var x;
+      for(x=r;x<=W-r;x+=step) addFlame(x,0,0);                       // top edge → up
+      for(var a=-Math.PI/2;a<=Math.PI/2+0.01;a+=step/r)              // right cap → outward
+        addFlame((W-r)+r*Math.cos(a), r+r*Math.sin(a), Math.atan2(Math.sin(a),Math.cos(a))*180/Math.PI+90);
+      for(x=W-r;x>=r;x-=step) addFlame(x,H,180);                     // bottom edge → down
+      for(var b=Math.PI/2;b<=3*Math.PI/2+0.01;b+=step/r)             // left cap → outward
+        addFlame(r+r*Math.cos(b), r+r*Math.sin(b), Math.atan2(Math.sin(b),Math.cos(b))*180/Math.PI+90);
+    }
+  }
+  document.querySelector('.demo').addEventListener('click',function(ev){
+    var b=ev.target.closest('button');if(!b)return;
+    [].forEach.call(this.children,function(c){c.classList.toggle('on',c===b);});
+    render(+b.dataset.p);
+  });
+  render(33);
+  window.addEventListener('resize',function(){var on=document.querySelector('.demo .on');render(on?+on.dataset.p:0);});
+})();
+</script>

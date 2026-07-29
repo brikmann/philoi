@@ -5,26 +5,17 @@ export type ChatMessage = Message & {
   profiles: { display_name: string; avatar_url: string | null; handle: string | null };
 };
 
+// Blocking is enforced server-side by the "messages: read if member" RLS policy (mutual —
+// hides in both directions), not filtered here — a direct API or Realtime call bypassing this
+// function would otherwise still see a blocked user's messages. See schema.sql's
+// is_blocked_either_way().
 export async function fetchMessages(groupId: string): Promise<ChatMessage[]> {
-  const { data: session } = await supabase.auth.getSession();
-  const viewerId = session.session?.user.id;
-
-  const { data: blocked } = viewerId
-    ? await supabase.from('blocked_users').select('blocked_id').eq('blocker_id', viewerId)
-    : { data: null };
-  const blockedIds = (blocked ?? []).map((b) => b.blocked_id);
-
-  let query = supabase
+  const { data, error } = await supabase
     .from('messages')
     .select('*, profiles(display_name, avatar_url, handle)')
     .eq('group_id', groupId)
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
-  if (blockedIds.length > 0) {
-    query = query.not('user_id', 'in', `(${blockedIds.join(',')})`);
-  }
-
-  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as unknown as ChatMessage[];
 }

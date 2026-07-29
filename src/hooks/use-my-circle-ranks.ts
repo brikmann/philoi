@@ -15,7 +15,7 @@ export function useMyCircleRanks() {
       setError(null);
       setRanks(await fetchMyCircleRanks());
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not load your circle rankings.'));
+      setError(getErrorMessage(e, 'Could not load your Campfire rankings.'));
     } finally {
       setLoading(false);
     }

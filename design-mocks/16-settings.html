@@ -1,0 +1,37 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:15px 14px;box-sizing:border-box;color:#FFF6EC}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.top i{color:#a99cbd;font-size:20px}.top .t{font-family:var(--font-sans);font-weight:500;font-size:18px}
+.pf{display:flex;align-items:center;gap:12px;background:#241c38;border-radius:14px;padding:12px;cursor:pointer;margin-bottom:18px}
+.pf .av{width:46px;height:46px;border-radius:999px;background:#3a2a22;display:flex;align-items:center;justify-content:center;font-size:19px;color:#FFD27A;flex:none}
+.pf .nm{font-size:15px;font-weight:500}.pf .h{font-size:12px;color:#a99cbd}.pf .ch{margin-left:auto;color:#a99cbd;font-size:18px}
+.lbl{font-size:11px;color:#7c7194;margin:0 0 8px 2px}
+.grp{background:#241c38;border-radius:14px;overflow:hidden;margin-bottom:18px}
+.row{display:flex;align-items:center;gap:12px;padding:13px 13px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)}
+.row:last-child{border-bottom:0}
+.row .ic{color:#F2A33C;font-size:19px;width:22px;text-align:center;flex:none}
+.row .m{flex:1;font-size:14px}.row .v{font-size:12.5px;color:#a99cbd}.row .ch{color:#7c7194;font-size:17px}
+.row.danger .ic,.row.danger .m{color:#E24B4A}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="top"><i class="ti ti-chevron-left" aria-hidden="true"></i><span class="t">Settings</span></div>
+    <div class="pf"><div class="av">N</div><div><div class="nm">Noah B</div><div class="h">@noahb · view profile</div></div><i class="ti ti-chevron-right ch" aria-hidden="true"></i></div>
+    <div class="lbl">PREFERENCES</div>
+    <div class="grp">
+      <div class="row"><i class="ti ti-bell ic" aria-hidden="true"></i><span class="m">Notifications</span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></div>
+      <div class="row"><i class="ti ti-photo ic" aria-hidden="true"></i><span class="m">Who can see my photos</span><span class="v">Campfires</span></div>
+      <div class="row"><i class="ti ti-target ic" aria-hidden="true"></i><span class="m">Manage goal types</span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></div>
+    </div>
+    <div class="lbl">ACCOUNT</div>
+    <div class="grp">
+      <div class="row"><i class="ti ti-logout ic" aria-hidden="true"></i><span class="m">Sign out</span></div>
+      <div class="row danger"><i class="ti ti-trash ic" aria-hidden="true"></i><span class="m">Delete account</span></div>
+    </div>
+  </div></div>
+</div>

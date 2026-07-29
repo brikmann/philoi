@@ -3,6 +3,10 @@ import { requireAdmin } from '@/lib/require-admin';
 import { createClient } from '@/lib/supabase/server';
 import type { ModerationReport } from '@/lib/types';
 
+// See metrics/page.tsx — Next's fetch Data Cache can serve stale Supabase results here too.
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 const STATUS_FILTERS = ['open', 'reviewed', 'actioned', 'dismissed', 'all'] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 

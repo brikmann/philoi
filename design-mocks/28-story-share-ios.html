@@ -1,0 +1,72 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#000;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;border-radius:26px;overflow:hidden;color:#FFF6EC}
+/* the composed 9:16 story image */
+.card{position:absolute;inset:0;background:radial-gradient(130% 66% at 50% 30%,#3a1f2e 0%,#241528 34%,#1b1726 66%);display:flex;flex-direction:column;align-items:center;padding:52px 20px 26px;box-sizing:border-box}
+.brandtop{font-family:var(--font-sans);font-weight:600;font-size:13px;letter-spacing:1px;color:#FFD27A;display:flex;align-items:center;gap:6px;opacity:.85}
+.cfire{margin-top:26px;position:relative}
+.cfire .fl{transform-origin:50% 90%;animation:roar 1s ease-in-out infinite}
+.cspark{position:absolute;width:5px;height:5px;border-radius:999px;background:#F2A33C;left:50%;bottom:40px}
+.cyou{font-family:var(--font-sans);font-weight:600;font-size:34px;line-height:1.02;text-align:center;margin-top:20px;background:linear-gradient(90deg,#FFE9C7,#F2A33C);-webkit-background-clip:text;background-clip:text;color:transparent}
+.csub{font-size:13.5px;color:#e7c9b8;margin-top:12px;text-align:center}
+.crank{margin-top:14px;display:inline-flex;align-items:center;gap:6px;background:rgba(224,97,44,.22);border:1px solid #E0612C;border-radius:999px;padding:5px 13px;font-size:12px;font-weight:500;color:#FFD27A}
+.cbrand{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:3px;opacity:.9}
+.cbrand .wm{font-weight:600;font-size:15px;letter-spacing:.5px}
+.cbrand .url{font-size:10.5px;color:#a99cbd}
+/* iOS status bar */
+.iosbar{position:absolute;top:0;left:0;right:0;height:36px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:13px;font-weight:600;z-index:5}
+.iosbar .r{display:flex;align-items:center;gap:5px;font-size:13px}
+/* iOS share sheet */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:8}
+.sheet{position:absolute;left:6px;right:6px;bottom:6px;background:rgba(44,40,54,.92);backdrop-filter:blur(18px);border-radius:16px;z-index:9;padding:12px 12px 8px;color:#fff}
+.sheet .grab{width:36px;height:5px;border-radius:999px;background:rgba(255,255,255,.3);margin:2px auto 12px}
+.sheet .prev{display:flex;align-items:center;gap:10px;padding:0 4px 12px;border-bottom:.5px solid rgba(255,255,255,.14)}
+.sheet .prev .thumb{width:34px;height:44px;border-radius:6px;background:radial-gradient(120% 70% at 50% 30%,#3a1f2e,#1b1726);display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:16px;flex:none}
+.sheet .prev .t{font-size:12.5px;font-weight:500}.sheet .prev .s{font-size:10.5px;color:#b9b3c9}
+.aprow{display:flex;gap:16px;padding:14px 6px 8px;overflow:hidden}
+.app{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:9.5px;color:#d7d3e0;flex:none;width:52px}
+.app .ic{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff}
+.ig{background:linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)}
+.msg{background:#34c759}.air{background:#0a84ff}.more{background:#3a3a44}
+.cancel{width:100%;margin-top:8px;background:rgba(60,60,70,.9);border:0;border-radius:13px;padding:13px;color:#0a84ff;font-size:15px;font-weight:600;font-family:var(--font-sans);cursor:pointer}
+@keyframes roar{0%,100%{transform:scaleY(1) scaleX(1)}30%{transform:scaleY(1.13) scaleX(.94)}60%{transform:scaleY(1.05) scaleX(1.02)}}
+@keyframes riseSpark{0%{transform:translateY(0) scale(1);opacity:.9}100%{transform:translateY(-110px) scale(.3);opacity:0}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage" id="stage">
+    <div class="card">
+      <div class="brandtop"><i class="ti ti-flame"></i>PHILOI</div>
+      <div class="cfire" id="fire">
+        <svg width="118" height="135" viewBox="0 0 120 150" aria-hidden="true"><rect x="30" y="112" width="60" height="9" rx="4" fill="#8a5a2b" transform="rotate(18 60 116)"/><rect x="30" y="112" width="60" height="9" rx="4" fill="#6e4423" transform="rotate(-18 60 116)"/><g class="fl"><path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/><path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/><path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/></g></svg>
+      </div>
+      <div class="cyou">NOAH IS<br>ON FIRE 🔥</div>
+      <div class="csub">Daily fire complete · 6-day streak</div>
+      <div class="crank"><i class="ti ti-hexagon-filled"></i>Gold I</div>
+      <div class="cbrand"><div class="wm">philoi</div><div class="url">philoi.app</div></div>
+    </div>
+
+    <div class="iosbar"><span>9:41</span><span class="r"><i class="ti ti-cell-signal-4"></i><i class="ti ti-wifi"></i><i class="ti ti-battery-3"></i></span></div>
+
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="prev"><span class="thumb"><i class="ti ti-flame"></i></span><div><div class="t">Your fire · today</div><div class="s">Image · Philoi</div></div></div>
+      <div class="aprow">
+        <div class="app"><span class="ic ig"><i class="ti ti-brand-instagram"></i></span>Stories</div>
+        <div class="app"><span class="ic msg"><i class="ti ti-message-circle"></i></span>Messages</div>
+        <div class="app"><span class="ic air"><i class="ti ti-share"></i></span>AirDrop</div>
+        <div class="app"><span class="ic more"><i class="ti ti-dots"></i></span>More</div>
+      </div>
+      <button class="cancel">Cancel</button>
+    </div>
+  </div></div>
+  <div class="cap"><b>iOS</b> — "Share to your story" hands the pre-composed image (not a screenshot) to the iOS share sheet: Instagram Stories, Messages, AirDrop. The card is the growth hook — beautiful + one tap.</div>
+</div>
+<script>
+(function(){var fire=document.getElementById('fire');for(var i=0;i<6;i++){var s=document.createElement('span');s.className='cspark';s.style.left=(46+Math.random()*10)+'%';s.style.animation='riseSpark '+(1.2+Math.random()*0.8).toFixed(2)+'s ease-out '+(Math.random()*1.5).toFixed(2)+'s infinite';fire.appendChild(s);}})();
+</script>

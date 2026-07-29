@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -9,11 +9,13 @@ type DiscoverCircleCardProps = {
   group: DiscoverableGroup;
   onJoin: () => void;
   joining: boolean;
+  /** Overrides the default fixed width (240) — pass { width: '100%' } for use in a vertical list. */
+  style?: StyleProp<ViewStyle>;
 };
 
-export function DiscoverCircleCard({ group, onJoin, joining }: DiscoverCircleCardProps) {
+export function DiscoverCircleCard({ group, onJoin, joining, style }: DiscoverCircleCardProps) {
   return (
-    <Card style={styles.card}>
+    <Card style={[styles.card, style]}>
       <View style={styles.headerRow}>
         <Text style={styles.emoji}>{group.emoji}</Text>
         <View style={styles.headerText}>
@@ -24,7 +26,7 @@ export function DiscoverCircleCard({ group, onJoin, joining }: DiscoverCircleCar
           </Text>
         </View>
       </View>
-      <PrimaryButton label="Join circle" onPress={onJoin} loading={joining} />
+      <PrimaryButton label="Join Campfire" onPress={onJoin} loading={joining} />
     </Card>
   );
 }

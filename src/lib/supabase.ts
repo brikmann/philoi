@@ -15,9 +15,19 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// AsyncStorage's web implementation reads window.localStorage unconditionally (it keys off
+// Platform.OS === 'web', which is true even when this module is evaluated by Metro's Node.js
+// SSR renderer for the web bundle) — crashing the whole dev server with "window is not
+// defined" the moment the client tries to recover a session. No real session to recover
+// during a server render anyway, so fall back to an inert no-op storage there.
+const storage =
+  typeof window === 'undefined'
+    ? { getItem: async () => null, setItem: async () => {}, removeItem: async () => {} }
+    : AsyncStorage;
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
+    storage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

@@ -1,0 +1,106 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#17131f;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;color:#FFF6EC}
+/* header */
+.hdr{padding:14px 14px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
+.hrow{display:flex;align-items:center;gap:9px}
+.cf{font-size:11px;color:#7c7194}
+.goal{display:inline-flex;align-items:center;gap:6px;background:#3a2a22;color:#FFD27A;font-size:12.5px;font-weight:500;padding:4px 11px;border-radius:999px;margin-top:3px}
+.moodchip{display:inline-flex;align-items:center;gap:4px;background:#2b2036;border:1px solid rgba(224,97,44,.45);color:#FFD27A;font-size:10px;font-weight:500;padding:3px 8px;border-radius:999px;margin-top:5px}
+.exmenu{display:none;background:#241c38;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:4px;margin:2px 0 8px}
+.exmenu.on{display:block}
+.exmenu button{display:flex;align-items:center;gap:9px;width:100%;padding:8px 9px;font-size:12px;border:0;background:transparent;color:#FFF6EC;border-radius:7px;cursor:pointer;font-family:var(--font-sans)}
+.exmenu button i{color:#F2A33C;font-size:15px}
+.exmenu .rm{color:#E86A5A}.exmenu .rm i{color:#E86A5A}
+.dot{cursor:pointer}
+.tmr{margin-left:auto;text-align:right}
+.tmr .t{font-weight:500;font-size:20px;letter-spacing:.5px}
+.tmr .l{font-size:8.5px;color:#7c7194;letter-spacing:1px}
+/* workout list */
+.log{flex:1;overflow:auto;padding:12px 13px 4px}
+.ex{background:#201a2c;border-radius:14px;padding:11px 12px;margin-bottom:11px}
+.exh{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.exh .nm{font-size:13.5px;font-weight:500;flex:1}
+.exh .ct{font-size:10.5px;color:#7c7194}
+.exh .dot{color:#7c7194;font-size:16px}
+.sets{display:flex;flex-direction:column;gap:5px}
+.shead,.set{display:grid;grid-template-columns:26px 1fr 1fr 34px;gap:6px;align-items:center}
+.shead span{font-size:9.5px;color:#7c7194;text-transform:uppercase;letter-spacing:.5px;text-align:center}
+.shead span:first-child{text-align:left}
+.set .no{font-size:12px;color:#a99cbd;font-weight:500;text-align:center}
+.cell{background:#17131f;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:7px 4px;text-align:center;font-size:12.5px}
+.cell.f{color:#FFF6EC}
+.done{width:30px;height:30px;border-radius:8px;background:#241c38;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#5a5470;cursor:pointer}
+.set.on .done{background:#E0612C;border-color:#E0612C;color:#fff}
+.set.on .cell{border-color:rgba(224,97,44,.4)}
+.pr{display:inline-flex;align-items:center;gap:3px;background:#3a2a22;color:#FFD27A;font-size:9.5px;font-weight:600;padding:2px 6px;border-radius:999px;margin-left:6px}
+.addset{margin-top:8px;font-size:11.5px;color:#F2A33C;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.addex{width:100%;border:1px dashed rgba(255,255,255,.16);border-radius:12px;padding:11px;background:transparent;color:#F2A33C;font-size:12.5px;font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;margin-bottom:8px}
+/* footer */
+.ftr{padding:9px 13px 12px;border-top:1px solid rgba(255,255,255,.06)}
+.dbls{display:flex;align-items:center;gap:6px;font-size:11px;color:#a99cbd;margin-bottom:9px}
+.dbls .av{width:20px;height:20px;border-radius:999px;background:#3a2a22;border:1.5px solid #E0612C;margin-left:-5px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#FFD27A}
+.dbls .av:first-child{margin-left:0}
+.acts{display:flex;align-items:center;gap:10px}
+.cam{width:48px;height:48px;border-radius:999px;background:#241c38;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#FFF6EC;font-size:20px;flex:none;cursor:pointer}
+.stop{flex:1;border:0;border-radius:15px;padding:15px;background:#2d2740;color:#FFF6EC;font-family:var(--font-sans);font-weight:500;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="hdr">
+      <div class="hrow">
+        <div><div class="cf">Push day collective</div><div class="goal"><i class="ti ti-barbell" aria-hidden="true"></i>Gym · Push day</div><br><span class="moodchip"><i class="ti ti-bolt" aria-hidden="true"></i>Dialed — targets +</span></div>
+        <div class="tmr"><div class="t" id="timer">12:04</div><div class="l">LOCKED IN</div></div>
+      </div>
+    </div>
+
+    <div class="log">
+      <div class="ex">
+        <div class="exh"><span class="nm">Bench press</span><span class="ct">3 sets</span><i class="ti ti-dots dot" aria-hidden="true"></i></div>
+        <div class="exmenu"><button><i class="ti ti-refresh"></i>Replace exercise</button><button><i class="ti ti-arrows-sort"></i>Reorder</button><button class="rm"><i class="ti ti-trash"></i>Remove exercise</button></div>
+        <div class="sets">
+          <div class="shead"><span>Set</span><span>lb</span><span>reps</span><span></span></div>
+          <div class="set on"><div class="no">1</div><div class="cell f">135</div><div class="cell f">10</div><div class="done"><i class="ti ti-check"></i></div></div>
+          <div class="set on"><div class="no">2</div><div class="cell f">145</div><div class="cell f">8</div><div class="done"><i class="ti ti-check"></i></div></div>
+          <div class="set"><div class="no">3</div><div class="cell f">155</div><div class="cell f">6</div><div class="done"><i class="ti ti-check"></i></div></div>
+        </div>
+        <div class="addset"><i class="ti ti-plus" aria-hidden="true"></i>Add set</div>
+      </div>
+
+      <div class="ex">
+        <div class="exh"><span class="nm">Overhead press <span class="pr"><i class="ti ti-trophy"></i>PR</span></span><span class="ct">2 sets</span><i class="ti ti-dots dot" aria-hidden="true"></i></div>
+        <div class="exmenu"><button><i class="ti ti-refresh"></i>Replace exercise</button><button><i class="ti ti-arrows-sort"></i>Reorder</button><button class="rm"><i class="ti ti-trash"></i>Remove exercise</button></div>
+        <div class="sets">
+          <div class="shead"><span>Set</span><span>lb</span><span>reps</span><span></span></div>
+          <div class="set on"><div class="no">1</div><div class="cell f">95</div><div class="cell f">8</div><div class="done"><i class="ti ti-check"></i></div></div>
+          <div class="set on"><div class="no">2</div><div class="cell f">105</div><div class="cell f">5</div><div class="done"><i class="ti ti-check"></i></div></div>
+        </div>
+        <div class="addset"><i class="ti ti-plus" aria-hidden="true"></i>Add set</div>
+      </div>
+
+      <button class="addex"><i class="ti ti-plus" aria-hidden="true"></i>Add exercise</button>
+    </div>
+
+    <div class="ftr">
+      <div class="dbls"><span class="av">A</span><span class="av">M</span>Aidan &amp; Maya locked in with you</div>
+      <div class="acts">
+        <button class="cam"><i class="ti ti-camera" aria-hidden="true"></i></button>
+        <button class="stop"><i class="ti ti-player-stop" aria-hidden="true"></i>Finish workout</button>
+      </div>
+    </div>
+  </div></div>
+  <div class="cap">Live workout log. Tap ✓ to bank a set; heavier-than-your-best auto-flags a <b>PR</b>. Tap ⋯ on any exercise to <b>replace</b> it mid-session if a machine's taken. The <b>energy</b> chip (set pre-workout) nudged today's targets. On Finish → lock-in data, private or posted.</div>
+</div>
+<script>
+(function(){
+  var el=document.getElementById('timer'),s=724;
+  setInterval(function(){s++;var m=Math.floor(s/60),ss=s%60;el.textContent=(m<10?'0':'')+m+':'+(ss<10?'0':'')+ss;},1000);
+  document.querySelectorAll('.set .done').forEach(function(d){d.addEventListener('click',function(){d.closest('.set').classList.toggle('on');});});
+  document.querySelectorAll('.dot').forEach(function(dt){dt.addEventListener('click',function(){var menu=dt.closest('.exh').nextElementSibling;menu.classList.toggle('on');});});
+})();
+</script>

@@ -1,0 +1,67 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:16px 15px;box-sizing:border-box;color:#FFF6EC}
+.hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.hd .t{font-family:var(--font-sans);font-weight:500;font-size:17px}
+.hd i{color:#a99cbd;font-size:20px}
+.lbl{font-size:11px;color:#7c7194;margin:12px 0 6px}
+.field{background:#241c38;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 12px;font-size:13px;display:flex;align-items:center;gap:9px}
+.field .em{width:26px;height:26px;border-radius:7px;background:#3a2a22;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:15px}
+.field .val{color:#FFF6EC}
+.emrow{display:flex;gap:7px;margin-top:8px}
+.emrow span{width:32px;height:32px;border-radius:9px;background:#241c38;display:flex;align-items:center;justify-content:center;font-size:15px;color:#a99cbd}
+.emrow span.on{background:#3a2a22;color:#F2A33C;outline:1.5px solid #E0612C}
+.div{height:1px;background:rgba(255,255,255,.07);margin:16px 0 4px}
+.tog{display:flex;align-items:center;gap:11px;padding:11px 0}
+.tog .ic{width:32px;height:32px;border-radius:9px;background:#241c38;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:16px;flex:none}
+.tog .m{flex:1}
+.tog .m .a{font-size:13.5px;font-weight:500}
+.tog .m .b{font-size:11px;color:#a99cbd;margin-top:1px}
+.sw{width:42px;height:24px;border-radius:999px;background:#2d2740;position:relative;flex:none}
+.sw.on{background:#E0612C}
+.sw i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:999px;background:#fff;transition:left .2s}
+.sw.on i{left:21px}
+.nest{background:#20182f;border-radius:12px;padding:4px 12px 10px;margin:2px 0 4px}
+.chip{display:inline-flex;align-items:center;gap:5px;background:#241c38;border-radius:999px;padding:5px 10px;font-size:11.5px;color:#cbbfe0;margin-top:8px}
+.plbl{font-size:11px;color:#7c7194;margin:14px 0 7px}
+.popt{display:flex;align-items:center;gap:11px;padding:10px 11px;background:#241c38;border:1px solid transparent;border-radius:12px;margin-bottom:7px;cursor:pointer}
+.popt.on{background:#2b2036;border-color:#E0612C}
+.popt .ic{width:30px;height:30px;border-radius:9px;background:#2d2740;display:flex;align-items:center;justify-content:center;color:#cbbfe0;font-size:15px;flex:none}
+.popt.on .ic{background:#3a2a22;color:#F2A33C}
+.popt .m{flex:1}
+.popt .a{font-size:13px;font-weight:500}
+.popt .b{font-size:10.5px;color:#a99cbd;margin-top:1px}
+.popt .rd{width:18px;height:18px;border-radius:999px;border:2px solid #4a4460;flex:none}
+.popt.on .rd{border-color:#E0612C;background:#E0612C;box-shadow:inset 0 0 0 3px #241c38}
+.create{width:100%;border:0;border-radius:14px;padding:14px;margin-top:auto;background:#E0612C;color:#fff;font-family:var(--font-sans);font-weight:500;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="hd"><div class="t">Start a campfire</div><i class="ti ti-x" aria-hidden="true"></i></div>
+    <div class="lbl">Name</div>
+    <div class="field"><span class="em"><i class="ti ti-flame" aria-hidden="true"></i></span><span class="val">CP164 grind</span></div>
+    <div class="emrow"><span class="on"><i class="ti ti-flame" aria-hidden="true"></i></span><span><i class="ti ti-book" aria-hidden="true"></i></span><span><i class="ti ti-barbell" aria-hidden="true"></i></span><span><i class="ti ti-run" aria-hidden="true"></i></span><span><i class="ti ti-bulb" aria-hidden="true"></i></span></div>
+    <div class="div"></div>
+    <div class="tog"><div class="ic"><i class="ti ti-school" aria-hidden="true"></i></div><div class="m"><div class="a">For a class?</div><div class="b">Make it a course study-hall</div></div><div class="sw on"><i></i></div></div>
+    <div class="nest">
+      <div class="lbl">Course</div>
+      <div class="field"><span class="val">CP164 · Data Structures</span></div>
+      <div class="chip"><i class="ti ti-map-pin" aria-hidden="true"></i>Wilfrid Laurier</div>
+    </div>
+    <div class="tog"><div class="ic"><i class="ti ti-award" aria-hidden="true"></i></div><div class="m"><div class="a">I can help with this class</div><div class="b">Flags you as someone who's aced it</div></div><div class="sw on"><i></i></div></div>
+    <div class="plbl">Who can join</div>
+    <div class="priv" id="priv">
+      <div class="popt on" data-p="open"><span class="ic"><i class="ti ti-flame" aria-hidden="true"></i></span><div class="m"><div class="a">Open</div><div class="b">Shows in the valley · anyone can join</div></div><span class="rd"></span></div>
+      <div class="popt" data-p="gated"><span class="ic"><i class="ti ti-lock" aria-hidden="true"></i></span><div class="m"><div class="a">Gated</div><div class="b">Shows in the valley · you approve who joins</div></div><span class="rd"></span></div>
+      <div class="popt" data-p="private"><span class="ic"><i class="ti ti-eye-off" aria-hidden="true"></i></span><div class="m"><div class="a">Private</div><div class="b">Hidden · join by code only</div></div><span class="rd"></span></div>
+    </div>
+    <button class="create"><i class="ti ti-flame" aria-hidden="true"></i>Light the campfire</button>
+  </div></div>
+</div>
+<script>
+document.getElementById('priv').addEventListener('click',function(e){var t=e.target.closest('.popt');if(!t)return;[].forEach.call(this.children,function(c){c.classList.toggle('on',c===t);});});
+</script>

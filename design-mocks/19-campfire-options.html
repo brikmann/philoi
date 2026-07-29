@@ -1,0 +1,53 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:#241c38;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;color:#FFF6EC}
+/* dimmed content behind */
+.behind{position:absolute;inset:0;padding:16px 15px;filter:blur(1px);opacity:.5}
+.behind .bar{height:12px;border-radius:6px;background:#241c38;margin-bottom:10px}
+.scrim{position:absolute;inset:0;background:rgba(8,6,12,.6)}
+/* the sheet */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#241c38;border-radius:22px 22px 26px 26px;padding:8px 14px 18px;box-shadow:0 -12px 40px rgba(0,0,0,.5)}
+.grab{width:38px;height:4px;border-radius:999px;background:#4a4460;margin:6px auto 12px}
+.shd{display:flex;align-items:center;gap:9px;padding:2px 4px 12px}
+.shd .fl{width:30px;height:30px;border-radius:9px;background:#3a2a22;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:17px;flex:none}
+.shd .nm{font-family:var(--font-sans);font-weight:500;font-size:15px;line-height:1.1}
+.shd .sub{font-size:11px;color:#a99cbd;margin-top:1px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 6px;border-radius:12px;cursor:pointer}
+.row .ic{width:34px;height:34px;border-radius:10px;background:#2d2740;display:flex;align-items:center;justify-content:center;font-size:18px;color:#cbbfe0;flex:none}
+.row .lb{flex:1;font-size:14px;font-weight:500}
+.row .ch{color:#7c7194;font-size:16px}
+.row.warn .ic{background:#3a2a22;color:#F2A33C}
+.row.danger .lb{color:#E86A5A}
+.row.danger .ic{background:#3a1f24;color:#E86A5A}
+.row .cnt{background:#E0612C;color:#fff;font-size:11px;font-weight:600;border-radius:999px;min-width:20px;height:20px;padding:0 6px;display:flex;align-items:center;justify-content:center}
+.owner{font-size:9.5px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin:8px 6px 4px}
+.sep{height:1px;background:rgba(255,255,255,.07);margin:6px 0}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="behind">
+      <div class="bar" style="width:60%"></div>
+      <div class="bar" style="width:90%;height:54px"></div>
+      <div class="bar" style="width:100%;height:70px"></div>
+      <div class="bar" style="width:100%;height:70px"></div>
+    </div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="shd"><span class="fl"><i class="ti ti-flame" aria-hidden="true"></i></span><div><div class="nm">Yo</div><div class="sub">Campfire level 1 · 3 members</div></div></div>
+      <div class="row"><span class="ic"><i class="ti ti-pencil" aria-hidden="true"></i></span><span class="lb">Edit campfire</span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></div>
+      <div class="row"><span class="ic"><i class="ti ti-user-plus" aria-hidden="true"></i></span><span class="lb">Invite people</span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></div>
+      <div class="row"><span class="ic"><i class="ti ti-bell-off" aria-hidden="true"></i></span><span class="lb">Mute notifications</span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></div>
+      <div class="owner">Owner · this campfire is gated</div>
+      <div class="row"><span class="ic"><i class="ti ti-user-check" aria-hidden="true"></i></span><span class="lb">Join requests</span><span class="cnt">3</span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></div>
+      <div class="sep"></div>
+      <div class="row warn"><span class="ic"><i class="ti ti-flag" aria-hidden="true"></i></span><span class="lb">Report this campfire</span><i class="ti ti-chevron-right ch" aria-hidden="true"></i></div>
+      <div class="row danger"><span class="ic"><i class="ti ti-logout" aria-hidden="true"></i></span><span class="lb">Leave campfire</span></div>
+      <div class="row danger"><span class="ic"><i class="ti ti-trash" aria-hidden="true"></i></span><span class="lb">Delete campfire</span></div>
+    </div>
+  </div></div>
+</div>

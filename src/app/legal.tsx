@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   },
   buttonLabel: {
     fontFamily: Fonts.display,
-    color: '#FFFFFF',
+    color: Colors.ink,
     fontSize: 16,
   },
   url: {

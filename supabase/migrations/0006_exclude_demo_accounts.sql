@@ -22,13 +22,21 @@
 --    noahbrikman@gmail.com is added to the is_admin seed alongside spikeythedoge1@gmail.com
 --    so his usage doesn't count toward the metrics either (he already gets admin-dashboard
 --    access from this, matching the founder account's treatment).
+--
+-- 4. That seed was a plain UPDATE, which no-ops if the profiles row doesn't exist yet.
+--    Nothing auto-creates one on signup (only the mobile app's onboarding flow does,
+--    client-side) — a founder who only ever signs into admin/ directly has no profiles
+--    row for an UPDATE to touch, so it silently did nothing and they landed on
+--    /not-authorized. Changed to an upsert.
 
-update profiles set is_admin = true
-where id in (
-  select id from auth.users
-  where email in ('spikeythedoge1@gmail.com', 'noahbrikman@gmail.com')
-)
-  and is_admin = false;
+insert into profiles (id, display_name, is_admin)
+select
+  u.id,
+  coalesce(u.raw_user_meta_data ->> 'full_name', split_part(u.email, '@', 1)),
+  true
+from auth.users u
+where u.email in ('spikeythedoge1@gmail.com', 'noahbrikman@gmail.com')
+on conflict (id) do update set is_admin = true;
 
 create or replace view analytics_daily_signups as
 select date_trunc('day', created_at)::date as day, count(*) as signups

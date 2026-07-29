@@ -18,11 +18,36 @@ type AuthContextValue = {
   needsHandle: boolean;
   /** True when signed in but the user hasn't completed the 18+ attestation + consent screen. */
   needsConsent: boolean;
+  /** True when a moderator has disabled this account (e.g. a confirmed CSAE action) — see admin_disable_account() in schema.sql. */
+  needsAccountDisabled: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+// Session restore + profile load has no timeout of its own — on a stalled/dead connection
+// the underlying fetch can hang indefinitely, which left `ready` stuck false forever (the
+// app just sat on a blank screen; the only fix was force-quitting and reopening on the
+// hope of a better connection next time). Bounding it means a bad connection surfaces the
+// existing "Couldn't connect to Philoi" retry screen instead of hanging silently.
+const AUTH_RESTORE_TIMEOUT_MS = 10000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
 
 async function ensureProfile(user: User): Promise<Profile> {
   const { data: existing } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
@@ -70,13 +95,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth
-      .getSession()
-      .then(async ({ data }) => {
+    withTimeout(
+      supabase.auth.getSession().then(async ({ data }) => {
         if (!mounted) return;
         setSession(data.session);
         await loadProfileFor(data.session?.user);
-      })
+      }),
+      AUTH_RESTORE_TIMEOUT_MS,
+      'Timed out restoring your session — check your connection.'
+    )
       .catch((e) => {
         console.error('[auth] failed to restore session/profile:', e);
         if (mounted) setError(getErrorMessage(e, 'Something went wrong restoring your session.'));
@@ -89,7 +116,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       setSession(nextSession);
       try {
-        await loadProfileFor(nextSession?.user);
+        await withTimeout(
+          loadProfileFor(nextSession?.user),
+          AUTH_RESTORE_TIMEOUT_MS,
+          'Timed out loading your profile — check your connection.'
+        );
         setError(null);
       } catch (e) {
         console.error('[auth] failed to load profile on auth change:', e);
@@ -112,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error,
     needsHandle: Boolean(session && profile && !profile.handle),
     needsConsent: Boolean(session && profile && !profile.has_consented),
+    needsAccountDisabled: Boolean(session && profile && profile.is_disabled),
     refreshProfile: async () => loadProfileFor(session?.user),
     signOut: async () => {
       if (session?.user.id) await unregisterPushToken(session.user.id);

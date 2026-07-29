@@ -92,7 +92,7 @@ async function ensureCircle(circle, ownerId) {
       owner_id: ownerId,
       goal_type: circle.goal_type,
       cadence: circle.cadence,
-      is_public: true,
+      privacy: 'open',
     })
     .select('id')
     .single();

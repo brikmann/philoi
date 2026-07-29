@@ -1,222 +1,211 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Share, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
-import { ChallengeCompletionCard } from '@/components/challenge-completion-card';
-import { ChatPanel } from '@/components/chat-panel';
-import { FeedItem } from '@/components/feed-item';
-import { LeaderboardRow } from '@/components/leaderboard-row';
-import { MyGoalTarget } from '@/components/my-goal-target';
-import { RecapStrip } from '@/components/recap-strip';
-import { PrimaryButton } from '@/components/ui/primary-button';
-import { EmptyState } from '@/components/ui/empty-state';
+import { CampfireOptionsSheet } from '@/components/campfire-options-sheet';
+import { CircleTimeline } from '@/components/circle-timeline';
 import { Screen } from '@/components/ui/screen';
-import { CHAT_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { useChallengeFeed } from '@/hooks/use-challenge-feed';
-import { useFeed } from '@/hooks/use-feed';
+import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useGroup } from '@/hooks/use-group';
-import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { useMyGroups } from '@/hooks/use-my-groups';
 import { track } from '@/lib/analytics';
-import type { FeedCheckIn } from '@/lib/api/check-ins';
-import type { FeedChallengeEvent } from '@/lib/api/challenges';
-import { fetchInviteLink, fetchWeeklyRecap } from '@/lib/api/groups';
+import { fetchJoinRequests } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 
-type Tab = 'feed' | 'leaderboard' | 'chat';
-
-type FeedRow = { kind: 'check_in'; id: string; created_at: string; data: FeedCheckIn } | { kind: 'challenge'; id: string; created_at: string; data: FeedChallengeEvent };
-
-export default function GroupScreen() {
-  const router = useRouter();
-  const { groupId, tab: initialTab } = useLocalSearchParams<{ groupId: string; tab?: Tab }>();
-  const { session } = useAuth();
-  const { group } = useGroup(groupId);
-  const feed = useFeed(groupId);
-  const leaderboard = useLeaderboard(groupId);
-  const challengeFeed = useChallengeFeed(groupId);
-  const [tab, setTab] = useState<Tab>(initialTab === 'leaderboard' || initialTab === 'chat' ? initialTab : 'feed');
-  const [checkInsThisWeek, setCheckInsThisWeek] = useState(0);
-  const [sharing, setSharing] = useState(false);
-
-  const feedRows = useMemo<FeedRow[]>(() => {
-    const checkInRows: FeedRow[] = feed.items.map((item) => ({
-      kind: 'check_in',
-      id: item.id,
-      created_at: item.created_at,
-      data: item,
-    }));
-    const challengeRows: FeedRow[] = challengeFeed.events.map((event) => ({
-      kind: 'challenge',
-      id: event.id,
-      created_at: event.created_at,
-      data: event,
-    }));
-    return [...checkInRows, ...challengeRows].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-  }, [feed.items, challengeFeed.events]);
+// The "locked in now" live strip's pulsing dot (design-mocks/06: `@keyframes pulse`).
+function PulsingDot() {
+  const pulse = useSharedValue(1);
 
   useEffect(() => {
-    if (!session) return;
-    fetchWeeklyRecap(session.user.id).then((rows) => {
-      const mine = rows.find((r) => r.group_id === groupId);
-      setCheckInsThisWeek(mine?.check_ins_this_week ?? 0);
-    });
-  }, [session, groupId]);
+    pulse.value = withRepeat(withSequence(withTiming(0.35, { duration: 700 }), withTiming(1, { duration: 700 })), -1, true);
+  }, [pulse]);
 
-  async function handleInvite() {
-    if (!group) return;
-    setSharing(true);
-    try {
-      const link = await fetchInviteLink(group.id, group.join_code);
-      track('invite_sent', { group_id: group.id, source: 'group_screen' });
-      await Share.share({
-        message: `Join my circle on Philoi 🔥 Code: ${link.code} — or tap: ${link.deepLink}`,
-      });
-    } finally {
-      setSharing(false);
+  const style = useAnimatedStyle(() => ({ opacity: pulse.value }));
+
+  return <Animated.View style={[styles.liveDot, style]} />;
+}
+
+// The campfire interior — a lean chat header + live-presence strip + the merged chain
+// (design-mocks/06). This screen is chat-first, not a stats dashboard: the people icon opens
+// this campfire's own intra-campfire leaderboard (PHILOI_UI_SPEC.md §420-421,
+// group/[groupId]/leaderboard.tsx). The broader cross-circle board lives on the app-wide
+// Leaderboard tab (design-mocks/11, (tabs)/leaderboards.tsx).
+export default function GroupScreen() {
+  const router = useRouter();
+  const { groupId } = useLocalSearchParams<{ groupId: string }>();
+  const { session } = useAuth();
+  const { group } = useGroup(groupId);
+  const activeLockIns = useActiveCircleLockIns(groupId);
+  const { groups: myGroups } = useMyGroups();
+  const [optionsVisible, setOptionsVisible] = useState(false);
+  const [chatMutedOverride, setChatMutedOverride] = useState<boolean | null>(null);
+  const chatMuted = chatMutedOverride ?? myGroups.find((g) => g.id === groupId)?.chat_muted ?? false;
+  const [hasPendingRequests, setHasPendingRequests] = useState(false);
+  const isOwner = Boolean(group && session && group.owner_id === session.user.id);
+
+  useEffect(() => {
+    track('chat_opened', { group_id: groupId });
+  }, [groupId]);
+
+  // Badge dot on the flame-tile options trigger (PHILOI_UI_SPEC.md §14: "a badge dot also
+  // appears on the interior header") — same owner+gated gate as the options sheet's row.
+  useEffect(() => {
+    if (!isOwner || group?.privacy !== 'gated') {
+      setHasPendingRequests(false);
+      return;
     }
-  }
-
-  const refreshing = tab === 'feed' ? feed.loading || challengeFeed.loading : tab === 'leaderboard' ? leaderboard.loading : false;
-  const onRefresh = tab === 'feed' ? () => Promise.all([feed.refetch(), challengeFeed.refetch()]) : leaderboard.refetch;
-  const activeError = tab === 'feed' ? (feed.error ?? challengeFeed.error) : tab === 'leaderboard' ? leaderboard.error : null;
+    fetchJoinRequests(groupId)
+      .then((requests) => setHasPendingRequests(requests.length > 0))
+      .catch(() => {
+        // Flavor indicator only — a failed fetch just hides the dot.
+      });
+  }, [isOwner, group?.privacy, groupId]);
 
   return (
-    <Screen padded={false}>
-      <Stack.Screen options={{ title: group ? `${group.emoji} ${group.name}` : '' }} />
+    // Explicit rather than relying on Screen's implicit default — this screen's background
+    // must be the standard app surface (Colors.cream, #1B1726), never twilight900 (the
+    // deeper tone reserved for the field/valley's own twilight-valley look); only the bottom
+    // tab bar stays the lighter Colors.card surface.
+    <Screen padded={false} backgroundColor={Colors.cream}>
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.topBar}>
-        <RecapStrip checkInsThisWeek={checkInsThisWeek} />
-        <Pressable
-          onPress={handleInvite}
-          style={styles.inviteButton}
-          disabled={sharing}
-          accessibilityLabel="Invite a friend">
-          <Text style={styles.inviteLabel}>Invite</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.tabRow}>
-        <Pressable onPress={() => setTab('feed')} style={[styles.tab, tab === 'feed' && styles.tabActive]}>
-          <Text style={[styles.tabLabel, tab === 'feed' && styles.tabLabelActive]}>Feed</Text>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
+          <Ionicons name="chevron-down" size={20} color={Colors.muted} />
         </Pressable>
         <Pressable
-          onPress={() => setTab('leaderboard')}
-          style={[styles.tab, tab === 'leaderboard' && styles.tabActive]}>
-          <Text style={[styles.tabLabel, tab === 'leaderboard' && styles.tabLabelActive]}>Leaderboard</Text>
+          style={styles.flameTile}
+          onPress={() => setOptionsVisible(true)}
+          hitSlop={4}
+          accessibilityLabel="Campfire options">
+          <Ionicons name="flame" size={15} color={Colors.amber} />
+          {hasPendingRequests && <View style={styles.optionsBadge} />}
         </Pressable>
-        {CHAT_ENABLED && (
-          <Pressable onPress={() => setTab('chat')} style={[styles.tab, tab === 'chat' && styles.tabActive]}>
-            <Text style={[styles.tabLabel, tab === 'chat' && styles.tabLabelActive]}>Chat</Text>
-          </Pressable>
-        )}
-      </View>
-
-      {activeError && <Text style={styles.error}>{activeError}</Text>}
-
-      {tab === 'chat' && session ? (
-        <ChatPanel groupId={groupId} myUserId={session.user.id} />
-      ) : tab === 'feed' ? (
-        <FlatList
-          data={feedRows}
-          keyExtractor={(row) => row.id}
-          contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.coral} />}
-          renderItem={({ item: row }) =>
-            row.kind === 'check_in' ? (
-              <FeedItem item={row.data} onReactionChanged={feed.refetch} />
-            ) : (
-              <ChallengeCompletionCard event={row.data} />
-            )
-          }
-          ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
-          ListEmptyComponent={
-            !feed.loading && !challengeFeed.loading ? (
-              <EmptyState
-                title="No check-ins yet"
-                body="Be the first to show up — your circle's watching 👀"
-                action={<PrimaryButton label="Lock in" onPress={() => router.push(`/group/${groupId}/check-in`)} />}
-              />
-            ) : null
-          }
-        />
-      ) : (
-        <FlatList
-          data={leaderboard.rows}
-          keyExtractor={(item) => item.user_id}
-          contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.coral} />}
-          ListHeaderComponent={
-            group?.goal_type === 'study' && session ? (
-              <MyGoalTarget
-                groupId={groupId}
-                current={leaderboard.rows.find((r) => r.user_id === session.user.id)?.goal_target ?? null}
-                onSaved={leaderboard.refetch}
-              />
-            ) : null
-          }
-          renderItem={({ item, index }) => (
-            <LeaderboardRow rank={index + 1} row={item} isMe={item.user_id === session?.user.id} />
+        <Pressable style={styles.headerCenter} onPress={() => setOptionsVisible(true)}>
+          <Text style={styles.name} numberOfLines={1}>
+            {group?.name ?? '…'}
+          </Text>
+          {activeLockIns.length > 0 && (
+            <Text style={styles.presence}>{activeLockIns.length} locked in now</Text>
           )}
-        />
+        </Pressable>
+        <Pressable onPress={() => router.push(`/group/${groupId}/leaderboard`)} hitSlop={8} accessibilityLabel="Leaderboard">
+          <Ionicons name="people-outline" size={19} color={Colors.muted} />
+        </Pressable>
+      </View>
+
+      <CampfireOptionsSheet
+        visible={optionsVisible}
+        onClose={() => setOptionsVisible(false)}
+        group={group}
+        groupId={groupId}
+        chatMuted={chatMuted}
+        onChatMutedChanged={setChatMutedOverride}
+      />
+
+      {activeLockIns.length > 0 && (
+        <View style={styles.liveStrip}>
+          <PulsingDot />
+          <Text style={styles.liveText}>locked in now</Text>
+          <View style={styles.liveAvatars}>
+            {activeLockIns.slice(0, 4).map((a) => (
+              <View key={a.session.id} style={styles.liveAvatar}>
+                <Text style={styles.liveAvatarInitial}>{a.display_name.charAt(0).toUpperCase()}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
       )}
+
+      {session && <CircleTimeline groupId={groupId} myUserId={session.user.id} groupName={group?.name} />}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  topBar: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-  },
-  inviteButton: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: Colors.line,
-  },
-  inviteLabel: {
-    fontFamily: Fonts.bodyBold,
-    color: Colors.plum,
-    fontSize: 13,
-  },
-  tabRow: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.three,
-    marginTop: Spacing.three,
+    gap: 9,
+    paddingHorizontal: 13,
+    paddingTop: 13,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: Colors.line,
   },
-  tab: {
-    paddingBottom: Spacing.two,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+  flameTile: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: Colors.achieverBg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  tabActive: {
-    borderBottomColor: Colors.coral,
+  optionsBadge: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.coral,
+    borderWidth: 1.5,
+    borderColor: Colors.cream,
   },
-  tabLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    color: Colors.muted,
+  headerCenter: {
+    flex: 1,
   },
-  tabLabelActive: {
-    color: Colors.coral,
+  name: {
+    fontFamily: Fonts.display,
+    fontSize: 15,
+    lineHeight: 17,
+    color: Colors.ink,
   },
-  listContent: {
-    padding: Spacing.four,
-  },
-  error: {
+  presence: {
     fontFamily: Fonts.body,
-    color: Colors.coral,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
+    fontSize: 11,
+    color: Colors.achieverText,
+  },
+  liveStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    backgroundColor: Colors.card,
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: Colors.coral,
+  },
+  liveText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+    color: Colors.achieverText,
+  },
+  liveAvatars: {
+    flexDirection: 'row',
+    marginLeft: Spacing.one,
+  },
+  liveAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.achieverBg,
+    borderWidth: 1.5,
+    borderColor: Colors.coral,
+    marginLeft: -6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveAvatarInitial: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 10,
+    color: Colors.achieverText,
   },
 });

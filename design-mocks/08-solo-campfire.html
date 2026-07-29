@@ -1,0 +1,64 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:16px 16px 12px;box-sizing:border-box;color:#FFF6EC}
+.hd{display:flex;align-items:center;justify-content:space-between}
+.hd .yf{font-size:13px;color:#a99cbd;display:flex;align-items:center;gap:6px}
+.hd .yf .d{width:22px;height:22px;border-radius:7px;background:#3a2a22;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:13px}
+.greet{font-family:var(--font-sans);font-weight:500;font-size:22px;line-height:1.2;margin-top:14px}
+.firewrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.fl{transform-origin:50% 88%;animation:flick 1.7s ease-in-out infinite}
+.streak{margin-top:2px;font-size:13px;color:#FFD27A;display:flex;align-items:center;gap:5px}
+.cta{width:100%;border:0;border-radius:16px;padding:16px;background:#E0612C;color:#fff;font-family:var(--font-sans);font-weight:500;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px}
+.stats{display:flex;align-items:center;gap:11px;margin-top:14px}
+.hex{width:38px;height:41px;clip-path:polygon(50% 2%,95% 26%,95% 74%,50% 98%,5% 74%,5% 26%);background:#9A6A12;display:flex;align-items:center;justify-content:center;flex:none}
+.hexin{width:32px;height:35px;clip-path:polygon(50% 2%,95% 26%,95% 74%,50% 98%,5% 74%,5% 26%);background:#F5C542;display:flex;align-items:center;justify-content:center;font-family:var(--font-sans);font-weight:500;font-size:14px;color:#4A3406}
+.xp .t{font-size:11.5px;color:#a99cbd;display:flex;justify-content:space-between;margin-bottom:4px}
+.xp .t b{color:#FFF6EC;font-weight:500}
+.trk{height:6px;background:#2d2740;border-radius:999px;overflow:hidden}
+.trk i{display:block;height:100%;width:54%;background:#E0612C;border-radius:999px}
+.jrn{margin-top:15px}
+.jrn .lbl{font-size:11px;color:#7c7194;margin-bottom:6px}
+.row{display:flex;align-items:center;gap:10px;padding:5px 0}
+.row .ic{width:28px;height:28px;border-radius:8px;background:#241c38;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:14px;flex:none}
+.row .m{flex:1;font-size:12.5px}
+.row .m span{color:#a99cbd;font-size:11px}
+.row .dur{font-size:12px;color:#FFD27A;font-weight:500}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:14px}
+.dot{width:7px;height:7px;border-radius:999px;background:#3a3350}
+.dot.on{background:#E0612C;width:18px}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.05) scaleX(.97)}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="hd"><div class="yf"><div class="d"><i class="ti ti-flame" aria-hidden="true"></i></div>Your fire</div><i class="ti ti-user" aria-hidden="true" style="color:#a99cbd;font-size:19px"></i></div>
+    <div class="greet">Hey Noah,<br>let's lock in today</div>
+    <div class="firewrap">
+      <svg width="130" height="152" viewBox="0 0 120 150" aria-hidden="true">
+        <rect x="30" y="112" width="60" height="9" rx="4" fill="#8a5a2b" transform="rotate(18 60 116)"/>
+        <rect x="30" y="112" width="60" height="9" rx="4" fill="#6e4423" transform="rotate(-18 60 116)"/>
+        <circle cx="60" cy="116" r="4" fill="#F2A33C"/>
+        <g class="fl">
+          <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/>
+          <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/>
+          <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
+        </g>
+      </svg>
+      <div class="streak"><i class="ti ti-flame" aria-hidden="true"></i>5-day streak</div>
+    </div>
+    <button class="cta"><i class="ti ti-lock" aria-hidden="true" style="font-size:20px"></i>Lock in</button>
+    <div class="stats">
+      <div class="hex"><div class="hexin">I</div></div>
+      <div class="xp" style="flex:1"><div class="t"><span>Gold I</span><span><b>1,340</b> / 2,500 XP</span></div><div class="trk"><i></i></div></div>
+    </div>
+    <div class="jrn">
+      <div class="lbl">Your recent lock-ins</div>
+      <div class="row"><div class="ic"><i class="ti ti-barbell" aria-hidden="true"></i></div><div class="m">Gym <span>· leg day</span></div><div class="dur">48m</div></div>
+      <div class="row"><div class="ic"><i class="ti ti-pencil" aria-hidden="true"></i></div><div class="m">Study <span>· CS midterm</span></div><div class="dur">1h 20m</div></div>
+    </div>
+    <div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+  </div></div>
+</div>

@@ -14,7 +14,7 @@ export function useGroup(groupId: string) {
       setError(null);
       setGroup(await fetchGroup(groupId));
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not load this circle.'));
+      setError(getErrorMessage(e, 'Could not load this Campfire.'));
     } finally {
       setLoading(false);
     }

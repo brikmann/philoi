@@ -1,0 +1,71 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--text-muted:#7c7194;--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:16px 15px 14px;box-sizing:border-box;color:#FFF6EC}
+.prog{display:flex;gap:6px;margin-bottom:18px}
+.prog span{flex:1;height:4px;border-radius:999px;background:#2d2740}
+.prog span.on{background:#E0612C}
+.h{font-family:var(--font-sans);font-weight:500;font-size:19px}
+.sub{font-size:12.5px;color:#a99cbd;margin:5px 0 16px}
+.lbl{font-size:11px;color:#7c7194;margin:12px 0 6px}
+.field{background:#241c38;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:11px 12px;font-size:13.5px;display:flex;align-items:center;gap:8px;color:#FFF6EC}
+.field .pre{color:#7c7194}
+.field .ok{margin-left:auto;color:#3DA85C;font-size:12px;display:flex;align-items:center;gap:3px}
+.search{background:#241c38;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:11px 12px;display:flex;align-items:center;gap:9px;color:#7c7194;font-size:13px}
+.search input{background:transparent;border:0;outline:0;color:#FFF6EC;font-size:13px;font-family:var(--font-sans);flex:1}
+.unilist{margin-top:8px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.uni{display:flex;align-items:center;gap:10px;padding:11px 10px;border-radius:10px;cursor:pointer;font-size:13px}
+.uni.on{background:#2b2036;border:1px solid #E0612C}
+.uni .ic{width:26px;height:26px;border-radius:7px;background:#241c38;display:flex;align-items:center;justify-content:center;color:#a99cbd;font-size:14px;flex:none}
+.uni.on .ic{background:#3a2a22;color:#F2A33C}
+.uni .ck{margin-left:auto;color:#E0612C}
+.consent{background:#241c38;border-radius:13px;padding:13px;font-size:12.5px;color:#cbbfe0;line-height:1.5;margin-bottom:14px}
+.agree{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px}
+.box{width:22px;height:22px;border-radius:7px;border:1.5px solid #E0612C;background:#E0612C;display:flex;align-items:center;justify-content:center;color:#fff;flex:none;font-size:14px}
+.note{font-size:11px;color:#7c7194;margin-top:12px;line-height:1.4}
+.step{flex:1;display:flex;flex-direction:column;min-height:0}
+.nav{display:flex;gap:10px;margin-top:12px}
+.back{border:1px solid rgba(255,255,255,.12);background:transparent;color:#a99cbd;border-radius:13px;padding:14px 18px;font-size:14px;font-family:var(--font-sans);cursor:pointer}
+.next{flex:1;border:0;border-radius:13px;padding:14px;background:#E0612C;color:#fff;font-family:var(--font-sans);font-weight:500;font-size:15px;cursor:pointer}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="prog"><span id="p1"></span><span id="p2"></span><span id="p3"></span></div>
+    <div class="step" id="s1" style="display:none">
+      <div class="h">Pick a username</div><div class="sub">How your campfires know you.</div>
+      <div class="lbl">Username</div>
+      <div class="field"><span class="pre">@</span>noahb<span class="ok"><i class="ti ti-check" aria-hidden="true"></i>available</span></div>
+      <div class="lbl">Display name</div><div class="field">Noah B</div>
+    </div>
+    <div class="step" id="s2">
+      <div class="h">Where do you study?</div><div class="sub">So we can group your campus and classes.</div>
+      <div class="search"><i class="ti ti-search" aria-hidden="true"></i><input id="q" placeholder="Search your university" /></div>
+      <div class="unilist" id="unilist"></div>
+    </div>
+    <div class="step" id="s3" style="display:none">
+      <div class="h">One last thing</div><div class="sub">Then you're in.</div>
+      <div class="consent">Philoi stores your lock-ins, streaks, and photos to run your campfires with your friends. We never sell your data.</div>
+      <div class="agree"><span class="box"><i class="ti ti-check" aria-hidden="true"></i></span>I agree to the Terms &amp; Privacy Policy</div>
+      <div class="note">Camera and notifications are asked for later, in context — not now.</div>
+    </div>
+    <div class="nav"><button class="back" id="back">Back</button><button class="next" id="next">Continue</button></div>
+  </div></div>
+</div>
+<script>
+(function(){
+  var unis=['Wilfrid Laurier University','University of Waterloo','University of Toronto','McMaster University','Western University','Queen’s University','University of Guelph','Toronto Metropolitan University','York University','University of Ottawa'];
+  var sel='Wilfrid Laurier University',step=2;
+  var list=document.getElementById('unilist'),q=document.getElementById('q');
+  function renderList(f){list.innerHTML='';unis.filter(function(u){return u.toLowerCase().indexOf((f||'').toLowerCase())>-1;}).forEach(function(u){list.innerHTML+='<div class="uni'+(u===sel?' on':'')+'" data-u="'+u+'"><span class="ic"><i class="ti ti-building" aria-hidden="true"></i></span>'+u+(u===sel?'<i class="ti ti-check ck" aria-hidden="true"></i>':'')+'</div>';});}
+  list.addEventListener('click',function(e){var t=e.target.closest('.uni');if(!t)return;sel=t.dataset.u;renderList(q.value);});
+  q.addEventListener('input',function(){renderList(q.value);});
+  renderList('');
+  function show(){for(var i=1;i<=3;i++){document.getElementById('s'+i).style.display=(i===step?'flex':'none');document.getElementById('p'+i).className=(i<=step?'on':'');}document.getElementById('back').style.visibility=(step===1?'hidden':'visible');document.getElementById('next').textContent=(step===3?'Enter Philoi':'Continue');}
+  document.getElementById('next').addEventListener('click',function(){if(step<3){step++;show();}});
+  document.getElementById('back').addEventListener('click',function(){if(step>1){step--;show();}});
+  show();
+})();
+</script>

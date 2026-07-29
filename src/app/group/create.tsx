@@ -1,53 +1,96 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/card';
-import { PrimaryButton } from '@/components/ui/primary-button';
-import { SecondaryButton } from '@/components/ui/secondary-button';
+import { PrivacySelector } from '@/components/privacy-selector';
+import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { track } from '@/lib/analytics';
-import { createGroup, fetchInviteLink } from '@/lib/api/groups';
+import { createGroup, setMyHelperFlag } from '@/lib/api/groups';
+import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
+import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
 import { markOnboardingDone } from '@/lib/onboarding';
-import type { GoalType } from '@/types/database';
+import type { CampfirePrivacy, GoalType } from '@/types/database';
 
-const EMOJI_OPTIONS = ['🔥', '🏋️', '🏃', '📚', '🧘', '🎯'];
-const GOAL_TYPES: { value: GoalType; label: string }[] = [
-  { value: 'gym', label: 'Gym' },
-  { value: 'run', label: 'Run' },
-  { value: 'study', label: 'Study' },
-  { value: 'custom', label: 'Custom' },
+// No rigid cadence enforced (PHILOI_UI_SPEC.md §12/§14 — frequency rigidity was deliberately
+// dropped from the lock-in loop, and that extends to campfires too). The column is still
+// NOT NULL server-side, so a constant placeholder goes in — it's never shown or asked about.
+const DEFAULT_CADENCE = 'flexible';
+
+// The circle-level "theme" is a small, lightweight enum purely for discovery matching — not
+// the full personal GoalType set. "Custom" doubles as the general/default option (the flame
+// tile, matching design-mocks/10's default-selected icon) rather than reusing its lock-in-
+// picker icon ('add'), since here it represents "this campfire," not "something uncategorized."
+const THEME_OPTIONS: { value: GoalType; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { value: 'custom', icon: 'flame' },
+  { value: 'study', icon: GOAL_TYPE_ICON.study },
+  { value: 'gym', icon: GOAL_TYPE_ICON.gym },
+  { value: 'run', icon: GOAL_TYPE_ICON.run },
 ];
 
-// Cadence presets adapt to the goal — "study" is framed in hours, not session counts.
-const CADENCE_PRESETS: Record<GoalType, string[]> = {
-  gym: ['3x/week', '4x/week', '5x/week', 'Daily'],
-  run: ['3x/week', '4x/week', '5x/week', 'Daily'],
-  study: ['5 hrs/week', '10 hrs/week', '15 hrs/week', '20 hrs/week'],
-  custom: ['3x/week', '4x/week', 'Daily', 'Weekly'],
-};
+function themeEmoji(type: GoalType): string {
+  return type === 'custom' ? '🔥' : GOAL_TYPE_META[type].emoji;
+}
+
+function ToggleRow({
+  icon,
+  title,
+  subtitle,
+  value,
+  onValueChange,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+}) {
+  return (
+    <View style={styles.tog}>
+      <View style={styles.togIcon}>
+        <Ionicons name={icon} size={16} color={Colors.amber} />
+      </View>
+      <View style={styles.togText}>
+        <Text style={styles.togTitle}>{title}</Text>
+        <Text style={styles.togSubtitle}>{subtitle}</Text>
+      </View>
+      <Toggle value={value} onValueChange={onValueChange} />
+    </View>
+  );
+}
 
 export default function CreateGroupScreen() {
   const router = useRouter();
+  const { profile } = useAuth();
   const { onboarding } = useLocalSearchParams<{ onboarding?: string }>();
   const isOnboarding = onboarding === 'true';
   const [name, setName] = useState('');
-  const [emoji, setEmoji] = useState(EMOJI_OPTIONS[0]);
-  const [goalType, setGoalType] = useState<GoalType>('gym');
-  const [cadence, setCadence] = useState(CADENCE_PRESETS.gym[1]);
-  const [customCadence, setCustomCadence] = useState(false);
-  const [isPublic, setIsPublic] = useState(false);
+  const [goalType, setGoalType] = useState<GoalType>('custom');
+  const [privacy, setPrivacy] = useState<CampfirePrivacy>('open');
+  const [isClass, setIsClass] = useState(false);
+  const [courseCode, setCourseCode] = useState('');
+  const [isHelper, setIsHelper] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [invite, setInvite] = useState<{ groupId: string; deepLink: string; code: string } | null>(null);
-  const [sharing, setSharing] = useState(false);
+
+  // "For a class?" defaults Discoverable on (PHILOI_UI_SPEC.md §14: "default on for class
+  // campfires so classmates can find + join by course") — set directly in the toggle's own
+  // handler below, not derived via an effect, so flipping it on is a single state update.
+  function handleToggleClass(next: boolean) {
+    setIsClass(next);
+    if (next) setPrivacy((p) => (p === 'private' ? 'open' : p));
+  }
 
   async function handleCreate() {
     if (!name.trim()) {
-      setError('Give your circle a name.');
+      setError('Give your campfire a name.');
+      return;
+    }
+    if (isClass && !courseCode.trim()) {
+      setError('Add a course code for your class campfire.');
       return;
     }
     setLoading(true);
@@ -55,224 +98,308 @@ export default function CreateGroupScreen() {
     try {
       const group = await createGroup({
         name: name.trim(),
-        emoji,
+        emoji: themeEmoji(goalType),
         goalType,
-        cadence: cadence.trim(),
-        isPublic,
+        cadence: DEFAULT_CADENCE,
+        privacy,
+        courseCode: isClass ? courseCode.trim() : null,
+        school: isClass ? (profile?.university ?? null) : null,
       });
-      const link = await fetchInviteLink(group.id, group.join_code);
-      setInvite({ groupId: group.id, deepLink: link.deepLink, code: link.code });
+
+      if (isClass && isHelper) {
+        await setMyHelperFlag(group.id, true).catch(() => {
+          // Non-critical — the campfire is already created; the helper badge can be set later from settings.
+        });
+      }
+
+      await markOnboardingDone();
+      router.replace(
+        isOnboarding ? `/lock-in?type=${goalType}&circleId=${group.id}` : `/group/${group.id}/invite`
+      );
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not create your circle.'));
-    } finally {
+      setError(getErrorMessage(e, 'Could not create your campfire.'));
       setLoading(false);
     }
   }
 
-  async function handleShare() {
-    if (!invite) return;
-    setSharing(true);
-    try {
-      track('invite_sent', { group_id: invite.groupId, source: 'create' });
-      await Share.share({
-        message: `Join my circle on Philoi 🔥 Code: ${invite.code} — or tap: ${invite.deepLink}`,
-      });
-    } finally {
-      setSharing(false);
-    }
-  }
+  return (
+    <Screen padded={false} style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
 
-  if (invite) {
-    return (
-      <ScrollView contentContainerStyle={styles.successContainer}>
-        <Text style={styles.successEmoji}>🔥</Text>
-        <Text style={styles.successTitle}>Your circle is lit</Text>
-        <Text style={styles.successBody}>Pull your people in — Philoi works better together.</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Start a campfire</Text>
+        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Close">
+          <Ionicons name="close" size={20} color={Colors.muted} />
+        </Pressable>
+      </View>
 
-        <Card style={styles.linkCard}>
-          <Text style={styles.linkLabel}>Invite code</Text>
-          <Text style={styles.linkText}>{invite.code}</Text>
-        </Card>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+          {isOnboarding && (
+            <Text style={styles.onboardingIntro}>Name your campfire — you can invite friends right after.</Text>
+          )}
 
-        <SecondaryButton label="Share invite" onPress={handleShare} disabled={sharing} />
+          <Text style={styles.lbl}>Name</Text>
+          <View style={styles.field}>
+            <View style={styles.fieldIcon}>
+              <Ionicons name={THEME_OPTIONS.find((t) => t.value === goalType)?.icon ?? 'flame'} size={15} color={Colors.amber} />
+            </View>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="e.g. Morning Lifters"
+              value={name}
+              onChangeText={setName}
+              maxLength={40}
+            />
+          </View>
 
-        <PrimaryButton
-          label={isOnboarding ? 'Take my first photo' : 'Go to my circle'}
-          onPress={async () => {
-            await markOnboardingDone();
-            router.replace(isOnboarding ? `/group/${invite.groupId}/check-in` : `/group/${invite.groupId}`);
-          }}
-        />
+          <View style={styles.emrow}>
+            {THEME_OPTIONS.map((option) => {
+              const on = goalType === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() => setGoalType(option.value)}
+                  style={[styles.iconTile, on && styles.iconTileOn]}
+                  accessibilityLabel={GOAL_TYPE_META[option.value].label}>
+                  <Ionicons name={option.icon} size={16} color={on ? Colors.amber : Colors.muted} />
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.divider} />
+
+          <ToggleRow
+            icon="school"
+            title="For a class?"
+            subtitle="Make it a course study-hall"
+            value={isClass}
+            onValueChange={handleToggleClass}
+          />
+
+          {isClass && (
+            <>
+              <View style={styles.nest}>
+                <Text style={styles.lbl}>Course</Text>
+                <View style={styles.field}>
+                  <TextInput
+                    style={styles.fieldInputNoIcon}
+                    placeholder="e.g. CP164 · Data Structures"
+                    value={courseCode}
+                    onChangeText={setCourseCode}
+                    maxLength={60}
+                  />
+                </View>
+                {profile?.university && (
+                  <View style={styles.chip}>
+                    <Ionicons name="location" size={11} color={Colors.soloChipText} />
+                    <Text style={styles.chipText}>{profile.university}</Text>
+                  </View>
+                )}
+              </View>
+
+              <ToggleRow
+                icon="ribbon"
+                title="I can help with this class"
+                subtitle="Flags you as someone who's aced it"
+                value={isHelper}
+                onValueChange={setIsHelper}
+              />
+            </>
+          )}
+
+          <Text style={styles.lbl}>Who can join</Text>
+          <PrivacySelector value={privacy} onChange={setPrivacy} />
+
+          {error && <Text style={styles.error}>{error}</Text>}
+        </ScrollView>
+
+        <Pressable style={styles.createBtn} onPress={handleCreate} disabled={loading}>
+          <Ionicons name="flame" size={17} color={Colors.ink} />
+          <Text style={styles.createLabel}>{loading ? 'Lighting…' : 'Light the campfire'}</Text>
+        </Pressable>
 
         {isOnboarding && (
           <Text
             style={styles.skipLink}
             onPress={async () => {
               await markOnboardingDone();
-              router.replace(`/group/${invite.groupId}`);
+              router.replace('/');
             }}>
-            I&apos;ll check in later
+            Skip for now
           </Text>
         )}
-      </ScrollView>
-    );
-  }
-
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {isOnboarding && (
-        <Text style={styles.onboardingIntro}>
-          Pick a goal and name your circle — you can invite friends right after.
-        </Text>
-      )}
-
-      <Text style={styles.label}>Circle name</Text>
-      <TextInput placeholder="e.g. Morning Lifters" value={name} onChangeText={setName} maxLength={40} />
-
-      <Text style={styles.label}>Pick an emoji</Text>
-      <View style={styles.row}>
-        {EMOJI_OPTIONS.map((option) => (
-          <Pressable
-            key={option}
-            onPress={() => setEmoji(option)}
-            style={[styles.emojiOption, emoji === option && styles.emojiSelected]}>
-            <Text style={styles.emojiText}>{option}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.label}>Goal type</Text>
-      <View style={styles.row}>
-        {GOAL_TYPES.map((option) => (
-          <Pressable
-            key={option.value}
-            onPress={() => {
-              setGoalType(option.value);
-              setCadence(CADENCE_PRESETS[option.value][0]);
-              setCustomCadence(false);
-            }}
-            style={[styles.chip, goalType === option.value && styles.chipSelected]}>
-            <Text style={[styles.chipText, goalType === option.value && styles.chipTextSelected]}>
-              {option.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.label}>Cadence</Text>
-      <View style={styles.row}>
-        {CADENCE_PRESETS[goalType].map((preset) => (
-          <Pressable
-            key={preset}
-            onPress={() => {
-              setCadence(preset);
-              setCustomCadence(false);
-            }}
-            style={[styles.chip, !customCadence && cadence === preset && styles.chipSelected]}>
-            <Text style={[styles.chipText, !customCadence && cadence === preset && styles.chipTextSelected]}>
-              {preset}
-            </Text>
-          </Pressable>
-        ))}
-        <Pressable
-          onPress={() => {
-            setCustomCadence(true);
-            setCadence('');
-          }}
-          style={[styles.chip, customCadence && styles.chipSelected]}>
-          <Text style={[styles.chipText, customCadence && styles.chipTextSelected]}>Custom</Text>
-        </Pressable>
-      </View>
-      {/* Free text only for "Custom" — the chips above already cover every preset, so showing
-          both at once just duplicated the same info (a chip AND a text field both reading
-          e.g. "4x/week"). */}
-      {customCadence && (
-        <TextInput placeholder="e.g. 2x/week, every other day" value={cadence} onChangeText={setCadence} maxLength={20} />
-      )}
-
-      <View style={styles.discoverRow}>
-        <View style={styles.discoverText}>
-          <Text style={styles.label}>Make discoverable</Text>
-          <Text style={styles.discoverHint}>
-            Others with the same goal (especially at your school) can find and join without a code.
-          </Text>
-        </View>
-        <Toggle value={isPublic} onValueChange={setIsPublic} />
-      </View>
-
-      {error && <Text style={styles.error}>{error}</Text>}
-      <PrimaryButton label="Build my circle" onPress={handleCreate} loading={loading} />
-
-      {isOnboarding && (
-        <Text
-          style={styles.skipLink}
-          onPress={async () => {
-            await markOnboardingDone();
-            router.replace('/');
-          }}>
-          Skip for now
-        </Text>
-      )}
-    </ScrollView>
+      </KeyboardAvoidingView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.four,
-    gap: Spacing.two,
-    backgroundColor: Colors.cream,
+    paddingHorizontal: 15,
+    paddingTop: 16,
+    paddingBottom: 14,
   },
-  label: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.ink,
-    marginTop: Spacing.three,
+  flex: {
+    flex: 1,
   },
-  row: {
+  header: {
     flexDirection: 'row',
-    gap: Spacing.two,
-    flexWrap: 'wrap',
-  },
-  emojiOption: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.input,
-    borderWidth: 2,
-    borderColor: Colors.line,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
   },
-  emojiSelected: {
-    borderColor: Colors.coral,
-    backgroundColor: Colors.achieverBg,
-  },
-  emojiText: {
-    fontSize: 22,
-  },
-  chip: {
-    borderWidth: 2,
-    borderColor: Colors.line,
-    borderRadius: Radius.pill,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-  },
-  chipSelected: {
-    borderColor: Colors.coral,
-    backgroundColor: Colors.coral,
-  },
-  chipText: {
-    fontFamily: Fonts.bodySemiBold,
+  title: {
+    fontFamily: Fonts.display,
+    fontSize: 17,
     color: Colors.ink,
   },
-  chipTextSelected: {
-    color: '#FFFFFF',
+  form: {
+    paddingBottom: Spacing.three,
   },
   onboardingIntro: {
     fontFamily: Fonts.body,
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.muted,
     marginBottom: Spacing.two,
+  },
+  lbl: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.card,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+  },
+  fieldIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    backgroundColor: Colors.achieverBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fieldInput: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 0,
+    fontSize: 13,
+    color: Colors.ink,
+  },
+  fieldInputNoIcon: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 0,
+    fontSize: 13,
+    color: Colors.ink,
+  },
+  emrow: {
+    flexDirection: 'row',
+    gap: 7,
+    marginTop: 8,
+  },
+  iconTile: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconTileOn: {
+    backgroundColor: Colors.achieverBg,
+    borderWidth: 1.5,
+    borderColor: Colors.coral,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.line,
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  tog: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    paddingVertical: 11,
+  },
+  togIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  togText: {
+    flex: 1,
+  },
+  togTitle: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13.5,
+    color: Colors.ink,
+  },
+  togSubtitle: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.muted,
+    marginTop: 1,
+  },
+  nest: {
+    backgroundColor: Colors.cardDark,
+    borderRadius: Radius.card,
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 10,
+    marginVertical: 2,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.card,
+    borderRadius: Radius.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    marginTop: 8,
+  },
+  chipText: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.soloChipText,
+  },
+  error: {
+    fontFamily: Fonts.body,
+    color: Colors.coral,
+    marginTop: Spacing.two,
+  },
+  createBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    backgroundColor: Colors.coral,
+    borderRadius: 14,
+    padding: 14,
+  },
+  createLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 15,
+    color: Colors.ink,
   },
   skipLink: {
     fontFamily: Fonts.bodySemiBold,
@@ -281,64 +408,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textDecorationLine: 'underline',
     marginTop: Spacing.two,
-  },
-  discoverRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    marginTop: Spacing.three,
-  },
-  discoverText: {
-    flex: 1,
-    gap: Spacing.half,
-  },
-  discoverHint: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.muted,
-  },
-  error: {
-    fontFamily: Fonts.body,
-    color: Colors.coral,
-    marginTop: Spacing.two,
-  },
-  successContainer: {
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-    gap: Spacing.three,
-    backgroundColor: Colors.cream,
-  },
-  successEmoji: {
-    fontSize: 48,
-  },
-  successTitle: {
-    fontFamily: Fonts.display,
-    fontSize: 26,
-    color: Colors.ink,
-  },
-  successBody: {
-    fontFamily: Fonts.body,
-    fontSize: 15,
-    color: Colors.muted,
-    textAlign: 'center',
-  },
-  linkCard: {
-    width: '100%',
-    alignItems: 'center',
-    gap: Spacing.one,
-  },
-  linkLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.muted,
-  },
-  linkText: {
-    fontFamily: Fonts.display,
-    fontSize: 28,
-    letterSpacing: 4,
-    color: Colors.plum,
-    textAlign: 'center',
   },
 });

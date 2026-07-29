@@ -1,89 +1,72 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ChatMuteToggle } from '@/components/chat-mute-toggle';
-import { DevTools } from '@/components/dev-tools';
-import { Card } from '@/components/ui/card';
-import { Chip } from '@/components/ui/chip';
-import { SecondaryButton } from '@/components/ui/secondary-button';
-import { Toggle } from '@/components/ui/toggle';
-import { ReminderSettings } from '@/components/reminder-settings';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { useEntitlement } from '@/hooks/use-entitlement';
-import { useMyGroups } from '@/hooks/use-my-groups';
+import { HexagonBadge } from '@/components/hexagon-badge';
+import { ProgressBar } from '@/components/ui/progress-bar';
+import { TabHeader } from '@/components/ui/tab-header';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useMyRanks } from '@/hooks/use-my-ranks';
+import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
-import { deleteMyAccount, fetchUniversityMemberCount } from '@/lib/api/groups';
-import { getErrorMessage } from '@/lib/errors';
-import { loadRewardPreferences, setHapticsEnabled, setSoundEnabled } from '@/lib/reward-settings';
-import { supabase } from '@/lib/supabase';
+import { fetchMyRecentLockIns, fetchUserLockInPhotos, type MyRecentLockIn } from '@/lib/api/check-ins';
+import { fetchUniversityMemberCount } from '@/lib/api/groups';
+import { fetchMyLockInStats, fetchProfileById, fetchUserLockInStats, fetchUserRank, type UserRank } from '@/lib/api/profile';
+import { formatSessionDuration, pluralize } from '@/lib/format';
+import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { formatRankTier, formatXpProgress, xpProgressRatio } from '@/lib/rank-tiers';
+import type { MyRank, Profile } from '@/types/database';
 
+function formatHours(totalSeconds: number): string {
+  const hours = totalSeconds / 3600;
+  if (hours < 1) return `${Math.round(totalSeconds / 60)}m`;
+  return `${Math.round(hours)}h`;
+}
+
+// design-mocks/15 (PHILOI_UI_SPEC.md §18). Doubles as the "Profile" tab (own profile, no
+// params) and a pushed view of someone else's profile (?userId=...) — no other screen
+// currently links to the latter, but the privacy-aware data fetches below are correct
+// either way per the spec's explicit "someone else's profile" requirement.
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, signOut } = useAuth();
-  const { groups } = useMyGroups();
-  const { isMember, devOverride, setDevOverride } = useEntitlement();
+  const { userId: userIdParam } = useLocalSearchParams<{ userId?: string }>();
+  const { profile: myProfile } = useAuth();
+  const { ranks: myRanks } = useMyRanks();
+
+  const isOwn = !userIdParam || userIdParam === myProfile?.id;
+  const viewingUserId = isOwn ? myProfile?.id : userIdParam;
+
+  const [otherProfile, setOtherProfile] = useState<Profile | null>(null);
+  const [otherRank, setOtherRank] = useState<UserRank | null>(null);
   const [universityCount, setUniversityCount] = useState<number | null>(null);
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const [soundEnabled, setSoundEnabledState] = useState(true);
-  const [hapticsEnabled, setHapticsEnabledState] = useState(true);
-  const [showPreviews, setShowPreviews] = useState(profile?.show_message_previews ?? false);
+  const [stats, setStats] = useState({ lockin_count: 0, total_seconds: 0 });
+  const [recentLockIns, setRecentLockIns] = useState<MyRecentLockIn[]>([]);
+
+  const profile = isOwn ? myProfile : otherProfile;
+  const universalRank: MyRank | UserRank | undefined = isOwn ? myRanks.find((r) => r.scope === 'universal') : (otherRank ?? undefined);
 
   useEffect(() => {
-    loadRewardPreferences().then((prefs) => {
-      setSoundEnabledState(prefs.sound);
-      setHapticsEnabledState(prefs.haptics);
-    });
-  }, []);
+    if (isOwn || !userIdParam) return;
+    fetchProfileById(userIdParam)
+      .then(setOtherProfile)
+      .catch(() => {
+        // A missing/unreadable profile just leaves the screen showing nothing below the header.
+      });
+  }, [isOwn, userIdParam]);
 
-  async function handleTogglePreviews(value: boolean) {
-    setShowPreviews(value);
-    try {
-      await supabase.from('profiles').update({ show_message_previews: value }).eq('id', profile?.id ?? '');
-    } catch {
-      setShowPreviews(!value);
+  useEffect(() => {
+    if (isOwn && universalRank) track('rank_viewed', { tier: universalRank.tier, division: universalRank.division });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per mount when the rank first loads, not on every refetch
+  }, [isOwn, Boolean(universalRank)]);
+
+  useEffect(() => {
+    if (!isOwn && userIdParam) {
+      fetchUserRank(userIdParam).then(setOtherRank).catch(() => {});
     }
-  }
-
-  function handleToggleSound(value: boolean) {
-    setSoundEnabledState(value);
-    setSoundEnabled(value);
-  }
-
-  function handleToggleHaptics(value: boolean) {
-    setHapticsEnabledState(value);
-    setHapticsEnabled(value);
-  }
-
-  function handleDeleteAccount() {
-    Alert.alert(
-      'Delete account',
-      'This permanently deletes your profile, all your circles you own, check-ins, and photos. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete my account',
-          style: 'destructive',
-          onPress: async () => {
-            setDeletingAccount(true);
-            try {
-              await deleteMyAccount();
-              await signOut();
-            } catch (e) {
-              Alert.alert('Could not delete account', getErrorMessage(e, 'Try again or contact support@getphiloi.com.'));
-            } finally {
-              setDeletingAccount(false);
-            }
-          },
-        },
-      ]
-    );
-  }
-
-  const totalActiveStreaks = groups.filter((g) => g.current_streak > 0).length;
-  const longestStreak = groups.reduce((max, g) => Math.max(max, g.longest_streak), 0);
+  }, [isOwn, userIdParam]);
 
   useEffect(() => {
     if (profile?.university) {
@@ -91,120 +74,148 @@ export default function ProfileScreen() {
     }
   }, [profile?.university]);
 
+  useEffect(() => {
+    if (!viewingUserId) return;
+    if (isOwn) {
+      fetchMyLockInStats().then(setStats).catch(() => {});
+      fetchMyRecentLockIns(viewingUserId).then(setRecentLockIns).catch(() => {});
+    } else {
+      fetchUserLockInStats(viewingUserId).then(setStats).catch(() => {});
+      fetchUserLockInPhotos(viewingUserId).then(setRecentLockIns).catch(() => {});
+    }
+  }, [isOwn, viewingUserId]);
+
   if (!profile) return null;
+
+  // Recently-used goal types, most recent first, deduped — "recent goal types used" is real
+  // and derivable from lock-in history now that goals aren't a persisted per-user list. For
+  // someone else's restricted profile, recentLockIns comes back empty, so this — and the
+  // grid below — naturally disappears too, rather than needing a second privacy check.
+  const recentGoalTypes = [...new Set(recentLockIns.map((r) => r.goal_type))].slice(0, 4);
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.headerRow}>
-        {profile.avatar_url ? (
-          <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={styles.avatarInitial}>{profile.display_name.charAt(0).toUpperCase()}</Text>
+      {isOwn ? (
+        // The Profile tab root — standardized title (same as the other three tabs). Settings is
+        // the ONE right-side action here (PHILOI_UI_SPEC.md §4b) — Friends moved to Home, so
+        // every header carries at most one action pointing to a different destination.
+        <TabHeader
+          title="Profile"
+          right={
+            <Pressable onPress={() => router.push('/settings')} hitSlop={8} accessibilityLabel="Settings">
+              <Ionicons name="settings-outline" size={20} color={Colors.muted} />
+            </Pressable>
+          }
+        />
+      ) : (
+        // A pushed detail view of someone else's profile, not the tab root — back navigation,
+        // not a standardized tab title.
+        <View style={styles.top}>
+          <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
+            <Ionicons name="chevron-down" size={20} color={Colors.muted} />
+          </Pressable>
+        </View>
+      )}
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.id}>
+          {profile.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInitial}>{profile.display_name.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+          <View style={styles.idInfo}>
+            <Text style={styles.name}>{profile.display_name}</Text>
+            <Text style={styles.handle}>@{profile.handle}</Text>
+            {profile.university && (
+              <Pressable onPress={() => router.push('/university-leaderboard')}>
+                <View style={styles.uniRow}>
+                  <Ionicons name="location" size={11} color={Colors.textTertiary} />
+                  <Text style={styles.uniText}>
+                    {profile.university}
+                    {universityCount !== null && universityCount > 1 ? ` — ${universityCount} here` : ''}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+          </View>
+        </View>
+
+        {isOwn && (
+          <Pressable onPress={() => router.push('/edit-profile')}>
+            <Text style={styles.editProfileLink}>Edit profile</Text>
+          </Pressable>
+        )}
+
+        {universalRank && (
+          <View style={styles.rank}>
+            <HexagonBadge tier={universalRank.tier} division={universalRank.division} size={40} />
+            <View style={styles.rk}>
+              <View style={styles.rkTop}>
+                <Text style={styles.rkTier}>{formatRankTier(universalRank.tier, universalRank.division)}</Text>
+                <Text style={styles.rkXp}>{formatXpProgress(universalRank.xp_into_tier, universalRank.xp_for_next_tier)}</Text>
+              </View>
+              <ProgressBar ratio={xpProgressRatio(universalRank.xp_into_tier, universalRank.xp_for_next_tier)} />
+            </View>
           </View>
         )}
-        <View>
-          <Text style={styles.name}>{profile.display_name}</Text>
-          <Text style={styles.handle}>@{profile.handle}</Text>
-          {isMember && <Chip label="Philoi Member" tone="pro" />}
-        </View>
-      </View>
 
-      <Pressable onPress={() => router.push('/edit-profile')}>
-        <Text style={styles.editProfileLink}>Edit profile</Text>
-      </Pressable>
-
-      {profile.university && (
-        <Pressable onPress={() => router.push('/university-leaderboard')}>
-          <Text style={styles.universityLine}>
-            📍 {profile.university}
-            {universityCount !== null && universityCount > 1
-              ? ` — ${universityCount} people here are on Philoi`
-              : ''}
-            {'  '}
-            <Text style={styles.universityLink}>See leaderboard →</Text>
-          </Text>
-        </Pressable>
-      )}
-
-      <View style={styles.statsRow}>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{totalActiveStreaks}</Text>
-          <Text style={styles.statLabel}>{totalActiveStreaks === 1 ? 'active streak' : 'active streaks'}</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{longestStreak}</Text>
-          <Text style={styles.statLabel}>longest streak</Text>
-        </Card>
-      </View>
-
-      {!isMember && (
-        <Card style={styles.membershipCard}>
-          <Text style={styles.membershipTitle}>Free during early access</Text>
-          <Text style={styles.membershipBody}>
-            Everything&apos;s unlocked while we build this out together — no ads, no catch.
-          </Text>
-          <SecondaryButton label="What's coming later" onPress={() => router.push('/paywall')} onDark solid />
-        </Card>
-      )}
-
-      {groups.length > 0 && (
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Reminders</Text>
-          {groups.map((group) => (
-            <ReminderSettings key={group.id} groupId={group.id} groupName={group.name} groupEmoji={group.emoji} />
-          ))}
-        </Card>
-      )}
-
-      {groups.length > 0 && (
-        <Card style={styles.section}>
-          <Text style={styles.sectionTitle}>Chat notifications</Text>
-          <View style={styles.devRow}>
-            <Text style={styles.devLabel}>Show message previews on lock screen</Text>
-            <Toggle value={showPreviews} onValueChange={handleTogglePreviews} />
+        <View style={styles.stats}>
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>{profile.current_streak}</Text>
+            <Text style={styles.statLabel}>day streak</Text>
           </View>
-          {groups.map((group) => (
-            <ChatMuteToggle key={group.id} groupId={group.id} initialMuted={group.chat_muted} />
-          ))}
-        </Card>
-      )}
-
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>Sound &amp; haptics</Text>
-        <View style={styles.devRow}>
-          <Text style={styles.devLabel}>Check-in sound</Text>
-          <Toggle value={soundEnabled} onValueChange={handleToggleSound} />
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>{stats.lockin_count}</Text>
+            <Text style={styles.statLabel}>{pluralize(stats.lockin_count, 'lock-in')}</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>{formatHours(stats.total_seconds)}</Text>
+            <Text style={styles.statLabel}>locked in</Text>
+          </View>
         </View>
-        <View style={styles.devRow}>
-          <Text style={styles.devLabel}>Haptics</Text>
-          <Toggle value={hapticsEnabled} onValueChange={handleToggleHaptics} />
-        </View>
-      </Card>
 
-      <DevTools devOverride={devOverride} setDevOverride={setDevOverride} groups={groups} />
+        {recentGoalTypes.length > 0 && (
+          <View style={styles.goals}>
+            {recentGoalTypes.map((type) => (
+              <View key={type} style={styles.gchip}>
+                <Ionicons name={GOAL_TYPE_ICON[type]} size={12} color={Colors.ember} />
+                <Text style={styles.gchipText}>{GOAL_TYPE_META[type]?.label ?? type}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
-      <SecondaryButton label="Sign out" onPress={signOut} />
-
-      {/* Legal links — required for store listing + Apple/Google review */}
-      <Card style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <Pressable onPress={() => router.push('/legal?page=privacy')} style={styles.legalRow}>
-          <Text style={styles.legalLink}>Privacy Policy</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/legal?page=terms')} style={styles.legalRow}>
-          <Text style={styles.legalLink}>Terms of Service</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/legal?page=child-safety')} style={styles.legalRow}>
-          <Text style={styles.legalLink}>Child Safety Standards</Text>
-        </Pressable>
-      </Card>
-
-      <Pressable onPress={handleDeleteAccount} disabled={deletingAccount}>
-        <Text style={styles.deleteLink}>{deletingAccount ? 'Deleting…' : 'Delete account'}</Text>
-      </Pressable>
-    </ScrollView>
+        {recentLockIns.length > 0 && (
+          <>
+            <View style={styles.gl}>
+              <Text style={styles.glTitle}>Lock-ins</Text>
+              <Text style={styles.glSub}>
+                {stats.lockin_count} {pluralize(stats.lockin_count, 'session')}
+              </Text>
+            </View>
+            <View style={styles.grid}>
+              {recentLockIns.map((r) => (
+                <View key={r.id} style={styles.ph}>
+                  {r.signedPhotoUrl ? (
+                    <Image source={{ uri: r.signedPhotoUrl }} style={styles.phImage} />
+                  ) : (
+                    // No photo → show the goal-type icon centered, not a blank tile.
+                    <View style={[styles.phImage, styles.phFallback]}>
+                      <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={26} color={Colors.textTertiary} />
+                    </View>
+                  )}
+                  <View style={styles.ov}>
+                    <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={11} color="#FFFFFF" />
+                    <Text style={styles.ovDuration}>{formatSessionDuration(r.duration_seconds ?? 0)}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -216,118 +227,192 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: Spacing.four,
-    gap: Spacing.three,
+    paddingBottom: Spacing.six,
   },
-  headerRow: {
+  // Only used for the pushed "someone else's profile" view now (isOwn uses TabHeader instead,
+  // rendered outside the padded ScrollView) — needs its own horizontal/top padding since it's
+  // no longer nested inside container's.
+  top: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 20,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+  },
+  id: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
+    marginTop: 6,
+  },
+  idInfo: {
+    flex: 1,
+    gap: 1,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   avatarFallback: {
-    backgroundColor: Colors.plum,
+    backgroundColor: Colors.achieverBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
-    color: Colors.cream,
     fontFamily: Fonts.display,
     fontSize: 24,
+    color: Colors.ember,
   },
   name: {
-    fontFamily: Fonts.display,
-    fontSize: 22,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 18,
     color: Colors.ink,
   },
   handle: {
     fontFamily: Fonts.body,
+    fontSize: 12,
     color: Colors.muted,
-    marginBottom: Spacing.one,
+  },
+  uniRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  uniText: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.textTertiary,
   },
   editProfileLink: {
     fontFamily: Fonts.bodyBold,
     color: Colors.coral,
     fontSize: 14,
+    marginTop: Spacing.two,
   },
-  universityLine: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.muted,
-    flexShrink: 1,
-    lineHeight: 18,
-  },
-  universityLink: {
-    fontFamily: Fonts.bodyBold,
-    color: Colors.coral,
-  },
-  statsRow: {
+  rank: {
     flexDirection: 'row',
-    gap: Spacing.three,
+    alignItems: 'center',
+    gap: 11,
+    marginTop: 14,
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 12,
   },
-  statCard: {
+  rk: {
+    flex: 1,
+  },
+  rkTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  rkTier: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.ink,
+  },
+  rkXp: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.muted,
+  },
+  stats: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 11,
+  },
+  stat: {
     flex: 1,
     alignItems: 'center',
+    backgroundColor: Colors.cardDark,
+    borderRadius: Radius.card,
+    paddingVertical: 9,
   },
   statValue: {
-    fontFamily: Fonts.display,
-    fontSize: 28,
-    color: Colors.coral,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 16,
+    color: Colors.ink,
   },
   statLabel: {
     fontFamily: Fonts.body,
-    fontSize: 13,
+    fontSize: 10,
     color: Colors.muted,
   },
-  membershipCard: {
-    gap: Spacing.two,
-    backgroundColor: Colors.plum,
-    borderColor: Colors.plum,
+  goals: {
+    flexDirection: 'row',
+    gap: 7,
+    marginTop: 11,
+    flexWrap: 'wrap',
   },
-  membershipTitle: {
-    fontFamily: Fonts.display,
-    fontSize: 18,
+  gchip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.pill,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+  },
+  gchipText: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
     color: Colors.ember,
   },
-  membershipBody: {
-    fontFamily: Fonts.body,
-    color: Colors.cream,
+  gl: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginTop: 14,
+    marginBottom: 8,
   },
-  section: {
-    gap: Spacing.one,
-  },
-  sectionTitle: {
-    fontFamily: Fonts.bodyBold,
+  glTitle: {
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 14,
     color: Colors.ink,
-    marginBottom: Spacing.one,
   },
-  devRow: {
+  glSub: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.textTertiary,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+  },
+  ph: {
+    width: '32%',
+    aspectRatio: 1,
+    borderRadius: 9,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+  },
+  phImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  phFallback: {
+    backgroundColor: Colors.disabled,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ov: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 5,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  devLabel: {
-    fontFamily: Fonts.body,
-    color: Colors.ink,
-    flex: 1,
-  },
-  legalRow: {
-    paddingVertical: Spacing.two,
-  },
-  legalLink: {
-    fontFamily: Fonts.body,
-    color: Colors.coral,
-    fontSize: 14,
-  },
-  deleteLink: {
+  ovDuration: {
     fontFamily: Fonts.bodySemiBold,
-    color: Colors.muted,
-    textAlign: 'center',
-    textDecorationLine: 'underline',
-    paddingVertical: Spacing.two,
+    fontSize: 9,
+    color: '#FFFFFF',
   },
 });

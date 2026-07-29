@@ -1,11 +1,10 @@
 import * as Haptics from 'expo-haptics';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
+import { CampfireFlame } from '@/components/campfire-flame';
 import { Card } from '@/components/ui/card';
-import { PrimaryButton } from '@/components/ui/primary-button';
-import { SecondaryButton } from '@/components/ui/secondary-button';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { MyGroup } from '@/lib/api/groups';
 
@@ -13,8 +12,9 @@ const TRASH_ZONE_Y = Dimensions.get('window').height - 170;
 
 type GroupCardProps = {
   group: MyGroup;
-  onLockIn: () => void;
   onOpen: () => void;
+  /** 0-1, defaults to 0 (unlit) while heat is still loading — see useCampfireHeat(). */
+  heat?: number;
   /** Fires when a long-press-then-drag begins/ends — lets the screen show/hide the trash target. */
   onDragStateChange?: (dragging: boolean) => void;
   /** Fires continuously while dragging, true once past the trash drop zone — drives the trash icon's "hot" state. */
@@ -23,10 +23,13 @@ type GroupCardProps = {
   onDropOnTrash?: () => void;
 };
 
+// Circles are pure social containers now (feed/chat/leaderboard) — no streak, no
+// check-in action here; checking in happens goal-first from the home tab. The living-flame
+// heat gauge (UI_REDESIGN_SPEC.md) is the one activity signal shown here.
 export function GroupCard({
   group,
-  onLockIn,
   onOpen,
+  heat = 0,
   onDragStateChange,
   onHoverTrashChange,
   onDropOnTrash,
@@ -40,7 +43,9 @@ export function GroupCard({
     .onStart(() => {
       scale.value = withSpring(1.04);
       if (onDragStateChange) runOnJS(onDragStateChange)(true);
-      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+      runOnJS(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      })();
     })
     .onUpdate((e) => {
       translateX.value = e.translationX;
@@ -69,22 +74,18 @@ export function GroupCard({
   return (
     <GestureDetector gesture={pan}>
       <Animated.View style={animatedStyle}>
-        <Card style={styles.card}>
-          <View style={styles.headerRow}>
-            <Text style={styles.emoji}>{group.emoji}</Text>
-            <View style={styles.headerText}>
-              <Text style={styles.name}>{group.name}</Text>
-              <Text style={styles.cadence}>{group.cadence}</Text>
+        <Pressable onPress={onOpen}>
+          <Card style={styles.card}>
+            <View style={styles.headerRow}>
+              <Text style={styles.emoji}>{group.emoji}</Text>
+              <View style={styles.headerText}>
+                <Text style={styles.name}>{group.name}</Text>
+                <Text style={styles.cadence}>{group.cadence}</Text>
+              </View>
+              <CampfireFlame heat={heat} size={22} />
             </View>
-            <Text style={styles.streak}>🔥 {group.current_streak}</Text>
-          </View>
-
-          {group.checked_in_today ? (
-            <SecondaryButton label="Locked in today ✅ — view your circle" onPress={onOpen} />
-          ) : (
-            <PrimaryButton label="Lock in" onPress={onLockIn} />
-          )}
-        </Card>
+          </Card>
+        </Pressable>
       </Animated.View>
     </GestureDetector>
   );
@@ -114,10 +115,5 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.muted,
-  },
-  streak: {
-    fontFamily: Fonts.bodyExtraBold,
-    fontSize: 16,
-    color: Colors.coral,
   },
 });

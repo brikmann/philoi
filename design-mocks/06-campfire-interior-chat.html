@@ -1,0 +1,58 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>:root{--surface-1:#241c38;--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.pcwrap{background:var(--surface-1);border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:#1b1726;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;color:#FFF6EC}
+.hd{display:flex;align-items:center;gap:9px;padding:13px 13px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
+.hd .fl{width:26px;height:26px;border-radius:8px;background:#3a2a22;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:15px}
+.hd .nm{font-family:var(--font-sans);font-weight:500;font-size:15px;line-height:1.1}
+.hd .pr{font-size:11px;color:#FFD27A}
+.chev{color:#a99cbd;font-size:18px}.mut{color:#a99cbd}
+.live{display:flex;align-items:center;gap:7px;padding:8px 13px;background:#241c38}
+.dot{width:7px;height:7px;border-radius:999px;background:#E0612C;animation:pulse 1.4s ease-in-out infinite}
+.live .av{width:22px;height:22px;border-radius:999px;background:#3a2a22;border:1.5px solid #E0612C;margin-left:-6px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#FFD27A}
+.chain{flex:1;overflow:hidden;padding:12px 12px 6px;display:flex;flex-direction:column;gap:12px}
+.msg{display:flex;gap:8px;max-width:82%}
+.msg .av{width:26px;height:26px;border-radius:999px;background:#2d2740;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;color:#cbbfe0}
+.bub{background:#241c38;border-radius:4px 14px 14px 14px;padding:7px 11px}
+.bub .who{font-size:11px;color:#a99cbd;margin-bottom:2px}
+.bub .tx{font-size:13px;line-height:1.35}
+.me{align-self:flex-end;max-width:80%}
+.me .bub{background:#E0612C;border-radius:14px 4px 14px 14px;color:#fff}
+.lock{background:#221d31;border-left:3px solid #E0612C;border-radius:0 12px 12px 0;padding:9px 11px;display:flex;gap:9px;align-items:flex-start}
+.lock .ic{width:34px;height:34px;border-radius:9px;background:#3a2a22;display:flex;align-items:center;justify-content:center;color:#F2A33C;font-size:18px;flex:none}
+.lock .t1{font-size:13px;font-weight:500}
+.lock .t2{font-size:11.5px;color:#a99cbd;margin-top:1px}
+.lock .xp{font-size:11px;color:#FFD27A;margin-top:4px;display:inline-flex;align-items:center;gap:3px}
+.photo{width:44px;height:44px;border-radius:8px;background:#4a5a2b;flex:none;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85)}
+.react{display:inline-flex;align-items:center;gap:3px;background:#2d2740;border-radius:999px;padding:2px 7px;font-size:11px;color:#FFD27A;margin-top:6px}
+.sys{text-align:center;font-size:11px;color:#7c7194;display:flex;align-items:center;justify-content:center;gap:5px}
+.livecard{background:#3a2a22;border:1px solid #E0612C;border-radius:12px;padding:9px 11px;display:flex;align-items:center;gap:9px}
+.livecard .lk{color:#F2A33C;font-size:17px;animation:pulse 1.4s ease-in-out infinite}
+.livecard .tm{margin-left:auto;font-size:13px;font-weight:500;color:#FFD27A}
+.composer{padding:10px 12px 12px;border-top:1px solid rgba(255,255,255,.06)}
+.lockbtn{width:100%;border:0;border-radius:14px;padding:13px;background:#E0612C;color:#fff;font-family:var(--font-sans);font-weight:500;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.irow{display:flex;align-items:center;gap:8px;margin-top:9px}
+.inp{flex:1;background:#241c38;border-radius:999px;padding:9px 13px;font-size:12.5px;color:#7c7194}
+.snd{color:#E0612C;font-size:19px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+</style>
+<div class="pcwrap">
+  <div class="phone"><div class="stage">
+    <div class="hd"><i class="ti ti-chevron-down chev" aria-hidden="true"></i><div class="fl"><i class="ti ti-flame" aria-hidden="true"></i></div><div style="flex:1"><div class="nm">Push day collective</div><div class="pr">3 locked in now</div></div><i class="ti ti-users mut" aria-hidden="true" style="font-size:19px"></i></div>
+    <div class="live"><span class="dot"></span><span style="font-size:11.5px;color:#FFD27A">locked in now</span><span style="display:flex;margin-left:4px"><span class="av">A</span><span class="av">M</span><span class="av">S</span></span></div>
+    <div class="chain">
+      <div class="msg"><div class="av">M</div><div class="bub"><div class="who">Maya</div><div class="tx">who's hitting legs today?</div></div></div>
+      <div class="lock"><div class="ic"><i class="ti ti-barbell" aria-hidden="true"></i></div><div style="flex:1"><div class="t1">Aidan locked in</div><div class="t2">48 min · Gym</div><div class="xp"><i class="ti ti-bolt" aria-hidden="true"></i>+96 XP · fed the fire</div><div><span class="react"><i class="ti ti-flame" aria-hidden="true"></i>4</span></div></div><div class="photo"><i class="ti ti-photo" aria-hidden="true"></i></div></div>
+      <div class="msg me"><div class="bub"><div class="tx">just started, join me</div></div></div>
+      <div class="sys"><i class="ti ti-flame" aria-hidden="true" style="color:#F2A33C"></i>12-day streak — don't let it die</div>
+      <div class="livecard"><i class="ti ti-lock lk" aria-hidden="true"></i><div><div style="font-size:13px;font-weight:500">Aidan is locked in</div><div style="font-size:11px;color:#e7c9b8">Gym · started 12 min ago</div></div><div class="tm">12:04</div></div>
+    </div>
+    <div class="composer">
+      <button class="lockbtn"><i class="ti ti-lock" aria-hidden="true"></i>Lock in</button>
+      <div class="irow"><div class="inp">Message the campfire</div><i class="ti ti-send snd" aria-hidden="true"></i></div>
+    </div>
+  </div></div>
+</div>

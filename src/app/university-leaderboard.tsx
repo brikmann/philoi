@@ -24,7 +24,7 @@ export default function UniversityLeaderboardScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.title}>🏆 {university}</Text>
-            <Text style={styles.subtitle}>Ranked by best active streak across every circle.</Text>
+            <Text style={styles.subtitle}>Ranked by consistency across every goal.</Text>
             {error && <Text style={styles.error}>{error}</Text>}
           </View>
         }
@@ -37,8 +37,9 @@ export default function UniversityLeaderboardScreen() {
               display_name: item.display_name,
               avatar_url: item.avatar_url,
               is_pro: item.is_pro,
-              current_streak: item.best_streak,
-              goal_target: null,
+              score: item.score,
+              tier: item.tier,
+              division: item.division,
               check_ins_this_week: item.check_ins_this_week,
             }}
             isMe={item.user_id === session?.user.id}
