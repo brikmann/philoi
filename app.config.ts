@@ -147,6 +147,11 @@ const config: ExpoConfig = {
     // react-native-health-connect's bundled plugin does NOT do this, so requestPermission() otherwise
     // crashes with "lateinit property requestPermission has not been initialized" (issue #214).
     './plugins/withHealthConnectPermissionDelegate',
+    // Declares com.google.android.apps.healthdata in <queries> so Android 11+ package visibility
+    // doesn't hide Health Connect from us. Without it, getSdkStatus() reports SDK_UNAVAILABLE on
+    // Android 13 and below even when Health Connect is installed — the connect flow then fails
+    // silently. Also not covered by the library's bundled plugin.
+    './plugins/withHealthConnectQueries',
     [
       'expo-notifications',
       {
@@ -171,6 +176,19 @@ const config: ExpoConfig = {
         iosUrlScheme: 'com.googleusercontent.apps.921536564136-s18vdec893u1dlgvhs5aaep59fdetmi3',
       },
     ],
+    // Gym tracker phase-2 video clips (PHILOI_UI_SPEC.md §23) — behind GYM_VIDEO_CLIPS_ENABLED
+    // until this ships in a real build (native modules, no OTA). expo-camera's own permission
+    // strings are separate from expo-image-picker's above (that one's for a still-photo camera
+    // launch; this is video-with-audio capture, so it needs its own mic string too).
+    [
+      'expo-camera',
+      {
+        cameraPermission: 'Philoi needs your camera to film a set clip to share with your campfire.',
+        microphonePermission: 'Philoi needs your microphone to record sound with your set clip.',
+      },
+    ],
+    'expo-video',
+    'react-native-compressor',
   ],
   runtimeVersion: {
     // 'sdkVersion' for now — 'fingerprint' hashes differently on Windows (local) vs EAS's

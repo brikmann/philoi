@@ -38,21 +38,45 @@ function ensureInitialized(): Promise<unknown> {
   return initPromise;
 }
 
+/** Why Health Connect isn't usable, when it isn't — 'unsupported' (wrong platform or the flag is
+ * off), 'not_installed' (Android 13 and below, where it's a Play Store app), 'needs_update' (it's
+ * there but too old). Distinguished because these need genuinely different things from the user
+ * and collapsing them to a bare false is what made this failure invisible: the connect flow
+ * reported the same "Could not connect" whether Health Connect was missing, stale, or fine. */
+export type HealthConnectAvailability = 'available' | 'unsupported' | 'not_installed' | 'needs_update';
+
+export async function getHealthConnectAvailability(): Promise<HealthConnectAvailability> {
+  if (!isHealthConnectSupported()) return 'unsupported';
+  const hc = healthConnect();
+  const status = await hc.getSdkStatus();
+  if (status === hc.SdkAvailabilityStatus.SDK_AVAILABLE) return 'available';
+  if (status === hc.SdkAvailabilityStatus.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) return 'needs_update';
+  return 'not_installed';
+}
+
 /** Health Connect is native on Android 14+ but an installable Play Store app on older versions
  * — this never throws for "not installed," it just reports unavailable so the caller can fall
  * back to manual entry (§18 — never gate participation on this being present). */
 export async function isHealthConnectAvailable(): Promise<boolean> {
-  if (!isHealthConnectSupported()) return false;
-  const hc = healthConnect();
-  const status = await hc.getSdkStatus();
-  return status === hc.SdkAvailabilityStatus.SDK_AVAILABLE;
+  return (await getHealthConnectAvailability()) === 'available';
 }
 
 /** Requests read-only step-count access. Unlike HealthKit, Health Connect's permission API
  * reliably reports what was actually granted (no read-privacy obscuring), so the return value
  * here means what it says. */
 export async function requestStepsAuthorization(): Promise<boolean> {
-  if (!(await isHealthConnectAvailable())) return false;
+  // Throws rather than returning false for the two states the user can actually DO something
+  // about — the caller turns these into a real message instead of the generic "not available
+  // right now" that made a missing Health Connect app indistinguishable from a denied prompt.
+  const availability = await getHealthConnectAvailability();
+  if (availability === 'not_installed') {
+    throw new Error('Health Connect isn’t set up on this phone. Install it from the Play Store, then try again.');
+  }
+  if (availability === 'needs_update') {
+    throw new Error('Health Connect needs updating before Philoi can read your steps. Update it in the Play Store, then try again.');
+  }
+  if (availability !== 'available') return false;
+
   const hc = healthConnect();
   await ensureInitialized();
   const granted = await hc.requestPermission([{ accessType: 'read', recordType: STEPS }]);

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FITNESS_SYNC_SOURCES, type SyncSource } from '@/components/fitness-sync-prompt';
 import { Screen } from '@/components/ui/screen';
@@ -9,9 +9,14 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useStravaConnection } from '@/hooks/use-strava-connection';
 import { useWhoopConnection } from '@/hooks/use-whoop-connection';
+import { getErrorMessage } from '@/lib/errors';
 import { getPlatformFitnessSource, isDeviceFitnessSupported } from '@/lib/fitness-sync';
 import { isStravaSupported } from '@/lib/strava';
 import { isWhoopSupported, WHOOP_ALL_METRIC_SCOPES } from '@/lib/whoop';
+
+// Official Strava brand assets (developers.strava.com/guidelines — never redraw these).
+const STRAVA_CONNECT_BUTTON = require('../../assets/strava/connect-button/btn_strava_connect_with_orange_x2.png');
+const STRAVA_POWERED_BY = require('../../assets/strava/powered-by/api_logo_pwrdBy_strava_horiz_orange.png');
 
 // Settings → "Connected apps" (PHILOI_UI_SPEC.md §19, CODE_BUILD_PROMPTS.md's fitness-sync
 // note) — the persistent, discoverable home for connecting a device-metric source, so it isn't
@@ -36,11 +41,16 @@ function ConnectableRow({
   supported,
   bundle,
   notSupportedMessage,
+  connectButtonAsset,
 }: {
   source: SyncSource;
   supported: boolean;
   bundle: ConnectionBundle;
   notSupportedMessage: string;
+  /** The official "Connect with X" button image (Strava's brand guidelines require its own
+   * exact button asset, not generic "Connect" text) — shown instead of the plain text+chevron
+   * when provided and not yet connected. */
+  connectButtonAsset?: number;
 }) {
   const { connected, loading, connect, disconnect } = bundle;
   const [busy, setBusy] = useState(false);
@@ -63,6 +73,11 @@ function ConnectableRow({
       if (!ok) {
         Alert.alert('Could not connect', 'That source isn’t available right now — you can log progress manually instead.');
       }
+    } catch (e) {
+      // A source can fail for a reason the user can act on (Health Connect not installed, or too
+      // old to use) — those come through as real messages rather than a silent false, so show
+      // them instead of the generic line above.
+      Alert.alert(`Couldn’t connect ${source.name}`, getErrorMessage(e, 'Something went wrong — you can log progress manually instead.'));
     } finally {
       setBusy(false);
     }
@@ -86,6 +101,8 @@ function ConnectableRow({
           <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
           <Text style={styles.connectedLabel}>Connected</Text>
         </View>
+      ) : connectButtonAsset ? (
+        <Image source={connectButtonAsset} style={styles.connectButtonImage} resizeMode="contain" />
       ) : (
         <>
           <Text style={styles.connectLabel}>Connect</Text>
@@ -108,12 +125,24 @@ function DeviceFitnessRow({ source }: { source: SyncSource }) {
 }
 
 function StravaRow({ source }: { source: SyncSource }) {
+  const bundle = useStravaConnection();
+  // Safety net alongside connect()'s own re-check (use-strava-connection.ts) — the real
+  // completion happens in app/strava-auth.tsx, a separate screen mount, so refetching whenever
+  // this screen regains focus (e.g. router.replace('/connected-apps') from that route) catches
+  // the true state even if connect()'s own re-check ran a beat too early.
+  useFocusEffect(
+    useCallback(() => {
+      bundle.refresh();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh is stable per hook instance
+    }, [])
+  );
   return (
     <ConnectableRow
       source={source}
       supported={isStravaSupported()}
-      bundle={useStravaConnection()}
+      bundle={bundle}
       notSupportedMessage="This needs a newer build of Philoi. You can log progress manually for now."
+      connectButtonAsset={STRAVA_CONNECT_BUTTON}
     />
   );
 }
@@ -193,6 +222,14 @@ export default function ConnectedAppsScreen() {
           <Pressable style={styles.rationaleLink} onPress={() => router.push('/health-connect-rationale')}>
             <Text style={styles.rationaleLinkText}>How Philoi uses Health Connect data</Text>
           </Pressable>
+        )}
+
+        {/* Official "Powered by Strava" lockup (developers.strava.com/guidelines) — required
+            wherever Strava-derived data shows up, kept clearly secondary to Philoi's own mark. */}
+        {isStravaSupported() && (
+          <View style={styles.poweredByRow}>
+            <Image source={STRAVA_POWERED_BY} style={styles.poweredByImage} resizeMode="contain" />
+          </View>
         )}
       </ScrollView>
     </Screen>
@@ -296,5 +333,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.achieverText,
     textDecorationLine: 'underline',
+  },
+  connectButtonImage: {
+    height: 24,
+    width: 118,
+  },
+  poweredByRow: {
+    alignItems: 'center',
+    marginTop: Spacing.four,
+  },
+  poweredByImage: {
+    height: 16,
+    width: 100,
   },
 });
