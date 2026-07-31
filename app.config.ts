@@ -143,6 +143,10 @@ const config: ExpoConfig = {
     // Adds the OS "why does this app want my health data" rationale intent-filter — the
     // permission declarations themselves are android.permissions above.
     'react-native-health-connect',
+    // Registers HealthConnectPermissionDelegate.setPermissionDelegate(this) in MainActivity.onCreate.
+    // react-native-health-connect's bundled plugin does NOT do this, so requestPermission() otherwise
+    // crashes with "lateinit property requestPermission has not been initialized" (issue #214).
+    './plugins/withHealthConnectPermissionDelegate',
     [
       'expo-notifications',
       {
@@ -150,14 +154,33 @@ const config: ExpoConfig = {
         color: '#E0612C',
       },
     ],
+    // Native Google Sign-In (punchlist 2, §0) — replaces the Supabase-hosted OAuth redirect
+    // page with the native account picker; supabase.auth.signInWithIdToken() still does the
+    // actual auth exchange server-side, this just changes how the user gets the idToken.
+    [
+      '@react-native-google-signin/google-signin',
+      {
+        // iOS only: Google's SDK returns to the app through a custom URL scheme, and the scheme
+        // it expects is the iOS client ID with its dot-separated segments REVERSED — so
+        // `<id>.apps.googleusercontent.com` becomes `com.googleusercontent.apps.<id>`. The plugin
+        // writes this into CFBundleURLTypes; without it the account picker opens and then has no
+        // way back, so sign-in hangs on the Google page. Hardcoded rather than read from
+        // process.env because config plugins run at prebuild time on EAS, where the local .env
+        // isn't present — and unlike a secret this is public (it ships inside every install and
+        // is derivable from the iOS client ID anyone can read out of the binary).
+        iosUrlScheme: 'com.googleusercontent.apps.921536564136-s18vdec893u1dlgvhs5aaep59fdetmi3',
+      },
+    ],
   ],
   runtimeVersion: {
-    // 'fingerprint' (NOT 'sdkVersion') — the runtime is derived from the actual native
-    // fingerprint, so EAS Update only ever delivers an OTA to a binary whose native side
-    // matches. Switched after 'sdkVersion' let JS that referenced newly-added native modules
-    // ship OTA onto an older binary that lacked them → native crash with nothing in Sentry.
-    // With fingerprint, a native change bumps the runtime and correctly forces a fresh build.
-    policy: 'fingerprint',
+    // 'sdkVersion' for now — 'fingerprint' hashes differently on Windows (local) vs EAS's
+    // Linux build servers, which breaks the dev-client build from Windows. Fingerprint only
+    // protects OTA-to-standalone anyway (the earlier crash), and dev-client + Metro doesn't
+    // use OTA, so it buys nothing during iteration. WHILE ON sdkVersion: do NOT publish OTA
+    // updates to preview/production channels (that's what caused the native-mismatch crash) —
+    // dev iteration stays on Metro. Revisit 'fingerprint' when productionizing the OTA
+    // pipeline, computed/published from a consistent env (EAS/CI), not local Windows.
+    policy: 'sdkVersion',
   },
   // OTA JS updates via EAS Update — matched to the eas.json build profiles' own `channel` field
   // (development/preview/production), so a build only ever pulls updates published to its own
@@ -187,6 +210,14 @@ const config: ExpoConfig = {
     // Same deal for Whoop (§17) — public client id only. WHOOP_CLIENT_SECRET lives ONLY in
     // Supabase's Edge Function secrets (supabase/functions/whoop-*), never here.
     whoopClientId: process.env.WHOOP_CLIENT_ID ?? null,
+    // Native Google Sign-In (punchlist 2, §0) — both are PUBLIC client IDs (safe client-side,
+    // same trust level as an OAuth redirect URI). googleWebClientId MUST be the exact Client ID
+    // already configured in Supabase's Google provider (Auth > Providers > Google) — that's what
+    // makes the idToken this SDK returns acceptable to signInWithIdToken(). googleIosClientId is
+    // a separate "iOS" type OAuth client (bundle id com.philoi.app) — Android needs no client id
+    // in code, just its OAuth client's SHA-1 registered in Google Cloud Console.
+    googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID ?? null,
+    googleIosClientId: process.env.GOOGLE_IOS_CLIENT_ID ?? null,
     eas: {
       projectId: 'f1031c6d-fd56-4d27-880a-0e87a7953f05',
     },

@@ -20,6 +20,24 @@ export function isHealthConnectSupported(): boolean {
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy-load, see file header
 const healthConnect = () => require('react-native-health-connect') as typeof import('react-native-health-connect');
 
+// Every Health Connect client call requires initialize() first, and it is NOT implied by having
+// been granted permission in some earlier app session — permission persists across launches, the
+// client's initialized state does not. Memoized on the promise so concurrent callers share one
+// init and repeat calls are free; reset on failure so a transient error doesn't poison every
+// later call with a permanently-rejected promise.
+let initPromise: Promise<unknown> | null = null;
+function ensureInitialized(): Promise<unknown> {
+  if (!initPromise) {
+    initPromise = healthConnect()
+      .initialize()
+      .catch((e) => {
+        initPromise = null;
+        throw e;
+      });
+  }
+  return initPromise;
+}
+
 /** Health Connect is native on Android 14+ but an installable Play Store app on older versions
  * — this never throws for "not installed," it just reports unavailable so the caller can fall
  * back to manual entry (§18 — never gate participation on this being present). */
@@ -36,7 +54,7 @@ export async function isHealthConnectAvailable(): Promise<boolean> {
 export async function requestStepsAuthorization(): Promise<boolean> {
   if (!(await isHealthConnectAvailable())) return false;
   const hc = healthConnect();
-  await hc.initialize();
+  await ensureInitialized();
   const granted = await hc.requestPermission([{ accessType: 'read', recordType: STEPS }]);
   return granted.some((p) => p.recordType === STEPS && p.accessType === 'read');
 }
@@ -46,6 +64,9 @@ export async function requestStepsAuthorization(): Promise<boolean> {
 export async function getStepsBetween(startDate: Date, endDate: Date): Promise<number> {
   if (!isHealthConnectSupported()) return 0;
   const hc = healthConnect();
+  // Not just in the permission path: this runs on its own on a later launch (a steps challenge
+  // syncing against a permission granted days ago), where nothing else would have initialized.
+  await ensureInitialized();
   const result = await hc.aggregateRecord({
     recordType: STEPS,
     timeRangeFilter: { operator: 'between', startTime: startDate.toISOString(), endTime: endDate.toISOString() },

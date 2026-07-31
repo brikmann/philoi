@@ -1,26 +1,51 @@
 {
   "project_info": {
-    "project_number": "67103346571",
-    "project_id": "philoi-56a71",
-    "storage_bucket": "philoi-56a71.firebasestorage.app"
+    "project_number": "921536564136",
+    "project_id": "philoi-504010",
+    "storage_bucket": "philoi-504010.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:67103346571:android:d993c8735b88d62d99e98e",
+        "mobilesdk_app_id": "1:921536564136:android:68383f7ac8c0ec65532b9d",
         "android_client_info": {
           "package_name": "com.philoi.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "921536564136-5bma1u1ch760hp8jqhiadbho5h8fdnsf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.philoi.app",
+            "certificate_hash": "b4b7a9048a4f419f24d1ae4d5df2b182decc0f12"
+          }
+        },
+        {
+          "client_id": "921536564136-a1up91voavotk62kg5l24t1ja1uinbqc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyC1gOspiN-wRD0C4FMZnzVl6QrnuJCzFT4"
+          "current_key": "AIzaSyBAoIWKGTXJb9GeL_YNgtG8NES8eIoZWYA"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "921536564136-a1up91voavotk62kg5l24t1ja1uinbqc.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "921536564136-s18vdec893u1dlgvhs5aaep59fdetmi3.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.philoi.app"
+              }
+            }
+          ]
         }
       }
     }
