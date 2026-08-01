@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFriends } from '@/hooks/use-friends';
 import { useMyActiveLockIns } from '@/hooks/use-my-active-lockins';
+import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { friendStatusLine, nudgeToLockIn, type Friend } from '@/lib/api/friends';
 import { getErrorMessage } from '@/lib/errors';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
@@ -22,9 +23,11 @@ export default function PeopleScreen() {
   const router = useRouter();
   const { friends, loading, error } = useFriends();
   const activeLockIns = useMyActiveLockIns();
+  const { challenges: socialChallenges } = useSocialChallenges();
   const [search, setSearch] = useState('');
   const [sheetFriend, setSheetFriend] = useState<Friend | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [lockInWithCircle, setLockInWithCircle] = useState<{ id: string; name: string | null } | null>(null);
   // friend_ids currently showing the ✓ nudge confirmation (reverts to the 🔥 after ~1.4s).
   const [nudged, setNudged] = useState<Set<string>>(new Set());
   const nudgeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -68,10 +71,19 @@ export default function PeopleScreen() {
     }
   }
 
-  // "Lock in with them" — start your own session alongside theirs (ambient body-doubling); the
-  // app's lock-in is solo with live presence, so this just opens the goal picker.
-  function handleLockInWith() {
+  // "Lock in with them" — start your own session scoped to the SAME circle theirs is running
+  // in, so the live-presence strip actually pairs the two of you (punchlist 2, §5: this used to
+  // open a fully unscoped picker, which never joined anything — presence is circle_id-matched,
+  // not a real join/request flow). If their session has no circle_id (a solo lock-in, not
+  // posted to any campfire), there's genuinely nothing to scope into — RLS never shares a solo
+  // session with anyone, so this falls back to an ordinary unscoped lock-in for you. Takes the
+  // friend explicitly (not read off sheetFriend state) since the row's own quick-join button
+  // calls this directly, without the sheet ever opening.
+  function handleLockInWith(f: Friend) {
+    const theirSession = activeLockIns.find((a) => a.session.user_id === f.friend_id)?.session;
+    const circleId = theirSession?.circle_id ?? null;
     setSheetFriend(null);
+    setLockInWithCircle(circleId ? { id: circleId, name: f.shared_circle_name } : null);
     setPickerVisible(true);
   }
 
@@ -79,7 +91,7 @@ export default function PeopleScreen() {
   function handleSheetPrimary() {
     if (!sheetFriend) return;
     if (sheetLockedIn) {
-      handleLockInWith();
+      handleLockInWith(sheetFriend);
     } else {
       handleNudge(sheetFriend);
       setSheetFriend(null);
@@ -103,6 +115,20 @@ export default function PeopleScreen() {
   }
 
   const sheetLockedIn = sheetFriend ? goalByUser.has(sheetFriend.friend_id) : false;
+  // Punchlist 2, §5: "the H2H option still shows even when you already have an accepted
+  // challenge with that person" — an existing active h2h with this friend replaces the
+  // "Challenge — head to head" row with "View challenge" instead of offering a second one.
+  const sheetActiveH2H = sheetFriend
+    ? (socialChallenges.find(
+        (c) => c.mode === 'h2h' && c.status === 'active' && (c.created_by === sheetFriend.friend_id || c.opponent_id === sheetFriend.friend_id)
+      ) ?? null)
+    : null;
+
+  function handleViewChallenge() {
+    if (!sheetActiveH2H) return;
+    setSheetFriend(null);
+    router.push({ pathname: '/watch/[challengeId]', params: { challengeId: sheetActiveH2H.id, mode: 'h2h' } });
+  }
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
@@ -147,7 +173,7 @@ export default function PeopleScreen() {
                 lockedIn
                 nudged={false}
                 onOpen={() => setSheetFriend(f)}
-                onQuick={handleLockInWith}
+                onQuick={() => handleLockInWith(f)}
               />
             ))}
           </>
@@ -178,11 +204,18 @@ export default function PeopleScreen() {
         lockedIn={sheetLockedIn}
         goalLabel={sheetFriend ? (goalByUser.get(sheetFriend.friend_id) ?? null) : null}
         onPrimary={handleSheetPrimary}
+        activeH2H={Boolean(sheetActiveH2H)}
         onChallengeH2H={() => sheetFriend && handleChallenge(sheetFriend, 'h2h')}
+        onViewChallenge={handleViewChallenge}
         onChallengeGroup={() => sheetFriend && handleChallenge(sheetFriend, 'group')}
       />
 
-      <LockinGoalPicker visible={pickerVisible} onClose={() => setPickerVisible(false)} />
+      <LockinGoalPicker
+        visible={pickerVisible}
+        onClose={() => setPickerVisible(false)}
+        lockedCircleId={lockInWithCircle?.id}
+        lockedCircleName={lockInWithCircle?.name ?? undefined}
+      />
     </SafeAreaView>
   );
 }

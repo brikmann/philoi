@@ -1,0 +1,170 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.page{max-width:840px}
+h3{color:#FFF6EC;font-size:14px;margin:24px 4px 12px;letter-spacing:.4px;border-left:3px solid #E0612C;padding-left:9px}
+.row{display:flex;flex-wrap:wrap;gap:14px}
+/* card texture previews */
+.tcard{width:150px;background:#1b1726;border-radius:16px;border:1px solid rgba(255,255,255,.06);padding:12px 11px}
+.tprev{position:relative;width:126px;height:72px;border-radius:10px;overflow:hidden;margin:0 auto}
+.tprev svg{position:absolute;inset:0;width:100%;height:100%}
+.tpov{position:absolute;left:8px;bottom:6px;display:flex;align-items:center;gap:5px;z-index:2}
+.tpav{width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.tpav svg{position:static;width:12px;height:12px}
+.tpnm{font-size:9px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.tphex{width:11px;height:12px;background:#4FB0E5;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.nm{font-size:11.5px;font-weight:800;margin-top:9px;text-align:center;line-height:1.1}
+.rr{font-size:7.5px;font-weight:800;letter-spacing:.8px;margin-top:2px;text-align:center}
+.lore{font-style:italic;font-size:9px;color:#9f92b6;text-align:center;margin-top:5px;line-height:1.3}
+/* title schema rows */
+.titles{background:#1b1726;border-radius:16px;padding:8px 14px;max-width:340px}
+.tlrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #241c38}
+.tlrow:first-child{border-top:0}
+.tlav{width:30px;height:30px;border-radius:50%;background:#2d2740;flex:none;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.tlav svg{width:22px;height:22px}
+.tlnm{font-size:12px;font-weight:700}
+.tlt{font-size:10px;font-weight:800;letter-spacing:.4px;margin-top:1px}
+.tlrar{margin-left:auto;font-size:8px;font-weight:800;letter-spacing:.6px;color:#5f5875}
+/* banners */
+.banner{position:relative;width:280px;height:104px;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+.banner svg{position:absolute;inset:0;width:100%;height:100%}
+.bshade{position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(12,10,18,.85))}
+.bnm{position:absolute;left:12px;bottom:9px;z-index:3;font-size:15px;font-weight:800}
+.btag{position:absolute;top:9px;right:10px;z-index:3;font-size:8px;font-weight:800;letter-spacing:.6px;padding:3px 8px;border-radius:999px}
+.bcap{font-size:9px;font-style:italic;color:#9f92b6;margin-top:5px;text-align:center;max-width:280px}
+.bunit{display:flex;flex-direction:column;gap:2px}
+.emb{position:absolute;width:2.5px;height:2.5px;border-radius:50%;background:#F2A33C;opacity:0;z-index:2;animation:fall 3.4s linear infinite}
+@keyframes fall{0%{opacity:0;transform:translateY(-8px)}14%{opacity:.9}100%{opacity:0;transform:translateY(90px)}}
+</style>
+<div class="page">
+
+<h3>Card Textures &amp; Skins — CARD <span style="color:#7c7194;font-weight:400;font-size:11px">(backdrop for your profile card)</span></h3>
+<div class="row">
+
+  <div class="tcard"><div class="tprev">
+    <svg viewBox="0 0 126 72"><rect width="126" height="72" fill="#8a5a2a"/><rect width="126" height="72" fill="#a86e34" opacity=".4"/>
+      <g fill="#6e4520" opacity=".6"><ellipse cx="24" cy="20" rx="7" ry="4"/><ellipse cx="70" cy="30" rx="8" ry="4"/><ellipse cx="100" cy="16" rx="6" ry="3"/><ellipse cx="46" cy="48" rx="7" ry="4"/><ellipse cx="92" cy="52" rx="6" ry="3"/></g>
+      <path d="M0 12 L126 42" stroke="#d19a52" stroke-width="6" opacity=".25"/></svg>
+    <div class="tpov"><div class="tpav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#d8c8a8"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#d8c8a8"/></svg></div><span class="tpnm">@noah</span><span class="tphex" style="background:#4FB0E5"></span></div>
+  </div><div class="nm">Forged Bronze</div><div class="rr" style="color:#3DA85C">UNCOMMON · CARD</div><div class="lore">Beaten flat by a hundred honest mornings.</div></div>
+
+  <div class="tcard"><div class="tprev">
+    <svg viewBox="0 0 126 72"><rect width="126" height="72" fill="#6a6e78"/>
+      <g stroke="#565a63" stroke-width="1">
+        <path d="M0 8 h126"/><path d="M0 16 h126"/><path d="M0 24 h126"/><path d="M0 32 h126"/><path d="M0 40 h126"/><path d="M0 48 h126"/><path d="M0 56 h126"/><path d="M0 64 h126"/></g>
+      <path d="M0 0 L126 24" stroke="#9aa0aa" stroke-width="8" opacity=".3"/></svg>
+    <div class="tpov"><div class="tpav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#dfe3e8"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#dfe3e8"/></svg></div><span class="tpnm">@noah</span><span class="tphex"></span></div>
+  </div><div class="nm">Brushed Steel</div><div class="rr" style="color:#3DA85C">UNCOMMON · CARD</div><div class="lore">Cold, plain, unbothered by your excuses.</div></div>
+
+  <div class="tcard"><div class="tprev">
+    <svg viewBox="0 0 126 72"><rect width="126" height="72" fill="#1a1c22"/>
+      <g stroke="#2c2f38" stroke-width="3">
+        <path d="M-6 0 l18 18 M12 0 l18 18 M30 0 l18 18 M48 0 l18 18 M66 0 l18 18 M84 0 l18 18 M102 0 l18 18 M120 0 l18 18"/>
+        <path d="M12 0 l-18 18 M30 0 l-18 18 M48 0 l-18 18 M66 0 l-18 18 M84 0 l-18 18 M102 0 l-18 18 M120 0 l-18 18 M138 0 l-18 18" opacity=".5"/>
+      </g><rect width="126" height="72" fill="#0c0d10" opacity=".2"/></svg>
+    <div class="tpov"><div class="tpav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#c8ccd4"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#c8ccd4"/></svg></div><span class="tpnm">@noah</span><span class="tphex"></span></div>
+  </div><div class="nm">Carbon Fiber</div><div class="rr" style="color:#4FB0E5">RARE · CARD</div><div class="lore">Light as a promise, twice as hard to break.</div></div>
+
+  <div class="tcard"><div class="tprev">
+    <svg viewBox="0 0 126 72"><rect width="126" height="72" fill="#0f0d15"/>
+      <g stroke="#241c30" stroke-width="1.2">
+        <path d="M0 18 h126 M0 36 h126 M0 54 h126"/><path d="M21 0 v72 M42 0 v72 M63 0 v72 M84 0 v72 M105 0 v72"/></g>
+      <path d="M0 0 L80 72" stroke="#2a2440" stroke-width="30" opacity=".25"/></svg>
+    <div class="tpov"><div class="tpav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#b8b2c8"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#b8b2c8"/></svg></div><span class="tpnm">@noah</span><span class="tphex"></span></div>
+  </div><div class="nm">Obsidian Mesh</div><div class="rr" style="color:#4FB0E5">RARE · CARD</div><div class="lore">Volcanic glass, woven by someone with too much patience.</div></div>
+
+  <div class="tcard"><div class="tprev">
+    <svg viewBox="0 0 126 72"><rect width="126" height="72" fill="#1a1010"/>
+      <g stroke="#E0612C" stroke-width="2" fill="none" stroke-linecap="round"><path d="M0 26 l24 6 l18 -8 l30 10 l22 -6 l32 8"/><path d="M0 50 l30 -6 l20 8 l26 -8 l50 10"/><path d="M40 0 l6 20 l-8 16 l6 20 l-4 16"/></g>
+      <g stroke="#FFB800" stroke-width=".8" fill="none" opacity=".8"><path d="M0 26 l24 6 l18 -8 l30 10 l22 -6 l32 8"/></g></svg>
+    <div class="tpov"><div class="tpav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#e0d0c0"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#e0d0c0"/></svg></div><span class="tpnm">@noah</span><span class="tphex" style="background:#a06cd5"></span></div>
+  </div><div class="nm">Cracked Magma</div><div class="rr" style="color:#a06cd5">EPIC · CARD</div><div class="lore">Cooled on top. Still molten underneath.</div></div>
+
+  <div class="tcard"><div class="tprev">
+    <svg viewBox="0 0 126 72"><rect width="126" height="72" fill="#0a0f18"/>
+      <g stroke="#1f6f8f" stroke-width="1"><path d="M0 12 h126 M0 24 h126 M0 36 h126 M0 48 h126 M0 60 h126"/><path d="M18 0 v72 M36 0 v72 M54 0 v72 M72 0 v72 M90 0 v72 M108 0 v72"/></g>
+      <g stroke="#6FE9FF" stroke-width="1.4" opacity=".85"><path d="M0 36 h126"/><path d="M54 0 v72"/></g>
+      <circle cx="54" cy="36" r="3" fill="#6FE9FF"/></svg>
+    <div class="tpov"><div class="tpav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#bcd8e6"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#bcd8e6"/></svg></div><span class="tpnm">@noah</span><span class="tphex" style="background:#a06cd5"></span></div>
+  </div><div class="nm">Plasma Grid</div><div class="rr" style="color:#a06cd5">EPIC · CARD</div><div class="lore">A lattice of contained lightning, humming below.</div></div>
+
+  <div class="tcard"><div class="tprev">
+    <svg viewBox="0 0 126 72"><defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8a6410"/><stop offset=".5" stop-color="#F5C542"/><stop offset="1" stop-color="#8a6410"/></linearGradient></defs>
+      <rect width="126" height="72" fill="url(#gold)"/>
+      <path d="M40 30 L86 30 L80 38 L66 38 L64 44 L74 44 L70 52 L52 52 L58 38 L46 38 Z" fill="#7a5300" opacity=".5"/>
+      <path d="M0 6 L126 30" stroke="#fff4c2" stroke-width="4" opacity=".4"/></svg>
+    <div class="tpov"><div class="tpav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#5a4300"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#5a4300"/></svg></div><span class="tpnm" style="color:#3a2a00;text-shadow:none">@noah</span><span class="tphex" style="background:#F5C542"></span></div>
+  </div><div class="nm">Golden Anvil</div><div class="rr" style="color:#F5C542">LEGENDARY · CARD</div><div class="lore">Struck ten thousand times, never once dented.</div></div>
+</div>
+
+<h3>Title Schemas — TITLE <span style="color:#7c7194;font-weight:400;font-size:11px">(how a title renders under your name — styling scales with rarity)</span></h3>
+<div class="titles">
+  <div class="tlrow"><div class="tlav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div>
+    <div><div class="tlnm">@sam</div><div class="tlt" style="color:#8a7fa6">Night Owl</div></div><span class="tlrar">COMMON</span></div>
+  <div class="tlrow"><div class="tlav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div>
+    <div><div class="tlnm">@lena</div><div class="tlt" style="color:#3DA85C">Pacesetter</div></div><span class="tlrar">UNCOMMON</span></div>
+  <div class="tlrow"><div class="tlav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div>
+    <div><div class="tlnm">@theo</div><div class="tlt" style="color:#4FB0E5;text-shadow:0 0 8px rgba(79,176,229,.6)">Cracked</div></div><span class="tlrar">RARE</span></div>
+  <div class="tlrow"><div class="tlav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div>
+    <div><div class="tlnm">@maya</div><div class="tlt" style="color:#a06cd5;text-shadow:0 0 9px rgba(160,108,213,.7)">✦ Unbroken</div></div><span class="tlrar">EPIC</span></div>
+  <div class="tlrow"><div class="tlav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div>
+    <div><div class="tlnm">@noah</div><div class="tlt" style="color:#a06cd5;text-shadow:0 0 9px rgba(160,108,213,.7)">✦ Final Boss</div></div><span class="tlrar">EPIC</span></div>
+  <div style="font-size:9px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;padding:11px 0 1px;border-top:1px solid #241c38;margin-top:2px">End of season · earn-only</div>
+  <div class="tlrow" style="border-top:0"><div class="tlav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div>
+    <div><div class="tlnm">@maya</div><div class="tlt" style="color:#F5C542;text-shadow:0 0 9px rgba(245,197,66,.6)">✦ Last Flame Standing <span style="background:#3a2a08;color:#F5C542;font-size:8px;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:.5px">S1</span></div></div><span class="tlrar" style="color:#F5C542">SEASON</span></div>
+  <div class="tlrow"><div class="tlav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div>
+    <div><div class="tlnm">@theo</div><div class="tlt" style="color:#F5C542;text-shadow:0 0 9px rgba(245,197,66,.6)">✦ Season MVP <span style="background:#3a2a08;color:#F5C542;font-size:8px;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:.5px">S1</span></div></div><span class="tlrar" style="color:#F5C542">SEASON</span></div>
+  <div class="tlrow"><div class="tlav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div>
+    <div><div class="tlnm">@priya</div><div class="tlt" style="color:#F5C542;text-shadow:0 0 9px rgba(245,197,66,.6)">✦ Ash Sovereign <span style="background:#3a2a08;color:#F5C542;font-size:8px;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:.5px">S1</span></div></div><span class="tlrar" style="color:#F5C542">SEASON</span></div>
+  <div class="tlrow"><div class="tlav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div>
+    <div><div class="tlnm">@jordan</div><div class="tlt" style="color:#FF6B6B;text-shadow:0 0 11px rgba(255,107,107,.75)">✦ Ascended <span style="background:#4a1e1e;color:#FF8A8A;font-size:8px;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:.5px">S1 · #1</span></div></div><span class="tlrar" style="color:#FF6B6B">MYTHIC</span></div>
+  <div class="tlrow"><div class="tlav"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div>
+    <div><div class="tlnm">@sam</div><div class="tlt" style="color:#F5C542;text-shadow:0 0 9px rgba(245,197,66,.6)">✦ The Untouchable <span style="background:#3a2a08;color:#F5C542;font-size:8px;font-weight:800;padding:1px 5px;border-radius:4px;letter-spacing:.5px">S1 · TOP 1%</span></div></div><span class="tlrar" style="color:#F5C542">SEASON</span></div>
+</div>
+<div class="bcap" style="text-align:left;margin-left:4px;max-width:340px">Colour by rarity · Rare+ gets a glow · Epic gets a ✦ flourish. Dropped titles cap at Epic. The <b>only</b> Legendary/Mythic titles in the game are the season <b>podium</b> — Rank 3 &amp; 2 (<b style="color:#F5C542">Demigod / Titan</b>, Legendary) and Rank 1 (<b style="color:#FF6B6B">Ascended</b>, Mythic red). All <b style="color:#F5C542">end-of-season</b> titles are earn-only with a <b>· S1</b> season-stamp — earned, never dropped.</div>
+
+<h3>Campfire Banner Art — BANNER <span style="color:#7c7194;font-weight:400;font-size:11px">(header + join-preview hero, mock 62)</span></h3>
+<div class="row">
+
+  <div class="bunit"><div class="banner">
+    <svg viewBox="0 0 280 104" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="ef" cx="50%" cy="0%" r="90%"><stop offset="0" stop-color="#2a1840"/><stop offset="1" stop-color="#0e0a18"/></radialGradient><radialGradient id="efg" cx="50%" cy="100%" r="70%"><stop offset="0" stop-color="#E0612C" stop-opacity=".7"/><stop offset="100%" stop-color="#0e0a18" stop-opacity="0"/></radialGradient></defs>
+      <rect width="280" height="104" fill="url(#ef)"/><g fill="#3a2a52" opacity=".7"><circle cx="40" cy="24" r="1"/><circle cx="120" cy="18" r="1.2"/><circle cx="210" cy="30" r="1"/><circle cx="250" cy="16" r="1"/></g>
+      <ellipse cx="140" cy="112" rx="150" ry="46" fill="url(#efg)"/></svg>
+    <span class="emb" style="left:60px;animation-delay:0s"></span><span class="emb" style="left:150px;animation-delay:1.3s"></span><span class="emb" style="left:220px;animation-delay:.7s"></span>
+    <div class="bshade"></div><span class="btag" style="background:rgba(160,108,213,.85);color:#fff">EPIC</span><div class="bnm">Emberfall Night</div>
+  </div><div class="bcap">The sky over the arena, raining slow orange light.</div></div>
+
+  <div class="bunit"><div class="banner">
+    <svg viewBox="0 0 280 104" preserveAspectRatio="xMidYMid slice"><rect width="280" height="104" fill="#20222a"/>
+      <path d="M0 78 L60 50 L110 70 L170 44 L230 66 L280 48 L280 104 L0 104Z" fill="#2c2f38"/>
+      <path d="M0 92 L70 72 L140 88 L210 70 L280 86 L280 104 L0 104Z" fill="#1a1c22"/>
+      <g fill="#3a3d46" opacity=".8"><circle cx="40" cy="30" r="1.4"/><circle cx="120" cy="22" r="1.4"/><circle cx="200" cy="34" r="1.4"/><circle cx="250" cy="26" r="1.4"/><circle cx="80" cy="44" r="1.2"/></g></svg>
+    <span class="emb" style="left:90px;background:#9a94a4;animation-delay:.4s"></span><span class="emb" style="left:180px;background:#b8b2c0;animation-delay:1.6s"></span>
+    <div class="bshade"></div><span class="btag" style="background:rgba(160,108,213,.85);color:#fff">EPIC</span><div class="bnm">Ashfall Ridge</div>
+  </div><div class="bcap">A grey ridgeline under falling ash, where the serious ones train.</div></div>
+
+  <div class="bunit"><div class="banner">
+    <svg viewBox="0 0 280 104" preserveAspectRatio="xMidYMid slice"><rect width="280" height="104" fill="#0c0a12"/>
+      <g fill="none" stroke-linecap="round">
+        <path d="M-20 130 A210 130 0 0 1 300 130" stroke="#1a1a24" stroke-width="16"/>
+        <path d="M0 134 A170 104 0 0 1 280 134" stroke="#22222e" stroke-width="14"/>
+        <path d="M22 138 A130 80 0 0 1 258 138" stroke="#302015" stroke-width="12"/></g>
+      <ellipse cx="140" cy="120" rx="110" ry="42" fill="#E0612C" opacity=".35" style="filter:blur(6px)"/>
+      <ellipse cx="140" cy="116" rx="26" ry="8" fill="#F2A33C" opacity=".6" style="filter:blur(3px)"/></svg>
+    <span class="emb" style="left:110px;animation-delay:0s"></span><span class="emb" style="left:170px;animation-delay:1.1s"></span><span class="emb" style="left:70px;animation-delay:2s"></span>
+    <div class="bshade"></div><span class="btag" style="background:rgba(245,197,66,.9);color:#2a1e00">LEGENDARY</span><div class="bnm">Obsidian Colosseum</div>
+  </div><div class="bcap">Black stone tiers rising into the dark. Every seat is watching.</div></div>
+
+  <div class="bunit"><div class="banner">
+    <svg viewBox="0 0 280 104" preserveAspectRatio="xMidYMid slice"><rect width="280" height="104" fill="#120b08"/>
+      <rect x="120" y="30" width="40" height="60" fill="#1c110a"/>
+      <path d="M120 30 L140 18 L160 30 Z" fill="#241610"/>
+      <ellipse cx="140" cy="78" rx="60" ry="26" fill="#E0612C" opacity=".6" style="filter:blur(5px)"/>
+      <ellipse cx="140" cy="74" rx="22" ry="9" fill="#FFD24D" opacity=".8" style="filter:blur(2px)"/>
+      <path d="M118 74 L162 74 L156 82 L124 82 Z" fill="#2a1a10"/>
+      <path d="M108 88 L172 88 L166 94 L114 94 Z" fill="#1c110a"/></svg>
+    <span class="emb" style="left:120px;animation-delay:0s"></span><span class="emb" style="left:150px;animation-delay:.6s"></span><span class="emb" style="left:135px;animation-delay:1.4s"></span>
+    <div class="bshade"></div><span class="btag" style="background:rgba(245,197,66,.9);color:#2a1e00">LEGENDARY</span><div class="bnm">The Great Forge</div>
+  </div><div class="bcap">The hall where ranks are hammered out of raw resolve.</div></div>
+</div>
+</div>

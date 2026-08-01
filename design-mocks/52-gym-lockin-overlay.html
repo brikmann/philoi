@@ -1,0 +1,98 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:radial-gradient(120% 60% at 50% 55%,#241610,#17131f 60%);border-radius:26px;overflow:hidden;position:relative;color:#FFF6EC}
+/* GIANT flame — stays, but pushed to the background (dimmed) behind the log */
+.bgflame{position:absolute;left:50%;bottom:2%;transform:translateX(-50%);opacity:.5;z-index:0}
+.fglow{position:absolute;left:50%;bottom:8%;transform:translateX(-50%);width:230px;height:230px;border-radius:50%;background:radial-gradient(circle,rgba(224,97,44,.4),transparent 62%);animation:pulse 2.4s ease-in-out infinite;z-index:0}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:.8}}
+.flick{transform-origin:50% 100%;animation:flick 1.6s ease-in-out infinite}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.05) scaleX(.97)}}
+/* top scrim so the log reads cleanly over the flame */
+.scrim{position:absolute;inset:0;background:linear-gradient(180deg,#17131f 8%,rgba(23,19,31,.55) 40%,rgba(23,19,31,.15) 70%,transparent);z-index:1}
+/* content */
+.content{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column}
+.scroll{flex:1;overflow:auto;padding:15px 14px 8px}
+.scroll::-webkit-scrollbar{display:none}
+/* header: activity + shrunken timer pill + energy chip */
+.hdr{display:flex;align-items:flex-start;gap:8px}
+.act{font-size:15px;font-weight:700}
+.camp{font-size:11px;color:#a99cbd;margin-top:2px}
+.hr{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.timerpill{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.1);border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.energy{font-size:10px;font-weight:700;color:#FFD27A;background:rgba(242,163,60,.16);border-radius:999px;padding:3px 9px}
+/* body doubles collapsed */
+.bdrow{display:flex;gap:7px;margin-top:12px}
+.dav{width:26px;height:26px;border-radius:50%;background:#3a2a22;display:flex;align-items:center;justify-content:center;font-size:11px;color:#FFD27A;border:1.5px solid rgba(224,97,44,.5)}
+.bdmore{font-size:10px;color:#7c7194;align-self:center}
+/* exercise cards (translucent so the flame glows through) */
+.ex{background:rgba(36,28,56,.82);backdrop-filter:blur(2px);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:12px 13px 8px;margin-top:12px}
+.exhd{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.exnm{font-size:14.5px;font-weight:600}
+.exsub{font-size:10.5px;color:#7c7194}
+.exmenu{margin-left:auto;color:#7c7194;font-size:15px;letter-spacing:1px}
+.setrow{display:flex;align-items:center;gap:10px;padding:7px 2px;border-top:1px solid rgba(255,255,255,.05);font-size:13.5px}
+.setrow:first-of-type{border-top:0}
+.setno{width:16px;color:#7c7194;font-size:11px}
+.wr{font-weight:600;font-variant-numeric:tabular-nums}.wr .x{color:#7c7194;font-weight:400;margin:0 3px;font-size:11px}
+.pr{display:inline-flex;align-items:center;gap:3px;background:#3a2a22;color:#FFD27A;border-radius:6px;padding:1px 6px;font-size:9px;font-weight:800;margin-left:6px}
+.spacer{flex:1}
+.done{width:20px;height:20px;border-radius:999px;background:#213524;display:flex;align-items:center;justify-content:center}
+.done svg{width:11px;height:11px;stroke:#3DA85C;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.addset{display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;margin-top:2px;font-size:11.5px;color:#8a7fa6;border-top:1px dashed rgba(255,255,255,.08)}
+.addex{text-align:center;font-size:12.5px;color:#a99cbd;padding:12px;margin-top:10px}
+/* bottom controls */
+.controls{display:flex;align-items:center;gap:10px;padding:8px 16px 16px}
+.cam{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;flex:none;position:relative}
+.cam svg{width:17px;height:17px;stroke:#FFF6EC;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.finish{flex:1;background:#E0612C;border-radius:13px;padding:12px;text-align:center;font-size:14px;font-weight:700;color:#fff}
+</style>
+<div class="col2">
+  <div class="phone"><div class="stage">
+    <!-- giant flame stays, in the background -->
+    <div class="fglow"></div>
+    <svg class="bgflame flick" width="200" height="240" viewBox="0 0 100 120">
+      <path d="M50 4 C59 30 84 40 84 74 a34 34 0 0 1 -68 0 C16 52 29 46 33 35 c3 13 11 15 11 15 C44 31 46 17 50 4Z" fill="#E0612C"/>
+      <path d="M52 32 C59 50 76 57 76 78 a26 26 0 0 1 -52 0 c0 -14 9 -19 13 -28 c1.5 9 6 11 6 11 C48 60 50 44 52 32Z" fill="#F2A33C"/>
+    </svg>
+    <div class="scrim"></div>
+
+    <div class="content">
+      <div class="scroll">
+        <div class="hdr">
+          <div><div class="act">Gym · Leg day</div><div class="camp">Laurier Grind</div></div>
+          <div class="hr"><span class="timerpill">12:47</span><span class="energy">DIALED</span></div>
+        </div>
+
+        <div class="bdrow">
+          <div class="dav">A</div><div class="dav">M</div><div class="dav">D</div><span class="bdmore">+2 locked in with you</span>
+        </div>
+
+        <div class="ex">
+          <div class="exhd"><span class="exnm">Back Squat</span><span class="exsub">3 sets</span><span class="exmenu">⋯</span></div>
+          <div class="setrow"><span class="setno">1</span><span class="wr">185<span class="x">×</span>8</span><span class="spacer"></span><span class="done"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+          <div class="setrow"><span class="setno">2</span><span class="wr">205<span class="x">×</span>6</span><span class="pr">🔥 PR</span><span class="spacer"></span><span class="done"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+          <div class="setrow"><span class="setno">3</span><span class="wr">205<span class="x">×</span>5</span><span class="spacer"></span><span class="done"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+          <div class="addset">+ Add set</div>
+        </div>
+
+        <div class="ex">
+          <div class="exhd"><span class="exnm">Leg Press</span><span class="exsub">1 set</span><span class="exmenu">⋯</span></div>
+          <div class="setrow"><span class="setno">1</span><span class="wr">320<span class="x">×</span>12</span><span class="spacer"></span><span class="done"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span></div>
+          <div class="addset">+ Add set</div>
+        </div>
+
+        <div class="addex">+ Add exercise</div>
+      </div>
+
+      <div class="controls">
+        <div class="cam"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+        <div class="finish">Finish workout</div>
+      </div>
+    </div>
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">Gym lock-in — workout log over the flame (mock 52).</b> The giant flame <b>stays in the background</b> (dimmed, glowing through) with a top scrim so the log reads. Header = activity + a <b>shrunken timer pill</b> + <b>energy chip</b>; body-doubles collapse to a small strip. Translucent <b>exercise cards</b> (set rows, ⋯ replace/reorder, auto-<b style="color:#FFD27A">PR</b>) scroll on top; camera + <b>Finish workout</b> at the bottom. (§23)</div>
+</div>

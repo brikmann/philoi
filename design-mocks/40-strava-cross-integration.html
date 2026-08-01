@@ -1,0 +1,139 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.wrap{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11px;text-align:center;max-width:300px;line-height:1.5}
+.cap b{color:#FC7A3F}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:auto;padding:16px 14px;box-sizing:border-box;color:#FFF6EC}
+.stage::-webkit-scrollbar{display:none}
+.h{font-size:18px;font-weight:600;margin-bottom:2px}
+.seclbl{font-size:10px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin:14px 2px 8px}
+/* strava mark */
+.smark{display:inline-flex;vertical-align:middle}
+.smark svg{width:13px;height:13px}
+.sbadge{display:inline-flex;align-items:center;gap:4px;background:rgba(252,76,2,.16);color:#FC7A3F;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:600}
+/* normal lock-in row */
+.row{display:flex;align-items:center;gap:11px;background:#241c38;border-radius:12px;padding:11px 12px;margin-bottom:9px}
+.ic{width:34px;height:34px;border-radius:9px;background:#2d2740;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+.meta{flex:1;min-width:0}.nm{font-size:13.5px;font-weight:500}.sub{font-size:11px;color:#a99cbd;margin-top:1px}
+.when{font-size:10px;color:#7c7194;flex:none}
+/* STRAVA-synced lock-in — orange hue */
+.row.strava{background:linear-gradient(135deg,#2a1d18,#241c38);border:1px solid rgba(252,76,2,.55);box-shadow:0 0 0 1px rgba(252,76,2,.12),0 6px 18px -10px rgba(252,76,2,.5)}
+.row.strava .ic{background:rgba(252,76,2,.18)}
+/* campfire post */
+.post{background:#211a30;border-radius:14px;padding:12px;margin-bottom:11px}
+.phead{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.av{width:32px;height:32px;border-radius:999px;background:#3a2a22;display:flex;align-items:center;justify-content:center;font-size:13px;color:#FFD27A;flex:none}
+.pname{font-size:12.5px;font-weight:500}.pmeta{font-size:10.5px;color:#a99cbd}
+.stat{display:flex;gap:12px;margin:7px 0 9px}
+.stat div{font-size:11px;color:#e7ddf5}.stat b{font-size:14px;font-weight:700;display:block}
+.photo{height:96px;border-radius:10px;background:linear-gradient(160deg,#4a3a2a,#2a1f1c);display:flex;align-items:flex-end;padding:8px;margin-bottom:8px}
+.react{display:flex;gap:12px;font-size:12px;color:#a99cbd}
+/* STRAVA post — full orange hue + tap-through */
+.post.strava{background:linear-gradient(135deg,#2a1d18,#211a30);border:1.5px solid #FC4C02;box-shadow:0 0 22px -6px rgba(252,76,2,.55)}
+.viewstrava{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:9px;padding:8px;border-radius:9px;background:rgba(252,76,2,.14);color:#FC7A3F;font-size:11.5px;font-weight:600}
+.viewstrava svg{width:13px;height:13px}
+.tophint{margin-left:auto}
+/* profile activity detail */
+.map{height:110px;border-radius:12px;background:linear-gradient(135deg,#2a1f1c,#1e2a24);position:relative;overflow:hidden;margin-bottom:11px;border:1px solid rgba(252,76,2,.4)}
+.map svg{position:absolute;inset:0}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:11px}
+.thumb{aspect-ratio:1;border-radius:8px;background:linear-gradient(160deg,#4a3a2a,#2a1f1c)}
+.dstat{display:flex;justify-content:space-between;background:#241c38;border-radius:12px;padding:11px 13px;margin-bottom:11px}
+.dstat div{text-align:center}.dstat b{font-size:16px;font-weight:700;display:block}.dstat span{font-size:9.5px;color:#7c7194}
+.obtn{width:100%;border:0;border-radius:11px;padding:11px;background:#FC4C02;color:#fff;font-weight:600;font-size:13px;font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;gap:7px}
+.obtn svg{width:15px;height:15px}
+</style>
+<!-- reusable Strava-ish chevron mark -->
+<svg width="0" height="0" style="position:absolute"><symbol id="strava" viewBox="0 0 24 24"><path d="M9 13.8L13.4 5 17.8 13.8h-2.6L13.4 10.1 11.6 13.8z" fill="#FC4C02"/><path d="M15.2 13.8l1.8 3.6 1.8-3.6h-1.3l-.5 1-.5-1z" fill="#FC7A3F"/></symbol></svg>
+
+<div class="wrap">
+
+  <!-- FRAME 1: HOME / personal diary -->
+  <div class="col">
+    <div class="phone"><div class="stage">
+      <div class="h">Your recent lock-ins</div>
+      <div class="seclbl">Today</div>
+
+      <div class="row strava">
+        <span class="ic"><svg width="18" height="18"><use href="#strava"/></svg></span>
+        <div class="meta">
+          <div class="nm">Morning Run</div>
+          <div class="sub">5.2 km · 26:30 · 5:05 /km</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <span class="sbadge"><svg style="width:11px;height:11px"><use href="#strava"/></svg>Strava</span>
+          <span class="when">2h ago</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="ic">🏋️</span>
+        <div class="meta"><div class="nm">Leg day</div><div class="sub">Gym · 48:12 · 2 PRs</div></div>
+        <span class="when">5h ago</span>
+      </div>
+      <div class="row">
+        <span class="ic">📚</span>
+        <div class="meta"><div class="nm">Study</div><div class="sub">1:15:00 · orgo midterm</div></div>
+        <span class="when">9h ago</span>
+      </div>
+    </div></div>
+    <div class="cap"><b>1 · Home diary.</b> A synced activity logs itself as <b>“Activity · Strava”</b> with an orange hue + the Strava mark — so you instantly see your connected app did that. Sits right alongside your manual lock-ins.</div>
+  </div>
+
+  <!-- FRAME 2: CAMPFIRE post -->
+  <div class="col">
+    <div class="phone"><div class="stage">
+      <div class="h">Laurier Grind 🔥</div>
+      <div class="seclbl">Feed</div>
+
+      <div class="post strava">
+        <div class="phead">
+          <span class="av">N</span>
+          <div><div class="pname">Noah ran</div><div class="pmeta">Morning Run · via Strava</div></div>
+          <span class="sbadge tophint"><svg style="width:11px;height:11px"><use href="#strava"/></svg>Strava</span>
+        </div>
+        <div class="stat">
+          <div><b>5.2</b>km</div><div><b>26:30</b>time</div><div><b>5:05</b>/km</div>
+        </div>
+        <div class="photo"><span style="font-size:10px;color:#e7c9b8">📷 sunrise @ the trail</span></div>
+        <div class="react">❤️ 8&nbsp;&nbsp;🔥 5&nbsp;&nbsp;💬 2</div>
+        <div class="viewstrava"><svg><use href="#strava"/></svg>View this run on Strava ↗</div>
+      </div>
+
+      <div class="post">
+        <div class="phead"><span class="av">A</span><div><div class="pname">Aidan locked in</div><div class="pmeta">Gym · 51:00</div></div></div>
+        <div class="react">🔥 4&nbsp;&nbsp;💬 1</div>
+      </div>
+    </div></div>
+    <div class="cap"><b>2 · Campfire post.</b> The whole card gets an <b>orange glow + Strava logo</b>. Tapping it (or “View on Strava ↗”) deep-links straight to that person’s real activity on Strava — a meaningful two-way link, not just a screenshot.</div>
+  </div>
+
+  <!-- FRAME 3: PROFILE / activity detail -->
+  <div class="col">
+    <div class="phone"><div class="stage">
+      <div class="h">Morning Run</div>
+      <div class="sbadge" style="margin:4px 0 12px"><svg style="width:11px;height:11px"><use href="#strava"/></svg>Synced from Strava · 2h ago</div>
+
+      <div class="map">
+        <svg viewBox="0 0 280 110" preserveAspectRatio="none"><path d="M20 80 C60 20 110 95 150 45 S240 25 262 60" fill="none" stroke="#FC4C02" stroke-width="3" stroke-linecap="round"/></svg>
+      </div>
+
+      <div class="dstat">
+        <div><b>5.2</b><span>KM</span></div>
+        <div><b>26:30</b><span>TIME</span></div>
+        <div><b>5:05</b><span>/KM</span></div>
+        <div><b>312</b><span>CAL</span></div>
+      </div>
+
+      <div class="seclbl">Photos from this lock-in</div>
+      <div class="grid"><div class="thumb"></div><div class="thumb"></div><div class="thumb"></div></div>
+
+      <button class="obtn"><svg><use href="#strava"/></svg>Open full activity on Strava</button>
+    </div></div>
+    <div class="cap"><b>3 · Profile / activity detail.</b> Tap a synced activity to revisit it — route, splits, and the <b>photos you took</b> on that lock-in (and posted), with a one-tap <b>Open on Strava</b> to the source. Looking back at a run feels like a real record.</div>
+  </div>
+
+</div>

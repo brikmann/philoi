@@ -1,0 +1,141 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:auto;color:#FFF6EC}
+.stage::-webkit-scrollbar{display:none}
+.inner{padding:15px 15px 20px}
+.top{display:flex;align-items:center}
+.h{font-size:20px;font-weight:700}
+.embbal{margin-left:auto;display:flex;align-items:center;gap:6px;background:#241c38;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;color:#FFD27A}
+.embbal .fl{font-size:13px}
+.seclbl{font-size:11px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin:18px 2px 10px;display:flex;align-items:center}
+.seclbl .more{margin-left:auto;font-size:10px;color:#F2A33C;letter-spacing:0;text-transform:none}
+/* forge pass HERO */
+.forge{position:relative;border-radius:18px;padding:16px 15px;overflow:hidden;background:radial-gradient(130% 130% at 100% 0,#6a2a18,#2a1533 62%);border:1px solid rgba(242,163,60,.5);min-height:152px}
+.fember{position:absolute;width:3px;height:3px;border-radius:50%;background:#F2A33C;opacity:0;z-index:1;animation:frise 3.2s linear infinite}
+@keyframes frise{0%{opacity:0;transform:translateY(0)}15%{opacity:.9}100%{opacity:0;transform:translateY(-78px)}}
+.fglow{position:absolute;right:-12px;top:6px;width:118px;height:118px;border-radius:50%;background:radial-gradient(circle,rgba(255,90,60,.55),transparent 62%);filter:blur(6px);z-index:1;animation:fpulse 2.4s ease-in-out infinite}
+@keyframes fpulse{0%,100%{opacity:.5}50%{opacity:.9}}
+.fcap{position:absolute;right:10px;top:26px;z-index:2}
+.fspin{transform-origin:40px 40px;animation:fspin 12s linear infinite}
+@keyframes fspin{to{transform:rotate(360deg)}}
+.fcontent{position:relative;z-index:3;max-width:182px}
+.fbadge{display:inline-block;font-size:8px;font-weight:800;letter-spacing:1.3px;color:#FFCF8A;background:rgba(242,163,60,.16);padding:3px 8px;border-radius:999px}
+.forge .ft{font-size:23px;font-weight:800;margin-top:9px;line-height:1;letter-spacing:.2px}
+.fperk{font-size:10.5px;color:#e7ddf5;line-height:1.5;margin:10px 0 12px}
+.fbtns{display:flex;gap:8px;align-items:center}
+.fpbtn{display:inline-block;background:linear-gradient(135deg,#FFC24D,#E0612C);color:#3a1608;border-radius:11px;padding:10px 15px;font-size:13px;font-weight:800;box-shadow:0 3px 13px rgba(224,97,44,.45)}
+.fpbtn2{display:inline-block;background:rgba(255,255,255,.06);color:#FFCF8A;border:1px solid rgba(255,207,138,.5);border-radius:11px;padding:9px 14px;font-size:12.5px;font-weight:700}
+.ffine{font-size:8.5px;color:#a58fb0;margin-top:9px}
+/* loot boxes row */
+.boxes{display:flex;gap:10px;overflow-x:auto;padding-bottom:2px}
+.boxes::-webkit-scrollbar{display:none}
+.box{flex:none;width:96px;background:#20182f;border-radius:14px;padding:12px 8px 10px;text-align:center;border:1px solid rgba(255,255,255,.05)}
+.bx{width:54px;height:54px;border-radius:13px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center}
+.bx svg{width:48px;height:48px}
+.bn{font-size:10.5px;font-weight:700;line-height:1.2}
+.brar{font-size:8px;font-weight:800;letter-spacing:.5px;margin-top:2px}
+.bprice{font-size:11px;font-weight:700;color:#FFD27A;margin-top:7px}
+/* ember packs */
+.packs{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.pack{background:#20182f;border-radius:13px;padding:12px;display:flex;align-items:center;gap:10px}
+.pack.best{border:1px solid #E0612C;position:relative}
+.pack .best-tag{position:absolute;top:-8px;right:8px;background:#E0612C;color:#fff;font-size:8px;font-weight:800;padding:1px 6px;border-radius:999px}
+.pack .amt{font-size:15px;font-weight:800;color:#FFD27A}
+.pack .amt .fl{font-size:13px}
+.pack .sub{font-size:9.5px;color:#7c7194}
+.pack .price{margin-left:auto;background:#2b2036;border-radius:9px;padding:5px 9px;font-size:11.5px;font-weight:700}
+</style>
+<div class="col2">
+  <div class="phone"><div class="stage"><div class="inner">
+    <div class="top"><span class="h">Shop</span><span class="embbal"><span class="fl">🔥</span>1,240</span></div>
+
+    <div class="forge">
+      <span class="fember" style="left:24px;bottom:18px;animation-delay:0s"></span>
+      <span class="fember" style="left:120px;bottom:8px;animation-delay:1.1s"></span>
+      <span class="fember" style="left:210px;bottom:26px;animation-delay:2s"></span>
+      <span class="fember" style="left:245px;bottom:12px;animation-delay:2.7s"></span>
+      <div class="fglow"></div>
+      <div class="fcap"><svg width="94" height="94" viewBox="0 0 80 80">
+        <g class="fspin" stroke="#FFB84D" stroke-width="2.6" stroke-linecap="round">
+          <line x1="40" y1="9" x2="40" y2="26"/><line x1="40" y1="9" x2="40" y2="26" transform="rotate(45 40 40)"/><line x1="40" y1="9" x2="40" y2="26" transform="rotate(90 40 40)"/><line x1="40" y1="9" x2="40" y2="26" transform="rotate(135 40 40)"/><line x1="40" y1="9" x2="40" y2="26" transform="rotate(180 40 40)"/><line x1="40" y1="9" x2="40" y2="26" transform="rotate(225 40 40)"/><line x1="40" y1="9" x2="40" y2="26" transform="rotate(270 40 40)"/><line x1="40" y1="9" x2="40" y2="26" transform="rotate(315 40 40)"/>
+        </g>
+        <circle cx="40" cy="40" r="13" fill="#FF3D3D"/><circle cx="40" cy="40" r="6" fill="#ffe0b0"/>
+      </svg></div>
+      <div class="fcontent">
+        <span class="fbadge">Season 1 Forge Pass · Emberfall</span>
+        <div class="ft">Forged in flame</div>
+        <div class="fperk">Become the fire the whole arena gathers around — and claim the Mythic <b style="color:#FFCF8A">Emberfall Ascendant Flare</b> to prove it. →</div>
+        <div class="fbtns">
+          <span class="fpbtn">Get Pass · $8.99</span>
+          <span class="fpbtn2">Preview</span>
+        </div>
+        <div class="ffine">Auto-renews each season · cancel anytime · cosmetics only</div>
+      </div>
+    </div>
+
+    <div class="seclbl">Featured · buy direct <span class="more">Rotates weekly</span></div>
+    <div class="boxes">
+      <div class="box"><div class="bx" style="background:radial-gradient(circle,#4a2a6e,#20182f)"><svg viewBox="0 0 48 48"><path d="M24 7 C31 20 38 25 38 35 a14 14 0 0 1 -28 0 C10 25 18 22 20 14 c1 6 4 7 4 7 C29 15 22 11 24 7Z" fill="#6A2AB8"/><path d="M24 21 C29 30 33 33 33 39 a9 9 0 0 1 -18 0 c0 -6 4 -7 5 -12z" fill="#C77BFF"/></svg></div><div class="bn">Cosmic Purple</div><div class="brar" style="color:#F5C542">LEGENDARY</div><div class="bprice">🔥 4,000</div></div>
+      <div class="box"><div class="bx" style="background:radial-gradient(circle,#4a2a6e,#20182f)"><svg viewBox="0 0 48 48"><g fill="none" stroke-width="3.5"><path d="M24 8 A16 16 0 0 1 40 24" stroke="#7be0ff"/><path d="M40 24 A16 16 0 0 1 24 40" stroke="#c77bff"/><path d="M24 40 A16 16 0 0 1 8 24" stroke="#ff9ad2"/><path d="M8 24 A16 16 0 0 1 24 8" stroke="#ffe08a"/></g><circle cx="24" cy="24" r="11" fill="#2d2740"/><circle cx="24" cy="21" r="4" fill="#4a4460"/><path d="M16 34 a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div><div class="bn">Diamond Prism</div><div class="brar" style="color:#c79bec">EPIC</div><div class="bprice">🔥 1,500</div></div>
+      <div class="box"><div class="bx" style="background:radial-gradient(circle,#5a3a12,#20182f)"><svg viewBox="0 0 48 48"><rect x="7" y="12" width="34" height="24" rx="4" fill="#F5C542"/><rect x="7" y="12" width="34" height="24" rx="4" fill="none" stroke="#c8a020" stroke-width="1"/><path d="M17 22 L31 22 L29 25 L25 25 L24 27 L27 27 L26 30 L20 30 L22 25 L17 25 Z" fill="#7a5300"/></svg></div><div class="bn">Golden Anvil</div><div class="brar" style="color:#F5C542">LEGENDARY</div><div class="bprice">🔥 4,000</div></div>
+      <div class="box"><div class="bx" style="background:radial-gradient(circle,#4a2a6e,#20182f)"><svg viewBox="0 0 48 48"><path d="M24 7 C31 20 38 25 38 35 a14 14 0 0 1 -28 0 C10 25 18 22 20 14 c1 6 4 7 4 7 C29 15 22 11 24 7Z" fill="#E0612C"/><path d="M24 21 C29 30 33 33 33 39 a9 9 0 0 1 -18 0 c0 -6 4 -7 5 -12z" fill="#FFD24D"/></svg></div><div class="bn">Solar Flare</div><div class="brar" style="color:#c79bec">EPIC</div><div class="bprice">🔥 1,500</div></div>
+      <div class="box"><div class="bx" style="background:radial-gradient(circle,#1f5a34,#20182f)"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="11" fill="#2d2740"/><circle cx="24" cy="21" r="4" fill="#4a4460"/><path d="M16 34 a8 7 0 0 1 16 0Z" fill="#4a4460"/><g fill="#E0612C"><circle cx="24" cy="7" r="2.5"/><circle cx="41" cy="24" r="2.5"/><circle cx="24" cy="41" r="2.5"/><circle cx="7" cy="24" r="2.5"/><circle cx="36" cy="12" r="2"/><circle cx="36" cy="36" r="2"/><circle cx="12" cy="36" r="2"/><circle cx="12" cy="12" r="2"/></g></svg></div><div class="bn">Ember Halo</div><div class="brar" style="color:#3DA85C">UNCOMMON</div><div class="bprice">🔥 300</div></div>
+    </div>
+
+    <div class="seclbl">Loot boxes <span class="more">See odds</span></div>
+    <div class="boxes">
+      <div class="box"><div class="bx" style="background:radial-gradient(circle,#332c44,#20182f)"><svg viewBox="0 0 48 48">
+        <rect x="10" y="18" width="9" height="22" rx="4" fill="#7a5636"/><ellipse cx="14.5" cy="18" rx="4.5" ry="2" fill="#c9a06a"/>
+        <rect x="19" y="15" width="10" height="25" rx="5" fill="#85633f"/><ellipse cx="24" cy="15" rx="5" ry="2.2" fill="#d1a86e"/>
+        <rect x="29" y="18" width="9" height="22" rx="4" fill="#7a5636"/><ellipse cx="33.5" cy="18" rx="4.5" ry="2" fill="#c9a06a"/>
+        <rect x="8" y="24" width="32" height="3.6" rx="1.8" fill="#8a5230"/><rect x="8" y="32" width="32" height="3.6" rx="1.8" fill="#8a5230"/>
+      </svg></div><div class="bn">Kindling</div><div class="brar" style="color:#8a7fa6">COMMON</div><div class="bprice">🔥 80</div></div>
+      <div class="box"><div class="bx" style="background:radial-gradient(circle,#1f5a34,#20182f)"><svg viewBox="0 0 48 48">
+        <path d="M22 12 C20 8 27 7 27 4" fill="none" stroke="#6a4a2a" stroke-width="1.6"/><circle cx="27" cy="3.6" r="2.6" fill="#FFD27A"/>
+        <path d="M12 16 L24 13 L36 16 L24 19 Z" fill="#33313f"/>
+        <path d="M12 16 L24 19 L24 38 L12 35 Z" fill="#22202b"/><path d="M36 16 L24 19 L24 38 L36 35 Z" fill="#2A2834"/>
+        <rect x="16" y="30" width="16" height="3" rx="1.5" fill="#3DA85C"/>
+      </svg></div><div class="bn">Ignition</div><div class="brar" style="color:#3DA85C">UNCOMMON</div><div class="bprice">🔥 200</div></div>
+      <div class="box"><div class="bx" style="background:radial-gradient(circle,#1d5a72,#20182f)"><svg viewBox="0 0 48 48">
+        <path d="M24 8 L38 16 L24 24 L10 16 Z" fill="#22202b"/>
+        <path d="M10 16 L24 24 L24 40 L10 32 Z" fill="#14121A"/><path d="M38 16 L24 24 L24 40 L38 32 Z" fill="#1a1720"/>
+        <path d="M13 22 L21 26 L21 35 L13 31 Z" fill="#FFB800"/><path d="M35 22 L27 26 L27 35 L35 31 Z" fill="#FFB800"/>
+      </svg></div><div class="bn">Furnace</div><div class="brar" style="color:#4FB0E5">RARE</div><div class="bprice">🔥 500</div></div>
+      <div class="box"><div class="bx" style="background:radial-gradient(circle,#4a2a6e,#20182f)"><svg viewBox="0 0 48 48">
+        <path d="M18 14 L30 14 L27 20 C37 25 38 35 30 42 L18 42 C10 35 11 25 21 20 Z" fill="#0F0D14" stroke="#3a3550" stroke-width="1.2"/>
+        <path d="M24 22 C33 26 34 34 28 40 L24 41 Z" fill="#080610" opacity=".6"/>
+        <ellipse cx="24" cy="14" rx="6" ry="2" fill="#1a1626" stroke="#3a3550" stroke-width="1"/>
+        <path d="M18 18 C10 20 10 30 16 33" fill="none" stroke="#0F0D14" stroke-width="4"/><path d="M30 18 C38 20 38 30 32 33" fill="none" stroke="#0F0D14" stroke-width="4"/>
+        <circle cx="23" cy="30" r="2" fill="#A200FF"/>
+      </svg></div><div class="bn">Vessel of Hestia</div><div class="brar" style="color:#c79bec">EPIC</div><div class="bprice">🔥 1,200</div></div>
+      <div class="box"><div class="bx" style="background:radial-gradient(circle,#8a5a12,#20182f)"><svg viewBox="0 0 48 48">
+        <path d="M12 20 L17 16 L36 16 L31 20 Z" fill="#eef8ff"/>
+        <path d="M31 20 L36 16 L36 34 L31 38 Z" fill="#c2dcea"/>
+        <rect x="12" y="20" width="19" height="18" fill="#E0F4FF"/>
+        <rect x="12" y="26" width="19" height="2.4" fill="#fff"/><rect x="12" y="20" width="19" height="1.5" fill="#FFD700"/>
+        <path d="M31 20 L36 16" stroke="#FFD700" stroke-width="1.5"/>
+        <circle cx="21.5" cy="30" r="3.4" fill="#FFD700" stroke="#b8860b" stroke-width="1"/>
+      </svg></div><div class="bn">Hephaestus' Chest</div><div class="brar" style="color:#F5C542">LEGENDARY</div><div class="bprice">🔥 3,000</div></div>
+      <div class="box"><div class="bx" style="background:radial-gradient(circle,#8a2020,#20182f)"><svg viewBox="0 0 48 48">
+        <ellipse cx="24" cy="26" rx="20" ry="7" fill="none" stroke="#5a1414" stroke-width="2.5"/>
+        <path d="M24 8 L24 26 L12 26 Z" fill="#1a0c0e"/><path d="M24 8 L36 26 L24 26 Z" fill="#251012"/>
+        <path d="M12 26 L24 26 L24 42 Z" fill="#120a0c"/><path d="M36 26 L24 26 L24 42 Z" fill="#1c0e10"/>
+        <path d="M24 8 L36 26 L24 42 L12 26 Z" fill="none" stroke="#5a1414" stroke-width="1"/>
+        <circle cx="24" cy="26" r="5" fill="#FF2A2A"/><circle cx="24" cy="26" r="2.4" fill="#ffc2c2"/>
+      </svg></div><div class="bn">Promethean Vault</div><div class="brar" style="color:#FF6B6B">MYTHIC</div><div class="bprice">🔥 8,000</div></div>
+    </div>
+
+    <div class="seclbl">Buy embers</div>
+    <div class="packs">
+      <div class="pack"><span class="amt"><span class="fl">🔥</span>500</span><div class="sub">Remnant</div><span class="price">$4.99</span></div>
+      <div class="pack best"><span class="best-tag">BEST</span><span class="amt"><span class="fl">🔥</span>1,200</span><div class="sub">Pile</div><span class="price">$9.99</span></div>
+      <div class="pack"><span class="amt"><span class="fl">🔥</span>2,600</span><div class="sub">Stack</div><span class="price">$19.99</span></div>
+      <div class="pack"><span class="amt"><span class="fl">🔥</span>7,000</span><div class="sub">Hoard</div><span class="price">$49.99</span></div>
+    </div>
+  </div></div></div>
+  <div class="cap"><b style="color:#a99cbd">Shop (mock 56).</b> Reached from a shop icon top-right of Home — open to everyone, no paywall gate. Four sections: <b>Forge Pass</b> (the $8.99/season subscription — Free + Premium lanes, mock 68), <b>Featured</b> (direct-buy specific cosmetics for embers — the deterministic path vs box RNG, §8.4; earned/Pass-exclusive items are NOT buyable), <b>Loot boxes</b> (the 6 tiers, tap → odds, mock 57), and <b>Buy embers</b> (packs). Ember balance always top-right. Effort is never sold — cosmetics + currency only.</div>
+</div>

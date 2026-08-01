@@ -1,0 +1,61 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.wrap{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;align-items:flex-start;max-width:1040px}
+.col2{display:flex;flex-direction:column;align-items:center;gap:8px}
+.cap{color:#a99cbd;font-size:10.5px;text-align:center;max-width:236px;line-height:1.45}
+.phone{width:236px;height:472px;background:#14111c;border-radius:30px;padding:8px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:radial-gradient(120% 62% at 50% 42%,#2a1a14,#17131f 62%);border-radius:24px;overflow:hidden;position:relative;color:#FFF6EC;display:flex;flex-direction:column}
+.emb{position:absolute;bottom:34%;width:2.5px;height:2.5px;border-radius:50%;background:#FFD27A;opacity:0;animation:rise 4.2s ease-out infinite}
+@keyframes rise{0%{opacity:0;transform:translateY(0)}15%{opacity:.8}100%{opacity:0;transform:translateY(-150px) translateX(12px) scale(.3)}}
+.top{padding:16px 14px 0;text-align:center;position:relative;z-index:2}
+.act{font-size:15px;font-weight:700}
+.camp{font-size:11px;color:#a99cbd;margin-top:2px}
+.min{position:absolute;top:14px;right:14px;color:#8a7fa6;font-size:18px;line-height:1}
+.center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2}
+.flamewrap{position:relative;width:170px;height:190px;display:flex;align-items:flex-end;justify-content:center}
+.fglow{position:absolute;bottom:20px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(224,97,44,.5),transparent 62%);animation:pulse 2.3s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+.flame{transform-origin:50% 100%;animation:flick 1.5s ease-in-out infinite}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.05) scaleX(.97)}}
+.lockedlbl{font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:#F2A33C;font-weight:700;margin-top:-4px}
+.timer{font-size:50px;font-weight:800;font-variant-numeric:tabular-nums;text-shadow:0 0 22px rgba(242,163,60,.45)}
+.controls{display:flex;align-items:center;gap:9px;padding:8px 14px 14px;z-index:2}
+.cam{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;flex:none}
+.cam svg{width:16px;height:16px;stroke:#FFF6EC;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.stop{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.13);border-radius:12px;padding:11px;text-align:center;font-size:13px;font-weight:600;color:#e7ddf5}
+</style>
+<template id="lk">
+  <div class="stage">
+    <span class="emb" style="left:46%;animation-delay:0s"></span><span class="emb" style="left:56%;animation-delay:1.2s"></span><span class="emb" style="left:42%;animation-delay:2.4s"></span>
+    <div class="top"><div class="act">__ACT__</div><div class="camp">__CAMP__</div><span class="min">–</span></div>
+    <div class="center">
+      <div class="flamewrap"><div class="fglow"></div>
+        <svg class="flame" width="160" height="192" viewBox="0 0 100 120">
+          <path d="M50 4 C59 30 84 40 84 74 a34 34 0 0 1 -68 0 C16 52 29 46 33 35 c3 13 11 15 11 15 C44 31 46 17 50 4Z" fill="#E0612C"/>
+          <path d="M52 32 C59 50 76 57 76 78 a26 26 0 0 1 -52 0 c0 -14 9 -19 13 -28 c1.5 9 6 11 6 11 C48 60 50 44 52 32Z" fill="#F2A33C"/>
+          <path d="M51 60 C56 70 65 74 65 86 a15 15 0 0 1 -30 0 c0 -8 5 -11 8 -16 c.8 5 3 6 3 6 C46 76 48 68 51 60Z" fill="#FFD27A"/>
+        </svg>
+      </div>
+      <div class="lockedlbl">Locked in</div>
+      <div class="timer">__TIME__</div>
+    </div>
+    <div class="controls">
+      <div class="cam"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+      <div class="stop">Stop</div>
+    </div>
+  </div>
+</template>
+<div class="wrap">
+  <div class="col2"><div class="phone" data-act="Study · Orgo midterm" data-camp="Laurier Grind" data-time="41:03"></div><div class="cap"><b>Study.</b> Same screen — activity header swaps.</div></div>
+  <div class="col2"><div class="phone" data-act="Run · Easy 5k" data-camp="Run Club" data-time="22:47"></div><div class="cap"><b>Run.</b> Time-based lock-in (device metrics only feed a challenge).</div></div>
+  <div class="col2"><div class="phone" data-act="Read · 30 pages" data-camp="Solo · your fire" data-time="18:20"></div><div class="cap"><b>Read.</b></div></div>
+  <div class="col2"><div class="phone" data-act="Job apps · 3 today" data-camp="Grind szn" data-time="35:12"></div><div class="cap"><b>Job apps.</b></div></div>
+  <div class="col2"><div class="phone" data-act="Custom · Guitar practice" data-camp="Solo · your fire" data-time="12:05"></div><div class="cap"><b>Custom.</b> Any goal you name.</div></div>
+</div>
+<script>
+var tpl=document.getElementById('lk').innerHTML;
+document.querySelectorAll('.phone').forEach(function(p){
+  p.innerHTML=tpl.replace('__ACT__',p.dataset.act).replace('__CAMP__',p.dataset.camp).replace('__TIME__',p.dataset.time);
+});
+</script>

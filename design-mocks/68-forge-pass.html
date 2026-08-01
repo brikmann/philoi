@@ -1,0 +1,118 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-wrap:wrap;gap:22px;justify-content:center;align-items:flex-start}
+.unit{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:#161320;border-radius:26px;overflow:hidden;color:#FFF6EC;display:flex;flex-direction:column}
+.inner{padding:15px 15px 0;flex:1;display:flex;flex-direction:column;min-height:0}
+.top{display:flex;align-items:flex-start}
+.h{font-size:19px;font-weight:800}
+.sub{font-size:11px;color:#F2A33C;font-weight:700;margin-top:2px}
+.tiernow{margin-left:auto;text-align:right}
+.tiernow .b{font-size:20px;font-weight:800}
+.tiernow .s{font-size:9px;color:#7c7194}
+.xpb{margin-top:11px}
+.xpt{display:flex;justify-content:space-between;font-size:9.5px;color:#a99cbd;margin-bottom:4px}
+.xptrack{height:8px;border-radius:999px;background:#2d2740;overflow:hidden}
+.xptrack>div{height:100%;width:69%;border-radius:999px;background:linear-gradient(90deg,#F2A33C,#E0612C)}
+.pcta{margin-top:12px;border-radius:14px;padding:11px 13px;background:linear-gradient(135deg,#2a1d18,#241c38);border:1px solid rgba(242,163,60,.4);display:flex;align-items:center;gap:10px}
+.pcta .tx{font-size:10.5px;color:#e7ddf5;line-height:1.4;flex:1}
+.pcta .tx b{color:#F2A33C}
+.pcta .btn{flex:none;background:#F2A33C;color:#3a2410;font-size:11.5px;font-weight:800;padding:9px 12px;border-radius:10px;text-align:center;line-height:1.15}
+.leg{display:flex;gap:14px;font-size:9px;color:#7c7194;margin:13px 2px 7px}
+.leg b{color:#c8bcdd}
+.track{flex:1;overflow-x:auto;overflow-y:hidden;display:flex;gap:9px;padding-bottom:14px;min-height:0}
+.track::-webkit-scrollbar{display:none}
+.col{flex:none;width:60px;display:flex;flex-direction:column;align-items:center}
+.rt{width:56px;height:56px;border-radius:12px;background:#20182f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:1.5px solid #2a2438;text-align:center}
+.rt .ri{font-size:17px;line-height:1}
+.rt .rl{font-size:7.5px;color:#c8bcdd;line-height:1.05;padding:0 2px}
+.rt.claimed{opacity:.42}
+.rt.now{border-color:#F2A33C;box-shadow:0 0 14px rgba(242,163,60,.45)}
+.rt.excl{border-color:#a06cd5;background:#241a33}
+.rt.cap{border-color:#FF6B6B;background:#2a1420}
+.lock{position:relative}
+.lock::after{content:"🔒";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(15,13,21,.62);border-radius:12px;font-size:15px}
+.tb{width:26px;height:26px;border-radius:50%;background:#2d2740;color:#a99cbd;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:8px auto}
+.tb.ms{background:#E0612C;color:#fff}
+.tb.now{background:#F2A33C;color:#2a1608;box-shadow:0 0 10px rgba(242,163,60,.55)}
+.tb.cap{background:#FF6B6B;color:#2a1420}
+.youmark{font-size:7px;font-weight:800;color:#F2A33C;letter-spacing:.5px;height:9px}
+/* achievements frame */
+.scroll{overflow:auto;flex:1}.scroll::-webkit-scrollbar{display:none}
+.aintro{font-size:11px;color:#a99cbd;line-height:1.5;margin:10px 0 4px}
+.aintro b{color:#FFF6EC}
+.seclbl{font-size:10px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin:16px 2px 8px;display:flex}
+.seclbl .rst{margin-left:auto;text-transform:none;letter-spacing:0;color:#5f5875}
+.ach{display:flex;align-items:center;gap:10px;background:#1b1726;border-radius:12px;padding:10px 12px;margin-bottom:7px}
+.ach .ck{width:20px;height:20px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;border:2px solid #3a3550;color:transparent}
+.ach.done .ck{background:#3DA85C;border-color:#3DA85C;color:#fff}
+.ach .at{flex:1;font-size:11.5px;font-weight:600}
+.ach.done .at{color:#8a8398;text-decoration:line-through}
+.ach .ax{font-size:11px;font-weight:800;color:#F2A33C;flex:none}
+.ach .prog{font-size:9px;color:#7c7194;margin-top:2px}
+.acol{flex:1}
+</style>
+<div class="col2">
+
+  <!-- FRAME A : tier track -->
+  <div class="unit">
+    <div class="phone"><div class="stage"><div class="inner">
+      <div class="top">
+        <div><div class="h">🔥 Forge Pass</div><div class="sub">Season 1 · Emberfall</div></div>
+        <div class="tiernow"><div class="b">12</div><div class="s">/ 100</div></div>
+      </div>
+      <div class="xpb">
+        <div class="xpt"><span>Tier 12</span><span>1,240 / 1,800 Pass XP → Tier 13</span></div>
+        <div class="xptrack"><div></div></div>
+      </div>
+      <div class="pcta">
+        <div class="tx">Premium locked. <b>Every tier + the Emberfall set + a Mythic capstone.</b> Renews each season · cancel anytime.</div>
+        <span class="btn">Get Pass<br>$8.99/season</span>
+      </div>
+      <div class="leg"><span>Top = <b>Free</b></span><span>Bottom = <b>Premium</b> 🔒</span><span><b>★</b> milestone</span></div>
+      <div class="track">
+        <div class="col"><div class="youmark"></div><div class="rt claimed"><span class="ri">🔥</span><span class="rl">25</span></div><div class="tb">8</div><div class="rt claimed lock"><span class="ri">📦</span><span class="rl">Kindling</span></div></div>
+        <div class="col"><div class="youmark"></div><div class="rt claimed"><span class="ri">•</span></div><div class="tb">9</div><div class="rt lock"><span class="ri">🔥</span><span class="rl">25</span></div></div>
+        <div class="col"><div class="youmark"></div><div class="rt claimed"><span class="ri">🔥</span><span class="rl">25</span></div><div class="tb ms">10</div><div class="rt excl lock"><span class="ri">◎</span><span class="rl" style="color:#c79bec">Emberfall Halo</span></div></div>
+        <div class="col"><div class="youmark"></div><div class="rt claimed"><span class="ri">•</span></div><div class="tb">11</div><div class="rt lock"><span class="ri">🔥</span><span class="rl">50</span></div></div>
+        <div class="col"><div class="youmark">YOU</div><div class="rt now"><span class="ri">📦</span><span class="rl">Kindling</span></div><div class="tb now">12</div><div class="rt now lock"><span class="ri">🔥</span><span class="rl">25</span></div></div>
+        <div class="col"><div class="youmark"></div><div class="rt"><span class="ri">•</span></div><div class="tb">13</div><div class="rt lock"><span class="ri">📦</span><span class="rl">Ignition</span></div></div>
+        <div class="col"><div class="youmark"></div><div class="rt"><span class="ri">🔥</span><span class="rl">25</span></div><div class="tb">14</div><div class="rt excl lock"><span class="ri">🎴</span><span class="rl" style="color:#c79bec">Emberfall Card</span></div></div>
+        <div class="col"><div class="youmark"></div><div class="rt"><span class="ri">•</span></div><div class="tb">15</div><div class="rt lock"><span class="ri">🔥</span><span class="rl">50</span></div></div>
+        <div class="col"><div class="youmark"></div><div class="rt"><span class="ri">📦</span><span class="rl">Uncommon</span></div><div class="tb ms">25</div><div class="rt lock"><span class="ri">📦</span><span class="rl">Furnace</span></div></div>
+        <div class="col"><div class="youmark"></div><div class="rt"><span class="ri">🏷️</span><span class="rl">Free title</span></div><div class="tb ms">50</div><div class="rt excl lock"><span class="ri">🖼️</span><span class="rl" style="color:#c79bec">Emberfall Banner</span></div></div>
+        <div class="col"><div class="youmark"></div><div class="rt"><span class="ri">🔥</span><span class="rl">Rare flame</span></div><div class="tb cap">100</div><div class="rt cap lock"><span class="ri">⚡</span><span class="rl" style="color:#FF8A8A">Ascendant · Mythic</span></div></div>
+      </div>
+    </div></div></div>
+    <div class="cap"><b style="color:#a99cbd">Forge Pass — tiers (mock 68A).</b> <b>$8.99/season</b> subscription (auto-renews each season · cancel anytime) unlocks the Premium row; subscribe any time and already-climbed tiers unlock retroactively. Top = Free, bottom = Premium 🔒. Milestones drop the exclusive <b>Emberfall set</b>; tier 100 = Mythic capstone. Climb with <b>Pass XP</b> (achievements →), which is separate from rank XP.</div>
+  </div>
+
+  <!-- FRAME B : achievements -->
+  <div class="unit">
+    <div class="phone"><div class="stage"><div class="inner"><div class="scroll">
+      <div class="top"><div><div class="h">Pass XP</div><div class="sub">Achievements · Season 1</div></div></div>
+      <div class="aintro">Climb the Pass by completing <b>achievements</b> — not by grinding rank XP. Ranks stay their own long climb; this rewards <b>showing up</b>.</div>
+
+      <div class="seclbl">Daily <span class="rst">resets in 6h · one each per day</span></div>
+      <div class="ach done"><span class="ck">✓</span><span class="at">First lock-in of the day</span><span class="ax">+50</span></div>
+      <div class="ach done"><span class="ck">✓</span><span class="at">A gym lock-in</span><span class="ax">+60</span></div>
+      <div class="ach"><span class="ck"></span><div class="acol"><span class="at">3 lock-ins today</span><div class="prog">2 / 3</div></div><span class="ax">+75</span></div>
+      <div class="ach"><span class="ck"></span><span class="at">A deep session — 90+ min</span><span class="ax">+100</span></div>
+      <div class="ach"><span class="ck"></span><span class="at">Lock in with a friend</span><span class="ax">+50</span></div>
+
+      <div class="seclbl">Weekly <span class="rst">resets Mon</span></div>
+      <div class="ach"><span class="ck"></span><div class="acol"><span class="at">6 active days this week</span><div class="prog">4 / 6</div></div><span class="ax">+300</span></div>
+      <div class="ach"><span class="ck"></span><div class="acol"><span class="at">10 hours locked in</span><div class="prog">6.5 / 10 h</div></div><span class="ax">+250</span></div>
+      <div class="ach"><span class="ck"></span><span class="at">Win a challenge</span><span class="ax">+200</span></div>
+
+      <div class="seclbl">Season</div>
+      <div class="ach"><span class="ck"></span><span class="at">Reach a new rank this season</span><span class="ax">+500</span></div>
+      <div class="ach"><span class="ck"></span><span class="at">Hit a 30-day streak</span><span class="ax">+500</span></div>
+    </div></div></div></div>
+    <div class="cap"><b style="color:#a99cbd">Pass XP — achievements (mock 68B).</b> The <b>only</b> source of Pass XP. Daily rows are <b>once per day</b> — so you climb by consistency + variety, <b>not marathoning</b>. Verified lock-ins only (Step 18). Kept separate from rank XP so ranks can stay a real long climb without making the Pass unreachable.</div>
+  </div>
+
+</div>

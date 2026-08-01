@@ -1,0 +1,88 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:#161320;border-radius:26px;overflow:hidden;color:#FFF6EC}
+/* dimmed list behind */
+.behind{padding:16px 15px;filter:brightness(.5)}
+.bh{font-size:19px;font-weight:800;margin-bottom:12px}
+.mcard{background:#241c38;border-radius:14px;padding:12px}
+.mrow{display:flex;align-items:center;gap:7px}
+.mlabel{font-size:11px;font-weight:800;color:#FFD27A}
+.mtrash{margin-left:auto;width:28px;height:28px;border-radius:8px;background:rgba(232,90,90,.16);display:flex;align-items:center;justify-content:center;border:1px solid rgba(232,90,90,.5)}
+.mtrash svg{width:15px;height:15px;stroke:#E85A5A;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mtitle{font-size:13.5px;font-weight:700;margin-top:8px}
+.scrim{position:absolute;inset:0;background:rgba(8,6,12,.55)}
+/* bottom sheet */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#1b1726;border-radius:22px 22px 26px 26px;border-top:1px solid rgba(255,255,255,.08);padding:8px 16px 18px}
+.grab{width:38px;height:4px;border-radius:999px;background:#3a3550;margin:2px auto 12px}
+.stitle{font-size:18px;font-weight:800}
+.ssum{display:flex;align-items:center;gap:7px;font-size:11.5px;color:#a99cbd;margin-top:4px}
+.seclbl{font-size:10px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin:16px 2px 8px}
+.trow{display:flex;align-items:center;background:#241c38;border-radius:11px;padding:11px 13px;margin-bottom:7px}
+.trow .tk{font-size:12.5px;color:#c8bcdd}
+.trow .tv{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+.trow.edited{border:1px solid rgba(242,163,60,.5)}
+.was{color:#7c7194;text-decoration:line-through;font-weight:600;font-size:11.5px}
+.arrow{color:#7c7194;font-size:12px}
+.now{color:#F2A33C}
+.stepper{display:flex;align-items:center;gap:2px}
+.step{width:22px;height:22px;border-radius:6px;background:#2d2740;color:#c8bcdd;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.fixed{color:#8a8398}
+.consent{display:flex;gap:9px;background:#231a2e;border:1px solid rgba(242,163,60,.3);border-radius:12px;padding:11px 12px;margin-top:12px;font-size:11px;color:#e7ddf5;line-height:1.5}
+.consent b{color:#F2A33C}
+.btns{margin-top:14px;display:flex;flex-direction:column;gap:9px}
+.btn{text-align:center;border-radius:13px;padding:13px;font-size:14px;font-weight:800}
+.btn.primary{background:linear-gradient(135deg,#F2A33C,#E0612C);color:#2a1608}
+.btn.danger{background:transparent;border:1.5px solid rgba(232,90,90,.6);color:#E85A5A}
+.hint{text-align:center;font-size:9.5px;color:#6a6480;margin-top:8px}
+</style>
+<div class="col2">
+  <div class="phone"><div class="stage">
+
+    <div class="behind">
+      <div class="bh">Challenges</div>
+      <div class="mcard">
+        <div class="mrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFD27A" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg><span class="mlabel">Most lock-in time</span>
+          <div class="mtrash"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></div>
+        </div>
+        <div class="mtitle">You vs Aidan · 1d 4h left</div>
+      </div>
+    </div>
+    <div class="scrim"></div>
+
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="stitle">Manage challenge</div>
+      <div class="ssum"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFD27A" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg> Most lock-in time · vs Aidan · 1d 4h left</div>
+
+      <div class="seclbl">Terms</div>
+      <div class="trow edited">
+        <span class="tk">Window</span>
+        <span class="tv"><span class="was">48h</span><span class="arrow">→</span><span class="now">72h</span>
+          <span class="stepper"><span class="step">–</span><span class="step">+</span></span>
+        </span>
+      </div>
+      <div class="trow">
+        <span class="tk">Metric</span>
+        <span class="tv fixed">Most lock-in time</span>
+      </div>
+      <div class="trow">
+        <span class="tk">Stakes</span>
+        <span class="tv fixed">🏆 winner +200 XP</span>
+      </div>
+
+      <div class="consent">🤝 <span>Any change or cancel needs <b>Aidan's consent</b>. They'll get a request to approve — <b>nothing changes until they agree</b>. Progress keeps counting in the meantime.</span></div>
+
+      <div class="btns">
+        <span class="btn primary">Request changes →</span>
+        <span class="btn danger">Request to cancel challenge</span>
+      </div>
+      <div class="hint">Cancelling (if agreed) ends it early — neither side gets the payout.</div>
+    </div>
+
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">Manage / edit challenge (mock 70).</b> The <b style="color:#E85A5A">trash</b> next to an active challenge opens this sheet. You can <b>edit the terms</b> (extend the window, adjust a group target) or <b>request to cancel</b> — but because a challenge is a two-party agreement, both routes send a <b>consent request</b> to the other person (mock 71). Nothing takes effect unilaterally; the challenge runs unchanged until they agree.</div>
+</div>

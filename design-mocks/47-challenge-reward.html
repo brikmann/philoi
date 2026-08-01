@@ -1,0 +1,116 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.wrap{display:flex;gap:24px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11px;text-align:center;max-width:290px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:radial-gradient(120% 60% at 50% 0%,#241a2e,#1b1726 60%);border-radius:26px;overflow:auto;color:#FFF6EC;display:flex;flex-direction:column}
+.stage::-webkit-scrollbar{display:none}
+.inner{padding:16px 16px 0;flex:1;display:flex;flex-direction:column;align-items:center}
+.x{align-self:flex-end;color:#7c7194;font-size:19px}
+/* burst */
+.burst{position:relative;width:120px;height:100px;display:flex;align-items:center;justify-content:center;margin-top:4px}
+.rays{position:absolute;inset:0;animation:spin 14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.glow{position:absolute;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,rgba(242,163,60,.45),transparent 65%);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
+.flick{transform-origin:50% 100%;animation:flick 1.4s ease-in-out infinite;position:relative;z-index:2}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.07) scaleX(.95)}}
+.place{font-size:30px;font-weight:800;position:relative;z-index:2}
+/* headline */
+.head{font-size:22px;font-weight:800;margin-top:6px;text-align:center}
+.sub{font-size:12px;color:#a99cbd;margin-top:3px;text-align:center}
+/* standings strip */
+.strip{display:flex;gap:6px;margin-top:12px;font-size:10.5px;color:#a99cbd;background:#20182f;border-radius:999px;padding:6px 12px}
+.strip b{color:#FFD27A}
+/* reward rows */
+.rewards{width:100%;margin-top:16px;display:flex;flex-direction:column;gap:9px}
+.rw{display:flex;align-items:center;gap:11px;background:#241c38;border-radius:13px;padding:12px}
+.ri{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
+.ri svg{width:20px;height:20px}
+.rlab{flex:1;min-width:0}
+.rl1{font-size:13.5px;font-weight:600}
+.rl2{font-size:10.5px;color:#a99cbd;margin-top:1px}
+.rval{font-size:15px;font-weight:800;flex:none}
+.mult{font-size:9px;font-weight:700;color:#F2A33C;background:rgba(242,163,60,.15);padding:2px 7px;border-radius:6px;margin-left:6px}
+.rare{font-size:9px;font-weight:800;padding:2px 7px;border-radius:6px}
+/* box row emphasis */
+.rw.box{border:1px solid rgba(255,255,255,.12)}
+.openbtn{font-size:10.5px;font-weight:700;color:#fff;padding:5px 11px;border-radius:999px;flex:none}
+/* footer CTAs */
+.foot{padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.cta{border:0;border-radius:13px;padding:13px;font-size:14px;font-weight:700;font-family:var(--font-sans);text-align:center;color:#fff}
+.cta.share{background:#241c38;color:#a99cbd;font-weight:600;font-size:13px;padding:10px}
+</style>
+<div class="wrap">
+
+  <!-- FRAME A: H2H win (marquee reward) -->
+  <div class="col2">
+    <div class="phone"><div class="stage">
+      <div class="inner">
+        <div class="x">✕</div>
+        <div class="burst">
+          <svg class="rays" width="120" height="100" viewBox="0 0 120 100"><g stroke="#F2A33C" stroke-width="2" stroke-linecap="round" opacity=".5">
+            <line x1="60" y1="50" x2="60" y2="6"/><line x1="60" y1="50" x2="104" y2="50"/><line x1="60" y1="50" x2="16" y2="50"/><line x1="60" y1="50" x2="92" y2="18"/><line x1="60" y1="50" x2="28" y2="18"/><line x1="60" y1="50" x2="92" y2="82"/><line x1="60" y1="50" x2="28" y2="82"/></g></svg>
+          <div class="glow"></div>
+          <svg class="flick" width="44" height="52" viewBox="0 0 46 52"><path d="M23 4C26 14 37 18 37 31a14 14 0 0 1-28 0C9 24 14 22 16 18c1 5 4 6 4 6C20 16 21 9 23 4z" fill="#E0612C"/><path d="M24 16c2 6 8 8 8 16a9 9 0 0 1-18 0c0-5 3-7 5-10z" fill="#F2A33C"/><path d="M24 27c1.4 3 4 4 4 8a5 5 0 0 1-10 0c0-3 2.4-4.5 3.4-6.5z" fill="#FFD27A"/></svg>
+        </div>
+        <div class="head">No contest, Noah.</div>
+        <div class="sub">🥇 1st · You beat Dee · Most lock-in time · Semester</div>
+
+        <div class="rewards">
+          <div class="rw"><span class="ri" style="background:#3a2a22"><svg viewBox="0 0 24 24"><path d="M13 2L5 14h6l-1 8 9-12h-6z" fill="#F2A33C"/></svg></span><div class="rlab"><div class="rl1">XP earned <span class="mult">H2H win</span></div><div class="rl2">The bigger the goal, the bigger the pot</div></div><div class="rval" style="color:#F2A33C">+1,000</div></div>
+          <div class="rw"><span class="ri" style="background:#3a2a22"><svg viewBox="0 0 24 24"><path d="M12 3c2 5 6 6 6 11a6 6 0 0 1-12 0c0-3 2-4 3-6z" fill="#FFD27A"/></svg></span><div class="rlab"><div class="rl1">Embers</div><div class="rl2">Spend in the shop</div></div><div class="rval" style="color:#FFD27A">+50</div></div>
+          <div class="rw box" style="background:linear-gradient(135deg,#3a2a18,#241c38)"><span class="ri" style="background:#8a5a12"><svg viewBox="0 0 24 24" stroke="#fff" fill="none" stroke-width="1.6"><path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M12 9v10"/></svg></span><div class="rlab"><div class="rl1">Hephaestus' Chest <span class="rare" style="background:rgba(242,163,60,.2);color:#F2A33C">LEGENDARY</span></div><div class="rl2">Cosmetic loot box</div></div><span class="openbtn" style="background:#F2A33C;color:#3a2410">Open</span></div>
+          <div class="rw"><span class="ri" style="background:#213524"><svg viewBox="0 0 24 24" fill="#3DA85C"><path d="M12 2l2.4 5 5.6.5-4.2 3.7 1.3 5.5L12 19l-5.1 2.7 1.3-5.5L4 12.5l5.6-.5z"/></svg></span><div class="rlab"><div class="rl1">"Ironwill" badge <span class="rare" style="background:rgba(61,168,92,.18);color:#3DA85C">EARNED</span></div><div class="rl2">Exclusive — can't be bought</div></div></div>
+        </div>
+      </div>
+      <div class="foot"><button class="cta" style="background:#F2A33C;color:#3a2410">Open your chest</button><button class="cta share">Share to your story</button></div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">A · H2H win.</b> Marquee reward for beating a friend at a ridiculous long goal: big XP, embers, a <b style="color:#F2A33C">Legendary</b> box + an exclusive earned badge. (Loss variant → "Good effort" + <b>Rematch · Redemption +300</b>, no box — never defeatist.)</div>
+  </div>
+
+  <!-- FRAME B: small campfire placement -->
+  <div class="col2">
+    <div class="phone"><div class="stage">
+      <div class="inner">
+        <div class="x">✕</div>
+        <div class="burst"><div class="glow" style="background:radial-gradient(circle,rgba(196,203,214,.35),transparent 65%)"></div><div class="place">🥈</div></div>
+        <div class="head">One step from the throne, Noah.</div>
+        <div class="sub">🥈 2nd of 5 · Push Week · Gym squad</div>
+        <div class="strip">🥇 Aidan · <b>🥈 You</b> · 🥉 Maya · Dee · Kayla</div>
+
+        <div class="rewards">
+          <div class="rw"><span class="ri" style="background:#3a2a22"><svg viewBox="0 0 24 24"><path d="M13 2L5 14h6l-1 8 9-12h-6z" fill="#F2A33C"/></svg></span><div class="rlab"><div class="rl1">XP earned <span class="mult">1.3× · 2nd</span></div><div class="rl2">Completion + placement multiplier</div></div><div class="rval" style="color:#F2A33C">+380</div></div>
+          <div class="rw"><span class="ri" style="background:#3a2a22"><svg viewBox="0 0 24 24"><path d="M12 3c2 5 6 6 6 11a6 6 0 0 1-12 0c0-3 2-4 3-6z" fill="#FFD27A"/></svg></span><div class="rlab"><div class="rl1">Embers</div><div class="rl2">Spend in the shop</div></div><div class="rval" style="color:#FFD27A">+20</div></div>
+          <div class="rw box" style="background:linear-gradient(135deg,#1a2a33,#241c38)"><span class="ri" style="background:#1d5a72"><svg viewBox="0 0 24 24" stroke="#fff" fill="none" stroke-width="1.6"><path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M12 9v10"/></svg></span><div class="rlab"><div class="rl1">The Furnace <span class="rare" style="background:rgba(79,176,229,.2);color:#4FB0E5">RARE</span></div><div class="rl2">Cosmetic loot box</div></div><span class="openbtn" style="background:#4FB0E5;color:#0a2733">Open</span></div>
+        </div>
+      </div>
+      <div class="foot"><button class="cta" style="background:#4FB0E5;color:#0a2733">Open The Furnace</button><button class="cta share">Share to your story</button></div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">B · Small campfire.</b> Everyone who finishes gets completion XP; on top, your <b>placement multiplier</b> (2nd → 1.3×) + a rarity box scaled to placement. Standings strip shows the final order.</div>
+  </div>
+
+  <!-- FRAME C: whole campfire top 10% -->
+  <div class="col2">
+    <div class="phone"><div class="stage">
+      <div class="inner">
+        <div class="x">✕</div>
+        <div class="burst"><div class="glow" style="background:radial-gradient(circle,rgba(160,108,213,.4),transparent 65%)"></div><div class="place" style="font-size:22px;font-weight:800;color:#F2A33C">TOP 10%</div></div>
+        <div class="head" style="font-size:19px">Vanguard status, Noah.</div>
+        <div class="sub">🔝 Top 10% · #3 of 42 · Laurier Grind</div>
+
+        <div class="rewards">
+          <div class="rw"><span class="ri" style="background:#3a2a22"><svg viewBox="0 0 24 24"><path d="M13 2L5 14h6l-1 8 9-12h-6z" fill="#F2A33C"/></svg></span><div class="rlab"><div class="rl1">XP earned <span class="mult">1.5× · top 10%</span></div><div class="rl2">Percentile placement on a big board</div></div><div class="rval" style="color:#F2A33C">+680</div></div>
+          <div class="rw"><span class="ri" style="background:#3a2a22"><svg viewBox="0 0 24 24"><path d="M12 3c2 5 6 6 6 11a6 6 0 0 1-12 0c0-3 2-4 3-6z" fill="#FFD27A"/></svg></span><div class="rlab"><div class="rl1">Embers</div><div class="rl2">Spend in the shop</div></div><div class="rval" style="color:#FFD27A">+30</div></div>
+          <div class="rw box" style="background:linear-gradient(135deg,#2a1a33,#241c38)"><span class="ri" style="background:#4a2a6e"><svg viewBox="0 0 24 24" stroke="#fff" fill="none" stroke-width="1.6"><path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M12 9v10"/></svg></span><div class="rlab"><div class="rl1">Vessel of Hestia <span class="rare" style="background:rgba(160,108,213,.22);color:#c79bec">EPIC</span></div><div class="rl2">Cosmetic loot box</div></div><span class="openbtn" style="background:#a06cd5;color:#fff">Open</span></div>
+          <div class="rw"><span class="ri" style="background:#2a2033"><svg viewBox="0 0 24 24" fill="#c79bec"><path d="M12 2l2.4 5 5.6.5-4.2 3.7 1.3 5.5L12 19l-5.1 2.7 1.3-5.5L4 12.5l5.6-.5z"/></svg></span><div class="rlab"><div class="rl1">"Grind Elite · S1" badge <span class="rare" style="background:rgba(61,168,92,.18);color:#3DA85C">EARNED</span></div><div class="rl2">Top-3 on a big fire</div></div></div>
+        </div>
+      </div>
+      <div class="foot"><button class="cta" style="background:#a06cd5">Open Vessel of Hestia</button><button class="cta share">Share to your story</button></div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">C · Whole campfire.</b> Percentile placement on a big board (top 10% → 1.5×) + Epic box; top-3 on a big fire also earns a badge. Same screen, reward scales to how big/selective the win was (REWARD_ECONOMY.md).</div>
+  </div>
+
+</div>

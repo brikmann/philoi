@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { HexagonBadge } from '@/components/hexagon-badge';
@@ -13,6 +14,7 @@ import type { RankTierName } from '@/types/database';
 export function LeaderboardPersonRow({
   rank,
   displayName,
+  avatarUrl,
   tier,
   division,
   value,
@@ -20,6 +22,7 @@ export function LeaderboardPersonRow({
 }: {
   rank: number;
   displayName: string;
+  avatarUrl?: string | null;
   tier: RankTierName;
   division: number;
   value: string;
@@ -29,7 +32,11 @@ export function LeaderboardPersonRow({
     <View style={[styles.row, isMe && styles.rowMe]}>
       <Text style={styles.pos}>{rank}</Text>
       <View style={styles.avatar}>
-        <Text style={styles.avatarInitial}>{displayName.charAt(0).toUpperCase()}</Text>
+        {avatarUrl ? (
+          <Image source={{ uri: avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        ) : (
+          <Text style={styles.avatarInitial}>{displayName.charAt(0).toUpperCase()}</Text>
+        )}
       </View>
       <View style={styles.who}>
         <Text style={styles.name} numberOfLines={1}>
@@ -77,6 +84,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.achieverBg,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   avatarInitial: {
     fontFamily: Fonts.bodySemiBold,

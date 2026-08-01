@@ -1,3 +1,5 @@
+import { GoogleSignin, isCancelledResponse, isErrorWithCode, isSuccessResponse, statusCodes } from '@react-native-google-signin/google-signin';
+import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
@@ -5,6 +7,52 @@ import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '@/lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_WEB_CLIENT_ID: string | null = Constants.expoConfig?.extra?.googleWebClientId ?? null;
+const GOOGLE_IOS_CLIENT_ID: string | null = Constants.expoConfig?.extra?.googleIosClientId ?? null;
+
+let googleConfigured = false;
+function ensureGoogleConfigured() {
+  if (googleConfigured) return;
+  // webClientId MUST match the Client ID configured in Supabase's Google provider — that's
+  // what makes signInWithIdToken() below accept the idToken this SDK returns (punchlist 2, §0:
+  // "native Google Sign-In... user sees the native Google account picker, no Supabase redirect").
+  GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID ?? undefined, iosClientId: GOOGLE_IOS_CLIENT_ID ?? undefined });
+  googleConfigured = true;
+}
+
+// The native Google account picker (replaces the old signInWithOAuth browser-redirect flow
+// below, which routed through a *.supabase.co page) — Supabase still does the actual auth
+// exchange server-side via signInWithIdToken(), only how the client obtains the idToken changed.
+async function signInWithGoogleNative() {
+  ensureGoogleConfigured();
+  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+  const response = await GoogleSignin.signIn();
+  if (isCancelledResponse(response)) {
+    throw new Error('Sign-in was cancelled.');
+  }
+  if (!isSuccessResponse(response) || !response.data.idToken) {
+    throw new Error('Google did not return a sign-in token.');
+  }
+
+  const { error } = await supabase.auth.signInWithIdToken({
+    provider: 'google',
+    token: response.data.idToken,
+  });
+  if (error) throw error;
+}
+
+export async function signInWithGoogle() {
+  try {
+    await signInWithGoogleNative();
+  } catch (e) {
+    if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) {
+      throw new Error('Sign-in was cancelled.');
+    }
+    throw e;
+  }
+}
 
 // Abstracted so a second provider (Apple) can be dropped in later without
 // touching the call sites in the sign-in screen.
@@ -38,10 +86,6 @@ async function signInWithOAuthProvider(provider: OAuthProviderId) {
     refresh_token,
   });
   if (sessionError) throw sessionError;
-}
-
-export function signInWithGoogle() {
-  return signInWithOAuthProvider('google');
 }
 
 // TODO: enable once Apple Developer sign-in capability is configured for iOS.

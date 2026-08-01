@@ -22,3 +22,17 @@ export const CHAT_ENABLED = true;
 //   supabase secrets set WHOOP_CLIENT_ID=... WHOOP_CLIENT_SECRET=...
 // Whoop additionally needs Whoop's own app review before it works beyond the dev account.
 export const FITNESS_SYNC_ENABLED = true;
+
+// Gym tracker phase-2 — per-set video clips (PHILOI_UI_SPEC.md §23). expo-camera, expo-video,
+// expo-video-thumbnails, and react-native-compressor are all native modules, so this only holds
+// on a build that compiled them in — same reasoning as FITNESS_SYNC_ENABLED above. Both gates
+// are now satisfied:
+//   • the R2 credentials are set on the Supabase project (R2_ACCOUNT_ID / R2_ACCESS_KEY_ID /
+//     R2_SECRET_ACCESS_KEY / R2_BUCKET_NAME=philoi-gym-clips) and gym-clip-upload-url +
+//     gym-clip-playback-url are redeployed against them;
+//   • the four native modules ship in the build cut alongside this commit — which is exactly
+//     why this flip must NOT be sent as an OTA update to any older binary.
+// Every native import stays behind a lazy require() at the call site (gym-clip-recorder.tsx,
+// gym-clip-player.tsx) rather than a module-scope import, so an older binary that somehow sees
+// this flag true still degrades to a failed capture rather than a bundle-load crash.
+export const GYM_VIDEO_CLIPS_ENABLED = true;

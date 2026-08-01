@@ -24,11 +24,17 @@ async function syncStepsFromDevice(challenge: Challenge): Promise<number> {
   if (!source) return 0;
   const note = SYNC_NOTE_BY_SOURCE[source];
 
+  // Scope already-synced to the CURRENT period, not all-time. `total` below is the device's step
+  // count for [period_start, now]; alreadySynced must cover the SAME window or the delta desyncs.
+  // Weekly goals have one fixed period so it never mattered, but a daily goal that resets each day
+  // accumulates prior-day logs whose all-time sum exceeds today's device total → negative delta →
+  // daily progress silently stops counting. Filtering logs to this period keeps the delta like-for-like.
   const { data, error } = await supabase
     .from('challenge_logs')
     .select('amount')
     .eq('challenge_id', challenge.id)
-    .eq('note', note);
+    .eq('note', note)
+    .gte('created_at', challenge.period_start);
   if (error) throw error;
   const alreadySynced = (data ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
 

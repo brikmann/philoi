@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ChallengeSentSheet } from '@/components/challenge-sent-sheet';
 import { FitnessSyncPrompt } from '@/components/fitness-sync-prompt';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextInput } from '@/components/ui/text-input';
@@ -94,6 +95,9 @@ function SocialChallengeForm() {
   const [windowHours, setWindowHours] = useState(72);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // design-mocks/55a — kept open until the user taps Done, rather than an Alert dismissed and
+  // immediately followed by router.back() (punchlist 3: needs a clear "sent" confirmation).
+  const [justSentTo, setJustSentTo] = useState<string | null>(null);
 
   // Route the deep-link's shared campfire to the right place once groups load: Group's
   // mandatory picker, or H2H's optional watch-toggle (pre-enabled, since a shared campfire from
@@ -129,6 +133,12 @@ function SocialChallengeForm() {
           windowHours,
           circleId: watching ? (watchCircle?.id ?? null) : null,
         });
+        // A visible confirmation, not a silent navigate-back (punchlist 2, §2: "no 'request
+        // sent' state") — the opponent sees it as a real Accept/Decline invite on their own
+        // Challenges tab as soon as they open it. Held open until they tap Done (mock 55a);
+        // router.back() only fires once they dismiss it, not immediately.
+        setJustSentTo(opponentName ?? 'They');
+        return;
       } else {
         if (!circle) {
           setError('Start or join a Campfire first.');
@@ -169,7 +179,7 @@ function SocialChallengeForm() {
           {opponentPrefilled ? (
             <View style={styles.vsContext}>
               <Ionicons name="flash" size={14} color={Colors.achieverText} />
-              <Text style={styles.vsContextText}>From your ping to {prefillOpponentName ?? 'them'}</Text>
+              <Text style={styles.vsContextText}>Challenging {prefillOpponentName ?? 'them'}</Text>
             </View>
           ) : (
             <>
@@ -301,6 +311,15 @@ function SocialChallengeForm() {
 
       {error && <Text style={styles.error}>{error}</Text>}
       <PrimaryButton label={sendLabel} onPress={handleCreate} loading={saving} disabled={noOpponent} />
+
+      <ChallengeSentSheet
+        visible={justSentTo !== null}
+        onClose={() => router.back()}
+        opponentName={justSentTo ?? 'them'}
+        raceMetric={raceMetric}
+        windowHours={windowHours}
+        payoutXp={payoutXp}
+      />
     </ScrollView>
   );
 }

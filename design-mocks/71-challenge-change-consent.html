@@ -1,0 +1,74 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:radial-gradient(120% 50% at 50% 0,#2a1a33,#161320 55%);border-radius:26px;overflow:hidden;color:#FFF6EC;display:flex;flex-direction:column}
+/* push notification */
+.push{position:absolute;top:12px;left:12px;right:12px;z-index:5;background:rgba(36,28,56,.96);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:9px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.push .pi{width:26px;height:26px;border-radius:7px;background:#E0612C;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+.push .pt{font-size:11px;line-height:1.35}
+.push .pt b{font-weight:800}
+.push .pt .s{color:#a99cbd}
+/* main */
+.inner{flex:1;display:flex;flex-direction:column;padding:76px 18px 18px}
+.fromav{width:56px;height:56px;border-radius:50%;background:#3a2a22;border:2.5px solid #E0612C;color:#FFD27A;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;margin:0 auto}
+.kicker{text-align:center;font-size:10px;font-weight:800;letter-spacing:1.5px;color:#F2A33C;text-transform:uppercase;margin-top:12px}
+.ask{text-align:center;font-size:19px;font-weight:800;margin-top:6px;line-height:1.25;padding:0 6px}
+.ask b{color:#FFD27A}
+/* change card */
+.change{background:#20182f;border-radius:14px;padding:14px;margin-top:18px}
+.chlbl{font-size:10px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin-bottom:9px}
+.chrow{display:flex;align-items:center;justify-content:center;gap:12px}
+.chside{text-align:center;flex:1}
+.chk{font-size:9.5px;color:#7c7194;text-transform:uppercase;letter-spacing:.5px}
+.chv{font-size:20px;font-weight:800;margin-top:3px}
+.chv.was{color:#7c7194;text-decoration:line-through;font-size:16px}
+.chv.now{color:#F2A33C}
+.charrow{font-size:18px;color:#E0612C}
+/* standings recap */
+.recap{display:flex;align-items:center;gap:8px;justify-content:center;font-size:11px;color:#a99cbd;margin-top:14px}
+.recap b{color:#FFF6EC}
+.note{text-align:center;font-size:11px;color:#a99cbd;margin-top:16px;line-height:1.5}
+.note b{color:#FFF6EC}
+/* actions */
+.acts{margin-top:auto;display:flex;flex-direction:column;gap:9px}
+.abtn{text-align:center;border-radius:14px;padding:14px;font-size:14px;font-weight:800}
+.abtn.agree{background:linear-gradient(135deg,#F2A33C,#E0612C);color:#2a1608}
+.abtn.decline{background:#241c38;color:#c8bcdd}
+</style>
+<div class="col2">
+  <div class="phone"><div class="stage">
+
+    <div class="push">
+      <span class="pi">🔥</span>
+      <div class="pt"><b>Noah wants to change your challenge</b><br><span class="s">Tap to review — you decide if it happens.</span></div>
+    </div>
+
+    <div class="inner">
+      <div class="fromav">N</div>
+      <div class="kicker">Change request</div>
+      <div class="ask"><b>Noah</b> wants to extend your head-to-head</div>
+
+      <div class="change">
+        <div class="chlbl">Window</div>
+        <div class="chrow">
+          <div class="chside"><div class="chk">Now</div><div class="chv was">48h</div></div>
+          <div class="charrow">→</div>
+          <div class="chside"><div class="chk">Proposed</div><div class="chv now">72h</div></div>
+        </div>
+      </div>
+
+      <div class="recap">Right now: <b>You&nbsp;2h 10m</b> · Noah&nbsp;1h 45m</div>
+      <div class="note">Agree and the new terms apply to <b>both</b> of you. <b>Decline</b> and the challenge continues exactly as it is.</div>
+
+      <div class="acts">
+        <span class="abtn agree">Agree to the change</span>
+        <span class="abtn decline">Decline — keep it as is</span>
+      </div>
+    </div>
+
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">Change / cancel consent (mock 71).</b> The other person gets a push — <i>"Noah wants to change your challenge"</i> — opening this. The proposed change is shown <b>before → after</b> (here, window 48h → 72h), with live standings so they know what they're agreeing to. <b>Agree</b> applies it to both; <b>Decline</b> keeps the challenge unchanged. Same screen handles a <b style="color:#E85A5A">cancel request</b> ("Noah wants to end it early — neither side gets the +200 XP").</div>
+</div>

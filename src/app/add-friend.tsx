@@ -140,7 +140,8 @@ export default function AddFriendScreen() {
         );
       case 'incoming':
         return (
-          <Pressable style={styles.addBtn} onPress={() => handleAccept(userId)}>
+          <Pressable style={styles.acceptResultBtn} onPress={() => handleAccept(userId)}>
+            <Ionicons name="checkmark" size={14} color={Colors.ink} />
             <Text style={styles.addBtnLabel}>Accept</Text>
           </Pressable>
         );
@@ -456,6 +457,15 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
     color: Colors.ink,
+  },
+  acceptResultBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.green,
+    borderRadius: Radius.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
   },
   declineBtn: {
     flex: 1,

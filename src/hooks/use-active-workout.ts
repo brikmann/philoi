@@ -10,7 +10,7 @@ import {
   replaceWorkoutExercise,
 } from '@/lib/api/gym';
 import { getErrorMessage } from '@/lib/errors';
-import type { ActiveWorkout, WorkoutSet } from '@/types/database';
+import type { ActiveWorkout, WorkoutSet, WorkoutSetClipRefs } from '@/types/database';
 
 /** The in-session workout log's state (PHILOI_UI_SPEC.md §23, design-mocks/24).
  *
@@ -64,7 +64,15 @@ export function useActiveWorkout(enabled: boolean) {
                     ...ex,
                     sets: [
                       ...ex.sets,
-                      { id: set.id, set_index: set.set_index, weight: set.weight, reps: set.reps, is_pr: set.is_pr },
+                      {
+                        id: set.id,
+                        set_index: set.set_index,
+                        weight: set.weight,
+                        reps: set.reps,
+                        is_pr: set.is_pr,
+                        video_key: set.video_key,
+                        thumb_key: set.thumb_key,
+                      },
                     ],
                     // A new best immediately becomes the bar the next set is measured against,
                     // so the badge can't fire twice for the same numbers within one session.
@@ -76,6 +84,29 @@ export function useActiveWorkout(enabled: boolean) {
         : prev
     );
     return set;
+  }, []);
+
+  /** Patches one already-banked set's clip references in place (PHILOI_UI_SPEC.md §23 phase-2).
+   * Local-only: the write already happened through attach/remove_workout_set_clip, and a full
+   * refetch here would throw away every half-typed draft row in the logger. */
+  const patchSetClip = useCallback((workoutExerciseId: string, refs: WorkoutSetClipRefs) => {
+    setWorkout((prev) =>
+      prev
+        ? {
+            ...prev,
+            exercises: prev.exercises.map((ex) =>
+              ex.id === workoutExerciseId
+                ? {
+                    ...ex,
+                    sets: ex.sets.map((s) =>
+                      s.id === refs.id ? { ...s, video_key: refs.video_key, thumb_key: refs.thumb_key } : s
+                    ),
+                  }
+                : ex
+            ),
+          }
+        : prev
+    );
   }, []);
 
   const removeSet = useCallback(async (workoutExerciseId: string, setId: string) => {
@@ -145,6 +176,7 @@ export function useActiveWorkout(enabled: boolean) {
     refetch,
     logSet,
     removeSet,
+    patchSetClip,
     addExercise,
     replaceExercise,
     removeExercise,

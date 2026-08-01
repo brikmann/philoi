@@ -1775,6 +1775,41 @@ begin
 end;
 $$;
 
+-- Per-user-per-campfire consent to auto-post a synced workout (migration 0038, §17b — "never
+-- post to a fire not opted in"; this is publishing on the user's behalf, so it's opt-in, default
+-- off) — same RPC-gated self-flag pattern as set_my_helper_flag above, not a direct update policy.
+alter table group_members add column if not exists auto_post_synced boolean not null default false;
+
+-- Captions moved from the running session to the done screen (migration 0048, §13 redesign).
+-- check_ins has SELECT/INSERT policies but no UPDATE one, so a client-side update is silently
+-- dropped by RLS — this is the write path, scoped to the caller's own un-moderated row, rather
+-- than opening check_ins to client updates (which would also expose xp_earned/status/removed_at).
+create or replace function set_my_check_in_caption(p_check_in_id uuid, p_caption text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update check_ins
+  set caption = nullif(btrim(left(coalesce(p_caption, ''), 140)), '')
+  where id = p_check_in_id and user_id = auth.uid() and removed_at is null;
+end;
+$$;
+
+create or replace function set_my_auto_post_synced(p_group_id uuid, p_enabled boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update group_members
+  set auto_post_synced = p_enabled
+  where group_id = p_group_id and user_id = auth.uid();
+end;
+$$;
+
 -- Immediate push for @handle mentions / direct replies — resolves each mention against
 -- profiles.handle scoped to members of the same circle (so "@sam" in one circle can't
 -- accidentally notify an unrelated "sam" elsewhere), skips muted recipients and the author.
@@ -2542,6 +2577,11 @@ $$;
 -- 0032 — this used to require a shared campfire and validate the opponent was a member of it;
 -- now it's gated on the real friend graph, and a passed circle_id only needs the CALLER in it
 -- (a watching campfire, not a hosting one).
+--
+-- Punchlist 3: adds a dedup guard (migration 0049) — one pending/active h2h at a time per pair,
+-- either direction. Without a visible "sent" confirmation (added in punchlist 2), a tap that
+-- looked like it hadn't registered got retried, producing 6 genuine duplicate rows between the
+-- same two people live; this stops that at the source instead of only masking it client-side.
 create or replace function create_h2h_challenge(
   p_opponent_id uuid,
   p_race_metric text,
@@ -2574,6 +2614,15 @@ begin
     raise exception 'Not a member of that campfire.';
   end if;
 
+  if exists (
+    select 1 from social_challenges
+    where mode = 'h2h' and status in ('pending', 'active')
+      and ((created_by = auth.uid() and opponent_id = p_opponent_id)
+        or (created_by = p_opponent_id and opponent_id = auth.uid()))
+  ) then
+    raise exception 'You already have an active or pending challenge with this person.';
+  end if;
+
   insert into social_challenges (circle_id, created_by, mode, opponent_id, race_metric, window_hours, payout_xp, status)
   values (p_circle_id, auth.uid(), 'h2h', p_opponent_id, p_race_metric, p_window_hours, p_payout_xp, 'pending')
   returning * into v_challenge;
@@ -2587,6 +2636,32 @@ begin
   );
 
   return v_challenge;
+end;
+$$;
+
+-- Cancel/leave (punchlist 3) — creator cancels an unanswered invite; either participant ends an
+-- active challenge early. Completed/declined/expired rows stay immutable.
+create or replace function cancel_social_challenge(p_challenge_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_challenge social_challenges;
+begin
+  select * into v_challenge from social_challenges where id = p_challenge_id;
+  if v_challenge.id is null then
+    raise exception 'Challenge not found.';
+  end if;
+  if v_challenge.status not in ('pending', 'active') then
+    raise exception 'This challenge has already finished.';
+  end if;
+  if auth.uid() not in (v_challenge.created_by, v_challenge.opponent_id) then
+    raise exception 'Not your challenge.';
+  end if;
+
+  update social_challenges set status = 'declined' where id = p_challenge_id;
 end;
 $$;
 
@@ -2755,6 +2830,14 @@ select cron.schedule(
 -- challenge in circles they're a member of. Live-scores h2h/group progress via
 -- social_challenge_score() rather than a stored, potentially-stale number. Return shape
 -- narrowed (goal_label dropped along with the solo mode) — drop first.
+--
+-- Punchlist 2, §2: the WHERE clause used to grant `is_group_member(sc.circle_id)` visibility
+-- unconditionally, including for H2H — so a friend duel that opted a shared campfire in to WATCH
+-- (circle_id set, §16) leaked into every OTHER campfire member's own "my challenges" list, each
+-- mislabeled "You" vs the real opponent (my_score/opponent_score assume the viewer IS one of the
+-- two participants). Campfire-wide visibility for an H2H duel is the marker chip + Watch
+-- screen's job (migration 0040); this RPC only grants circle-membership visibility for GROUP
+-- challenges now, where every member genuinely is a participant.
 drop function if exists get_my_social_challenges();
 
 create function get_my_social_challenges()
@@ -2835,7 +2918,11 @@ begin
   left join groups g on g.id = sc.circle_id
   join profiles creator on creator.id = sc.created_by
   left join profiles opp on opp.id = sc.opponent_id
-  where (is_group_member(sc.circle_id) or sc.created_by = auth.uid() or sc.opponent_id = auth.uid())
+  where (
+    (sc.mode = 'group' and is_group_member(sc.circle_id))
+    or sc.created_by = auth.uid()
+    or sc.opponent_id = auth.uid()
+  )
     and sc.status != 'declined'
   order by
     (sc.status = 'pending' and sc.opponent_id = auth.uid()) desc,
@@ -3434,6 +3521,37 @@ begin
   end loop;
 end $$;
 
+-- Punchlist 2, §0: recompute_user_streak only ever runs reactively (on a new check-in), so
+-- someone who goes quiet keeps their stale pre-break streak until their next lock-in recomputes
+-- it. A nightly sweep, same shape as philoi-streak-risk-check below, decays it proactively.
+create or replace function recompute_all_streaks()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r record;
+begin
+  for r in select id from profiles where current_streak > 0 loop
+    perform recompute_user_streak(r.id);
+  end loop;
+end;
+$$;
+
+do $$
+begin
+  if exists (select 1 from cron.job where jobname = 'philoi-daily-streak-decay') then
+    perform cron.unschedule('philoi-daily-streak-decay');
+  end if;
+end $$;
+
+select cron.schedule(
+  'philoi-daily-streak-decay',
+  '5 0 * * *',
+  $$select recompute_all_streaks();$$
+);
+
 -- xp_earned is computed here (after recompute_user_streak, not in a BEFORE trigger) because
 -- the streak bonus term needs the POST-check-in streak value. See "lock-in sessions" section
 -- below for the check_ins.duration_seconds/xp_earned columns this reads/writes.
@@ -3610,6 +3728,18 @@ alter table check_ins add column if not exists xp_earned numeric not null defaul
 alter table check_ins drop constraint if exists check_ins_photo_or_duration;
 alter table check_ins add constraint check_ins_photo_or_duration
   check (photo_url is not null or duration_seconds is not null);
+
+-- Device-verified sources this app can create a lock-in from (migration 0038, §17b's "auto
+-- lock-in from a synced Strava activity") — external_id + a unique (user_id, source, external_id)
+-- index is the dedup key that keeps re-processing the same external activity (a webhook event
+-- and a backfill poll both firing for the same run) from ever creating a duplicate check-in.
+alter table check_ins add column if not exists source text not null default 'manual'
+  check (source in ('manual', 'strava', 'healthkit', 'health_connect'));
+alter table check_ins add column if not exists external_id text;
+alter table check_ins add column if not exists distance_m numeric;
+
+create unique index if not exists check_ins_source_external_id_idx
+  on check_ins (user_id, source, external_id) where external_id is not null;
 
 -- scoring backbone — XP ledger, not a live recomputation. check_ins.xp_earned is set once
 -- per row (see handle_check_in_insert() above) and never touched again, so summing it here
@@ -4127,7 +4257,10 @@ as $$
 $$;
 
 -- Dropped first: CREATE OR REPLACE can't change an existing function's RETURNS TABLE columns
--- (this function originally returned best_streak instead of score/tier/division).
+-- (this function originally returned best_streak instead of score/tier/division). Rewritten again
+-- in migration 0040 to add true-rank pinning — "your own pillar/row always pins at the bottom with
+-- your true rank (e.g. #47) even on a 4,000-person board" — via a window-function rank computed
+-- over everyone, returning the top N PLUS the caller's own row whenever it falls outside that window.
 drop function if exists get_university_leaderboard(text, int);
 
 create function get_university_leaderboard(p_university text, p_limit int default 50)
@@ -4140,32 +4273,510 @@ returns table (
   score numeric,
   tier text,
   division int,
-  check_ins_this_week bigint
+  check_ins_this_week bigint,
+  rank int,
+  is_me boolean
 )
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+begin
+  return query
+  with ranked as (
+    select
+      p.id as user_id, p.handle, p.display_name, p.avatar_url, p.is_pro,
+      s.score, t.tier, t.division,
+      coalesce((
+        select count(*) from check_ins ci
+        where ci.user_id = p.id and ci.created_at >= date_trunc('week', now())
+      ), 0) as check_ins_this_week,
+      row_number() over (order by s.score desc, p.display_name asc)::int as rank
+    from profiles p
+    cross join lateral (select universal_score(p.id) as score) s
+    cross join lateral rank_tier_for_score(s.score) t
+    where p.university = p_university and not p.is_demo and not p.is_disabled
+  )
+  select r.*, (r.user_id = auth.uid()) as is_me
+  from ranked r
+  where r.rank <= p_limit or r.user_id = auth.uid()
+  order by r.rank;
+end;
+$$;
+
+-- Same true-rank pattern, no university filter — "the best individuals anywhere" (§15's 4th
+-- scope tab, distinct from Vs. unis' collective school ranking below). check_ins_this_week was
+-- added in migration 0042 so Global can offer the same Streaks metric toggle as My-uni — dropped
+-- first since RETURNS TABLE gained a column.
+drop function if exists get_global_leaderboard(int);
+create function get_global_leaderboard(p_limit int default 50)
+returns table (
+  user_id uuid,
+  handle text,
+  display_name text,
+  avatar_url text,
+  is_pro boolean,
+  score numeric,
+  tier text,
+  division int,
+  university text,
+  check_ins_this_week bigint,
+  rank int,
+  is_me boolean
+)
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+begin
+  return query
+  with ranked as (
+    select
+      p.id as user_id, p.handle, p.display_name, p.avatar_url, p.is_pro,
+      s.score, t.tier, t.division, p.university,
+      coalesce((
+        select count(*) from check_ins ci
+        where ci.user_id = p.id and ci.created_at >= date_trunc('week', now())
+      ), 0) as check_ins_this_week,
+      row_number() over (order by s.score desc, p.display_name asc)::int as rank
+    from profiles p
+    cross join lateral (select universal_score(p.id) as score) s
+    cross join lateral rank_tier_for_score(s.score) t
+    where not p.is_demo and not p.is_disabled
+  )
+  select r.*, (r.user_id = auth.uid()) as is_me
+  from ranked r
+  where r.rank <= p_limit or r.user_id = auth.uid()
+  order by r.rank;
+end;
+$$;
+
+-- ───────────────────────────── leaderboard search ─────────────────────────────
+-- Find anyone by name/@handle (§15's magnifier) — each result carries its own rank hexagon,
+-- live position + XP, which board that position is on (their own university if it matches the
+-- searcher's, else Global), and a friend tag. Position is computed the same way the two
+-- leaderboard functions above do (a plain row_number, not a stored value) so it's always live.
+create or replace function search_leaderboard(p_query text, p_limit int default 20)
+returns table (
+  user_id uuid,
+  display_name text,
+  handle text,
+  avatar_url text,
+  tier text,
+  division int,
+  score numeric,
+  board text, -- 'My uni' | 'Global'
+  board_rank int,
+  is_friend boolean
+)
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_my_university text;
+begin
+  select university into v_my_university from profiles where id = auth.uid();
+
+  return query
+  with matches as (
+    select p.id, p.display_name, p.handle, p.avatar_url, p.university
+    from profiles p
+    where p.id <> auth.uid()
+      and not p.is_demo and not p.is_disabled
+      and (p.handle ilike '%' || p_query || '%' or p.display_name ilike '%' || p_query || '%')
+    order by
+      (p.handle = p_query) desc,
+      (p.handle ilike p_query || '%') desc,
+      p.display_name asc
+    limit p_limit
+  ),
+  scored as (
+    select m.*, s.score, t.tier, t.division
+    from matches m
+    cross join lateral (select universal_score(m.id) as score) s
+    cross join lateral rank_tier_for_score(s.score) t
+  ),
+  uni_ranked as (
+    select p.id, row_number() over (order by universal_score(p.id) desc, p.display_name asc)::int as rank
+    from profiles p
+    where p.university = v_my_university and not p.is_demo and not p.is_disabled and v_my_university is not null
+  ),
+  global_ranked as (
+    select p.id, row_number() over (order by universal_score(p.id) desc, p.display_name asc)::int as rank
+    from profiles p
+    where not p.is_demo and not p.is_disabled
+  )
+  select
+    sc.id,
+    sc.display_name,
+    sc.handle,
+    sc.avatar_url,
+    sc.tier,
+    sc.division,
+    sc.score,
+    case when sc.university = v_my_university and v_my_university is not null then 'My uni' else 'Global' end as board,
+    coalesce(
+      case when sc.university = v_my_university and v_my_university is not null then ur.rank else null end,
+      gr.rank
+    ) as board_rank,
+    exists (
+      select 1 from friend_requests fr
+      where fr.status = 'accepted'
+        and ((fr.requester_id = auth.uid() and fr.recipient_id = sc.id) or (fr.requester_id = sc.id and fr.recipient_id = auth.uid()))
+    ) as is_friend
+  from scored sc
+  left join uni_ranked ur on ur.id = sc.id
+  left join global_ranked gr on gr.id = sc.id;
+end;
+$$;
+
+-- ───────────────────────────── Watch opt-in ─────────────────────────────
+-- "Let friends watch my live challenges" (§16/§19) — default OFF; publishing your live standing
+-- to friends is opt-in, same consent posture as auto-post-synced.
+alter table profiles add column if not exists watch_opt_in boolean not null default false;
+
+create or replace function set_my_watch_opt_in(p_enabled boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update profiles set watch_opt_in = p_enabled where id = auth.uid();
+end;
+$$;
+
+-- ───────────────────────────── friend-profile support ─────────────────────────────
+-- Mirrors search_people()'s relationship CASE for exactly one target — the friend-profile
+-- screen's Add friend / Friends ✓ button needs this same state machine but isn't a search result.
+create or replace function get_relationship_with(p_user_id uuid)
+returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select case
+    when p_user_id = auth.uid() then 'self'
+    when exists (
+      select 1 from friend_requests
+      where status = 'accepted'
+        and ((requester_id = auth.uid() and recipient_id = p_user_id) or (requester_id = p_user_id and recipient_id = auth.uid()))
+    ) then 'friends'
+    when exists (select 1 from friend_requests where status = 'pending' and requester_id = auth.uid() and recipient_id = p_user_id) then 'requested'
+    when exists (select 1 from friend_requests where status = 'pending' and requester_id = p_user_id and recipient_id = auth.uid()) then 'incoming'
+    else 'none'
+  end;
+$$;
+
+-- Non-sensitive aggregate stats (streak/lock-ins/hours + the goal types they work on) — the
+-- friend-profile's stat row + "Works on" chips (mock 43). No privacy gate needed here (unlike
+-- photos below): a streak/lock-in count carries no specific content, same as the leaderboard
+-- itself already exposing everyone's XP.
+create or replace function get_profile_stats(p_user_id uuid)
+returns table (current_streak int, lock_in_count bigint, hours_locked_in numeric, goal_types text[])
 language sql
 security definer
 set search_path = public
 stable
 as $$
   select
-    p.id as user_id,
-    p.handle,
-    p.display_name,
-    p.avatar_url,
-    p.is_pro,
-    s.score,
-    t.tier,
-    t.division,
-    coalesce((
-      select count(*) from check_ins ci
-      where ci.user_id = p.id and ci.created_at >= date_trunc('week', now())
-    ), 0) as check_ins_this_week
+    p.current_streak,
+    (select count(*) from check_ins ci where ci.user_id = p_user_id and ci.duration_seconds is not null and ci.removed_at is null),
+    round(coalesce((select sum(ci.duration_seconds) from check_ins ci where ci.user_id = p_user_id and ci.removed_at is null), 0) / 3600.0, 1),
+    coalesce((select array_agg(distinct ci.goal_type) from check_ins ci where ci.user_id = p_user_id and ci.removed_at is null), '{}')
   from profiles p
-  cross join lateral (select universal_score(p.id) as score) s
-  cross join lateral rank_tier_for_score(s.score) t
-  where p.university = p_university
-  order by s.score desc, check_ins_this_week desc, p.display_name asc
-  limit p_limit;
+  where p.id = p_user_id;
+$$;
+
+-- ───────────────────────────── active-challenge marker ─────────────────────────────
+-- The pulsing chip (mock 37) — visible on your own fire always, on a campfire's member row to
+-- any co-member, and on a friend's row/profile to friends (unconditionally — the marker itself
+-- isn't watch-gated, only the Watch CTA is; can_watch below is what actually gates that button).
+create or replace function get_active_challenge_marker(p_user_id uuid)
+returns table (
+  challenge_id uuid,
+  mode text,
+  circle_id uuid,
+  opponent_id uuid,
+  opponent_name text,
+  race_metric text,
+  target_count int,
+  ends_at timestamptz,
+  can_watch boolean
+)
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_is_self boolean := p_user_id = auth.uid();
+  v_shares_circle boolean;
+  v_is_friend boolean;
+  v_target_opted_in boolean;
+begin
+  select exists (
+    select 1 from group_members gm1 join group_members gm2 on gm1.group_id = gm2.group_id
+    where gm1.user_id = auth.uid() and gm2.user_id = p_user_id
+  ) into v_shares_circle;
+
+  select exists (
+    select 1 from friend_requests
+    where status = 'accepted'
+      and ((requester_id = auth.uid() and recipient_id = p_user_id) or (requester_id = p_user_id and recipient_id = auth.uid()))
+  ) into v_is_friend;
+
+  if not v_is_self and not v_shares_circle and not v_is_friend then
+    return; -- no visibility path at all — not self, no shared campfire, not a friend
+  end if;
+
+  select watch_opt_in into v_target_opted_in from profiles where id = p_user_id;
+
+  return query
+  select
+    sc.id,
+    sc.mode,
+    sc.circle_id,
+    sc.opponent_id,
+    opp.display_name,
+    sc.race_metric,
+    sc.target_count,
+    sc.ends_at,
+    -- Campfire Watch = any co-member of that challenge's circle; profile Watch = friends AND
+    -- their opt-in (§16's access gate, both paths, whichever applies to this viewer).
+    (v_shares_circle and sc.circle_id is not null) or (v_is_friend and coalesce(v_target_opted_in, false)) as can_watch
+  from social_challenges sc
+  left join profiles opp on opp.id = sc.opponent_id
+  where sc.status = 'active'
+    and (sc.created_by = p_user_id or sc.opponent_id = p_user_id)
+  order by sc.ends_at asc nulls last
+  limit 1;
+end;
+$$;
+
+-- ───────────────────────────── Watch — live spectator read ─────────────────────────────
+-- The actual contest data (§16): matchup, live scores, live status. Gated identically to
+-- can_watch above — re-checked here (not just trusted from the marker) since this is a direct
+-- RPC a client could call on its own.
+--
+-- The Watch screen's Cheer action (migration 0041: "spectators send a reaction to a competitor,
+-- with a count") — H2H only, a plain atomic counter on social_challenges rather than a
+-- per-spectator reactions table (nothing here needs dedup, just one shared live count). Dropped
+-- first: this RETURNS TABLE gained the two cheer-count columns after its first version shipped.
+alter table social_challenges add column if not exists created_by_cheers int not null default 0;
+alter table social_challenges add column if not exists opponent_cheers int not null default 0;
+
+create or replace function cheer_challenge(p_challenge_id uuid, p_for_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_challenge social_challenges;
+begin
+  select * into v_challenge from social_challenges where id = p_challenge_id and status = 'active';
+  if v_challenge.id is null then
+    raise exception 'Challenge not found or not active.';
+  end if;
+  if p_for_user_id = v_challenge.created_by then
+    update social_challenges set created_by_cheers = created_by_cheers + 1 where id = p_challenge_id;
+  elsif p_for_user_id = v_challenge.opponent_id then
+    update social_challenges set opponent_cheers = opponent_cheers + 1 where id = p_challenge_id;
+  else
+    raise exception 'That person is not in this challenge.';
+  end if;
+end;
+$$;
+
+drop function if exists get_challenge_watch(uuid);
+
+create function get_challenge_watch(p_challenge_id uuid)
+returns table (
+  challenge_id uuid,
+  mode text,
+  race_metric text,
+  target_count int,
+  window_hours int,
+  starts_at timestamptz,
+  ends_at timestamptz,
+  created_by uuid,
+  created_by_name text,
+  created_by_score numeric,
+  created_by_live_status text,
+  created_by_cheers int,
+  opponent_id uuid,
+  opponent_name text,
+  opponent_score numeric,
+  opponent_live_status text,
+  opponent_cheers int
+)
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_challenge social_challenges;
+  v_shares_circle boolean;
+  v_creator_opted_in boolean;
+  v_opponent_opted_in boolean;
+  v_is_friend_of_creator boolean;
+  v_is_friend_of_opponent boolean;
+begin
+  select * into v_challenge from social_challenges where id = p_challenge_id and status = 'active';
+  if v_challenge.id is null then
+    raise exception 'Challenge not found or not active.';
+  end if;
+
+  select exists (
+    select 1 from group_members gm1 join group_members gm2 on gm1.group_id = gm2.group_id
+    where gm1.user_id = auth.uid() and gm2.user_id = v_challenge.created_by
+  ) into v_shares_circle;
+
+  select exists (
+    select 1 from friend_requests where status = 'accepted'
+      and ((requester_id = auth.uid() and recipient_id = v_challenge.created_by) or (requester_id = v_challenge.created_by and recipient_id = auth.uid()))
+  ) into v_is_friend_of_creator;
+
+  select exists (
+    select 1 from friend_requests where status = 'accepted'
+      and ((requester_id = auth.uid() and recipient_id = v_challenge.opponent_id) or (requester_id = v_challenge.opponent_id and recipient_id = auth.uid()))
+  ) into v_is_friend_of_opponent;
+
+  select watch_opt_in into v_creator_opted_in from profiles where id = v_challenge.created_by;
+  select watch_opt_in into v_opponent_opted_in from profiles where id = v_challenge.opponent_id;
+
+  if not (
+    (v_shares_circle and v_challenge.circle_id is not null)
+    or (v_is_friend_of_creator and coalesce(v_creator_opted_in, false))
+    or (v_is_friend_of_opponent and coalesce(v_opponent_opted_in, false))
+    or auth.uid() in (v_challenge.created_by, v_challenge.opponent_id)
+  ) then
+    raise exception 'You don''t have access to watch this challenge.';
+  end if;
+
+  return query
+  select
+    v_challenge.id,
+    v_challenge.mode,
+    v_challenge.race_metric,
+    v_challenge.target_count,
+    v_challenge.window_hours,
+    v_challenge.starts_at,
+    v_challenge.ends_at,
+    v_challenge.created_by,
+    creator.display_name,
+    social_challenge_score(v_challenge.created_by, v_challenge.race_metric, v_challenge.starts_at, v_challenge.ends_at),
+    live_status(v_challenge.created_by),
+    v_challenge.created_by_cheers,
+    v_challenge.opponent_id,
+    opp.display_name,
+    case when v_challenge.opponent_id is not null
+      then social_challenge_score(v_challenge.opponent_id, v_challenge.race_metric, v_challenge.starts_at, v_challenge.ends_at)
+      else null end,
+    case when v_challenge.opponent_id is not null then live_status(v_challenge.opponent_id) else null end,
+    v_challenge.opponent_cheers
+  from profiles creator
+  left join profiles opp on opp.id = v_challenge.opponent_id
+  where creator.id = v_challenge.created_by;
+end;
+$$;
+
+-- Shared "🔥 locked in now · Gym · 12:34" / "last active 2h ago" text (§16) — used by the
+-- Watch scoreboard for each side; a plain SQL function since it's pure read + string formatting.
+create or replace function live_status(p_user_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_session lock_in_sessions;
+  v_last_check_in timestamptz;
+  v_elapsed_minutes int;
+begin
+  select * into v_session from lock_in_sessions where user_id = p_user_id and status = 'active';
+  if v_session.id is not null then
+    v_elapsed_minutes := extract(epoch from now() - v_session.started_at)::int / 60;
+    return 'locked in now · ' || initcap(v_session.goal_type) || ' · ' || v_elapsed_minutes || 'm';
+  end if;
+
+  select max(created_at) into v_last_check_in from check_ins where user_id = p_user_id and removed_at is null;
+  if v_last_check_in is null then
+    return 'no activity yet';
+  end if;
+
+  return 'last active ' || case
+    when now() - v_last_check_in < interval '1 hour' then extract(epoch from now() - v_last_check_in)::int / 60 || 'm ago'
+    when now() - v_last_check_in < interval '24 hours' then extract(epoch from now() - v_last_check_in)::int / 3600 || 'h ago'
+    else extract(epoch from now() - v_last_check_in)::int / 86400 || 'd ago'
+  end;
+end;
+$$;
+
+-- Group challenge's live leaderboard (§16: "a group challenge shows a live group leaderboard
+-- instead of the 1v1 bar") — same access gate as get_challenge_watch, just a different shape.
+create or replace function get_group_challenge_watch(p_challenge_id uuid)
+returns table (
+  challenge_id uuid,
+  target_count int,
+  window_hours int,
+  starts_at timestamptz,
+  ends_at timestamptz,
+  circle_id uuid,
+  circle_name text,
+  member_id uuid,
+  member_name text,
+  member_progress bigint,
+  member_live_status text
+)
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_challenge social_challenges;
+begin
+  select * into v_challenge from social_challenges where id = p_challenge_id and status = 'active' and mode = 'group';
+  if v_challenge.id is null then
+    raise exception 'Group challenge not found or not active.';
+  end if;
+  if not is_group_member(v_challenge.circle_id) then
+    raise exception 'Not a member of that campfire.';
+  end if;
+
+  return query
+  select
+    v_challenge.id,
+    v_challenge.target_count,
+    v_challenge.window_hours,
+    v_challenge.starts_at,
+    v_challenge.ends_at,
+    v_challenge.circle_id,
+    g.name,
+    gm.user_id,
+    p.display_name,
+    (
+      select count(*) from check_ins ci
+      where ci.user_id = gm.user_id and ci.removed_at is null
+        and ci.created_at >= v_challenge.starts_at and ci.created_at <= coalesce(v_challenge.ends_at, now())
+        and check_in_qualifies_for_challenge(ci.id)
+    ) as member_progress,
+    live_status(gm.user_id) as member_live_status
+  from group_members gm
+  join profiles p on p.id = gm.user_id
+  join groups g on g.id = v_challenge.circle_id
+  where gm.group_id = v_challenge.circle_id
+  order by member_progress desc;
+end;
 $$;
 
 -- The Leaderboard tab's "Campfires" pool (PHILOI_UI_SPEC.md §15) — "rank people, not
@@ -4173,6 +4784,11 @@ $$;
 -- of your campfires shows once), ranked by each person's own universal XP. Distinct from
 -- get_my_circle_ranks() just below (kept as-is — that one is "my rank inside each separate
 -- circle," used by that circle's own header/detail leaderboard, not this cross-campfire tab).
+--
+-- Punchlist 2, §1: widened to friends OR campfire-mates (deduped via UNION) — a user with no
+-- (or a brand new, empty) campfire used to see nothing here even with real friends. The caller's
+-- own row still comes through the mates branch (gm1/gm2 both match auth.uid()'s own membership
+-- rows), so no explicit self-inclusion/exclusion needed.
 create or replace function get_my_cross_circle_people()
 returns table (
   user_id uuid,
@@ -4195,6 +4811,16 @@ as $$
     from group_members gm1
     join group_members gm2 on gm2.group_id = gm1.group_id
     where gm1.user_id = auth.uid()
+  ),
+  friends as (
+    select case when requester_id = auth.uid() then recipient_id else requester_id end as user_id
+    from friend_requests
+    where status = 'accepted' and (requester_id = auth.uid() or recipient_id = auth.uid())
+  ),
+  pool as (
+    select user_id from mates
+    union
+    select user_id from friends
   )
   select
     p.id as user_id,
@@ -4206,10 +4832,70 @@ as $$
     t.tier,
     t.division,
     p.current_streak
-  from mates m
+  from pool m
   join profiles p on p.id = m.user_id
   cross join lateral rank_tier_for_score(universal_score(p.id)) t
+  where not p.is_demo and not p.is_disabled
   order by score desc;
+$$;
+
+-- Punchlist 2, §1: "colloquial short name on the board ('Laurier', 'Waterloo', 'UofT'), full
+-- legal name in profile/settings" — leaderboard RPCs still return profiles.university (the full
+-- name) unchanged; the client maps display strings through this lookup (see
+-- fetchUniversityShortNames() / src/lib/university-crests.ts's matching pattern).
+alter table universities add column if not exists short_name text;
+
+update universities set short_name = case name
+  when 'University of Waterloo' then 'Waterloo'
+  when 'Wilfrid Laurier University' then 'Laurier'
+  when 'Toronto Metropolitan University' then 'TMU'
+  when 'University of Toronto' then 'UofT'
+  when 'McMaster University' then 'McMaster'
+  when 'Queen''s University' then 'Queen''s'
+  when 'Western University' then 'Western'
+  when 'University of Guelph' then 'Guelph'
+  when 'University of Ottawa' then 'Ottawa'
+  when 'York University' then 'York'
+  else short_name
+end
+where short_name is null;
+
+-- Punchlist 2, §1: "Add their rank hexagon + XP + board position to the friend profile."
+-- get_user_rank already covers the hexagon/XP; this is the missing position — the same
+-- row_number() search_leaderboard() computes per result, but for exactly one target user.
+create or replace function get_user_board_position(p_user_id uuid)
+returns table (board text, rank int)
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_university text;
+begin
+  select university into v_university from profiles where id = p_user_id;
+
+  if v_university is not null then
+    return query
+    select 'My uni'::text, r.rank
+    from (
+      select p.id, row_number() over (order by universal_score(p.id) desc, p.display_name asc)::int as rank
+      from profiles p
+      where p.university = v_university and not p.is_demo and not p.is_disabled
+    ) r
+    where r.id = p_user_id;
+    if found then return; end if;
+  end if;
+
+  return query
+  select 'Global'::text, r.rank
+  from (
+    select p.id, row_number() over (order by universal_score(p.id) desc, p.display_name asc)::int as rank
+    from profiles p
+    where not p.is_demo and not p.is_disabled
+  ) r
+  where r.id = p_user_id;
+end;
 $$;
 
 -- "Vs. unis" (design-mocks/11) — campus-vs-campus total XP, summed across every member at
@@ -5210,6 +5896,45 @@ create policy "check_in_photos: read if circle-mate" on check_in_photos for sele
 -- query all key off (storage.foldername(name))[1] = auth.uid(), so the deeper per-photo path
 -- (userId/checkInId/index.jpg) used here is already covered.
 
+-- Profile / activity detail for a synced lock-in (migration 0043, §17b's third cross-integration
+-- surface): route, splits, and the in-app lock-in photos, with a one-tap "View on Strava."
+-- A SIDE table rather than more columns on check_ins, for two reasons: check_ins is already wide
+-- and every one of these fields is null for the manual lock-ins that are the overwhelming
+-- majority; and Strava's API Agreement obliges us to be able to delete their activity data
+-- cleanly on disconnect (see disconnect_my_strava() below) without touching the lock-in itself,
+-- which is the user's OWN record of having shown up and stays.
+create table if not exists synced_activity_details (
+  check_in_id uuid primary key references check_ins (id) on delete cascade,
+  -- Denormalized from check_ins so the RLS policy is a plain column compare instead of a join on
+  -- every read, and so the disconnect-time purge is a single-table delete.
+  user_id uuid not null references profiles (id) on delete cascade,
+  -- Google-encoded polyline (Strava's map.summary_polyline) — decoded and drawn as an SVG path
+  -- client-side (src/lib/polyline.ts); no map SDK, so this stays OTA-shippable.
+  route_polyline text,
+  -- Strava's splits_metric, trimmed to the per-km fields the detail screen actually renders.
+  splits jsonb,
+  calories numeric,
+  elevation_gain_m numeric,
+  -- Strava's device_name — drives the Garmin attribution the brand guidelines require when an
+  -- activity is Garmin-sourced.
+  device_name text,
+  created_at timestamptz not null default now()
+);
+create index if not exists synced_activity_details_user_idx on synced_activity_details (user_id);
+
+alter table synced_activity_details enable row level security;
+
+-- Owner-only, deliberately NARROWER than check_in_photos' "own rows + circle-mates' rows": a
+-- campfire-mate sees the synced lock-in's summary stats on the feed card and deep-links to Strava
+-- itself for anything more (that's what "View on Strava" is for). Detailed route/split data for
+-- another athlete never needs to be served out of our database, so it isn't. No write policy
+-- either: rows are written only by the strava-webhook / strava-backfill Edge Functions under the
+-- service role, never by a client — same trusted-write pattern as check_in_photos.
+drop policy if exists "synced_activity_details: read own" on synced_activity_details;
+create policy "synced_activity_details: read own" on synced_activity_details for select using (
+  user_id = auth.uid()
+);
+
 -- Gym's proof-of-effort (migration 0033, reward-design rules) — same shape/pattern as
 -- check_in_photos: entries are captured locally while a gym lock-in is active, then written as
 -- a batch when the session stops. A gym lock-in that's meant to count for something (a
@@ -5766,7 +6491,10 @@ create table if not exists strava_connections (
   access_token text not null,
   refresh_token text not null,
   expires_at timestamptz not null,
-  connected_at timestamptz not null default now()
+  connected_at timestamptz not null default now(),
+  -- Backfill cursor (migration 0038's poll-on-app-open safety net) — "activities newer than
+  -- this" per connection, so a repeat backfill never re-walks the athlete's whole history.
+  last_synced_at timestamptz not null default now()
 );
 
 alter table strava_connections enable row level security;
@@ -5787,6 +6515,10 @@ $$;
 -- Client-triggered disconnect — clears Philoi's own record only. This can't revoke the token on
 -- Strava's side; that's the athlete's own Strava account settings (My Apps), same caveat as the
 -- HealthKit/Health Connect "Disconnect" actions.
+-- Also drops the Strava-derived activity data we cached (migration 0043) — their API Agreement's
+-- data-handling terms. Deliberately does NOT touch the check_ins themselves: those are the user's
+-- own record of having shown up and remain theirs after a disconnect; what goes is Strava's
+-- route/split/device data, the part we only ever held on Strava's terms.
 create or replace function disconnect_my_strava()
 returns void
 language plpgsql
@@ -5794,6 +6526,26 @@ security definer
 set search_path = public
 as $$
 begin
+  delete from synced_activity_details where user_id = auth.uid();
   delete from strava_connections where user_id = auth.uid();
 end;
 $$;
+
+-- Auto lock-in from a synced Strava activity, real-time (migration 0038, §17b) — Strava's
+-- push-subscription API allows exactly ONE subscription per API application (not per user) —
+-- this is that singleton record, written once by strava-webhook-setup (an admin-run Edge
+-- Function, service role) and read by strava-webhook to validate the handshake's verify_token.
+-- No client-facing policy — nothing here is ever meant to be queried by the app.
+-- id is an identity column, NOT Strava's own subscription id (migration 0039) — Strava validates
+-- the callback URL synchronously as part of the create-subscription call (a GET back to the
+-- callback with the handshake params) before it ever returns a subscription id, so the pending
+-- verify_token row has to exist first. strava_subscription_id is filled in once Strava responds.
+create table if not exists strava_webhook_subscription (
+  id bigint generated always as identity primary key,
+  strava_subscription_id bigint,
+  callback_url text not null,
+  verify_token text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table strava_webhook_subscription enable row level security;

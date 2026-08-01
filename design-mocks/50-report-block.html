@@ -1,0 +1,73 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.wrap{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;position:relative;color:#FFF6EC}
+/* faint profile behind */
+.behind{position:absolute;inset:0;padding:16px;opacity:.28;filter:blur(1px)}
+.behind .av{width:70px;height:70px;border-radius:50%;background:#3a2a22;margin:24px auto 0}
+.behind .l{height:11px;background:#2d2740;border-radius:6px;margin:12px auto;width:50%}
+.scrim{position:absolute;inset:0;background:rgba(10,8,14,.55)}
+/* sheet */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#241c38;border-radius:22px 22px 26px 26px;padding:8px 14px 16px}
+.grab{width:36px;height:4px;border-radius:999px;background:#4a4460;margin:8px auto 12px}
+.shead{text-align:center;font-size:12px;color:#a99cbd;margin-bottom:10px}
+.opt{display:flex;align-items:center;gap:12px;padding:14px 12px;border-radius:13px;background:#20182f;margin-bottom:8px;font-size:14px;font-weight:500}
+.opt svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.opt .s{font-size:11px;color:#7c7194;font-weight:400}
+.opt.danger{color:#E86A5A}
+.opt.report{color:#FFF6EC}
+.opt .txt{flex:1}
+.cancel{text-align:center;padding:13px;border-radius:13px;background:#2d2740;color:#a99cbd;font-size:14px;font-weight:600;margin-top:2px}
+/* reasons */
+.rtitle{font-size:15px;font-weight:700;text-align:center;margin:2px 0 3px}
+.rsub{font-size:11px;color:#7c7194;text-align:center;margin-bottom:12px}
+.reason{display:flex;align-items:center;justify-content:space-between;padding:13px 12px;border-radius:12px;background:#20182f;margin-bottom:7px;font-size:13.5px}
+.reason .rc{width:20px;height:20px;border-radius:50%;border:2px solid #4a4460;flex:none}
+.reason.sel{box-shadow:inset 0 0 0 1px rgba(224,97,44,.5);background:#2a1d18}
+.reason.sel .rc{border-color:#E0612C;background:#E0612C;display:flex;align-items:center;justify-content:center}
+.reason.sel .rc:after{content:"";width:7px;height:7px;border-radius:50%;background:#fff}
+.submit{width:100%;border:0;border-radius:13px;padding:13px;background:#E86A5A;color:#fff;font-size:14px;font-weight:700;font-family:var(--font-sans);margin-top:8px}
+</style>
+<div class="wrap">
+
+  <!-- FRAME A: action sheet -->
+  <div class="col2">
+    <div class="phone"><div class="stage">
+      <div class="behind"><div class="av"></div><div class="l"></div><div class="l" style="width:32%"></div></div>
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="shead">@mayar</div>
+        <div class="opt report"><svg viewBox="0 0 24 24"><path d="M4 21V4h13l-2 4 2 4H4"/></svg><div class="txt">Report<div class="s">Flag content or behavior to Philoi</div></div></div>
+        <div class="opt danger"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg><div class="txt">Block Maya R<div class="s">They can't see you, message, or challenge you</div></div></div>
+        <div class="cancel">Cancel</div>
+      </div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">⋯ menu (mock 50a).</b> Replaces the raw Android system dialog — an on-brand bottom sheet over the dimmed profile: <b>Report</b> → reasons (50b), <b style="color:#E86A5A">Block</b> (with what it does), Cancel.</div>
+  </div>
+
+  <!-- FRAME B: report reasons -->
+  <div class="col2">
+    <div class="phone"><div class="stage">
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="rtitle">Report Maya R</div>
+        <div class="rsub">Reports are anonymous. Why are you reporting?</div>
+        <div class="reason sel"><span>Spam or scam</span><span class="rc"></span></div>
+        <div class="reason"><span>Harassment or bullying</span><span class="rc"></span></div>
+        <div class="reason"><span>Inappropriate content</span><span class="rc"></span></div>
+        <div class="reason"><span>Impersonation / fake account</span><span class="rc"></span></div>
+        <div class="reason"><span>Cheating the leaderboard</span><span class="rc"></span></div>
+        <div class="reason"><span>Something else</span><span class="rc"></span></div>
+        <button class="submit">Submit report</button>
+      </div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">Report reasons (mock 50b).</b> Anonymous, single-select. Includes a <b>"Cheating the leaderboard"</b> reason (ties to the Step 18 anti-cheese reporting). Submit → confirmation toast + optional auto-block prompt.</div>
+  </div>
+
+</div>

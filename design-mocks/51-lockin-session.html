@@ -1,0 +1,81 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:radial-gradient(120% 62% at 50% 42%,#2a1a14,#17131f 62%);border-radius:26px;overflow:hidden;position:relative;color:#FFF6EC;display:flex;flex-direction:column}
+/* drifting embers */
+.emb{position:absolute;bottom:34%;width:3px;height:3px;border-radius:50%;background:#FFD27A;opacity:0;animation:rise 4.2s ease-out infinite}
+@keyframes rise{0%{opacity:0;transform:translateY(0) scale(1)}15%{opacity:.8}100%{opacity:0;transform:translateY(-180px) translateX(16px) scale(.3)}}
+/* header (centered): activity + what you're doing */
+.top{padding:18px 16px 0;text-align:center;z-index:2;position:relative}
+.act{font-size:16px;font-weight:700}
+.camp{font-size:11.5px;color:#a99cbd;margin-top:3px}
+.min{position:absolute;top:16px;right:16px;color:#8a7fa6}
+.min svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+/* center: fire + timer take the majority */
+.center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2;gap:2px}
+.flamewrap{position:relative;width:220px;height:250px;display:flex;align-items:flex-end;justify-content:center}
+.fglow{position:absolute;bottom:24px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(224,97,44,.5),transparent 62%);animation:pulse 2.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+.flame{transform-origin:50% 100%;animation:flick 1.5s ease-in-out infinite;position:relative;z-index:1}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.05) scaleX(.97)}}
+.lockedlbl{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:#F2A33C;font-weight:700;margin-top:-6px}
+.timer{font-size:64px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:1px;text-shadow:0 0 28px rgba(242,163,60,.45);line-height:1.05}
+/* body doubles (compact) */
+.bd{padding:0 14px 6px;z-index:2}
+.bdl{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:#7c7194;margin:0 4px 7px;display:flex;align-items:center;gap:6px}
+.bdl .dot{width:6px;height:6px;border-radius:999px;background:#3DA85C}
+.bdrow{display:flex;gap:9px;overflow-x:auto}
+.bdrow::-webkit-scrollbar{display:none}
+.dbl{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;width:48px}
+.dav{width:34px;height:34px;border-radius:50%;background:#3a2a22;display:flex;align-items:center;justify-content:center;font-size:13px;color:#FFD27A;border:1.5px solid rgba(224,97,44,.5)}
+.dt{font-size:9.5px;color:#a99cbd;font-variant-numeric:tabular-nums}
+/* controls (smaller) */
+.controls{display:flex;align-items:center;gap:11px;padding:8px 18px 16px;z-index:2}
+.cam{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;flex:none;position:relative}
+.cam svg{width:18px;height:18px;stroke:#FFF6EC;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.cam .badge{position:absolute;top:-3px;right:-3px;background:#E0612C;color:#fff;font-size:8.5px;font-weight:700;border-radius:999px;padding:0 4px}
+.stop{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.13);border-radius:13px;padding:12px;text-align:center;font-size:14px;font-weight:600;color:#e7ddf5}
+</style>
+<div class="col2">
+  <div class="phone"><div class="stage">
+    <span class="emb" style="left:44%;animation-delay:0s"></span><span class="emb" style="left:54%;animation-delay:1s"></span><span class="emb" style="left:48%;animation-delay:2s"></span><span class="emb" style="left:58%;animation-delay:2.7s"></span><span class="emb" style="left:40%;animation-delay:3.4s"></span>
+
+    <div class="top">
+      <div class="act">Gym · Leg day</div>
+      <div class="camp">Laurier Grind</div>
+      <span class="min"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></span>
+    </div>
+
+    <div class="center">
+      <div class="flamewrap">
+        <div class="fglow"></div>
+        <svg class="flame" width="200" height="240" viewBox="0 0 100 120">
+          <path d="M50 4 C59 30 84 40 84 74 a34 34 0 0 1 -68 0 C16 52 29 46 33 35 c3 13 11 15 11 15 C44 31 46 17 50 4Z" fill="#E0612C"/>
+          <path d="M52 32 C59 50 76 57 76 78 a26 26 0 0 1 -52 0 c0 -14 9 -19 13 -28 c1.5 9 6 11 6 11 C48 60 50 44 52 32Z" fill="#F2A33C"/>
+          <path d="M51 60 C56 70 65 74 65 86 a15 15 0 0 1 -30 0 c0 -8 5 -11 8 -16 c.8 5 3 6 3 6 C46 76 48 68 51 60Z" fill="#FFD27A"/>
+        </svg>
+      </div>
+      <div class="lockedlbl">Locked in</div>
+      <div class="timer">12:47</div>
+    </div>
+
+    <div class="bd">
+      <div class="bdl"><span class="dot"></span>Locked in with you</div>
+      <div class="bdrow">
+        <div class="dbl"><div class="dav">A</div><div class="dt">08:12</div></div>
+        <div class="dbl"><div class="dav">M</div><div class="dt">41:03</div></div>
+        <div class="dbl"><div class="dav">D</div><div class="dt">22:47</div></div>
+        <div class="dbl"><div class="dav">K</div><div class="dt">05:31</div></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="cam"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span class="badge">2</span></div>
+      <div class="stop">Stop</div>
+    </div>
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">Lock-in session, v2 (mock 51).</b> The <b>fire + timer own the screen</b>. Centered header = the activity + what you're doing (Gym · Leg day) over the campfire name. No activity symbols in the flame, no filler copy. Compact <b>"Locked in with you"</b> body-doubles strip, and smaller <b>camera</b> + quiet <b>Stop</b> at the bottom. Drifting embers throughout.</div>
+</div>

@@ -142,12 +142,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {isOwn && (
-          <Pressable onPress={() => router.push('/edit-profile')}>
-            <Text style={styles.editProfileLink}>Edit profile</Text>
-          </Pressable>
-        )}
-
         {universalRank && (
           <View style={styles.rank}>
             <HexagonBadge tier={universalRank.tier} division={universalRank.division} size={40} />
@@ -191,28 +185,75 @@ export default function ProfileScreen() {
           <>
             <View style={styles.gl}>
               <Text style={styles.glTitle}>Lock-ins</Text>
-              <Text style={styles.glSub}>
-                {stats.lockin_count} {pluralize(stats.lockin_count, 'session')}
-              </Text>
+              {/* Own profile only: this list is capped at the most recent handful, and Profile is
+                  the single home for lock-in data now that Home's journal is gone (punchlist 4B/4C)
+                  — so there has to be a way through to the rest. Someone else's profile keeps the
+                  photo gallery and its own visibility rules, with no full-history route. */}
+              {isOwn ? (
+                <Pressable
+                  onPress={() => router.push('/lock-in-history')}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="See all lock-ins"
+                  style={styles.seeAll}>
+                  <Text style={styles.seeAllText}>See all</Text>
+                  <Ionicons name="chevron-forward" size={13} color={Colors.achieverText} />
+                </Pressable>
+              ) : (
+                <Text style={styles.glSub}>
+                  {stats.lockin_count} {pluralize(stats.lockin_count, 'session')}
+                </Text>
+              )}
             </View>
-            <View style={styles.grid}>
-              {recentLockIns.map((r) => (
-                <View key={r.id} style={styles.ph}>
-                  {r.signedPhotoUrl ? (
-                    <Image source={{ uri: r.signedPhotoUrl }} style={styles.phImage} />
-                  ) : (
-                    // No photo → show the goal-type icon centered, not a blank tile.
-                    <View style={[styles.phImage, styles.phFallback]}>
-                      <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={26} color={Colors.textTertiary} />
+            {isOwn ? (
+              // Own profile: the clean compact list, matching Home's "Your recent lock-ins"
+              // (punchlist: the photo grid ate a huge chunk of screen with mostly-empty tiles).
+              <View style={styles.list}>
+                {recentLockIns.map((r) => {
+                  const isSynced = Boolean(r.source && r.source !== 'manual');
+                  const isStrava = r.source === 'strava';
+                  return (
+                    <Pressable
+                      key={r.id}
+                      style={styles.row}
+                      onPress={() =>
+                        isStrava
+                          ? router.push({ pathname: '/activity/[checkInId]', params: { checkInId: r.id } })
+                          : router.push({ pathname: '/lock-in/[checkInId]', params: { checkInId: r.id } })
+                      }>
+                      <View style={[styles.rowIcon, isSynced && styles.rowIconSynced]}>
+                        <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={16} color={isSynced ? '#FC4C02' : Colors.amber} />
+                      </View>
+                      <Text style={styles.rowText} numberOfLines={1}>
+                        {isStrava && r.goal_detail ? r.goal_detail : GOAL_TYPE_META[r.goal_type].label}
+                        {!isStrava && r.goal_detail ? <Text style={styles.rowDetail}> · {r.goal_detail}</Text> : null}
+                      </Text>
+                      <Text style={styles.rowDur}>{formatSessionDuration(r.duration_seconds ?? 0)}</Text>
+                      <Ionicons name="chevron-forward" size={13} color={isStrava ? '#FC4C02' : Colors.textTertiary} />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              // Someone else's profile keeps the photo gallery.
+              <View style={styles.grid}>
+                {recentLockIns.map((r) => (
+                  <View key={r.id} style={styles.ph}>
+                    {r.signedPhotoUrl ? (
+                      <Image source={{ uri: r.signedPhotoUrl }} style={styles.phImage} />
+                    ) : (
+                      <View style={[styles.phImage, styles.phFallback]}>
+                        <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={26} color={Colors.textTertiary} />
+                      </View>
+                    )}
+                    <View style={styles.ov}>
+                      <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={11} color="#FFFFFF" />
+                      <Text style={styles.ovDuration}>{formatSessionDuration(r.duration_seconds ?? 0)}</Text>
                     </View>
-                  )}
-                  <View style={styles.ov}>
-                    <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={11} color="#FFFFFF" />
-                    <Text style={styles.ovDuration}>{formatSessionDuration(r.duration_seconds ?? 0)}</Text>
                   </View>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -377,6 +418,56 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.textTertiary,
+  },
+  seeAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  seeAllText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.achieverText,
+  },
+  // Compact list (own profile), mirrors Home's recent-lock-ins rows.
+  list: {
+    gap: 7,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+  },
+  rowIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    backgroundColor: Colors.cardDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowIconSynced: {
+    backgroundColor: 'rgba(252,76,2,0.14)',
+  },
+  rowText: {
+    flex: 1,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+  rowDetail: {
+    fontFamily: Fonts.body,
+    color: Colors.muted,
+  },
+  rowDur: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.amber,
+    fontVariant: ['tabular-nums'],
   },
   grid: {
     flexDirection: 'row',

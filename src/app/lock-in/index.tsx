@@ -4,7 +4,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   FadeInDown,
   FadeOutUp,
@@ -15,24 +15,26 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
-import { BodyDoubleRow } from '@/components/body-double-row';
+import { BodyDoubleStrip, BodyDoubleStripCollapsed } from '@/components/body-double-strip';
+import { DriftingEmbers } from '@/components/drifting-embers';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { BouncingPhoto } from '@/components/bouncing-photo';
 import { FireShareCard } from '@/components/fire-share-card';
 import { FlameMeterComplete } from '@/components/flame-meter-complete';
 import { LockInDoneScreen } from '@/components/lockin-done-screen';
-import { LockInFlame, type LockInFlameParticipant } from '@/components/lock-in-flame';
 import { RankUpCelebration } from '@/components/rank-up-celebration';
 import { RankUpShareCard } from '@/components/rank-up-share-card';
 import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
+import { SessionFlame } from '@/components/session-flame';
+import { SessionPhotoGallery } from '@/components/session-photo-gallery';
 import { TutorialTooltip } from '@/components/tutorial-tooltip';
 import { Screen } from '@/components/ui/screen';
-import { TextInput } from '@/components/ui/text-input';
 import { WorkoutLog } from '@/components/workout-log';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveWorkout } from '@/hooks/use-active-workout';
 import { useElapsedSeconds } from '@/hooks/use-elapsed-seconds';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useActiveSession } from '@/lib/active-session-context';
 import { track } from '@/lib/analytics';
 import { fetchOrCreateDailyFire } from '@/lib/api/daily-fire';
@@ -44,7 +46,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import { formatDurationClock } from '@/lib/format';
 import { shareFireCompleteStory } from '@/lib/fire-share-card';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_META } from '@/lib/goal-types';
 import { isRankUp } from '@/lib/rank-tiers';
 import { fireIgnite } from '@/lib/reward-feedback';
 import { shareCardImage } from '@/lib/share-card';
@@ -53,20 +55,39 @@ import type { CheckIn, GoalType, MyRank, RankTierName, WorkoutEnergy, WorkoutRec
 
 const PARTICIPANTS_POLL_MS = 20000;
 const STILL_HERE_THRESHOLD_MS = 55 * 60 * 1000; // matches the ~1hr server-side reminder, shown client-side too so it's not a surprise
-// Matches LockInFlame's own MAX_STAGE, so the bounded photo area and the flame's growth
-// stages top out at roughly the same session-length feel.
 const MAX_PHOTOS = 6;
-// "Immersive darker background, minimal chrome" (PHILOI_UI_SPEC.md §13, design-mocks/09) —
+// "Immersive darker background, minimal chrome" (PHILOI_UI_SPEC.md §13, design-mocks/51) —
 // distinct from every other screen's Colors.cream, a one-off for this screen only.
 const IMMERSIVE_BG = '#17131f';
-const BODY_DOUBLES_BG = '#201a2c';
-// The pre-workout energy state, echoed in the gym session header (design-mocks/24's `.moodchip`)
-// so it's visible while lifting — it's what nudged the suggested numbers on every row below.
-const ENERGY_CHIP: Record<WorkoutEnergy, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  light: { label: 'Light — easing off', icon: 'leaf-outline' },
-  same: { label: 'Same as usual', icon: 'reorder-two-outline' },
-  dialed: { label: 'Dialed — targets +', icon: 'flash' },
+// The pre-workout energy state, shrunk to a single word for the gym header chip (design-mocks/52's
+// `.energy`, which reads "DIALED") — it's what nudged the suggested numbers on every row below,
+// so it stays visible while lifting, just no longer as a full sentence.
+const ENERGY_CHIP_LABEL: Record<WorkoutEnergy, string> = {
+  light: 'Light',
+  same: 'Same',
+  dialed: 'Dialed',
 };
+
+// Mock 52's top scrim — `linear-gradient(180deg,#17131f 8%,rgba(23,19,31,.55) 40%,
+// rgba(23,19,31,.15) 70%,transparent)`, so the workout log stays readable over the flame behind
+// it. An SVG gradient rather than stacked translucent Views, which band visibly at this height.
+function GymScrim() {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Svg width="100%" height="100%">
+        <Defs>
+          <LinearGradient id="gymScrim" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0.08" stopColor={IMMERSIVE_BG} stopOpacity={1} />
+            <Stop offset="0.4" stopColor={IMMERSIVE_BG} stopOpacity={0.55} />
+            <Stop offset="0.7" stopColor={IMMERSIVE_BG} stopOpacity={0.15} />
+            <Stop offset="1" stopColor={IMMERSIVE_BG} stopOpacity={0} />
+          </LinearGradient>
+        </Defs>
+        <Rect x={0} y={0} width="100%" height="100%" fill="url(#gymScrim)" />
+      </Svg>
+    </View>
+  );
+}
 
 function findUniversal(ranks: MyRank[]): MyRank | undefined {
   return ranks.find((r) => r.scope === 'universal');
@@ -107,9 +128,11 @@ function LockInScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [stopping, setStopping] = useState(false);
+  // Flips 12s into a start that hasn't resolved — reveals the manual way out below rather than
+  // stranding the user on a modal with no back affordance (punchlist #42).
+  const [startStalled, setStartStalled] = useState(false);
   const [photos, setPhotos] = useState<{ id: string; uri: string }[]>([]);
-  const [photoAreaBounds, setPhotoAreaBounds] = useState({ width: 0, height: 0 });
-  const [caption, setCaption] = useState('');
+  const [galleryOpen, setGalleryOpen] = useState(false);
   // The finished gym workout (exercises, top sets, PRs), read back once the check-in exists so
   // the done screen can offer it as part of the lock-in data — private or posted (§23).
   const [workoutRecap, setWorkoutRecap] = useState<WorkoutRecap | null>(null);
@@ -155,11 +178,17 @@ function LockInScreen() {
   const rankCardRef = useRef<View>(null);
 
   // Slow ink->coral color breathe on the running timer — a quiet "this is live" signal
-  // distinct from LockInFlame's own breathe (kept separate to avoid prop-drilling a shared value).
+  // distinct from SessionFlame's own flick (kept separate to avoid prop-drilling a shared value).
+  const reduceMotion = useReduceMotion();
   const timerPulse = useSharedValue(0);
   useEffect(() => {
+    if (reduceMotion) {
+      // Rest at 0 = plain ink, the same color the pulse spends most of its cycle at.
+      timerPulse.value = 0;
+      return;
+    }
     timerPulse.value = withRepeat(withSequence(withTiming(1, { duration: 1400 }), withTiming(0, { duration: 1400 })), -1, false);
-  }, [timerPulse]);
+  }, [timerPulse, reduceMotion]);
   const timerPulseStyle = useAnimatedStyle(() => ({
     color: interpolateColor(timerPulse.value, [0, 1], [Colors.ink, Colors.coral]),
   }));
@@ -185,27 +214,50 @@ function LockInScreen() {
   // mount; `posted || stopping` is a second, redundant belt-and-suspenders check for the same
   // window (once a stop is underway or done, this effect should never do anything more).
   const startHandledRef = useRef(false);
+  // TRUE for as long as this screen is on-screen — deliberately NOT the old per-effect-run
+  // `let mounted` flag. That flag was set false by the effect's CLEANUP, which React runs on
+  // every dep change, not just unmount; `start()` below sets activeSession (a dep), so the
+  // in-flight run was routinely marked "stale" the instant it succeeded. Everything after the
+  // await then short-circuited — including `finally { setLoading(false) }` — while
+  // startHandledRef.current, already claimed, blocked the re-run from ever retrying. Result:
+  // `loading` pinned true forever on the "Starting your session…" screen with no way out
+  // (punchlist #42, the gym freeze — gym hit it hardest because its own start_workout effect
+  // fires in the same commit and adds the extra render that loses the race). Unmount is the
+  // only thing that should silence this work, so that's what this tracks.
+  const screenMountedRef = useRef(true);
+  useEffect(() => {
+    screenMountedRef.current = true;
+    return () => {
+      screenMountedRef.current = false;
+    };
+  }, []);
+  // Read inside the async body instead of via the dep array — this effect is "at most once per
+  // mount" by construction (startHandledRef), so re-running it on every activeSession change
+  // bought nothing and caused the churn above.
+  const activeSessionRef = useRef(activeSession);
+  useEffect(() => {
+    activeSessionRef.current = activeSession;
+  }, [activeSession]);
   useEffect(() => {
     if (activeLoading || !session) return;
     if (posted || stopping) return;
     if (startHandledRef.current) return;
-    let mounted = true;
     (async () => {
       // Claimed immediately, before any await — "at most once per mount" regardless of which
       // branch below ends up running or how long it takes.
       startHandledRef.current = true;
       try {
         const tutorialDone = await isFirstLockInTutorialDone();
-        if (!mounted) return;
+        if (!screenMountedRef.current) return;
         if (!tutorialDone) {
           setTutorialStep(1);
           track('first_lock_in_tutorial_shown', {});
         }
 
-        if (!activeSession) {
+        if (!activeSessionRef.current) {
           if (typeParam) {
             await start(typeParam as GoalType, detailParam ?? null, circleIdParam ?? null);
-            if (!mounted) return;
+            if (!screenMountedRef.current) return;
             // "Ignite" (PHILOI_UI_SPEC.md §22) — only for a genuinely NEW session, never on
             // resuming an existing one (e.g. reopened from a "still here?" notification).
             fireIgnite();
@@ -214,15 +266,22 @@ function LockInScreen() {
           }
         }
       } catch (e) {
-        if (mounted) setError(getErrorMessage(e, 'Could not start your session.'));
+        if (screenMountedRef.current) setError(getErrorMessage(e, 'Could not start your session.'));
       } finally {
-        if (mounted) setLoading(false);
+        if (screenMountedRef.current) setLoading(false);
       }
     })();
-    return () => {
-      mounted = false;
-    };
-  }, [activeLoading, activeSession, session, typeParam, detailParam, circleIdParam, start, posted, stopping]);
+  }, [activeLoading, session, typeParam, detailParam, circleIdParam, start, posted, stopping]);
+
+  const starting = loading || activeLoading || !activeSession;
+  useEffect(() => {
+    if (!starting) return;
+    const timer = setTimeout(() => setStartStalled(true), 12000);
+    // Cleared rather than reset via setState — once the start resolves this effect simply stops
+    // arming the timer, and `starting && startStalled` at the render site is what gates the
+    // escape hatch, so there's no synchronous state write in an effect body here.
+    return () => clearTimeout(timer);
+  }, [starting]);
 
   // "Locked in with you" (PHILOI_UI_SPEC.md §13) — scoped to this campfire only; a solo
   // session (circleId null) shows no body-doubles. Polling, not Realtime Presence (see the
@@ -256,6 +315,7 @@ function LockInScreen() {
     refetch: refetchWorkout,
     logSet,
     removeSet,
+    patchSetClip,
     addExercise,
     replaceExercise,
     removeExercise,
@@ -273,25 +333,21 @@ function LockInScreen() {
     if (gymStartedRef.current === activeSession.id) return;
     gymStartedRef.current = activeSession.id;
     const sessionId = activeSession.id;
-    let mounted = true;
     (async () => {
       try {
         await startWorkout(sessionId, routineIdParam ?? null, (energyParam as WorkoutEnergy) ?? 'same');
       } catch (e) {
-        if (mounted) setError(getErrorMessage(e, 'Could not set up your workout.'));
+        if (screenMountedRef.current) setError(getErrorMessage(e, 'Could not set up your workout.'));
       }
-      if (mounted) await refetchWorkout();
+      // Unconditional (same fix as the start effect above): this used to be gated on a
+      // per-effect-run `mounted` flag that the cleanup cleared on any dep change, so a single
+      // extra render between start_workout being called and it returning left `workout` null
+      // forever — a gym session stuck on an empty log with no exercises and no way to add any,
+      // since gymStartedRef had already been claimed. useActiveWorkout's own setState is the
+      // right place to be unmount-safe, not this call site.
+      if (screenMountedRef.current) await refetchWorkout();
     })();
-    return () => {
-      mounted = false;
-    };
   }, [activeSession, isGym, posted, stopping, routineIdParam, energyParam, refetchWorkout]);
-
-  const participants: LockInFlameParticipant[] = activeLockIns.map((a) => ({
-    user_id: a.session.user_id,
-    display_name: a.display_name,
-    avatar_url: a.avatar_url,
-  }));
 
   const elapsedSeconds = useElapsedSeconds(activeSession?.startedAt ?? null);
   // Keyed off last confirmation, not session start — matches the server-side sweep
@@ -337,11 +393,6 @@ function LockInScreen() {
     setPhotos((prev) => prev.filter((p) => p.id !== id));
   }
 
-  function handlePhotoAreaLayout(e: LayoutChangeEvent) {
-    const { width, height } = e.nativeEvent.layout;
-    setPhotoAreaBounds({ width, height });
-  }
-
   async function handleStop() {
     if (!activeSession || !session) return;
     setStopping(true);
@@ -359,12 +410,15 @@ function LockInScreen() {
       const wasFirstEver = streakBefore.current_streak === 0 && streakBefore.longest_streak === 0;
       const goalType = activeSession.goalType;
 
+      // No caption here: the §13 redesign took the field off this screen, and it now lives on the
+      // done screen next to "Post to the campfire" (written via set_my_check_in_caption, migration
+      // 0048) — you caption a session once you know how it went, at the moment you decide who
+      // sees it. stopLockInSession's `caption` param stays optional for that reason.
       const checkIn = await stopLockInSession({
         sessionId: activeSession.id,
         userId: session.user.id,
         goalType,
         photoUris: photos.map((p) => p.uri),
-        caption,
       });
 
       // The gym log was already persisted set-by-set; stop_lock_in_session bound it to this
@@ -567,37 +621,48 @@ function LockInScreen() {
     return (
       <Screen style={styles.container}>
         <Text style={styles.loading}>{error ?? 'Starting your session…'}</Text>
+        {/* Belt-and-braces for punchlist #42: the wedge above is fixed at the source, but a
+            genuinely stalled network call can still park someone here, and this screen is a
+            modal with no header — i.e. no back button. Never leave the only way out as a
+            force-quit. */}
+        {startStalled && (
+          <Pressable onPress={() => router.replace('/')} style={styles.bailOut} accessibilityRole="button">
+            <Text style={styles.bailOutLabel}>Back to Philoi</Text>
+          </Pressable>
+        )}
       </Screen>
     );
   }
 
-  // GYM (PHILOI_UI_SPEC.md §23, design-mocks/24) — the same running session, but the flame and
-  // the big timer give up the stage to the workout log. The timer shrinks to a header pill, the
-  // body-doubles collapse to a one-line avatar strip, and the middle of the screen becomes the
-  // scrollable log. Everything else (photos, the still-here banner, Finish) behaves identically.
+  // GYM (PHILOI_UI_SPEC.md §23, design-mocks/52) — the sole exception to the base screen. The
+  // giant flame STAYS but drops to a dimmed background layer with a top scrim over it, and the
+  // translucent workout log rides on top. The timer shrinks to a header pill beside an energy
+  // chip, the body-doubles collapse to one line, and the CTA becomes "Finish workout."
   if (isGym) {
     return (
       <Screen backgroundColor={IMMERSIVE_BG} style={styles.gymContainer} padded={false}>
+        <View style={styles.gymFlameLayer} pointerEvents="none">
+          <SessionFlame height={240} dimmed />
+        </View>
+        <GymScrim />
+
         <View style={styles.gymHeader}>
           <View style={styles.gymHeaderText}>
+            <Text style={styles.activityLine} numberOfLines={1}>
+              {GOAL_TYPE_META.gym.label}
+              {workout?.routine_name ? ` · ${workout.routine_name}` : activeSession.goalDetail ? ` · ${activeSession.goalDetail}` : ''}
+            </Text>
             {activeSession.circleName && <Text style={styles.campfireName}>{activeSession.circleName}</Text>}
-            <View style={styles.goalChip}>
-              <Ionicons name={GOAL_TYPE_ICON.gym} size={13} color={Colors.amber} />
-              <Text style={styles.goalChipText}>
-                {GOAL_TYPE_META.gym.label}
-                {workout?.routine_name ? ` · ${workout.routine_name}` : activeSession.goalDetail ? ` · ${activeSession.goalDetail}` : ''}
-              </Text>
+          </View>
+          <View style={styles.gymHeaderRight}>
+            <View style={styles.timerPill}>
+              <Animated.Text style={[styles.timerPillValue, timerPulseStyle]}>{formatDurationClock(elapsedSeconds)}</Animated.Text>
             </View>
             {workout && (
               <View style={styles.energyChip}>
-                <Ionicons name={ENERGY_CHIP[workout.energy].icon} size={10} color={Colors.achieverText} />
-                <Text style={styles.energyChipText}>{ENERGY_CHIP[workout.energy].label}</Text>
+                <Text style={styles.energyChipText}>{ENERGY_CHIP_LABEL[workout.energy]}</Text>
               </View>
             )}
-          </View>
-          <View style={styles.gymTimer}>
-            <Animated.Text style={[styles.gymTimerValue, timerPulseStyle]}>{formatDurationClock(elapsedSeconds)}</Animated.Text>
-            <Text style={styles.gymTimerLabel}>LOCKED IN</Text>
           </View>
         </View>
 
@@ -606,6 +671,8 @@ function LockInScreen() {
           contentContainerStyle={styles.gymLogContent}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag">
+          <BodyDoubleStripCollapsed lockIns={activeLockIns} />
+
           {stillHereDue && (
             <Animated.View entering={FadeInDown.springify().damping(14)} exiting={FadeOutUp.duration(200)}>
               <Pressable onPress={handleConfirmStillHere} style={styles.stillHereBanner}>
@@ -625,42 +692,14 @@ function LockInScreen() {
               onReplaceExercise={replaceExercise}
               onRemoveExercise={removeExercise}
               onMoveExercise={moveExercise}
+              onSetClipChanged={patchSetClip}
             />
           )}
-
-          {photos.length > 0 && (
-            <View style={styles.gymPhotoArea} onLayout={handlePhotoAreaLayout}>
-              {photos.map((p) => (
-                <BouncingPhoto key={p.id} uri={p.uri} bounds={photoAreaBounds} onRemove={() => removePhoto(p.id)} />
-              ))}
-            </View>
-          )}
-
-          <TextInput placeholder="Add a caption (optional)" value={caption} onChangeText={setCaption} maxLength={140} />
 
           {error && <Text style={styles.error}>{error}</Text>}
         </ScrollView>
 
         <View style={styles.gymFooter}>
-          {/* Collapsed to a strip here — in a gym the log is what you're looking at, so the
-              body-doubles stay present as ambient company rather than a stack of rows. */}
-          {activeLockIns.length > 0 && (
-            <View style={styles.doubleStrip}>
-              <View style={styles.doubleAvatars}>
-                {activeLockIns.slice(0, 4).map((a, i) => (
-                  <View key={a.session.id} style={[styles.doubleAvatar, i > 0 && styles.doubleAvatarStacked]}>
-                    <Text style={styles.doubleAvatarText}>{a.display_name.charAt(0).toUpperCase()}</Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={styles.doubleStripText} numberOfLines={1}>
-                {activeLockIns.length === 1
-                  ? `${activeLockIns[0].display_name} is locked in with you`
-                  : `${activeLockIns.length} locked in with you`}
-              </Text>
-            </View>
-          )}
-
           <View style={styles.actions}>
             <Pressable
               onPress={takePhoto}
@@ -668,83 +707,98 @@ function LockInScreen() {
               style={[styles.cameraButton, photos.length >= MAX_PHOTOS && styles.cameraButtonDisabled]}
               accessibilityLabel="Take a photo"
               accessibilityRole="button">
-              <Ionicons name="camera" size={22} color={Colors.ink} />
+              <Ionicons name="camera" size={20} color={Colors.ink} />
               {photos.length > 0 && (
                 <View style={styles.cameraBadge}>
                   <Text style={styles.cameraBadgeText}>{photos.length}</Text>
                 </View>
               )}
             </Pressable>
+            {photos.length > 0 && (
+              <Pressable
+                onPress={() => setGalleryOpen(true)}
+                style={styles.galleryArrow}
+                accessibilityLabel="See this session's photos"
+                accessibilityRole="button">
+                <Ionicons name="chevron-up" size={14} color={Colors.muted} />
+              </Pressable>
+            )}
+            {/* Solid coral, unlike the base screen's quiet Stop (mock 52) — finishing a logged
+                workout is a deliberate commit, not the same "let the session end" gesture. */}
             <Pressable
               onPress={handleStop}
               disabled={stopping}
-              style={styles.stopButton}
+              style={styles.finishButton}
               accessibilityLabel="Finish workout"
               accessibilityRole="button">
-              <Ionicons name="stop" size={16} color={Colors.ink} />
-              <Text style={styles.stopLabel}>{stopping ? 'Finishing…' : 'Finish workout'}</Text>
+              <Text style={styles.finishLabel}>{stopping ? 'Finishing…' : 'Finish workout'}</Text>
             </Pressable>
           </View>
         </View>
+
+        <SessionPhotoGallery
+          visible={galleryOpen}
+          photos={photos}
+          onRemove={removePhoto}
+          onClose={() => setGalleryOpen(false)}
+        />
       </Screen>
     );
   }
 
+  // BASE — every non-gym goal type uses this exact screen (PHILOI_UI_SPEC.md §13 redesign,
+  // design-mocks/51 + 53); only the header text swaps between Study / Run / Read / Job apps /
+  // Custom. The fire and the timer own it: no goal-tool symbol in the flame, no filler copy, no
+  // in-session caption field.
   return (
-    <Screen backgroundColor={IMMERSIVE_BG} style={styles.container}>
-      {/* TOP — pinned, natural size. */}
+    <Screen backgroundColor={IMMERSIVE_BG} style={styles.container} padded={false}>
+      <DriftingEmbers />
+
+      {/* TOP — centered activity over the campfire name, with minimize parked top-right. */}
       <View style={styles.top}>
+        <Text style={styles.activityLine} numberOfLines={1}>
+          {GOAL_TYPE_META[activeSession.goalType].label}
+          {activeSession.goalDetail ? ` · ${activeSession.goalDetail}` : ''}
+        </Text>
         {activeSession.circleName && <Text style={styles.campfireName}>{activeSession.circleName}</Text>}
-        <View style={styles.goalChip}>
-          <Ionicons name={GOAL_TYPE_ICON[activeSession.goalType]} size={13} color={Colors.amber} />
-          <Text style={styles.goalChipText}>
-            {GOAL_TYPE_META[activeSession.goalType].label}
-            {activeSession.goalDetail ? ` · ${activeSession.goalDetail}` : ''}
-          </Text>
-        </View>
+        {/* Minimize, NOT stop — the session lives in ActiveSessionContext, so it keeps running
+            and home swaps its CTA to "Return to your lock-in". */}
+        <Pressable
+          onPress={() => router.replace('/')}
+          hitSlop={12}
+          style={styles.minimize}
+          accessibilityLabel="Minimize lock-in"
+          accessibilityRole="button">
+          <Ionicons name="remove" size={22} color={Colors.textTertiary} />
+        </Pressable>
       </View>
 
       {/* CENTER — the only flex:1 sibling in this column, so it claims 100% of whatever's left
-          between TOP and BOTTOM and centers the flame/timer/caption group inside that space.
+          between TOP and BOTTOM and centers the flame/label/timer group inside that space.
           This is what pins BOTTOM to the bottom too — nothing below here needs its own
           flex/margin trick, it just renders right after however much space this consumes. */}
       <View style={styles.stage}>
-        <LockInFlame goalType={activeSession.goalType} elapsedSeconds={elapsedSeconds} participants={participants} />
+        <SessionFlame height={240} />
         <TutorialTooltip
           visible={tutorialStep === 1}
-          text="This is your flame — it grows the longer you stay locked in."
+          text="This is your flame — it burns for as long as you stay locked in."
           onDismiss={() => setTutorialStep(2)}
         />
+        <Text style={styles.lockedLabel}>Locked in</Text>
         <Animated.Text style={[styles.timer, timerPulseStyle]}>{formatDurationClock(elapsedSeconds)}</Animated.Text>
-        <Text style={styles.lockedCaption}>LOCKED IN</Text>
       </View>
 
       {/* BOTTOM — pinned, natural size. */}
       <View style={styles.footer}>
         {stillHereDue && (
-          <Animated.View entering={FadeInDown.springify().damping(14)} exiting={FadeOutUp.duration(200)}>
+          <Animated.View entering={FadeInDown.springify().damping(14)} exiting={FadeOutUp.duration(200)} style={styles.bannerInset}>
             <Pressable onPress={handleConfirmStillHere} style={styles.stillHereBanner}>
               <Text style={styles.stillHereText}>Long session — still here? Tap to confirm.</Text>
             </Pressable>
           </Animated.View>
         )}
 
-        {activeLockIns.length > 0 && (
-          <View style={styles.bodyDoubles}>
-            <Text style={styles.bodyDoublesTitle}>Locked in with you</Text>
-            {activeLockIns.map((a) => (
-              <BodyDoubleRow key={a.session.id} activeLockIn={a} />
-            ))}
-          </View>
-        )}
-
-        <View style={styles.photoArea} onLayout={handlePhotoAreaLayout}>
-          {photos.map((p) => (
-            <BouncingPhoto key={p.id} uri={p.uri} bounds={photoAreaBounds} onRemove={() => removePhoto(p.id)} />
-          ))}
-        </View>
-
-        <TextInput placeholder="Add a caption (optional)" value={caption} onChangeText={setCaption} maxLength={140} />
+        <BodyDoubleStrip lockIns={activeLockIns} />
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -757,24 +811,41 @@ function LockInScreen() {
             style={[styles.cameraButton, photos.length >= MAX_PHOTOS && styles.cameraButtonDisabled]}
             accessibilityLabel="Take a photo"
             accessibilityRole="button">
-            <Ionicons name="camera" size={22} color={Colors.ink} />
+            <Ionicons name="camera" size={18} color={Colors.ink} />
             {photos.length > 0 && (
               <View style={styles.cameraBadge}>
                 <Text style={styles.cameraBadgeText}>{photos.length}</Text>
               </View>
             )}
           </Pressable>
+          {/* Only once there's something to show — an empty gallery arrow is a dead control. */}
+          {photos.length > 0 && (
+            <Pressable
+              onPress={() => setGalleryOpen(true)}
+              style={styles.galleryArrow}
+              accessibilityLabel="See this session's photos"
+              accessibilityRole="button">
+              <Ionicons name="chevron-up" size={14} color={Colors.muted} />
+            </Pressable>
+          )}
+          {/* Quiet, not alarm-red (§13) — closing a good session should feel satisfying. */}
           <Pressable
             onPress={handleStop}
             disabled={stopping}
             style={styles.stopButton}
             accessibilityLabel="Stop lock-in"
             accessibilityRole="button">
-            <Ionicons name="stop" size={16} color={Colors.ink} />
-            <Text style={styles.stopLabel}>{stopping ? 'Stopping…' : 'Stop lock-in'}</Text>
+            <Text style={styles.stopLabel}>{stopping ? 'Stopping…' : 'Stop'}</Text>
           </Pressable>
         </View>
       </View>
+
+      <SessionPhotoGallery
+        visible={galleryOpen}
+        photos={photos}
+        onRemove={removePhoto}
+        onClose={() => setGalleryOpen(false)}
+      />
     </Screen>
   );
 }
@@ -792,6 +863,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.six,
   },
+  bailOut: {
+    marginTop: Spacing.three,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.13)',
+    borderRadius: 13,
+    paddingVertical: Spacing.twelve,
+    paddingHorizontal: Spacing.four,
+  },
+  bailOutLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 14,
+    color: Colors.coldButtonText,
+  },
   // Flame + timer + "LOCKED IN" claim the leftover vertical space between the header chip and
   // whatever's below (still-here banner / body-doubles / photos / actions) and center within
   // it — the focal moment of the screen, not packed up against the header.
@@ -799,50 +885,58 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.three,
+    // Mock 51's `.center{gap:2px}` — the flame, label and timer read as ONE stacked object, so
+    // this is deliberately tight; the label's own negative margin tucks it under the flame's base.
+    gap: 2,
   },
+  // Centered header (mock 51): activity line on top, campfire name under it, minimize parked
+  // absolutely top-right so it doesn't push the centered text off-axis.
   top: {
     alignItems: 'center',
     alignSelf: 'stretch',
+    paddingTop: Spacing.two,
+    paddingHorizontal: Spacing.five,
+  },
+  activityLine: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 16,
+    color: Colors.ink,
+  },
+  minimize: {
+    position: 'absolute',
+    top: 0,
+    right: Spacing.three,
   },
   // BOTTOM zone — a plain (non-flex) block; it renders at its natural size right after
   // whatever space CENTER's flex:1 didn't consume, which is what pins it to the bottom.
   footer: {
     alignSelf: 'stretch',
-    gap: Spacing.three,
+    gap: Spacing.twelve,
+    paddingBottom: Spacing.two,
   },
   campfireName: {
     fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.textTertiary,
-  },
-  goalChip: {
-    marginTop: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    backgroundColor: Colors.achieverBg,
-    borderRadius: Radius.pill,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-  },
-  goalChipText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.achieverText,
+    fontSize: 11.5,
+    color: Colors.muted,
+    marginTop: 3,
   },
   timer: {
-    fontFamily: Fonts.display,
-    fontSize: 46,
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 64,
     letterSpacing: 1,
     color: Colors.ink,
+    // Mock's `text-shadow:0 0 28px rgba(242,163,60,.45)` — the timer catches the firelight.
+    textShadowColor: 'rgba(242,163,60,0.45)',
+    textShadowRadius: 28,
   },
-  lockedCaption: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    letterSpacing: 1,
-    color: Colors.muted,
-    marginTop: -Spacing.one,
+  // Sits between the flame and the timer (mock 51), tucked up under the flame's base.
+  lockedLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 2.5,
+    textTransform: 'uppercase',
+    color: Colors.amber,
+    marginTop: -6,
   },
   stillHereBanner: {
     backgroundColor: Colors.achieverBg,
@@ -851,48 +945,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     alignSelf: 'stretch',
   },
+  // Base screen only. It runs `padded={false}` so the flame and embers can bleed to the edges,
+  // which means each inset block supplies its own — whereas gym's copy of this banner already
+  // sits inside the padded log ScrollView and would double up if the inset lived on the banner.
+  bannerInset: {
+    paddingHorizontal: Spacing.three,
+  },
   stillHereText: {
     fontFamily: Fonts.bodySemiBold,
     color: Colors.achieverText,
     textAlign: 'center',
   },
-  bodyDoubles: {
-    alignSelf: 'stretch',
-    borderRadius: 14,
-    backgroundColor: BODY_DOUBLES_BG,
-    paddingVertical: 10,
-    paddingHorizontal: 2,
-  },
-  bodyDoublesTitle: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.textTertiary,
-    paddingHorizontal: Spacing.three,
-    marginBottom: Spacing.one,
-  },
-  photoArea: {
-    width: '100%',
-    height: 180,
-    overflow: 'hidden',
-  },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
+    gap: 11,
     width: '100%',
+    paddingHorizontal: Spacing.three,
   },
+  // Smaller than the old 52px (mock 51's `.cam` is 42) — the controls deliberately recede so the
+  // fire and timer stay the loudest thing on screen.
   cameraButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.card,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.09)',
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   cameraButtonDisabled: {
     opacity: 0.5,
+  },
+  // Deliberately smaller and quieter than the camera it sits beside — a peek at what you've
+  // already shot, not a second primary control competing with it.
+  galleryArrow: {
+    width: 26,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -6,
   },
   cameraBadge: {
     position: 'absolute',
@@ -911,135 +1004,112 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Colors.ink,
   },
+  // "Style it quiet (not alarm-red)" (§13) — a translucent slab, no icon, no color shout.
   stopButton: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.two,
-    backgroundColor: Colors.disabled,
-    borderRadius: 16,
-    paddingVertical: Spacing.three,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.13)',
+    borderRadius: 13,
+    paddingVertical: Spacing.twelve,
   },
   stopLabel: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
+    fontSize: 14,
+    color: Colors.coldButtonText,
+  },
+  finishButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.coral,
+    borderRadius: 13,
+    paddingVertical: Spacing.twelve,
+  },
+  finishLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
     color: Colors.ink,
   },
   error: {
     fontFamily: Fonts.body,
     color: Colors.coral,
     textAlign: 'center',
+    paddingHorizontal: Spacing.three,
   },
-  // ─────────────── gym session (§23, design-mocks/24) ───────────────
+  // ─────────────── gym session (§23, design-mocks/52) ───────────────
   // Its own three-band layout — header / scrolling log / footer — rather than the flame
   // screen's TOP/CENTER/BOTTOM, because the middle band here is a scroll view that has to
-  // claim every pixel the other two don't.
+  // claim every pixel the other two don't. The flame and scrim sit behind all three.
   gymContainer: {
     flex: 1,
   },
+  // The giant flame, kept but demoted: pinned low and centered so it glows up through the log
+  // (mock 52's `.bgflame` at bottom:2%). zIndex-free — it's first in the tree, so everything
+  // after it paints on top.
+  gymFlameLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: '2%',
+    alignItems: 'center',
+  },
   gymHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 9,
+    // Vertically center the activity title against the timer pill on the right (was 'flex-start',
+    // which top-aligned the title above the "minutes" pill instead of level with it).
+    alignItems: 'center',
+    gap: 8,
     paddingTop: Spacing.twelve,
     paddingBottom: 10,
     paddingHorizontal: Spacing.three,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
   },
   gymHeaderText: {
     flex: 1,
     alignItems: 'flex-start',
     minWidth: 0,
   },
-  energyChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 5,
-    backgroundColor: Colors.selectedBg,
-    borderWidth: 1,
-    borderColor: 'rgba(224,97,44,0.45)',
-    borderRadius: Radius.pill,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-  },
-  energyChipText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 10,
-    color: Colors.achieverText,
-  },
-  gymTimer: {
+  gymHeaderRight: {
     alignItems: 'flex-end',
+    gap: 5,
   },
-  gymTimerValue: {
-    fontFamily: Fonts.display,
-    fontSize: 20,
-    letterSpacing: 0.5,
+  timerPill: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: Radius.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+  },
+  timerPillValue: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
     color: Colors.ink,
   },
-  gymTimerLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 8.5,
-    letterSpacing: 1,
-    color: Colors.textTertiary,
+  energyChip: {
+    backgroundColor: 'rgba(242,163,60,0.16)',
+    borderRadius: Radius.pill,
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+  },
+  energyChipText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    color: Colors.ember,
   },
   gymLog: {
     flex: 1,
   },
   gymLogContent: {
     gap: Spacing.twelve,
-    paddingTop: Spacing.twelve,
+    paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
     paddingHorizontal: Spacing.three,
   },
-  // Only mounted once there's a photo to bounce (unlike the flame screen, where the area is
-  // always reserved) — an empty 180px hole in the middle of a workout log is dead weight.
-  gymPhotoArea: {
-    width: '100%',
-    height: 180,
-    overflow: 'hidden',
-  },
   gymFooter: {
-    gap: 9,
     paddingTop: 9,
     paddingBottom: Spacing.twelve,
-    paddingHorizontal: Spacing.three,
-    borderTopWidth: 1,
-    borderTopColor: Colors.line,
-  },
-  doubleStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  doubleAvatars: {
-    flexDirection: 'row',
-  },
-  doubleAvatar: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.achieverBg,
-    borderWidth: 1.5,
-    borderColor: Colors.coral,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  doubleAvatarStacked: {
-    marginLeft: -5,
-  },
-  doubleAvatarText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 9,
-    color: Colors.achieverText,
-  },
-  doubleStripText: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
   },
   // Laid out (so react-native-view-shot has real dimensions to capture) but positioned well
   // outside the viewport — never a screenshot of the visible celebration UI, a purpose-built

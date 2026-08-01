@@ -1,0 +1,111 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.wrap{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;padding:16px 15px;box-sizing:border-box;color:#FFF6EC;display:flex;flex-direction:column}
+.hd{font-size:19px;font-weight:600}
+/* leaderboard chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{font-size:12px;padding:7px 14px;border-radius:999px;background:#241c38;color:#a99cbd}
+.chip.on{border:1px solid #E0612C;color:#F2A33C;background:transparent}
+/* challenge cta */
+.cta{margin-top:12px;background:#E0612C;border-radius:14px;padding:14px;text-align:center;font-size:15px;font-weight:600;color:#fff;box-shadow:0 0 22px -6px rgba(224,97,44,.7)}
+.cta-empty{margin-top:22px;padding:12px 30px;font-size:14px;border-radius:14px}
+/* empty body */
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding-bottom:30px}
+.etitle{font-size:20px;font-weight:600;margin-top:8px}
+.esub{font-size:13px;color:#7c7194;text-align:center;max-width:230px;line-height:1.5;margin-top:4px}
+/* animations */
+.flick{transform-origin:50% 100%;animation:flick 1.6s ease-in-out infinite}
+.flick2{transform-origin:50% 100%;animation:flick 1.15s ease-in-out infinite}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.08) scaleX(.95)}}
+.smoke{animation:smoke 4s ease-out infinite}
+@keyframes smoke{0%{opacity:0;transform:translateY(0) translateX(0) scale(.6)}18%{opacity:.4}100%{opacity:0;transform:translateY(-52px) translateX(6px) scale(1.7)}}
+.ember{animation:epulse 1.8s ease-in-out infinite}
+@keyframes epulse{0%,100%{opacity:.25}50%{opacity:.85}}
+.glow{animation:glow 2.4s ease-in-out infinite}
+@keyframes glow{0%,100%{opacity:.5}50%{opacity:.85}}
+</style>
+<div class="wrap">
+
+  <!-- ============ FRAME 1: Leaderboard — No Campfires (burnt-out fire) ============ -->
+  <div class="col">
+    <div class="phone"><div class="stage">
+      <div class="hd">Leaderboard</div>
+      <div class="chips"><span class="chip on">Campfires</span><span class="chip">My uni</span><span class="chip">Vs. unis</span></div>
+      <div class="chips"><span class="chip on">XP</span><span class="chip">Streaks</span></div>
+
+      <div class="empty">
+        <svg width="200" height="210" viewBox="0 0 200 210">
+          <!-- ash pile -->
+          <ellipse cx="100" cy="168" rx="54" ry="9" fill="#20182f"/>
+          <!-- charred crossed logs -->
+          <g stroke-linecap="round">
+            <rect x="58" y="146" width="84" height="14" rx="7" transform="rotate(20 100 153)" fill="#2a1e18"/>
+            <rect x="58" y="146" width="84" height="14" rx="7" transform="rotate(-20 100 153)" fill="#241a15"/>
+            <!-- ember cracks along the logs -->
+            <path d="M70 158 l52 -20" stroke="#E0612C" stroke-width="1.8" opacity=".5" class="ember"/>
+            <path d="M74 146 l50 18" stroke="#F2A33C" stroke-width="1.5" opacity=".4" class="ember" style="animation-delay:.7s"/>
+          </g>
+          <!-- faint dying embers, still glowing among the logs -->
+          <circle class="ember" style="animation-delay:.2s" cx="92" cy="147" r="4" fill="#E0612C"/>
+          <circle class="ember" style="animation-delay:.9s" cx="108" cy="150" r="3" fill="#F2A33C"/>
+          <circle class="ember" style="animation-delay:1.5s" cx="100" cy="143" r="2.6" fill="#FFD27A"/>
+        </svg>
+        <div class="etitle">No Campfires yet</div>
+        <div class="esub">Join or start a Campfire to see how you stack up.</div>
+      </div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">1 · Leaderboard empty state.</b> A <b style="color:#FC7A3F">burnt-out campfire</b> — charred crossed logs with dying embers still flickering. The fire's out; join or start a Campfire to relight it.</div>
+  </div>
+
+  <!-- ============ FRAME 2: Challenges — No challenges (empty Spartan armor) ============ -->
+  <div class="col">
+    <div class="phone"><div class="stage">
+      <div class="empty">
+        <svg width="210" height="220" viewBox="0 0 210 220">
+          <!-- faint glowing fire aura (like the flame-meter echo), no literal flames -->
+          <ellipse class="glow" cx="105" cy="120" rx="94" ry="84" fill="#E0612C" opacity=".12"/>
+          <ellipse class="glow" cx="105" cy="112" rx="60" ry="66" fill="#F2A33C" opacity=".12"/>
+
+          <!-- crossed spears behind (X, tips up) -->
+          <g stroke="#8A5A2B" stroke-width="5" stroke-linecap="round">
+            <line x1="52" y1="196" x2="158" y2="34"/>
+            <line x1="158" y1="196" x2="52" y2="34"/>
+          </g>
+          <path d="M158 34 l-9 4 l4 9 z" fill="#C89B4A"/>
+          <path d="M52 34 l9 4 l-4 9 z" fill="#C89B4A"/>
+
+          <!-- round hoplon shield (centered, behind helmet) -->
+          <g transform="translate(105 148)">
+            <circle r="46" fill="#6e4a15"/>
+            <circle r="46" fill="none" stroke="#C89B4A" stroke-width="5"/>
+            <circle r="33" fill="none" stroke="#B8863B" stroke-width="2.5"/>
+            <!-- bold Spartan lambda Λ -->
+            <path d="M-16 20 L0 -22 L16 20" fill="none" stroke="#F0D48A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+
+          <!-- BIG Corinthian helmet, the hero — pointed dome + solid bronze crest -->
+          <g transform="translate(105 90)">
+            <!-- slim bronze crest fin (no flames) -->
+            <path d="M-4 -52 C-4 -68 -2 -80 0 -86 C2 -80 4 -68 4 -52Z" fill="#9A6A12" stroke="#C89B4A" stroke-width="1.5"/>
+            <!-- helmet body (bronze) — pointed peak, tapering dome -->
+            <path d="M0 -52 C-22 -46 -40 -18 -40 12 L-40 44 C-40 54 -34 60 -25 63 L-25 74 L-12 74 L-12 61 C-12 53 -6 48 0 48 C6 48 12 53 12 61 L12 74 L25 74 L25 63 C34 60 40 54 40 44 L40 12 C40 -18 22 -46 0 -52Z" fill="#9A6A12" stroke="#C89B4A" stroke-width="2.5"/>
+            <!-- big eye slots + nose bar (the unmistakable Corinthian face) -->
+            <ellipse cx="-19" cy="10" rx="9" ry="16" fill="#17131f"/>
+            <ellipse cx="19" cy="10" rx="9" ry="16" fill="#17131f"/>
+            <rect x="-6" y="-6" width="12" height="52" rx="5" fill="#7a5312"/>
+          </g>
+        </svg>
+        <div class="etitle">No challenges yet.</div>
+        <div class="esub">There's no battle. Challenge a friend, race your Campfire, or set a personal goal to see who burns brightest.</div>
+        <div class="cta cta-empty">Start a challenge</div>
+      </div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">2 · Challenges empty state.</b> An <b style="color:#FC7A3F">empty set of Spartan armor</b> — flame-crested helmet, lambda shield, spear — standing by a lit campfire. “There's no battle. Let's start one.”</div>
+  </div>
+
+</div>

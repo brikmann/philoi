@@ -1,0 +1,89 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-wrap:wrap;gap:26px;justify-content:center;align-items:flex-start;max-width:760px}
+.unit{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+/* 9:16 story card */
+.card{position:relative;width:300px;height:534px;border-radius:26px;overflow:hidden;color:#FFF6EC;
+  background:radial-gradient(130% 60% at 50% 30%,#3a1f47,#1c1428 60%,#120d1a 100%)}
+.emb{position:absolute;width:4px;height:4px;border-radius:50%;background:#F2A33C;opacity:0;animation:rise 4s ease-out infinite}
+@keyframes rise{0%{opacity:0;transform:translateY(0) scale(1)}15%{opacity:.9}100%{opacity:0;transform:translateY(-120px) scale(.3)}}
+.brand{position:absolute;top:20px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:7px;z-index:3}
+.brand .lg{font-size:15px;font-weight:800;letter-spacing:.5px}
+.forged{position:absolute;top:60px;left:0;right:0;text-align:center;font-size:11px;font-weight:800;letter-spacing:4px;color:#F2A33C;z-index:3}
+/* item hero */
+.hero{position:absolute;top:96px;left:0;right:0;display:flex;flex-direction:column;align-items:center;z-index:3}
+.aura{position:absolute;top:8px;width:220px;height:220px;border-radius:50%;filter:blur(30px);opacity:.55}
+.tile{position:relative;width:168px;height:168px;border-radius:36px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(155deg,rgba(255,255,255,.10),rgba(0,0,0,.25));border:2px solid;backdrop-filter:blur(2px)}
+.iname{font-size:26px;font-weight:800;margin-top:22px;text-align:center;line-height:1.1;letter-spacing:.3px}
+.idesc{font-style:italic;font-size:12px;color:#b7a9cc;text-align:center;margin-top:8px;line-height:1.45;max-width:236px;padding:0 12px}
+.irar{margin-top:11px;font-size:10px;font-weight:800;letter-spacing:2px;padding:5px 14px;border-radius:999px}
+.odds{margin-top:16px;font-size:12px;color:#cdbfe2}.odds b{color:#FFF6EC}
+/* footer */
+.foot{position:absolute;bottom:22px;left:0;right:0;text-align:center;z-index:3}
+.foot .who{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,.28);padding:7px 14px;border-radius:999px;font-size:12px}
+.foot .hex{width:16px;height:18px;background:#F5C542;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:inline-block}
+.foot .cta{margin-top:12px;font-size:12.5px;color:#a99cbd}.foot .cta b{color:#F2A33C}
+/* 10x haul strip */
+.strip{position:absolute;bottom:70px;left:20px;right:20px;display:flex;gap:6px;justify-content:center;z-index:3}
+.chip{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;border:1.5px solid}
+</style>
+<div class="col2">
+
+  <!-- SINGLE ITEM SHARE (Legendary) -->
+  <div class="unit">
+    <div class="card">
+      <span class="emb" style="left:50px;bottom:80px;animation-delay:0s"></span><span class="emb" style="left:240px;bottom:120px;animation-delay:1.1s"></span>
+      <span class="emb" style="left:120px;bottom:60px;animation-delay:2s"></span><span class="emb" style="left:210px;bottom:90px;animation-delay:2.8s"></span>
+      <div class="brand"><svg width="20" height="22" viewBox="0 0 24 26"><path d="M12 2c2 4 6 6 6 11a6 6 0 0 1-12 0C6 8 10 6 12 2z" fill="#E0612C"/><path d="M12 10c1 2 3 3 3 5.5a3 3 0 0 1-6 0C9 13 11 12 12 10z" fill="#F2A33C"/></svg><span class="lg">Philoi</span></div>
+      <div class="forged">FORGED</div>
+      <div class="hero">
+        <div class="aura" style="background:#F5C542"></div>
+        <div class="tile" style="border-color:#F5C542;box-shadow:0 0 46px rgba(245,197,66,.5)">
+          <svg width="96" height="96" viewBox="0 0 24 24"><path d="M12 2c1.5 3 3.5 4.5 3.5 7a3.5 3.5 0 0 1-7 0C8.5 6.5 10.5 5 12 2z" fill="#F5C542"/><path d="M12 8c.8 1.5 1.8 2.2 1.8 3.6a1.8 1.8 0 0 1-3.6 0C10.2 10.2 11.2 9.5 12 8z" fill="#fff3c2"/></svg>
+        </div>
+        <div class="iname">Molten Crown</div>
+        <div class="idesc">A crown of living fire, forged from a thousand tortured souls.</div>
+        <div class="irar" style="background:rgba(245,197,66,.15);color:#F5C542">LEGENDARY · AVATAR</div>
+        <div class="odds">A <b>7.2%</b> pull from Hephaestus' Chest</div>
+      </div>
+      <div class="foot">
+        <span class="who">@noah&nbsp; · &nbsp;<span class="hex"></span><b style="color:#F5C542">&nbsp;Diamond</b></span>
+      </div>
+    </div>
+    <div class="cap"><b style="color:#a99cbd">Single unlock share card (mock 60A).</b> Story 9:16. Item art in a <b>tier-coloured</b> glow, name + rarity, the <b>rarity odds as a flex</b>, your handle + rank, and a Philoi CTA. Tier colour + copy adapt to the item (a Mythic reads red with "0.8% pull").</div>
+  </div>
+
+  <!-- 10x HAUL SHARE -->
+  <div class="unit">
+    <div class="card">
+      <span class="emb" style="left:60px;bottom:90px;animation-delay:.4s"></span><span class="emb" style="left:230px;bottom:110px;animation-delay:1.6s"></span>
+      <span class="emb" style="left:150px;bottom:70px;animation-delay:2.4s"></span>
+      <div class="brand"><svg width="20" height="22" viewBox="0 0 24 26"><path d="M12 2c2 4 6 6 6 11a6 6 0 0 1-12 0C6 8 10 6 12 2z" fill="#E0612C"/><path d="M12 10c1 2 3 3 3 5.5a3 3 0 0 1-6 0C9 13 11 12 12 10z" fill="#F2A33C"/></svg><span class="lg">Philoi</span></div>
+      <div class="forged">10× HAUL</div>
+      <div class="hero">
+        <div class="aura" style="background:#FF6B6B"></div>
+        <div class="tile" style="border-color:#FF6B6B;box-shadow:0 0 46px rgba(255,107,107,.5)">
+          <svg width="90" height="90" viewBox="0 0 24 24"><path d="M12 2 L20 12 L12 22 L4 12 Z" fill="none" stroke="#FF4D4D" stroke-width="1.4"/><circle cx="12" cy="12" r="3.4" fill="#FF2A2A"/><circle cx="12" cy="12" r="1.5" fill="#ffc2c2"/></svg>
+        </div>
+        <div class="iname">Void Plasma Flare</div>
+        <div class="idesc">Pulsing with unholy energy, each spark burns with the power of a thousand suns.</div>
+        <div class="irar" style="background:rgba(255,107,107,.15);color:#FF6B6B">MYTHIC · FLAME</div>
+        <div class="odds">Best of <b>10</b> · a <b>0.8%</b> pull</div>
+      </div>
+      <div class="strip">
+        <span class="chip" style="border-color:#F5C542">👑</span><span class="chip" style="border-color:#a06cd5">🖼️</span>
+        <span class="chip" style="border-color:#a06cd5">🎧</span><span class="chip" style="border-color:#4FB0E5">🔥</span>
+        <span class="chip" style="border-color:#4FB0E5">🛡️</span><span class="chip" style="border-color:#3DA85C">✨</span>
+        <span class="chip" style="border-color:#8a7fa6">🏷️</span>
+      </div>
+      <div class="foot">
+        <span class="who">@noah&nbsp; · &nbsp;<span class="hex"></span><b style="color:#F5C542">&nbsp;Diamond</b></span>
+      </div>
+    </div>
+    <div class="cap"><b style="color:#a99cbd">10× haul share card (mock 60B).</b> Leads with the <b>best pull</b>, with the rest of the haul as a rarity-bordered chip strip below. Same brand frame + CTA.</div>
+  </div>
+
+</div>

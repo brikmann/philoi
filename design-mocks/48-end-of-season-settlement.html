@@ -1,0 +1,129 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:radial-gradient(130% 55% at 50% 8%,#3a1d14,#1b1726 55%);border-radius:26px;overflow:auto;color:#FFF6EC;display:flex;flex-direction:column}
+.stage::-webkit-scrollbar{display:none}
+.inner{padding:16px 16px 0;flex:1;display:flex;flex-direction:column;align-items:center}
+.eyebrow{font-size:10px;letter-spacing:2px;color:#F7B85A;font-weight:800;text-transform:uppercase;margin-top:6px}
+.crown{font-size:15px;font-weight:800;color:#FFD27A;margin-top:12px;letter-spacing:.5px}
+.head{font-size:24px;font-weight:800;margin-top:6px;text-align:center;text-shadow:0 0 20px rgba(242,163,60,.4)}
+/* flaming badge */
+.badge{position:relative;width:150px;height:150px;display:flex;align-items:center;justify-content:center;margin-top:10px}
+.bglow{position:absolute;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,rgba(224,97,44,.55),transparent 62%);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+.flame-lick{transform-origin:50% 100%;animation:flick 1s ease-in-out infinite}
+.flame-lick.b{animation-duration:1.35s}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.12) scaleX(.93)}}
+.tier{font-size:11px;font-weight:800;letter-spacing:1.5px;color:#F7B85A;margin-top:6px}
+/* divider */
+.div{width:100%;display:flex;align-items:center;gap:10px;margin:18px 0 12px}
+.div .l{flex:1;height:1px;background:#3a2e3a}
+.div .t{font-size:9.5px;letter-spacing:1.5px;color:#7c7194;font-weight:700}
+/* reward tiles */
+.tiles{display:flex;gap:11px;width:100%}
+.tile{flex:1;background:#241c38;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.tile .ic{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.tile .tn{font-size:11.5px;font-weight:700}
+.tile .tt{font-size:9.5px;color:#7c7194}
+.chest svg{width:30px;height:30px;stroke:#fff;fill:none;stroke-width:1.5}
+/* forge pass callout */
+.forge{display:flex;align-items:center;gap:8px;background:rgba(242,163,60,.12);border:1px solid rgba(242,163,60,.4);border-radius:10px;padding:9px 12px;margin-top:13px;width:100%;box-sizing:border-box}
+.forge svg{width:15px;height:15px;fill:#F2A33C;flex:none}
+.forge .ft{font-size:10.5px;font-weight:700;color:#F2A33C;letter-spacing:.3px}
+/* footer */
+.foot{padding:12px 16px;display:flex;gap:10px}
+.cta{flex:1;border:0;border-radius:13px;padding:13px;font-size:13px;font-weight:700;font-family:var(--font-sans);text-align:center}
+.cta.share{background:#241c38;color:#a99cbd}
+.cta.claim{background:linear-gradient(135deg,#E0612C,#F2A33C);color:#fff}
+/* ===== on-open reveal sequence: badge pulses into existence, then copy rises beneath ===== */
+@keyframes revealBadge{0%{opacity:0;transform:scale(.35)}55%{opacity:1;transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+@keyframes bloom{0%{opacity:0;transform:scale(.4)}55%{opacity:1;transform:scale(1.25)}100%{opacity:.9;transform:scale(1)}}
+@keyframes riseIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.badge{animation:revealBadge .85s cubic-bezier(.2,.75,.3,1.3) both .1s}
+.bglow{animation:bloom .85s ease both .1s, pulse 1.8s ease-in-out infinite 1s}
+.eyebrow{animation:riseIn .5s ease both 1.0s}
+.crown{animation:riseIn .5s ease both 1.12s}
+.head{animation:riseIn .55s ease both 1.28s}
+.tier{animation:riseIn .5s ease both 1.5s}
+.div{animation:riseIn .5s ease both 1.66s}
+.tiles{animation:riseIn .5s ease both 1.82s}
+.forge{animation:riseIn .5s ease both 1.98s}
+.foot{animation:riseIn .5s ease both 2.14s}
+@media (prefers-reduced-motion: reduce){.badge,.bglow,.eyebrow,.crown,.head,.tier,.div,.tiles,.forge,.foot{animation:none;opacity:1;transform:none}}
+</style>
+<div class="col2">
+  <div class="phone"><div class="stage">
+    <div class="inner">
+      <div class="eyebrow">Season 1 · Emberfall</div>
+      <div class="crown">👑 RANK 1 👑</div>
+      <div class="head">Undisputed, Noah.</div>
+
+      <div class="badge">
+        <div class="bglow"></div>
+        <!-- flames licking up behind/over the hexagon -->
+        <svg width="150" height="150" viewBox="0 0 150 150">
+          <g transform="translate(75 82)">
+            <!-- back flames -->
+            <path class="flame-lick b" d="M0 -60 C22 -34 34 -22 34 -2 C34 20 18 34 0 34 C-18 34 -34 20 -34 -2 C-34 -20 -20 -30 -14 -40 C-10 -26 0 -22 0 -22 C6 -38 -6 -50 0 -60Z" fill="#B0431E" opacity=".55"/>
+            <!-- Infernal hexagon -->
+            <path d="M0 -46 L40 -23 L40 23 L0 46 L-40 23 L-40 -23 Z" fill="#8a2f14"/>
+            <path d="M0 -38 L33 -19 L33 19 L0 38 L-33 19 L-33 -19 Z" fill="#B0431E"/>
+            <path d="M0 -30 L26 -15 L26 15 L0 30 L-26 15 L-26 -15 Z" fill="#F2A33C"/>
+            <!-- flame emblem inside -->
+            <path class="flame-lick" d="M0 -18 C7 -6 11 -2 11 6 a11 11 0 0 1 -22 0 C-11 -4 -5 -6 -3 -11 c.5 4 3 5 3 5 C3 -12 -2 -14 0 -18Z" fill="#FFD27A"/>
+            <!-- front flames over bottom edge -->
+            <path class="flame-lick" d="M-30 20 C-26 30 -22 34 -26 40 C-30 44 -36 40 -34 34 C-33 37 -30 36 -30 34Z" fill="#F7B85A"/>
+            <path class="flame-lick b" d="M30 20 C34 30 30 36 34 40 C38 42 42 36 40 32 C39 35 34 34 34 32Z" fill="#F7B85A"/>
+          </g>
+        </svg>
+      </div>
+      <div class="tier">TOP 1% · INFERNAL DIVISION</div>
+
+      <div class="div"><span class="l"></span><span class="t">SEASON REWARDS UNLOCKED</span><span class="l"></span></div>
+
+      <div class="tiles">
+        <div class="tile">
+          <span class="ic chest" style="filter:drop-shadow(0 0 8px rgba(224,97,44,.6))"><svg viewBox="0 0 24 24" style="stroke:#E0612C"><path d="M3 9h18v10H3z"/><path d="M3 9l2-4h14l2 4"/><path d="M12 9v10"/></svg></span>
+          <div class="tn">Prometheus' Vault</div><div class="tt">Mythic loot box</div>
+        </div>
+        <div class="tile">
+          <span class="ic"><svg width="30" height="34" viewBox="0 0 46 52"><path d="M23 4C26 14 37 18 37 31a14 14 0 0 1-28 0C9 24 14 22 16 18z" fill="#2C6E8A"/><path d="M24 16c2 6 8 8 8 16a9 9 0 0 1-18 0c0-5 3-7 5-10z" fill="#4FB0E5"/><path d="M24 27c1.4 3 4 4 4 8a5 5 0 0 1-10 0c0-3 2.4-4.5 3.4-6.5z" fill="#BDE8FF"/></svg></span>
+          <div class="tn">Electric Blue Plasma</div><div class="tt">Flame cosmetic</div>
+        </div>
+      </div>
+
+      <div class="forge">
+        <svg viewBox="0 0 24 24"><path d="M13 2L5 14h6l-1 8 9-12h-6z"/></svg>
+        <span class="ft">FORGE PASS MULTIPLIER APPLIED · +50% BONUS EMBERS</span>
+      </div>
+    </div>
+
+    <div class="foot"><button class="cta share">Flex on your Campfire</button><button class="cta claim">Claim rewards</button></div>
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">End-of-Season Settlement (mock 48).</b> The challenge-reward screen "converts" at semester close: FINAL STANDINGS + placement headline (from <b>CHALLENGE_REWARD_COPY.md</b> — 👑 Rank 1 → "Undisputed, Noah."), an <b style="color:#F7B85A">animated flaming Infernal badge</b> (TOP 1% · INFERNAL DIVISION), season rewards (Prometheus' Vault + a flame cosmetic), the <b style="color:#F2A33C">Forge Pass +50% embers</b> callout, and Share / Claim. <b>Mock SFX</b>: a placeholder reveal chime plays on open/tap (real per-tier SFX later).</div>
+</div>
+<script>
+/* MOCK sound effect — placeholder triumphant reveal chime (real per-tier SFX come later). */
+(function(){
+  var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+  function chime(){
+    try{
+      var ac=new AC();
+      [523.25,659.25,783.99,1046.5].forEach(function(f,i){ // C E G C
+        var o=ac.createOscillator(),g=ac.createGain();
+        o.type='triangle';o.frequency.value=f;o.connect(g);g.connect(ac.destination);
+        var t=ac.currentTime+i*0.12;
+        g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.18,t+0.02);
+        g.gain.exponentialRampToValueAtTime(0.001,t+0.55);
+        o.start(t);o.stop(t+0.55);
+      });
+    }catch(e){}
+  }
+  var played=false, go=function(){ if(played)return; played=true; chime(); };
+  window.addEventListener('load',function(){ setTimeout(go,350); }); // fires at the reveal (autoplay may block)
+  document.addEventListener('click',go,{once:true});                 // fallback: first tap
+})();
+</script>

@@ -1,0 +1,12 @@
+-- Renames the apex rank tier from "Legend" to "Infernal" (PHILOI_UI_SPEC.md §11 — fire theme).
+-- Pre-launch, so a clean value rename is safe: rank_thresholds.tier is a plain `text` column
+-- (no enum/check constraint), and no other table stores a per-user tier value — every read
+-- derives tier live from score via rank_tier_for_score(), so this one-row update is the entire
+-- surface area.
+--
+-- RENUMBERED twice, 0030 -> 0044 -> 0047: it first collided with 0030_friends_and_nudge.sql, then
+-- with the concurrent 0044_leaderboard_punchlist2.sql. supabase_migrations keys on the version
+-- alone, so a shared version means the second file can never be recorded and every `db push`
+-- fails on it. The statement is a plain idempotent UPDATE (0 rows once the rename has happened),
+-- so running last instead of at 0030 changes nothing.
+update rank_thresholds set tier = 'infernal' where tier = 'legend';

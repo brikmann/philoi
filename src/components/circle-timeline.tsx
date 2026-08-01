@@ -216,15 +216,21 @@ export function CircleTimeline({ groupId, myUserId, groupName }: CircleTimelineP
         }
       />
 
-      <Pressable
-        style={[styles.lockInBar, Boolean(activeSession) && styles.lockInBarDisabled]}
-        onPress={openLockInPicker}
-        disabled={Boolean(activeSession)}>
-        <Ionicons name="lock-closed" size={15} color={activeSession ? Colors.muted : Colors.ink} />
-        <Text style={[styles.lockInBarLabel, Boolean(activeSession) && styles.lockInBarLabelDisabled]}>
-          {activeSession ? 'Already locked in' : 'Lock in'}
-        </Text>
-      </Pressable>
+      {/* Suppressed once the chain is empty — the empty state's own centered "Go lock in"
+          button already covers this exact action there (punchlist 2, §3: the docked bar
+          reading "weird" was this literal duplicate CTA stacked right above the chat composer
+          on top of the one the empty state already shows). */}
+      {(rows.length > 0 || timeline.loading) && (
+        <Pressable
+          style={[styles.lockInBar, Boolean(activeSession) && styles.lockInBarDisabled]}
+          onPress={openLockInPicker}
+          disabled={Boolean(activeSession)}>
+          <Ionicons name="lock-closed" size={15} color={activeSession ? Colors.muted : Colors.ink} />
+          <Text style={[styles.lockInBarLabel, Boolean(activeSession) && styles.lockInBarLabelDisabled]}>
+            {activeSession ? 'Already locked in' : 'Lock in'}
+          </Text>
+        </Pressable>
+      )}
 
       {CHAT_ENABLED && (
         <View style={styles.inputRow}>

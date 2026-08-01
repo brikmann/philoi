@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { AutoPostSyncedToggle } from '@/components/auto-post-synced-toggle';
 import { DevTools } from '@/components/dev-tools';
 import { ReminderSettings } from '@/components/reminder-settings';
 import { Screen } from '@/components/ui/screen';
@@ -10,9 +11,13 @@ import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useEntitlement } from '@/hooks/use-entitlement';
+import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useMyGroups } from '@/hooks/use-my-groups';
+import { useStravaConnection } from '@/hooks/use-strava-connection';
+import { useWhoopConnection } from '@/hooks/use-whoop-connection';
 import { setDailyGoalMode, setPublishFlameCompletion } from '@/lib/api/daily-fire';
 import { deleteMyAccount } from '@/lib/api/groups';
+import { setMyWatchOptIn } from '@/lib/api/leaderboard-social';
 import { setMyPhotoVisibility } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -83,7 +88,11 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { profile, signOut } = useAuth();
   const { groups } = useMyGroups();
-  const { isMember, devOverride, setDevOverride } = useEntitlement();
+  const { devOverride, setDevOverride } = useEntitlement();
+  const { connected: deviceFitnessConnected } = useFitnessConnection();
+  const { connected: stravaConnected } = useStravaConnection();
+  const { connected: whoopConnected } = useWhoopConnection();
+  const anyFitnessSourceConnected = deviceFitnessConnected || stravaConnected || whoopConnected;
   const [photoVisibility, setPhotoVisibility] = useState<PhotoVisibility>(profile?.photo_visibility ?? 'campfires');
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -94,6 +103,7 @@ export default function SettingsScreen() {
   const [goalMode, setGoalMode] = useState<'auto' | 'manual'>(profile?.daily_goal_mode ?? 'auto');
   const [manualTarget, setManualTarget] = useState(profile?.daily_goal_manual_target ?? 1);
   const [publishCompletion, setPublishCompletion] = useState(profile?.publish_flame_completion ?? false);
+  const [watchOptIn, setWatchOptInState] = useState(profile?.watch_opt_in ?? false);
 
   function handleToggleGoalMode() {
     const next = goalMode === 'auto' ? 'manual' : 'auto';
@@ -110,6 +120,11 @@ export default function SettingsScreen() {
   function handleTogglePublishCompletion(value: boolean) {
     setPublishCompletion(value);
     setPublishFlameCompletion(value).catch(() => setPublishCompletion(!value));
+  }
+
+  function handleToggleWatchOptIn(value: boolean) {
+    setWatchOptInState(value);
+    setMyWatchOptIn(value).catch(() => setWatchOptInState(!value));
   }
 
   function handleToggleSound(value: boolean) {
@@ -155,19 +170,10 @@ export default function SettingsScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Pressable style={styles.profileRow} onPress={() => router.push('/profile')}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarInitial}>{profile?.display_name?.charAt(0).toUpperCase() ?? '?'}</Text>
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{profile?.display_name ?? 'You'}</Text>
-            <Text style={styles.profileHandle}>@{profile?.handle ?? 'handle'} · view profile</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
-        </Pressable>
-
         <Text style={styles.sectionLabel}>PREFERENCES</Text>
         <View style={styles.group}>
+          <SettingsToggleRow icon="volume-high" label="Sound effects" value={soundEnabled} onValueChange={handleToggleSound} />
+          <SettingsToggleRow icon="phone-portrait" label="Haptics" value={hapticsEnabled} onValueChange={handleToggleHaptics} />
           <SettingsRow icon="notifications" label="Notifications" onPress={() => router.push('/settings-notifications')} />
           <SettingsRow
             icon="image"
@@ -176,10 +182,13 @@ export default function SettingsScreen() {
             chevron={false}
             onPress={() => setPhotoModalOpen(true)}
           />
-          <SettingsRow icon="locate" label="Manage goal types" onPress={() => router.push('/goal/create')} />
+          <SettingsToggleRow
+            icon="eye"
+            label="Let friends watch my live challenges"
+            value={watchOptIn}
+            onValueChange={handleToggleWatchOptIn}
+          />
           <SettingsRow icon="fitness" label="Connected apps" onPress={() => router.push('/connected-apps')} />
-          <SettingsToggleRow icon="volume-high" label="Sound effects" value={soundEnabled} onValueChange={handleToggleSound} />
-          <SettingsToggleRow icon="phone-portrait" label="Haptics" value={hapticsEnabled} onValueChange={handleToggleHaptics} />
         </View>
 
         <Text style={styles.sectionLabel}>DAILY FIRE</Text>
@@ -223,15 +232,36 @@ export default function SettingsScreen() {
           </>
         )}
 
-        <Text style={styles.sectionLabel}>ABOUT</Text>
+        {/* Auto-post synced workouts (§17b) — only shown with something connected to actually
+            sync from; a lock-in's campfire is opt-in per fire, never posted without consent. */}
+        {groups.length > 0 && anyFitnessSourceConnected && (
+          <>
+            <Text style={styles.sectionLabel}>AUTO-POST SYNCED WORKOUTS</Text>
+            <Text style={styles.sectionHint}>
+              When a synced workout becomes a lock-in, post it automatically to the campfires you turn on below.
+            </Text>
+            <View style={styles.reminderGroup}>
+              {groups.map((group) => (
+                <AutoPostSyncedToggle
+                  key={group.id}
+                  groupId={group.id}
+                  groupName={group.name}
+                  groupEmoji={group.emoji}
+                  initialEnabled={group.auto_post_synced}
+                />
+              ))}
+            </View>
+          </>
+        )}
+
+        <Text style={styles.sectionLabel}>LEGAL</Text>
         <View style={styles.group}>
-          {!isMember && <SettingsRow icon="flame" label="Membership" value="Free during early access" onPress={() => router.push('/paywall')} />}
-          <SettingsRow icon="document-text-outline" label="Privacy Policy" onPress={() => router.push('/legal?page=privacy')} />
-          <SettingsRow icon="reader-outline" label="Terms of Service" onPress={() => router.push('/legal?page=terms')} />
+          <SettingsRow icon="document-text-outline" label="Privacy Policy" onPress={() => Linking.openURL('https://getphiloi.com/privacy')} />
+          <SettingsRow icon="reader-outline" label="Terms of Service" onPress={() => Linking.openURL('https://getphiloi.com/terms')} />
           <SettingsRow
             icon="shield-checkmark-outline"
             label="Child Safety Standards"
-            onPress={() => router.push('/legal?page=child-safety')}
+            onPress={() => Linking.openURL('https://getphiloi.com/child-safety')}
           />
         </View>
 
@@ -327,46 +357,18 @@ const styles = StyleSheet.create({
   container: {
     padding: Spacing.four,
   },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    padding: Spacing.three,
-    marginBottom: Spacing.four,
-  },
-  avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: Colors.achieverBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 19,
-    color: Colors.achieverText,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
-    color: Colors.ink,
-  },
-  profileHandle: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.muted,
-    marginTop: 1,
-  },
   sectionLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
     color: Colors.textTertiary,
+    marginBottom: Spacing.two,
+    marginLeft: 2,
+  },
+  sectionHint: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.muted,
+    marginTop: -Spacing.one,
     marginBottom: Spacing.two,
     marginLeft: 2,
   },

@@ -103,8 +103,7 @@ export function CampfirePreviewSheet({ groupId, onClose }: CampfirePreviewSheetP
                     {isGated && <Ionicons name="lock-closed" size={13} color={Colors.textTertiary} />}
                   </View>
                   <Text style={styles.sub}>
-                    Campfire level {preview.campfire_level} · {preview.member_count}{' '}
-                    {preview.member_count === 1 ? 'member' : 'members'}
+                    {preview.member_count} {preview.member_count === 1 ? 'member' : 'members'}
                   </Text>
                 </View>
               </View>

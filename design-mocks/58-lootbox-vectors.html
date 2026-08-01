@@ -1,0 +1,161 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.wrap{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;max-width:760px}
+.card{width:210px;background:#1b1726;border-radius:18px;border:1px solid rgba(255,255,255,.06);padding:14px;display:flex;flex-direction:column;align-items:center}
+.stage{position:relative;width:160px;height:150px;display:flex;align-items:center;justify-content:center}
+.glow{position:absolute;width:128px;height:128px;border-radius:50%;filter:blur(7px);animation:pulse 2.6s ease-in-out infinite}
+.glow.mythic{animation:pulseHard 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.45}50%{opacity:.8}}
+@keyframes pulseHard{0%,100%{opacity:.55;transform:scale(.96)}50%{opacity:1;transform:scale(1.06)}}
+.art{position:relative;z-index:2}
+.float{animation:float 3.2s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.spark{position:absolute;width:3px;height:3px;border-radius:50%;opacity:0;z-index:3;animation:rise 2s ease-out infinite}
+@keyframes rise{0%{opacity:0;transform:translateY(0) scale(1)}18%{opacity:1}100%{opacity:0;transform:translateY(-46px) scale(.3)}}
+.flick{transform-origin:50% 100%;animation:flick 1.1s ease-in-out infinite}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.12) scaleX(.9)}}
+.bolt{animation:bolt 1.3s steps(1) infinite}
+@keyframes bolt{0%,42%,100%{opacity:.12}44%,52%{opacity:1}}
+/* fuse spark (dynamite) */
+.fspark{transform-origin:center;animation:fsp .32s ease-in-out infinite}
+@keyframes fsp{0%,100%{transform:scale(.75);opacity:.7}50%{transform:scale(1.35);opacity:1}}
+.bn{font-size:13px;font-weight:800;margin-top:10px;text-align:center}
+.br{font-size:9px;font-weight:800;letter-spacing:1.2px;margin-top:2px}
+</style>
+<div class="wrap">
+
+  <!-- 1 KINDLING — Common (GRAY aura) natural wood -->
+  <div class="card"><div class="stage">
+    <div class="glow" style="background:radial-gradient(circle,rgba(138,127,166,.30),transparent 64%);opacity:.7"></div>
+    <svg class="art" width="120" height="120" viewBox="0 0 120 120">
+      <!-- 3 natural-wood cut logs -->
+      <g>
+        <rect x="35" y="44" width="17" height="48" rx="8" fill="#7a5636"/>
+        <path d="M39 47 v42 M47 47 v42" stroke="#5f4527" stroke-width="1" opacity=".5"/>
+        <ellipse cx="43.5" cy="44" rx="8.5" ry="3.6" fill="#c9a06a"/><ellipse cx="43.5" cy="44" rx="5" ry="2" fill="none" stroke="#8a6238" stroke-width="1"/><ellipse cx="43.5" cy="44" rx="2.2" ry=".9" fill="#a07845"/>
+        <rect x="51" y="40" width="18" height="52" rx="9" fill="#85633f"/>
+        <path d="M56 43 v46 M64 43 v46" stroke="#63492a" stroke-width="1" opacity=".5"/>
+        <ellipse cx="60" cy="40" rx="9" ry="3.8" fill="#d1a86e"/><ellipse cx="60" cy="40" rx="5.5" ry="2.2" fill="none" stroke="#8a6238" stroke-width="1"/><ellipse cx="60" cy="40" rx="2.4" ry="1" fill="#a07845"/>
+        <rect x="68" y="44" width="17" height="48" rx="8" fill="#7a5636"/>
+        <path d="M72 47 v42 M80 47 v42" stroke="#5f4527" stroke-width="1" opacity=".5"/>
+        <ellipse cx="76.5" cy="44" rx="8.5" ry="3.6" fill="#c9a06a"/><ellipse cx="76.5" cy="44" rx="5" ry="2" fill="none" stroke="#8a6238" stroke-width="1"/><ellipse cx="76.5" cy="44" rx="2.2" ry=".9" fill="#a07845"/>
+      </g>
+      <!-- copper straps -->
+      <rect x="31" y="56" width="58" height="8" rx="3" fill="#8a5230"/><rect x="31" y="56" width="58" height="2.5" rx="1.5" fill="#B86B3A"/>
+      <rect x="31" y="78" width="58" height="8" rx="3" fill="#8a5230"/><rect x="31" y="78" width="58" height="2.5" rx="1.5" fill="#B86B3A"/>
+    </svg>
+  </div><div class="bn">Kindling Pack</div><div class="br" style="color:#8a7fa6">COMMON</div></div>
+
+  <!-- 2 IGNITION — Uncommon (GREEN aura) fused dynamite crate, no apex -->
+  <div class="card"><div class="stage">
+    <div class="glow" style="background:radial-gradient(circle,rgba(61,168,92,.45),transparent 62%)"></div>
+    <span class="spark" style="left:96px;top:26px;background:#F2A33C;animation-delay:0s"></span><span class="spark" style="left:100px;top:24px;background:#FFD27A;animation-delay:.5s"></span>
+    <svg class="art" width="130" height="120" viewBox="0 0 130 120">
+      <!-- fuse -->
+      <path d="M65 42 C62 32 74 30 72 22 C70 16 80 16 84 12" fill="none" stroke="#6a4a2a" stroke-width="2.4" stroke-linecap="round"/>
+      <!-- burning fuse tip -->
+      <circle class="fspark" cx="85" cy="11" r="5" fill="#FFD27A"/><circle cx="85" cy="11" r="2.4" fill="#fff6dc"/>
+      <!-- top face (flat, no apex handle) -->
+      <path d="M37 46 L65 38 L93 46 L65 54 Z" fill="#33313f"/>
+      <!-- front faces -->
+      <path d="M37 46 L65 54 L65 96 L37 88 Z" fill="#22202b"/>
+      <path d="M93 46 L65 54 L65 96 L93 88 Z" fill="#2A2834"/>
+      <!-- corner brackets -->
+      <g fill="#565462"><path d="M37 46 l0 10 l4 1 l0 -9z"/><path d="M93 46 l0 10 l-4 1 l0 -9z"/><path d="M37 88 l4 1 l0 -8 l-4 -1z"/><path d="M93 88 l-4 1 l0 -8 l4 -1z"/></g>
+      <!-- latches -->
+      <g fill="#6ee89a"><rect x="46" y="50" width="7" height="5" rx="1"/><rect x="77" y="50" width="7" height="5" rx="1"/></g>
+      <!-- stencil hazard -->
+      <path d="M65 64 l6 11 h-12z" fill="none" stroke="#8fe0a6" stroke-width="1.6" opacity=".8"/><text x="65" y="74" text-anchor="middle" font-size="7" font-weight="800" fill="#8fe0a6">!</text>
+      <!-- green vent -->
+      <rect x="49" y="80" width="32" height="4" rx="2" fill="#3DA85C"/><rect x="49" y="80" width="32" height="1.5" fill="#9dffbf"/>
+    </svg>
+  </div><div class="bn">Ignition Crate</div><div class="br" style="color:#3DA85C">UNCOMMON</div></div>
+
+  <!-- 3 FURNACE — Rare (BLUE aura) isometric, grate on both faces -->
+  <div class="card"><div class="stage">
+    <div class="glow" style="background:radial-gradient(circle,rgba(79,176,229,.48),transparent 62%)"></div>
+    <span class="spark" style="left:52px;background:#FFB800;animation-delay:0s"></span><span class="spark" style="left:58px;background:#F2A33C;animation-delay:.8s"></span>
+    <svg class="art" width="130" height="130" viewBox="0 0 130 130">
+      <path d="M65 34 L96 52 L65 70 L34 52 Z" fill="#22202b"/>
+      <path d="M34 52 L65 70 L65 104 L34 86 Z" fill="#14121A"/>
+      <path d="M96 52 L65 70 L65 104 L96 86 Z" fill="#1a1720"/>
+      <!-- chimney -->
+      <path d="M56 40 L64 44 L64 34 L56 30 Z" fill="#2a2732"/><path d="M56 40 L48 36 L48 26 L56 30 Z" fill="#1c1a24"/>
+      <!-- LEFT face grate -->
+      <path d="M40 60 L58 70 L58 92 L40 82 Z" fill="#3a2405"/><path d="M40 60 L58 70 L58 92 L40 82 Z" fill="#FFB800" opacity=".85"/>
+      <g stroke="#14121A" stroke-width="2.6"><path d="M46 63 L46 85"/><path d="M52 66 L52 88"/></g>
+      <!-- RIGHT face grate (mirrored) -->
+      <path d="M90 60 L72 70 L72 92 L90 82 Z" fill="#3a2405"/><path d="M90 60 L72 70 L72 92 L90 82 Z" fill="#FFB800" opacity=".85"/>
+      <g stroke="#1a1720" stroke-width="2.6"><path d="M84 63 L84 85"/><path d="M78 66 L78 88"/></g>
+      <g fill="#4a5a68"><circle cx="65" cy="72" r="2.2"/><circle cx="65" cy="100" r="2.2"/><circle cx="36" cy="55" r="2"/><circle cx="94" cy="55" r="2"/></g>
+    </svg>
+  </div><div class="bn">The Furnace</div><div class="br" style="color:#4FB0E5">RARE</div></div>
+
+  <!-- 4 VESSEL OF HESTIA — Epic (PURPLE aura) + 2.5D -->
+  <div class="card"><div class="stage">
+    <div class="glow" style="background:radial-gradient(circle,rgba(162,0,255,.45),transparent 62%)"></div>
+    <svg class="art" width="120" height="130" viewBox="0 0 120 130">
+      <path class="flick" d="M60 20 C66 30 72 34 72 42 a12 12 0 0 1 -24 0 C48 35 54 33 56 28 c1 5 4 6 4 6 C64 28 58 24 60 20Z" fill="#A200FF" opacity=".9"/>
+      <path class="flick" d="M60 28 C63 35 67 37 67 43 a7 7 0 0 1 -14 0 c0 -4 3 -5 4 -8 z" fill="#d98cff"/>
+      <!-- body -->
+      <path d="M52 44 L68 44 L64 52 C78 58 82 74 74 90 C70 98 66 102 60 104 C54 102 50 98 46 90 C38 74 42 58 56 52 Z" fill="#0F0D14" stroke="#3a3550" stroke-width="1.5"/>
+      <!-- 2.5D: right-side shadow face + left highlight -->
+      <path d="M60 52 C74 58 78 74 71 90 C68 97 64 101 60 103 Z" fill="#080610" opacity=".6"/>
+      <path d="M56 52 C46 58 43 70 46 82" fill="none" stroke="#2a2740" stroke-width="3" opacity=".5"/>
+      <!-- open rim ellipse (depth) -->
+      <ellipse cx="60" cy="44" rx="8" ry="2.6" fill="#1a1626" stroke="#3a3550" stroke-width="1"/>
+      <!-- handles -->
+      <path d="M52 50 C40 52 40 66 48 70" fill="none" stroke="#0F0D14" stroke-width="5"/><path d="M68 50 C80 52 80 66 72 70" fill="none" stroke="#0F0D14" stroke-width="5"/>
+      <path d="M48 74 h24 M50 82 h20" stroke="#8b93c9" stroke-width="1" opacity=".55"/>
+      <g fill="#A200FF"><circle cx="58" cy="72" r="2" opacity=".9"/><path d="M55 84 l4 4 l4 -4" stroke="#A200FF" stroke-width="1.5" fill="none"/></g>
+      <rect x="54" y="103" width="12" height="6" rx="2" fill="#0F0D14"/>
+    </svg>
+  </div><div class="bn">Vessel of Hestia</div><div class="br" style="color:#a06cd5">EPIC</div></div>
+
+  <!-- 5 HEPHAESTUS' CHEST — Legendary (GOLD aura) + 2.5D isometric -->
+  <div class="card"><div class="stage">
+    <div class="glow" style="background:radial-gradient(circle,rgba(255,215,0,.5),transparent 62%)"></div>
+    <span class="spark" style="left:56px;background:#FFD700;animation-delay:.2s"></span><span class="spark" style="left:80px;background:#FFF3C2;animation-delay:1s"></span>
+    <svg class="art" width="130" height="120" viewBox="0 0 130 120">
+      <!-- TOP lid face (isometric) -->
+      <path d="M32 58 L46 50 L94 50 L80 58 Z" fill="#eef8ff"/>
+      <!-- RIGHT side face -->
+      <path d="M80 58 L94 50 L94 84 L80 92 Z" fill="#c2dcea"/>
+      <!-- FRONT face -->
+      <rect x="32" y="58" width="48" height="34" fill="#E0F4FF"/>
+      <!-- lid/body seam, white-hot glow (front + right) -->
+      <rect x="32" y="70" width="48" height="3" fill="#FFFFFF" opacity=".95"/>
+      <path d="M80 70 L94 62" stroke="#FFFFFF" stroke-width="2" opacity=".85"/>
+      <!-- gold trim: front bands + edges -->
+      <g fill="#FFD700"><rect x="32" y="57" width="48" height="2.5"/><rect x="40" y="58" width="5" height="34" opacity=".9"/><rect x="67" y="58" width="5" height="34" opacity=".9"/></g>
+      <path d="M80 58 L94 50" stroke="#FFD700" stroke-width="2.5"/>
+      <path d="M80 92 L94 84" stroke="#c2a800" stroke-width="1.5" opacity=".7"/>
+      <!-- medallion lock -->
+      <circle cx="56" cy="79" r="8" fill="#FFD700" stroke="#b8860b" stroke-width="1.5"/><rect x="54" y="77" width="4" height="7" rx="2" fill="#7a5300"/>
+      <!-- crisp outline -->
+      <path d="M32 58 L46 50 L94 50 L94 84 L80 92 L32 92 Z" fill="none" stroke="#a9cade" stroke-width="1"/>
+    </svg>
+  </div><div class="bn">Hephaestus' Chest</div><div class="br" style="color:#F5C542">LEGENDARY</div></div>
+
+  <!-- 6 PROMETHEAN VAULT — Mythic (RED) + faceted 2.5D -->
+  <div class="card"><div class="stage">
+    <div class="glow mythic" style="background:radial-gradient(circle,rgba(255,45,45,.55),transparent 64%)"></div>
+    <svg class="art float" width="130" height="140" viewBox="0 0 130 140">
+      <ellipse cx="65" cy="72" rx="52" ry="18" fill="none" stroke="#5a1414" stroke-width="6"/>
+      <ellipse cx="65" cy="72" rx="52" ry="18" fill="none" stroke="#FF4D4D" stroke-width="1.5" opacity=".7"/>
+      <ellipse cx="65" cy="72" rx="38" ry="12" fill="none" stroke="#8a1e1e" stroke-width="3" opacity=".6" transform="rotate(18 65 72)"/>
+      <!-- faceted octahedron (2.5D shading) -->
+      <path d="M65 26 L65 66 L36 66 Z" fill="#1a0c0e"/>
+      <path d="M65 26 L94 66 L65 66 Z" fill="#251012"/>
+      <path d="M36 66 L65 66 L65 110 Z" fill="#120a0c"/>
+      <path d="M94 66 L65 66 L65 110 Z" fill="#1c0e10"/>
+      <path d="M65 26 L94 66 L65 110 L36 66 Z" fill="none" stroke="#5a1414" stroke-width="1.5"/>
+      <path d="M65 26 L65 110 M36 66 L94 66" stroke="#3a1010" stroke-width="1.2"/>
+      <!-- red core -->
+      <circle cx="65" cy="66" r="12" fill="#FF2A2A" opacity=".92"/><circle cx="65" cy="66" r="6" fill="#ffc2c2"/>
+      <g class="bolt" stroke="#FF4D4D" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M65 26 l-6 14 l6 -3 l-4 12"/><path d="M94 66 l-13 4 l5 4 l-11 5"/></g>
+    </svg>
+  </div><div class="bn">Promethean Vault</div><div class="br" style="color:#FF6B6B">MYTHIC</div></div>
+
+</div>

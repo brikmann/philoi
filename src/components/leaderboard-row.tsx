@@ -1,8 +1,10 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { HexagonBadge } from '@/components/hexagon-badge';
+import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { formatRankTier } from '@/lib/rank-tiers';
@@ -21,51 +23,51 @@ type LeaderboardRowProps = {
 export function LeaderboardRow({ rank, row, isMe, groupId, onChanged }: LeaderboardRowProps) {
   const router = useRouter();
   const { session } = useAuth();
+  const [moreOpen, setMoreOpen] = useState(false);
 
   // Same long-press report/block pattern as feed-item.tsx and chat-panel.tsx — makes a
   // member's profile reportable/blockable from the leaderboard, not just from a message or
   // check-in. circleId gives the report admin-filtering context (see report.tsx).
-  function handleMore() {
-    if (isMe || !groupId) return;
-    Alert.alert('Report or block', '', [
-      { text: 'Report', onPress: () => router.push(`/report?userId=${row.user_id}&circleId=${groupId}`) },
-      {
-        text: 'Block user',
-        style: 'destructive',
-        onPress: async () => {
-          if (!session) return;
-          await supabase.from('blocked_users').insert({ blocker_id: session.user.id, blocked_id: row.user_id });
-          onChanged?.();
-          Alert.alert('User blocked', "You won't see their posts or messages anymore.");
-        },
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+  async function handleBlock() {
+    if (!session) return;
+    await supabase.from('blocked_users').insert({ blocker_id: session.user.id, blocked_id: row.user_id });
+    onChanged?.();
+    Alert.alert('User blocked', "You won't see their posts or messages anymore.");
   }
 
   return (
-    <Pressable onLongPress={groupId ? handleMore : undefined} style={[styles.container, isMe && styles.me]}>
-      <Text style={styles.rank}>{rank}</Text>
-      {row.avatar_url ? (
-        <Image source={{ uri: row.avatar_url }} style={styles.avatar} />
-      ) : (
-        <View style={[styles.avatar, styles.avatarFallback]}>
-          <Text style={styles.avatarInitial}>{row.display_name.charAt(0).toUpperCase()}</Text>
+    <>
+      <Pressable onLongPress={groupId && !isMe ? () => setMoreOpen(true) : undefined} style={[styles.container, isMe && styles.me]}>
+        <Text style={styles.rank}>{rank}</Text>
+        {row.avatar_url ? (
+          <Image source={{ uri: row.avatar_url }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback]}>
+            <Text style={styles.avatarInitial}>{row.display_name.charAt(0).toUpperCase()}</Text>
+          </View>
+        )}
+        <View style={styles.nameColumn}>
+          <Text style={styles.name}>
+            {row.display_name}
+            {isMe ? ' (you)' : ''}
+          </Text>
+          <Text style={styles.handle}>@{row.handle ?? 'newcomer'}</Text>
         </View>
+        <View style={styles.tierColumn}>
+          <HexagonBadge tier={row.tier} division={row.division} size={32} />
+          <Text style={styles.tierText}>{formatRankTier(row.tier, row.division)}</Text>
+          <Text style={styles.xpText}>{Math.round(row.score).toLocaleString()} XP</Text>
+        </View>
+      </Pressable>
+      {groupId && !isMe && (
+        <ReportBlockSheet
+          visible={moreOpen}
+          onClose={() => setMoreOpen(false)}
+          onReport={() => router.push(`/report?userId=${row.user_id}&circleId=${groupId}`)}
+          onBlock={handleBlock}
+        />
       )}
-      <View style={styles.nameColumn}>
-        <Text style={styles.name}>
-          {row.display_name}
-          {isMe ? ' (you)' : ''}
-        </Text>
-        <Text style={styles.handle}>@{row.handle ?? 'newcomer'}</Text>
-      </View>
-      <View style={styles.tierColumn}>
-        <HexagonBadge tier={row.tier} division={row.division} size={32} />
-        <Text style={styles.tierText}>{formatRankTier(row.tier, row.division)}</Text>
-        <Text style={styles.xpText}>{Math.round(row.score).toLocaleString()} XP</Text>
-      </View>
-    </Pressable>
+    </>
   );
 }
 

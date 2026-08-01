@@ -2,6 +2,7 @@ import { useFonts as useInterFonts, Inter_400Regular, Inter_500Medium, Inter_600
 import { Stack, usePathname, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -196,7 +197,13 @@ function RootNavigator() {
       </Stack.Protected>
 
       <Stack.Protected guard={Boolean(session) && !needsHandle && !needsConsent && !needsAccountDisabled}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* contentStyle.paddingTop is explicitly zeroed here: the screenOptions default above
+            reserves the live-session band for screens pushed onto THIS Stack, but the tabs group
+            reserves it again itself via the Tabs navigator's `sceneStyle` (see (tabs)/_layout.tsx —
+            it has to, because contentStyle doesn't reach a nested navigator's scenes). Both were
+            applying to the tabs route, stacking two full bar heights of padding and leaving the
+            half-screen gap between the pill and each tab's title (punchlist 4D). */}
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, contentStyle: { backgroundColor: Colors.cream, paddingTop: 0 } }} />
         <Stack.Screen name="group/[groupId]/index" options={{ title: '' }} />
         <Stack.Screen name="group/[groupId]/edit" options={{ presentation: 'modal', title: 'Edit Campfire' }} />
         <Stack.Screen name="group/[groupId]/invite" options={{ presentation: 'modal', title: '', headerShown: false }} />
@@ -206,15 +213,21 @@ function RootNavigator() {
           name="lock-in/index"
           options={{ presentation: 'modal', title: 'Lock in', headerShown: false }}
         />
+        <Stack.Screen name="lock-in/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="goal/create" options={{ presentation: 'modal', title: 'New goal' }} />
         <Stack.Screen name="group/create" options={{ presentation: 'modal', title: 'Start a Campfire' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="settings-notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="connected-apps" options={{ headerShown: false }} />
         <Stack.Screen name="health-connect-rationale" options={{ headerShown: false }} />
+        <Stack.Screen name="strava-auth" options={{ headerShown: false }} />
         <Stack.Screen name="university-leaderboard" options={{ title: '' }} />
         <Stack.Screen name="people" options={{ headerShown: false }} />
         <Stack.Screen name="add-friend" options={{ headerShown: false }} />
+        <Stack.Screen name="friend-profile" options={{ headerShown: false }} />
+        <Stack.Screen name="activity/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="lock-in-history" options={{ headerShown: false }} />
+        <Stack.Screen name="watch/[challengeId]" options={{ title: 'Watch' }} />
         <Stack.Screen name="challenge/create" options={{ presentation: 'modal', title: 'New challenge' }} />
         <Stack.Screen name="challenge-leaderboard" options={{ title: '' }} />
         <Stack.Screen name="report" options={{ presentation: 'modal', title: 'Report' }} />
@@ -245,10 +258,16 @@ function RootLayout() {
     </AuthProvider>
   );
 
-  // Required for react-native-gesture-handler's Gesture API (drag-to-trash on Today) to work
-  // reliably, especially on Android.
+  // Punchlist 3: every screen in the app is dark twilight (Colors.cream is the near-black
+  // #1B1726, not literally cream) — nothing anywhere set the OS status bar's own style, so it
+  // was sitting at its platform default (dark icons on a light/transparent strip on Android,
+  // `default` — i.e. dark — content on iOS). That reads as a stray light/white bar pinned to the
+  // very top of every screen, most jarring on the fully immersive lock-in session (mock 51),
+  // which was reported as "a white bar pushes everything down" / a leftover top bar — same root
+  // cause on both counts, not two separate bugs.
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <StatusBar style="light" />
       {/* No-op wrapper when POSTHOG_API_KEY isn't set — see src/lib/posthog.ts. */}
       {posthog ? <PostHogProvider client={posthog}>{content}</PostHogProvider> : content}
     </GestureHandlerRootView>

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
@@ -17,6 +18,10 @@ export type SyncSource = {
   iconBg: string;
   iconColor: string;
 };
+
+// Official "Connect with Strava" button (developers.strava.com/guidelines — the OAuth entry
+// point must use this exact asset, never a generic "Connect" label).
+const STRAVA_CONNECT_BUTTON = require('../../assets/strava/connect-button/btn_strava_connect_with_orange_x2.png');
 
 // Shared with Settings → "Connected apps" (PHILOI_UI_SPEC.md §19) — one source list, one place
 // it's defined, so the contextual sheet and the persistent settings entry never drift apart.
@@ -93,17 +98,24 @@ export function FitnessSyncPrompt({ visible, onClose, challengeType, challengeTi
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={styles.sheet}>
-        <View style={styles.backdrop}>
-          <View style={styles.backdropHeader}>
-            <Ionicons name="people" size={12} color={Colors.amber} />
-            <Text style={styles.backdropHeaderText}>Group challenge</Text>
+      {/* SafeAreaView, not a bare View (punchlist 4F): as a plain Modal on Android this sheet is
+          full-screen, so the context header rendered flush under the status bar — the title read
+          as overflow text sitting beside the clock rather than the top of a deliberate sheet. */}
+      <SafeAreaView style={styles.sheet} edges={['top', 'bottom']}>
+        <View style={styles.grab} />
+
+        {/* The challenge this sheet is about. Was a 0.55-opacity "backdrop" pretending to be the
+            screen behind the sheet; now a real, legible header block — chip + title + subtitle —
+            so the sheet states its own context instead of ghosting it. */}
+        <View style={styles.context}>
+          <View style={styles.contextChip}>
+            <Ionicons name="people" size={11} color={Colors.amber} />
+            <Text style={styles.contextChipText}>Group challenge</Text>
           </View>
-          <Text style={styles.backdropTitle}>{challengeTitle}</Text>
-          <Text style={styles.backdropSubtitle}>{challengeSubtitle}</Text>
+          <Text style={styles.contextTitle}>{challengeTitle}</Text>
+          <Text style={styles.contextSubtitle}>{challengeSubtitle}</Text>
         </View>
 
-        <View style={styles.grab} />
         <Text style={styles.title}>Track this automatically?</Text>
         <Text style={styles.subtitle}>It can count on its own — or log it yourself.</Text>
 
@@ -122,6 +134,8 @@ export function FitnessSyncPrompt({ visible, onClose, challengeType, challengeTi
             </View>
             {connecting === source.key ? (
               <ActivityIndicator size="small" color={Colors.achieverText} />
+            ) : source.key === 'strava' && source.key === realSource ? (
+              <Image source={STRAVA_CONNECT_BUTTON} style={styles.stravaConnectButton} resizeMode="contain" />
             ) : (
               <View style={styles.sourceGo}>
                 <Text style={styles.sourceGoText}>Connect</Text>
@@ -142,7 +156,7 @@ export function FitnessSyncPrompt({ visible, onClose, challengeType, challengeTi
             We only read what this challenge needs — your campfire sees your progress, never your raw activity data.
           </Text>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -151,33 +165,41 @@ const styles = StyleSheet.create({
   sheet: {
     flex: 1,
     backgroundColor: Colors.card,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.two,
+  },
+  // Context block — a real surface now, inset from the sheet's own background so the challenge
+  // it refers to reads as a quoted subject rather than faded chrome.
+  context: {
+    backgroundColor: Colors.cardDark,
+    borderRadius: Radius.card,
     padding: Spacing.three,
-    paddingTop: Spacing.one,
+    marginBottom: Spacing.four,
   },
-  backdrop: {
-    opacity: 0.55,
-    paddingHorizontal: Spacing.two,
-    marginBottom: Spacing.two,
-  },
-  backdropHeader: {
+  contextChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     gap: Spacing.one,
+    backgroundColor: Colors.achieverBg,
+    borderRadius: Radius.pill,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
   },
-  backdropHeaderText: {
+  contextChipText: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
+    fontSize: 10.5,
     color: Colors.amber,
   },
-  backdropTitle: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
+  contextTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 16,
     color: Colors.ink,
-    marginTop: Spacing.one,
+    marginTop: Spacing.two,
   },
-  backdropSubtitle: {
+  contextSubtitle: {
     fontFamily: Fonts.body,
-    fontSize: 12,
+    fontSize: 12.5,
     color: Colors.muted,
     marginTop: 2,
   },
@@ -201,16 +223,19 @@ const styles = StyleSheet.create({
     marginTop: Spacing.one,
     marginBottom: Spacing.three,
   },
+  // Roomier than the old padding:8/margin:8 — the rows were reading as a cramped stack rather
+  // than tappable choices (punchlist 4F).
   sourceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.three,
     backgroundColor: Colors.cream,
     borderWidth: 1,
     borderColor: Colors.line,
     borderRadius: Radius.card,
-    padding: Spacing.two,
-    marginBottom: Spacing.two,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    marginBottom: Spacing.twelve,
   },
   sourceIcon: {
     width: 38,
@@ -242,6 +267,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
     color: Colors.achieverText,
+  },
+  stravaConnectButton: {
+    height: 22,
+    width: 108,
   },
   manual: {
     flexDirection: 'row',

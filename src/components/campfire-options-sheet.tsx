@@ -5,7 +5,6 @@ import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
-import { fetchCampfireLevel } from '@/lib/api/campfire-level';
 import { deleteGroup, fetchJoinRequests, leaveGroup, setChatMuted } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -36,20 +35,10 @@ export function CampfireOptionsSheet({ visible, onClose, group, groupId, chatMut
   const router = useRouter();
   const { session } = useAuth();
   const leaderboard = useLeaderboard(groupId);
-  const [level, setLevel] = useState<number | null>(null);
   const [muting, setMuting] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
   const isOwner = Boolean(group && session && group.owner_id === session.user.id);
-
-  useEffect(() => {
-    if (!visible) return;
-    fetchCampfireLevel(groupId)
-      .then((l) => setLevel(l.level))
-      .catch(() => {
-        // Level is flavor text in this header — a failed fetch just hides the number.
-      });
-  }, [visible, groupId]);
 
   // Join requests row (mock 19, PHILOI_UI_SPEC.md §14) — owner-only, and only meaningful
   // while gated; fetchJoinRequests() itself would raise for non-owners, so this simply
@@ -149,8 +138,7 @@ export function CampfireOptionsSheet({ visible, onClose, group, groupId, chatMut
             <View>
               <Text style={styles.name}>{group?.name ?? '…'}</Text>
               <Text style={styles.sub}>
-                {level != null ? `Campfire level ${level}` : 'Campfire'} · {leaderboard.rows.length}{' '}
-                {leaderboard.rows.length === 1 ? 'member' : 'members'}
+                {leaderboard.rows.length} {leaderboard.rows.length === 1 ? 'member' : 'members'}
               </Text>
             </View>
           </View>

@@ -4,10 +4,12 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
 
 import { ExercisePicker } from '@/components/exercise-picker';
+import { GymClipCaptureButton } from '@/components/gym-clip-capture-button';
+import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { getErrorMessage } from '@/lib/errors';
 import { fireConfirm, fireLightTap } from '@/lib/reward-feedback';
-import type { ActiveWorkout, ActiveWorkoutExercise, Exercise, WorkoutSet } from '@/types/database';
+import type { ActiveWorkout, ActiveWorkoutExercise, Exercise, WorkoutSet, WorkoutSetClipRefs } from '@/types/database';
 
 type WorkoutLogProps = {
   workout: ActiveWorkout;
@@ -17,6 +19,9 @@ type WorkoutLogProps = {
   onReplaceExercise: (workoutExerciseId: string, exerciseId: string) => Promise<void>;
   onRemoveExercise: (workoutExerciseId: string) => Promise<void>;
   onMoveExercise: (workoutExerciseId: string, direction: -1 | 1) => Promise<void>;
+  /** Per-set video clips (§23 phase-2) — patches one banked set's clip refs after a capture or
+   * removal. Only called when GYM_VIDEO_CLIPS_ENABLED. */
+  onSetClipChanged: (workoutExerciseId: string, refs: WorkoutSetClipRefs) => void;
 };
 
 /** An un-banked row. Sets only exist server-side once ✓ is tapped, so these live here — which
@@ -62,8 +67,13 @@ export function WorkoutLog({
   onReplaceExercise,
   onRemoveExercise,
   onMoveExercise,
+  onSetClipChanged,
 }: WorkoutLogProps) {
   const [drafts, setDrafts] = useState<Record<string, Draft[]>>({});
+  // The set id whose ✓ just came back is_pr — the ONE set that gets the "Film this PR?" prompt
+  // opened for it (§23). Cleared as soon as the next set is banked, so the prompt never
+  // re-fires for a set the user already declined.
+  const [prPromptSetId, setPrPromptSetId] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [replacingId, setReplacingId] = useState<string | null>(null);
@@ -109,13 +119,23 @@ export function WorkoutLog({
     setError(null);
     try {
       const saved = await onLogSet(exercise.id, weight, reps);
-      // The banked row replaces this draft, and a fresh one takes its place already carrying
-      // the same numbers — the "same again" default that most sets actually are.
+      // The banked row is removed; a fresh one (carrying the same numbers — the "same again"
+      // default most sets actually are) only takes its place if NO other draft row is left
+      // waiting. Punchlist 3: this used to always append a new row regardless, so banking one
+      // of several already-queued rows (from a manual "+ Add set" tap) kept adding an extra
+      // empty row on top of the one you hadn't touched yet — new rows now only ever come from
+      // that manual tap, except for keeping exactly one ready row when the list would otherwise
+      // go empty.
       const current = draftsFor(exercise);
+      const remaining = current.filter((_, i) => i !== index);
       setDrafts((prev) => ({
         ...prev,
-        [exercise.id]: [...current.filter((_, i) => i !== index), newDraft(numText(saved.weight), String(saved.reps))],
+        [exercise.id]: remaining.length > 0 ? remaining : [newDraft(numText(saved.weight), String(saved.reps))],
       }));
+      // Auto-prompt only on a PR, and only when clips are actually shipping — §23's rule is
+      // that nothing ever films by itself; this opens the recorder with a "Film this PR?"
+      // framing the user can dismiss.
+      setPrPromptSetId(GYM_VIDEO_CLIPS_ENABLED && saved.is_pr ? saved.id : null);
       if (saved.is_pr) fireConfirm();
       else fireLightTap();
     } catch (e) {
@@ -293,6 +313,16 @@ export function WorkoutLog({
                   accessibilityLabel={`Remove set ${index + 1}`}>
                   <Ionicons name="checkmark" size={15} color={Colors.ink} />
                 </Pressable>
+                {/* Per-set clip (§23 phase-2, design-mocks/38) — a banked set only. There's
+                    nothing to attach a clip to before ✓, since the workout_sets row is what
+                    holds the reference. */}
+                {GYM_VIDEO_CLIPS_ENABLED && (
+                  <GymClipCaptureButton
+                    set={set}
+                    autoPromptPr={prPromptSetId === set.id}
+                    onChanged={(refs) => onSetClipChanged(exercise.id, refs)}
+                  />
+                )}
                 {set.is_pr && (
                   <Animated.View entering={ZoomIn.springify().damping(12)} style={styles.rowPr}>
                     <Ionicons name="trophy" size={9} color={Colors.achieverText} />
@@ -378,8 +408,12 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 11,
   },
+  // Translucent, not solid (design-mocks/52's `.ex`) — Colors.card (#241C38) at 82% so the
+  // dimmed flame behind the gym session glows through the log instead of being walled off by it.
   card: {
-    backgroundColor: Colors.cardDark,
+    backgroundColor: 'rgba(36,28,56,0.82)',
+    borderWidth: 1,
+    borderColor: Colors.line,
     borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 12,

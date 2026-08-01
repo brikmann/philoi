@@ -1,0 +1,219 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-wrap:wrap;gap:22px;justify-content:center;align-items:flex-start;max-width:1000px}
+.unit{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:560px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:radial-gradient(120% 55% at 50% 44%,#2a1a33,#161320 62%);border-radius:26px;overflow:hidden;color:#FFF6EC;display:flex;flex-direction:column}
+.hdr{text-align:center;font-size:11px;letter-spacing:1px;color:#7c7194;text-transform:uppercase;padding:16px 0 0;z-index:6}
+.field{position:relative;flex:1;display:flex;align-items:center;justify-content:center}
+.center{position:absolute;width:300px;height:400px;display:flex;align-items:center;justify-content:center}
+
+/* ---- FULLSCREEN single open ---- */
+.obox{position:absolute;z-index:3;animation:openbox 4.6s cubic-bezier(.4,0,.3,1) infinite}
+@keyframes openbox{
+  0%{opacity:0;transform:scale(.7) translateY(10px)}
+  8%{opacity:1;transform:scale(1) translateY(0)}
+  30%{transform:scale(1) translateY(-5px)}
+  33%{transform:translateX(-3px) rotate(-1.5deg)}36%{transform:translateX(3px) rotate(1.5deg)}
+  39%{transform:translateX(-3px) rotate(-1.5deg)}43%{transform:translateX(0) rotate(0)}
+  50%{transform:scale(1.07);filter:brightness(1.5)}
+  60%{transform:scale(.82);filter:brightness(3) saturate(.3)}
+  67%{transform:scale(.5);opacity:0;filter:brightness(6) saturate(0)}
+  100%{opacity:0}
+}
+.flash{position:absolute;z-index:2;width:60px;height:60px;border-radius:50%;background:#fff;filter:blur(12px);opacity:0;animation:flash 4.6s ease-out infinite}
+@keyframes flash{0%,53%{opacity:0;transform:scale(.4)}58%{opacity:1;transform:scale(2.6)}70%{opacity:0;transform:scale(4.5)}100%{opacity:0}}
+.rays{position:absolute;z-index:1;overflow:visible;animation:rays 4.6s ease-out infinite}
+@keyframes rays{0%,52%{opacity:0;transform:scale(.2) rotate(0)}59%{opacity:1;transform:scale(.8) rotate(8deg)}68%{opacity:.9;transform:scale(1.7) rotate(16deg)}78%{opacity:0;transform:scale(2.1) rotate(22deg)}100%{opacity:0}}
+.reward{position:absolute;z-index:4;text-align:center;opacity:0;animation:reward 4.6s cubic-bezier(.3,1.4,.5,1) infinite}
+@keyframes reward{0%,67%{opacity:0;transform:scale(.5)}74%{opacity:1;transform:scale(1.15)}84%{opacity:1;transform:scale(1)}92%{opacity:0}100%{opacity:0}}
+.reward .ri{width:120px;height:120px;border-radius:28px;background:linear-gradient(150deg,#3a2a08,#20182f);border:2px solid #FFD700;box-shadow:0 0 40px rgba(255,215,0,.6);display:flex;align-items:center;justify-content:center;margin:0 auto}
+.reward .rn{font-size:15px;font-weight:800;margin-top:12px}
+.reward .rr{font-size:9.5px;font-weight:800;letter-spacing:1.5px;color:#F5C542;margin-top:3px}
+
+/* ---- FULLSCREEN 10x deal ---- */
+.grid{position:relative;width:210px;height:460px}
+.source{position:absolute;width:62px;height:62px;left:74px;top:199px;z-index:1;opacity:0;animation:sourcedeck 5s ease-in-out infinite}
+.source svg,.mini svg{width:60px;height:60px}
+@keyframes sourcedeck{0%{opacity:0;transform:scale(.5)}5%{opacity:1;transform:scale(1)}52%{opacity:1;transform:scale(1)}58%{opacity:0;transform:scale(.8)}100%{opacity:0}}
+.mini{position:absolute;width:62px;height:62px;z-index:2;opacity:0;animation:deal 5s cubic-bezier(.35,0,.25,1) infinite}
+@keyframes deal{
+  0%{opacity:0;transform:translate(var(--cx),var(--cy)) scale(.15)}
+  6%{opacity:1}
+  24%{opacity:1;transform:translate(0,0) scale(1);filter:brightness(1)}
+  56%{transform:translate(0,0) scale(1);filter:brightness(1)}
+  64%{transform:scale(.86);filter:brightness(3) saturate(.3)}
+  72%{transform:scale(.45);opacity:0;filter:brightness(6) saturate(0)}
+  86%{opacity:0}100%{opacity:0}
+}
+.mini .mflash{opacity:0;animation:mflash 5s ease-out infinite}
+@keyframes mflash{0%,58%{opacity:0}64%{opacity:1}74%{opacity:0}100%{opacity:0}}
+
+/* ---- REWARD MENUS ---- */
+.rmwrap{display:flex;flex-direction:column;height:100%}
+.rmhead{text-align:center;padding:22px 0 4px}
+.rmhead .k{font-size:10px;letter-spacing:2px;color:#7c7194;text-transform:uppercase}
+.rmhead .t{font-size:20px;font-weight:800;margin-top:4px}
+.rmhead .s{font-size:11px;color:#a99cbd;margin-top:3px}
+/* single hero item */
+.heroitem{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 20px}
+.hi-tile{width:150px;height:150px;border-radius:32px;display:flex;align-items:center;justify-content:center;background:linear-gradient(150deg,#3a2a08,#20182f);border:2px solid #F5C542;box-shadow:0 0 44px rgba(255,215,0,.55);position:relative}
+.hi-new{position:absolute;top:-10px;right:-6px;background:#E0612C;color:#fff;font-size:9px;font-weight:800;padding:2px 8px;border-radius:999px}
+.hi-name{font-size:19px;font-weight:800;margin-top:16px}
+.hi-rar{font-size:10px;font-weight:800;letter-spacing:1.5px;color:#F5C542;margin-top:2px}
+.hi-flav{font-size:11.5px;color:#a99cbd;text-align:center;margin-top:8px;line-height:1.5;max-width:230px}
+/* 10x results grid */
+.rmgrid{flex:1;overflow:auto;padding:12px 14px 6px;display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
+.rmgrid::-webkit-scrollbar{display:none}
+.ritem{background:#20182f;border-radius:12px;padding:8px;display:flex;align-items:center;gap:8px;border-left:3px solid}
+.ri-ic{width:34px;height:34px;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;font-size:16px}
+.ri-tx{min-width:0}
+.ri-nm{font-size:10.5px;font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ri-rr{font-size:8px;font-weight:800;letter-spacing:.6px;margin-top:2px}
+.ri-dup{font-size:8.5px;color:#FFD27A;margin-top:1px}
+/* cta */
+.rmcta{padding:12px 16px 18px;background:linear-gradient(180deg,transparent,#161320 40%)}
+.rmbtn{display:block;text-align:center;border-radius:14px;padding:14px;font-size:14px;font-weight:800}
+.rmbtn.pri{background:linear-gradient(135deg,#F2A33C,#E0612C);color:#2a1608;margin-bottom:8px}
+.rmbtn.sec{background:#241c38;color:#c79bec}
+.rmrow{display:flex;gap:8px}.rmrow .rmbtn{flex:1;margin:0}
+
+/* legend */
+.legend{width:300px;background:#1b1726;border-radius:16px;padding:14px 16px}
+.legend h4{margin:0 0 10px;font-size:12px;color:#FFF6EC}
+.lrow{display:flex;gap:10px;padding:7px 0;border-top:1px solid #241c38;font-size:11px;color:#c8bcdd;line-height:1.4}
+.lrow:first-of-type{border-top:0}.lrow b{color:#FFF6EC;font-weight:700}
+.tag{flex:none;width:9px;height:9px;border-radius:50%;margin-top:3px}
+</style>
+<div class="col2">
+
+  <!-- A-1 : fullscreen single open -->
+  <div class="unit">
+    <div class="phone"><div class="stage">
+      <div class="hdr">Opening · Hephaestus' Chest</div>
+      <div class="field"><div class="center">
+        <svg class="rays" width="300" height="300" viewBox="0 0 340 340">
+          <g stroke="#FFD700" stroke-width="5" stroke-linecap="round">
+            <line x1="170" y1="30" x2="170" y2="120"/>
+            <line x1="170" y1="30" x2="170" y2="120" transform="rotate(30 170 170)"/>
+            <line x1="170" y1="30" x2="170" y2="120" transform="rotate(60 170 170)"/>
+            <line x1="170" y1="30" x2="170" y2="120" transform="rotate(90 170 170)"/>
+            <line x1="170" y1="30" x2="170" y2="120" transform="rotate(120 170 170)"/>
+            <line x1="170" y1="30" x2="170" y2="120" transform="rotate(150 170 170)"/>
+            <line x1="170" y1="30" x2="170" y2="120" transform="rotate(180 170 170)"/>
+            <line x1="170" y1="30" x2="170" y2="120" transform="rotate(210 170 170)"/>
+            <line x1="170" y1="30" x2="170" y2="120" transform="rotate(240 170 170)"/>
+            <line x1="170" y1="30" x2="170" y2="120" transform="rotate(270 170 170)"/>
+            <line x1="170" y1="30" x2="170" y2="120" transform="rotate(300 170 170)"/>
+            <line x1="170" y1="30" x2="170" y2="120" transform="rotate(330 170 170)"/>
+          </g>
+        </svg>
+        <div class="flash"></div>
+        <svg class="obox" width="230" height="212" viewBox="0 0 130 120">
+          <path d="M32 58 L46 50 L94 50 L80 58 Z" fill="#eef8ff"/>
+          <path d="M80 58 L94 50 L94 84 L80 92 Z" fill="#c2dcea"/>
+          <rect x="32" y="58" width="48" height="34" fill="#E0F4FF"/>
+          <rect x="32" y="70" width="48" height="3" fill="#FFFFFF" opacity=".95"/>
+          <path d="M80 70 L94 62" stroke="#FFFFFF" stroke-width="2" opacity=".85"/>
+          <g fill="#FFD700"><rect x="32" y="57" width="48" height="2.5"/><rect x="40" y="58" width="5" height="34" opacity=".9"/><rect x="67" y="58" width="5" height="34" opacity=".9"/></g>
+          <path d="M80 58 L94 50" stroke="#FFD700" stroke-width="2.5"/>
+          <circle cx="56" cy="79" r="8" fill="#FFD700" stroke="#b8860b" stroke-width="1.5"/><rect x="54" y="77" width="4" height="7" rx="2" fill="#7a5300"/>
+          <path d="M32 58 L46 50 L94 50 L94 84 L80 92 L32 92 Z" fill="none" stroke="#a9cade" stroke-width="1"/>
+        </svg>
+        <div class="reward">
+          <div class="ri"><svg width="62" height="62" viewBox="0 0 24 24"><path d="M12 2c1.5 3 3.5 4.5 3.5 7a3.5 3.5 0 0 1-7 0C8.5 6.5 10.5 5 12 2z" fill="#F5C542"/><path d="M12 8c.8 1.5 1.8 2.2 1.8 3.6a1.8 1.8 0 0 1-3.6 0C10.2 10.2 11.2 9.5 12 8z" fill="#fff3c2"/></svg></div>
+          <div class="rn">Molten Crown avatar</div><div class="rr">LEGENDARY</div>
+        </div>
+      </div></div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">Single open — fullscreen (mock 59A).</b> Crack → pulse → reveal, scaled to fill the whole screen. Tapping through lands on the reward menu →</div>
+  </div>
+
+  <!-- A-2 : single reward menu -->
+  <div class="unit">
+    <div class="phone"><div class="stage"><div class="rmwrap">
+      <div class="rmhead"><div class="k">New unlock</div><div class="t">You forged a Legendary</div></div>
+      <div class="heroitem">
+        <div class="hi-tile"><span class="hi-new">NEW</span><svg width="76" height="76" viewBox="0 0 24 24"><path d="M12 2c1.5 3 3.5 4.5 3.5 7a3.5 3.5 0 0 1-7 0C8.5 6.5 10.5 5 12 2z" fill="#F5C542"/><path d="M12 8c.8 1.5 1.8 2.2 1.8 3.6a1.8 1.8 0 0 1-3.6 0C10.2 10.2 11.2 9.5 12 8z" fill="#fff3c2"/></svg></div>
+        <div class="hi-name">Molten Crown</div>
+        <div class="hi-rar">LEGENDARY · AVATAR</div>
+        <div class="hi-flav">A crown of living fire that sits above your rank hexagon. Wear it on your profile and share cards.</div>
+      </div>
+      <div class="rmcta">
+        <span class="rmbtn pri">Equip now</span>
+        <div class="rmrow"><span class="rmbtn sec">Collect</span><span class="rmbtn sec">Share ↗</span></div>
+      </div>
+    </div></div></div>
+    <div class="cap"><b style="color:#a99cbd">Single reward menu (mock 59A-menu).</b> Shows exactly what was unlocked, its rarity + type, and lets you <b>Equip now</b> or stash it in the Inventory.</div>
+  </div>
+
+  <!-- B-1 : fullscreen 10x deal -->
+  <div class="unit">
+    <div class="phone"><div class="stage">
+      <div class="hdr">Opening ×10</div>
+      <div class="field"><div class="grid">
+        <div class="source"></div>
+        <div class="mini" style="--cx:48px;--cy:191px;left:26px;top:8px;animation-delay:.30s"></div>
+        <div class="mini" style="--cx:-48px;--cy:191px;left:122px;top:8px;animation-delay:.36s"></div>
+        <div class="mini" style="--cx:48px;--cy:101px;left:26px;top:98px;animation-delay:.42s"></div>
+        <div class="mini" style="--cx:-48px;--cy:101px;left:122px;top:98px;animation-delay:.48s"></div>
+        <div class="mini" style="--cx:48px;--cy:11px;left:26px;top:188px;animation-delay:.54s"></div>
+        <div class="mini" style="--cx:-48px;--cy:11px;left:122px;top:188px;animation-delay:.60s"></div>
+        <div class="mini" style="--cx:48px;--cy:-79px;left:26px;top:278px;animation-delay:.66s"></div>
+        <div class="mini" style="--cx:-48px;--cy:-79px;left:122px;top:278px;animation-delay:.72s"></div>
+        <div class="mini" style="--cx:48px;--cy:-169px;left:26px;top:368px;animation-delay:.78s"></div>
+        <div class="mini" style="--cx:-48px;--cy:-169px;left:122px;top:368px;animation-delay:.84s"></div>
+      </div></div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">10× deal — fullscreen (mock 59B).</b> One box sits center (the deck); 10 copies deal off it <b>top-left → bottom-right</b>, filling the screen, then crack + pulse in cascade.</div>
+  </div>
+
+  <!-- B-2 : 10x reward menu -->
+  <div class="unit">
+    <div class="phone"><div class="stage"><div class="rmwrap">
+      <div class="rmhead"><div class="k">×10 unlocked</div><div class="t">Your haul</div><div class="s">Best pull: <b style="color:#F5C542">Legendary</b> · 2 dupes → 🔥 1,050</div></div>
+      <div class="rmgrid">
+        <div class="ritem" style="border-color:#a06cd5"><div class="ri-ic" style="background:#3a2a52">🖼️</div><div class="ri-tx"><div class="ri-nm">Obsidian Frame</div><div class="ri-rr" style="color:#a06cd5">EPIC · FRAME</div></div></div>
+        <div class="ritem" style="border-color:#FF6B6B"><div class="ri-ic" style="background:#4a1e1e">⚡</div><div class="ri-tx"><div class="ri-nm">Void Plasma Flare</div><div class="ri-rr" style="color:#FF6B6B">MYTHIC · FLAME</div></div></div>
+        <div class="ritem" style="border-color:#F5C542"><div class="ri-ic" style="background:#3a2a08">👑</div><div class="ri-tx"><div class="ri-nm">Molten Crown</div><div class="ri-rr" style="color:#F5C542">LEGENDARY · AVATAR</div></div></div>
+        <div class="ritem" style="border-color:#4FB0E5"><div class="ri-ic" style="background:#153845">🔥</div><div class="ri-tx"><div class="ri-nm">Solar Yellow</div><div class="ri-rr" style="color:#4FB0E5">RARE · FLAME</div></div></div>
+        <div class="ritem" style="border-color:#4FB0E5"><div class="ri-ic" style="background:#153845">🛡️</div><div class="ri-tx"><div class="ri-nm">Streak Shield</div><div class="ri-rr" style="color:#4FB0E5">RARE · UTILITY</div></div></div>
+        <div class="ritem" style="border-color:#4FB0E5;opacity:.7"><div class="ri-ic" style="background:#153845">🔥</div><div class="ri-tx"><div class="ri-nm">Lime Spark</div><div class="ri-rr" style="color:#4FB0E5">RARE · FLAME</div><div class="ri-dup">Dupe → 🔥 50</div></div></div>
+        <div class="ritem" style="border-color:#a06cd5"><div class="ri-ic" style="background:#3a2a52">🎧</div><div class="ri-tx"><div class="ri-nm">Sub-bass Pack</div><div class="ri-rr" style="color:#a06cd5">EPIC · SFX</div></div></div>
+        <div class="ritem" style="border-color:#3DA85C"><div class="ri-ic" style="background:#173a24">✨</div><div class="ri-tx"><div class="ri-nm">Ember Halo</div><div class="ri-rr" style="color:#3DA85C">UNCOMMON · AURA</div></div></div>
+        <div class="ritem" style="border-color:#F5C542;opacity:.7"><div class="ri-ic" style="background:#3a2a08">🔥</div><div class="ri-tx"><div class="ri-nm">Cosmic Purple</div><div class="ri-rr" style="color:#F5C542">LEGENDARY · FLAME</div><div class="ri-dup">Dupe → 🔥 1,000</div></div></div>
+        <div class="ritem" style="border-color:#8a7fa6"><div class="ri-ic" style="background:#2d2740">🏷️</div><div class="ri-tx"><div class="ri-nm">"Kindled" title</div><div class="ri-rr" style="color:#8a7fa6">COMMON · TITLE</div></div></div>
+      </div>
+      <div class="rmcta"><span class="rmbtn pri">Collect all</span><span class="rmbtn sec">Share haul ↗</span></div>
+    </div></div></div>
+    <div class="cap"><b style="color:#a99cbd">10× reward menu (mock 59B-menu).</b> Every item from the pull, tinted + tagged by rarity/type. Dupes are dimmed with their <b>ember payout</b>. Header calls out the best pull. Collect all → Inventory.</div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <h4>Crack animation per tier <span style="color:#7c7194;font-weight:400">(then the universal pulse)</span></h4>
+    <div class="lrow"><span class="tag" style="background:#8a7fa6"></span><span><b>Kindling</b> — a flat chop straight down the middle, splitting the logs in half.</span></div>
+    <div class="lrow"><span class="tag" style="background:#3DA85C"></span><span><b>Ignition</b> — the fuse ignites; the spark races down and the crate blows.</span></div>
+    <div class="lrow"><span class="tag" style="background:#4FB0E5"></span><span><b>Furnace</b> — the grates blow out and molten light erupts through both faces.</span></div>
+    <div class="lrow"><span class="tag" style="background:#a06cd5"></span><span><b>Vessel of Hestia</b> — unholy oil pours in and lights the purple flame far bigger than it already burns.</span></div>
+    <div class="lrow"><span class="tag" style="background:#F5C542"></span><span><b>Hephaestus' Chest</b> — the lock turns and the lid unlocks.</span></div>
+    <div class="lrow"><span class="tag" style="background:#FF6B6B"></span><span><b>Promethean Vault</b> — spins incredibly fast (~3600° in a couple seconds) before it flies open.</span></div>
+    <div class="lrow" style="border-top:1px solid #241c38;color:#a99cbd"><span class="tag" style="background:#fff"></span><span><b style="color:#fff">Universal pulse</b> — the vector turns whiter, shrinks, light rays break free from the center and flash the tier colour, then the reward menu opens.</span></div>
+  </div>
+
+</div>
+<script>
+var chest='<svg viewBox="0 0 48 48">'
+ +'<path d="M12 20 L17 16 L36 16 L31 20 Z" fill="#eef8ff"/>'
+ +'<path d="M31 20 L36 16 L36 34 L31 38 Z" fill="#c2dcea"/>'
+ +'<rect x="12" y="20" width="19" height="18" fill="#E0F4FF"/>'
+ +'<rect x="12" y="26" width="19" height="2.4" fill="#fff"/><rect x="12" y="20" width="19" height="1.5" fill="#FFD700"/>'
+ +'<path d="M31 20 L36 16" stroke="#FFD700" stroke-width="1.5"/>'
+ +'<circle cx="21.5" cy="30" r="3.4" fill="#FFD700" stroke="#b8860b" stroke-width="1"/>'
+ +'<circle class="mflash" cx="24" cy="26" r="14" fill="#fff"/>'
+ +'</svg>';
+document.querySelectorAll('.mini').forEach(function(m){m.innerHTML=chest;});
+var src=document.querySelector('.source');if(src)src.innerHTML=chest;
+</script>

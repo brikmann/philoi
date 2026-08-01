@@ -1,0 +1,115 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:320px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:#161320;border-radius:26px;overflow:hidden;color:#FFF6EC;display:flex;flex-direction:column}
+.stage::-webkit-scrollbar{display:none}
+.scroll{overflow:auto;flex:1}.scroll::-webkit-scrollbar{display:none}
+/* back chip */
+.back{position:absolute;top:14px;left:12px;z-index:5;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
+.back svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+/* ---- BANNER HERO (equipped Campfire Banner Art) ---- */
+.hero{position:relative;height:186px;overflow:hidden}
+.hero svg{position:absolute;inset:0;width:100%;height:100%}
+.emb{position:absolute;width:3px;height:3px;border-radius:50%;background:#F2A33C;opacity:0;animation:fall 3.6s linear infinite}
+@keyframes fall{0%{opacity:0;transform:translateY(-10px)}12%{opacity:.9}100%{opacity:0;transform:translateY(150px)}}
+.heroshade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(22,19,32,.15) 0%,transparent 30%,rgba(22,19,32,.85) 100%)}
+.herotag{position:absolute;top:14px;right:12px;z-index:4;background:rgba(224,97,44,.9);color:#fff;font-size:9px;font-weight:800;letter-spacing:.6px;padding:4px 9px;border-radius:999px}
+.heroname{position:absolute;left:16px;bottom:12px;right:16px;z-index:4}
+.heroname .t{font-size:22px;font-weight:800;line-height:1.05}
+.heroname .s{display:flex;align-items:center;gap:6px;font-size:11px;color:#d8cae8;margin-top:5px}
+.lock{font-size:10px}
+/* body */
+.body{padding:14px 15px 12px}
+.avgrank{display:flex;align-items:center;gap:8px;font-size:12px;color:#c8bcdd}
+.hex{width:16px;height:18px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:inline-block}
+/* serious stats */
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px}
+.stat{background:#20182f;border-radius:12px;padding:11px 6px;text-align:center}
+.stat .v{font-size:16px;font-weight:800}
+.stat .k{font-size:8.5px;color:#8a7fa6;letter-spacing:.4px;margin-top:2px;text-transform:uppercase}
+/* members */
+.seclbl{font-size:10px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin:18px 2px 10px}
+.mem{display:flex;gap:6px;align-items:flex-start}
+.mm{flex:1;text-align:center}
+.mav{position:relative;width:42px;height:42px;margin:0 auto}
+.mav .pic{width:42px;height:42px;border-radius:50%;background:#2d2740;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.mav .pic svg{width:30px;height:30px}
+.mav .mh{position:absolute;bottom:-4px;right:-2px;width:15px;height:17px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:#0f0d15}
+.mm .mn{font-size:9px;color:#c8bcdd;margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.more{flex:1;display:flex;align-items:center;justify-content:center;font-size:11px;color:#8a7fa6;font-weight:700}
+/* house rule */
+.rule{margin-top:16px;background:#231a2e;border-left:3px solid #E0612C;border-radius:0 10px 10px 0;padding:10px 12px;font-size:11px;color:#e7ddf5;line-height:1.5}
+.rule b{color:#F2A33C}
+/* cta */
+.cta{padding:12px 16px 18px;background:linear-gradient(180deg,transparent,#161320 40%)}
+.cta .btn{display:block;text-align:center;background:linear-gradient(135deg,#E0612C,#B33A15);color:#fff;border-radius:14px;padding:14px;font-size:14px;font-weight:800}
+.cta .sub{text-align:center;font-size:10px;color:#8a7fa6;margin-top:8px}
+</style>
+<div class="col2">
+  <div class="phone"><div class="stage">
+    <div class="back"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+    <div class="scroll">
+
+      <!-- BANNER: Obsidian Colosseum (equipped) -->
+      <div class="hero">
+        <svg viewBox="0 0 300 186" preserveAspectRatio="xMidYMid slice">
+          <defs><radialGradient id="floor" cx="50%" cy="100%" r="70%"><stop offset="0%" stop-color="#E0612C" stop-opacity=".8"/><stop offset="45%" stop-color="#7a2a12" stop-opacity=".4"/><stop offset="100%" stop-color="#161320" stop-opacity="0"/></radialGradient></defs>
+          <rect width="300" height="186" fill="#0c0a12"/>
+          <!-- colosseum tiers (concentric arcs rising from the floor) -->
+          <g fill="none" stroke-linecap="round">
+            <path d="M-30 210 A230 150 0 0 1 330 210" stroke="#1a1a24" stroke-width="20"/>
+            <path d="M-10 214 A190 122 0 0 1 310 214" stroke="#22222e" stroke-width="17"/>
+            <path d="M12 218 A150 96 0 0 1 288 218" stroke="#1a1a24" stroke-width="15"/>
+            <path d="M36 222 A112 72 0 0 1 264 222" stroke="#26262f" stroke-width="13"/>
+            <path d="M62 226 A76 50 0 0 1 238 226" stroke="#302015" stroke-width="12"/>
+          </g>
+          <!-- seat ticks on the outer ring -->
+          <g stroke="#33333e" stroke-width="1.4">
+            <path d="M40 150 l-6 -12"/><path d="M80 132 l-4 -13"/><path d="M150 124 l0 -13"/><path d="M220 132 l4 -13"/><path d="M260 150 l6 -12"/>
+          </g>
+          <!-- arena floor glow -->
+          <ellipse cx="150" cy="200" rx="120" ry="60" fill="url(#floor)"/>
+          <ellipse cx="150" cy="196" rx="30" ry="10" fill="#F2A33C" opacity=".55" style="filter:blur(4px)"/>
+        </svg>
+        <span class="emb" style="left:60px;animation-delay:0s"></span><span class="emb" style="left:120px;animation-delay:1.2s"></span>
+        <span class="emb" style="left:190px;animation-delay:.6s"></span><span class="emb" style="left:240px;animation-delay:2s"></span><span class="emb" style="left:95px;animation-delay:2.6s"></span>
+        <div class="heroshade"></div>
+        <div class="herotag">TOP 3% · CAMPUS</div>
+        <div class="heroname">
+          <div class="t">CS 250 · Grind House</div>
+          <div class="s"><span class="lock">🔒</span> Private · 12 members · founded Sep '25</div>
+        </div>
+      </div>
+
+      <div class="body">
+        <div class="avgrank"><span class="hex" style="background:#4FB0E5"></span> Average rank: <b style="color:#FFF6EC">&nbsp;Diamond</b> · nobody here is below Gold</div>
+
+        <div class="stats">
+          <div class="stat"><div class="v" style="color:#F2A33C">38<span style="font-size:10px">d</span></div><div class="k">Avg streak</div></div>
+          <div class="stat"><div class="v">3.2<span style="font-size:10px">h</span></div><div class="k">Locked in / day</div></div>
+          <div class="stat"><div class="v" style="color:#FF6B6B">2</div><div class="k">Live challenges</div></div>
+        </div>
+
+        <div class="seclbl">Who's in</div>
+        <div class="mem">
+          <div class="mm"><div class="mav"><div class="pic"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div><div class="mh" style="background:#FF6B6B">IX</div></div><div class="mn">maya</div></div>
+          <div class="mm"><div class="mav"><div class="pic"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div><div class="mh" style="background:#4FB0E5">D</div></div><div class="mn">theo</div></div>
+          <div class="mm"><div class="mav"><div class="pic"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div><div class="mh" style="background:#F5C542">L</div></div><div class="mn">priya</div></div>
+          <div class="mm"><div class="mav"><div class="pic"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg></div><div class="mh" style="background:#4FB0E5">D</div></div><div class="mn">jordan</div></div>
+          <div class="more">+8</div>
+        </div>
+
+        <div class="rule">🔥 <b>House rule:</b> 2h/day minimum, six days a week. Miss three days and the fire drops you.</div>
+      </div>
+    </div>
+
+    <div class="cta">
+      <span class="btn">Request to join →</span>
+      <div class="sub">Admin-approved · 5 people are waiting to get in</div>
+    </div>
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">Campfire join preview (mock 62).</b> The equipped <b>Campfire Banner</b> ("Obsidian Colosseum") is the hero the moment you open a campfire to join — backed by the "serious" signals: avg rank, avg streak, hours/day, live challenges, member ranks, and the house rule. The banner does the talking: <i>oh — these people are serious.</i></div>
+</div>

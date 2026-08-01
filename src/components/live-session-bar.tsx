@@ -15,9 +15,13 @@ export const LOCK_IN_PATHNAME = '/lock-in';
 
 // The band's own content height (paddingTop + one row of icon/pill) below the safe-area
 // inset — the single source of truth for the GLOBAL top inset applied at the root layout
-// (see _layout.tsx's contentStyle.paddingTop), so every screen sits below this floating
-// overlay instead of colliding with it, without any per-screen spacing code.
-export const LIVE_SESSION_BAR_HEIGHT = 48;
+// (see _layout.tsx's contentStyle.paddingTop) and, for the nested tabs navigator that
+// contentStyle can't reach, at (tabs)/_layout.tsx's sceneStyle. Exactly ONE of those applies to
+// any given screen — the tabs route zeroes the root one (punchlist 4D).
+//
+// 38, down from 48: the pill is 8px of padding plus a ~26px row, so 48 left a visible dead band
+// under it. This lands content ~8px below the pill rather than a half-screen gap.
+export const LIVE_SESSION_BAR_HEIGHT = 38;
 
 // The persistent "mini-map" (design-mocks/25, PHILOI_UI_SPEC.md §5/§5b/§13) — a global pill
 // pinned top-center whenever a lock-in is running, rendered once in the root layout above

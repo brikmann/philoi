@@ -1,0 +1,125 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-wrap:wrap;gap:22px;justify-content:center;align-items:flex-start}
+.unit{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:#161320;border-radius:26px;overflow:hidden;color:#FFF6EC;display:flex;flex-direction:column}
+.scroll{overflow:auto;flex:1}.scroll::-webkit-scrollbar{display:none}
+.inner{padding:14px 15px 16px}
+.top{display:flex;align-items:center}
+.h{font-size:20px;font-weight:800}
+.emb{margin-left:auto;display:flex;align-items:center;gap:5px;background:#241c38;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:700;color:#FFD27A}
+/* loadout preview */
+.load{position:relative;height:126px;border-radius:16px;overflow:hidden;margin-top:12px;border:1px solid rgba(255,255,255,.06)}
+.load svg.bg{position:absolute;inset:0;width:100%;height:100%}
+.loadin{position:absolute;inset:0;display:flex;align-items:center;gap:14px;padding:0 16px}
+.avwrap{position:relative;width:66px;height:66px;flex:none}
+.halo{position:absolute;inset:-6px;animation:spin 10s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.av{position:absolute;inset:6px;border-radius:50%;background:#2d2740;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.av svg{width:44px;height:44px}
+.who .nm{font-size:16px;font-weight:800}
+.who .ti{font-size:11px;font-weight:800;color:#FF6B6B;text-shadow:0 0 9px rgba(255,107,107,.7);margin-top:2px}
+.who .rk{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#d8cae8;margin-top:6px}
+.hex{width:13px;height:15px;background:#FF6B6B;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.flamechip{position:absolute;right:12px;top:12px}
+.flamechip svg{width:30px;height:34px}
+/* category chips */
+.chips{display:flex;gap:7px;overflow-x:auto;margin-top:14px;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;font-size:11px;font-weight:700;padding:7px 12px;border-radius:999px;background:#20182f;color:#a99cbd;border:1px solid transparent}
+.chip.on{background:#E0612C;color:#fff}
+/* item grid */
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:13px}
+.it{position:relative;background:#1b1726;border-radius:13px;padding:9px 6px 8px;text-align:center;border:1.5px solid #2a2438}
+.it.eq{border-color:#F2A33C;box-shadow:0 0 14px rgba(242,163,60,.28)}
+.it .art{height:42px;display:flex;align-items:center;justify-content:center}
+.it .art svg{width:40px;height:44px}
+.it .n{font-size:9px;font-weight:700;margin-top:5px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it .r{font-size:7px;font-weight:800;letter-spacing:.5px;margin-top:2px}
+.eqbadge{position:absolute;top:5px;right:5px;width:15px;height:15px;border-radius:50%;background:#F2A33C;color:#2a1608;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center}
+/* ---- Frame B : equip detail ---- */
+.dhero{position:relative;height:210px;display:flex;align-items:center;justify-content:center;background:radial-gradient(120% 80% at 50% 40%,#3a1f47,#161320 70%)}
+.dglow{position:absolute;width:150px;height:150px;border-radius:50%;filter:blur(14px);opacity:.7}
+.dart{position:relative;z-index:2}.dart svg{width:120px;height:130px}
+.dbody{padding:16px 18px}
+.dnm{font-size:22px;font-weight:800}
+.dr{font-size:10px;font-weight:800;letter-spacing:1.4px;margin-top:3px}
+.dlore{font-style:italic;font-size:12.5px;color:#b7a9cc;margin-top:12px;line-height:1.55}
+.swap{margin-top:16px;background:#20182f;border-radius:11px;padding:11px 13px;font-size:11px;color:#a99cbd}
+.swap b{color:#FFF6EC}
+.dcta{position:absolute;bottom:0;left:0;right:0;padding:14px 16px 18px;background:linear-gradient(180deg,transparent,#161320 35%)}
+.dbtn{display:block;text-align:center;border-radius:14px;padding:14px;font-size:14px;font-weight:800;background:linear-gradient(135deg,#F2A33C,#E0612C);color:#2a1608}
+.back{position:absolute;top:14px;left:12px;z-index:5;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
+.back svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+</style>
+<div class="col2">
+
+  <!-- FRAME A : Inventory home -->
+  <div class="unit">
+    <div class="phone"><div class="stage"><div class="scroll"><div class="inner">
+      <div class="top"><span class="h">Inventory</span><span class="emb">🔥 1,240</span></div>
+
+      <!-- loadout -->
+      <div class="load">
+        <svg class="bg" viewBox="0 0 268 126" preserveAspectRatio="none"><rect width="268" height="126" fill="#1a1010"/><g stroke="#E0612C" stroke-width="2" fill="none" opacity=".8" stroke-linecap="round"><path d="M0 40 l50 8 l40 -10 l60 12 l50 -8 l68 10"/><path d="M0 90 l60 -8 l50 10 l60 -10 l98 12"/></g><g stroke="#FFB800" stroke-width="1" opacity=".7"><path d="M0 40 l50 8 l40 -10 l60 12 l50 -8 l68 10"/></g></svg>
+        <div class="loadin">
+          <div class="avwrap">
+            <svg class="halo" viewBox="0 0 66 66"><g fill="#E0612C"><path d="M33 2 c3 5 6 6 6 11 a6 6 0 0 1 -12 0 c0 -4 3 -6 6 -11z"/><path d="M33 64 c3 -5 6 -6 6 -11 a6 6 0 0 0 -12 0 c0 4 3 6 6 11z"/><path d="M2 33 c5 3 6 6 11 6 a6 6 0 0 0 0 -12 c-4 0 -6 3 -11 6z"/><path d="M64 33 c-5 3 -6 6 -11 6 a6 6 0 0 1 0 -12 c4 0 6 3 11 6z"/></g></svg>
+            <div class="av"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#6a6480"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#6a6480"/></svg></div>
+          </div>
+          <div class="who">
+            <div class="nm">@noah</div>
+            <div class="ti">✦ Ascended</div>
+            <div class="rk"><span class="hex"></span> Infernal</div>
+          </div>
+        </div>
+        <div class="flamechip"><svg viewBox="0 0 90 96"><path d="M45 12 C56 34 70 42 70 62 a25 25 0 0 1 -50 0 C20 44 34 40 39 28 c2 9 6 12 6 12 C52 30 40 22 45 12Z" fill="#E0612C"/><path d="M45 36 C52 50 60 55 60 68 a15 15 0 0 1 -30 0 c0 -8 5 -10 6 -16z" fill="#FFD24D"/></svg></div>
+      </div>
+      <div style="font-size:9px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin-top:8px">Your loadout · how others see you</div>
+
+      <!-- category chips -->
+      <div class="chips">
+        <span class="chip">All</span><span class="chip on">Flames</span><span class="chip">Particles</span><span class="chip">Flares</span><span class="chip">Cards</span><span class="chip">Halos</span><span class="chip">Titles</span><span class="chip">Banners</span><span class="chip">Audio</span><span class="chip">SFX</span><span class="chip">Relics</span>
+      </div>
+
+      <!-- item grid : Flames (owned) -->
+      <div class="grid">
+        <div class="it"><div class="art"><svg viewBox="0 0 90 96"><path d="M45 12 C56 34 70 42 70 62 a25 25 0 0 1 -50 0 C20 44 34 40 39 28 c2 9 6 12 6 12 C52 30 40 22 45 12Z" fill="#B8651F"/><path d="M45 36 C52 50 60 55 60 68 a15 15 0 0 1 -30 0 c0 -8 5 -10 6 -16z" fill="#F2A33C"/></svg></div><div class="n">Molten Copper</div><div class="r" style="color:#4FB0E5">RARE</div></div>
+        <div class="it eq"><span class="eqbadge">✓</span><div class="art"><svg viewBox="0 0 90 96"><path d="M45 12 C56 34 70 42 70 62 a25 25 0 0 1 -50 0 C20 44 34 40 39 28 c2 9 6 12 6 12 C52 30 40 22 45 12Z" fill="#E0612C"/><path d="M45 36 C52 50 60 55 60 68 a15 15 0 0 1 -30 0 c0 -8 5 -10 6 -16z" fill="#FFD24D"/></svg></div><div class="n">Solar Flare</div><div class="r" style="color:#a06cd5">EPIC</div></div>
+        <div class="it"><div class="art"><svg viewBox="0 0 90 96"><path d="M45 12 C56 34 70 42 70 62 a25 25 0 0 1 -50 0 C20 44 34 40 39 28 c2 9 6 12 6 12 C52 30 40 22 45 12Z" fill="#2E7D32"/><path d="M45 36 C52 50 60 55 60 68 a15 15 0 0 1 -30 0 c0 -8 5 -10 6 -16z" fill="#9DFF5A"/></svg></div><div class="n">Toxic Green</div><div class="r" style="color:#a06cd5">EPIC</div></div>
+        <div class="it"><div class="art"><svg viewBox="0 0 90 96"><path d="M45 12 C56 34 70 42 70 62 a25 25 0 0 1 -50 0 C20 44 34 40 39 28 c2 9 6 12 6 12 C52 30 40 22 45 12Z" fill="#6A2AB8"/><path d="M45 36 C52 50 60 55 60 68 a15 15 0 0 1 -30 0 c0 -8 5 -10 6 -16z" fill="#C77BFF"/></svg></div><div class="n">Cosmic Purple</div><div class="r" style="color:#F5C542">LEGENDARY</div></div>
+        <div class="it"><div class="art"><svg viewBox="0 0 90 96"><path d="M45 12 C56 34 70 42 70 62 a25 25 0 0 1 -50 0 C20 44 34 40 39 28 c2 9 6 12 6 12 C52 30 40 22 45 12Z" fill="#BFD0FF"/><path d="M45 32 C53 48 62 54 62 68 a17 17 0 0 1 -34 0 c0 -9 6 -12 8 -20z" fill="#FFFFFF"/></svg></div><div class="n">Neutron Starfire</div><div class="r" style="color:#F5C542">LEGENDARY</div></div>
+        <div class="it"><div class="art"><svg viewBox="0 0 90 96"><path d="M45 12 C56 34 70 42 70 62 a25 25 0 0 1 -50 0 C20 44 34 40 39 28 c2 9 6 12 6 12 C52 30 40 22 45 12Z" fill="#2A5AE0"/><path d="M45 36 C52 50 60 55 60 68 a15 15 0 0 1 -30 0 c0 -8 5 -10 6 -16z" fill="#BFD6FF"/></svg></div><div class="n">Stormforge</div><div class="r" style="color:#FF6B6B">MYTHIC</div></div>
+      </div>
+      <div style="text-align:center;font-size:10px;color:#7c7194;margin-top:12px">6 of 7 Flames owned · tap any to equip</div>
+    </div></div></div></div>
+    <div class="cap"><b style="color:#a99cbd">Inventory (mock 67A).</b> Off the main menu. Top = your live <b>loadout</b> (equipped card, halo, flame, title, rank — how others see you). Category chips filter by type; the <b>equipped</b> item in each slot is ringed + ✓. Tap any item →</div>
+  </div>
+
+  <!-- FRAME B : equip detail -->
+  <div class="unit">
+    <div class="phone"><div class="stage">
+      <div class="back"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <div class="dhero">
+        <div class="dglow" style="background:radial-gradient(circle,rgba(106,42,184,.6),transparent 62%)"></div>
+        <div class="dart"><svg viewBox="0 0 90 96"><path d="M45 12 C56 34 70 42 70 62 a25 25 0 0 1 -50 0 C20 44 34 40 39 28 c2 9 6 12 6 12 C52 30 40 22 45 12Z" fill="#6A2AB8"/><path d="M45 36 C52 50 60 55 60 68 a15 15 0 0 1 -30 0 c0 -8 5 -10 6 -16z" fill="#C77BFF"/></svg></div>
+      </div>
+      <div class="dbody">
+        <div class="dnm">Cosmic Purple</div>
+        <div class="dr" style="color:#F5C542">LEGENDARY · FLAME</div>
+        <div class="dlore">Lit once at the birth of a star and never allowed to go out.</div>
+        <div class="swap">Equipping this replaces your current flame, <b>Solar Flare</b>. One flame active at a time.</div>
+      </div>
+      <div class="dcta">
+        <span class="dbtn">Equip flame</span>
+        <span class="dbtn" style="background:#241c38;color:#FFD27A;margin-top:8px">Sell · 🔥 900 <span style="color:#7c7194;font-weight:600;font-size:11px">· 30% salvage (Legendary)</span></span>
+        <div style="text-align:center;font-size:9.5px;color:#6a6480;margin-top:7px">Selling unequips &amp; is permanent · confirm required</div>
+      </div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">Equip detail (mock 67B).</b> Big art, rarity, lore, a one-tap <b>Equip</b> (names the swap), and <b>Sell</b> for its salvage value (a rarity-scaled 50%→25% of the source box, §8.3) — works on earned items too, with a permanent-action confirm. Relics + Medals: showcase-only equip, but still sellable.</div>
+  </div>
+
+</div>

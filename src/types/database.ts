@@ -62,6 +62,8 @@ export type Profile = {
   publish_flame_completion: boolean;
   /** Soft-currency balance (MONETIZATION.md's phase-2 cosmetics shop) — earning-only for now. */
   embers: number;
+  /** "Let friends watch my live challenges" (§16/§19) — default off; gates the profile-scoped Watch CTA. */
+  watch_opt_in: boolean;
   created_at: string;
 };
 
@@ -164,6 +166,9 @@ export type GroupMember = {
   chat_muted: boolean;
   /** "I can help with this class" (PHILOI_UI_SPEC.md §14) — self-declared, surfaced as a badge. */
   is_helper: boolean;
+  /** Auto-post a synced workout (Strava/HealthKit/etc.) to this campfire (§17b) — opt-in,
+   * default off; publishing on the user's behalf, so never on without this. */
+  auto_post_synced: boolean;
 };
 
 export type CheckIn = {
@@ -192,6 +197,37 @@ export type CheckIn = {
    * via post_check_in_to_circle — null until then (or forever, if kept private). Always null
    * on old photo check-ins (those fan out via check_in_circles directly, see schema.sql). */
   circle_id: string | null;
+  /** Where this lock-in came from (migration 0038, §17b) — 'manual' for everything before this
+   * and every ordinary Stop-button lock-in; a device source means it was auto-created from a
+   * synced activity, which drives the Strava-branded cross-integration UI. */
+  source: 'manual' | 'strava' | 'healthkit' | 'health_connect';
+  /** The source's own activity id (Strava activity id today) — the dedup key alongside
+   * (user_id, source) and the deep-link target for "View on Strava." Null for manual lock-ins. */
+  external_id: string | null;
+  /** Device-verified distance in meters — null unless source is a distance-tracking one. */
+  distance_m: number | null;
+};
+
+/** One per-kilometre split off a synced activity (migration 0043) — trimmed at write time to the
+ * fields the activity-detail screen actually renders. */
+export type SyncedActivitySplit = {
+  split: number;
+  distance: number;
+  moving_time: number;
+  elevation_difference: number | null;
+};
+
+/** The Strava-derived route/splits/device data behind the profile-activity-detail screen
+ * (migration 0043). Owner-only by RLS, and purged on disconnect per Strava's API Agreement. */
+export type SyncedActivityDetailRow = {
+  check_in_id: string;
+  user_id: string;
+  route_polyline: string | null;
+  splits: SyncedActivitySplit[] | null;
+  calories: number | null;
+  elevation_gain_m: number | null;
+  device_name: string | null;
+  created_at: string;
 };
 
 /** One photo in a lock-in session's gallery — see migration 0008. Rows are only ever
@@ -280,7 +316,18 @@ export type WorkoutSet = {
   /** Historical: this set was a personal best at the moment it was banked. Never rewritten. */
   is_pr: boolean;
   created_at: string;
+  /** Phase-2 video clip (PHILOI_UI_SPEC.md §23) — all nullable, a clip is optional per set.
+   * Bytes live in R2; these are only references (see lib/api/gym-clips.ts). */
+  video_key: string | null;
+  thumb_key: string | null;
+  duration_s: number | null;
+  resolution: string | null;
+  uploaded_at: string | null;
 };
+
+/** Just the clip pointers on a set — what the capture control hands back after attaching or
+ * removing one, and all the live logger needs to redraw that row's camera affordance. */
+export type WorkoutSetClipRefs = Pick<WorkoutSet, 'id' | 'video_key' | 'thumb_key'>;
 
 export type PersonalRecord = {
   id: string;
@@ -306,7 +353,9 @@ export type ActiveWorkoutExercise = {
   /** Energy-nudged starting point derived from the top set of the last workout containing this
    * lift — prefilled into a new set row, always editable, never enforced. */
   suggested: { weight: number | null; reps: number | null } | null;
-  sets: Pick<WorkoutSet, 'id' | 'set_index' | 'weight' | 'reps' | 'is_pr'>[];
+  /** video_key/thumb_key added by migration 0057 — the live logger needs them to know a set is
+   * already filmed (a re-record would burn another clip off the monthly quota). */
+  sets: Pick<WorkoutSet, 'id' | 'set_index' | 'weight' | 'reps' | 'is_pr' | 'video_key' | 'thumb_key'>[];
 };
 
 /** The whole in-session state in one round trip — get_active_workout()'s jsonb payload. */
@@ -408,7 +457,13 @@ export type AnalyticsEventName =
   | 'gym_workout_started'
   | 'workout_set_logged'
   | 'workout_pr_hit'
-  | 'routine_saved';
+  | 'routine_saved'
+  | 'leaderboard_search_used'
+  | 'friend_profile_viewed'
+  | 'watch_opt_in_changed'
+  | 'challenge_watch_opened'
+  | 'challenge_watch_cheered'
+  | 'challenge_cancelled';
 
 export type AnalyticsEvent = {
   id: string;
@@ -440,6 +495,102 @@ export type UniversityLeaderboardRow = {
   tier: RankTierName;
   division: number;
   check_ins_this_week: number;
+  /** True rank on the FULL board, not just this row's position within the fetched slice — lets
+   * the caller's own row pin at the bottom with its real rank even outside the top p_limit. */
+  rank: number;
+  is_me: boolean;
+};
+
+/** The Leaderboard tab's "Global" scope (§15's 4th tab) — get_global_leaderboard(). Same
+ * true-rank-pinning shape as UniversityLeaderboardRow, no per-week check-in count (that's a
+ * my-uni-specific metric), plus each row's university for display. */
+export type GlobalLeaderboardRow = {
+  user_id: string;
+  handle: string;
+  display_name: string;
+  avatar_url: string | null;
+  is_pro: boolean;
+  score: number;
+  tier: RankTierName;
+  division: number;
+  university: string | null;
+  check_ins_this_week: number;
+  rank: number;
+  is_me: boolean;
+};
+
+/** search_leaderboard() — the Leaderboard tab's magnifier search (§15). */
+export type LeaderboardSearchResult = {
+  user_id: string;
+  display_name: string;
+  handle: string | null;
+  avatar_url: string | null;
+  tier: RankTierName;
+  division: number;
+  score: number;
+  board: 'My uni' | 'Global';
+  board_rank: number | null;
+  is_friend: boolean;
+};
+
+/** get_relationship_with() — mirrors PersonSearchResult's Relationship union plus 'self'. */
+export type ProfileRelationship = 'self' | 'friends' | 'requested' | 'incoming' | 'none';
+
+/** get_profile_stats() — the friend-profile's stat row + "Works on" chips (mock 43). */
+export type ProfileStats = {
+  current_streak: number;
+  lock_in_count: number;
+  hours_locked_in: number;
+  goal_types: string[];
+};
+
+/** get_active_challenge_marker() — the pulsing chip (mock 37) on a fire/friend row/profile. */
+export type ActiveChallengeMarker = {
+  challenge_id: string;
+  mode: SocialChallengeMode;
+  circle_id: string | null;
+  opponent_id: string | null;
+  opponent_name: string | null;
+  race_metric: SocialChallengeRaceMetric;
+  target_count: number | null;
+  ends_at: string | null;
+  can_watch: boolean;
+};
+
+/** get_challenge_watch() — the H2H live spectator read (§16). */
+export type ChallengeWatch = {
+  challenge_id: string;
+  mode: SocialChallengeMode;
+  race_metric: SocialChallengeRaceMetric;
+  target_count: number | null;
+  window_hours: number;
+  starts_at: string;
+  ends_at: string | null;
+  created_by: string;
+  created_by_name: string;
+  created_by_score: number;
+  created_by_live_status: string;
+  created_by_cheers: number;
+  opponent_id: string | null;
+  opponent_name: string | null;
+  opponent_score: number | null;
+  opponent_live_status: string | null;
+  opponent_cheers: number | null;
+};
+
+/** get_group_challenge_watch() — one row per member of the group challenge's campfire (§16). */
+export type GroupChallengeWatchRow = {
+  challenge_id: string;
+  target_count: number;
+  window_hours: number;
+  starts_at: string;
+  ends_at: string | null;
+  circle_id: string;
+  circle_name: string;
+  member_id: string;
+  member_name: string;
+  member_progress: number;
+  member_live_status: string;
 };
 
 export type WeeklyRecap = {
@@ -622,9 +773,9 @@ export type Database = {
         Relationships: [];
       };
       universities: {
-        Row: { id: string; name: string };
-        Insert: { id?: string; name: string };
-        Update: { id?: string; name?: string };
+        Row: { id: string; name: string; short_name: string | null };
+        Insert: { id?: string; name: string; short_name?: string | null };
+        Update: { id?: string; name?: string; short_name?: string | null };
         Relationships: [];
       };
       goals: {
@@ -683,6 +834,22 @@ export type Database = {
             foreignKeyName: 'check_in_photos_check_in_id_fkey';
             columns: ['check_in_id'];
             isOneToOne: false;
+            referencedRelation: 'check_ins';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      synced_activity_details: {
+        Row: SyncedActivityDetailRow;
+        // Read-only from the client: rows are written by the strava-webhook / strava-backfill
+        // Edge Functions under the service role, and there's no insert/update RLS policy.
+        Insert: never;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: 'synced_activity_details_check_in_id_fkey';
+            columns: ['check_in_id'];
+            isOneToOne: true;
             referencedRelation: 'check_ins';
             referencedColumns: ['id'];
           },
@@ -929,6 +1096,8 @@ export type Database = {
       };
       get_campfire_preview: { Args: { p_group_id: string }; Returns: CampfirePreview[] };
       set_my_helper_flag: { Args: { p_group_id: string; p_is_helper: boolean }; Returns: undefined };
+      set_my_auto_post_synced: { Args: { p_group_id: string; p_enabled: boolean }; Returns: undefined };
+      set_my_check_in_caption: { Args: { p_check_in_id: string; p_caption: string }; Returns: undefined };
       ensure_personal_invite: { Args: Record<string, never>; Returns: string };
       delete_group: { Args: { p_group_id: string }; Returns: undefined };
       delete_my_account: { Args: Record<string, never>; Returns: undefined };
@@ -937,6 +1106,16 @@ export type Database = {
         Args: { p_university: string; p_limit?: number };
         Returns: UniversityLeaderboardRow[];
       };
+      get_global_leaderboard: { Args: { p_limit?: number }; Returns: GlobalLeaderboardRow[] };
+      search_leaderboard: { Args: { p_query: string; p_limit?: number }; Returns: LeaderboardSearchResult[] };
+      get_relationship_with: { Args: { p_user_id: string }; Returns: ProfileRelationship };
+      get_profile_stats: { Args: { p_user_id: string }; Returns: ProfileStats[] };
+      get_user_board_position: { Args: { p_user_id: string }; Returns: { board: 'My uni' | 'Global'; rank: number }[] };
+      get_active_challenge_marker: { Args: { p_user_id: string }; Returns: ActiveChallengeMarker[] };
+      get_challenge_watch: { Args: { p_challenge_id: string }; Returns: ChallengeWatch[] };
+      get_group_challenge_watch: { Args: { p_challenge_id: string }; Returns: GroupChallengeWatchRow[] };
+      set_my_watch_opt_in: { Args: { p_enabled: boolean }; Returns: undefined };
+      cheer_challenge: { Args: { p_challenge_id: string; p_for_user_id: string }; Returns: undefined };
       set_chat_muted: { Args: { p_group_id: string; p_muted: boolean }; Returns: undefined };
       set_my_photo_visibility: { Args: { p_visibility: PhotoVisibility }; Returns: undefined };
       set_my_notification_prefs: { Args: { p_prefs: NotificationPrefs }; Returns: undefined };
@@ -979,6 +1158,7 @@ export type Database = {
         Returns: SocialChallenge;
       };
       respond_to_h2h_challenge: { Args: { p_challenge_id: string; p_accept: boolean }; Returns: SocialChallenge };
+      cancel_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       get_my_friends: {
         Args: Record<string, never>;
         Returns: {
@@ -1089,6 +1269,17 @@ export type Database = {
       get_active_workout: { Args: Record<string, never>; Returns: ActiveWorkout | null };
       /** Null when that check-in wasn't a tracked gym session. */
       get_workout_recap: { Args: { p_check_in_id: string }; Returns: WorkoutRecap | null };
+      // Gym tracker phase-2 — video clips (migration 0047, PHILOI_UI_SPEC.md §23).
+      get_gym_clip_quota: {
+        Args: { p_user_id?: string | null };
+        Returns: { tier: 'free' | 'paid'; used_this_month: number; clip_limit: number | null; remaining: number | null }[];
+      };
+      attach_workout_set_clip: {
+        Args: { p_workout_set_id: string; p_video_key: string; p_thumb_key: string; p_duration_s: number; p_resolution: string };
+        Returns: WorkoutSet;
+      };
+      remove_workout_set_clip: { Args: { p_workout_set_id: string }; Returns: undefined };
+      get_check_in_clips: { Args: { p_check_in_id: string }; Returns: WorkoutSet[] };
       get_my_campfire_heat: { Args: Record<string, never>; Returns: { group_id: string; heat: number }[] };
       get_campfire_level: {
         Args: { p_group_id: string };

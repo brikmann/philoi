@@ -50,3 +50,11 @@ export async function respondToH2HChallenge(challengeId: string, accept: boolean
   track(accept ? 'challenge_accepted' : 'challenge_declined', { challenge_id: challengeId });
   return data;
 }
+
+// Punchlist 3 — creator cancels an unanswered invite; either participant ends an active
+// challenge early. Completed/declined/expired challenges are immutable (server-enforced).
+export async function cancelSocialChallenge(challengeId: string): Promise<void> {
+  const { error } = await supabase.rpc('cancel_social_challenge', { p_challenge_id: challengeId });
+  if (error) throw error;
+  track('challenge_cancelled', { challenge_id: challengeId });
+}

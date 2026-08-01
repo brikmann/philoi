@@ -1,0 +1,184 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.wrap{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#1b1726;border-radius:26px;overflow:hidden;padding:15px 14px 0;box-sizing:border-box;color:#FFF6EC;display:flex;flex-direction:column}
+.hd{font-size:19px;font-weight:600}
+.hdrow{display:flex;align-items:center;justify-content:space-between}
+.searchbtn{background:#241c38;border:0;width:34px;height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.searchbtn svg{width:17px;height:17px;stroke:#a99cbd;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* search screen */
+.searchbar{display:flex;align-items:center;gap:8px;background:#241c38;border:1px solid #E0612C;border-radius:12px;padding:9px 12px;margin-top:12px}
+.searchbar svg{width:16px;height:16px;stroke:#a99cbd;fill:none;stroke-width:2;stroke-linecap:round;flex:none}
+.searchbar .q{font-size:14px;color:#FFF6EC}
+.searchbar .cur{width:1.5px;height:15px;background:#E0612C;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.slabel{font-size:10px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin:16px 2px 8px}
+.sresult{display:flex;align-items:center;gap:11px;padding:9px 4px;border-top:1px solid #241c38}
+.sinfo{flex:1;min-width:0}
+.sinfo .n1{font-size:13px;font-weight:600;display:flex;align-items:center}
+.sinfo .n2{font-size:11px;color:#7c7194}
+.srank{text-align:right;flex:none}
+.srank .rr{font-size:13px;font-weight:700;color:#F2A33C}
+.srank .rx{font-size:10px;color:#a99cbd}
+.ftag{font-size:8.5px;font-weight:700;color:#3DA85C;background:rgba(61,168,92,.15);padding:2px 6px;border-radius:5px;margin-left:7px}
+/* tabs */
+.tabs{display:flex;gap:6px;margin-top:11px}
+.tab{font-size:11px;padding:6px 10px;border-radius:999px;background:#241c38;color:#a99cbd;white-space:nowrap}
+.tab.on{border:1px solid #E0612C;color:#F2A33C;background:transparent}
+.metric{display:flex;gap:6px;margin-top:7px}
+/* ===== podium ===== */
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:5px;margin-top:20px}
+.pcol{display:flex;flex-direction:column;align-items:center;position:relative}
+.avatar{width:44px;height:44px;border-radius:50%;background:#3a2a22;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:#FFD27A;position:relative;z-index:2}
+.pcol.first .avatar{width:52px;height:52px;font-size:19px}
+.avatar.gold{border:2.5px solid #F5C542}.avatar.silver{border:2.5px solid #C4CBD6}.avatar.bronze{border:2.5px solid #B87333}
+/* uni crest tiles (school colours + monogram — stand-in for licensed official logos) */
+.crest{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;position:relative;z-index:2;letter-spacing:.3px}
+.pcol.first .crest{width:52px;height:52px;font-size:12px}
+.screst{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex:none}
+.medal{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#3a2410;z-index:3;border:1.5px solid rgba(0,0,0,.25)}
+.medal.gold{background:#F5C542}.medal.silver{background:#C4CBD6}.medal.bronze{background:#B87333;color:#2a1a0c}
+.nm{font-size:11px;font-weight:600;margin-top:8px}
+.xp{font-size:10px;color:#F2A33C;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px}
+.xp span{color:#7c7194;font-weight:400}
+/* rank-tier hexagon (distinct from the leaderboard-position medal) */
+.rhex{display:inline-flex;align-items:center;justify-content:center;width:15px;height:17px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);font-size:7.5px;font-weight:800;flex:none}
+/* marble column */
+.capital{width:60px;height:9px;background:linear-gradient(180deg,#EFE7D6,#D3C6AE);border-radius:3px;margin-top:6px}
+.pcol.first .capital{width:66px}
+.shaft{width:52px;border-radius:2px 2px 0 0;background:
+  repeating-linear-gradient(90deg, rgba(120,95,60,.22) 0 1.5px, transparent 1.5px 8px),
+  linear-gradient(180deg,#E9DFCB,#C7B99F)}
+.pcol.first .shaft{width:58px}
+.laurel{position:absolute;top:-14px;left:50%;transform:translateX(-50%);z-index:1}
+/* base slab under all columns */
+.baseslab{height:11px;background:linear-gradient(180deg,#D8CBB2,#B7A88C);border-radius:3px;margin:0 auto;width:210px}
+/* ===== rest of the board (4-10) ===== */
+.listwrap{flex:1;overflow:auto;margin-top:12px}
+.listwrap::-webkit-scrollbar{display:none}
+.lrow{display:flex;align-items:center;gap:11px;padding:8px 4px;border-top:1px solid #241c38;font-size:12.5px}
+.rk{width:20px;text-align:center;font-size:12px;color:#7c7194;font-weight:600;flex:none}
+.sav{width:30px;height:30px;border-radius:50%;background:#2d2740;display:flex;align-items:center;justify-content:center;font-size:12px;color:#FFD27A;flex:none}
+.ln{flex:1;min-width:0;font-weight:500}
+.lx{font-size:12px;color:#a99cbd;font-variant-numeric:tabular-nums}
+/* sticky YOU pillar */
+.you{display:flex;align-items:center;gap:11px;padding:10px 11px;margin:0 -14px;background:linear-gradient(90deg,#2a1d18,#241c38);border-top:1.5px solid #E0612C;font-size:12.5px}
+.you .sav{background:#E0612C;color:#fff}
+.you .ln{font-weight:600}
+.you .rk{color:#F2A33C}
+</style>
+<div class="wrap">
+
+  <!-- ============ FRAME A: individual (My uni) ============ -->
+  <div class="col2">
+    <div class="phone"><div class="stage">
+      <div class="hdrow"><span class="hd">Leaderboard</span><button class="searchbtn" aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4-4"/></svg></button></div>
+      <div class="tabs"><span class="tab">Campfires</span><span class="tab on">My uni</span><span class="tab">Vs. unis</span><span class="tab">Global</span></div>
+      <div class="metric"><span class="tab on">XP</span><span class="tab">Streaks</span></div>
+
+      <div class="podium">
+        <!-- #2 left -->
+        <div class="pcol">
+          <div class="avatar silver">A<span class="medal silver">2</span></div>
+          <div class="nm">Aidan</div><div class="xp"><span class="rhex" style="background:#F5C542;color:#4A3406">II</span>4,120 <span>XP</span></div>
+          <div class="capital"></div><div class="shaft" style="height:96px"></div>
+        </div>
+        <!-- #1 center -->
+        <div class="pcol first">
+          <div class="avatar gold">N<span class="medal gold">1</span></div>
+          <div class="nm">Noah</div><div class="xp"><span class="rhex" style="background:#F5C542;color:#4A3406">I</span>4,820 <span>XP</span></div>
+          <div class="capital"></div><div class="shaft" style="height:132px"></div>
+        </div>
+        <!-- #3 right -->
+        <div class="pcol">
+          <div class="avatar bronze">M<span class="medal bronze">3</span></div>
+          <div class="nm">Maya</div><div class="xp"><span class="rhex" style="background:#F5C542;color:#4A3406">III</span>3,760 <span>XP</span></div>
+          <div class="capital"></div><div class="shaft" style="height:78px"></div>
+        </div>
+      </div>
+      <div class="baseslab"></div>
+
+      <div class="listwrap">
+        <div class="lrow"><span class="rk">4</span><span class="sav">D</span><span class="ln">Dee</span><span class="rhex" style="background:#C4CBD6;color:#2B3038">I</span><span class="lx">3,410</span></div>
+        <div class="lrow"><span class="rk">5</span><span class="sav">J</span><span class="ln">Jordan</span><span class="rhex" style="background:#C4CBD6;color:#2B3038">II</span><span class="lx">3,180</span></div>
+        <div class="lrow"><span class="rk">6</span><span class="sav">K</span><span class="ln">Kayla</span><span class="rhex" style="background:#C4CBD6;color:#2B3038">III</span><span class="lx">2,940</span></div>
+        <div class="lrow"><span class="rk">7</span><span class="sav">R</span><span class="ln">Riley</span><span class="rhex" style="background:#B87333;color:#3A2410">I</span><span class="lx">2,700</span></div>
+        <div class="lrow"><span class="rk">8</span><span class="sav">T</span><span class="ln">Theo</span><span class="rhex" style="background:#B87333;color:#3A2410">II</span><span class="lx">2,560</span></div>
+      </div>
+
+      <!-- your own pillar, floated in for the big boards -->
+      <div class="you"><span class="rk">47</span><span class="sav">Y</span><span class="ln">You</span><span class="rhex" style="background:#B87333;color:#3A2410">III</span><span class="lx">1,240 XP</span></div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">Individual board (My uni / Global).</b> Top 3 rise as ascending <b style="color:#E8C877">Parthenon columns</b> — gold/silver/bronze medals, avatar at each apex, name + XP below. 4–10 list beneath; <b style="color:#FC7A3F">your own pillar pins at the bottom</b> with your true rank (#47) so you always see where you land.</div>
+  </div>
+
+  <!-- ============ FRAME B: collective (Vs. unis) ============ -->
+  <div class="col2">
+    <div class="phone"><div class="stage">
+      <div class="hdrow"><span class="hd">Leaderboard</span><button class="searchbtn" aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4-4"/></svg></button></div>
+      <div class="tabs"><span class="tab">Campfires</span><span class="tab">My uni</span><span class="tab on">Vs. unis</span><span class="tab">Global</span></div>
+      <div class="metric"><span class="tab on">Total XP</span><span class="tab">Avg / member</span></div>
+
+      <div class="podium">
+        <div class="pcol">
+          <div class="crest" style="background:#1d1d1d;color:#FFCE34">UW<span class="medal silver">2</span></div>
+          <div class="nm">Waterloo</div><div class="xp">1.82M <span>XP</span></div>
+          <div class="capital"></div><div class="shaft" style="height:96px"></div>
+        </div>
+        <div class="pcol first">
+          <div class="crest" style="background:#4A2E6E;color:#F5C542;box-shadow:0 0 0 2px #E0612C">WLU<span class="medal gold">1</span></div>
+          <div class="nm" style="color:#F2A33C">Laurier · you</div><div class="xp">2.14M <span>XP</span></div>
+          <div class="capital"></div><div class="shaft" style="height:132px"></div>
+        </div>
+        <div class="pcol">
+          <div class="crest" style="background:#004c9b">TMU<span class="medal bronze">3</span></div>
+          <div class="nm">TMU</div><div class="xp">1.51M <span>XP</span></div>
+          <div class="capital"></div><div class="shaft" style="height:78px"></div>
+        </div>
+      </div>
+      <div class="baseslab"></div>
+
+      <div class="listwrap">
+        <div class="lrow"><span class="rk">4</span><span class="screst" style="background:#002A5C">UofT</span><span class="ln">Toronto</span><span class="lx">1.44M</span></div>
+        <div class="lrow"><span class="rk">5</span><span class="screst" style="background:#7A003C">Mac</span><span class="ln">McMaster</span><span class="lx">1.20M</span></div>
+        <div class="lrow"><span class="rk">6</span><span class="screst" style="background:#9D1939">Q</span><span class="ln">Queen's</span><span class="lx">1.08M</span></div>
+        <div class="lrow"><span class="rk">7</span><span class="screst" style="background:#4F2683">W</span><span class="ln">Western</span><span class="lx">960K</span></div>
+      </div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">Collective board (Vs. unis).</b> Same Parthenon format, but each pillar is a <b>whole university</b> (crest + total XP) — <b style="color:#FC7A3F">your school highlighted</b>. This is the 4th view working: <b>Global</b> ranks individuals worldwide; <b>Vs. unis</b> ranks schools collectively — identical layout, different competitor.</div>
+  </div>
+
+  <!-- ============ FRAME C: search ============ -->
+  <div class="col2">
+    <div class="phone"><div class="stage">
+      <div class="hdrow"><span class="hd">Leaderboard</span><button class="searchbtn" aria-label="Close search"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+      <div class="searchbar"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4-4"/></svg><span class="q">maya</span><span class="cur"></span></div>
+
+      <div class="slabel">Results</div>
+      <div class="sresult">
+        <span class="sav">M</span>
+        <div class="sinfo"><div class="n1">Maya R<span class="ftag">Friend</span></div><div class="n2">@mayar · My uni</div></div>
+        <span class="rhex" style="background:#F5C542;color:#4A3406">III</span>
+        <div class="srank"><div class="rr">#3</div><div class="rx">3,760 XP</div></div>
+      </div>
+      <div class="sresult">
+        <span class="sav">A</span>
+        <div class="sinfo"><div class="n1">Amaya P</div><div class="n2">@amaya · My uni</div></div>
+        <span class="rhex" style="background:#B87333;color:#3A2410">I</span>
+        <div class="srank"><div class="rr">#212</div><div class="rx">410 XP</div></div>
+      </div>
+      <div class="sresult">
+        <span class="sav">M</span>
+        <div class="sinfo"><div class="n1">Mayer K</div><div class="n2">@mayerk · Global</div></div>
+        <span class="rhex" style="background:#B87333;color:#3A2410">III</span>
+        <div class="srank"><div class="rr">#2,481</div><div class="rx">640 XP</div></div>
+      </div>
+    </div></div>
+    <div class="cap"><b style="color:#a99cbd">Search (magnifier, top-right of the header).</b> Find anyone by <b>name or @username</b>; each result shows their <b>rank hexagon</b>, live position, XP, and board. <b style="color:#3DA85C">Friends</b> tagged. <b>Tap any row (or pillar) → their profile</b> (mock 43).</div>
+  </div>
+
+</div>

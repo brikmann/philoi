@@ -13,7 +13,11 @@ type FriendPingSheetProps = {
   /** Present only while locked in — the goal they're locked into, for the status line. */
   goalLabel: string | null;
   onPrimary: () => void;
+  /** An accepted/active H2H already exists with this friend (punchlist 2, §5) — the H2H row
+   * becomes "View challenge" instead of offering to start a second one. */
+  activeH2H: boolean;
   onChallengeH2H: () => void;
+  onViewChallenge: () => void;
   onChallengeGroup: () => void;
 };
 
@@ -21,7 +25,18 @@ type FriendPingSheetProps = {
 // options sheet (mock 19): a header for the tapped friend + up to three actions. The primary
 // action is state-dependent (join their live session vs. nudge them to start one); the two
 // challenge rows deep-link into the challenge creator with this friend pre-selected.
-export function FriendPingSheet({ visible, onClose, friend, lockedIn, goalLabel, onPrimary, onChallengeH2H, onChallengeGroup }: FriendPingSheetProps) {
+export function FriendPingSheet({
+  visible,
+  onClose,
+  friend,
+  lockedIn,
+  goalLabel,
+  onPrimary,
+  activeH2H,
+  onChallengeH2H,
+  onViewChallenge,
+  onChallengeGroup,
+}: FriendPingSheetProps) {
   // Locked-in status uses the live goal; otherwise the shared rank + streak/cold line.
   const status = friend ? friendStatusLine(friend, lockedIn ? (goalLabel ?? 'a session') : null) : '';
 
@@ -55,13 +70,13 @@ export function FriendPingSheet({ visible, onClose, friend, lockedIn, goalLabel,
             <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
           </Pressable>
 
-          <Pressable style={styles.act} onPress={onChallengeH2H}>
+          <Pressable style={styles.act} onPress={activeH2H ? onViewChallenge : onChallengeH2H}>
             <View style={[styles.actIcon, styles.iSword]}>
-              <MaterialCommunityIcons name="sword-cross" size={18} color={Colors.ember} />
+              <MaterialCommunityIcons name={activeH2H ? 'sword' : 'sword-cross'} size={18} color={Colors.ember} />
             </View>
             <View style={styles.actText}>
-              <Text style={styles.actTitle}>Challenge — head to head</Text>
-              <Text style={styles.actSub}>Race for XP or lock-in time</Text>
+              <Text style={styles.actTitle}>{activeH2H ? 'View challenge' : 'Challenge — head to head'}</Text>
+              <Text style={styles.actSub}>{activeH2H ? "You're already racing them — see live standings" : 'Race for XP or lock-in time'}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
           </Pressable>

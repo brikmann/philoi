@@ -5,17 +5,20 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
+import { GymClipThumbnail } from '@/components/gym-clip-player';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { TextInput } from '@/components/ui/text-input';
+import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { saveWorkoutAsRoutine } from '@/lib/api/gym';
-import { postCheckInToCircle } from '@/lib/api/lock-ins';
+import { fetchCheckInClips } from '@/lib/api/gym-clips';
+import { postCheckInToCircle, setCheckInCaption } from '@/lib/api/lock-ins';
 import { getErrorMessage } from '@/lib/errors';
 import { formatDurationClock } from '@/lib/format';
 import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
 import { formatRankTier, xpProgressRatio } from '@/lib/rank-tiers';
 import { fireConfirm, fireXpTick } from '@/lib/reward-feedback';
-import type { GoalType, MyRank, WorkoutRecap } from '@/types/database';
+import type { GoalType, MyRank, WorkoutRecap, WorkoutSet } from '@/types/database';
 
 type LockInDoneScreenProps = {
   goalType: GoalType;
@@ -78,9 +81,22 @@ export function LockInDoneScreen({
   // moment the user knows exactly what the routine is.
   const [routineName, setRoutineName] = useState('');
   const [savingRoutine, setSavingRoutine] = useState(false);
+  const [caption, setCaption] = useState('');
   const [routineSaved, setRoutineSaved] = useState(false);
   const [namingRoutine, setNamingRoutine] = useState(false);
+  // Phase-2 video clips (§23) — additive to the recap above, which only has per-exercise
+  // rollups (no individual set ids), so clips need their own fetch, keyed by this same checkInId.
+  const [clips, setClips] = useState<WorkoutSet[]>([]);
   const fillRatio = useSharedValue(rankBefore ? xpProgressRatio(rankBefore.xp_into_tier, rankBefore.xp_for_next_tier) : 0);
+
+  useEffect(() => {
+    if (!GYM_VIDEO_CLIPS_ENABLED || !workoutRecap) return;
+    fetchCheckInClips(checkInId)
+      .then(setClips)
+      .catch(() => {
+        // Clips are a bonus recap row, not core data — a failed fetch just hides it.
+      });
+  }, [checkInId, workoutRecap]);
 
   useEffect(() => {
     if (!rankBefore || !rankAfter) return;
@@ -137,23 +153,46 @@ export function LockInDoneScreen({
     }
   }
 
+  // The caption belongs to the lock-in, not to the act of posting — so it's saved on BOTH exits.
+  // A private lock-in with a caption is a journal note to yourself, and it's already visible in
+  // your own history; silently dropping what someone typed because they chose "keep private"
+  // would be the surprising behaviour.
+  async function saveCaption() {
+    const trimmed = caption.trim();
+    if (!trimmed) return;
+    await setCheckInCaption(checkInId, trimmed);
+  }
+
   async function handlePost() {
-    // A solo session has no campfire to post to — nothing to write, just finish (same
-    // outcome as "Keep this one private" would give it).
-    if (!circleId) {
-      onDone();
-      return;
-    }
     setPosting(true);
     setError(null);
     try {
-      await postCheckInToCircle(checkInId, circleId);
-      fireConfirm();
+      await saveCaption();
+      // A solo session has no campfire to post to — the caption still saves above, then it just
+      // finishes (same outcome as "Keep this one private" would give it).
+      if (circleId) {
+        await postCheckInToCircle(checkInId, circleId);
+        fireConfirm();
+      }
       onDone();
     } catch (e) {
       setError(getErrorMessage(e, 'Could not post to the campfire — try again.'));
     } finally {
       setPosting(false);
+    }
+  }
+
+  async function handleKeepPrivate() {
+    setPosting(true);
+    try {
+      await saveCaption();
+    } catch {
+      // Deliberately not surfaced or blocking: the user asked to be done, and the lock-in itself
+      // (time, XP, streak, photos) is already safely recorded. Losing only an unsaved caption is
+      // a far better outcome than trapping them on this screen behind a retry.
+    } finally {
+      setPosting(false);
+      onDone();
     }
   }
 
@@ -256,6 +295,17 @@ export function LockInDoneScreen({
               </View>
             )}
 
+            {clips.length > 0 && (
+              <>
+                <Text style={styles.photosLabel}>Clips from this session</Text>
+                <View style={styles.photosRow}>
+                  {clips.map((c) => (
+                    <GymClipThumbnail key={c.id} workoutSetId={c.id} size={72} />
+                  ))}
+                </View>
+              </>
+            )}
+
             {canSaveRoutine &&
               (namingRoutine ? (
                 <View style={styles.routineSaveRow}>
@@ -292,6 +342,15 @@ export function LockInDoneScreen({
           so these two controls always render regardless of solo vs. campfire (see
           handlePost: a solo session just finishes, since there's nothing to post to). */}
       <View style={styles.bottom}>
+        {/* Caption lives here now, not in the running session (§13 redesign) — you write it once
+            you know how the session actually went, right where you decide who sees it. */}
+        <TextInput
+          placeholder="Add a caption (optional)"
+          value={caption}
+          onChangeText={setCaption}
+          maxLength={140}
+          editable={!posting}
+        />
         <Text style={styles.postingLabel}>Posting to {circleName ?? 'your campfire'}</Text>
         <Pressable style={styles.postBtn} onPress={handlePost} disabled={posting}>
           {posting ? (
@@ -303,7 +362,7 @@ export function LockInDoneScreen({
             </>
           )}
         </Pressable>
-        <Pressable onPress={onDone} disabled={posting}>
+        <Pressable onPress={handleKeepPrivate} disabled={posting}>
           <Text style={styles.privateLink}>Keep this one private</Text>
         </Pressable>
       </View>

@@ -128,23 +128,39 @@ export type MyRecentLockIn = {
   goal_detail: string | null;
   duration_seconds: number | null;
   signedPhotoUrl: string | null;
+  // Synced-activity cross-integration (§17b) — a home-diary entry from a device source gets the
+  // Strava-badged, orange-hued treatment instead of the plain journal row. Optional: only
+  // fetchMyRecentLockIns (the home diary) populates these; the profile photo-grid RPC doesn't
+  // need them for its own scope.
+  source?: CheckIn['source'];
+  external_id?: string | null;
+  distance_m?: number | null;
+  /** Only populated by fetchMyLockInsPage — the full-history screen (punchlist 4C) dates each
+   * row, which a six-item "recent" strip never needed. */
+  created_at?: string;
 };
 
 // Profile screen's "recent lock-ins" grid (design-mocks/15) — the caller's own completed
 // sessions only, newest first. photo_url is the legacy single-photo column, still populated
 // with the first gallery photo for every lock-in row (see check_in_photos' own comment), so a
 // one-photo-per-card grid doesn't need to join the gallery table at all.
-export async function fetchMyRecentLockIns(userId: string, limit = 6): Promise<MyRecentLockIn[]> {
+/** One page of the caller's own lock-in history, newest first (punchlist 4C — Profile is the
+ * single home for lock-in data now that Home's journal is gone, so it needs to page through
+ * ALL of them, not just the most recent handful). `offset` pages via PostgREST's range header. */
+export async function fetchMyLockInsPage(
+  userId: string,
+  { limit = 30, offset = 0 }: { limit?: number; offset?: number } = {}
+): Promise<MyRecentLockIn[]> {
   const { data, error } = await supabase
     .from('check_ins')
-    .select('id, goal_type, goal_detail, duration_seconds, photo_url')
+    .select('id, goal_type, goal_detail, duration_seconds, photo_url, source, external_id, distance_m, created_at')
     .eq('user_id', userId)
     // `> 0`, not merely `is not null` — a 0-duration phantom (a start with no real elapsed time)
     // otherwise slips through as a "0m" recent. Purge it here so the journal only shows real sessions.
     .gt('duration_seconds', 0)
     .is('removed_at', null)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
   if (error) throw error;
 
   const rows = data ?? [];
@@ -158,7 +174,15 @@ export async function fetchMyRecentLockIns(userId: string, limit = 6): Promise<M
     goal_detail: row.goal_detail,
     duration_seconds: row.duration_seconds,
     signedPhotoUrl: row.photo_url ? (urlByPath.get(row.photo_url) ?? null) : null,
+    source: row.source,
+    external_id: row.external_id,
+    distance_m: row.distance_m,
+    created_at: row.created_at,
   }));
+}
+
+export async function fetchMyRecentLockIns(userId: string, limit = 6): Promise<MyRecentLockIn[]> {
+  return fetchMyLockInsPage(userId, { limit, offset: 0 });
 }
 
 // Same grid, for viewing someone ELSE's profile (design-mocks/15, PHILOI_UI_SPEC.md §19) —
@@ -200,6 +224,63 @@ export async function fetchMyTodayLockInCount(userId: string, localStartOfDayIso
     .gte('created_at', localStartOfDayIso);
   if (error) throw error;
   return count ?? 0;
+}
+
+export type LockInDetail = {
+  id: string;
+  goal_type: CheckIn['goal_type'];
+  goal_detail: string | null;
+  duration_seconds: number | null;
+  xp_earned: number;
+  created_at: string;
+  signedPhotoUrls: string[];
+  circleName: string | null;
+  circleEmoji: string | null;
+  /** Gym lock-ins only (§23) — same rolled-up-lifts shape the feed card uses, for "top set"/PRs. */
+  workoutSets: Required<WorkoutSetEntry>[];
+};
+
+// design-mocks/54a — the tappable detail behind a recent lock-in on Home: full stats, photos,
+// which campfire it posted to, and (for gym) the top set/PRs. Distinct from
+// activity/[checkInId] (device-synced route/splits/map) — this covers every lock-in, manual or
+// synced, and is the surface the story-share card (54b) shares from.
+export async function fetchLockInDetail(checkInId: string): Promise<LockInDetail | null> {
+  const { data: row, error } = await supabase
+    .from('check_ins')
+    .select('id, goal_type, goal_detail, duration_seconds, xp_earned, created_at, photo_url, circle_id')
+    .eq('id', checkInId)
+    .is('removed_at', null)
+    .maybeSingle();
+  if (error) throw error;
+  if (!row) return null;
+
+  const [{ data: galleryRows }, { data: circle }, { data: setRows }] = await Promise.all([
+    supabase.from('check_in_photos').select('photo_url').eq('check_in_id', checkInId).order('position'),
+    row.circle_id
+      ? supabase.from('groups').select('name, emoji').eq('id', row.circle_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    row.goal_type === 'gym'
+      ? supabase.from('check_in_workout_sets').select('exercise, sets, reps, weight, is_pr').eq('check_in_id', checkInId).order('position')
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const galleryPaths = (galleryRows ?? []).map((g) => g.photo_url);
+  const paths = galleryPaths.length > 0 ? galleryPaths : row.photo_url ? [row.photo_url] : [];
+  const { data: signed } = paths.length > 0 ? await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(paths, 60 * 60) : { data: null };
+  const signedPhotoUrls = (signed ?? []).map((s) => s.signedUrl).filter((u): u is string => Boolean(u));
+
+  return {
+    id: row.id,
+    goal_type: row.goal_type,
+    goal_detail: row.goal_detail,
+    duration_seconds: row.duration_seconds,
+    xp_earned: row.xp_earned,
+    created_at: row.created_at,
+    signedPhotoUrls,
+    circleName: circle?.name ?? null,
+    circleEmoji: circle?.emoji ?? null,
+    workoutSets: (setRows ?? []).map((s) => ({ exercise: s.exercise, sets: s.sets, reps: s.reps, weight: s.weight ?? null, is_pr: s.is_pr ?? false })),
+  };
 }
 
 // The per-goal photo check-in path (postCheckIn) was retired with the core lock-in loop

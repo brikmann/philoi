@@ -101,6 +101,14 @@ export async function stopLockInSession(input: {
 // "Post to the campfire" on the done screen (PHILOI_UI_SPEC.md §13) — the lock-in event isn't
 // posted to any circle until this is explicitly called; "Keep this one private" just never
 // calls it.
+/** The lock-in's caption, written from the done screen (§13 redesign — the running session no
+ * longer has a caption field). RPC-gated because check_ins has no UPDATE policy: a direct client
+ * update returns success with the row unchanged, so this would fail silently otherwise. */
+export async function setCheckInCaption(checkInId: string, caption: string): Promise<void> {
+  const { error } = await supabase.rpc('set_my_check_in_caption', { p_check_in_id: checkInId, p_caption: caption });
+  if (error) throw error;
+}
+
 export async function postCheckInToCircle(checkInId: string, circleId: string): Promise<void> {
   const { error } = await supabase.rpc('post_check_in_to_circle', {
     p_check_in_id: checkInId,

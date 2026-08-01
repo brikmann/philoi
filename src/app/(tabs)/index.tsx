@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
 import { CampfireFlameStage, heatToFlameState, type CampfireFlameState } from '@/components/campfire-flame-stage';
 import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
@@ -33,15 +33,13 @@ import { useDailyFire } from '@/hooks/use-daily-fire';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { useTodayLockInCount } from '@/hooks/use-today-lockin-count';
 import { useActiveSession } from '@/lib/active-session-context';
-import { fetchMyRecentLockIns, type MyRecentLockIn } from '@/lib/api/check-ins';
 import { fetchMyRanks } from '@/lib/api/goals';
 import { fetchDiscoverableGroups, type MyGroup } from '@/lib/api/groups';
+import { fetchActiveChallengeMarker } from '@/lib/api/leaderboard-social';
 import { useAuth } from '@/lib/auth/auth-context';
-import { formatSessionDuration } from '@/lib/format';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
 import { pickGreeting } from '@/lib/greeting';
 import { formatRankTier, formatXpProgressCompact, xpProgressRatio } from '@/lib/rank-tiers';
-import type { DiscoverableGroup, MyRank } from '@/types/database';
+import type { ActiveChallengeMarker, DiscoverableGroup, MyRank } from '@/types/database';
 
 // Both hero-row bars share these exact dimensions so the fire (today) and rank (forever)
 // columns read as a matched pair (design-mocks/30 option B) — position alone carries the
@@ -88,9 +86,18 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
   const { session: activeSession } = useActiveSession();
   const todayCount = useTodayLockInCount();
   const { dailyFire, error: dailyFireError } = useDailyFire();
-  const [recentLockIns, setRecentLockIns] = useState<MyRecentLockIn[]>([]);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [myMarker, setMyMarker] = useState<ActiveChallengeMarker | null>(null);
   const streak = profile?.current_streak ?? 0;
+
+  useEffect(() => {
+    if (!session) return;
+    fetchActiveChallengeMarker(session.user.id)
+      .then(setMyMarker)
+      .catch(() => {
+        // The marker is contextual flavor here, not core data — a failed fetch just hides it.
+      });
+  }, [session]);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
@@ -122,17 +129,6 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
     return line;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately excludes `name`/previousGreetingRef so a display-name change alone doesn't reroll the line
   }, [activeSession, todayCount]);
-
-  useEffect(() => {
-    if (!session) return;
-    // A generous limit (not just 3) — this section now claims the freed vertical space below
-    // the CTA (see styles.journal), so it needs enough real content to actually fill it.
-    fetchMyRecentLockIns(session.user.id, 12)
-      .then(setRecentLockIns)
-      .catch(() => {
-        // The journal is a nice-to-have recap here, not core data — a failed fetch just hides it.
-      });
-  }, [session]);
 
   return (
     <View style={styles.page}>
@@ -175,7 +171,9 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
         </View>
 
         <View style={styles.heroCenter}>
-          <CampfireFlameStage state={flameState} size={80} />
+          {/* Enlarged from 80 (punchlist 4B) — with the recent-lock-ins journal gone, the fire
+              is the hero of this screen and gets the freed space rather than floating small. */}
+          <CampfireFlameStage state={flameState} size={120} />
           {activeSession?.circleId && session ? (
             <LockedInBodyDoublesLine circleId={activeSession.circleId} excludeUserId={session.user.id} />
           ) : !activeSession ? (
@@ -208,37 +206,24 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
         </View>
       </View>
 
+      {/* Your own active-challenge marker (PHILOI_UI_SPEC.md §16, mock 37: "you see your own on
+          Your fire") — no Watch CTA here, can_watch is always false for your own marker since
+          you can't spectate yourself. */}
+      {myMarker && (
+        <View style={styles.markerRow}>
+          <ActiveChallengeMarkerChip marker={myMarker} />
+        </View>
+      )}
+
       <PrimaryButton
         label={activeSession ? 'Return to your lock-in' : 'Lock in'}
         onPress={activeSession ? () => router.push('/lock-in') : onLockIn}
       />
 
-      {/* flex:1 (see styles.journal) — this claims all the space the hero row + CTA didn't use,
-          so the screen reads top -> Lock in -> recents filling downward with no dead gap. */}
-      <View style={styles.journal}>
-        <Text style={styles.journalLbl}>Your recent lock-ins</Text>
-        {recentLockIns.length > 0 ? (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.journalScroll}>
-            {recentLockIns.map((r) => (
-              <View key={r.id} style={styles.journalRow}>
-                <View style={styles.journalIcon}>
-                  <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={16} color={Colors.amber} />
-                </View>
-                <Text style={styles.journalText}>
-                  {GOAL_TYPE_META[r.goal_type].label}
-                  {r.goal_detail ? <Text style={styles.journalDetail}> · {r.goal_detail}</Text> : null}
-                </Text>
-                <Text style={styles.journalDur}>{formatSessionDuration(r.duration_seconds ?? 0)}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.journalEmpty}>
-            <Ionicons name="flame-outline" size={22} color={Colors.textTertiary} />
-            <Text style={styles.journalEmptyText}>No lock-ins yet — start your first one above.</Text>
-          </View>
-        )}
-      </View>
+      {/* Open room below the CTA. The "Your recent lock-ins" journal used to fill this — lock-in
+          data now lives ONLY on Profile (punchlist 4B), so the fire is the hero with breathing
+          space under it. This is the space the season graphic (mock 69) will fill. */}
+      <View style={styles.heroSpacer} />
       </View>
     </View>
   );
@@ -655,6 +640,11 @@ const styles = StyleSheet.create({
     // reading cramped right against the Lock in button (Dispatch review).
     marginBottom: Spacing.four,
   },
+  markerRow: {
+    alignItems: 'center',
+    marginTop: -Spacing.two,
+    marginBottom: Spacing.three,
+  },
   heroCol: {
     width: 84,
     alignItems: 'center',
@@ -674,14 +664,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
+  // Fixed lineHeight (not just fontSize) so this slot is exactly as tall as the size=16
+  // checkmark icon it swaps with when today's fire completes — otherwise the fire column's
+  // rhythm shifts vs. the rank column's (which always renders this same Text), reading as
+  // "the two bars are misaligned" (Punchlist 3 §5).
   heroXp: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
+    lineHeight: 16,
     color: Colors.ember,
   },
   heroErrorXp: {
     fontFamily: Fonts.body,
     fontSize: 12,
+    lineHeight: 16,
     color: Colors.textTertiary,
   },
   // Shared style for both "Today's fire" and the rank name (e.g. "Bronze I") — same size/weight
@@ -714,67 +710,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.ember,
   },
-  // flex:1 so this claims whatever vertical space the hero row + CTA didn't use — "recents
-  // fills the freed bottom third" now that the old stacked bars no longer eat that space.
-  journal: {
+  // Claims whatever vertical space the hero row + CTA did not use, so the fire reads as the
+  // hero with open room beneath it. Replaced the recent-lock-ins journal (punchlist 4B); this
+  // is the area the season graphic (mock 69) will occupy.
+  heroSpacer: {
     flex: 1,
-    marginTop: 15,
-  },
-  journalLbl: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
-    marginBottom: 6,
-  },
-  journalScroll: {
-    gap: Spacing.one,
-    paddingBottom: Spacing.four,
-  },
-  journalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    borderRadius: Radius.card,
-    backgroundColor: Colors.card,
-  },
-  journalIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: Colors.achieverBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  journalText: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.ink,
-  },
-  journalDetail: {
-    fontSize: 11,
-    color: Colors.muted,
-  },
-  journalDur: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12.5,
-    color: Colors.ember,
-  },
-  journalEmpty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-    paddingBottom: Spacing.six,
-  },
-  journalEmptyText: {
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.six,
   },
   // ── valley ──
   // Was Colors.twilight900 (a deliberate darker "twilight-valley" look from earlier in this

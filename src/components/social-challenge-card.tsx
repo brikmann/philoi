@@ -1,20 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { Avatar } from '@/components/ui/avatar';
-import { respondToH2HChallenge } from '@/lib/api/social-challenges';
+import { cancelSocialChallenge, respondToH2HChallenge } from '@/lib/api/social-challenges';
 import { getErrorMessage } from '@/lib/errors';
+import { formatSessionDuration, formatTimeLeft } from '@/lib/format';
 import type { SocialChallenge } from '@/types/database';
-
-function formatTimeLeft(endsAt: string | null): string {
-  if (!endsAt) return '';
-  const ms = new Date(endsAt).getTime() - Date.now();
-  if (ms <= 0) return 'ending soon';
-  const hours = Math.ceil(ms / (60 * 60 * 1000));
-  if (hours < 24) return `${hours}h left`;
-  return `${Math.ceil(hours / 24)}d left`;
-}
 
 type SocialChallengeCardProps = {
   challenge: SocialChallenge;
@@ -23,9 +16,20 @@ type SocialChallengeCardProps = {
 };
 
 export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: SocialChallengeCardProps) {
+  const router = useRouter();
   const isInvite = c.mode === 'h2h' && c.status === 'pending' && c.opponent_id === myUserId;
+  const isOutgoingPending = c.mode === 'h2h' && c.status === 'pending' && c.created_by === myUserId;
   const isMine = c.created_by === myUserId;
+  const otherId = isMine ? c.opponent_id : c.created_by;
   const otherName = isMine ? (c.opponent_name ?? 'them') : c.created_by_name;
+
+  function handleRematch() {
+    if (!otherId) return;
+    router.push({
+      pathname: '/challenge/create',
+      params: { opponentId: otherId, opponentName: otherName ?? 'them', mode: 'h2h' },
+    });
+  }
 
   async function handleRespond(accept: boolean) {
     try {
@@ -36,6 +40,48 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
     }
   }
 
+  function handleCancel(confirmLabel: string, confirmMessage: string) {
+    Alert.alert(confirmLabel, confirmMessage, [
+      { text: 'Never mind', style: 'cancel' },
+      {
+        text: confirmLabel,
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await cancelSocialChallenge(c.id);
+            onChanged();
+          } catch (e) {
+            Alert.alert('Something went wrong', getErrorMessage(e, 'Could not cancel this challenge.'));
+          }
+        },
+      },
+    ]);
+  }
+
+  const isTimeMetric = c.race_metric === 'lockin_time';
+  const fmtScore = (n: number) => (isTimeMetric ? formatSessionDuration(Math.round(n)) : `${Math.round(n)} XP`);
+  const metricLabel = isTimeMetric ? 'Most lock-in time' : 'Most XP';
+
+  // ── Outgoing invite you sent, still unanswered ──────────────────────────────
+  if (isOutgoingPending) {
+    return (
+      <View style={[styles.card, styles.cardPending]}>
+        <View style={styles.labelRow}>
+          <View style={styles.labelLeft}>
+            <Ionicons name="flash" size={12} color={Colors.achieverText} />
+            <Text style={styles.labelText}>Head-to-head</Text>
+          </View>
+          <Text style={styles.clock}>waiting for a response</Text>
+        </View>
+        <Text style={styles.title}>Challenged {otherName ?? 'them'} · {metricLabel}</Text>
+        <Pressable style={styles.cancelLink} onPress={() => handleCancel('Cancel challenge', `Cancel your challenge to ${otherName ?? 'them'}?`)}>
+          <Text style={styles.cancelLinkText}>Cancel</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // ── Incoming invite (accept / decline) ─────────────────────────────────────
   if (isInvite) {
     return (
       <View style={[styles.card, styles.cardInvite]}>
@@ -46,9 +92,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
           </View>
           <Text style={styles.clock}>{c.created_by_name} challenged you</Text>
         </View>
-        <Text style={styles.title}>
-          {c.race_metric === 'lockin_time' ? 'Lock-in time race' : 'XP race'} · who earns more in {c.window_hours}h
-        </Text>
+        <Text style={styles.title}>{metricLabel} · who wins in {c.window_hours}h</Text>
         <View style={styles.footRow}>
           <Ionicons name="trophy" size={12} color={Colors.achieverText} />
           <Text style={styles.footText}>winner +{c.payout_xp} XP</Text>
@@ -65,60 +109,92 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
     );
   }
 
+  // ── H2H tug-of-war scoreboard (active / completed) — mock 44 ────────────────
   if (c.mode === 'h2h') {
     const myScore = c.my_score ?? 0;
     const oppScore = c.opponent_score ?? 0;
     const total = myScore + oppScore;
-    const myShare = total > 0 ? myScore / total : 0.5;
+    const myPct = total > 0 ? Math.max(6, Math.min(94, (myScore / total) * 100)) : 50;
     const ahead = c.status === 'completed' ? c.winner_id === myUserId : myScore > oppScore;
     const tied = myScore === oppScore;
+    const leadAmt = Math.abs(myScore - oppScore);
+    const leadText =
+      total === 0
+        ? 'No lock-ins logged yet'
+        : tied
+          ? 'Neck and neck'
+          : `${ahead ? 'You lead' : `${otherName} leads`} by ${fmtScore(leadAmt)}`;
 
     return (
       <View style={styles.card}>
         <View style={styles.labelRow}>
           <View style={styles.labelLeft}>
             <Ionicons name="flash" size={12} color={Colors.achieverText} />
-            <Text style={styles.labelText}>Head-to-head</Text>
+            <Text style={styles.labelText}>{metricLabel}</Text>
           </View>
-          <Text style={styles.clock}>
-            {c.status === 'completed' ? 'finished' : formatTimeLeft(c.ends_at)}
-          </Text>
+          <View style={styles.labelLeft}>
+            {c.status === 'active' && <View style={styles.livePulse} />}
+            <Text style={styles.clock}>{c.status === 'completed' ? 'finished' : formatTimeLeft(c.ends_at)}</Text>
+          </View>
         </View>
-        <View style={styles.vsRow}>
-          <View style={styles.who}>
-            <Avatar label="You" size={30} lit />
-            <View>
-              <Text style={styles.whoName}>You</Text>
-              <Text style={styles.whoScore}>{Math.round(myScore)} {c.race_metric === 'lockin_time' ? 's' : 'XP'}</Text>
+
+        <View style={styles.matchRow}>
+          <View style={styles.matchSide}>
+            <View style={[styles.ring, styles.ringYou]}>
+              <Avatar label="You" size={40} lit />
             </View>
+            <Text style={styles.matchName} numberOfLines={1}>You</Text>
+            <Text style={[styles.matchScore, { color: Colors.coral }]}>{fmtScore(myScore)}</Text>
           </View>
-          <Text style={styles.vsText}>vs</Text>
-          <View style={[styles.who, styles.whoRight]}>
-            <View>
-              <Text style={[styles.whoName, styles.whoNameRight]}>{otherName}</Text>
-              <Text style={[styles.whoScore, styles.whoScoreRight]}>{Math.round(oppScore)} {c.race_metric === 'lockin_time' ? 's' : 'XP'}</Text>
+          <Text style={styles.vsText}>VS</Text>
+          <View style={styles.matchSide}>
+            <View style={[styles.ring, styles.ringOpp]}>
+              <Avatar label={otherName ?? '?'} size={40} textColor={Colors.sky} />
             </View>
-            <Avatar label={otherName ?? '?'} size={30} textColor={Colors.soloChipText} />
+            <Text style={styles.matchName} numberOfLines={1}>{otherName}</Text>
+            <Text style={[styles.matchScore, { color: Colors.sky }]}>{fmtScore(oppScore)}</Text>
           </View>
         </View>
-        <View style={styles.splitTrack}>
-          <View style={[styles.splitA, { width: `${myShare * 100}%` }]} />
-          <View style={[styles.splitB, { width: `${(1 - myShare) * 100}%` }]} />
+
+        <View style={styles.tugTrack}>
+          <View style={[styles.tugYou, { width: `${myPct}%` }]} />
+          <View style={styles.tugOpp} />
         </View>
+        <Text style={[styles.leadLabel, { color: tied || total === 0 ? Colors.muted : ahead ? Colors.amber : Colors.sky }]}>
+          {total > 0 && !tied ? '🔥 ' : ''}{leadText}
+        </Text>
+
         <View style={styles.footRow}>
           <Ionicons name="trophy" size={12} color={Colors.achieverText} />
-          <Text style={styles.footText}>
-            winner +{c.payout_xp} XP{total > 0 ? ` · ${tied ? "it's tied" : ahead ? "you're ahead" : `${otherName} is ahead`}` : ''}
-          </Text>
+          <Text style={styles.footText}>Winner +{c.payout_xp} XP</Text>
         </View>
+
+        {c.status === 'completed' && (
+          <View style={styles.resultRow}>
+            <Text style={[styles.resultText, tied ? styles.resultTied : ahead ? styles.resultWon : styles.resultLost]}>
+              {tied ? "It's a tie" : ahead ? `You won +${c.payout_xp} XP` : `${otherName} won`}
+            </Text>
+            <Pressable style={styles.rematchBtn} onPress={handleRematch}>
+              <Ionicons name="refresh" size={12} color={Colors.achieverText} />
+              <Text style={styles.rematchText}>Rematch</Text>
+            </Pressable>
+          </View>
+        )}
+        {c.status === 'active' && (
+          <Pressable style={styles.cancelLink} onPress={() => handleCancel('Leave challenge', `End this race with ${otherName ?? 'them'} early? Neither side gets the payout.`)}>
+            <Text style={styles.cancelLinkText}>Leave challenge</Text>
+          </Pressable>
+        )}
       </View>
     );
   }
 
-  // group — the only remaining mode besides h2h
+  // ── Group "all or nothing" completion — mock 45 language ────────────────────
   const memberCount = c.member_count ?? 0;
   const completedCount = c.completed_count ?? 0;
-  const dots = Array.from({ length: memberCount }, (_, i) => i < completedCount);
+  const segments = Array.from({ length: Math.max(memberCount, 1) }, (_, i) => i < completedCount);
+  const everyoneDone = memberCount > 0 && completedCount >= memberCount;
+
   return (
     <View style={styles.card}>
       <View style={styles.labelRow}>
@@ -126,21 +202,31 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
           <Ionicons name="people" size={12} color={Colors.achieverText} />
           <Text style={styles.labelText}>Group · all or nothing</Text>
         </View>
-        <Text style={styles.clock}>{c.status === 'completed' ? 'finished' : formatTimeLeft(c.ends_at)}</Text>
+        <View style={styles.labelLeft}>
+          {c.status === 'active' && <View style={styles.livePulse} />}
+          <Text style={styles.clock}>{c.status === 'completed' ? 'finished' : formatTimeLeft(c.ends_at)}</Text>
+        </View>
       </View>
-      <Text style={styles.title}>
-        Everyone locks in {c.target_count}× this {c.window_hours >= 168 ? 'week' : 'window'}
-      </Text>
-      <View style={styles.dotsRow}>
-        {dots.map((on, i) => (
-          <View key={i} style={[styles.dot, on && styles.dotOn]} />
+
+      <Text style={styles.title}>Everyone locks in {c.target_count}× this {c.window_hours >= 168 ? 'week' : 'window'}</Text>
+
+      <View style={styles.groupCountRow}>
+        <Text style={styles.groupCount}>
+          <Text style={[styles.groupCountBig, everyoneDone && { color: Colors.green }]}>{completedCount}</Text>
+          <Text style={styles.groupCountMuted}> / {memberCount} done</Text>
+        </Text>
+        {everyoneDone && <Text style={styles.groupDoneTag}>Everyone finished 🎉</Text>}
+      </View>
+
+      <View style={styles.segRow}>
+        {segments.map((on, i) => (
+          <View key={i} style={[styles.seg, on && styles.segOn]} />
         ))}
       </View>
+
       <View style={styles.footRow}>
         <Ionicons name="trophy" size={12} color={Colors.achieverText} />
-        <Text style={styles.footText}>
-          {completedCount} of {memberCount} done · up to +{c.payout_xp} XP each (more for top finishers) if everyone finishes
-        </Text>
+        <Text style={styles.footText}>Up to +{c.payout_xp} XP each — more for top finishers — if everyone finishes</Text>
       </View>
     </View>
   );
@@ -157,6 +243,18 @@ const styles = StyleSheet.create({
     borderColor: Colors.coral,
     backgroundColor: Colors.selectedBg,
   },
+  cardPending: {
+    opacity: 0.85,
+  },
+  cancelLink: {
+    marginTop: Spacing.two,
+    alignSelf: 'flex-start',
+  },
+  cancelLinkText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+    color: Colors.danger,
+  },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -166,7 +264,7 @@ const styles = StyleSheet.create({
   labelLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   labelText: {
     fontFamily: Fonts.bodySemiBold,
@@ -178,84 +276,165 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.muted,
   },
+  livePulse: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: Colors.coral,
+  },
   title: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13.5,
     color: Colors.ink,
     marginBottom: Spacing.two,
   },
-  vsRow: {
+  // ── H2H tug-of-war ──
+  matchRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginTop: Spacing.one,
+    marginBottom: Spacing.two,
+  },
+  matchSide: {
+    width: 96,
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: 4,
   },
-  who: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
+  ring: {
+    borderRadius: 999,
+    borderWidth: 2.5,
+    padding: 1,
   },
-  whoRight: {
-    flexDirection: 'row-reverse',
+  ringYou: {
+    borderColor: Colors.coral,
   },
-  whoName: {
+  ringOpp: {
+    borderColor: Colors.sky,
+  },
+  matchName: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 12.5,
     color: Colors.ink,
+    maxWidth: 92,
   },
-  whoNameRight: {
-    textAlign: 'right',
-  },
-  whoScore: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
-  },
-  whoScoreRight: {
-    textAlign: 'right',
+  matchScore: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 15,
+    fontVariant: ['tabular-nums'],
   },
   vsText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginTop: 22,
+  },
+  tugTrack: {
+    flexDirection: 'row',
+    height: 12,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.sky,
+    overflow: 'hidden',
+    marginTop: Spacing.one,
+  },
+  tugYou: {
+    backgroundColor: Colors.coral,
+    height: '100%',
+  },
+  tugOpp: {
+    flex: 1,
+  },
+  leadLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+    textAlign: 'center',
+    marginTop: 7,
+  },
+  // ── Group ──
+  groupCountRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  groupCount: {
+    fontFamily: Fonts.body,
+  },
+  groupCountBig: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 18,
+    color: Colors.ink,
+  },
+  groupCountMuted: {
+    fontFamily: Fonts.body,
+    fontSize: 12.5,
+    color: Colors.muted,
+  },
+  groupDoneTag: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.green,
   },
-  splitTrack: {
-    flexDirection: 'row',
-    height: 7,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.disabled,
-    overflow: 'hidden',
-    marginTop: Spacing.two,
-  },
-  splitA: {
-    backgroundColor: Colors.coral,
-  },
-  splitB: {
-    backgroundColor: Colors.trackAlt,
-  },
-  dotsRow: {
+  segRow: {
     flexDirection: 'row',
     gap: 5,
-    marginVertical: Spacing.two,
+    marginTop: 8,
   },
-  dot: {
+  seg: {
     flex: 1,
-    height: 6,
+    height: 8,
     borderRadius: Radius.pill,
     backgroundColor: Colors.disabled,
   },
-  dotOn: {
+  segOn: {
     backgroundColor: Colors.green,
   },
+  // ── shared footer / result ──
   footRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     marginTop: Spacing.two,
   },
   footText: {
+    flex: 1,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
+    color: Colors.achieverText,
+  },
+  resultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.two,
+    paddingTop: Spacing.two,
+    borderTopWidth: 1,
+    borderTopColor: Colors.line,
+  },
+  resultText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+  },
+  resultWon: {
+    color: Colors.green,
+  },
+  resultLost: {
+    color: Colors.muted,
+  },
+  resultTied: {
+    color: Colors.amber,
+  },
+  rematchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.achieverBg,
+    borderRadius: Radius.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  rematchText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
     color: Colors.achieverText,
   },
   actsRow: {
@@ -269,7 +448,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.input,
     paddingVertical: Spacing.two,
     alignItems: 'center',
-    marginTop: Spacing.two,
   },
   acceptLabel: {
     fontFamily: Fonts.bodySemiBold,

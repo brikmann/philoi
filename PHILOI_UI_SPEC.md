@@ -381,6 +381,8 @@ Your own fire — **no chat, no feed** (no one to talk to). A personal launchpad
 
 *Launches when you tap Start in the goal picker (§12). Full-screen, immersive focus mode.*
 
+> **Redesign (current reference): mocks `51-lockin-session.html` (base), `53-lockin-other-activities.html` (all non-gym), `52-gym-lockin-overlay.html` (gym).** The **fire + timer own the screen**; a centered header shows the **activity + what you're doing** over the campfire name; **no goal-tool symbol inside the flame** (looked cheap — removed), no filler copy. Compact "Locked in with you" body-double strip + small camera + quiet Stop at the bottom. **Every non-gym activity uses this exact screen** — only the header swaps. **Gym is the sole exception (§23):** the giant flame drops to a **dimmed background** and a translucent **workout log** (exercise cards, set rows, auto-PR, ⋯ replace/reorder) rides on top; the timer shrinks to a **header pill** + an **energy chip**, body-doubles collapse, and the CTA is **Finish workout**.
+
 - **Goal-as-fuel object:** the goal's tool burns *in* the flame — a **flaming dumbbell** (Gym), flaming pen (Study), flaming shoe (Run), flaming papers (Job apps), etc. Render the tool **bright (hot cream `#FFF3DC`), large, and legible** against the flame — swap per goal type. The fire may intensify the longer the session runs.
 - **Count-up timer (not a countdown):** tracks how long you've been locked in; big, centered. Time = effort → XP. (Optional target later; open-ended is the default.)
 - **Goal + detail chip** up top ("Gym · leg day") + the campfire name.
@@ -463,20 +465,48 @@ Ranking is always by an **individual's own XP**, so being in a big public campfi
 - **Primary sort = total XP.** Tiers tie (5,100 Silver II must sit above 5,000 Silver II), so XP is the true order; the **rank hexagon is a color badge only, never the sort key.**
 - **Streaks = a separate metric toggle** (days, flame icon) — swaps the whole list; never mixed into the XP list.
 
-### Leaderboard tab — scopes
-1. **Campfires** — every individual across all campfires you're in, pooled + deduped, ranked by XP. (Broad; may include strangers from large public campfires — that's fine.)
-2. **My university** — everyone at your school. Show **top 10 + your own row pinned** below a "···" gap so you're always findable even at #142.
-3. **Vs. universities** — schools ranked **per-capita** (avg XP per active student) so a small campus can beat a big one on merit, not headcount. Your school highlighted. No XP/Streaks toggle here (aggregate only).
+### Format — the Parthenon podium (mocks `42-parthenon-leaderboard.html`, empty state `41-empty-states-greek.html`)
+The board renders as ascending **Parthenon marble columns** (Greek theme). The **top 3 rise as a podium** — #1 tallest in the center — each column topped by the person's **avatar at its apex**, a **gold/silver/bronze position medal** (the metals match `RANK_TIER_METAL`), and **name + rank hexagon + value** beneath. Ranks **4–10 fill a clean list** below the podium. **Your own pillar/row always pins at the very bottom** with your true rank (e.g. #47) so you're findable even on a 4,000-person board.
+- **Two distinct rank signals, both shown:** the **position medal (1/2/3)** = today's standing on *this* board; the **rank hexagon** = your overall tier (Bronze→Infernal, `RANK_TIER_METAL` colours). Every individual row/pillar shows the hexagon.
+
+### Leaderboard tab — scopes (4 tabs)
+1. **Campfires** — every individual across all your campfires, pooled + deduped, ranked by XP.
+2. **My university** — everyone at your school (podium + list + your pinned pillar).
+3. **Vs. universities** — schools ranked **collectively**; each pillar is a whole university (brand-colour **crest + monogram** — official logos are trademarked and need licensing, so the colour-crest is the shipping default). Metric toggle: **Total XP / Avg per member** (per-capita so a small campus can win on merit). No individual rank hexagons here (tiers are an individual thing).
+4. **Global** — the best **individuals anywhere, period** (you vs. the world). Same podium format; your pillar pinned. *(Vs. unis = collective; Global = individual — they answer different questions.)*
+
+### Search (magnifier — header top-right, resting icon expands to a field, mock 42 frame C)
+Find anyone by **name or @username**. Each result shows their **rank hexagon, live position, XP, and which board**; **friends are tagged**. Tap a result (or any pillar/row) → **their profile** (§18, mock `43-friend-profile.html`).
+
+### Small-board + empty handling
+- **Fewer than 3 rankable people** (e.g. a 2-person campfire) → gracefully fall back (2 columns, or a plain list) — never a broken 3-column podium.
+- **No campfires yet** → the **burnt-out-campfire empty state** (mock 41: charred crossed logs, dying embers).
 
 ### Intra-campfire leaderboard
-Inside every campfire, a local board of just its members — same row style + the XP/Streaks toggle. This is the intimate, motivating one for small groups.
+Inside every campfire, a local board of just its members — same Parthenon format + the XP/Streaks toggle. The intimate, motivating one for small groups (uses the small-board fallback when tiny).
 
-### Row anatomy
-Position · avatar · name + tier label · mini rank-hexagon (tier color) · value (XP, or streak-days with flame). **Your row is always highlighted** (coral border/tint). Schools rows: position · crest · school name · campus value.
+**Your row/pillar is always highlighted** (coral border/tint) wherever it appears.
 
 ---
 
 ## 16. Challenges
+
+### Watch — live challenge spectator view (consent-gated)
+*Opened from a campfire's active-challenge marker (mock 37, scoped to that fire) or a friend's profile (mock 43, scoped to friends + their opt-in). You watch the **contest**, never the person.*
+- **What it shows, live:** the **matchup** (competitors' avatars + names), the **goal + time remaining**; a **live head-to-head scoreboard** — each side's current metric total + an "ahead by" bar — updating as people lock in / sync; **live status** ("🔥 locked in now · Gym · 12:34" or "last active 2h ago"); and a **Cheer** action (spectators send a reaction to a competitor, with a count). A **group** challenge shows a live **group leaderboard** instead of the 1v1 bar.
+- **Never shows:** the competitor's camera, private session content, or anything beyond the challenge numbers already shared. Watch the game, not the player.
+- **Access gate:** *campfire* Watch = any member of that fire; *profile* Watch = **friends only AND** the person's **"Let friends watch my live challenges"** opt-in (§19, default OFF) — otherwise the Watch CTA is hidden entirely.
+- **Realtime:** standings + live status push over a realtime subscription (Supabase) so it feels like watching, not refreshing.
+
+### Who can start a campfire challenge — admin governance
+*Friend-to-friend H2H is peer + consensual (they accept) and is **NEVER** gated — anyone can challenge a friend. This governs **group / campfire** challenges only.*
+- **Per-campfire setting "Who can start a challenge here":** **Everyone** · **Admins & co-admins only** · **Members can propose → admin approves.**
+- **Default scales with size + visibility** (not a manual chore): small / private fires default to **Everyone** (intimate, low troll risk); **large (≈25+ members) or public/discoverable** fires default to **Admins & co-admins only** — so a 40–50+ Laurier general gym fire can't be spammed with troll challenges that read as defeatist to less-motivated members. Owner can override in campfire settings (§19 / campfire options, mock 19).
+- **Roles:** owner + **co-admins** (owner promotes trusted members). Only these can start (or approve) when a fire is gated.
+- **Blocked state:** a non-permitted member's "Challenge this campfire" is disabled with *"Only admins can start challenges here"* — plus an optional **"Suggest a challenge"** that pings the admins (the propose→approve path), so keen members aren't fully silenced.
+- **Why:** a challenge from a respected admin carries authority — people know them, opt in, and follow through; random member-started challenges in a big fire mostly generate noise and pressure.
+- **Non-defeatist join model (pairs with this + the mock 46 "pick who's in" picker):** members a campfire challenge targets get an **invite (Join / Ignore), not forced entry** — nobody is auto-dropped into a competition they'll lose and feel bad about. The Watch leaderboard (mock 45) ranks whoever **joins**.
+
 
 *In for V1 (competitive users will make heavy use of it). H2H also doubles as a re-engagement / WOM lever — "I challenged you" is a reason to pull a friend in or wake a dormant one.*
 
@@ -544,6 +574,38 @@ When someone sets a fitness challenge/goal with a device metric (e.g. "10k steps
 ### Privacy
 Request **minimal scopes** — only the metric a challenge needs. Keep raw health data on-device where possible; the campfire only ever sees the **challenge-relevant number** ("8,200 / 10,000 steps"), never a full health export. Opt-in per source.
 
+### §17b — Auto lock-in from a synced activity (Strava → lock-in → campfire)
+*A device-verified workout becomes a lock-in automatically, and — opt-in — posts itself to a campfire. Reuses the existing sync + lock-in + campfire-post pipeline; NO new native code (server + JS, OTA-shippable).*
+
+**Flow:** a newly synced activity (Strava first; HealthKit / Health Connect later) → **dedup** → **create a lock-in** → **optionally auto-post** to a campfire the user opted in.
+
+**Which activities qualify (scope = runs/rides/workouts over a threshold):** only Run, Ride, and Workout/WeightTraining types **above a floor** (≈ **≥10 min moving time OR ≥1 km**) — the device-metric equivalent of the 30s manual lock-in floor (§13/Step 18); tiny or accidental activities are ignored. Map type → goal: Run→`run`, Ride→`run` (cardio), Workout/WeightTraining→`gym`.
+
+**Dedup (load-bearing):** every synced activity carries the source's activity ID. Store it on the lock-in with a **unique (user_id, source, external_id)** constraint so re-syncing the same activity can NEVER create a duplicate lock-in. This is the #1 correctness risk.
+
+**The lock-in it creates:** mapped goal type, **duration = the activity's moving time**, plus real distance/pace; `source = 'strava'` so it's badged **"via Strava."** Because it's **device-verified it's the strongest anti-cheese case** (Step 18) — it earns XP and counts toward the flame meter like any lock-in, but under the **same daily cap + diminishing returns**, so syncing many activities can't farm past the cap.
+
+**Auto-post = per-campfire opt-in (consent).** Posting to a campfire is publishing on the user's behalf, so it's gated behind an explicit **per-campfire toggle**: the user turns on **"Auto-post my synced workouts"** for a chosen campfire once. Then every qualifying synced activity auto-posts to that fire — the chat card shows **Run · 5.2 km · 26:30 · "via Strava."** Toggle **off (default)** → the lock-in is still created (private, in history), just **not posted**. Never auto-post to a campfire the user hasn't opted that fire into. (This also answers "which campfire" — whichever fires have the toggle on.)
+
+**Trigger = real-time Strava webhook.** Subscribe to Strava's webhook (push) API; Strava posts an event to a Supabase Edge Function endpoint the instant an activity is created/updated → process it immediately (fetch the activity, dedup, create the lock-in, auto-post if opted in). A **poll on app open** stays as a backfill safety net (catch anything the webhook missed) but the webhook is the primary path — the magic is a run appearing in your fire seconds after you stop it.
+
+### §17b cross-integration surfaces (design-mock `40-strava-cross-integration.html`)
+The synced activity is visibly, tappably "from Strava" everywhere it appears — Strava orange `#FC4C02` is the "your connected app did this" signal:
+- **Home diary (personal lock-ins):** the synced entry logs as its activity name + an **"Activity · Strava"** badge, on an **orange-hued card** (warm tint, `#FC4C02` border) with the Strava mark — sits alongside manual lock-ins so you see the connected app did it.
+- **Campfire post:** the whole card carries an **orange glow + the Strava logo**, shows the real stats (distance · time · pace) + any in-app photos, and a **"View on Strava"** action. Tapping the card/link **deep-links to the actual activity** — `strava://activities/{id}` with an `https://www.strava.com/activities/{id}` web fallback. A real two-way link, not a screenshot.
+- **Profile / activity detail:** tap a synced activity to revisit route, splits, and the **photos taken during that lock-in**, with a one-tap **"Open on Strava."**
+- **Photos scope note:** current scope is `activity:read` (stats + route, NOT Strava's own photos) — so the photos shown are the **in-app lock-in camera photos** (§12/§13), not pulled from Strava. Pulling Strava photos = broader scope + extra brand review; keep to in-app photos for v1.
+
+### §17b Strava brand compliance (HARD — [developers.strava.com/guidelines](https://developers.strava.com/guidelines/))
+Non-negotiable so the integration stays allowed:
+- **Official "Powered by Strava" logo, UNMODIFIED** — already bundled at **`assets/strava/powered-by/`** (horiz + stack, orange/white/black, PNG + SVG). Show it on the Connected Apps screen. On the twilight dark UI use the **orange or white** variant (never black). Never recreate/redraw it.
+- **Official "Connect with Strava" button** for the OAuth entry (not a custom button) — bundled at **`assets/strava/connect-button/`** (`btn_strava_connect_with_orange` / `_white`, `@1x` + `_x2`, PNG + SVG). The `_x2` PNG is 474×96.
+- **"View on Strava"** is the exact required wording for every link back to a source activity.
+- **Logo rules:** Strava's logo stays **separate from and less prominent than Philoi's own mark**, is **never** used as the app icon, and nothing may imply Strava built or sponsors Philoi. The orange hue/glow is fine (color isn't owned); the *logo* must be the official asset.
+- **Data handling** per Strava's API Agreement + API Policy (storage/caching limits, privacy, rules on how another user's data may appear); if an activity is Garmin-sourced, add Garmin attribution too. Higher rate limits need a review submission (use case + screenshots) — do a line-by-line policy audit first.
+
+**Data (Code):** `lock_ins` gains `source` (`'manual'|'strava'|'healthkit'|'health_connect'`), `external_id` (text, nullable — the Strava activity id, for dedup + the deep link), `distance_m`; a per-user-per-campfire `auto_post_synced` flag (on `group_members` or a small settings table). Add the unique index `(user_id, source, external_id)`. Store the Strava webhook subscription + a per-connection sync cursor.
+
 ---
 
 ## 18. Profile
@@ -554,6 +616,8 @@ Request **minimal scopes** — only the metric a challenge needs. Keep raw healt
 - **Goals:** chips of the goal types you're working on.
 - **Lock-in photo grid ("Lock-ins · {n}"):** every lock-in photo you've taken, each with its goal icon + duration overlay — the visible proof of the grind / nostalgia journal.
 - **Own vs. others':** your own profile shows the gear + edit affordances; someone else's respects their **photo-privacy** setting (§19) — the grid only shows if they've allowed it.
+- **Viewing someone else's profile (mock `43-friend-profile.html`):** reached by tapping any name on the **leaderboard / search** (§15) or a friend row. NO redundant top-bar title (the name lives in the hero with the **Friend** tag if applicable). Shows their rank hexagon + XP-to-next, streak/lock-ins/hours, goals, and photo grid (privacy-gated). Header actions: **Add friend / Friends ✓** (per the §16 friend state machine) + **Challenge** (friend-to-friend H2H). The ⋯ menu holds **report / block**.
+- **Watch a friend's live challenge (consent-gated):** if the person has an active challenge, a **Watch** CTA appears on that chip — but **only when BOTH (a) you are friends AND (b) they've opted in** to being watched (a "Let friends watch my live challenges" toggle in §19, default OFF). Otherwise the Watch CTA is hidden entirely — never let anyone spectate a stranger, and never without the person's own opt-in. (Same Watch affordance as the in-campfire active-challenge marker, mock 37 — but campfire Watch is scoped to that fire; profile Watch is scoped to friends + consent.)
 - **Rank is always in the app header too:** a mini hexagon + XP rides in the top bar on every screen (tap → this profile), so your rank is one glance away — **distinct from the campfire level** (the group's shared fire at the bottom of the campfire screen).
 
 ## 19. Settings

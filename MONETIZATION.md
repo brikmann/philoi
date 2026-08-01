@@ -1,13 +1,16 @@
 # Philoi — Monetization
 
-## Tiers — Free · Ignite · Blaze
-The membership scales with **fire intensity** (a spark grows into a blaze): **Free → Ignite → Blaze.** Ignite and Blaze are the two paid tiers. Upsell copy stays on-theme: *"Light it up," "You're on Fire."*
+> ⚠️ **MODEL CHANGED — no MONTHLY tiers.** The old **Free · Ignite · Blaze monthly subscription is dropped.** Philoi now has exactly **two paid surfaces**: (1) the **Forge Pass** — a **~$8.99/season SEASONAL SUBSCRIPTION** that **auto-renews each season** (cancel anytime), unlocking that season's premium reward track (see **FORGE_PASS.md**); and (2) **ember packs** — buy embers for the shop (boxes + direct-buy cosmetics). Recurring revenue is per-SEASON, not per-month. Sections below that still describe "Ignite/Blaze/monthly/Philoi Fire tier" are **superseded by this banner** and the two sections marked ✅ below; treat the rest as historical rationale until swept.
 
-- **Free** — the entire core loop (lock-ins, campfires, chat, ranks, flame meter, challenges) + a taste of cosmetics. No Forge Pass, minimal/no ember earning.
-- **Ignite** (entry paid, ~$3–4/mo) — flame skins + banners + frames, the **Forge Pass (standard track)**, an ember flow, 1080p clips, more routines/campfires, the persistent "on Fire" ember-glow.
-- **Blaze** (premium, ~$6–8/mo) — everything in Ignite **plus** the **Forge Pass premium track** (more/better rewards), **Blaze-exclusive** skins & badges, bigger ember rewards, the top video tier (60fps / longer clips), the most of everything. The flex tier.
+## The model — Forge Pass + ember store
+Two revenue streams, both cosmetic/convenience only (the one rule below still holds):
 
-> **Naming hygiene:** keep lowercase **"your fire"** for the solo campfire (home page 1); tier names are **Ignite / Blaze** (capitalized). ("Philoi Fire" may stay as the umbrella name for the paid membership, or be retired in favor of the tier names — TBD.)
+1. **Seasonal Forge Pass (~$8.99/season, auto-renewing subscription · cancel anytime)** — the core paid product and the recurring-revenue engine. Charged once per season; renews into each new season's Pass automatically unless cancelled. Free lane for everyone + a Premium lane unlocked by an active subscription. You climb with **Pass XP earned from achievements** (daily/weekly/season checkpoints), **separate from rank XP** so ranks stay a long, meaningful climb while the Pass rewards daily engagement. Full detail: **FORGE_PASS.md**.
+2. **Ember packs** — the soft currency for the shop. Buy embers → open boxes / direct-buy cosmetics. Everyone also *earns* embers by locking in + via the Pass.
+
+**Why a seasonal subscription (not monthly tiers, not one-time):** monthly tiers are drain-y and complex for students; a *one-time-forever* pass has no recurring revenue. A **per-season** subscription threads both — recurring income each season, but at a cadence (~a term) and price (~$8.99) students already understand from battle passes. New exclusive set every season keeps re-subscription compelling; lapsing keeps everything you earned, so it never feels punitive.
+
+> **Naming hygiene:** keep lowercase **"your fire"** for the solo campfire (home page 1). The paid product is **"the Forge Pass"** (season-named, e.g. *Emberfall Pass*). "Ignite"/"Blaze" are retired as tier names.
 
 ---
 
@@ -37,22 +40,21 @@ The membership scales with **fire intensity** (a spark grows into a blaze): **Fr
 
 ---
 
-## Forge Pass — the paid progression track (Ignite + Blaze only)
-A **battle-pass-style reward track** riding the XP/rank system you already have. As you earn XP — the same effort that forges your rank — you climb the **Forge Pass** and unlock rewards at milestones: **exclusive badges + embers.** A real reward ladder, not a flat monthly stipend.
+## Forge Pass — the core paid product ✅ (current model → FORGE_PASS.md)
+A **battle-pass-style seasonal reward track** — Philoi's main purchase. A **~$8.99/season auto-renewing subscription** (cancel anytime) unlocks the **Premium** lane; a **Free** lane exists for everyone.
 
-- **Paid only.** Free users see it **locked** — a clean upsell: *"the fire you're already earning could be forging rewards."*
-- **Rewards = paid-tier-exclusive badges (collectible status symbols) + embers** at XP thresholds. These badges can *only* be earned here.
-- **Two tracks:** **Ignite** = the standard track; **Blaze** = a premium track alongside it with more/better rewards at the same milestones (classic two-tier pass).
-- **Seasonal** (monthly / per term) — a fresh track + fresh exclusive badges each season, so there's always something to chase and the badges stay rare. Past-season badges are kept (proof you were there early).
-- **Name is on-brand:** *Forge Pass* ties to the rank-up **forge** — you forge rewards as you forge your rank.
-- *Honesty check (obeys the one rule):* this does **not** sell effort — everyone earns XP the same way; the pass just gives paid users **extra cosmetic rewards for the XP they genuinely earned.** The rank/XP itself is never bought.
+- **Climb with Pass XP from ACHIEVEMENTS** (daily/weekly/season checkpoints — "first lock-in today", "a 90-min deep session", "6 active days this week"…), **kept separate from rank XP** on purpose: ranks stay a long climb (Infernal is thousands of hours) while the Pass rewards daily engagement without inflating or trivializing the rank curve. Daily achievements are once-per-day → progress = consistency, not marathoning.
+- **100 tiers.** Free lane = milestone rewards + sprinkled embers + a couple free-exclusive cosmetics + a free capstone. Premium lane = a reward every tier + the **season-exclusive cosmetic set** + ember rewards across tiers + a **Mythic tier-100 capstone** + a completionist badge.
+- **Seasonal** (per ~term) — fresh track + a new exclusive set each season; past seasons' cosmetics are kept (proof you were there). Shares one season clock with the leaderboard/season reset.
+- **Subscribe any time** — premium rewards for tiers already climbed unlock retroactively; the sub renews into next season's Pass unless cancelled, and lapsing keeps everything already earned. **No tier-skip purchases at launch** (buying progress cuts against "earn it by showing up").
+- *Honesty check (obeys the one rule):* sells **cosmetics only** — everyone earns Pass XP the same way; the Pass just gives buyers extra cosmetic rewards for achievements they genuinely completed. Rank/XP/standing are never bought.
 
 ---
 
-## Packaging
-- **Bundle into one "Philoi Fire" subscription** — student-friendly (~$3–5/mo). Simple, recurring, easy to explain.
-- **Later (phase it): cosmetics shop with a soft currency ("embers")** earned by locking in. Paid users get a monthly ember stipend; free users can grind toward cosmetics (goodwill); spending is tied to actually showing up.
-- **Now: Founding members = "Prometheus' Disciple."** A one-time, permanent, **never-offered-again** badge + title for early supporters — the first to carry the fire. Early cash + fierce loyalty from exactly the people you want. (See the lore below.)
+## Packaging ✅ (current model)
+- **No monthly tiers.** Two paid surfaces only: the **Forge Pass** (~$8.99/season, auto-renewing subscription · cancel anytime) and **ember packs** (for the shop). Recurring per-season, student-friendly.
+- **Cosmetics shop with a soft currency ("embers")** earned by locking in + via the Pass; ember packs buyable for those who want to skip the grind. Boxes + direct-buy cosmetics spend embers. Spending stays tied to cosmetics, never to standing.
+- **Founding members = "First Flame."** A one-time, permanent, **never-offered-again** badge + title for early supporters — the first to carry the fire. (Renamed from the old "Prometheus' Disciple" to avoid colliding with the Vs-Unis #1 campus title "Prometheus' Disciples".)
 
 ## What NOT to sell (write it down so it's never tempting)
 XP · rank · streaks-that-look-earned · PRs · leaderboard position · anything that removes accountability. (Forge Pass is fine — it rewards XP you *earned*, it doesn't sell it.)
@@ -104,7 +106,7 @@ The bridge between the **effort economy** (XP / rank / challenges / seasons) and
 
 ### What can be rewarded
 - **Embers** — the flexible currency.
-- **Badges** — status/cosmetic, rarity-tiered. **Earned** badges (from real achievements) are FREE, carry **provenance** ("won from X, Season 2"), and **can't be bought** — that exclusivity IS their value. **Paid** badges (Forge Pass / supporter) are clearly separate flair.
+- **Badges** — status/cosmetic, rarity-tiered. **Earned** badges (from real achievements) are FREE, carry **provenance** ("won from X, Season 1"), and **can't be bought** — that exclusivity IS their value. **Paid** badges (Forge Pass / supporter) are clearly separate flair.
 - **Loot boxes** — the rarity ladder (Kindling → Prometheus' Vault); granted as rewards *or* bought.
 - **XP multipliers** — the placement / season multipliers (that's the *effort* economy, not the shop).
 

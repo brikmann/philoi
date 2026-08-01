@@ -1,0 +1,88 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:radial-gradient(120% 45% at 50% 6%,#2a1a33,#1b1726 55%);border-radius:26px;overflow:auto;color:#FFF6EC}
+.stage::-webkit-scrollbar{display:none}
+.inner{padding:14px 15px 18px}
+.top{display:flex;align-items:center;justify-content:space-between;color:#a99cbd}
+.top svg{width:22px;height:22px;stroke:#FFF6EC;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.embbal{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#FFD27A}
+/* hero box */
+.hero{text-align:center;margin-top:6px}
+.chest{width:96px;height:96px;border-radius:22px;margin:0 auto;display:flex;align-items:center;justify-content:center;background:linear-gradient(150deg,#5a2a6e,#2a1a33);box-shadow:0 0 32px rgba(160,108,213,.5);animation:float 3s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.chest svg{width:74px;height:74px;overflow:visible}
+.flick{transform-origin:50% 100%;animation:flick 1.1s ease-in-out infinite}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.14) scaleX(.9)}}
+.bn{font-size:20px;font-weight:800;margin-top:12px}
+.brar{font-size:10px;font-weight:800;letter-spacing:1.5px;color:#c79bec;margin-top:2px}
+.howto{font-size:11px;color:#a99cbd;margin-top:8px;line-height:1.5}
+/* odds */
+.seclbl{font-size:10px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin:18px 2px 9px}
+.odds{background:#20182f;border-radius:13px;padding:6px 12px}
+.orow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #241c38;font-size:12.5px}
+.orow:first-child{border-top:0}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.oname{flex:1}
+.opct{font-weight:700;font-variant-numeric:tabular-nums}
+.obar{width:70px;height:5px;border-radius:999px;background:#2d2740;overflow:hidden;flex:none}
+.obar>div{height:100%;border-radius:999px}
+/* pity */
+.pity{background:#20182f;border-radius:13px;padding:12px}
+.pity .pr{display:flex;gap:8px;font-size:11.5px;color:#e7ddf5;padding:3px 0}
+.pity .pr b{color:#F2A33C}
+/* cta */
+.buy{position:sticky;bottom:0;display:flex;gap:10px;padding-top:12px;background:linear-gradient(180deg,transparent,#1b1726 30%)}
+.b1{flex:1;border:0;border-radius:13px;padding:13px;font-size:14px;font-weight:700;font-family:var(--font-sans)}
+.b1.open{background:linear-gradient(135deg,#a06cd5,#5a2a6e);color:#fff}
+.b1.x10{background:#241c38;color:#c79bec}
+.legal{text-align:center;font-size:9px;color:#7c7194;margin-top:8px}
+</style>
+<div class="col2">
+  <div class="phone"><div class="stage"><div class="inner">
+    <div class="top"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg><span class="embbal">🔥 1,240</span></div>
+
+    <div class="hero">
+      <div class="chest"><svg viewBox="0 0 120 130">
+        <path class="flick" d="M60 20 C66 30 72 34 72 42 a12 12 0 0 1 -24 0 C48 35 54 33 56 28 c1 5 4 6 4 6 C64 28 58 24 60 20Z" fill="#A200FF" opacity=".9"/>
+        <path class="flick" d="M60 28 C63 35 67 37 67 43 a7 7 0 0 1 -14 0 c0 -4 3 -5 4 -8 z" fill="#d98cff"/>
+        <path d="M52 44 L68 44 L64 52 C78 58 82 74 74 90 C70 98 66 102 60 104 C54 102 50 98 46 90 C38 74 42 58 56 52 Z" fill="#0F0D14" stroke="#3a3550" stroke-width="1.5"/>
+        <path d="M60 52 C74 58 78 74 71 90 C68 97 64 101 60 103 Z" fill="#080610" opacity=".6"/>
+        <ellipse cx="60" cy="44" rx="8" ry="2.6" fill="#1a1626" stroke="#3a3550" stroke-width="1"/>
+        <path d="M52 50 C40 52 40 66 48 70" fill="none" stroke="#0F0D14" stroke-width="5"/><path d="M68 50 C80 52 80 66 72 70" fill="none" stroke="#0F0D14" stroke-width="5"/>
+        <path d="M48 74 h24 M50 82 h20" stroke="#8b93c9" stroke-width="1" opacity=".55"/>
+        <circle cx="58" cy="72" r="2" fill="#A200FF" opacity=".9"/>
+      </svg></div>
+      <div class="bn">Vessel of Hestia</div>
+      <div class="brar">EPIC BOX</div>
+      <div class="howto">Earn free: Gold rank · Top 10% campfire challenge · Forge Pass milestone</div>
+    </div>
+
+    <div class="seclbl">Drop odds</div>
+    <div class="odds">
+      <div class="orow"><span class="dot" style="background:#3DA85C"></span><span class="oname">Uncommon</span><span class="obar"><div style="width:20%;background:#3DA85C"></div></span><span class="opct">20.0%</span></div>
+      <div class="orow"><span class="dot" style="background:#4FB0E5"></span><span class="oname">Rare</span><span class="obar"><div style="width:50%;background:#4FB0E5"></div></span><span class="opct">50.0%</span></div>
+      <div class="orow"><span class="dot" style="background:#a06cd5"></span><span class="oname">Epic</span><span class="obar"><div style="width:22%;background:#a06cd5"></div></span><span class="opct">22.0%</span></div>
+      <div class="orow"><span class="dot" style="background:#F5C542"></span><span class="oname">Legendary</span><span class="obar"><div style="width:7.2%;background:#F5C542"></div></span><span class="opct">7.2%</span></div>
+      <div class="orow"><span class="dot" style="background:#FF6B6B"></span><span class="oname">Mythic</span><span class="obar"><div style="width:0.8%;background:#FF6B6B"></div></span><span class="opct">0.8%</span></div>
+    </div>
+
+    <div class="seclbl">Guarantees</div>
+    <div class="pity">
+      <div class="pr">✓ <span>Every box: <b>Epic or higher</b></span></div>
+      <div class="pr">✦ <span>A <b>Legendary every 6</b> boxes</span></div>
+      <div class="pr">★ <span>A <b>Mythic every 20</b> boxes</span></div>
+      <div class="pr">♻ <span>Duplicate → auto-converts to <b>Embers</b></span></div>
+    </div>
+
+    <div class="buy">
+      <button class="b1 open">🔥 1,200 · Open</button>
+      <button class="b1 x10">Open ×10</button>
+    </div>
+    <div class="legal">Cosmetics only.</div>
+  </div></div></div>
+  <div class="cap"><b style="color:#a99cbd">Loot box detail (mock 57).</b> Tap a box → its <b>published odds</b> (bars + %), the <b>guarantees</b> (floor + rate promises, no pity jargon), how to earn it free, and the dupe→embers note. Buy with embers (single / ×10) or earn it. Ethics-compliant: cosmetics only, odds shown, free path always exists.</div>
+</div>

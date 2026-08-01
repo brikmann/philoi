@@ -17,6 +17,9 @@ import type {
 
 export type MyGroup = Group & {
   chat_muted: boolean;
+  // Per-user-per-campfire consent to auto-post a synced workout (migration 0038, §17b) —
+  // publishing on the user's behalf, so opt-in, default off, never a fire that hasn't agreed.
+  auto_post_synced: boolean;
 };
 
 // The onboarding university picker's canonical list (PHILOI_UI_SPEC.md §21) — small enough
@@ -26,6 +29,16 @@ export async function fetchUniversities(): Promise<string[]> {
   const { data, error } = await supabase.from('universities').select('name').order('name');
   if (error) throw error;
   return (data ?? []).map((row) => row.name);
+}
+
+// Full legal name -> colloquial short name (§Leaderboard punchlist 2, §1: "Laurier"/"Waterloo"
+// on the board, full "Wilfrid Laurier University" in profile/settings). Every leaderboard RPC
+// still returns the full name (profiles.university itself never changed) — this is a one-time
+// lookup the client maps display strings through, same shape as fetchUniversities() above.
+export async function fetchUniversityShortNames(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.from('universities').select('name, short_name');
+  if (error) throw error;
+  return Object.fromEntries((data ?? []).map((row) => [row.name, row.short_name ?? row.name]));
 }
 
 export async function deleteMyAccount(): Promise<void> {
@@ -48,7 +61,7 @@ export async function leaveGroup(groupId: string, userId: string): Promise<void>
 export async function fetchMyGroups(userId: string): Promise<MyGroup[]> {
   const { data: memberships, error } = await supabase
     .from('group_members')
-    .select('chat_muted, groups(*)')
+    .select('chat_muted, auto_post_synced, groups(*)')
     .eq('user_id', userId);
   if (error) throw error;
 
@@ -57,7 +70,15 @@ export async function fetchMyGroups(userId: string): Promise<MyGroup[]> {
     .map((m) => ({
       ...(m.groups as unknown as Group),
       chat_muted: m.chat_muted,
+      auto_post_synced: m.auto_post_synced,
     }));
+}
+
+/** Per-campfire consent toggle for auto-posting synced workouts (§17b) — RPC-gated, not a direct
+ * update, same pattern as every other group_members self-flag (chat mute, helper, goal target). */
+export async function setMyAutoPostSynced(groupId: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase.rpc('set_my_auto_post_synced', { p_group_id: groupId, p_enabled: enabled });
+  if (error) throw error;
 }
 
 export async function fetchGroup(groupId: string): Promise<Group> {

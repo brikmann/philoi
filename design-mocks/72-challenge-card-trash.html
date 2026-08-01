@@ -1,0 +1,97 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:320px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{height:100%;background:#161320;border-radius:26px;overflow:auto;color:#FFF6EC}
+.stage::-webkit-scrollbar{display:none}
+.inner{padding:16px 15px}
+.h{font-size:20px;font-weight:800;margin-bottom:12px}
+.seclbl{font-size:10px;color:#7c7194;letter-spacing:1px;text-transform:uppercase;margin:16px 2px 8px}
+/* card */
+.card{background:#241c38;border-radius:16px;padding:13px;margin-bottom:11px;position:relative}
+.lrow{display:flex;align-items:center;gap:6px;margin-bottom:9px}
+.lbl{font-size:11px;font-weight:800;color:#FFD27A;display:flex;align-items:center;gap:5px}
+.right{margin-left:auto;display:flex;align-items:center;gap:9px}
+.pulse{width:7px;height:7px;border-radius:999px;background:#E0612C}
+.clock{font-size:11px;color:#a99cbd}
+/* the trash */
+.trash{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+.trash svg{width:15px;height:15px;stroke:#9a90b0;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.trash.red{background:rgba(232,90,90,.14);border-color:rgba(232,90,90,.45)}
+.trash.red svg{stroke:#E85A5A}
+/* h2h mini */
+.match{display:flex;align-items:flex-start;justify-content:space-between;margin:2px 0 8px}
+.side{width:88px;text-align:center}
+.ring{width:38px;height:38px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700}
+.ring.you{background:#3a2a22;color:#FFD27A;border:2.5px solid #E0612C}
+.ring.opp{background:#22303a;color:#BDE8FF;border:2.5px solid #4FB0E5}
+.snm{font-size:12px;font-weight:700;margin-top:4px}
+.ssc{font-size:14px;font-weight:800;margin-top:1px}
+.ssc.you{color:#E0612C}.ssc.opp{color:#4FB0E5}
+.vs{font-size:11px;font-weight:800;color:#7c7194;margin-top:14px}
+.tug{height:11px;border-radius:999px;overflow:hidden;display:flex;background:#4FB0E5}
+.tug .m{background:#E0612C;width:56%}
+.lead{text-align:center;font-size:11px;color:#F2A33C;font-weight:700;margin-top:6px}
+.foot{display:flex;align-items:center;gap:5px;font-size:11px;color:#FFD27A;font-weight:700;margin-top:9px}
+/* group mini */
+.gtitle{font-size:13.5px;font-weight:700;margin:2px 0 7px}
+.gcount{font-size:17px;font-weight:800}.gcount .mut{color:#7c7194;font-size:12px;font-weight:600}
+.seg{display:flex;gap:5px;margin-top:7px}
+.seg>div{flex:1;height:8px;border-radius:999px;background:#3a3550}
+.seg>div.on{background:#3DA85C}
+</style>
+<div class="col2">
+  <div class="phone"><div class="stage"><div class="inner">
+    <div class="h">Challenges</div>
+
+    <!-- H2H active, with trash -->
+    <div class="card">
+      <div class="lrow">
+        <span class="lbl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFD27A" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>Most lock-in time</span>
+        <div class="right">
+          <span class="pulse"></span><span class="clock">1d 4h left</span>
+          <div class="trash"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></div>
+        </div>
+      </div>
+      <div class="match">
+        <div class="side"><div class="ring you">Y</div><div class="snm">You</div><div class="ssc you">2h 10m</div></div>
+        <div class="vs">VS</div>
+        <div class="side"><div class="ring opp">A</div><div class="snm">Aidan</div><div class="ssc opp">1h 45m</div></div>
+      </div>
+      <div class="tug"><div class="m"></div></div>
+      <div class="lead">🔥 You lead by 25m</div>
+      <div class="foot"><svg width="12" height="12" viewBox="0 0 24 24" fill="#FFD27A"><path d="M5 4h14v3a5 5 0 0 1-4 4.9V14l2 3H7l2-3v-2.1A5 5 0 0 1 5 7z"/></svg>Winner +200 XP</div>
+    </div>
+
+    <!-- Group active, with trash -->
+    <div class="card">
+      <div class="lrow">
+        <span class="lbl"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFD27A" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.2"/></svg>Group · all or nothing</span>
+        <div class="right">
+          <span class="pulse"></span><span class="clock">ending soon</span>
+          <div class="trash"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></div>
+        </div>
+      </div>
+      <div class="gtitle">Everyone locks in 5× this window</div>
+      <div class="gcount">1 <span class="mut">/ 3 done</span></div>
+      <div class="seg"><div class="on"></div><div></div><div></div></div>
+      <div class="foot"><svg width="12" height="12" viewBox="0 0 24 24" fill="#FFD27A"><path d="M5 4h14v3a5 5 0 0 1-4 4.9V14l2 3H7l2-3v-2.1A5 5 0 0 1 5 7z"/></svg>Up to +300 XP each if everyone finishes</div>
+    </div>
+
+    <div class="seclbl">Red variant (alt)</div>
+    <div class="card">
+      <div class="lrow">
+        <span class="lbl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFD27A" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>XP race · vs Dee</span>
+        <div class="right">
+          <span class="clock">6h left</span>
+          <div class="trash red"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></div>
+        </div>
+      </div>
+      <div class="gtitle" style="font-size:12px;color:#a99cbd;font-weight:600;margin:0">Same trash, red-tinted — reads more clearly as "manage/remove."</div>
+    </div>
+
+  </div></div></div>
+  <div class="cap"><b style="color:#a99cbd">Trash on active cards (mock 72).</b> A small trash button sits <b>top-right</b> of every <b>active</b> challenge you're in, after the time-left. Two treatments: <b>neutral</b> (default — quiet, doesn't scream) or <b>red-tinted</b> (clearer intent). Tapping it opens <b>Manage</b> (mock 70) — edit or request-to-cancel — <i>not</i> an instant delete. Pending outgoing invites keep their "Cancel" text link; completed challenges have no trash.</div>
+</div>

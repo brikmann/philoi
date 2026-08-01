@@ -1,18 +1,22 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FlameIcon } from '@/components/flame-icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { signInWithGoogle } from '@/lib/auth/providers';
 import { getErrorMessage } from '@/lib/errors';
 import { joinGroupWithCode } from '@/lib/api/groups';
 
+// Reached via philoi://join?code=ABC123 whether or not the user is signed in. Punchlist 2, §3:
+// this had drifted from the current create/join visual language (mocks 04/10) — the header +
+// field-card treatment below now match group/create.tsx exactly rather than a plain bare form.
 export default function JoinScreen() {
   const router = useRouter();
   const { session } = useAuth();
@@ -67,20 +71,35 @@ export default function JoinScreen() {
   }
 
   return (
-    <Screen style={styles.container}>
+    <Screen padded={false} style={styles.screen}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Join a campfire</Text>
+        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Close">
+          <Ionicons name="close" size={20} color={Colors.muted} />
+        </Pressable>
+      </View>
+
       <View style={styles.form}>
         <View style={styles.icon}>
           <FlameIcon size={48} />
         </View>
-        <Text style={styles.title}>Join a Campfire</Text>
         <Text style={styles.body}>Paste or type the code your friend shared.</Text>
-        <TextInput
-          autoCapitalize="characters"
-          placeholder="e.g. ABC123"
-          value={code}
-          onChangeText={setCode}
-          maxLength={6}
-        />
+
+        <Text style={styles.lbl}>Invite code</Text>
+        <View style={styles.field}>
+          <View style={styles.fieldIcon}>
+            <Ionicons name="key" size={15} color={Colors.amber} />
+          </View>
+          <TextInput
+            style={styles.fieldInput}
+            autoCapitalize="characters"
+            placeholder="e.g. ABC123"
+            value={code}
+            onChangeText={setCode}
+            maxLength={6}
+          />
+        </View>
+
         {error && <Text style={styles.error}>{error}</Text>}
         <PrimaryButton label="Join Campfire" onPress={() => handleJoin(code)} loading={loading} />
       </View>
@@ -92,8 +111,23 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
   },
+  screen: {
+    paddingHorizontal: 15,
+    paddingTop: 16,
+  },
   signInPrompt: {
     gap: Spacing.three,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  headerTitle: {
+    fontFamily: Fonts.display,
+    fontSize: 17,
+    color: Colors.ink,
   },
   form: {
     gap: Spacing.three,
@@ -113,9 +147,44 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 15,
     color: Colors.muted,
+    textAlign: 'center',
   },
   bodyOnDark: {
     color: Colors.ember,
+  },
+  lbl: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
+    marginTop: 4,
+    marginBottom: -4,
+  },
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.card,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+  },
+  fieldIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    backgroundColor: Colors.achieverBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fieldInput: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 0,
+    fontSize: 13,
+    color: Colors.ink,
   },
   error: {
     fontFamily: Fonts.body,
