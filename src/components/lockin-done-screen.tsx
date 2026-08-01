@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
@@ -10,6 +10,7 @@ import { HexagonBadge } from '@/components/hexagon-badge';
 import { TextInput } from '@/components/ui/text-input';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useMyGroups } from '@/hooks/use-my-groups';
 import { saveWorkoutAsRoutine } from '@/lib/api/gym';
 import { fetchCheckInClips } from '@/lib/api/gym-clips';
 import { postCheckInToCircle, setCheckInCaption } from '@/lib/api/lock-ins';
@@ -73,6 +74,10 @@ export function LockInDoneScreen({
   circleName,
   onDone,
 }: LockInDoneScreenProps) {
+  const { groups } = useMyGroups();
+  // Seeded with the campfire this session was started in, so the common case is still one tap —
+  // the multi-select adds reach without adding a decision.
+  const [selectedCircleIds, setSelectedCircleIds] = useState<string[]>(circleId ? [circleId] : []);
   const [displayXp, setDisplayXp] = useState(rankBefore?.xp_into_tier ?? 0);
   const [plusVisible, setPlusVisible] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -163,17 +168,23 @@ export function LockInDoneScreen({
     await setCheckInCaption(checkInId, trimmed);
   }
 
+  function toggleCircle(id: string) {
+    setSelectedCircleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
   async function handlePost() {
     setPosting(true);
     setError(null);
     try {
       await saveCaption();
-      // A solo session has no campfire to post to — the caption still saves above, then it just
-      // finishes (same outcome as "Keep this one private" would give it).
-      if (circleId) {
-        await postCheckInToCircle(checkInId, circleId);
-        fireConfirm();
+      // Sequential, not Promise.all: post_check_in_to_circle writes a feed row and pushes that
+      // circle's members, and one failure shouldn't leave the rest in an unknown state. A solo
+      // session posts to nothing — the caption still saves above and it just finishes, the same
+      // outcome "Keep this one private" gives it.
+      for (const id of selectedCircleIds) {
+        await postCheckInToCircle(checkInId, id);
       }
+      if (selectedCircleIds.length > 0) fireConfirm();
       onDone();
     } catch (e) {
       setError(getErrorMessage(e, 'Could not post to the campfire — try again.'));
@@ -351,14 +362,55 @@ export function LockInDoneScreen({
           maxLength={140}
           editable={!posting}
         />
-        <Text style={styles.postingLabel}>Posting to {circleName ?? 'your campfire'}</Text>
-        <Pressable style={styles.postBtn} onPress={handlePost} disabled={posting}>
+        {/* Multi-select, per lock-in (migration 0059). Goals no longer carry a campfire, so THIS
+            is where sharing is decided — and a session that belongs in two campfires can go to
+            both instead of forcing a choice made months ago at goal setup. The session's own
+            campfire starts selected; everything else is opt-in per session. */}
+        {groups.length > 0 && (
+          <>
+            <Text style={styles.postingLabel}>
+              {selectedCircleIds.length === 0
+                ? 'Pick a campfire, or keep it private'
+                : `Posting to ${selectedCircleIds.length} campfire${selectedCircleIds.length === 1 ? '' : 's'}`}
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.circleRow}
+              keyboardShouldPersistTaps="handled">
+              {groups.map((group) => {
+                const on = selectedCircleIds.includes(group.id);
+                return (
+                  <Pressable
+                    key={group.id}
+                    onPress={() => toggleCircle(group.id)}
+                    disabled={posting}
+                    style={[styles.circleChip, on && styles.circleChipOn]}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on }}
+                    accessibilityLabel={`Post to ${group.name}`}>
+                    {on && <Ionicons name="checkmark" size={12} color={Colors.achieverText} />}
+                    <Text style={[styles.circleChipText, on && styles.circleChipTextOn]} numberOfLines={1}>
+                      {group.emoji} {group.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </>
+        )}
+        <Pressable
+          style={[styles.postBtn, selectedCircleIds.length === 0 && styles.postBtnDisabled]}
+          onPress={handlePost}
+          disabled={posting || selectedCircleIds.length === 0}>
           {posting ? (
             <ActivityIndicator color={Colors.ink} />
           ) : (
             <>
               <Ionicons name="send" size={16} color={Colors.ink} />
-              <Text style={styles.postBtnLabel}>Post to the campfire</Text>
+              <Text style={styles.postBtnLabel}>
+                {selectedCircleIds.length > 1 ? `Post to ${selectedCircleIds.length} campfires` : 'Post to the campfire'}
+              </Text>
             </>
           )}
         </Pressable>
@@ -641,6 +693,38 @@ const styles = StyleSheet.create({
   // icon+label buttons already built bespoke throughout this same lock-in flow — Start
   // lock-in, Stop lock-in). Label color is Colors.ink (not the mock's literal white) to match
   // this app's established "coral bg -> cream text" precision, same as every other coral CTA.
+  circleRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    paddingVertical: 2,
+  },
+  circleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    maxWidth: 180,
+    borderRadius: Radius.pill,
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  circleChipOn: {
+    borderColor: Colors.coral,
+    backgroundColor: Colors.selectedBg,
+  },
+  circleChipText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12.5,
+    color: Colors.muted,
+    flexShrink: 1,
+  },
+  circleChipTextOn: {
+    color: Colors.achieverText,
+  },
+  postBtnDisabled: {
+    opacity: 0.4,
+  },
   postBtn: {
     alignSelf: 'stretch',
     flexDirection: 'row',

@@ -50,6 +50,22 @@ export function fitnessSourcesForChallengeType(type: ChallengeType): FitnessSour
   return CANDIDATE_SOURCES_BY_CHALLENGE_TYPE[type] ?? [];
 }
 
+// Display names, kept here rather than in any one screen — the goal card, the setup flow and the
+// sync prompt all name the same four sources and must not drift apart.
+export const FITNESS_SOURCE_NAME: Record<FitnessSourceKey, string> = {
+  apple_health: 'Apple Health',
+  health_connect: 'Health Connect',
+  strava: 'Strava',
+  whoop: 'Whoop',
+};
+
+/** True when a goal of this type could ever track itself. `custom`, `gym_visits` and
+ * `study_hours` have no device metric at all, so their setup must never offer a Connect row
+ * that goes nowhere (§7/§8). */
+export function canAutoTrackChallengeType(type: ChallengeType): boolean {
+  return getRealFitnessSourceForChallengeType(type) !== null;
+}
+
 export function isDeviceFitnessSupported(): boolean {
   return HealthKit.isHealthKitSupported() || HealthConnect.isHealthConnectSupported();
 }

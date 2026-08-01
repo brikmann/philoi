@@ -37,6 +37,7 @@ import { useElapsedSeconds } from '@/hooks/use-elapsed-seconds';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useActiveSession } from '@/lib/active-session-context';
 import { track } from '@/lib/analytics';
+import { creditLockInTimeGoals } from '@/lib/api/challenges';
 import { fetchOrCreateDailyFire } from '@/lib/api/daily-fire';
 import { fetchMyRanks } from '@/lib/api/goals';
 import { fetchWorkoutRecap, startWorkout } from '@/lib/api/gym';
@@ -427,6 +428,12 @@ function LockInScreen() {
       if (goalType === 'gym') {
         setWorkoutRecap(await fetchWorkoutRecap(checkIn.id).catch(() => null));
       }
+
+      // A time-counted custom goal (design-mocks/74) is fed by exactly this: a finished lock-in
+      // whose detail matches the goal's name. Idempotent per check-in server-side, and swallowed
+      // on failure — a goal that misses a credit is a bad day, a stop that fails because of one
+      // is a lost session.
+      creditLockInTimeGoals(checkIn.id).catch(() => {});
 
       const [streakAfter, ranksAfter] = await Promise.all([
         fetchMyStreak(session.user.id).catch(() => streakBefore),

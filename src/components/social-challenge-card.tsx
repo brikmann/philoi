@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ChallengeManageSheet } from '@/components/challenge-manage-sheet';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { Avatar } from '@/components/ui/avatar';
 import { cancelSocialChallenge, respondToH2HChallenge } from '@/lib/api/social-challenges';
@@ -17,6 +19,7 @@ type SocialChallengeCardProps = {
 
 export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: SocialChallengeCardProps) {
   const router = useRouter();
+  const [manageOpen, setManageOpen] = useState(false);
   const isInvite = c.mode === 'h2h' && c.status === 'pending' && c.opponent_id === myUserId;
   const isOutgoingPending = c.mode === 'h2h' && c.status === 'pending' && c.created_by === myUserId;
   const isMine = c.created_by === myUserId;
@@ -135,6 +138,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
           <View style={styles.labelLeft}>
             {c.status === 'active' && <View style={styles.livePulse} />}
             <Text style={styles.clock}>{c.status === 'completed' ? 'finished' : formatTimeLeft(c.ends_at)}</Text>
+            <ManageTrash visible={c.status === 'active'} onPress={() => setManageOpen(true)} />
           </View>
         </View>
 
@@ -180,10 +184,18 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
             </Pressable>
           </View>
         )}
-        {c.status === 'active' && (
-          <Pressable style={styles.cancelLink} onPress={() => handleCancel('Leave challenge', `End this race with ${otherName ?? 'them'} early? Neither side gets the payout.`)}>
-            <Text style={styles.cancelLinkText}>Leave challenge</Text>
-          </Pressable>
+        {/* The old unilateral "Leave challenge" link is gone — ending a race the other person is
+            still running is now a request they answer (mock 70/71), reached through the trash
+            above. The no-consent route survives as "forfeit & leave" inside that sheet. */}
+        {/* Mounted only while open, so it re-seeds its editable terms from the live challenge
+            every time rather than syncing props into state in an effect. */}
+        {manageOpen && (
+          <ChallengeManageSheet
+            challenge={c}
+            myUserId={myUserId}
+            onClose={() => setManageOpen(false)}
+            onChanged={onChanged}
+          />
         )}
       </View>
     );
@@ -205,6 +217,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
         <View style={styles.labelLeft}>
           {c.status === 'active' && <View style={styles.livePulse} />}
           <Text style={styles.clock}>{c.status === 'completed' ? 'finished' : formatTimeLeft(c.ends_at)}</Text>
+          <ManageTrash visible={c.status === 'active'} onPress={() => setManageOpen(true)} />
         </View>
       </View>
 
@@ -228,7 +241,31 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
         <Ionicons name="trophy" size={12} color={Colors.achieverText} />
         <Text style={styles.footText}>Up to +{c.payout_xp} XP each — more for top finishers — if everyone finishes</Text>
       </View>
+
+      {manageOpen && (
+        <ChallengeManageSheet
+          challenge={c}
+          myUserId={myUserId}
+          onClose={() => setManageOpen(false)}
+          onChanged={onChanged}
+        />
+      )}
     </View>
+  );
+}
+
+// The quiet grey trash from mock 72 — top-right of an ACTIVE card, after the time-left. It is
+// neutral on purpose: it opens Manage (mock 70), it doesn't delete anything, so shouting in red
+// here would misrepresent what tapping it does. Red is spent on "Request to cancel" inside the
+// sheet, where it's accurate. Completed challenges get none of this (nothing left to manage);
+// pending outgoing invites keep their own "Cancel" text link, which IS unilateral because
+// nobody has agreed to anything yet.
+function ManageTrash({ visible, onPress }: { visible: boolean; onPress: () => void }) {
+  if (!visible) return null;
+  return (
+    <Pressable onPress={onPress} hitSlop={8} style={styles.manageTrash} accessibilityRole="button" accessibilityLabel="Manage challenge">
+      <Ionicons name="trash-outline" size={15} color={Colors.muted} />
+    </Pressable>
   );
 }
 
@@ -245,6 +282,17 @@ const styles = StyleSheet.create({
   },
   cardPending: {
     opacity: 0.85,
+  },
+  manageTrash: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    marginLeft: 3,
   },
   cancelLink: {
     marginTop: Spacing.two,

@@ -463,7 +463,15 @@ export type AnalyticsEventName =
   | 'watch_opt_in_changed'
   | 'challenge_watch_opened'
   | 'challenge_watch_cheered'
-  | 'challenge_cancelled';
+  | 'challenge_cancelled'
+  // Change/cancel consent (migration 0058, mocks 70/71). Worth measuring separately from
+  // challenge_cancelled: a REQUEST is the start of a negotiation, and the gap between requested
+  // and agreed/declined is the signal for whether consent is working or just adding friction.
+  | 'challenge_change_requested'
+  | 'challenge_change_agreed'
+  | 'challenge_change_declined'
+  | 'challenge_forfeited'
+  | 'challenge_terms_updated';
 
 export type AnalyticsEvent = {
   id: string;
@@ -637,11 +645,18 @@ export type ChallengeType =
 export type ChallengePeriod = 'day' | 'week';
 export type ChallengeVisibility = 'circle' | 'private';
 
+// An individual goal. NOT bound to a campfire (migration 0059) — a goal is the user's own, and
+// sharing the work behind it is chosen per lock-in on the done screen, which can post to several
+// circles at once. `visibility` survives only for rows written before that change.
+/** How a custom goal is measured (migration 0061, design-mocks/74). Built-in metrics are always
+ * 'manual' here — each has its own real source, or none at all. */
+export type ChallengeCountMode = 'manual' | 'lockin_time';
+
 export type Challenge = {
   id: string;
   user_id: string;
-  circle_id: string | null;
   type: ChallengeType;
+  count_mode: ChallengeCountMode;
   label: string | null;
   target: number;
   unit: string;
@@ -688,6 +703,54 @@ export type SocialChallenge = {
   winner_id: string | null;
   payout_xp: number;
   created_at: string;
+};
+
+// ───────────── challenge change/cancel consent (migration 0058, design-mocks/70 + 71) ─────────────
+
+export type ChallengeChangeKind = 'edit' | 'cancel';
+export type ChallengeChangeStatus = 'pending' | 'agreed' | 'declined' | 'expired';
+
+/** The raw row, as returned by request/respond. */
+export type ChallengeChangeRequest = {
+  id: string;
+  challenge_id: string;
+  requested_by: string;
+  kind: ChallengeChangeKind;
+  proposed: ChallengeChangeProposal | null;
+  status: ChallengeChangeStatus;
+  created_at: string;
+  responded_at: string | null;
+};
+
+/** Only the two terms mock 70 marks editable — metric and stakes are fixed for the life of the
+ * challenge (server-enforced in request_challenge_change). */
+export type ChallengeChangeProposal = {
+  window_hours?: number;
+  target_count?: number;
+};
+
+/** get_challenge_change_request()'s payload — the proposal plus the current terms it would
+ * replace, which is what lets the consent screen render before → after. */
+export type ChallengeChangeRequestDetail = {
+  id: string;
+  challenge_id: string;
+  requested_by: string;
+  requested_by_name: string;
+  /** True when the VIEWER opened their own request — they may not answer it. */
+  is_mine: boolean;
+  kind: ChallengeChangeKind;
+  status: ChallengeChangeStatus;
+  proposed: ChallengeChangeProposal | null;
+  created_at: string;
+  mode: SocialChallengeMode;
+  race_metric: SocialChallengeRaceMetric | null;
+  payout_xp: number;
+  challenge_status: SocialChallengeStatus;
+  current: {
+    window_hours: number;
+    target_count: number | null;
+    ends_at: string | null;
+  };
 };
 
 export type ChallengeLog = {
@@ -1220,9 +1283,29 @@ export type Database = {
         Args: { p_challenge_id: string; p_amount: number; p_note?: string | null };
         Returns: (Challenge & { just_completed: boolean })[];
       };
-      get_challenge_leaderboard: {
-        Args: { p_circle_id: string; p_type: ChallengeType };
-        Returns: ChallengeLeaderboardRow[];
+      // get_challenge_leaderboard was dropped in 0059 — it ranked one campfire's members by
+      // their goals of a type, and its only entry point was the goal↔campfire binding.
+      request_challenge_change: {
+        Args: { p_challenge_id: string; p_kind: ChallengeChangeKind; p_proposed?: ChallengeChangeProposal | null };
+        Returns: ChallengeChangeRequest;
+      };
+      respond_to_challenge_change: {
+        Args: { p_request_id: string; p_agree: boolean };
+        Returns: ChallengeChangeRequest;
+      };
+      get_challenge_change_request: {
+        Args: { p_request_id: string };
+        Returns: ChallengeChangeRequestDetail | null;
+      };
+      get_open_challenge_change_request: {
+        Args: { p_challenge_id: string };
+        Returns: ChallengeChangeRequestDetail | null;
+      };
+      forfeit_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
+      credit_lockin_time_goals: { Args: { p_check_in_id: string }; Returns: number };
+      update_group_challenge_terms: {
+        Args: { p_challenge_id: string; p_target_count?: number | null; p_window_hours?: number | null };
+        Returns: SocialChallenge;
       };
       get_my_circle_ranks: { Args: Record<string, never>; Returns: MyCircleRank[] };
       get_my_cross_circle_people: { Args: Record<string, never>; Returns: CrossCirclePerson[] };

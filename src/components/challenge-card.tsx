@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -6,6 +7,7 @@ import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { logChallengeProgress } from '@/lib/api/challenges';
 import { getErrorMessage } from '@/lib/errors';
+import { FITNESS_SOURCE_NAME, getRealFitnessSourceForChallengeType } from '@/lib/fitness-sync';
 import type { Challenge, ChallengeType } from '@/types/database';
 
 const TYPE_META: Record<ChallengeType, { icon: string; quickAdds: number[] }> = {
@@ -38,15 +40,25 @@ function challengeTitle(challenge: Challenge): string {
   }
 }
 
+/** The quiet closing line — when this goal's counter goes back to zero. */
+function resetLabel(period: Challenge['period']): string {
+  return period === 'day' ? 'Resets at midnight' : 'Resets Monday';
+}
+
 type ChallengeCardProps = {
   challenge: Challenge;
-  circleName: string | null;
+  /** True when the device source that COULD track this goal is actually connected — the card
+   * only claims "Auto" when something is genuinely feeding it. */
+  autoConnected?: boolean;
   onLogged: (justCompleted: boolean) => void;
   onDeleted: () => void;
-  onViewLeaderboard?: () => void;
 };
 
-export function ChallengeCard({ challenge, circleName, onLogged, onDeleted, onViewLeaderboard }: ChallengeCardProps) {
+// An individual goal (design-mocks/73B). The old card stacked 🔗 / ✅ / 🏆 into the corner and
+// made you decode three glyphs; this reads straight left→right — icon, name, cadence — then one
+// sub-line saying only how it's tracked, one bar, and ONE status. No campfire binding anywhere:
+// a goal is the user's own (migration 0059), and sharing the work is a per-lock-in choice.
+export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDeleted }: ChallengeCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [amount, setAmount] = useState('');
   const [logging, setLogging] = useState(false);
@@ -55,6 +67,13 @@ export function ChallengeCard({ challenge, circleName, onLogged, onDeleted, onVi
   const meta = TYPE_META[challenge.type];
   const isComplete = challenge.completed_at !== null;
   const pct = Math.min(100, Math.round((challenge.progress / challenge.target) * 100));
+
+  // "Auto" is a claim about what's actually happening, not about what's theoretically possible —
+  // a steps goal on a phone that never granted Health Connect is logged by hand, and saying
+  // otherwise would leave someone waiting for numbers that never arrive.
+  const realSource = getRealFitnessSourceForChallengeType(challenge.type);
+  const isAuto = realSource !== null && autoConnected;
+  const sourceLine = isAuto ? `⚡ Auto · ${FITNESS_SOURCE_NAME[realSource]}` : '✏️ Logged by hand';
 
   async function handleLog(value: number) {
     if (value <= 0) return;
@@ -73,7 +92,7 @@ export function ChallengeCard({ challenge, circleName, onLogged, onDeleted, onVi
   }
 
   function handleDelete() {
-    Alert.alert('Delete challenge?', "You'll lose your logged progress.", [
+    Alert.alert('Delete goal?', "You'll lose your logged progress.", [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: onDeleted },
     ]);
@@ -82,33 +101,50 @@ export function ChallengeCard({ challenge, circleName, onLogged, onDeleted, onVi
   return (
     <Card style={styles.card}>
       <Pressable onLongPress={handleDelete} style={styles.header}>
-        <Text style={styles.icon}>{meta.icon}</Text>
+        <View style={styles.iconTile}>
+          <Text style={styles.icon}>{meta.icon}</Text>
+        </View>
         <View style={styles.titleColumn}>
-          <Text style={styles.title}>{challengeTitle(challenge)}</Text>
-          <Text style={styles.subtitle}>
-            {circleName ? `🔗 ${circleName}` : '🔒 Private'} · {challenge.period === 'day' ? 'Daily' : 'Weekly'}
+          <Text style={styles.title} numberOfLines={1}>
+            {challengeTitle(challenge)}
+          </Text>
+          <Text style={styles.source} numberOfLines={1}>
+            {sourceLine}
           </Text>
         </View>
-        {isComplete && <Text style={styles.doneBadge}>✅</Text>}
-        {circleName && onViewLeaderboard && (
-          <Pressable
-            onPress={onViewLeaderboard}
-            hitSlop={8}
-            style={styles.leaderboardButton}
-            accessibilityLabel="View challenge leaderboard">
-            <Text style={styles.leaderboardIcon}>🏆</Text>
-          </Pressable>
-        )}
+        <View style={styles.cadenceChip}>
+          <Text style={styles.cadenceChipText}>{challenge.period === 'day' ? 'Daily' : 'Weekly'}</Text>
+        </View>
       </Pressable>
 
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${pct}%` }, isComplete && styles.progressFillDone]} />
       </View>
-      <Text style={styles.progressLabel}>
-        {challenge.progress.toLocaleString()} / {challenge.target.toLocaleString()} {challenge.unit}
+
+      {/* Numbers on the left, ONE status on the right — a percentage while it's live, the green
+          "Smashed" once the target's beaten. Never both, and never a third badge elsewhere. */}
+      <View style={styles.statusRow}>
+        <Text style={styles.progressLabel}>
+          {challenge.progress.toLocaleString()} / {challenge.target.toLocaleString()} {challenge.unit}
+        </Text>
+        {isComplete ? (
+          <View style={styles.smashed}>
+            <Text style={styles.smashedText}>Smashed</Text>
+            <Ionicons name="checkmark" size={12} color={Colors.green} />
+          </View>
+        ) : (
+          <Text style={styles.pct}>{pct}%</Text>
+        )}
+      </View>
+
+      <Text style={styles.reset}>
+        {resetLabel(challenge.period)}
+        {isComplete ? ' · +XP banked' : ''}
       </Text>
 
-      {!isComplete && (
+      {/* Only a hand-logged goal in progress needs controls — an auto-tracked one fills itself,
+          and offering quick-adds beside it invites double-counting the same steps. */}
+      {!isComplete && !isAuto && (
         <>
           {expanded ? (
             <View style={styles.logRow}>
@@ -159,33 +195,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
-  icon: {
-    fontSize: 24,
-  },
-  titleColumn: {
-    flex: 1,
-  },
-  title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 16,
-    color: Colors.ink,
-  },
-  subtitle: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.muted,
-  },
-  doneBadge: {
-    fontSize: 20,
-  },
-  leaderboardButton: {
-    minWidth: 44,
-    minHeight: 44,
+  iconTile: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    backgroundColor: Colors.achieverBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  leaderboardIcon: {
-    fontSize: 18,
+  icon: {
+    fontSize: 19,
+  },
+  titleColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  title: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 15,
+    color: Colors.ink,
+  },
+  source: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.muted,
+    marginTop: 2,
+  },
+  cadenceChip: {
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.disabled,
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+  },
+  cadenceChipText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9.5,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: Colors.muted,
   },
   progressTrack: {
     height: 10,
@@ -201,10 +248,37 @@ const styles = StyleSheet.create({
   progressFillDone: {
     backgroundColor: Colors.green,
   },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
   progressLabel: {
+    flex: 1,
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
+    fontSize: 12.5,
+    color: Colors.ink,
+  },
+  pct: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
     color: Colors.muted,
+  },
+  smashed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  smashedText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.green,
+  },
+  reset: {
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    color: Colors.textTertiary,
   },
   quickRow: {
     flexDirection: 'row',

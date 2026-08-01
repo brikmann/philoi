@@ -2,8 +2,8 @@ import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 import type {
   Challenge,
+  ChallengeCountMode,
   ChallengeFeedEvent,
-  ChallengeLeaderboardRow,
   ChallengePeriod,
   ChallengeType,
 } from '@/types/database';
@@ -18,32 +18,34 @@ export async function fetchMyChallenges(userId: string): Promise<Challenge[]> {
   return data ?? [];
 }
 
+/** A goal is the user's own — no campfire binding (migration 0059). Sharing the work behind it
+ * is chosen per lock-in on the done screen, which can post to several circles at once. */
 export async function createChallenge(input: {
   userId: string;
-  circleId: string | null;
   type: ChallengeType;
   label: string | null;
   target: number;
   unit: string;
   period: ChallengePeriod;
-  visibility: 'circle' | 'private';
+  /** Custom goals only (migration 0061) — 'lockin_time' accrues minutes from lock-ins whose
+   * detail matches `label`, which is what makes that name behave like its own lock-in type. */
+  countMode?: ChallengeCountMode;
 }): Promise<Challenge> {
   const { data, error } = await supabase
     .from('challenges')
     .insert({
       user_id: input.userId,
-      circle_id: input.circleId,
       type: input.type,
       label: input.label,
       target: input.target,
       unit: input.unit,
       period: input.period,
-      visibility: input.visibility,
+      count_mode: input.countMode ?? 'manual',
     })
     .select('*')
     .single();
   if (error) throw error;
-  track('challenge_created', { type: input.type, circle_id: input.circleId, target: input.target });
+  track('challenge_created', { type: input.type, target: input.target });
   return data;
 }
 
@@ -73,18 +75,6 @@ export async function deleteChallenge(challengeId: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function fetchChallengeLeaderboard(
-  circleId: string,
-  type: ChallengeType
-): Promise<ChallengeLeaderboardRow[]> {
-  const { data, error } = await supabase.rpc('get_challenge_leaderboard', {
-    p_circle_id: circleId,
-    p_type: type,
-  });
-  if (error) throw error;
-  return data ?? [];
-}
-
 export type FeedChallengeEvent = ChallengeFeedEvent & {
   profiles: { display_name: string; avatar_url: string | null; handle: string | null };
 };
@@ -97,4 +87,13 @@ export async function fetchChallengeFeedEvents(groupId: string): Promise<FeedCha
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as unknown as FeedChallengeEvent[];
+}
+
+/** Credits a finished lock-in's minutes to any time-counted custom goal whose name matches the
+ * session's detail (migration 0061). Idempotent per check-in, so calling it again after a
+ * backgrounded app missed the first attempt is safe and cheap. */
+export async function creditLockInTimeGoals(checkInId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('credit_lockin_time_goals', { p_check_in_id: checkInId });
+  if (error) throw error;
+  return data ?? 0;
 }

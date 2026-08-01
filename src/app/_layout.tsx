@@ -128,6 +128,23 @@ function RootNavigator() {
       // The home screen reads ?lockin=1 and pops the picker; no setup, straight to starting.
       if (data?.type === 'lock_in_nudge') {
         router.push('/?lockin=1');
+        return;
+      }
+      // Someone wants to change or end a shared challenge (design-mocks/71, migration 0058).
+      // This push is the ONLY way that request reaches the other side, so it has to land on the
+      // consent screen itself rather than the challenge list.
+      if (data?.type === 'challenge_change_request' && typeof data?.request_id === 'string') {
+        router.push({ pathname: '/challenge-change/[requestId]', params: { requestId: data.request_id } });
+        return;
+      }
+      // Their answer, or a forfeit — both just mean "go look at the challenge".
+      if (
+        (data?.type === 'challenge_change_answered' ||
+          data?.type === 'challenge_forfeited' ||
+          data?.type === 'challenge_terms_updated') &&
+        typeof data?.challenge_id === 'string'
+      ) {
+        router.push('/(tabs)/challenges');
       }
     });
     return () => subscription.remove();
@@ -228,8 +245,8 @@ function RootNavigator() {
         <Stack.Screen name="activity/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="lock-in-history" options={{ headerShown: false }} />
         <Stack.Screen name="watch/[challengeId]" options={{ title: 'Watch' }} />
+        <Stack.Screen name="challenge-change/[requestId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="challenge/create" options={{ presentation: 'modal', title: 'New challenge' }} />
-        <Stack.Screen name="challenge-leaderboard" options={{ title: '' }} />
         <Stack.Screen name="report" options={{ presentation: 'modal', title: 'Report' }} />
         <Stack.Screen name="legal" options={{ title: '' }} />
         <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />

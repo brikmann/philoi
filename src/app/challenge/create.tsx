@@ -16,7 +16,11 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { createChallenge } from '@/lib/api/challenges';
 import { syncChallengeFromDevice } from '@/lib/api/fitness-challenge-sync';
 import { getErrorMessage } from '@/lib/errors';
-import { getRealFitnessSourceForChallengeType } from '@/lib/fitness-sync';
+import {
+  FITNESS_SOURCE_NAME,
+  canAutoTrackChallengeType,
+  getRealFitnessSourceForChallengeType,
+} from '@/lib/fitness-sync';
 import { createGroupChallenge, createH2HChallenge } from '@/lib/api/social-challenges';
 import type { ChallengePeriod, ChallengeType, SocialChallengeMode, SocialChallengeRaceMetric } from '@/types/database';
 
@@ -326,24 +330,45 @@ function SocialChallengeForm() {
 
 // `defaultTarget` is the sensible weekly number for each metric — a per-option value rather than
 // a nested ternary in handlePickType, which stopped scaling once there were nine of these.
+// The five metrics mock 73A names, in its order. `defaultTarget` is the sensible weekly number
+// for each — a per-option value rather than a nested ternary in handlePickType, which stopped
+// scaling once there were nine of these.
 const PERSONAL_TYPE_OPTIONS: { value: ChallengeType; label: string; unit: string; defaultTarget: string }[] = [
   { value: 'steps', label: '👟 Steps', unit: 'steps', defaultTarget: '10000' },
-  { value: 'run_distance', label: '🏃 Running', unit: 'km', defaultTarget: '20' },
+  { value: 'study_hours', label: '📚 Study time', unit: 'hours', defaultTarget: '10' },
+  { value: 'gym_visits', label: '🏋️ Gym visits', unit: 'visits', defaultTarget: '4' },
+  { value: 'run_distance', label: '🏃 Run', unit: 'km', defaultTarget: '20' },
+];
+
+// Kept off the primary row so it reads as mock 73A's clean five, but NOT deleted: each of these
+// is wired to a real verifiable source (Strava for rides, Whoop for the rest, §17), and dropping
+// them from setup would quietly make those integrations unreachable.
+const MORE_TYPE_OPTIONS: typeof PERSONAL_TYPE_OPTIONS = [
   { value: 'ride_distance', label: '🚴 Riding', unit: 'km', defaultTarget: '20' },
-  // The three Whoop-verifiable metrics (§17) — Whoop has no step count, so it lives here and
-  // never on the steps option above.
+  // Whoop has no step count, so its three metrics live here and never on the steps option above.
   { value: 'workout_minutes', label: '💪 Workout minutes', unit: 'minutes', defaultTarget: '150' },
   { value: 'strain', label: '🔥 Strain', unit: 'strain', defaultTarget: '70' },
   { value: 'sleep_hours', label: '😴 Sleep', unit: 'hours', defaultTarget: '49' },
-  { value: 'gym_visits', label: '🏋️ Gym visits', unit: 'visits', defaultTarget: '4' },
-  { value: 'study_hours', label: '📚 Study hours', unit: 'hours', defaultTarget: '10' },
-  { value: 'custom', label: '🎯 Custom', unit: '', defaultTarget: '' },
 ];
 
+const CUSTOM_TYPE_OPTION: (typeof PERSONAL_TYPE_OPTIONS)[number] = {
+  value: 'custom',
+  label: '＋ Custom',
+  unit: '',
+  defaultTarget: '',
+};
+
+// "How often" (mock 73A) — the cadence itself, not a one-off window. The old labels ("This week"
+// / "Today") described a single period; these describe the repeat, which is what a goal that
+// resets every Monday actually is.
 const PERSONAL_PERIOD_OPTIONS: { value: ChallengePeriod; label: string }[] = [
-  { value: 'week', label: 'This week' },
-  { value: 'day', label: 'Today' },
+  { value: 'day', label: 'Daily' },
+  { value: 'week', label: 'Weekly' },
 ];
+
+/** What a custom goal counts (mock 74). Built-in metrics all have their own source, so this
+ * only ever applies to `custom`. */
+type CustomCountMode = 'lockin_time' | 'manual';
 
 // The original self-tracked habit tracker — a private quantified target (steps, gym visits,
 // study hours, or a custom metric), logged manually, optionally shared to a Campfire for
@@ -351,14 +376,16 @@ const PERSONAL_PERIOD_OPTIONS: { value: ChallengePeriod; label: string }[] = [
 function PersonalChallengeForm() {
   const router = useRouter();
   const { session } = useAuth();
-  const { groups } = useMyGroups();
   const [type, setType] = useState<ChallengeType>('steps');
   const [target, setTarget] = useState('10000');
   const [unit, setUnit] = useState('steps');
   const [customLabel, setCustomLabel] = useState('');
+  const [customCountMode, setCustomCountMode] = useState<CustomCountMode>('lockin_time');
   const [period, setPeriod] = useState<ChallengePeriod>('week');
-  const [circleId, setCircleId] = useState<string | null>(groups[0]?.id ?? null);
-  const [shareWithCircle, setShareWithCircle] = useState(true);
+  const [moreOpen, setMoreOpen] = useState(false);
+  // "Track it" (mock 73A) — only ever offered when a real device metric exists for the chosen
+  // metric; see canAutoTrack below.
+  const [trackAuto, setTrackAuto] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // "Track this automatically?" (design-mocks/14, PHILOI_UI_SPEC.md §17) — only for a type that
@@ -369,18 +396,13 @@ function PersonalChallengeForm() {
   // instance per component, so this can't be re-derived by re-reading connection state from here;
   // it has to be told.
   const [justConnectedDeviceFitness, setJustConnectedDeviceFitness] = useState(false);
-  const selectedCircle = groups.find((g) => g.id === circleId);
 
-  // Can't share to a Campfire you don't have — the toggle is forced off + disabled with no
-  // campfire, never left on-with-a-contradiction (on, but nothing to share to). design-mocks/13.
-  const canShare = groups.length > 0;
-  const shareOn = canShare && shareWithCircle;
-
-  // Circles load async (useMyGroups' useFocusEffect fires after mount) — pick a default once
-  // they arrive, but only if the user hasn't already picked one themselves.
-  useEffect(() => {
-    if (!circleId && groups.length > 0) setCircleId(groups[0].id);
-  }, [groups, circleId]);
+  const isCustom = type === 'custom';
+  // Show "Automatically" ONLY when something can actually measure this metric (§7). Custom never
+  // can — it has no device metric — so it gets the lock-in-time / count-I-log choice from mock 74
+  // instead of a Connect row that goes nowhere.
+  const canAutoTrack = canAutoTrackChallengeType(type);
+  const autoOn = canAutoTrack && trackAuto;
 
   function handlePickType(option: (typeof PERSONAL_TYPE_OPTIONS)[number]) {
     setType(option.value);
@@ -388,9 +410,19 @@ function PersonalChallengeForm() {
       setUnit(option.unit);
       setTarget(option.defaultTarget);
     } else {
-      setUnit('');
+      // Time-counted is the default custom shape (mock 74 lists it first) — so the unit follows
+      // it rather than starting blank and looking broken.
+      setUnit('hours');
       setTarget('');
+      setCustomCountMode('lockin_time');
     }
+  }
+
+  function handlePickCountMode(mode: CustomCountMode) {
+    setCustomCountMode(mode);
+    // Time is always measured in hours here; a count is in whatever the user calls it, so the
+    // unit becomes theirs to fill in rather than a stale "hours" left over from the other mode.
+    setUnit(mode === 'lockin_time' ? 'hours' : '');
   }
 
   function handleCreate() {
@@ -404,11 +436,15 @@ function PersonalChallengeForm() {
       setError('Give it a unit — e.g. "reps", "pages".');
       return;
     }
+    if (isCustom && !customLabel.trim()) {
+      setError('Give your goal a name.');
+      return;
+    }
     setError(null);
-    // Steps, running, riding, workout minutes, strain and sleep each have a real verifiable
-    // source (see getRealFitnessSourceForChallengeType) — offer the sync sheet before actually
-    // creating (design-mocks/14). Everything else has nothing to auto-track.
-    if (getRealFitnessSourceForChallengeType(type)) {
+    // The sync sheet is offered only when the user actually asked to auto-track AND something
+    // can measure this metric — picking "Log it myself" shouldn't then be interrupted by a
+    // Connect prompt (design-mocks/14).
+    if (autoOn) {
       setShowSyncPrompt(true);
       return;
     }
@@ -423,13 +459,15 @@ function PersonalChallengeForm() {
     try {
       const created = await createChallenge({
         userId: session.user.id,
-        circleId: shareOn ? circleId : null,
         type,
-        label: type === 'custom' ? customLabel.trim() || null : null,
+        label: isCustom ? customLabel.trim() || null : null,
         target: targetNum,
         unit: unit.trim(),
         period,
-        visibility: shareOn && circleId ? 'circle' : 'private',
+        // A time-counted custom goal is fed by lock-ins whose detail matches its name
+        // (credit_lockin_time_goals, migration 0061) — which is also what makes that name behave
+        // like a lock-in goal type of its own.
+        countMode: isCustom ? customCountMode : 'manual',
       });
       // First sync right away if they just connected on this exact screen — no reason to make
       // them wait for the next Challenges-tab focus to see it start counting.
@@ -446,8 +484,11 @@ function PersonalChallengeForm() {
 
   return (
     <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Goal type</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.circleRow}>
+      {/* No campfire step anywhere in here (migration 0059): a goal is yours, and who sees the
+          work behind it is picked per lock-in on the done screen, which can post to several
+          campfires at once rather than the one this screen used to bind forever. */}
+      <Text style={styles.label}>What are you tracking?</Text>
+      <View style={styles.pillsRow}>
         {PERSONAL_TYPE_OPTIONS.map((option) => (
           <Pressable
             key={option.value}
@@ -456,12 +497,52 @@ function PersonalChallengeForm() {
             <Text style={[styles.chipText, type === option.value && styles.chipTextSelected]}>{option.label}</Text>
           </Pressable>
         ))}
-      </ScrollView>
+        <Pressable
+          onPress={() => handlePickType(CUSTOM_TYPE_OPTION)}
+          style={[styles.personalChip, isCustom && styles.chipSelected]}>
+          <Text style={[styles.chipText, isCustom && styles.chipTextSelected]}>{CUSTOM_TYPE_OPTION.label}</Text>
+        </Pressable>
+      </View>
 
-      {type === 'custom' && (
+      {/* The device-verified metrics that aren't in mock 73A's headline five, kept reachable. */}
+      {!moreOpen && !MORE_TYPE_OPTIONS.some((o) => o.value === type) ? (
+        <Pressable onPress={() => setMoreOpen(true)} hitSlop={6}>
+          <Text style={styles.moreLink}>More metrics — riding, Whoop…</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.pillsRow}>
+          {MORE_TYPE_OPTIONS.map((option) => (
+            <Pressable
+              key={option.value}
+              onPress={() => handlePickType(option)}
+              style={[styles.personalChip, type === option.value && styles.chipSelected]}>
+              <Text style={[styles.chipText, type === option.value && styles.chipTextSelected]}>{option.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {/* ── Custom (design-mocks/74) ─────────────────────────────────────────── */}
+      {isCustom && (
         <>
-          <Text style={styles.label}>What are you tracking?</Text>
-          <TextInput placeholder="e.g. Cold plunges" value={customLabel} onChangeText={setCustomLabel} maxLength={40} />
+          <Text style={styles.label}>Name it</Text>
+          <TextInput placeholder="e.g. Read, Cold plunges" value={customLabel} onChangeText={setCustomLabel} maxLength={40} />
+
+          <Text style={styles.label}>What counts toward it</Text>
+          <CountModeOption
+            selected={customCountMode === 'lockin_time'}
+            onPress={() => handlePickCountMode('lockin_time')}
+            emoji="🔥"
+            title="Time locked in"
+            body={`Lock in on "${customLabel.trim() || 'this'}" and the minutes add up — same as a Study or Gym session.`}
+          />
+          <CountModeOption
+            selected={customCountMode === 'manual'}
+            onPress={() => handlePickCountMode('manual')}
+            emoji="#️⃣"
+            title="A count I log"
+            body="Track a number by hand — pages, reps, sessions, glasses…"
+          />
         </>
       )}
 
@@ -474,10 +555,18 @@ function PersonalChallengeForm() {
           value={target}
           onChangeText={setTarget}
         />
-        <TextInput style={styles.unitInput} placeholder="unit" value={unit} onChangeText={setUnit} editable={type === 'custom'} />
+        <TextInput
+          style={styles.unitInput}
+          placeholder="unit"
+          value={unit}
+          onChangeText={setUnit}
+          // A built-in metric's unit is fixed by the metric; a hand-counted custom goal's unit is
+          // the user's own word for it. Time is always hours, so that stays fixed too.
+          editable={isCustom && customCountMode === 'manual'}
+        />
       </View>
 
-      <Text style={styles.label}>Window</Text>
+      <Text style={styles.label}>How often</Text>
       <View style={styles.pillsRow}>
         {PERSONAL_PERIOD_OPTIONS.map((option) => (
           <Pressable
@@ -489,35 +578,41 @@ function PersonalChallengeForm() {
         ))}
       </View>
 
-      <View style={styles.shareRow}>
-        <View style={styles.shareText}>
-          <Text style={styles.label}>Share with a Campfire</Text>
-          <Text style={styles.hint}>
-            {canShare
-              ? "Your progress shows up to that Campfire and feeds a challenge leaderboard — that's the pressure that keeps you honest."
-              : 'Join or start a Campfire first to share a challenge.'}
+      {/* ── Track it (mock 73A) ───────────────────────────────────────────────
+          "Automatically" appears ONLY when a real source can measure this metric. Everything
+          else gets the honest line instead of a Connect row that would never connect. */}
+      <Text style={styles.label}>Track it</Text>
+      {canAutoTrack ? (
+        <>
+          <TrackOption
+            selected={autoOn}
+            onPress={() => setTrackAuto(true)}
+            emoji="⚡"
+            title="Automatically"
+            body={`${FITNESS_SOURCE_NAME[getRealFitnessSourceForChallengeType(type)!]} · counts on its own`}
+          />
+          <TrackOption
+            selected={!autoOn}
+            onPress={() => setTrackAuto(false)}
+            emoji="✏️"
+            title="Log it myself"
+            body="Enter progress by hand"
+          />
+        </>
+      ) : (
+        <View style={styles.noAutoNote}>
+          <Text style={styles.noAutoText}>
+            {isCustom && customCountMode === 'lockin_time'
+              ? `🔒 Custom goals can't read a device — time comes from your lock-ins on "${customLabel.trim() || 'this'}".`
+              : isCustom
+                ? "🔒 Custom goals can't read a device — this one's a count you log yourself."
+                : '✏️ No device measures this one — you log it by hand.'}
           </Text>
-        </View>
-        <Toggle value={shareOn} onValueChange={setShareWithCircle} disabled={!canShare} />
-      </View>
-
-      {shareOn && (
-        <View style={styles.pillsRow}>
-          {groups.map((group) => (
-            <Pressable
-              key={group.id}
-              onPress={() => setCircleId(group.id)}
-              style={[styles.personalChip, circleId === group.id && styles.chipSelected]}>
-              <Text style={[styles.chipText, circleId === group.id && styles.chipTextSelected]}>
-                {group.emoji} {group.name}
-              </Text>
-            </Pressable>
-          ))}
         </View>
       )}
 
       {error && <Text style={styles.error}>{error}</Text>}
-      <PrimaryButton label="Start challenge" onPress={handleCreate} loading={saving} />
+      <PrimaryButton label="Set goal" onPress={handleCreate} loading={saving} />
 
       <FitnessSyncPrompt
         visible={showSyncPrompt}
@@ -528,9 +623,44 @@ function PersonalChallengeForm() {
         onSourceConnected={() => setJustConnectedDeviceFitness(true)}
         challengeType={type}
         challengeTitle={`${target || '0'} ${unit} ${period === 'day' ? 'today' : 'this week'}`}
-        challengeSubtitle={shareOn && selectedCircle ? `${selectedCircle.emoji} ${selectedCircle.name}` : 'Just for you'}
+        challengeSubtitle="Just for you"
       />
     </ScrollView>
+  );
+}
+
+// The radio rows shared by mock 74's "What counts toward it" and mock 73A's "Track it" — same
+// shape (emoji tile, title, one explanatory line, selected border), so they're one component
+// rather than two that drift.
+function CountModeOption(props: { selected: boolean; onPress: () => void; emoji: string; title: string; body: string }) {
+  return <TrackOption {...props} />;
+}
+
+function TrackOption({
+  selected,
+  onPress,
+  emoji,
+  title,
+  body,
+}: {
+  selected: boolean;
+  onPress: () => void;
+  emoji: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.trackOption, selected && styles.trackOptionSelected]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}>
+      <Text style={styles.trackEmoji}>{emoji}</Text>
+      <View style={styles.trackText}>
+        <Text style={[styles.trackTitle, selected && styles.trackTitleSelected]}>{title}</Text>
+        <Text style={styles.trackBody}>{body}</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -538,6 +668,58 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.cream,
+  },
+  moreLink: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.amber,
+  },
+  trackOption: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    padding: Spacing.three,
+  },
+  trackOptionSelected: {
+    borderColor: Colors.coral,
+    backgroundColor: Colors.selectedBg,
+  },
+  trackEmoji: {
+    fontSize: 16,
+  },
+  trackText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  trackTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13.5,
+    color: Colors.ink,
+  },
+  trackTitleSelected: {
+    color: Colors.achieverText,
+  },
+  trackBody: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: Colors.muted,
+    marginTop: 2,
+  },
+  noAutoNote: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    padding: Spacing.three,
+  },
+  noAutoText: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    lineHeight: 17,
+    color: Colors.muted,
   },
   scrollFlex: {
     flex: 1,

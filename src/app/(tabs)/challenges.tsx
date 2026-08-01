@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { ChallengeCard } from '@/components/challenge-card';
@@ -14,7 +14,7 @@ import { TabHeader } from '@/components/ui/tab-header';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useMyChallenges } from '@/hooks/use-my-challenges';
-import { useMyGroups } from '@/hooks/use-my-groups';
+import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { deleteChallenge } from '@/lib/api/challenges';
 import type { Challenge } from '@/types/database';
@@ -24,12 +24,11 @@ export default function ChallengesScreen() {
   const { session } = useAuth();
   const { challenges, loading, error, refetch } = useMyChallenges();
   const { challenges: socialChallenges, loading: socialLoading, refetch: refetchSocial } = useSocialChallenges();
-  const { groups } = useMyGroups();
+  const { connected: fitnessConnected } = useFitnessConnection();
   const [celebrating, setCelebrating] = useState(false);
   const [fireToken, setFireToken] = useState(0);
   const rewardBurstRef = useRef<RewardBurstHandle>(null);
 
-  const circleNameById = useMemo(() => new Map(groups.map((g) => [g.id, `${g.emoji} ${g.name}`])), [groups]);
 
   // Finished work moves out of the way (punchlist 4E) — the tab was accumulating every past
   // challenge above the live ones. `sections` (the FlatList's data) is now ACTIVE personal goals
@@ -135,26 +134,9 @@ export default function ChallengesScreen() {
             {sections.length > 0 && <Text style={styles.sectionLabel}>Personal goals</Text>}
           </View>
         }
-        renderItem={({ item }) => {
-          const circleId = item.circle_id;
-          const circleName = circleId ? (circleNameById.get(circleId) ?? null) : null;
-          return (
-            <ChallengeCard
-              challenge={item}
-              circleName={circleName}
-              onLogged={handleLogged}
-              onDeleted={() => handleDelete(item.id)}
-              onViewLeaderboard={
-                circleId
-                  ? () =>
-                      router.push(
-                        `/challenge-leaderboard?circleId=${circleId}&type=${item.type}&title=${encodeURIComponent(circleName ?? 'Challenge')}`
-                      )
-                  : undefined
-              }
-            />
-          );
-        }}
+        renderItem={({ item }) => (
+          <ChallengeCard challenge={item} autoConnected={fitnessConnected} onLogged={handleLogged} onDeleted={() => handleDelete(item.id)} />
+        )}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
         ListFooterComponent={
           historyCount > 0 ? (
@@ -179,19 +161,15 @@ export default function ChallengesScreen() {
                       <SocialChallengeCard challenge={c} myUserId={session?.user.id ?? ''} onChanged={refetchSocial} />
                     </Pressable>
                   ))}
-                  {completed.map((item) => {
-                    const circleId = item.circle_id;
-                    const circleName = circleId ? (circleNameById.get(circleId) ?? null) : null;
-                    return (
-                      <ChallengeCard
-                        key={item.id}
-                        challenge={item}
-                        circleName={circleName}
-                        onLogged={handleLogged}
-                        onDeleted={() => handleDelete(item.id)}
-                      />
-                    );
-                  })}
+                  {completed.map((item) => (
+                    <ChallengeCard
+                      key={item.id}
+                      challenge={item}
+                      autoConnected={fitnessConnected}
+                      onLogged={handleLogged}
+                      onDeleted={() => handleDelete(item.id)}
+                    />
+                  ))}
                 </View>
               )}
             </View>
