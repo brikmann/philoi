@@ -152,6 +152,11 @@ const config: ExpoConfig = {
     // Android 13 and below even when Health Connect is installed — the connect flow then fails
     // silently. Also not covered by the library's bundled plugin.
     './plugins/withHealthConnectQueries',
+    // Adds the Android 14+ VIEW_PERMISSION_USAGE / HEALTH_PERMISSIONS intent-filter to MainActivity.
+    // Without it, requestPermission() returns an EMPTY grant on Android 14 (HC is OS-level there),
+    // so connecting reports "that source isn't available right now" even though HC is present. The
+    // library's bundled plugin only adds the older ACTION_SHOW_PERMISSIONS_RATIONALE filter.
+    './plugins/withHealthConnectPermissionUsage',
     [
       'expo-notifications',
       {
