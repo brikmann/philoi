@@ -488,7 +488,10 @@ function PersonalChallengeForm() {
           work behind it is picked per lock-in on the done screen, which can post to several
           campfires at once rather than the one this screen used to bind forever. */}
       <Text style={styles.label}>What are you tracking?</Text>
-      <View style={styles.pillsRow}>
+      {/* Horizontally scrollable (punchlist 5.4): this row is a plain non-wrapping flex row, so
+          every metric past the screen edge was rendered but unreachable — you couldn't pick Run or
+          anything after it. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
         {PERSONAL_TYPE_OPTIONS.map((option) => (
           <Pressable
             key={option.value}
@@ -502,7 +505,7 @@ function PersonalChallengeForm() {
           style={[styles.personalChip, isCustom && styles.chipSelected]}>
           <Text style={[styles.chipText, isCustom && styles.chipTextSelected]}>{CUSTOM_TYPE_OPTION.label}</Text>
         </Pressable>
-      </View>
+      </ScrollView>
 
       {/* The device-verified metrics that aren't in mock 73A's headline five, kept reachable. */}
       {!moreOpen && !MORE_TYPE_OPTIONS.some((o) => o.value === type) ? (
@@ -510,7 +513,8 @@ function PersonalChallengeForm() {
           <Text style={styles.moreLink}>More metrics — riding, Whoop…</Text>
         </Pressable>
       ) : (
-        <View style={styles.pillsRow}>
+        // Same treatment as the headline row above — this one grows as more device metrics land.
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
           {MORE_TYPE_OPTIONS.map((option) => (
             <Pressable
               key={option.value}
@@ -519,7 +523,7 @@ function PersonalChallengeForm() {
               <Text style={[styles.chipText, type === option.value && styles.chipTextSelected]}>{option.label}</Text>
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
       )}
 
       {/* ── Custom (design-mocks/74) ─────────────────────────────────────────── */}
@@ -891,6 +895,13 @@ const styles = StyleSheet.create({
   pillsRow: {
     flexDirection: 'row',
     gap: Spacing.two,
+  },
+  // contentContainerStyle for the horizontal metric scrollers — the gap lives here, not on the
+  // ScrollView itself, or it would space the scroll container rather than the chips inside it.
+  pillsScroll: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    paddingRight: Spacing.four,
   },
   pill: {
     flex: 1,

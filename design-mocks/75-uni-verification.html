@@ -1,0 +1,115 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;align-items:flex-start;max-width:1000px}
+.unit{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11px;text-align:center;max-width:290px;line-height:1.5}
+.phone{width:290px;height:580px;background:#14111c;border-radius:32px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:radial-gradient(120% 45% at 50% 6%,#2a1a33,#161320 55%);border-radius:24px;overflow:hidden;color:#FFF6EC;display:flex;flex-direction:column;padding:22px 18px}
+.step{font-size:10px;font-weight:800;letter-spacing:1.5px;color:#7c7194;text-transform:uppercase}
+.title{font-size:22px;font-weight:800;margin-top:8px;line-height:1.15}
+.sub{font-size:12px;color:#a99cbd;margin-top:7px;line-height:1.5}
+/* search */
+.search{display:flex;align-items:center;gap:8px;background:#20182f;border-radius:12px;padding:12px 14px;margin-top:18px}
+.search svg{width:16px;height:16px;stroke:#7c7194;fill:none;stroke-width:2}
+.search input{background:transparent;border:0;color:#FFF6EC;font-size:14px;font-family:var(--font-sans);flex:1;outline:none}
+.uni{display:flex;align-items:center;gap:11px;padding:11px 6px;border-bottom:1px solid #241c38}
+.uni.on{background:rgba(224,97,44,.1);border-radius:10px;border-bottom:0;padding:11px 10px}
+.crest{width:30px;height:30px;border-radius:8px;background:#2d2740;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+.un{font-size:13.5px;font-weight:700}
+.ud{font-size:10.5px;color:#7c7194;margin-top:1px}
+.chk{margin-left:auto;color:#E0612C;font-size:16px}
+/* email preview */
+.emailbox{background:#20182f;border-radius:12px;padding:6px 6px 6px 14px;display:flex;align-items:center;margin-top:8px}
+.emailbox input{background:transparent;border:0;color:#FFF6EC;font-size:16px;font-weight:700;font-family:var(--font-sans);width:90px;outline:none;text-align:right}
+.suffix{color:#F2A33C;font-size:15px;font-weight:700;background:#2d2740;border-radius:8px;padding:8px 11px;margin-left:6px}
+.selu{display:flex;align-items:center;gap:10px;background:#20182f;border-radius:12px;padding:11px 13px;margin-top:16px}
+.selu .un{flex:1}
+/* otp */
+.otp{display:flex;gap:8px;justify-content:center;margin-top:20px}
+.dig{width:38px;height:48px;border-radius:11px;background:#20182f;border:1.5px solid #2d2740;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800}
+.dig.f{border-color:#E0612C;color:#FFF6EC}
+.dig.cur{border-color:#F2A33C}
+.resend{text-align:center;font-size:11px;color:#7c7194;margin-top:16px}
+.resend b{color:#a99cbd}
+/* buttons */
+.spacer{flex:1}
+.cta{display:block;text-align:center;background:linear-gradient(135deg,#F2A33C,#E0612C);color:#2a1608;border-radius:14px;padding:15px;font-size:15px;font-weight:800}
+.skip{text-align:center;font-size:12.5px;color:#8a8398;font-weight:600;margin-top:13px}
+.lock{display:flex;gap:8px;font-size:10.5px;color:#9f92b6;line-height:1.5;margin-top:12px;background:#20182f;border-radius:11px;padding:10px 12px}
+/* verified */
+.badge{width:74px;height:74px;border-radius:50%;background:radial-gradient(circle,#1f5a34,#173a24);border:2px solid #3DA85C;display:flex;align-items:center;justify-content:center;margin:22px auto 0;font-size:34px}
+.vtitle{text-align:center;font-size:20px;font-weight:800;margin-top:16px}
+.vsub{text-align:center;font-size:12px;color:#a99cbd;margin-top:7px;line-height:1.5}
+.tabs{display:flex;gap:8px;margin-top:18px}
+.tab{flex:1;background:#20182f;border-radius:11px;padding:11px 8px;text-align:center;font-size:11px;font-weight:700}
+.tab.un{color:#3DA85C;border:1px solid rgba(61,168,92,.4)}
+.tab.lk{color:#6a6480}
+</style>
+<div class="col2">
+
+  <!-- A · select -->
+  <div class="unit"><div class="phone"><div class="stage">
+    <div class="step">Step 2 of 3</div>
+    <div class="title">Where do you study?</div>
+    <div class="sub">Sets your campus leaderboard. Verify it next to unlock My Uni & Vs Unis.</div>
+    <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input value="water"></div>
+    <div style="margin-top:10px">
+      <div class="uni on"><span class="crest">🎓</span><div><div class="un">University of Waterloo</div><div class="ud">uwaterloo.ca</div></div><span class="chk">✓</span></div>
+      <div class="uni"><span class="crest">🎓</span><div><div class="un">Wilfrid Laurier University</div><div class="ud">mylaurier.ca</div></div></div>
+      <div class="uni"><span class="crest">🎓</span><div><div class="un">Waterloo Lutheran</div><div class="ud">—</div></div></div>
+    </div>
+    <div class="spacer"></div>
+    <span class="cta">Continue</span>
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">Pick your uni (75A).</b> Search backed by the <b>Hipolabs universities API</b> (top-20 Canadian schools cached locally for offline). Selecting one stores the name <b>+ its domain</b> (uwaterloo.ca).</div>
+  </div>
+
+  <!-- B · enter email -->
+  <div class="unit"><div class="phone"><div class="stage">
+    <div class="step">Verify your campus</div>
+    <div class="title">Prove you're a Warrior</div>
+    <div class="sub">Enter your Waterloo email — we'll send a 6-digit code. Only students with a real <b style="color:#c8bcdd">@uwaterloo.ca</b> get in.</div>
+    <div class="selu"><span class="crest">🎓</span><span class="un">University of Waterloo</span><span class="ud">uwaterloo.ca</span></div>
+    <div class="emailbox"><input value="noah" style="width:auto;min-width:40px"><span class="suffix">@uwaterloo.ca</span></div>
+    <div class="lock">🔒 <span>This is <b style="color:#c8bcdd">verification only</b> — you still sign in with Google. We never post from it or share it.</span></div>
+    <div class="spacer"></div>
+    <span class="cta">Send code</span>
+    <div class="skip">Skip — verify later</div>
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">Enter uni email (75B).</b> The domain is locked to the chosen school (only <b>@uwaterloo.ca</b> accepted — no gmail). <b>Skippable</b> — you can verify later; the uni tabs just stay locked until you do.</div>
+  </div>
+
+  <!-- C · code -->
+  <div class="unit"><div class="phone"><div class="stage">
+    <div class="step">Verify your campus</div>
+    <div class="title">Enter the code</div>
+    <div class="sub">Sent to <b style="color:#c8bcdd">noah@uwaterloo.ca</b>. It expires in 10 minutes.</div>
+    <div class="otp">
+      <div class="dig f">4</div><div class="dig f">1</div><div class="dig f">9</div><div class="dig cur">2</div><div class="dig"></div><div class="dig"></div>
+    </div>
+    <div class="resend">Didn't get it? <b>Resend in 0:42</b></div>
+    <div class="spacer"></div>
+    <span class="cta">Verify</span>
+    <div class="skip">Wrong email? Change it</div>
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">6-digit code (75C).</b> Standard OTP entry, 10-min expiry, resend cooldown, limited attempts. On success → the profile's <b>university_email_verified</b> flips true.</div>
+  </div>
+
+  <!-- D · verified -->
+  <div class="unit"><div class="phone"><div class="stage">
+    <div class="badge">✓</div>
+    <div class="vtitle">You're verified at Waterloo</div>
+    <div class="vsub">A verified-campus check now sits on your profile — and two leaderboards just unlocked.</div>
+    <div class="tabs">
+      <div class="tab un">🎓 My Uni ✓</div>
+      <div class="tab un">⚔ Vs Unis ✓</div>
+    </div>
+    <div class="lock" style="margin-top:16px">🏆 <span>Only verified students count on My Uni & Vs Unis — so the campus rankings are <b style="color:#c8bcdd">real</b>.</span></div>
+    <div class="spacer"></div>
+    <span class="cta">Enter Philoi</span>
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">Verified (75D).</b> A verified badge on the profile; <b>My Uni</b> + <b>Vs Unis</b> tabs unlock (they show a 🔒 "Verify to unlock" state until then). Re-verify / change school anytime from Settings.</div>
+  </div>
+
+</div>

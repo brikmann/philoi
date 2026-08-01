@@ -3,6 +3,7 @@ import * as Linking from 'expo-linking';
 import { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { CampusVerification, CampusVerifiedPanel } from '@/components/campus-verification';
 import { OnboardingProgress } from '@/components/ui/onboarding-progress';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
@@ -12,6 +13,13 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversities } from '@/lib/api/groups';
 import { getErrorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
+import {
+  findCachedUniversity,
+  formatHintFor,
+  resolveUniversityDomain,
+  sampleEmailFor,
+  shortSchoolName,
+} from '@/lib/universities';
 
 const CONSENT_VERSION = '2026-06-30';
 const PRIVACY_URL = 'https://getphiloi.com/privacy';
@@ -31,9 +39,15 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 // _layout.tsx). Keeping them in one component (rather than one route per step) is what lets
 // Back actually work: it's just local `step` state, not navigation across a gate boundary a
 // user shouldn't be able to re-enter once past it.
+// Step 3 is the OPTIONAL campus verification (UNI_VERIFICATION_SPEC.md §5). It's skipped
+// entirely — not shown, not counted — when the chosen school has no known email domain, since
+// there's nothing to send a code to. Never a blocker either way: skipping just leaves the two
+// campus boards locked.
+type Step = 1 | 2 | 3 | 4;
+
 export default function SetupHandleScreen() {
   const { session, profile, refreshProfile } = useAuth();
-  const [step, setStep] = useState<1 | 2 | 3>(profile?.handle ? 3 : 1);
+  const [step, setStep] = useState<Step>(profile?.handle ? 4 : 1);
 
   const [handle, setHandle] = useState(profile?.handle ?? '');
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
@@ -42,6 +56,11 @@ export default function SetupHandleScreen() {
   const [universities, setUniversities] = useState<string[]>([]);
   const [universityQuery, setUniversityQuery] = useState('');
   const [university, setUniversity] = useState<string | null>(profile?.university ?? null);
+  // Resolved the moment a school is tapped so the example@domain preview (mock 76A) is instant
+  // for the ~20 cached schools; anything else falls back to Hipolabs in the background.
+  const [universityDomain, setUniversityDomain] = useState<string | null>(profile?.university_domain ?? null);
+  const [resolvingDomain, setResolvingDomain] = useState(false);
+  const [justVerified, setJustVerified] = useState(false);
 
   const [ageChecked, setAgeChecked] = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
@@ -84,13 +103,48 @@ export default function SetupHandleScreen() {
   const canContinueStep2 = Boolean(university) || notListed;
   const canContinueStep3 = ageChecked && termsChecked;
 
+  // Only the cached schools can show a domain without a network call. Anything else shows "—",
+  // which is honest: we don't know it yet, and it's resolved on select if Hipolabs does.
+  function domainForRow(name: string): string {
+    if (name === university && universityDomain) return universityDomain;
+    return findCachedUniversity(name)?.domain ?? '—';
+  }
+
+  // Resolve the school's email domain as soon as one is picked. Cached schools answer
+  // synchronously (no spinner, no wait); anything else asks Hipolabs. A null result is not an
+  // error — it just means this school can't be verified, which skips the verify step entirely.
+  async function pickUniversity(name: string) {
+    setUniversity(name);
+    setUniversityQuery(name);
+    const cached = findCachedUniversity(name);
+    if (cached) {
+      setUniversityDomain(cached.domain);
+      return;
+    }
+    setUniversityDomain(null);
+    setResolvingDomain(true);
+    try {
+      setUniversityDomain(await resolveUniversityDomain(name));
+    } finally {
+      setResolvingDomain(false);
+    }
+  }
+
   async function handleContinueStep2() {
     setLoading(true);
     setError(null);
     const resolvedUniversity = university ?? (universityQuery.trim() || null);
+    // A free-text "not listed" school has no canonical domain, so it saves as null — verifiable
+    // later only if it's added to the cache or Hipolabs knows it.
+    const domain = university ? universityDomain : null;
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({ handle: normalizedHandle, display_name: displayName.trim(), university: resolvedUniversity })
+      .update({
+        handle: normalizedHandle,
+        display_name: displayName.trim(),
+        university: resolvedUniversity,
+        university_domain: domain,
+      })
       .eq('id', session!.user.id);
 
     if (updateError) {
@@ -101,7 +155,8 @@ export default function SetupHandleScreen() {
 
     await refreshProfile();
     setLoading(false);
-    setStep(3);
+    // No domain → nothing to verify against, so don't show a step that can only dead-end.
+    setStep(domain ? 3 : 4);
   }
 
   async function handleFinish() {
@@ -128,7 +183,9 @@ export default function SetupHandleScreen() {
 
   return (
     <Screen padded={false} style={styles.container}>
-      <OnboardingProgress step={step} />
+      {/* Four segments only when verification is actually on this user's path — a school with no
+          domain never sees that step, so showing a fourth dot would promise one that never comes. */}
+      <OnboardingProgress step={step} total={universityDomain ? 4 : 3} />
 
       {step === 1 && (
         <View style={styles.step}>
@@ -199,16 +256,17 @@ export default function SetupHandleScreen() {
             renderItem={({ item }) => {
               const on = university === item;
               return (
-                <Pressable
-                  style={[styles.uni, on && styles.uniOn]}
-                  onPress={() => {
-                    setUniversity(item);
-                    setUniversityQuery(item);
-                  }}>
+                <Pressable style={[styles.uni, on && styles.uniOn]} onPress={() => pickUniversity(item)}>
                   <View style={[styles.uniIcon, on && styles.uniIconOn]}>
                     <Ionicons name="business-outline" size={14} color={on ? Colors.amber : Colors.muted} />
                   </View>
-                  <Text style={styles.uniName}>{item}</Text>
+                  <Text style={styles.uniName} numberOfLines={1}>
+                    {item}
+                  </Text>
+                  {/* The real domain, straight from the cache (mock 75A's right-hand column) —
+                      "—" for a school nobody knows an address format for, which reads as
+                      "can't verify this one" rather than looking broken. */}
+                  <Text style={styles.uniDomain}>{domainForRow(item)}</Text>
                   {on && <Ionicons name="checkmark" size={16} color={Colors.coral} />}
                 </Pressable>
               );
@@ -224,10 +282,59 @@ export default function SetupHandleScreen() {
               ) : null
             }
           />
+
+          {/* Live example@domain the moment a school is picked (mock 76A) — so it's obvious
+              WHICH address to reach for before the email field ever appears. */}
+          {university && (universityDomain || resolvingDomain) && (
+            <View style={styles.preview}>
+              <Text style={styles.previewLabel}>
+                Your {shortSchoolName(university)} email looks like
+              </Text>
+              {resolvingDomain ? (
+                <Text style={styles.previewSample}>checking…</Text>
+              ) : (
+                <>
+                  <Text style={styles.previewSample}>
+                    {sampleEmailFor({ domain: universityDomain!, formatHint: formatHintFor(university) ?? undefined })}
+                  </Text>
+                  {formatHintFor(university) && (
+                    <Text style={styles.previewHint}>
+                      Format: {formatHintFor(university)}. Not sure? Just enter the email you actually use — the
+                      code confirms it.
+                    </Text>
+                  )}
+                </>
+              )}
+            </View>
+          )}
         </View>
       )}
 
-      {step === 3 && (
+      {/* OPTIONAL campus verification (§5). Only ever reached when the school has a domain. */}
+      {step === 3 && university && universityDomain && (
+        <View style={styles.step}>
+          {justVerified ? (
+            <CampusVerifiedPanel
+              university={shortSchoolName(university)}
+              onContinue={() => setStep(4)}
+              continueLabel="Continue"
+            />
+          ) : (
+            <CampusVerification
+              university={shortSchoolName(university)}
+              domain={universityDomain}
+              verifyCtaLabel="Verify & unlock My Uni"
+              onSkip={() => setStep(4)}
+              onVerified={async () => {
+                await refreshProfile();
+                setJustVerified(true);
+              }}
+            />
+          )}
+        </View>
+      )}
+
+      {step === 4 && (
         <View style={styles.step}>
           <Text style={styles.h}>One last thing</Text>
           <Text style={styles.sub}>Then you&apos;re in.</Text>
@@ -270,24 +377,35 @@ export default function SetupHandleScreen() {
 
       {error && <Text style={styles.error}>{error}</Text>}
 
+      {/* Step 3 carries its own CTAs (Send code / Verify / Skip), so the shared nav bar sits it
+          out entirely — two competing primary buttons on one screen is how someone taps
+          "Continue" and skips verification without meaning to. Back still works. */}
       <View style={styles.nav}>
         {step > 1 && (
-          <Pressable style={styles.back} onPress={() => setStep((s) => (s - 1) as 1 | 2)}>
+          <Pressable
+            style={styles.back}
+            onPress={() =>
+              // Step 3 only exists for a school with a domain, so stepping back from consent has
+              // to skip over it when there isn't one — otherwise Back lands on a blank screen.
+              setStep((s) => (s === 4 && !universityDomain ? 2 : ((s - 1) as Step)))
+            }>
             <Text style={styles.backLabel}>Back</Text>
           </Pressable>
         )}
-        <View style={styles.nextWrap}>
-          <PrimaryButton
-            label={step === 3 ? 'Enter Philoi' : 'Continue'}
-            loading={loading}
-            disabled={step === 1 ? !canContinueStep1 : step === 2 ? !canContinueStep2 : !canContinueStep3}
-            onPress={() => {
-              if (step === 1) setStep(2);
-              else if (step === 2) handleContinueStep2();
-              else handleFinish();
-            }}
-          />
-        </View>
+        {step !== 3 && (
+          <View style={styles.nextWrap}>
+            <PrimaryButton
+              label={step === 4 ? 'Enter Philoi' : 'Continue'}
+              loading={loading}
+              disabled={step === 1 ? !canContinueStep1 : step === 2 ? !canContinueStep2 : !canContinueStep3}
+              onPress={() => {
+                if (step === 1) setStep(2);
+                else if (step === 2) handleContinueStep2();
+                else handleFinish();
+              }}
+            />
+          </View>
+        )}
       </View>
     </Screen>
   );
@@ -408,6 +526,34 @@ const styles = StyleSheet.create({
   },
   uniIconOn: {
     backgroundColor: Colors.achieverBg,
+  },
+  uniDomain: {
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    color: Colors.textTertiary,
+  },
+  preview: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    padding: Spacing.three,
+    gap: 4,
+    marginTop: Spacing.two,
+  },
+  previewLabel: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
+  },
+  previewSample: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 15,
+    color: Colors.amber,
+  },
+  previewHint: {
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    lineHeight: 15.5,
+    color: Colors.textTertiary,
   },
   uniName: {
     flex: 1,

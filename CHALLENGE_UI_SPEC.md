@@ -98,3 +98,29 @@ status bar. Wrap in a top SafeAreaView / add the inset, clean the header + Conne
 ## Ship
 All JS except §3's one migration (`challenge_change_requests` + the two RPCs) and §6's goal `circle_id` drop.
 JS rides the next build/OTA; the migrations go via `supabase db push`.
+
+---
+
+## As-built resolutions (shipped `eec2131`, migrations 0058–0061)
+Decisions confirmed after implementation — these are the source of truth over any earlier wording above.
+
+1. **Consent is H2H-only (§3).** A group race has N members and "agreement" has no non-arbitrary definition, so
+   we did NOT build a quorum. **Group terms stay the creator's to set** (migration 0060), enforced server-side,
+   with a **push notice** to members. Revisit only if group challenges grow large/contentious.
+
+2. **`get_challenge_leaderboard` + the `challenge-leaderboard` screen were retired** (not restored). Their only
+   entry point was the goal↔campfire binding we dropped in §6, and their function overlaps the campfire
+   leaderboard + the challenge Watch. If a per-campfire "who's grinding this goal" view is wanted later, rebuild
+   it off **posted check-ins** (not a goal binding) as part of **Leaderboard 2.0 (Step 22)** — do NOT resurrect
+   the orphaned version.
+
+3. **Setup shows 5 metrics; Ride + the 3 Whoop metrics sit behind a "More metrics" reveal** (§7) — kept, not
+   deleted, so existing Strava-ride and Whoop goals aren't stranded. Each stays wired to its real source.
+
+4. **Custom "time locked in" credit currently fires client-side after `stop_lock_in_session`** (idempotent,
+   self-heals next open). FOLLOW-UP (low priority): move it into the existing `check_ins` AFTER-INSERT trigger
+   (where `xp_earned` is already computed) so goal progress is **atomic** with the lock-in — this closes the
+   rare "app killed within ~1s of stop → goal didn't move until next open" gap. Not blocking.
+
+5. Build note: the gym-video APK predates this commit, so the §1–§8 challenge/goal work is **Metro-only** for
+   now (no OTA published, per instruction). It folds into the next cut build.

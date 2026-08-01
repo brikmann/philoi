@@ -44,11 +44,12 @@ import type { ActiveChallengeMarker, DiscoverableGroup, MyRank } from '@/types/d
 // Both hero-row bars share these exact dimensions so the fire (today) and rank (forever)
 // columns read as a matched pair (design-mocks/30 option B) — position alone carries the
 // "today vs. lifetime" meaning, so no extra labeling is needed either.
-const HERO_BADGE_SIZE = 34;
-const HERO_BAR_WIDTH = 14;
-// Trimmed down from the mock's literal 92px (Dispatch review) so the bars sit beside the
-// campfire instead of towering over it.
-const HERO_BAR_HEIGHT = 72;
+// Scaled up (punchlist 5.1) now that the recent-lock-ins journal no longer competes for this
+// screen: at the old 34/14/72 the hero read as a small cluster stranded above a large empty gap.
+// Headroom below the CTA is deliberately left free for the mock-69 season graphic.
+const HERO_BADGE_SIZE = 46;
+const HERO_BAR_WIDTH = 18;
+const HERO_BAR_HEIGHT = 110;
 
 function findUniversal(ranks: MyRank[]): MyRank | undefined {
   return ranks.find((r) => r.scope === 'universal');
@@ -148,6 +149,11 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
       <View style={styles.pageContent}>
       {greeting && <Text style={styles.greet}>{greeting}</Text>}
 
+      {/* Paired with the spacer below the CTA: two equal flex:1 gaps centre the hero + CTA group
+          in whatever's left under the greeting, instead of stacking it at the top with all the
+          emptiness beneath (punchlist 5.1). */}
+      <View style={styles.heroSpacer} />
+
       {/* Hero row (design-mocks/30 option B) — fire (today, left) flanks the campfire; rank
           (forever, right) flanks the other side. Position alone carries that meaning. */}
       <View style={styles.heroRow}>
@@ -171,9 +177,9 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
         </View>
 
         <View style={styles.heroCenter}>
-          {/* Enlarged from 80 (punchlist 4B) — with the recent-lock-ins journal gone, the fire
-              is the hero of this screen and gets the freed space rather than floating small. */}
-          <CampfireFlameStage state={flameState} size={120} />
+          {/* 80 -> 120 (punchlist 4B) -> 140 (5.1) — with the recent-lock-ins journal gone, the
+              fire is the hero of this screen and gets the freed space rather than floating small. */}
+          <CampfireFlameStage state={flameState} size={140} />
           {activeSession?.circleId && session ? (
             <LockedInBodyDoublesLine circleId={activeSession.circleId} excludeUserId={session.user.id} />
           ) : !activeSession ? (

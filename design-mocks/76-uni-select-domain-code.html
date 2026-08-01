@@ -1,0 +1,87 @@
+<meta charset="utf-8">
+<style>:root{--font-sans:'Inter',system-ui,sans-serif}body{margin:0;background:#0f0d15;min-height:100vh;display:flex;justify-content:center;padding:24px;font-family:var(--font-sans)}</style>
+<style>
+.col2{display:flex;flex-wrap:wrap;gap:22px;justify-content:center;align-items:flex-start;max-width:660px}
+.unit{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11.5px;text-align:center;max-width:300px;line-height:1.5}
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:radial-gradient(120% 45% at 50% 6%,#2a1a33,#161320 55%);border-radius:26px;overflow:hidden;color:#FFF6EC;display:flex;flex-direction:column;padding:24px 18px}
+.step{font-size:10px;font-weight:800;letter-spacing:1.5px;color:#7c7194;text-transform:uppercase}
+.title{font-size:23px;font-weight:800;margin-top:8px;line-height:1.15}
+.sub{font-size:12px;color:#a99cbd;margin-top:7px;line-height:1.5}
+/* search + results */
+.search{display:flex;align-items:center;gap:8px;background:#20182f;border-radius:12px;padding:12px 14px;margin-top:18px}
+.search svg{width:16px;height:16px;stroke:#7c7194;fill:none;stroke-width:2}
+.search input{background:transparent;border:0;color:#FFF6EC;font-size:14px;font-family:var(--font-sans);flex:1;outline:none}
+.uni{display:flex;align-items:center;gap:11px;padding:11px 8px;border-radius:10px}
+.uni.on{background:rgba(224,97,44,.12);border:1px solid rgba(224,97,44,.5)}
+.crest{width:30px;height:30px;border-radius:8px;background:#2d2740;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+.un{font-size:13.5px;font-weight:700}.ud{font-size:10.5px;color:#7c7194;margin-top:1px}
+.chk{margin-left:auto;color:#E0612C;font-size:16px}
+/* the domain preview that pops in */
+.preview{margin-top:16px;background:linear-gradient(135deg,#2a1d18,#241c38);border:1px solid rgba(242,163,60,.45);border-radius:14px;padding:14px}
+.plbl{font-size:9.5px;font-weight:800;letter-spacing:1px;color:#F2A33C;text-transform:uppercase}
+.pmail{font-size:20px;font-weight:800;margin-top:7px;letter-spacing:.2px}
+.pmail .ex{color:#8a8398}.pmail .at{color:#7c7194}.pmail .dom{color:#F2A33C}
+.pnote{font-size:10.5px;color:#a99cbd;margin-top:8px;line-height:1.4}
+/* otp */
+.otp{display:flex;gap:8px;justify-content:center;margin-top:22px}
+.dig{width:38px;height:50px;border-radius:11px;background:#20182f;border:1.5px solid #2d2740;display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:800}
+.dig.f{border-color:#E0612C}
+.dig.cur{border-color:#F2A33C;background:#241c38}
+.sentto{text-align:center;font-size:12px;color:#a99cbd;margin-top:16px}
+.sentto b{color:#c8bcdd}
+.resend{text-align:center;font-size:11px;color:#7c7194;margin-top:8px}
+.resend b{color:#a99cbd}
+.spacer{flex:1}
+.cta{display:block;text-align:center;background:linear-gradient(135deg,#F2A33C,#E0612C);color:#2a1608;border-radius:14px;padding:15px;font-size:15px;font-weight:800}
+.skip{text-align:center;font-size:12.5px;color:#8a8398;font-weight:600;margin-top:13px}
+</style>
+<div class="col2">
+
+  <!-- SELECT + DOMAIN PREVIEW -->
+  <div class="unit"><div class="phone"><div class="stage">
+    <div class="step">Verify your campus</div>
+    <div class="title">Where do you study?</div>
+    <div class="sub">We'll send a code to your school email to prove you're really there.</div>
+
+    <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input value="laurier"></div>
+    <div style="margin-top:8px">
+      <div class="uni on"><span class="crest">🎓</span><div><div class="un">Wilfrid Laurier University</div><div class="ud">mylaurier.ca</div></div><span class="chk">✓</span></div>
+      <div class="uni"><span class="crest">🎓</span><div><div class="un">Laurentian University</div><div class="ud">laurentian.ca</div></div></div>
+    </div>
+
+    <div class="preview">
+      <div class="plbl">Your Laurier email looks like</div>
+      <div class="pmail"><span class="ex">smit4521</span><span class="at">@</span><span class="dom">mylaurier.ca</span></div>
+      <div class="pnote"><b style="color:#c8bcdd">Format:</b> first 4 of your last name + last 4 of your student number. Not sure? Just enter the email you actually use — the code confirms it.</div>
+    </div>
+
+    <div class="spacer"></div>
+    <span class="cta">Continue to email</span>
+    <div class="skip">Skip — verify later</div>
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">Select uni → domain preview (76A).</b> The moment a school is picked, a live sample <b>example@[domain]</b> pops in so it's obvious which email to use. Domain comes from the Hipolabs mapping (cached), so it's always the real one for that school.</div>
+  </div>
+
+  <!-- CODE SCREEN -->
+  <div class="unit"><div class="phone"><div class="stage">
+    <div class="step">Verify your campus</div>
+    <div class="title">Enter your code</div>
+    <div class="sub">A 6-digit code is on its way. It expires in 10 minutes.</div>
+
+    <div class="otp">
+      <div class="dig f">4</div><div class="dig f">1</div><div class="dig f">9</div><div class="dig cur">2</div><div class="dig"></div><div class="dig"></div>
+    </div>
+
+    <div class="sentto">Sent to <b>smit4521@mylaurier.ca</b></div>
+    <div class="resend">Didn't get it? <b>Resend in 0:41</b></div>
+
+    <div class="spacer"></div>
+    <span class="cta">Verify &amp; unlock My Uni</span>
+    <div class="skip">Wrong email? Change it</div>
+  </div></div>
+  <div class="cap"><b style="color:#a99cbd">Code screen (76B).</b> Standard 6-digit entry — shows where it was sent, a resend cooldown, 10-min expiry. On success the profile's <b>university_email_verified</b> flips true and the My Uni / Vs Unis tabs unlock.</div>
+  </div>
+
+</div>

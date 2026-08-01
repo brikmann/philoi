@@ -131,6 +131,23 @@ export default function ChallengesScreen() {
               </View>
             )}
 
+            {/* Nothing live, but something in History — the truly-empty case returns the full
+                mock-41 layout earlier, so reaching here with nothing active means the tab would
+                otherwise be a button over a half-screen of dead space (punchlist 5.3). */}
+            {liveSocial.length === 0 && sections.length === 0 && (
+              <View style={styles.noActive}>
+                <EmptyState
+                  icon={<SpartanArmorEmpty />}
+                  title="No active challenges"
+                  body={
+                    historyCount > 0
+                      ? 'Race a friend or set a personal goal — the ones you’ve finished are in History below.'
+                      : 'Race a friend or set a personal goal to get one going.'
+                  }
+                />
+              </View>
+            )}
+
             {sections.length > 0 && <Text style={styles.sectionLabel}>Personal goals</Text>}
           </View>
         }
@@ -196,6 +213,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textTertiary,
     marginTop: Spacing.four,
+  },
+  // Bounded, not flex:1 — this sits inside the FlatList header above the History section, so it
+  // has to take its own natural height rather than claim the whole viewport.
+  noActive: {
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.two,
   },
   // Collapsed by default (punchlist 4E) — finished challenges are a record to go looking for,
   // not something that should push live ones down the screen.

@@ -34,6 +34,16 @@ export type Profile = {
   display_name: string;
   avatar_url: string | null;
   university: string | null;
+  /** Email domain for the chosen school (migration 0062) — from the shipped top-20 cache or
+   * Hipolabs. Null means the school has no known domain, so it can't be verified; that never
+   * blocks onboarding, it only leaves the two campus boards locked. */
+  university_domain: string | null;
+  /** The verified campus address. Verification-only — the user still signs in with Google/Apple,
+   * and this is never an auth identity (see supabase/functions/send_uni_code). */
+  university_email: string | null;
+  /** Gates the My Uni + Vs Unis leaderboards, client-side AND in the RPCs themselves. Reset by
+   * the profiles_reset_uni_verification trigger when someone changes school. */
+  university_email_verified: boolean;
   /** Has an active paid Philoi membership. Unused for gating during free early access — see use-entitlement.ts. */
   is_pro: boolean;
   pro_until: string | null;
@@ -471,7 +481,11 @@ export type AnalyticsEventName =
   | 'challenge_change_agreed'
   | 'challenge_change_declined'
   | 'challenge_forfeited'
-  | 'challenge_terms_updated';
+  | 'challenge_terms_updated'
+  // Campus verification (UNI_VERIFICATION_SPEC.md). The gap between sent and verified is the
+  // number that matters: it's how many students hit a school inbox they couldn't actually reach.
+  | 'campus_code_sent'
+  | 'campus_verified';
 
 export type AnalyticsEvent = {
   id: string;

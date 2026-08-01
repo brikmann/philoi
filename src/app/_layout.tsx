@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PostHogProvider } from 'posthog-react-native';
 
 import { LIVE_SESSION_BAR_HEIGHT, LiveSessionBar, LOCK_IN_PATHNAME } from '@/components/live-session-bar';
@@ -35,10 +36,25 @@ function RootNavigator() {
   const [interLoaded] = useInterFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold });
 
   // Global live-session inset (PHILOI_UI_SPEC.md §5/§5b) — reserves space for the floating
-  // mini-map at ONE shared layout wrapper (this Stack's contentStyle) instead of every screen
-  // doing its own spacing. Zero when idle, so no space is wasted when nothing's running.
-  // Suppressed on the running-session route to match the bar itself being suppressed there.
+  // mini-map. Zero when idle, so no space is wasted when nothing's running. Suppressed on the
+  // running-session route to match the bar itself being suppressed there.
   const topInset = activeSession && pathname !== LOCK_IN_PATHNAME ? LIVE_SESSION_BAR_HEIGHT : 0;
+
+  // Two DIFFERENT mechanisms, because a native header is not content (punchlist 5.5):
+  //
+  //   header-less screens -> contentStyle.paddingTop pushes their content down (below).
+  //   headered screens    -> headerStatusBarHeight reserves space ABOVE the header itself, so
+  //                          the title/back button land under the pill instead of behind it.
+  //                          contentStyle.paddingTop must NOT also apply there or the content
+  //                          sits a whole bar-height below its own header.
+  //
+  // The pill renders inside SafeAreaView edges={['top']}, so it occupies insets.top ..
+  // insets.top + LIVE_SESSION_BAR_HEIGHT — which is exactly what the header must clear.
+  const insets = useSafeAreaInsets();
+  const headerStatusBarHeight = topInset > 0 ? insets.top + LIVE_SESSION_BAR_HEIGHT : undefined;
+  // Applied per header-less screen (see the Stack.Screen entries below) rather than as a Stack
+  // default, since the default would also hit every headered screen.
+  const headerlessContentStyle = { backgroundColor: Colors.cream, paddingTop: topInset };
 
   const appReady = ready && interLoaded;
   const [stuck, setStuck] = useState(false);
@@ -195,22 +211,26 @@ function RootNavigator() {
   return (
     <Stack
       screenOptions={{
-        contentStyle: { backgroundColor: Colors.cream, paddingTop: topInset },
+        // No paddingTop here on purpose — see headerlessContentStyle above. A headered screen
+        // gets its offset from headerStatusBarHeight instead, and a Stack-wide paddingTop would
+        // double-inset it.
+        contentStyle: { backgroundColor: Colors.cream },
+        headerStatusBarHeight,
         headerStyle: { backgroundColor: Colors.cream },
         headerShadowVisible: false,
         headerTintColor: Colors.ink,
         headerTitleStyle: { fontFamily: Fonts.bodyBold },
       }}>
       <Stack.Protected guard={!session}>
-        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+        <Stack.Screen name="sign-in" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
       </Stack.Protected>
 
       <Stack.Protected guard={Boolean(session) && (needsHandle || needsConsent)}>
-        <Stack.Screen name="setup-handle" options={{ headerShown: false }} />
+        <Stack.Screen name="setup-handle" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
       </Stack.Protected>
 
       <Stack.Protected guard={Boolean(session) && !needsHandle && !needsConsent && needsAccountDisabled}>
-        <Stack.Screen name="account-disabled" options={{ headerShown: false }} />
+        <Stack.Screen name="account-disabled" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
       </Stack.Protected>
 
       <Stack.Protected guard={Boolean(session) && !needsHandle && !needsConsent && !needsAccountDisabled}>
@@ -224,7 +244,7 @@ function RootNavigator() {
         <Stack.Screen name="group/[groupId]/index" options={{ title: '' }} />
         <Stack.Screen name="group/[groupId]/edit" options={{ presentation: 'modal', title: 'Edit Campfire' }} />
         <Stack.Screen name="group/[groupId]/invite" options={{ presentation: 'modal', title: '', headerShown: false }} />
-        <Stack.Screen name="group/[groupId]/join-requests" options={{ headerShown: false }} />
+        <Stack.Screen name="group/[groupId]/join-requests" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="group/[groupId]/leaderboard" options={{ title: '' }} />
         <Stack.Screen
           name="lock-in/index"
@@ -235,15 +255,16 @@ function RootNavigator() {
         <Stack.Screen name="group/create" options={{ presentation: 'modal', title: 'Start a Campfire' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="settings-notifications" options={{ title: 'Notifications' }} />
-        <Stack.Screen name="connected-apps" options={{ headerShown: false }} />
-        <Stack.Screen name="health-connect-rationale" options={{ headerShown: false }} />
-        <Stack.Screen name="strava-auth" options={{ headerShown: false }} />
+        <Stack.Screen name="connected-apps" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="campus" options={{ title: 'Campus' }} />
+        <Stack.Screen name="health-connect-rationale" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="strava-auth" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="university-leaderboard" options={{ title: '' }} />
-        <Stack.Screen name="people" options={{ headerShown: false }} />
-        <Stack.Screen name="add-friend" options={{ headerShown: false }} />
-        <Stack.Screen name="friend-profile" options={{ headerShown: false }} />
+        <Stack.Screen name="people" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="add-friend" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="friend-profile" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="activity/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
-        <Stack.Screen name="lock-in-history" options={{ headerShown: false }} />
+        <Stack.Screen name="lock-in-history" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="watch/[challengeId]" options={{ title: 'Watch' }} />
         <Stack.Screen name="challenge-change/[requestId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="challenge/create" options={{ presentation: 'modal', title: 'New challenge' }} />
@@ -253,10 +274,10 @@ function RootNavigator() {
       </Stack.Protected>
 
       {/* Public — reachable via philoi://join?code=ABC123 whether or not the user is signed in. */}
-      <Stack.Screen name="join" options={{ headerShown: false }} />
+      <Stack.Screen name="join" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
 
       {/* Public — the Google OAuth redirect lands here mid-sign-in, before session exists. */}
-      <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/callback" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
 
       {/* Public, voluntary preview of Philoi membership — dormant until pricing ships. */}
       <Stack.Screen name="paywall" options={{ headerShown: false, presentation: 'modal' }} />

@@ -113,6 +113,10 @@ export default function LeaderboardsScreen() {
 
   const { people, loading: peopleLoading, error: peopleError, refetch: refetchPeople } = useCrossCirclePeople();
   const university = profile?.university ?? '';
+  // The gate (UNI_VERIFICATION_SPEC.md §4). Client-side this swaps in the 🔒 state; the RPCs
+  // enforce it independently, so an unverified account can't appear on a campus board even
+  // through a hand-rolled call — which is the whole reason the rankings mean anything.
+  const campusVerified = profile?.university_email_verified ?? false;
   const { rows: uniRows, loading: uniLoading, error: uniError, refetch: refetchUni } = useUniversityLeaderboard(university);
   const { totals, loading: totalsLoading, refetch: refetchTotals } = useUniversityTotals();
   const { rows: globalRows, loading: globalLoading, error: globalError, refetch: refetchGlobal } = useGlobalLeaderboard();
@@ -360,13 +364,17 @@ export default function LeaderboardsScreen() {
           {scope === 'uni' &&
             (!university ? (
               <EmptyState title="Add your school" body="Set your school in Profile to see how you stack up at your university." />
+            ) : !campusVerified ? (
+              <CampusLockedState />
             ) : (
               renderPersonBoard(uniBoard, 'Nobody here yet', 'Be the first from your school to start a streak.', uniError)
             ))}
 
           {scope === 'global' && renderPersonBoard(globalBoard, 'Nobody here yet', 'Check back once more people join.', globalError)}
 
-          {scope === 'vs' && (
+          {scope === 'vs' && !campusVerified && <CampusLockedState />}
+
+          {scope === 'vs' && campusVerified && (
             <FlatList
               data={vsListRows}
               keyExtractor={(item) => item.university}
@@ -412,7 +420,61 @@ export default function LeaderboardsScreen() {
   );
 }
 
+// The 🔒 state behind both campus boards (UNI_VERIFICATION_SPEC.md §4, mock 75D shows the pair
+// once unlocked). Deliberately explains WHY rather than just refusing: the restriction is the
+// feature — a campus ranking anyone could join wouldn't be worth topping.
+function CampusLockedState() {
+  const router = useRouter();
+  return (
+    <View style={styles.locked}>
+      <Text style={styles.lockedIcon}>🔒</Text>
+      <Text style={styles.lockedTitle}>Verify to unlock</Text>
+      <Text style={styles.lockedBody}>
+        Only students with a verified school email count on My Uni and Vs Unis — that&apos;s what keeps the campus
+        rankings real. Takes about a minute.
+      </Text>
+      <Pressable style={styles.lockedCta} onPress={() => router.push('/campus')} accessibilityRole="button">
+        <Text style={styles.lockedCtaLabel}>Verify my campus</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  locked: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.five,
+  },
+  lockedIcon: {
+    fontSize: 34,
+  },
+  lockedTitle: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 19,
+    color: Colors.ink,
+  },
+  lockedBody: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.muted,
+    textAlign: 'center',
+  },
+  lockedCta: {
+    marginTop: Spacing.two,
+    backgroundColor: Colors.coral,
+    borderRadius: Radius.button,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.five,
+  },
+  lockedCtaLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 15,
+    color: Colors.ink,
+  },
   header: {
     gap: Spacing.two,
     paddingHorizontal: Spacing.four,

@@ -189,6 +189,22 @@ export default function SettingsScreen() {
             onValueChange={handleToggleWatchOptIn}
           />
           <SettingsRow icon="fitness" label="Connected apps" onPress={() => router.push('/connected-apps')} />
+          {/* Campus verification state (UNI_VERIFICATION_SPEC.md §6) — the value column is the
+              whole story: verified, or the reason it isn't. */}
+          <SettingsRow
+            icon="school"
+            label="Campus"
+            value={
+              profile?.university_email_verified
+                ? 'Verified'
+                : profile?.university
+                  ? profile?.university_domain
+                    ? 'Not verified'
+                    : 'No domain'
+                  : 'Not set'
+            }
+            onPress={() => router.push('/campus')}
+          />
         </View>
 
         <Text style={styles.sectionLabel}>DAILY FIRE</Text>
