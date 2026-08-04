@@ -19,7 +19,10 @@ import {
   looksLikeEmail,
 } from '../_shared/uni-code.ts';
 
-const FROM = Deno.env.get('UNI_CODE_FROM') ?? 'Philoi <verify@philoi.app>';
+// MUST be on a domain verified in Resend, or every send fails with a 502. getphiloi.com is the
+// verified one (the app's other public URLs — getphiloi.com/privacy, /terms — are on it too);
+// philoi.app is NOT set up for sending. Override with the UNI_CODE_FROM secret if that changes.
+const FROM = Deno.env.get('UNI_CODE_FROM') ?? 'Philoi <verify@getphiloi.com>';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
