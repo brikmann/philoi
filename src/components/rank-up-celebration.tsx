@@ -4,6 +4,7 @@ import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, Text, useW
 import Animated, {
   Easing,
   FadeIn,
+  FadeOut,
   interpolate,
   type SharedValue,
   useAnimatedStyle,
@@ -18,7 +19,7 @@ import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-nat
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { composeRankUpHeadline } from '@/lib/rank-up-copy';
+import { RANK_UP_COPY } from '@/lib/rank-up-copy';
 import { formatRankTier, RANK_TIER_METAL, TIER_FLASH_KIND } from '@/lib/rank-tiers';
 import { fireRankUp, startRankUpRiser, stopRankUpRiser } from '@/lib/reward-feedback';
 import type { RankTierName } from '@/types/database';
@@ -40,10 +41,11 @@ type RankUpCelebrationProps = {
   fromTier: RankTierName;
   fromDivision: number;
   streakDays: number;
-  /** First name only — composeRankUpHeadline appends ", {name}." itself. */
-  firstName: string;
-  /** The user's school, for the {school} social-line placeholder — falls back to the beta default. */
-  university?: string | null;
+  /** The two ascension moments (RANKUP_SPEC §1): Diamond I → Hero III, and anything → Primordial.
+   * Gates the framing card, the Victory Anthem, the hardest wash, and the heavy haptic sequence.
+   * Normally derived by the caller from the rank delta (see deriveRankUpLevel), but forced true by
+   * the dev-tools ascension buttons so both can be auditioned without climbing there. */
+  isBandCrossing?: boolean;
   onContinue: () => void;
   onShare: () => void;
   sharing?: boolean;
@@ -194,7 +196,17 @@ function HexLick({ rotation, delay }: { rotation: number; delay: number }) {
 //   • Tier crossing → the moving metallic sweep + the tier's TIER_FLASH_KIND particles (Primordial
 //     also gets rising flames, and the hardest wash — the apex).
 //   • Division bump → the wash alone (also covers bronze, which has no crossing `kind`).
-function TierFlashOverlay({ tier, isDivisionBump, reduceMotion }: { tier: RankTierName; isDivisionBump: boolean; reduceMotion: boolean }) {
+function TierFlashOverlay({
+  tier,
+  isDivisionBump,
+  isBandCrossing,
+  reduceMotion,
+}: {
+  tier: RankTierName;
+  isDivisionBump: boolean;
+  isBandCrossing: boolean;
+  reduceMotion: boolean;
+}) {
   const { width, height } = useWindowDimensions();
   const kind = TIER_FLASH_KIND[tier];
   const metal = RANK_TIER_METAL[tier];
@@ -203,23 +215,38 @@ function TierFlashOverlay({ tier, isDivisionBump, reduceMotion }: { tier: RankTi
   const washColor = isFlame ? Colors.coral : metal.inner;
   const wash = useSharedValue(0);
   const sweep = useSharedValue(0);
+  // Olympian's god-rays and Immortal's ascending glow both ride this one 0→1 driver.
+  const halo = useSharedValue(0);
+
+  // The three intensities (§1) read as one dial: how hard the screen floods. 0.5 bump / 0.7
+  // crossing / 0.9 band crossing — Primordial stays at the apex value on any crossing since its
+  // arrival IS a band crossing.
+  const washPeak = isDivisionBump ? 0.5 : isBandCrossing || isFlame ? 0.9 : 0.7;
 
   useEffect(() => {
     if (reduceMotion) return;
     // Full-screen tier-colored wash on EVERY rank-up (bump OR crossing, every tier) — engulf →
-    // brief hold → recede, long enough to read as a real screen flush rather than a blip. Primordial
-    // goes hardest (the apex, 0.9); other tiers a touch lighter (0.6) but still a full flush.
+    // brief hold → recede, long enough to read as a real screen flush rather than a blip.
     wash.value = withDelay(
       FLARE_DELAY_MS,
-      withSequence(withTiming(isFlame ? 0.9 : 0.6, { duration: 450 }), withDelay(350, withTiming(0, { duration: 950 })))
+      withSequence(withTiming(washPeak, { duration: 450 }), withDelay(350, withTiming(0, { duration: 950 })))
     );
+    if (!isDivisionBump && (kind === 'sparkle' || tier === 'immortal')) {
+      halo.value = withDelay(FLARE_DELAY_MS, withTiming(1, { duration: 1400, easing: Easing.out(Easing.cubic) }));
+    }
     // Crossings layer the moving metallic sweep on top; a division bump is the wash alone.
     if (!isDivisionBump && kind) {
       sweep.value = withDelay(FLARE_DELAY_MS, withTiming(1, { duration: 820, easing: Easing.inOut(Easing.ease) }));
     }
-  }, [reduceMotion, isDivisionBump, kind, isFlame, wash, sweep]);
+  }, [reduceMotion, isDivisionBump, kind, tier, washPeak, wash, sweep, halo]);
 
   const washStyle = useAnimatedStyle(() => ({ opacity: wash.value, backgroundColor: washColor }));
+  // God-rays (Olympian) fade in then hold faint; the ascending glow (Immortal) also drifts upward.
+  const haloStyle = useAnimatedStyle(() => ({ opacity: interpolate(halo.value, [0, 0.35, 1], [0, 0.5, 0.12]) }));
+  const ascendStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(halo.value, [0, 0.3, 1], [0, 0.45, 0]),
+    transform: [{ translateY: interpolate(halo.value, [0, 1], [80, -120]) }],
+  }));
   const sweepStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: interpolate(sweep.value, [0, 1], [-width * 1.6, width * 1.6]) }, { rotate: '-14deg' }],
   }));
@@ -288,6 +315,51 @@ function TierFlashOverlay({ tier, isDivisionBump, reduceMotion }: { tier: RankTi
             Array.from({ length: 14 }, (_, i) => (
               <FlameBlob key={i} left={hashUnit(i + 10) * 96} height={40 + hashUnit(i + 20) * 60} delay={FLARE_DELAY_MS + i * 45} />
             ))}
+
+          {/* Hero — "the threshold ignites" (§2). Embers reused from the campfire, tinted crimson
+              and thrown across the whole screen rather than rising from the fire's base. */}
+          {tier === 'hero' &&
+            Array.from({ length: 12 }, (_, i) => (
+              <Glint
+                key={`hero-${i}`}
+                color={i % 3 === 0 ? metal.text : metal.inner}
+                left={4 + hashUnit(i + 15) * 92}
+                startTop={70 + hashUnit(i + 25) * 26}
+                fall={-(120 + hashUnit(i + 35) * 160)}
+                delay={FLARE_DELAY_MS + i * 50}
+                duration={900 + hashUnit(i + 45) * 500}
+              />
+            ))}
+
+          {/* Olympian — 3 soft radial beams from the top, fading down (§2). */}
+          {tier === 'olympian' && (
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, haloStyle]}>
+              <Svg width="100%" height="100%">
+                <Defs>
+                  <LinearGradient id="godRay" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0" stopColor={metal.inner} stopOpacity={0.85} />
+                    <Stop offset="1" stopColor={metal.inner} stopOpacity={0} />
+                  </LinearGradient>
+                </Defs>
+                {[0.22, 0.5, 0.78].map((cx, i) => (
+                  <Rect
+                    key={cx}
+                    x={width * cx - (26 + i * 6) / 2}
+                    y={0}
+                    width={26 + i * 6}
+                    height={height * 0.72}
+                    fill="url(#godRay)"
+                  />
+                ))}
+              </Svg>
+            </Animated.View>
+          )}
+
+          {/* Immortal — a gentle violet glow ascending behind the badge. Ethereal, NOT fiery: it
+              rises and dissolves rather than licking upward like Primordial's flames (§2). */}
+          {tier === 'immortal' && (
+            <Animated.View pointerEvents="none" style={[styles.ascendGlow, { backgroundColor: metal.inner }, ascendStyle]} />
+          )}
         </>
       )}
     </View>
@@ -328,21 +400,30 @@ export function RankUpCelebration({
   fromTier,
   fromDivision,
   streakDays,
-  firstName,
-  university,
+  isBandCrossing = false,
   onContinue,
   onShare,
   sharing,
 }: RankUpCelebrationProps) {
   const [reduceMotion, setReduceMotion] = useState(false);
-  // Picked once per mount, not on every render — a rank-up screen mounts exactly once per event.
-  const [headline] = useState(() => composeRankUpHeadline(tier, division, firstName, university));
+  // Fixed per tier now (§5) — no pool, no picker, no interpolation, so nothing to memoize.
+  const copy = RANK_UP_COPY[tier];
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
   }, []);
 
   const isPrimordial = tier === 'primordial';
+  // Titan is "colossal" (§2) — a short ±3px jolt at the flare. Reduce-motion skips it entirely.
+  const shake = useSharedValue(0);
+  // The framing card owns the first 1.2s of a band crossing, then hands off to the forge.
+  const [showFraming, setShowFraming] = useState(isBandCrossing);
+
+  useEffect(() => {
+    if (!isBandCrossing) return;
+    const timer = setTimeout(() => setShowFraming(false), 1200);
+    return () => clearTimeout(timer);
+  }, [isBandCrossing]);
   // Same tier in and out (e.g. Bronze III -> II) = a within-tier bump: same forge, lighter flare
   // payoff + softer cue. Anything else is a true tier crossing. (The dev-preview's Bronze III
   // "from = itself" also reads as a bump, which is right — there's no lower rank to cross from.)
@@ -372,7 +453,7 @@ export function RankUpCelebration({
   function fireTierCueOnce() {
     if (hasFiredCueRef.current) return;
     hasFiredCueRef.current = true;
-    fireRankUp(tier, isDivisionBump);
+    fireRankUp(tier, isDivisionBump, isBandCrossing);
   }
 
   useEffect(() => {
@@ -393,6 +474,21 @@ export function RankUpCelebration({
     hexRotateY.value = withDelay(500, withTiming(1080, { duration: 3900, easing: Easing.out(Easing.cubic) }));
     // Rise up out of the campfire over the same materialize window (design-mocks/05's `riseup`).
     hexRise.value = withDelay(500, withTiming(0, { duration: 3900, easing: bezier }));
+
+    // Titan's earthquake — six quick alternating offsets over ~400ms, only on its crossing.
+    if (tier === 'titan' && !isDivisionBump) {
+      shake.value = withDelay(
+        FLARE_DELAY_MS,
+        withSequence(
+          withTiming(1, { duration: 60 }),
+          withTiming(-1, { duration: 60 }),
+          withTiming(1, { duration: 60 }),
+          withTiming(-1, { duration: 60 }),
+          withTiming(0.5, { duration: 60 }),
+          withTiming(0, { duration: 100 })
+        )
+      );
+    }
 
     flash.value = withDelay(FLARE_DELAY_MS, withTiming(1, { duration: 800, easing: Easing.linear }));
     ring1.value = withDelay(3850, withTiming(1, { duration: 1200, easing: Easing.out(Easing.cubic) }));
@@ -423,6 +519,9 @@ export function RankUpCelebration({
       clearTimeout(flareTimer);
       stopRankUpRiser();
     };
+    // fireTierCueOnce is idempotent by ref (hasFiredCueRef) and reads only props already listed
+    // below; including it would rebuild this whole timeline on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     reduceMotion,
     tier,
@@ -440,7 +539,10 @@ export function RankUpCelebration({
     tierReveal,
     metaReveal,
     ctasReveal,
+    shake,
   ]);
+
+  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value * 3 }] }));
 
   const hexStyle = useAnimatedStyle(() => ({
     opacity: hexOpacity.value,
@@ -477,9 +579,28 @@ export function RankUpCelebration({
   const ctasStyle = useRiseStyle(ctasReveal);
 
   return (
-    <Animated.View entering={FadeIn.duration(300)} style={styles.container}>
+    <Animated.View entering={FadeIn.duration(300)} style={[styles.container, shakeStyle]}>
       <ForgeBackdrop />
-      <TierFlashOverlay tier={tier} isDivisionBump={isDivisionBump} reduceMotion={reduceMotion} />
+
+      {/* Band-crossing framing card (§1) — a 1.2s pre-beat that owns the screen before the forge
+          resolves, so entering the Realm of Legend / becoming Primordial doesn't just look like a
+          louder tier crossing. Static under reduce-motion, but it still shows (§7). */}
+      {isBandCrossing && showFraming && (
+        <Animated.View
+          entering={FadeIn.duration(reduceMotion ? 0 : 350)}
+          exiting={FadeOut.duration(reduceMotion ? 0 : 400)}
+          style={styles.framingCard}
+          pointerEvents="none">
+          <Text style={styles.framingHead}>{copy.head}</Text>
+          <Text style={styles.framingSub}>{copy.sub}</Text>
+        </Animated.View>
+      )}
+      <TierFlashOverlay
+        tier={tier}
+        isDivisionBump={isDivisionBump}
+        isBandCrossing={isBandCrossing}
+        reduceMotion={reduceMotion}
+      />
 
       {/* Clustered in the vertical center (design-mocks/05 + 32): the forge stage — campfire at the
           bottom with the hex rising up OUT of it — then the "Reached X" / streak text right under.
@@ -519,7 +640,15 @@ export function RankUpCelebration({
           </View>
         </View>
 
-        <Animated.Text style={[styles.headline, headlineStyle]}>{headline}</Animated.Text>
+        {/* Copy is a TIER-CROSSING payoff only (§5). A division bump gets the lighter wash and the
+            haptic and nothing else — showing "IGNITION." again on Bronze III→II would spend the
+            line twice and flatten the crossing it belongs to. */}
+        {!isDivisionBump && (
+          <Animated.View style={headlineStyle}>
+            <Text style={styles.headline}>{copy.head}</Text>
+            <Text style={styles.headlineSub}>{copy.sub}</Text>
+          </Animated.View>
+        )}
         <Animated.Text style={[styles.tierText, tierStyle]}>Reached {formatRankTier(tier, division)}</Animated.Text>
         <Animated.Text style={[styles.metaText, metaStyle]}>forged from a {streakDays}-day streak</Animated.Text>
       </View>
@@ -625,13 +754,64 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: Colors.amber,
   },
+  // Band-crossing framing card — a full-bleed takeover over the forge for its first beat.
+  framingCard: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(10,7,16,0.92)',
+    paddingHorizontal: Spacing.five,
+  },
+  framingHead: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: 0.5,
+    color: Colors.ink,
+    textAlign: 'center',
+  },
+  framingSub: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13.5,
+    letterSpacing: 1.4,
+    color: Colors.muted,
+    textAlign: 'center',
+    marginTop: Spacing.two,
+  },
+  // Immortal's ascending glow — a soft wide blob that drifts up behind the badge and dissolves.
+  ascendGlow: {
+    position: 'absolute',
+    alignSelf: 'center',
+    bottom: '18%',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+  },
+  // Big + bold head, smaller/lighter sub beneath (§5) — the same treatment the band-crossing
+  // framing card uses, so the takeover and the badge screen read as one voice.
   headline: {
-    fontFamily: Fonts.display,
-    fontSize: 18,
-    lineHeight: 24,
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 26,
+    lineHeight: 30,
+    letterSpacing: 0.5,
     color: Colors.ink,
     textAlign: 'center',
     paddingHorizontal: Spacing.two,
+  },
+  headlineSub: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    lineHeight: 18,
+    letterSpacing: 1.2,
+    color: Colors.muted,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.two,
+    marginTop: Spacing.one,
   },
   tierText: {
     fontFamily: Fonts.bodySemiBold,

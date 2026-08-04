@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { RankUpCelebration } from '@/components/rank-up-celebration';
+import { showRankUp } from '@/components/rank-up-watcher';
 import { Card } from '@/components/ui/card';
 import { SecondaryButton } from '@/components/ui/secondary-button';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { useAuth } from '@/lib/auth/auth-context';
 import {
   fetchOneDemoMember,
   resetMyCheckIns,
@@ -19,20 +18,6 @@ import type { MyGroup } from '@/lib/api/groups';
 import { formatRankTier, RANK_TIER_COLOR, RANK_TIER_ORDER } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
-// Every rank in ladder order, low → high (RANK_REWORK_SPEC.md, migration 0063). Division 1 is
-// the TOP sub-tier within a tier (I), 3 is the bottom (III) — matches formatRankTier and
-// rank_tier_for_score.
-//
-// COMPLETE on purpose: all 28 ranks, generated from TIER_ORDER rather than hand-listed, so a
-// future tier can never be added to the ladder and silently left un-previewable here. Platinum
-// used to be skipped (it predated the spec's forge table) — that gap is exactly the kind of
-// thing this now can't reproduce. Primordial is the singular apex: one entry, no divisions.
-type LadderRank = { tier: RankTierName; division: number };
-
-const RANK_LADDER: LadderRank[] = RANK_TIER_ORDER.flatMap((tier): LadderRank[] =>
-  tier === 'primordial' ? [{ tier, division: 1 }] : [3, 2, 1].map((division) => ({ tier, division }))
-);
-
 type DevToolsProps = {
   devOverride: boolean;
   setDevOverride: (value: boolean) => void;
@@ -43,20 +28,12 @@ type DevToolsProps = {
 // "dev tools" section in schema.sql) — this component just keeps them out of the UI real
 // users see, which is the actual safety boundary the spec asks for.
 export function DevTools({ devOverride, setDevOverride, groups }: DevToolsProps) {
-  const { profile } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  // Index into RANK_LADDER of the rank currently being previewed, or null when the overlay is closed.
-  const [previewRank, setPreviewRank] = useState<number | null>(null);
-  // Bumped on every pill tap and folded into the celebration's key, so each tap forces a fresh
-  // remount even for the same rank — re-running composeRankUpHeadline (new {personal}/{social}
-  // combo) and replaying the flash/sound. Tap "Diamond II" ten times → ten different headlines.
-  const [previewTap, setPreviewTap] = useState(0);
-
-  function previewRankUp(index: number) {
-    setPreviewRank(index);
-    setPreviewTap((n) => n + 1);
-  }
+  // Whether the tier buttons fire a within-tier bump instead of a crossing (RANKUP_SPEC §7b) —
+  // the difference is the whole point of the escalation model, so it's a toggle rather than a
+  // separate row of buttons.
+  const [bumpOn, setBumpOn] = useState(false);
 
   if (!__DEV__) return null;
 
@@ -117,69 +94,75 @@ export function DevTools({ devOverride, setDevOverride, groups }: DevToolsProps)
 
       {status && <Text style={styles.status}>{status}</Text>}
 
-      {/* Pure client-side rank-up preview — mounts RankUpCelebration with mock props for any rank
-          so the forge → flash → sound → aura → composed headline can be eyeballed without earning
-          XP or touching the DB. `from` is the immediately-lower rank in the ladder (itself for the
-          Bronze III floor), which is what drives the component's tier-cross vs. division-bump logic. */}
-      <Text style={styles.subheading}>Simulate rank-up</Text>
+      {/* Rank-up tester (RANKUP_SPEC §7b). These go through showRankUp() — the SAME entry point
+          the global rank-watcher uses — so what you audition here is the real escalation, audio
+          and haptics, not a dev-only replica that can drift. The celebration itself is presented
+          by RankUpWatcher at the root, which is why nothing is mounted locally any more. */}
+      <Text style={styles.subheading}>Rank-up tester</Text>
+
+      <Pressable style={styles.toggleRow} onPress={() => setBumpOn((v) => !v)}>
+        <View style={[styles.toggleBox, bumpOn && styles.toggleBoxOn]}>
+          {bumpOn && <Text style={styles.toggleCheck}>✓</Text>}
+        </View>
+        <Text style={styles.toggleLabel}>Division bump (no copy, lighter flash)</Text>
+      </Pressable>
+
       <View style={styles.rankGrid}>
-        {RANK_LADDER.map((rank, i) => (
+        {RANK_TIER_ORDER.map((tier) => (
           <Pressable
-            key={`${rank.tier}-${rank.division}`}
-            style={[styles.rankPill, { borderColor: RANK_TIER_COLOR[rank.tier] }]}
-            onPress={() => previewRankUp(i)}>
-            <Text style={styles.rankPillText}>{formatRankTier(rank.tier, rank.division)}</Text>
+            key={tier}
+            style={[styles.rankPill, { borderColor: RANK_TIER_COLOR[tier] }]}
+            onPress={() =>
+              showRankUp({
+                tier,
+                division: bumpOn ? 2 : 3,
+                // A bump comes from the same tier one division lower; a crossing from the tier
+                // below, so the component's own fromTier !== tier check reads it as a crossing.
+                fromTier: bumpOn ? tier : previousTier(tier),
+                fromDivision: bumpOn ? 3 : 1,
+                isDivisionBump: bumpOn,
+                isBandCrossing: false,
+              })
+            }>
+            <Text style={styles.rankPillText}>{formatRankTier(tier, bumpOn ? 2 : 3)}</Text>
           </Pressable>
         ))}
       </View>
 
-      <Modal visible={previewRank !== null} animationType="fade" onRequestClose={() => setPreviewRank(null)}>
-        {previewRank !== null &&
-          (() => {
-            const to = RANK_LADDER[previewRank];
-            // Bronze III is the floor — reuse it as its own "from" so it reads as an entry, not a cross.
-            const from = RANK_LADDER[Math.max(0, previewRank - 1)];
-            return (
-              <View style={styles.overlay}>
-                <RankUpCelebration
-                  // Keyed on the tap counter (not just the rank) so every tap — even re-tapping the
-                  // same rank — remounts and re-fires the once-per-mount headline + animation timeline.
-                  key={previewTap}
-                  tier={to.tier}
-                  division={to.division}
-                  fromTier={from.tier}
-                  fromDivision={from.division}
-                  streakDays={6}
-                  firstName={profile?.display_name?.split(' ')[0] ?? 'You'}
-                  university={profile?.university}
-                  onContinue={() => setPreviewRank(null)}
-                  onShare={() => setPreviewRank(null)}
-                />
-                {/* Dev-only bar over the celebration: Re-roll remounts in place (bumps the key →
-                    fresh headline + replayed flash/sound, same rank) so you don't have to dismiss
-                    and re-tap between rolls. box-none lets taps fall through to the celebration's
-                    own CTAs; only the two buttons capture. */}
-                <View style={styles.devBar} pointerEvents="box-none">
-                  <Pressable
-                    style={styles.devBarBtn}
-                    hitSlop={8}
-                    onPress={() => setPreviewRank(null)}>
-                    <Text style={styles.devBarText}>Close</Text>
-                  </Pressable>
-                  <Text style={styles.devBarLabel}>{formatRankTier(to.tier, to.division)}</Text>
-                  <Pressable
-                    style={styles.devBarBtn}
-                    hitSlop={8}
-                    onPress={() => setPreviewTap((n) => n + 1)}>
-                    <Text style={styles.devBarText}>Re-roll ↻</Text>
-                  </Pressable>
-                </View>
-              </View>
-            );
-          })()}
-      </Modal>
+      {/* The two ascension events, forced — you shouldn't have to climb to Diamond I to check
+          that the Realm-of-Legend takeover reads right. */}
+      <View style={styles.rankGrid}>
+        <Pressable
+          style={[styles.rankPill, styles.ascensionPill, { borderColor: RANK_TIER_COLOR.hero }]}
+          onPress={() =>
+            showRankUp({ tier: 'hero', division: 3, fromTier: 'diamond', fromDivision: 1, isDivisionBump: false, isBandCrossing: true })
+          }>
+          <Text style={styles.rankPillText}>✦ Diamond → Hero</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.rankPill, styles.ascensionPill, { borderColor: RANK_TIER_COLOR.primordial }]}
+          onPress={() =>
+            showRankUp({
+              tier: 'primordial',
+              division: 1,
+              fromTier: 'immortal',
+              fromDivision: 1,
+              isDivisionBump: false,
+              isBandCrossing: true,
+            })
+          }>
+          <Text style={styles.rankPillText}>✦ Immortal → Primordial</Text>
+        </Pressable>
+      </View>
     </Card>
   );
+}
+
+/** The tier one step below — the "from" for a simulated crossing. Bronze is the floor, so it
+ * crosses from itself, which the celebration reads as an entry rather than a cross. */
+function previousTier(tier: RankTierName): RankTierName {
+  const i = RANK_TIER_ORDER.indexOf(tier);
+  return RANK_TIER_ORDER[Math.max(0, i - 1)];
 }
 
 const styles = StyleSheet.create({
@@ -217,6 +200,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+  },
+  toggleBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleBoxOn: {
+    backgroundColor: Colors.coral,
+    borderColor: Colors.coral,
+  },
+  toggleCheck: {
+    fontSize: 12,
+    color: Colors.ink,
+  },
+  toggleLabel: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.muted,
+  },
+  ascensionPill: {
+    borderWidth: 1.5,
   },
   rankPill: {
     borderWidth: 1,

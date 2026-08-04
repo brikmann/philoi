@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 
 import { getRewardPreferencesSync } from '@/lib/reward-settings';
-import { playRewardSound, stopRewardSound, type RewardCue } from '@/lib/sound';
+import { hasRewardSound, playRewardSound, stopRewardSound, type RewardCue } from '@/lib/sound';
 import type { RankTierName } from '@/types/database';
 
 // Per-tier cue (PHILOI_UI_SPEC.md §11/§22, design-mocks/31) — selected by the tier reached.
@@ -15,6 +15,15 @@ import type { RankTierName } from '@/types/database';
 // sparkle that was already in assets/ but never wired) — hero/titan/immortal share the generic
 // cue until dedicated audio is commissioned. They're visually distinct via TIER_FLASH_KIND;
 // it's only the sound that doubles up.
+// The Victory Anthem, reserved for the two band crossings (RANKUP_SPEC §3). Only the tiers a band
+// crossing can land on appear here — Hero (entering the Realm of Legend) and Primordial (the
+// apex). Until those mixes exist in assets/audio/rank/ these resolve to a cue with no player, so
+// fireRankUp falls through to the tier's normal hit rather than going silent (see sound.ts).
+const ASCENSION_CUE_BY_TIER: Partial<Record<RankTierName, RewardCue>> = {
+  hero: 'ascension-hero',
+  primordial: 'ascension-primordial',
+};
+
 const RANKUP_CUE_BY_TIER: Partial<Record<RankTierName, RewardCue>> = {
   bronze: 'rankup-bronze',
   silver: 'rankup-silver',
@@ -78,15 +87,42 @@ export function fireConfirm(): void {
 // scaled down") — a within-tier bump (e.g. Bronze III->II) still deserves its own tier's sound,
 // just softer and without Primordial's extra thump (Primordial has no divisions, so that path is
 // only ever reached by Bronze-Immortal).
-export function fireRankUp(tier: RankTierName, isDivisionBump = false): void {
+export function fireRankUp(tier: RankTierName, isDivisionBump = false, isBandCrossing = false): void {
   const prefs = getRewardPreferencesSync();
-  const cue = RANKUP_CUE_BY_TIER[tier] ?? 'rankup';
-  if (prefs.sound) playRewardSound(cue, isDivisionBump ? 0.55 : 1);
-  if (prefs.haptics) {
-    safeHaptic(() => Haptics.impactAsync(isDivisionBump ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Heavy));
-    if (tier === 'primordial' && !isDivisionBump) {
-      setTimeout(() => safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)), 150);
+
+  if (prefs.sound) {
+    // Victory Anthem — RESERVED for the two band crossings (§3). Playing it on an ordinary tier
+    // crossing is what would make it stop feeling like an arrival, so it's gated here rather than
+    // left to call sites to remember.
+    const anthemCue = isBandCrossing ? ASCENSION_CUE_BY_TIER[tier] : undefined;
+    // Only take the anthem arrangement if the mix actually exists — otherwise fall through to the
+    // normal full-volume tier hit, rather than leaving the biggest moment in the app quieter than
+    // an ordinary crossing.
+    const anthem = anthemCue && hasRewardSound(anthemCue) ? anthemCue : undefined;
+    if (anthem) {
+      playRewardSound(anthem, 1);
+      // The tier's own hit still lands underneath the anthem (§3's "reuse the old Infernal cue for
+      // Primordial's own SFX layer"), just quieter so the anthem stays on top.
+      const under = RANKUP_CUE_BY_TIER[tier];
+      if (under) setTimeout(() => playRewardSound(under, 0.5), 120);
+    } else {
+      playRewardSound(RANKUP_CUE_BY_TIER[tier] ?? 'rankup', isDivisionBump ? 0.55 : 1);
     }
+  }
+
+  if (prefs.haptics) {
+    // §4's three levels: light / medium+success / heavy → pause → success.
+    if (isBandCrossing) {
+      safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
+      setTimeout(() => safeHaptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)), 260);
+      return;
+    }
+    if (isDivisionBump) {
+      safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+      return;
+    }
+    safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
+    setTimeout(() => safeHaptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)), 120);
   }
 }
 

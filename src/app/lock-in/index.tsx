@@ -48,6 +48,7 @@ import { getErrorMessage } from '@/lib/errors';
 import { formatDurationClock } from '@/lib/format';
 import { shareFireCompleteStory } from '@/lib/fire-share-card';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
+import { deriveRankUpLevel } from '@/lib/rank-watch';
 import { isRankUp } from '@/lib/rank-tiers';
 import { fireIgnite } from '@/lib/reward-feedback';
 import { shareCardImage } from '@/lib/share-card';
@@ -545,8 +546,14 @@ function LockInScreen() {
           fromTier={rankUpInfo.fromTier}
           fromDivision={rankUpInfo.fromDivision}
           streakDays={rankUpInfo.streakDays}
-          firstName={profile?.display_name?.split(' ')[0] ?? 'You'}
-          university={profile?.university}
+          // Same derivation the global watcher uses (RANKUP_SPEC §6) — a stop that crosses into
+          // the Realm of Legend or the apex gets the cinematic here too, not just via the watcher.
+          isBandCrossing={
+            deriveRankUpLevel(
+              { tier: rankUpInfo.fromTier, division: rankUpInfo.fromDivision },
+              { tier: rankUpInfo.tier, division: rankUpInfo.division }
+            ).isBandCrossing
+          }
           onContinue={handleRankUpContinue}
           onShare={handleShareRankUp}
           sharing={sharing}

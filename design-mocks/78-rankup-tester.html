@@ -89,16 +89,16 @@ h1{font-size:16px;margin:0 0 2px}.sub{color:#9f92b6;font-size:11.5px;margin:0 0 
 
 <script>
 const T = {
-  bronze:{lab:'Bronze',o:'#6E4423',i:'#B87333',t:'#3A2410',w:'#B87333',motif:'ember',h:'Spark lit, Noah.',s:'The tribe sees you.'},
-  silver:{lab:'Silver',o:'#6B7280',i:'#C4CBD6',t:'#2B3038',w:'#C4CBD6',motif:'sweep',h:'Stunning, Noah.',s:"They're watching your streak."},
-  gold:{lab:'Gold',o:'#9A6A12',i:'#F5C542',t:'#4A3406',w:'#F5C542',motif:'sparkle',h:'Struck gold, Noah.',s:'Your squad rides on your back.'},
-  platinum:{lab:'Platinum',o:'#6E8B98',i:'#A7C7D4',t:'#22333a',w:'#A7C7D4',motif:'sweep',h:'Platinum poise, Noah.',s:'Not many reach this air.'},
-  diamond:{lab:'Diamond',o:'#2C6E76',i:'#7FE0E8',t:'#06323A',w:'#7FE0E8',motif:'prism',h:'Unbreakable, Noah.',s:'They talk about this tier.'},
-  hero:{lab:'Hero',o:'#8F2E28',i:'#E0574C',t:'#3f0f0b',w:'#E0574C',motif:'ember',ec:'#FF7A5C',h:'Ascended, Noah.',s:"You've left the mortal climb behind."},
-  titan:{lab:'Titan',o:'#1E5E4A',i:'#4FA88C',t:'#08301f',w:'#4FA88C',motif:'shard',h:'Colossal, Noah.',s:'The arena shakes when you climb.'},
-  olympian:{lab:'Olympian',o:'#C0A24E',i:'#F7E9C0',t:'#5c4a12',w:'#F7E9C0',motif:'ray',h:'Divine, Noah.',s:'You sit among the gods now.'},
-  immortal:{lab:'Immortal',o:'#8E6BC8',i:'#EAE2FA',t:'#3a2b5c',w:'#B98CEA',motif:'shimmer',h:'Deathless, Noah.',s:'Nothing can touch you now.'},
-  primordial:{lab:'Primordial',o:'#B0431E',i:'#F2A33C',t:'#4A1B0C',w:'#F2A33C',motif:'fire',apex:1,h:'The first flame, Noah.',s:'You command the fire the gods only wield.'},
+  bronze:{lab:'Bronze',o:'#6E4423',i:'#B87333',t:'#3A2410',w:'#B87333',motif:'ember',h:'IGNITION.',s:'THE CLIMB HAS BEGUN.'},
+  silver:{lab:'Silver',o:'#6B7280',i:'#C4CBD6',t:'#2B3038',w:'#C4CBD6',motif:'sweep',h:'FORGED IN STEEL.',s:'THE EDGE IS YOURS.'},
+  gold:{lab:'Gold',o:'#9A6A12',i:'#F5C542',t:'#4A3406',w:'#F5C542',motif:'sparkle',h:'THE CROWN IS YOURS.',s:'EVERY LOCK-IN TURNS TO GOLD.'},
+  platinum:{lab:'Platinum',o:'#6E8B98',i:'#A7C7D4',t:'#22333a',w:'#A7C7D4',motif:'sweep',h:'INTO RARE AIR.',s:'FEW EVER CLIMB THIS HIGH.'},
+  diamond:{lab:'Diamond',o:'#2C6E76',i:'#7FE0E8',t:'#06323A',w:'#7FE0E8',motif:'prism',h:'FORGED UNDER PRESSURE.',s:'THE MORTAL PEAK — ONE STEP FROM LEGEND.'},
+  hero:{lab:'Hero',o:'#8F2E28',i:'#E0574C',t:'#3f0f0b',w:'#E0574C',motif:'ember',ec:'#FF7A5C',h:'MORTAL LIMITS BROKEN.',s:'WELCOME TO THE REALM OF LEGEND.'},
+  titan:{lab:'Titan',o:'#1E5E4A',i:'#4FA88C',t:'#08301f',w:'#4FA88C',motif:'shard',h:'THE EARTH TREMBLES.',s:'A TITAN WALKS AMONG THEM.'},
+  olympian:{lab:'Olympian',o:'#C0A24E',i:'#F7E9C0',t:'#5c4a12',w:'#F7E9C0',motif:'ray',h:'YOU ENTER OLYMPUS.',s:'THE GODS MAKE ROOM.'},
+  immortal:{lab:'Immortal',o:'#8E6BC8',i:'#EAE2FA',t:'#3a2b5c',w:'#B98CEA',motif:'shimmer',h:'DEATH HAS NO CLAIM.',s:'YOU CANNOT FALL.'},
+  primordial:{lab:'Primordial',o:'#B0431E',i:'#F2A33C',t:'#4A1B0C',w:'#F2A33C',motif:'fire',apex:1,h:'YOU ARE BEYOND TIME ITSELF.',s:'YOU ARE NOW PRIMORDIAL.'},
 };
 const ORDER=['bronze','silver','gold','platinum','diamond','hero','titan','olympian','immortal','primordial'];
 const $=id=>document.getElementById(id);
@@ -129,7 +129,7 @@ function playTier(k){clearP();const c=T[k];const bump=$('bump').checked;
  setBadge(k);const b=$('badge');b.style.animation=`${bump?'bumpIn .6s':'badgeIn 1s'} cubic-bezier(.2,.9,.25,1) ${bump?0:.15}s forwards`;
  if(!bump){ if(c.motif==='shard'){$('stage').classList.remove('shakeit');void $('stage').offsetWidth;$('stage').classList.add('shakeit');}
    spawn(c.motif,c.i,c.ec); }
- showCopy(`<div class="h" style="color:${c.i}">${c.h} <span style="color:#c8bcdd;font-weight:600">${c.s}</span></div>`);
+ showCopy(`<div class="big" style="color:${c.i}">${c.h}</div><div class="big2">${c.s}</div>`);
 }
 
 function playBand(kind){clearP();
@@ -152,7 +152,7 @@ function playBand(kind){clearP();
    setTimeout(()=>{setBadge('primordial');b.style.animation='none';b.offsetHeight;b.style.animation='badgeIn .8s cubic-bezier(.2,.9,.25,1) forwards';
      const a=$('aura');a.style.background='radial-gradient(circle,#C77BFF,#6BE6FF)';a.style.animation='auraPulse 1.4s ease-out forwards';
      spawn('fire','#F2A33C');
-     showCopy(`<div class="big" style="color:#F7B85A">THE PANTHEON KNEELS.</div><div class="big2">YOU HAVE SURPASSED THE GODS.</div>`);
+     showCopy(`<div class="big" style="color:#F7B85A">YOU ARE BEYOND TIME ITSELF.</div><div class="big2">YOU ARE NOW PRIMORDIAL.</div>`);
    },1500);
  }
 }

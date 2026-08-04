@@ -7,12 +7,28 @@ import { Screen } from '@/components/ui/screen';
 import { Colors } from '@/constants/theme';
 import { fetchMyRanks } from '@/lib/api/goals';
 import { useAuth } from '@/lib/auth/auth-context';
-import { readLastSeenRank, requestRankRecheck, subscribeToRankRecheck, writeLastSeenRank } from '@/lib/rank-watch';
+import {
+  deriveRankUpLevel,
+  readLastSeenRank,
+  requestRankRecheck,
+  subscribeToRankRecheck,
+  writeLastSeenRank,
+  type RankUpEvent,
+} from '@/lib/rank-watch';
 import { isRankUp } from '@/lib/rank-tiers';
 import { shareCardImage } from '@/lib/share-card';
-import type { MyRank, RankTierName } from '@/types/database';
+import type { MyRank } from '@/types/database';
 
-type PendingRankUp = { tier: RankTierName; division: number; fromTier: RankTierName; fromDivision: number };
+// Imperative presenter, set by the mounted RankUpWatcher. Dev-tools and the watcher itself both
+// go through showRankUp() so there is exactly ONE path into the celebration (RANKUP_SPEC §7b) —
+// a dev trigger runs the same escalation, audio and haptics a real rank-up would.
+let present: ((event: RankUpEvent) => void) | null = null;
+
+/** Present the rank-up celebration from anywhere — the global watcher on a real increase, or
+ * dev-tools on demand. No-ops if the watcher isn't mounted (e.g. before sign-in). */
+export function showRankUp(event: RankUpEvent): void {
+  present?.(event);
+}
 
 // Global rank watcher (punchlist 5.6) — mounted once in the root layout. The forge previously
 // fired only from the lock-in done screen, so a rank earned from SERVER-side XP (a Strava or
@@ -24,7 +40,15 @@ type PendingRankUp = { tier: RankTierName; division: number; fromTier: RankTierN
 // imported something). De-duped by persisting the shown rank — see lib/rank-watch.ts.
 export function RankUpWatcher() {
   const { session, profile } = useAuth();
-  const [pending, setPending] = useState<PendingRankUp | null>(null);
+  const [pending, setPending] = useState<RankUpEvent | null>(null);
+
+  // Register this mount as the global presenter for showRankUp().
+  useEffect(() => {
+    present = setPending;
+    return () => {
+      present = null;
+    };
+  }, []);
   const [sharing, setSharing] = useState(false);
   const cardRef = useRef<View>(null);
   // One check at a time: foreground + a post-sync recheck can land together, and two in-flight
@@ -53,7 +77,13 @@ export function RankUpWatcher() {
         // Written BEFORE showing, not after Continue: if the app is killed mid-celebration the
         // rank is still recorded as seen, so it can't replay on next launch.
         await writeLastSeenRank(now);
-        setPending({ tier: now.tier, division: now.division, fromTier: lastSeen.tier, fromDivision: lastSeen.division });
+        showRankUp({
+          tier: now.tier,
+          division: now.division,
+          fromTier: lastSeen.tier,
+          fromDivision: lastSeen.division,
+          ...deriveRankUpLevel(lastSeen, now),
+        });
       } else if (lastSeen.tier !== now.tier || lastSeen.division !== now.division) {
         // Moved DOWN (or sideways) — a decay or correction. Re-baseline silently so the next
         // genuine climb still reads as an increase.
@@ -68,7 +98,6 @@ export function RankUpWatcher() {
 
   useEffect(() => {
     // Baseline read on mount. check() is async — every setState in it lands after an await.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch-on-mount, not a render loop
     check();
   }, [check]);
 
@@ -101,8 +130,7 @@ export function RankUpWatcher() {
           fromTier={pending.fromTier}
           fromDivision={pending.fromDivision}
           streakDays={profile?.current_streak ?? 0}
-          firstName={profile?.display_name?.split(' ')[0] ?? 'You'}
-          university={profile?.university}
+          isBandCrossing={pending.isBandCrossing}
           onContinue={() => setPending(null)}
           onShare={handleShare}
           sharing={sharing}

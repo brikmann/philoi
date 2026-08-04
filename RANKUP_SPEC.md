@@ -12,15 +12,15 @@ The component already splits `isDivisionBump` vs tier crossing. Add a **third, r
 
 | Level | When | Feel | Duration |
 |---|---|---|---|
-| **Division bump** | III→II→I *within* a tier | Quick, satisfying: the shared tier wash (lighter, ~0.5), metallic sweep, one copy line, light haptic, soft chime | ~1.5s |
+| **Division bump** | III→II→I *within* a tier | Quick, satisfying: the shared tier wash (lighter, ~0.5), metallic sweep, light haptic, soft chime. **NO copy** (§5) | ~1.5s |
 | **Tier crossing** | `X I → Y III` (tier *type* changes) | Full: badge morphs old→new, the new tier's bespoke motif + `TIER_FLASH_KIND` particles, heavier wash (~0.7), medium+success haptic, tier rank-up SFX, share offered | ~3s |
 | **Band crossing** ✦ new | **Only two moments:** `Diamond I → Hero III` (enter the Realm of Legend) and `Immortal I → Primordial` (the apex) | Cinematic: an extra framing beat + the grand treatment, hardest wash (0.9), heavy haptic sequence, **Victory Anthem**, share surfaced prominently | ~4–5s |
 
 Add an `isBandCrossing` prop (true iff the crossing lands on `hero` III *from* diamond, or on `primordial`). It gates the framing card, Victory Anthem, and the auto-share.
 
-**Band-crossing framing card** (a 1.2s pre-beat before the badge morph):
-- → Hero: "**You've left the mortal climb behind.**" then "Welcome to the realm of legend."
-- → Primordial: "**The first flame. Older than the gods.**" then "You are Primordial."
+**Band-crossing framing card** (a 1.2s pre-beat before the badge morph) — uses the tier's own §5 copy:
+- → Hero: "**MORTAL LIMITS BROKEN.**" then "WELCOME TO THE REALM OF LEGEND."
+- → Primordial: "**YOU ARE BEYOND TIME ITSELF.**" then "YOU ARE NOW PRIMORDIAL."
 
 ---
 
@@ -56,50 +56,26 @@ Bump = light impact. Tier crossing = medium impact + success notification. Band 
 
 ---
 
-## 5 · Copy — add the new pools
+## 5 · Copy — ONE hard-hitting all-caps line per tier (no more personal/social pools)
 
-**Source of truth is `RANK_UP_COPY.md`** — add these there first, then mirror into `RANK_UP_LINES` in `src/lib/rank-tiers`… (`rank-up-copy.ts`). Same `{personal}, {name}. {social}` shape, same no-immediate-repeat. **Rename the `infernal` key → `primordial`** (keep/adapt its lines below).
+**Model change — supersedes the old `{personal}, {name}. {social}` system entirely.** Rank-up copy is now a single fixed **all-caps two-liner shown ONLY when you reach a new tier** (a tier crossing). **Division bumps show NO copy** — just the lighter flash + haptic (§1). Rip out the personal/social pools, the no-immediate-repeat picker, the `{name}`/`{school}`/`{mascot}`/`{rival}` interpolation, and `composeRankUpHeadline`. Replace `RANK_UP_LINES` with a flat `Record<RankTierName, { head: string; sub: string }>`, and update `RANK_UP_COPY.md` (source of truth) to match.
 
 ```ts
-hero: {
-  personal: ['Ascended', 'Hero-forged', 'Past mortal limits', 'The legend begins',
-    'Crimson valor', 'Threshold crossed', "You're the story now", 'Blood and fire'],
-  social: ["You've left the mortal climb behind.", 'The campus witnesses a legend.',
-    'Your Campfire watches you ascend.', 'They tell stories about this climb.',
-    'No mortal grind touches you now.', 'You just entered legend.'],
-},
-titan: {
-  personal: ['Colossal', 'Titan-forged', 'The ground trembles', 'Primordial strength',
-    'Immovable', 'Ancient power', 'You move mountains', 'Bronze colossus'],
-  social: ['The arena shakes when you climb.', 'Your Campfire feels the tremor.',
-    'A titan walks among them.', "They can't move what you've built.",
-    'Campus feels your weight.', 'The old powers wake for you.'],
-},
-olympian: {
-  personal: ['Divine', 'Olympian', 'Among the gods', 'Radiant', 'God-tier',
-    'You ascend the pantheon', 'Struck by lightning', "Heaven's standard"],
-  social: ['You sit among the gods now.', 'The campus looks up to you.',
-    'Your Campfire basks in the light.', 'They worship this kind of focus.',
-    'A god of the grind.', 'Olympus opened its gates.'],
-},
-immortal: {
-  personal: ['Deathless', 'Immortal', 'Beyond the gods', 'Eternal', 'Untouchable',
-    'Infallible', 'You cannot fall', 'Timeless'],
-  social: ['Nothing can touch you now.', "The campus knows you're eternal.",
-    'Your Campfire witnesses the deathless.', "They'll chase this for years.",
-    "You've outlasted the gods.", 'Immortality is yours.'],
-},
-primordial: { // renamed from infernal
-  personal: ['The first flame', 'Primordial', 'Older than the gods', 'You are the source',
-    'The flame before all', 'Unquenchable origin', 'Pure creation-fire', 'The fire itself'],
-  social: ['You command the fire the gods only wield.',
-    'The entire campus feels the primordial heat.', "There's no one left to challenge you.",
-    "They'll be trying to match this for semesters.",
-    'You are the flame everything else was lit from.', 'The arena belongs to you.'],
-},
+export const RANK_UP_COPY: Record<RankTierName, { head: string; sub: string }> = {
+  bronze:     { head: 'IGNITION.',                 sub: 'THE CLIMB HAS BEGUN.' },
+  silver:     { head: 'FORGED IN STEEL.',          sub: 'THE EDGE IS YOURS.' },
+  gold:       { head: 'THE CROWN IS YOURS.',       sub: 'EVERY LOCK-IN TURNS TO GOLD.' },
+  platinum:   { head: 'INTO RARE AIR.',            sub: 'FEW EVER CLIMB THIS HIGH.' },
+  diamond:    { head: 'FORGED UNDER PRESSURE.',    sub: 'THE MORTAL PEAK — ONE STEP FROM LEGEND.' },
+  hero:       { head: 'MORTAL LIMITS BROKEN.',     sub: 'WELCOME TO THE REALM OF LEGEND.' },   // = ascension event
+  titan:      { head: 'THE EARTH TREMBLES.',       sub: 'A TITAN WALKS AMONG THEM.' },
+  olympian:   { head: 'YOU ENTER OLYMPUS.',        sub: 'THE GODS MAKE ROOM.' },
+  immortal:   { head: 'DEATH HAS NO CLAIM.',       sub: 'YOU CANNOT FALL.' },
+  primordial: { head: 'YOU ARE BEYOND TIME ITSELF.', sub: 'YOU ARE NOW PRIMORDIAL.' },         // = transcendent event
+};
 ```
 
-Platinum/Diamond keep their existing pools; only recolor platinum's *visual*, not its copy.
+Render `head` big + bold, `sub` smaller/lighter beneath (same treatment as the band-crossing copy). `hero` and `primordial` lines double as the two band-crossing framing lines — one source, no duplication.
 
 ---
 

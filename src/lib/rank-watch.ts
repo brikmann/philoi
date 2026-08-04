@@ -61,3 +61,31 @@ export function subscribeToRankRecheck(listener: Listener): () => void {
 export function requestRankRecheck(): void {
   listeners.forEach((l) => l());
 }
+
+/** The full shape the celebration needs, as presented by BOTH the watcher and dev-tools — one
+ * entry point, so a dev trigger exercises the real escalation logic rather than a parallel path
+ * (RANKUP_SPEC §7b). */
+export type RankUpEvent = {
+  tier: RankTierName;
+  division: number;
+  fromTier: RankTierName;
+  fromDivision: number;
+  isDivisionBump: boolean;
+  isBandCrossing: boolean;
+};
+
+// The two ascension moments (§1): entering the Realm of Legend, and reaching the apex. Hero only
+// counts when arriving FROM the mortal band — Titan I → Hero (impossible today, but a future
+// demotion/rework could) shouldn't replay the threshold.
+const MORTAL_TIERS: RankTierName[] = ['bronze', 'silver', 'gold', 'platinum', 'diamond'];
+
+/** Derives the escalation level from the delta (§6). Pure, so dev-tools and the watcher agree. */
+export function deriveRankUpLevel(
+  from: SeenRank,
+  to: SeenRank
+): { isDivisionBump: boolean; isBandCrossing: boolean } {
+  const isDivisionBump = from.tier === to.tier;
+  const isBandCrossing =
+    !isDivisionBump && (to.tier === 'primordial' || (to.tier === 'hero' && MORTAL_TIERS.includes(from.tier)));
+  return { isDivisionBump, isBandCrossing };
+}

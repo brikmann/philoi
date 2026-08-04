@@ -13,7 +13,9 @@ import { playRewardSound, type RewardCue } from '@/lib/sound';
 // assets were made for the new cue names, so these reuse the existing three sensibly: ignite
 // and spark borrow the small/quick spark burst, rankup* all borrow the biggest (surge), whoosh
 // only needs an entry to satisfy the Record type.
-const LOTTIE_SOURCES: Record<RewardCue, AnimationObject> = {
+// Partial: the two ascension cues (RANKUP_SPEC §3) are sound-only — the band-crossing visuals
+// are the celebration’s own takeover, not a Lottie burst — so they intentionally have no entry.
+const LOTTIE_SOURCES: Partial<Record<RewardCue, AnimationObject>> = {
   ignite: require('../../assets/lottie/spark.json'),
   whoosh: require('../../assets/lottie/spark.json'),
   settle: require('../../assets/lottie/bloom.json'),
@@ -33,7 +35,7 @@ const LOTTIE_SOURCES: Record<RewardCue, AnimationObject> = {
 // expo-haptics degrades gracefully on its own when its native module is missing (throws a
 // plain UnavailabilityError only when called, never at import) — the .catch() here just
 // prevents that rejection from surfacing as an unhandled-rejection warning on an unawaited call.
-const HAPTIC_BY_CUE: Record<RewardCue, () => void> = {
+const HAPTIC_BY_CUE: Partial<Record<RewardCue, () => void>> = {
   ignite: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}),
   whoosh: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
   settle: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}),
@@ -75,14 +77,14 @@ export const RewardBurst = forwardRef<RewardBurstHandle, { cue: RewardCue }>(fun
     fire: () => {
       const prefs = getRewardPreferencesSync();
       if (prefs.sound) playRewardSound(cue);
-      if (prefs.haptics) HAPTIC_BY_CUE[cue]();
+      if (prefs.haptics) HAPTIC_BY_CUE[cue]?.();
       if (!reduceMotionRef.current) lottieRef.current?.play();
     },
   }));
 
   return (
     <View style={styles.lottie} pointerEvents="none">
-      <LottieView ref={lottieRef} source={LOTTIE_SOURCES[cue]} loop={false} autoPlay={false} style={styles.fill} />
+      <LottieView ref={lottieRef} source={LOTTIE_SOURCES[cue] ?? LOTTIE_SOURCES.rankup} loop={false} autoPlay={false} style={styles.fill} />
     </View>
   );
 });
