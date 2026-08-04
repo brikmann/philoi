@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 
 import { FITNESS_SYNC_ENABLED } from '@/constants/feature-flags';
+import { requestRankRecheck } from '@/lib/rank-watch';
 import { supabase } from '@/lib/supabase';
 import type { ChallengeType } from '@/types/database';
 
@@ -99,8 +100,12 @@ export async function disconnectWhoop(): Promise<void> {
 export async function syncChallengeFromWhoop(challengeId: string): Promise<{ synced: number; needsScope: string | null }> {
   const { data, error } = await supabase.functions.invoke('whoop-sync', { body: { challengeId } });
   if (error) throw error;
+  const synced = typeof data?.synced === 'number' ? data.synced : 0;
+  // Same as Strava's syncs: progress logged here can complete a challenge, whose XP payout lands
+  // server-side with no done screen to celebrate a rank from (punchlist 5.6).
+  if (synced > 0) requestRankRecheck();
   return {
-    synced: typeof data?.synced === 'number' ? data.synced : 0,
+    synced,
     needsScope: typeof data?.needsScope === 'string' ? data.needsScope : null,
   };
 }

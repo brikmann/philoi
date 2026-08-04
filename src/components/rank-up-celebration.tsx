@@ -154,7 +154,7 @@ function Glint({
   );
 }
 
-// A rising flame blob for Infernal's "whole screen catches fire" transition (§11) — one-shot,
+// A rising flame blob for Primordial's "whole screen catches fire" transition (§11) — one-shot,
 // removed once the transition settles into the resting molten-aura badge (the reconciliation
 // rule: no literal flames left burning at rest).
 function FlameBlob({ left, height, delay }: { left: number; height: number; delay: number }) {
@@ -169,7 +169,7 @@ function FlameBlob({ left, height, delay }: { left: number; height: number; dela
   return <Animated.View style={[styles.flameBlob, { left: `${left}%`, height, width: 10 + (height % 8) }, style]} />;
 }
 
-// The hexagon "burning" during Infernal's transition only (§11's reconciliation: literal flame
+// The hexagon "burning" during Primordial's transition only (§11's reconciliation: literal flame
 // licks are the TRANSITION, never the resting state) — a short ring of small licks around the
 // badge that fades out once the settle beat completes.
 function HexLick({ rotation, delay }: { rotation: number; delay: number }) {
@@ -191,7 +191,7 @@ function HexLick({ rotation, delay }: { rotation: number; delay: number }) {
 // NEW tier. EVERY rank-up (§21/§22) gets the SAME full-screen tier-colored wash — one solid-color
 // absoluteFill overlay (not an edge vignette), so it covers the whole screen reliably on the first
 // play for every tier with no dependence on late-measured dimensions. On top of that shared wash:
-//   • Tier crossing → the moving metallic sweep + the tier's TIER_FLASH_KIND particles (Infernal
+//   • Tier crossing → the moving metallic sweep + the tier's TIER_FLASH_KIND particles (Primordial
 //     also gets rising flames, and the hardest wash — the apex).
 //   • Division bump → the wash alone (also covers bronze, which has no crossing `kind`).
 function TierFlashOverlay({ tier, isDivisionBump, reduceMotion }: { tier: RankTierName; isDivisionBump: boolean; reduceMotion: boolean }) {
@@ -199,7 +199,7 @@ function TierFlashOverlay({ tier, isDivisionBump, reduceMotion }: { tier: RankTi
   const kind = TIER_FLASH_KIND[tier];
   const metal = RANK_TIER_METAL[tier];
   const isFlame = kind === 'flame';
-  // Coral for Infernal's fire; the tier's own metal.inner for every other tier.
+  // Coral for Primordial's fire; the tier's own metal.inner for every other tier.
   const washColor = isFlame ? Colors.coral : metal.inner;
   const wash = useSharedValue(0);
   const sweep = useSharedValue(0);
@@ -207,7 +207,7 @@ function TierFlashOverlay({ tier, isDivisionBump, reduceMotion }: { tier: RankTi
   useEffect(() => {
     if (reduceMotion) return;
     // Full-screen tier-colored wash on EVERY rank-up (bump OR crossing, every tier) — engulf →
-    // brief hold → recede, long enough to read as a real screen flush rather than a blip. Infernal
+    // brief hold → recede, long enough to read as a real screen flush rather than a blip. Primordial
     // goes hardest (the apex, 0.9); other tiers a touch lighter (0.6) but still a full flush.
     wash.value = withDelay(
       FLARE_DELAY_MS,
@@ -234,7 +234,7 @@ function TierFlashOverlay({ tier, isDivisionBump, reduceMotion }: { tier: RankTi
       <Animated.View style={[StyleSheet.absoluteFill, washStyle]} />
 
       {/* A division bump is the wash alone. Crossings add the sweep + the tier's particles (and
-          Infernal its rising flames) on top of the same wash. */}
+          Primordial its rising flames) on top of the same wash. */}
       {!isDivisionBump && kind && (
         <>
           <Animated.View style={[styles.sweep, { width: width * 0.7, height: height * 1.4 }, sweepStyle]}>
@@ -265,7 +265,12 @@ function TierFlashOverlay({ tier, isDivisionBump, reduceMotion }: { tier: RankTi
 
           {kind === 'prism' &&
             Array.from({ length: 10 }, (_, i) => {
-              const cols = ['#CFF6FA', '#7FE0E8', '#ffffff', '#c9a8ff', '#a8fff0'];
+              // Derived from the tier, not hardcoded. 'prism' used to belong to Diamond alone, so
+              // this was a fixed cyan/white/violet set — but the 0063 rework gave it to Titan
+              // (green) and Immortal (lilac) too, and spraying Diamond's cyan on either made the
+              // crossing read as the wrong tier entirely. White stays as the refraction highlight;
+              // the rest come from the tier's own metal so each prism keeps its identity.
+              const cols = [metal.text, metal.inner, '#ffffff', metal.inner, metal.text];
               return (
                 <Glint
                   key={i}
@@ -315,7 +320,7 @@ function ForgeBackdrop() {
 // just tier crossings: a same-tier division bump plays the identical forge, differing only at the
 // flare payoff (lighter tier-tinted flash + a softer per-tier cue — driven by isDivisionBump).
 // Sound + haptic fire here directly, timed to the solidify flare, not at mount — the riser builds
-// the whole way in and is cut exactly at that beat so it resolves into the tier hit; Infernal gets
+// the whole way in and is cut exactly at that beat so it resolves into the tier hit; Primordial gets
 // an extra follow-up thump on top of the normal heavy impact.
 export function RankUpCelebration({
   tier,
@@ -337,7 +342,7 @@ export function RankUpCelebration({
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
   }, []);
 
-  const isInfernal = tier === 'infernal';
+  const isPrimordial = tier === 'primordial';
   // Same tier in and out (e.g. Bronze III -> II) = a within-tier bump: same forge, lighter flare
   // payoff + softer cue. Anything else is a true tier crossing. (The dev-preview's Bronze III
   // "from = itself" also reads as a bump, which is right — there's no lower rank to cross from.)
@@ -349,7 +354,7 @@ export function RankUpCelebration({
   const hexOpacity = useSharedValue(reduceMotion ? 1 : 0);
   const hexRotateY = useSharedValue(0);
   const hexRise = useSharedValue(reduceMotion ? 0 : 1);
-  // Flare at the materialize's tail — warm flash + expanding ring(s), Infernal gets a second ring.
+  // Flare at the materialize's tail — warm flash + expanding ring(s), Primordial gets a second ring.
   const flash = useSharedValue(0);
   const ring1 = useSharedValue(0);
   const ring2 = useSharedValue(0);
@@ -391,7 +396,7 @@ export function RankUpCelebration({
 
     flash.value = withDelay(FLARE_DELAY_MS, withTiming(1, { duration: 800, easing: Easing.linear }));
     ring1.value = withDelay(3850, withTiming(1, { duration: 1200, easing: Easing.out(Easing.cubic) }));
-    if (isInfernal) {
+    if (isPrimordial) {
       // "A double shockwave (two rings), denser sparks" — the loudest forge in the app.
       ring2.value = withDelay(4150, withTiming(1, { duration: 1200, easing: Easing.out(Easing.cubic) }));
     }
@@ -422,7 +427,7 @@ export function RankUpCelebration({
     reduceMotion,
     tier,
     isDivisionBump,
-    isInfernal,
+    isPrimordial,
     hexOpacity,
     hexScale,
     hexRotateY,
@@ -498,12 +503,12 @@ export function RankUpCelebration({
           <View style={styles.hexZone} pointerEvents="none">
             <Animated.View pointerEvents="none" style={[styles.flash, flashStyle]} />
             <Animated.View pointerEvents="none" style={[styles.ring, ring1Style]} />
-            {isInfernal && <Animated.View pointerEvents="none" style={[styles.ring, ring2Style]} />}
+            {isPrimordial && <Animated.View pointerEvents="none" style={[styles.ring, ring2Style]} />}
             <Animated.View style={hexStyle}>
               <HexagonBadge tier={tier} division={division} size={96} />
               {/* "The hexagon burns" — transition only (§11's reconciliation); fades out on its
                   own and never re-fires, leaving just the badge's normal resting aura. */}
-              {isInfernal && !reduceMotion && (
+              {isPrimordial && !reduceMotion && (
                 <View style={styles.hexLickRing} pointerEvents="none">
                   {[-60, -20, 20, 60, 140, 200].map((rotation, i) => (
                     <HexLick key={rotation} rotation={rotation} delay={FLARE_DELAY_MS + i * 30} />

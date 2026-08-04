@@ -1,0 +1,160 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rank-up tester — mock 78</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0d0b13;color:#FFF6EC;font-family:var(--font);display:flex;gap:26px;flex-wrap:wrap;justify-content:center;padding:24px}
+h1{font-size:16px;margin:0 0 2px}.sub{color:#9f92b6;font-size:11.5px;margin:0 0 14px;max-width:300px;line-height:1.5}
+/* phone */
+.phone{width:300px;height:600px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08);flex:none}
+.stage{position:relative;height:100%;background:radial-gradient(120% 60% at 50% 40%,#1c1726,#141019 70%);border-radius:26px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.wash{position:absolute;inset:0;opacity:0;pointer-events:none;mix-blend-mode:screen}
+.whiteout{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.void{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+.tear{position:absolute;top:0;bottom:0;left:50%;width:0;transform:translateX(-50%);background:linear-gradient(90deg,transparent,#C77BFF,#6BE6FF,#C77BFF,transparent);opacity:0;pointer-events:none;filter:blur(1px)}
+.ring{position:absolute;top:50%;left:50%;width:20px;height:20px;border-radius:50%;border:3px solid #fff;transform:translate(-50%,-50%) scale(0);opacity:0;pointer-events:none}
+.ptc{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.badge{position:relative;width:120px;height:132px;display:flex;align-items:center;justify-content:center;flex-direction:column;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);opacity:0}
+.badge .lab{font-size:15px;font-weight:800;letter-spacing:.5px}.badge .num{font-size:11px;font-weight:800;opacity:.85;margin-top:2px}
+.aura{position:absolute;width:180px;height:198px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);filter:blur(16px);opacity:0}
+.copy{position:absolute;bottom:70px;left:0;right:0;text-align:center;padding:0 24px;opacity:0}
+.copy .h{font-size:16px;font-weight:800;line-height:1.3}
+.copy .big{font-size:19px;font-weight:900;letter-spacing:1px;line-height:1.35}
+.copy .big2{font-size:12px;font-weight:700;color:#c8bcdd;margin-top:8px;letter-spacing:1px}
+/* particles */
+.ember,.flame,.glint,.shard,.ray{position:absolute}
+.ember{width:5px;height:5px;border-radius:50%}
+.flame{bottom:-20px;width:12px;border-radius:50% 50% 45% 45%;}
+.glint{font-size:14px}
+.shard{width:4px;height:12px;border-radius:1px}
+.ray{top:-10%;left:50%;width:8px;height:70%;transform-origin:top center;filter:blur(3px);border-radius:8px}
+@keyframes badgeIn{0%{opacity:0;transform:translateY(130px) scale(.5)}60%{opacity:1;transform:translateY(-8px) scale(1.08)}80%{transform:translateY(0) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes bumpIn{0%{opacity:0;transform:scale(.8)}60%{opacity:1;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
+@keyframes washPulse{0%{opacity:0}25%{opacity:var(--wo,.7)}100%{opacity:0}}
+@keyframes flash{0%{opacity:0}12%{opacity:1}100%{opacity:0}}
+@keyframes voidIn{0%{opacity:0}40%{opacity:1}100%{opacity:1}}
+@keyframes tearOpen{0%{width:0;opacity:0}30%{opacity:1}60%{width:80%}100%{width:14px;opacity:.9}}
+@keyframes ringOut{0%{transform:translate(-50%,-50%) scale(0);opacity:.9}100%{transform:translate(-50%,-50%) scale(9);opacity:0}}
+@keyframes copyIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes auraPulse{0%{opacity:0}50%{opacity:.8}100%{opacity:.55}}
+@keyframes emberRise{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-260px) translateX(var(--dx,0));opacity:0}}
+@keyframes flameRise{0%{height:0;opacity:0}30%{opacity:1}100%{height:var(--h,90px);opacity:0}}
+@keyframes glintFall{0%{transform:translateY(-20px) scale(.6);opacity:0}20%{opacity:1}100%{transform:translateY(var(--fy,320px)) scale(1);opacity:0}}
+@keyframes twinkle{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:1;transform:scale(1.1)}}
+@keyframes shardFall{0%{transform:translateY(-20px) rotate(var(--r,20deg));opacity:0}20%{opacity:1}100%{transform:translateY(340px) rotate(var(--r,20deg));opacity:0}}
+@keyframes rayIn{0%{opacity:0;transform:translateX(-50%) rotate(var(--rot,0deg)) scaleY(.2)}40%{opacity:.7}100%{opacity:0;transform:translateX(-50%) rotate(var(--rot,0deg)) scaleY(1)}}
+@keyframes shimmerFloat{0%{opacity:0;transform:translateY(10px) scale(.6)}30%{opacity:1}100%{opacity:0;transform:translateY(-40px) scale(1)}}
+@keyframes shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-3px,2px)}40%{transform:translate(3px,-2px)}60%{transform:translate(-2px,-2px)}80%{transform:translate(2px,2px)}}
+.shakeit{animation:shake .4s ease-in-out}
+/* controls */
+.panel{width:320px}
+.evbtns{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.ev{border:0;border-radius:12px;padding:12px;font-family:var(--font);font-size:12.5px;font-weight:800;color:#fff;cursor:pointer;text-align:left}
+.ev small{display:block;font-weight:600;opacity:.8;font-size:10px;margin-top:2px}
+.ev.hero{background:linear-gradient(90deg,#8F2E28,#3a1512)}
+.ev.prime{background:linear-gradient(90deg,#5B2A8A,#B0431E)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.chip{border:1px solid #2a2340;background:#1b1726;border-radius:11px;padding:10px 11px;display:flex;align-items:center;gap:9px;cursor:pointer;font-family:var(--font)}
+.chip:hover{border-color:#4a3f66}
+.dot{width:18px;height:20px;flex:none;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.chip b{font-size:12.5px;font-weight:800}.chip span{font-size:9.5px;color:#7c7194;display:block;margin-top:1px}
+.opt{display:flex;align-items:center;gap:8px;margin:12px 2px 4px;font-size:11.5px;color:#a99cbd}
+.opt input{accent-color:#E0612C}
+.legend{font-size:10px;color:#6a6480;margin-top:10px;line-height:1.5}
+</style>
+
+<div class="panel">
+  <h1>🔔 Rank-up tester</h1>
+  <p class="sub">Click any tier to play its rank-up moment. The two ascension events are the full-screen band crossings (RANKUP_SPEC §1). This mirrors the on-device dev-tool triggers.</p>
+  <div class="evbtns">
+    <button class="ev hero" onclick="playBand('hero')">⚔️ ASCENSION — Diamond → Hero<small>Shatter · whiteout pillar · crest slam</small></button>
+    <button class="ev prime" onclick="playBand('primordial')">🌌 TRANSCENDENCE — Immortal → Primordial<small>Void collapse · cosmic tear · apex ignition</small></button>
+  </div>
+  <div class="grid" id="grid"></div>
+  <label class="opt"><input type="checkbox" id="bump"> Division bump (lighter — III→II→I within a tier)</label>
+  <div class="legend">Colors + motifs from RANK_TIER_METAL / RANKUP_SPEC §2. Audio/haptics are described in the specs; this mock shows the <b>visuals + copy</b> only.</div>
+</div>
+
+<div class="phone"><div class="stage" id="stage">
+  <div class="wash" id="wash"></div>
+  <div class="void" id="void"></div>
+  <div class="whiteout" id="whiteout"></div>
+  <div class="tear" id="tear"></div>
+  <div class="ptc" id="ptc"></div>
+  <div class="aura" id="aura"></div>
+  <div class="badge" id="badge"><span class="lab" id="blab">—</span><span class="num" id="bnum"></span></div>
+  <div class="ring" id="ring"></div>
+  <div class="copy" id="copy"></div>
+</div></div>
+
+<script>
+const T = {
+  bronze:{lab:'Bronze',o:'#6E4423',i:'#B87333',t:'#3A2410',w:'#B87333',motif:'ember',h:'Spark lit, Noah.',s:'The tribe sees you.'},
+  silver:{lab:'Silver',o:'#6B7280',i:'#C4CBD6',t:'#2B3038',w:'#C4CBD6',motif:'sweep',h:'Stunning, Noah.',s:"They're watching your streak."},
+  gold:{lab:'Gold',o:'#9A6A12',i:'#F5C542',t:'#4A3406',w:'#F5C542',motif:'sparkle',h:'Struck gold, Noah.',s:'Your squad rides on your back.'},
+  platinum:{lab:'Platinum',o:'#6E8B98',i:'#A7C7D4',t:'#22333a',w:'#A7C7D4',motif:'sweep',h:'Platinum poise, Noah.',s:'Not many reach this air.'},
+  diamond:{lab:'Diamond',o:'#2C6E76',i:'#7FE0E8',t:'#06323A',w:'#7FE0E8',motif:'prism',h:'Unbreakable, Noah.',s:'They talk about this tier.'},
+  hero:{lab:'Hero',o:'#8F2E28',i:'#E0574C',t:'#3f0f0b',w:'#E0574C',motif:'ember',ec:'#FF7A5C',h:'Ascended, Noah.',s:"You've left the mortal climb behind."},
+  titan:{lab:'Titan',o:'#1E5E4A',i:'#4FA88C',t:'#08301f',w:'#4FA88C',motif:'shard',h:'Colossal, Noah.',s:'The arena shakes when you climb.'},
+  olympian:{lab:'Olympian',o:'#C0A24E',i:'#F7E9C0',t:'#5c4a12',w:'#F7E9C0',motif:'ray',h:'Divine, Noah.',s:'You sit among the gods now.'},
+  immortal:{lab:'Immortal',o:'#8E6BC8',i:'#EAE2FA',t:'#3a2b5c',w:'#B98CEA',motif:'shimmer',h:'Deathless, Noah.',s:'Nothing can touch you now.'},
+  primordial:{lab:'Primordial',o:'#B0431E',i:'#F2A33C',t:'#4A1B0C',w:'#F2A33C',motif:'fire',apex:1,h:'The first flame, Noah.',s:'You command the fire the gods only wield.'},
+};
+const ORDER=['bronze','silver','gold','platinum','diamond','hero','titan','olympian','immortal','primordial'];
+const $=id=>document.getElementById(id);
+const grid=$('grid');
+ORDER.forEach(k=>{const c=T[k];const b=document.createElement('div');b.className='chip';b.onclick=()=>playTier(k);
+  b.innerHTML=`<span class="dot" style="background:${c.i};box-shadow:inset 0 0 0 2px ${c.o}"></span><div><b style="color:${c.i}">${c.lab}</b><span>${c.motif}${c.apex?' · apex':''}</span></div>`;grid.appendChild(b);});
+
+function clearP(){$('ptc').innerHTML='';['wash','void','whiteout','tear','ring','badge','copy','aura'].forEach(x=>{const e=$(x);e.style.animation='none';e.offsetHeight;e.style.opacity=0;});}
+function spawn(kind,color,ec){const p=$('ptc');const n=kind==='ray'?3:16;
+ for(let i=0;i<n;i++){const d=document.createElement('div');const L=Math.random()*100, delay=(Math.random()*.5).toFixed(2), dur=(1+Math.random()*1).toFixed(2);
+  if(kind==='ember'){d.className='ember';d.style.cssText=`left:${L}%;bottom:${10+Math.random()*30}%;background:${ec||color};box-shadow:0 0 6px ${ec||color};--dx:${(Math.random()*40-20)}px;animation:emberRise ${dur}s ease-out ${delay}s forwards`;}
+  else if(kind==='fire'){d.className='flame';d.style.cssText=`left:${L}%;background:linear-gradient(#F7B85A,#E0612C);--h:${60+Math.random()*70}px;animation:flameRise ${dur}s ease-out ${delay}s forwards`;}
+  else if(kind==='sparkle'){d.className='glint';d.textContent='✦';d.style.cssText=`left:${L}%;top:${15+Math.random()*60}%;color:${color};text-shadow:0 0 8px ${color};animation:twinkle ${dur}s ease-in-out ${delay}s forwards`;}
+  else if(kind==='prism'){d.className='glint';d.textContent='◈';d.style.cssText=`left:${L}%;top:0;color:${color};text-shadow:0 0 8px ${color};--fy:${260+Math.random()*90}px;animation:glintFall ${dur}s ease-in ${delay}s forwards`;}
+  else if(kind==='shimmer'){d.className='glint';d.textContent='✧';d.style.cssText=`left:${L}%;top:${30+Math.random()*50}%;color:${color};text-shadow:0 0 10px ${color};animation:shimmerFloat ${(1.6+Math.random()).toFixed(2)}s ease-out ${delay}s forwards`;}
+  else if(kind==='shard'){d.className='shard';d.style.cssText=`left:${L}%;top:0;background:${color};--r:${Math.random()*60-30}deg;animation:shardFall ${dur}s ease-in ${delay}s forwards`;}
+  else if(kind==='ray'){d.className='ray';const rot=(i-1)*22;d.style.cssText=`background:linear-gradient(${color},transparent);--rot:${rot}deg;animation:rayIn 1.4s ease-out ${delay}s forwards`;}
+  p.appendChild(d);} }
+
+function setBadge(k){const c=T[k];const b=$('badge');b.style.background=c.i;b.style.boxShadow=`inset 0 0 0 3px ${c.o}, 0 0 30px ${c.i}66`;
+ $('blab').textContent=c.lab;$('blab').style.color=c.t;$('bnum').textContent=c.apex?'':'I';$('bnum').style.color=c.t;}
+
+function showCopy(html){const e=$('copy');e.innerHTML=html;e.style.animation='none';e.offsetHeight;e.style.animation='copyIn .5s ease-out .5s forwards';}
+
+function playTier(k){clearP();const c=T[k];const bump=$('bump').checked;
+ const w=$('wash');w.style.background=`radial-gradient(circle at 50% 45%,${c.w},transparent 70%)`;w.style.setProperty('--wo',bump?.4:.7);
+ w.style.animation=`washPulse ${bump?1.1:1.8}s ease-out forwards`;
+ setBadge(k);const b=$('badge');b.style.animation=`${bump?'bumpIn .6s':'badgeIn 1s'} cubic-bezier(.2,.9,.25,1) ${bump?0:.15}s forwards`;
+ if(!bump){ if(c.motif==='shard'){$('stage').classList.remove('shakeit');void $('stage').offsetWidth;$('stage').classList.add('shakeit');}
+   spawn(c.motif,c.i,c.ec); }
+ showCopy(`<div class="h" style="color:${c.i}">${c.h} <span style="color:#c8bcdd;font-weight:600">${c.s}</span></div>`);
+}
+
+function playBand(kind){clearP();
+ if(kind==='hero'){
+   // diamond shatter → whiteout pillar → smoke arena + Hero crest slam + shockwave
+   setBadge('diamond');const b=$('badge');b.style.animation='bumpIn .3s forwards';
+   $('stage').classList.add('shakeit');
+   setTimeout(()=>{const w=$('whiteout');w.style.background='radial-gradient(circle at 50% 50%,#FFE7B0,#fff)';w.style.animation='flash 1.1s ease-out forwards';},380);
+   setTimeout(()=>{setBadge('hero');b.style.animation='none';b.offsetHeight;b.style.animation='badgeIn .7s cubic-bezier(.2,.9,.25,1) forwards';
+     const r=$('ring');r.style.borderColor='#F0897E';r.style.animation='ringOut .9s ease-out forwards';
+     const w=$('wash');w.style.background='radial-gradient(circle at 50% 45%,#E0574C,transparent 70%)';w.style.setProperty('--wo',.7);w.style.animation='washPulse 1.8s ease-out forwards';
+     spawn('ember','#E0574C','#FF7A5C');
+     showCopy(`<div class="big" style="color:#F0897E">MORTAL LIMITS BROKEN.</div><div class="big2">WELCOME TO THE REALM OF LEGEND.</div>`);
+   },760);
+ } else {
+   // void collapse → cosmic tear → primordial emblem + aura
+   setBadge('immortal');const b=$('badge');b.style.animation='bumpIn .3s forwards';
+   const v=$('void');v.style.animation='voidIn 1s ease-in forwards';
+   setTimeout(()=>{const t=$('tear');t.style.animation='tearOpen 1s ease-out forwards';},700);
+   setTimeout(()=>{setBadge('primordial');b.style.animation='none';b.offsetHeight;b.style.animation='badgeIn .8s cubic-bezier(.2,.9,.25,1) forwards';
+     const a=$('aura');a.style.background='radial-gradient(circle,#C77BFF,#6BE6FF)';a.style.animation='auraPulse 1.4s ease-out forwards';
+     spawn('fire','#F2A33C');
+     showCopy(`<div class="big" style="color:#F7B85A">THE PANTHEON KNEELS.</div><div class="big2">YOU HAVE SURPASSED THE GODS.</div>`);
+   },1500);
+ }
+}
+playTier('gold');
+</script>

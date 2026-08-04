@@ -6,11 +6,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PostHogProvider } from 'posthog-react-native';
 
 import { LIVE_SESSION_BAR_HEIGHT, LiveSessionBar, LOCK_IN_PATHNAME } from '@/components/live-session-bar';
 import { OfflineBanner } from '@/components/offline-banner';
+import { RankUpWatcher } from '@/components/rank-up-watcher';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useHasAnyCircle } from '@/hooks/use-has-any-circle';
 import { ActiveSessionProvider, useActiveSession } from '@/lib/active-session-context';
@@ -25,6 +25,7 @@ import { preloadRewardSounds } from '@/lib/sound';
 import { checkForAppUpdate } from '@/lib/updates';
 
 SplashScreen.preventAutoHideAsync();
+
 
 function RootNavigator() {
   const { ready, error, session, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
@@ -42,19 +43,18 @@ function RootNavigator() {
 
   // Two DIFFERENT mechanisms, because a native header is not content (punchlist 5.5):
   //
-  //   header-less screens -> contentStyle.paddingTop pushes their content down (below).
-  //   headered screens    -> headerStatusBarHeight reserves space ABOVE the header itself, so
-  //                          the title/back button land under the pill instead of behind it.
-  //                          contentStyle.paddingTop must NOT also apply there or the content
-  //                          sits a whole bar-height below its own header.
+  //   header-less screens -> contentStyle.paddingTop pushes their content below the pill.
+  //   headered screens    -> the NATIVE header is drawn above the content and can't be pushed
+  //                          down from JS. React Navigation 7's native-stack dropped
+  //                          `headerStatusBarHeight` (the header owns its status-bar inset now),
+  //                          so there's nothing to reserve space with. The pill moves instead.
   //
-  // The pill renders inside SafeAreaView edges={['top']}, so it occupies insets.top ..
-  // insets.top + LIVE_SESSION_BAR_HEIGHT — which is exactly what the header must clear.
-  const insets = useSafeAreaInsets();
-  const headerStatusBarHeight = topInset > 0 ? insets.top + LIVE_SESSION_BAR_HEIGHT : undefined;
-  // Applied per header-less screen (see the Stack.Screen entries below) rather than as a Stack
-  // default, since the default would also hit every headered screen.
+  // Applied per header-less screen below rather than as a Stack default, since a default would
+  // also hit every headered screen and push its body a bar-height below its own header.
   const headerlessContentStyle = { backgroundColor: Colors.cream, paddingTop: topInset };
+
+  // (The pill's own header-clearing offset is computed inside LiveSessionBar, which already
+  // tracks pathname — see HEADERLESS_ROUTES there.)
 
   const appReady = ready && interLoaded;
   const [stuck, setStuck] = useState(false);
@@ -212,10 +212,10 @@ function RootNavigator() {
     <Stack
       screenOptions={{
         // No paddingTop here on purpose — see headerlessContentStyle above. A headered screen
-        // gets its offset from headerStatusBarHeight instead, and a Stack-wide paddingTop would
-        // double-inset it.
+        // can't take the offset in its content (that would push the body down while leaving the
+        // header itself under the pill), so the PILL moves instead — see LiveSessionBar's
+        // topOffset below.
         contentStyle: { backgroundColor: Colors.cream },
-        headerStatusBarHeight,
         headerStyle: { backgroundColor: Colors.cream },
         headerShadowVisible: false,
         headerTintColor: Colors.ink,
@@ -291,6 +291,11 @@ function RootLayout() {
       <ActiveSessionProvider>
         <RootNavigator />
         <LiveSessionBar />
+        {/* Renders nothing until a rank actually climbs. Mounted here, above the navigator, so a
+            rank earned from server-side XP (Strava/Whoop webhook, challenge payout) still gets
+            the forge no matter which screen the user is on — the done screen can only ever
+            celebrate a manual stop (punchlist 5.6). */}
+        <RankUpWatcher />
         <OfflineBanner />
       </ActiveSessionProvider>
     </AuthProvider>

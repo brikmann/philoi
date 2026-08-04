@@ -13,6 +13,42 @@ import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
 
 export const LOCK_IN_PATHNAME = '/lock-in';
 
+// Standard native-stack header height below the status bar. Only used to drop this pill BELOW a
+// header rather than over it (punchlist 5.5) — approximate by design: it just has to clear the
+// header, and it's the one number to tune if the pill lands too high or low on-device.
+const NATIVE_HEADER_HEIGHT = 56;
+
+// Routes rendering NO native header, where the pill belongs at the top of the safe area.
+// Mirrors the `headerShown: false` entries in app/_layout.tsx's Stack, plus the four tab routes
+// (the tab group reserves the band via its own sceneStyle). ADD A ROUTE HERE when you add a
+// header-less screen, or its pill will sit a header's height too low.
+//
+// Why a list at all: a NATIVE header is drawn above the screen and cannot be pushed down from JS
+// — React Navigation 7's native-stack dropped `headerStatusBarHeight`, so there is nothing to
+// reserve space with. The pill has to yield instead, and only this component knows where it is.
+const HEADERLESS_ROUTES = [
+  '/',
+  '/challenges',
+  '/leaderboards',
+  '/profile',
+  '/account-disabled',
+  '/activity',
+  '/add-friend',
+  '/auth',
+  '/challenge-change',
+  '/connected-apps',
+  '/friend-profile',
+  '/health-connect-rationale',
+  '/join',
+  '/lock-in',
+  '/lock-in-history',
+  '/paywall',
+  '/people',
+  '/setup-handle',
+  '/sign-in',
+  '/strava-auth',
+];
+
 // The band's own content height (paddingTop + one row of icon/pill) below the safe-area
 // inset — the single source of truth for the GLOBAL top inset applied at the root layout
 // (see _layout.tsx's contentStyle.paddingTop) and, for the nested tabs navigator that
@@ -33,6 +69,7 @@ export const LIVE_SESSION_BAR_HEIGHT = 38;
 export function LiveSessionBar() {
   const router = useRouter();
   const pathname = usePathname();
+  const headerless = HEADERLESS_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
   const { session } = useActiveSession();
   const elapsedSeconds = useElapsedSeconds(session?.startedAt ?? null);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -62,7 +99,10 @@ export function LiveSessionBar() {
   const label = session ? session.goalDetail || GOAL_TYPE_META[session.goalType].label : '';
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea} pointerEvents="box-none">
+    <SafeAreaView
+      edges={['top']}
+      style={[styles.safeArea, headerless ? null : { paddingTop: NATIVE_HEADER_HEIGHT }]}
+      pointerEvents="box-none">
       <View style={styles.row} pointerEvents="box-none">
         <View style={styles.side} pointerEvents="none" />
 

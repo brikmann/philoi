@@ -3,9 +3,25 @@
 export type GoalType = 'gym' | 'run' | 'study' | 'social_media' | 'custom' | 'job_applications' | 'read';
 export type MemberRole = 'owner' | 'member';
 export type CheckInStatus = 'on_time' | 'late';
-// infernal is the apex tier (PHILOI_UI_SPEC.md §11) — singular, no divisions. Renamed from
-// "legend" (migration 0030) for the fire theme.
-export type RankTierName = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'infernal';
+// The 10-tier ladder (RANK_REWORK_SPEC.md, migration 0063, design-mocks/77): the mortal climb
+// bronze→diamond, then the realm of legend hero→immortal, all with I/II/III divisions — topped
+// by `primordial`, the singular apex with no divisions ("the first flame, older than the gods").
+// Renamed twice on the way here: "legend" (migration 0030) then the fire-themed apex, now this.
+//
+// These strings come straight out of rank_thresholds.tier, which is plain text rather than an
+// enum — so this union is the ONLY place the set is pinned down. Every Record<RankTierName, …>
+// map is what makes TypeScript catch a tier nobody handled.
+export type RankTierName =
+  | 'bronze'
+  | 'silver'
+  | 'gold'
+  | 'platinum'
+  | 'diamond'
+  | 'hero'
+  | 'titan'
+  | 'olympian'
+  | 'immortal'
+  | 'primordial';
 
 // "Who can see my photos" (§19): Everyone · My campfires (default) · Just me (private journal).
 export type PhotoVisibility = 'everyone' | 'campfires' | 'private';

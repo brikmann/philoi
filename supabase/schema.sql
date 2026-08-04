@@ -4026,12 +4026,21 @@ begin
 end;
 $$;
 
--- Bronze/Silver/Gold/Platinum/Diamond x I/II/III. Table-driven (not inline CASE thresholds
--- like the original version) so retuning the curve later is an UPDATE on this table, not a
--- function edit — same "starting point for a beta, expect to retune" caveat as before,
--- just easier to act on. Geometric growth (step(i) = round(200 * 1.3^i)) — cheap early
--- ranks, steep late ones (Bronze III->II costs 200 XP; the Gold I->Diamond III span costs
--- ~10,000).
+-- The 10-tier ladder (RANK_REWORK_SPEC.md, design-mocks/77): the mortal climb
+-- Bronze/Silver/Gold/Platinum/Diamond, then the realm of legend Hero/Titan/Olympian/Immortal,
+-- each x I/II/III — topped by PRIMORDIAL at rank_index 27, the singular apex with no divisions.
+--
+-- Table-driven (not inline CASE thresholds like the original version) so retuning the curve is
+-- an UPDATE on this table, not a function edit. That's exactly what migration 0063 did: the
+-- original geometric curve (step(i) = round(200 * 1.3^i)) made Gold trivial at ~2.6k XP and
+-- topped out around 33k, so per-division cost is now hand-tuned and escalating —
+-- Bronze 900 · Silver 1,500 · Gold 2,200 · Platinum 2,900 · Diamond 3,700 · Hero 4,800 ·
+-- Titan 6,200 · Olympian 8,200 · Immortal 11,000. Primordial lands at 124,200 XP (~497h at
+-- the ~250 XP/hr lock-in rate). cumulative_xp_required is the start of each tier's III
+-- (lowest) division.
+--
+-- Rank is DERIVED from score and never stored on a user row, so changing these numbers needs no
+-- per-user migration — everyone simply re-maps on their next read.
 create table if not exists rank_thresholds (
   rank_index int primary key,
   tier text not null,
@@ -4040,26 +4049,36 @@ create table if not exists rank_thresholds (
 );
 
 insert into rank_thresholds (rank_index, tier, division, cumulative_xp_required) values
-  (0, 'bronze', 3, 0),
-  (1, 'bronze', 2, 200),
-  (2, 'bronze', 1, 460),
-  (3, 'silver', 3, 798),
-  (4, 'silver', 2, 1237),
-  (5, 'silver', 1, 1808),
-  (6, 'gold', 3, 2551),
-  (7, 'gold', 2, 3516),
-  (8, 'gold', 1, 4771),
-  (9, 'platinum', 3, 6402),
-  (10, 'platinum', 2, 8523),
-  (11, 'platinum', 1, 11280),
-  (12, 'diamond', 3, 14864),
-  (13, 'diamond', 2, 19524),
-  (14, 'diamond', 1, 25582),
-  -- Infernal (PHILOI_UI_SPEC.md §11; renamed from "Legend" — migration 0030) — the apex above
-  -- Diamond, singular/no divisions (division stored as 1 purely so ordinal arithmetic elsewhere
-  -- still orders it above Diamond I). Continues the same curve one more step:
-  -- step(14) = round(200*1.3^14) = 7875, +25582 = 33457.
-  (15, 'infernal', 1, 33457)
+  (0,  'bronze',    3, 0),
+  (1,  'bronze',    2, 900),
+  (2,  'bronze',    1, 1800),
+  (3,  'silver',    3, 2700),
+  (4,  'silver',    2, 4200),
+  (5,  'silver',    1, 5700),
+  (6,  'gold',      3, 7200),
+  (7,  'gold',      2, 9400),
+  (8,  'gold',      1, 11600),
+  (9,  'platinum',  3, 13800),
+  (10, 'platinum',  2, 16700),
+  (11, 'platinum',  1, 19600),
+  (12, 'diamond',   3, 22500),
+  (13, 'diamond',   2, 26200),
+  (14, 'diamond',   1, 29900),
+  (15, 'hero',      3, 33600),
+  (16, 'hero',      2, 38400),
+  (17, 'hero',      1, 43200),
+  (18, 'titan',     3, 48000),
+  (19, 'titan',     2, 54200),
+  (20, 'titan',     1, 60400),
+  (21, 'olympian',  3, 66600),
+  (22, 'olympian',  2, 74800),
+  (23, 'olympian',  1, 83000),
+  (24, 'immortal',  3, 91200),
+  (25, 'immortal',  2, 102200),
+  (26, 'immortal',  1, 113200),
+  -- Primordial: apex, singular/no divisions. division stored as 1 so ordinal arithmetic
+  -- still orders it above Immortal I (same convention the old 'infernal' row used).
+  (27, 'primordial', 1, 124200)
 on conflict (rank_index) do update set
   tier = excluded.tier, division = excluded.division, cumulative_xp_required = excluded.cumulative_xp_required;
 

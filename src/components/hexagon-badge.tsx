@@ -26,7 +26,7 @@ const HEXAGON_POINTS = '50,4 89.8,27 89.8,73 50,96 10.2,73 10.2,27';
 // (PHILOI_UI_SPEC.md §11) — a thin metal border ring, not a thick inset.
 const INNER_HEXAGON_POINTS = '50,9.4 85.15,29.69 85.15,70.31 50,90.6 14.85,70.31 14.85,29.69';
 
-// The Infernal emblem — the brand flame vector, molten (design-mocks/05's `.crest` SVG, same
+// The Primordial emblem — the brand flame vector, molten (design-mocks/05's `.crest` SVG, same
 // path data), NOT a numeral, NOT a crown. Simplified two-tone (outer/mid only, no innermost
 // ember path) since at badge scale the third tone reads as noise.
 const FLAME_CREST_OUTER = 'M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z';
@@ -41,34 +41,36 @@ type HexagonBadgeProps = {
 };
 
 // Ranks — two-tone metal hexagon (outer + inner) + a tier crest, per PHILOI_UI_SPEC.md §11.
-// Infernal (renamed from "Legend" — migration 0030) is molten (not metal) — a flame vector
-// emblem instead of a numeral, a slow shimmer on its inner fill, and a faint pulsing firelight
-// aura. Never relies on color alone: the roman numeral (or flame) inside is what actually
-// carries the tier/division, same as the hexagon shape carries "this is a rank."
+// Primordial — the apex, renamed in the 0063 rework — is molten rather than
+// metal: a flame vector emblem instead of a numeral, a slow shimmer on its inner fill, and a
+// faint pulsing firelight aura. Never relies on color alone: the roman numeral (or flame) inside
+// is what actually carries the tier/division, same as the hexagon shape carries "this is a rank."
+// Every other tier, including the four legend tiers added in that rework, renders straight from
+// RANK_TIER_METAL — no local color copy to keep in sync.
 export function HexagonBadge({ tier, division, size = 40, progress }: HexagonBadgeProps) {
   const metal = RANK_TIER_METAL[tier];
-  const isInfernal = tier === 'infernal';
+  const isPrimordial = tier === 'primordial';
 
-  // Shimmer (Infernal only) — slow color drift on the inner fill toward the shimmer target.
+  // Shimmer (Primordial only) — slow color drift on the inner fill toward the shimmer target.
   const shimmer = useSharedValue(0);
-  // Two-layer aura pulse (Infernal only, design-mocks/05's a1/a2) — a tight bright layer
+  // Two-layer aura pulse (Primordial only, design-mocks/05's a1/a2) — a tight bright layer
   // (0.09->0.20) plus a larger, dimmer outer layer (0.03->0.09) slightly phase-offset, so the
   // glow reads with real depth instead of one flat ring.
   const aura1 = useSharedValue(0);
   const aura2 = useSharedValue(0);
 
   useEffect(() => {
-    if (!isInfernal) return;
+    if (!isPrimordial) return;
     shimmer.value = withRepeat(withSequence(withTiming(1, { duration: 1100 }), withTiming(0, { duration: 1100 })), -1, true);
     aura1.value = withRepeat(withSequence(withTiming(1, { duration: 1400 }), withTiming(0, { duration: 1400 })), -1, true);
     aura2.value = withDelay(
       75,
       withRepeat(withSequence(withTiming(1, { duration: 1400 }), withTiming(0, { duration: 1400 })), -1, true)
     );
-  }, [isInfernal, shimmer, aura1, aura2]);
+  }, [isPrimordial, shimmer, aura1, aura2]);
 
   const innerAnimatedProps = useAnimatedProps(() => ({
-    fill: isInfernal ? interpolateColor(shimmer.value, [0, 1], [metal.inner, metal.shimmer ?? metal.inner]) : metal.inner,
+    fill: isPrimordial ? interpolateColor(shimmer.value, [0, 1], [metal.inner, metal.shimmer ?? metal.inner]) : metal.inner,
   }));
 
   const aura1Style = useAnimatedStyle(() => ({
@@ -84,7 +86,7 @@ export function HexagonBadge({ tier, division, size = 40, progress }: HexagonBad
   return (
     <View style={styles.wrap}>
       <View style={{ width: size, height: size }}>
-        {isInfernal && (
+        {isPrimordial && (
           <>
             <Animated.View
               pointerEvents="none"
@@ -95,12 +97,12 @@ export function HexagonBadge({ tier, division, size = 40, progress }: HexagonBad
               ]}>
               <Svg width="100%" height="100%" viewBox="0 0 100 100">
                 <Defs>
-                  <RadialGradient id="infernalAura2" cx="50%" cy="50%" r="50%">
+                  <RadialGradient id="primordialAura2" cx="50%" cy="50%" r="50%">
                     <Stop offset="0%" stopColor={metal.shimmer ?? metal.inner} stopOpacity={1} />
                     <Stop offset="100%" stopColor={metal.shimmer ?? metal.inner} stopOpacity={0} />
                   </RadialGradient>
                 </Defs>
-                <Circle cx="50" cy="50" r="50" fill="url(#infernalAura2)" />
+                <Circle cx="50" cy="50" r="50" fill="url(#primordialAura2)" />
               </Svg>
             </Animated.View>
             <Animated.View
@@ -112,12 +114,12 @@ export function HexagonBadge({ tier, division, size = 40, progress }: HexagonBad
               ]}>
               <Svg width="100%" height="100%" viewBox="0 0 100 100">
                 <Defs>
-                  <RadialGradient id="infernalAura1" cx="50%" cy="50%" r="50%">
+                  <RadialGradient id="primordialAura1" cx="50%" cy="50%" r="50%">
                     <Stop offset="0%" stopColor={metal.shimmer ?? metal.inner} stopOpacity={1} />
                     <Stop offset="100%" stopColor={metal.shimmer ?? metal.inner} stopOpacity={0} />
                   </RadialGradient>
                 </Defs>
-                <Circle cx="50" cy="50" r="50" fill="url(#infernalAura1)" />
+                <Circle cx="50" cy="50" r="50" fill="url(#primordialAura1)" />
               </Svg>
             </Animated.View>
           </>
@@ -125,10 +127,10 @@ export function HexagonBadge({ tier, division, size = 40, progress }: HexagonBad
         <Svg width={size} height={size} viewBox="0 0 100 100">
           <Polygon points={HEXAGON_POINTS} fill={metal.outer} stroke={Colors.line} strokeWidth={3} />
           <AnimatedPolygon points={INNER_HEXAGON_POINTS} animatedProps={innerAnimatedProps} />
-          {!isInfernal && <Circle cx="50" cy="85" r="4" fill={metal.inner} />}
+          {!isPrimordial && <Circle cx="50" cy="85" r="4" fill={metal.inner} />}
         </Svg>
         <View style={styles.numeralOverlay}>
-          {isInfernal ? (
+          {isPrimordial ? (
             <Svg width={size * 0.28} height={size * 0.28 * 1.25} viewBox="0 0 120 150">
               <Path d={FLAME_CREST_OUTER} fill={metal.outer} />
               <Path d={FLAME_CREST_INNER} fill={Colors.coral} />

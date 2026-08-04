@@ -14,7 +14,8 @@ export type RewardCue =
   | 'rankup-silver'
   | 'rankup-gold'
   | 'rankup-diamond'
-  | 'rankup-infernal'
+  | 'rankup-olympian'
+  | 'rankup-primordial'
   | 'rankup-riser';
 
 // The rank-up riser build (PHILOI_UI_SPEC.md §11/§22) — a long swell that runs the length of the
@@ -36,7 +37,14 @@ const SOURCES: Record<RewardCue, number> = {
   'rankup-silver': require('../../assets/sounds/rankup-silver.wav'), // cash-register ka-ching
   'rankup-gold': require('../../assets/sounds/rankup-gold.wav'), // bright ching
   'rankup-diamond': require('../../assets/sounds/rankup-diamond.wav'), // angelic choir swell
-  'rankup-infernal': require('../../assets/sounds/rankup-infernal.wav'), // mean guitar riff
+  // rankup-diamond-sparkle.wav shipped alongside the others but was never wired up; the four
+  // legend tiers (hero/titan/olympian/immortal) have no bespoke audio yet, so Olympian claims
+  // this bright celestial one and the rest fall back to the generic 'rankup' hit — see
+  // RANKUP_CUE_BY_TIER in reward-feedback.ts. Worth commissioning dedicated cues before launch.
+  'rankup-olympian': require('../../assets/sounds/rankup-diamond-sparkle.wav'), // bright celestial sparkle
+  // The apex keeps its original molten recording — the asset was renamed alongside the tier so
+  // nothing in the tree still carries the old name.
+  'rankup-primordial': require('../../assets/sounds/rankup-primordial.wav'), // mean guitar riff
   'rankup-riser': RANKUP_RISER_SOURCE, // the forge build, cut at the flare
 };
 
@@ -69,7 +77,8 @@ export async function preloadRewardSounds(): Promise<void> {
       'rankup-silver': createAudioPlayer(SOURCES['rankup-silver']),
       'rankup-gold': createAudioPlayer(SOURCES['rankup-gold']),
       'rankup-diamond': createAudioPlayer(SOURCES['rankup-diamond']),
-      'rankup-infernal': createAudioPlayer(SOURCES['rankup-infernal']),
+      'rankup-olympian': createAudioPlayer(SOURCES['rankup-olympian']),
+      'rankup-primordial': createAudioPlayer(SOURCES['rankup-primordial']),
       'rankup-riser': createAudioPlayer(SOURCES['rankup-riser']),
     };
     // The riser is a one-shot build cut manually at the flare — never a loop. Set explicitly so it

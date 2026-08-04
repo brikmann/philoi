@@ -23,7 +23,8 @@ const LOTTIE_SOURCES: Record<RewardCue, AnimationObject> = {
   'rankup-silver': require('../../assets/lottie/surge.json'),
   'rankup-gold': require('../../assets/lottie/surge.json'),
   'rankup-diamond': require('../../assets/lottie/surge.json'),
-  'rankup-infernal': require('../../assets/lottie/surge.json'),
+  'rankup-olympian': require('../../assets/lottie/surge.json'),
+  'rankup-primordial': require('../../assets/lottie/surge.json'),
   // Never routed through RewardBurst (the rank-up riser is start/stopped directly via
   // reward-feedback.ts) — entry exists only to satisfy the exhaustive Record type.
   'rankup-riser': require('../../assets/lottie/surge.json'),
@@ -42,7 +43,8 @@ const HAPTIC_BY_CUE: Record<RewardCue, () => void> = {
   'rankup-silver': () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
   'rankup-gold': () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
   'rankup-diamond': () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
-  'rankup-infernal': () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
+  'rankup-olympian': () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
+  'rankup-primordial': () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
   // Placeholder (see LOTTIE_SOURCES) — the riser carries no RewardBurst haptic of its own.
   'rankup-riser': () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
 };

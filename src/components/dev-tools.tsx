@@ -16,28 +16,22 @@ import {
 } from '@/lib/api/dev-tools';
 import { getErrorMessage } from '@/lib/errors';
 import type { MyGroup } from '@/lib/api/groups';
-import { formatRankTier, RANK_TIER_COLOR } from '@/lib/rank-tiers';
+import { formatRankTier, RANK_TIER_COLOR, RANK_TIER_ORDER } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
-// Every rank in ladder order, low → high (PHILOI_UI_SPEC.md §11). Division 1 is the TOP
-// sub-tier within a tier (I), 3 is the bottom (III) — matches formatRankTier/rank_tier_for_score.
-// Platinum is a legacy tier not in the spec's forge table, so it's intentionally skipped here —
-// the 13 previewable ranks are Bronze/Silver/Gold/Diamond × III/II/I, then singular Infernal.
-const RANK_LADDER: { tier: RankTierName; division: number }[] = [
-  { tier: 'bronze', division: 3 },
-  { tier: 'bronze', division: 2 },
-  { tier: 'bronze', division: 1 },
-  { tier: 'silver', division: 3 },
-  { tier: 'silver', division: 2 },
-  { tier: 'silver', division: 1 },
-  { tier: 'gold', division: 3 },
-  { tier: 'gold', division: 2 },
-  { tier: 'gold', division: 1 },
-  { tier: 'diamond', division: 3 },
-  { tier: 'diamond', division: 2 },
-  { tier: 'diamond', division: 1 },
-  { tier: 'infernal', division: 1 },
-];
+// Every rank in ladder order, low → high (RANK_REWORK_SPEC.md, migration 0063). Division 1 is
+// the TOP sub-tier within a tier (I), 3 is the bottom (III) — matches formatRankTier and
+// rank_tier_for_score.
+//
+// COMPLETE on purpose: all 28 ranks, generated from TIER_ORDER rather than hand-listed, so a
+// future tier can never be added to the ladder and silently left un-previewable here. Platinum
+// used to be skipped (it predated the spec's forge table) — that gap is exactly the kind of
+// thing this now can't reproduce. Primordial is the singular apex: one entry, no divisions.
+type LadderRank = { tier: RankTierName; division: number };
+
+const RANK_LADDER: LadderRank[] = RANK_TIER_ORDER.flatMap((tier): LadderRank[] =>
+  tier === 'primordial' ? [{ tier, division: 1 }] : [3, 2, 1].map((division) => ({ tier, division }))
+);
 
 type DevToolsProps = {
   devOverride: boolean;

@@ -7,15 +7,21 @@ import type { RankTierName } from '@/types/database';
 // Per-tier cue (PHILOI_UI_SPEC.md §11/§22, design-mocks/31) — selected by the tier reached.
 // Bronze has an entry because a division bump *within* bronze (e.g. III->II) still needs its
 // own soft cue, even though there's no "crossing INTO bronze" full-forge scenario (it's the
-// starting tier). Platinum isn't named in the spec's per-tier list, so it falls back to the
-// original generic 'rankup' cue — consistent with platinum's existing "kept, no special
-// mention" treatment.
+// starting tier).
+//
+// Deliberately Partial: an unmapped tier falls back to the generic 'rankup' hit in fireRankUp
+// below, which is what platinum has always done. Only five bespoke recordings exist, so of the
+// four legend tiers added in the 0063 rework only Olympian gets its own (a bright celestial
+// sparkle that was already in assets/ but never wired) — hero/titan/immortal share the generic
+// cue until dedicated audio is commissioned. They're visually distinct via TIER_FLASH_KIND;
+// it's only the sound that doubles up.
 const RANKUP_CUE_BY_TIER: Partial<Record<RankTierName, RewardCue>> = {
   bronze: 'rankup-bronze',
   silver: 'rankup-silver',
   gold: 'rankup-gold',
   diamond: 'rankup-diamond',
-  infernal: 'rankup-infernal',
+  olympian: 'rankup-olympian',
+  primordial: 'rankup-primordial',
 };
 
 // expo-haptics itself already degrades gracefully when its native module is missing (it
@@ -65,20 +71,20 @@ export function fireConfirm(): void {
 }
 
 // Rank-up (§11/§21/§22) — the loudest cue, timed to the forge's solidify flare rather than
-// the moment the screen mounts (the ~5s sequence's flare beat, not its opening frame). Infernal
-// is "the biggest" — an extra follow-up thump on top of the normal heavy impact.
+// the moment the screen mounts (the ~5s sequence's flare beat, not its opening frame).
+// Primordial is "the biggest" — an extra follow-up thump on top of the normal heavy impact.
 //
 // isDivisionBump gets the SAME per-tier cue, just scaled down (§22: "every rank-up is rewarded,
 // scaled down") — a within-tier bump (e.g. Bronze III->II) still deserves its own tier's sound,
-// just softer and without Infernal's extra thump (Infernal has no divisions, so this path is
-// only ever reached by Bronze-Diamond).
+// just softer and without Primordial's extra thump (Primordial has no divisions, so that path is
+// only ever reached by Bronze-Immortal).
 export function fireRankUp(tier: RankTierName, isDivisionBump = false): void {
   const prefs = getRewardPreferencesSync();
   const cue = RANKUP_CUE_BY_TIER[tier] ?? 'rankup';
   if (prefs.sound) playRewardSound(cue, isDivisionBump ? 0.55 : 1);
   if (prefs.haptics) {
     safeHaptic(() => Haptics.impactAsync(isDivisionBump ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Heavy));
-    if (tier === 'infernal' && !isDivisionBump) {
+    if (tier === 'primordial' && !isDivisionBump) {
       setTimeout(() => safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)), 150);
     }
   }

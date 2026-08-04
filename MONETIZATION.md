@@ -65,7 +65,7 @@ XP · rank · streaks-that-look-earned · PRs · leaderboard position · anythin
 The founder's mythos and the emotional spine of the brand. **Prometheus stole fire from the gods and gave it to humanity** — and that *is* Philoi: handing people the fire (the drive, the accountability, the community) so they can **rise and ascend.**
 
 - **The founder brands as *Prometheus, Giver of Fire*** — the one who brought the flame.
-- **Founding members = *"Prometheus' Disciple"*** — the first to receive the fire and carry it. A permanent, exclusive badge + title; deeply early, deeply loyal.
+- **Founding members = *"First Flame"*** — the first to receive the fire and carry it. A permanent, exclusive, never-offered-again badge + title; deeply early, deeply loyal. (Name reserved as **First Flame** to avoid colliding with the Vs-Unis #1 campus title *"Prometheus' Disciples"* — see line 57.)
 - The whole app *is* "a chance to rise and ascend" — **forge** up the ranks (Bronze → Infernal), keep **your fire** lit, carry the fire together in **campfires**. Prometheus is the origin story the ranks, the Forge Pass, and the Infernal apex all ladder up from.
 - Use it **sparingly and reverently** — in the founding-member offer, onboarding flavor, and the mythos — so it stays powerful, not gimmicky.
 

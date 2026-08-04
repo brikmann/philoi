@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Linking } from 'react-native';
 
 import { FITNESS_SYNC_ENABLED } from '@/constants/feature-flags';
+import { requestRankRecheck } from '@/lib/rank-watch';
 import { supabase } from '@/lib/supabase';
 
 // Completes the in-progress auth session when the browser redirects back into the app — needed
@@ -119,7 +120,11 @@ export async function disconnectStrava(): Promise<void> {
 export async function syncChallengeFromStrava(challengeId: string): Promise<number> {
   const { data, error } = await supabase.functions.invoke('strava-sync', { body: { challengeId } });
   if (error) throw error;
-  return typeof data?.synced === 'number' ? data.synced : 0;
+  const synced = typeof data?.synced === 'number' ? data.synced : 0;
+  // Logged progress can complete a challenge, and a completion pays XP server-side — same
+  // no-done-screen gap as the backfill above.
+  if (synced > 0) requestRankRecheck();
+  return synced;
 }
 
 // Strava brand guideline: "View on Strava" is the exact required link wording (§17b/developers.
@@ -144,7 +149,12 @@ export async function backfillStravaActivities(): Promise<number> {
   try {
     const { data, error } = await supabase.functions.invoke('strava-backfill', { body: {} });
     if (error) throw error;
-    return typeof data?.processed === 'number' ? data.processed : 0;
+    const processed = typeof data?.processed === 'number' ? data.processed : 0;
+    // A synced activity earns XP server-side with no done screen to celebrate from, so nudge the
+    // global watcher to re-check the rank (punchlist 5.6). Only when something actually landed —
+    // an empty backfill can't have moved anything.
+    if (processed > 0) requestRankRecheck();
+    return processed;
   } catch {
     return 0;
   }

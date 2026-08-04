@@ -89,9 +89,50 @@ export const RANK_UP_LINES: Record<RankTierName, TierLines> = {
       'The whole library knows.',
     ],
   },
-  infernal: {
-    personal: ['Your fire is eternal', "You're infernal", 'The blaze never dies', 'Unquenchable', 'Inferno locked', 'Scorched earth', 'Pure plasma'],
+  // ── the realm of legend (added with the 0063 rework) ──
+  // These four sit above the mortal climb, so the tone steps up from "you're doing well" to
+  // mythology — matching RANK_REWORK_SPEC.md §4's suggested lines.
+  hero: {
+    personal: ['Past mortal limits', "You're the story now", 'Hero', 'Legend in the making', 'The name they repeat'],
     social: [
+      "You've climbed past mortal limits — you're the story now.",
+      'Your Campfire tells stories about this.',
+      'They came to watch you.',
+      'Making {school} look mythic.',
+    ],
+  },
+  titan: {
+    personal: ['Titan strength', 'You move like a Titan', 'Immovable', 'Primordial strength', 'Colossal'],
+    social: [
+      'Primordial strength. You move like a Titan.',
+      'The whole arena felt that.',
+      'Nobody in your Campfire is close.',
+      'Carrying the {mascot} on your back.',
+    ],
+  },
+  olympian: {
+    personal: ['Olympian', 'You sit among the gods', 'Peak of the mountain', 'Divine form', 'Above the clouds'],
+    social: [
+      'You sit among the gods. Olympian.',
+      '{school} has never seen this.',
+      'The leaderboard is a formality now.',
+      'They are not competing with you — they are watching.',
+    ],
+  },
+  immortal: {
+    personal: ['Deathless', 'Untouchable', 'Immortal', 'Beyond the ledger', 'Time gave up'],
+    social: [
+      'Deathless. Untouchable. Immortal.',
+      'Nobody is catching this. Not this semester.',
+      'The record books need a new page.',
+      "You've outlasted everyone who started with you.",
+    ],
+  },
+  // ── the apex ── (renamed in the 0063 rework; the molten tone carries straight over)
+  primordial: {
+    personal: ['The first flame', 'Older than the gods', 'You are Primordial', 'The blaze never dies', 'Unquenchable', 'Scorched earth', 'Pure plasma'],
+    social: [
+      'The first flame, older than the gods. You are Primordial.',
       'The entire campus feels your heat.',
       'Your Campfire bows to the blaze.',
       "There's no one left to challenge you.",
