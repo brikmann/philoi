@@ -24,7 +24,7 @@ import {
 // live sender, set via the UNI_CODE_FROM secret. The fallback below stays on getphiloi.com — the
 // domain the privacy/terms URLs already use — so a missing secret degrades to a working sender
 // rather than a dead one.
-const FROM = Deno.env.get('UNI_CODE_FROM') ?? 'Philoi <verify@getphiloi.com>';
+const FROM = Deno.env.get('UNI_CODE_FROM') ?? 'Philoi <noreply@getphiloi.com>';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
