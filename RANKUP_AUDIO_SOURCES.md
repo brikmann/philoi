@@ -54,9 +54,12 @@ file per rank via `expo-audio` — no runtime layering. Target ~48kHz, keep file
 - Orchestral brass swell: https://pixabay.com/sound-effects/search/epic%20choir/ · https://pixabay.com/sound-effects/search/brass/
 - Sweeping wind-chime halo: https://pixabay.com/sound-effects/search/magical%20chimes/ · https://pixabay.com/sound-effects/search/shimmer/
 
-### Immortal — heartbeat sub-drop → pitch-shifting hum that never fully fades
+### Immortal — heartbeat sub-drop → pitch-shifting hum that never fully fades + the laughter of the damned
 - Heartbeat sub: https://pixabay.com/sound-effects/search/bass-drone/ ("Dark Atmospheric Drone Slow Heartbeat Noise" by Chrysalyn, "Heartbeat and tense synth" by Tomas_Herudek)
 - Persistent synth hum / pad (the 3s tail that dissolves to ambient): https://pixabay.com/sound-effects/search/low%20drone/ · https://pixabay.com/sound-effects/search/dark%20synth/ ("Dark Atmospheric Pads")
+- **The souls of the dead, laughing** — a slow, haunting chorus of ghostly whispers + distant laughter, buried LOW under the hum: the damned mock you and pray for your downfall, but death has no claim ("DEATH HAS NO CLAIM / YOU CANNOT FALL"). Ghostly whispers (specific): https://pixabay.com/sound-effects/horror-ghostly-whispers-6085/ · more: https://pixabay.com/sound-effects/search/ghost%20whisper/ · https://pixabay.com/sound-effects/search/ghostly/ · distant demonic/soul laughter: https://pixabay.com/sound-effects/search/demonic/ ("Demonic Spirit Voice – Sinister Laughter") · https://pixabay.com/sound-effects/search/horror-laughter/
+  - **Chosen clip is in-repo:** `assets/sounds/rankup-immortal-souls.mp3` (Pixabay "Demonic Spirit Voice – Sinister Laughter", phatphrogstudio).
+  - **Mix it right:** pitch/time-stretch the laughter **down** (slow + deep), drown it in **reverb**, layer 2–3 voices so it reads as *many* souls, and keep it **quiet** — a cold undercurrent beneath the heartbeat + hum, never a foreground jump-scare. It should feel like triumph *over* the dead, not horror. Pairs with the ghost-wisp visual motif (RANKUP_SPEC §2).
 
 ### Primordial — 0.5s silence → vacuum implosion → plasma-flare riser + bass drop + lightning
 - Silence: audio-duck in code (don't source).

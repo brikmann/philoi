@@ -38,7 +38,7 @@ Reuse the existing particle primitives (Ember, Smoke, Glint [sparkle+prism], Fla
 | **hero** ✦ | sweep | **crimson** sweep + a burst of igniting **embers** (reuse Ember, tinted crimson) — the "threshold ignites" beat. Its arrival is the band crossing. |
 | **titan** ✦ | prism | **verdigris** prism shards raining + a subtle **screen-shake** (±2–3px, 400ms, respect reduce-motion) — colossal/earthquake |
 | **olympian** ✦ | sparkle | **white-gold** sparkle glints + **god-rays** (2–3 soft radial light beams from top fading down) — divine radiance |
-| **immortal** ✦ | prism | **violet** iridescent prism glints, slower + softer than Diamond's, over a gentle ascending violet glow — ethereal, *not* fiery |
+| **immortal** ✦ | prism | **violet** iridescent prism glints, slower + softer than Diamond's, over a gentle ascending violet glow — ethereal, *not* fiery. **PLUS faint ghost-wisp faces** — 4–5 translucent violet-white spectral faces (soft blurred forms with two hollow eyes) drifting slowly upward and fading (~2.5–3.5s, low opacity ~0.4): the souls of the dead rising to mock you. Pairs with the "laughter of the damned" audio layer (§3). Keep them subtle + haunting, never cartoonish. |
 | **primordial** (was infernal) | flame | inherits the **full Infernal fire treatment verbatim** — FlameBlobs rising, HexLick burning, hardest wash (0.9) — the apex. Just repoint the `infernal` branch to `primordial`. |
 
 ---
@@ -49,6 +49,7 @@ Reuse the existing particle primitives (Ember, Smoke, Glint [sparkle+prism], Fla
 - **Tier crossing** → the standard rank-up SFX (let it ride the existing per-band escalation).
 - **Band crossing** → **Victory Anthem** (the legendary rank-up SFX). Reserve it for these two moments *only* so it stays special — do not play it on ordinary tier crossings.
 - Reuse the old Infernal rank-up cue for Primordial's own SFX layer under the anthem.
+- **Immortal (special layer)** → its mix carries **the laughter of the damned** — a slow, reverb-drenched chorus of ghostly whispers + distant, pitched-down soul-laughter, sitting LOW beneath the heartbeat/hum. The dead mock you and pray for your downfall, but death has no claim — it plays as triumph *over* them, not a jump-scare. **The chosen clip is in-repo: `assets/sounds/rankup-immortal-souls.mp3`** (Pixabay "Demonic Spirit Voice – Sinister Laughter"; pitch down + reverb + keep it low in the mix). Syncs with the ghost-wisp visual motif (§2). Sources in `RANKUP_AUDIO_SOURCES.md` (Immortal).
 
 ## 4 · Haptics (`src/lib/reward-feedback.ts`, expo-haptics)
 

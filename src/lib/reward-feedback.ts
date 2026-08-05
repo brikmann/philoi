@@ -101,12 +101,20 @@ export function fireRankUp(tier: RankTierName, isDivisionBump = false, isBandCro
     const anthem = anthemCue && hasRewardSound(anthemCue) ? anthemCue : undefined;
     if (anthem) {
       playRewardSound(anthem, 1);
-      // The tier's own hit still lands underneath the anthem (§3's "reuse the old Infernal cue for
+      // The tier's own hit still lands underneath the anthem (§3's "reuse the old apex cue for
       // Primordial's own SFX layer"), just quieter so the anthem stays on top.
       const under = RANKUP_CUE_BY_TIER[tier];
       if (under) setTimeout(() => playRewardSound(under, 0.5), 120);
     } else {
       playRewardSound(RANKUP_CUE_BY_TIER[tier] ?? 'rankup', isDivisionBump ? 0.55 : 1);
+    }
+
+    // Immortal's spectral layer (§3) — the "laughter of the damned" sits UNDER the tier hit, low
+    // in the mix, and only on a real crossing: on a division bump it would be the loudest thing in
+    // an intentionally quiet moment. Slight delay so the hit lands first and the voices bloom
+    // behind it rather than competing on the same transient.
+    if (tier === 'immortal' && !isDivisionBump) {
+      setTimeout(() => playRewardSound('rankup-immortal-souls', 0.45), 180);
     }
   }
 

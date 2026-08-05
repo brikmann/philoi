@@ -17,6 +17,9 @@ export type RewardCue =
   | 'rankup-olympian'
   | 'rankup-primordial'
   | 'rankup-riser'
+  // Immortal's "laughter of the damned" (RANKUP_SPEC §3) — a second layer UNDER the tier hit, not
+  // a replacement for it, so Immortal reads as haunted rather than just another chime.
+  | 'rankup-immortal-souls'
   // The Victory Anthem (RANKUP_SPEC §3) — the two band crossings ONLY. Pre-mixed by hand from the
   // Pixabay layers in RANKUP_AUDIO_SOURCES.md; see ASCENSION_SOURCES below for why these aren't
   // required yet.
@@ -70,6 +73,8 @@ const SOURCES: Omit<Record<RewardCue, number>, 'ascension-hero' | 'ascension-pri
   // nothing in the tree still carries the old name.
   'rankup-primordial': require('../../assets/sounds/rankup-primordial.wav'), // mean guitar riff
   'rankup-riser': RANKUP_RISER_SOURCE, // the forge build, cut at the flare
+  // Immortal's spectral layer — already mixed and in-repo, unlike the assets/audio/rank/ clips.
+  'rankup-immortal-souls': require('../../assets/sounds/rankup-immortal-souls.mp3'),
 };
 
 // Partial: the ascension cues only get a player once their asset lands (see ASCENSION_SOURCES).
@@ -105,6 +110,7 @@ export async function preloadRewardSounds(): Promise<void> {
       'rankup-olympian': createAudioPlayer(SOURCES['rankup-olympian']),
       'rankup-primordial': createAudioPlayer(SOURCES['rankup-primordial']),
       'rankup-riser': createAudioPlayer(SOURCES['rankup-riser']),
+      'rankup-immortal-souls': createAudioPlayer(SOURCES['rankup-immortal-souls']),
     };
     // Any ascension mix that has actually been dropped in. Absent = that cue stays silent.
     for (const [cue, source] of Object.entries(ASCENSION_SOURCES)) {

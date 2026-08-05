@@ -46,6 +46,9 @@ h1{font-size:16px;margin:0 0 2px}.sub{color:#9f92b6;font-size:11.5px;margin:0 0 
 @keyframes shimmerFloat{0%{opacity:0;transform:translateY(10px) scale(.6)}30%{opacity:1}100%{opacity:0;transform:translateY(-40px) scale(1)}}
 @keyframes shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-3px,2px)}40%{transform:translate(3px,-2px)}60%{transform:translate(-2px,-2px)}80%{transform:translate(2px,2px)}}
 .shakeit{animation:shake .4s ease-in-out}
+.ghost{position:absolute;width:18px;height:22px;border-radius:50% 50% 42% 42%;background:radial-gradient(circle at 50% 38%,rgba(234,226,250,.55),rgba(142,107,200,.18) 68%,transparent);filter:blur(1.5px)}
+.ghost .eye{position:absolute;top:8px;width:3px;height:3.5px;border-radius:50%;background:rgba(58,43,92,.75)}
+@keyframes haunt{0%{opacity:0;transform:translateY(30px) scale(.8)}25%{opacity:.42}100%{opacity:0;transform:translateY(-70px) translateX(var(--sx,0)) scale(1.15)}}
 /* controls */
 .panel{width:320px}
 .evbtns{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
@@ -116,7 +119,8 @@ function spawn(kind,color,ec){const p=$('ptc');const n=kind==='ray'?3:16;
   else if(kind==='shimmer'){d.className='glint';d.textContent='✧';d.style.cssText=`left:${L}%;top:${30+Math.random()*50}%;color:${color};text-shadow:0 0 10px ${color};animation:shimmerFloat ${(1.6+Math.random()).toFixed(2)}s ease-out ${delay}s forwards`;}
   else if(kind==='shard'){d.className='shard';d.style.cssText=`left:${L}%;top:0;background:${color};--r:${Math.random()*60-30}deg;animation:shardFall ${dur}s ease-in ${delay}s forwards`;}
   else if(kind==='ray'){d.className='ray';const rot=(i-1)*22;d.style.cssText=`background:linear-gradient(${color},transparent);--rot:${rot}deg;animation:rayIn 1.4s ease-out ${delay}s forwards`;}
-  p.appendChild(d);} }
+  p.appendChild(d);}
+ if(kind==='shimmer')for(let i=0;i<5;i++){const g=document.createElement('div');g.className='ghost';g.style.cssText=`left:${14+Math.random()*70}%;top:${42+Math.random()*32}%;--sx:${(Math.random()*30-15).toFixed(0)}px;animation:haunt ${(2.8+Math.random()*1.2).toFixed(2)}s ease-out ${(Math.random()*1).toFixed(2)}s forwards`;g.innerHTML='<span class="eye" style="left:4px"></span><span class="eye" style="right:4px"></span>';p.appendChild(g);} }
 
 function setBadge(k){const c=T[k];const b=$('badge');b.style.background=c.i;b.style.boxShadow=`inset 0 0 0 3px ${c.o}, 0 0 30px ${c.i}66`;
  $('blab').textContent=c.lab;$('blab').style.color=c.t;$('bnum').textContent=c.apex?'':'I';$('bnum').style.color=c.t;}

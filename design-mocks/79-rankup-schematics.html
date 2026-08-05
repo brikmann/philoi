@@ -1,0 +1,137 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rank-up animation schematics — mock 79</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0d0b13;color:#FFF6EC;font-family:var(--font);padding:26px;line-height:1.4}
+h1{font-size:19px;margin:0 0 4px}h2{font-size:14px;margin:30px 0 4px;color:#F2A33C;letter-spacing:.3px}
+.intro{color:#9f92b6;font-size:12px;max-width:640px;margin:0 0 6px}
+.rule{height:1px;background:#241c38;margin:16px 0}
+/* timeline */
+.timeline{display:flex;gap:0;align-items:stretch;max-width:680px;margin:12px 0}
+.tl{flex:1;background:#1b1726;border-left:3px solid #2a2340;padding:9px 11px}
+.tl b{font-size:11px}.tl small{display:block;color:#7c7194;font-size:10px;margin-top:2px}
+.tl.a{border-color:#6b7280}.tl.b{border-color:#F2A33C}.tl.c{border-color:#4FB0E5}
+/* frame */
+.grid{display:flex;flex-wrap:wrap;gap:16px;margin-top:10px}
+.cell{width:150px}
+.frame{position:relative;width:150px;height:190px;border-radius:20px;background:radial-gradient(120% 65% at 50% 42%,#1c1726,#131019 72%);overflow:hidden;border:1px solid rgba(255,255,255,.07)}
+.wash{position:absolute;inset:0;opacity:.5;mix-blend-mode:screen}
+.hex{position:absolute;top:52px;left:50%;transform:translateX(-50%);width:52px;height:57px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800}
+.cap{position:absolute;left:0;right:0;bottom:16px;text-align:center;padding:0 10px}
+.cap .h{font-size:9.5px;font-weight:900;letter-spacing:.3px;line-height:1.15}
+.cap .s{font-size:7px;font-weight:700;color:#c8bcdd;margin-top:3px;letter-spacing:.4px}
+.ptc i{position:absolute;font-style:normal}
+.ptc i.ghost{width:15px;height:19px;border-radius:50% 50% 42% 42%;background:radial-gradient(circle at 50% 38%,rgba(234,226,250,.5),rgba(142,107,200,.16) 68%,transparent);filter:blur(1px);opacity:.55}
+.ptc i.ghost .ghe{position:absolute;top:6px;width:2.5px;height:3px;border-radius:50%;background:rgba(58,43,92,.72)}
+.note{font-size:10px;color:#8a8398;margin-top:7px;line-height:1.45}
+.note b{color:#c8bcdd;font-weight:700}
+.lab{font-size:12px;font-weight:800;margin-top:8px}
+/* storyboard row */
+.story{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;margin-top:10px}
+.pan{width:132px}
+.sf{position:relative;width:132px;height:168px;border-radius:16px;overflow:hidden;background:#0f0c16;border:1px solid rgba(255,255,255,.07)}
+.beat{font-size:10px;font-weight:800;margin-top:6px}
+.meta{font-size:8.5px;color:#7c7194;margin-top:3px;line-height:1.4}
+.meta b{color:#a99cbd}
+.arrow{align-self:center;color:#4a3f66;font-size:20px;margin-top:70px}
+/* bespoke overlays */
+.crack{position:absolute;inset:0;background:
+  linear-gradient(42deg,transparent 48%,#bfefff 49%,#bfefff 50%,transparent 51%),
+  linear-gradient(-38deg,transparent 47%,#bfefff 48%,#bfefff 49%,transparent 50%),
+  linear-gradient(80deg,transparent 49%,#7FE0E8 50%,transparent 51%);opacity:.7;mix-blend-mode:screen}
+.white{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,#FFE7B0,#fff)}
+.pillar{position:absolute;top:0;bottom:0;left:50%;width:26px;transform:translateX(-50%);background:linear-gradient(#FFE9C2,#E0574C);filter:blur(2px)}
+.ring{position:absolute;top:70px;left:50%;width:120px;height:120px;border-radius:50%;border:3px solid #F0897E;transform:translate(-50%,-50%);opacity:.5}
+.void{position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,#0a0710,#000)}
+.pull i{position:absolute;color:#B98CEA;font-size:9px}
+.tear{position:absolute;top:0;bottom:0;left:50%;width:12px;transform:translateX(-50%);background:linear-gradient(90deg,transparent,#C77BFF,#6BE6FF,#C77BFF,transparent);filter:blur(.5px)}
+.aura{position:absolute;top:38px;left:50%;transform:translateX(-50%);width:96px;height:104px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:radial-gradient(circle,#C77BFF,#6BE6FF);filter:blur(12px);opacity:.7}
+.dim{position:absolute;inset:0;background:#000;opacity:.55}
+</style>
+
+<h1>🎬 Rank-up animation schematics</h1>
+<p class="intro">Static storyboards for every rank-up moment (per RANKUP_SPEC §1–§2). Standard tier crossings share one 3-beat pattern (recolored per tier); the two band crossings are bespoke cinematics. Live version: mock 78.</p>
+
+<h2>The shared 3-beat pattern — standard tier crossing</h2>
+<div class="timeline">
+  <div class="tl a"><b>1 · RISE (0–0.4s)</b><small>Hex badge rises from the campfire flames at screen bottom, overshoots, settles. Tier-colored wash blooms.</small></div>
+  <div class="tl b"><b>2 · FLARE (0.4–0.9s)</b><small>Metallic sweep crosses the badge + the tier's TIER_FLASH_KIND particles burst. Medium+success haptic, rank-up SFX.</small></div>
+  <div class="tl c"><b>3 · SETTLE (0.9–3s)</b><small>Particles fade, badge locks, the all-caps copy fades up. Share offered. Division bumps = this pattern, lighter, NO copy.</small></div>
+</div>
+
+<h2>Tier peak frames — the FLARE beat, per tier</h2>
+<p class="intro">Each shows the defining look: badge + wash + that tier's motif + its copy. Colors = RANK_TIER_METAL.</p>
+<div class="grid" id="grid"></div>
+
+<div class="rule"></div>
+<h2>⚔️ Band crossing — Diamond → Hero (enter the Realm of Legend)</h2>
+<div class="story" id="heroStory"></div>
+
+<h2>🌌 Band crossing — Immortal → Primordial (the apex)</h2>
+<div class="story" id="primeStory"></div>
+
+<script>
+const TIERS=[
+ {k:'bronze',l:'Bronze',o:'#6E4423',i:'#B87333',t:'#3A2410',w:'#B87333',m:'ember',flash:'embers',hap:'medium',h:'IGNITION.',s:'THE CLIMB HAS BEGUN.'},
+ {k:'silver',l:'Silver',o:'#6B7280',i:'#C4CBD6',t:'#2B3038',w:'#C4CBD6',m:'sweep',flash:'sweep',hap:'medium',h:'FORGED IN STEEL.',s:'THE EDGE IS YOURS.'},
+ {k:'gold',l:'Gold',o:'#9A6A12',i:'#F5C542',t:'#4A3406',w:'#F5C542',m:'sparkle',flash:'sparkle',hap:'medium',h:'THE CROWN IS YOURS.',s:'EVERY LOCK-IN TURNS TO GOLD.'},
+ {k:'platinum',l:'Platinum',o:'#6E8B98',i:'#A7C7D4',t:'#22333a',w:'#A7C7D4',m:'sweep',flash:'sweep',hap:'medium',h:'INTO RARE AIR.',s:'FEW EVER CLIMB THIS HIGH.'},
+ {k:'diamond',l:'Diamond',o:'#2C6E76',i:'#7FE0E8',t:'#06323A',w:'#7FE0E8',m:'prism',flash:'prism',hap:'medium',h:'FORGED UNDER PRESSURE.',s:'ONE STEP FROM LEGEND.'},
+ {k:'hero',l:'Hero',o:'#8F2E28',i:'#E0574C',t:'#3f0f0b',w:'#E0574C',m:'ember',flash:'crimson embers',hap:'HEAVY (band)',h:'MORTAL LIMITS BROKEN.',s:'WELCOME TO THE REALM OF LEGEND.'},
+ {k:'titan',l:'Titan',o:'#1E5E4A',i:'#4FA88C',t:'#08301f',w:'#4FA88C',m:'shard',flash:'shards + screen-shake',hap:'heavy',h:'THE EARTH TREMBLES.',s:'A TITAN WALKS AMONG THEM.'},
+ {k:'olympian',l:'Olympian',o:'#C0A24E',i:'#F7E9C0',t:'#5c4a12',w:'#F7E9C0',m:'ray',flash:'god-rays + sparkle',hap:'heavy',h:'YOU ENTER OLYMPUS.',s:'THE GODS MAKE ROOM.'},
+ {k:'immortal',l:'Immortal',o:'#8E6BC8',i:'#EAE2FA',t:'#3a2b5c',w:'#B98CEA',m:'shimmer',flash:'violet shimmer',hap:'heavy',h:'DEATH HAS NO CLAIM.',s:'YOU CANNOT FALL.'},
+ {k:'primordial',l:'Primordial · APEX',o:'#B0431E',i:'#F2A33C',t:'#4A1B0C',w:'#F2A33C',m:'fire',flash:'full fire (band)',hap:'MAX (band)',h:'YOU ARE BEYOND TIME ITSELF.',s:'YOU ARE NOW PRIMORDIAL.'},
+];
+function motif(m,c){let h='';const R=(n,fn)=>{for(let i=0;i<n;i++)h+=fn(i)};
+ if(m==='ember')R(6,i=>`<i style="left:${20+i*11}%;top:${58+(i%3)*10}%;width:4px;height:4px;border-radius:50%;background:${c};box-shadow:0 0 5px ${c}">·</i>`);
+ else if(m==='sweep')h=`<i style="left:-10%;top:40%;width:130%;height:16px;background:linear-gradient(90deg,transparent,${c},transparent);transform:rotate(-18deg);opacity:.6"></i>`;
+ else if(m==='sparkle')R(6,i=>`<i style="left:${18+i*13}%;top:${28+(i%3)*22}%;color:${c};text-shadow:0 0 6px ${c};font-size:12px">✦</i>`);
+ else if(m==='prism')R(6,i=>`<i style="left:${16+i*13}%;top:${18+(i%3)*20}%;color:${c};text-shadow:0 0 6px ${c};font-size:11px">◈</i>`);
+ else if(m==='shard')R(7,i=>`<i style="left:${14+i*11}%;top:${20+(i%4)*16}%;width:3px;height:11px;background:${c};transform:rotate(${i*25-40}deg)"></i>`);
+ else if(m==='ray'){R(3,i=>`<i style="left:50%;top:-8%;width:7px;height:72%;background:linear-gradient(${c},transparent);transform-origin:top;transform:translateX(-50%) rotate(${(i-1)*24}deg);filter:blur(2px)"></i>`);R(4,i=>`<i style="left:${25+i*16}%;top:${30+(i%2)*18}%;color:${c};font-size:11px;text-shadow:0 0 6px ${c}">✦</i>`);}
+ else if(m==='shimmer'){R(5,i=>`<i style="left:${18+i*13}%;top:${24+(i%3)*20}%;color:${c};text-shadow:0 0 9px ${c};font-size:11px">✧</i>`);R(3,i=>`<i class="ghost" style="left:${22+i*26}%;top:${42+i*6}%"><span class="ghe" style="left:3px"></span><span class="ghe" style="right:3px"></span></i>`);}
+ else if(m==='fire')R(5,i=>`<i style="left:${20+i*15}%;bottom:14%;width:9px;height:${20+i%3*12}px;border-radius:50% 50% 45% 45%;background:linear-gradient(#F7B85A,#E0612C);filter:blur(.5px)"></i>`);
+ return h;}
+document.getElementById('grid').innerHTML=TIERS.map(T=>`
+ <div class="cell">
+   <div class="frame">
+     <div class="wash" style="background:radial-gradient(circle at 50% 42%,${T.w},transparent 68%)"></div>
+     <div class="ptc">${motif(T.m,T.i)}</div>
+     <div class="hex" style="background:${T.i};box-shadow:inset 0 0 0 3px ${T.o},0 0 22px ${T.i}66;color:${T.t}">${T.k==='primordial'?'★':'I'}</div>
+     <div class="cap"><div class="h" style="color:${T.i}">${T.h}</div><div class="s">${T.s}</div></div>
+   </div>
+   <div class="lab" style="color:${T.i}">${T.l}</div>
+   <div class="note"><b>Motif:</b> ${T.flash}<br><b>Haptic:</b> ${T.hap}</div>
+ </div>`).join('');
+
+function panel(inner,beat,meta){return `<div class="pan"><div class="sf">${inner}</div><div class="beat">${beat}</div><div class="meta">${meta}</div></div>`;}
+const dHex=`<div class="hex" style="top:56px;background:#7FE0E8;box-shadow:inset 0 0 0 3px #2C6E76;color:#06323A">I</div>`;
+const hHex=`<div class="hex" style="top:56px;background:#E0574C;box-shadow:inset 0 0 0 3px #8F2E28,0 0 22px #E0574C88;color:#3f0f0b">I</div>`;
+document.getElementById('heroStory').innerHTML=[
+ panel(dHex+`<div class="crack"></div>`,'1 · SHATTER','<b>0.0s</b> · Diamond badge crystallizes &amp; fractures under tension.<br><b>Haptic:</b> sharp double-tap'),
+ '<div class="arrow">→</div>',
+ panel(`<div class="dim"></div>`+dHex.replace('#7FE0E8','#3a5a5e'),'2 · SILENCE','<b>0.3s</b> · total audio cut, pieces hang.<br><b>Audio:</b> 0.3s silence'),
+ '<div class="arrow">→</div>',
+ panel(`<div class="white" style="opacity:.9"></div><div class="pillar"></div>`,'3 · LIGHT PILLAR','<b>~0.1s</b> · golden-crimson beam erupts, 100ms whiteout burns away the UI.<br><b>Haptic:</b> 1s building rumble · <b>Audio:</b> war-horn'),
+ '<div class="arrow">→</div>',
+ panel(`<div class="wash" style="background:radial-gradient(circle at 50% 45%,#E0574C,transparent 70%);opacity:.6"></div><div class="ring"></div>`+hHex,'4 · CREST SLAM','Hero crest slams in, shockwave ripple pushes UI outward.<br><b>Haptic:</b> heavy thud · <b>Audio:</b> shield-bash sub-drop'),
+ '<div class="arrow">→</div>',
+ panel(`<div class="wash" style="background:radial-gradient(circle at 50% 45%,#E0574C,transparent 70%);opacity:.4"></div>`+hHex+`<div class="cap"><div class="h" style="color:#F0897E">MORTAL LIMITS BROKEN.</div><div class="s">WELCOME TO THE REALM OF LEGEND.</div></div>`,'5 · SETTLE','Copy fades up over smoke-filled arena. 3s full-screen takeover, interaction locked.'),
+].join('');
+
+const iHex=`<div class="hex" style="top:56px;background:#EAE2FA;box-shadow:inset 0 0 0 3px #8E6BC8;color:#3a2b5c">I</div>`;
+const pHex=`<div class="hex" style="top:52px;background:#F2A33C;box-shadow:inset 0 0 0 3px #B0431E,0 0 22px #F2A33C88;color:#4A1B0C">★</div>`;
+document.getElementById('primeStory').innerHTML=[
+ panel(iHex+`<div class="pull ptc"><i style="left:14%;top:20%">›</i><i style="right:14%;top:22%">‹</i><i style="left:16%;bottom:22%">›</i><i style="right:16%;bottom:20%">‹</i></div>`,'1 · GRAVITATIONAL PULL','<b>0.0s</b> · UI darkens, all light collapses inward toward the badge.<br><b>Haptic:</b> continuous low buzz · <b>Audio:</b> full duck'),
+ '<div class="arrow">→</div>',
+ panel(`<div class="void"></div>`+iHex.replace('#EAE2FA','#2a2440').replace('22px','0'),'2 · PITCH BLACK','<b>0.5s</b> · absolute black — tension holds.<br><b>Audio:</b> 0.5s silence'),
+ '<div class="arrow">→</div>',
+ panel(`<div class="void"></div><div class="tear"></div>`,'3 · COSMIC TEAR','Jagged neon-violet tear rips down center, revealing pre-creation plasma void.<br><b>Haptic:</b> sharp triple-burst · <b>Audio:</b> vacuum pull'),
+ '<div class="arrow">→</div>',
+ panel(`<div class="void" style="opacity:.85"></div><div class="aura"></div>`+pHex,'4 · APEX IGNITION','Primordial emblem snaps in from dark-matter particles; purple/cyan aura ignites.<br><b>Audio:</b> plasma riser + 20Hz drop + lightning'),
+ '<div class="arrow">→</div>',
+ panel(`<div class="void" style="opacity:.7"></div><div class="aura" style="opacity:.5"></div>`+pHex+`<div class="cap"><div class="h" style="color:#F7B85A">YOU ARE BEYOND TIME ITSELF.</div><div class="s">YOU ARE NOW PRIMORDIAL.</div></div>`,'5 · SETTLE','Eternal pulsing aura remains behind the profile card.<br><b>Haptic:</b> max-intensity long pulse'),
+].join('');
+</script>

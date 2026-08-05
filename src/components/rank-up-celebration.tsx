@@ -14,7 +14,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, Ellipse, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { HexagonBadge } from '@/components/hexagon-badge';
@@ -169,6 +169,51 @@ function FlameBlob({ left, height, delay }: { left: number; height: number; dela
     transform: [{ translateY: interpolate(progress.value, [0, 1], [20, -(120 + height)]) }, { scaleY: interpolate(progress.value, [0, 1], [0.6, 1.1]) }],
   }));
   return <Animated.View style={[styles.flameBlob, { left: `${left}%`, height, width: 10 + (height % 8) }, style]} />;
+}
+
+// Immortal's ghost-wisps (RANKUP_SPEC §2, design-mocks/80's `.ghost` + `haunt` keyframe) — soft
+// spectral faces drifting up through the violet shimmer and fading. The mock reaches for this with
+// `filter: blur(1.5px)` over a radial-gradient; RN has no CSS blur, so the softness comes from the
+// SVG radial gradient itself (bright core → violet mid at 68% → fully transparent edge), which
+// reads the same at this size without a filter or an extra blur library.
+//
+// Deliberately restrained: ~0.42 peak opacity, hollow eyes rather than drawn features. Anything
+// crisper stops being haunting and starts being cartoonish, which is the note in the spec.
+const WISP_WIDTH = 16;
+const WISP_HEIGHT = 20;
+
+function GhostWisp({ left, top, drift, delay, duration }: { left: number; top: number; drift: number; delay: number; duration: number }) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withDelay(delay, withTiming(1, { duration, easing: Easing.out(Easing.quad) }));
+  }, [delay, duration, progress]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.25, 1], [0, 0.42, 0]),
+    transform: [
+      { translateY: interpolate(progress.value, [0, 1], [24, -48]) },
+      { translateX: interpolate(progress.value, [0, 1], [0, drift]) },
+      { scale: interpolate(progress.value, [0, 1], [0.8, 1.15]) },
+    ],
+  }));
+
+  return (
+    <Animated.View pointerEvents="none" style={[styles.wisp, { left: `${left}%`, top: `${top}%` }, style]}>
+      <Svg width={WISP_WIDTH} height={WISP_HEIGHT}>
+        <Defs>
+          <RadialGradient id="wispBody" cx="50%" cy="38%" rx="60%" ry="60%">
+            <Stop offset="0" stopColor="#EAE2FA" stopOpacity={0.55} />
+            <Stop offset="0.68" stopColor="#8E6BC8" stopOpacity={0.18} />
+            <Stop offset="1" stopColor="#8E6BC8" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        {/* Rounded at the crown, tapering below — the mock's 50%/50%/42%/42% silhouette. */}
+        <Ellipse cx={WISP_WIDTH / 2} cy={WISP_HEIGHT / 2} rx={WISP_WIDTH / 2} ry={WISP_HEIGHT / 2} fill="url(#wispBody)" />
+        <Ellipse cx={WISP_WIDTH / 2 - 3.5} cy={8.5} rx={1.25} ry={1.5} fill="rgba(58,43,92,0.75)" />
+        <Ellipse cx={WISP_WIDTH / 2 + 3.5} cy={8.5} rx={1.25} ry={1.5} fill="rgba(58,43,92,0.75)" />
+      </Svg>
+    </Animated.View>
+  );
 }
 
 // The hexagon "burning" during Primordial's transition only (§11's reconciliation: literal flame
@@ -358,7 +403,21 @@ function TierFlashOverlay({
           {/* Immortal — a gentle violet glow ascending behind the badge. Ethereal, NOT fiery: it
               rises and dissolves rather than licking upward like Primordial's flames (§2). */}
           {tier === 'immortal' && (
-            <Animated.View pointerEvents="none" style={[styles.ascendGlow, { backgroundColor: metal.inner }, ascendStyle]} />
+            <>
+              <Animated.View pointerEvents="none" style={[styles.ascendGlow, { backgroundColor: metal.inner }, ascendStyle]} />
+              {/* The souls in the shimmer (§2, mock 80) — staggered so they surface a few at a
+                  time rather than as one synchronised wave. */}
+              {Array.from({ length: 5 }, (_, i) => (
+                <GhostWisp
+                  key={`wisp-${i}`}
+                  left={14 + hashUnit(i + 100) * 70}
+                  top={44 + hashUnit(i + 110) * 30}
+                  drift={hashUnit(i + 120) * 24 - 12}
+                  delay={FLARE_DELAY_MS + hashUnit(i + 130) * 1000}
+                  duration={2600 + hashUnit(i + 140) * 1000}
+                />
+              ))}
+            </>
           )}
         </>
       )}
@@ -519,13 +578,18 @@ export function RankUpCelebration({
       clearTimeout(flareTimer);
       stopRankUpRiser();
     };
-    // fireTierCueOnce is idempotent by ref (hasFiredCueRef) and reads only props already listed
-    // below; including it would rebuild this whole timeline on every render.
+    // fireTierCueOnce is deliberately omitted: it's redefined every render, so listing it would
+    // tear down and rebuild this entire 5s timeline on each one. Safe ONLY because every prop it
+    // reads — tier, isDivisionBump, isBandCrossing — is listed below, so the closure the flare
+    // timer captures can never be stale. isBandCrossing in particular: without it, showing Hero as
+    // an ordinary crossing and then as an ascension (same tier, same bump flag) would leave the
+    // timer holding the first render's isBandCrossing=false and silently skip the Victory Anthem.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     reduceMotion,
     tier,
     isDivisionBump,
+    isBandCrossing,
     isPrimordial,
     hexOpacity,
     hexScale,
@@ -782,6 +846,11 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     textAlign: 'center',
     marginTop: Spacing.two,
+  },
+  wisp: {
+    position: 'absolute',
+    width: WISP_WIDTH,
+    height: WISP_HEIGHT,
   },
   // Immortal's ascending glow — a soft wide blob that drifts up behind the badge and dissolves.
   ascendGlow: {

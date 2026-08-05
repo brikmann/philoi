@@ -1,0 +1,122 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rank-up animated schematics — mock 80</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0d0b13;color:#FFF6EC;font-family:var(--font);padding:24px}
+h1{font-size:18px;margin:0 0 3px}.intro{color:#9f92b6;font-size:12px;max-width:640px;margin:0 0 16px;line-height:1.5}
+.grid{display:flex;flex-wrap:wrap;gap:18px}
+.cell{width:158px}
+.lab{font-size:13px;font-weight:800;margin-bottom:6px}
+.lab small{display:block;font-weight:600;font-size:9.5px;color:#7c7194;margin-top:1px}
+.phone{width:158px;height:250px;background:#14111c;border-radius:26px;padding:8px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;border-radius:20px;overflow:hidden;background:radial-gradient(120% 60% at 50% 40%,#1c1726,#131019 72%)}
+.wash,.voidL,.white{position:absolute;inset:0;opacity:0;pointer-events:none}
+.white{mix-blend-mode:screen}.wash{mix-blend-mode:screen}
+.pillar{position:absolute;top:0;bottom:0;left:50%;width:24px;transform:translateX(-50%);background:linear-gradient(#FFE9C2,#E0574C);filter:blur(2px);opacity:0}
+.tear{position:absolute;top:0;bottom:0;left:50%;width:0;transform:translateX(-50%);background:linear-gradient(90deg,transparent,#C77BFF,#6BE6FF,#C77BFF,transparent);filter:blur(.6px);opacity:0}
+.ring{position:absolute;top:44%;left:50%;width:24px;height:24px;border-radius:50%;border:3px solid #fff;transform:translate(-50%,-50%) scale(0);opacity:0}
+.ptc{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.aura{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);width:112px;height:122px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);filter:blur(13px);opacity:0}
+.badge{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);width:60px;height:66px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;opacity:0}
+.copy{position:absolute;bottom:22px;left:0;right:0;text-align:center;padding:0 12px;opacity:0}
+.copy .big{font-size:11px;font-weight:900;letter-spacing:.3px;line-height:1.2}
+.copy .big2{font-size:7.5px;font-weight:700;color:#c8bcdd;margin-top:3px;letter-spacing:.4px}
+.ptc .p{position:absolute}
+@keyframes badgeIn{0%{opacity:0;transform:translate(-50%,calc(-50% + 110px)) scale(.5)}60%{opacity:1;transform:translate(-50%,calc(-50% - 6px)) scale(1.08)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes bumpIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.8)}60%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes washPulse{0%{opacity:0}25%{opacity:var(--wo,.7)}100%{opacity:0}}
+@keyframes flash{0%{opacity:0}14%{opacity:1}100%{opacity:0}}
+@keyframes pillarIn{0%{opacity:0;transform:translateX(-50%) scaleY(.15)}30%{opacity:.9}100%{opacity:0;transform:translateX(-50%) scaleY(1)}}
+@keyframes voidIn{0%{opacity:0}45%{opacity:1}100%{opacity:1}}
+@keyframes tearOpen{0%{width:0;opacity:0}30%{opacity:1}55%{width:78%}100%{width:12px;opacity:.9}}
+@keyframes ringOut{0%{transform:translate(-50%,-50%) scale(0);opacity:.9}100%{transform:translate(-50%,-50%) scale(7);opacity:0}}
+@keyframes auraPulse{0%{opacity:0}50%{opacity:.8}100%{opacity:.5}}
+@keyframes copyIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes emberRise{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-150px) translateX(var(--dx,0));opacity:0}}
+@keyframes flameRise{0%{height:0;opacity:0}30%{opacity:1}100%{height:var(--h,60px);opacity:0}}
+@keyframes glintFall{0%{transform:translateY(-16px) scale(.6);opacity:0}20%{opacity:1}100%{transform:translateY(var(--fy,180px)) scale(1);opacity:0}}
+@keyframes twinkle{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:1;transform:scale(1.1)}}
+@keyframes shardFall{0%{transform:translateY(-16px) rotate(var(--r,20deg));opacity:0}20%{opacity:1}100%{transform:translateY(210px) rotate(var(--r,20deg));opacity:0}}
+@keyframes rayIn{0%{opacity:0;transform:translateX(-50%) rotate(var(--rot,0deg)) scaleY(.2)}40%{opacity:.7}100%{opacity:0;transform:translateX(-50%) rotate(var(--rot,0deg)) scaleY(1)}}
+@keyframes shimmerFloat{0%{opacity:0;transform:translateY(8px) scale(.6)}30%{opacity:1}100%{opacity:0;transform:translateY(-30px) scale(1)}}
+@keyframes collapseIn{0%{opacity:0;transform:scale(1.5)}30%{opacity:.9}100%{opacity:0;transform:scale(.2)}}
+@keyframes shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-3px,2px)}40%{transform:translate(3px,-2px)}60%{transform:translate(-2px,-2px)}80%{transform:translate(2px,2px)}}
+.shakeit{animation:shake .4s ease-in-out}
+.ghost{position:absolute;width:16px;height:20px;border-radius:50% 50% 42% 42%;background:radial-gradient(circle at 50% 38%,rgba(234,226,250,.55),rgba(142,107,200,.18) 68%,transparent);filter:blur(1.5px)}
+.ghost .eye{position:absolute;top:7px;width:2.5px;height:3px;border-radius:50%;background:rgba(58,43,92,.75)}
+@keyframes haunt{0%{opacity:0;transform:translateY(24px) scale(.8)}25%{opacity:.42}100%{opacity:0;transform:translateY(-48px) translateX(var(--sx,0)) scale(1.15)}}
+</style>
+
+<h1>🎞️ Rank-up animated schematics — Bronze → Primordial</h1>
+<p class="intro">All ten play on a loop, each running its real sequence (RANKUP_SPEC §1–§2). The eight tier crossings run the 3-beat pattern with their own motif; <b>Hero</b> and <b>Primordial</b> run the full band-crossing cinematics. Colors = RANK_TIER_METAL.</p>
+<div class="grid" id="grid"></div>
+
+<script>
+const TIERS=[
+ {k:'bronze',l:'Bronze',o:'#6E4423',i:'#B87333',t:'#3A2410',w:'#B87333',m:'ember',sub:'sweep + embers',h:'IGNITION.',s:'THE CLIMB HAS BEGUN.'},
+ {k:'silver',l:'Silver',o:'#6B7280',i:'#C4CBD6',t:'#2B3038',w:'#C4CBD6',m:'sweep',sub:'metallic sweep',h:'FORGED IN STEEL.',s:'THE EDGE IS YOURS.'},
+ {k:'gold',l:'Gold',o:'#9A6A12',i:'#F5C542',t:'#4A3406',w:'#F5C542',m:'sparkle',sub:'sparkle glints',h:'THE CROWN IS YOURS.',s:'EVERY LOCK-IN TURNS TO GOLD.'},
+ {k:'platinum',l:'Platinum',o:'#6E8B98',i:'#A7C7D4',t:'#22333a',w:'#A7C7D4',m:'sweep',sub:'cool silver sweep',h:'INTO RARE AIR.',s:'FEW EVER CLIMB THIS HIGH.'},
+ {k:'diamond',l:'Diamond',o:'#2C6E76',i:'#7FE0E8',t:'#06323A',w:'#7FE0E8',m:'prism',sub:'prism glints',h:'FORGED UNDER PRESSURE.',s:'ONE STEP FROM LEGEND.'},
+ {k:'hero',l:'Hero',band:'hero',sub:'BAND — shatter→pillar→slam',h:'MORTAL LIMITS BROKEN.',s:'WELCOME TO THE REALM OF LEGEND.'},
+ {k:'titan',l:'Titan',o:'#1E5E4A',i:'#4FA88C',t:'#08301f',w:'#4FA88C',m:'shard',sub:'shards + screen-shake',h:'THE EARTH TREMBLES.',s:'A TITAN WALKS AMONG THEM.'},
+ {k:'olympian',l:'Olympian',o:'#C0A24E',i:'#F7E9C0',t:'#5c4a12',w:'#F7E9C0',m:'ray',sub:'god-rays + sparkle',h:'YOU ENTER OLYMPUS.',s:'THE GODS MAKE ROOM.'},
+ {k:'immortal',l:'Immortal',o:'#8E6BC8',i:'#EAE2FA',t:'#3a2b5c',w:'#B98CEA',m:'shimmer',sub:'violet shimmer',h:'DEATH HAS NO CLAIM.',s:'YOU CANNOT FALL.'},
+ {k:'primordial',l:'Primordial',band:'primordial',sub:'BAND — void→tear→ignition',h:'YOU ARE BEYOND TIME ITSELF.',s:'YOU ARE NOW PRIMORDIAL.'},
+];
+const grid=document.getElementById('grid');
+function el(html){const d=document.createElement('div');d.innerHTML=html;return d.firstElementChild;}
+function setBadge(r,c){r.badge.style.background=c.i;r.badge.style.boxShadow=`inset 0 0 0 3px ${c.o}, 0 0 22px ${c.i}66`;r.badge.style.color=c.t;r.badge.textContent=c.apex?'★':'I';}
+function reset(r){r.ptc.innerHTML='';['wash','voidL','white','pillar','tear','ring','badge','copy','aura'].forEach(x=>{r[x].style.animation='none';r[x].offsetHeight;r[x].style.opacity=0;});r.stage.classList.remove('shakeit');}
+function copy(r,c,h,s){r.copy.innerHTML=`<div class="big" style="color:${c}">${h}</div><div class="big2">${s}</div>`;r.copy.style.animation='none';r.copy.offsetHeight;r.copy.style.animation='copyIn .5s ease-out forwards';}
+function shake(r){r.stage.classList.remove('shakeit');void r.stage.offsetWidth;r.stage.classList.add('shakeit');}
+function spawn(r,kind,color,ec){const p=r.ptc,n=kind==='ray'?3:12;
+ for(let i=0;i<n;i++){const d=document.createElement('div');d.className='p';const L=Math.random()*100,dl=(Math.random()*.4).toFixed(2),du=(1+Math.random()).toFixed(2);
+  if(kind==='ember')d.style.cssText=`left:${L}%;bottom:${12+Math.random()*26}%;width:4px;height:4px;border-radius:50%;background:${ec||color};box-shadow:0 0 5px ${ec||color};--dx:${Math.random()*30-15}px;animation:emberRise ${du}s ease-out ${dl}s forwards`;
+  else if(kind==='fire'){d.style.cssText=`left:${L}%;bottom:-10px;width:9px;border-radius:50% 50% 45% 45%;background:linear-gradient(#F7B85A,#E0612C);--h:${40+Math.random()*45}px;animation:flameRise ${du}s ease-out ${dl}s forwards`;}
+  else if(kind==='sparkle'){d.textContent='✦';d.style.cssText=`left:${L}%;top:${18+Math.random()*55}%;color:${color};text-shadow:0 0 7px ${color};font-size:12px;animation:twinkle ${du}s ease-in-out ${dl}s forwards`;}
+  else if(kind==='prism'){d.textContent='◈';d.style.cssText=`left:${L}%;top:0;color:${color};text-shadow:0 0 7px ${color};font-size:11px;--fy:${150+Math.random()*60}px;animation:glintFall ${du}s ease-in ${dl}s forwards`;}
+  else if(kind==='shimmer'){d.textContent='✧';d.style.cssText=`left:${L}%;top:${28+Math.random()*45}%;color:${color};text-shadow:0 0 9px ${color};font-size:11px;animation:shimmerFloat ${(1.5+Math.random()).toFixed(2)}s ease-out ${dl}s forwards`;}
+  else if(kind==='shard')d.style.cssText=`left:${L}%;top:0;width:3px;height:11px;border-radius:1px;background:${color};--r:${Math.random()*60-30}deg;animation:shardFall ${du}s ease-in ${dl}s forwards`;
+  else if(kind==='ray')d.style.cssText=`top:-8%;left:50%;width:8px;height:70%;transform-origin:top;background:linear-gradient(${color},transparent);filter:blur(3px);--rot:${(i-1)*22}deg;animation:rayIn 1.4s ease-out ${dl}s forwards`;
+  else if(kind==='collapse')d.style.cssText=`left:${20+Math.random()*60}%;top:${20+Math.random()*55}%;color:#C6A8F0;font-size:10px;text-shadow:0 0 8px #B98CEA;animation:collapseIn 1s ease-in ${dl}s forwards`;
+  if(kind==='ray'&&i>=3)break;p.appendChild(d);}
+ if(kind==='ray')for(let i=0;i<4;i++){const g=document.createElement('div');g.className='p';g.textContent='✦';g.style.cssText=`left:${25+i*16}%;top:${30+(i%2)*18}%;color:${color};font-size:11px;text-shadow:0 0 6px ${color};animation:twinkle 1.4s ease-in-out ${(Math.random()*.3).toFixed(2)}s forwards`;p.appendChild(g);}
+ if(kind==='shimmer')for(let i=0;i<4;i++){const g=document.createElement('div');g.className='ghost';g.style.cssText=`left:${14+Math.random()*70}%;top:${44+Math.random()*30}%;--sx:${(Math.random()*24-12).toFixed(0)}px;animation:haunt ${(2.6+Math.random()).toFixed(2)}s ease-out ${(Math.random()).toFixed(2)}s forwards`;g.innerHTML='<span class="eye" style="left:3.5px"></span><span class="eye" style="right:3.5px"></span>';p.appendChild(g);} }
+
+function playTier(T,r){reset(r);
+ r.wash.style.background=`radial-gradient(circle at 50% 42%,${T.w},transparent 66%)`;r.wash.style.setProperty('--wo',.7);r.wash.style.animation='washPulse 1.8s ease-out forwards';
+ setBadge(r,T);r.badge.style.animation='badgeIn 1s cubic-bezier(.2,.9,.25,1) .15s forwards';
+ setTimeout(()=>{if(T.m==='shard')shake(r);spawn(r,T.m,T.i,T.ec);},380);
+ setTimeout(()=>copy(r,T.i,T.h,T.s),950);
+}
+function playHero(T,r){reset(r);
+ setBadge(r,{i:'#7FE0E8',o:'#2C6E76',t:'#06323A'});r.badge.style.animation='bumpIn .3s forwards';
+ setTimeout(()=>shake(r),200);
+ setTimeout(()=>{r.white.style.background='radial-gradient(circle at 50% 50%,#FFE7B0,#fff)';r.white.style.animation='flash 1s ease-out forwards';r.pillar.style.animation='pillarIn 1s ease-out forwards';},720);
+ setTimeout(()=>{setBadge(r,{i:'#E0574C',o:'#8F2E28',t:'#3f0f0b'});r.badge.style.animation='badgeIn .7s cubic-bezier(.2,.9,.25,1) forwards';r.ring.style.borderColor='#F0897E';r.ring.style.animation='ringOut .9s ease-out forwards';r.wash.style.background='radial-gradient(circle at 50% 45%,#E0574C,transparent 70%)';r.wash.style.setProperty('--wo',.7);r.wash.style.animation='washPulse 1.8s ease-out forwards';spawn(r,'ember','#E0574C','#FF7A5C');},1320);
+ setTimeout(()=>copy(r,'#F0897E',T.h,T.s),1780);
+}
+function playPrime(T,r){reset(r);
+ setBadge(r,{i:'#EAE2FA',o:'#8E6BC8',t:'#3a2b5c'});r.badge.style.animation='bumpIn .3s forwards';
+ setTimeout(()=>{r.voidL.style.background='radial-gradient(circle at 50% 45%,#0a0710,#000)';r.voidL.style.animation='voidIn 1s ease-in forwards';spawn(r,'collapse');},430);
+ setTimeout(()=>{r.tear.style.animation='tearOpen 1s ease-out forwards';},1150);
+ setTimeout(()=>{setBadge(r,{i:'#F2A33C',o:'#B0431E',t:'#4A1B0C',apex:1});r.badge.style.animation='badgeIn .8s cubic-bezier(.2,.9,.25,1) forwards';r.aura.style.background='radial-gradient(circle,#C77BFF,#6BE6FF)';r.aura.style.animation='auraPulse 1.6s ease-out forwards';spawn(r,'fire','#F2A33C');},1820);
+ setTimeout(()=>copy(r,'#F7B85A',T.h,T.s),2200);
+}
+
+TIERS.forEach((T,idx)=>{
+ const cell=el(`<div class="cell"><div class="lab" style="color:${T.i||'#F7B85A'}">${T.l}<small>${T.sub}</small></div>
+   <div class="phone"><div class="stage">
+     <div class="wash"></div><div class="voidL"></div><div class="white"></div><div class="pillar"></div><div class="tear"></div>
+     <div class="ptc"></div><div class="aura"></div><div class="ring"></div><div class="badge"></div><div class="copy"></div>
+   </div></div></div>`);
+ grid.appendChild(cell);
+ const q=s=>cell.querySelector(s);
+ const r={stage:q('.stage'),wash:q('.wash'),voidL:q('.voidL'),white:q('.white'),pillar:q('.pillar'),tear:q('.tear'),ptc:q('.ptc'),aura:q('.aura'),ring:q('.ring'),badge:q('.badge'),copy:q('.copy')};
+ const play=()=>{ if(T.band==='hero')playHero(T,r); else if(T.band==='primordial')playPrime(T,r); else playTier(T,r); };
+ const period=T.band?6200:4600;
+ setTimeout(()=>{play();setInterval(play,period);},idx*260);
+});
+</script>

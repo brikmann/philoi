@@ -41,10 +41,19 @@ export function showRankUp(event: RankUpEvent): void {
 export function RankUpWatcher() {
   const { session, profile } = useAuth();
   const [pending, setPending] = useState<RankUpEvent | null>(null);
+  // Bumped on every presentation and used as the celebration's key. Without it React reuses the
+  // same RankUpCelebration instance across two showRankUp() calls: its hasFiredCueRef would still
+  // be true from the previous one, so the second event would play NO audio or haptic at all, and
+  // the 5s timeline would never restart. Most visible from the dev-tools tester, where two events
+  // land back to back.
+  const [presentToken, setPresentToken] = useState(0);
 
   // Register this mount as the global presenter for showRankUp().
   useEffect(() => {
-    present = setPending;
+    present = (event) => {
+      setPending(event);
+      setPresentToken((n) => n + 1);
+    };
     return () => {
       present = null;
     };
@@ -125,6 +134,7 @@ export function RankUpWatcher() {
     <View style={styles.overlay}>
       <Screen backgroundColor={Colors.forgeBg} padded={false}>
         <RankUpCelebration
+          key={presentToken}
           tier={pending.tier}
           division={pending.division}
           fromTier={pending.fromTier}
