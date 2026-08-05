@@ -21,12 +21,34 @@ function ensureGoogleConfigured() {
   googleConfigured = true;
 }
 
+// Signing out of the app clears the Supabase session but leaves the native Google SDK's
+// cached account behind, so the next signIn() resolves straight from cache with no picker
+// and the user is silently logged back into the same account. Call this on app sign-out.
+// signOut() only drops the LOCAL session (keeps the picker fast) — deliberately NOT
+// revokeAccess(), which would force the full consent screen on the next sign-in.
+export async function signOutGoogle() {
+  try {
+    ensureGoogleConfigured();
+    await GoogleSignin.signOut();
+  } catch {
+    // Not signed in via Google / SDK not configured — nothing to clear.
+  }
+}
+
 // The native Google account picker (replaces the old signInWithOAuth browser-redirect flow
 // below, which routed through a *.supabase.co page) — Supabase still does the actual auth
 // exchange server-side via signInWithIdToken(), only how the client obtains the idToken changed.
 async function signInWithGoogleNative() {
   ensureGoogleConfigured();
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+  // Drop any cached account first so the picker always shows and switching accounts works,
+  // even if the previous sign-out path (or a crash) left the SDK session behind.
+  try {
+    await GoogleSignin.signOut();
+  } catch {
+    // Nothing cached to clear.
+  }
 
   const response = await GoogleSignin.signIn();
   if (isCancelledResponse(response)) {
