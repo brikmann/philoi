@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session, User } from '@supabase/supabase-js';
 
 import { identify, track } from '@/lib/analytics';
+import { signOutGoogle } from '@/lib/auth/providers';
 import { getErrorMessage } from '@/lib/errors';
 import { unregisterPushToken } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
@@ -147,6 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshProfile: async () => loadProfileFor(session?.user),
     signOut: async () => {
       if (session?.user.id) await unregisterPushToken(session.user.id);
+      // Clear the native Google session too — otherwise the SDK's cached account survives
+      // sign-out and "Continue with Google" logs straight back in with no account picker.
+      await signOutGoogle();
       await supabase.auth.signOut();
     },
   };
