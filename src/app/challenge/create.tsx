@@ -17,9 +17,11 @@ import { createChallenge } from '@/lib/api/challenges';
 import { syncChallengeFromDevice } from '@/lib/api/fitness-challenge-sync';
 import { getErrorMessage } from '@/lib/errors';
 import {
-  FITNESS_SOURCE_NAME,
+  AUTO_SOURCE_NAME,
   canAutoTrackChallengeType,
   getRealFitnessSourceForChallengeType,
+  metricSourceLabel,
+  metricSourceShort,
 } from '@/lib/fitness-sync';
 import { createGroupChallenge, createH2HChallenge } from '@/lib/api/social-challenges';
 import type { ChallengePeriod, ChallengeType, SocialChallengeMode, SocialChallengeRaceMetric } from '@/types/database';
@@ -351,6 +353,31 @@ const MORE_TYPE_OPTIONS: typeof PERSONAL_TYPE_OPTIONS = [
   { value: 'sleep_hours', label: '😴 Sleep', unit: 'hours', defaultTarget: '49' },
 ];
 
+// A pill that names its own data source. Previously every metric looked equally automatic, so
+// study/gym/sleep read as auto-tracked while silently sitting at zero — the tag is what makes
+// "this needs WHOOP" and "this comes from your own lock-ins" visible before you commit to a goal.
+function MetricChip({
+  option,
+  selected,
+  onPress,
+}: {
+  option: (typeof PERSONAL_TYPE_OPTIONS)[number];
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const source = metricSourceShort(option.value);
+  return (
+    <Pressable onPress={onPress} style={[styles.personalChip, selected && styles.chipSelected]}>
+      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
+      {source ? (
+        <Text style={[styles.chipSource, selected && styles.chipSourceSelected]} numberOfLines={1}>
+          {source}
+        </Text>
+      ) : null}
+    </Pressable>
+  );
+}
+
 const CUSTOM_TYPE_OPTION: (typeof PERSONAL_TYPE_OPTIONS)[number] = {
   value: 'custom',
   label: '＋ Custom',
@@ -493,12 +520,7 @@ function PersonalChallengeForm() {
           anything after it. */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
         {PERSONAL_TYPE_OPTIONS.map((option) => (
-          <Pressable
-            key={option.value}
-            onPress={() => handlePickType(option)}
-            style={[styles.personalChip, type === option.value && styles.chipSelected]}>
-            <Text style={[styles.chipText, type === option.value && styles.chipTextSelected]}>{option.label}</Text>
-          </Pressable>
+          <MetricChip key={option.value} option={option} selected={type === option.value} onPress={() => handlePickType(option)} />
         ))}
         <Pressable
           onPress={() => handlePickType(CUSTOM_TYPE_OPTION)}
@@ -516,15 +538,15 @@ function PersonalChallengeForm() {
         // Same treatment as the headline row above — this one grows as more device metrics land.
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
           {MORE_TYPE_OPTIONS.map((option) => (
-            <Pressable
-              key={option.value}
-              onPress={() => handlePickType(option)}
-              style={[styles.personalChip, type === option.value && styles.chipSelected]}>
-              <Text style={[styles.chipText, type === option.value && styles.chipTextSelected]}>{option.label}</Text>
-            </Pressable>
+            <MetricChip key={option.value} option={option} selected={type === option.value} onPress={() => handlePickType(option)} />
           ))}
         </ScrollView>
       )}
+
+      {/* The full source sentence for whatever's selected. The pills carry a one-word tag; this
+          spells out what actually feeds the number — including the gym metric's photo/sets
+          requirement, which is the difference between a visit counting and not. */}
+      {metricSourceLabel(type) ? <Text style={styles.sourceLine}>{metricSourceLabel(type)}</Text> : null}
 
       {/* ── Custom (design-mocks/74) ─────────────────────────────────────────── */}
       {isCustom && (
@@ -593,7 +615,7 @@ function PersonalChallengeForm() {
             onPress={() => setTrackAuto(true)}
             emoji="⚡"
             title="Automatically"
-            body={`${FITNESS_SOURCE_NAME[getRealFitnessSourceForChallengeType(type)!]} · counts on its own`}
+            body={`${AUTO_SOURCE_NAME[getRealFitnessSourceForChallengeType(type)!]} · counts on its own`}
           />
           <TrackOption
             selected={!autoOn}
@@ -763,6 +785,23 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
+    alignItems: 'center',
+  },
+  chipSource: {
+    fontFamily: Fonts.body,
+    fontSize: 9,
+    color: Colors.textTertiary,
+    marginTop: 2,
+  },
+  chipSourceSelected: {
+    color: Colors.warmSubtext,
+  },
+  sourceLine: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    lineHeight: 16,
+    color: Colors.muted,
+    marginTop: Spacing.two,
   },
   targetRow: {
     flexDirection: 'row',

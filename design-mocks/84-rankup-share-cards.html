@@ -1,0 +1,66 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rank-up share cards — mock 84</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;font-family:var(--font);padding:24px;color:#FFF6EC}
+h1{font-size:16px;margin:0 0 3px}.sub{color:#9f92b6;font-size:12px;margin:0 0 18px;max-width:640px;line-height:1.5}
+.gallery{display:flex;flex-wrap:wrap;gap:22px;justify-content:center}
+.unit{display:flex;flex-direction:column;align-items:center;gap:8px}
+.cap{color:#a99cbd;font-size:10.5px;font-weight:700}
+.card{position:relative;width:270px;height:480px;border-radius:24px;overflow:hidden;
+  background:radial-gradient(130% 60% at 50% 26%,#2a1f3a,#1a1326 58%,#120d1a 100%)}
+.emb{position:absolute;width:4px;height:4px;border-radius:50%;background:#F2A33C;opacity:0;animation:rise 4s ease-out infinite}
+@keyframes rise{0%{opacity:0;transform:translateY(0)}15%{opacity:.9}100%{opacity:0;transform:translateY(-130px) scale(.3)}}
+.brand{position:absolute;top:18px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:6px;z-index:3}
+.brand .lg{font-size:14px;font-weight:800}
+.tag{position:absolute;top:52px;left:0;right:0;text-align:center;font-size:10px;font-weight:800;letter-spacing:4px;z-index:3}
+.hero{position:absolute;top:88px;left:0;right:0;display:flex;flex-direction:column;align-items:center;z-index:3;padding:0 20px}
+.aura{position:absolute;top:2px;width:200px;height:200px;border-radius:50%;filter:blur(34px);opacity:.5}
+.hex{position:relative;width:118px;height:130px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900}
+.tier{font-size:27px;font-weight:800;margin-top:20px;letter-spacing:.3px}
+.head{font-size:15px;font-weight:900;letter-spacing:.4px;margin-top:16px;text-align:center;line-height:1.2}
+.subx{font-size:10.5px;font-weight:700;color:#c8bcdd;margin-top:6px;text-align:center;letter-spacing:.4px;line-height:1.35;max-width:220px}
+.foot{position:absolute;bottom:20px;left:0;right:0;text-align:center;z-index:3}
+.who{display:inline-flex;align-items:center;gap:7px;background:rgba(0,0,0,.3);padding:6px 13px;border-radius:999px;font-size:11.5px}
+.who .fh{width:15px;height:17px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:inline-block}
+</style>
+
+<h1>🏆 Rank-up share cards</h1>
+<p class="sub">The shareable 9:16 output for each rank-up (pairs with mock 83's animation — 83 is the moment, this is what lands in the story). Same Philoi story frame as the unlock cards (mock 60): tier-coloured badge + aura, the all-caps line, your handle + new rank. Band crossings (Hero, Primordial) get the "ASCENDED / PRIMORDIAL" tag.</p>
+<div class="gallery" id="g"></div>
+
+<script>
+const T=[
+ {k:'silver',lab:'Silver',o:'#6B7280',i:'#C4CBD6',t:'#2B3038',tag:'RANK UP',mark:'I',h:'FORGED IN STEEL.',s:'THE EDGE IS YOURS.'},
+ {k:'gold',lab:'Gold',o:'#9A6A12',i:'#F5C542',t:'#4A3406',tag:'RANK UP',mark:'I',h:'THE CROWN IS YOURS.',s:'EVERY LOCK-IN TURNS TO GOLD.'},
+ {k:'platinum',lab:'Platinum',o:'#6E8B98',i:'#A7C7D4',t:'#22333a',tag:'RANK UP',mark:'I',h:'INTO RARE AIR.',s:'FEW EVER CLIMB THIS HIGH.'},
+ {k:'diamond',lab:'Diamond',o:'#2C6E76',i:'#7FE0E8',t:'#06323A',tag:'RANK UP',mark:'I',h:'FORGED UNDER PRESSURE.',s:'THE MORTAL PEAK — ONE STEP FROM LEGEND.'},
+ {k:'hero',lab:'Hero',o:'#8F2E28',i:'#E0574C',t:'#3f0f0b',tag:'⚔ ASCENDED',mark:'I',h:'MORTAL LIMITS BROKEN.',s:'WELCOME TO THE REALM OF LEGEND.'},
+ {k:'titan',lab:'Titan',o:'#1E5E4A',i:'#4FA88C',t:'#08301f',tag:'RANK UP',mark:'I',h:'THE EARTH TREMBLES.',s:'A TITAN WALKS AMONG THEM.'},
+ {k:'olympian',lab:'Olympian',o:'#C0A24E',i:'#F7E9C0',t:'#5c4a12',tag:'RANK UP',mark:'I',h:'YOU ENTER OLYMPUS.',s:'THE GODS MAKE ROOM.'},
+ {k:'immortal',lab:'Immortal',o:'#8E6BC8',i:'#EAE2FA',t:'#3a2b5c',tag:'RANK UP',mark:'I',h:'DEATH HAS NO CLAIM.',s:'YOU CANNOT FALL.'},
+ {k:'primordial',lab:'Primordial',o:'#B0431E',i:'#F2A33C',t:'#4A1B0C',tag:'🔥 PRIMORDIAL',mark:'★',apex:1,h:'YOU ARE BEYOND TIME ITSELF.',s:'YOU ARE NOW PRIMORDIAL.'},
+];
+const flame='<svg width="18" height="20" viewBox="0 0 24 26"><path d="M12 2c2 4 6 6 6 11a6 6 0 0 1-12 0C6 8 10 6 12 2z" fill="#E0612C"/><path d="M12 10c1 2 3 3 3 5.5a3 3 0 0 1-6 0C9 13 11 12 12 10z" fill="#F2A33C"/></svg>';
+const g=document.getElementById('g');
+T.forEach(c=>{
+ const embs=[[40,90,0],[210,120,1.1],[110,70,2],[180,100,2.8]].map(e=>`<span class="emb" style="left:${e[0]}px;bottom:${e[1]}px;animation-delay:${e[2]}s"></span>`).join('');
+ const el=document.createElement('div');el.className='unit';
+ el.innerHTML=`<div class="card">
+   ${embs}
+   <div class="brand">${flame}<span class="lg">Philoi</span></div>
+   <div class="tag" style="color:${c.i}">${c.tag}</div>
+   <div class="hero">
+     <div class="aura" style="background:${c.i}"></div>
+     <div class="hex" style="background:${c.i};box-shadow:inset 0 0 0 3px ${c.o}, 0 0 44px ${c.i}77;color:${c.t}">${c.apex?'★':c.mark}</div>
+     <div class="tier" style="color:${c.i}">${c.lab}</div>
+     <div class="head" style="color:${c.i}">${c.h}</div>
+     <div class="subx">${c.s}</div>
+   </div>
+   <div class="foot"><span class="who">@noah &nbsp;·&nbsp; <span class="fh" style="background:${c.i}"></span> <b style="color:${c.i}">${c.lab}</b></span></div>
+ </div>
+ <div class="cap" style="color:${c.i}">${c.lab}</div>`;
+ g.appendChild(el);
+});
+</script>

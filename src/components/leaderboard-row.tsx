@@ -3,7 +3,9 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { EquippedHexGlow, PublicHalo, PublicTitle } from '@/components/economy/loadout-bits';
 import { HexagonBadge } from '@/components/hexagon-badge';
+import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -20,7 +22,11 @@ type LeaderboardRowProps = {
   onChanged?: () => void;
 };
 
+// The avatar is 36px; the ring needs room outside it without shifting the row's layout.
+const AVATAR_RING_SIZE = 44;
+
 export function LeaderboardRow({ rank, row, isMe, groupId, onChanged }: LeaderboardRowProps) {
+  const loadout = usePublicLoadout(row.user_id);
   const router = useRouter();
   const { session } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -39,22 +45,32 @@ export function LeaderboardRow({ rank, row, isMe, groupId, onChanged }: Leaderbo
     <>
       <Pressable onLongPress={groupId && !isMe ? () => setMoreOpen(true) : undefined} style={[styles.container, isMe && styles.me]}>
         <Text style={styles.rank}>{rank}</Text>
-        {row.avatar_url ? (
-          <Image source={{ uri: row.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={styles.avatarInitial}>{row.display_name.charAt(0).toUpperCase()}</Text>
-          </View>
-        )}
+        {/* Their halo, not yours — leaderboard rows are the main place a title actually gets seen
+            by other people, which is the whole point of owning one. */}
+        <PublicHalo loadout={loadout} size={AVATAR_RING_SIZE}>
+          {row.avatar_url ? (
+            <Image source={{ uri: row.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInitial}>{row.display_name.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+        </PublicHalo>
         <View style={styles.nameColumn}>
           <Text style={styles.name}>
             {row.display_name}
             {isMe ? ' (you)' : ''}
           </Text>
           <Text style={styles.handle}>@{row.handle ?? 'newcomer'}</Text>
+          <PublicTitle loadout={loadout} compact />
         </View>
         <View style={styles.tierColumn}>
-          <HexagonBadge tier={row.tier} division={row.division} size={32} />
+          {/* The hex glow sits BEHIND the badge — the metal and numeral still carry the earned
+              rank, so a cosmetic can never repaint them into a higher tier. */}
+          <View>
+            <EquippedHexGlow size={32} loadout={loadout} />
+            <HexagonBadge tier={row.tier} division={row.division} size={32} />
+          </View>
           <Text style={styles.tierText}>{formatRankTier(row.tier, row.division)}</Text>
           <Text style={styles.xpText}>{Math.round(row.score).toLocaleString()} XP</Text>
         </View>

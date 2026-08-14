@@ -8,6 +8,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PostHogProvider } from 'posthog-react-native';
 
+import { LoadoutSync } from '@/components/economy/loadout-sync';
 import { LIVE_SESSION_BAR_HEIGHT, LiveSessionBar, LOCK_IN_PATHNAME } from '@/components/live-session-bar';
 import { OfflineBanner } from '@/components/offline-banner';
 import { RankUpWatcher } from '@/components/rank-up-watcher';
@@ -268,6 +269,17 @@ function RootNavigator() {
         <Stack.Screen name="watch/[challengeId]" options={{ title: 'Watch' }} />
         <Stack.Screen name="challenge-change/[requestId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="challenge/create" options={{ presentation: 'modal', title: 'New challenge' }} />
+        {/* Forge Shop + reward economy (Step 21). All header-less — each screen draws its own
+            top row with the ember balance pinned right, which a native header can't carry. The
+            box-open sequence is a modal because it's a fullscreen animation you shouldn't be able
+            to swipe away mid-roll. */}
+        <Stack.Screen name="shop/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="shop/box/[boxKey]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="shop/item/[itemId]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="shop/open" options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />
+        <Stack.Screen name="inventory/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="inventory/[itemId]" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="forge-pass" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="report" options={{ presentation: 'modal', title: 'Report' }} />
         <Stack.Screen name="legal" options={{ title: '' }} />
         <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
@@ -296,6 +308,9 @@ function RootLayout() {
             the forge no matter which screen the user is on — the done screen can only ever
             celebrate a manual stop (punchlist 5.6). */}
         <RankUpWatcher />
+        {/* Keeps the equipped-cosmetics store fed for the flame / profile / sound layers. Renders
+            nothing; mounted here because the surfaces it feeds are spread across the whole app. */}
+        <LoadoutSync />
         <OfflineBanner />
       </ActiveSessionProvider>
     </AuthProvider>

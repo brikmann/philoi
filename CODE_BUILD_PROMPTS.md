@@ -467,3 +467,334 @@ REWARD ECONOMY (REWARD_ECONOMY.md / §24) — the bridge from the effort economy
 ---
 
 **Reminder:** verify each screen against its mock before moving on, and keep the shared theme tokens the single source of color/type so nothing drifts.
+
+---
+
+### 21 — Follow-up pass (post-build: the layout shipped; this makes it usable)
+
+The layout-first build landed (migration 0064, `src/lib/economy/`, `src/app/shop|inventory|forge-pass`).
+This pass completes it, in build order. All JS + server; real-money IAP still deferred to RevenueCat
+(Step 21 native / task #71). Source of truth unchanged (MONETIZATION / REWARD_ECONOMY / ITEM_CATALOG /
+FORGE_PASS; mocks 56/57/58/59/60/64/67/68).
+
+**P0 — unblock + correctness**
+
+- **0a · Run the migration.** `supabase db push` for `0064_reward_economy_inventory` so everything is
+  testable. Confirm it applied.
+- **0b · Odds fix (decided): odds tables are AUTHORITATIVE.** Every roll must match the printed per-open
+  probabilities. Remove the rarity clamp from `economy_roll_rarity`. Reframe each box's "floor" as a
+  **pity guarantee** via the pity counter already built — it forces the floor rarity only after N
+  consecutive opens without a hit. Put N per box in `economy_config` (tunable; ~1-in-10 for the floor
+  rarity on mid boxes, tighter on higher). Box UI states it in plain language ("a guaranteed Epic+ at
+  least once every 10 boxes"), separate from the odds table. (Compliance: published odds must equal the
+  real per-roll rate — that's the whole point of publishing them.)
+
+**P1 — make it feel real (the payoff)**
+
+- **1a · Equipped cosmetics must RENDER.** Equip currently records but drives nothing. Wire the live
+  surfaces to read each user's equipped slot (from `get_inventory`):
+  - Flame skin → live-session + home flame (flame-icon / CampfireFlameStage) reads the equipped Flame
+    **colorway**. §4 hard constraint: colour ramp ONLY — never size/intensity/animation (intensity = activity).
+  - Profile card → equipped Card texture + Halo + Title + hex glow (profile.tsx, hexagon-badge; mock 64),
+    on profile / feeds / leaderboard rows / 1v1s.
+  - Audio → equipped Audio environment + equipped rank-up SFX read by sound.ts / reward-feedback.
+  - Empty slot → base look.
+- **1b · Inventory missing sections (21a/21i, mock 67A).** Add a **Badges** section (earned vs paid
+  unambiguous, provenance on tap, earned never buyable, still salvageable with the extra confirm) and an
+  **Unopened Boxes** section (owned `loot_boxes` with an Open action routing into the existing `open.tsx`
+  flow via `open_loot_box` on the OWNED box — fixes the earn→open dead-end).
+
+**P2 — turn the economy over**
+
+- **2a · Ember earning.** Credit the wallet from verified effort — lock-ins (check_ins) + flame-meter
+  completion → embers into the ledger, server-side (Step 18 verify; server-config amounts). (Flame-meter
+  already grants some; extend/confirm + add the lock-in path.)
+- **2b · Pass XP engine.** Detect achievement completion off lock-in/activity events (daily/weekly/season
+  checkpoints per FORGE_PASS.md) → `credit_pass_xp`; daily achievements once-per-day. Drive the existing
+  achievements UI off real progress.
+- **2c · grant_reward wiring.** Call `grant_reward` at CHALLENGE close (21c) and SEASON close (21d, per
+  scope) — this is what actually pays boxes/badges/embers into inventory.
+
+**P3 — polish (last)**
+
+- **3a · Share** action on reward menus → 9:16 story card (mock 60), riding the mocks 28/29 pipeline.
+- **3b · ×10 card-shuffle deal** — center deck → 2×5 grid, top-left→bottom-right, ~0.06s stagger, then
+  cascade crack+pulse (mock 59). Server still decides all results up front; animation only visualizes.
+  Respect prefers-reduced-motion (cross-fade fallback).
+
+Keep: server-decides-before-animate, sequential opens (pity race), catalog-driven, RLS select-only +
+security-definer mutations, full param lists on every function. tsc + lint before commit; ship JS over OTA
++ the migration.
+
+---
+
+### 21 — FINAL pass (finish everything remaining, except audio asset sourcing)
+
+P0/P1/P2 landed (odds fix + pity, equipped cosmetics render via the loadout store, ember-earning
+triggers, Pass XP engine, `grant_reward` on challenge/season close, migrations 0064/0065). This closes
+the rest. Audio *assets* are the only excluded item (Noah sources/mixes those) — the audio *code* is in
+scope here.
+
+1. **`grant_reward` — emit the PRESTIGE payouts, not just embers + boxes.**
+   - **Earned BADGES on wins** (challenge close + placement): each `source='earned'`, with a provenance
+     string + `earned_at`, un-buyable (21a/21c).
+   - **21j SEASON/PLACEMENT TITLES at season close**, by placement × scope: Campfire podium caps Epic
+     ("Campfire Champion"); My Uni #1 = Mythic "Ascended"; **Global #1 = the 1-of-1 animated
+     "Ascended · Global"**; percentile titles (Top 1%→50%) scope-stamped, one rarity notch hotter at
+     Global. Earn-only, season-stamped (`· S1`), never in boxes/bought.
+
+2. **Public loadouts everywhere (finish "how others see you").**
+   - Wire `get_public_loadouts` into **feed-item, leaderboard-row, and 1v1/challenge headers** (today
+     only profile.tsx). Each renders the *other* user's equipped Card / Halo / Title / Flame-tint +
+     verified badge.
+   - **Mount `EquippedHexGlow`** on the rank hex (written but never mounted).
+
+3. **Remaining achievements (beyond the 9 detected).**
+   - **`season_new_rank`:** emit a `rank_up_events` row from the check-in trigger — compute
+     `rank_tier_for_score` on score-before vs score-after, insert on an ordinal increase (from/to
+     tier·div, ts, season). Achievement fires on any such event this season. (Also usable to back the
+     server-side rank-up celebration.)
+   - **`daily_with_a_friend`:** overlapping-session detection off `lock_in_sessions` start/end among
+     friends.
+
+4. **Group-challenge percentiles (replace completion-band).** Compute real placement from the standings
+   the watch RPCs already produce; **participants = qualifying lock-ins in the window** (no new table).
+   Keep completion-band as the fallback where standings aren't available.
+
+5. **Season close scheduler + collective titles.**
+   - **pg_cron / Supabase scheduled function** that fires `close_season_rewards` at season end, on the
+     ONE season clock shared with the Forge Pass reset.
+   - **Vs-Unis COLLECTIVE campus titles** (21j): top-3 unis → shared titles (#1 "Prometheus' Disciples" ·
+     #2 "Keepers of the Flame" · #3 "Champions of Academia"), ★ Legendary variant for top contributors;
+     no individual "Ascended" from the Vs-Unis board.
+
+6. **Audio — CODE ONLY (not assets).** Build the looping-ambient layer in `sound.ts` + wire the equipped
+   Audio environment and rank-up SFX slots through the existing `hasRewardSound` seam. No-op gracefully
+   until Noah drops the asset files in. Do NOT source or generate assets.
+
+7. **Polish.**
+   - **Share** action on reward menus → 9:16 story card (mock 60), riding the mocks 28/29 pipeline.
+   - **×10 card-shuffle DEAL:** center deck → 2×5 grid, top-left→bottom-right, ~0.06s stagger, then
+     cascade crack+pulse (mock 59). Server decides all results up front; animation only visualizes.
+     prefers-reduced-motion → cross-fade.
+
+Keep every invariant: odds authoritative + pity rendered separately ("Bad-luck protection · never lowers
+your chances"), server-decides-before-animate, sequential opens, catalog-driven, RLS select-only +
+security-definer + full param lists, loadout cleared on sign-out. tsc + lint before commit; ship JS over
+OTA + migrations. **Noah runs the box-open deal, share capture, and trigger behaviour on-device** (Code
+has no emulator).
+
+---
+
+### 21 — Audio wiring (assets have landed)
+
+The audio files are now in the repo (Noah sourced/placed them). Wire them so they play. All JS, OTA.
+
+1. **Rank tier hits** — `assets/sounds/` now has dedicated `.mp3`s: `rankup-hero`, `rankup-titan`,
+   `rankup-olympian`, `rankup-immortal`, `rankup-platinum` (`rankup-immortal-souls` already wired).
+   - `sound.ts`: add these to the `RewardCue` union + `SOURCES` (require the exact `.mp3` paths). Point
+     `rankup-olympian` at its OWN file (stop borrowing `rankup-diamond-sparkle`); `rankup-platinum`
+     replaces platinum's generic `rankup` fallback.
+   - `reward-feedback.ts` `RANKUP_CUE_BY_TIER`: hero→`rankup-hero`, titan→`rankup-titan`,
+     olympian→`rankup-olympian`, immortal→`rankup-immortal`, platinum→`rankup-platinum`. Keep Immortal's
+     `rankup-immortal-souls` layer playing UNDER the hit.
+
+2. **Ascension band crossings** — `assets/audio/rank/`:
+   - `ascension-primordial.mp3` EXISTS → uncomment its `ASCENSION_SOURCES` line, path
+     `'../../assets/audio/rank/ascension-primordial.mp3'` (`.mp3`, not the `.m4a` the comment shows).
+   - `ascension-hero` is NOT mixed yet (component layers staged in `assets/audio/rank/_components/`) →
+     leave it commented; it no-ops gracefully until Noah drops the mixed file.
+
+3. **Cosmetic audio** (the final-pass equipped-audio wiring, item 6) — `assets/audio/cosmetic/` now holds
+   all 11, named by catalog id: `audio-*` (6 looping ambient "focus audio" environments — equipped Audio
+   slot) and `sfx-*` (5 rank-up SFX replacements — equipped SFX slot). Require by id through the
+   `hasRewardSound` seam: `audio-*` loop under the session, `sfx-*` replace the default rank-up hit; no-op
+   on an empty slot.
+
+Files are peak-normalized `.mp3`; expo-audio handles mp3 — require by exact filename. tsc + lint before
+commit; ship JS over OTA. (Only remaining audio gap: the mixed `ascension-hero.m4a`, on Noah.)
+
+---
+
+## Rank-up MOMENT — full implementation (animations + synced audio + share card)
+
+Canonical reference: **`design-mocks/85-rankup-moment.html`** (audiovisual — open in a browser; audio is
+embedded). Detailed spec: **`RANKUP_SPEC.md`** (§1 escalation · §2 motifs · §5 copy · §6 trigger · §7b
+dev-tools · **§9 canonical per-tier table**). Companions: mock 83 (signatures + incineration), mock 84
+(share cards). Extends the existing `rank-up-celebration.tsx` — do NOT rebuild. All JS + audio assets → OTA.
+
+1. **Per-tier signature animations** (§2/§9, mock 85) — each tier its own move, not a recolored generic
+   burst: Silver blade-slash · Gold crown+coins · Platinum crystallize+frost · Diamond pressure-forge+prism
+   · **Hero** diamond-shatter → crimson pillar *break-through* → crest slam+shockwave · **Titan** colossal
+   slam+screen-shake+debris · **Olympian** slow bloom+god-rays · **Immortal** ethereal rise+ghost-wisps+
+   lingering aura · **Primordial** void-collapse (converging dark-matter particles) → cosmic tear that rips
+   then **SEALS** (no persistent beam) → emblem **COALESCES** in (blur+scale, never a bouncy pop) → aura+fire.
+
+2. **Settle into the share card** — after the signature, the frame composes into the 9:16 story card
+   (brand, tag [RANK UP / ⚔ ASCENDED / 🔥 PRIMORDIAL], tier name, all-caps line, `@handle · rank`, embers,
+   Share CTA). Mock 84 = card layouts; `onShare` → the mocks 28/29 story pipeline.
+
+3. **Intra-division bump (III→II→I)** — the incineration: white-ray **fuse-in** (`whoosh`) → badge forges
+   in → **hellfire incinerates the top numeral stroke** (`ignite`) → the burned stroke's width collapses so
+   the remaining marks **RECENTER** (center-anchored) → the **tier's own rank-up hit** lands as the new
+   division locks → settles into a lighter **🔥 DIVISION UP** card. **No all-caps copy** (tier-crossings only).
+
+4. **AUDIO** — files are in the repo, timing per §9. Wire `sound.ts` + `reward-feedback.ts`:
+   - **Timing:** NO generic riser. The tier **HIT lands on the flare and RINGS OUT — do NOT clip.** Division
+     bumps play the tier's own hit. Band crossings play their full anthem across the crossing.
+   - **Tier hits** (`assets/sounds/`): `rankup-bronze/silver`(sword unsheathe)`/gold/diamond`.wav,
+     `rankup-platinum/titan`.mp3, **`rankup-olympian-v2.mp3`** (raw choir+foghorn held notes+sub-bass).
+   - **Titan:** its asset is a sub-heavy rumble → **inaudible on phone speakers**; blend in an audible
+     transient (boom/crack) so it reads.
+   - **Immortal:** `rankup-immortal` (rings out) + **`rankup-immortal-souls-v2.mp3`** layered under,
+     **PROMINENT (~0.85 vol)** with a **slow fade** so the laughter ends on the same beat as the chime.
+   - **HERO (band, first transcension):** `assets/audio/rank/ascension-hero.mp3` = diamond-shatter
+     break-through + the **FULL Champions Anthem (~83s), plays entirely ONCE** (uncut, never looped). Hero
+     **II→I division bumps** use a SHORT hit (`rankup-hero.mp3` = sword-slash+shield), NOT the anthem.
+   - **PRIMORDIAL (apex):** `assets/audio/rank/transcension-primordial.mp3` = the **FULL uncut Atum track
+     (~3.5 min), plays entirely ONCE** (never loop/trim; apex has no divisions; dismiss stops it).
+   - **CLEANUP (sandbox lock artifacts):** revised mixes landed as `-v2` because the originals were
+     read-only. On the real machine: **delete the stale `ascension-primordial.mp3`** (old atum stand-in —
+     Primordial uses `transcension-primordial.mp3`), and rename/repoint to **`rankup-olympian-v2.mp3`** and
+     **`rankup-immortal-souls-v2.mp3`**. Uncomment `ASCENSION_SOURCES`; wire ascension-hero + transcension.
+
+5. **Trigger (§6)** — global rank-watcher fires for EVERY XP source (Strava/Whoop/challenge payouts too),
+   increase-only, de-duped; derive the level from the delta (division bump / tier crossing / band crossing).
+   Band crossings = Diamond I→Hero III and Immortal I→Primordial.
+
+6. **Dev-tools (§7b)** — the rank-up tester (button per tier + the two ascension events + a division-bump
+   toggle) all route through the same `showRankUp()` the watcher uses.
+
+7. **Haptics + reduce-motion** (§4/§7) — bump light · crossing medium+success · band heavy sequence;
+   `prefers-reduced-motion` → cross-fade, skip shake.
+
+VERIFY on-device: each tier's signature + audio; incineration recenters; Hero + Primordial full anthems
+play once; Immortal laughter prominent + fades with the chime; NO persistent cosmic beam on Primordial;
+no riser; hits ring out; `grep -rn "infernal" src` = 0. tsc + lint; ship JS over OTA + the audio assets.
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# V1 BUILD PATHWAY — ordered punch-through to App Store (target: submit Aug 20)
+# See V1_LAUNCH_PLAN.md for the timeline + rationale. Build top to bottom.
+# ═══════════════════════════════════════════════════════════════════════════
+
+## PHASE 0 — DEPLOY (do FIRST; unblocks everything else)
+- Run DEPLOY_migrations_0062-0070.sql in the Supabase SQL Editor (or `supabase db push`). Fixes equip,
+  box opens ("expected JSON array"), study/gym challenges, uni-verify tables. Commit the untracked
+  migration batch + audio assets + previews. (Tasks #67, #78)
+
+## PHASE 1 — CRITICAL BUGS (data + crashes)
+- ×10 vault crash at results (#74, PUNCHLIST_8 §1) — grab logcat; fix open_loot_box rarity-pool
+  contract + guard the results grid.
+- Buy Direct: weekly rotation off the STABLE pool + "rotates in Xd Xh" countdown (#75, PUNCHLIST_8 §2)
+- Purchase: real reward toast + inventory refetch + a nav entry to /inventory (#76, PUNCHLIST_8 §3)
+- Shared Sunday-anchored week helper for ALL weekly timers (#77, PUNCHLIST_8 §5)
+- Challenges not resetting — diagnose vs the week-helper + the deploy (#89)
+- ×5 box open + inventory rarity sort + condense unopened boxes by type (#79, PUNCHLIST_9)
+
+## PHASE 2 — COSMETICS / ECONOMY WIRING (the free retention loop)
+- EmberIcon component (flame-shaped, orange) + swap currency 🔥 at all currency sites (#80, PUNCHLIST_10)
+- Cosmetic art wired from mocks 61/63/64/65 by catalog id (PUNCHLIST_7 §2) + trim shop text (§1)
+- Audio cosmetic previews + play buttons in 3 spots (#81, PUNCHLIST_11)
+- SFX rescope → stop-lock-in sting, not rank-up override (#82, PUNCHLIST_12)
+- Two SFX slots: start sting + end sting (#83, PUNCHLIST_13)
+- Simplify loot-box open — remove the rarity telegraph (#84, PUNCHLIST_14 §1)
+- Box-open + common→mythic reveal SFX ladder — assets already cut in assets/sounds/reveal/ (#85, PUNCHLIST_14 §2)
+- Default cosmetics — seed a base loadout on signup (basic orange flame, campfire-spark start sting,
+  default end sting, orange aura, base of every slot; permanent, non-sellable) (#88)
+
+## PHASE 3 — FORGE PASS DE-SLOP
+- Rework the battle pass properly — reward ladder, tier visuals, copy — so it stops reading as AI slop.
+  ⚠️ NEEDS A DESIGN/SPEC PASS FIRST (flag Claude to spec before Code builds). (relates #48)
+
+## PHASE 4 — MONETIZATION (revenue; NATIVE build)
+- RevenueCat native build (#71): Forge Pass subscription + ember packs as StoreKit IAP; a purchase
+  SUCCESS SCREEN; configure the IAP products in App Store Connect.
+
+## PHASE 5 — PREMIUM POLISH (NATIVE; v1.1 FLEX — do NOT risk the Aug 20 date)
+- Flare / session-tiered aura 30/60/90 — Kindled/Burning/Locked In off useElapsedSeconds (#86, PUNCHLIST_14 §3)
+- Live Activity lock-in pill — lock screen + iOS Dynamic Island + Android chip + home-screen glow
+  widget; aura drives the glow (#87, FEATURE_LOCKIN_PILL.md)
+- Both need their own native widget extension + testing → ship as a fast-follow v1.1 update.
+
+## PHASE 6 — SHIP
+- TestFlight build once Phase 1–2 land → start the gym-table spread immediately (free; IAP is sandbox).
+- App Store Connect: app record, privacy nutrition labels, screenshots, IAP products submitted →
+  submit for review by Aug 20.
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# V1 BUILD PATHWAY — ordered punch-through to App Store (target: submit Aug 20)
+# See V1_LAUNCH_PLAN.md for the timeline + rationale. Build top to bottom.
+# ═══════════════════════════════════════════════════════════════════════════
+
+## PHASE 0 — DEPLOY (do FIRST; unblocks everything else)
+- Run DEPLOY_migrations_0062-0070.sql in the Supabase SQL Editor (or `supabase db push`). Fixes equip,
+  box opens ("expected JSON array"), study/gym challenges, uni-verify tables. Commit the untracked
+  migration batch + audio assets + previews. (Tasks #67, #78)
+
+## PHASE 1 — CRITICAL BUGS (data + crashes)
+- x10 vault crash at results (#74, PUNCHLIST_8 s1) — grab logcat; fix open_loot_box rarity-pool
+  contract + guard the results grid.
+- Buy Direct: weekly rotation off the STABLE pool + "rotates in Xd Xh" countdown (#75, PUNCHLIST_8 s2)
+- Purchase: real reward toast + inventory refetch + a nav entry to /inventory (#76, PUNCHLIST_8 s3)
+- Shared Sunday-anchored week helper for ALL weekly timers (#77, PUNCHLIST_8 s5)
+- Challenges not resetting — diagnose vs the week-helper + the deploy (#89)
+- x5 box open + inventory rarity sort + condense unopened boxes by type (#79, PUNCHLIST_9)
+
+## PHASE 2 — COSMETICS / ECONOMY WIRING (the free retention loop)
+- EmberIcon component (flame-shaped, orange) + swap currency at all currency sites (#80, PUNCHLIST_10)
+- Cosmetic art wired from mocks 61/63/64/65 by catalog id (PUNCHLIST_7 s2) + trim shop text (s1)
+- Audio cosmetic previews + play buttons in 3 spots (#81, PUNCHLIST_11)
+- SFX rescope -> stop-lock-in sting, not rank-up override (#82, PUNCHLIST_12)
+- Two SFX slots: start sting + end sting (#83, PUNCHLIST_13)
+- Simplify loot-box open — remove the rarity telegraph (#84, PUNCHLIST_14 s1)
+- Box-open + common->mythic reveal SFX ladder — assets already cut in assets/sounds/reveal/ (#85, PUNCHLIST_14 s2)
+- Default cosmetics — seed a base loadout on signup (basic orange flame, campfire-spark start sting,
+  default end sting, orange aura, base of every slot; permanent, non-sellable) (#88)
+
+## PHASE 3 — FORGE PASS DE-SLOP
+- Rework the battle pass properly — reward ladder, tier visuals, copy — so it stops reading as AI slop.
+  NEEDS A DESIGN/SPEC PASS FIRST (flag Claude to spec before Code builds). (relates #48)
+
+## PHASE 4 — MONETIZATION (revenue; NATIVE build)
+- RevenueCat native build (#71): Forge Pass subscription + ember packs as StoreKit IAP; a purchase
+  SUCCESS SCREEN; configure the IAP products in App Store Connect.
+
+## PHASE 5 — PREMIUM POLISH (NATIVE; v1.1 FLEX — do NOT risk the Aug 20 date)
+- Flare / session-tiered aura 30/60/90 — Kindled/Burning/Locked In off useElapsedSeconds (#86, PUNCHLIST_14 s3)
+- Live Activity lock-in pill — lock screen + iOS Dynamic Island + Android chip + home-screen glow
+  widget; aura drives the glow (#87, FEATURE_LOCKIN_PILL.md)
+- Both need their own native widget extension + testing -> ship as a fast-follow v1.1 update.
+
+## PHASE 6 — SHIP
+- TestFlight build once Phase 1-2 land -> start the gym-table spread immediately (free; IAP is sandbox).
+- App Store Connect: app record, privacy nutrition labels, screenshots, IAP products submitted ->
+  submit for review by Aug 20.
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# V1 — FEEDBACK & CONTACT + DOMAIN CLEANUP (folds into the phases above)
+# Detail: FEATURE_feedback_and_domain.md
+# ───────────────────────────────────────────────────────────────────────────
+
+## Feedback & Contact (in-app) — #90  [fits PHASE 2, v1 feature]
+- Settings feedback form, categories: Bug report / Feature request / General feedback -> info@philoi.app.
+- Contact email shown in Settings -> About/Help so users can reach out directly.
+- v1 = MAILTO fallback (zero backend): compose mailto:info@philoi.app, subject "[<category>] ...",
+  body = the user's message. Opens the mail client. Ship this for v1.
+- Optional (only if slack in the schedule): POST to a Supabase edge function that emails via Resend
+  (already wired for uni codes) to info@philoi.app so the user stays in-app; fall back to mailto on error.
+
+## Domain cleanup -> philoi.app — #91  [edge fix = PHASE 0/1; privacy+terms = PHASE 6]
+- AUDIT RESULT: src/ is clean. Only hardcoded old-domain ref in shipped code is
+  supabase/functions/send_uni_code/index.ts:27 — FROM fallback 'Philoi <noreply@getphiloi.com>'.
+  -> change fallback to noreply@philoi.app; set the UNI_CODE_FROM secret to the philoi.app sender;
+  confirm philoi.app is verified in Resend.
+- NO getfeelloy.com anywhere in code (old secondary domain in code is getphiloi.com — confirm which
+  domains actually exist before cancelling).
+- Host privacy + terms at philoi.app/privacy and philoi.app/terms (App Store REQUIRES a privacy URL for
+  the v1 submission — do this in Phase 6 prep).
+- Redirect getphiloi.com (and getfeelloy.com if it exists) -> philoi.app BEFORE cancelling, to catch
+  old links; then cancel the old domain registrations.
+- Old Aspire/Realmly references live only in root .md planning docs (not shipped) — archive/ignore.

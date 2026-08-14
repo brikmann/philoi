@@ -2,7 +2,9 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { PublicTitle } from '@/components/economy/loadout-bits';
 import { PhotoGallery } from '@/components/photo-gallery';
+import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { Card } from '@/components/ui/card';
 import { ReactionBar } from '@/components/reaction-bar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -52,14 +54,20 @@ export function FeedItem({ item, onReactionChanged }: FeedItemProps) {
   }
 
   const goalLabel = item.goal_label || GOAL_TYPE_META[item.goal_type].label;
+  const loadout = usePublicLoadout(item.user_id);
 
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.name}>
-          {item.profiles.display_name}
-          <Text style={styles.lockedInOn}> locked in on {goalLabel}</Text>
-        </Text>
+        <View style={styles.nameCol}>
+          <Text style={styles.name}>
+            {item.profiles.display_name}
+            <Text style={styles.lockedInOn}> locked in on {goalLabel}</Text>
+          </Text>
+          {/* Their equipped title, under the line that names them — a feed post is where a title
+              does the most work, since it's what strangers actually scroll past. */}
+          <PublicTitle loadout={loadout} compact />
+        </View>
         <View style={styles.headerRight}>
           <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>
           <Pressable
@@ -101,6 +109,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+  },
+  // Wraps the name so an equipped title can stack under it without pushing the timestamp and
+  // overflow button out of the header row.
+  nameCol: {
+    flexShrink: 1,
   },
   name: {
     fontFamily: Fonts.bodyBold,

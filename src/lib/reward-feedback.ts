@@ -1,37 +1,50 @@
 import * as Haptics from 'expo-haptics';
 
+import { playEquippedSfx } from '@/lib/economy/equipped-audio';
 import { getRewardPreferencesSync } from '@/lib/reward-settings';
-import { hasRewardSound, playRewardSound, stopRewardSound, type RewardCue } from '@/lib/sound';
+import {
+  fadeOutRewardSound,
+  getRewardSoundDurationMs,
+  hasRewardSound,
+  playRewardSound,
+  stopRewardSound,
+  stopRewardSounds,
+  type RewardCue,
+} from '@/lib/sound';
 import type { RankTierName } from '@/types/database';
 
-// Per-tier cue (PHILOI_UI_SPEC.md §11/§22, design-mocks/31) — selected by the tier reached.
-// Bronze has an entry because a division bump *within* bronze (e.g. III->II) still needs its
-// own soft cue, even though there's no "crossing INTO bronze" full-forge scenario (it's the
-// starting tier).
-//
-// Deliberately Partial: an unmapped tier falls back to the generic 'rankup' hit in fireRankUp
-// below, which is what platinum has always done. Only five bespoke recordings exist, so of the
-// four legend tiers added in the 0063 rework only Olympian gets its own (a bright celestial
-// sparkle that was already in assets/ but never wired) — hero/titan/immortal share the generic
-// cue until dedicated audio is commissioned. They're visually distinct via TIER_FLASH_KIND;
-// it's only the sound that doubles up.
-// The Victory Anthem, reserved for the two band crossings (RANKUP_SPEC §3). Only the tiers a band
-// crossing can land on appear here — Hero (entering the Realm of Legend) and Primordial (the
-// apex). Until those mixes exist in assets/audio/rank/ these resolve to a cue with no player, so
-// fireRankUp falls through to the tier's normal hit rather than going silent (see sound.ts).
+// The full-length anthems, reserved for the two band crossings (RANKUP_SPEC §9). Only the tiers a
+// band crossing can land on appear here — Hero (entering the Realm of Legend) and Primordial (the
+// apex). If a mix is ever pulled these resolve to a cue with no player, so the celebration falls
+// back to the tier's normal hit rather than going silent (see startAscensionAnthem).
 const ASCENSION_CUE_BY_TIER: Partial<Record<RankTierName, RewardCue>> = {
   hero: 'ascension-hero',
   primordial: 'ascension-primordial',
 };
 
+// Every tier now has its own recording — nothing falls back to the generic 'rankup' hit any more,
+// and Olympian has stopped borrowing Diamond's sparkle. Still Partial rather than a full Record
+// because the fallback in fireRankUp is the safety net for any tier added to the ladder later.
+//
+// These are the HITS: they land on the flare and are allowed to ring out under the settling share
+// card (RANKUP_SPEC §9 — "do NOT clip the tier hits"). Nothing here is trimmed; the only thing
+// that stops one is dismissing the celebration (stopRankUpAudio).
 const RANKUP_CUE_BY_TIER: Partial<Record<RankTierName, RewardCue>> = {
   bronze: 'rankup-bronze',
   silver: 'rankup-silver',
   gold: 'rankup-gold',
+  platinum: 'rankup-platinum',
   diamond: 'rankup-diamond',
+  hero: 'rankup-hero',
+  titan: 'rankup-titan',
   olympian: 'rankup-olympian',
+  immortal: 'rankup-immortal',
   primordial: 'rankup-primordial',
 };
+
+// PROMINENT, not background (RANKUP_SPEC §9). The old mix had this at 0.45, which left the souls
+// inaudible under the chime — the whole point is that you hear the dead laughing at you.
+const IMMORTAL_SOULS_VOLUME = 0.85;
 
 // expo-haptics itself already degrades gracefully when its native module is missing (it
 // resolves via requireOptionalNativeModule and throws a plain UnavailabilityError only when
@@ -58,6 +71,12 @@ export function fireIgnite(): void {
   const prefs = getRewardPreferencesSync();
   if (prefs.sound) playRewardSound('ignite');
   if (prefs.haptics) safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
+  // The equipped START sting (PUNCHLIST_13), LAYERED over the stock ignite rather than replacing
+  // it. Lives here rather than at the call site because fireIgnite is already the single "a new
+  // session just began" moment — it fires only for a genuinely new session, never on resume, which
+  // is exactly the rule the sting needs too. No-ops when the slot is empty, the mix hasn't shipped,
+  // or sound is off.
+  playEquippedSfx('sfx_start', 0.9);
 }
 
 // The done screen's XP bar fill (§13) — "a subtle rising tick/whoosh," timed to the same
@@ -79,42 +98,93 @@ export function fireConfirm(): void {
   if (prefs.haptics) safeHaptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
 }
 
-// Rank-up (§11/§21/§22) — the loudest cue, timed to the forge's solidify flare rather than
-// the moment the screen mounts (the ~5s sequence's flare beat, not its opening frame).
-// Primordial is "the biggest" — an extra follow-up thump on top of the normal heavy impact.
+/** Whether a band crossing at this tier will actually get its anthem. The celebration asks before
+ * committing to the anthem arrangement: if the mix is missing, it falls back to firing the tier's
+ * ordinary hit at the crest rather than playing the biggest moment in the app silent. */
+export function hasAscensionAnthem(tier: RankTierName): boolean {
+  const cue = ASCENSION_CUE_BY_TIER[tier];
+  return Boolean(cue && hasRewardSound(cue));
+}
+
+/**
+ * Start a band crossing's anthem (RANKUP_SPEC §9). Called at the START of the crossing's pre-beat,
+ * not at the crest: the track IS the build — it opens with the diamond shatter (Hero) or the void
+ * collapse (Primordial) and climaxes on the crest slam, which is exactly why the moment carries no
+ * riser under it any more.
+ *
+ * Plays in full, once. Nothing trims it; stopRankUpAudio (on dismiss/unmount) is the only thing
+ * that cuts it short.
+ */
+export function startAscensionAnthem(tier: RankTierName): void {
+  if (!getRewardPreferencesSync().sound) return;
+  const cue = ASCENSION_CUE_BY_TIER[tier];
+  if (!cue || !hasRewardSound(cue)) return;
+  // Idempotent: rewind anything already playing so a re-mount can't leave two anthems overlapping
+  // (they share one preloaded player, and these run for minutes).
+  stopRewardSound(cue);
+  playRewardSound(cue, 1);
+}
+
+// Everything the moment can have in flight when it's dismissed. The hits ring out on purpose and
+// the anthems run for minutes (§9), so leaving the screen has to silence them explicitly.
+const RANK_UP_CUES: RewardCue[] = [
+  ...(Object.values(RANKUP_CUE_BY_TIER) as RewardCue[]),
+  ...(Object.values(ASCENSION_CUE_BY_TIER) as RewardCue[]),
+  'rankup',
+  'rankup-titan-boom',
+  'rankup-immortal-souls',
+];
+
+/** Cut every rank-up layer — the tier hit still ringing out, the souls, the anthem. Called when the
+ * celebration is dismissed or unmounts. */
+export function stopRankUpAudio(): void {
+  stopRewardSounds(RANK_UP_CUES);
+}
+
+// Rank-up (§9) — the tier HIT, fired on the flare (not at mount) and deliberately left to ring out
+// under the settling share card. There is NO riser: the hit is the punch.
 //
-// isDivisionBump gets the SAME per-tier cue, just scaled down (§22: "every rank-up is rewarded,
-// scaled down") — a within-tier bump (e.g. Bronze III->II) still deserves its own tier's sound,
-// just softer and without Primordial's extra thump (Primordial has no divisions, so that path is
-// only ever reached by Bronze-Immortal).
+// isDivisionBump gets the SAME per-tier cue at near-full volume — the incineration's payoff beat is
+// "the tier's own rank-up hit lands as the new division locks" (§9), so a Gold II→I plays the Gold
+// hit, just a touch under a true crossing.
 export function fireRankUp(tier: RankTierName, isDivisionBump = false, isBandCrossing = false): void {
   const prefs = getRewardPreferencesSync();
 
-  if (prefs.sound) {
-    // Victory Anthem — RESERVED for the two band crossings (§3). Playing it on an ordinary tier
-    // crossing is what would make it stop feeling like an arrival, so it's gated here rather than
-    // left to call sites to remember.
-    const anthemCue = isBandCrossing ? ASCENSION_CUE_BY_TIER[tier] : undefined;
-    // Only take the anthem arrangement if the mix actually exists — otherwise fall through to the
-    // normal full-volume tier hit, rather than leaving the biggest moment in the app quieter than
-    // an ordinary crossing.
-    const anthem = anthemCue && hasRewardSound(anthemCue) ? anthemCue : undefined;
-    if (anthem) {
-      playRewardSound(anthem, 1);
-      // The tier's own hit still lands underneath the anthem (§3's "reuse the old apex cue for
-      // Primordial's own SFX layer"), just quieter so the anthem stays on top.
-      const under = RANKUP_CUE_BY_TIER[tier];
-      if (under) setTimeout(() => playRewardSound(under, 0.5), 120);
-    } else {
-      playRewardSound(RANKUP_CUE_BY_TIER[tier] ?? 'rankup', isDivisionBump ? 0.55 : 1);
+  // A band crossing's audio is the anthem, and it started back in the pre-beat
+  // (startAscensionAnthem) — firing a tier hit on top of its climax would just muddy the crest.
+  // If the anthem is missing, fall through and let the tier's own hit carry the moment.
+  const anthemCarriesIt = isBandCrossing && hasAscensionAnthem(tier);
+
+  if (prefs.sound && !anthemCarriesIt) {
+    // NO cosmetic override here, by design (PUNCHLIST_12). This used to play the equipped SFX
+    // instead of the tier's own hit, which meant buying a 2-second anvil quietly downgraded
+    // Immortal's chime-plus-souls arrangement — the rarest moment in the app made to sound like
+    // the most ordinary one. The per-tier layering is the product; the cosmetic stings moved to
+    // the start and end of a lock-in, where there was previously no sound to displace.
+    playRewardSound(RANKUP_CUE_BY_TIER[tier] ?? 'rankup', isDivisionBump ? 0.9 : 1);
+
+    // Titan's recording is a sub-heavy rumble that a phone speaker simply cannot reproduce (§9) —
+    // without an audible transient on top, its crossing reads as SILENT on the exact device
+    // everyone will see it on. The boom rides the same frame as the rumble so they read as one
+    // colossal slam rather than two sounds.
+    if (tier === 'titan') {
+      playRewardSound('rankup-titan-boom', isDivisionBump ? 0.8 : 0.95);
     }
 
-    // Immortal's spectral layer (§3) — the "laughter of the damned" sits UNDER the tier hit, low
-    // in the mix, and only on a real crossing: on a division bump it would be the loudest thing in
-    // an intentionally quiet moment. Slight delay so the hit lands first and the voices bloom
-    // behind it rather than competing on the same transient.
+    // Immortal's spectral layer (§9) — the "laughter of the damned" sits UNDER the chime but
+    // PROMINENT (0.85), not buried, then fades slowly so the voices die away on the same beat the
+    // chime does instead of being cut off mid-laugh. Crossings only: on a division bump it would
+    // be the loudest thing in an intentionally quiet moment. Slight delay so the hit lands first
+    // and the voices bloom behind it rather than competing on the same transient.
     if (tier === 'immortal' && !isDivisionBump) {
-      setTimeout(() => playRewardSound('rankup-immortal-souls', 0.45), 180);
+      setTimeout(() => {
+        playRewardSound('rankup-immortal-souls', IMMORTAL_SOULS_VOLUME);
+        // Fade across the clip's own tail. Its length is only known once expo-audio has read the
+        // asset's metadata, so fall back to the mixed length (~3.7s) if it isn't loaded yet.
+        const soulsMs = getRewardSoundDurationMs('rankup-immortal-souls') ?? 3700;
+        const fadeMs = Math.min(1800, soulsMs * 0.55);
+        setTimeout(() => fadeOutRewardSound('rankup-immortal-souls', fadeMs), Math.max(0, soulsMs - fadeMs));
+      }, 180);
     }
   }
 
@@ -134,22 +204,17 @@ export function fireRankUp(tier: RankTierName, isDivisionBump = false, isBandCro
   }
 }
 
-// The rank-up riser (§11/§22) — a long build that runs the length of the forge and is cut at the
-// flare (rank-up-celebration.tsx) so it resolves into the per-tier cue instead of overlapping it.
-// Split start/stop because the celebration decides exactly when to cut. Start obeys the same sound
-// toggle as every other cue; the celebration skips it entirely under reduced motion (a 3.7s build
-// with no forge animation is worse than silence). Sound-only — the riser carries no haptic; the
-// haptic lands with the tier hit at the flare (fireRankUp).
-export function startRankUpRiser(): void {
+// The incineration's two lead-in cues (§9's intra-division bump): the white-ray fuse-in, then the
+// hellfire that burns the numeral stroke off. Both are existing one-shots — no new assets — and
+// both are sound-only, since the bump's single light haptic lands with the tier hit at the end.
+export function fireIncinerationFuse(): void {
   if (!getRewardPreferencesSync().sound) return;
-  // Idempotent — cut any riser already playing before starting, so a re-mount / StrictMode's
-  // mount→cleanup→mount can never leave two overlapping (they share one preloaded player).
-  stopRewardSound('rankup-riser');
-  playRewardSound('rankup-riser');
+  playRewardSound('whoosh', 0.8);
 }
 
-export function stopRankUpRiser(): void {
-  stopRewardSound('rankup-riser');
+export function fireIncinerationBurn(): void {
+  if (!getRewardPreferencesSync().sound) return;
+  playRewardSound('ignite', 0.85);
 }
 
 // Daily flame meter completion (§5/§22, design-mocks/26) — "reuse the rising whoosh building

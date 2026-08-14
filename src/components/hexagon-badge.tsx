@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   interpolateColor,
@@ -38,6 +38,11 @@ type HexagonBadgeProps = {
   size?: number;
   /** 0-1; when provided, renders an XP bar underneath toward the next division (see xpProgressRatio). */
   progress?: number;
+  /** Replaces the roman numeral inside the hexagon. Exists for exactly one caller: the rank-up
+   * celebration's division-bump incineration (RANKUP_SPEC §9), where the numeral's strokes have to
+   * animate independently — one burns away and the rest recenter — which a single Text can't do.
+   * Ignored for Primordial, which carries the flame crest instead of a numeral. */
+  numeralOverride?: ReactNode;
 };
 
 // Ranks — two-tone metal hexagon (outer + inner) + a tier crest, per PHILOI_UI_SPEC.md §11.
@@ -47,7 +52,7 @@ type HexagonBadgeProps = {
 // is what actually carries the tier/division, same as the hexagon shape carries "this is a rank."
 // Every other tier, including the four legend tiers added in that rework, renders straight from
 // RANK_TIER_METAL — no local color copy to keep in sync.
-export function HexagonBadge({ tier, division, size = 40, progress }: HexagonBadgeProps) {
+export function HexagonBadge({ tier, division, size = 40, progress, numeralOverride }: HexagonBadgeProps) {
   const metal = RANK_TIER_METAL[tier];
   const isPrimordial = tier === 'primordial';
 
@@ -136,9 +141,11 @@ export function HexagonBadge({ tier, division, size = 40, progress }: HexagonBad
               <Path d={FLAME_CREST_INNER} fill={Colors.coral} />
             </Svg>
           ) : (
-            <Text style={[styles.numeral, { fontSize: size * 0.32, color: metal.numeral }]}>
-              {DIVISION_NUMERAL[division] ?? division}
-            </Text>
+            numeralOverride ?? (
+              <Text style={[styles.numeral, { fontSize: size * 0.32, color: metal.numeral }]}>
+                {DIVISION_NUMERAL[division] ?? division}
+              </Text>
+            )
           )}
         </View>
       </View>

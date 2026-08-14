@@ -7,7 +7,7 @@ import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { logChallengeProgress } from '@/lib/api/challenges';
 import { getErrorMessage } from '@/lib/errors';
-import { FITNESS_SOURCE_NAME, getRealFitnessSourceForChallengeType } from '@/lib/fitness-sync';
+import { AUTO_SOURCE_NAME, getRealFitnessSourceForChallengeType, sourceNeedsConnection } from '@/lib/fitness-sync';
 import type { Challenge, ChallengeType } from '@/types/database';
 
 const TYPE_META: Record<ChallengeType, { icon: string; quickAdds: number[] }> = {
@@ -72,8 +72,10 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
   // a steps goal on a phone that never granted Health Connect is logged by hand, and saying
   // otherwise would leave someone waiting for numbers that never arrive.
   const realSource = getRealFitnessSourceForChallengeType(challenge.type);
-  const isAuto = realSource !== null && autoConnected;
-  const sourceLine = isAuto ? `⚡ Auto · ${FITNESS_SOURCE_NAME[realSource]}` : '✏️ Logged by hand';
+  // Lock-in-sourced metrics (study, gym) need no connection at all — the app already has the
+  // check-ins — so they're auto from creation, unlike a steps goal that's waiting on a permission.
+  const isAuto = realSource !== null && (!sourceNeedsConnection(realSource) || autoConnected);
+  const sourceLine = isAuto ? `⚡ Auto · ${AUTO_SOURCE_NAME[realSource]}` : '✏️ Logged by hand';
 
   async function handleLog(value: number) {
     if (value <= 0) return;

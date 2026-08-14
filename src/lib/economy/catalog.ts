@@ -1,0 +1,488 @@
+// THE cosmetic catalog (21f). ITEM_CATALOG.md is the declared single source of truth for every
+// name, rarity, and line of lore — this file is that document transcribed into data, nothing more.
+// Screens never hardcode an item; they read from here. When ITEM_CATALOG.md changes, change this.
+//
+// Fair-play Rule 0: cosmetics + prestige ONLY. Nothing in this catalog touches XP, rank, streaks,
+// or standing. The `acquisition` field is what enforces §8.4's "prestige must be earned" line —
+// only `box` items are ever direct-buyable.
+
+import type { Rarity } from '@/lib/economy/rarity';
+
+/** The 11 type tags shown as `RARITY · TYPE` in menus and on cards (ITEM_CATALOG "Type tags"). */
+export const ITEM_TYPES = [
+  'FLAME',
+  'PARTICLE',
+  'FLARE',
+  'CARD',
+  'HALO',
+  'TITLE',
+  'BANNER',
+  'AUDIO',
+  'SFX',
+  'RELIC',
+  'MEDAL',
+] as const;
+export type ItemType = (typeof ITEM_TYPES)[number];
+
+/**
+ * One active per slot (21f). Relics + Medals have no slot — they're showcase-only.
+ *
+ * SFX has TWO slots (PUNCHLIST_13): the sting a lock-in starts on and the one it ends on. The same
+ * item is allowed in both — "play the same thing twice" is a legitimate choice, and it's what the
+ * single old `sfx` slot backfills into.
+ */
+export type EquipSlot =
+  | 'flame'
+  | 'particle'
+  | 'flare'
+  | 'card'
+  | 'halo'
+  | 'title'
+  | 'banner'
+  | 'audio'
+  | 'sfx_start'
+  | 'sfx_stop';
+
+/** The two slots an SFX cosmetic can occupy — the pair the equip UI offers as Start / End / Both. */
+export const SFX_SLOTS = ['sfx_start', 'sfx_stop'] as const;
+export type SfxSlot = (typeof SFX_SLOTS)[number];
+
+export function isSfxSlot(slot: EquipSlot | null | undefined): slot is SfxSlot {
+  return slot === 'sfx_start' || slot === 'sfx_stop';
+}
+
+/**
+ * The slot an item type auto-assigns to. SFX is deliberately `null` (PUNCHLIST_13): with two
+ * slots to choose between there is no single right answer, so an SFX item carries no slot of its
+ * own and the user picks on equip. Every screen therefore has to treat `type === 'SFX'` as
+ * equippable-without-a-slot rather than as showcase-only — `showcaseOnly` is the flag for that,
+ * not a null slot.
+ */
+export const SLOT_FOR_TYPE: Record<ItemType, EquipSlot | null> = {
+  FLAME: 'flame',
+  PARTICLE: 'particle',
+  FLARE: 'flare',
+  CARD: 'card',
+  HALO: 'halo',
+  TITLE: 'title',
+  BANNER: 'banner',
+  AUDIO: 'audio',
+  SFX: null,
+  RELIC: null,
+  MEDAL: null,
+};
+
+/**
+ * How an item can enter your inventory.
+ * - `box` — in the loot-box drop pool, and therefore also direct-buyable (§8.4).
+ * - `earned` — season/placement titles, medals, relics. NEVER in a box, NEVER purchasable.
+ * - `forge-pass-S1` — the Emberfall set. Premium-track only, never re-issued (FORGE_PASS.md).
+ */
+export type Acquisition = 'box' | 'earned' | 'forge-pass-S1';
+
+/** Which vector family draws this item — see components/economy/item-art.tsx. */
+export type ArtKind = 'flame' | 'particle' | 'flare' | 'card' | 'halo' | 'title' | 'banner' | 'audio' | 'sfx' | 'relic' | 'medal';
+
+export type CatalogItem = {
+  id: string;
+  name: string;
+  type: ItemType;
+  rarity: Rarity;
+  lore: string;
+  acquisition: Acquisition;
+  slot: EquipSlot | null;
+  art: { kind: ArtKind; from: string; to: string };
+  /** Season-stamped earn-only titles render as `Last Flame Standing · S1` (ITEM_CATALOG §2c). */
+  seasonStamped?: boolean;
+  /** Global #1's "Ascended · Global" — the only animated title, one person per season (21j). */
+  oneOfOne?: boolean;
+  /** Shown instead of an Equip button on showcase-only items. */
+  showcaseOnly?: boolean;
+};
+
+/** Types with nowhere to be worn — they live in the vault and are shown, not equipped. */
+const SHOWCASE_TYPES: ReadonlySet<ItemType> = new Set<ItemType>(['RELIC', 'MEDAL']);
+
+function item(i: Omit<CatalogItem, 'slot' | 'showcaseOnly'>): CatalogItem {
+  // showcaseOnly is keyed off the TYPE, not off `slot === null`. Since PUNCHLIST_13 those two came
+  // apart: an SFX has no fixed slot (the user picks Start, End or both on equip) but is very much
+  // equippable, and deriving the flag from a null slot would have quietly turned all four stings
+  // into un-equippable display pieces.
+  return { ...i, slot: SLOT_FOR_TYPE[i.type], showcaseOnly: SHOWCASE_TYPES.has(i.type) };
+}
+
+// ───────────────────────────── 1 · Goal-typed flame styles ─────────────────────────────
+// §4 HARD CONSTRAINT: a flame cosmetic recolours the COLOUR RAMP ONLY — never size, intensity, or
+// animation, which are the signals that carry real activity. The two-stop palette below IS the
+// whole item; the flame's state logic is untouched by which one is equipped.
+
+const FLAMES: CatalogItem[] = [
+  item({ id: 'flame-molten-copper', name: 'Molten Copper', type: 'FLAME', rarity: 'rare', acquisition: 'box',
+    lore: 'The first colour ever pulled from the forge — warm, patient, unhurried.',
+    art: { kind: 'flame', from: '#B8651F', to: '#F2A33C' } }),
+  item({ id: 'flame-lime-volt', name: 'Lime Volt', type: 'FLAME', rarity: 'rare', acquisition: 'box',
+    lore: 'A flame that hums. Stare too long and your teeth start to buzz.',
+    art: { kind: 'flame', from: '#5A8A00', to: '#D4FF4D' } }),
+  item({ id: 'flame-electric-cyan', name: 'Electric Cyan', type: 'FLAME', rarity: 'rare', acquisition: 'box',
+    lore: 'Cold at the edges, colder at the core. It burns like deep water.',
+    art: { kind: 'flame', from: '#0E7490', to: '#7BE0FF' } }),
+  item({ id: 'flame-toxic-green', name: 'Toxic Green', type: 'FLAME', rarity: 'epic', acquisition: 'box',
+    lore: 'Something died to make this colour. It has not finished dying.',
+    art: { kind: 'flame', from: '#2E7D32', to: '#9DFF5A' } }),
+  item({ id: 'flame-solar-flare', name: 'Solar Flare', type: 'FLAME', rarity: 'epic', acquisition: 'box',
+    lore: "A sliver of the sun's surface, kept barely leashed inside your screen.",
+    art: { kind: 'flame', from: '#E0612C', to: '#FFD24D' } }),
+  item({ id: 'flame-cosmic-purple', name: 'Cosmic Purple', type: 'FLAME', rarity: 'legendary', acquisition: 'box',
+    lore: 'Lit once at the birth of a star and never allowed to go out.',
+    art: { kind: 'flame', from: '#6A2AB8', to: '#C77BFF' } }),
+  item({ id: 'flame-neutron-starfire', name: 'Neutron Starfire', type: 'FLAME', rarity: 'legendary', acquisition: 'box',
+    lore: 'Pure energy in the palm of your hand.',
+    art: { kind: 'flame', from: '#BFD0FF', to: '#FFFFFF' } }),
+  item({ id: 'flame-stormforge', name: 'Stormforge', type: 'FLAME', rarity: 'mythic', acquisition: 'box',
+    lore: 'The heat of this flame forged Stormbuster.',
+    art: { kind: 'flame', from: '#2A5AE0', to: '#BFD6FF' } }),
+];
+
+const PARTICLES: CatalogItem[] = [
+  item({ id: 'particle-floating-sparks', name: 'Floating Sparks', type: 'PARTICLE', rarity: 'epic', acquisition: 'box',
+    lore: 'Embers that refuse to fall. They rise, looking for more to burn.',
+    art: { kind: 'particle', from: '#E0612C', to: '#FFD27A' } }),
+  item({ id: 'particle-falling-ash', name: 'Falling Ash', type: 'PARTICLE', rarity: 'epic', acquisition: 'box',
+    lore: 'The quiet snow of everything the fire has already eaten.',
+    art: { kind: 'particle', from: '#6a6480', to: '#d8cae8' } }),
+  item({ id: 'particle-ember-swarm', name: 'Ember Swarm', type: 'PARTICLE', rarity: 'epic', acquisition: 'box',
+    lore: "Not sparks. A swarm — and it hunts in the direction you're working.",
+    art: { kind: 'particle', from: '#8A2B00', to: '#FF9A3C' } }),
+  item({ id: 'particle-solar-flares', name: 'Solar Flares', type: 'PARTICLE', rarity: 'legendary', acquisition: 'box',
+    lore: 'Arcs of starfire loop off the flame and snap back, screaming.',
+    art: { kind: 'particle', from: '#F5C542', to: '#FFF0B8' } }),
+  item({ id: 'particle-lightning-tendrils', name: 'Lightning Tendrils', type: 'PARTICLE', rarity: 'legendary', acquisition: 'box',
+    lore: 'The fire grew fingers of white electricity. They reach for the edges.',
+    art: { kind: 'particle', from: '#7BE0FF', to: '#FFFFFF' } }),
+  item({ id: 'particle-void-smoke', name: 'Void Smoke', type: 'PARTICLE', rarity: 'mythic', acquisition: 'box',
+    lore: 'A funeral veil of smoke coils upward, heavy with the silence of the tomb.',
+    art: { kind: 'particle', from: '#1a1626', to: '#6A2AB8' } }),
+];
+
+// God-Mode Flares — screen-edge ambient aura, active only during 90m+ sessions.
+const FLARES: CatalogItem[] = [
+  item({ id: 'flare-zeus-wrath', name: "Zeus' Wrath", type: 'FLARE', rarity: 'mythic', acquisition: 'box',
+    lore: 'The heavens split and the fury of Olympus answers to you now.',
+    art: { kind: 'flare', from: '#2A5AE0', to: '#FFFFFF' } }),
+  item({ id: 'flare-void-purple-aura', name: 'Void Purple Aura', type: 'FLARE', rarity: 'mythic', acquisition: 'box',
+    lore: 'The edges of the world go soft and violet, as if reality is deciding whether to hold.',
+    art: { kind: 'flare', from: '#4a2a6e', to: '#C77BFF' } }),
+  item({ id: 'flare-void-plasma', name: 'Void Plasma Flare', type: 'FLARE', rarity: 'mythic', acquisition: 'box',
+    lore: 'Pulsing with unholy energy, each spark burns with the power of a thousand suns.',
+    art: { kind: 'flare', from: '#A200FF', to: '#FF6B6B' } }),
+  item({ id: 'flare-white-incandescence', name: 'White Incandescence', type: 'FLARE', rarity: 'mythic', acquisition: 'box',
+    lore: 'No colour left. Only the pure, blinding fact of the burn.',
+    art: { kind: 'flare', from: '#E7DDF5', to: '#FFFFFF' } }),
+];
+
+// ───────────────────────────── 2 · Profile cards & UI identity ─────────────────────────────
+
+const CARDS: CatalogItem[] = [
+  item({ id: 'card-forged-bronze', name: 'Forged Bronze', type: 'CARD', rarity: 'uncommon', acquisition: 'box',
+    lore: 'Beaten flat by a hundred honest mornings.',
+    art: { kind: 'card', from: '#7a5636', to: '#c9a06a' } }),
+  item({ id: 'card-brushed-steel', name: 'Brushed Steel', type: 'CARD', rarity: 'uncommon', acquisition: 'box',
+    lore: 'Cold, plain, and completely unbothered by your excuses.',
+    art: { kind: 'card', from: '#4a4460', to: '#c2dcea' } }),
+  item({ id: 'card-carbon-fiber', name: 'Carbon Fiber', type: 'CARD', rarity: 'rare', acquisition: 'box',
+    lore: 'Light as a promise, twice as hard to break.',
+    art: { kind: 'card', from: '#14121A', to: '#4a4460' } }),
+  item({ id: 'card-obsidian-mesh', name: 'Obsidian Mesh', type: 'CARD', rarity: 'rare', acquisition: 'box',
+    lore: 'Volcanic glass, woven by someone with far too much patience.',
+    art: { kind: 'card', from: '#0F0D14', to: '#3a3550' } }),
+  item({ id: 'card-cracked-magma', name: 'Cracked Magma', type: 'CARD', rarity: 'epic', acquisition: 'box',
+    lore: "Cooled on the surface. Move it wrong and you'll see it's still molten underneath.",
+    art: { kind: 'card', from: '#1a1010', to: '#E0612C' } }),
+  item({ id: 'card-plasma-grid', name: 'Plasma Grid', type: 'CARD', rarity: 'epic', acquisition: 'box',
+    lore: 'A lattice of contained lightning, humming just below the picture.',
+    art: { kind: 'card', from: '#20182f', to: '#7BE0FF' } }),
+  item({ id: 'card-golden-anvil', name: 'Golden Anvil', type: 'CARD', rarity: 'legendary', acquisition: 'box',
+    lore: 'Struck ten thousand times and never once dented. Neither were you.',
+    art: { kind: 'card', from: '#7a5300', to: '#F5C542' } }),
+];
+
+const HALOS: CatalogItem[] = [
+  item({ id: 'halo-copper-ring', name: 'Copper Ring', type: 'HALO', rarity: 'uncommon', acquisition: 'box',
+    lore: 'A thin band of warmth. The first mark that you showed up.',
+    art: { kind: 'halo', from: '#B8651F', to: '#F2A33C' } }),
+  item({ id: 'halo-ember-halo', name: 'Ember Halo', type: 'HALO', rarity: 'uncommon', acquisition: 'box',
+    lore: 'A slow orbit of coals that never quite goes cold.',
+    art: { kind: 'halo', from: '#E0612C', to: '#FFD27A' } }),
+  item({ id: 'halo-glowing-amber', name: 'Glowing Amber Halo', type: 'HALO', rarity: 'rare', acquisition: 'box',
+    lore: 'Frozen honey-light, still holding the heat of the day it was earned.',
+    art: { kind: 'halo', from: '#F2A33C', to: '#FFE9B8' } }),
+  item({ id: 'halo-diamond-prism', name: 'Diamond Prism Border', type: 'HALO', rarity: 'epic', acquisition: 'box',
+    lore: 'Bends every colour it’s given and returns none of them.',
+    art: { kind: 'halo', from: '#7be0ff', to: '#ff9ad2' } }),
+  item({ id: 'halo-inferno-flare', name: 'Inferno Flare', type: 'HALO', rarity: 'legendary', acquisition: 'box',
+    lore: 'Nothing says you did it like a ring of fire around you.',
+    art: { kind: 'halo', from: '#E0612C', to: '#FFD24D' } }),
+  item({ id: 'halo-hades', name: 'Hades Halo', type: 'HALO', rarity: 'mythic', acquisition: 'box',
+    lore: 'Pure, chaotic energy pulses through his aura. The souls he collected are still screaming for mercy.',
+    art: { kind: 'halo', from: '#1a0c0e', to: '#FF2A2A' } }),
+];
+
+// Titles that drop from boxes (the wry/grounded set + the pop-culture set).
+const TITLES_BOX: CatalogItem[] = [
+  item({ id: 'title-kindled', name: '"Kindled"', type: 'TITLE', rarity: 'common', acquisition: 'box',
+    lore: "The spark caught. That's all it takes to start.", art: { kind: 'title', from: '#8a7fa6', to: '#d8cae8' } }),
+  item({ id: 'title-ember-stoker', name: '"Ember Stoker"', type: 'TITLE', rarity: 'common', acquisition: 'box',
+    lore: "Keeps the small fire alive on the nights no one's looking.", art: { kind: 'title', from: '#8a7fa6', to: '#FFD27A' } }),
+  item({ id: 'title-night-owl', name: '"Night Owl"', type: 'TITLE', rarity: 'common', acquisition: 'box',
+    lore: 'Does the work in the hours the world forgot to guard.', art: { kind: 'title', from: '#3A2E5C', to: '#A99CBD' } }),
+  item({ id: 'title-locked-in', name: '"Locked In"', type: 'TITLE', rarity: 'common', acquisition: 'box',
+    lore: "Phone face-down, door shut. Don't bother knocking.", art: { kind: 'title', from: '#8a7fa6', to: '#FFF6EC' } }),
+  item({ id: 'title-pacesetter', name: '"Pacesetter"', type: 'TITLE', rarity: 'uncommon', acquisition: 'box',
+    lore: 'The one everyone else is secretly trying to catch.', art: { kind: 'title', from: '#3DA85C', to: '#9DFF5A' } }),
+  item({ id: 'title-built-different', name: '"Built Different"', type: 'TITLE', rarity: 'uncommon', acquisition: 'box',
+    lore: 'Same 24 hours as everyone else. Uses them like nobody else.', art: { kind: 'title', from: '#3DA85C', to: '#D4FF4D' } }),
+  item({ id: 'title-ash-walker', name: '"Ash-Walker"', type: 'TITLE', rarity: 'rare', acquisition: 'box',
+    lore: "Has burned down and rebuilt more times than they'll admit.", art: { kind: 'title', from: '#4FB0E5', to: '#d8cae8' } }),
+  item({ id: 'title-iron-forged', name: '"Iron-Forged"', type: 'TITLE', rarity: 'rare', acquisition: 'box',
+    lore: 'Shaped by heat and hammer. Cannot be talked out of it now.', art: { kind: 'title', from: '#4FB0E5', to: '#c2dcea' } }),
+  item({ id: 'title-main-character', name: '"Main Character"', type: 'TITLE', rarity: 'rare', acquisition: 'box',
+    lore: "The story's about them now. Everyone else is just in it.", art: { kind: 'title', from: '#4FB0E5', to: '#FFE9B8' } }),
+  item({ id: 'title-cracked', name: '"Cracked"', type: 'TITLE', rarity: 'rare', acquisition: 'box',
+    lore: "Unreasonably good at this. It's almost rude.", art: { kind: 'title', from: '#4FB0E5', to: '#7BE0FF' } }),
+  item({ id: 'title-villain-arc', name: '"Villain Arc"', type: 'TITLE', rarity: 'rare', acquisition: 'box',
+    lore: "Got tired of losing quietly. Now everyone's about to find out.", art: { kind: 'title', from: '#4a2a6e', to: '#C77BFF' } }),
+  item({ id: 'title-unbroken', name: '"Unbroken"', type: 'TITLE', rarity: 'epic', acquisition: 'box',
+    lore: 'The streak that outlived every reason to quit.', art: { kind: 'title', from: '#a06cd5', to: '#e7ddf5' } }),
+  item({ id: 'title-the-relentless', name: '"The Relentless"', type: 'TITLE', rarity: 'epic', acquisition: 'box',
+    lore: "Rest is a rumour they've chosen not to believe.", art: { kind: 'title', from: '#a06cd5', to: '#FF9A3C' } }),
+  item({ id: 'title-final-boss', name: '"Final Boss"', type: 'TITLE', rarity: 'epic', acquisition: 'box',
+    lore: 'The name at the top of the ladder that nobody wants to fight.', art: { kind: 'title', from: '#a06cd5', to: '#FF6B6B' } }),
+  item({ id: 'title-the-goat', name: '"The GOAT"', type: 'TITLE', rarity: 'epic', acquisition: 'box',
+    lore: 'Greatest of all time, and unbearably aware of it.', art: { kind: 'title', from: '#a06cd5', to: '#F5C542' } }),
+];
+
+// End-of-season + placement titles — EARN-ONLY (21j). Never in a box, never purchasable, and
+// season-stamped so `Ascended · S1` can never be confused with next season's.
+const TITLES_EARNED: CatalogItem[] = [
+  item({ id: 'title-last-flame-standing', name: '"Last Flame Standing"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: "When every other fire went out, yours didn't.", art: { kind: 'title', from: '#a06cd5', to: '#FFD24D' } }),
+  item({ id: 'title-season-mvp', name: '"Season MVP"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'Carried the whole arena on your back for ninety days.', art: { kind: 'title', from: '#a06cd5', to: '#F5C542' } }),
+  item({ id: 'title-the-undefeated', name: '"The Undefeated"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'A whole season of challenges, and not one beat you.', art: { kind: 'title', from: '#a06cd5', to: '#7BE0FF' } }),
+  item({ id: 'title-forged-in-emberfall', name: '"Forged in Emberfall"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: "You didn't survive the season. The season made you.", art: { kind: 'title', from: '#E0612C', to: '#FFD24D' } }),
+  item({ id: 'title-ninety-day-siege', name: '"Ninety-Day Siege"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'Ninety days. No surrender, no dead mornings.', art: { kind: 'title', from: '#a06cd5', to: '#c2dcea' } }),
+  item({ id: 'title-ash-sovereign', name: '"Ash Sovereign"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'Ruled the arena as the season burned down to ash.', art: { kind: 'title', from: '#4a2a6e', to: '#d8cae8' } }),
+
+  // By final placement (ITEM_CATALOG §2c "By final placement"). Rarity escalates with the pool —
+  // a 6-person campfire #1 is not a god, so the god-tier names start at My Uni (21j).
+  item({ id: 'title-ascended', name: '"Ascended"', type: 'TITLE', rarity: 'mythic', acquisition: 'earned', seasonStamped: true,
+    lore: 'You didn’t win the season — you transcended it. The arena has a new god.', art: { kind: 'title', from: '#FF6B6B', to: '#FFF0B8' } }),
+  item({ id: 'title-ascended-global', name: '"Ascended · Global"', type: 'TITLE', rarity: 'mythic', acquisition: 'earned', seasonStamped: true, oneOfOne: true,
+    lore: 'One person per season breathes this air. This season, it was you.', art: { kind: 'title', from: '#F5C542', to: '#FF2A2A' } }),
+  item({ id: 'title-titan', name: '"Titan"', type: 'TITLE', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
+    lore: 'A titan at the gates of Olympus, one single breath from godhood.', art: { kind: 'title', from: '#F5C542', to: '#FFF0B8' } }),
+  item({ id: 'title-demigod', name: '"Demigod"', type: 'TITLE', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
+    lore: 'Half-mortal, half-myth. The podium bows all the same.', art: { kind: 'title', from: '#F5C542', to: '#e7ddf5' } }),
+  item({ id: 'title-campfire-champion', name: '"Campfire Champion"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'Your fire, your crown. Everyone here knows who kept it burning hottest.', art: { kind: 'title', from: '#E0612C', to: '#FFD24D' } }),
+  item({ id: 'title-the-untouchable', name: '"The Untouchable"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'The rarest air of the season. Ninety-nine in a hundred never breathe it.', art: { kind: 'title', from: '#a06cd5', to: '#FFFFFF' } }),
+  item({ id: 'title-elite-ember', name: '"Elite Ember"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: "The season's sharpest few — and you were one of them.", art: { kind: 'title', from: '#a06cd5', to: '#FFD27A' } }),
+  item({ id: 'title-ashborne', name: '"Ashborne"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'You closed the season in the highest tier the arena has.', art: { kind: 'title', from: '#a06cd5', to: '#A99CBD' } }),
+  item({ id: 'title-kept-the-fire', name: '"Kept the Fire"', type: 'TITLE', rarity: 'rare', acquisition: 'earned', seasonStamped: true,
+    lore: 'Not the top, but you never let the fire go out. That counts.', art: { kind: 'title', from: '#4FB0E5', to: '#FFD27A' } }),
+
+  // Vs-Unis is COLLECTIVE — the school places, not the person, so every contributing member of a
+  // top-3 uni shares the campus title. No individual "Ascended" ever comes off this board (21j).
+  item({ id: 'title-prometheus-disciples', name: '"Prometheus’ Disciples"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'The flame-bringers. Your campus lit more than anyone else alive.', art: { kind: 'title', from: '#E0612C', to: '#FFD24D' } }),
+  item({ id: 'title-keepers-of-the-flame', name: '"Keepers of the Flame"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'Second on the whole board, and the fire never once dipped.', art: { kind: 'title', from: '#a06cd5', to: '#F2A33C' } }),
+  item({ id: 'title-champions-of-academia', name: '"Champions of Academia"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'Third among every school that showed up. Your campus earned this together.', art: { kind: 'title', from: '#a06cd5', to: '#4FB0E5' } }),
+];
+
+const BANNERS: CatalogItem[] = [
+  item({ id: 'banner-emberfall-night', name: 'Emberfall Night', type: 'BANNER', rarity: 'epic', acquisition: 'box',
+    lore: 'The sky over the arena, raining slow orange light.',
+    art: { kind: 'banner', from: '#2a1533', to: '#E0612C' } }),
+  item({ id: 'banner-ashfall-ridge', name: 'Ashfall Ridge', type: 'BANNER', rarity: 'epic', acquisition: 'box',
+    lore: 'A grey ridgeline under falling ash, where the serious ones train.',
+    art: { kind: 'banner', from: '#20182f', to: '#A99CBD' } }),
+  item({ id: 'banner-obsidian-colosseum', name: 'Obsidian Colosseum', type: 'BANNER', rarity: 'legendary', acquisition: 'box',
+    lore: 'Black stone tiers rising into the dark. Every seat is watching.',
+    art: { kind: 'banner', from: '#0F0D14', to: '#F5C542' } }),
+  item({ id: 'banner-the-great-forge', name: 'The Great Forge', type: 'BANNER', rarity: 'legendary', acquisition: 'box',
+    lore: 'The hall where ranks are hammered out of raw resolve.',
+    art: { kind: 'banner', from: '#5a3a12', to: '#FFB800' } }),
+];
+
+// ───────────────────────────── 3 · Audio & haptic packs ─────────────────────────────
+
+const AUDIO: CatalogItem[] = [
+  item({ id: 'audio-heavy-bonfire-crackle', name: 'Heavy Bonfire Crackle', type: 'AUDIO', rarity: 'uncommon', acquisition: 'box',
+    lore: 'Now you can REALLY gather ’round the campfire.', art: { kind: 'audio', from: '#3DA85C', to: '#FFD27A' } }),
+  item({ id: 'audio-edm-pulse', name: 'EDM Pulse', type: 'AUDIO', rarity: 'rare', acquisition: 'box',
+    lore: 'For the techno lovers.', art: { kind: 'audio', from: '#4FB0E5', to: '#ff9ad2' } }),
+  item({ id: 'audio-midnight-thunder', name: 'Midnight Thunder', type: 'AUDIO', rarity: 'rare', acquisition: 'box',
+    lore: "Storms that stay on the horizon so you don't have to look up.", art: { kind: 'audio', from: '#2A5AE0', to: '#BFD6FF' } }),
+  item({ id: 'audio-monastery-drone', name: 'Monastery Drone', type: 'AUDIO', rarity: 'epic', acquisition: 'box',
+    lore: 'A single held note from people who gave their lives to focus.', art: { kind: 'audio', from: '#a06cd5', to: '#e7ddf5' } }),
+  item({ id: 'audio-lofi-lullaby', name: 'Lofi Lullaby', type: 'AUDIO', rarity: 'epic', acquisition: 'box',
+    lore: '"I heard Lofee Girl was ranked Diamond II in Philoi."', art: { kind: 'audio', from: '#a06cd5', to: '#FFD27A' } }),
+  item({ id: 'audio-deep-space-sub-bass', name: 'Deep Space Sub-Bass', type: 'AUDIO', rarity: 'legendary', acquisition: 'box',
+    lore: "The sound the void makes when it's thinking. Felt more than heard.", art: { kind: 'audio', from: '#14111C', to: '#F5C542' } }),
+];
+
+// Stop / Start Lock-In SFX (ITEM_CATALOG §3b, rescoped by PUNCHLIST_12). These are the sounds a
+// session BEGINS and ENDS on — not rank-up sounds. The rank-up moment has its own layered per-tier
+// arrangement (RANKUP_SPEC) that no cosmetic overrides.
+//
+// Victory Anthem was removed here: at 83 seconds it can't punctuate anything, and it was already
+// serving as Hero's Champions Anthem on the band crossing. Owning it twice under two names made
+// the anthem feel like a purchasable rather than the rarest audio moment in the app.
+const SFX: CatalogItem[] = [
+  item({ id: 'sfx-heavy-anvil-slam', name: 'Heavy Anvil Slam', type: 'SFX', rarity: 'rare', acquisition: 'box',
+    lore: 'One strike. It means the thing is finished and it is not coming apart.', art: { kind: 'sfx', from: '#4FB0E5', to: '#c2dcea' } }),
+  item({ id: 'sfx-sub-bass-drop', name: 'Sub-Bass Drop', type: 'SFX', rarity: 'rare', acquisition: 'box',
+    lore: 'The floor falls out from under the moment. On purpose.', art: { kind: 'sfx', from: '#4FB0E5', to: '#7BE0FF' } }),
+  item({ id: 'sfx-jet-engine-ignition', name: 'Jet Engine Ignition', type: 'SFX', rarity: 'epic', acquisition: 'box',
+    lore: 'Zero to gone.', art: { kind: 'sfx', from: '#a06cd5', to: '#FF9A3C' } }),
+  item({ id: 'sfx-olympian-foghorn', name: 'Olympian Foghorn', type: 'SFX', rarity: 'legendary', acquisition: 'box',
+    lore: 'Echoes of this can be heard from Olympus. The gods are watching you.', art: { kind: 'sfx', from: '#F5C542', to: '#FFF0B8' } }),
+];
+
+// ───────────────────────────── 4 · Collection badges & trophies ─────────────────────────────
+// Showcase-only (no equip slot) and EARN-ONLY — these are the prestige shelf, so §8.4 keeps them
+// out of the direct-buy row entirely. They remain sellable from the Inventory (21i).
+
+const RELICS: CatalogItem[] = [
+  item({ id: 'relic-hestias-hearthstone', name: "Hestia's Hearthstone", type: 'RELIC', rarity: 'epic', acquisition: 'earned',
+    lore: "A coal from the first hearth infused with an undying flame, passed down as a family heirloom. It's now yours.",
+    art: { kind: 'relic', from: '#E0612C', to: '#FFD27A' } }),
+  item({ id: 'relic-athenas-aegis', name: "Athena's Aegis", type: 'RELIC', rarity: 'epic', acquisition: 'earned',
+    lore: "The shield that has never once been broken. Now it's yours to stand behind.",
+    art: { kind: 'relic', from: '#a06cd5', to: '#F5C542' } }),
+  item({ id: 'relic-icarus-feather', name: "Icarus' Feather", type: 'RELIC', rarity: 'legendary', acquisition: 'earned',
+    lore: 'Scorched at the tip. Proof that someone flew high enough to burn.',
+    art: { kind: 'relic', from: '#F5C542', to: '#FFF6EC' } }),
+  item({ id: 'relic-anvil-of-hephaestus', name: 'Anvil of Hephaestus', type: 'RELIC', rarity: 'legendary', acquisition: 'earned',
+    lore: "Zeus' bolt was forged on this thing. It's that strong.",
+    art: { kind: 'relic', from: '#4a4460', to: '#F5C542' } }),
+  item({ id: 'relic-prometheus-shard', name: "Prometheus' Shard", type: 'RELIC', rarity: 'mythic', acquisition: 'earned',
+    lore: 'You are now one of us. Spread your fire to all of humanity to rise and ascend.',
+    art: { kind: 'relic', from: '#FF2A2A', to: '#FFD27A' } }),
+];
+
+const MEDALS: CatalogItem[] = [
+  item({ id: 'medal-emberfall-champion', name: 'Emberfall Champion', type: 'MEDAL', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
+    lore: 'A whole season burned down to ash around one flame that never went out. Yours.',
+    art: { kind: 'medal', from: '#E0612C', to: '#F5C542' } }),
+  item({ id: 'medal-campus-sovereign', name: 'Campus Sovereign', type: 'MEDAL', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
+    lore: 'There is no higher spot. You are the one they look up to, now.',
+    art: { kind: 'medal', from: '#F5C542', to: '#FFF0B8' } }),
+  item({ id: 'medal-unbroken-season', name: 'Unbroken Season', type: 'MEDAL', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
+    lore: 'A full season without a single dead day. Almost no one earns this twice.',
+    art: { kind: 'medal', from: '#3DA85C', to: '#F5C542' } }),
+];
+
+// ───────────────────────────── Forge Pass S1 · the Emberfall set ─────────────────────────────
+// Premium-track only, never in boxes, never re-issued (FORGE_PASS.md). Tagged `forge-pass-S1` so
+// §8.4's direct-buy filter excludes them automatically.
+
+const EMBERFALL_SET: CatalogItem[] = [
+  item({ id: 'flame-emberfall', name: 'Emberfall Flame', type: 'FLAME', rarity: 'epic', acquisition: 'forge-pass-S1',
+    lore: 'The season’s own colour. When it falls, it falls burning.',
+    art: { kind: 'flame', from: '#8A2B00', to: '#FF9A3C' } }),
+  item({ id: 'halo-emberfall', name: 'Emberfall Halo', type: 'HALO', rarity: 'epic', acquisition: 'forge-pass-S1',
+    lore: 'A ring of falling embers that never reaches the ground.',
+    art: { kind: 'halo', from: '#8A2B00', to: '#FFD27A' } }),
+  item({ id: 'card-emberfall', name: 'Emberfall Card', type: 'CARD', rarity: 'epic', acquisition: 'forge-pass-S1',
+    lore: 'Ash on dark glass, still warm to the touch.',
+    art: { kind: 'card', from: '#2a1533', to: '#E0612C' } }),
+  item({ id: 'banner-emberfall', name: 'Emberfall Banner', type: 'BANNER', rarity: 'legendary', acquisition: 'forge-pass-S1',
+    lore: 'Fly it and the whole arena knows which season you came up in.',
+    art: { kind: 'banner', from: '#6a2a18', to: '#FFC24D' } }),
+  item({ id: 'title-kindled-by-emberfall', name: '"Kindled by Emberfall"', type: 'TITLE', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
+    lore: 'The season lit you, and you never went out.',
+    art: { kind: 'title', from: '#E0612C', to: '#FFD24D' } }),
+  item({ id: 'flare-emberfall-ascendant', name: 'Emberfall Ascendant', type: 'FLARE', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
+    lore: 'The capstone. The whole season, compressed into one unbearable light.',
+    art: { kind: 'flare', from: '#FF2A2A', to: '#FFE0B0' } }),
+];
+
+export const CATALOG: CatalogItem[] = [
+  ...FLAMES,
+  ...PARTICLES,
+  ...FLARES,
+  ...CARDS,
+  ...HALOS,
+  ...TITLES_BOX,
+  ...TITLES_EARNED,
+  ...BANNERS,
+  ...AUDIO,
+  ...SFX,
+  ...RELICS,
+  ...MEDALS,
+  ...EMBERFALL_SET,
+];
+
+const BY_ID = new Map(CATALOG.map((i) => [i.id, i]));
+
+export function getItem(id: string): CatalogItem | undefined {
+  return BY_ID.get(id);
+}
+
+export function itemsOfType(type: ItemType): CatalogItem[] {
+  return CATALOG.filter((i) => i.type === type);
+}
+
+/**
+ * The loot-box drop pool AND the direct-buy pool (§8.4 — "only box-pool cosmetics are
+ * direct-buyable"). Earned and Pass-exclusive items are excluded by construction, which is what
+ * keeps prestige un-purchasable without a second list to keep in sync.
+ */
+export function boxPool(): CatalogItem[] {
+  return CATALOG.filter((i) => i.acquisition === 'box');
+}
+
+export function boxPoolByRarity(rarity: Rarity): CatalogItem[] {
+  return CATALOG.filter((i) => i.acquisition === 'box' && i.rarity === rarity);
+}
+
+/** The chip filter across the top of the Inventory (mock 67) — "All" plus the 11 types. */
+export const TYPE_FILTERS: { key: ItemType | 'ALL'; label: string }[] = [
+  { key: 'ALL', label: 'All' },
+  { key: 'FLAME', label: 'Flames' },
+  { key: 'PARTICLE', label: 'Particles' },
+  { key: 'FLARE', label: 'Flares' },
+  { key: 'CARD', label: 'Cards' },
+  { key: 'HALO', label: 'Halos' },
+  { key: 'TITLE', label: 'Titles' },
+  { key: 'BANNER', label: 'Banners' },
+  { key: 'AUDIO', label: 'Audio' },
+  { key: 'SFX', label: 'SFX' },
+  { key: 'RELIC', label: 'Relics' },
+  { key: 'MEDAL', label: 'Medals' },
+];
+
+export const SLOT_LABEL: Record<EquipSlot, string> = {
+  flame: 'flame',
+  particle: 'particle effect',
+  flare: 'God-Mode flare',
+  card: 'card texture',
+  halo: 'halo',
+  title: 'title',
+  banner: 'campfire banner',
+  audio: 'focus audio',
+  // Renamed off "rank-up SFX" (PUNCHLIST_12): the rank-up moment keeps its own layered per-tier
+  // system and is never overridden by a cosmetic. These are the sounds a session begins and ends on.
+  sfx_start: 'start sting',
+  sfx_stop: 'end sting',
+};

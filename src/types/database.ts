@@ -449,6 +449,16 @@ export type Message = {
 };
 
 export type AnalyticsEventName =
+  // Reward economy (Step 21). Deliberately no event carries an ember BALANCE — only what was
+  // done and to which item — so analytics can measure the economy without becoming a second,
+  // untrusted ledger of how much anyone has.
+  | 'loot_box_opened'
+  | 'loot_box_bought'
+  | 'cosmetic_bought'
+  | 'cosmetic_equipped'
+  | 'cosmetic_unequipped'
+  | 'cosmetic_salvaged'
+  | 'pass_tier_claimed'
   | 'signed_up'
   | 'circle_created'
   | 'circle_joined'
@@ -1408,6 +1418,109 @@ export type Database = {
         Returns: { connected: boolean; granted_scopes: string }[];
       };
       disconnect_my_whoop: { Args: Record<string, never>; Returns: undefined };
+      /** Credits study_hours / gym_visits from qualifying lock-ins (migration 0068). */
+      sync_challenge_from_lock_ins: { Args: { p_challenge_id: string }; Returns: number };
+
+      // ── Reward economy / inventory (migration 0064, Step 21) ──
+      // Every mutation below is a security-definer RPC because the client is never allowed to
+      // write inventory or compute a reward (REWARD_ECONOMY §0.4). There is no matching Tables
+      // entry for ember_wallet et al on purpose: the only supported read is get_inventory().
+      get_inventory: { Args: Record<string, never>; Returns: EconomyInventory };
+      /**
+       * p_pool is a rarity -> candidate-item-ids MAP, not a flat list (migration 0069). The server
+       * rolls the rarity and picks from that bucket; a flat array let it pick across every tier and
+       * label the result with a rarity the item didn't have.
+       */
+      open_loot_box: {
+        Args: { p_box_id: string; p_pool: Record<string, string[]> };
+        Returns: EconomyOpenResult;
+      };
+      buy_loot_box: { Args: { p_box_key: string }; Returns: string };
+      buy_cosmetic: {
+        Args: { p_key: string; p_slot: string | null; p_rarity: string };
+        Returns: { cosmetic_key: string; spent: number };
+      };
+      equip_cosmetic: { Args: { p_key: string; p_slot: string | null }; Returns: undefined };
+      /** Keyed by SLOT since migration 0070 — one item can occupy several slots, so a key alone
+       * no longer identifies what to clear. */
+      unequip_cosmetic: { Args: { p_slot: string }; Returns: undefined };
+      salvage_cosmetic: { Args: { p_key: string; p_rarity: string }; Returns: { embers: number } };
+      credit_pass_xp: { Args: { p_achievement: string; p_xp: number; p_period: string }; Returns: number };
+      /** Live counters for the progress-style achievements (migration 0065). */
+      get_pass_achievement_progress: { Args: Record<string, never>; Returns: Record<string, number> };
+      /** Equipped cosmetics for OTHER users — keys only, nothing sellable or private. */
+      get_public_loadouts: {
+        Args: { p_user_ids: string[] };
+        Returns: {
+          user_id: string;
+          slot: string;
+          cosmetic_key: string;
+          rarity_override: string | null;
+          season_stamp: string | null;
+        }[];
+      };
+      claim_pass_tier: {
+        Args: {
+          p_tier: number;
+          p_lane: 'free' | 'premium';
+          p_kind: string;
+          p_embers: number | null;
+          p_box_key: string | null;
+          p_item_key: string | null;
+          p_item_rarity: string | null;
+          p_item_slot: string | null;
+        };
+        Returns: { tier: number; lane: string; kind: string };
+      };
     };
   };
+};
+
+/** Shape of get_inventory()'s single jsonb payload — see migration 0064. */
+export type EconomyInventory = {
+  embers: number;
+  cosmetics: {
+    id: string;
+    cosmetic_key: string;
+    slot: string | null;
+    source: 'earned' | 'paid' | 'box' | 'forge_pass';
+    provenance: string | null;
+    equipped: boolean;
+    acquired_at: string;
+    /** 21j placement grants override the catalog rarity — a Global Top 1% outranks a campus one. */
+    rarity_override: string | null;
+    /** "🌍 GLOBAL #1 · S1" — rendered beside the title name. */
+    season_stamp: string | null;
+  }[];
+  badges: {
+    id: string;
+    badge_key: string;
+    source: 'earned' | 'paid' | 'box' | 'forge_pass';
+    provenance: string | null;
+    equipped: boolean;
+    earned_at: string;
+  }[];
+  boxes: {
+    id: string;
+    box_key: string;
+    obtained_via: 'challenge' | 'season' | 'forge_pass' | 'purchase' | 'promo';
+    provenance: string | null;
+  }[];
+  pass: {
+    season_id: string;
+    pass_xp: number;
+    owns_premium: boolean;
+    claims: { tier: number; lane: 'free' | 'premium' }[];
+    achievements: { key: string; period_key: string; xp: number }[];
+  };
+};
+
+/** A box result the SERVER already decided — the animation only visualizes it (§8.5). */
+export type EconomyOpenResult = {
+  cosmetic_key: string;
+  rarity: string;
+  dupe: boolean;
+  embers: number;
+  box_key: string;
+  rolled_rarity: string;
 };

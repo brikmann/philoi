@@ -140,6 +140,7 @@ export function RankUpWatcher() {
           fromTier={pending.fromTier}
           fromDivision={pending.fromDivision}
           streakDays={profile?.current_streak ?? 0}
+          handle={profile?.handle ?? null}
           isBandCrossing={pending.isBandCrossing}
           onContinue={() => setPending(null)}
           onShare={handleShare}
@@ -148,10 +149,11 @@ export function RankUpWatcher() {
         <View style={styles.offscreenCard} pointerEvents="none">
           <RankUpShareCard
             ref={cardRef}
-            displayName={profile?.display_name ?? 'You'}
+            handle={profile?.handle ?? null}
             tier={pending.tier}
             division={pending.division}
             streakDays={profile?.current_streak ?? 0}
+            isDivisionBump={pending.isDivisionBump}
             circleName={null}
           />
         </View>

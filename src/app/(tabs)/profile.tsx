@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EquippedHalo, EquippedTitle, useEquippedCardStyle } from '@/components/economy/loadout-bits';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { TabHeader } from '@/components/ui/tab-header';
@@ -19,6 +20,10 @@ import { formatSessionDuration, pluralize } from '@/lib/format';
 import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
 import { formatRankTier, formatXpProgress, xpProgressRatio } from '@/lib/rank-tiers';
 import type { MyRank, Profile } from '@/types/database';
+
+// The halo ring sits OUTSIDE the 60px avatar, so its box is the avatar plus room for the ring.
+// Kept next to the avatar style it has to agree with.
+const AVATAR_HALO_SIZE = 72;
 
 function formatHours(totalSeconds: number): string {
   const hours = totalSeconds / 3600;
@@ -38,6 +43,11 @@ export default function ProfileScreen() {
 
   const isOwn = !userIdParam || userIdParam === myProfile?.id;
   const viewingUserId = isOwn ? myProfile?.id : userIdParam;
+
+  // Only ever decorate YOUR OWN card with YOUR loadout — the store holds one user's equipped set.
+  // Someone else's cosmetics need a public read that doesn't exist yet (get_inventory is
+  // own-rows-only by design), so their card stays stock rather than borrowing yours.
+  const cardStyle = useEquippedCardStyle(isOwn);
 
   const [otherProfile, setOtherProfile] = useState<Profile | null>(null);
   const [otherRank, setOtherRank] = useState<UserRank | null>(null);
@@ -117,17 +127,24 @@ export default function ProfileScreen() {
         </View>
       )}
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.id}>
-          {profile.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarInitial}>{profile.display_name.charAt(0).toUpperCase()}</Text>
-            </View>
-          )}
+        {/* The identity block is where the equipped loadout shows up — card texture behind it,
+            halo around the avatar, title under the handle (mock 64). All three no-op to the stock
+            look when their slot is empty, so this reads identically for someone who's never
+            opened the shop. */}
+        <View style={[styles.id, cardStyle]}>
+          <EquippedHalo size={AVATAR_HALO_SIZE} enabled={isOwn}>
+            {profile.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarFallback]}>
+                <Text style={styles.avatarInitial}>{profile.display_name.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+          </EquippedHalo>
           <View style={styles.idInfo}>
             <Text style={styles.name}>{profile.display_name}</Text>
             <Text style={styles.handle}>@{profile.handle}</Text>
+            <EquippedTitle enabled={isOwn} />
             {profile.university && (
               <Pressable onPress={() => router.push('/university-leaderboard')}>
                 <View style={styles.uniRow}>
@@ -169,6 +186,22 @@ export default function ProfileScreen() {
             <Text style={styles.statLabel}>locked in</Text>
           </View>
         </View>
+
+        {/* The identity block above is BUILT from the loadout, so this is where it belongs: the
+            equipped card, halo and title are on screen and the way to change them should be too.
+            The only other route in was "Collect all → Inventory" after opening a box (punchlist
+            8 §3), which left everything bought in the shop effectively unreachable. */}
+        {isOwn && (
+          <Pressable
+            style={styles.inventoryRow}
+            onPress={() => router.push('/inventory')}
+            accessibilityRole="button"
+            accessibilityLabel="Inventory and loadout">
+            <Ionicons name="cube-outline" size={16} color={Colors.ember} />
+            <Text style={styles.inventoryText}>Inventory &amp; loadout</Text>
+            <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
+          </Pressable>
+        )}
 
         {recentGoalTypes.length > 0 && (
           <View style={styles.goals}>
@@ -371,6 +404,22 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardDark,
     borderRadius: Radius.card,
     paddingVertical: 9,
+  },
+  inventoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.cardDark,
+    borderRadius: Radius.card,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    marginTop: 8,
+  },
+  inventoryText: {
+    flex: 1,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.ink,
   },
   statValue: {
     fontFamily: Fonts.bodySemiBold,

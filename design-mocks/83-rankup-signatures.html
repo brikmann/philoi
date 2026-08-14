@@ -1,0 +1,180 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rank-up signatures + division incineration — mock 83</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0d0b13;color:#FFF6EC;font-family:var(--font);display:flex;gap:26px;flex-wrap:wrap;justify-content:center;padding:24px}
+.panel{width:330px}
+h1{font-size:16px;margin:0 0 3px}.sub{color:#9f92b6;font-size:11.5px;margin:0 0 12px;line-height:1.5}
+.h2{font-size:11px;font-weight:800;letter-spacing:1.2px;color:#F2A33C;text-transform:uppercase;margin:16px 0 7px}
+.evbtn{width:100%;border:0;border-radius:12px;padding:12px;font-family:var(--font);font-size:12.5px;font-weight:800;color:#fff;cursor:pointer;text-align:left;margin-bottom:8px;background:linear-gradient(90deg,#5B2A8A,#E0612C)}
+.evbtn small{display:block;font-weight:600;opacity:.85;font-size:10px;margin-top:2px}
+.divrow{display:flex;gap:7px;margin-bottom:10px}
+.divbtn{flex:1;border:1px solid #2a2340;background:#1b1726;border-radius:10px;padding:9px;font-size:11px;font-weight:800;color:#c8bcdd;cursor:pointer;font-family:var(--font)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.chip{border:1px solid #2a2340;background:#1b1726;border-radius:10px;padding:9px 6px;cursor:pointer;font-family:var(--font);text-align:center}
+.chip .d{width:16px;height:18px;margin:0 auto 4px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.chip b{font-size:11px;font-weight:800}
+/* phone */
+.phone{width:320px;height:640px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08);flex:none}
+.stage{position:relative;height:100%;border-radius:26px;overflow:hidden;background:radial-gradient(130% 55% at 50% 38%,#1c1726,#131019 72%);display:flex;align-items:center;justify-content:center}
+.wash,.voidL,.white{position:absolute;inset:0;opacity:0;pointer-events:none;mix-blend-mode:screen}
+.void L{mix-blend-mode:normal}
+.beam{position:absolute;top:50%;left:50%;width:6px;height:60%;transform:translate(-50%,-50%);background:linear-gradient(transparent,#fff,transparent);opacity:0;pointer-events:none;filter:blur(1px)}
+.ring{position:absolute;top:44%;left:50%;width:24px;height:24px;border-radius:50%;border:3px solid #fff;transform:translate(-50%,-50%) scale(0);opacity:0}
+.aura{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);width:150px;height:164px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);filter:blur(16px);opacity:0}
+.tear{position:absolute;top:0;bottom:0;left:50%;width:0;transform:translateX(-50%);background:linear-gradient(90deg,transparent,#C77BFF,#6BE6FF,#C77BFF,transparent);opacity:0;filter:blur(.6px)}
+.pillar{position:absolute;top:0;bottom:0;left:50%;width:30px;transform:translateX(-50%);background:linear-gradient(#FFE9C2,#E0574C);filter:blur(2px);opacity:0}
+.ptc{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.badge{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);width:78px;height:86px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:flex;align-items:center;justify-content:center;opacity:0}
+.divmark{display:inline-flex;justify-content:center}
+.divmark .st{font-size:20px;font-weight:900;line-height:1;display:inline-block;width:.52em;text-align:center;transition:width .45s ease,opacity .3s ease}
+.badge .apex{font-size:24px}
+.copy{position:absolute;bottom:80px;left:0;right:0;text-align:center;padding:0 22px;opacity:0}
+.copy .big{font-size:18px;font-weight:900;letter-spacing:.5px;line-height:1.2}
+.copy .big2{font-size:11px;font-weight:700;color:#c8bcdd;margin-top:5px;letter-spacing:.5px}
+/* card */
+.card{position:absolute;bottom:70px;left:24px;right:24px;background:#1b1726ee;border:1px solid #2a2340;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:13px;opacity:0}
+.card .ch{width:40px;height:44px;flex:none;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+.card .ct{flex:1}.card .cl{font-size:14px;font-weight:800}.card .cs{font-size:10.5px;color:#8a8398;margin-top:1px}
+.p{position:absolute}
+@keyframes badgeIn{0%{opacity:0;transform:translate(-50%,calc(-50% + 120px)) scale(.5)}60%{opacity:1;transform:translate(-50%,-56%) scale(1.1)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes slamIn{0%{opacity:0;transform:translate(-50%,calc(-50% - 130px)) scale(1.5)}55%{opacity:1;transform:translate(-50%,-46%) scale(.9)}75%{transform:translate(-50%,-52%) scale(1.05)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes dropIn{0%{opacity:0;transform:translate(-50%,calc(-50% - 120px)) rotate(-8deg)}70%{opacity:1;transform:translate(-50%,-47%) rotate(3deg)}100%{opacity:1;transform:translate(-50%,-50%) rotate(0)}}
+@keyframes forgeIn{0%{opacity:0;transform:translate(-50%,-50%) scale(1.6)}45%{opacity:1;transform:translate(-50%,-50%) scale(.82)}70%{transform:translate(-50%,-50%) scale(1.08)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes bloomIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.7)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes riseIn{0%{opacity:0;transform:translate(-50%,calc(-50% + 40px)) scale(.85)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes washPulse{0%{opacity:0}25%{opacity:var(--wo,.6)}100%{opacity:0}}
+@keyframes flash{0%{opacity:0}12%{opacity:1}100%{opacity:0}}
+@keyframes voidIn{0%{opacity:0}45%{opacity:1}100%{opacity:1}}
+@keyframes tearOpen{0%{width:0;opacity:0}30%{opacity:1}60%{width:80%}100%{width:12px;opacity:.9}}
+@keyframes ringOut{0%{transform:translate(-50%,-50%) scale(0);opacity:.9}100%{transform:translate(-50%,-50%) scale(9);opacity:0}}
+@keyframes auraPulse{0%{opacity:0}50%{opacity:.8}100%{opacity:.5}}
+@keyframes beamFuse{0%{opacity:0;height:0}35%{opacity:1;height:70%;width:16px}70%{width:4px}100%{opacity:0;height:60%}}
+@keyframes pillarIn{0%{opacity:0;transform:translateX(-50%) scaleY(.15)}30%{opacity:.9}100%{opacity:0;transform:translateX(-50%) scaleY(1)}}
+@keyframes copyIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes cardIn{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes shake{0%,100%{transform:translate(0,0)}15%{transform:translate(-4px,3px)}30%{transform:translate(4px,-3px)}45%{transform:translate(-3px,-3px)}60%{transform:translate(3px,3px)}80%{transform:translate(-2px,2px)}}
+.shakeit{animation:shake .5s ease-in-out}
+/* the incineration of a numeral stroke */
+@keyframes strokeBurn{0%{color:#fff;text-shadow:none}20%{color:#FFD27A;text-shadow:0 0 8px #F2A33C}45%{color:#E0612C;text-shadow:0 0 16px #E0612C;transform:translateY(-3px) scale(1.15)}100%{opacity:0;transform:translateY(-20px) scale(.3);color:#5a2a12}}
+/* particles */
+@keyframes riseP{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-150px) translateX(var(--dx,0));opacity:0}}
+@keyframes fallP{0%{transform:translateY(-16px);opacity:0}20%{opacity:1}100%{transform:translateY(200px);opacity:0}}
+@keyframes twinkleP{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:1;transform:scale(1.1)}}
+@keyframes slashP{0%{opacity:0;transform:translate(-60%,-60%) rotate(-22deg) scaleX(0)}30%{opacity:1;transform:translate(-50%,-50%) rotate(-22deg) scaleX(1)}100%{opacity:0;transform:translate(-40%,-40%) rotate(-22deg) scaleX(1)}}
+@keyframes rayP{0%{opacity:0;transform:translateX(-50%) rotate(var(--rot))scaleY(.2)}40%{opacity:.7}100%{opacity:0;transform:translateX(-50%) rotate(var(--rot)) scaleY(1)}}
+@keyframes flameP{0%{height:0;opacity:0}30%{opacity:1}100%{height:var(--h,70px);opacity:0}}
+@keyframes haunt{0%{opacity:0;transform:translateY(24px) scale(.8)}25%{opacity:.42}100%{opacity:0;transform:translateY(-52px) translateX(var(--dx,0)) scale(1.15)}}
+</style>
+
+<div class="panel">
+  <h1>🎬 Rank-up signatures + division incineration</h1>
+  <p class="sub">Each tier crossing gets its own signature move (no more samey burst). Intra-division bumps get the incineration: white-ray fuse-in → godly hellfire burns a numeral off the marker → division card.</p>
+
+  <div class="h2">Intra-division bump — the incineration</div>
+  <div class="divrow">
+    <button class="divbtn" onclick="bump(3)">III → II</button>
+    <button class="divbtn" onclick="bump(2)">II → I</button>
+  </div>
+
+  <div class="h2">Tier crossings — signature per tier</div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="phone"><div class="stage" id="stage">
+  <div class="wash" id="wash"></div>
+  <div class="voidL" id="voidL"></div>
+  <div class="white" id="white"></div>
+  <div class="pillar" id="pillar"></div>
+  <div class="tear" id="tear"></div>
+  <div class="beam" id="beam"></div>
+  <div class="ptc" id="ptc"></div>
+  <div class="aura" id="aura"></div>
+  <div class="ring" id="ring"></div>
+  <div class="badge" id="badge"></div>
+  <div class="copy" id="copy"></div>
+  <div class="card" id="card"></div>
+</div></div>
+
+<script>
+const T={
+ silver:{lab:'Silver',o:'#6B7280',i:'#C4CBD6',t:'#2B3038',w:'#C4CBD6',ent:'forgeIn',sig:'slash',h:'FORGED IN STEEL.',s:'THE EDGE IS YOURS.'},
+ gold:{lab:'Gold',o:'#9A6A12',i:'#F5C542',t:'#4A3406',w:'#F5C542',ent:'dropIn',sig:'coins',h:'THE CROWN IS YOURS.',s:'EVERY LOCK-IN TURNS TO GOLD.'},
+ platinum:{lab:'Platinum',o:'#6E8B98',i:'#A7C7D4',t:'#22333a',w:'#A7C7D4',ent:'forgeIn',sig:'frost',h:'INTO RARE AIR.',s:'FEW EVER CLIMB THIS HIGH.'},
+ diamond:{lab:'Diamond',o:'#2C6E76',i:'#7FE0E8',t:'#06323A',w:'#7FE0E8',ent:'forgeIn',sig:'prism',h:'FORGED UNDER PRESSURE.',s:'ONE STEP FROM LEGEND.'},
+ hero:{lab:'Hero',o:'#8F2E28',i:'#E0574C',t:'#3f0f0b',w:'#E0574C',ent:'slamIn',sig:'shock',band:1,h:'MORTAL LIMITS BROKEN.',s:'WELCOME TO THE REALM OF LEGEND.'},
+ titan:{lab:'Titan',o:'#1E5E4A',i:'#4FA88C',t:'#08301f',w:'#4FA88C',ent:'slamIn',sig:'debris',h:'THE EARTH TREMBLES.',s:'A TITAN WALKS AMONG THEM.'},
+ olympian:{lab:'Olympian',o:'#C0A24E',i:'#F7E9C0',t:'#5c4a12',w:'#F7E9C0',ent:'bloomIn',sig:'godray',h:'YOU ENTER OLYMPUS.',s:'THE GODS MAKE ROOM.'},
+ immortal:{lab:'Immortal',o:'#8E6BC8',i:'#EAE2FA',t:'#3a2b5c',w:'#B98CEA',ent:'riseIn',sig:'wisp',h:'DEATH HAS NO CLAIM.',s:'YOU CANNOT FALL.'},
+ primordial:{lab:'Primordial',o:'#B0431E',i:'#F2A33C',t:'#4A1B0C',w:'#F2A33C',ent:'badgeIn',sig:'fire',band:1,apex:1,h:'YOU ARE BEYOND TIME ITSELF.',s:'YOU ARE NOW PRIMORDIAL.'},
+};
+const ORDER=['silver','gold','platinum','diamond','hero','titan','olympian','immortal','primordial'];
+const $=id=>document.getElementById(id);
+ORDER.forEach(k=>{const c=T[k];const b=document.createElement('div');b.className='chip';b.onclick=()=>tier(k);
+ b.innerHTML=`<div class="d" style="background:${c.i};box-shadow:inset 0 0 0 2px ${c.o}"></div><b style="color:${c.i}">${c.lab}</b>`;$('grid').appendChild(b);});
+
+function reset(){$('ptc').innerHTML='';['wash','voidL','white','pillar','tear','beam','ring','badge','copy','aura','card'].forEach(x=>{const e=$(x);e.style.animation='none';e.offsetHeight;e.style.opacity=0;});$('stage').classList.remove('shakeit');}
+function hex(el,c,inner){el.style.background=c.i;el.style.boxShadow=`inset 0 0 0 3px ${c.o}, 0 0 26px ${c.i}66`;el.style.color=c.t;el.innerHTML=inner;}
+function divMark(n){let s='';for(let i=0;i<n;i++)s+=`<span class="st" id="st${i}">I</span>`;return `<div class="divmark">${s}</div>`;}
+function spawn(kind,color){const p=$('ptc');const N=kind==='godray'?3:14;
+ for(let i=0;i<N;i++){const d=document.createElement('div');d.className='p';const L=Math.random()*100,dl=(Math.random()*.5).toFixed(2),du=(1+Math.random()).toFixed(2);
+  if(kind==='coins'){d.textContent='●';d.style.cssText=`left:${L}%;top:0;color:${color};font-size:${8+Math.random()*6}px;text-shadow:0 0 5px ${color};animation:fallP ${du}s ease-in ${dl}s forwards`;}
+  else if(kind==='frost'){d.textContent='✦';d.style.cssText=`left:${L}%;top:${15+Math.random()*60}%;color:#dff2fb;font-size:11px;text-shadow:0 0 7px #A7C7D4;animation:twinkleP ${du}s ${dl}s forwards`;}
+  else if(kind==='prism'){d.textContent='◈';d.style.cssText=`left:${L}%;top:0;color:${color};font-size:12px;text-shadow:0 0 8px ${color};animation:fallP ${du}s ease-in ${dl}s forwards`;}
+  else if(kind==='debris'){d.style.cssText=`left:${40+Math.random()*20}%;top:52%;width:${3+Math.random()*4}px;height:${3+Math.random()*4}px;background:#6b5a3f;animation:fallP ${(.6+Math.random()*.6).toFixed(2)}s ease-in ${dl}s forwards`;}
+  else if(kind==='godray'){d.style.cssText=`top:-8%;left:50%;width:9px;height:75%;background:linear-gradient(${color},transparent);transform-origin:top;--rot:${(i-1)*22}deg;filter:blur(3px);animation:rayP 1.5s ease-out ${dl}s forwards`;}
+  else if(kind==='fire'){d.style.cssText=`left:${L}%;bottom:12%;width:10px;border-radius:50% 50% 45% 45%;background:linear-gradient(#F7B85A,#E0612C);--h:${50+Math.random()*55}px;animation:flameP ${du}s ease-out ${dl}s forwards`;}
+  else if(kind==='ember'){d.style.cssText=`left:${L}%;bottom:${14+Math.random()*30}%;width:4px;height:4px;border-radius:50%;background:#F2A33C;box-shadow:0 0 5px #F2A33C;--dx:${Math.random()*30-15}px;animation:riseP ${du}s ease-out ${dl}s forwards`;}
+  p.appendChild(d);}
+ if(kind==='wisp')for(let i=0;i<5;i++){const g=document.createElement('div');g.className='p';g.textContent='✧';g.style.cssText=`left:${16+Math.random()*68}%;top:${40+Math.random()*30}%;color:#E4D6FF;font-size:13px;text-shadow:0 0 10px #B98CEA;animation:haunt ${(2.4+Math.random()).toFixed(2)}s ease-out ${(Math.random()).toFixed(2)}s forwards`;p.appendChild(g);}
+ if(kind==='slash'){const s=document.createElement('div');s.className='p';s.style.cssText=`left:50%;top:50%;width:160%;height:5px;background:linear-gradient(90deg,transparent,#fff,transparent);transform-origin:center;animation:slashP .5s ease-out forwards`;p.appendChild(s);}
+}
+function copy(c){$('copy').innerHTML=`<div class="big" style="color:${c.i}">${c.h}</div><div class="big2">${c.s}</div>`;$('copy').style.animation='copyIn .5s ease-out .3s forwards';}
+
+function tier(k){reset();const c=T[k];
+ // band crossings get the cinematic pre-beat
+ if(k==='hero'){ hex($('badge'),T.diamond,divMark(1)); $('badge').style.animation='forgeIn .3s forwards'; $('stage').classList.add('shakeit');
+   setTimeout(()=>{$('white').style.background='radial-gradient(circle at 50% 50%,#FFE7B0,#fff)';$('white').style.animation='flash 1s ease-out forwards';$('pillar').style.animation='pillarIn 1s ease-out forwards';},400);
+   setTimeout(()=>go(),1250); return; }
+ if(k==='primordial'){ hex($('badge'),T.immortal,divMark(1)); $('badge').style.animation='forgeIn .3s forwards';
+   setTimeout(()=>{$('voidL').style.background='radial-gradient(circle at 50% 45%,#0a0710,#000)';$('voidL').style.opacity=1;$('voidL').style.mixBlendMode='normal';$('voidL').style.animation='voidIn 1s ease-in forwards';},400);
+   setTimeout(()=>{$('tear').style.animation='tearOpen 1s ease-out forwards';},1100);
+   setTimeout(()=>go(),1900); return; }
+ go();
+ function go(){
+  $('wash').style.background=`radial-gradient(circle at 50% 44%,${c.w},transparent 66%)`;$('wash').style.setProperty('--wo',c.band?.85:.6);$('wash').style.animation='washPulse 1.7s ease-out forwards';
+  hex($('badge'),c, c.apex?'<span class="apex">★</span>':divMark(1));
+  $('badge').style.animation=`${c.ent} ${c.ent==='bloomIn'?'1s':c.ent==='riseIn'?'.9s':'.8s'} cubic-bezier(.2,.9,.25,1) forwards`;
+  if(c.sig==='shock'){$('ring').style.borderColor=c.i;$('ring').style.animation='ringOut .9s ease-out forwards';}
+  if(c.sig==='debris'){$('stage').classList.remove('shakeit');void $('stage').offsetWidth;$('stage').classList.add('shakeit');}
+  if(c.sig==='wisp'||c.sig==='fire'){$('aura').style.background=`radial-gradient(circle,${c.sig==='fire'?'#C77BFF,#F2A33C':'#B98CEA,#6BE6FF'})`;$('aura').style.animation='auraPulse 1.8s ease-out forwards';}
+  setTimeout(()=>spawn(c.sig,c.i),c.sig==='shock'?0:250);
+  copy(c);
+ }
+}
+
+// ── intra-division incineration ──
+function bump(from){reset();
+ // use Gold as the demo tier
+ const c=T.gold;
+ hex($('badge'),c,divMark(from));
+ // 1 · white-ray fuse-in (loot-box style)
+ $('beam').style.animation='beamFuse 1s ease-out forwards';
+ $('badge').style.animation='forgeIn .9s cubic-bezier(.2,.9,.25,1) .2s forwards';
+ // 2 · hellfire incinerates the last stroke
+ setTimeout(()=>{
+   const last=document.getElementById('st'+(from-1));
+   if(last){last.style.animation='strokeBurn .8s ease-in forwards';setTimeout(()=>{last.style.width='0';},520);/* collapse → remaining marks recenter */}
+   // ember burst around the marker
+   for(let i=0;i<10;i++){const d=document.createElement('div');d.className='p';d.style.cssText=`left:${46+Math.random()*8}%;top:${42+Math.random()*8}%;width:4px;height:4px;border-radius:50%;background:#F2A33C;box-shadow:0 0 6px #E0612C;--dx:${Math.random()*24-12}px;animation:riseP ${(.9+Math.random()*.6).toFixed(2)}s ease-out ${(Math.random()*.3).toFixed(2)}s forwards`;$('ptc').appendChild(d);}
+   const fl=document.createElement('div');fl.className='p';fl.style.cssText='left:50%;top:44%;transform:translate(-50%,-50%);width:60px;height:60px;border-radius:50%;background:radial-gradient(circle,#F2A33C,transparent 70%);animation:flash .9s ease-out forwards';$('ptc').appendChild(fl);
+ },900);
+ // 3 · division rank-up card
+ setTimeout(()=>{
+   $('card').innerHTML=`<div class="ch" style="background:${c.i};box-shadow:inset 0 0 0 2px ${c.o};color:${c.t}">${'I'.repeat(from-1)}</div><div class="ct"><div class="cl" style="color:${c.i}">Gold ${from-1===2?'II':'I'}</div><div class="cs">Division up · one step closer to Platinum</div></div>`;
+   $('card').style.animation='cardIn .5s ease-out forwards';
+ },1900);
+}
+tier('gold');
+</script>

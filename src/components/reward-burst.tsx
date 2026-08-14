@@ -27,9 +27,6 @@ const LOTTIE_SOURCES: Partial<Record<RewardCue, AnimationObject>> = {
   'rankup-diamond': require('../../assets/lottie/surge.json'),
   'rankup-olympian': require('../../assets/lottie/surge.json'),
   'rankup-primordial': require('../../assets/lottie/surge.json'),
-  // Never routed through RewardBurst (the rank-up riser is start/stopped directly via
-  // reward-feedback.ts) — entry exists only to satisfy the exhaustive Record type.
-  'rankup-riser': require('../../assets/lottie/surge.json'),
 };
 
 // expo-haptics degrades gracefully on its own when its native module is missing (throws a
@@ -47,8 +44,6 @@ const HAPTIC_BY_CUE: Partial<Record<RewardCue, () => void>> = {
   'rankup-diamond': () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
   'rankup-olympian': () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
   'rankup-primordial': () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}),
-  // Placeholder (see LOTTIE_SOURCES) — the riser carries no RewardBurst haptic of its own.
-  'rankup-riser': () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
 };
 
 export type RewardBurstHandle = { fire: () => void };

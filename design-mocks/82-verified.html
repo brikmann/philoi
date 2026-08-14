@@ -1,0 +1,85 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>You're verified — mock 82</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0d0b13;color:#FFF6EC;font-family:var(--font);display:flex;gap:30px;flex-wrap:wrap;justify-content:center;padding:26px}
+.h1{font-size:17px;font-weight:800;margin:0 0 3px}.sub{color:#9f92b6;font-size:12px;max-width:300px;line-height:1.5;margin:0 0 14px}
+.phone{width:310px;height:640px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;border-radius:26px;overflow:hidden;background:radial-gradient(130% 50% at 50% 16%,#12301f,#141019 62%);display:flex;flex-direction:column;align-items:center;padding:30px 24px 24px}
+.close{position:absolute;top:16px;right:18px;color:#7c7194;font-size:20px}
+.badgewrap{margin-top:34px;position:relative;width:110px;height:110px;display:flex;align-items:center;justify-content:center}
+.bglow{position:absolute;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(61,168,92,.32),transparent 62%);filter:blur(5px)}
+.badge{width:92px;height:92px;border-radius:50%;background:radial-gradient(circle at 50% 38%,#2f9c56,#1c5f34);border:2px solid #4FD98A;display:flex;align-items:center;justify-content:center;box-shadow:0 0 26px rgba(61,168,92,.4)}
+.badge svg{width:44px;height:44px;stroke:#eafff1;stroke-width:3.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.crest{position:absolute;bottom:-2px;right:-2px;width:34px;height:34px;border-radius:50%;background:#20182f;border:1px solid #3DA85C;display:flex;align-items:center;justify-content:center;font-size:15px}
+.title{font-size:24px;font-weight:800;margin-top:20px;text-align:center;line-height:1.15}
+.title .u{color:#5FE39B}
+.body{font-size:13px;color:#a99cbd;text-align:center;margin-top:9px;line-height:1.5;max-width:250px}
+.chips{display:flex;gap:10px;margin-top:22px;width:100%}
+.chip{flex:1;background:rgba(61,168,92,.1);border:1px solid rgba(79,217,138,.45);border-radius:13px;padding:13px 10px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.chip .ic{font-size:19px}
+.chip .nm{font-size:12px;font-weight:800;color:#eafff1}
+.chip .st{font-size:9.5px;font-weight:700;color:#5FE39B;letter-spacing:.5px}
+.trust{width:100%;margin-top:16px;background:#1b1726;border:1px solid #241c38;border-radius:14px;padding:13px 14px;display:flex;gap:9px;align-items:flex-start}
+.trust .t{font-size:11.5px;color:#c8bcdd;line-height:1.5}
+.trust .t b{color:#eafff1}
+.profchip{margin-top:16px;display:flex;align-items:center;gap:7px;background:#20182f;border-radius:20px;padding:7px 13px}
+.profchip .av{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#E0612C,#F2A33C)}
+.profchip .nm{font-size:12px;font-weight:700}
+.profchip .vf{display:flex;align-items:center;gap:3px;font-size:10.5px;color:#5FE39B;font-weight:700}
+.spacer{flex:1}
+.cta{width:100%;background:linear-gradient(135deg,#F2A33C,#E0612C);color:#2a1608;border-radius:14px;padding:15px;text-align:center;font-size:15px;font-weight:800}
+.hint{font-size:11px;color:#6a6480;margin-top:11px;text-align:center}
+.notes{width:300px;font-size:12px;color:#a99cbd;line-height:1.55}
+.notes h3{font-size:12px;color:#FFF6EC;margin:16px 0 5px}
+.notes ul{margin:4px 0;padding-left:16px}.notes li{margin:4px 0}
+.notes b{color:#5FE39B}
+</style>
+
+<div>
+  <div class="h1">🎓 "You're verified" — campus verified state</div>
+  <div class="sub">Shown once verification lands, in onboarding and as the Settings → Campus success view. Mirror this exact panel so both entry points read identically (fixes the stale/drifted copy).</div>
+  <div class="phone"><div class="stage">
+    <div class="close">✕</div>
+    <div class="badgewrap">
+      <div class="bglow"></div>
+      <div class="badge"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg>
+        <div class="crest">🎓</div>
+      </div>
+    </div>
+    <div class="title">You're verified at <span class="u">Laurier</span></div>
+    <div class="body">A verified-campus check now sits on your profile — and two leaderboards just unlocked.</div>
+
+    <div class="chips">
+      <div class="chip"><span class="ic">🎓</span><span class="nm">My Uni</span><span class="st">✓ UNLOCKED</span></div>
+      <div class="chip"><span class="ic">⚔️</span><span class="nm">Vs Unis</span><span class="st">✓ UNLOCKED</span></div>
+    </div>
+
+    <div class="trust">
+      <span>🏆</span>
+      <span class="t"><b>Only verified students count</b> on My Uni &amp; Vs Unis — so the campus rankings stay real.</span>
+    </div>
+
+    <div class="profchip">
+      <span class="av"></span><span class="nm">you</span>
+      <span class="vf">🎓 Laurier ✓</span>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="cta">Enter Philoi</div>
+    <div class="hint">Change schools anytime in Settings → Campus.</div>
+  </div></div>
+</div>
+
+<div class="notes">
+  <h3>Notes for the rebuild</h3>
+  <ul>
+    <li><b>One shared component</b> renders in both onboarding and Settings — identical copy/layout, only the CTA differs ("Enter Philoi" vs "Done").</li>
+    <li><b>Green verified badge</b> with the school crest tucked in — celebratory but calm (radial green glow, not a full animation).</li>
+    <li><b>Two unlocked chips</b> make the payoff concrete: My Uni + Vs Unis, both ✓ UNLOCKED.</li>
+    <li><b>Verified profile chip</b> ("🎓 Laurier ✓") previews the badge that now sits on their profile.</li>
+    <li><b>Drives strictly off live <span style="color:#c8bcdd">profile.university_email_verified</span></b> (PUNCHLIST_6 §1) — this panel only renders when the server says verified, so it can never show stale.</li>
+    <li>University name interpolated (<b>Laurier</b> here) from the profile's short school name.</li>
+  </ul>
+</div>

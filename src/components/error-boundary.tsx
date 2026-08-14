@@ -11,6 +11,11 @@ type ErrorBoundaryProps = {
   /** Shown above the recovery actions — keep it specific to where this boundary is mounted
    * (e.g. "Something went wrong with this lock-in") rather than a generic app-wide message. */
   title?: string;
+  /** Where the escape hatch goes. Defaults to Home, but a screen whose work is already banked
+   * server-side (a box open — the pull is granted before a single frame plays) should send the
+   * user to where that work landed instead. */
+  exitTo?: string;
+  exitLabel?: string;
 };
 
 type ErrorBoundaryState = {
@@ -38,7 +43,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   handleGoHome = () => {
     this.setState({ error: null });
-    router.replace('/');
+    router.replace((this.props.exitTo ?? '/') as Parameters<typeof router.replace>[0]);
   };
 
   render() {
@@ -53,7 +58,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <Text style={styles.primaryButtonLabel}>Try again</Text>
         </Pressable>
         <Pressable style={styles.secondaryButton} onPress={this.handleGoHome}>
-          <Text style={styles.secondaryButtonLabel}>Go home</Text>
+          <Text style={styles.secondaryButtonLabel}>{this.props.exitLabel ?? 'Go home'}</Text>
         </Pressable>
       </View>
     );

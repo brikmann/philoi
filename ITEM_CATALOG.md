@@ -56,6 +56,25 @@ Screen-edge ambient aura, active only during 90m+ sessions.
 ## 2 · Profile Cards & UI Identity — *social status*
 Everything others see on your profile card, in feeds, on leaderboards, in 1v1s.
 
+### Campus Verified — earned identity (never bought)
+The one profile-card component you can't buy or roll from a box — you **earn** it by verifying your
+school email (UNI_VERIFICATION_SPEC.md; panel in mock 82, on-card in mock 64). It's proof, not
+flair: the mark that says the campus is really yours.
+
+| Component | Earned by | Shows on |
+|---|---|---|
+| **Campus Verified badge** — `🎓 {School} ✓` | Verifying your uni email (domain-locked 6-digit code) | Profile card, feeds, leaderboard rows, 1v1 headers |
+
+- Renders as the school short-name + a **green verified check** (see mock 64's card, mock 82's panel).
+- **Gates My Uni + Vs Unis** — only verified students count on the campus boards, enforced
+  server-side (`get_my_ranks`-adjacent RPCs filter `university_email_verified`), so rankings stay real.
+- **Tied to the school** — changing campus clears it until you re-verify (server flips
+  `university_email_verified` false, migration 0062 trigger).
+- **Not a rarity item** — never in loot boxes, never purchasable. It sits *alongside* the cosmetics
+  below but is authenticity, not status-for-sale (same "earned, never sold" spirit as the First
+  Flame founder badge). Cosmetic backdrops/halos/titles decorate the card; the verified badge
+  authenticates it.
+
 ### 2a · Card Textures & Skins — `CARD` (Uncommon → Legendary)
 Backdrop for your profile card.
 
@@ -80,6 +99,21 @@ Glowing ring around your avatar.
 | **Diamond Prism Border** | Epic | Bends every colour it's given and returns none of them. |
 | **Inferno Flare** | Legendary | Nothing says you did it like a ring of fire around you. |
 | **Hades Halo** | Mythic | Pure, chaotic energy pulses through his aura. The souls he collected are still screaming for mercy. |
+
+**Live intensity — session-tiered aura (dynamic).** An aura isn't static — it **escalates with how deep
+you are in the CURRENT lock-in**, a live "you're getting more and more locked in — good for you" signal
+(extends the roar/steady flame states). Three tiers ramp up within a single session:
+
+| Tier | At | Look |
+|---|---|---|
+| **1 · Kindled** | 30 min | The aura catches — a soft, steady glow. |
+| **2 · Burning** | 60 min | It intensifies — brighter, tighter, with motion. |
+| **3 · Locked In** | 90 min | Full intensity — the deepest, most radiant state; the "seriously in it" flex. |
+
+Resets when the session ends. Renders on your **live-session flame** (and, opt-in, to your campfire while
+you're locked in) so a long, deep session literally glows harder. Rewards *depth of focus* with escalating
+flair — **no XP coupling**, purely the visual payoff of staying in it. Applies to any aura the user has
+equipped (recolored per the aura), and the same 30/60/90 ramp can drive an intensifying **flame skin** too.
 
 ### 2c · Custom Titles — `TITLE` (Common → Epic)
 Tagline under your name on leaderboards.
@@ -171,8 +205,17 @@ Ambient loop under a lock-in.
 | **Lofi Lullaby** | Epic | "I heard Lofee Girl was ranked Diamond II in Philoi." |
 | **Deep Space Sub-Bass** | Legendary | The sound the void makes when it's thinking. Felt more than heard. |
 
-### 3b · Rank-Up & Challenge SFX — `SFX` (Rare → Legendary)
-One-shot sting on session complete / 1v1 win / rank-up.
+### 3b · Stop / Start Lock-In SFX — `SFX` (Rare → Legendary)
+The sounds a session **begins** and **ends** on. One-shot stings, fired on the ignite tap and again
+when you finish a lock-in — the two beats that bookend the thing this app is actually for.
+
+Two slots, not one: **start sting** (`sfx_start`) and **end sting** (`sfx_stop`). Any SFX goes in
+either, and the same one may sit in both — opening and closing on the same sound is a legitimate
+choice, not a mistake.
+
+These are **not** rank-up sounds. The rank-up moment has its own layered per-tier arrangement
+(RANKUP_SPEC) and is never overridden by a cosmetic — an equipped sting replacing Immortal's
+chime-and-souls would make the rarest moment in the app sound like the most ordinary one.
 
 | Item | Rarity | Lore |
 |---|---|---|
@@ -180,7 +223,10 @@ One-shot sting on session complete / 1v1 win / rank-up.
 | **Sub-Bass Drop** | Rare | The floor falls out from under the moment. On purpose. |
 | **Jet Engine Ignition** | Epic | Zero to gone. |
 | **Olympian Foghorn** | Legendary | Echoes of this can be heard from Olympus. The gods are watching you. |
-| **Victory Anthem** | Legendary | The spirit of the challenge rests within the truly dedicated. |
+
+*Victory Anthem was removed from this set.* At 83 seconds it cannot punctuate anything, and the same
+recording already serves as Hero's Champions Anthem on the band crossing — selling it as a cosmetic
+made the app's rarest audio moment look like a shop item.
 
 ---
 

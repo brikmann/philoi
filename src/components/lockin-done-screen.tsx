@@ -1,23 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
-import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
+import { CampfireFlameStage } from '@/components/campfire-flame-stage';
 import { GymClipThumbnail } from '@/components/gym-clip-player';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { TextInput } from '@/components/ui/text-input';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyGroups } from '@/hooks/use-my-groups';
-import { saveWorkoutAsRoutine } from '@/lib/api/gym';
 import { fetchCheckInClips } from '@/lib/api/gym-clips';
 import { postCheckInToCircle, setCheckInCaption } from '@/lib/api/lock-ins';
 import { getErrorMessage } from '@/lib/errors';
 import { formatDurationClock } from '@/lib/format';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
-import { formatRankTier, xpProgressRatio } from '@/lib/rank-tiers';
+import { GOAL_TYPE_META } from '@/lib/goal-types';
+import { formatRankTier, RANK_TIER_METAL, xpProgressRatio } from '@/lib/rank-tiers';
 import { fireConfirm, fireXpTick } from '@/lib/reward-feedback';
 import type { GoalType, MyRank, WorkoutRecap, WorkoutSet } from '@/types/database';
 
@@ -40,24 +40,20 @@ type LockInDoneScreenProps = {
   onDone: () => void;
 };
 
-// design-mocks/18-lockin-done.html's small flicker on the header flame — same `flick`
-// keyframe as the splash screen, just at a much smaller size here.
-function MiniFlickerFlame() {
-  const progress = useSharedValue(0);
-  useEffect(() => {
-    progress.value = withDelay(0, withTiming(1, { duration: 950, easing: Easing.inOut(Easing.ease) }));
-  }, [progress]);
-  // Simple one-shot settle rather than an infinite loop — this screen is meant to read as
-  // calm/settled, not another animated flame demanding attention.
-  return <FlameSvg width={46 * FLAME_ASPECT_RATIO} height={46} />;
-}
+const FLAME_SIZE = 140;
 
-// The "done" screen (PHILOI_UI_SPEC.md §13, design-mocks/18) — a satisfying recap, not a loud
-// celebration. On open, the XP bar fills from the pre-session total to the new one (the
-// "+XP" fades in and the number counts up). Any rank-up at all — crossing or a same-tier
-// division bump — is handled by the caller showing RankUpCelebration's full-screen forge
-// instead of this component entirely (see lock-in/index.tsx); this screen only ever renders
-// for a stop that didn't move the rank.
+// The "done" screen (design-mocks/81-done-screen.html) — built around the SAME big living flame
+// as the work session, stripped to the four things that matter: you locked in, for how long, the
+// XP it moved, and one tap to post.
+//
+// Everything else was pushed off this screen deliberately (punchlist 6 §3): the routine-naming
+// block now lives on the gym screen, the caption is folded into the post card as an optional
+// note, the campfire multi-select hides behind "change", and a gym recap collapses to one line
+// with a "View" that opens the full thing.
+//
+// Any rank-up at all — a tier crossing or a same-tier division bump — is handled by the caller
+// showing RankUpCelebration's full-screen forge instead of this component entirely (see
+// lock-in/index.tsx); this screen only ever renders for a stop that didn't move the rank.
 export function LockInDoneScreen({
   goalType,
   goalDetail,
@@ -75,23 +71,20 @@ export function LockInDoneScreen({
   onDone,
 }: LockInDoneScreenProps) {
   const { groups } = useMyGroups();
-  // Seeded with the campfire this session was started in, so the common case is still one tap —
-  // the multi-select adds reach without adding a decision.
+  // Seeded with the campfire this session was started in, so the common case is one tap — the
+  // multi-select is still there, just behind "change" instead of being a decision every time.
   const [selectedCircleIds, setSelectedCircleIds] = useState<string[]>(circleId ? [circleId] : []);
-  const [displayXp, setDisplayXp] = useState(rankBefore?.xp_into_tier ?? 0);
-  const [plusVisible, setPlusVisible] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [note, setNote] = useState('');
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // "Routines build from memory" (§23) — offered right after a freestyle gym session, the one
-  // moment the user knows exactly what the routine is.
-  const [routineName, setRoutineName] = useState('');
-  const [savingRoutine, setSavingRoutine] = useState(false);
-  const [caption, setCaption] = useState('');
-  const [routineSaved, setRoutineSaved] = useState(false);
-  const [namingRoutine, setNamingRoutine] = useState(false);
-  // Phase-2 video clips (§23) — additive to the recap above, which only has per-exercise
-  // rollups (no individual set ids), so clips need their own fetch, keyed by this same checkInId.
+  const [recapOpen, setRecapOpen] = useState(false);
+  // Phase-2 video clips (§23) — the rolled-up recap only has per-exercise totals (no individual
+  // set ids), so clips need their own fetch, keyed by this same checkInId. Recap modal only.
   const [clips, setClips] = useState<WorkoutSet[]>([]);
+
+  const [displayXp, setDisplayXp] = useState(0);
+  const [plusVisible, setPlusVisible] = useState(false);
   const fillRatio = useSharedValue(rankBefore ? xpProgressRatio(rankBefore.xp_into_tier, rankBefore.xp_for_next_tier) : 0);
 
   useEffect(() => {
@@ -103,14 +96,17 @@ export function LockInDoneScreen({
       });
   }, [checkInId, workoutRecap]);
 
+  // The bar fills from the pre-session position toward the next tier while the "+XP" fades in and
+  // counts up — the one animation this screen keeps. It counts the EARNED xp rather than the
+  // running tier total (mock 81 shows only "+210 XP" on this row), so the number that moves is
+  // the number the session actually produced.
   useEffect(() => {
     if (!rankBefore || !rankAfter) return;
-    const start = rankBefore.xp_into_tier;
-    const end = rankAfter.xp_into_tier;
+    const end = Math.round(xpEarned);
     const delay = setTimeout(() => {
       setPlusVisible(true);
       fireXpTick();
-      fillRatio.value = withTiming(xpProgressRatio(end, rankAfter.xp_for_next_tier), {
+      fillRatio.value = withTiming(xpProgressRatio(rankAfter.xp_into_tier, rankAfter.xp_for_next_tier), {
         duration: 1100,
         easing: Easing.bezier(0.2, 0.7, 0.3, 1),
       });
@@ -119,7 +115,7 @@ export function LockInDoneScreen({
       let raf: ReturnType<typeof requestAnimationFrame>;
       const step = () => {
         const p = Math.min((Date.now() - t0) / durationMs, 1);
-        setDisplayXp(Math.round(start + (end - start) * p));
+        setDisplayXp(Math.round(end * p));
         if (p < 1) raf = requestAnimationFrame(step);
       };
       raf = requestAnimationFrame(step);
@@ -132,38 +128,48 @@ export function LockInDoneScreen({
   const barStyle = useAnimatedStyle(() => ({ width: `${fillRatio.value * 100}%` }));
   const plusStyle = useAnimatedStyle(() => ({ opacity: withDelay(300, withTiming(plusVisible ? 1 : 0, { duration: 400 })) }));
 
-  const atMaxRank = rankAfter ? rankAfter.xp_for_next_tier <= 0 : false;
   const streakIncreased = streakAfter > streakBefore;
+  // "Deep work · solo" (mock 81) — the goal, plus whatever qualifies it: the typed detail if there
+  // is one, else the campfire it ran in, else solo.
+  const goalLine = `${GOAL_TYPE_META[goalType].label} · ${goalDetail ?? circleName ?? 'solo'}`;
 
   const workoutExercises = workoutRecap?.exercises ?? [];
   const prCount = workoutExercises.filter((e) => e.is_pr).length;
-  // Only for a session that wasn't already run off a saved routine — re-saving one you just
-  // followed would just duplicate it.
-  const canSaveRoutine = workoutExercises.length > 0 && !workoutRecap?.routine_name && !routineSaved;
+  const totalSets = workoutExercises.reduce((n, e) => n + e.sets, 0);
+  // Bodyweight work carries no weight, so a bodyweight-only session simply drops this segment
+  // rather than claiming "0 lb".
+  const totalVolume = workoutExercises.reduce((n, e) => n + e.sets * e.reps * (e.weight ?? 0), 0);
+  const gymSummary = [
+    `${workoutExercises.length} exercise${workoutExercises.length === 1 ? '' : 's'}`,
+    `${totalSets} set${totalSets === 1 ? '' : 's'}`,
+    totalVolume > 0 ? `${Math.round(totalVolume).toLocaleString()} lb` : null,
+    prCount > 0 ? `${prCount} PR${prCount === 1 ? '' : 's'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
-  async function handleSaveRoutine() {
-    if (!workoutRecap || savingRoutine) return;
-    const trimmed = routineName.trim();
-    if (!trimmed) return;
-    setSavingRoutine(true);
-    setError(null);
-    try {
-      await saveWorkoutAsRoutine(workoutRecap.workout_id, trimmed);
-      setRoutineSaved(true);
-      setNamingRoutine(false);
-    } catch (e) {
-      setError(getErrorMessage(e, 'Could not save that as a routine.'));
-    } finally {
-      setSavingRoutine(false);
-    }
+  function labelForCircle(id: string): string {
+    const group = groups.find((g) => g.id === id);
+    if (group) return `${group.emoji} ${group.name}`;
+    // useMyGroups hasn't answered yet (or the session's campfire isn't in it) — the name the
+    // session carried is still the right thing to show rather than a blank row.
+    return id === circleId && circleName ? circleName : 'this campfire';
   }
 
-  // The caption belongs to the lock-in, not to the act of posting — so it's saved on BOTH exits.
-  // A private lock-in with a caption is a journal note to yourself, and it's already visible in
-  // your own history; silently dropping what someone typed because they chose "keep private"
-  // would be the surprising behaviour.
-  async function saveCaption() {
-    const trimmed = caption.trim();
+  const willPost = selectedCircleIds.length > 0;
+  const postTarget =
+    selectedCircleIds.length === 0
+      ? 'nowhere — pick one'
+      : selectedCircleIds.length === 1
+        ? labelForCircle(selectedCircleIds[0])
+        : `${selectedCircleIds.length} campfires`;
+
+  // The note belongs to the lock-in, not to the act of posting — so it's saved on BOTH exits. A
+  // private lock-in with a note is a journal entry to yourself and it's already visible in your
+  // own history; silently dropping what someone typed because they chose "Just finish" would be
+  // the surprising behaviour.
+  async function saveNote() {
+    const trimmed = note.trim();
     if (!trimmed) return;
     await setCheckInCaption(checkInId, trimmed);
   }
@@ -176,11 +182,9 @@ export function LockInDoneScreen({
     setPosting(true);
     setError(null);
     try {
-      await saveCaption();
+      await saveNote();
       // Sequential, not Promise.all: post_check_in_to_circle writes a feed row and pushes that
-      // circle's members, and one failure shouldn't leave the rest in an unknown state. A solo
-      // session posts to nothing — the caption still saves above and it just finishes, the same
-      // outcome "Keep this one private" gives it.
+      // circle's members, and one failure shouldn't leave the rest in an unknown state.
       for (const id of selectedCircleIds) {
         await postCheckInToCircle(checkInId, id);
       }
@@ -193,14 +197,14 @@ export function LockInDoneScreen({
     }
   }
 
-  async function handleKeepPrivate() {
+  async function handleJustFinish() {
     setPosting(true);
     try {
-      await saveCaption();
+      await saveNote();
     } catch {
       // Deliberately not surfaced or blocking: the user asked to be done, and the lock-in itself
-      // (time, XP, streak, photos) is already safely recorded. Losing only an unsaved caption is
-      // a far better outcome than trapping them on this screen behind a retry.
+      // (time, XP, streak, photos) is already safely recorded. Losing only an unsaved note is a
+      // far better outcome than trapping them on this screen behind a retry.
     } finally {
       setPosting(false);
       onDone();
@@ -209,46 +213,46 @@ export function LockInDoneScreen({
 
   return (
     <View style={styles.container}>
-      {/* The whole recap is ONE group centered in the space above the bottom action(s) —
-          design-mocks/18: flame → "Nice work" → activity chip → time → XP card → streak →
-          photos, never stretched out with a dead gap before the button. */}
-      <View style={styles.recap}>
-        <View style={styles.top}>
-          <MiniFlickerFlame />
-          <Text style={styles.done}>Nice work</Text>
+      {/* Scrolls rather than compressing: the hero block is fixed-height by design, and a gym
+          session with photos would otherwise squeeze the flame on a short screen. */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
+        <View style={styles.flameWrap}>
+          <Svg width={FLAME_SIZE * 1.4} height={FLAME_SIZE * 1.4} style={styles.flameGlow} pointerEvents="none">
+            <Defs>
+              <RadialGradient id="doneFlameGlow" cx="50%" cy="50%" r="50%">
+                <Stop offset="0%" stopColor={Colors.amber} stopOpacity={0.28} />
+                <Stop offset="62%" stopColor={Colors.amber} stopOpacity={0} />
+              </RadialGradient>
+            </Defs>
+            <Circle cx={FLAME_SIZE * 0.7} cy={FLAME_SIZE * 0.7} r={FLAME_SIZE * 0.7} fill="url(#doneFlameGlow)" />
+          </Svg>
+          {/* Settled, not roaring — the session is over. Same component the campfire carousel and
+              the running session use, so the flame reads as one continuous thing. */}
+          <CampfireFlameStage state="steady" size={FLAME_SIZE} />
         </View>
 
-        <View style={styles.goalChip}>
-          <Ionicons name={GOAL_TYPE_ICON[goalType]} size={13} color={Colors.amber} />
-          <Text style={styles.goalChipText}>
-            {GOAL_TYPE_META[goalType].label}
-            {goalDetail ? ` · ${goalDetail}` : ''}
-          </Text>
-        </View>
-
+        <Text style={styles.lockedInLabel}>LOCKED IN</Text>
         <Text style={styles.dur}>{formatDurationClock(durationSeconds)}</Text>
-        <Text style={styles.durLabel}>LOCKED IN</Text>
+        <Text style={styles.goal} numberOfLines={1}>
+          {goalLine}
+        </Text>
 
         {rankBefore && rankAfter && (
-          <View style={styles.xpRow}>
-            <View style={styles.badgeWrap}>
-              <HexagonBadge tier={rankAfter.tier} division={rankAfter.division} size={44} />
-            </View>
-            <View style={styles.xpCol}>
-              <View style={styles.xpTop}>
-                <Text style={styles.xpTier} numberOfLines={1}>
+          <View style={styles.rankRow}>
+            <HexagonBadge tier={rankAfter.tier} division={rankAfter.division} size={40} />
+            <View style={styles.rankInfo}>
+              <View style={styles.rankTop}>
+                <Text style={[styles.rankTier, { color: RANK_TIER_METAL[rankAfter.tier].text }]} numberOfLines={1}>
                   {formatRankTier(rankAfter.tier, rankAfter.division)}
                 </Text>
-                <View style={styles.xpTopRight}>
-                  <Animated.Text style={[styles.xpPlus, plusStyle]}>+{Math.round(xpEarned)} XP</Animated.Text>
-                  <Text style={styles.xpNum}>{displayXp.toLocaleString()}</Text>
-                  <Text style={styles.xpMax}>
-                    {atMaxRank ? ' max' : ` / ${Math.round(rankAfter.xp_for_next_tier).toLocaleString()}`}
-                  </Text>
-                </View>
+                <Animated.Text style={[styles.rankXp, plusStyle]}>+{displayXp.toLocaleString()} XP</Animated.Text>
               </View>
-              <View style={styles.trk}>
-                <Animated.View style={[styles.trkFill, barStyle]} />
+              <View style={styles.bar}>
+                <Animated.View style={[styles.barFill, barStyle]} />
               </View>
             </View>
           </View>
@@ -256,128 +260,58 @@ export function LockInDoneScreen({
 
         {streakAfter > 0 && (
           <View style={styles.streak}>
-            <Ionicons name="flame" size={19} color={Colors.amber} />
-            <Text style={styles.streakMain}>{streakAfter}-day streak</Text>
-            <Text style={styles.streakSub}>{streakIncreased ? '+1' : 'kept alive'}</Text>
+            <Ionicons name="flame" size={15} color={Colors.amber} />
+            <Text style={styles.streakText}>
+              {streakAfter}-day streak · {streakIncreased ? '+1 today' : 'kept alive'}
+            </Text>
           </View>
         )}
 
-        {photos.length > 0 && (
-          <>
-            <Text style={styles.photosLabel}>From this session</Text>
-            <View style={styles.photosRow}>
-              {photos.map((p) => (
-                <Image key={p.id} source={{ uri: p.uri }} style={styles.photoThumb} />
-              ))}
-            </View>
-          </>
-        )}
-
+        {/* One line, not the old recap sprawl — the full per-exercise breakdown, PRs, brag line
+            and clips all live behind "View". */}
         {workoutExercises.length > 0 && (
-          <>
-            <Text style={styles.photosLabel}>
-              {workoutRecap?.routine_name ?? 'Your workout'}
-              {prCount > 0 ? ` · ${prCount} PR${prCount === 1 ? '' : 's'}` : ''}
+          <Pressable style={styles.gymLine} onPress={() => setRecapOpen(true)} accessibilityRole="button">
+            <Ionicons name="barbell" size={14} color={Colors.amber} />
+            <Text style={styles.gymSummary} numberOfLines={1}>
+              {gymSummary}
             </Text>
-            <View style={styles.setsList}>
-              {workoutExercises.map((s, i) => (
-                <View key={i} style={styles.setRow}>
-                  <Ionicons name="barbell-outline" size={12} color={Colors.amber} />
-                  <Text style={styles.setText} numberOfLines={1}>
-                    {s.exercise} · {s.sets}×{s.reps}
-                    {s.weight ? ` @ ${s.weight}` : ''}
-                  </Text>
-                  {s.is_pr && (
-                    <View style={styles.prTag}>
-                      <Ionicons name="trophy" size={9} color={Colors.achieverText} />
-                      <Text style={styles.prTagText}>PR</Text>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
+            <Text style={styles.gymView}>View</Text>
+          </Pressable>
+        )}
+      </ScrollView>
 
-            {/* HONEST BRAG (§23 rule 2): decided server-side at Finish — `dialed` alone never
-                earns this line, a personal best actually logged in the session does. */}
-            {workoutRecap?.brag_earned && (
-              <View style={styles.bragRow}>
-                <Ionicons name="flash" size={13} color={Colors.achieverText} />
-                <Text style={styles.bragText}>You were feeling dialed — and the numbers backed it up.</Text>
-              </View>
-            )}
-
-            {clips.length > 0 && (
-              <>
-                <Text style={styles.photosLabel}>Clips from this session</Text>
-                <View style={styles.photosRow}>
-                  {clips.map((c) => (
-                    <GymClipThumbnail key={c.id} workoutSetId={c.id} size={72} />
-                  ))}
-                </View>
-              </>
-            )}
-
-            {canSaveRoutine &&
-              (namingRoutine ? (
-                <View style={styles.routineSaveRow}>
-                  <TextInput
-                    style={styles.routineNameInput}
-                    placeholder="Name this routine"
-                    value={routineName}
-                    onChangeText={setRoutineName}
-                    maxLength={40}
-                    autoFocus
-                  />
-                  <Pressable
-                    onPress={handleSaveRoutine}
-                    disabled={savingRoutine || routineName.trim().length === 0}
-                    style={[styles.routineSaveBtn, routineName.trim().length === 0 && styles.routineSaveBtnDisabled]}>
-                    <Ionicons name="checkmark" size={16} color={Colors.ink} />
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable onPress={() => setNamingRoutine(true)} style={styles.routineLink}>
-                  <Ionicons name="bookmark-outline" size={12} color={Colors.amber} />
-                  <Text style={styles.routineLinkText}>Save this as a routine</Text>
-                </Pressable>
-              ))}
-
-            {routineSaved && <Text style={styles.routineSavedText}>Saved — it&apos;ll be there next time.</Text>}
-          </>
+      <View style={styles.bottom}>
+        {/* A thumbnail row, never a gallery — the photos are already saved to the lock-in. */}
+        {photos.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.photoScroll}
+            contentContainerStyle={styles.photoRow}>
+            {photos.map((p) => (
+              <Image key={p.id} source={{ uri: p.uri }} style={styles.photoThumb} />
+            ))}
+          </ScrollView>
         )}
 
         {error && <Text style={styles.error}>{error}</Text>}
-      </View>
 
-      {/* Every finished session ends here — asking to share or keep private is not optional,
-          so these two controls always render regardless of solo vs. campfire (see
-          handlePost: a solo session just finishes, since there's nothing to post to). */}
-      <View style={styles.bottom}>
-        {/* Caption lives here now, not in the running session (§13 redesign) — you write it once
-            you know how the session actually went, right where you decide who sees it. */}
-        <TextInput
-          placeholder="Add a caption (optional)"
-          value={caption}
-          onChangeText={setCaption}
-          maxLength={140}
-          editable={!posting}
-        />
-        {/* Multi-select, per lock-in (migration 0059). Goals no longer carry a campfire, so THIS
-            is where sharing is decided — and a session that belongs in two campfires can go to
-            both instead of forcing a choice made months ago at goal setup. The session's own
-            campfire starts selected; everything else is opt-in per session. */}
-        {groups.length > 0 && (
-          <>
-            <Text style={styles.postingLabel}>
-              {selectedCircleIds.length === 0
-                ? 'Pick a campfire, or keep it private'
-                : `Posting to ${selectedCircleIds.length} campfire${selectedCircleIds.length === 1 ? '' : 's'}`}
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.circleRow}
-              keyboardShouldPersistTaps="handled">
+        <View style={styles.post}>
+          {groups.length > 0 && (
+            <View style={styles.postTo}>
+              <Text style={styles.postToLabel}>Post to</Text>
+              <Text style={styles.postToName} numberOfLines={1}>
+                {postTarget}
+              </Text>
+              <Pressable onPress={() => setPickerOpen((v) => !v)} hitSlop={8} accessibilityRole="button">
+                <Text style={styles.change}>{pickerOpen ? 'done' : 'change'}</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* Still multi-post (migration 0059) — just not a decision every time. */}
+          {pickerOpen && groups.length > 0 && (
+            <View style={styles.circleGrid}>
               {groups.map((group) => {
                 const on = selectedCircleIds.includes(group.id);
                 return (
@@ -396,203 +330,398 @@ export function LockInDoneScreen({
                   </Pressable>
                 );
               })}
-            </ScrollView>
-          </>
-        )}
-        <Pressable
-          style={[styles.postBtn, selectedCircleIds.length === 0 && styles.postBtnDisabled]}
-          onPress={handlePost}
-          disabled={posting || selectedCircleIds.length === 0}>
+            </View>
+          )}
+
+          <TextInput
+            style={styles.note}
+            placeholder="Add a note… (optional)"
+            value={note}
+            onChangeText={setNote}
+            maxLength={140}
+            editable={!posting}
+          />
+        </View>
+
+        <Pressable style={styles.cta} onPress={handlePost} disabled={posting}>
           {posting ? (
             <ActivityIndicator color={Colors.ink} />
           ) : (
-            <>
-              <Ionicons name="send" size={16} color={Colors.ink} />
-              <Text style={styles.postBtnLabel}>
-                {selectedCircleIds.length > 1 ? `Post to ${selectedCircleIds.length} campfires` : 'Post to the campfire'}
-              </Text>
-            </>
+            <Text style={styles.ctaLabel}>{willPost ? 'Post & finish' : 'Finish'}</Text>
           )}
         </Pressable>
-        <Pressable onPress={handleKeepPrivate} disabled={posting}>
-          <Text style={styles.privateLink}>Keep this one private</Text>
-        </Pressable>
+        {/* Only when there's actually something to skip — otherwise it's the same button twice. */}
+        {willPost && (
+          <Pressable onPress={handleJustFinish} disabled={posting} style={styles.skip}>
+            <Text style={styles.skipLabel}>Just finish</Text>
+          </Pressable>
+        )}
       </View>
+
+      <GymRecapSheet
+        visible={recapOpen}
+        onClose={() => setRecapOpen(false)}
+        recap={workoutRecap}
+        clips={clips}
+        prCount={prCount}
+      />
     </View>
+  );
+}
+
+// The full gym recap, one tap away from the summary line. Everything the done screen used to
+// render inline: per-exercise rollups, PR tags, the honest-brag line and any clips.
+function GymRecapSheet({
+  visible,
+  onClose,
+  recap,
+  clips,
+  prCount,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  recap: WorkoutRecap | null;
+  clips: WorkoutSet[];
+  prCount: number;
+}) {
+  if (!recap) return null;
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+        <View style={styles.sheet}>
+          <View style={styles.grab} />
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>
+              {recap.routine_name ?? 'Your workout'}
+              {prCount > 0 ? ` · ${prCount} PR${prCount === 1 ? '' : 's'}` : ''}
+            </Text>
+            <Pressable onPress={onClose} hitSlop={8} accessibilityLabel="Close">
+              <Ionicons name="close" size={19} color={Colors.textTertiary} />
+            </Pressable>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetBody}>
+            {recap.exercises.map((s, i) => (
+              <View key={i} style={styles.setRow}>
+                <Ionicons name="barbell-outline" size={12} color={Colors.amber} />
+                <Text style={styles.setText} numberOfLines={1}>
+                  {s.exercise} · {s.sets}×{s.reps}
+                  {s.weight ? ` @ ${s.weight}` : ''}
+                </Text>
+                {s.is_pr && (
+                  <View style={styles.prTag}>
+                    <Ionicons name="trophy" size={9} color={Colors.achieverText} />
+                    <Text style={styles.prTagText}>PR</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+
+            {/* HONEST BRAG (§23 rule 2): decided server-side at Finish — `dialed` alone never
+                earns this line, a personal best actually logged in the session does. */}
+            {recap.brag_earned && (
+              <View style={styles.bragRow}>
+                <Ionicons name="flash" size={13} color={Colors.achieverText} />
+                <Text style={styles.bragText}>You were feeling dialed — and the numbers backed it up.</Text>
+              </View>
+            )}
+
+            {clips.length > 0 && (
+              <>
+                <Text style={styles.clipsLabel}>Clips from this session</Text>
+                <View style={styles.clipsRow}>
+                  {clips.map((c) => (
+                    <GymClipThumbnail key={c.id} workoutSetId={c.id} size={72} />
+                  ))}
+                </View>
+              </>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   // width:'100%' matters here: the caller centers this component inside a flex column
-  // (alignItems:'center'), which shrink-wraps children that don't claim full width — without
-  // it every row below silently renders in a squeezed, content-sized box instead of the real
-  // screen width, which is what was causing "Bronze III" to wrap and the XP bar to look like
-  // a stub.
+  // (alignItems:'center'), which shrink-wraps children that don't claim full width.
   container: {
     flex: 1,
     width: '100%',
-    paddingTop: 18,
     paddingHorizontal: Spacing.three,
     paddingBottom: 14,
-    alignItems: 'center',
   },
-  // The recap group claims the leftover space above `bottom` and centers within it — same
-  // TOP/CENTER/BOTTOM technique as the running-session screen, so there's no dead gap.
-  recap: {
+  scroll: {
     flex: 1,
-    width: '100%',
+  },
+  scrollContent: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: Spacing.two,
+  },
+  flameWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flameGlow: {
+    position: 'absolute',
+  },
+  lockedInLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 2.5,
+    color: Colors.amber,
+    marginTop: 10,
+  },
+  dur: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 44,
+    letterSpacing: 1,
+    color: Colors.ink,
+    marginTop: 2,
+  },
+  goal: {
+    fontFamily: Fonts.body,
+    fontSize: 12.5,
+    color: Colors.muted,
+    marginTop: 2,
+  },
+  rankRow: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    marginTop: 22,
+  },
+  rankInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  rankTop: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  rankTier: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11.5,
+  },
+  rankXp: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11.5,
+    color: Colors.green,
+  },
+  bar: {
+    height: 8,
+    borderRadius: 5,
+    backgroundColor: Colors.disabled,
+    overflow: 'hidden',
+    marginTop: 6,
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 5,
+    backgroundColor: Colors.amber,
+  },
+  streak: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 14,
+  },
+  streakText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    // Brighter than the goal line above it — the streak is a result, not a caption.
+    color: Colors.coldChipText,
+  },
+  gymLine: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 12,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+  },
+  gymSummary: {
+    flex: 1,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.muted,
+  },
+  gymView: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11.5,
+    color: Colors.amber,
   },
   bottom: {
     width: '100%',
   },
-  top: {
-    alignItems: 'center',
+  // Explicit height: a horizontal ScrollView in a non-flex column otherwise collapses to nothing.
+  photoScroll: {
+    flexGrow: 0,
+    height: 54,
   },
-  done: {
-    fontFamily: Fonts.display,
-    fontSize: 19,
-    color: Colors.ink,
-    marginTop: 2,
-  },
-  goalChip: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    backgroundColor: Colors.achieverBg,
-    borderRadius: Radius.pill,
-    paddingVertical: 4,
-    paddingHorizontal: 11,
-  },
-  goalChipText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.achieverText,
-  },
-  dur: {
-    fontFamily: Fonts.display,
-    fontSize: 38,
-    letterSpacing: 1,
-    color: Colors.ink,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  durLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 1,
-    color: Colors.textTertiary,
-    marginTop: -2,
-  },
-  xpRow: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 18,
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 12,
-  },
-  badgeWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  xpCol: {
-    flex: 1,
-    minWidth: 0,
-  },
-  xpTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
-  xpTier: {
-    flexShrink: 0,
-    marginRight: Spacing.two,
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.muted,
-  },
-  xpTopRight: {
-    flexShrink: 1,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  xpPlus: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11.5,
-    color: Colors.achieverText,
-    marginRight: 6,
-  },
-  xpNum: {
-    fontFamily: Fonts.display,
-    fontSize: 11.5,
-    color: Colors.ink,
-  },
-  xpMax: {
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.muted,
-  },
-  trk: {
-    height: 8,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.disabled,
-    overflow: 'hidden',
-    marginTop: 7,
-  },
-  trkFill: {
-    height: '100%',
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.coral,
-  },
-  streak: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    marginTop: 10,
-  },
-  streakMain: {
-    flex: 1,
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.ink,
-  },
-  streakSub: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
-  },
-  photosLabel: {
-    alignSelf: 'flex-start',
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
-    marginTop: 14,
-    marginBottom: 7,
-  },
-  photosRow: {
-    alignSelf: 'stretch',
+  photoRow: {
     flexDirection: 'row',
     gap: 6,
   },
   photoThumb: {
-    width: 50,
-    height: 50,
-    borderRadius: 9,
+    width: 44,
+    height: 44,
+    borderRadius: 8,
     backgroundColor: Colors.disabled,
   },
-  setsList: {
-    alignSelf: 'stretch',
-    gap: 5,
+  // The mock's post card is one step up from its stage; this screen's stage is Colors.cream, so
+  // the elevated surface here is Colors.card and the note field insets back down to cream.
+  post: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  postTo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  postToLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.muted,
+  },
+  postToName: {
+    flex: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.ink,
+  },
+  change: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.textTertiary,
+  },
+  circleGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    marginBottom: 10,
+  },
+  circleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    maxWidth: 180,
+    borderRadius: Radius.pill,
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+  },
+  circleChipOn: {
+    borderColor: Colors.coral,
+    backgroundColor: Colors.selectedBg,
+  },
+  circleChipText: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.muted,
+  },
+  circleChipTextOn: {
+    color: Colors.achieverText,
+  },
+  // Flatter than the standalone field it replaced — inside the post card it reads as part of the
+  // card, not as a second input competing with it.
+  note: {
+    backgroundColor: Colors.cream,
+    borderWidth: 0,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    fontSize: 13,
+  },
+  cta: {
+    backgroundColor: Colors.coral,
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  ctaLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 15,
+    color: Colors.ink,
+  },
+  skip: {
+    alignSelf: 'center',
+    paddingVertical: Spacing.two,
+    marginTop: 3,
+  },
+  skipLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12.5,
+    color: Colors.textTertiary,
+  },
+  error: {
+    fontFamily: Fonts.body,
+    fontSize: 12.5,
+    color: Colors.coral,
+    textAlign: 'center',
+    marginBottom: Spacing.two,
+  },
+  // ───────────────────────── full gym recap sheet ─────────────────────────
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(9,7,14,0.55)',
+  },
+  sheet: {
+    maxHeight: '82%',
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 8,
+    paddingHorizontal: 15,
+    paddingBottom: Spacing.four,
+  },
+  grab: {
+    width: 36,
+    height: 4,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.trackAlt,
+    alignSelf: 'center',
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    marginBottom: 10,
+  },
+  sheetTitle: {
+    flex: 1,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 15,
+    color: Colors.ink,
+  },
+  sheetBody: {
+    gap: 6,
+    paddingBottom: Spacing.two,
   },
   setRow: {
     flexDirection: 'row',
@@ -602,7 +731,7 @@ const styles = StyleSheet.create({
   setText: {
     flex: 1,
     fontFamily: Fonts.body,
-    fontSize: 12,
+    fontSize: 12.5,
     color: Colors.muted,
   },
   prTag: {
@@ -620,7 +749,6 @@ const styles = StyleSheet.create({
     color: Colors.achieverText,
   },
   bragRow: {
-    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -632,120 +760,15 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: Colors.achieverText,
   },
-  routineLink: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 10,
-  },
-  routineLinkText: {
+  clipsLabel: {
     fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.amber,
-  },
-  routineSaveRow: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 6,
-    marginTop: 10,
-  },
-  routineNameInput: {
-    flex: 1,
-    paddingVertical: 9,
-    fontSize: 13,
-  },
-  routineSaveBtn: {
-    width: 42,
-    borderRadius: Radius.input,
-    backgroundColor: Colors.coral,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  routineSaveBtnDisabled: {
-    backgroundColor: Colors.disabled,
-  },
-  routineSavedText: {
-    alignSelf: 'flex-start',
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.muted,
-    marginTop: 10,
-  },
-  error: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.coral,
-    textAlign: 'center',
-    marginTop: Spacing.two,
-  },
-  postingLabel: {
-    alignSelf: 'stretch',
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.muted,
-    textAlign: 'center',
-    marginBottom: Spacing.two,
-  },
-  // design-mocks/18's `.cta`: full-width, radius 14, padding 14, #E0612C bg. Bespoke rather
-  // than the shared PrimaryButton since this needs a leading send icon (matching the other
-  // icon+label buttons already built bespoke throughout this same lock-in flow — Start
-  // lock-in, Stop lock-in). Label color is Colors.ink (not the mock's literal white) to match
-  // this app's established "coral bg -> cream text" precision, same as every other coral CTA.
-  circleRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    paddingVertical: 2,
-  },
-  circleChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    maxWidth: 180,
-    borderRadius: Radius.pill,
-    borderWidth: 1.5,
-    borderColor: Colors.line,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-  },
-  circleChipOn: {
-    borderColor: Colors.coral,
-    backgroundColor: Colors.selectedBg,
-  },
-  circleChipText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12.5,
-    color: Colors.muted,
-    flexShrink: 1,
-  },
-  circleChipTextOn: {
-    color: Colors.achieverText,
-  },
-  postBtnDisabled: {
-    opacity: 0.4,
-  },
-  postBtn: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.coral,
-    borderRadius: 14,
-    padding: 14,
-  },
-  postBtnLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
-    color: Colors.ink,
-  },
-  privateLink: {
-    alignSelf: 'stretch',
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
+    fontSize: 11,
     color: Colors.textTertiary,
-    textAlign: 'center',
-    marginTop: 10,
+    marginTop: 12,
+  },
+  clipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
   },
 });

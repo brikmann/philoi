@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChallengeCard } from '@/components/challenge-card';
 import { SpartanArmorEmpty } from '@/components/empty-states/spartan-armor-empty';
@@ -68,131 +68,131 @@ export default function ChallengesScreen() {
     router.push({ pathname: '/watch/[challengeId]', params: { challengeId, mode } });
   }
 
-  // Truly nothing at all — personal goals AND social challenges both empty. Mock 41's empty
-  // layout has no title bar and puts the CTA INSIDE the centered illustration column (not a
-  // persistent header button above it) — a meaningfully different layout from the populated
-  // state below, not just a conditional empty row inside the same FlatList.
-  const isEmpty = !loading && !socialLoading && socialChallenges.length === 0 && challenges.length === 0;
+  // Collapsed by default (punchlist 4E) — finished challenges are a record to go looking for, not
+  // something that should push live ones down the screen. Shared by both layouts: the footer of
+  // the populated list, and the block below the centered empty state when nothing is active but
+  // History still has entries.
+  const historySection =
+    historyCount > 0 ? (
+      <View style={styles.history}>
+        <Pressable
+          onPress={() => setHistoryOpen((v) => !v)}
+          style={styles.historyToggle}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: historyOpen }}
+          accessibilityLabel={`History, ${historyCount} finished`}>
+          <Text style={styles.historyLabel}>History</Text>
+          <Text style={styles.historyCount}>{historyCount}</Text>
+          <Ionicons name={historyOpen ? 'chevron-up' : 'chevron-down'} size={15} color={Colors.textTertiary} />
+        </Pressable>
 
-  if (isEmpty) {
-    return (
-      <Screen padded={false}>
-        <View style={styles.emptyScreen}>
-          <EmptyState
-            icon={<SpartanArmorEmpty />}
-            title="No challenges yet."
-            body="There's no battle. Challenge a friend, race your Campfire, or set a personal goal to see who burns brightest."
-            action={
-              <Pressable style={styles.emptyCta} onPress={() => router.push('/challenge/create')}>
-                <Text style={styles.emptyCtaLabel}>Start a challenge</Text>
+        {historyOpen && (
+          <View style={styles.historyList}>
+            {/* Finished duels/group races ARE tappable now — the watch RPCs accept
+                completed/expired (migration 0056), so this opens the final standings. */}
+            {pastSocial.map((c) => (
+              <Pressable key={c.id} onPress={() => goWatch(c.id, c.mode)}>
+                <SocialChallengeCard challenge={c} myUserId={session?.user.id ?? ''} onChanged={refetchSocial} />
               </Pressable>
-            }
-          />
-        </View>
-      </Screen>
-    );
-  }
+            ))}
+            {completed.map((item) => (
+              <ChallengeCard
+                key={item.id}
+                challenge={item}
+                autoConnected={fitnessConnected}
+                onLogged={handleLogged}
+                onDeleted={() => handleDelete(item.id)}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+    ) : null;
+
+  // Nothing live to race — either the tab is brand new, or everything finished and moved into
+  // History. Both get mock 41's empty layout: no title bar, and the CTA INSIDE the centered
+  // illustration column (not a persistent header button above it) so it lands directly under the
+  // body copy. Header-at-top over a CTA-above-the-empty-text read broken (punchlist 6, ex-5.3).
+  const hasActive = liveSocial.length > 0 || sections.length > 0;
+  const nothingAtAll = socialChallenges.length === 0 && challenges.length === 0;
+  // Still fetching keeps the populated chrome — flashing the empty layout for a frame and then
+  // yanking it back is worse than a briefly-bare list.
+  const showEmpty = !loading && !socialLoading && !hasActive;
 
   return (
     <Screen padded={false}>
-      <TabHeader title="Challenges" />
+      {!showEmpty && <TabHeader title="Challenges" />}
+      {/* Hoisted above the branch on purpose: completing your last active goal flips this screen
+          into the empty layout mid-animation, and a burst mounted inside either branch would be
+          unmounted by that flip. Held at a stable child position so it survives the swap. */}
       {celebrating && <RewardBurst ref={rewardBurstRef} cue="settle" />}
-      <FlatList
-        data={sections}
-        keyExtractor={(item: Challenge) => item.id}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={loading || socialLoading}
-            onRefresh={() => {
-              refetch();
-              refetchSocial();
-            }}
-            tintColor={Colors.coral}
-          />
-        }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <PrimaryButton label="Start a challenge" onPress={() => router.push('/challenge/create')} />
-            {error && <Text style={styles.error}>{error}</Text>}
-
-            {liveSocial.length > 0 && (
-              <View style={styles.socialList}>
-                {liveSocial.map((c) => {
-                  // A pending invite's own Accept/Decline buttons are the only tap targets on
-                  // that card — wrapping it would swallow them.
-                  const watchable = c.status === 'active';
-                  return (
-                    <Pressable key={c.id} onPress={watchable ? () => goWatch(c.id, c.mode) : undefined}>
-                      <SocialChallengeCard challenge={c} myUserId={session?.user.id ?? ''} onChanged={refetchSocial} />
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* Nothing live, but something in History — the truly-empty case returns the full
-                mock-41 layout earlier, so reaching here with nothing active means the tab would
-                otherwise be a button over a half-screen of dead space (punchlist 5.3). */}
-            {liveSocial.length === 0 && sections.length === 0 && (
-              <View style={styles.noActive}>
-                <EmptyState
-                  icon={<SpartanArmorEmpty />}
-                  title="No active challenges"
-                  body={
-                    historyCount > 0
-                      ? 'Race a friend or set a personal goal — the ones you’ve finished are in History below.'
-                      : 'Race a friend or set a personal goal to get one going.'
-                  }
-                />
-              </View>
-            )}
-
-            {sections.length > 0 && <Text style={styles.sectionLabel}>Personal goals</Text>}
+      {showEmpty ? (
+        // Scrolls rather than flexes so an expanded History can't push the empty block off-screen;
+        // flexGrow keeps that block centered in the leftover space while History is collapsed.
+        <ScrollView contentContainerStyle={styles.emptyScroll}>
+          <View style={styles.emptyScreen}>
+            <EmptyState
+              icon={<SpartanArmorEmpty />}
+              title={nothingAtAll ? 'No challenges yet.' : 'No active challenges'}
+              body={
+                historyCount > 0
+                  ? 'Race a friend or set a personal goal — your finished ones are in History below.'
+                  : "There's no battle. Challenge a friend, race your Campfire, or set a personal goal to see who burns brightest."
+              }
+              action={
+                <Pressable style={styles.emptyCta} onPress={() => router.push('/challenge/create')}>
+                  <Text style={styles.emptyCtaLabel}>Start a challenge</Text>
+                </Pressable>
+              }
+            />
           </View>
-        }
-        renderItem={({ item }) => (
-          <ChallengeCard challenge={item} autoConnected={fitnessConnected} onLogged={handleLogged} onDeleted={() => handleDelete(item.id)} />
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
-        ListFooterComponent={
-          historyCount > 0 ? (
-            <View style={styles.history}>
-              <Pressable
-                onPress={() => setHistoryOpen((v) => !v)}
-                style={styles.historyToggle}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: historyOpen }}
-                accessibilityLabel={`History, ${historyCount} finished`}>
-                <Text style={styles.historyLabel}>History</Text>
-                <Text style={styles.historyCount}>{historyCount}</Text>
-                <Ionicons name={historyOpen ? 'chevron-up' : 'chevron-down'} size={15} color={Colors.textTertiary} />
-              </Pressable>
+          {historySection}
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={sections}
+          keyExtractor={(item: Challenge) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading || socialLoading}
+              onRefresh={() => {
+                refetch();
+                refetchSocial();
+              }}
+              tintColor={Colors.coral}
+            />
+          }
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <PrimaryButton label="Start a challenge" onPress={() => router.push('/challenge/create')} />
+              {error && <Text style={styles.error}>{error}</Text>}
 
-              {historyOpen && (
-                <View style={styles.historyList}>
-                  {/* Finished duels/group races ARE tappable now — the watch RPCs accept
-                      completed/expired (migration 0056), so this opens the final standings. */}
-                  {pastSocial.map((c) => (
-                    <Pressable key={c.id} onPress={() => goWatch(c.id, c.mode)}>
-                      <SocialChallengeCard challenge={c} myUserId={session?.user.id ?? ''} onChanged={refetchSocial} />
-                    </Pressable>
-                  ))}
-                  {completed.map((item) => (
-                    <ChallengeCard
-                      key={item.id}
-                      challenge={item}
-                      autoConnected={fitnessConnected}
-                      onLogged={handleLogged}
-                      onDeleted={() => handleDelete(item.id)}
-                    />
-                  ))}
+              {liveSocial.length > 0 && (
+                <View style={styles.socialList}>
+                  {liveSocial.map((c) => {
+                    // A pending invite's own Accept/Decline buttons are the only tap targets on
+                    // that card — wrapping it would swallow them.
+                    const watchable = c.status === 'active';
+                    return (
+                      <Pressable key={c.id} onPress={watchable ? () => goWatch(c.id, c.mode) : undefined}>
+                        <SocialChallengeCard challenge={c} myUserId={session?.user.id ?? ''} onChanged={refetchSocial} />
+                      </Pressable>
+                    );
+                  })}
                 </View>
               )}
+
+              {sections.length > 0 && <Text style={styles.sectionLabel}>Personal goals</Text>}
             </View>
-          ) : null
-        }
-      />
+          }
+          renderItem={({ item }) => (
+            <ChallengeCard challenge={item} autoConnected={fitnessConnected} onLogged={handleLogged} onDeleted={() => handleDelete(item.id)} />
+          )}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
+          ListFooterComponent={historySection}
+        />
+      )}
     </Screen>
   );
 }
@@ -214,14 +214,6 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     marginTop: Spacing.four,
   },
-  // Bounded, not flex:1 — this sits inside the FlatList header above the History section, so it
-  // has to take its own natural height rather than claim the whole viewport.
-  noActive: {
-    paddingTop: Spacing.four,
-    paddingBottom: Spacing.two,
-  },
-  // Collapsed by default (punchlist 4E) — finished challenges are a record to go looking for,
-  // not something that should push live ones down the screen.
   history: {
     marginTop: Spacing.two,
   },
@@ -256,8 +248,18 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     color: Colors.coral,
   },
+  // Matches listContent's gutters so History lines up whichever layout it's rendered under.
+  emptyScroll: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.four,
+    paddingBottom: Spacing.six,
+  },
+  // flexGrow, not flex:1 — flex's flexBasis:0 lets an expanded History squeeze this to nothing
+  // once the two together overflow the viewport. Grow-only fills the leftover space when History
+  // is collapsed and keeps its natural height when it isn't.
   emptyScreen: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

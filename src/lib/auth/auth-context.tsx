@@ -147,11 +147,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     needsAccountDisabled: Boolean(session && profile && profile.is_disabled),
     refreshProfile: async () => loadProfileFor(session?.user),
     signOut: async () => {
-      if (session?.user.id) await unregisterPushToken(session.user.id);
+      const userId = session?.user.id;
+      // Drop the local session/profile BEFORE any of the awaits below (punchlist 6 §1). The
+      // previous account's row — university_email_verified in particular — must never be
+      // readable by a screen rendered after sign-out, and every call here is a network call
+      // that can be slow or fail outright, which is exactly how a stale "You're verified at
+      // {school}" panel survived into the next session.
+      setSession(null);
+      setProfile(null);
+      if (userId) await unregisterPushToken(userId);
       // Clear the native Google session too — otherwise the SDK's cached account survives
       // sign-out and "Continue with Google" logs straight back in with no account picker.
       await signOutGoogle();
-      await supabase.auth.signOut();
+      // Callers fire this and forget (there's no confirmation step anymore), so swallow rather
+      // than leave an unhandled rejection: the local state above is already gone, which is what
+      // the user asked for, and the stored session is cleared by supabase-js regardless.
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) console.warn('[auth] sign-out call failed:', signOutError);
     },
   };
 

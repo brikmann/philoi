@@ -5,7 +5,9 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ChallengeManageSheet } from '@/components/challenge-manage-sheet';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { PublicTitle } from '@/components/economy/loadout-bits';
 import { Avatar } from '@/components/ui/avatar';
+import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { cancelSocialChallenge, respondToH2HChallenge } from '@/lib/api/social-challenges';
 import { getErrorMessage } from '@/lib/errors';
 import { formatSessionDuration, formatTimeLeft } from '@/lib/format';
@@ -24,6 +26,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
   const isOutgoingPending = c.mode === 'h2h' && c.status === 'pending' && c.created_by === myUserId;
   const isMine = c.created_by === myUserId;
   const otherId = isMine ? c.opponent_id : c.created_by;
+  const oppLoadout = usePublicLoadout(otherId);
   const otherName = isMine ? (c.opponent_name ?? 'them') : c.created_by_name;
 
   function handleRematch() {
@@ -156,6 +159,9 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
               <Avatar label={otherName ?? '?'} size={40} textColor={Colors.sky} />
             </View>
             <Text style={styles.matchName} numberOfLines={1}>{otherName}</Text>
+            {/* Your opponent's equipped title — a 1v1 header is exactly where a "Final Boss" or a
+                season placement title is supposed to land (21j / mock 64). */}
+            <PublicTitle loadout={oppLoadout} compact />
             <Text style={[styles.matchScore, { color: Colors.sky }]}>{fmtScore(oppScore)}</Text>
           </View>
         </View>

@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { FITNESS_SYNC_ENABLED } from '@/constants/feature-flags';
 
 const STEPS = 'Steps';
+const SLEEP_SESSION = 'SleepSession';
 
 // Google Health Connect — device-verified steps on Android (PHILOI_UI_SPEC.md §17). READ-ONLY:
 // every permission requested below is `{ accessType: 'read' }`, never 'write' — same guarantee
@@ -96,4 +97,45 @@ export async function getStepsBetween(startDate: Date, endDate: Date): Promise<n
     timeRangeFilter: { operator: 'between', startTime: startDate.toISOString(), endTime: endDate.toISOString() },
   });
   return result.COUNT_TOTAL ?? 0;
+}
+
+/** Read-only sleep access. Separate from steps so a steps goal never asks for sleep. */
+export async function requestSleepAuthorization(): Promise<boolean> {
+  const availability = await getHealthConnectAvailability();
+  if (availability === 'not_installed') {
+    throw new Error('Health Connect isn’t set up on this phone. Install it from the Play Store, then try again.');
+  }
+  if (availability === 'needs_update') {
+    throw new Error('Health Connect needs updating before Philoi can read your sleep. Update it in the Play Store, then try again.');
+  }
+  if (availability !== 'available') return false;
+
+  const hc = healthConnect();
+  await ensureInitialized();
+  const granted = await hc.requestPermission([{ accessType: 'read', recordType: SLEEP_SESSION }]);
+  return granted.some((p) => p.recordType === SLEEP_SESSION && p.accessType === 'read');
+}
+
+/**
+ * Total hours asleep in [startDate, endDate], aggregated on-device by Health Connect itself.
+ *
+ * Unlike HealthKit this needs no stage filtering — Health Connect's SLEEP_DURATION_TOTAL already
+ * excludes awake periods within a session, so the app gets one number and never sees the stages.
+ */
+export async function getSleepHoursBetween(startDate: Date, endDate: Date): Promise<number> {
+  if (!isHealthConnectSupported()) return 0;
+  const hc = healthConnect();
+  await ensureInitialized();
+  const result = await hc.aggregateRecord({
+    recordType: SLEEP_SESSION,
+    timeRangeFilter: { operator: 'between', startTime: startDate.toISOString(), endTime: endDate.toISOString() },
+  });
+  // Returned as an ISO-8601 duration string in some versions and as seconds in others; both are
+  // handled rather than guessing, since a wrong unit here is a 3600x error in a user's goal.
+  const total = (result as { SLEEP_DURATION_TOTAL?: number | string }).SLEEP_DURATION_TOTAL;
+  if (total == null) return 0;
+  if (typeof total === 'number') return total / 3600;
+  const match = /^PT(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?$/.exec(total);
+  if (!match) return 0;
+  return Number(match[1] ?? 0) + Number(match[2] ?? 0) / 60 + Number(match[3] ?? 0) / 3600;
 }

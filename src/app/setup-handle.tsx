@@ -60,7 +60,6 @@ export default function SetupHandleScreen() {
   // for the ~20 cached schools; anything else falls back to Hipolabs in the background.
   const [universityDomain, setUniversityDomain] = useState<string | null>(profile?.university_domain ?? null);
   const [resolvingDomain, setResolvingDomain] = useState(false);
-  const [justVerified, setJustVerified] = useState(false);
 
   const [ageChecked, setAgeChecked] = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
@@ -102,6 +101,12 @@ export default function SetupHandleScreen() {
   const notListed = universityQuery.trim().length > 0 && !universities.some((u) => u.toLowerCase() === universityQuery.trim().toLowerCase());
   const canContinueStep2 = Boolean(university) || notListed;
   const canContinueStep3 = ageChecked && termsChecked;
+
+  // Strictly the live server flag (punchlist 6 §1) — there is no local "just verified" state to
+  // go stale. The school has to match too: the flag on the profile belongs to the school stored
+  // WITH it, so a user who backs up and picks a different school at step 2 must see the verify
+  // form for the new one, not a badge earned at the old one.
+  const campusVerified = Boolean(profile?.university_email_verified && profile?.university === university);
 
   // Only the cached schools can show a domain without a network call. Anything else shows "—",
   // which is honest: we don't know it yet, and it's resolved on select if Hipolabs does.
@@ -313,7 +318,7 @@ export default function SetupHandleScreen() {
       {/* OPTIONAL campus verification (§5). Only ever reached when the school has a domain. */}
       {step === 3 && university && universityDomain && (
         <View style={styles.step}>
-          {justVerified ? (
+          {campusVerified ? (
             <CampusVerifiedPanel
               university={shortSchoolName(university)}
               onContinue={() => setStep(4)}
@@ -327,7 +332,6 @@ export default function SetupHandleScreen() {
               onSkip={() => setStep(4)}
               onVerified={async () => {
                 await refreshProfile();
-                setJustVerified(true);
               }}
             />
           )}

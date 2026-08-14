@@ -12,7 +12,7 @@ The component already splits `isDivisionBump` vs tier crossing. Add a **third, r
 
 | Level | When | Feel | Duration |
 |---|---|---|---|
-| **Division bump** | III→II→I *within* a tier | Quick, satisfying: the shared tier wash (lighter, ~0.5), metallic sweep, light haptic, soft chime. **NO copy** (§5) | ~1.5s |
+| **Division bump** | III→II→I *within* a tier | The incineration (fuse-in → hellfire burns a numeral off) + **the tier's own rank-up hit** lands as the new division locks, light haptic. **NO copy** (§5) | ~1.5s |
 | **Tier crossing** | `X I → Y III` (tier *type* changes) | Full: badge morphs old→new, the new tier's bespoke motif + `TIER_FLASH_KIND` particles, heavier wash (~0.7), medium+success haptic, tier rank-up SFX, share offered | ~3s |
 | **Band crossing** ✦ new | **Only two moments:** `Diamond I → Hero III` (enter the Realm of Legend) and `Immortal I → Primordial` (the apex) | Cinematic: an extra framing beat + the grand treatment, hardest wash (0.9), heavy haptic sequence, **Victory Anthem**, share surfaced prominently | ~4–5s |
 
@@ -116,3 +116,62 @@ showRankUp({ tier: 'primordial', division: 1, isDivisionBump: false, isBandCross
 
 - JS only → OTA. No migration, no native.
 - Force via **dev-tools** each of the 10 tiers AND each escalation level: a division bump, a tier crossing, and both band crossings (Diamond I→Hero III, Immortal I→Primordial). Confirm: correct motif/color, Primordial = full fire + no numeral, Victory Anthem *only* on the two band crossings, share auto-surfaces on band crossings, reduce-motion path is clean.
+
+---
+
+## 9 · Canonical moment reference — `design-mocks/85-rankup-moment.html`
+
+**Build to mock 85.** It runs the full moment end-to-end WITH the real repo audio synced to each beat,
+then settles into the share card — so animation, audio, and card are one coherent thing. Companions:
+mock 83 (signatures + incineration in isolation), mock 84 (all share cards).
+
+**The arc (every tier crossing):** the badge enters with the tier's **signature move**, and the tier
+**HIT lands on the flare and RINGS OUT** (don't cut it short — let it ring into the moment) → at ~2.2s the
+frame **settles into the share card** (Philoi brand, tag, tier name, all-caps line, `@handle · rank`,
+drifting embers, Share CTA), the hit still ringing under it. **No generic riser** — the tier hit *is* the
+punch (the cinematic riser had a different sound profile and clashed with the hits).
+**Band crossings** don't use the generic riser — their **ascension/transcension track *is* the build**:
+it starts in the pre-beat (Hero after the shatter+0.3s silence; Primordial as the void collapses) and
+**builds across the whole sequence, climaxing at the crest** (war-horn on Hero's crest slam; the plasma
+drop on Primordial's emblem).
+
+| Tier | Signature move | Audio (file · timing) | Card tag |
+|---|---|---|---|
+| Silver | blade-slash streak reveal | `rankup-silver` (sword unsheathe) · hit on flare | RANK UP |
+| Gold | crown descent + coin rain | `rankup-gold` · hit on flare | RANK UP |
+| Platinum | crystallize + frost shimmer | `rankup-platinum` · hit, rings out | RANK UP |
+| Diamond | pressure-forge + prism glints | `rankup-diamond` · hit on flare | RANK UP |
+| **Hero** (band) | diamond shatter → whiteout **crimson pillar breaks through** → crest **slam + shockwave** | `ascension-hero.mp3` — **diamond-shatter break-through → the FULL Champions Anthem (~83s), plays entirely ONCE** (like Primordial — Hero is the *first* transcension moment, so it gets the full anthem, uncut, not looped). NOTE: this reuses the Champions Anthem that's also the `sfx-victory-anthem` cosmetic — swap in a dedicated Hero track if one gets sourced. | ⚔ ASCENDED |
+| Titan | colossal slam + screen-shake + falling debris | `rankup-titan` — needs an **audible boom** (pure rumble is inaudible on phone) | RANK UP |
+| Olympian | slow bloom + god-rays | `rankup-olympian-v2.mp3` — RAW anthemic mix, choir + deep foghorn **notes HELD out** (sustained/legato) + sub-bass; the gods welcoming you, NOT fairy/fanfare | RANK UP |
+| Immortal | ethereal rise + ghost-wisps + lingering aura | `rankup-immortal` (rings out) + `rankup-immortal-souls-v2.mp3` **layered under, PROMINENT** (~0.85 vol) with a **slow fade-out that ends on the same beat as the chime** (no abrupt cut) | RANK UP |
+
+> **Asset cleanup — DONE.** The `-v2` mixes have been promoted to `rankup-olympian.mp3` and
+> `rankup-immortal-souls.mp3` (the read-only originals were deleted), and the stale
+> `ascension-primordial.mp3` Atum stand-in is gone. `sound.ts` points at the canonical names.
+| **Primordial** (band) | void collapse (converging dark-matter particles) → cosmic tear **rips open then SEALS shut** (never leaves a persistent beam on screen/card) → **emblem COALESCES in** (blur+scale, forms *out of* the particles — must NOT bouncy-pop, that reads choppy) → aura + fire | `transcension-primordial.mp3` — the **FULL Atum "primordial waters" track, UNCUT (~3.5 min), plays entirely ONCE** (never looped, never trimmed). The apex is a once-ever monumental moment (~500 hrs to reach) — the whole anthem sings for you while the emblem + aura hold; the celebration can be dismissed (which stops the audio), but let it play if they stay. | 🔥 PRIMORDIAL |
+
+> **Audio wiring — DONE.** `ASCENSION_SOURCES` in `sound.ts` is live: `ascension-hero` →
+> `ascension-hero.mp3`, `ascension-primordial` → **`transcension-primordial.mp3`**. Both players are
+> explicitly `loop = false`. The celebration starts the anthem in the pre-beat
+> (`startAscensionAnthem`) and `fireRankUp` holds its tier hit back whenever an anthem is carrying
+> the crest, so the two never fight; dismissing the celebration calls `stopRankUpAudio()`, which is
+> the only thing that ever cuts one short.
+>
+> **Superseded by §9 in the build:** (a) there is no riser anywhere in the moment — the cue, the
+> asset wiring and `start/stopRankUpRiser` are gone; the tier hit is the punch. (b) The §1
+> band-crossing *framing card* was replaced by the mock's cinematic pre-beat (shatter → pillar;
+> void → tear) — the same `hero`/`primordial` copy now lands on the composed share card under the
+> ⚔ ASCENDED / 🔥 PRIMORDIAL tag, so it's still one source with no duplication. Under reduce-motion
+> the moment cross-fades straight to that composed card, which is where the static copy shows.
+
+**Intra-division bump (supersedes the old "no moment" note):** white-ray **fuse-in** (loot-box style,
+`whoosh`) → badge forges in → **godly hellfire incinerates the top numeral stroke** (`ignite`) → the
+burned stroke's **width collapses so the remaining marks recenter** (center-anchored) → **the tier's own
+rank-up hit lands** as the new division locks (e.g. Gold II→I plays the Gold hit, ~0.9 vol) → settles into
+a lighter **🔥 DIVISION UP** share card (badge shows the new division e.g. *Gold II*, a light two-line, no
+big epic copy — that stays reserved for tier crossings).
+
+**Playback note:** do **NOT** clip the tier hits — let each ring out fully (they fire on the flare, so a
+long tail rings *under* the settling card, which is the point). Titan's audio still needs an audible
+transient (a pure rumble is inaudible on a phone). Silver = sword unsheathe (done).

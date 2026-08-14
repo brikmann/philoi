@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CampusVerification, CampusVerifiedPanel } from '@/components/campus-verification';
@@ -27,6 +27,17 @@ export default function CampusScreen() {
   const university = profile?.university ?? null;
   const domain = profile?.university_domain ?? null;
   const verified = profile?.university_email_verified ?? false;
+
+  // Re-read the profile every time this screen comes into focus (punchlist 6 §1) so `verified`
+  // is always the server's answer, never a value cached from an earlier session or account.
+  useFocusEffect(
+    useCallback(() => {
+      refreshProfile();
+      // refreshProfile is rebuilt on every AuthProvider render AND it setStates the profile, so
+      // listing it would make this focus effect re-fire on its own result, forever.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
 
   useEffect(() => {
     if (!changingSchool) return;
@@ -95,7 +106,12 @@ export default function CampusScreen() {
           </>
         ) : verified ? (
           <>
-            <CampusVerifiedPanel university={shortSchoolName(university)} />
+            <CampusVerifiedPanel
+              university={shortSchoolName(university)}
+              onContinue={() => router.back()}
+              continueLabel="Done"
+              showChangeHint={false}
+            />
             <View style={styles.emailRow}>
               <Ionicons name="mail" size={14} color={Colors.muted} />
               <Text style={styles.emailText} numberOfLines={1}>

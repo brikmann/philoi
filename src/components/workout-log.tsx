@@ -7,6 +7,7 @@ import { ExercisePicker } from '@/components/exercise-picker';
 import { GymClipCaptureButton } from '@/components/gym-clip-capture-button';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { saveWorkoutAsRoutine } from '@/lib/api/gym';
 import { getErrorMessage } from '@/lib/errors';
 import { fireConfirm, fireLightTap } from '@/lib/reward-feedback';
 import type { ActiveWorkout, ActiveWorkoutExercise, Exercise, WorkoutSet, WorkoutSetClipRefs } from '@/types/database';
@@ -79,6 +80,31 @@ export function WorkoutLog({
   const [replacingId, setReplacingId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "Routines build from memory" (§23). This used to be offered on the done screen; punchlist 6
+  // §3 moved it here, where the lifts are on screen in front of you and it isn't competing with
+  // the recap for attention. Only for a freestyle session — re-saving a routine you just
+  // followed would only duplicate it.
+  const [routineName, setRoutineName] = useState('');
+  const [namingRoutine, setNamingRoutine] = useState(false);
+  const [savingRoutine, setSavingRoutine] = useState(false);
+  const [routineSaved, setRoutineSaved] = useState(false);
+  const canSaveRoutine = workout.exercises.length > 0 && !workout.routine_name && !routineSaved;
+
+  async function handleSaveRoutine() {
+    const trimmed = routineName.trim();
+    if (!trimmed || savingRoutine) return;
+    setSavingRoutine(true);
+    setError(null);
+    try {
+      await saveWorkoutAsRoutine(workout.id, trimmed);
+      setRoutineSaved(true);
+      setNamingRoutine(false);
+    } catch (e) {
+      setError(getErrorMessage(e, 'Could not save that as a routine.'));
+    } finally {
+      setSavingRoutine(false);
+    }
+  }
 
   function draftsFor(exercise: ActiveWorkoutExercise): Draft[] {
     return drafts[exercise.id] ?? [defaultDraft(exercise)];
@@ -390,6 +416,36 @@ export function WorkoutLog({
         <Text style={styles.addExerciseLabel}>Add exercise</Text>
       </Pressable>
 
+      {canSaveRoutine &&
+        (namingRoutine ? (
+          <View style={styles.routineSaveRow}>
+            <TextInput
+              style={styles.routineNameInput}
+              value={routineName}
+              onChangeText={setRoutineName}
+              placeholder="Name this routine"
+              placeholderTextColor={Colors.textTertiary}
+              maxLength={40}
+              autoFocus
+              accessibilityLabel="Routine name"
+            />
+            <Pressable
+              onPress={handleSaveRoutine}
+              disabled={savingRoutine || routineName.trim().length === 0}
+              style={[styles.routineSaveBtn, routineName.trim().length === 0 && styles.routineSaveBtnDisabled]}
+              accessibilityLabel="Save routine">
+              <Ionicons name="checkmark" size={16} color={Colors.ink} />
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable onPress={() => setNamingRoutine(true)} style={styles.routineLink} hitSlop={6}>
+            <Ionicons name="bookmark-outline" size={12} color={Colors.amber} />
+            <Text style={styles.routineLinkText}>Save this as a routine</Text>
+          </Pressable>
+        ))}
+
+      {routineSaved && <Text style={styles.routineSavedText}>Saved — it&apos;ll be there next time.</Text>}
+
       <ExercisePicker
         visible={addOpen || replacingId !== null}
         title={replacingId ? 'Replace with…' : 'Add exercise'}
@@ -601,6 +657,50 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12.5,
     color: Colors.amber,
+  },
+  routineLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  routineLinkText: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.amber,
+  },
+  routineSaveRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 6,
+  },
+  routineNameInput: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    borderRadius: Radius.input,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.ink,
+  },
+  routineSaveBtn: {
+    width: 42,
+    borderRadius: Radius.input,
+    backgroundColor: Colors.coral,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  routineSaveBtnDisabled: {
+    backgroundColor: Colors.disabled,
+  },
+  routineSavedText: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.muted,
+    textAlign: 'center',
   },
   empty: {
     fontFamily: Fonts.body,

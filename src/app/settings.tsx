@@ -145,11 +145,11 @@ export default function SettingsScreen() {
     setMyPhotoVisibility(next).catch(() => setPhotoVisibility(previous));
   }
 
+  // No confirmation step (punchlist 6 §2) — signing out is cheap and fully reversible (nothing
+  // is deleted; "Delete account" below is the destructive one and keeps its own confirm), so the
+  // tap signs out directly and the auth gate lands them on the entry page.
   function handleSignOut() {
-    Alert.alert('Sign out of Philoi?', 'Your campfires and progress stay saved — you can sign back in anytime.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: signOut },
-    ]);
+    signOut();
   }
 
   async function handleConfirmDelete() {

@@ -1,0 +1,58 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ember graphic — mock 86</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:26px}
+h1{font-size:17px;margin:0 0 3px}.sub{color:#9f92b6;font-size:12px;margin:0 0 20px;max-width:560px;line-height:1.5}
+.row{display:flex;gap:34px;flex-wrap:wrap;align-items:center}
+.card{background:#1b1726;border:1px solid #241c38;border-radius:16px;padding:20px 22px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{color:#a99cbd;font-size:11px;text-align:center}
+.chip{display:inline-flex;align-items:center;gap:7px;background:#20182f;border-radius:999px;padding:8px 14px;font-size:15px;font-weight:800;color:#FFD27A}
+.cost{display:inline-flex;align-items:center;gap:6px;font-size:16px;font-weight:800;color:#F2A33C}
+.reward{display:flex;flex-direction:column;align-items:center;gap:10px}
+.reward .t{font-size:13px;font-weight:800;color:#FFD27A;letter-spacing:.5px}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <radialGradient id="core" cx="50%" cy="42%" r="60%">
+    <stop offset="0" stop-color="#FFF3D6"/><stop offset="35%" stop-color="#FFD27A"/>
+    <stop offset="68%" stop-color="#F2A33C"/><stop offset="100%" stop-color="#E0612C"/>
+  </radialGradient>
+  <linearGradient id="coal" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#5a2a12"/><stop offset="100%" stop-color="#2a0f06"/>
+  </linearGradient>
+  <!-- the reusable ember token: a live coal, dark charred rim, glowing hollow core -->
+  <symbol id="ember" viewBox="0 0 48 54">
+    <path d="M24 2 C33 8 45 14 44 28 C43 42 34 52 24 52 C14 52 5 42 4 28 C3 14 15 8 24 2 Z" fill="url(#coal)"/>
+    <path d="M24 9 C31 14 39 18 38 29 C37 40 31 47 24 47 C17 47 11 40 10 29 C9 18 17 14 24 9 Z" fill="url(#core)"/>
+    <path d="M24 16 C29 20 33 23 32.5 30 C32 38 28 42 24 42 C20 42 16 38 15.5 30 C15 23 19 20 24 16 Z" fill="#FFF1CE" opacity=".8"/>
+    <g stroke="#7a3410" stroke-width="1.1" opacity=".5" fill="none" stroke-linecap="round">
+      <path d="M24 6 L24 13"/><path d="M40 24 L34 26"/><path d="M8 24 L14 26"/>
+    </g>
+  </symbol>
+</defs></svg>
+
+<h1>🪨 Ember graphic — replaces the 🔥 emoji</h1>
+<p class="sub">A live coal / ember token: charred rim, glowing hollow core. Used everywhere embers appear — the balance chip, box costs, salvage payouts, ember packs, and the daily-fire "collect your ember" reward. Ships as a single SVG/component that recolors + scales; swap every `🔥` used as the ember symbol for this.</p>
+
+<div class="row">
+  <div class="card">
+    <svg width="120" height="135"><use href="#ember"/></svg>
+    <div class="cap"><b style="color:#FFD27A">The ember</b><br>the collectible / hero</div>
+  </div>
+
+  <div class="card">
+    <div class="reward">
+      <div class="t">DAILY FIRE COMPLETE</div>
+      <svg width="86" height="97"><use href="#ember"/></svg>
+      <div style="font-size:13px;color:#c8bcdd">+1 ember collected</div>
+    </div>
+    <div class="cap">Daily-fire reward (was a flame emoji)</div>
+  </div>
+
+  <div class="card">
+    <span class="chip"><svg width="18" height="20"><use href="#ember"/></svg> 9,999,999</span>
+    <div class="cost"><svg width="16" height="18"><use href="#ember"/></svg> 1,200</div>
+    <div class="cap">Balance chip (top-right) + box/item cost inline</div>
+  </div>
+</div>

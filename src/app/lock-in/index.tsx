@@ -50,6 +50,7 @@ import { shareFireCompleteStory } from '@/lib/fire-share-card';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
 import { deriveRankUpLevel } from '@/lib/rank-watch';
 import { isRankUp } from '@/lib/rank-tiers';
+import { playEquippedSfx, stopEquippedAmbient } from '@/lib/economy/equipped-audio';
 import { fireIgnite } from '@/lib/reward-feedback';
 import { shareCardImage } from '@/lib/share-card';
 import { isFirstLockInTutorialDone, markFirstLockInTutorialDone } from '@/lib/tutorial';
@@ -423,6 +424,13 @@ function LockInScreen() {
         photoUris: photos.map((p) => p.uri),
       });
 
+      // The session's closing beat (PUNCHLIST_12/13). Order matters: the ambient loop is torn down
+      // FIRST so the sting lands in silence rather than fighting a bonfire crackle that's still
+      // running. LoadoutSync would stop the loop anyway once activeSession clears, but that's a
+      // render away — too late for a sting firing on this tick.
+      stopEquippedAmbient();
+      playEquippedSfx('sfx_stop');
+
       // The gym log was already persisted set-by-set; stop_lock_in_session bound it to this
       // check-in and rolled it up, so this reads back the finished summary (including whether
       // the "dialed" brag was actually earned — see §23's honest-brag rule).
@@ -546,6 +554,7 @@ function LockInScreen() {
           fromTier={rankUpInfo.fromTier}
           fromDivision={rankUpInfo.fromDivision}
           streakDays={rankUpInfo.streakDays}
+          handle={profile?.handle ?? null}
           // Same derivation the global watcher uses (RANKUP_SPEC §6) — a stop that crosses into
           // the Realm of Legend or the apex gets the cinematic here too, not just via the watcher.
           isBandCrossing={
@@ -561,10 +570,11 @@ function LockInScreen() {
         <View style={styles.offscreenCard} pointerEvents="none">
           <RankUpShareCard
             ref={rankCardRef}
-            displayName={profile?.display_name ?? 'You'}
+            handle={profile?.handle ?? null}
             tier={rankUpInfo.tier}
             division={rankUpInfo.division}
             streakDays={rankUpInfo.streakDays}
+            isDivisionBump={rankUpInfo.fromTier === rankUpInfo.tier}
             circleName={doneCircleName}
           />
         </View>

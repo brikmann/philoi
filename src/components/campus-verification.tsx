@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
+import { Avatar } from '@/components/ui/avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { CampusVerificationError, sendCampusCode, verifyCampusCode } from '@/lib/api/campus-verification';
+import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import { formatHintFor } from '@/lib/universities';
 
@@ -214,49 +217,103 @@ export function CampusVerification({
   );
 }
 
-// The unlocked state (mock 75D) — shown once verification lands, in onboarding and as the
-// Settings "Campus" row's success view.
+// The green of the verified state, brighter than the semantic Colors.green so the badge ring,
+// the school name and the "✓ UNLOCKED" labels read as lit rather than merely "success" —
+// design-mocks/82-verified.html's #4FD98A / #5FE39B.
+const VERIFIED_RING = '#4FD98A';
+const VERIFIED_TEXT = '#5FE39B';
+/** Near-white with a green cast — text sitting ON the verified green surfaces. */
+const VERIFIED_INK = '#EAFFF1';
+
+// The unlocked state (design-mocks/82-verified.html) — ONE component for both entry points:
+// onboarding's step 3 and Settings → Campus. Identical copy and layout in both; only the CTA
+// label differs ("Enter Philoi" vs "Done").
+//
+// It reads `university_email_verified` off the live profile itself and renders nothing when the
+// server doesn't say verified (punchlist 6 §1). That guard is the whole point: this panel used
+// to be mounted off a caller's optimistic local flag, which is how a previous account's
+// "You're verified at Laurier" survived a sign-out and showed against the wrong session.
 export function CampusVerifiedPanel({
   university,
   onContinue,
   continueLabel = 'Enter Philoi',
+  showChangeHint = true,
 }: {
   university: string;
   onContinue?: () => void;
   continueLabel?: string;
+  /** Settings → Campus already has "Change school" right below, so the hint is onboarding-only. */
+  showChangeHint?: boolean;
 }) {
+  const { profile } = useAuth();
+
+  if (!profile?.university_email_verified) return null;
+
   return (
-    <View style={styles.wrap}>
-      <View style={styles.tick}>
-        <Ionicons name="checkmark" size={30} color={Colors.ink} />
+    <View style={styles.verifiedWrap}>
+      <View style={styles.badgeWrap}>
+        {/* Radial glow rather than a full animation — celebratory but calm (mock 82's notes). */}
+        <Svg width={150} height={150} style={styles.badgeGlow} pointerEvents="none">
+          <Defs>
+            <RadialGradient id="campusVerifiedGlow" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor={Colors.green} stopOpacity={0.32} />
+              <Stop offset="62%" stopColor={Colors.green} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Circle cx={75} cy={75} r={75} fill="url(#campusVerifiedGlow)" />
+        </Svg>
+        <View style={styles.badge}>
+          <Ionicons name="checkmark" size={44} color={VERIFIED_INK} />
+        </View>
+        <View style={styles.badgeCrest}>
+          <Text style={styles.badgeCrestText}>🎓</Text>
+        </View>
       </View>
-      <Text style={styles.title}>You&apos;re verified at {university}</Text>
-      <Text style={styles.body}>
+
+      <Text style={styles.verifiedTitle}>
+        You&apos;re verified at <Text style={styles.verifiedTitleUni}>{university}</Text>
+      </Text>
+      <Text style={styles.verifiedBody}>
         A verified-campus check now sits on your profile — and two leaderboards just unlocked.
       </Text>
 
       <View style={styles.unlockedRow}>
         <View style={styles.unlocked}>
-          <Text style={styles.unlockedText}>🎓 My Uni</Text>
-          <Ionicons name="checkmark" size={13} color={Colors.green} />
+          <Text style={styles.unlockedIcon}>🎓</Text>
+          <Text style={styles.unlockedText}>My Uni</Text>
+          <Text style={styles.unlockedState}>✓ UNLOCKED</Text>
         </View>
         <View style={styles.unlocked}>
-          <Text style={styles.unlockedText}>⚔ Vs Unis</Text>
-          <Ionicons name="checkmark" size={13} color={Colors.green} />
+          <Text style={styles.unlockedIcon}>⚔️</Text>
+          <Text style={styles.unlockedText}>Vs Unis</Text>
+          <Text style={styles.unlockedState}>✓ UNLOCKED</Text>
         </View>
       </View>
 
-      <View style={styles.privacy}>
-        <Text style={styles.privacyText}>
-          🏆 Only verified students count on My Uni &amp; Vs Unis — so the campus rankings are real.
+      <View style={styles.trust}>
+        <Text style={styles.trustIcon}>🏆</Text>
+        <Text style={styles.trustText}>
+          <Text style={styles.trustStrong}>Only verified students count</Text> on My Uni &amp; Vs Unis — so the
+          campus rankings stay real.
         </Text>
       </View>
 
+      {/* Previews the badge that now sits on their profile, so the payoff is a thing they can see
+          rather than a claim. */}
+      <View style={styles.profChip}>
+        <Avatar label={profile.display_name ?? 'You'} size={22} lit />
+        <Text style={styles.profChipName} numberOfLines={1}>
+          {profile.display_name ?? 'you'}
+        </Text>
+        <Text style={styles.profChipVerified}>🎓 {university} ✓</Text>
+      </View>
+
       {onContinue && (
-        <Pressable onPress={onContinue} style={styles.cta}>
+        <Pressable onPress={onContinue} style={[styles.cta, styles.verifiedCta]}>
           <Text style={styles.ctaLabel}>{continueLabel}</Text>
         </Pressable>
       )}
+      {showChangeHint && <Text style={styles.verifiedHint}>Change schools anytime in Settings → Campus.</Text>}
     </View>
   );
 }
@@ -391,32 +448,156 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: Colors.coral,
   },
-  tick: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.green,
+  // ───────────────────────── verified panel (design-mocks/82) ─────────────────────────
+  verifiedWrap: {
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  badgeWrap: {
+    width: 110,
+    height: 110,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
+    marginTop: Spacing.two,
+  },
+  badgeGlow: {
+    position: 'absolute',
+  },
+  badge: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: Colors.green,
+    borderWidth: 2,
+    borderColor: VERIFIED_RING,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeCrest: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.cardDark,
+    borderWidth: 1,
+    borderColor: Colors.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeCrestText: {
+    fontSize: 15,
+  },
+  verifiedTitle: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 24,
+    lineHeight: 28,
+    color: Colors.ink,
+    textAlign: 'center',
+    marginTop: Spacing.two,
+  },
+  verifiedTitleUni: {
+    color: VERIFIED_TEXT,
+  },
+  verifiedBody: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.muted,
+    textAlign: 'center',
+    maxWidth: 260,
   },
   unlockedRow: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
     gap: Spacing.two,
+    marginTop: Spacing.two,
   },
   unlocked: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 5,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    paddingVertical: Spacing.three,
+    // Green-tinted rather than the flat card surface — these two are the payoff, not a list row.
+    backgroundColor: 'rgba(61,168,92,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(79,217,138,0.45)',
+    borderRadius: 13,
+    paddingVertical: 13,
+    paddingHorizontal: 10,
+  },
+  unlockedIcon: {
+    fontSize: 19,
   },
   unlockedText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12.5,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: VERIFIED_INK,
+  },
+  unlockedState: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9.5,
+    letterSpacing: 0.5,
+    color: VERIFIED_TEXT,
+  },
+  // Elevated off the screen background (Colors.cream), matching the mock's card-over-stage step.
+  trust: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.input,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+  },
+  trustIcon: {
+    fontSize: 13,
+  },
+  trustText: {
+    flex: 1,
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    lineHeight: 17,
+    color: Colors.coldChipText,
+  },
+  trustStrong: {
+    fontFamily: Fonts.bodyBold,
+    color: VERIFIED_INK,
+  },
+  profChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    maxWidth: '100%',
+    backgroundColor: Colors.cardDark,
+    borderRadius: Radius.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+  },
+  profChipName: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
     color: Colors.ink,
+  },
+  profChipVerified: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    color: VERIFIED_TEXT,
+  },
+  // The shared `cta` doesn't claim full width inside this centered column the way it does in
+  // the form above (which isn't centered), so stretch it back out.
+  verifiedCta: {
+    alignSelf: 'stretch',
+    marginTop: Spacing.two,
+  },
+  verifiedHint: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
+    textAlign: 'center',
   },
 });

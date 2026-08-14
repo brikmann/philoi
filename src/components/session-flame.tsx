@@ -3,8 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { Colors } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
+import { useFlameRamp } from '@/lib/economy/flame-ramp';
 
 // The running session's flame (PHILOI_UI_SPEC.md §13 redesign, design-mocks/51 + 52) — a pure
 // three-layer flame, NOT the campfire brand mark in flame-icon.tsx (that one has the crossed logs
@@ -35,6 +35,9 @@ type SessionFlameProps = {
 
 export function SessionFlame({ height = 240, dimmed = false }: SessionFlameProps) {
   const reduceMotion = useReduceMotion();
+  // Colour ONLY. `dimmed`, the flick animation, and the glow opacity below are all untouched by
+  // whatever is equipped — they're the activity signal, and a cosmetic must never move them.
+  const ramp = useFlameRamp();
   const flick = useSharedValue(0);
   const glowPulse = useSharedValue(0);
 
@@ -81,9 +84,12 @@ export function SessionFlame({ height = 240, dimmed = false }: SessionFlameProps
         ]}>
         <Svg width={glowSize} height={glowSize}>
           <Defs>
+            {/* The equipped colourway tints the glow too, but its OPACITY still comes from
+                `dimmed` — i.e. from whether the session is actually running. A skin may never
+                change how lit this reads (PHILOI_UI_SPEC §4). */}
             <RadialGradient id="flameGlow" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor={Colors.coral} stopOpacity={dimmed ? 0.4 : 0.5} />
-              <Stop offset="62%" stopColor={Colors.coral} stopOpacity={0} />
+              <Stop offset="0%" stopColor={ramp.outer} stopOpacity={dimmed ? 0.4 : 0.5} />
+              <Stop offset="62%" stopColor={ramp.outer} stopOpacity={0} />
             </RadialGradient>
           </Defs>
           <Rect x={0} y={0} width={glowSize} height={glowSize} fill="url(#flameGlow)" />
@@ -92,9 +98,9 @@ export function SessionFlame({ height = 240, dimmed = false }: SessionFlameProps
 
       <Animated.View style={[styles.flame, { opacity: dimmed ? 0.5 : 1 }, flameStyle]}>
         <Svg width={width} height={height} viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}>
-          <Path d={OUTER_PATH} fill={Colors.coral} />
-          <Path d={MID_PATH} fill={Colors.amber} />
-          {!dimmed && <Path d={CORE_PATH} fill={Colors.ember} />}
+          <Path d={OUTER_PATH} fill={ramp.outer} />
+          <Path d={MID_PATH} fill={ramp.mid} />
+          {!dimmed && <Path d={CORE_PATH} fill={ramp.core} />}
         </Svg>
       </Animated.View>
     </View>

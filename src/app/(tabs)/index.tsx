@@ -140,9 +140,16 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
         title="Your fire"
         icon="flame"
         right={
-          <Pressable onPress={() => router.push('/people')} hitSlop={8} accessibilityLabel="Your people">
-            <Ionicons name="people-outline" size={20} color={Colors.muted} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            {/* Shop is OPEN to everyone — no paywall gate (21g). There's no subscription to gate
+                on; the Forge Pass is one purchasable item inside the shop, not a wall around it. */}
+            <Pressable onPress={() => router.push('/shop')} hitSlop={8} accessibilityLabel="Shop">
+              <Ionicons name="bag-handle-outline" size={20} color={Colors.muted} />
+            </Pressable>
+            <Pressable onPress={() => router.push('/people')} hitSlop={8} accessibilityLabel="Your people">
+              <Ionicons name="people-outline" size={20} color={Colors.muted} />
+            </Pressable>
+          </View>
         }
       />
 
@@ -618,6 +625,13 @@ const styles = StyleSheet.create({
   },
   page: {
     flex: 1,
+  },
+  // Two right-side actions now (Shop + Your people), so they need their own row inside
+  // TabHeader's `right` slot rather than being a single bare icon.
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
   },
   // Horizontal padding only — TabHeader supplies its own matching top inset above this, and
   // stacking page's own paddingTop on top of it would push the title further down than the

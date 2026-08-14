@@ -1,0 +1,99 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Done screen redesign — mock 81</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0d0b13;color:#FFF6EC;font-family:var(--font);display:flex;gap:30px;flex-wrap:wrap;justify-content:center;padding:26px}
+.h1{font-size:17px;font-weight:800;margin:0 0 3px}.sub{color:#9f92b6;font-size:12px;max-width:300px;line-height:1.5;margin:0 0 14px}
+.phone{width:310px;height:640px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;border-radius:26px;overflow:hidden;background:radial-gradient(130% 55% at 50% 20%,#241a30,#141019 68%);display:flex;flex-direction:column;align-items:center;padding:20px 22px 22px}
+.close{position:absolute;top:16px;right:18px;color:#7c7194;font-size:20px}
+.flamewrap{margin-top:26px;position:relative;width:170px;height:170px;display:flex;align-items:center;justify-content:center}
+.glow{position:absolute;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(242,163,60,.28),transparent 62%);filter:blur(6px)}
+.lab{margin-top:10px;font-size:11px;font-weight:800;letter-spacing:2.5px;color:#F2A33C}
+.dur{font-size:44px;font-weight:800;letter-spacing:1px;margin-top:2px;font-variant-numeric:tabular-nums}
+.goal{font-size:12.5px;color:#a99cbd;margin-top:2px}
+/* rank + xp */
+.rankrow{display:flex;align-items:center;gap:11px;width:100%;margin-top:22px}
+.hex{width:38px;height:42px;flex:none;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:#F5C542;box-shadow:inset 0 0 0 2.5px #9A6A12;display:flex;align-items:center;justify-content:center;color:#4A3406;font-size:11px;font-weight:800}
+.rankinfo{flex:1;min-width:0}
+.ranktop{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700}
+.ranktop .g{color:#F5C542}.ranktop .xp{color:#3DA85C}
+.bar{height:8px;border-radius:5px;background:#2a2340;margin-top:6px;overflow:hidden}
+.fill{height:100%;width:62%;border-radius:5px;background:linear-gradient(90deg,#F2A33C,#F5C542)}
+.streak{margin-top:14px;font-size:12px;color:#c8bcdd;font-weight:600}
+/* post card */
+.post{width:100%;margin-top:auto;background:#1b1726;border:1px solid #241c38;border-radius:16px;padding:12px 14px}
+.postto{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700}
+.postto .chg{margin-left:auto;color:#7c7194;font-size:11px;font-weight:600}
+.capt{margin-top:10px;background:#221c31;border-radius:10px;padding:10px 12px;color:#6a6480;font-size:12px}
+.cta{width:100%;margin-top:12px;background:linear-gradient(135deg,#F2A33C,#E0612C);color:#2a1608;border-radius:14px;padding:15px;text-align:center;font-size:15px;font-weight:800}
+.skip{margin-top:11px;font-size:12.5px;color:#8a8398;font-weight:600}
+/* annotation */
+.notes{width:300px;font-size:12px;color:#a99cbd;line-height:1.55}
+.notes h3{font-size:12px;color:#FFF6EC;margin:16px 0 5px}
+.notes .k{color:#5FE39B}.notes .c{color:#F0897E}
+.notes ul{margin:4px 0;padding-left:16px}.notes li{margin:3px 0}
+</style>
+
+<div>
+  <div class="h1">🔥 Done screen — rebuilt around the flame</div>
+  <div class="sub">Same big living flame as the lock-in session (mock 69), stripped to the four things that matter: you locked in, for how long, the XP/rank it moved, and one tap to post.</div>
+  <div class="phone"><div class="stage">
+    <div class="close">✕</div>
+    <div class="flamewrap">
+      <div class="glow"></div>
+      <svg width="150" height="160" viewBox="0 0 100 108">
+        <defs>
+          <linearGradient id="f" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#FFD27A"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#E0612C"/>
+          </linearGradient>
+          <linearGradient id="fi" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#FFF1D0"/><stop offset="1" stop-color="#F7B85A"/>
+          </linearGradient>
+        </defs>
+        <path d="M50 4 C 64 28, 82 42, 72 70 C 67 88, 57 100, 50 100 C 43 100, 33 88, 28 70 C 18 42, 36 28, 50 4 Z" fill="url(#f)"/>
+        <path d="M50 34 C 58 48, 66 56, 60 72 C 57 82, 53 90, 50 90 C 47 90, 43 82, 40 72 C 34 56, 42 48, 50 34 Z" fill="url(#fi)"/>
+      </svg>
+    </div>
+    <div class="lab">LOCKED IN</div>
+    <div class="dur">42:18</div>
+    <div class="goal">Deep work · solo</div>
+
+    <div class="rankrow">
+      <div class="hex">II</div>
+      <div class="rankinfo">
+        <div class="ranktop"><span class="g">Gold II</span><span class="xp">+210 XP</span></div>
+        <div class="bar"><div class="fill"></div></div>
+      </div>
+    </div>
+    <div class="streak">🔥 5-day streak · kept alive</div>
+
+    <div class="post">
+      <div class="postto"><span>Post to</span> 🔥 <span>Morning Grind</span><span class="chg">change</span></div>
+      <div class="capt">Add a note… (optional)</div>
+    </div>
+    <div class="cta">Post &amp; finish</div>
+    <div class="skip">Just finish</div>
+  </div></div>
+</div>
+
+<div class="notes">
+  <h3>What it keeps</h3>
+  <ul>
+    <li><b class="k">The big flame</b> — same hero flame as the work session, glowing/settled. The screen's whole identity.</li>
+    <li><b class="k">Duration</b> — front and center, the thing you earned.</li>
+    <li><b class="k">XP + rank bar</b> — one compact row: badge, tier, the +XP, and the bar filling toward next. (Real screen animates the fill + count-up; a rank-up still hands off to the full RankUpCelebration instead of this screen.)</li>
+    <li><b class="k">Streak</b> — one line.</li>
+    <li><b class="k">One post action</b> — pre-seeded to the campfire you started in (one tap), optional note, "change" to pick others. Secondary "Just finish" to skip.</li>
+  </ul>
+  <h3>What it cuts</h3>
+  <ul>
+    <li><b class="c">The routine-naming block</b> ("Routines build from memory") — move it out of the done flow; offer it once from the gym screen instead.</li>
+    <li><b class="c">The standalone caption field</b> — folded into the post card as the optional note.</li>
+    <li><b class="c">Streak before→after animation</b> — just the result line.</li>
+    <li><b class="c">The multi-select campfire grid</b> up front — collapsed behind "change" (still multi-post, just not a decision every time).</li>
+    <li><b class="c">Gym clip grid + recap sprawl</b> — for a gym session, collapse the recap to one summary line ("5 exercises · 18 sets · 12,400 lb") with a "View" that opens the full recap, so the default screen stays this clean.</li>
+    <li><b class="c">Photo strip</b> — if photos exist, a single small thumbnail row above the post card; no large gallery.</li>
+  </ul>
+</div>

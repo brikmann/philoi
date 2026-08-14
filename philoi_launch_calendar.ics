@@ -1,0 +1,67 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Philoi//Launch Calendar//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VTIMEZONE
+TZID:America/Toronto
+BEGIN:DAYLIGHT
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0400
+TZNAME:EDT
+DTSTART:19700308T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:-0400
+TZOFFSETTO:-0500
+TZNAME:EST
+DTSTART:19701101T020000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:philoi-v1-submit-20260820@philoi.app
+DTSTAMP:20260814T120000Z
+DTSTART;VALUE=DATE:20260820
+DTEND;VALUE=DATE:20260821
+SUMMARY:Philoi v1 - submit to App Store review (DEADLINE)
+DESCRIPTION:Target to submit Philoi v1 to Apple (Thu Aug 20). Apple review ~1-3 days, clears the Sept 10 term start with buffer. Prereqs: migrations deployed, shop bugs fixed, RevenueCat + purchase success screen, Forge Pass de-slopped, cosmetics wired, default cosmetics. Aura + Live Activity pill = v1.1 fast-follow. See V1_LAUNCH_PLAN.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:philoi-cansbridge-20260905@philoi.app
+DTSTAMP:20260814T120000Z
+DTSTART;VALUE=DATE:20260905
+DTEND;VALUE=DATE:20260906
+SUMMARY:Cansbridge Fellowship - pitch / demo Philoi
+DESCRIPTION:Don't hard-pitch. Demo it, get people on it, ask for brutal feedback, and collect founder intros (other-campus founders who could run a gym table at their school). Frame: "the accountability layer for people who lock in." See MARKETING_PLAN.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:philoi-table-laurier-thu@philoi.app
+DTSTAMP:20260814T120000Z
+DTSTART;TZID=America/Toronto:20260910T120000
+DTEND;TZID=America/Toronto:20260910T150000
+RRULE:FREQ=WEEKLY;COUNT=5
+SUMMARY:Philoi table - Laurier gym (your freest day)
+DESCRIPTION:Thursday is wide open until your 7pm class - your prime tabling day, home campus. Athletic-complex entrance: poster + QR + "built by me" sign, demo + answer questions, do remote schoolwork between chats. Get people to install AND start a first lock-in on the spot. See MARKETING_PLAN.md.
+LOCATION:Wilfrid Laurier University - Athletic Complex, Waterloo ON
+END:VEVENT
+BEGIN:VEVENT
+UID:philoi-table-uw-tue@philoi.app
+DTSTAMP:20260814T120000Z
+DTSTART;TZID=America/Toronto:20260915T113000
+DTEND;TZID=America/Toronto:20260915T140000
+RRULE:FREQ=WEEKLY;COUNT=5
+SUMMARY:Philoi table - UW gym (Tue lunch, before your 2:30 class)
+DESCRIPTION:Your free Tuesday window (2.5 hrs before Data Analysis at 2:30). UW is ~5 min from Laurier. Same setup: "built by a Laurier student, expanding to Waterloo." Or hire a rep to staff UW while you cover Laurier. See MARKETING_PLAN.md.
+LOCATION:University of Waterloo - PAC / CIF gym, Waterloo ON
+END:VEVENT
+BEGIN:VEVENT
+UID:philoi-gym-permission-reminder@philoi.app
+DTSTAMP:20260814T120000Z
+DTSTART;VALUE=DATE:20260818
+DTEND;VALUE=DATE:20260819
+SUMMARY:Message Laurier (+ UW) gym for tabling permission
+DESCRIPTION:Send the facilities permission request so you're cleared to table by term start. Draft message is in MARKETING_PLAN.md (Channel 1). Do UW too if not hiring a rep.
+END:VEVENT
+END:VCALENDAR
