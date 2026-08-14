@@ -152,7 +152,8 @@ export const CADENCE_LABEL: Record<AchievementCadence, string> = {
 
 export const CADENCE_RESET_HINT: Record<AchievementCadence, string> = {
   daily: 'one each per day',
-  weekly: 'resets Mon',
+  // Sunday, matching every other weekly timer in the app (punchlist 8 §5 / lib/time/week.ts).
+  weekly: 'resets Sun',
   season: 'one-time',
 };
 

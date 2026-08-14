@@ -1,0 +1,102 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge Pass — de-slop (mock 87)</title>
+<style>
+:root{--bg:#0f0d15;--card:#1b1726;--bd:#2b2340;--ink:#FFF6EC;--dim:#9f92b6;--gold:#FFD27A;--or:#F2A33C;--em:#E0612C}
+*{box-sizing:border-box;font-family:'Inter',system-ui,sans-serif}
+body{margin:0;background:#08070c;color:var(--ink);display:flex;flex-wrap:wrap;gap:28px;padding:28px;align-items:flex-start}
+.phone{width:344px;background:var(--bg);border-radius:34px;border:1px solid #241c38;overflow:hidden;box-shadow:0 24px 70px #000b}
+.stat{display:flex;justify-content:space-between;padding:11px 22px 0;font-size:12px;color:var(--dim)}
+.hd{padding:14px 20px 12px;border-bottom:1px solid #1c1628}
+.wm{font-size:23px;font-weight:900;letter-spacing:.6px;background:linear-gradient(180deg,#FFEBC6,#F2A33C);-webkit-background-clip:text;background-clip:text;color:transparent}
+.season{font-size:12px;color:var(--dim);margin-top:3px}
+.row1{display:flex;align-items:flex-end;justify-content:space-between;margin-top:13px}
+.tier{font-size:12px;color:var(--gold);font-weight:800}
+.tier b{font-size:32px;display:block;line-height:.9;color:var(--ink)}
+.count{font-size:11px;color:var(--dim)}
+.bar{height:9px;border-radius:99px;background:#241c38;margin-top:9px;overflow:hidden}
+.bar>i{display:block;height:100%;width:62%;background:linear-gradient(90deg,#E0612C,#FFD27A);box-shadow:0 0 10px #f2a33c88}
+.up{margin:12px 18px 4px;padding:11px 14px;border-radius:14px;background:linear-gradient(90deg,#2a1c10,#3a2612);border:1px solid #6b4a1e;display:flex;align-items:center;justify-content:space-between}
+.up .t{font-size:12.5px;font-weight:800;color:var(--gold)}
+.up .s{font-size:10.5px;color:#caa96f;margin-top:1px}
+.up b{font-size:12px;font-weight:900;color:#1a1206;background:linear-gradient(180deg,#FFD27A,#F2A33C);padding:8px 12px;border-radius:10px}
+.lanehdr{display:grid;grid-template-columns:1fr 56px 1fr;gap:10px;padding:12px 14px 2px;font-size:10px;color:var(--dim);letter-spacing:.7px}
+.lanehdr .p{color:var(--gold);text-align:right}
+.rail{padding:2px 12px 4px}
+.tr{display:grid;grid-template-columns:1fr 56px 1fr;gap:10px;align-items:center;position:relative;padding:7px 0}
+.seam{position:absolute;left:50%;top:0;bottom:0;width:4px;transform:translateX(-50%);background:#241c38;z-index:0}
+.seam.lit{background:linear-gradient(180deg,#F2A33C,#E0612C)}
+.node{grid-column:2;justify-self:center;width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;background:#241c38;border:1px solid #33294a;color:var(--dim);z-index:1}
+.node.done{background:#20182f;color:#6f6685}
+.node.cur{background:radial-gradient(circle at 50% 40%,#FFC978,#E0612C);color:#2a0f06;border-color:#FFE0A6;box-shadow:0 0 18px #f2a33caa;animation:pulse 2.2s ease-in-out infinite}
+.node.mile{width:56px;height:56px;border-radius:16px;background:radial-gradient(circle,#3a2660,#241436);border-color:#a06cd5;color:#e7ddf5;box-shadow:0 0 16px #6a2ab866}
+@keyframes pulse{50%{box-shadow:0 0 26px #f2a33c}}
+.tile{background:var(--card);border:1px solid var(--bd);border-radius:13px;padding:9px;display:flex;align-items:center;gap:9px;min-height:58px;position:relative;z-index:1}
+.tile.prem{border-color:#4a3a1e;background:#1c1710}
+.tile.dim{opacity:.48}
+.sw{width:36px;height:36px;border-radius:9px;flex:none}
+.nm{font-size:11.5px;font-weight:700;line-height:1.15}
+.rr{font-size:9px;color:var(--dim);letter-spacing:.4px;margin-top:2px}
+.chk{position:absolute;right:9px;top:8px;font-size:11px;color:#7CCB8E}
+.lock{position:absolute;right:9px;top:7px;font-size:11px;color:#8a7bbf}
+.mileflag{grid-column:2;justify-self:center;font-size:8.5px;color:#c9a9ff;letter-spacing:.5px;margin-top:2px}
+.claim{margin:6px 14px 16px;text-align:center;padding:13px;border-radius:14px;font-weight:900;font-size:14px;color:#2a0f06;background:linear-gradient(180deg,#FFD27A,#F2A33C);box-shadow:0 6px 18px #f2a33c55}
+.cap{width:344px;font-size:12px;color:#8f84a6;line-height:1.55}
+h1{width:100%;font-size:16px;color:#cфbcdd;margin:0 0 -6px;font-weight:700}
+</style>
+
+<div class="phone">
+  <div class="stat"><span>6:10</span><span>5G ◾◾◾ 82</span></div>
+  <div class="hd">
+    <div class="wm">FORGE PASS</div>
+    <div class="season">Season I · First Flame — <span style="color:#caa96f">23 days left</span></div>
+    <div class="row1"><div class="tier">Tier <b>7</b></div><div class="count">1,240 / 2,000 XP to Tier 8</div></div>
+    <div class="bar"><i></i></div>
+  </div>
+  <div class="up"><div><div class="t">Unlock the Forge Pass</div><div class="s">Every tier's premium reward, all season</div></div><b>$9.99</b></div>
+
+  <div class="lanehdr"><span>FREE</span><span></span><span class="p">PREMIUM</span></div>
+  <div class="rail">
+    <div class="tr">
+      <div class="seam lit"></div>
+      <div class="tile dim"><div class="sw" style="background:radial-gradient(circle,#7BE0FF,#4FB0E5)"></div><div><div class="nm">EDM Pulse</div><div class="rr">RARE · AUDIO</div></div><div class="chk">✓</div></div>
+      <div class="node done">6</div>
+      <div class="tile prem dim"><div class="sw" style="background:radial-gradient(circle,#FFD27A,#E0612C)"></div><div><div class="nm">300 Embers</div><div class="rr">CURRENCY</div></div><div class="chk">✓</div></div>
+    </div>
+    <div class="tr">
+      <div class="seam lit"></div>
+      <div class="tile"><div class="sw" style="background:radial-gradient(circle,#C77BFF,#6A2AB8)"></div><div><div class="nm">Void Purple Aura</div><div class="rr">EPIC · AURA</div></div></div>
+      <div class="node cur">7</div>
+      <div class="tile prem"><div class="sw" style="background:radial-gradient(circle,#2a1533,#120a1c)"></div><div><div class="nm">Promethean Vault</div><div class="rr">LOOT BOX</div></div><div class="lock">🔒</div></div>
+    </div>
+    <div class="tr">
+      <div class="seam"></div>
+      <div class="tile"><div class="sw" style="background:linear-gradient(135deg,#8a7a5c,#c9b98f)"></div><div><div class="nm">“Ash-Walker”</div><div class="rr">RARE · TITLE</div></div></div>
+      <div class="node">8</div>
+      <div class="tile prem"><div class="sw" style="background:radial-gradient(circle,#FFD27A,#E0612C)"></div><div><div class="nm">500 Embers</div><div class="rr">CURRENCY</div></div><div class="lock">🔒</div></div>
+    </div>
+    <div class="tr">
+      <div class="seam"></div>
+      <div class="tile"><div class="sw" style="background:radial-gradient(circle,#e0c36a,#a97f1e)"></div><div><div class="nm">Copper Ring Halo</div><div class="rr">RARE · HALO</div></div></div>
+      <div class="node">9</div>
+      <div class="tile prem"><div class="sw" style="background:radial-gradient(circle,#FF9A3C,#8A2B00)"></div><div><div class="nm">Ember Swarm</div><div class="rr">EPIC · PARTICLE</div></div><div class="lock">🔒</div></div>
+    </div>
+    <div class="tr" style="padding:11px 0">
+      <div class="seam"></div>
+      <div class="tile" style="border-color:#7a4fbf"><div class="sw" style="background:radial-gradient(circle,#BFD6FF,#2A5AE0)"></div><div><div class="nm">Stormforge Flame</div><div class="rr" style="color:#c9a9ff">MYTHIC · FLAME</div></div></div>
+      <div class="node mile">10</div>
+      <div class="tile prem" style="border-color:#7a4fbf"><div class="sw" style="background:radial-gradient(circle,#FFF0B8,#F5C542)"></div><div><div class="nm">Zeus' Wrath Flare</div><div class="rr" style="color:#c9a9ff">MYTHIC · FLARE</div></div><div class="lock">🔒</div></div>
+    </div>
+    <div class="lanehdr" style="padding:0"><span></span><span class="mileflag">★ MILESTONE ★</span><span></span></div>
+  </div>
+  <div class="claim">Claim Tier 7 reward</div>
+</div>
+
+<p class="cap"><b style="color:#FFD27A">De-slop principles (mock 87).</b><br>
+• <b>One theme, not a card grid:</b> a molten seam forges upward through the tiers — lit below your
+tier, cold iron above. The rail IS the progress bar.<br>
+• <b>Two lanes, always legible:</b> Free (left) vs Premium (right, warm-bordered + 🔒 until unlocked).<br>
+• <b>Real cosmetic art</b> in every reward tile (swatches here are placeholders) — the art is the product.<br>
+• <b>Clear states:</b> claimed (dimmed ✓) · current (pulsing forge node + Claim CTA) · upcoming (cold) ·
+milestone every 10 (bigger violet anvil, a hero flame/flare).<br>
+• Header carries identity (season name, tier, molten XP bar, countdown); one gold upgrade strip; one
+Claim CTA. No stock icons, no flat gray grid — that's what read as AI slop.</p>

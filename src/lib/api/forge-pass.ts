@@ -6,6 +6,7 @@ import { track } from '@/lib/analytics';
 import { getItem } from '@/lib/economy/catalog';
 import type { PassReward } from '@/lib/economy/forge-pass';
 import { supabase } from '@/lib/supabase';
+import { weekKey } from '@/lib/time/week';
 
 export async function claimPassTier(tier: number, lane: 'free' | 'premium', reward: PassReward): Promise<void> {
   const item = reward.kind === 'item' ? getItem(reward.itemId) : undefined;
@@ -49,15 +50,17 @@ export async function fetchAchievementProgress(): Promise<Record<string, number>
   return data ?? {};
 }
 
-/** `2026-08-07` for dailies, `2026-W32` for weeklies, the season id for one-time milestones. */
+/** `2026-08-07` for dailies, `W2953` for weeklies, the season id for one-time milestones. */
 export function periodKeyFor(cadence: 'daily' | 'weekly' | 'season', seasonId: string, now = new Date()): string {
   if (cadence === 'season') return seasonId;
   if (cadence === 'daily') {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   }
-  // ISO-ish week bucket. Only needs to be stable within a week and change across weeks — it's a
-  // dedupe key, never displayed.
-  const start = new Date(now.getFullYear(), 0, 1);
-  const week = Math.floor((now.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
-  return `${now.getFullYear()}-W${week}`;
+  // The shared Sunday-anchored week (punchlist 8 §5). This key is compared against one the SERVER
+  // writes for the same achievements — `pass_xp_ledger` is deduped on (user, achievement, period),
+  // so the two sides producing different strings for the same week would let one weekly credit
+  // twice. This used to count `(now − Jan 1) / 7 days` in LOCAL time while the server wrote ISO
+  // `to_char(now(), 'IYYY-"W"IW')`: different boundary, different format, and a mismatch that only
+  // showed up as a duplicate credit. `week_key()` in migration 0071 is the other half of this.
+  return weekKey(now.getTime());
 }

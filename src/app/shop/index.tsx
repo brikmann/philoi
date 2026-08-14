@@ -15,14 +15,18 @@ import { BOX_LIST } from '@/lib/economy/boxes';
 import { boxPool, type CatalogItem } from '@/lib/economy/catalog';
 import { EMBER_PACKS, PASS_FINE_PRINT, PASS_PRICE_LABEL, SEASON, tierFromXp } from '@/lib/economy/forge-pass';
 import { DIRECT_BUY_PRICE } from '@/lib/economy/rarity';
+import { formatWeekCountdown, nextWeekReset, weekIndex } from '@/lib/time/week';
 
 // The week the Featured row is dealt from (§8.4). Read ONCE at module load rather than in render:
 // Date.now() is impure, and this project runs the React Compiler, which correctly refuses an
 // impure call inside a useMemo — an unstable value there would reshuffle the row on any
 // re-render. A week-granularity rotation has nothing to gain from being recomputed per frame.
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const WEEK_INDEX = Math.floor(Date.now() / WEEK_MS);
-const NEXT_ROTATION_MS = (WEEK_INDEX + 1) * WEEK_MS;
+//
+// The week boundary comes from the shared helper now (punchlist 8 §5). This used to floor
+// `Date.now() / WEEK_MS` directly, which anchors to the Unix epoch — a Thursday — so the shop
+// rotated on a different weekday than every other weekly timer in the app.
+const WEEK_INDEX = weekIndex();
+const NEXT_ROTATION_MS = nextWeekReset();
 
 // §8.4 — the Featured row rotates. Only box-pool cosmetics are ever direct-buyable; the picks are
 // derived from the week number so they're stable for everyone for seven days without needing a
@@ -52,10 +56,7 @@ const FEATURED: CatalogItem[] = (() => {
 function rotatesInLabel(now: number): string {
   const left = NEXT_ROTATION_MS - now;
   if (left <= 0) return 'New picks on reopen';
-  const d = Math.floor(left / 86_400_000);
-  const h = Math.floor((left % 86_400_000) / 3_600_000);
-  const m = Math.floor((left % 3_600_000) / 60_000);
-  return `Rotates in ${d > 0 ? `${d}d ` : ''}${d > 0 || h > 0 ? `${h}h ` : ''}${m}m`;
+  return `Rotates in ${formatWeekCountdown(left)}`;
 }
 
 // The Forge Shop (mock 56, 21g). Reached from Home's top-right and OPEN TO EVERYONE — there is no
