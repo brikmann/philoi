@@ -40,9 +40,17 @@ function challengeTitle(challenge: Challenge): string {
   }
 }
 
-/** The quiet closing line — when this goal's counter goes back to zero. */
+/**
+ * The quiet closing line — when this goal's counter goes back to zero.
+ *
+ * This promise is finally real: until migration 0072 nothing ever reset a challenge, and the card
+ * said "Resets Monday" over a counter that ran forever (task #89). Sunday, not Monday, because the
+ * rollover runs on the shared week boundary in lib/time/week.ts. "UTC" is stated for the weekly
+ * case rather than quietly implied — a Saturday-evening user in the Americas is genuinely hours
+ * from a reset the word "Sunday" alone would put a day away.
+ */
 function resetLabel(period: Challenge['period']): string {
-  return period === 'day' ? 'Resets at midnight' : 'Resets Monday';
+  return period === 'day' ? 'Resets at midnight UTC' : 'Resets Sunday (UTC)';
 }
 
 type ChallengeCardProps = {
