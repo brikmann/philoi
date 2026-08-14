@@ -10,7 +10,7 @@ import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Screen } from '@/components/ui/screen';
-import { useRevealPreview } from '@/hooks/use-audio-preview';
+import { useRevealPreview, useRevealSting } from '@/hooks/use-audio-preview';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { UnlockShareCard } from '@/components/economy/unlock-share-card';
@@ -147,7 +147,6 @@ function BoxOpenFlow() {
         <View style={styles.center}>
           <BoxCrack
             boxKey={(boxKey as BoxKey) ?? 'kindling'}
-            rarity={(results[0].item?.rarity ?? 'common') as Rarity}
             reduceMotion={reduceMotion}
             onDone={onAnimationDone}
             size={220}
@@ -209,6 +208,9 @@ function SingleMenu({
   // it is the reveal for those items, the way the art is for every other type. Hook runs before the
   // null guard below so it isn't called conditionally.
   useRevealPreview(item?.id);
+  // On a 1× the sting is simply that item's own tier (PUNCHLIST_14 §2). Above the null guard for
+  // the same reason as useRevealPreview — hooks may not be called conditionally.
+  useRevealSting(item?.rarity, result.dupe);
   if (!item) return null;
 
   const oddsPct = BOXES[result.box_key as BoxKey]?.odds[item.rarity] ?? 0;
@@ -308,6 +310,10 @@ function MultiMenu({
   const bestItem = bestResult?.item;
   // Hero pull only. Ten previews firing down a results grid would be a pile-up, not a reward.
   useRevealPreview(bestItem?.id);
+  // The common→mythic sting, once for the haul's best pull (PUNCHLIST_14 §2). Muted when that pull
+  // is a dupe — a dupe salvages to embers instead of granting the item, so the full war-horn would
+  // be celebrating something the user didn't get.
+  useRevealSting(best, bestResult?.dupe ?? false);
 
   async function onShare() {
     try {
@@ -334,12 +340,20 @@ function MultiMenu({
         </View>
       ) : null}
       <ScrollView contentContainerStyle={styles.multiContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.multiHeader}>Best pull</Text>
-        <Text style={[styles.multiBest, { color: RARITY_COLOR[best] }]}>{bestItem?.name ?? '—'}</Text>
+        {/* A plain count leads, not the giant rarity-coloured BEST PULL hero that used to collide
+            with everything on the screen (PUNCHLIST_14 §1). The best pull still gets named — it's
+            genuinely the headline of the haul — but at the weight of a subtitle, and the grid
+            below is what the screen is actually for. */}
+        <Text style={styles.multiHeader}>You opened {results.length}</Text>
         {bestItem ? (
-          <View style={styles.previewRow}>
-            <PreviewButton item={bestItem} />
-          </View>
+          <>
+            <Text style={styles.multiBest}>
+              Best: <Text style={{ color: RARITY_COLOR[best] }}>{bestItem.name}</Text>
+            </Text>
+            <View style={styles.previewRow}>
+              <PreviewButton item={bestItem} />
+            </View>
+          </>
         ) : null}
         {dupeEmbers > 0 ? (
           <View style={styles.multiDupesRow}>
@@ -541,17 +555,19 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.five,
     paddingBottom: Spacing.six,
   },
+  // The count is the headline now and the best pull is its subtitle — the reverse of the old
+  // hierarchy, where a 22pt rarity-coloured item name dominated the screen before the grid it was
+  // supposedly introducing (PUNCHLIST_14 §1).
   multiHeader: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 1,
-    color: Colors.textTertiary,
-    textTransform: 'uppercase',
+    fontSize: 20,
+    color: Colors.ink,
     textAlign: 'center',
   },
   multiBest: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 22,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.textTertiary,
     textAlign: 'center',
     marginTop: Spacing.one,
   },

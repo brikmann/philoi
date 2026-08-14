@@ -77,8 +77,11 @@ export const SLOT_FOR_TYPE: Record<ItemType, EquipSlot | null> = {
  * - `box` — in the loot-box drop pool, and therefore also direct-buyable (§8.4).
  * - `earned` — season/placement titles, medals, relics. NEVER in a box, NEVER purchasable.
  * - `forge-pass-S1` — the Emberfall set. Premium-track only, never re-issued (FORGE_PASS.md).
+ * - `default` — the starter loadout every account is seeded with (#88). Never in a box, never
+ *   purchasable, and never sellable: they are the floor a slot falls back to, so letting one be
+ *   salvaged would leave a slot that can never be filled again without a support ticket.
  */
-export type Acquisition = 'box' | 'earned' | 'forge-pass-S1';
+export type Acquisition = 'box' | 'earned' | 'forge-pass-S1' | 'default';
 
 /** Which vector family draws this item — see components/economy/item-art.tsx. */
 export type ArtKind = 'flame' | 'particle' | 'flare' | 'card' | 'halo' | 'title' | 'banner' | 'audio' | 'sfx' | 'relic' | 'medal';
@@ -417,7 +420,86 @@ const EMBERFALL_SET: CatalogItem[] = [
     art: { kind: 'flare', from: '#FF2A2A', to: '#FFE0B0' } }),
 ];
 
+// ───────────────────────────── 0 · The starter loadout (#88) ─────────────────────────────
+//
+// Every account is seeded with these at signup (migration 0073), so a brand-new user's profile is
+// already wearing something rather than rendering a row of empty slots. They are the FLOOR, not a
+// reward: all common, all in the house orange, and deliberately plain — a starter set that looked
+// good enough to keep would undercut the entire reason to open a box.
+//
+// Permanent and non-sellable. `acquisition: 'default'` keeps them out of boxPool() by construction
+// (it filters on 'box'), and salvage_cosmetic refuses them server-side — a user who sold their base
+// flame would have an unfillable slot and no way back to it.
+const DEFAULTS: CatalogItem[] = [
+  item({ id: 'flame-base-ember', name: 'Ember', type: 'FLAME', rarity: 'common', acquisition: 'default',
+    lore: 'The first fire anyone builds. Nothing fancy — it just refuses to go out.',
+    art: { kind: 'flame', from: '#B8651F', to: '#F2A33C' } }),
+  item({ id: 'particle-base-spark', name: 'Sparks', type: 'PARTICLE', rarity: 'common', acquisition: 'default',
+    lore: 'What comes off any fire worth sitting near.',
+    art: { kind: 'particle', from: '#C4701F', to: '#FFC46B' } }),
+  item({ id: 'flare-base-glow', name: 'Warm Glow', type: 'FLARE', rarity: 'common', acquisition: 'default',
+    lore: 'The light you throw before you have earned a brighter one.',
+    art: { kind: 'flare', from: '#B8651F', to: '#FFD9A0' } }),
+  item({ id: 'card-base-hearth', name: 'Hearth', type: 'CARD', rarity: 'common', acquisition: 'default',
+    lore: 'Plain stone, banked coals. Every campfire starts here.',
+    art: { kind: 'card', from: '#2A1A12', to: '#B8651F' } }),
+  item({ id: 'halo-base-ring', name: 'Emberring', type: 'HALO', rarity: 'common', acquisition: 'default',
+    lore: 'A thin ring of heat. Proof there is something burning underneath.',
+    art: { kind: 'halo', from: '#B8651F', to: '#F2A33C' } }),
+  item({ id: 'title-base-kindling', name: 'Kindling', type: 'TITLE', rarity: 'common', acquisition: 'default',
+    lore: 'Everyone is kindling before they are anything else.',
+    art: { kind: 'title', from: '#8A4E18', to: '#F2A33C' } }),
+  item({ id: 'banner-base-hearth', name: 'Hearthlight', type: 'BANNER', rarity: 'common', acquisition: 'default',
+    lore: 'The banner you fly on your first day. Quiet, and entirely yours.',
+    art: { kind: 'banner', from: '#2A1A12', to: '#C4701F' } }),
+  // The two lock-in stings. Their cue names are their ids (see equipped-audio.ts) and both point at
+  // one-shots the app already ships — spark.wav and settle.wav — so the starter set needs no new
+  // audio to be audible on day one.
+  item({ id: 'sfx-campfire-spark', name: 'Campfire Spark', type: 'SFX', rarity: 'common', acquisition: 'default',
+    lore: 'The catch of a struck match. Your session, beginning.',
+    art: { kind: 'sfx', from: '#C4701F', to: '#FFC46B' } }),
+  item({ id: 'sfx-ember-settle', name: 'Ember Settle', type: 'SFX', rarity: 'common', acquisition: 'default',
+    lore: 'Logs shifting as the fire banks down. Your session, finished.',
+    art: { kind: 'sfx', from: '#8A4E18', to: '#F2A33C' } }),
+  // Owned but NOT equipped by default — see DEFAULT_LOADOUT.
+  item({ id: 'audio-base-hearth-hum', name: 'Hearth Hum', type: 'AUDIO', rarity: 'common', acquisition: 'default',
+    lore: 'The low sound of a room with a fire in it.',
+    art: { kind: 'audio', from: '#B8651F', to: '#F2A33C' } }),
+];
+
+/**
+ * What the seeded account is actually WEARING (migration 0073 writes exactly this map).
+ *
+ * The `audio` slot is deliberately absent. Every other default is silent, passive decoration, but
+ * an Audio cosmetic is a looping ambient bed that starts on its own when a lock-in begins — seeding
+ * it equipped would mean every new user's first session plays a loop they never chose, in a room
+ * they might not want noise in. They own `audio-base-hearth-hum` and can equip it in one tap; the
+ * app just doesn't decide that for them.
+ */
+export const DEFAULT_LOADOUT: Partial<Record<EquipSlot, string>> = {
+  flame: 'flame-base-ember',
+  particle: 'particle-base-spark',
+  flare: 'flare-base-glow',
+  card: 'card-base-hearth',
+  halo: 'halo-base-ring',
+  title: 'title-base-kindling',
+  banner: 'banner-base-hearth',
+  sfx_start: 'sfx-campfire-spark',
+  sfx_stop: 'sfx-ember-settle',
+};
+
+const DEFAULT_IDS: ReadonlySet<string> = new Set(DEFAULTS.map((i) => i.id));
+
+/**
+ * True for a starter item. Call sites use this to hide Sell — the server refuses the salvage
+ * anyway, but an enabled button that always errors is a worse answer than no button.
+ */
+export function isDefaultItem(id: string): boolean {
+  return DEFAULT_IDS.has(id);
+}
+
 export const CATALOG: CatalogItem[] = [
+  ...DEFAULTS,
   ...FLAMES,
   ...PARTICLES,
   ...FLARES,

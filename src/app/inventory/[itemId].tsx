@@ -13,7 +13,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAudioPreview, useStopPreviewOnLeave } from '@/hooks/use-audio-preview';
 import { useInventory } from '@/hooks/use-inventory';
 import { equipCosmetic, salvageCosmetic, unequipCosmetic } from '@/lib/api/inventory';
-import { SFX_SLOTS, SLOT_LABEL, type SfxSlot } from '@/lib/economy/catalog';
+import { SFX_SLOTS, SLOT_LABEL, isDefaultItem, type SfxSlot } from '@/lib/economy/catalog';
 import { getErrorMessage } from '@/lib/errors';
 import { SALVAGE_EMBERS, SALVAGE_PCT, rarityGlow } from '@/lib/economy/rarity';
 
@@ -213,19 +213,28 @@ export default function ItemDetailScreen() {
             </Pressable>
           ) : null}
 
-          <Pressable style={styles.sellBtn} onPress={confirmSell} disabled={busy}>
-            <View style={styles.sellBtnRow}>
-              <Text style={styles.sellBtnText}>Sell ·</Text>
-              <EmberIcon size={14} />
-              <Text style={styles.sellBtnText}>
-                {formatEmbers(payout)}{' '}
-                <Text style={styles.sellSub}>
-                  · {SALVAGE_PCT[item.rarity]}% salvage ({item.rarity})
-                </Text>
-              </Text>
-            </View>
-          </Pressable>
-          <Text style={styles.sellNote}>Selling unequips it and is permanent · confirm required</Text>
+          {/* Starter items have no Sell at all (#88). They're the floor a slot falls back to, so
+              salvaging one would leave a slot with nothing to return to — the server refuses it
+              regardless, and a button that always errors is worse than no button. */}
+          {isDefaultItem(item.id) ? (
+            <Text style={styles.sellNote}>Part of your starter set · permanent, can&apos;t be sold</Text>
+          ) : (
+            <>
+              <Pressable style={styles.sellBtn} onPress={confirmSell} disabled={busy}>
+                <View style={styles.sellBtnRow}>
+                  <Text style={styles.sellBtnText}>Sell ·</Text>
+                  <EmberIcon size={14} />
+                  <Text style={styles.sellBtnText}>
+                    {formatEmbers(payout)}{' '}
+                    <Text style={styles.sellSub}>
+                      · {SALVAGE_PCT[item.rarity]}% salvage ({item.rarity})
+                    </Text>
+                  </Text>
+                </View>
+              </Pressable>
+              <Text style={styles.sellNote}>Selling unequips it and is permanent · confirm required</Text>
+            </>
+          )}
         </View>
       </ScrollView>
     </Screen>

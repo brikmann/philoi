@@ -1,5 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
+import type { Rarity } from '@/lib/economy/rarity';
+import { fireReveal } from '@/lib/reward-feedback';
 import { getRewardPreferencesSync } from '@/lib/reward-settings';
 import { hasPreview, playPreview, previewingId, stopPreview, subscribePreview, togglePreview } from '@/lib/sound';
 
@@ -38,6 +40,27 @@ export function useRevealPreview(itemId: string | undefined): void {
 
   // Leaving the reveal stops it, same rule as the detail screens.
   useEffect(() => () => stopPreview(), []);
+}
+
+/**
+ * Fire the common→mythic reveal sting once, when a results screen lands (PUNCHLIST_14 §2).
+ *
+ * Separate from useRevealPreview, which auditions the ITEM's own audio if it happens to be an
+ * audio cosmetic. This is the tier sting and fires for every pull regardless of type — the two are
+ * layered deliberately: the sting says how good the pull was, the preview says what it sounds like.
+ *
+ * Fires once per mount rather than once per rarity: a ×10 whose best pull is Rare and a later ×10
+ * that also peaks at Rare are two separate rewards and both deserve the sting, so keying on the
+ * rarity value would wrongly suppress the second. `fireReveal` reads the sound/haptics preferences
+ * itself, so nothing here needs to check them.
+ */
+export function useRevealSting(rarity: Rarity | undefined, dupe: boolean): void {
+  const fired = useRef(false);
+  useEffect(() => {
+    if (!rarity || fired.current) return;
+    fired.current = true;
+    fireReveal(rarity, dupe);
+  }, [rarity, dupe]);
 }
 
 /**

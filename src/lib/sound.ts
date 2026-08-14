@@ -45,7 +45,23 @@ export type RewardCue =
   | 'sfx-heavy-anvil-slam'
   | 'sfx-sub-bass-drop'
   | 'sfx-jet-engine-ignition'
-  | 'sfx-olympian-foghorn';
+  | 'sfx-olympian-foghorn'
+  // The two starter stings from the seeded loadout (#88). Same id-is-the-cue rule as the four
+  // above, but they re-point at one-shots the app already ships rather than adding assets — a
+  // starter set has no business shipping bespoke audio.
+  | 'sfx-campfire-spark'
+  | 'sfx-ember-settle'
+  // Loot-box opening (PUNCHLIST_14 §2). `box-open` is the per-box crack in the ×N cascade and is
+  // deliberately the quietest thing here — it fires up to ten times in about two seconds, so
+  // anything with a tail would stack into mush. The six `reveal-*` cues are the escalating
+  // common→mythic ladder and fire exactly ONCE per open, for the best pull.
+  | 'box-open'
+  | 'reveal-common'
+  | 'reveal-uncommon'
+  | 'reveal-rare'
+  | 'reveal-epic'
+  | 'reveal-legendary'
+  | 'reveal-mythic';
 
 // The two band-crossing anthems (RANKUP_SPEC §9) — both mixed and in-repo now, so these are
 // plain requires rather than the old "uncomment when the mix lands" placeholders.
@@ -98,6 +114,23 @@ const SOURCES: Omit<Record<RewardCue, number>, 'ascension-hero' | 'ascension-pri
   'sfx-sub-bass-drop': require('../../assets/audio/cosmetic/sfx-sub-bass-drop.mp3'),
   'sfx-jet-engine-ignition': require('../../assets/audio/cosmetic/sfx-jet-engine-ignition.mp3'),
   'sfx-olympian-foghorn': require('../../assets/audio/cosmetic/sfx-olympian-foghorn.mp3'),
+
+  // Starter stings (#88) — deliberately the existing spark/settle one-shots. They already sound
+  // like a fire catching and a fire banking down, which is exactly what the two slots mean, and
+  // reusing them keeps the seeded loadout from adding a byte to the bundle.
+  'sfx-campfire-spark': require('../../assets/sounds/spark.wav'),
+  'sfx-ember-settle': require('../../assets/sounds/settle.wav'),
+
+  // The box-open ladder (PUNCHLIST_14 §2), built to the six-tier framework. Preloaded with
+  // everything else: the crack cue has to land on the same frame as the box breaking, and a file
+  // read there would put the sound behind the animation.
+  'box-open': require('../../assets/sounds/reveal/box-open.mp3'), // crack/whoosh, fires per box
+  'reveal-common': require('../../assets/sounds/reveal/reveal-common.mp3'), // cardboard flip, dead dry
+  'reveal-uncommon': require('../../assets/sounds/reveal/reveal-uncommon.mp3'), // leather + metal snap + wood chime
+  'reveal-rare': require('../../assets/sounds/reveal/reveal-rare.mp3'), // brass unlock + crystal chord
+  'reveal-epic': require('../../assets/sounds/reveal/reveal-epic.mp3'), // arc crackle + synth-gong swell
+  'reveal-legendary': require('../../assets/sounds/reveal/reveal-legendary.mp3'), // vault slam + brass fanfare
+  'reveal-mythic': require('../../assets/sounds/reveal/reveal-mythic.mp3'), // implosion + war-horn, 5s aura tail
 };
 
 // Partial: the ascension cues only get a player once their asset lands (see ASCENSION_SOURCES).

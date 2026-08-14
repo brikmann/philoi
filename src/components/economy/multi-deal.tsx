@@ -7,7 +7,6 @@ import { BoxCrack } from '@/components/economy/box-crack';
 import type { BoxKey } from '@/lib/economy/boxes';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { OpenResult } from '@/lib/api/inventory';
-import { RARITY_COLOR, type Rarity } from '@/lib/economy/rarity';
 
 // The ×10 card-shuffle deal (§8.5, mock 59).
 //
@@ -15,9 +14,13 @@ import { RARITY_COLOR, type Rarity } from '@/lib/economy/rarity';
 // bottom-right on a ~0.06s stagger. Then each cell runs the same crack + pulse in that same
 // cascade order.
 //
-// The results are ALREADY DECIDED before this mounts — every card knows its rarity from the
-// moment it's dealt, which is what lets each pulse flash the right tier colour. The animation is
-// choreography over a settled outcome, never a source of one.
+// The results are ALREADY DECIDED before this mounts — the animation is choreography over a
+// settled outcome, never a source of one.
+//
+// It is also deliberately BLIND to those results (PUNCHLIST_14 §1). Cells used to carry
+// `borderColor: RARITY_COLOR[rarity]` and the cracks flashed their tier, so a ×10 read as a rarity
+// light-show that had already announced every pull before a single item appeared. Now the deal
+// says "ten boxes are opening" and nothing more; rarity is the results grid's to reveal.
 
 const STAGGER_MS = 60;
 const DEAL_MS = 280;
@@ -63,7 +66,6 @@ export function MultiDeal({ boxKey, results, reduceMotion, onDone }: Props) {
             key={`${r.cosmetic_key}-${i}`}
             index={i}
             boxKey={boxKey}
-            rarity={(r.item?.rarity ?? 'common') as Rarity}
             cracking={cracking}
             onCracked={i === lastIndex ? onDone : undefined}
           />
@@ -78,13 +80,11 @@ export function MultiDeal({ boxKey, results, reduceMotion, onDone }: Props) {
 function DealtCard({
   index,
   boxKey,
-  rarity,
   cracking,
   onCracked,
 }: {
   index: number;
   boxKey: BoxKey;
-  rarity: Rarity;
   cracking: boolean;
   onCracked?: () => void;
 }) {
@@ -105,9 +105,10 @@ function DealtCard({
   }));
 
   return (
-    <Animated.View style={[styles.cell, { borderColor: RARITY_COLOR[rarity] }, style]}>
+    // Neutral card border — the cell shows plain box art, not a rarity-tinted shape.
+    <Animated.View style={[styles.cell, style]}>
       {cracking ? (
-        <CascadedCrack index={index} boxKey={boxKey} rarity={rarity} onCracked={onCracked} />
+        <CascadedCrack index={index} boxKey={boxKey} onCracked={onCracked} />
       ) : (
         <BoxArt boxKey={boxKey} size={34} />
       )}
@@ -119,12 +120,10 @@ function DealtCard({
 function CascadedCrack({
   index,
   boxKey,
-  rarity,
   onCracked,
 }: {
   index: number;
   boxKey: BoxKey;
-  rarity: Rarity;
   onCracked?: () => void;
 }) {
   const [started, setStarted] = useState(index === 0);
@@ -138,7 +137,7 @@ function CascadedCrack({
   if (!started) return <BoxArt boxKey={boxKey} size={34} />;
 
   // BoxCrack already hops back to the JS thread before calling onDone, so this is a plain callback.
-  return <BoxCrack boxKey={boxKey} rarity={rarity} reduceMotion={false} size={52} onDone={() => onCracked?.()} />;
+  return <BoxCrack boxKey={boxKey} reduceMotion={false} size={52} onDone={() => onCracked?.()} />;
 }
 
 const styles = StyleSheet.create({
@@ -168,6 +167,7 @@ const styles = StyleSheet.create({
     height: 58,
     borderRadius: 12,
     borderWidth: 1.5,
+    borderColor: Colors.line,
     backgroundColor: Colors.cardDark,
     alignItems: 'center',
     justifyContent: 'center',

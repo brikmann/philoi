@@ -753,19 +753,30 @@ no riser; hits ring out; `grep -rn "infernal" src` = 0. tsc + lint; ship JS over
 - Default cosmetics — seed a base loadout on signup (basic orange flame, campfire-spark start sting,
   default end sting, orange aura, base of every slot; permanent, non-sellable) (#88)
 
-## PHASE 3 — FORGE PASS DE-SLOP
-- Rework the battle pass properly — reward ladder, tier visuals, copy — so it stops reading as AI slop.
-  NEEDS A DESIGN/SPEC PASS FIRST (flag Claude to spec before Code builds). (relates #48)
+## PHASE 3 — FORGE PASS DE-SLOP  [design DONE -> mock 87 + FORGE_PASS_DESLOP.md]
+- Rebuild the tiers screen on the molten-seam metaphor: a vertical seam lit below your tier / cold iron
+  above (the rail IS the progress bar); two lanes (Free · Premium-locked); REAL cosmetic art per tile
+  (pull by catalog id); states = claimed check / pulsing current node + Claim CTA / cold upcoming; a
+  bigger violet ANVIL milestone every 10 tiers headlining a FLARE (the marquee premium unlock). Header =
+  season + tier + molten XP bar + countdown; one gold upgrade strip; one Claim CTA.
+- Ships OTA (reskin over the existing season-track data, #48). Only the $9.99 unlock waits on RevenueCat.
 
 ## PHASE 4 — MONETIZATION (revenue; NATIVE build)
 - RevenueCat native build (#71): Forge Pass subscription + ember packs as StoreKit IAP; a purchase
   SUCCESS SCREEN; configure the IAP products in App Store Connect.
 
 ## PHASE 5 — PREMIUM POLISH (NATIVE; v1.1 FLEX — do NOT risk the Aug 20 date)
-- Flare / session-tiered aura 30/60/90 — Kindled/Burning/Locked In off useElapsedSeconds (#86, PUNCHLIST_14 s3)
+- Flares = the app-wide perimeter aura cosmetic (NO free aura, NO session gate). One
+  FlarePerimeter({colour, effect}) overlay mounted at the app ROOT -> a FAINT glow on EVERY page while a
+  flare is equipped. Per-flare colour + signature effect: Void Smoke = purple+smoke, Zeus' Wrath =
+  white+zaps, Stormforge = blue pulse+zaps, Toxic = green falling "toxic waste" droplets, Inferno =
+  red+edge flames, Solar = gold+arcs, etc. effect in {smoke,zaps,falling,flames,plasma,glow}; low
+  particle counts (ambient, not a showpiece). (#86, FLARES_SPEC.md, mock 88)
+  NOTE: the in-app overlay is OTA-capable on its own — it sits here as premium polish; pull it forward
+  into v1 if there's time, since it's the marquee Forge Pass reward.
 - Live Activity lock-in pill — lock screen + iOS Dynamic Island + Android chip + home-screen glow
-  widget; aura drives the glow (#87, FEATURE_LOCKIN_PILL.md)
-- Both need their own native widget extension + testing -> ship as a fast-follow v1.1 update.
+  widget; tints to the equipped flare's colour for out-of-app coordination (#87, FEATURE_LOCKIN_PILL.md)
+- The pill / Live Activity needs its own native widget extension + testing -> fast-follow v1.1.
 
 ## PHASE 6 — SHIP
 - TestFlight build once Phase 1-2 land -> start the gym-table spread immediately (free; IAP is sandbox).

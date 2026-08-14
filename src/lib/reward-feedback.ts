@@ -11,6 +11,7 @@ import {
   stopRewardSounds,
   type RewardCue,
 } from '@/lib/sound';
+import type { Rarity } from '@/lib/economy/rarity';
 import type { RankTierName } from '@/types/database';
 
 // The full-length anthems, reserved for the two band crossings (RANKUP_SPEC §9). Only the tiers a
@@ -241,4 +242,91 @@ export function fireEmberLand(): void {
   const prefs = getRewardPreferencesSync();
   if (prefs.sound) playRewardSound('spark', 0.4);
   if (prefs.haptics) safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+}
+
+// ─────────────────────────── Loot-box opening (PUNCHLIST_14 §2) ───────────────────────────
+
+/**
+ * One box cracking in the deal cascade. Quiet, and quiet on purpose: on a ×10 this fires ten
+ * times inside about two seconds, so it has to read as a run of cracks rather than a wall of
+ * them. Sound-only — ten haptics in two seconds is a buzzing phone, not feedback; the single
+ * reveal haptic below is where the hands get involved.
+ */
+export function fireBoxOpen(): void {
+  if (!getRewardPreferencesSync().sound) return;
+  playRewardSound('box-open', 0.5);
+}
+
+const REVEAL_CUE: Record<Rarity, RewardCue> = {
+  common: 'reveal-common',
+  uncommon: 'reveal-uncommon',
+  rare: 'reveal-rare',
+  epic: 'reveal-epic',
+  legendary: 'reveal-legendary',
+  mythic: 'reveal-mythic',
+};
+
+/**
+ * The per-tier haptic pattern from PUNCHLIST_14 §2's framework: common a light tap, mythic a
+ * prolonged shockwave. Written as an explicit sequence per tier rather than "impact of escalating
+ * style" because the framework's escalation is in the RHYTHM as much as the strength — rare's
+ * "sharp tap + fading buzz" and legendary's "double-thud + decay pulse" are patterns, and a single
+ * heavier impact doesn't read as either.
+ */
+function revealHaptic(rarity: Rarity): void {
+  const tap = (style: Haptics.ImpactFeedbackStyle) => safeHaptic(() => Haptics.impactAsync(style));
+  const { Light, Medium, Heavy } = Haptics.ImpactFeedbackStyle;
+  // Offsets are milliseconds into the sting. They intentionally sit inside each cue's decay so the
+  // pulse feels like part of the sound rather than an echo arriving after it.
+  const pattern: Record<Rarity, [number, Haptics.ImpactFeedbackStyle][]> = {
+    common: [[0, Light]],
+    uncommon: [
+      [0, Light],
+      [90, Light],
+    ],
+    rare: [
+      [0, Medium],
+      [140, Light],
+      [260, Light],
+    ],
+    epic: [
+      [0, Heavy],
+      [180, Medium],
+      [320, Light],
+    ],
+    legendary: [
+      [0, Heavy],
+      [110, Heavy],
+      [400, Medium],
+      [700, Light],
+    ],
+    // The heartbeat: two thuds, a rest, two thuds, trailing off across the 5s aura tail.
+    mythic: [
+      [0, Heavy],
+      [130, Heavy],
+      [520, Heavy],
+      [650, Heavy],
+      [1100, Medium],
+      [1600, Light],
+    ],
+  };
+  for (const [delay, style] of pattern[rarity]) {
+    if (delay === 0) tap(style);
+    else setTimeout(() => tap(style), delay);
+  }
+}
+
+/**
+ * The reveal sting for a haul's BEST pull — once per open, never once per item (§2: "on ×10 the
+ * reveal sting plays once for the best pull; the per-box open cue covers the rest").
+ *
+ * A dupe is played at reduced volume. That rule is doing real work: a dupe auto-salvages to embers
+ * rather than granting the item, so letting a duplicate Mythic fire the full war-horn would sell
+ * the user a jackpot they did not actually receive. The haptic drops with it for the same reason.
+ */
+export function fireReveal(rarity: Rarity, dupe = false): void {
+  const prefs = getRewardPreferencesSync();
+  if (prefs.sound) playRewardSound(REVEAL_CUE[rarity], dupe ? 0.4 : 1);
+  if (prefs.haptics && !dupe) revealHaptic(rarity);
+  else if (prefs.haptics) safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
 }

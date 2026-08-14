@@ -50,30 +50,13 @@ This **supersedes / is the real version of task #73** ("Strava-like live session
 them — #73 becomes this. The session-tiered aura (30/60/90, PUNCHLIST_14 #3) can drive the pill's
 color/intensity so a deeper session literally glows on the lock screen.
 
-## Perimeter aura — the simpler, unified direction (mock 88)
-Visual: `design-mocks/88-lockin-aura.html`. This REPLACES the earlier elaborate flare-based aura with a
-cleaner idea, and defines how it renders in vs out of the app.
-
-**The aura = a pulsing flat-colour glow around the screen perimeter, coloured by your equipped flame.**
-No mythic flare needed to unlock it — every flame gives its aura colour:
-- Base flame → orange · Toxic → green · Lime → lime · Neutron Starfire → white · Stormforge → electric
-  blue · etc. (aura pulls the flame's primary colour).
-
-**Two intensity states, one identity:**
-- **In-app:** the FULL perimeter aura — bright, pulsing, present but never blinding (you can still use
-  the app). This is where it really lands.
-- **Outside the app:** dialled WAY down and — critically — it lives in the **Live-Activity pill**, not
-  the screen edge (see the honest limit below). The pill carries the same flame colour + flare motif so
-  it reads as the same aura, just ambient.
-- **Coordination is the premium feel:** colour + flare signature are IDENTICAL inside and out; only the
-  intensity changes when you open the app. That seamless in/out match is the whole point.
-
-**Flares stay worth chasing:** the flare cosmetic adds a subtle-but-noticeable signature ON TOP of the
-perimeter aura — e.g. Zeus' Wrath throws tiny faint sparks, Void adds a soft violet warp — and it shows
-up in BOTH surfaces (pill + in-app). So the base aura is free with your flame; the flare is the flex.
-
-**Can combine with session tiers:** the 30/60/90 aura (#86) can drive the in-app intensity ramp
-(Kindled → Burning → Locked In) on top of the flame colour.
+## Perimeter aura = flares only (FLARES_SPEC.md, mock 88)
+**Decision — no free/base aura.** The perimeter aura IS the flare cosmetic; there's no flame-colour free
+aura. Equipping a flare renders a **faint glowing perimeter on EVERY page in the app**, scoped to that
+flare's colour + signature effect (Void Smoke = purple + smoke · Zeus' Wrath = white + electric zaps ·
+Stormforge = blue pulse + zaps · Toxic = green falling droplets · …). Faint, always-on while equipped,
+no session-length gate. Full model + per-flare effect table: **FLARES_SPEC.md**. For coordination, the
+pill below can tint to the equipped flare's colour.
 
 ## ⚠️ Honest OS limit — the aura can't paint the whole lock/home screen
 A third-party app **cannot** render a glow around the entire phone lock screen or home screen on iOS or

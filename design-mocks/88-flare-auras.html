@@ -1,0 +1,79 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flare perimeter auras (mock 88)</title>
+<style>
+*{box-sizing:border-box;font-family:'Inter',system-ui,sans-serif}
+body{margin:0;background:#08070c;color:#FFF6EC;padding:26px;display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start}
+h1{width:100%;font-size:17px;margin:0;color:#e7ddf5}
+.sub{width:100%;font-size:12.5px;color:#9f92b6;margin:-14px 0 2px;max-width:860px;line-height:1.55}
+.col{display:flex;flex-direction:column;gap:8px;align-items:center}
+.cap{font-size:11.5px;color:#9f92b6;width:210px;text-align:center;line-height:1.45}
+.scr{width:210px;height:400px;border-radius:28px;position:relative;overflow:hidden;background:#0f0d15;border:1px solid #241c38}
+.page{position:absolute;inset:0;padding:16px 14px;z-index:1}
+.ph{font-size:13px;font-weight:800;color:#FFF6EC}.psub{font-size:10px;color:#8f84a6;margin-top:1px}
+.pf{font-size:60px;text-align:center;margin:44px 0 10px;filter:drop-shadow(0 0 18px #f2a33c66)}
+.prow{height:34px;border-radius:9px;background:#1b1726;border:1px solid #241c38;margin-top:8px}
+.perim{position:absolute;inset:0;border-radius:28px;pointer-events:none;z-index:2;animation:breathe 3.4s ease-in-out infinite}
+@keyframes breathe{50%{opacity:.62}}
+.fx{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden;border-radius:28px}
+.smoke{position:absolute;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,#6A2AB855,transparent 70%);filter:blur(6px);animation:drift 7s ease-in-out infinite}
+@keyframes drift{0%{transform:translate(0,10px)}50%{transform:translate(14px,-14px)}100%{transform:translate(0,10px)}}
+.drop{position:absolute;width:4px;height:9px;border-radius:2px;background:#8CFF3A;box-shadow:0 0 5px #5DCA2A;animation:fall 2.6s linear infinite}
+@keyframes fall{0%{transform:translateY(-14px);opacity:0}10%{opacity:1}100%{transform:translateY(400px);opacity:.2}}
+.zap{stroke-linejoin:round;fill:none;animation:flick 1.7s steps(1) infinite}
+@keyframes flick{0%,86%{opacity:0}88%,94%{opacity:.9}96%{opacity:.3}}
+.legend{width:100%;font-size:12px;color:#8f84a6;max-width:860px;line-height:1.55}
+</style>
+
+<h1>🔥 Flare perimeter auras — mock 88 (flare-only, no free aura)</h1>
+<p class="sub">The perimeter aura <b>is</b> the flare — a premium unlock, not a free-tier effect. When a
+flare is equipped it renders a <b>faint glowing perimeter on every page in the app</b> (shown here on a
+generic screen), scoped to that flare's colour + signature effect. Faint enough that the app stays fully
+usable; distinct enough to flex. No flare equipped → no aura.</p>
+
+<div class="col">
+  <div class="scr">
+    <div class="page"><div class="ph">Void Smoke</div><div class="psub">any page · faint</div><div class="pf">🔥</div><div class="prow"></div><div class="prow"></div><div class="prow"></div></div>
+    <div class="fx"><div class="smoke" style="left:-20px;top:60px"></div><div class="smoke" style="right:-24px;top:200px;animation-delay:-3s"></div><div class="smoke" style="left:40px;bottom:-20px;animation-delay:-5s"></div></div>
+    <div class="perim" style="box-shadow:inset 0 0 30px 6px #6A2AB8aa"></div>
+  </div>
+  <div class="cap"><b style="color:#C77BFF">Void Smoke</b> — deep purple perimeter + drifting smoke.</div>
+</div>
+
+<div class="col">
+  <div class="scr">
+    <div class="page"><div class="ph">Zeus' Wrath</div><div class="psub">any page · faint</div><div class="pf">🔥</div><div class="prow"></div><div class="prow"></div><div class="prow"></div></div>
+    <div class="fx">
+      <svg width="210" height="400" viewBox="0 0 210 400"><polyline class="zap" points="6,90 16,110 8,120 20,150" stroke="#EAF3FF" stroke-width="1.6"/><polyline class="zap" points="204,180 192,200 202,214 190,244" stroke="#EAF3FF" stroke-width="1.6" style="animation-delay:-.8s"/><polyline class="zap" points="60,394 74,372 64,362 80,340" stroke="#EAF3FF" stroke-width="1.6" style="animation-delay:-1.3s"/></svg>
+    </div>
+    <div class="perim" style="box-shadow:inset 0 0 26px 5px #EAF3FFbb"></div>
+  </div>
+  <div class="cap"><b style="color:#EAF3FF">Zeus' Wrath</b> — white perimeter + electric zaps.</div>
+</div>
+
+<div class="col">
+  <div class="scr">
+    <div class="page"><div class="ph">Stormforge</div><div class="psub">any page · faint</div><div class="pf">🔥</div><div class="prow"></div><div class="prow"></div><div class="prow"></div></div>
+    <div class="fx">
+      <svg width="210" height="400" viewBox="0 0 210 400"><polyline class="zap" points="6,140 18,160 9,172 22,200" stroke="#BFE0FF" stroke-width="1.6"/><polyline class="zap" points="204,90 192,108 203,120 191,148" stroke="#BFE0FF" stroke-width="1.6" style="animation-delay:-.9s"/></svg>
+    </div>
+    <div class="perim" style="box-shadow:inset 0 0 30px 6px #2A78E0cc;animation:breathe 1.8s ease-in-out infinite"></div>
+  </div>
+  <div class="cap"><b style="color:#7BB8FF">Stormforge</b> — pulsing electric-blue + zaps.</div>
+</div>
+
+<div class="col">
+  <div class="scr">
+    <div class="page"><div class="ph">Toxic</div><div class="psub">any page · faint</div><div class="pf">🔥</div><div class="prow"></div><div class="prow"></div><div class="prow"></div></div>
+    <div class="fx">
+      <div class="drop" style="left:16px"></div><div class="drop" style="left:70px;animation-delay:-1.4s"></div><div class="drop" style="right:20px;animation-delay:-.7s"></div><div class="drop" style="right:60px;animation-delay:-2s"></div><div class="drop" style="left:120px;animation-delay:-1.1s"></div>
+    </div>
+    <div class="perim" style="box-shadow:inset 0 0 28px 6px #5DCA2Acc"></div>
+  </div>
+  <div class="cap"><b style="color:#8CFF3A">Toxic</b> — green perimeter + falling "toxic-waste" droplets.</div>
+</div>
+
+<p class="legend"><b style="color:#FFD27A">Build:</b> one <code>FlarePerimeter({colour, effect})</code>
+overlay, mounted at the app root so it paints every page. <code>effect ∈ smoke · zaps · falling ·
+flames · plasma · glow</code>. Low particle counts (ambient, not a showpiece). Inferno = red + edge
+flames, Solar = gold + solar arcs, etc. — same colour+effect pattern per flare. The Live-Activity pill
+(#87) tints to the equipped flare's colour for out-of-app coordination. Full spec: FLARES_SPEC.md.</p>

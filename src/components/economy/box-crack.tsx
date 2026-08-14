@@ -13,17 +13,19 @@ import Animated, {
 import { BoxArt } from '@/components/economy/box-art';
 import type { BoxKey, CrackStyle } from '@/lib/economy/boxes';
 import { BOXES } from '@/lib/economy/boxes';
-import { RARITY_COLOR, type Rarity } from '@/lib/economy/rarity';
+import { Colors } from '@/constants/theme';
+import { fireBoxOpen } from '@/lib/reward-feedback';
 
 // §8.5's two stages, in one component.
 //
 // Stage 1 — CRACK (~0.6–0.9s), DIFFERENT per box: a vault spins, a crate's fuse burns, logs get
 // chopped. The box is a distinct physical object per tier and the crack has to read that way.
 // Stage 2 — PULSE (~0.7s), IDENTICAL for all six: whiten, shrink slightly, and let light rays
-// break free of the centre, flashing the ITEM's tier colour (not the box's).
+// break free of the centre in a fixed ember gold.
 //
-// The result is already decided when this mounts. Nothing here rolls anything — `rarity` is an
-// input, which is what lets the rays flash the right colour before the reveal.
+// The result is already decided when this mounts, and this component is deliberately not told what
+// it is (PUNCHLIST_14 §1). It used to take a `rarity` prop and flash the tier colour through the
+// rays, which spoiled the pull before the item was ever shown.
 
 const CRACK_MS: Record<CrackStyle, number> = {
   chop: 600,
@@ -36,16 +38,23 @@ const CRACK_MS: Record<CrackStyle, number> = {
 
 const PULSE_MS = 700;
 
+/**
+ * The crack's ray colour, identical for every box and every pull (PUNCHLIST_14 §1).
+ *
+ * This used to be `RARITY_COLOR[rarity]`, which meant the rays flashed the tier BEFORE the item
+ * was shown — the box told you it was a Mythic and the reveal had nothing left to say. Opening is
+ * now just a box opening; rarity is the results grid's news to break.
+ */
+const CRACK_LIGHT = Colors.ember;
+
 type Props = {
   boxKey: BoxKey;
-  /** The tier colour the rays flash — comes from the item that was actually pulled. */
-  rarity: Rarity;
   reduceMotion: boolean;
   onDone: () => void;
   size?: number;
 };
 
-export function BoxCrack({ boxKey, rarity, reduceMotion, onDone, size = 160 }: Props) {
+export function BoxCrack({ boxKey, reduceMotion, onDone, size = 160 }: Props) {
   const crack = BOXES[boxKey].crack;
   const crackMs = CRACK_MS[crack];
 
@@ -59,6 +68,12 @@ export function BoxCrack({ boxKey, rarity, reduceMotion, onDone, size = 160 }: P
   const rays = useSharedValue(0);
 
   useEffect(() => {
+    // The crack cue fires as the box gives, including under reduced motion — that setting is about
+    // vestibular safety, not silence, and the cross-fade below is still the box opening. The
+    // cascade's stagger comes free: each cell mounts its own BoxCrack on its own delay, so ten
+    // boxes produce ten cracks in the order they were dealt without any scheduling here.
+    fireBoxOpen();
+
     if (reduceMotion) {
       // Reduced motion: no spin, no shudder, no rays — a plain cross-fade to the reveal, which is
       // exactly what §8.5's closing note asks for.
@@ -124,12 +139,12 @@ export function BoxCrack({ boxKey, rarity, reduceMotion, onDone, size = 160 }: P
 
   return (
     <View style={[styles.stage, { width: size, height: size }]}>
-      {/* Rays break free of the centre and carry the ITEM's tier colour. */}
+      {/* Rays break free of the centre in the same ember gold every time — see CRACK_LIGHT. */}
       <Animated.View
         pointerEvents="none"
         style={[
           styles.rays,
-          { width: size, height: size, borderRadius: size / 2, backgroundColor: RARITY_COLOR[rarity] },
+          { width: size, height: size, borderRadius: size / 2, backgroundColor: CRACK_LIGHT },
           rayStyle,
         ]}
       />
