@@ -10,7 +10,12 @@
 --    vocabulary moves from TIER to LEVEL to stop colliding with the rank ladder's tiers.
 -- 3. Claims become bundle-shaped, because a level can hand over more than one reward.
 
-begin;
+-- NOTE: no explicit begin/commit — `supabase db push` already runs each
+-- migration inside a transaction AND records schema_migrations in that same
+-- transaction. An explicit commit; here would close the transaction early and
+-- strand the migration record, which the CLI reports as a schema_migrations
+-- insert failure rather than as the real cause.
+
 
 
 -- ───────────────────────────── 1 · the season window ─────────────────────────────
@@ -292,4 +297,4 @@ end;
 $$;
 
 
-commit;
+

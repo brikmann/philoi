@@ -14,7 +14,12 @@
 -- Relationship to 0066: additive. close_season_scope still grants the 21j placement titles off
 -- universal_score. This grants the Emberfall-coded set off pass XP. Neither touches the other's rows.
 
-begin;
+-- NOTE: no explicit begin/commit — `supabase db push` already runs each
+-- migration inside a transaction AND records schema_migrations in that same
+-- transaction. An explicit commit; here would close the transaction early and
+-- strand the migration record, which the CLI reports as a schema_migrations
+-- insert failure rather than as the real cause.
+
 
 
 -- ───────────────────────────── the standings snapshot ─────────────────────────────
@@ -279,4 +284,4 @@ begin
 end;
 $$;
 
-commit;
+

@@ -9,7 +9,12 @@
 -- src/lib/economy/catalog.ts and the two sets must stay in step: a key seeded here that the client
 -- can't resolve renders as an empty slot again, which is the exact bug this fixes.
 
-begin;
+-- NOTE: no explicit begin/commit — `supabase db push` already runs each
+-- migration inside a transaction AND records schema_migrations in that same
+-- transaction. An explicit commit; here would close the transaction early and
+-- strand the migration record, which the CLI reports as a schema_migrations
+-- insert failure rather than as the real cause.
+
 
 
 -- The starter keys, in one place so the seeder, the backfill and the salvage guard can't drift.
@@ -145,4 +150,4 @@ begin
 end;
 $$;
 
-commit;
+

@@ -10,7 +10,12 @@
 -- different timezones. A local-midnight boundary would close the same shared window at a different
 -- instant for each member, so the standings would depend on which member you asked.
 
-begin;
+-- NOTE: no explicit begin/commit — `supabase db push` already runs each
+-- migration inside a transaction AND records schema_migrations in that same
+-- transaction. An explicit commit; here would close the transaction early and
+-- strand the migration record, which the CLI reports as a schema_migrations
+-- insert failure rather than as the real cause.
+
 
 
 -- ───────────────────────────────── the helpers ─────────────────────────────────
@@ -222,4 +227,4 @@ $$;
 alter table challenges
   alter column period_start set default (week_start() at time zone 'UTC')::date;
 
-commit;
+

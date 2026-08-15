@@ -16,7 +16,12 @@
 -- is also why challenge_logs is NOT deleted below — the ledger stays whole, and old rows simply
 -- fall out of the window.
 
-begin;
+-- NOTE: no explicit begin/commit — `supabase db push` already runs each
+-- migration inside a transaction AND records schema_migrations in that same
+-- transaction. An explicit commit; here would close the transaction early and
+-- strand the migration record, which the CLI reports as a schema_migrations
+-- insert failure rather than as the real cause.
+
 
 
 -- ───────────────────────────────── the archive ─────────────────────────────────
@@ -168,4 +173,4 @@ select cron.schedule(
   $$select roll_over_challenges();$$
 );
 
-commit;
+
