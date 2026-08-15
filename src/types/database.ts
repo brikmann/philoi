@@ -459,6 +459,7 @@ export type AnalyticsEventName =
   | 'cosmetic_unequipped'
   | 'cosmetic_salvaged'
   | 'pass_tier_claimed'
+  | 'pass_level_claimed'
   | 'signed_up'
   | 'circle_created'
   | 'circle_joined'
@@ -1471,6 +1472,46 @@ export type Database = {
           p_item_slot: string | null;
         };
         Returns: { tier: number; lane: string; kind: string };
+      };
+      /**
+       * Bundle claim (migration 0074). Supersedes claim_pass_tier, which stays declared above only
+       * for the rollout window — a level can carry more than one reward and the old single-reward
+       * signature could not grant both without tripping the unique claim index.
+       */
+      claim_pass_level: {
+        Args: {
+          p_level: number;
+          p_lane: 'free' | 'premium';
+          p_rewards: {
+            kind: string;
+            embers: number | null;
+            box_key: string | null;
+            item_key: string | null;
+            item_rarity: string | null;
+            item_slot: string | null;
+          }[];
+        };
+        Returns: { level: number; lane: string; granted: number };
+      };
+      season_phase: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+      grant_season_placement_rewards: {
+        Args: { p_season: string | null; p_dry_run: boolean };
+        Returns: { university: string; ranked: number; granted: number }[];
+      };
+      get_my_season_standing: {
+        Args: { p_season: string | null };
+        Returns: {
+          season_id: string;
+          university: string;
+          rank: number;
+          board_size: number;
+          pass_xp: number;
+          pass_level: number;
+          percentile: number;
+        } | null;
       };
     };
   };

@@ -8,20 +8,37 @@ import type { PassReward } from '@/lib/economy/forge-pass';
 import { supabase } from '@/lib/supabase';
 import { weekKey } from '@/lib/time/week';
 
-export async function claimPassTier(tier: number, lane: 'free' | 'premium', reward: PassReward): Promise<void> {
-  const item = reward.kind === 'item' ? getItem(reward.itemId) : undefined;
-  const { error } = await supabase.rpc('claim_pass_tier', {
-    p_tier: tier,
+/**
+ * Claim one LEVEL's rewards for one lane.
+ *
+ * Takes the whole bundle, not a single reward, because a level can hand over more than one thing —
+ * L50 premium is a Mythic halo AND the Emberfall Strike sting. The old one-reward-per-call shape
+ * couldn't express that: `pass_claims` is unique on (user, season, level, lane), so looping this
+ * function over a bundle would have granted the first reward and then thrown a duplicate-key error
+ * on the second, leaving the user with half a level and no way to ask for the rest.
+ *
+ * The server re-derives everything that matters — level reached, lane ownership, the season window
+ * — and grants the whole array in one transaction.
+ */
+export async function claimPassLevel(level: number, lane: 'free' | 'premium', rewards: PassReward[]): Promise<void> {
+  const payload = rewards.map((reward) => {
+    const item = reward.kind === 'item' ? getItem(reward.itemId) : undefined;
+    return {
+      kind: reward.kind,
+      embers: reward.kind === 'embers' ? reward.amount : null,
+      box_key: reward.kind === 'box' ? reward.box : null,
+      item_key: reward.kind === 'item' ? reward.itemId : reward.kind === 'badge' ? reward.badgeKey : null,
+      item_rarity: item?.rarity ?? null,
+      item_slot: item?.slot ?? null,
+    };
+  });
+  const { error } = await supabase.rpc('claim_pass_level', {
+    p_level: level,
     p_lane: lane,
-    p_kind: reward.kind,
-    p_embers: reward.kind === 'embers' ? reward.amount : null,
-    p_box_key: reward.kind === 'box' ? reward.box : null,
-    p_item_key: reward.kind === 'item' ? reward.itemId : reward.kind === 'badge' ? reward.badgeKey : null,
-    p_item_rarity: item?.rarity ?? null,
-    p_item_slot: item?.slot ?? null,
+    p_rewards: payload,
   });
   if (error) throw error;
-  track('pass_tier_claimed', { tier, lane, kind: reward.kind });
+  track('pass_level_claimed', { level, lane, rewards: rewards.length });
 }
 
 /**
@@ -48,6 +65,27 @@ export async function fetchAchievementProgress(): Promise<Record<string, number>
   const { data, error } = await supabase.rpc('get_pass_achievement_progress');
   if (error) throw error;
   return data ?? {};
+}
+
+export type SeasonStanding = {
+  season_id: string;
+  university: string;
+  rank: number;
+  board_size: number;
+  pass_xp: number;
+  pass_level: number;
+  percentile: number;
+};
+
+/**
+ * Your final placing once the season has been closed out (migration 0075). Returns null until the
+ * standings snapshot exists, which is exactly how the client knows the close job hasn't run yet —
+ * there is deliberately no separate "is the season closed" flag to drift out of sync with it.
+ */
+export async function fetchMySeasonStanding(): Promise<SeasonStanding | null> {
+  const { data, error } = await supabase.rpc('get_my_season_standing', { p_season: null });
+  if (error) throw error;
+  return (data as SeasonStanding | null) ?? null;
 }
 
 /** `2026-08-07` for dailies, `W2953` for weeklies, the season id for one-time milestones. */

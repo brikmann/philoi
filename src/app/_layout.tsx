@@ -8,6 +8,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PostHogProvider } from 'posthog-react-native';
 
+import { EquippedFlarePerimeter } from '@/components/economy/flare-perimeter';
 import { LoadoutSync } from '@/components/economy/loadout-sync';
 import { LIVE_SESSION_BAR_HEIGHT, LiveSessionBar, LOCK_IN_PATHNAME } from '@/components/live-session-bar';
 import { OfflineBanner } from '@/components/offline-banner';
@@ -302,6 +303,12 @@ function RootLayout() {
     <AuthProvider>
       <ActiveSessionProvider>
         <RootNavigator />
+        {/* The equipped flare's perimeter aura (FLARES_SPEC). Mounted at the ROOT, above the
+            navigator, because that is the whole promise of the cosmetic — a flare paints every
+            page, not just the lock-in screen. It sits under LiveSessionBar so the pill stays fully
+            legible through it, is pointer-transparent end to end, and renders literally nothing
+            when the flare slot is empty (which is most users — there is no free flare). */}
+        <EquippedFlarePerimeter />
         <LiveSessionBar />
         {/* Renders nothing until a rank actually climbs. Mounted here, above the navigator, so a
             rank earned from server-side XP (Strava/Whoop webhook, challenge payout) still gets

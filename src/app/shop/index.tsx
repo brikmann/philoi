@@ -13,7 +13,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
 import { BOX_LIST } from '@/lib/economy/boxes';
 import { boxPool, type CatalogItem } from '@/lib/economy/catalog';
-import { EMBER_PACKS, PASS_FINE_PRINT, PASS_PRICE_LABEL, SEASON, tierFromXp } from '@/lib/economy/forge-pass';
+import { EMBER_PACKS, PASS_FINE_PRINT, PASS_PRICE_LABEL, SEASON, levelFromXp, seasonPhase } from '@/lib/economy/forge-pass';
 import { DIRECT_BUY_PRICE } from '@/lib/economy/rarity';
 import { formatWeekCountdown, nextWeekReset, weekIndex } from '@/lib/time/week';
 
@@ -70,8 +70,13 @@ export default function ShopScreen() {
   const router = useRouter();
   const { embers, pass, ownedKeys, loading } = useInventory();
 
-  const tier = pass ? tierFromXp(pass.pass_xp).tier : 0;
+  // LEVEL, not tier — the Forge Pass counts in levels and the rank ladder counts in tiers, and the
+  // two must never share a word (code prompt §"Copy rule").
+  const level = pass ? levelFromXp(pass.pass_xp).level : 0;
   const ownsPremium = pass?.owns_premium ?? false;
+  // The pass is only purchasable inside the season window (§3). Outside it the hero still renders —
+  // it's the season's shopfront — but the buy CTA is replaced rather than left live.
+  const phase = seasonPhase();
 
   // Minute-granularity countdown to the next rotation. Ticked rather than computed once so a shop
   // left open doesn't sit there claiming the row rotates in a time that's already passed.
@@ -114,21 +119,31 @@ export default function ShopScreen() {
           <Text style={styles.forgeBadge}>
             SEASON {SEASON.id.replace('S', '')} FORGE PASS · {SEASON.name.toUpperCase()}
           </Text>
-          <Text style={styles.forgeTitle}>{ownsPremium ? `Tier ${tier} / ${SEASON.totalTiers}` : 'Forged in flame'}</Text>
+          <Text style={styles.forgeTitle}>{ownsPremium ? `Level ${level} / ${SEASON.totalLevels}` : 'Forged in flame'}</Text>
           <Text style={styles.forgePerk}>
             {ownsPremium
-              ? 'Your Premium track is live. Claim every tier you climb — the Emberfall set and the Mythic capstone are waiting.'
-              : 'Become the fire the whole arena gathers around — and claim the Mythic Emberfall Ascendant Flare to prove it.'}
+              ? 'Your Premium track is live. Claim every level you climb — the Emberfall set and the Mythic capstone are waiting.'
+              : phase === 'upcoming'
+                ? `${SEASON.name} opens September 10. The Mythic Emberfall Ascendant Flare lands the moment you unlock the Pass.`
+                : 'Become the fire the whole arena gathers around — and claim the Mythic Emberfall Ascendant Flare to prove it.'}
           </Text>
           <View style={styles.forgeBtns}>
             {ownsPremium ? (
               <View style={styles.forgeCta}>
                 <Text style={styles.forgeCtaText}>View track</Text>
               </View>
-            ) : (
+            ) : phase === 'live' ? (
               <Pressable style={styles.forgeCta} onPress={() => comingSoon('The Forge Pass')}>
                 <Text style={styles.forgeCtaText}>Get Pass · {PASS_PRICE_LABEL}</Text>
               </Pressable>
+            ) : (
+              // Outside the window the Pass is not for sale at any price (§3). A disabled-looking
+              // strip that states WHY beats a live button that fails on tap.
+              <View style={[styles.forgeCta, styles.forgeCtaOff]}>
+                <Text style={styles.forgeCtaText}>
+                  {phase === 'upcoming' ? 'Opens Sept 10' : 'Season closed'}
+                </Text>
+              </View>
             )}
             <Pressable style={styles.forgeCta2} onPress={() => router.push('/forge-pass')}>
               <Text style={styles.forgeCta2Text}>Preview</Text>
@@ -311,6 +326,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
     color: '#3a1608',
+  },
+  forgeCtaOff: {
+    backgroundColor: 'rgba(255,207,138,0.35)',
   },
   forgeCta2: {
     backgroundColor: 'rgba(255,255,255,0.06)',

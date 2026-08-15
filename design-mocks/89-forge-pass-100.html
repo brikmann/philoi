@@ -1,0 +1,83 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge Pass — full 100-level schematic (mock 89)</title>
+<style>
+*{box-sizing:border-box;font-family:'Inter',system-ui,sans-serif}
+body{margin:0;background:#0b0910;color:#FFF6EC;padding:24px}
+.wrap{max-width:820px;margin:0 auto}
+h1{font-size:22px;margin:0 0 2px;background:linear-gradient(180deg,#FFEBC6,#F2A33C);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:900}
+.meta{font-size:12.5px;color:#9f92b6;margin:0 0 4px}
+.budget{font-size:11.5px;color:#8f84a6;margin:6px 0 18px;line-height:1.5;padding:10px 12px;background:#141019;border:1px solid #241c38;border-radius:10px}
+.hdr{display:grid;grid-template-columns:52px 1fr 1fr;gap:8px;padding:4px 10px;font-size:10px;letter-spacing:.6px;color:#7a6f92;position:sticky;top:0;background:#0b0910}
+.hdr .p{color:#FFD27A}
+.phase{margin:16px 0 6px;font-size:13px;font-weight:800;letter-spacing:.4px;padding:6px 10px;border-radius:9px}
+.p1{color:#c9b58f;background:#171310}.p2{color:#8fb0e0;background:#0f1420}.p3{color:#c9a9ff;background:#170f22}.p4{color:#ffd27a;background:#1c1408}
+.psub{font-weight:400;color:#7a6f92;font-size:11px;margin-left:6px}
+.row{display:grid;grid-template-columns:52px 1fr 1fr;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid #17121f}
+.lv{font-weight:800;font-size:13px;color:#cфbcdd;text-align:center}
+.free,.paid{font-size:11.5px;line-height:1.25}
+.free{color:#b9aecb}.paid{color:#e7d3a6}
+.off .free,.off .paid{color:#6f6685;font-size:11px}
+.mile{background:linear-gradient(90deg,#1c1236,#140c22);border:1px solid #7a4fbf;border-radius:10px;margin:6px 0;padding:9px 10px}
+.mile .lv{color:#e7ddf5;font-size:15px}
+.mile .paid{color:#ffe6a6;font-weight:700}
+.apex{background:linear-gradient(90deg,#2a1c08,#1a1206);border:1px solid #FFD27A}
+.apex .lv{color:#FFD27A}
+.named{background:#120f19}
+.z0{background:linear-gradient(90deg,#2a1c10,#3a2612);border:1px solid #6b4a1e;border-radius:10px;padding:10px;margin:0 0 6px}
+.z0 .paid{color:#FFD27A;font-weight:700}
+.pl{margin-top:18px;padding:12px;border-radius:10px;background:#141019;border:1px dashed #3a2f52;font-size:12px;color:#c8bcdd;line-height:1.5}
+.tag{font-size:9px;font-weight:800;letter-spacing:.5px;color:#2a0f06;background:linear-gradient(180deg,#FFD27A,#F2A33C);padding:2px 7px;border-radius:6px;margin-left:6px}
+</style>
+<div class="wrap">
+  <h1>🔥 Forge Pass — Season 1: Emberfall</h1>
+  <p class="meta">Live <b style="color:#FFD27A">Sept 10 → Dec 23, 2026</b> (Laurier + Waterloo Fall term) · 100 levels · Free + Paid ($9.99) · ~85,000 XP to L100</p>
+  <div class="budget"><b style="color:#FFD27A">Ember budget:</b> Free ≈ 3,300 · Paid ≈ 10,000 (+ boxes + all cosmetics + 4 Mythics). Every level rewards something — named cosmetics on 5s, Mythic season-exclusives on 25/50/75/100, ember drips between. No Streak Shield (cosmetics only). Auras = Flares. ⚠️ ember totals to be reconciled with final box prices.</div>
+  <div class="hdr"><span>LVL</span><span>FREE</span><span class="p">PAID · $9.99</span></div>
+  <div class="z0 row" style="grid-template-columns:52px 1fr"><div class="lv" style="color:#FFD27A">0</div><div class="paid">👑 <b>Instant unlock:</b> 🔥 Emberfall Ascendant Flare (the season's Mythic flare — marquee buy hook) + "Forge Flame" season flame + 1,000 Embers <span class="tag">BUY = INSTANT VALUE</span></div></div>
+  <div id="track"></div>
+  <div class="pl"><b style="color:#FFD27A">Post-100 prestige loop</b> — every 5 levels past 100: Free 100 Embers · Paid Prestige Cache (10% a random legacy Legendary/Mythic cosmetic, else 1,000 Embers). Keeps whales climbing to Dec 23, no new art.</div>
+</div>
+<script>
+const named={
+5:{f:'Common Box',p:'Uncommon Box + Uncommon Flame'},
+10:{f:'Uncommon Box',p:'Rare Box + Rare Title'},
+15:{f:'50 Embers',p:'250 Embers + Rare Focus Audio'},
+20:{f:'Uncommon Box',p:'Rare Box + Epic Banner'},
+25:{f:'Rare Box',p:'MYTHIC — "Emberfall Banner" (season banner)',m:'MYTHIC #1'},
+30:{f:'Uncommon Box',p:'Rare Box + 500 Embers'},
+35:{f:'75 Embers',p:'Epic Card + 250 Embers'},
+40:{f:'Rare Box',p:'Epic Box + Epic Particle'},
+45:{f:'Rare Box',p:'Epic Halo + 500 Embers'},
+50:{f:'Epic Box',p:'MYTHIC — "Emberfall Halo" + Mythic SFX "Emberfall Strike"',m:'MYTHIC #2'},
+55:{f:'Epic Box',p:'Legendary Box + 750 Embers'},
+60:{f:'Rare Box',p:'Legendary Title — "Dialed In" (glow)'},
+65:{f:'125 Embers',p:'Legendary Ambient Audio'},
+70:{f:'Epic Box',p:'Legendary Banner + 1,000 Embers'},
+75:{f:'Epic Box',p:'MYTHIC — "Emberfall Profile Card" (profile + leaderboard flex)',m:'MYTHIC #3'},
+80:{f:'Legendary Box',p:'Mythic Box + 1,500 Embers'},
+85:{f:'Epic Box',p:'Legendary Particle — "Falling Ash"'},
+90:{f:'200 Embers',p:'Legendary "Emberfall Relic" (showcase)'},
+95:{f:'Legendary Box',p:'Mythic Box + 2,000 Embers'},
+100:{f:'Legendary Box + Title "The Relentless" (FREE-pass complete)',p:'👑 SEASON CROWN — "Emberfall Crown" Mythic Medal (profile + leaderboards) + Title "Forged in Ember" (PAID-pass complete, gold glow)',m:'THE APEX'}
+};
+const phases=[
+{n:'🛡️ The Crucible',s:'Levels 1–25 · daily-habit build-up',a:1,b:25,c:'p1',drip:{f:20,p:40}},
+{n:'⚔️ The Arena',s:'Levels 26–50 · high-status cosmetics',a:26,b:50,c:'p2',drip:{f:30,p:60}},
+{n:'🏛️ The Pantheon',s:'Levels 51–75 · ultra-rare unlocks',a:51,b:75,c:'p3',drip:{f:40,p:80}},
+{n:'⚡ The Transcendent',s:'Levels 76–100 · peak prestige',a:76,b:100,c:'p4',drip:{f:50,p:100}}
+];
+const t=document.getElementById('track');
+phases.forEach(ph=>{
+  const h=document.createElement('div');h.className='phase '+ph.c;h.innerHTML=ph.n+'<span class="psub">'+ph.s+'</span>';t.appendChild(h);
+  for(let lv=ph.a;lv<=ph.b;lv++){
+    const nm=named[lv];const row=document.createElement('div');
+    let cls='row';let f,p;
+    if(nm){f=nm.f;p=nm.p;cls+= nm.m? (lv===100?' mile apex':' mile'):' named';}
+    else{f=ph.drip.f+' Embers';p=ph.drip.p+' Embers';cls+=' off';}
+    row.className=cls;
+    const mtag=nm&&nm.m?'<span class="tag">'+nm.m+'</span>':'';
+    row.innerHTML='<div class="lv">'+lv+'</div><div class="free">'+f+'</div><div class="paid">'+p+mtag+'</div>';
+    t.appendChild(row);
+  }
+});
+</script>

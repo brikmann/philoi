@@ -10,41 +10,99 @@
 //    marathon the Pass: the deep-session achievement pays for ONE good 90-minute block, not ten.
 
 import type { BoxKey } from '@/lib/economy/boxes';
+import type { Rarity } from '@/lib/economy/rarity';
 
-export const SEASON = { id: 'S1', name: 'Emberfall', totalTiers: 100 } as const;
+// ───────────────────────────── Season 1 · Emberfall ─────────────────────────────
+//
+// COPY RULE: the Forge Pass counts in LEVELS. The rank ladder counts in TIERS. The two never share
+// a word in code or in UI — "Tier 40" meaning two different things in the same app was the single
+// most confusing thing about the old build, so `tier` is now reserved for RankTierName and every
+// symbol here says level.
+//
+// The season is DATE-GATED and the gate is hard (FORGE_PASS_SEASON1 §"Season window"). The window
+// below is the client's copy of it; economy_config('season') is authoritative and the server
+// re-checks on every purchase and every claim. The client's copy exists to render "opens in 26
+// days" without a round trip, never to decide whether something is allowed.
+export const SEASON = {
+  id: 'S1',
+  name: 'Emberfall',
+  totalLevels: 100,
+  /** Laurier + Waterloo Fall term. */
+  startsAt: Date.UTC(2026, 8, 10),
+  endsAt: Date.UTC(2026, 11, 23),
+  /**
+   * After `endsAt` the track freezes but already-earned rewards stay claimable for a week. Without
+   * it, anyone who finished the season on the last day and didn't open the app that evening would
+   * lose everything they earned — the freeze is meant to stop further progress, not to confiscate.
+   */
+  claimWindowDays: 7,
+} as const;
 
 /** Seasonal subscription — auto-renews per SEASON, not per month (the monthly tiers are dropped). */
-export const PASS_PRICE_LABEL = '$8.99/season';
+export const PASS_PRICE_LABEL = '$9.99/season';
 export const PASS_FINE_PRINT = 'Auto-renews each season · cancel anytime · cosmetics only';
 
+export type SeasonPhase = 'upcoming' | 'live' | 'claim-window' | 'closed';
+
 /**
- * Gentle ramp: 200 Pass XP for tier 1 rising linearly to 600 for tier 100, which totals ≈40,000 —
- * the representative figure in FORGE_PASS.md. Server-tunable; economy_config('pass_tier_curve')
- * is authoritative and this is only what the client draws the progress bar with.
- *
- * (Mock 68 shows "1,240 / 1,800 Pass XP → Tier 13". That 1,800 can't coexist with a 40,000 season
- * total across 100 tiers, so the spec's number wins and the mock's is treated as placeholder art.)
+ * Where the season is right now. Everything user-facing branches on this: the pass is not
+ * purchasable outside 'live', XP does not accrue outside 'live', and claims are refused after
+ * 'claim-window'.
  */
-export function tierCost(tier: number): number {
-  return Math.round(200 + ((tier - 1) * 400) / (SEASON.totalTiers - 1));
+export function seasonPhase(now: number = Date.now()): SeasonPhase {
+  if (now < SEASON.startsAt) return 'upcoming';
+  if (now < SEASON.endsAt) return 'live';
+  if (now < SEASON.endsAt + SEASON.claimWindowDays * 86_400_000) return 'claim-window';
+  return 'closed';
 }
 
-/** Total Pass XP needed to have COMPLETED the given tier. */
-export function cumulativeXpThroughTier(tier: number): number {
+/** Milliseconds until the season opens (upcoming) or closes (live). 0 once it has closed. */
+export function msUntilSeasonBoundary(now: number = Date.now()): number {
+  const phase = seasonPhase(now);
+  if (phase === 'upcoming') return SEASON.startsAt - now;
+  if (phase === 'live') return SEASON.endsAt - now;
+  if (phase === 'claim-window') return SEASON.endsAt + SEASON.claimWindowDays * 86_400_000 - now;
+  return 0;
+}
+
+/**
+ * The XP curve: 250 for Level 1 ramping linearly to 1,450 for Level 100.
+ *
+ * Those endpoints are chosen to make the sum land on exactly 85,000 — the season total
+ * FORGE_PASS_SEASON1 §"XP curve" targets — since for a linear ramp the total is just
+ * `levels × (first + last) / 2`, and 100 × (250 + 1450) / 2 = 85,000. The spec's "~1,500 late" is
+ * the shape; 1,450 is the value that makes the shape hit the stated total rather than overshoot it
+ * by 2,500.
+ *
+ * ⚠️ UNTUNED against real lock-in earn rates — this is the third of the three numbers flagged for
+ * Noah. The design target is that ~1 focused hour/day + challenges reaches L100 by Dec 23; whether
+ * 85,000 is that number depends on measured Pass-XP-per-day, which needs live data.
+ * economy_config('pass_level_curve') is authoritative server-side; this is what draws the bar.
+ */
+export const SEASON_XP_TOTAL = 85_000;
+const FIRST_LEVEL_XP = 250;
+const LAST_LEVEL_XP = 1_450;
+
+export function levelCost(level: number): number {
+  return Math.round(FIRST_LEVEL_XP + ((level - 1) * (LAST_LEVEL_XP - FIRST_LEVEL_XP)) / (SEASON.totalLevels - 1));
+}
+
+/** Total Pass XP needed to have COMPLETED the given level. */
+export function cumulativeXpThroughLevel(level: number): number {
   let total = 0;
-  for (let t = 1; t <= tier; t += 1) total += tierCost(t);
+  for (let l = 1; l <= level; l += 1) total += levelCost(l);
   return total;
 }
 
-/** Where a raw Pass-XP total puts you: current tier + progress into the next. */
-export function tierFromXp(xp: number): { tier: number; intoTier: number; nextTierCost: number } {
+/** Where a raw Pass-XP total puts you: current level + progress into the next. */
+export function levelFromXp(xp: number): { level: number; intoLevel: number; nextLevelCost: number } {
   let remaining = xp;
-  for (let t = 1; t <= SEASON.totalTiers; t += 1) {
-    const cost = tierCost(t);
-    if (remaining < cost) return { tier: t - 1, intoTier: remaining, nextTierCost: cost };
+  for (let l = 1; l <= SEASON.totalLevels; l += 1) {
+    const cost = levelCost(l);
+    if (remaining < cost) return { level: l - 1, intoLevel: remaining, nextLevelCost: cost };
     remaining -= cost;
   }
-  return { tier: SEASON.totalTiers, intoTier: 0, nextTierCost: 0 };
+  return { level: SEASON.totalLevels, intoLevel: 0, nextLevelCost: 0 };
 }
 
 export type PassReward =
@@ -53,57 +111,141 @@ export type PassReward =
   | { kind: 'item'; itemId: string }
   | { kind: 'badge'; badgeKey: string; label: string };
 
-export type PassTier = {
-  tier: number;
-  free: PassReward | null;
-  premium: PassReward | null;
-  /** Milestone tiers get the ★ treatment on the track (mock 68). */
+export type PassLevel = {
+  level: number;
+  /**
+   * A lane is a LIST, not a single reward. Several levels hand over two things at once — L50's
+   * Mythic halo arrives with the Emberfall Strike sting, L100's crown with its title — and
+   * modelling that as one reward would have meant either dropping half of each or inventing
+   * fake intermediate levels to hold the remainder.
+   */
+  free: PassReward[];
+  premium: PassReward[];
+  /** The four Mythic milestones (25/50/75/100) — the big violet anvil nodes on the track. */
   milestone: boolean;
 };
 
-// The named tiers from FORGE_PASS.md's representative map. Everything not listed is filled in by
-// the generator below: premium gets a reward at EVERY tier (that's the value proposition), free
-// gets embers sprinkled between its milestone drops.
-const NAMED_TIERS: Record<number, { free: PassReward | null; premium: PassReward | null }> = {
-  1: { free: { kind: 'embers', amount: 10 }, premium: { kind: 'item', itemId: 'flame-emberfall' } },
-  5: { free: { kind: 'box', box: 'kindling' }, premium: { kind: 'item', itemId: 'card-emberfall' } },
-  10: { free: { kind: 'embers', amount: 25 }, premium: { kind: 'item', itemId: 'halo-emberfall' } },
-  25: { free: { kind: 'box', box: 'ignition' }, premium: { kind: 'box', box: 'furnace' } },
-  50: { free: { kind: 'item', itemId: 'title-kindled' }, premium: { kind: 'item', itemId: 'banner-emberfall' } },
-  75: { free: { kind: 'embers', amount: 50 }, premium: { kind: 'box', box: 'furnace' } },
-  90: { free: { kind: 'box', box: 'kindling' }, premium: { kind: 'item', itemId: 'title-kindled-by-emberfall' } },
+/** Box key by the rarity the spec's reward table names ("Rare Box" → furnace). */
+const BOX_BY_RARITY: Record<Rarity, BoxKey> = {
+  common: 'kindling',
+  uncommon: 'ignition',
+  rare: 'furnace',
+  epic: 'hestia',
+  legendary: 'hephaestus',
+  mythic: 'promethean',
+};
+
+const box = (rarity: Rarity): PassReward => ({ kind: 'box', box: BOX_BY_RARITY[rarity] });
+const embers = (amount: number): PassReward => ({ kind: 'embers', amount });
+const gear = (itemId: string): PassReward => ({ kind: 'item', itemId });
+
+/**
+ * Bought the pass → these land immediately, before a single level is climbed
+ * (FORGE_PASS_SEASON1 §"Level 0"). This is the purchase's receipt: the marquee Mythic flare is
+ * here rather than at a milestone precisely so the $9.99 buys something the same second it clears.
+ */
+export const LEVEL_ZERO_UNLOCK: PassReward[] = [
+  gear('flare-emberfall-ascendant'),
+  gear('flame-forge'),
+  embers(1_000),
+];
+
+/**
+ * Off-level ember drip (FORGE_PASS_SEASON1 §"Off-level ember drip"). Every level that isn't a
+ * multiple of 5 still pays, so 1→2→3 always pops — a track with nothing on four levels out of five
+ * is a track people stop looking at.
+ */
+const PHASES = [
+  { name: 'Crucible', from: 1, to: 25, free: 20, premium: 40 },
+  { name: 'Arena', from: 26, to: 50, free: 30, premium: 60 },
+  { name: 'Pantheon', from: 51, to: 75, free: 40, premium: 80 },
+  { name: 'Transcendent', from: 76, to: 100, free: 50, premium: 100 },
+] as const;
+
+export type PhaseName = (typeof PHASES)[number]['name'];
+
+export function phaseForLevel(level: number): PhaseName {
+  return (PHASES.find((p) => level >= p.from && level <= p.to) ?? PHASES[PHASES.length - 1]).name;
+}
+
+function drip(level: number): { free: number; premium: number } {
+  const phase = PHASES.find((p) => level >= p.from && level <= p.to) ?? PHASES[PHASES.length - 1];
+  return { free: phase.free, premium: phase.premium };
+}
+
+/**
+ * The named levels — every multiple of 5, straight off FORGE_PASS_SEASON1 §"Named levels".
+ *
+ * Note what is NOT here: no Streak Shield at any level. The roadmap had one and it was cut, because
+ * a purchasable object that protects a streak is pay-for-standing, and the one promise this economy
+ * makes is that money buys cosmetics and never rank, streaks, or position.
+ */
+const NAMED_LEVELS: Record<number, { free: PassReward[]; premium: PassReward[] }> = {
+  // ── Crucible ──
+  5: { free: [box('common')], premium: [box('uncommon'), gear('flame-molten-copper')] },
+  10: { free: [box('uncommon')], premium: [box('rare'), gear('title-kindled')] },
+  15: { free: [embers(50)], premium: [embers(250), gear('audio-monastery-drone')] },
+  20: { free: [box('uncommon')], premium: [box('rare'), gear('banner-emberfall')] },
+  25: { free: [box('rare')], premium: [gear('banner-emberfall-mythic')] },
+  // ── Arena ──
+  30: { free: [box('uncommon')], premium: [box('rare'), embers(500)] },
+  35: { free: [embers(75)], premium: [gear('card-emberfall'), embers(250)] },
+  40: { free: [box('rare')], premium: [box('epic'), gear('particle-void-smoke')] },
+  45: { free: [box('rare')], premium: [gear('halo-emberfall'), embers(500)] },
+  50: { free: [box('epic')], premium: [gear('halo-emberfall-mythic'), gear('sfx-emberfall-strike')] },
+  // ── Pantheon ──
+  55: { free: [box('epic')], premium: [box('legendary'), embers(750)] },
+  60: { free: [box('rare')], premium: [gear('title-dialed-in')] },
+  65: { free: [embers(125)], premium: [gear('audio-deep-space-sub-bass')] },
+  70: { free: [box('epic')], premium: [gear('banner-ashfall'), embers(1_000)] },
+  75: { free: [box('epic')], premium: [gear('card-emberfall-mythic')] },
+  // ── Transcendent ──
+  80: { free: [box('legendary')], premium: [box('mythic'), embers(1_500)] },
+  85: { free: [box('epic')], premium: [gear('particle-falling-ash')] },
+  90: { free: [embers(200)], premium: [gear('relic-emberfall')] },
+  95: { free: [box('legendary')], premium: [box('mythic'), embers(2_000)] },
+  // The Apex. Both lanes carry a completion title — finishing the free track without paying a cent
+  // is its own achievement and gets its own name, not a dimmed version of the paid one.
   100: {
-    free: { kind: 'item', itemId: 'flame-molten-copper' },
-    premium: { kind: 'item', itemId: 'flare-emberfall-ascendant' },
+    free: [box('legendary'), gear('title-s1-the-relentless')],
+    premium: [gear('medal-emberfall-crown'), gear('title-forged-in-ember')],
   },
 };
 
-const FREE_MILESTONES = new Set([1, 5, 10, 25, 50, 75, 90, 100]);
+/** The four Mythic milestones — the bigger violet anvil nodes on the track (code prompt §1). */
+const MILESTONES: ReadonlySet<number> = new Set([25, 50, 75, 100]);
 
-function generatedPremium(tier: number): PassReward {
-  // Boxes scale Kindling → Promethean across the season; the tiers between them pay embers, which
-  // is the "monthly-feel stipend spread across tiers" from FORGE_PASS.md.
-  if (tier % 20 === 0) return { kind: 'box', box: 'hestia' };
-  if (tier % 10 === 0) return { kind: 'box', box: 'furnace' };
-  if (tier % 5 === 0) return { kind: 'box', box: 'ignition' };
-  if (tier % 3 === 0) return { kind: 'box', box: 'kindling' };
-  return { kind: 'embers', amount: tier < 34 ? 25 : tier < 67 ? 50 : 75 };
-}
-
-export const PASS_TIERS: PassTier[] = Array.from({ length: SEASON.totalTiers }, (_, i) => {
-  const tier = i + 1;
-  const named = NAMED_TIERS[tier];
+export const PASS_LEVELS: PassLevel[] = Array.from({ length: SEASON.totalLevels }, (_, i) => {
+  const level = i + 1;
+  const named = NAMED_LEVELS[level];
+  const d = drip(level);
   return {
-    tier,
-    // The free lane is deliberately sparse between milestones — "a reward at milestone tiers +
-    // embers sprinkled between", not a reward every tier. That gap is what the Premium lane sells.
-    free: named?.free ?? (tier % 4 === 0 ? { kind: 'embers', amount: 10 } : null),
-    premium: named?.premium ?? generatedPremium(tier),
-    milestone: FREE_MILESTONES.has(tier),
+    level,
+    // Every level rewards something on BOTH lanes — the off-level drip is what makes the free track
+    // worth opening daily instead of only on the fives.
+    free: named?.free ?? [embers(d.free)],
+    premium: named?.premium ?? [embers(d.premium)],
+    milestone: MILESTONES.has(level),
   };
 });
 
-/** Tier 100 premium also carries the completionist badge alongside the Mythic capstone. */
+/**
+ * Past 100 the track keeps paying every 5 levels (FORGE_PASS_SEASON1 §"Post-100 prestige loop") —
+ * it keeps heavy users engaged through Dec 23 without needing a single new piece of art.
+ *
+ * The Paid cache is 10% a legacy Legendary/Mythic and 90% 1,000 embers; the roll happens
+ * SERVER-side like every other roll in this economy, so this is only the label.
+ */
+export const PRESTIGE_INTERVAL = 5;
+export const PRESTIGE_FREE: PassReward = { kind: 'embers', amount: 100 };
+export const PRESTIGE_PAID_LABEL = 'Prestige Cache';
+
+/** Prestige levels are 105, 110, 115… — a level past the apex that pays out. */
+export function isPrestigeLevel(level: number): boolean {
+  return level > SEASON.totalLevels && (level - SEASON.totalLevels) % PRESTIGE_INTERVAL === 0;
+}
+
+/** Level 100 premium also carries the completionist badge alongside the Mythic capstone. */
 export const CAPSTONE_BADGE: PassReward = { kind: 'badge', badgeKey: 's1-completionist', label: 'S1 Completionist' };
 
 // ───────────────────────────── Pass XP · the achievement system ─────────────────────────────

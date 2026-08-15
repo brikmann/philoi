@@ -22,7 +22,8 @@ as $$
   select array[
     'flame-base-ember',
     'particle-base-spark',
-    'flare-base-glow',
+    -- No starter FLARE, deliberately: FLARES_SPEC.md rules out any free or base perimeter aura, so
+    -- the flare slot is the one a new account sees empty. That emptiness is the product.
     'card-base-hearth',
     'halo-base-ring',
     'title-base-kindling',
@@ -57,15 +58,14 @@ begin
   from unnest(default_cosmetic_keys()) as k(key)
   on conflict (user_id, cosmetic_key) do nothing;
 
-  -- What they're actually WEARING. The audio slot is deliberately absent: an Audio cosmetic is a
-  -- looping ambient bed that starts on its own when a lock-in begins, so equipping one by default
-  -- would play a loop into a room the user never agreed to make noise in. They own it and can
-  -- equip it in one tap. Every other default is silent decoration and goes on immediately.
+  -- What they're actually WEARING. Two slots are absent for opposite reasons: `audio` is owned but
+  -- not worn (an ambient loop starts on its own when a lock-in begins, and defaulting it on would
+  -- play a loop into a room the user never agreed to make noise in), and `flare` is not owned at
+  -- all (no free perimeter aura exists). Every other default is silent decoration and goes on now.
   insert into equipped_loadout (user_id, slot, cosmetic_key)
   values
     (p_user, 'flame',     'flame-base-ember'),
     (p_user, 'particle',  'particle-base-spark'),
-    (p_user, 'flare',     'flare-base-glow'),
     (p_user, 'card',      'card-base-hearth'),
     (p_user, 'halo',      'halo-base-ring'),
     (p_user, 'title',     'title-base-kindling'),

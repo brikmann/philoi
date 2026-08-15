@@ -86,6 +86,12 @@ export type Acquisition = 'box' | 'earned' | 'forge-pass-S1' | 'default';
 /** Which vector family draws this item — see components/economy/item-art.tsx. */
 export type ArtKind = 'flame' | 'particle' | 'flare' | 'card' | 'halo' | 'title' | 'banner' | 'audio' | 'sfx' | 'relic' | 'medal';
 
+/**
+ * A flare's signature perimeter effect (FLARES_SPEC.md). One of six motion layers that
+ * FlarePerimeter selects between — the whole visual vocabulary of the aura system.
+ */
+export type FlareEffect = 'smoke' | 'zaps' | 'falling' | 'flames' | 'plasma' | 'glow';
+
 export type CatalogItem = {
   id: string;
   name: string;
@@ -95,6 +101,13 @@ export type CatalogItem = {
   acquisition: Acquisition;
   slot: EquipSlot | null;
   art: { kind: ArtKind; from: string; to: string };
+  /**
+   * FLARE items only — the perimeter colour and signature effect the app-wide overlay is driven
+   * by. Separate from `art`, which is the inventory-tile vector: the tile needs a two-stop gradient
+   * to read at 44px, the perimeter needs ONE colour it can glow the whole screen edge with, and
+   * collapsing them made the aura either muddy or invisible.
+   */
+  flare?: { colour: string; effect: FlareEffect };
   /** Season-stamped earn-only titles render as `Last Flame Standing · S1` (ITEM_CATALOG §2c). */
   seasonStamped?: boolean;
   /** Global #1's "Ascended · Global" — the only animated title, one person per season (21j). */
@@ -167,20 +180,54 @@ const PARTICLES: CatalogItem[] = [
     art: { kind: 'particle', from: '#1a1626', to: '#6A2AB8' } }),
 ];
 
-// God-Mode Flares — screen-edge ambient aura, active only during 90m+ sessions.
+// Flares — the app-wide perimeter aura (FLARES_SPEC.md, mock 88).
+//
+// A flare is the ONLY thing that paints the perimeter, and there is deliberately no free or base
+// one: the aura IS the flex, and a starter version would spend the whole reward on day one. That
+// rule is why `flare-base-glow` is absent from the starter set in DEFAULTS below.
+//
+// The old framing — "screen-edge aura, active only during 90m+ sessions" — is dropped. Equip it and
+// it is on, everywhere, until you take it off. A cosmetic you paid for that only appears after 90
+// minutes is a cosmetic most owners would never actually see.
+//
+// `flare: { colour, effect }` is the item's identity, not decoration: FlarePerimeter is one
+// parameterized overlay and these two fields are its entire input.
 const FLARES: CatalogItem[] = [
   item({ id: 'flare-zeus-wrath', name: "Zeus' Wrath", type: 'FLARE', rarity: 'mythic', acquisition: 'box',
     lore: 'The heavens split and the fury of Olympus answers to you now.',
-    art: { kind: 'flare', from: '#2A5AE0', to: '#FFFFFF' } }),
-  item({ id: 'flare-void-purple-aura', name: 'Void Purple Aura', type: 'FLARE', rarity: 'mythic', acquisition: 'box',
+    art: { kind: 'flare', from: '#2A5AE0', to: '#FFFFFF' },
+    flare: { colour: '#FFFFFF', effect: 'zaps' } }),
+  item({ id: 'flare-void-purple-aura', name: 'Void Smoke', type: 'FLARE', rarity: 'mythic', acquisition: 'box',
     lore: 'The edges of the world go soft and violet, as if reality is deciding whether to hold.',
-    art: { kind: 'flare', from: '#4a2a6e', to: '#C77BFF' } }),
+    art: { kind: 'flare', from: '#4a2a6e', to: '#C77BFF' },
+    flare: { colour: '#7B3FBF', effect: 'smoke' } }),
   item({ id: 'flare-void-plasma', name: 'Void Plasma Flare', type: 'FLARE', rarity: 'mythic', acquisition: 'box',
     lore: 'Pulsing with unholy energy, each spark burns with the power of a thousand suns.',
-    art: { kind: 'flare', from: '#A200FF', to: '#FF6B6B' } }),
+    art: { kind: 'flare', from: '#A200FF', to: '#FF6B6B' },
+    flare: { colour: '#A200FF', effect: 'plasma' } }),
   item({ id: 'flare-white-incandescence', name: 'White Incandescence', type: 'FLARE', rarity: 'mythic', acquisition: 'box',
     lore: 'No colour left. Only the pure, blinding fact of the burn.',
-    art: { kind: 'flare', from: '#E7DDF5', to: '#FFFFFF' } }),
+    art: { kind: 'flare', from: '#E7DDF5', to: '#FFFFFF' },
+    flare: { colour: '#F4EEFF', effect: 'glow' } }),
+  // The four FLARES_SPEC names the table but the catalog never carried. Legendary rather than
+  // Mythic: seven Mythic flares would make the tier meaningless, and the spec's own hierarchy puts
+  // the Emberfall Ascendant alone at the top.
+  item({ id: 'flare-stormforge', name: 'Stormforge', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
+    lore: 'Every strike of the hammer answers a strike from the sky.',
+    art: { kind: 'flare', from: '#1B4FD8', to: '#8FD4FF' },
+    flare: { colour: '#2E7BFF', effect: 'zaps' } }),
+  item({ id: 'flare-toxic', name: 'Toxic', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
+    lore: 'It drips. Whatever it lands on stops being a problem.',
+    art: { kind: 'flare', from: '#2E7D32', to: '#9DFF5A' },
+    flare: { colour: '#6FE22A', effect: 'falling' } }),
+  item({ id: 'flare-inferno', name: 'Inferno Flare', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
+    lore: 'The edges of your screen catch, and nothing puts them out.',
+    art: { kind: 'flare', from: '#B01A0E', to: '#FF7A3C' },
+    flare: { colour: '#FF3D1F', effect: 'flames' } }),
+  item({ id: 'flare-solar', name: 'Solar Flare', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
+    lore: 'A loop of the sun tears free and hangs there, deciding.',
+    art: { kind: 'flare', from: '#E0952C', to: '#FFF0B0' },
+    flare: { colour: '#FFC02E', effect: 'glow' } }),
 ];
 
 // ───────────────────────────── 2 · Profile cards & UI identity ─────────────────────────────
@@ -415,9 +462,97 @@ const EMBERFALL_SET: CatalogItem[] = [
   item({ id: 'title-kindled-by-emberfall', name: '"Kindled by Emberfall"', type: 'TITLE', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
     lore: 'The season lit you, and you never went out.',
     art: { kind: 'title', from: '#E0612C', to: '#FFD24D' } }),
+  // The season's one Mythic flare and the entire reason to buy the pass — granted at Level 0, the
+  // instant the purchase clears (FORGE_PASS_SEASON1 §"Level 0"). It is NOT a milestone reward: a
+  // marquee unlock 25 levels away is a promise, and this one has to be a receipt.
   item({ id: 'flare-emberfall-ascendant', name: 'Emberfall Ascendant', type: 'FLARE', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
     lore: 'The capstone. The whole season, compressed into one unbearable light.',
-    art: { kind: 'flare', from: '#FF2A2A', to: '#FFE0B0' } }),
+    art: { kind: 'flare', from: '#FF2A2A', to: '#FFE0B0' },
+    flare: { colour: '#FF5A2E', effect: 'flames' } }),
+  item({ id: 'flame-forge', name: 'Forge Flame', type: 'FLAME', rarity: 'legendary', acquisition: 'forge-pass-S1',
+    lore: 'Struck, folded, struck again. The colour a thing turns when it stops being raw.',
+    art: { kind: 'flame', from: '#7A2E00', to: '#FFB03C' } }),
+  // The two named rewards the level table calls for that the catalog didn't carry yet: L60's
+  // Legendary title and L70's Legendary banner.
+  item({ id: 'title-dialed-in', name: '"Dialed In"', type: 'TITLE', rarity: 'legendary', acquisition: 'forge-pass-S1',
+    lore: 'No wasted motion. Nothing on the screen but the thing you came to do.',
+    art: { kind: 'title', from: '#B8651F', to: '#FFE7A0' } }),
+  item({ id: 'banner-ashfall', name: 'Ashfall', type: 'BANNER', rarity: 'legendary', acquisition: 'forge-pass-S1',
+    lore: 'Grey sky, warm ground. The season settling over everything.',
+    art: { kind: 'banner', from: '#2a2018', to: '#D9913C' } }),
+  // ── The Mythic milestone set: L25 · L50 · L75 · L90 · L100 ──
+  item({ id: 'banner-emberfall-mythic', name: 'Emberfall Standard', type: 'BANNER', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
+    lore: 'Carried at the front. Everyone behind it knows what season they are in.',
+    art: { kind: 'banner', from: '#4a1508', to: '#FFD24D' } }),
+  item({ id: 'halo-emberfall-mythic', name: 'Emberfall Crown Halo', type: 'HALO', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
+    lore: 'Falling embers that circle instead of landing. They have nowhere better to be.',
+    art: { kind: 'halo', from: '#B01A0E', to: '#FFE0B0' } }),
+  item({ id: 'sfx-emberfall-strike', name: 'Emberfall Strike', type: 'SFX', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
+    lore: 'Hammer on anvil, once, and the whole season rings with it.',
+    art: { kind: 'sfx', from: '#B01A0E', to: '#FFC24D' } }),
+  item({ id: 'card-emberfall-mythic', name: 'Emberfall Sovereign Card', type: 'CARD', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
+    lore: 'Black glass, one seam of living ember running through it.',
+    art: { kind: 'card', from: '#14090c', to: '#FF5A2E' } }),
+  item({ id: 'relic-emberfall', name: 'Emberfall Relic', type: 'RELIC', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
+    lore: 'A fragment of the first forge, still too hot to hold. Kept, not worn.',
+    art: { kind: 'relic', from: '#3a1608', to: '#FF9A3C' } }),
+  item({ id: 'medal-emberfall-crown', name: 'Emberfall Crown', type: 'MEDAL', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
+    lore: 'One hundred levels. The season put everything it had in front of you and you took all of it.',
+    art: { kind: 'medal', from: '#8A4E18', to: '#FFE7A0' } }),
+  // The two completion titles. Same level, different lanes — finishing the free track is its own
+  // achievement and gets its own name rather than a dimmed version of the paid one.
+  // `title-s1-*`, not `title-the-relentless`: an epic box title already owns that id and that
+  // display name. Both are season-stamped, so this one renders as "The Relentless · S1" and reads
+  // as the distinct, un-buyable thing it is — reusing the id would have made the pass capstone
+  // indistinguishable from a common box pull.
+  item({ id: 'title-s1-the-relentless', name: '"The Relentless"', type: 'TITLE', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
+    lore: 'One hundred levels without paying a cent. Nothing about that was convenient.',
+    art: { kind: 'title', from: '#C4701F', to: '#FFD24D' } }),
+  item({ id: 'title-forged-in-ember', name: '"Forged in Ember"', type: 'TITLE', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
+    lore: 'The full season, both lanes, all the way up. Gold, and earned in gold.',
+    art: { kind: 'title', from: '#FFB03C', to: '#FFF3C4' } }),
+];
+
+// ── Season 1 placement awards (FORGE_PASS_SEASON1 §"End-of-season placement rewards") ──
+//
+// Granted ONCE at season close by final standing, then never re-issued — which is the whole source
+// of their value. `acquisition: 'earned'` is what enforces that in code rather than in policy:
+// boxPool() filters on 'box', so none of these can ever enter a loot box or the direct-buy row, and
+// there is no second list to keep in sync.
+const EMBERFALL_PLACEMENT: CatalogItem[] = [
+  item({ id: 'card-emberfall-sovereign', name: 'Emberfall Sovereign', type: 'CARD', rarity: 'mythic', acquisition: 'earned', seasonStamped: true, oneOfOne: true,
+    lore: 'One per campus, per season, forever. There is no second way to get this.',
+    art: { kind: 'card', from: '#0b0608', to: '#FFD24D' } }),
+  item({ id: 'title-emberfall-champion', name: '"Emberfall Champion"', type: 'TITLE', rarity: 'mythic', acquisition: 'earned', seasonStamped: true, oneOfOne: true,
+    lore: 'You finished the season at number one. The season is over; this is not.',
+    art: { kind: 'title', from: '#FFB03C', to: '#FFFFFF' } }),
+  // NOTE: the Champion's medal is the EXISTING `medal-emberfall-champion` (in MEDALS above, minted
+  // by 0066's placement grants). It is deliberately not redefined here — a second entry under the
+  // same id would shadow the first depending on array order and silently change its rarity.
+  item({ id: 'banner-emberfall-elite', name: 'Emberfall Elite', type: 'BANNER', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
+    lore: 'Top ten on your campus. Nine other people know exactly what this took.',
+    art: { kind: 'banner', from: '#4a1508', to: '#FFC24D' } }),
+  item({ id: 'title-emberfall-elite', name: '"Emberfall Elite"', type: 'TITLE', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
+    lore: 'Top ten, all season, no quiet weeks.',
+    art: { kind: 'title', from: '#E0612C', to: '#FFD24D' } }),
+  item({ id: 'particle-emberfall-ascendant', name: 'Ascendant Ash', type: 'PARTICLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'The top one percent of a whole campus, falling slowly.',
+    art: { kind: 'particle', from: '#8A2B00', to: '#FFC46B' } }),
+  item({ id: 'title-emberfall-ascendant', name: '"Emberfall Ascendant"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'Top one percent. The air is thinner up here and you stayed anyway.',
+    art: { kind: 'title', from: '#C4701F', to: '#FFC46B' } }),
+  item({ id: 'title-emberfall-contender', name: '"Emberfall Contender"', type: 'TITLE', rarity: 'rare', acquisition: 'earned', seasonStamped: true,
+    lore: 'Top ten percent. You were never out of it.',
+    art: { kind: 'title', from: '#8A4E18', to: '#F2A33C' } }),
+  item({ id: 'title-emberfall-initiate', name: '"Emberfall Initiate"', type: 'TITLE', rarity: 'uncommon', acquisition: 'earned', seasonStamped: true,
+    lore: 'Top half of your campus for a whole term. Most people never start.',
+    art: { kind: 'title', from: '#6a3a12', to: '#D9913C' } }),
+  item({ id: 'medal-emberfall-centurion', name: 'Emberfall Centurion', type: 'MEDAL', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
+    lore: 'Level one hundred, whatever place you finished in. The track does not care who else showed up.',
+    art: { kind: 'medal', from: '#6a2a18', to: '#FFD24D' } }),
+  item({ id: 'medal-emberfall-participant', name: 'Emberfall Ashmark', type: 'MEDAL', rarity: 'common', acquisition: 'earned', seasonStamped: true,
+    lore: 'You were here for Emberfall. The first season only happens once.',
+    art: { kind: 'medal', from: '#3a2418', to: '#C4701F' } }),
 ];
 
 // ───────────────────────────── 0 · The starter loadout (#88) ─────────────────────────────
@@ -437,9 +572,10 @@ const DEFAULTS: CatalogItem[] = [
   item({ id: 'particle-base-spark', name: 'Sparks', type: 'PARTICLE', rarity: 'common', acquisition: 'default',
     lore: 'What comes off any fire worth sitting near.',
     art: { kind: 'particle', from: '#C4701F', to: '#FFC46B' } }),
-  item({ id: 'flare-base-glow', name: 'Warm Glow', type: 'FLARE', rarity: 'common', acquisition: 'default',
-    lore: 'The light you throw before you have earned a brighter one.',
-    art: { kind: 'flare', from: '#B8651F', to: '#FFD9A0' } }),
+  // NOTE: there is deliberately no starter FLARE. FLARES_SPEC.md is explicit that no free or base
+  // perimeter aura exists — the aura is the whole point of owning a flare, and shipping a common
+  // one with every account would spend the reward before anyone earned it. The flare slot is the
+  // one slot a new user sees empty, and that emptiness is the product.
   item({ id: 'card-base-hearth', name: 'Hearth', type: 'CARD', rarity: 'common', acquisition: 'default',
     lore: 'Plain stone, banked coals. Every campfire starts here.',
     art: { kind: 'card', from: '#2A1A12', to: '#B8651F' } }),
@@ -470,16 +606,19 @@ const DEFAULTS: CatalogItem[] = [
 /**
  * What the seeded account is actually WEARING (migration 0073 writes exactly this map).
  *
- * The `audio` slot is deliberately absent. Every other default is silent, passive decoration, but
- * an Audio cosmetic is a looping ambient bed that starts on its own when a lock-in begins — seeding
- * it equipped would mean every new user's first session plays a loop they never chose, in a room
- * they might not want noise in. They own `audio-base-hearth-hum` and can equip it in one tap; the
- * app just doesn't decide that for them.
+ * Two slots are deliberately absent, for opposite reasons.
+ *
+ * `audio` — owned but not worn. Every other default is silent, passive decoration, but an Audio
+ * cosmetic is a looping ambient bed that starts on its own when a lock-in begins, so equipping one
+ * by default would play a loop into a room the user never agreed to make noise in. They own
+ * `audio-base-hearth-hum` and can equip it in one tap; the app just doesn't decide that for them.
+ *
+ * `flare` — not owned at all. There is no free perimeter aura by design (FLARES_SPEC.md); an empty
+ * flare slot is what a flare is worth.
  */
 export const DEFAULT_LOADOUT: Partial<Record<EquipSlot, string>> = {
   flame: 'flame-base-ember',
   particle: 'particle-base-spark',
-  flare: 'flare-base-glow',
   card: 'card-base-hearth',
   halo: 'halo-base-ring',
   title: 'title-base-kindling',
@@ -513,6 +652,7 @@ export const CATALOG: CatalogItem[] = [
   ...RELICS,
   ...MEDALS,
   ...EMBERFALL_SET,
+  ...EMBERFALL_PLACEMENT,
 ];
 
 const BY_ID = new Map(CATALOG.map((i) => [i.id, i]));

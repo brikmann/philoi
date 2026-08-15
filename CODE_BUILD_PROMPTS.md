@@ -672,57 +672,6 @@ VERIFY on-device: each tier's signature + audio; incineration recenters; Hero + 
 play once; Immortal laughter prominent + fades with the chime; NO persistent cosmic beam on Primordial;
 no riser; hits ring out; `grep -rn "infernal" src` = 0. tsc + lint; ship JS over OTA + the audio assets.
 
-
-# ═══════════════════════════════════════════════════════════════════════════
-# V1 BUILD PATHWAY — ordered punch-through to App Store (target: submit Aug 20)
-# See V1_LAUNCH_PLAN.md for the timeline + rationale. Build top to bottom.
-# ═══════════════════════════════════════════════════════════════════════════
-
-## PHASE 0 — DEPLOY (do FIRST; unblocks everything else)
-- Run DEPLOY_migrations_0062-0070.sql in the Supabase SQL Editor (or `supabase db push`). Fixes equip,
-  box opens ("expected JSON array"), study/gym challenges, uni-verify tables. Commit the untracked
-  migration batch + audio assets + previews. (Tasks #67, #78)
-
-## PHASE 1 — CRITICAL BUGS (data + crashes)
-- ×10 vault crash at results (#74, PUNCHLIST_8 §1) — grab logcat; fix open_loot_box rarity-pool
-  contract + guard the results grid.
-- Buy Direct: weekly rotation off the STABLE pool + "rotates in Xd Xh" countdown (#75, PUNCHLIST_8 §2)
-- Purchase: real reward toast + inventory refetch + a nav entry to /inventory (#76, PUNCHLIST_8 §3)
-- Shared Sunday-anchored week helper for ALL weekly timers (#77, PUNCHLIST_8 §5)
-- Challenges not resetting — diagnose vs the week-helper + the deploy (#89)
-- ×5 box open + inventory rarity sort + condense unopened boxes by type (#79, PUNCHLIST_9)
-
-## PHASE 2 — COSMETICS / ECONOMY WIRING (the free retention loop)
-- EmberIcon component (flame-shaped, orange) + swap currency 🔥 at all currency sites (#80, PUNCHLIST_10)
-- Cosmetic art wired from mocks 61/63/64/65 by catalog id (PUNCHLIST_7 §2) + trim shop text (§1)
-- Audio cosmetic previews + play buttons in 3 spots (#81, PUNCHLIST_11)
-- SFX rescope → stop-lock-in sting, not rank-up override (#82, PUNCHLIST_12)
-- Two SFX slots: start sting + end sting (#83, PUNCHLIST_13)
-- Simplify loot-box open — remove the rarity telegraph (#84, PUNCHLIST_14 §1)
-- Box-open + common→mythic reveal SFX ladder — assets already cut in assets/sounds/reveal/ (#85, PUNCHLIST_14 §2)
-- Default cosmetics — seed a base loadout on signup (basic orange flame, campfire-spark start sting,
-  default end sting, orange aura, base of every slot; permanent, non-sellable) (#88)
-
-## PHASE 3 — FORGE PASS DE-SLOP
-- Rework the battle pass properly — reward ladder, tier visuals, copy — so it stops reading as AI slop.
-  ⚠️ NEEDS A DESIGN/SPEC PASS FIRST (flag Claude to spec before Code builds). (relates #48)
-
-## PHASE 4 — MONETIZATION (revenue; NATIVE build)
-- RevenueCat native build (#71): Forge Pass subscription + ember packs as StoreKit IAP; a purchase
-  SUCCESS SCREEN; configure the IAP products in App Store Connect.
-
-## PHASE 5 — PREMIUM POLISH (NATIVE; v1.1 FLEX — do NOT risk the Aug 20 date)
-- Flare / session-tiered aura 30/60/90 — Kindled/Burning/Locked In off useElapsedSeconds (#86, PUNCHLIST_14 §3)
-- Live Activity lock-in pill — lock screen + iOS Dynamic Island + Android chip + home-screen glow
-  widget; aura drives the glow (#87, FEATURE_LOCKIN_PILL.md)
-- Both need their own native widget extension + testing → ship as a fast-follow v1.1 update.
-
-## PHASE 6 — SHIP
-- TestFlight build once Phase 1–2 land → start the gym-table spread immediately (free; IAP is sandbox).
-- App Store Connect: app record, privacy nutrition labels, screenshots, IAP products submitted →
-  submit for review by Aug 20.
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # V1 BUILD PATHWAY — ordered punch-through to App Store (target: submit Aug 20)
 # See V1_LAUNCH_PLAN.md for the timeline + rationale. Build top to bottom.
@@ -753,13 +702,22 @@ no riser; hits ring out; `grep -rn "infernal" src` = 0. tsc + lint; ship JS over
 - Default cosmetics — seed a base loadout on signup (basic orange flame, campfire-spark start sting,
   default end sting, orange aura, base of every slot; permanent, non-sellable) (#88)
 
-## PHASE 3 — FORGE PASS DE-SLOP  [design DONE -> mock 87 + FORGE_PASS_DESLOP.md]
+## PHASE 3 — FORGE PASS DE-SLOP  [CONSOLIDATED -> CODE_PROMPT_forge_pass.md · mocks 87/89 · FORGE_PASS_DESLOP.md + FORGE_PASS_SEASON1.md]
 - Rebuild the tiers screen on the molten-seam metaphor: a vertical seam lit below your tier / cold iron
   above (the rail IS the progress bar); two lanes (Free · Premium-locked); REAL cosmetic art per tile
   (pull by catalog id); states = claimed check / pulsing current node + Claim CTA / cold upcoming; a
   bigger violet ANVIL milestone every 10 tiers headlining a FLARE (the marquee premium unlock). Header =
   season + tier + molten XP bar + countdown; one gold upgrade strip; one Claim CTA.
 - Ships OTA (reskin over the existing season-track data, #48). Only the $9.99 unlock waits on RevenueCat.
+
+## PHASE 3b — END-OF-SEASON PLACEMENT REWARDS  [right after Forge Pass; FORGE_PASS_SEASON1.md]
+- Season 1 = "Emberfall", live Sept 10 -> Dec 23 (Fall term); gate purchase + XP on the window.
+- At season close, grant EXCLUSIVE, never-reissued rewards by final standing on the season leaderboard
+  (per university, ranked by season Forge XP / activity). Cosmetics + embers only.
+- Brackets (Emberfall-coded): #1 Champion (Mythic + title + medal + 5k embers) · Top 10 · Top 1% ·
+  Top 10% · Top 50% · reached-L100 "Emberfall Centurion" medal · participation medal.
+- Snapshot standings at ends_at + a one-time grant job into inventory; medals + titles permanent;
+  Champion share card. Data/JS + a scheduled close job -> OTA, no native dep. (#92, relates #46)
 
 ## PHASE 4 — MONETIZATION (revenue; NATIVE build)
 - RevenueCat native build (#71): Forge Pass subscription + ember packs as StoreKit IAP; a purchase
@@ -779,6 +737,10 @@ no riser; hits ring out; `grep -rn "infernal" src` = 0. tsc + lint; ship JS over
 - The pill / Live Activity needs its own native widget extension + testing -> fast-follow v1.1.
 
 ## PHASE 6 — SHIP
+- v1 ANTI-CHEESE: study effort meter (after a study/non-physical lock-in, a light/med/hard tick ->
+  0.75/1.0/1.25x; sessionXP = baseTimeXP x meter) + ACTIVE-SESSION DETECTION (credit only while app is
+  foreground with periodic interaction/screen-on; idle or screen-off = no/reduced credit -> kills the
+  "leave phone running" farm). Study-only slice, no wearables, OTA. (#94, FEATURE_EFFORT_MULTIPLIER.md)
 - TestFlight build once Phase 1-2 land -> start the gym-table spread immediately (free; IAP is sandbox).
 - App Store Connect: app record, privacy nutrition labels, screenshots, IAP products submitted ->
   submit for review by Aug 20.
