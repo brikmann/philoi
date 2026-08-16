@@ -21,7 +21,7 @@ no separate bar needed in the track. It reads as "the forge is climbing with you
 3. **Two-lane track:** each level row = **Free reward (left)** · **forge node (center, level #)** ·
    **Premium reward (right, warm-bordered + 🔒 until the pass is owned)**. Lane headers "FREE / PREMIUM"
    pinned above.
-4. **Milestone levels (every 10):** a bigger **violet anvil node** + a hero cosmetic on both lanes (a
+4. **Milestone levels (every 25 — 25/50/75/100):** a bigger **violet anvil node** + a hero cosmetic on both lanes (a
    flame / flare / aura), a small "★ MILESTONE ★" flag. Gives the track landmarks to climb toward.
 5. **Claim CTA:** one gold "Claim Level N reward" button; "Claim all" when several are pending.
 

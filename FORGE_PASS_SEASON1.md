@@ -32,11 +32,13 @@ prestige loop). This is the balanced, v1-shippable version of Noah's roadmap wit
   casual ≈ 40–60; heavy users hit 100 early → prestige loop. Tune the constants against real lock-in
   XP rates before locking the season.
 
-## Ember budget (reconcile with final box prices)
-- **Free track ≈ 3,300 embers** + boxes + a couple cosmetics + the Apex title.
-- **Paid track ≈ 10,000 embers** + a stack of boxes + every listed cosmetic + 4 Mythics.
-- ⚠️ Sanity-check against box direct-buy prices: if a box ≈ 1,200 embers, 10k ≈ 8 boxes of value. Decide
-  whether that "the pass pays for itself" framing is intended, then finalize the drip constants.
+## Ember budget — DECISION: trim paid to ~10,000 (protect the shop)
+- **Free ≈ 3,250** ✓ — matches the tables, leave it.
+- **Paid**: the tables as written sum to **13,350** (incl. the L0 1,000) — ~3,350 over the ~10k intent.
+  **Trim to ~10,000** so the pass doesn't flood embers and gut shop scarcity. Turn the dial on the
+  **largest named ember bonuses** (halve the +1,000 / +1,500 / +2,000 chunks) and shave the late-phase
+  off-level drip — but **keep paid off-levels always > free off-levels** (the off-level drip stays; the
+  big named chunks are the main lever).
 
 ## Level 0 — instant unlock (drives the purchase)
 Buy the pass → immediately: 🔥 **Emberfall Ascendant Flare** (the season's ONE Mythic flare — the marquee
@@ -105,6 +107,10 @@ advantage carried forward. Emberfall-coded, permanent, one-time grant into inven
 | **Reached L100** | "Emberfall Centurion" medal (regardless of placement) |
 | **Any pass level** | Emberfall participation medal |
 
+- **Ranking basis:** cumulative **season Forge Pass XP** — prestige past L100 counts, so a level-150-
+  overall whale (L100 + 10 prestiges) outranks a level-100. This board is **separate from the global
+  rank ladder** (Bronze→Primordial, on lifetime universal_score / 0066) — two distinct boards, two
+  reward sets.
 - **Inter-university flex** (optional v1): a global Laurier-vs-Waterloo board; the #1 at each campus +
   the overall #1 get an extra "#1 at [school]" badge — strong share-card fuel.
 - Never re-issued → the season's biggest prestige / FOMO driver; wire a Champion share card.

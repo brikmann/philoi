@@ -460,6 +460,11 @@ export type AnalyticsEventName =
   | 'cosmetic_salvaged'
   | 'pass_tier_claimed'
   | 'pass_level_claimed'
+  | 'iap_purchase_completed'
+  | 'iap_purchase_cancelled'
+  | 'iap_purchase_failed'
+  | 'iap_restore'
+  | 'iap_reconciled'
   | 'signed_up'
   | 'circle_created'
   | 'circle_joined'
@@ -1500,6 +1505,10 @@ export type Database = {
       grant_season_placement_rewards: {
         Args: { p_season: string | null; p_dry_run: boolean };
         Returns: { university: string; ranked: number; granted: number }[];
+      };
+      reconcile_my_forge_pass: {
+        Args: Record<string, never>;
+        Returns: { changed: boolean; owns_premium: boolean; reason?: string };
       };
       get_my_season_standing: {
         Args: { p_season: string | null };

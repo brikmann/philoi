@@ -14,6 +14,9 @@ import { useInventory } from '@/hooks/use-inventory';
 import { useAuth } from '@/lib/auth/auth-context';
 import { claimPassLevel, fetchAchievementProgress, fetchMySeasonStanding, type SeasonStanding } from '@/lib/api/forge-pass';
 import { shareCardImage } from '@/lib/share-card';
+import { restorePurchases } from '@/lib/billing';
+import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
+import { usePurchase } from '@/hooks/use-purchase';
 import { BOXES } from '@/lib/economy/boxes';
 import { getItem, type CatalogItem } from '@/lib/economy/catalog';
 import {
@@ -68,6 +71,7 @@ export default function ForgePassScreen() {
   const listRef = useRef<FlatList<PassLevel>>(null);
   const cardRef = useRef<View>(null);
   const [standing, setStanding] = useState<SeasonStanding | null>(null);
+  const { buy, busy: buying } = usePurchase();
 
   const passXp = pass?.pass_xp ?? 0;
   const ownsPremium = pass?.owns_premium ?? false;
@@ -156,6 +160,9 @@ export default function ForgePassScreen() {
     }
   }
 
+  // The season gate comes FIRST, before the store is ever asked. Buying outside the window is
+  // refused server-side by grant_forge_pass anyway (0074), but letting the purchase sheet open and
+  // then failing after payment would be the worst possible order to discover that in.
   function onUpgrade() {
     if (phase !== 'live') {
       Alert.alert(
@@ -166,10 +173,25 @@ export default function ForgePassScreen() {
       );
       return;
     }
-    Alert.alert(
-      'Forge Pass — coming soon',
-      'The seasonal subscription needs the next native build. Everything on the Free lane works today.'
-    );
+    void buy(FORGE_PASS_PRODUCT_ID);
+  }
+
+  // Apple REQUIRES a reachable Restore control for any app selling a non-consumable. It lives here
+  // and in Settings. Ember packs are consumables and deliberately don't restore — they were spent
+  // into a balance on grant, and "restoring" them would mint them twice.
+  async function onRestore() {
+    try {
+      const { restoredPass } = await restorePurchases();
+      await refetch();
+      Alert.alert(
+        restoredPass ? 'Restored' : 'Nothing to restore',
+        restoredPass
+          ? 'Your Forge Pass is back on this device.'
+          : 'No previous Forge Pass purchase was found for this account.'
+      );
+    } catch (e) {
+      Alert.alert('Couldn’t restore', getErrorMessage(e, 'Something went wrong.'));
+    }
   }
 
   return (
@@ -206,19 +228,24 @@ export default function ForgePassScreen() {
 
       {/* ── The one gold upgrade strip, only while unowned ── */}
       {!ownsPremium ? (
-        <Pressable style={styles.upgrade} onPress={onUpgrade}>
-          <View style={styles.upgradeCol}>
-            <Text style={styles.upgradeTitle}>Unlock the Forge Pass</Text>
-            <Text style={styles.upgradeSub}>
-              {phase === 'live'
-                ? 'Every level’s premium reward, all season — plus the Mythic flare on day one'
-                : phase === 'upcoming'
-                  ? 'On sale when Emberfall opens, September 10'
-                  : 'This season has closed'}
-            </Text>
-          </View>
-          <Text style={styles.upgradePrice}>{phase === 'live' ? '$9.99' : '—'}</Text>
-        </Pressable>
+        <>
+          <Pressable style={[styles.upgrade, buying && styles.claimBusy]} disabled={buying} onPress={onUpgrade}>
+            <View style={styles.upgradeCol}>
+              <Text style={styles.upgradeTitle}>Unlock the Forge Pass</Text>
+              <Text style={styles.upgradeSub}>
+                {phase === 'live'
+                  ? 'Every level’s premium reward, all season — plus the Mythic flare on day one'
+                  : phase === 'upcoming'
+                    ? 'On sale when Emberfall opens, September 10'
+                    : 'This season has closed'}
+              </Text>
+            </View>
+            <Text style={styles.upgradePrice}>{phase === 'live' ? '$9.99' : '—'}</Text>
+          </Pressable>
+          <Pressable onPress={onRestore} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.restore}>Restore purchases</Text>
+          </Pressable>
+        </>
       ) : null}
 
       <View style={styles.tabs}>
@@ -932,6 +959,14 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: Colors.textTertiary,
     textAlign: 'center',
+  },
+  restore: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    paddingVertical: Spacing.one,
+    marginTop: 6,
   },
   // ── season standing ──
   standing: {

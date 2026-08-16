@@ -719,9 +719,11 @@ no riser; hits ring out; `grep -rn "infernal" src` = 0. tsc + lint; ship JS over
 - Snapshot standings at ends_at + a one-time grant job into inventory; medals + titles permanent;
   Champion share card. Data/JS + a scheduled close job -> OTA, no native dep. (#92, relates #46)
 
-## PHASE 4 — MONETIZATION (revenue; NATIVE build)
-- RevenueCat native build (#71): Forge Pass subscription + ember packs as StoreKit IAP; a purchase
-  SUCCESS SCREEN; configure the IAP products in App Store Connect.
+## PHASE 4 — MONETIZATION (revenue; NATIVE build)  [full prompt -> CODE_PROMPT_phase4_revenuecat.md]
+- RevenueCat native build (#71): Forge Pass ($9.99/season, one-time) + ember-pack consumables as IAP;
+  webhook -> grant_forge_pass / economy_move_embers (idempotent, server-authoritative); purchase SUCCESS
+  SCREEN (L0 reveal); Restore Purchases; wire billing.ts. Prereqs on Noah: Apple Paid-Apps agreement +
+  banking/tax, RevenueCat account/keys, App Store Connect IAP products. Native EAS build.
 
 ## PHASE 5 — PREMIUM POLISH (NATIVE; v1.1 FLEX — do NOT risk the Aug 20 date)
 - Flares = the app-wide perimeter aura cosmetic (NO free aura, NO session gate). One

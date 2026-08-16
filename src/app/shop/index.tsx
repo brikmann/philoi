@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BoxArt, BOX_TINT } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
@@ -15,7 +15,10 @@ import { BOX_LIST } from '@/lib/economy/boxes';
 import { boxPool, type CatalogItem } from '@/lib/economy/catalog';
 import { EMBER_PACKS, PASS_FINE_PRINT, PASS_PRICE_LABEL, SEASON, levelFromXp, seasonPhase } from '@/lib/economy/forge-pass';
 import { DIRECT_BUY_PRICE } from '@/lib/economy/rarity';
+import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
 import { formatWeekCountdown, nextWeekReset, weekIndex } from '@/lib/time/week';
+import { isBillingConfigured } from '@/lib/billing';
+import { usePurchase } from '@/hooks/use-purchase';
 
 // The week the Featured row is dealt from (§8.4). Read ONCE at module load rather than in render:
 // Date.now() is impure, and this project runs the React Compiler, which correctly refuses an
@@ -86,11 +89,11 @@ export default function ShopScreen() {
     return () => clearInterval(t);
   }, []);
 
-  function comingSoon(what: string) {
-    // Real money needs RevenueCat + a native build (task #71). Everything else in this shop runs
-    // on earned embers today, so this stub is the ONLY dead end in the screen.
-    Alert.alert(`${what} — coming soon`, 'Real-money purchases are still being wired up. Earned embers work today.');
-  }
+  // Real money now runs through RevenueCat (#71). usePurchase handles the not-configured case
+  // itself, so there is no longer a hard-coded dead end here — a build without SDK keys explains
+  // itself, and a build with them charges.
+  const { buy, busy } = usePurchase();
+  const billingLive = isBillingConfigured();
 
   return (
     <Screen padded={false}>
@@ -133,7 +136,10 @@ export default function ShopScreen() {
                 <Text style={styles.forgeCtaText}>View track</Text>
               </View>
             ) : phase === 'live' ? (
-              <Pressable style={styles.forgeCta} onPress={() => comingSoon('The Forge Pass')}>
+              <Pressable
+                style={[styles.forgeCta, busy && styles.forgeCtaBusy]}
+                disabled={busy}
+                onPress={() => buy(FORGE_PASS_PRODUCT_ID)}>
                 <Text style={styles.forgeCtaText}>Get Pass · {PASS_PRICE_LABEL}</Text>
               </Pressable>
             ) : (
@@ -217,9 +223,11 @@ export default function ShopScreen() {
           {EMBER_PACKS.map((pack) => (
             <Pressable
               key={pack.key}
-              style={[styles.pack, pack.best && styles.packBest]}
-              onPress={() => comingSoon(`${pack.name} · ${formatEmbers(pack.embers)} embers`)}
-              accessibilityState={{ disabled: true }}>
+              style={[styles.pack, pack.best && styles.packBest, busy && styles.packBusy, !billingLive && styles.packOff]}
+              disabled={busy}
+              onPress={() => buy(pack.productId)}
+              accessibilityRole="button"
+              accessibilityLabel={`Buy ${pack.name}, ${formatEmbers(pack.embers)} embers, ${pack.price}`}>
               {pack.best ? (
                 <View style={styles.bestTag}>
                   <Text style={styles.bestTagText}>BEST</Text>
@@ -239,7 +247,9 @@ export default function ShopScreen() {
           ))}
         </View>
         <Text style={styles.note}>
-          Real-money purchases aren&apos;t wired up yet. Embers you earn by locking in already buy everything here.
+          {billingLive
+            ? 'Embers you earn by locking in buy everything here — packs are a shortcut, never a requirement.'
+            : 'Real-money purchases need the next native build. Embers you earn by locking in already buy everything here.'}
         </Text>
 
         {/* Rule 0, stated where money is asked for. */}
@@ -330,6 +340,17 @@ const styles = StyleSheet.create({
   forgeCtaOff: {
     backgroundColor: 'rgba(255,207,138,0.35)',
   },
+  forgeCtaBusy: {
+    opacity: 0.6,
+  },
+  packBusy: {
+    opacity: 0.6,
+  },
+  // Dimmed only while the SDK keys are absent — a live button that can actually charge should look
+  // live. This used to be baked into `pack` itself, back when every one of them was a stub.
+  packOff: {
+    opacity: 0.55,
+  },
   forgeCta2: {
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
@@ -411,9 +432,6 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     padding: Spacing.twelve,
     gap: Spacing.two,
-    // Deliberately dimmed: these are stubs until RevenueCat lands, and a fully lit button that
-    // does nothing but raise an alert would read as broken rather than as "not yet".
-    opacity: 0.55,
   },
   packBest: {
     borderWidth: 1,

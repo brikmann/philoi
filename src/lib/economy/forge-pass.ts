@@ -299,15 +299,42 @@ export const CADENCE_RESET_HINT: Record<AchievementCadence, string> = {
   season: 'one-time',
 };
 
-// ───────────────────────────── Ember packs (real money — DEFERRED) ─────────────────────────────
-// Task #71: these need RevenueCat and therefore a native build. They render as disabled stubs
-// until src/lib/billing.ts is wired — see purchaseEmberPack().
-
-export type EmberPack = { key: string; embers: number; name: string; price: string; best?: boolean };
+// ───────────────────────────── Ember packs (real money · RevenueCat) ─────────────────────────────
+//
+// Consumables. Buying embers buys COSMETICS and nothing else — never XP, rank, streaks or standing,
+// which is the same rule the Pass and every box already run on.
+//
+// ⚠️ REPRICED IN PHASE 4, and the shift is large enough to be a product decision rather than a
+// tune. The old ladder ran 100–140 embers per dollar (500 @ $4.99 → 7,000 @ $49.99). These are the
+// Phase-4 prompt's numbers and they run ~600–750 per dollar — roughly 5–6× more ember per dollar.
+//
+// The reason to accept that: it fixes an incoherence with the Pass. The Forge Pass costs $9.99 and
+// carries ~13,350 embers of drip alongside every cosmetic on the premium track. Under the OLD
+// ladder a $9.99 ember pack bought 1,200 embers, which made the Pass 11× better value and the packs
+// look like a trap. At 6,500 the Pass is still the clearly better buy (~2× the embers, plus all the
+// cosmetics) without the packs being insulting.
+//
+// Sanity-check against what embers actually buy — a Promethean vault is 8,000, a Hestia 1,200:
+// $19.99 now buys ~1.9 Prometheans where it used to buy ~0.3. That IS a real loosening of shop
+// scarcity, and it is the same open question flagged as Noah's #1. Reversible in this one array.
+export type EmberPack = {
+  key: string;
+  embers: number;
+  name: string;
+  /** Display fallback only. The REAL price shown to the user comes from the store (localized). */
+  price: string;
+  best?: boolean;
+  /** App Store / Play product id. Must match RevenueCat + App Store Connect exactly. */
+  productId: string;
+};
 
 export const EMBER_PACKS: EmberPack[] = [
-  { key: 'remnant', embers: 500, name: 'Remnant', price: '$4.99' },
-  { key: 'pile', embers: 1200, name: 'Pile', price: '$9.99', best: true },
-  { key: 'stack', embers: 2600, name: 'Stack', price: '$19.99' },
-  { key: 'hoard', embers: 7000, name: 'Hoard', price: '$49.99' },
+  { key: 'remnant', embers: 1_200, name: 'Remnant', price: '$1.99', productId: 'philoi.embers.1200' },
+  { key: 'pile', embers: 3_000, name: 'Pile', price: '$4.99', productId: 'philoi.embers.3000' },
+  { key: 'stack', embers: 6_500, name: 'Stack', price: '$9.99', best: true, productId: 'philoi.embers.6500' },
+  { key: 'hoard', embers: 15_000, name: 'Hoard', price: '$19.99', productId: 'philoi.embers.15000' },
 ];
+
+export const EMBER_PACK_BY_PRODUCT: Record<string, EmberPack> = Object.fromEntries(
+  EMBER_PACKS.map((p) => [p.productId, p])
+);

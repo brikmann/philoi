@@ -3,6 +3,7 @@ import type { Session, User } from '@supabase/supabase-js';
 
 import { identify, track } from '@/lib/analytics';
 import { signOutGoogle } from '@/lib/auth/providers';
+import { configureBilling, resetBilling } from '@/lib/billing';
 import { getErrorMessage } from '@/lib/errors';
 import { unregisterPushToken } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
@@ -137,6 +138,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // RevenueCat is identified by the SUPABASE USER ID (#71). That's what ties an entitlement to an
+  // account rather than to a device — without it, a reinstall or a new phone reads as a different
+  // customer and the Forge Pass appears to vanish.
+  //
+  // Its own effect, keyed on the id, so it re-runs on a genuine account switch and not on every
+  // profile refresh. Deliberately no cleanup: this effect's teardown fires on every id CHANGE, and
+  // calling resetBilling() there would log the NEW user straight back out. Sign-out is where the
+  // reset belongs, and that's where it is.
+  const userId = session?.user.id ?? null;
+  useEffect(() => {
+    if (!userId) return;
+    void configureBilling(userId);
+  }, [userId]);
+
   const value: AuthContextValue = {
     session,
     profile,
@@ -156,6 +171,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setProfile(null);
       if (userId) await unregisterPushToken(userId);
+      // Same reason as the Google sign-out below: RevenueCat caches the identified user, so on a
+      // shared device the next person to sign in would inherit this account's Forge Pass
+      // entitlement until the SDK happened to refresh.
+      await resetBilling();
       // Clear the native Google session too — otherwise the SDK's cached account survives
       // sign-out and "Continue with Google" logs straight back in with no account picker.
       await signOutGoogle();

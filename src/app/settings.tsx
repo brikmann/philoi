@@ -20,6 +20,7 @@ import { deleteMyAccount } from '@/lib/api/groups';
 import { setMyWatchOptIn } from '@/lib/api/leaderboard-social';
 import { setMyPhotoVisibility } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
+import { restorePurchases } from '@/lib/billing';
 import { getErrorMessage } from '@/lib/errors';
 import { getRewardPreferencesSync, setHapticsEnabled, setSoundEnabled } from '@/lib/reward-settings';
 import type { PhotoVisibility } from '@/types/database';
@@ -152,6 +153,22 @@ export default function SettingsScreen() {
     signOut();
   }
 
+  // Restores the Forge Pass entitlement only. Ember packs are consumables — they were spent into a
+  // balance the moment they were granted, so "restoring" one would mint the embers a second time.
+  async function handleRestore() {
+    try {
+      const { restoredPass } = await restorePurchases();
+      Alert.alert(
+        restoredPass ? 'Restored' : 'Nothing to restore',
+        restoredPass
+          ? 'Your Forge Pass is back on this device.'
+          : 'No previous Forge Pass purchase was found for this account. Ember packs are consumable and can’t be restored.'
+      );
+    } catch (e) {
+      Alert.alert('Couldn’t restore', getErrorMessage(e, 'Something went wrong.'));
+    }
+  }
+
   async function handleConfirmDelete() {
     setDeletingAccount(true);
     try {
@@ -279,6 +296,13 @@ export default function SettingsScreen() {
             label="Child Safety Standards"
             onPress={() => Linking.openURL('https://getphiloi.com/child-safety')}
           />
+        </View>
+
+        <Text style={styles.sectionLabel}>PURCHASES</Text>
+        <View style={styles.group}>
+          {/* Apple REQUIRES this to be reachable for any app selling a non-consumable, and Settings
+              is where users look for it. The paywall carries a second copy. */}
+          <SettingsRow icon="refresh" label="Restore purchases" chevron={false} onPress={handleRestore} />
         </View>
 
         <Text style={styles.sectionLabel}>ACCOUNT</Text>

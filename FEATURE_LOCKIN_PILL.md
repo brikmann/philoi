@@ -68,7 +68,21 @@ Island region (iOS) or notification (Android). So:
 - Don't scope a full-screen lock-screen perimeter — it will get cut at build. The pill IS the
   out-of-app aura, and it's still premium.
 
+## Premium-polish design — mock 91
+`design-mocks/91-lockin-pill.html` renders the pill at production polish:
+- **Lock Screen card** — 24px blurred dark-glass card, 1px ember border, flare-tinted outer glow; a
+  **molten tier ring** (conic fill toward the 30/60/90 tier) with the flame at centre + slow breathe;
+  session name + LIVE dot; big tabular-nums timer; molten progress bar. Compact pill in the Island at
+  the same time.
+- **Dynamic Island** — compact (leading flame + trailing timer), minimal (breathing ember dot), and
+  **expanded** (LIVE dot, big timer, tier ring, **friends-locked-in cluster**, Stop control).
+- **Flare tint** — card glow + ring + pill all adopt the equipped flare's colour (default Ember; Void
+  Smoke purple / Stormforge blue shown). The pill is the out-of-app aura.
+- **Coordination strip** — everyone's pill live at once (You/Maya/Jordan), the status-flex payoff.
+- Build notes for Code: drive the timer with ActivityKit's native `timer` text style (counts on the
+  Lock Screen with no pushes); ring = conic fill; colour = equipped flare token.
+
 ## Status
-Design-approved concept (mocks 87 pending, 88 for the aura); build-gated. The in-app perimeter aura is
+Design-approved concept + **premium-polish mock 91**; aura in mock 88; build-gated. The in-app perimeter aura is
 OTA-able on its own; the pill / Live Activity is the native piece — spec the ActivityKit + Android
 chip alongside the RevenueCat build so one native build covers both.

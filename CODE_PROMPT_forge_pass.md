@@ -63,10 +63,13 @@ Champion share card. Data/JS + a scheduled close job → OTA.
 3. **Live Activity pill (#87):** v1.1 (native widget extension).
 4. **Placement rewards (§5):** build now, fires as the scheduled close job on Dec 23.
 
-## ⚠️ Three numbers need Noah before it's build-final
-1. Ember totals reconciled against real box prices (so the pass doesn't gut shop scarcity).
-2. Placement leaderboard basis (season Forge XP assumed — confirm).
-3. XP-per-level curve tuned against real lock-in earn rates (~85k to L100 target).
+## Decisions — 2 resolved, 1 still open
+1. **RESOLVED — trim PAID embers to ~10,000** (tables currently sum to 13,350). Cut the largest named
+   ember bonuses (halve the +1k/+1.5k/+2k chunks) + shave late off-level drip; keep paid off-levels > free.
+2. **RESOLVED — placement ranks by cumulative SEASON Forge Pass XP** (prestige past L100 counts;
+   level-150-overall outranks level-100). SEPARATE board from the global Bronze→Primordial rank
+   (universal_score / 0066). Code's season-XP board is correct — keep it.
+3. **OPEN — XP-per-level curve** (250→1,450 = 85k) still untuned vs real earn rates; tune post-launch.
 
 ## Before you finish
 `git add` the mocks + specs; tsc + lint; the season track + placement are DATA + a scheduled job, not

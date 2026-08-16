@@ -8,6 +8,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PostHogProvider } from 'posthog-react-native';
 
+import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
 import { EquippedFlarePerimeter } from '@/components/economy/flare-perimeter';
 import { LoadoutSync } from '@/components/economy/loadout-sync';
 import { LIVE_SESSION_BAR_HEIGHT, LiveSessionBar, LOCK_IN_PATHNAME } from '@/components/live-session-bar';
@@ -281,6 +282,13 @@ function RootNavigator() {
         <Stack.Screen name="inventory/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="inventory/[itemId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="forge-pass" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* Post-purchase (#71). Not swipe-dismissable: it's the only confirmation the user gets
+            that a real charge produced something, and losing it to a stray gesture reads as a
+            purchase that vanished. */}
+        <Stack.Screen
+          name="purchase-success"
+          options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }}
+        />
         <Stack.Screen name="report" options={{ presentation: 'modal', title: 'Report' }} />
         <Stack.Screen name="legal" options={{ title: '' }} />
         <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
@@ -318,6 +326,10 @@ function RootLayout() {
         {/* Keeps the equipped-cosmetics store fed for the flame / profile / sound layers. Renders
             nothing; mounted here because the surfaces it feeds are spread across the whole app. */}
         <LoadoutSync />
+        {/* Catches a Forge Pass the store says was paid for but no webhook ever granted (#71).
+            Renders nothing; mounted here because a missed entitlement has to be repaired wherever
+            the user happens to reopen the app. */}
+        <EntitlementReconciler />
         <OfflineBanner />
       </ActiveSessionProvider>
     </AuthProvider>
