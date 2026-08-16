@@ -1,0 +1,20 @@
+project_id = "coaqgcquzywadrghzbfj"
+
+# Per-function deploy settings. This file exists ONLY to pin `verify_jwt`, because that setting is
+# the difference between a working webhook and a silently dead one — and relying on someone
+# remembering `--no-verify-jwt` on every future deploy is not a guarantee.
+#
+# Supabase's gateway verifies the Authorization header as a Supabase JWT by default. RevenueCat
+# sends OUR shared secret in that header, not a JWT, so with verification on the request is rejected
+# at the edge before index.ts ever runs — and RevenueCat sees a 401 it will retry forever while the
+# user waits for embers that never arrive.
+#
+# Turning JWT verification off does NOT make the endpoint public: the function compares the
+# Authorization header against REVENUECAT_WEBHOOK_SECRET in constant time and refuses outright if
+# the secret isn't configured at all.
+[functions.revenuecat-webhook]
+verify_jwt = false
+
+# NOTE: strava-webhook has the same requirement (Strava sends no JWT either) and is presumably
+# already deployed with the flag. It is deliberately NOT listed here — adding it would change how
+# an existing, working function redeploys, and that is a separate change to verify on its own.
