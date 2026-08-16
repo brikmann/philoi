@@ -38,9 +38,14 @@ export const SEASON = {
   claimWindowDays: 7,
 } as const;
 
-/** Seasonal subscription — auto-renews per SEASON, not per month (the monthly tiers are dropped). */
-export const PASS_PRICE_LABEL = '$9.99/season';
-export const PASS_FINE_PRINT = 'Auto-renews each season · cancel anytime · cosmetics only';
+// PASS_PRICE_LABEL ('$9.99/season') was deleted deliberately. Every price the app displays now comes
+// from the store's localized `priceString` via useProductPrices() — a literal here is a number that
+// can silently disagree with what App Store Connect actually charges, in the one part of the app
+// where being wrong costs real money. Nothing should reintroduce it.
+//
+// The Pass is NON-RENEWING (one purchase per season), so the fine print no longer promises a renewal
+// that will never happen.
+export const PASS_FINE_PRINT = 'One purchase · covers this season · cosmetics only';
 
 export type SeasonPhase = 'upcoming' | 'live' | 'claim-window' | 'closed';
 
@@ -304,35 +309,34 @@ export const CADENCE_RESET_HINT: Record<AchievementCadence, string> = {
 // Consumables. Buying embers buys COSMETICS and nothing else — never XP, rank, streaks or standing,
 // which is the same rule the Pass and every box already run on.
 //
-// ⚠️ REPRICED IN PHASE 4, and the shift is large enough to be a product decision rather than a
-// tune. The old ladder ran 100–140 embers per dollar (500 @ $4.99 → 7,000 @ $49.99). These are the
-// Phase-4 prompt's numbers and they run ~600–750 per dollar — roughly 5–6× more ember per dollar.
+// ⚠️ MONEY-CRITICAL. These ids must match App Store Connect and RevenueCat EXACTLY, character for
+// character. A mismatch is not a compile error and not a crash — it is a card that gets charged and
+// an account that receives nothing, because the webhook's unknown-product path grants zero by
+// design rather than guessing an amount. App Store Connect is the source of truth; this array
+// follows it, never the other way round.
 //
-// The reason to accept that: it fixes an incoherence with the Pass. The Forge Pass costs $9.99 and
-// carries ~13,350 embers of drip alongside every cosmetic on the premium track. Under the OLD
-// ladder a $9.99 ember pack bought 1,200 embers, which made the Pass 11× better value and the packs
-// look like a trap. At 6,500 the Pass is still the clearly better buy (~2× the embers, plus all the
-// cosmetics) without the packs being insulting.
+// The same four ids and amounts appear in supabase/functions/revenuecat-webhook/index.ts, which
+// cannot import from here (an edge function can't reach into the app bundle). `npm run check:iap`
+// parses both files and fails if they ever disagree — run it before any store-facing release.
 //
-// Sanity-check against what embers actually buy — a Promethean vault is 8,000, a Hestia 1,200:
-// $19.99 now buys ~1.9 Prometheans where it used to buy ~0.3. That IS a real loosening of shop
-// scarcity, and it is the same open question flagged as Noah's #1. Reversible in this one array.
+// NO HARDCODED PRICES. The price a user sees comes from the store at runtime via the RevenueCat
+// offering's localized `priceString`, so a price set once in App Store Connect is correct in every
+// country with no code change — and, more importantly, the app can never display a price that
+// differs from what the card is actually charged.
 export type EmberPack = {
   key: string;
   embers: number;
   name: string;
-  /** Display fallback only. The REAL price shown to the user comes from the store (localized). */
-  price: string;
   best?: boolean;
   /** App Store / Play product id. Must match RevenueCat + App Store Connect exactly. */
   productId: string;
 };
 
 export const EMBER_PACKS: EmberPack[] = [
-  { key: 'remnant', embers: 1_200, name: 'Remnant', price: '$1.99', productId: 'philoi.embers.1200' },
-  { key: 'pile', embers: 3_000, name: 'Pile', price: '$4.99', productId: 'philoi.embers.3000' },
-  { key: 'stack', embers: 6_500, name: 'Stack', price: '$9.99', best: true, productId: 'philoi.embers.6500' },
-  { key: 'hoard', embers: 15_000, name: 'Hoard', price: '$19.99', productId: 'philoi.embers.15000' },
+  { key: 'remnant', embers: 500, name: 'Remnant', productId: 'app.philoi.embers.500' },
+  { key: 'pile', embers: 1_200, name: 'Pile', productId: 'app.philoi.embers.1200' },
+  { key: 'stack', embers: 2_600, name: 'Stack', best: true, productId: 'app.philoi.embers.2600' },
+  { key: 'hoard', embers: 7_000, name: 'Hoard', productId: 'app.philoi.embers.7000' },
 ];
 
 export const EMBER_PACK_BY_PRODUCT: Record<string, EmberPack> = Object.fromEntries(

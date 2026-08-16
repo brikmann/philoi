@@ -26,10 +26,12 @@ appstoreconnect.apple.com → **Business** (Agreements, Tax, and Banking):
 
 ## 4 · Create the In-App Purchases
 Everything is granted server-side (the webhook), so keep the product types simple:
-- **Forge Pass** → **Consumable**, id e.g. `app.philoi.forgepass.s1`. On purchase the webhook grants the
+- **Forge Pass** → **Consumable**, id **`app.philoi.forge_pass.season`** (reused across seasons — no
+  re-review each season; matches the code). On purchase the webhook grants the
   season entitlement; the account carries it, so no "restore" needed. (Alt: a Non-Renewing Subscription
   if you want Apple to model the season expiry — but Consumable + server-grant is cleaner.)
-- **Ember packs** → **Consumables**, e.g. `app.philoi.embers.1200 / .3000 / .6500 / .15000`.
+- **Ember packs** → **Consumables**: `app.philoi.embers.500 / .1200 / .2600 / .7000` (amounts match the
+  in-app Buy Embers screen: 500 / 1,200 / 2,600 / 7,000 embers).
 - Each IAP needs: product id, reference name, price, localized name + description, and a review
   screenshot. IAPs are reviewed **with** your app version → mark them "Ready to Submit."
 

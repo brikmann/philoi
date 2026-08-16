@@ -16,7 +16,7 @@ import { claimPassLevel, fetchAchievementProgress, fetchMySeasonStanding, type S
 import { shareCardImage } from '@/lib/share-card';
 import { restorePurchases } from '@/lib/billing';
 import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
-import { usePurchase } from '@/hooks/use-purchase';
+import { useProductPrices, usePurchase } from '@/hooks/use-purchase';
 import { BOXES } from '@/lib/economy/boxes';
 import { getItem, type CatalogItem } from '@/lib/economy/catalog';
 import {
@@ -26,7 +26,6 @@ import {
   LEVEL_ZERO_UNLOCK,
   PASS_FINE_PRINT,
   PASS_LEVELS,
-  PASS_PRICE_LABEL,
   SEASON,
   levelCost,
   levelFromXp,
@@ -72,6 +71,10 @@ export default function ForgePassScreen() {
   const cardRef = useRef<View>(null);
   const [standing, setStanding] = useState<SeasonStanding | null>(null);
   const { buy, busy: buying } = usePurchase();
+  // Store-supplied localized prices. Empty until the offering loads, and empty forever in a build
+  // with no SDK keys — every render site below degrades to omitting the price rather than quoting
+  // a literal that could differ from the real charge.
+  const prices = useProductPrices();
 
   const passXp = pass?.pass_xp ?? 0;
   const ownsPremium = pass?.owns_premium ?? false;
@@ -127,7 +130,11 @@ export default function ForgePassScreen() {
   async function claim(target: { level: PassLevel; lane: 'free' | 'premium' }) {
     const rewards = target.lane === 'free' ? target.level.free : target.level.premium;
     if (target.lane === 'premium' && !ownsPremium) {
-      Alert.alert('Premium locked', `This level is on the Premium track. The Forge Pass is ${PASS_PRICE_LABEL}.`);
+      const priced = prices[FORGE_PASS_PRODUCT_ID];
+      Alert.alert(
+        'Premium locked',
+        `This level is on the Premium track.${priced ? ` The Forge Pass is ${priced} for the season.` : ''}`
+      );
       return;
     }
     setBusy(true);
@@ -240,7 +247,11 @@ export default function ForgePassScreen() {
                     : 'This season has closed'}
               </Text>
             </View>
-            <Text style={styles.upgradePrice}>{phase === 'live' ? '$9.99' : '—'}</Text>
+              {/* The store's own localized price, never a literal — a hardcoded '$9.99' that
+                disagrees with App Store Connect is a price the user was quoted and not charged. */}
+            <Text style={styles.upgradePrice}>
+              {phase === 'live' ? (prices[FORGE_PASS_PRODUCT_ID] ?? '—') : '—'}
+            </Text>
           </Pressable>
           <Pressable onPress={onRestore} hitSlop={8} accessibilityRole="button">
             <Text style={styles.restore}>Restore purchases</Text>
@@ -349,6 +360,7 @@ export default function ForgePassScreen() {
         claimed={claimed}
         reached={detail ? detail.level.level <= level : false}
         busy={busy}
+        passPrice={prices[FORGE_PASS_PRODUCT_ID]}
         onClaim={claim}
         onUpgrade={onUpgrade}
         onClose={() => setDetail(null)}
@@ -539,6 +551,7 @@ function RewardDetailSheet({
   claimed,
   reached,
   busy,
+  passPrice,
   onClaim,
   onUpgrade,
   onClose,
@@ -548,6 +561,8 @@ function RewardDetailSheet({
   claimed: Set<string>;
   reached: boolean;
   busy: boolean;
+  /** The store's localized Pass price, or undefined until the offering loads. */
+  passPrice?: string;
   onClaim: (t: { level: PassLevel; lane: 'free' | 'premium' }) => void;
   onUpgrade: () => void;
   onClose: () => void;
@@ -591,7 +606,9 @@ function RewardDetailSheet({
             </View>
           ) : needsPass ? (
             <Pressable style={styles.sheetCta} onPress={onUpgrade}>
-              <Text style={styles.sheetCtaText}>Unlock the Forge Pass · {PASS_PRICE_LABEL}</Text>
+              <Text style={styles.sheetCtaText}>
+                Unlock the Forge Pass{passPrice ? ` · ${passPrice}` : ''}
+              </Text>
             </Pressable>
           ) : !reached ? (
             <View style={[styles.sheetCta, styles.sheetCtaOff]}>

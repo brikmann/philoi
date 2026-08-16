@@ -13,12 +13,12 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
 import { BOX_LIST } from '@/lib/economy/boxes';
 import { boxPool, type CatalogItem } from '@/lib/economy/catalog';
-import { EMBER_PACKS, PASS_FINE_PRINT, PASS_PRICE_LABEL, SEASON, levelFromXp, seasonPhase } from '@/lib/economy/forge-pass';
+import { EMBER_PACKS, PASS_FINE_PRINT, SEASON, levelFromXp, seasonPhase } from '@/lib/economy/forge-pass';
 import { DIRECT_BUY_PRICE } from '@/lib/economy/rarity';
 import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
 import { formatWeekCountdown, nextWeekReset, weekIndex } from '@/lib/time/week';
 import { isBillingConfigured } from '@/lib/billing';
-import { usePurchase } from '@/hooks/use-purchase';
+import { useProductPrices, usePurchase } from '@/hooks/use-purchase';
 
 // The week the Featured row is dealt from (§8.4). Read ONCE at module load rather than in render:
 // Date.now() is impure, and this project runs the React Compiler, which correctly refuses an
@@ -94,6 +94,9 @@ export default function ShopScreen() {
   // itself, and a build with them charges.
   const { buy, busy } = usePurchase();
   const billingLive = isBillingConfigured();
+  // Prices come from the STORE, localized per country — never from a literal in the codebase, which
+  // could disagree with what the card is actually charged.
+  const prices = useProductPrices();
 
   return (
     <Screen padded={false}>
@@ -140,7 +143,9 @@ export default function ShopScreen() {
                 style={[styles.forgeCta, busy && styles.forgeCtaBusy]}
                 disabled={busy}
                 onPress={() => buy(FORGE_PASS_PRODUCT_ID)}>
-                <Text style={styles.forgeCtaText}>Get Pass · {PASS_PRICE_LABEL}</Text>
+                <Text style={styles.forgeCtaText}>
+                  Get Pass{prices[FORGE_PASS_PRODUCT_ID] ? ` · ${prices[FORGE_PASS_PRODUCT_ID]}` : ''}
+                </Text>
               </Pressable>
             ) : (
               // Outside the window the Pass is not for sale at any price (§3). A disabled-looking
@@ -227,7 +232,9 @@ export default function ShopScreen() {
               disabled={busy}
               onPress={() => buy(pack.productId)}
               accessibilityRole="button"
-              accessibilityLabel={`Buy ${pack.name}, ${formatEmbers(pack.embers)} embers, ${pack.price}`}>
+              accessibilityLabel={`Buy ${pack.name}, ${formatEmbers(pack.embers)} embers${
+                prices[pack.productId] ? `, ${prices[pack.productId]}` : ''
+              }`}>
               {pack.best ? (
                 <View style={styles.bestTag}>
                   <Text style={styles.bestTagText}>BEST</Text>
@@ -241,7 +248,9 @@ export default function ShopScreen() {
                 <Text style={styles.packSub}>{pack.name}</Text>
               </View>
               <View style={styles.packPrice}>
-                <Text style={styles.packPriceText}>{pack.price}</Text>
+                {/* An em-dash until the store answers. Deliberately NOT a hardcoded fallback: a
+                    literal that disagrees with the real charge is worse than a blank. */}
+                <Text style={styles.packPriceText}>{prices[pack.productId] ?? '—'}</Text>
               </View>
             </Pressable>
           ))}

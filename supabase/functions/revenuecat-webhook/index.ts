@@ -15,15 +15,20 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-// Must match src/lib/economy/iap.ts and src/lib/economy/forge-pass.ts. Duplicated rather than
-// imported because an edge function can't reach into the app bundle — the pairing is asserted by
-// the test at the bottom of PHASE4_IAP_TESTING.md.
-const FORGE_PASS_PRODUCT_ID = 'philoi.forge_pass.season';
+// MONEY-CRITICAL. Must match src/lib/economy/iap.ts and src/lib/economy/forge-pass.ts exactly, and
+// both must match App Store Connect. Duplicated rather than imported because an edge function
+// cannot reach into the app bundle.
+//
+// Because nothing in the type system connects these two copies, the pairing is enforced by
+// `npm run check:iap` (scripts/check-iap-ids.js), which parses BOTH files and exits non-zero if the
+// ids or the amounts disagree. Run it before any store-facing release — a silent drift here is a
+// charged card and an empty account.
+const FORGE_PASS_PRODUCT_ID = 'app.philoi.forge_pass.season';
 const EMBERS_BY_PRODUCT: Record<string, number> = {
-  'philoi.embers.1200': 1_200,
-  'philoi.embers.3000': 3_000,
-  'philoi.embers.6500': 6_500,
-  'philoi.embers.15000': 15_000,
+  'app.philoi.embers.500': 500,
+  'app.philoi.embers.1200': 1_200,
+  'app.philoi.embers.2600': 2_600,
+  'app.philoi.embers.7000': 7_000,
 };
 
 /**

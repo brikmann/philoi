@@ -1,9 +1,36 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
-import { isBillingConfigured, purchaseProduct } from '@/lib/billing';
+import { fetchProductPrices, isBillingConfigured, purchaseProduct } from '@/lib/billing';
 import { supabase } from '@/lib/supabase';
+
+/**
+ * Live, localized store prices keyed by product id.
+ *
+ * Returns `{}` until the offering loads (and forever, in a build with no SDK keys). Callers must
+ * render a placeholder for a missing id rather than falling back to a hardcoded string: a stale
+ * literal that disagrees with the real charge is worse than briefly showing nothing, and it is
+ * exactly the failure this replaced.
+ */
+export function useProductPrices(): Record<string, string> {
+  const [prices, setPrices] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!isBillingConfigured()) return;
+    let cancelled = false;
+    fetchProductPrices()
+      .then((p) => {
+        if (!cancelled) setPrices(p);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return prices;
+}
 
 /**
  * One place every paywall goes through (#71), so the Forge Pass strip and the Buy-Embers row can't

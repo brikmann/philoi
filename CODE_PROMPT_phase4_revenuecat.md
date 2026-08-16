@@ -13,12 +13,13 @@ dependency left for v1.
    (offerings + an `forge_pass` entitlement). Product IDs must match between the two.
 
 ## Products
-- **Forge Pass** — **$9.99, one-time per season** (non-renewing) → grants the `forge_pass` entitlement
+- **Forge Pass** — id **`app.philoi.forge_pass.season`** — **$9.99, one-time per season** (non-renewing) → grants the `forge_pass` entitlement
   for the CURRENT season only; a new season needs a new purchase. (DECISION: one-time-per-season vs an
   auto-renewing subscription. Recommend one-time — it matches "buy this season," no surprise renewals.
   Flag if you want recurring revenue instead; RevenueCat handles either via the same entitlement.)
-- **Ember packs** — **consumables**, e.g. 1,200 / 3,000 / 6,500 / 15,000 embers at
-  $1.99 / $4.99 / $9.99 / $19.99 (tune the amounts/prices). On purchase → grant embers.
+- **Ember packs** — **consumables**: **500 / 1,200 / 2,600 / 7,000 embers** (matches the in-app Buy
+  Embers screen). Product ids `app.philoi.embers.500 / .1200 / .2600 / .7000`. The webhook maps each id →
+  its ember amount (500/1200/2600/7000) and grants that on purchase.
 
 Integrity: sells cosmetics (the pass) + currency (embers) only — never XP, rank, streaks, or standing.
 Consistent with the whole model.

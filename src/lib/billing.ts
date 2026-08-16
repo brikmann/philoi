@@ -124,6 +124,24 @@ export async function fetchOffering(): Promise<PurchasesOffering | null> {
   }
 }
 
+/**
+ * productId → the store's own localized price string ("$4.99", "4,99 €", "¥800").
+ *
+ * The ONLY source of a price anywhere in the app. Hardcoded price strings were removed precisely
+ * because they can disagree with what the card is actually charged — the store knows the user's
+ * storefront, currency, and any regional pricing, and this app does not. An id missing from the
+ * result simply has no price yet; callers render a placeholder rather than inventing one.
+ */
+export async function fetchProductPrices(): Promise<Record<string, string>> {
+  const offering = await fetchOffering();
+  if (!offering) return {};
+  const out: Record<string, string> = {};
+  for (const pkg of offering.availablePackages) {
+    out[pkg.product.identifier] = pkg.product.priceString;
+  }
+  return out;
+}
+
 /** Find a package by its store product id within the current offering. */
 export async function findPackage(productId: string): Promise<PurchasesPackage | null> {
   const offering = await fetchOffering();

@@ -19,7 +19,7 @@ export const FORGE_PASS_ENTITLEMENT = 'forge_pass';
 /**
  * The Forge Pass product. ONE id reused every season, deliberately.
  *
- * The alternative — `philoi.forge_pass.s1`, `...s2` — means creating and re-reviewing a new App
+ * The alternative — `app.philoi.forge_pass.s1`, `...s2` — means creating and re-reviewing a new App
  * Store product every single season, and any season where that slips is a season nobody can buy.
  * A generic id costs nothing because the server already binds the grant to the live season, and
  * `season_phase()` (migration 0074) refuses the grant outside the window regardless.
@@ -28,7 +28,7 @@ export const FORGE_PASS_ENTITLEMENT = 'forge_pass';
  * PASS_FINE_PRINT — the old "auto-renews each season" copy was written against a subscription model
  * and had to change with it.
  */
-export const FORGE_PASS_PRODUCT_ID = 'philoi.forge_pass.season';
+export const FORGE_PASS_PRODUCT_ID = 'app.philoi.forge_pass.season';
 
 /** Every product this app can sell. Used to sanity-check an offering against what we expect. */
 export const ALL_PRODUCT_IDS: string[] = [FORGE_PASS_PRODUCT_ID, ...EMBER_PACKS.map((p) => p.productId)];
