@@ -68,19 +68,19 @@ Island region (iOS) or notification (Android). So:
 - Don't scope a full-screen lock-screen perimeter — it will get cut at build. The pill IS the
   out-of-app aura, and it's still premium.
 
-## Premium-polish design — mock 91
-`design-mocks/91-lockin-pill.html` renders the pill at production polish:
-- **Lock Screen card** — 24px blurred dark-glass card, 1px ember border, flare-tinted outer glow; a
-  **molten tier ring** (conic fill toward the 30/60/90 tier) with the flame at centre + slow breathe;
-  session name + LIVE dot; big tabular-nums timer; molten progress bar. Compact pill in the Island at
-  the same time.
-- **Dynamic Island** — compact (leading flame + trailing timer), minimal (breathing ember dot), and
-  **expanded** (LIVE dot, big timer, tier ring, **friends-locked-in cluster**, Stop control).
-- **Flare tint** — card glow + ring + pill all adopt the equipped flare's colour (default Ember; Void
-  Smoke purple / Stormforge blue shown). The pill is the out-of-app aura.
-- **Coordination strip** — everyone's pill live at once (You/Maya/Jordan), the status-flex payoff.
-- Build notes for Code: drive the timer with ActivityKit's native `timer` text style (counts on the
-  Lock Screen with no pushes); ring = conic fill; colour = equipped flare token.
+## Design — mock 91 (minimal, APPROVED)
+`design-mocks/91-lockin-pill.html`. No ring, no friends, no tier. Content = flame + **session name** +
+running timer; session name (Study, Gym, …) is a quiet indicator of what the person is doing (drop it if
+unset → flame + timer). Rules by surface:
+- **Live Activity — Lock Screen card + Dynamic Island (expanded):** flame + session name + timer. The
+  Dynamic Island keeps the **PHILOI** wordmark (purple gradient) on top. No upper compact pill on the
+  lock screen; no compact/minimal row under the Island.
+- **In-app pill — every page EXCEPT the lock-in screen:** text only, **`PHILOI · session · timer`**, no
+  flame. Sits at the top of each page while a session runs.
+- **Lock-in (active session) screen:** no pill — the **big flame** with the **big timer beneath it**.
+- Build notes for Code: timer = ActivityKit native `timer` style (counts with no pushes); PHILOI = purple
+  gradient; flame = custom SVG asset (ember gradient), not the emoji. Session name pulled from the
+  session's label.
 
 ## Status
 Design-approved concept + **premium-polish mock 91**; aura in mock 88; build-gated. The in-app perimeter aura is

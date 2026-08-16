@@ -12,19 +12,48 @@
 // this whole layer ship and be tested in the same build the keys land in.
 
 import Constants from 'expo-constants';
-import Purchases, {
-  LOG_LEVEL,
-  PURCHASES_ERROR_CODE,
-  type CustomerInfo,
-  type PurchasesOffering,
-  type PurchasesPackage,
-} from 'react-native-purchases';
+// TYPE-ONLY import — erased at compile time, so it never causes a runtime require. The actual
+// module is loaded lazily by sdk() below; see the note there for why that matters.
+import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
 import { Platform } from 'react-native';
 
 import { track } from '@/lib/analytics';
 import { FORGE_PASS_ENTITLEMENT, emberPackForProduct, isForgePassProduct } from '@/lib/economy/iap';
 
 const { revenueCatIosKey, revenueCatAndroidKey } = Constants.expoConfig?.extra ?? {};
+
+/**
+ * Lazily load the RevenueCat SDK, returning null when its native module isn't in the binary.
+ *
+ * This file is imported by AuthProvider and by the root-mounted EntitlementReconciler, which puts
+ * it squarely on the app's startup path. `react-native-purchases` is a NATIVE module, so a
+ * top-level `import Purchases from 'react-native-purchases'` throws during module evaluation in any
+ * runtime that doesn't have it compiled in — Expo Go, or any dev build cut before the package was
+ * installed. A throw there takes down the entire app with a white screen, before a single pixel
+ * renders, and billing is the least important thing in the app to be able to do that.
+ *
+ * Same lazy-require pattern sound.ts already uses for expo-audio. Cached after the first attempt so
+ * a missing module costs one failed require, not one per call.
+ */
+type PurchasesSdk = typeof import('react-native-purchases');
+let sdkCache: PurchasesSdk | null | undefined;
+
+function sdk(): PurchasesSdk | null {
+  if (sdkCache !== undefined) return sdkCache;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('react-native-purchases') as PurchasesSdk & { default?: PurchasesSdk['default'] };
+    // The default export is the Purchases class; a module with no default means the native side
+    // didn't register and there is nothing usable here.
+    sdkCache = mod?.default ? mod : null;
+  } catch {
+    sdkCache = null;
+  }
+  if (!sdkCache) {
+    console.warn('[billing] react-native-purchases is unavailable in this runtime — purchases disabled');
+  }
+  return sdkCache;
+}
 
 // ─────────────────────────── Membership · DORMANT, superseded ───────────────────────────
 //
@@ -57,9 +86,12 @@ function apiKey(): string | null {
 /**
  * Whether real purchases can run at all. Every paywall checks this BEFORE showing a price, so a
  * build without keys shows "coming soon" rather than a live button that throws on tap.
+ *
+ * Requires BOTH a key and the native module. A JS-only runtime with a key configured still can't
+ * charge anyone, and offering to would be worse than saying nothing.
  */
 export function isBillingConfigured(): boolean {
-  return apiKey() !== null;
+  return apiKey() !== null && sdk() !== null;
 }
 
 let configured = false;
@@ -76,7 +108,9 @@ let configured = false;
  */
 export async function configureBilling(userId: string | null): Promise<void> {
   const key = apiKey();
-  if (!key || !userId) return;
+  const rc = sdk();
+  if (!key || !userId || !rc) return;
+  const Purchases = rc.default;
 
   try {
     if (configured) {
@@ -85,7 +119,7 @@ export async function configureBilling(userId: string | null): Promise<void> {
       await Purchases.logIn(userId);
       return;
     }
-    if (__DEV__) await Purchases.setLogLevel(LOG_LEVEL.DEBUG);
+    if (__DEV__) await Purchases.setLogLevel(rc.LOG_LEVEL.DEBUG);
     await Purchases.configure({ apiKey: key, appUserID: userId });
     configured = true;
   } catch (e) {
@@ -97,9 +131,10 @@ export async function configureBilling(userId: string | null): Promise<void> {
 
 /** Sign the user out of RevenueCat on app sign-out, so the next account starts clean. */
 export async function resetBilling(): Promise<void> {
-  if (!configured) return;
+  const rc = sdk();
+  if (!configured || !rc) return;
   try {
-    await Purchases.logOut();
+    await rc.default.logOut();
   } catch {
     // logOut throws for an anonymous user, which is a no-op condition, not an error.
   }
@@ -114,9 +149,10 @@ export type PurchaseOutcome =
 
 /** The current offering's packages, or null when billing isn't configured / nothing is published. */
 export async function fetchOffering(): Promise<PurchasesOffering | null> {
-  if (!isBillingConfigured()) return null;
+  const rc = sdk();
+  if (!isBillingConfigured() || !rc) return null;
   try {
-    const offerings = await Purchases.getOfferings();
+    const offerings = await rc.default.getOfferings();
     return offerings.current ?? null;
   } catch (e) {
     console.warn('[billing] fetchOffering failed', e);
@@ -161,13 +197,14 @@ export async function purchaseProduct(productId: string): Promise<PurchaseOutcom
     return { status: 'unavailable', message: 'Purchases aren’t available in this build yet.' };
   }
 
+  const rc = sdk();
   const pkg = await findPackage(productId);
-  if (!pkg) {
+  if (!pkg || !rc) {
     return { status: 'unavailable', message: 'That item isn’t available from the store right now.' };
   }
 
   try {
-    const { customerInfo } = await Purchases.purchasePackage(pkg);
+    const { customerInfo } = await rc.default.purchasePackage(pkg);
     track('iap_purchase_completed', { product: productId });
 
     if (isForgePassProduct(productId) && !hasForgePass(customerInfo)) {
@@ -178,14 +215,14 @@ export async function purchaseProduct(productId: string): Promise<PurchaseOutcom
     return { status: 'granted', productId };
   } catch (e) {
     const code = (e as { code?: string }).code;
-    if (code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
+    if (code === rc.PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) {
       track('iap_purchase_cancelled', { product: productId });
       return { status: 'cancelled' };
     }
-    if (code === PURCHASES_ERROR_CODE.PRODUCT_ALREADY_PURCHASED_ERROR) {
+    if (code === rc.PURCHASES_ERROR_CODE.PRODUCT_ALREADY_PURCHASED_ERROR) {
       return { status: 'already-owned' };
     }
-    if (code === PURCHASES_ERROR_CODE.PAYMENT_PENDING_ERROR) {
+    if (code === rc.PURCHASES_ERROR_CODE.PAYMENT_PENDING_ERROR) {
       // Ask-to-Buy / SCA. The purchase may complete later; grant nothing now.
       return { status: 'pending' };
     }
@@ -210,10 +247,11 @@ export function hasForgePass(info: CustomerInfo): boolean {
  * Pass entitlement comes back.
  */
 export async function restorePurchases(): Promise<{ restoredPass: boolean }> {
-  if (!isBillingConfigured()) {
+  const rc = sdk();
+  if (!isBillingConfigured() || !rc) {
     throw new Error('Purchases aren’t available in this build yet.');
   }
-  const info = await Purchases.restorePurchases();
+  const info = await rc.default.restorePurchases();
   const restoredPass = hasForgePass(info);
   track('iap_restore', { restored_pass: restoredPass });
   return { restoredPass };
@@ -225,9 +263,10 @@ export async function restorePurchases(): Promise<{ restoredPass: boolean }> {
  * caller asks the server to reconcile rather than granting anything locally.
  */
 export async function storeSaysPassOwned(): Promise<boolean> {
-  if (!isBillingConfigured()) return false;
+  const rc = sdk();
+  if (!isBillingConfigured() || !rc) return false;
   try {
-    return hasForgePass(await Purchases.getCustomerInfo());
+    return hasForgePass(await rc.default.getCustomerInfo());
   } catch {
     return false;
   }

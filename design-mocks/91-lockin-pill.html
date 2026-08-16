@@ -1,172 +1,142 @@
 <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Lock-in Live Activity pill — premium polish (mock 91)</title>
+<title>Lock-in pill — minimal (mock 91)</title>
 <style>
-*{box-sizing:border-box;font-family:'Inter',system-ui,sans-serif}
-body{margin:0;background:#08070c;color:#FFF6EC;padding:26px;display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start;justify-content:center}
+*{box-sizing:border-box;font-family:-apple-system,'SF Pro Text','Inter',system-ui,sans-serif}
+body{margin:0;background:#08070c;color:#FFF6EC;padding:26px;display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start;justify-content:center}
 h1{width:100%;font-size:17px;margin:0;color:#e7ddf5;text-align:center}
-.sub{width:100%;font-size:12.5px;color:#9f92b6;margin:-16px auto 6px;max-width:900px;line-height:1.55;text-align:center}
-.mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.sub{width:100%;font-size:12.5px;color:#9f92b6;margin:-16px auto 4px;max-width:880px;line-height:1.55;text-align:center}
+.mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum";letter-spacing:-.3px}
 .col{display:flex;flex-direction:column;gap:12px;align-items:center}
-.cap{font-size:11.5px;color:#9f92b6;width:260px;text-align:center;line-height:1.5}
-.cap b{color:#f4b25a}
+.cap{font-size:11.5px;color:#9f92b6;width:262px;text-align:center;line-height:1.5}
+.cap b{color:#c9a2ff;font-weight:600}
+.brand{font-weight:800;letter-spacing:1.2px;background:linear-gradient(180deg,#C99BFF,#8A4FFF);-webkit-background-clip:text;background-clip:text;color:transparent}
 
-/* ---------- phone / lock screen ---------- */
 .phone{width:270px;height:560px;border-radius:46px;background:
-  radial-gradient(120% 80% at 50% -10%, #241634 0%, #120c1c 46%, #0a0710 100%);
-  border:1px solid #2a2140;position:relative;overflow:hidden;box-shadow:0 30px 70px #000a}
+  radial-gradient(130% 90% at 50% -8%, #1c1330 0%, #100b1a 50%, #09060f 100%);
+  border:1px solid #241b38;position:relative;overflow:hidden;box-shadow:0 30px 70px #000a}
 .di{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:9}
-.clock{position:absolute;top:96px;width:100%;text-align:center}
-.clock .t{font-size:74px;font-weight:600;letter-spacing:-2px;color:#fdf3e6;line-height:.9;text-shadow:0 2px 30px #0008}
-.clock .d{font-size:13px;color:#c9bcdd;margin-top:8px;font-weight:600}
+.notch{width:96px;height:32px;border-radius:22px;background:#000}
+.clock{position:absolute;top:100px;width:100%;text-align:center}
+.clock .t{font-size:76px;font-weight:590;letter-spacing:-2px;color:#fdf3e6;line-height:.9}
+.clock .d{font-size:13px;color:#c9bcdd;margin-top:9px;font-weight:600}
 
-/* ---------- the Live Activity card ---------- */
-.la{position:absolute;left:16px;right:16px;bottom:118px;border-radius:24px;padding:14px 15px;
-  background:linear-gradient(180deg,#181022f2,#120c1cf2);border:1px solid #ff8a3a44;
-  backdrop-filter:blur(8px);display:flex;align-items:center;gap:13px;z-index:5;
-  box-shadow:0 0 34px 4px var(--glow,#ff6a1a55), inset 0 0 0 1px #ffffff08}
-.ring{width:56px;height:56px;border-radius:50%;flex:0 0 56px;position:relative;
-  background:conic-gradient(var(--flare,#ff8a2a) var(--pct,62%), #2a2036 0);
-  display:grid;place-items:center;animation:breathe 3.4s ease-in-out infinite}
-.ring::after{content:"";position:absolute;inset:5px;border-radius:50%;background:#150e20}
-.ring .fl{position:relative;z-index:2;font-size:23px;filter:drop-shadow(0 0 8px var(--flare,#ffae57))}
-.la .mid{flex:1;min-width:0}
-.la .name{font-size:14.5px;font-weight:800;color:#fff6ec;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.la .meta{font-size:11px;color:#b9a7d0;margin-top:2px;display:flex;align-items:center;gap:6px}
-.livedot{width:6px;height:6px;border-radius:50%;background:#ff5a4d;box-shadow:0 0 7px #ff5a4d;animation:blink 1.4s infinite}
-.la .time{font-size:26px;font-weight:800;color:#fff;letter-spacing:-.5px}
-.la .barwrap{position:absolute;left:15px;right:15px;bottom:9px;height:3px;border-radius:3px;background:#2a2036;overflow:hidden}
-.la .bar{height:100%;width:62%;border-radius:3px;background:linear-gradient(90deg,#ff5a1a,#ffb347);box-shadow:0 0 8px #ff8a3a}
-.la .tap{position:absolute;top:12px;right:14px;font-size:9px;color:#8f84a6}
+.mk{filter:drop-shadow(0 0 5px #ff8a2a);animation:glow 3.6s ease-in-out infinite}
+@keyframes glow{50%{filter:drop-shadow(0 0 9px #ff8a2a) brightness(1.08)}}
 
-@keyframes breathe{50%{opacity:.72;filter:brightness(1.12)}}
-@keyframes blink{50%{opacity:.35}}
+/* Live Activity card */
+.la{position:absolute;left:15px;right:15px;bottom:126px;border-radius:22px;padding:14px 16px 15px;
+  background:rgba(22,16,30,.72);border:1px solid #ffffff14;backdrop-filter:blur(14px);z-index:5;box-shadow:0 8px 26px #0006}
+.la .lab{font-size:10px;letter-spacing:1.4px;margin-bottom:11px}
+.la .body{display:flex;align-items:center;gap:13px}
+.la .name{font-size:15px;font-weight:600;color:#fff6ec}
+.la .time{font-size:29px;font-weight:600;color:#fff;margin-left:auto}
 
-/* ---------- dynamic island states ---------- */
-.island{background:#000;border-radius:44px;display:flex;align-items:center;color:#fff;box-shadow:0 6px 20px #000a, inset 0 0 0 1px #ffffff0d}
-.di-compact{height:37px;min-width:126px;padding:0 8px;justify-content:space-between;gap:12px}
-.di-compact .fl{font-size:16px;filter:drop-shadow(0 0 7px var(--flare,#ffae57))}
-.di-compact .time{font-size:15px;font-weight:800;color:var(--flare,#ffb266);padding-right:4px}
-.di-min{height:37px;width:37px;border-radius:50%;display:grid;place-items:center}
-.di-min .dot{width:11px;height:11px;border-radius:50%;background:var(--flare,#ff8a2a);box-shadow:0 0 10px var(--flare,#ff8a2a);animation:breathe 2.2s ease-in-out infinite}
-.di-exp{width:250px;border-radius:34px;padding:15px 16px 14px;display:block}
-.di-exp .top{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#c9bcdd;font-weight:700}
-.di-exp .top .lv{display:flex;align-items:center;gap:5px;color:#ff8a6a}
-.di-exp .core{display:flex;align-items:center;gap:14px;margin:11px 0 10px}
-.di-exp .big{font-size:34px;font-weight:800;letter-spacing:-1px;line-height:1}
-.di-exp .subn{font-size:12px;color:#c9bcdd;margin-top:3px}
-.di-exp .foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #ffffff12;padding-top:10px}
-.di-exp .friends{display:flex;align-items:center}
-.di-exp .av{width:22px;height:22px;border-radius:50%;margin-left:-7px;border:2px solid #000;display:grid;place-items:center;font-size:10px;font-weight:800;color:#150e20}
-.di-exp .flag{font-size:10.5px;color:#9f92b6}
-.stop{font-size:11px;font-weight:800;color:#ff6a5a;background:#ff6a5a1a;border:1px solid #ff6a5a44;border-radius:20px;padding:5px 11px}
+/* dynamic island expanded */
+.island{background:#000;color:#fff;box-shadow:0 6px 20px #000a}
+.di-exp{width:238px;border-radius:32px;padding:15px 18px 16px}
+.di-exp .brand{font-size:10.5px;letter-spacing:1.6px}
+.di-exp .core{display:flex;align-items:center;gap:13px;margin-top:12px}
+.di-exp .name{font-size:13px;color:#e7ddf5;font-weight:600}
+.di-exp .big{font-size:37px;font-weight:600;line-height:1;margin-left:auto}
 
-/* ---------- coordination strip ---------- */
-.coord{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;width:100%;max-width:900px}
-.mini{width:250px;border-radius:18px;padding:11px 12px;background:linear-gradient(180deg,#181022,#120c1c);
-  border:1px solid #ffffff10;display:flex;align-items:center;gap:11px;box-shadow:0 0 20px 2px var(--glow,#ff6a1a44)}
-.mini .r{width:40px;height:40px;border-radius:50%;flex:0 0 40px;background:conic-gradient(var(--flare) var(--pct,55%),#2a2036 0);display:grid;place-items:center;position:relative}
-.mini .r::after{content:"";position:absolute;inset:4px;border-radius:50%;background:#150e20}
-.mini .r span{position:relative;z-index:2;font-size:16px;filter:drop-shadow(0 0 6px var(--flare))}
-.mini .who{font-size:12.5px;font-weight:800}
-.mini .st{font-size:10.5px;color:#b9a7d0;margin-top:1px}
-.mini .tm{margin-left:auto;font-size:17px;font-weight:800;color:var(--flare)}
+/* in-app page + top text pill */
+.appscr{position:absolute;inset:0;padding:52px 15px 0}
+.pagepill{display:flex;align-items:center;justify-content:center;gap:9px;background:rgba(22,16,30,.8);
+  border:1px solid #ffffff14;border-radius:30px;padding:8px 16px;backdrop-filter:blur(10px);box-shadow:0 6px 18px #0006;font-size:12.5px}
+.pagepill .brand{font-size:11px}
+.pagepill .sep{color:#5c5470}
+.pagepill .name{color:#e7ddf5;font-weight:600}
+.pagepill .time{color:#ffb266;font-weight:700}
+.pagehdr{font-size:20px;font-weight:800;color:#fff6ec;margin:22px 4px 4px}
+.approw{height:52px;border-radius:14px;background:#160f22;border:1px solid #241b38;margin-top:11px}
 
-.legend{width:100%;max-width:900px;font-size:12px;color:#8f84a6;line-height:1.6;border-top:1px solid #201936;padding-top:14px;margin-top:6px}
-.legend b{color:#f4b25a}
-.tag{display:inline-block;font-size:10px;color:#ffb266;border:1px solid #ff8a3a55;border-radius:20px;padding:2px 8px;margin-right:4px}
+/* lock-in (active session) screen */
+.session{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 20px}
+.session .flame{filter:drop-shadow(0 0 34px #ff8a2a88);animation:glow 3.6s ease-in-out infinite}
+.session .big{font-size:60px;font-weight:640;color:#fff;letter-spacing:-1.5px;margin-top:6px}
+.session .name{font-size:14px;color:#c9bcdd;font-weight:600;letter-spacing:.3px}
+
+.legend{width:100%;max-width:880px;font-size:12px;color:#8f84a6;line-height:1.6;border-top:1px solid #201936;padding-top:14px;margin-top:6px}
+.legend b{color:#c9a2ff;font-weight:600}
+.tag{display:inline-block;font-size:10px;color:#c9a2ff;border:1px solid #8A4FFF55;border-radius:20px;padding:2px 8px;margin-right:4px}
+svg{overflow:visible}
 </style>
 
-<h1>🔥 Lock-in Live Activity pill — premium polish (mock 91)</h1>
-<p class="sub">The lock-in <b>is</b> the notification. A branded ActivityKit card on the Lock Screen and a
-live pill in the Dynamic Island — molten ring, live timer, and a glow that tints to the equipped flare.
-Everything counts in real time; the ring fills toward the session tier. Tap → back into the session.</p>
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="ember" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff5a1a"/><stop offset="1" stop-color="#ffc061"/></linearGradient>
+</defs></svg>
 
-<!-- LOCK SCREEN -->
+<h1>Lock-in pill — minimal (mock 91)</h1>
+<p class="sub">Flame + <b>session name</b> + running timer, no ring. The session name (Study, Gym…) is a
+quiet indicator of what someone's doing. Live Activity carries the flame; the in-app pill is text only
+(<b>PHILOI · session · timer</b>) on every page except the lock-in screen — which shows the big timer
+under the flame.</p>
+
+<!-- 1 · LOCK SCREEN -->
 <div class="col">
   <div class="phone">
-    <div class="di"><div class="island di-compact"><span class="fl">🔥</span><span class="time mono" data-t="1524">25:24</span></div></div>
+    <div class="di"><div class="notch"></div></div>
     <div class="clock"><div class="t mono">9:41</div><div class="d">Friday, September 12</div></div>
-    <div class="la" style="--flare:#ff8a2a;--glow:#ff6a1a66;--pct:64%">
-      <div class="ring" style="--pct:64%"><span class="fl">🔥</span></div>
-      <div class="mid">
-        <div class="name">Deep Work</div>
-        <div class="meta"><span class="livedot"></span>Locked in · 30-min tier</div>
+    <div class="la">
+      <div class="lab brand">PHILOI</div>
+      <div class="body">
+        <svg class="mk" width="26" height="26" viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#ember)"/></svg>
+        <span class="name">Study</span>
+        <span class="time mono" data-t="1524">25:24</span>
       </div>
-      <div class="time mono" data-t="1524">25:24</div>
-      <div class="tap">tap ›</div>
-      <div class="barwrap"><div class="bar" style="width:64%"></div></div>
     </div>
   </div>
-  <div class="cap"><b>Lock Screen.</b> Full card: molten tier ring + flame, session name, live timer, molten progress bar. Compact pill up in the Island simultaneously.</div>
+  <div class="cap"><b>Lock Screen.</b> Flame + session name + timer. No ring, no upper pill.</div>
 </div>
 
-<!-- DYNAMIC ISLAND STATES -->
+<!-- 2 · DYNAMIC ISLAND -->
 <div class="col">
-  <div class="phone" style="justify-content:flex-start">
-    <div class="di"><div class="island di-exp" style="--flare:#ff8a2a">
-      <div class="top"><span>PHILOI</span><span class="lv"><span class="livedot"></span>LIVE</span></div>
+  <div class="phone">
+    <div class="di"><div class="island di-exp">
+      <div class="brand">PHILOI</div>
       <div class="core">
-        <div class="ring" style="--flare:#ff8a2a;--pct:64%;width:52px;height:52px;flex:0 0 52px"><span class="fl" style="font-size:21px">🔥</span></div>
-        <div>
-          <div class="big mono" data-t="1524">25:24</div>
-          <div class="subn">Deep Work · 30-min tier</div>
-        </div>
-      </div>
-      <div class="foot">
-        <div class="friends">
-          <div class="av" style="background:#ff8a2a">N</div>
-          <div class="av" style="background:#C77BFF">M</div>
-          <div class="av" style="background:#7BB8FF">J</div>
-          <span class="flag" style="margin-left:8px">+4 locked in</span>
-        </div>
-        <div class="stop">Stop</div>
+        <svg class="mk" width="24" height="24" viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#ember)"/></svg>
+        <span class="name">Study</span>
+        <span class="big mono" data-t="1524">25:24</span>
       </div>
     </div></div>
-    <div style="position:absolute;bottom:120px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:16px">
-      <div style="display:flex;align-items:center;gap:14px">
-        <div class="island di-compact" style="--flare:#ff8a2a"><span class="fl">🔥</span><span class="time mono" data-t="1524">25:24</span></div>
-        <div class="island di-min"><div class="dot"></div></div>
-      </div>
-      <div style="font-size:10.5px;color:#8f84a6;text-align:center;width:210px">compact (leading + trailing) · minimal (when another activity shares the Island)</div>
-    </div>
   </div>
-  <div class="cap"><b>Dynamic Island.</b> Long-press → expanded: LIVE dot, big timer, tier ring, the friends locked in with you, and a Stop control. Collapses to the compact pill.</div>
+  <div class="cap"><b>Dynamic Island.</b> The running pill with the wordmark on top: PHILOI, flame, session name, timer. Nothing below it.</div>
 </div>
 
-<!-- FLARE TINT VARIANTS -->
+<!-- 3 · IN-APP PILL (every page) -->
 <div class="col">
   <div class="phone">
-    <div class="di"><div class="island di-compact" style="--flare:#C77BFF"><span class="fl">🔥</span><span class="time mono" data-t="3310">55:10</span></div></div>
-    <div class="clock"><div class="t mono">11:20</div><div class="d">Friday, September 12</div></div>
-    <div class="la" style="--flare:#C77BFF;--glow:#8A2AB877;--pct:88%">
-      <div class="ring" style="--flare:#C77BFF;--pct:88%"><span class="fl">🔥</span></div>
-      <div class="mid">
-        <div class="name">CHEM 233 — Orgo</div>
-        <div class="meta"><span class="livedot"></span>Void Smoke flare · 90-min tier</div>
-      </div>
-      <div class="time mono" data-t="3310">55:10</div>
-      <div class="tap">tap ›</div>
-      <div class="barwrap"><div class="bar" style="width:88%;background:linear-gradient(90deg,#8A2AB8,#C77BFF)"></div></div>
+    <div class="di"><div class="notch"></div></div>
+    <div class="appscr">
+      <div class="pagepill"><span class="brand">PHILOI</span><span class="sep">·</span><span class="name">Study</span><span class="sep">·</span><span class="time mono" data-t="1524">25:24</span></div>
+      <div class="pagehdr">Profile</div>
+      <div class="approw"></div><div class="approw"></div><div class="approw"></div>
     </div>
   </div>
-  <div class="cap"><b>Tints to the equipped flare.</b> The card glow + ring + pill adopt the flare's colour — here Void Smoke purple. Your out-of-app aura, carried by the pill.</div>
+  <div class="cap"><b>In-app pill — every page.</b> Text only: PHILOI · session · timer. No flame. Sits at the top of every page while a session runs (Profile shown).</div>
 </div>
 
-<!-- COORDINATION -->
-<div class="coord">
-  <div style="width:100%;font-size:13px;color:#e7ddf5;font-weight:800;text-align:center;margin-bottom:2px">The premium feel is coordination — glance at the group, everyone's pill live at once</div>
-  <div class="mini" style="--flare:#ff8a2a;--glow:#ff6a1a55;--pct:64%"><div class="r"><span>🔥</span></div><div><div class="who">You</div><div class="st">Deep Work · Ember</div></div><div class="tm mono" data-t="1524">25:24</div></div>
-  <div class="mini" style="--flare:#C77BFF;--glow:#8A2AB855;--pct:88%"><div class="r"><span>🔥</span></div><div><div class="who">Maya</div><div class="st">Orgo · Void Smoke</div></div><div class="tm mono" data-t="3310">55:10</div></div>
-  <div class="mini" style="--flare:#7BB8FF;--glow:#2A78E055;--pct:40%"><div class="r"><span>🔥</span></div><div><div class="who">Jordan</div><div class="st">Gym · Stormforge</div></div><div class="tm mono" data-t="742">12:22</div></div>
+<!-- 4 · LOCK-IN SCREEN -->
+<div class="col">
+  <div class="phone">
+    <div class="di"><div class="notch"></div></div>
+    <div class="session">
+      <svg class="flame" width="112" height="112" viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#ember)"/></svg>
+      <div class="big mono" data-t="1524">25:24</div>
+      <div class="name">Study</div>
+    </div>
+  </div>
+  <div class="cap"><b>Lock-in screen.</b> No pill here — the big timer sits under the flame. This is the one page that doesn't get the top pill.</div>
 </div>
 
 <div class="legend">
-  <span class="tag">native · build-gated</span><span class="tag">iOS ActivityKit</span><span class="tag">Android Live Update</span>
-  <b>Polish spec.</b> Card: 24px radius, blurred dark glass, 1px ember border, flare-tinted outer glow.
-  <b>Ring</b> = conic fill toward the session tier (30/60/90) with the flame at centre and a slow breathe.
-  <b>Timer</b> = tabular-nums, driven by ActivityKit's native <i>timer</i> style so it counts on the Lock Screen without pushes.
-  <b>Colour</b> follows the equipped flare (default Ember). <b>Expanded Island</b> adds the friends-locked-in cluster + a Stop control — the coordination flex.
-  Honest limit: the glow lives inside the card / Island region, not the whole screen edge (that's in-app only). Everything here is one native build alongside RevenueCat (#71 / #87).
+  <span class="tag">native · build-gated</span><span class="tag">iOS ActivityKit</span>
+  <b>Rules.</b> <b>Live Activity</b> (Lock Screen + Dynamic Island) = flame + session name + running timer
+  (Dynamic Island keeps the PHILOI wordmark on top). <b>In-app pill</b> = <b>PHILOI · session · timer</b>,
+  text only, no flame — on every page <i>except</i> the lock-in screen. <b>Lock-in screen</b> = the big
+  flame with the big timer beneath it. Session name is whatever the user set (Study, Gym, …); if none is
+  set, drop it and show flame + timer. Timer = ActivityKit native <i>timer</i> style. Ship the flame as an SVG asset.
 </div>
 
 <script>
