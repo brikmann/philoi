@@ -1,0 +1,202 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Premium polish — home · done · daily fire (mock 92)</title>
+<style>
+*{box-sizing:border-box;font-family:'Inter',system-ui,sans-serif}
+body{margin:0;background:#0f0d15;color:#FFF6EC;padding:26px;display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start;justify-content:center}
+h1{width:100%;font-size:17px;margin:0;color:#e7ddf5;text-align:center}
+.sub{width:100%;font-size:12.5px;color:#9f92b6;margin:-16px auto 6px;max-width:900px;line-height:1.55;text-align:center}
+.col{display:flex;flex-direction:column;gap:12px;align-items:center}
+.cap{font-size:11.5px;color:#a99cbd;width:290px;text-align:center;line-height:1.5}
+.cap b{color:#f4b25a;font-weight:600}
+.mono{font-variant-numeric:tabular-nums}
+
+.phone{width:290px;height:600px;background:#14111c;border-radius:36px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:radial-gradient(120% 62% at 50% 6%,#2c1b36,#161320 56%);border-radius:28px;overflow:hidden;display:flex;flex-direction:column}
+
+/* icons */
+.hrow{display:flex;align-items:center;padding:16px 15px 0;z-index:4}
+.icn{width:34px;height:34px;border-radius:11px;background:#241c38;display:flex;align-items:center;justify-content:center}
+.icn svg{width:19px;height:19px;stroke:#e7ddf5;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.right{margin-left:auto;display:flex;align-items:center}
+/* Emberfall advert — extends LEFT out of the shop icon */
+.embad{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(90deg,#E0612C,#F2A33C);color:#2a1608;
+  font-size:9.5px;font-weight:800;letter-spacing:.2px;padding:5px 15px 5px 11px;border-radius:999px 0 0 999px;
+  box-shadow:0 2px 10px rgba(224,97,44,.4);margin-right:-14px;white-space:nowrap;position:relative;z-index:1}
+.embad .d{background:rgba(42,22,8,.22);border-radius:999px;padding:1px 5px;font-size:8.5px}
+.shopicn{position:relative;z-index:2;border:1px solid rgba(242,163,60,.5)}
+.settings{margin-left:9px}
+
+/* greeting */
+.greet{text-align:center;margin-top:16px;padding:0 15px}
+.greet .g1{font-size:13px;color:#a99cbd}.greet .g2{font-size:22px;font-weight:800;margin-top:2px}
+
+/* flame + glow */
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.hglow{position:absolute;width:210px;height:210px;border-radius:50%;background:radial-gradient(circle,rgba(224,97,44,.42),transparent 62%);filter:blur(10px);animation:pulse 2.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.92;transform:scale(1.05)}}
+.flame{position:relative;z-index:2;transform-origin:50% 100%;animation:flick 1.1s ease-in-out infinite}
+@keyframes flick{0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(1.06) scaleX(.96)}}
+
+.rankchip{display:inline-flex;align-items:center;gap:7px;background:#20182f;border:1px solid rgba(79,176,229,.4);border-radius:999px;padding:6px 13px;font-size:12px;font-weight:700;margin-top:12px;position:relative;z-index:2}
+.hex{width:14px;height:16px;background:#4FB0E5;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.meter{width:200px;margin-top:16px;position:relative;z-index:2}
+.mlbl{display:flex;justify-content:space-between;font-size:9.5px;color:#a99cbd;margin-bottom:5px}
+.mtrack{height:9px;border-radius:999px;background:#2d2740;overflow:hidden}
+.mtrack>div{height:100%;width:64%;border-radius:999px;background:linear-gradient(90deg,#F2A33C,#E0612C)}
+.cta{padding:0 18px 18px}
+.lockbtn{display:block;text-align:center;background:linear-gradient(135deg,#F2A33C,#E0612C);color:#3a1608;border-radius:15px;padding:16px;font-size:15px;font-weight:800;box-shadow:0 4px 16px rgba(224,97,44,.45)}
+.nav{display:flex;justify-content:space-around;padding:11px 0 4px;border-top:1px solid #241c38}
+.nav svg{width:22px;height:22px;stroke:#6a6480;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav .on svg{stroke:#F2A33C}
+
+/* done + daily-fire shared */
+.center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;position:relative}
+.kick{font-size:10.5px;font-weight:800;letter-spacing:1.6px;color:#F2A33C}
+.big-name{font-size:23px;font-weight:800;margin-top:14px;text-align:center;line-height:1.2}
+.grad{background:linear-gradient(90deg,#FFB84D,#E0612C);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat{font-size:40px;font-weight:800;margin-top:6px}
+.statlbl{font-size:12px;color:#a99cbd;margin-top:1px;letter-spacing:.3px}
+.bonus{display:inline-flex;align-items:center;gap:6px;background:#2a1c14;border:1px solid rgba(242,163,60,.4);border-radius:999px;padding:5px 12px;font-size:11px;font-weight:700;color:#FFD27A;margin-top:14px}
+.embersrow{display:flex;align-items:center;gap:8px;margin-top:16px;font-size:14px;font-weight:800;color:#FFD27A}
+.btnrow{padding:0 20px 22px;display:flex;flex-direction:column;gap:9px}
+.primary{text-align:center;background:linear-gradient(135deg,#F2A33C,#E0612C);color:#3a1608;border-radius:15px;padding:15px;font-size:15px;font-weight:800}
+.ghost{text-align:center;color:#a99cbd;font-size:13px;font-weight:600;padding:4px}
+
+/* daily-fire roar + sparks + flying embers */
+.roar{animation:roar 2.6s ease-in-out infinite}
+@keyframes roar{0%,100%{transform:scale(1)}18%{transform:scale(1.22)}34%{transform:scale(1.05)}52%{transform:scale(1.13)}}
+.roarglow{animation:roarglow 2.6s ease-in-out infinite}
+@keyframes roarglow{0%,100%{opacity:.55;transform:scale(1)}18%{opacity:1;transform:scale(1.25)}52%{opacity:.85;transform:scale(1.12)}}
+.spark{position:absolute;width:5px;height:5px;border-radius:50%;background:#FFD27A;box-shadow:0 0 7px #F2A33C;animation:rise 2.2s ease-out infinite}
+@keyframes rise{0%{transform:translateY(20px) scale(.5);opacity:0}12%{opacity:.95}100%{transform:translateY(-96px) scale(1);opacity:0}}
+.fly{position:absolute;animation:fly 2.4s ease-in infinite}
+@keyframes fly{0%{transform:translate(0,0) scale(1);opacity:0}14%{opacity:1}100%{transform:translate(96px,-150px) scale(.5);opacity:0}}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="flameGrad" x1="0" y1="1" x2="0" y2="0">
+    <stop offset="0" stop-color="#E0612C"/><stop offset="55%" stop-color="#F2A33C"/><stop offset="100%" stop-color="#FFD27A"/></linearGradient>
+  <radialGradient id="emberCore" cx="50%" cy="42%" r="60%">
+    <stop offset="0" stop-color="#FFF3D6"/><stop offset="35%" stop-color="#FFD27A"/><stop offset="68%" stop-color="#F2A33C"/><stop offset="100%" stop-color="#E0612C"/></radialGradient>
+  <linearGradient id="coalGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a2a12"/><stop offset="100%" stop-color="#2a0f06"/></linearGradient>
+  <symbol id="flameMark" viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flameGrad)"/></symbol>
+  <symbol id="ember" viewBox="0 0 48 54">
+    <path d="M24 2 C33 8 45 14 44 28 C43 42 34 52 24 52 C14 52 5 42 4 28 C3 14 15 8 24 2 Z" fill="url(#coalGrad)"/>
+    <path d="M24 9 C31 14 39 18 38 29 C37 40 31 47 24 47 C17 47 11 40 10 29 C9 18 17 14 24 9 Z" fill="url(#emberCore)"/>
+    <path d="M24 16 C29 20 33 23 32.5 30 C32 38 28 42 24 42 C20 42 16 38 15.5 30 C15 23 19 20 24 16 Z" fill="#FFF1CE" opacity=".8"/>
+  </symbol>
+</defs></svg>
+
+<h1>🔥 Premium polish — home · done · daily fire (mock 92)</h1>
+<p class="sub">Three screens repolished: the home hero swaps the campfire vector for the <b>pulsing flame</b> with an
+Emberfall advert extending from the shop icon; the <b>done</b> screen gets the same flame; the <b>daily-fire</b>
+celebration goes deep-purple with a <b>roaring flame</b>, "You're on fire, Noah", and the <b>crisp ember token</b>.</p>
+
+<!-- 1 · HOME -->
+<div class="col">
+  <div class="phone"><div class="stage">
+    <div class="hrow">
+      <div class="icn"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.4"/><path d="M16 21a5 5 0 0 1 6-4"/></svg></div>
+      <div class="right">
+        <span class="embad">🔥 EMBERFALL <span class="d mono" id="cd">90d</span></span>
+        <div class="icn shopicn"><svg viewBox="0 0 24 24"><path d="M6 8h12l-1 12H7z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg></div>
+        <div class="icn" style="margin-left:8px"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></div>
+        <div class="icn settings" style="margin-left:8px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg></div>
+      </div>
+    </div>
+    <div class="greet"><div class="g1">Good evening</div><div class="g2">Noah</div></div>
+    <div class="hero">
+      <div class="hglow"></div>
+      <svg class="flame" width="150" height="150" viewBox="0 0 24 24"><use href="#flameMark"/></svg>
+      <div class="rankchip"><span class="hex"></span> Diamond II</div>
+      <div class="meter"><div class="mlbl"><span>Today's fire</span><span>2h 34m</span></div><div class="mtrack"><div></div></div></div>
+    </div>
+    <div class="cta"><span class="lockbtn">Lock in</span></div>
+    <div class="nav">
+      <span class="on"><svg viewBox="0 0 24 24"><path d="M12 4c2 4 6 6 6 10a6 6 0 0 1-12 0c0-4 4-6 6-10z"/></svg></span>
+      <span><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.4"/></svg></span>
+      <span><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>
+      <span><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 7 0 0 1 16 0"/></svg></span>
+    </div>
+  </div></div>
+  <div class="cap"><b>Home.</b> Pulsing flame hero (replaces the campfire vector). Every main section is one tap: friends (left); shop with the <b>Emberfall</b> advert extending from it; <b>inventory</b> (new grid icon); settings; the lock-in CTA; campfires via swipe.</div>
+</div>
+
+<!-- 2 · DONE -->
+<div class="col">
+  <div class="phone"><div class="stage">
+    <div class="center">
+      <div class="hglow" style="width:170px;height:170px"></div>
+      <svg class="flame" width="118" height="118" viewBox="0 0 24 24"><use href="#flameMark"/></svg>
+      <div class="kick" style="margin-top:16px">SESSION COMPLETE</div>
+      <div class="big-name">Nice work, Noah</div>
+      <div class="stat mono">+340<span style="font-size:18px"> XP</span></div>
+      <div class="statlbl">1h 24m · Study</div>
+      <div class="rankchip" style="margin-top:16px"><span class="hex"></span> Diamond II · 75% to I</div>
+    </div>
+    <div class="btnrow">
+      <span class="primary">Post to the campfire</span>
+      <span class="ghost">Done</span>
+    </div>
+  </div></div>
+  <div class="cap"><b>Done screen.</b> Same flame replaces the old campfire vector; clean session summary (XP, duration, rank progress) over deep purple.</div>
+</div>
+
+<!-- 3 · DAILY FIRE -->
+<div class="col">
+  <div class="phone"><div class="stage">
+    <div class="center">
+      <div class="hglow roarglow" style="width:200px;height:200px;background:radial-gradient(circle,rgba(242,163,60,.55),transparent 60%)"></div>
+      <div class="spark" style="left:120px;bottom:250px"></div>
+      <div class="spark" style="left:150px;bottom:250px;animation-delay:.6s"></div>
+      <div class="spark" style="left:170px;bottom:250px;animation-delay:1.1s"></div>
+      <div class="spark" style="left:135px;bottom:250px;animation-delay:1.6s"></div>
+      <!-- flying crisp embers → balance -->
+      <svg class="fly" style="left:120px;bottom:230px" width="26" height="29"><use href="#ember"/></svg>
+      <svg class="fly" style="left:150px;bottom:230px;animation-delay:.5s" width="22" height="25"><use href="#ember"/></svg>
+      <svg class="fly" style="left:135px;bottom:230px;animation-delay:1s" width="24" height="27"><use href="#ember"/></svg>
+      <svg class="flame roar" width="150" height="150" viewBox="0 0 24 24" style="position:relative;z-index:2"><use href="#flameMark"/></svg>
+      <div class="kick" style="margin-top:14px">DAILY FIRE COMPLETE</div>
+      <div class="big-name">You're <span class="grad">on fire</span>, Noah</div>
+      <div class="stat mono">+340<span style="font-size:18px"> XP</span></div>
+      <div class="embersrow"><svg width="22" height="25"><use href="#ember"/></svg> +5 embers · <span class="mono" id="bal">25</span> total</div>
+    </div>
+    <div class="btnrow"><span class="primary">Collect</span></div>
+  </div></div>
+  <div class="cap"><b>Daily fire.</b> Deep purple, <b>roaring flame</b> + rising sparks, "You're on fire, Noah" (name, not yellow), the <b>+50 fire bonus</b>, and 5 <b>crisp ember tokens</b> flying into your balance.</div>
+</div>
+
+<!-- LOGO / BRAND -->
+<div class="col">
+  <div style="display:flex;gap:28px;align-items:center;background:#14111c;border:1px solid rgba(255,255,255,.08);border-radius:26px;padding:26px 32px">
+    <div style="width:98px;height:98px;border-radius:23px;background:radial-gradient(120% 100% at 50% 12%,#2c1b36,#161320);display:grid;place-items:center;box-shadow:0 8px 24px #0007;position:relative;overflow:hidden">
+      <div style="position:absolute;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(224,97,44,.4),transparent 62%);filter:blur(6px)"></div>
+      <svg width="60" height="60" viewBox="0 0 24 24" style="position:relative"><use href="#flameMark"/></svg>
+    </div>
+    <div style="display:flex;align-items:center;gap:13px">
+      <svg width="40" height="40" viewBox="0 0 24 24"><use href="#flameMark"/></svg>
+      <span style="font-size:34px;font-weight:800;letter-spacing:-.5px;color:#FFF6EC">philoi</span>
+    </div>
+  </div>
+  <div class="cap"><b>Logo (proposed).</b> The flame glyph becomes the brand mark — app icon + "philoi" wordmark lockup. Retires the campfire logo everywhere.</div>
+</div>
+
+<div class="col" style="width:100%">
+  <div class="cap" style="width:100%;max-width:900px;border-top:1px solid #201936;padding-top:14px;color:#8f84a6;text-align:left;line-height:1.6">
+    <b style="color:#f4b25a">⚠️ The two ember balances = the deploy gap, not a real second currency.</b> Migration <b>0062–0075 already unifies them</b>:
+    the <code>daily_fire_economy</code> trigger grants the daily-fire embers into the <b>same</b> <code>ember_wallet</code> the shop uses
+    (<code>economy_move_embers(…, 'flame_meter')</code>). It's just <b>not deployed</b> — so today the done screen shows the old
+    <code>daily_fire</code> count (your ~25 orphans) while the shop reads <code>ember_wallet</code>. Fix (all Code): (1) deploy 0062–0075,
+    (2) point <code>FlameMeterComplete</code> at the wallet balance, (3) one-time backfill the ~25 orphans into the wallet, (4) swap the
+    hollow vector for the <b>crisp token</b> (mock 86) everywhere.
+  </div>
+</div>
+
+<script>
+// home countdown (days) + daily-fire balance tick 25 → 30
+(function(){
+  var cd=document.getElementById('cd'); if(cd){var end=new Date();end.setDate(end.getDate()+90);
+    setInterval(function(){cd.textContent=Math.max(0,Math.ceil((end-new Date())/864e5))+'d';},1000);}
+  var bal=document.getElementById('bal'); if(bal){var n=25;setInterval(function(){if(n<30){n++;bal.textContent=n;}},480);}
+})();
+</script>

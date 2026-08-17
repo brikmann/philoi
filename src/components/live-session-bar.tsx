@@ -1,15 +1,15 @@
-import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
+import { GradientWordmark } from '@/components/gradient-wordmark';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useElapsedSeconds } from '@/hooks/use-elapsed-seconds';
 import { useActiveSession } from '@/lib/active-session-context';
 import { formatDurationClock } from '@/lib/format';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_META } from '@/lib/goal-types';
 
 export const LOCK_IN_PATHNAME = '/lock-in';
 
@@ -107,16 +107,16 @@ export function LiveSessionBar() {
         <View style={styles.side} pointerEvents="none" />
 
         <View style={styles.center} pointerEvents="box-none">
+          {/* One line: session · timer (#87 / mock 91 surface 3). No PHILOI wordmark and no flame
+              here — both belong to the out-of-app Live Activity and the lock-in screen
+              respectively, and repeating them on every page would make the pill shout. The session
+              name carries the purple gradient; the timer is plain white. */}
           {session && (
             <Pressable style={styles.bar} onPress={() => router.push('/lock-in')} accessibilityLabel="Return to your lock-in">
               <Animated.View style={[styles.dot, dotStyle]} />
-              <Ionicons name={GOAL_TYPE_ICON[session.goalType]} size={14} color={Colors.amber} />
-              <Text style={styles.label} numberOfLines={1}>
-                {label}
-              </Text>
+              <GradientWordmark size={11}>{label}</GradientWordmark>
               <Text style={styles.sep}>·</Text>
               <Text style={styles.timer}>{formatDurationClock(elapsedSeconds)}</Text>
-              <Ionicons name="expand-outline" size={14} color={Colors.muted} style={styles.maximize} />
             </Pressable>
           )}
         </View>
@@ -147,21 +147,24 @@ const styles = StyleSheet.create({
   center: {
     alignItems: 'center',
   },
+  // Mock 91's `.pagepill`: a dark translucent capsule with a hairline white border, not the old
+  // coral-glowing chip. With the session name now carrying the purple gradient, a coral ring around
+  // it put three accent colours in a 200px pill. The pulsing dot is the one live cue left.
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(22,16,30,0.86)',
     borderWidth: 1,
-    borderColor: Colors.coral,
+    borderColor: 'rgba(255,255,255,0.08)',
     borderRadius: Radius.pill,
     paddingVertical: 6,
     paddingLeft: 10,
-    paddingRight: 11,
-    maxWidth: 220,
-    shadowColor: Colors.coral,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.28,
+    paddingRight: 12,
+    maxWidth: 230,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
     shadowRadius: 18,
     elevation: 4,
   },
@@ -171,24 +174,18 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: Colors.coral,
   },
-  label: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12.5,
-    color: Colors.achieverText,
-    flexShrink: 1,
-  },
   sep: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: '#5c5470',
   },
+  // Pure white and bold, per mock 91 — NOT Colors.ink (#FFF6EC), which is the app's warm
+  // off-white. The timer is the one element that has to punch on a glance, and beside a purple
+  // wordmark the warm tint reads as slightly dimmed.
   timer: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: Colors.ink,
+    color: '#FFFFFF',
     fontVariant: ['tabular-nums'],
-  },
-  maximize: {
-    marginLeft: 1,
   },
 });

@@ -69,18 +69,22 @@ Island region (iOS) or notification (Android). So:
   out-of-app aura, and it's still premium.
 
 ## Design — mock 91 (minimal, APPROVED)
-`design-mocks/91-lockin-pill.html`. No ring, no friends, no tier. Content = flame + **session name** +
-running timer; session name (Study, Gym, …) is a quiet indicator of what the person is doing (drop it if
-unset → flame + timer). Rules by surface:
-- **Live Activity — Lock Screen card + Dynamic Island (expanded):** flame + session name + timer. The
-  Dynamic Island keeps the **PHILOI** wordmark (purple gradient) on top. No upper compact pill on the
-  lock screen; no compact/minimal row under the Island.
-- **In-app pill — every page EXCEPT the lock-in screen:** text only, **`PHILOI · session · timer`**, no
-  flame. Sits at the top of each page while a session runs.
-- **Lock-in (active session) screen:** no pill — the **big flame** with the **big timer beneath it**.
+`design-mocks/91-lockin-pill.html`. **One format everywhere, no flame, no widget.** Every surface =
+**PHILOI · session** (purple wordmark) on top + the running timer centered underneath. Session name
+(Study, Gym, …) is a quiet indicator of what the person is doing; if unset → just PHILOI + timer.
+- **Lock Screen (Live Activity):** PHILOI · session, centered timer, **75%-to-Gold rank bar at the
+  bottom** (goal always in sight). No upper compact pill.
+- **Dynamic Island (expanded):** the same pill — PHILOI · session centered, timer underneath — **no rank
+  bar** (no room).
+- **In-app pill — every page while a session runs:** one text line, **`session · timer`** (no PHILOI —
+  you're already in the app). Top of the page.
+- **Lock-in screen (dedicated active-session view):** **session name** on top, the **flame** hero, big
+  timer, **75%-to-Gold bar at the bottom**. (The home screen itself just gets the pill, like any page.)
+- **No home-screen widget** (dropped). Flame appears only on the lock-in screen; the pill surfaces are
+  text.
 - Build notes for Code: timer = ActivityKit native `timer` style (counts with no pushes); PHILOI = purple
-  gradient; flame = custom SVG asset (ember gradient), not the emoji. Session name pulled from the
-  session's label.
+  gradient wordmark; session name pulled from the session's label. Rank bar = progress to next rank
+  (Gold) with XP numerals.
 
 ## Status
 Design-approved concept + **premium-polish mock 91**; aura in mock 88; build-gated. The in-app perimeter aura is

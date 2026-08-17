@@ -26,6 +26,7 @@ import { LockInDoneScreen } from '@/components/lockin-done-screen';
 import { RankUpCelebration } from '@/components/rank-up-celebration';
 import { RankUpShareCard } from '@/components/rank-up-share-card';
 import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
+import { RankProjectionBar } from '@/components/rank-projection-bar';
 import { SessionFlame } from '@/components/session-flame';
 import { SessionPhotoGallery } from '@/components/session-photo-gallery';
 import { TutorialTooltip } from '@/components/tutorial-tooltip';
@@ -34,6 +35,7 @@ import { WorkoutLog } from '@/components/workout-log';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveWorkout } from '@/hooks/use-active-workout';
 import { useElapsedSeconds } from '@/hooks/use-elapsed-seconds';
+import { useRankProjection } from '@/hooks/use-rank-projection';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useActiveSession } from '@/lib/active-session-context';
 import { track } from '@/lib/analytics';
@@ -353,6 +355,9 @@ function LockInScreen() {
   }, [activeSession, isGym, posted, stopping, routineIdParam, energyParam, refetchWorkout]);
 
   const elapsedSeconds = useElapsedSeconds(activeSession?.startedAt ?? null);
+  // Only fetched while a session is actually running — no point costing a cold start two requests
+  // for a bar that isn't on screen.
+  const rankProjection = useRankProjection(Boolean(activeSession));
   // Keyed off last confirmation, not session start — matches the server-side sweep
   // (notify_stale_lock_ins), so tapping "still here" actually dismisses this banner
   // instead of it staying stuck on for the rest of a long session. Recomputed inline (not
@@ -814,6 +819,22 @@ function LockInScreen() {
 
       {/* BOTTOM — pinned, natural size. */}
       <View style={styles.footer}>
+        {/* "75% to Gold III" with the pulsing gap + "~2h" (#87 surface 4, mock 91). It sits at the
+            bottom on purpose: the flame and the timer are the hero, and the ladder is context you
+            glance at, not the thing you're staring at for an hour. Renders nothing until the rank
+            resolves, so a slow network can't push the actions around mid-session. */}
+        {rankProjection ? (
+          <View style={styles.rankBar}>
+            <RankProjectionBar
+              tier={rankProjection.rank.tier}
+              division={rankProjection.rank.division}
+              xpIntoTier={rankProjection.rank.xp_into_tier}
+              xpForNextTier={rankProjection.rank.xp_for_next_tier}
+              hoursToNext={rankProjection.hoursToNext}
+            />
+          </View>
+        ) : null}
+
         {stillHereDue && (
           <Animated.View entering={FadeInDown.springify().damping(14)} exiting={FadeOutUp.duration(200)} style={styles.bannerInset}>
             <Pressable onPress={handleConfirmStillHere} style={styles.stillHereBanner}>
@@ -933,6 +954,12 @@ const styles = StyleSheet.create({
   },
   // BOTTOM zone — a plain (non-flex) block; it renders at its natural size right after
   // whatever space CENTER's flex:1 didn't consume, which is what pins it to the bottom.
+  // Full-bleed inside the footer's own padding, sitting above the still-here banner and actions.
+  rankBar: {
+    width: '100%',
+    paddingHorizontal: Spacing.two,
+    marginBottom: Spacing.three,
+  },
   footer: {
     alignSelf: 'stretch',
     gap: Spacing.twelve,
