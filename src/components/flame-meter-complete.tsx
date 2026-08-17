@@ -14,6 +14,7 @@ import Animated, {
 
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { HexagonBadge } from '@/components/hexagon-badge';
+import { EmberIcon } from '@/components/economy/ember-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { postCheckInToCircle } from '@/lib/api/lock-ins';
 import { getErrorMessage } from '@/lib/errors';
@@ -115,7 +116,13 @@ function EmberFly({ index, from, to, onLand }: { index: number; from: Point; to:
     };
   });
 
-  return <Animated.View pointerEvents="none" style={[styles.flyEmber, style]} />;
+  // The crisp ember token, not a plain amber dot — these are the currency landing in the
+  // balance, and §4 makes that token the only thing that ever depicts an ember.
+  return (
+    <Animated.View pointerEvents="none" style={[styles.flyEmber, style]}>
+      <EmberIcon size={11} />
+    </Animated.View>
+  );
 }
 
 // The once-a-day meter-fill celebration (PHILOI_UI_SPEC.md §13, design-mocks/27) — shown
@@ -145,6 +152,9 @@ export function FlameMeterComplete({
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [embers, setEmbers] = useState(embersBefore);
+  // Trim to the first token — display names are frequently "First Last", and the headline wants
+  // the way you'd actually be spoken to. Falls back to the whole string if there's no space.
+  const firstName = displayName.trim().split(/\s+/)[0] || displayName;
   const [flightGeo, setFlightGeo] = useState<{ from: Point; to: Point } | null>(null);
   const [displayXp, setDisplayXp] = useState(rankBefore?.xp_into_tier ?? 0);
   const [plusVisible, setPlusVisible] = useState(false);
@@ -341,7 +351,13 @@ export function FlameMeterComplete({
           ))}
         </View>
 
-        <Animated.Text style={[styles.headline, headStyle]}>You&apos;re on fire, {displayName}!</Animated.Text>
+        {/* White with the name in ember, NOT a flat gold line (§2). The old all-#FFD27A headline
+            is the "no yellow" this fixes: gold on deep purple reads as a warning colour at 24px,
+            and it flattened the one word that should carry the warmth — theirs. First name only;
+            a full "Noah Brikman" in a celebration headline reads like a form field. */}
+        <Animated.Text style={[styles.headline, headStyle]}>
+          You&apos;re on fire, <Text style={styles.headlineName}>{firstName}</Text>!
+        </Animated.Text>
         <Animated.View style={[styles.donePill, pillStyle]}>
           <Text style={styles.donePillText}>Today&apos;s fire complete</Text>
         </Animated.View>
@@ -490,8 +506,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.displayHeavy,
     fontSize: 24,
     textAlign: 'center',
-    color: Colors.ember,
+    color: '#FFFFFF',
     marginTop: Spacing.two,
+  },
+  headlineName: {
+    color: Colors.ember,
   },
   donePill: {
     backgroundColor: Colors.selectedBg,
@@ -593,10 +612,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.amber,
   },
   error: {
     fontFamily: Fonts.body,
