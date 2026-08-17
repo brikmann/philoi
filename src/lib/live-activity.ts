@@ -1,63 +1,130 @@
 // The seam between a running lock-in and the OUT-OF-APP surfaces (#87): the iOS Live Activity
 // (Lock Screen + Dynamic Island) and the Android ongoing notification.
 //
-// NOTHING IS WIRED YET, ON PURPOSE. Both surfaces need native code that does not exist in this repo
-// — an iOS Widget Extension target with an ActivityKit attribute set, and @notifee/react-native for
-// the Android foreground service — and neither can be added, compiled, or tested without a native
-// EAS build. What this file does is fix the CALL SITES now, so when the native side lands the change
-// is confined to the three functions below and nothing in the session lifecycle has to move.
+// Native side lives in modules/philoi-live-activity (the bridge) and targets/lockin (the iOS widget
+// extension). Both need a real EAS build — nothing here does anything over OTA or in Expo Go, and
+// that's fine, because every function below degrades to a no-op rather than an error.
 //
-// Every function is a safe no-op today. That is deliberate and it is the lesson from the RevenueCat
-// white screen: a native module imported at module scope takes the whole app down at launch in any
-// runtime that doesn't have it compiled in. So this file imports nothing native at the top level,
-// and whatever gets added below must be lazily required behind the same `available()` guard.
+// TWO INVARIANTS, and they're the reason this file exists rather than the screens calling native
+// directly:
+//
+// 1. NOTHING NATIVE AT MODULE SCOPE. The native module is reached through a lazy require() behind
+//    `available()`, matching the convention in feature-flags.ts. This is the lesson from the
+//    RevenueCat white screen: a native module resolved at import time takes the whole app down at
+//    launch in any runtime that didn't compile it in.
+// 2. THE TIMER IS NEVER SENT. `startedAtMs` goes over once and the OS counts up from it by itself —
+//    Text(timerInterval:) on iOS, a chronometer notification on Android. There is deliberately no
+//    "elapsed seconds" field anywhere in this file. Pushing ticks would burn ActivityKit's update
+//    budget within minutes to display a number both platforms already know.
 
-import type { GoalType } from '@/types/database';
+import { Platform } from 'react-native';
+
+import { requestNotificationPermissions } from '@/lib/notifications';
+import { RANK_TIER_METAL } from '@/lib/rank-tiers';
+import type { RankTierName } from '@/types/database';
+import type { NativeLiveActivityState } from '../../modules/philoi-live-activity';
 
 export type LiveActivityState = {
-  /** The user's session label — "Study", "Gym", or their own goal detail. */
+  /** The user's session label — "Study", "Gym", or their own goal detail. Empty string omits it. */
   sessionName: string;
-  goalType: GoalType;
-  /** Epoch ms. The OS counts up from this ITSELF — see the note in start(). */
+  /** Epoch ms. The OS counts up from this ITSELF — see invariant 2 above. */
   startedAtMs: number;
+  /** Drives the bar's fill colour: the CURRENT tier's metal, never a fixed gold. */
+  tier: RankTierName;
   /** 0–1 progress through the current rank division. */
   rankRatio: number;
-  /** "Gold III", or "Primordial" at the apex. */
+  /** "Gold III", or "Primordial" at the apex. Produced by formatRankTier. */
   rankLabel: string;
-  /** "~2h", or null when there's no rate to project from. */
+  /** "~2h", or null when there's no rate to project from — which hides the cue entirely. */
   projection: string | null;
 };
+
+type NativeModule = {
+  isAvailable: () => boolean;
+  start: (state: NativeLiveActivityState) => Promise<string | null>;
+  update: (state: NativeLiveActivityState) => Promise<void>;
+  end: () => Promise<void>;
+};
+
+// `undefined` = not yet looked up, `null` = looked up and absent. Distinguishing them keeps the
+// require() to once per launch instead of once per call.
+let cached: NativeModule | null | undefined;
+
+function native(): NativeModule | null {
+  if (cached !== undefined) return cached;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    cached = require('../../modules/philoi-live-activity').default as NativeModule | null;
+  } catch {
+    // A build without the module compiled in. Not an error worth reporting — it's the expected
+    // state on every binary cut before this landed.
+    cached = null;
+  }
+  return cached;
+}
 
 /**
  * Whether an out-of-app live surface can run right now.
  *
- * False in every current build. When the native side lands this becomes a lazy require + a platform
- * and OS-version check (ActivityKit needs iOS 16.1+; the Android chip needs the foreground-service
- * permission), and it must stay the single gate every function below checks first.
+ * Three things have to hold: a platform that has one, a build that compiled the module in, and the
+ * user not having switched it off (iOS Live Activities toggle, Android notification permission).
+ * The last one is why this is a function call and not a constant — it can change mid-session.
  */
 export function liveActivityAvailable(): boolean {
-  return false;
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return false;
+  const module = native();
+  if (!module) return false;
+  try {
+    return module.isAvailable();
+  } catch {
+    return false;
+  }
+}
+
+function toNative(state: LiveActivityState): NativeLiveActivityState {
+  const metal = RANK_TIER_METAL[state.tier];
+  return {
+    sessionName: state.sessionName,
+    startedAtMs: state.startedAtMs,
+    // Clamped here rather than trusted: a ratio outside 0–1 would render as a bar overflowing its
+    // own track on iOS, and Android's setProgress would silently peg it.
+    rankRatio: Math.max(0, Math.min(1, state.rankRatio)),
+    rankLabel: state.rankLabel,
+    projection: state.projection,
+    tierOuterHex: metal.outer,
+    tierInnerHex: metal.inner,
+  };
 }
 
 /**
  * Begin the live surface for a session.
  *
- * THE TIMER MUST NOT BE PUSHED. On iOS the widget renders `Text(timerInterval:)`, and on Android
- * the notification uses a chronometer (`setUsesChronometer(true)` + `setWhen(startedAt)`) — both
- * count up on their own from a single start timestamp, with no updates from us at all. That's why
- * `startedAtMs` is in the state and an elapsed-seconds value is not: sending ticks would burn the
- * ActivityKit update budget within minutes and drain the battery for a number the OS already knows.
- *
- * Updates are pushed only when something the OS CAN'T derive changes — the rank bar, or the end of
- * the session.
+ * Android needs POST_NOTIFICATIONS granted at runtime before anything can show; iOS Live Activities
+ * need no permission at all (the user-facing toggle is checked by `isAvailable`). A denied Android
+ * prompt just means no notification — it must never block the lock-in itself, which is why the
+ * result is ignored rather than thrown.
  */
-export async function startLiveActivity(_state: LiveActivityState): Promise<void> {
+export async function startLiveActivity(state: LiveActivityState): Promise<void> {
   if (!liveActivityAvailable()) return;
+  try {
+    if (Platform.OS === 'android') {
+      const granted = await requestNotificationPermissions();
+      if (!granted) return;
+    }
+    await native()?.start(toNative(state));
+  } catch {
+    // A cosmetic surface must never take a session down with it.
+  }
 }
 
-/** Push a changed rank bar / projection. Rare by design — see the note in start(). */
-export async function updateLiveActivity(_state: LiveActivityState): Promise<void> {
+/** Push a changed rank bar / projection. Rare by design — see invariant 2. */
+export async function updateLiveActivity(state: LiveActivityState): Promise<void> {
   if (!liveActivityAvailable()) return;
+  try {
+    await native()?.update(toNative(state));
+  } catch {
+    // Ignored: a stale rank bar is a far smaller problem than a thrown error mid-session.
+  }
 }
 
 /**
@@ -65,9 +132,18 @@ export async function updateLiveActivity(_state: LiveActivityState): Promise<voi
  *
  * Must also run on a COLD START that finds no active session: an activity outliving its session is
  * the worst failure this feature has — a lock screen insisting you're still locked in with a timer
- * counting into hours you didn't do. Call this whenever the session resolves to null, not only on
- * an explicit stop.
+ * counting into hours you didn't do. So this is called whenever the session resolves to null, not
+ * only on an explicit stop (see active-session-context.tsx), and it deliberately does NOT check
+ * `liveActivityAvailable()` first: if the user revoked the permission mid-session, `isAvailable`
+ * goes false while the card is still on screen, and gating teardown on it would strand exactly the
+ * notification we're trying to clear.
  */
 export async function endLiveActivity(): Promise<void> {
-  if (!liveActivityAvailable()) return;
+  const module = native();
+  if (!module) return;
+  try {
+    await module.end();
+  } catch {
+    // Nothing useful to do — the surface either cleared or was never there.
+  }
 }

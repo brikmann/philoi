@@ -35,6 +35,7 @@ import { WorkoutLog } from '@/components/workout-log';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveWorkout } from '@/hooks/use-active-workout';
 import { useElapsedSeconds } from '@/hooks/use-elapsed-seconds';
+import { useInventory } from '@/hooks/use-inventory';
 import { useRankProjection } from '@/hooks/use-rank-projection';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useActiveSession } from '@/lib/active-session-context';
@@ -358,6 +359,9 @@ function LockInScreen() {
   // Only fetched while a session is actually running — no point costing a cold start two requests
   // for a bar that isn't on screen.
   const rankProjection = useRankProjection(Boolean(activeSession));
+  // The real spendable balance (ember_wallet via get_inventory) — see the note at the
+  // embersBeforeSnapshot capture below.
+  const { embers: walletEmbers, refetch: refetchInventory } = useInventory();
   // Keyed off last confirmation, not session start — matches the server-side sweep
   // (notify_stale_lock_ins), so tapping "still here" actually dismisses this banner
   // instead of it staying stuck on for the rest of a long session. Recomputed inline (not
@@ -406,11 +410,16 @@ function LockInScreen() {
     setStopping(true);
     setError(null);
     try {
-      // Snapshotted before stopLockInSession/refreshProfile — refreshProfile() later in this
-      // function overwrites the AuthContext's profile.embers with the POST-bonus balance, so
-      // the fire-complete celebration's ember counter (if this stop crosses the meter) needs
-      // this pre-bonus figure captured up front, not re-derived after the fact.
-      const embersBeforeSnapshot = profile?.embers ?? 0;
+      // The WALLET balance, not profiles.embers (Ember pass §4). These were two different
+      // numbers pretending to be one currency: the daily-fire trigger in 0065 pays into
+      // ember_wallet, which is what the shop, boxes and Forge Pass all spend from, while
+      // profiles.embers is a legacy counter nothing credits any more. The celebration was
+      // counting up from the legacy figure — so a user with thousands of real embers watched
+      // the fire bonus land on a balance of 40.
+      //
+      // Still snapshotted up front: refetch() after the stop replaces this with the POST-bonus
+      // balance, and the counter animation needs the pre-bonus number to count FROM.
+      const embersBeforeSnapshot = walletEmbers;
       const [ranksBefore, streakBefore] = await Promise.all([
         fetchMyRanks().catch(() => [] as MyRank[]),
         fetchMyStreak(session.user.id).catch(() => ({ current_streak: 0, longest_streak: 0 })),
@@ -510,6 +519,10 @@ function LockInScreen() {
       }
 
       await refreshProfile();
+      // The wallet moves server-side when the daily-fire trigger pays out, and nothing else on
+      // this screen would notice — without this the balance stays stale until a cold reload, which
+      // is the same "my purchase did nothing" class of bug punchlist 8 §3 fixed for the shop.
+      await refetchInventory();
     } catch (e) {
       setError(getErrorMessage(e, 'Could not end your session.'));
     } finally {

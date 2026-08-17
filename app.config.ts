@@ -14,11 +14,20 @@ const config: ExpoConfig = {
     bundleIdentifier: 'com.philoi.app',
     icon: './assets/images/icon.png',
     associatedDomains: ['applinks:getphiloi.com'],
+    // NOTE: no `deploymentTarget` here on purpose. NATIVE_BUILD_CONFIG.md called for 16.1
+    // (ActivityKit's floor, Dynamic Island 16.1+), but SDK 57's own minimum is iOS 16.4+ —
+    // pinning 16.1 would LOWER the target below what the SDK supports, not raise it. The
+    // Live Activity requirement is already satisfied by the baseline, so this stays unset.
     infoPlist: {
-    ITSAppUsesNonExemptEncryption: false,
-    NSHealthShareUsageDescription:
-      'Philoi reads only the activity your challenge needs — like steps or distance — to verify it automatically. Your health data stays on your device.',
-  },
+      ITSAppUsesNonExemptEncryption: false,
+      NSHealthShareUsageDescription:
+        'Philoi reads only the activity your challenge needs — like steps or distance — to verify it automatically. Your health data stays on your device.',
+      // Live Activities (#87) — without this the Lock Screen card + Dynamic Island never
+      // appear, and Activity.request() throws .attributesNotSupported at runtime rather
+      // than failing at build time. No push entitlement: the timer self-counts via
+      // Text(timerInterval:), so we never push a tick (see modules/philoi-live-activity).
+      NSSupportsLiveActivities: true,
+    },
   },
   android: {
     package: 'com.philoi.app',
@@ -53,6 +62,20 @@ const config: ExpoConfig = {
       'android.permission.health.READ_DISTANCE',
       'android.permission.health.READ_ACTIVE_CALORIES_BURNED',
       'android.permission.health.READ_EXERCISE',
+      // Ongoing lock-in notification (#87). Android 13+ gates ALL notifications behind this
+      // and it must be requested at RUNTIME, not just declared — see requestPermission() in
+      // src/lib/live-activity.ts.
+      'android.permission.POST_NOTIFICATIONS',
+      // Android 16 (API 36) "Live Updates" — promotes the ongoing notification to the
+      // status-bar chip. Undocumented in NATIVE_BUILD_CONFIG.md but mandatory: without it
+      // setRequestPromotedOngoing(true) is silently ignored and you get a plain notification
+      // with no error. Harmless on older versions (unknown permissions are dropped).
+      'android.permission.POST_PROMOTED_NOTIFICATIONS',
+      // Deliberately NOT here: FOREGROUND_SERVICE / FOREGROUND_SERVICE_SPECIAL_USE /
+      // WAKE_LOCK. That's Path B in NATIVE_BUILD_CONFIG.md and we're on Path A — the
+      // chronometer ticks in the OS from a start timestamp, so nothing of ours needs to run
+      // in the background. Path A dodges the Android 14 FGS-type declaration and the Play
+      // Console justification entirely.
     ],
   },
   web: {
@@ -164,6 +187,16 @@ const config: ExpoConfig = {
         color: '#E0612C',
       },
     ],
+    // Generates the iOS Widget Extension target that HOSTS the Live Activity (#87). Expo
+    // prebuild has no notion of app extensions, so without this there is nowhere for the Lock
+    // Screen card / Dynamic Island UI to live. The target's own config (frameworks, bundle id,
+    // Swift sources) is targets/lockin/expo-target.config.js.
+    //
+    // Not expo-widgets: it's first-party and does Live Activities, but as of SDK 57 it's alpha,
+    // @expo/ui can't render images (we need the flame), and it has no self-counting timer
+    // component — the entire design rests on Text(timerInterval:) so the OS ticks the clock and
+    // we never push. Revisit when it exits alpha and exposes a timer.
+    '@bacons/apple-targets',
     // Native Google Sign-In (punchlist 2, §0) — replaces the Supabase-hosted OAuth redirect
     // page with the native account picker; supabase.auth.signInWithIdToken() still does the
     // actual auth exchange server-side, this just changes how the user gets the idToken.

@@ -11,6 +11,7 @@ import { PostHogProvider } from 'posthog-react-native';
 import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
 import { EquippedFlarePerimeter } from '@/components/economy/flare-perimeter';
 import { LoadoutSync } from '@/components/economy/loadout-sync';
+import { LiveActivitySync } from '@/components/live-activity-sync';
 import { OfflineBanner } from '@/components/offline-banner';
 import { RankUpWatcher } from '@/components/rank-up-watcher';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -312,6 +313,11 @@ function RootLayout() {
         {/* Keeps the equipped-cosmetics store fed for the flame / profile / sound layers. Renders
             nothing; mounted here because the surfaces it feeds are spread across the whole app. */}
         <LoadoutSync />
+        {/* Drives the iOS Live Activity / Android ongoing notification while a lock-in runs (#87).
+            Renders nothing; mounted here because the session outlives the lock-in screen — you can
+            minimize it, navigate away, and background the app, and the Lock Screen card has to keep
+            counting. No-ops entirely on a build without the native module compiled in. */}
+        <LiveActivitySync />
         {/* Catches a Forge Pass the store says was paid for but no webhook ever granted (#71).
             Renders nothing; mounted here because a missed entitlement has to be repaired wherever
             the user happens to reopen the app. */}

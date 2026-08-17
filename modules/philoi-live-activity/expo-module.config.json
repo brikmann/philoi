@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["PhiloiLiveActivityModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.philoiliveactivity.PhiloiLiveActivityModule"]
+  }
+}

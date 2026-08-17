@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Permissions are declared in app.config.ts (android.permissions) so the whole app's
+       permission surface stays readable in one place, rather than half here and half there.
+       Deliberately absent: FOREGROUND_SERVICE and friends — this module is Path A in
+       NATIVE_BUILD_CONFIG.md, an ongoing notification whose chronometer the OS ticks itself, with
+       no service and nothing of ours running in the background. -->
+</manifest>
