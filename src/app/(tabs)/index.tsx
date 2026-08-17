@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AccessibilityInfo,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -18,13 +17,13 @@ import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-
 import { CampfireFlameStage, heatToFlameState, type CampfireFlameState } from '@/components/campfire-flame-stage';
 import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
-import { FireVerticalBar } from '@/components/fire-vertical-bar';
 import { HexagonBadge } from '@/components/hexagon-badge';
+import { HomeMenu, SeasonPill } from '@/components/home-chrome';
+import { HomeXpBar } from '@/components/home-xp-bar';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
-import { VerticalFillBar } from '@/components/vertical-fill-bar';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
-import { TabHeader, TAB_HEADER_HEIGHT, TAB_HEADER_PADDING_TOP } from '@/components/ui/tab-header';
+import { TAB_HEADER_HEIGHT, TAB_HEADER_PADDING_TOP } from '@/components/ui/tab-header';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
@@ -38,7 +37,6 @@ import { fetchDiscoverableGroups, type MyGroup } from '@/lib/api/groups';
 import { fetchActiveChallengeMarker } from '@/lib/api/leaderboard-social';
 import { useAuth } from '@/lib/auth/auth-context';
 import { pickGreeting } from '@/lib/greeting';
-import { formatRankTier, formatXpProgressCompact, xpProgressRatio } from '@/lib/rank-tiers';
 import type { ActiveChallengeMarker, DiscoverableGroup, MyRank } from '@/types/database';
 
 // Both hero-row bars share these exact dimensions so the fire (today) and rank (forever)
@@ -48,8 +46,6 @@ import type { ActiveChallengeMarker, DiscoverableGroup, MyRank } from '@/types/d
 // screen: at the old 34/14/72 the hero read as a small cluster stranded above a large empty gap.
 // Headroom below the CTA is deliberately left free for the mock-69 season graphic.
 const HERO_BADGE_SIZE = 46;
-const HERO_BAR_WIDTH = 18;
-const HERO_BAR_HEIGHT = 110;
 
 function findUniversal(ranks: MyRank[]): MyRank | undefined {
   return ranks.find((r) => r.scope === 'universal');
@@ -87,7 +83,6 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
   const { session: activeSession } = useActiveSession();
   const todayCount = useTodayLockInCount();
   const { dailyFire, error: dailyFireError } = useDailyFire();
-  const [reduceMotion, setReduceMotion] = useState(false);
   const [myMarker, setMyMarker] = useState<ActiveChallengeMarker | null>(null);
   const streak = profile?.current_streak ?? 0;
 
@@ -100,17 +95,10 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
       });
   }, [session]);
 
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
-    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => subscription.remove();
-  }, []);
-
-  // Today's fire (left column) — capped at 100 so the bar can never render past full even if
   // progress_xp overshoots goal_xp (Dispatch review: corrupted data once showed 258/20). The
-  // completed state is read straight from the backend's own flag, not re-derived from the
-  // (now-capped) percentage, so it stays correct even once progress naturally exceeds goal.
-  const firePct = dailyFire && dailyFire.goal_xp > 0 ? Math.min(100, (dailyFire.progress_xp / dailyFire.goal_xp) * 100) : 0;
+  // Read straight from the backend's own flag rather than re-derived from a percentage, so it
+  // stays correct once progress naturally exceeds goal. (The percentage itself is gone with the
+  // vertical fire bar — HomeXpBar takes the raw XP gap and scales it against the division.)
   const fireComplete = dailyFire?.completed ?? false;
   // Personal flame dims when *you've* gone quiet — no one else's activity feeds this fire
   // (PHILOI_UI_SPEC.md §12: "no chat, no feed... a private nudge") — UNLESS a lock-in is
@@ -136,22 +124,16 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
       {/* Friends ("Your people", mock 21) is the ONE right-side action here (PHILOI_UI_SPEC.md
           §4b) — the single Friends entry point app-wide, moved off Profile. No profile avatar
           here — the bottom Profile tab already covers that. */}
-      <TabHeader
-        title="Your fire"
-        icon="flame"
-        right={
-          <View style={styles.headerActions}>
-            {/* Shop is OPEN to everyone — no paywall gate (21g). There's no subscription to gate
-                on; the Forge Pass is one purchasable item inside the shop, not a wall around it. */}
-            <Pressable onPress={() => router.push('/shop')} hitSlop={8} accessibilityLabel="Shop">
-              <Ionicons name="bag-handle-outline" size={20} color={Colors.muted} />
-            </Pressable>
-            <Pressable onPress={() => router.push('/people')} hitSlop={8} accessibilityLabel="Your people">
-              <Ionicons name="people-outline" size={20} color={Colors.muted} />
-            </Pressable>
-          </View>
-        }
-      />
+      {/* Mock 92's top row: the season pill centred, one hamburger right, nothing else. The old
+          title + two loose icons had grown by accretion — every destination added another glyph
+          competing with the hero. Everything is still one tap away, inside the menu. */}
+      <View style={styles.topRow}>
+        <View style={styles.topSide} />
+        <SeasonPill />
+        <View style={styles.topSide}>
+          <HomeMenu />
+        </View>
+      </View>
 
       <View style={styles.pageContent}>
       {greeting && <Text style={styles.greet}>{greeting}</Text>}
@@ -161,63 +143,40 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
           emptiness beneath (punchlist 5.1). */}
       <View style={styles.heroSpacer} />
 
-      {/* Hero row (design-mocks/30 option B) — fire (today, left) flanks the campfire; rank
-          (forever, right) flanks the other side. Position alone carries that meaning. */}
-      <View style={styles.heroRow}>
-        <View style={styles.heroCol}>
-          <View style={styles.heroBadge}>
-            <Ionicons name="flame" size={18} color={Colors.amber} />
+      {/* THE HERO (mock 92). One flame, big, owning the screen — replacing the three-column row
+          that flanked the campfire with a vertical fire bar on one side and a vertical rank bar on
+          the other. Both bars are gone because the rank row below now carries BOTH facts in a
+          single horizontal bar: tier progress as the fill, today's fire encased inside it. */}
+      <View style={styles.heroCenter}>
+        <CampfireFlameStage state={flameState} size={140} />
+        {activeSession?.circleId && session ? (
+          <LockedInBodyDoublesLine circleId={activeSession.circleId} excludeUserId={session.user.id} />
+        ) : !activeSession ? (
+          <View style={styles.streakRow}>
+            <Ionicons name="flame" size={13} color={Colors.ember} />
+            <Text style={styles.streakText}>{streak}-day streak</Text>
           </View>
-          <FireVerticalBar pct={firePct} width={HERO_BAR_WIDTH} height={HERO_BAR_HEIGHT} />
-          {dailyFireError ? (
-            <Text style={styles.heroErrorXp}>—</Text>
-          ) : fireComplete ? (
-            <Ionicons name="checkmark-circle" size={16} color={Colors.amber} />
-          ) : (
-            <Text style={styles.heroXp}>
-              {dailyFire ? formatXpProgressCompact(dailyFire.progress_xp, dailyFire.goal_xp) : ' '}
-            </Text>
-          )}
-          <Text style={styles.heroCaption} numberOfLines={2}>
-            {dailyFireError ? "Couldn't load" : fireComplete ? "Today's fire complete" : "Today's fire"}
-          </Text>
-        </View>
-
-        <View style={styles.heroCenter}>
-          {/* 80 -> 120 (punchlist 4B) -> 140 (5.1) — with the recent-lock-ins journal gone, the
-              fire is the hero of this screen and gets the freed space rather than floating small. */}
-          <CampfireFlameStage state={flameState} size={140} />
-          {activeSession?.circleId && session ? (
-            <LockedInBodyDoublesLine circleId={activeSession.circleId} excludeUserId={session.user.id} />
-          ) : !activeSession ? (
-            <View style={styles.streakRow}>
-              <Ionicons name="flame" size={13} color={Colors.ember} />
-              <Text style={styles.streakText}>{streak}-day streak</Text>
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.heroCol}>
-          {rank ? (
-            <>
-              <HexagonBadge tier={rank.tier} division={rank.division} size={HERO_BADGE_SIZE} />
-              <VerticalFillBar
-                ratio={xpProgressRatio(rank.xp_into_tier, rank.xp_for_next_tier)}
-                width={HERO_BAR_WIDTH}
-                height={HERO_BAR_HEIGHT}
-                color={Colors.coral}
-                reduceMotion={reduceMotion}
-              />
-              <Text style={styles.heroXp}>{formatXpProgressCompact(rank.xp_into_tier, rank.xp_for_next_tier)}</Text>
-              <Text style={styles.heroCaption} numberOfLines={2}>
-                {formatRankTier(rank.tier, rank.division)}
-              </Text>
-            </>
-          ) : (
-            <View style={{ width: HERO_BADGE_SIZE, height: HERO_BADGE_SIZE + HERO_BAR_HEIGHT }} />
-          )}
-        </View>
+        ) : null}
       </View>
+
+      {/* Rank row: hexagon badge (division inside, tier-tinted) beside the wide XP bar. One row
+          answering rank, progress, XP and today's goal at once — §5. */}
+      {rank ? (
+        <View style={styles.rankRow}>
+          <HexagonBadge tier={rank.tier} division={rank.division} size={HERO_BADGE_SIZE} />
+          <HomeXpBar
+            tier={rank.tier}
+            division={rank.division}
+            xpIntoTier={rank.xp_into_tier}
+            xpForNextTier={rank.xp_for_next_tier}
+            fireRemainingXp={
+              dailyFireError || fireComplete || !dailyFire
+                ? 0
+                : Math.max(0, dailyFire.goal_xp - dailyFire.progress_xp)
+            }
+          />
+        </View>
+      ) : null}
 
       {/* Your own active-challenge marker (PHILOI_UI_SPEC.md §16, mock 37: "you see your own on
           Your fire") — no Watch CTA here, can_watch is always false for your own marker since
@@ -677,6 +636,26 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.achieverBg,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.two,
+  },
+  // Equal flex on both sides is what actually CENTRES the season pill — with only a hamburger on
+  // the right, space-between would push the pill off-centre by the icon's width.
+  topSide: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  rankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    marginTop: Spacing.three,
   },
   heroCenter: {
     flex: 1,
