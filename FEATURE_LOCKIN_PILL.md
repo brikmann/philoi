@@ -76,8 +76,9 @@ Island region (iOS) or notification (Android). So:
   bottom** (goal always in sight). No upper compact pill.
 - **Dynamic Island (expanded):** the same pill — PHILOI · session centered, timer underneath — **no rank
   bar** (no room).
-- **In-app pill — every page while a session runs:** one text line, **`session · timer`** (no PHILOI —
-  you're already in the app). Top of the page.
+- **In-app pill — RETIRED.** No floating `session · timer` header on other pages; it reflowed clumsily
+  page-to-page. In-app, only the lock-in screen shows the session; out of app the Live Activity / Dynamic
+  Island / Android notification carry the reminder.
 - **Lock-in screen (dedicated active-session view):** **session name** on top, the **flame** hero, big
   timer, **75%-to-Gold bar at the bottom**. (The home screen itself just gets the pill, like any page.)
 - **No home-screen widget** (dropped). Flame appears only on the lock-in screen; the pill surfaces are

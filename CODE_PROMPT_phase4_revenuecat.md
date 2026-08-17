@@ -1,5 +1,10 @@
 # Code prompt — Phase 4: RevenueCat monetization (#71 · NATIVE build)
 
+> **Scheduling (logged):** RevenueCat is **DECOUPLED from the Ember polish native build**. The polish
+> (Live Activity + Notifee) rides its own native build NOW; RevenueCat rides a **separate later native
+> build** after Monday's paid agreement is Active. Build the code now against placeholders; just don't
+> block the polish build on it.
+
 Wire real-money IAP: the **Forge Pass** unlock and **ember packs**. The Forge Pass gate is already wired
 behind the stub and `grant_forge_pass` is ready for the webhook (per your last pass) — this connects
 RevenueCat to that seam, adds the success screen, and sets up the store products. This is the one native

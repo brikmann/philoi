@@ -60,9 +60,9 @@ h1{width:100%;font-size:17px;margin:0;color:#e7ddf5;text-align:center}
 /* projection ghost segment */
 .track2{height:5px;border-radius:4px;background:#2a2036;position:relative;overflow:hidden;margin-top:2px}
 .track2 .f{position:absolute;left:0;top:0;bottom:0;width:75%;background:linear-gradient(90deg,#C9922A,#F5D06A);border-radius:4px;box-shadow:0 0 8px #F5D06A66}
-.track2 .gh{position:absolute;left:75%;top:0;bottom:0;width:25%;background:linear-gradient(90deg,#6f5216,#9c7a24);animation:ghostpulse 1.6s ease-in-out infinite}
+.track2 .gh{position:absolute;left:75%;top:0;bottom:0;width:25%;background:linear-gradient(90deg,#F2A33C,#E0612C);box-shadow:0 0 8px #E0612Caa;animation:ghostpulse 1.6s ease-in-out infinite}
 @keyframes ghostpulse{0%,100%{opacity:.28}50%{opacity:.82}}
-.xp .proj{font-size:8px;font-weight:800;letter-spacing:.4px;color:#B8901F;animation:ghostpulse 1.6s ease-in-out infinite}
+.xp .proj{font-size:8px;font-weight:800;letter-spacing:.4px;color:#F2A33C;animation:ghostpulse 1.6s ease-in-out infinite}
 
 .legend{width:100%;max-width:860px;font-size:12px;color:#8f84a6;line-height:1.6;border-top:1px solid #201936;padding-top:14px;margin-top:6px}
 .legend b{color:#c9a2ff;font-weight:600}
@@ -74,9 +74,10 @@ h1{width:100%;font-size:17px;margin:0;color:#e7ddf5;text-align:center}
 </defs></svg>
 
 <h1>Lock-in pill — minimal (mock 91)</h1>
-<p class="sub"><b>Out of app</b> (Lock Screen + Dynamic Island): PHILOI · session + centered timer; the Lock
-Screen adds the <b>75% to Gold</b> bar. <b>In app</b>: the top pill on every page is just session · timer,
-and the dedicated <b>lock-in screen</b> brings back the flame with STUDY on top + the rank bar. No widget.</p>
+<p class="sub"><b>Out of app</b> (Lock Screen · Dynamic Island · Android notification): PHILOI · session +
+centered timer; the Lock Screen adds the <b>75% to Gold</b> bar. <b>In app</b>: only the dedicated
+<b>lock-in screen</b> (flame + STUDY + timer + rank bar). The floating header pill is <b>retired</b> — the
+out-of-app surfaces carry the glanceable reminder. No widget.</p>
 
 <!-- 1 · LOCK SCREEN -->
 <div class="col">
@@ -106,20 +107,9 @@ and the dedicated <b>lock-in screen</b> brings back the flame with STUDY on top 
   <div class="cap"><b>Dynamic Island.</b> Same pill — PHILOI · STUDY centered, timer underneath. No bar (no room).</div>
 </div>
 
-<!-- 3 · IN-APP PILL (every other page) -->
-<div class="col">
-  <div class="phone">
-    <div class="di"><div class="notch"></div></div>
-    <div class="appscr">
-      <div class="pagepill"><span class="brand">STUDY</span><span class="sep">·</span><span class="time mono" data-t="1524">25:24</span></div>
-      <div class="pagehdr">Profile</div>
-      <div class="approw"></div><div class="approw"></div><div class="approw"></div>
-    </div>
-  </div>
-  <div class="cap"><b>In-app pill — every other page.</b> Just session · timer (STUDY · 25:24). Top of each page while a session runs (Profile shown).</div>
-</div>
+<!-- (in-app pill RETIRED — the out-of-app surfaces cover the glanceable reminder; no floating header pill) -->
 
-<!-- 4 · LOCK-IN (MAIN) SCREEN -->
+<!-- 3 · LOCK-IN SCREEN -->
 <div class="col">
   <div class="phone">
     <div class="di"><div class="notch"></div></div>
@@ -135,7 +125,7 @@ and the dedicated <b>lock-in screen</b> brings back the flame with STUDY on top 
       </div>
     </div>
   </div>
-  <div class="cap"><b>Lock-in screen.</b> STUDY at the top, flame back as the hero, big timer, 75%-to-Gold bar at the bottom. (The home screen just gets the pill, like every other page.)</div>
+  <div class="cap"><b>Lock-in screen.</b> STUDY at the top, flame hero, big timer, 75%-to-Gold bar at the bottom — the in-app session view. No floating pill on other pages.</div>
 </div>
 
 <!-- PROPOSED · projection ghost -->
@@ -161,13 +151,13 @@ and the dedicated <b>lock-in screen</b> brings back the flame with STUDY on top 
   <span class="tag">native · build-gated</span><span class="tag">iOS ActivityKit</span>
   <b>Surfaces.</b> <b>Lock Screen + Dynamic Island</b> (out of app) = <b>PHILOI · session</b> (purple wordmark)
   + centered timer; the Lock Screen adds the <b>75%-to-Gold bar</b> at the bottom, the Island omits it (no
-  room). <b>In-app pill</b> (top of every page while a session runs) = one line, <b>session · timer</b> — no
-  PHILOI. <b>Lock-in screen</b> = session name on top, the <b>flame</b> hero, big timer, and the rank bar at
+  room). The <b>in-app pill is retired</b> — inside the app, only the lock-in screen shows the session; the OS
+  surfaces handle the out-of-app reminder. <b>Lock-in screen</b> = session name on top, the <b>flame</b> hero, big timer, and the rank bar at
   the bottom. Session name = whatever the user set (Study, Gym, …). Timer = ActivityKit native <i>timer</i>
   style (counts with no pushes). No home-screen widget.
   <br><br><b>Rank bar</b> targets the next <b>division</b> (Gold III → II → I → Platinum III …). <b>Primordial
-  has no divisions</b> (Immortal I → "X% to Primordial"). Solid fill = now; the <b>pulsing darker-gold
-  segment</b> = gap to the next division, tagged with a tiny <b>~time</b> in the same gold. Projection =
+  has no divisions</b> (Immortal I → "X% to Primordial"). Solid fill = the tier colour; the <b>pulsing ember-orange
+  segment</b> = gap to the next division, tagged with a tiny <b>~time</b> in orange. Projection =
   XP-left ÷ recent XP/hr; hidden for new users with no rate. Pulse animates in-app only.
 </div>
 

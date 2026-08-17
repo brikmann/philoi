@@ -32,10 +32,16 @@ balance chips, item/box costs, salvage payouts, daily-fire reward, ember packs. 
 and the hollow-outline ember** used as currency. One component that recolors + scales.
 - Keep **flame (brand/hero/logo) and ember (currency) visually distinct** — flame = the app, ember = money.
 
-## 5 · Home = every section one tap
-Home surfaces all main destinations without a menu dive: **friends** (top-left), **shop** (top-right, with
-the **Emberfall** advert pill extending out of it), **inventory** (new grid icon, top-right), **settings**,
-the **lock-in** CTA, and **campfires via swipe**. Inventory is the new addition — a one-tap entry from home.
+## 5 · Home = Emberfall + one hamburger
+Keep home almost empty so the flame hero owns it. Top row = the **Emberfall season pill centered** (active
+season + countdown, always visible) and a **hamburger menu top-right**. The hamburger opens **Friends ·
+Inventory · Shop · Forge Pass · Settings** (Shop uses a little **market-stall** icon). The **lock-in** CTA
+sits below the hero; **campfires** are a swipe. Everything's one tap from home, but the chrome collapses.
+
+**Rank + XP under the flame (one row):** a **hexagon badge** with the division numeral inside (e.g. "II"),
+tinted to the tier, next to a wide **XP bar**. The bar fills in the **tier colour** (progress to the next
+division, with the XP numerals), and **today's fire is encased inside it as a vivid-orange zone** — "you
+need this much more XP to hit your daily fire." One row answers rank, progress, XP, and the daily goal.
 
 ## 6 · Apply globally — a reskin sweep, not per-screen
 Do one pass over **every** screen:
@@ -48,3 +54,10 @@ Do one pass over **every** screen:
 
 Package as a small set of shared primitives (`<FlameLogo>`, `<EmberToken>`, `<PrimaryButton>`, bg + colour
 tokens) so screens consume tokens, not copies.
+
+## 7 · Progress-bar colours (one rule)
+- **Rank / XP bars fill in the CURRENT tier's colour** — Bronze bronze, Diamond teal (`#7FE0E8`), etc.
+  (from `RANK_TIER_METAL`). Not a fixed gold.
+- **The forward/urgent element is always vivid ember orange** against that tier-coloured bar: the **daily-
+  fire zone** on home, and the **in-session `~time` projection** on the lock-in pill. Same principle both
+  places — tier colour = where you are; orange = what you're chasing right now.

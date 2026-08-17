@@ -11,12 +11,11 @@ import { PostHogProvider } from 'posthog-react-native';
 import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
 import { EquippedFlarePerimeter } from '@/components/economy/flare-perimeter';
 import { LoadoutSync } from '@/components/economy/loadout-sync';
-import { LIVE_SESSION_BAR_HEIGHT, LiveSessionBar, LOCK_IN_PATHNAME } from '@/components/live-session-bar';
 import { OfflineBanner } from '@/components/offline-banner';
 import { RankUpWatcher } from '@/components/rank-up-watcher';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useHasAnyCircle } from '@/hooks/use-has-any-circle';
-import { ActiveSessionProvider, useActiveSession } from '@/lib/active-session-context';
+import { ActiveSessionProvider } from '@/lib/active-session-context';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { fetchMyActiveLockInSession } from '@/lib/api/lock-ins';
 import { registerPushToken } from '@/lib/notifications';
@@ -33,31 +32,20 @@ SplashScreen.preventAutoHideAsync();
 function RootNavigator() {
   const { ready, error, session, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
   const { hasCircle, refetch: refetchHasCircle } = useHasAnyCircle();
-  const { session: activeSession } = useActiveSession();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const [interLoaded] = useInterFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold });
 
-  // Global live-session inset (PHILOI_UI_SPEC.md §5/§5b) — reserves space for the floating
-  // mini-map. Zero when idle, so no space is wasted when nothing's running. Suppressed on the
-  // running-session route to match the bar itself being suppressed there.
-  const topInset = activeSession && pathname !== LOCK_IN_PATHNAME ? LIVE_SESSION_BAR_HEIGHT : 0;
+  // The floating live-session pill is RETIRED (Ember pass §3): a running session is now shown by
+  // the Live Activity / ongoing notification out of app, and by the lock-in screen in app — not by
+  // a header that follows you onto every page. With no pill there is nothing to reserve space for,
+  // so the global inset is gone too; leaving it would have left a session-shaped dead band at the
+  // top of every screen.
 
-  // Two DIFFERENT mechanisms, because a native header is not content (punchlist 5.5):
-  //
-  //   header-less screens -> contentStyle.paddingTop pushes their content below the pill.
-  //   headered screens    -> the NATIVE header is drawn above the content and can't be pushed
-  //                          down from JS. React Navigation 7's native-stack dropped
-  //                          `headerStatusBarHeight` (the header owns its status-bar inset now),
-  //                          so there's nothing to reserve space with. The pill moves instead.
-  //
-  // Applied per header-less screen below rather than as a Stack default, since a default would
-  // also hit every headered screen and push its body a bar-height below its own header.
-  const headerlessContentStyle = { backgroundColor: Colors.cream, paddingTop: topInset };
-
-  // (The pill's own header-clearing offset is computed inside LiveSessionBar, which already
-  // tracks pathname — see HEADERLESS_ROUTES there.)
+  // Header-less screens still need their own background; the paddingTop that used to sit here
+  // reserved room for the pill and went with it.
+  const headerlessContentStyle = { backgroundColor: Colors.cream };
 
   const appReady = ready && interLoaded;
   const [stuck, setStuck] = useState(false);
@@ -313,11 +301,9 @@ function RootLayout() {
         <RootNavigator />
         {/* The equipped flare's perimeter aura (FLARES_SPEC). Mounted at the ROOT, above the
             navigator, because that is the whole promise of the cosmetic — a flare paints every
-            page, not just the lock-in screen. It sits under LiveSessionBar so the pill stays fully
-            legible through it, is pointer-transparent end to end, and renders literally nothing
+            page, not just the lock-in screen. It is pointer-transparent end to end, and renders nothing
             when the flare slot is empty (which is most users — there is no free flare). */}
         <EquippedFlarePerimeter />
-        <LiveSessionBar />
         {/* Renders nothing until a rank actually climbs. Mounted here, above the navigator, so a
             rank earned from server-side XP (Strava/Whoop webhook, challenge payout) still gets
             the forge no matter which screen the user is on — the done screen can only ever

@@ -44,7 +44,31 @@ export const Colors = {
   warmSubtext: '#E7C9B8', // muted peachy subtext on a lit/achiever-bg surface (selected pill sub, live lock-in card detail line)
   danger: '#E86A5A', // destructive action text/icon (leave/delete campfire) — design-mocks/19
   dangerBg: '#3A1F24', // destructive row's icon-tile background, pairs with danger
+
+  // ── "Ember" design language (DESIGN_LANGUAGE_EMBER.md) ──
+  // The deep-purple radial that is now THE background on every screen (§2). Two stops, consumed by
+  // <ScreenBackground>: radial-gradient(120% 62% at 50% 6%, #2C1B36, #161320 56%). Deliberately
+  // NOT a flat colour — the washed-out lighter variants it replaces are what made the daily-fire
+  // screen look grey.
+  bgRadialFrom: '#2C1B36',
+  bgRadialTo: '#161320',
+  // The near-black used for text ON an ember-gradient fill (§3). Orange-black rather than pure
+  // black so it reads as burnt into the button rather than pasted on top.
+  onEmber: '#3A1608',
+  // The forward/urgent accent (§7): today's fire zone on the home XP bar, and the `~time`
+  // projection on the lock-in rank bar. Always this, never the tier colour — tier colour says
+  // where you ARE, orange says what you're chasing.
+  emberForward: '#FF7A2F',
 } as const;
+
+/**
+ * The ember gradient (§2/§3) — `#E0612C → #F2A33C → #FFD27A`. Exported as an ordered array because
+ * every consumer is an SVG <LinearGradient> needing per-stop colours, and duplicating the three hex
+ * values at each call site is exactly the copy-paste this token set exists to stop.
+ *
+ * 135° for fills (buttons, bars), vertical for the flame glyph.
+ */
+export const EMBER_GRADIENT = ['#E0612C', '#F2A33C', '#FFD27A'] as const;
 
 export type ThemeColor = keyof typeof Colors;
 

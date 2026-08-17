@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { formatProjection } from '@/lib/api/xp-rate';
-import { formatRankTier, xpProgressRatio } from '@/lib/rank-tiers';
+import { RANK_TIER_METAL, formatRankTier, xpProgressRatio } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
 // "75% to Gold III" with a pulsing ghost showing the gap and roughly how long it'll take (#87,
@@ -21,13 +21,14 @@ import type { RankTierName } from '@/types/database';
 // refreshes but do not animate — the OS doesn't allow a free-running loop there, which is why
 // `animated` is a prop rather than always-on.
 
-/** Bar fill ramp, per the #87 tokens. */
-const GOLD_FROM = '#C9922A';
-const GOLD_TO = '#F5D06A';
-/** The projection ghost — dark enough to read as "not yours yet" beside the solid fill. */
-const GHOST = '#7A5A18';
-/** The "~2h" caption. The ghost colour itself is too dark to read as text on the dark theme. */
-const GHOST_LABEL = '#C9922A';
+// COLOUR RULE (DESIGN_LANGUAGE_EMBER §7), and it is one rule used in two places:
+//   tier colour = where you ARE      → the solid fill, from RANK_TIER_METAL
+//   ember orange = what you're CHASING → the projection ghost and its "~2h" label
+//
+// This replaced a fixed gold fill with a dark-gold ghost. Gold was wrong twice over: it collided
+// with the actual Gold tier (a Gold III player had a gold bar filling toward gold), and it made the
+// forward element indistinguishable from the earned one. The same principle drives the daily-fire
+// zone on the home XP bar — orange is always the thing you haven't got yet.
 
 const BAR_H = 7;
 
@@ -55,6 +56,10 @@ export function RankProjectionBar({
   showLabel = true,
 }: Props) {
   const pulse = useSharedValue(0.35);
+  // Gradient ids are global in react-native-svg — a shared literal makes every bar after the first
+  // render blank on Android.
+  const fillId = `rankFill-${useId()}`;
+  const metal = RANK_TIER_METAL[tier];
   // The gradient needs real pixels — SVG can't take a percentage width the way a View can.
   const [trackW, setTrackW] = useState(0);
 
@@ -104,12 +109,14 @@ export function RankProjectionBar({
         {trackW > 0 && fillW > 0 ? (
           <Svg width={fillW} height={BAR_H} style={styles.fill}>
             <Defs>
-              <LinearGradient id="rankFill" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor={GOLD_FROM} />
-                <Stop offset="1" stopColor={GOLD_TO} />
+              {/* The tier's own two-tone metal — outer→inner, so Bronze reads bronze and
+                  Diamond reads teal. */}
+              <LinearGradient id={fillId} x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor={metal.outer} />
+                <Stop offset="1" stopColor={metal.inner} />
               </LinearGradient>
             </Defs>
-            <Rect x="0" y="0" width={fillW} height={BAR_H} rx={BAR_H / 2} fill="url(#rankFill)" />
+            <Rect x="0" y="0" width={fillW} height={BAR_H} rx={BAR_H / 2} fill={`url(#${fillId})`} />
           </Svg>
         ) : null}
       </View>
@@ -136,7 +143,7 @@ const styles = StyleSheet.create({
   projection: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 10,
-    color: GHOST_LABEL,
+    color: Colors.emberForward,
     fontVariant: ['tabular-nums'],
   },
   track: {
@@ -151,7 +158,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     right: 0,
-    backgroundColor: GHOST,
+    backgroundColor: Colors.emberForward,
   },
   fill: {
     position: 'absolute',

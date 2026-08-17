@@ -1,16 +1,17 @@
 # Code prompt — Lock-in pill / Live Activity (#87, supersedes #73 · NATIVE build)
 
 Design: **`design-mocks/91-lockin-pill.html`** + **`FEATURE_LOCKIN_PILL.md`**. Native, build-gated —
-needs an iOS Widget Extension (ActivityKit) + a config plugin + a fresh EAS build. **Batch it into the
-same native build as RevenueCat (#71).** This **supersedes #73** (Strava-style live notification) — merge.
+needs an iOS Widget Extension (ActivityKit) + a config plugin + a fresh EAS build. **Cut this as its own native
+build NOW — it's a big polish. RevenueCat (#71) is decoupled onto a separate later native build.** This **supersedes #73** (Strava-style live notification) — merge.
 
 ## The one pattern
-While a lock-in runs, show a live timer everywhere it fits, in one consistent treatment:
+While a lock-in runs, show a live timer on the **out-of-app surfaces** (Live Activity / notification) and
+the **in-app lock-in screen**, in one consistent treatment:
 - **PHILOI** — purple gradient wordmark (`linear-gradient(180deg,#C99BFF,#8A4FFF)`, bold, letter-spaced).
 - **session name** — the user's session label (Study, Gym, …), same purple wordmark style; omit if unset.
 - **timer** — counts up from session start, tabular-nums, **white**.
-- **rank bar** — progress to the next **division** (e.g. 75% to Gold III), gold fill, with a pulsing
-  projection cue (see **Rank bar + projection** below).
+- **rank bar** — progress to the next **division** (e.g. 75% to Gold III), **filled in the current tier's
+  colour** (not fixed gold), with a pulsing **ember-orange** projection cue (see **Rank bar + projection**).
 
 ## Surfaces
 1. **iOS Live Activity (ActivityKit)** — out of app:
@@ -36,10 +37,12 @@ While a lock-in runs, show a live timer everywhere it fits, in one consistent tr
      category stopwatch/progress. Tear down the FGS + cancel the notification when the session stops.
    - **Android 16+ "Live Updates":** promote to the progress-style status-bar chip where the API exists;
      fall back to the plain ongoing notification below 16.
-3. **In-app pill** — top of **every page while a session runs, except the lock-in screen**: one line
-   **`session · timer`**, **white timer**, no PHILOI, no flame.
-4. **In-app lock-in screen** (dedicated active-session view): **session name** on top, the **flame** hero
-   (SVG, ember gradient), big timer, **75%-to-Gold bar at the bottom**.
+3. **In-app lock-in screen** (dedicated active-session view): **session name** on top, the **flame** hero
+   (SVG, ember gradient), big timer, rank bar at the bottom.
+
+**The in-app pill is RETIRED.** No floating `session · timer` header on other pages — it reflowed clumsily
+page-to-page and adjusting every header was too fiddly. Inside the app, only the lock-in screen shows the
+session; out of app the Live Activity / Dynamic Island / Android notification carry the glanceable reminder.
 
 ## Data
 - session name + start time from the active session; timer = now − start (count up).
@@ -55,9 +58,10 @@ While a lock-in runs, show a live timer everywhere it fits, in one consistent tr
   thresholds come from **`get_my_ranks()`** (`xpIntoTier` / `xpForNextTier`, already per-division; 0 at
   Primordial = max). **No rank-system change needed.**
 - **Projection ghost (the "≈ time to next division" cue):**
-  - Solid gold fill = current % into the division. A **pulsing, darker-gold segment** fills the remaining
-    gap to the next division. A **tiny label in that same dark gold** ("~2h") sits above the pulse — small
-    on purpose, so the eye lands on the pulse and reads "close."
+  - Fill = the **current tier's colour** (current % into the division). A **pulsing ember-orange segment**
+    fills the remaining gap to the next division, with a **tiny "~2h" label in the same orange** above it —
+    small on purpose, so the eye lands on the pulse and reads "close." (Tier colour = where you are; orange
+    = what you're chasing — see DESIGN_LANGUAGE_EMBER.md §7.)
   - Projection = (`xpForNextTier` − `xpIntoTier`) ÷ the user's recent XP/hour rate, rounded ("~2h"). **No
     rate yet (new user) → hide the projection**, show just the % bar.
   - **Animation is in-app only.** In-app (lock-in + rank screen) the ghost + label **pulse** live. On the
@@ -68,7 +72,8 @@ While a lock-in runs, show a live timer everywhere it fits, in one consistent tr
 
 ## Assets / tokens
 - PHILOI wordmark = purple gradient. Flame = the SVG glyph (ember gradient `#ff5a1a→#ffc061`), shipped as
-  an asset, **used on the lock-in screen only**. Rank bar fill = `#C9922A→#F5D06A`.
+  an asset, **used on the lock-in screen only**. Rank bar fill = the **current tier's colour** (from
+`RANK_TIER_METAL`); projection segment/label = **ember orange** `#F2A33C→#E0612C`.
 
 ## Build
 - iOS: Widget Extension target (ActivityKit) + Expo config plugin for Live Activities. Start the activity
@@ -80,7 +85,7 @@ While a lock-in runs, show a live timer everywhere it fits, in one consistent tr
 ## Verify
 - Timer counts on the Lock Screen with the app backgrounded, no pushes; ends cleanly.
 - Dynamic Island expand/collapse renders; compact/minimal show the timer.
-- In-app pill appears on every page except the lock-in screen; timer is white.
+- No floating in-app pill on other pages (retired) — only the lock-in screen shows the session in-app.
 - Rank bar shows the correct % + XP + next-division name (`formatRankTier`); "Primordial" shows with no numeral.
 - Android: the ongoing notification shows on the lock screen, the chronometer ticks on its own, the
   progress bar tracks the rank %, and both clear when the session ends.

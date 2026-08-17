@@ -3,9 +3,7 @@ import { Tabs } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import { FlameIcon } from '@/components/flame-icon';
-import { LIVE_SESSION_BAR_HEIGHT } from '@/components/live-session-bar';
 import { Colors, Fonts } from '@/constants/theme';
-import { useActiveSession } from '@/lib/active-session-context';
 
 // Line icons, not emoji (PHILOI_UI_SPEC.md §4b, design-mocks/33) — emoji render inconsistently
 // across devices and ignore the tab bar's tint-color entirely. Campfires keeps the brand flame
@@ -36,8 +34,8 @@ export default function TabsLayout() {
   // greeting/hero content happened to leave enough headroom to hide the same bug). `sceneStyle`
   // is this navigator's own equivalent — applied here so every tab's shared TabHeader chrome
   // gets pushed below the bar uniformly, without each of the 4 screens reserving it separately.
-  const { session } = useActiveSession();
-  const topInset = session ? LIVE_SESSION_BAR_HEIGHT : 0;
+  // No inset any more — the live-session pill is retired (Ember pass §3).
+  const topInset = 0;
 
   return (
     <Tabs

@@ -14,7 +14,15 @@ h1{width:100%;font-size:17px;margin:0;color:#e7ddf5;text-align:center}
 .stage{position:relative;height:100%;background:radial-gradient(120% 62% at 50% 6%,#2c1b36,#161320 56%);border-radius:28px;overflow:hidden;display:flex;flex-direction:column}
 
 /* icons */
-.hrow{display:flex;align-items:center;padding:16px 15px 0;z-index:4}
+.hrow{position:relative;display:flex;align-items:center;justify-content:center;padding:16px 15px 0;z-index:4}
+.hamb{position:absolute;right:15px;top:14px}
+.spill{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(90deg,#E0612C,#F2A33C);color:#2a1608;font-size:10px;font-weight:800;letter-spacing:.2px;padding:6px 14px;border-radius:999px;box-shadow:0 2px 12px rgba(224,97,44,.45)}
+.spill .d{background:rgba(42,22,8,.22);border-radius:999px;padding:1px 6px;font-size:9px}
+.menu{position:absolute;top:58px;right:15px;width:158px;background:#1b1726;border:1px solid #2d2740;border-radius:14px;padding:6px;z-index:7;box-shadow:0 14px 34px #0009}
+.mrow{display:flex;align-items:center;gap:11px;padding:10px;border-radius:9px;font-size:13px;font-weight:700;color:#e7ddf5}
+.mrow svg{width:17px;height:17px;stroke:#F2A33C;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mrow.sub{color:#a99cbd;border-top:1px solid #241c38;margin-top:3px;padding-top:11px}
+.mrow.sub svg{stroke:#a99cbd}
 .icn{width:34px;height:34px;border-radius:11px;background:#241c38;display:flex;align-items:center;justify-content:center}
 .icn svg{width:19px;height:19px;stroke:#e7ddf5;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .right{margin-left:auto;display:flex;align-items:center}
@@ -43,6 +51,19 @@ h1{width:100%;font-size:17px;margin:0;color:#e7ddf5;text-align:center}
 .mlbl{display:flex;justify-content:space-between;font-size:9.5px;color:#a99cbd;margin-bottom:5px}
 .mtrack{height:9px;border-radius:999px;background:#2d2740;overflow:hidden}
 .mtrack>div{height:100%;width:64%;border-radius:999px;background:linear-gradient(90deg,#F2A33C,#E0612C)}
+/* rank hexagon + combined XP bar (rank colour) with the daily-fire zone (orange) inside */
+.rankrow{display:flex;align-items:flex-start;gap:12px;width:238px;margin-top:14px;position:relative;z-index:2}
+.hexb{width:42px;height:47px;flex:0 0 42px;position:relative;display:grid;place-items:center;margin-top:6px}
+.hexb::before{content:"";position:absolute;inset:0;background:#2C6E76;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.hexb::after{content:"";position:absolute;inset:3px;background:linear-gradient(155deg,#7FE0E8,#3f9aa4);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.hexb span{position:relative;z-index:2;font-size:15px;font-weight:800;color:#06323A}
+.xpwrap{flex:1}
+.xptop{display:flex;justify-content:space-between;font-size:9px;color:#a99cbd;margin-bottom:5px}
+.xptrack{position:relative;height:10px;border-radius:999px;background:#2d2740;overflow:hidden}
+.xpfill{position:absolute;left:0;top:0;bottom:0;width:75%;border-radius:999px;background:linear-gradient(90deg,#3f9aa4,#7FE0E8)}
+.fireseg{position:absolute;left:75%;top:0;bottom:0;width:12%;background:linear-gradient(90deg,#F2A33C,#E0612C);box-shadow:0 0 9px #E0612Ccc;animation:firepulse 1.6s ease-in-out infinite}
+@keyframes firepulse{0%,100%{opacity:.72}50%{opacity:1}}
+.firelbl{font-size:9px;font-weight:700;color:#F2A33C;margin-top:6px}
 .cta{padding:0 18px 18px}
 .lockbtn{display:block;text-align:center;background:linear-gradient(135deg,#F2A33C,#E0612C);color:#3a1608;border-radius:15px;padding:16px;font-size:15px;font-weight:800;box-shadow:0 4px 16px rgba(224,97,44,.45)}
 .nav{display:flex;justify-content:space-around;padding:11px 0 4px;border-top:1px solid #241c38}
@@ -96,20 +117,28 @@ celebration goes deep-purple with a <b>roaring flame</b>, "You're on fire, Noah"
 <div class="col">
   <div class="phone"><div class="stage">
     <div class="hrow">
-      <div class="icn"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.4"/><path d="M16 21a5 5 0 0 1 6-4"/></svg></div>
-      <div class="right">
-        <span class="embad">🔥 EMBERFALL <span class="d mono" id="cd">90d</span></span>
-        <div class="icn shopicn"><svg viewBox="0 0 24 24"><path d="M6 8h12l-1 12H7z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg></div>
-        <div class="icn" style="margin-left:8px"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></div>
-        <div class="icn settings" style="margin-left:8px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg></div>
-      </div>
+      <span class="spill">🔥 S1 EMBERFALL · <span class="d mono" id="cd">90d 0h</span></span>
+      <div class="icn hamb"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></div>
+    </div>
+    <div class="menu">
+      <div class="mrow"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.4"/><path d="M16 21a5 5 0 0 1 6-4"/></svg> Friends</div>
+      <div class="mrow"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg> Inventory</div>
+      <div class="mrow"><svg viewBox="0 0 24 24"><path d="M4 10l1.6-5h12.8L20 10"/><path d="M4 10h16"/><path d="M5.5 10v9h13v-9"/><path d="M9.5 19v-4h5v4"/></svg> Shop</div>
+      <div class="mrow"><svg viewBox="0 0 24 24"><path d="M12 3l7 2.5v5.5c0 4-3 6.8-7 8.5-4-1.7-7-4.5-7-8.5V5.5z"/><path d="M9 11.5l2 2 4-4.5"/></svg> Forge Pass</div>
+      <div class="mrow sub"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6 6l1.5 1.5M16.5 16.5L18 18M18 6l-1.5 1.5M7.5 16.5L6 18"/></svg> Settings</div>
     </div>
     <div class="greet"><div class="g1">Good evening</div><div class="g2">Noah</div></div>
     <div class="hero">
       <div class="hglow"></div>
-      <svg class="flame" width="150" height="150" viewBox="0 0 24 24"><use href="#flameMark"/></svg>
-      <div class="rankchip"><span class="hex"></span> Diamond II</div>
-      <div class="meter"><div class="mlbl"><span>Today's fire</span><span>2h 34m</span></div><div class="mtrack"><div></div></div></div>
+      <svg class="flame" width="132" height="132" viewBox="0 0 24 24"><use href="#flameMark"/></svg>
+      <div class="rankrow">
+        <div class="hexb"><span>II</span></div>
+        <div class="xpwrap">
+          <div class="xptop"><span>75% to Diamond I</span><span>1,480 / 2,000 XP</span></div>
+          <div class="xptrack"><div class="xpfill"></div><div class="fireseg"></div></div>
+          <div class="firelbl">🔥 620 XP to today's fire</div>
+        </div>
+      </div>
     </div>
     <div class="cta"><span class="lockbtn">Lock in</span></div>
     <div class="nav">
@@ -119,7 +148,7 @@ celebration goes deep-purple with a <b>roaring flame</b>, "You're on fire, Noah"
       <span><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 7 0 0 1 16 0"/></svg></span>
     </div>
   </div></div>
-  <div class="cap"><b>Home.</b> Pulsing flame hero (replaces the campfire vector). Every main section is one tap: friends (left); shop with the <b>Emberfall</b> advert extending from it; <b>inventory</b> (new grid icon); settings; the lock-in CTA; campfires via swipe.</div>
+  <div class="cap"><b>Home.</b> Just the <b>Emberfall</b> season pill centered up top and a <b>hamburger</b> (top-right) opening Friends, Inventory, <b>Shop</b> (a little market stall), Settings. The pulsing flame hero owns the screen. Under it: the <b>hexagon badge</b> (division inside) + a wide <b>XP bar in the rank colour</b>, with <b>today's fire encased inside it</b> as the vivid-orange zone ("620 XP to today's fire"). Hamburger also opens <b>Forge Pass</b>. Lock-in CTA below; campfires via swipe.</div>
 </div>
 
 <!-- 2 · DONE -->
