@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useId } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
@@ -9,7 +9,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { useEquipped } from '@/lib/economy/loadout';
 import type { FlareEffect } from '@/lib/economy/catalog';
@@ -24,7 +24,9 @@ import type { FlareEffect } from '@/lib/economy/catalog';
 // Dynamic Island frame and the Android notification accent (see lib/live-activity.ts).
 //
 // Three constraints shape every decision below:
-//   • FAINT. It sits over the live session UI. Peak opacity is 0.14 at the very edge, falling to
+//   • SOFT, NOT FAINT. It sits over the live session UI, so it must never compete with the timer —
+//     but it IS the screen's centrepiece (an earned or paid Mythic), so it reads clearly. Peak
+//     opacity is PEAK_OPACITY at the very rim, falling to
 //     zero within a 40px band — a coloured RIM, not a wash. Every effect is tuned to hug that rim
 //     at roughly half its old strength; if you can describe what it is doing without looking for
 //     it, it is too strong.
@@ -39,9 +41,8 @@ import type { FlareEffect } from '@/lib/economy/catalog';
 // deliberately dims to ~50% to make room — so it has to read clearly. The spec's words: err bright.
 //
 // Mock 88's rim is `box-shadow: inset 0 0 42px 8px <colour>` breathing between .5 and .82 opacity
-// across a full-screen `inset: 0` layer. EDGE is the RN equivalent of that blur+spread reach, and
-// 92 is what makes it a full-bleed glow rather than the thin band 40 produced.
-const EDGE = 92;
+// across a full-screen `inset: 0` layer — a soft inset glow with no edge. There is no EDGE constant
+// any more: a band width only means something for rectangles, and the rim is one radial gradient.
 const PEAK_OPACITY = 0.82;
 
 type Props = { colour: string; effect: FlareEffect };
@@ -52,6 +53,7 @@ type Props = { colour: string; effect: FlareEffect };
  */
 export function FlarePerimeter({ colour, effect }: Props) {
   const { width, height } = useWindowDimensions();
+  const rimId = `flareRim-${useId()}`;
 
   // A slow breath on the whole overlay. Every flare gets it: a perfectly static edge glow reads as
   // a rendering artefact, and the movement is what makes it read as alive.
@@ -67,32 +69,24 @@ export function FlarePerimeter({ colour, effect }: Props) {
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, styles.layer, breathStyle]} pointerEvents="none">
-      {/* ── the base glow: four gradient bands, static ── */}
+      {/* ── the base glow: ONE soft radial rim, static ── */}
+      {/* Four hard-edged <Rect> bands at 0.82 was the red-box vignette (punchlist 17 P2b): a linear
+          gradient inside a rectangle has a visible straight inner boundary, and four of them meet at
+          visible corners. Mock 88's rim is `box-shadow: inset 0 0 42px 8px` — a SOFT inset glow with
+          no edge anywhere — so this is one radial gradient over the whole screen instead: fully
+          transparent through the middle, easing to the flare colour only as it reaches the rim.
+          Full-bleed, behind header and nav, and there is no rectangle to see. */}
       <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
-          {/* Each band fades from full strength AT the edge to nothing inward. x1/y1→x2/y2 point
-              inward from their own edge, which is why there are four rather than one reused. */}
-          <LinearGradient id="flareTop" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={colour} stopOpacity={PEAK_OPACITY} />
-            <Stop offset="1" stopColor={colour} stopOpacity={0} />
-          </LinearGradient>
-          <LinearGradient id="flareBottom" x1="0" y1="1" x2="0" y2="0">
-            <Stop offset="0" stopColor={colour} stopOpacity={PEAK_OPACITY} />
-            <Stop offset="1" stopColor={colour} stopOpacity={0} />
-          </LinearGradient>
-          <LinearGradient id="flareLeft" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor={colour} stopOpacity={PEAK_OPACITY} />
-            <Stop offset="1" stopColor={colour} stopOpacity={0} />
-          </LinearGradient>
-          <LinearGradient id="flareRight" x1="1" y1="0" x2="0" y2="0">
-            <Stop offset="0" stopColor={colour} stopOpacity={PEAK_OPACITY} />
-            <Stop offset="1" stopColor={colour} stopOpacity={0} />
-          </LinearGradient>
+          <RadialGradient id={rimId} cx="50%" cy="50%" rx="72%" ry="62%">
+            <Stop offset="0" stopColor={colour} stopOpacity={0} />
+            {/* Nothing at all until well past centre — the content area stays clean. */}
+            <Stop offset="0.55" stopColor={colour} stopOpacity={0} />
+            <Stop offset="0.82" stopColor={colour} stopOpacity={PEAK_OPACITY * 0.45} />
+            <Stop offset="1" stopColor={colour} stopOpacity={PEAK_OPACITY} />
+          </RadialGradient>
         </Defs>
-        <Rect x={0} y={0} width={width} height={EDGE} fill="url(#flareTop)" />
-        <Rect x={0} y={height - EDGE} width={width} height={EDGE} fill="url(#flareBottom)" />
-        <Rect x={0} y={0} width={EDGE} height={height} fill="url(#flareLeft)" />
-        <Rect x={width - EDGE} y={0} width={EDGE} height={height} fill="url(#flareRight)" />
+        <Rect x={0} y={0} width={width} height={height} fill={`url(#${rimId})`} />
       </Svg>
 
       {/* ── the signature effect ── */}

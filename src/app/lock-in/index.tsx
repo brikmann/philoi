@@ -27,7 +27,6 @@ import { LockInDoneScreen } from '@/components/lockin-done-screen';
 import { RankUpCelebration } from '@/components/rank-up-celebration';
 import { RankUpShareCard } from '@/components/rank-up-share-card';
 import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
-import { RankProjectionBar } from '@/components/rank-projection-bar';
 import { SessionFlame } from '@/components/session-flame';
 import { SessionPhotoGallery } from '@/components/session-photo-gallery';
 import { TutorialTooltip } from '@/components/tutorial-tooltip';
@@ -37,7 +36,6 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveWorkout } from '@/hooks/use-active-workout';
 import { useElapsedSeconds } from '@/hooks/use-elapsed-seconds';
 import { useInventory } from '@/hooks/use-inventory';
-import { useRankProjection } from '@/hooks/use-rank-projection';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useActiveSession } from '@/lib/active-session-context';
 import { track } from '@/lib/analytics';
@@ -357,9 +355,6 @@ function LockInScreen() {
   }, [activeSession, isGym, posted, stopping, routineIdParam, energyParam, refetchWorkout]);
 
   const elapsedSeconds = useElapsedSeconds(activeSession?.startedAt ?? null);
-  // Only fetched while a session is actually running — no point costing a cold start two requests
-  // for a bar that isn't on screen.
-  const rankProjection = useRankProjection(Boolean(activeSession));
   // The real spendable balance (ember_wallet via get_inventory) — see the note at the
   // embersBeforeSnapshot capture below.
   const { embers: walletEmbers, refetch: refetchInventory } = useInventory();
@@ -844,17 +839,9 @@ function LockInScreen() {
             bottom on purpose: the flame and the timer are the hero, and the ladder is context you
             glance at, not the thing you're staring at for an hour. Renders nothing until the rank
             resolves, so a slow network can't push the actions around mid-session. */}
-        {rankProjection ? (
-          <View style={styles.rankBar}>
-            <RankProjectionBar
-              tier={rankProjection.rank.tier}
-              division={rankProjection.rank.division}
-              xpIntoTier={rankProjection.rank.xp_into_tier}
-              xpForNextTier={rankProjection.rank.xp_for_next_tier}
-              hoursToNext={rankProjection.hoursToNext}
-            />
-          </View>
-        ) : null}
+        {/* No rank bar here. The projection lives on Home and on the Lock-Screen Live Activity;
+            the in-app lock-in screen is flame + timer only (mock 91 / FLARES_SPEC). I added this in
+            868b1f6 against the older spec — punchlist 17 P2(a) removes it. */}
 
         {stillHereDue && (
           <Animated.View entering={FadeInDown.springify().damping(14)} exiting={FadeOutUp.duration(200)} style={styles.bannerInset}>
@@ -983,11 +970,6 @@ const styles = StyleSheet.create({
   // BOTTOM zone — a plain (non-flex) block; it renders at its natural size right after
   // whatever space CENTER's flex:1 didn't consume, which is what pins it to the bottom.
   // Full-bleed inside the footer's own padding, sitting above the still-here banner and actions.
-  rankBar: {
-    width: '100%',
-    paddingHorizontal: Spacing.two,
-    marginBottom: Spacing.three,
-  },
   footer: {
     alignSelf: 'stretch',
     gap: Spacing.twelve,
