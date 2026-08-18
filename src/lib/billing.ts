@@ -58,7 +58,7 @@ function sdk(): PurchasesSdk | null {
 // ─────────────────────────── Membership · DORMANT, superseded ───────────────────────────
 //
 // The flat-membership model from the 2026-06-28 decision log. Monetization went a different way —
-// the Forge Pass plus ember packs, both cosmetics-only — and this never shipped. Kept because
+// the Flame Pass plus ember packs, both cosmetics-only — and this never shipped. Kept because
 // src/app/paywall.tsx still renders it as a dormant preview screen; deleting it is a separate call
 // than wiring RevenueCat, so it stays untouched here rather than being quietly removed.
 export const MEMBERSHIP_PRICING = {
@@ -74,7 +74,7 @@ export const MEMBERSHIP_PITCH = [
 ] as const;
 
 export async function purchaseMembership(_plan: keyof typeof MEMBERSHIP_PRICING): Promise<{ success: boolean }> {
-  throw new Error('Membership isn’t the model — the Forge Pass and ember packs are what Philoi sells.');
+  throw new Error('Membership isn’t the model — the Flame Pass and ember packs are what Philoi sells.');
 }
 
 /** The public SDK key for this platform, or null when it hasn't been provisioned yet. */

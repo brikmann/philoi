@@ -61,7 +61,7 @@ export default function PurchaseSuccessScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.kicker}>{isPass ? 'FORGE PASS UNLOCKED' : 'EMBERS ADDED'}</Text>
+        <Text style={styles.kicker}>{isPass ? 'FLAME PASS UNLOCKED' : 'EMBERS ADDED'}</Text>
 
         {isPass ? (
           <>

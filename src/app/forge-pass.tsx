@@ -38,7 +38,7 @@ import {
 import { RARITY_COLOR, RARITY_LABEL } from '@/lib/economy/rarity';
 import { getErrorMessage } from '@/lib/errors';
 
-// The Forge Pass track (FORGE_PASS_DESLOP.md, mock 87).
+// The Flame Pass track (FORGE_PASS_DESLOP.md, mock 87).
 //
 // The old screen was a horizontally-scrolling grid of generic cells with emoji icons, which is
 // exactly what the de-slop spec diagnoses: no theme, no hierarchy, no sense of a track you are
@@ -133,7 +133,7 @@ export default function ForgePassScreen() {
       const priced = prices[FORGE_PASS_PRODUCT_ID];
       Alert.alert(
         'Premium locked',
-        `This level is on the Premium track.${priced ? ` The Forge Pass is ${priced} for the season.` : ''}`
+        `This level is on the Premium track.${priced ? ` The Flame Pass is ${priced} for the season.` : ''}`
       );
       return;
     }
@@ -175,7 +175,7 @@ export default function ForgePassScreen() {
       Alert.alert(
         phase === 'upcoming' ? `${SEASON.name} hasn't started` : `${SEASON.name} has closed`,
         phase === 'upcoming'
-          ? 'The Forge Pass goes on sale when the season opens on September 10.'
+          ? 'The Flame Pass goes on sale when the season opens on September 10.'
           : 'This season is over. Season 2 opens with its own pass.'
       );
       return;
@@ -193,8 +193,8 @@ export default function ForgePassScreen() {
       Alert.alert(
         restoredPass ? 'Restored' : 'Nothing to restore',
         restoredPass
-          ? 'Your Forge Pass is back on this device.'
-          : 'No previous Forge Pass purchase was found for this account.'
+          ? 'Your Flame Pass is back on this device.'
+          : 'No previous Flame Pass purchase was found for this account.'
       );
     } catch (e) {
       Alert.alert('Couldn’t restore', getErrorMessage(e, 'Something went wrong.'));
@@ -210,7 +210,7 @@ export default function ForgePassScreen() {
             <Ionicons name="chevron-back" size={22} color={Colors.ink} />
           </Pressable>
           <View style={styles.titleWrap}>
-            <Text style={styles.wordmark}>FORGE PASS</Text>
+            <Text style={styles.wordmark}>FLAME PASS</Text>
             <Text style={styles.season}>
               Season {SEASON.id.replace('S', '')} · {SEASON.name} — <Text style={styles.seasonHot}>{countdownLabel(phase)}</Text>
             </Text>
@@ -238,7 +238,7 @@ export default function ForgePassScreen() {
         <>
           <Pressable style={[styles.upgrade, buying && styles.claimBusy]} disabled={buying} onPress={onUpgrade}>
             <View style={styles.upgradeCol}>
-              <Text style={styles.upgradeTitle}>Unlock the Forge Pass</Text>
+              <Text style={styles.upgradeTitle}>Unlock the Flame Pass</Text>
               <Text style={styles.upgradeSub}>
                 {phase === 'live'
                   ? 'Every level’s premium reward, all season — plus the Mythic flare on day one'
@@ -607,7 +607,7 @@ function RewardDetailSheet({
           ) : needsPass ? (
             <Pressable style={styles.sheetCta} onPress={onUpgrade}>
               <Text style={styles.sheetCtaText}>
-                Unlock the Forge Pass{passPrice ? ` · ${passPrice}` : ''}
+                Unlock the Flame Pass{passPrice ? ` · ${passPrice}` : ''}
               </Text>
             </Pressable>
           ) : !reached ? (

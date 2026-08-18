@@ -150,7 +150,7 @@ export default function InventoryScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>Nothing here yet.</Text>
             <Text style={styles.emptyBody}>
-              Win challenges, climb the Forge Pass, or open a box — everything you own lands here.
+              Win challenges, climb the Flame Pass, or open a box — everything you own lands here.
             </Text>
             <Pressable style={styles.emptyCta} onPress={() => router.push('/shop')}>
               <Text style={styles.emptyCtaText}>Open the Shop</Text>
@@ -167,7 +167,7 @@ export default function InventoryScreen() {
         {ownedOfType && shown.length > 0 ? <Text style={styles.hint}>{ownedOfType} · tap any to equip</Text> : null}
 
         {/* ── Unopened boxes ──
-            Without this the earn path dead-ends: grant_reward and the Forge Pass both drop boxes
+            Without this the earn path dead-ends: grant_reward and the Flame Pass both drop boxes
             into loot_boxes, but until now the only way to open one was to buy a fresh one in the
             shop, so anything you EARNED just sat there invisible. */}
         {boxStacks.length > 0 ? (

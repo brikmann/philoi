@@ -1,4 +1,4 @@
-// The Forge Pass season track (21k / FORGE_PASS.md). 100 tiers, a Free lane everyone climbs and a
+// The Flame Pass season track (21k / FORGE_PASS.md). 100 tiers, a Free lane everyone climbs and a
 // Premium lane unlocked by the seasonal subscription.
 //
 // Two things here are load-bearing and easy to get wrong:
@@ -14,7 +14,7 @@ import type { Rarity } from '@/lib/economy/rarity';
 
 // ───────────────────────────── Season 1 · Emberfall ─────────────────────────────
 //
-// COPY RULE: the Forge Pass counts in LEVELS. The rank ladder counts in TIERS. The two never share
+// COPY RULE: the Flame Pass counts in LEVELS. The rank ladder counts in TIERS. The two never share
 // a word in code or in UI — "Tier 40" meaning two different things in the same app was the single
 // most confusing thing about the old build, so `tier` is now reserved for RankTierName and every
 // symbol here says level.

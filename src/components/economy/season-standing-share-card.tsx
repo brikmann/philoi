@@ -64,7 +64,7 @@ export const SeasonStandingShareCard = forwardRef<View, Props>(function SeasonSt
         <Text style={[styles.bandText, { color: band.tint }]}>{band.label}</Text>
       </View>
 
-      <Text style={styles.level}>Forge Pass Level {passLevel}</Text>
+      <Text style={styles.level}>Flame Pass Level {passLevel}</Text>
 
       <Text style={styles.handle}>@{handle}</Text>
       {/* No CTA, same rule as the unlock card: a real number posted by a real person is the growth

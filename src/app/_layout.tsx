@@ -11,6 +11,7 @@ import { PostHogProvider } from 'posthog-react-native';
 import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
 import { LoadoutSync } from '@/components/economy/loadout-sync';
 import { LiveActivitySync } from '@/components/live-activity-sync';
+import { ScreenBackground } from '@/components/ui/screen-background';
 import { OfflineBanner } from '@/components/offline-banner';
 import { RankUpWatcher } from '@/components/rank-up-watcher';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -43,10 +44,9 @@ function RootNavigator() {
   // so the global inset is gone too; leaving it would have left a session-shaped dead band at the
   // top of every screen.
 
-  // The radial's outer stop, NOT the old flat cream — an opaque colour here paints over the
-  // deep-purple radial that <Screen> draws underneath (punchlist 16 §1). It can't simply be
-  // transparent: react-navigation falls back to white without a value.
-  const headerlessContentStyle = { backgroundColor: Colors.bgRadialTo };
+  // Transparent, so the root <ScreenBackground> shows through. Explicitly 'transparent' rather
+  // than omitted — react-navigation falls back to WHITE only when the value is unset.
+  const headerlessContentStyle = { backgroundColor: 'transparent' };
 
   const appReady = ready && interLoaded;
   const [stuck, setStuck] = useState(false);
@@ -301,7 +301,14 @@ function RootLayout() {
   const content = (
     <AuthProvider>
       <ActiveSessionProvider>
-        <RootNavigator />
+        {/* THE background, mounted once behind the navigator (Ember reskin sweep). <Screen> paints
+            it too, but ~9 routes roll their own root wrapper and never go through <Screen> —
+            add-friend, people, friend-profile, lock-in-history, the two create forms, campfires.
+            Wrapping each of those individually is seven chances to get a layout subtly wrong; one
+            layer here covers them and every route added later. The navigators above it are
+            transparent so it shows through. */}
+        <ScreenBackground>
+          <RootNavigator />
         {/* Renders nothing until a rank actually climbs. Mounted here, above the navigator, so a
             rank earned from server-side XP (Strava/Whoop webhook, challenge payout) still gets
             the forge no matter which screen the user is on — the done screen can only ever
@@ -320,6 +327,7 @@ function RootLayout() {
             the user happens to reopen the app. */}
         <EntitlementReconciler />
         <OfflineBanner />
+        </ScreenBackground>
       </ActiveSessionProvider>
     </AuthProvider>
   );

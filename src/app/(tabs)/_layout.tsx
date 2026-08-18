@@ -50,7 +50,7 @@ export default function TabsLayout() {
         // flat cream — cream is opaque and was painting straight over the deep-purple radial on
         // every tab, which is why Settings/Profile/Challenges read as flat dark while screens
         // outside the tab navigator looked right (punchlist 16 §1).
-        sceneStyle: { paddingTop: topInset, backgroundColor: Colors.bgRadialTo },
+        sceneStyle: { paddingTop: topInset, backgroundColor: 'transparent' },
       }}>
       <Tabs.Screen
         name="index"

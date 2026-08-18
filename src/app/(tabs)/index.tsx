@@ -701,7 +701,8 @@ const styles = StyleSheet.create({
   // the report — following §4b here since it's the newer, more explicit instruction.
   valley: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    // Transparent so the radial shows through on /campfires (Ember reskin sweep).
+    backgroundColor: 'transparent',
   },
   stage2: {
     position: 'absolute',

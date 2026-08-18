@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ui/screen';
+import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGroup } from '@/hooks/use-group';
 import { track } from '@/lib/analytics';
@@ -66,7 +67,7 @@ export default function InviteScreen() {
 
       <View style={styles.hero}>
         <View style={styles.flameTile}>
-          <Ionicons name="flame" size={28} color={Colors.amber} />
+          <FlameLogo size={28} />
         </View>
         <Text style={styles.name}>{group?.name ?? '…'}</Text>
         <Text style={styles.sub}>Anyone with this code can join and lock in with you.</Text>

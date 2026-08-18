@@ -70,7 +70,7 @@ const MENU: MenuItem[] = [
   { label: 'Inventory', icon: 'grid-outline', route: '/inventory' },
   // A market stall, per §5 — `storefront` is the closest Ionicon to the mock's awning glyph.
   { label: 'Shop', icon: 'storefront-outline', route: '/shop' },
-  { label: 'Forge Pass', icon: 'shield-checkmark-outline', route: '/forge-pass' },
+  { label: 'Flame Pass', icon: 'shield-checkmark-outline', route: '/forge-pass' },
   { label: 'Settings', icon: 'settings-outline', route: '/settings', sub: true },
 ];
 

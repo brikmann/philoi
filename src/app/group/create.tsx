@@ -7,6 +7,7 @@ import { PrivacySelector } from '@/components/privacy-selector';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
+import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { createGroup, setMyHelperFlag } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -216,7 +217,7 @@ export default function CreateGroupScreen() {
         </ScrollView>
 
         <Pressable style={styles.createBtn} onPress={handleCreate} disabled={loading}>
-          <Ionicons name="flame" size={17} color={Colors.ink} />
+          <FlameLogo size={17} />
           <Text style={styles.createLabel}>{loading ? 'Lighting…' : 'Light the campfire'}</Text>
         </Pressable>
 

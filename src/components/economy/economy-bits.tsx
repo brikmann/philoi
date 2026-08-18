@@ -79,7 +79,7 @@ export function SourceTag({ source }: { source: 'earned' | 'paid' | 'box' | 'for
   return (
     <View style={[styles.sourceTag, earned ? styles.sourceEarned : styles.sourceBought]}>
       <Text style={[styles.sourceText, { color: earned ? Colors.achieverText : Colors.muted }]}>
-        {earned ? 'EARNED' : source === 'forge_pass' ? 'FORGE PASS' : source === 'box' ? 'FROM A BOX' : 'BOUGHT'}
+        {earned ? 'EARNED' : source === 'forge_pass' ? 'FLAME PASS' : source === 'box' ? 'FROM A BOX' : 'BOUGHT'}
       </Text>
     </View>
   );

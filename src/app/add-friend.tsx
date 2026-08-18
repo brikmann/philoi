@@ -292,7 +292,10 @@ export default function AddFriendScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    // Was Colors.cream, an opaque flat fill that painted over the deep-purple radial. These
+    // screens don't route through <Screen>, so the radial reaches them from the navigator's
+    // scene background — an opaque colour here blocks it (Ember reskin sweep).
+    backgroundColor: 'transparent',
   },
   header: {
     flexDirection: 'row',

@@ -111,7 +111,10 @@ const styles = StyleSheet.create({
   container: {
     padding: Spacing.four,
     gap: Spacing.two,
-    backgroundColor: Colors.cream,
+    // Was Colors.cream, an opaque flat fill that painted over the deep-purple radial. These
+    // screens don't route through <Screen>, so the radial reaches them from the navigator's
+    // scene background — an opaque colour here blocks it (Ember reskin sweep).
+    backgroundColor: 'transparent',
   },
   label: {
     fontFamily: Fonts.bodyBold,

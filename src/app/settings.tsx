@@ -9,6 +9,7 @@ import { ReminderSettings } from '@/components/reminder-settings';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
+import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useEntitlement } from '@/hooks/use-entitlement';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
@@ -153,7 +154,7 @@ export default function SettingsScreen() {
     signOut();
   }
 
-  // Restores the Forge Pass entitlement only. Ember packs are consumables — they were spent into a
+  // Restores the Flame Pass entitlement only. Ember packs are consumables — they were spent into a
   // balance the moment they were granted, so "restoring" one would mint the embers a second time.
   async function handleRestore() {
     try {
@@ -161,8 +162,8 @@ export default function SettingsScreen() {
       Alert.alert(
         restoredPass ? 'Restored' : 'Nothing to restore',
         restoredPass
-          ? 'Your Forge Pass is back on this device.'
-          : 'No previous Forge Pass purchase was found for this account. Ember packs are consumable and can’t be restored.'
+          ? 'Your Flame Pass is back on this device.'
+          : 'No previous Flame Pass purchase was found for this account. Ember packs are consumable and can’t be restored.'
       );
     } catch (e) {
       Alert.alert('Couldn’t restore', getErrorMessage(e, 'Something went wrong.'));
@@ -227,7 +228,7 @@ export default function SettingsScreen() {
         <Text style={styles.sectionLabel}>DAILY FIRE</Text>
         <View style={styles.group}>
           <Pressable style={styles.row} onPress={handleToggleGoalMode}>
-            <Ionicons name="flame" size={18} color={Colors.amber} style={styles.rowIcon} />
+            <FlameLogo size={18} />
             <Text style={styles.rowLabel}>Goal mode</Text>
             <Text style={styles.rowValue}>{goalMode === 'auto' ? 'Adaptive' : 'Manual'}</Text>
           </Pressable>

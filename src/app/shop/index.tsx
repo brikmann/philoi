@@ -63,7 +63,7 @@ function rotatesInLabel(now: number): string {
 }
 
 // The Forge Shop (mock 56, 21g). Reached from Home's top-right and OPEN TO EVERYONE — there is no
-// subscription to gate on, and gating the shop would contradict the whole model: the Forge Pass is
+// subscription to gate on, and gating the shop would contradict the whole model: the Flame Pass is
 // one purchasable item *inside* the shop, not a wall around it.
 //
 // Four sections, top → bottom: the Pass hero, the Featured direct-buy row, the six loot boxes, and
@@ -73,7 +73,7 @@ export default function ShopScreen() {
   const router = useRouter();
   const { embers, pass, ownedKeys, loading } = useInventory();
 
-  // LEVEL, not tier — the Forge Pass counts in levels and the rank ladder counts in tiers, and the
+  // LEVEL, not tier — the Flame Pass counts in levels and the rank ladder counts in tiers, and the
   // two must never share a word (code prompt §"Copy rule").
   const level = pass ? levelFromXp(pass.pass_xp).level : 0;
   const ownsPremium = pass?.owns_premium ?? false;
@@ -123,7 +123,7 @@ export default function ShopScreen() {
         <Pressable style={styles.forge} onPress={() => router.push('/forge-pass')}>
           <View style={styles.forgeGlow} pointerEvents="none" />
           <Text style={styles.forgeBadge}>
-            SEASON {SEASON.id.replace('S', '')} FORGE PASS · {SEASON.name.toUpperCase()}
+            SEASON {SEASON.id.replace('S', '')} FLAME PASS · {SEASON.name.toUpperCase()}
           </Text>
           <Text style={styles.forgeTitle}>{ownsPremium ? `Level ${level} / ${SEASON.totalLevels}` : 'Forged in flame'}</Text>
           <Text style={styles.forgePerk}>
