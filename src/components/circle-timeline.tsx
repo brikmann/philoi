@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextInput } from '@/components/ui/text-input';
 import { CHAT_ENABLED } from '@/constants/feature-flags';
+import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useCircleTimeline, type TimelineRow } from '@/hooks/use-circle-timeline';
@@ -153,7 +154,8 @@ export function CircleTimeline({ groupId, myUserId, groupName }: CircleTimelineP
     if (row.kind === 'streak_system') {
       return (
         <View style={styles.sysRow}>
-          <Ionicons name="flame" size={12} color={Colors.amber} />
+          {/* Streak heat — the brand flame, not the ember coal (ember = currency). */}
+          <FlameLogo size={12} />
           <Text style={styles.sysText}>{row.days}-day streak — don't let it die</Text>
         </View>
       );

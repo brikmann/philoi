@@ -7,6 +7,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, w
 import { CampfireOptionsSheet } from '@/components/campfire-options-sheet';
 import { CircleTimeline } from '@/components/circle-timeline';
 import { Screen } from '@/components/ui/screen';
+import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useGroup } from '@/hooks/use-group';
@@ -81,7 +82,9 @@ export default function GroupScreen() {
           onPress={() => setOptionsVisible(true)}
           hitSlop={4}
           accessibilityLabel="Campfire options">
-          <Ionicons name="flame" size={15} color={Colors.amber} />
+          {/* The brand flame, not a stock Ionicon (punchlist 16 §6/§2). NOT the ember token:
+              this is the campfire itself, and ember means money. */}
+          <FlameLogo size={15} />
           {hasPendingRequests && <View style={styles.optionsBadge} />}
         </Pressable>
         <Pressable style={styles.headerCenter} onPress={() => setOptionsVisible(true)}>
