@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { FlameIcon } from '@/components/flame-icon';
+import { FlameLogo } from '@/components/ui/flame-logo';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
@@ -81,7 +81,7 @@ export default function JoinScreen() {
 
       <View style={styles.form}>
         <View style={styles.icon}>
-          <FlameIcon size={48} />
+          <FlameLogo size={48} />
         </View>
         <Text style={styles.body}>Paste or type the code your friend shared.</Text>
 

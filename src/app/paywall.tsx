@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { FlameIcon } from '@/components/flame-icon';
+import { FlameLogo } from '@/components/ui/flame-logo';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { SecondaryButton } from '@/components/ui/secondary-button';
@@ -38,7 +38,7 @@ export default function PaywallScreen() {
   if (!session) {
     return (
       <Screen dark style={styles.centeredContainer}>
-        <FlameIcon size={64} />
+        <FlameLogo size={64} />
         <Text style={styles.title}>Philoi Membership</Text>
         <Text style={styles.subtitle}>Sign in to see what&apos;s coming.</Text>
         <PrimaryButton label="Continue with Google" onPress={() => signInWithGoogle().catch((e) => setError(e.message))} />
@@ -50,7 +50,7 @@ export default function PaywallScreen() {
   return (
     <Screen dark>
       <ScrollView contentContainerStyle={styles.container}>
-        <FlameIcon size={64} />
+        <FlameLogo size={64} />
         <Text style={styles.title}>Philoi is free right now</Text>
         <Text style={styles.subtitle}>
           {isMember

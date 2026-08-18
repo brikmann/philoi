@@ -1,7 +1,7 @@
 import * as Linking from 'expo-linking';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { FlameIcon } from '@/components/flame-icon';
+import { FlameLogo } from '@/components/ui/flame-logo';
 import { SecondaryButton } from '@/components/ui/secondary-button';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -19,7 +19,7 @@ export default function AccountDisabledScreen() {
   return (
     <Screen style={styles.container}>
       <View style={styles.header}>
-        <FlameIcon size={48} />
+        <FlameLogo size={48} />
         <Text style={styles.title}>Your account has been disabled</Text>
         <Text style={styles.body}>
           This happened after a review of a report against your account. If you think this is a

@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
-import { FlameIcon } from '@/components/flame-icon';
+import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts } from '@/constants/theme';
 
 // Line icons, not emoji (PHILOI_UI_SPEC.md §4b, design-mocks/33) — emoji render inconsistently
@@ -55,7 +55,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Campfires',
-          tabBarIcon: () => <FlameIcon size={24} background={null} />,
+          tabBarIcon: () => <FlameLogo size={24} />,
         }}
       />
       <Tabs.Screen
