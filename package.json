@@ -84,5 +84,8 @@
     "check:iap": "node ./scripts/check-iap-ids.js",
     "check:live-activity": "node ./scripts/check-live-activity-attributes.js"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "typescript": "$typescript"
+  }
 }
