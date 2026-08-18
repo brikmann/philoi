@@ -22,6 +22,8 @@ struct LiveActivityStateRecord: Record {
   @Field var projection: String?
   @Field var tierOuterHex: String = ""
   @Field var tierInnerHex: String = ""
+  /// The equipped flare's colour, or nil for the empty slot — the frame tint (punchlist 15.2).
+  @Field var flareHex: String?
 
   var startedAt: Date {
     Date(timeIntervalSince1970: startedAtMs / 1000)
@@ -33,7 +35,8 @@ struct LiveActivityStateRecord: Record {
       rankRatio: rankRatio,
       projection: projection,
       tierOuterHex: tierOuterHex,
-      tierInnerHex: tierInnerHex
+      tierInnerHex: tierInnerHex,
+      flareHex: flareHex
     )
   }
 

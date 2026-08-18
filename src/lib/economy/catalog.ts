@@ -87,10 +87,14 @@ export type Acquisition = 'box' | 'earned' | 'forge-pass-S1' | 'default';
 export type ArtKind = 'flame' | 'particle' | 'flare' | 'card' | 'halo' | 'title' | 'banner' | 'audio' | 'sfx' | 'relic' | 'medal';
 
 /**
- * A flare's signature perimeter effect (FLARES_SPEC.md). One of six motion layers that
+ * A flare's signature perimeter effect (FLARES_SPEC.md). One of seven motion layers that
  * FlarePerimeter selects between — the whole visual vocabulary of the aura system.
+ *
+ * `emberfall` is the only bespoke one: lava pooling on the bottom edge WITH embers raining from
+ * the top. It exists for exactly one item (the season's Forge Pass capstone), which is the point —
+ * the capstone should not share a motion layer with a box drop.
  */
-export type FlareEffect = 'smoke' | 'zaps' | 'falling' | 'flames' | 'plasma' | 'glow';
+export type FlareEffect = 'smoke' | 'zaps' | 'falling' | 'flames' | 'plasma' | 'glow' | 'emberfall';
 
 export type CatalogItem = {
   id: string;
@@ -180,51 +184,62 @@ const PARTICLES: CatalogItem[] = [
     art: { kind: 'particle', from: '#1a1626', to: '#6A2AB8' } }),
 ];
 
-// Flares — the app-wide perimeter aura (FLARES_SPEC.md, mock 88).
+// Flares — the lock-in perimeter aura (FLARES_SPEC.md, mock 88).
 //
 // A flare is the ONLY thing that paints the perimeter, and there is deliberately no free or base
 // one: the aura IS the flex, and a starter version would spend the whole reward on day one. That
 // rule is why `flare-base-glow` is absent from the starter set in DEFAULTS below.
 //
-// The old framing — "screen-edge aura, active only during 90m+ sessions" — is dropped. Equip it and
-// it is on, everywhere, until you take it off. A cosmetic you paid for that only appears after 90
-// minutes is a cosmetic most owners would never actually see.
+// SCOPE (punchlist 15.2, reversing #86): it paints the LOCK-IN SCREEN while a session runs, not
+// every screen in the app. App-wide was shipped and read as a permanent tint over the product
+// rather than as a cosmetic. The flex still travels off-screen with the session — the iOS Live
+// Activity / Dynamic Island frame and the Android notification accent take the flare colour.
+//
+// Rarity here is by PIZZAZZ, which is what a cosmetic tier actually means: a glow is epic,
+// particles are legendary, and the brand-signature auras (lightning, inferno, the season capstone)
+// are mythic.
 //
 // `flare: { colour, effect }` is the item's identity, not decoration: FlarePerimeter is one
 // parameterized overlay and these two fields are its entire input.
 const FLARES: CatalogItem[] = [
   item({ id: 'flare-zeus-wrath', name: "Zeus' Wrath", type: 'FLARE', rarity: 'mythic', acquisition: 'box',
     lore: 'The heavens split and the fury of Olympus answers to you now.',
-    art: { kind: 'flare', from: '#2A5AE0', to: '#FFFFFF' },
-    flare: { colour: '#FFFFFF', effect: 'zaps' } }),
-  item({ id: 'flare-void-purple-aura', name: 'Void Smoke', type: 'FLARE', rarity: 'mythic', acquisition: 'box',
+    art: { kind: 'flare', from: '#2A5AE0', to: '#FFE87A' },
+    // Cream-gold rather than white (punchlist 15.3): a white zap on a dark screen reads as a
+    // rendering glitch, the same strike in gold reads as lightning.
+    flare: { colour: '#FFE87A', effect: 'zaps' } }),
+  item({ id: 'flare-void-purple-aura', name: 'Void Smoke', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
     lore: 'The edges of the world go soft and violet, as if reality is deciding whether to hold.',
     art: { kind: 'flare', from: '#4a2a6e', to: '#C77BFF' },
     flare: { colour: '#7B3FBF', effect: 'smoke' } }),
-  item({ id: 'flare-void-plasma', name: 'Void Plasma Flare', type: 'FLARE', rarity: 'mythic', acquisition: 'box',
+  item({ id: 'flare-void-plasma', name: 'Void Plasma Flare', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
     lore: 'Pulsing with unholy energy, each spark burns with the power of a thousand suns.',
     art: { kind: 'flare', from: '#A200FF', to: '#FF6B6B' },
     flare: { colour: '#A200FF', effect: 'plasma' } }),
-  item({ id: 'flare-white-incandescence', name: 'White Incandescence', type: 'FLARE', rarity: 'mythic', acquisition: 'box',
+  item({ id: 'flare-white-incandescence', name: 'White Incandescence', type: 'FLARE', rarity: 'epic', acquisition: 'box',
     lore: 'No colour left. Only the pure, blinding fact of the burn.',
     art: { kind: 'flare', from: '#E7DDF5', to: '#FFFFFF' },
     flare: { colour: '#F4EEFF', effect: 'glow' } }),
-  // The four FLARES_SPEC names the table but the catalog never carried. Legendary rather than
-  // Mythic: seven Mythic flares would make the tier meaningless, and the spec's own hierarchy puts
-  // the Emberfall Ascendant alone at the top.
-  item({ id: 'flare-stormforge', name: 'Stormforge', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
+  // The four FLARES_SPEC names the table but the catalog never carried.
+  //
+  // Two of them were RENAMED in punchlist 15.3 because they collided with FLAME cosmetic names and
+  // one cosmetic family should never borrow another's word: 'flare-stormforge' ("Stormforge") is
+  // now Asgardian Valor, and 'flare-toxic' ("Toxic") is now the Acid Rain Flare. The IDS changed
+  // with the names — see the migration note in FLARES_SPEC.md before shipping this to a build where
+  // anyone already owns one.
+  item({ id: 'flare-asgardian-valor', name: 'Asgardian Valor', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
     lore: 'Every strike of the hammer answers a strike from the sky.',
     art: { kind: 'flare', from: '#1B4FD8', to: '#8FD4FF' },
     flare: { colour: '#2E7BFF', effect: 'zaps' } }),
-  item({ id: 'flare-toxic', name: 'Toxic', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
+  item({ id: 'flare-acid-rain', name: 'Acid Rain Flare', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
     lore: 'It drips. Whatever it lands on stops being a problem.',
     art: { kind: 'flare', from: '#2E7D32', to: '#9DFF5A' },
     flare: { colour: '#6FE22A', effect: 'falling' } }),
-  item({ id: 'flare-inferno', name: 'Inferno Flare', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
+  item({ id: 'flare-inferno', name: 'Inferno Flare', type: 'FLARE', rarity: 'mythic', acquisition: 'box',
     lore: 'The edges of your screen catch, and nothing puts them out.',
     art: { kind: 'flare', from: '#B01A0E', to: '#FF7A3C' },
     flare: { colour: '#FF3D1F', effect: 'flames' } }),
-  item({ id: 'flare-solar', name: 'Solar Flare', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
+  item({ id: 'flare-solar', name: 'Solar Flare', type: 'FLARE', rarity: 'epic', acquisition: 'box',
     lore: 'A loop of the sun tears free and hangs there, deciding.',
     art: { kind: 'flare', from: '#E0952C', to: '#FFF0B0' },
     flare: { colour: '#FFC02E', effect: 'glow' } }),
@@ -468,7 +483,9 @@ const EMBERFALL_SET: CatalogItem[] = [
   item({ id: 'flare-emberfall-ascendant', name: 'Emberfall Ascendant', type: 'FLARE', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
     lore: 'The capstone. The whole season, compressed into one unbearable light.',
     art: { kind: 'flare', from: '#FF2A2A', to: '#FFE0B0' },
-    flare: { colour: '#FF5A2E', effect: 'flames' } }),
+    // The one bespoke effect in the set (punchlist 15.3) — lava pooling low plus embers raining
+    // from above. The capstone doesn't share a motion layer with a box drop.
+    flare: { colour: '#FF5A2E', effect: 'emberfall' } }),
   item({ id: 'flame-forge', name: 'Forge Flame', type: 'FLAME', rarity: 'legendary', acquisition: 'forge-pass-S1',
     lore: 'Struck, folded, struck again. The colour a thing turns when it stops being raw.',
     art: { kind: 'flame', from: '#7A2E00', to: '#FFB03C' } }),
@@ -657,8 +674,28 @@ export const CATALOG: CatalogItem[] = [
 
 const BY_ID = new Map(CATALOG.map((i) => [i.id, i]));
 
+/**
+ * Retired item ids → the id that replaced them.
+ *
+ * An owned item is a row in the database holding an id STRING, so renaming a catalog id doesn't
+ * rename anything anyone owns — it orphans it. Without this map, a user who pulled Stormforge
+ * before punchlist 15.3 opens their inventory and the item is simply gone: `getItem` returns
+ * undefined and every consumer skips the row. That's a paid cosmetic silently deleted, which is
+ * the one failure this system can't have.
+ *
+ * Redirecting in the lookup rather than migrating the rows is deliberate — the equipped-loadout
+ * table, the box-open history and any queued grant all carry the old string too, so a data
+ * migration would have to find every one of them, while this catches all of them at the single
+ * point they're resolved.
+ */
+const RENAMED_IDS: Record<string, string> = {
+  // punchlist 15.3 — freed up for the FLAME cosmetics of the same names.
+  'flare-stormforge': 'flare-asgardian-valor',
+  'flare-toxic': 'flare-acid-rain',
+};
+
 export function getItem(id: string): CatalogItem | undefined {
-  return BY_ID.get(id);
+  return BY_ID.get(id) ?? BY_ID.get(RENAMED_IDS[id] ?? '');
 }
 
 export function itemsOfType(type: ItemType): CatalogItem[] {

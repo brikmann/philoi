@@ -37,6 +37,15 @@ export type LiveActivityState = {
   rankLabel: string;
   /** "~2h", or null when there's no rate to project from — which hides the cue entirely. */
   projection: string | null;
+  /**
+   * The equipped flare's colour, or null for no flare (most users — there is no free flare).
+   *
+   * The flare became a LOCK-IN cosmetic in punchlist 15.2 rather than an app-wide one, so these
+   * surfaces are how the flex still leaves the app: it is the same session, so it carries the same
+   * colour. Frame only — border and accent. The rank bar keeps its tier metal and the timer stays
+   * white, because those two carry meaning and the flare doesn't.
+   */
+  flareHex: string | null;
 };
 
 type NativeModule = {
@@ -93,6 +102,7 @@ function toNative(state: LiveActivityState): NativeLiveActivityState {
     projection: state.projection,
     tierOuterHex: metal.outer,
     tierInnerHex: metal.inner,
+    flareHex: state.flareHex,
   };
 }
 

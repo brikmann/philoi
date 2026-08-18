@@ -38,6 +38,13 @@ class LiveActivityStateRecord : Record {
   @Field var rankRatio: Double = 0.0
   @Field var rankLabel: String = ""
   @Field var projection: String? = null
+  /**
+   * The equipped flare's colour as "#RRGGBB", or null for no flare. Becomes the notification's
+   * accent colour (punchlist 15.2) — the small-icon tint and the app-name line, which is the only
+   * part of Android notification chrome an app is allowed to colour. tierOuterHex/tierInnerHex are
+   * sent too but ignored here: the progress bar takes the system accent and can't be themed.
+   */
+  @Field var flareHex: String? = null
 }
 
 class PhiloiLiveActivityModule : Module() {
@@ -122,6 +129,12 @@ class PhiloiLiveActivityModule : Module() {
 
     rankLine?.let { builder.setContentText(it) }
 
+    // The flare accent. Deliberately NOT setColorized(true) — that repaints the whole notification
+    // background, which needs a foreground service to be honoured (we run Path A, without one) and
+    // would be a saturated block on the lock screen rather than the faint accent the spec asks for.
+    // setColor alone tints the icon and the app-name line, which is the accent.
+    parseHex(state.flareHex)?.let { builder.setColor(it) }
+
     // Determinate rank bar. Hidden at the apex (ratio 1, nothing left to fill) rather than shown
     // pinned full, which would read as a stuck progress bar.
     if (percent in 0..99 && state.rankLabel.isNotEmpty()) {
@@ -138,6 +151,22 @@ class PhiloiLiveActivityModule : Module() {
     }
 
     return builder.build()
+  }
+
+  /**
+   * "#RRGGBB" -> an ARGB int, or null for a null/malformed value.
+   *
+   * Guarded rather than trusted: parseColor THROWS on anything it doesn't recognise, and a bad hex
+   * from the catalog must not be able to take down the notification that says a session is running.
+   */
+  private fun parseHex(hex: String?): Int? {
+    val value = hex?.trim().orEmpty()
+    if (value.isEmpty()) return null
+    return try {
+      android.graphics.Color.parseColor(if (value.startsWith("#")) value else "#$value")
+    } catch (e: IllegalArgumentException) {
+      null
+    }
   }
 
   /**

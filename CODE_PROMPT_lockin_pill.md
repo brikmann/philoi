@@ -12,6 +12,10 @@ the **in-app lock-in screen**, in one consistent treatment:
 - **timer** — counts up from session start, tabular-nums, **white**.
 - **rank bar** — progress to the next **division** (e.g. 75% to Gold III), **filled in the current tier's
   colour** (not fixed gold), with a pulsing **ember-orange** projection cue (see **Rank bar + projection**).
+- **flare tint (if equipped)** — the flare is now a **lock-in-only** cosmetic, so the session surfaces
+  reflect it: a **faint flare-coloured border/accent** on the iOS Live Activity card + Dynamic Island, and
+  the flare colour as the **Android notification accent `color`**. No flare → default styling. The flare
+  tints the *frame* only — rank bar stays tier colour, timer white, PHILOI purple.
 
 ## Surfaces
 1. **iOS Live Activity (ActivityKit)** — out of app:
@@ -20,9 +24,11 @@ the **in-app lock-in screen**, in one consistent treatment:
      for the bar). *compact* = timer trailing + a small purple dot leading. *minimal* = timer.
    - Drive the timer with SwiftUI `Text(timerInterval:)` (`.timer` style) so it counts on the Lock Screen
      with **no push updates**. Push an update only when the session ends or the rank bar changes.
-2. **Android** — a foreground-service **ongoing notification** on the lock screen. Recommend **Notifee**
-   (`@notifee/react-native`) — it does the chronometer, progress bar, and foreground service;
-   `expo-notifications` alone doesn't. It's OS notification chrome, not a branded card (no gradient, no
+2. **Android** — an **ongoing notification** on the lock screen. ~~Recommend **Notifee**~~ — **BUILT WITHOUT
+   IT** (2026-08-17): Notifee's last release is 9.1.8 (Dec 2024), its Android module targets compileSdk 34
+   against our 36, and it has no Live Updates support, so `modules/philoi-live-activity/android/` calls
+   `NotificationCompat` directly. Also **no foreground service** — Path A in NATIVE_BUILD_CONFIG.md, since
+   the OS ticks the chronometer itself. It's OS notification chrome, not a branded card (no gradient, no
    pulse — see the platform note). What carries:
    - **Live timer, no repeated updates:** show a chronometer — Notifee `showChronometer: true`,
      `chronometerDirection: 'up'`, `timestamp: sessionStartMillis`; native equivalent

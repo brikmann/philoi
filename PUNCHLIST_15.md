@@ -39,6 +39,27 @@ the audio-session flag.
   .08+.08`), shrink blob size/travel, cut the flame tongue height `110 → ~44` and keep it low on the bottom
   edge. Net: a quiet coloured rim + a whisper of the effect, not a screen-filling animation.
 
-**Confirm with Noah (one call):** scope to **lock-in only** (per his message) vs keep it **app-wide but much
-fainter** (preserves the "others see your aura everywhere" flex). Implement lock-in-only unless he says
-otherwise.
+**CONFIRMED — lock-in only.** The flare is now a **lock-in cosmetic**: the faint border renders **only on the
+lock-in screen while a session is active** (not app-wide). This reverses #86 / FLARES_SPEC's app-wide flex —
+update FLARES_SPEC.md + mock 88.
+
+**Plus — the session's out-of-app surfaces reflect the flare** (so the flex still travels, tied to the
+session): during a lock-in with a flare equipped, tint the **iOS Live Activity card + Dynamic Island** with a
+faint flare-coloured border/accent, and set the **Android notification accent `color`** to the flare colour.
+No flare → default styling. See `CODE_PROMPT_lockin_pill.md`.
+
+## 3 · Flare catalog changes (from mock 88 — all in `src/lib/economy/catalog.ts`)
+Apply these to the `FLARES` entries; visual reference is **`design-mocks/88-flare-auras.html`**.
+- **Renames** (collided with FLAME cosmetic names — free them up):
+  - `flare-stormforge` "Stormforge" → **"Asgardian Valor"**, id **`flare-asgardian-valor`** (blue `#2E7BFF` · zaps).
+  - `flare-toxic` "Toxic" → **"Acid Rain Flare"**, id **`flare-acid-rain`** (green `#6FE22A` · falling).
+- **Zeus' Wrath colour** → cream-gold **`#FFE87A`** (was white) so the zaps read as lightning. Update
+  `flare.colour` on `flare-zeus-wrath`.
+- **Emberfall Ascendant — bespoke effect.** Add **`'emberfall'`** to the `FlareEffect` union and to
+  `FlarePerimeter`: a faint **lava aura pooling at the bottom** + **embers raining from the top** (flames +
+  falling combined). Set `flare-emberfall-ascendant` effect to `'emberfall'` (colour `#FF5A2E`).
+- **Rarities** (by pizzazz — glow = epic, particles = legendary, brand-signature = mythic):
+  - **Mythic:** `flare-zeus-wrath`, `flare-inferno`, `flare-emberfall-ascendant` (Forge Pass).
+  - **Legendary:** `flare-void-purple-aura` (Void Smoke), `flare-void-plasma`, `flare-asgardian-valor`,
+    `flare-acid-rain`.
+  - **Epic:** `flare-white-incandescence`, `flare-solar`.

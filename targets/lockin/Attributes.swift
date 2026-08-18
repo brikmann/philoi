@@ -36,6 +36,11 @@ struct LockInActivityAttributes: ActivityAttributes {
     /// ladder's colours live in exactly one place — src/lib/rank-tiers.ts (RANK_TIER_METAL).
     var tierOuterHex: String
     var tierInnerHex: String
+    /// The equipped flare's colour as "#RRGGBB", or nil for no flare. Tints the card's BORDER and
+    /// the Dynamic Island dot only — never the rank bar (which means tier) or the clock. In
+    /// ContentState rather than in the attributes because the loadout can hydrate after the
+    /// activity has already gone up, and attributes are immutable once requested.
+    var flareHex: String?
   }
 
   /// "Study", "Gym", or the user's own goal detail. Empty string when unset; the UI omits it.

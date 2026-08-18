@@ -20,6 +20,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { BodyDoubleStrip, BodyDoubleStripCollapsed } from '@/components/body-double-strip';
 import { DriftingEmbers } from '@/components/drifting-embers';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { EquippedFlarePerimeter } from '@/components/economy/flare-perimeter';
 import { FireShareCard } from '@/components/fire-share-card';
 import { FlameMeterComplete } from '@/components/flame-meter-complete';
 import { LockInDoneScreen } from '@/components/lockin-done-screen';
@@ -784,6 +785,13 @@ function LockInScreen() {
           onRemove={removePhoto}
           onClose={() => setGalleryOpen(false)}
         />
+
+        {/* The equipped flare's perimeter aura (FLARES_SPEC.md, punchlist 15.2). LOCK-IN ONLY, and
+            only for as long as the session runs — it used to be mounted at the root and painted
+            every screen in the app, which read as a permanent full-screen wash rather than a
+            cosmetic. Renders nothing when the slot is empty (most users — there is no free flare),
+            and is pointer-transparent end to end. */}
+        <EquippedFlarePerimeter />
       </Screen>
     );
   }
@@ -904,6 +912,13 @@ function LockInScreen() {
         onRemove={removePhoto}
         onClose={() => setGalleryOpen(false)}
       />
+
+      {/* The equipped flare's perimeter aura (FLARES_SPEC.md, punchlist 15.2). LOCK-IN ONLY, and
+          only for as long as the session runs — it used to be mounted at the root and painted
+          every screen in the app, which read as a permanent full-screen wash rather than a
+          cosmetic. Renders nothing when the slot is empty (most users — there is no free flare),
+          and is pointer-transparent end to end. */}
+      <EquippedFlarePerimeter />
     </Screen>
   );
 }

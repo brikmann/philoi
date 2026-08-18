@@ -137,9 +137,16 @@ const SOURCES: Omit<Record<RewardCue, number>, 'ascension-hero' | 'ascension-pri
 let players: Partial<Record<RewardCue, AudioPlayer>> | null = null;
 
 // Preloads all four reward sounds once at app start (see _layout.tsx) so the very first
-// check-in has zero playback latency, and configures the audio session to respect the
-// phone's silent/vibrate switch — expo-audio's default (playsInSilentMode: true) overrides
-// it, which is the opposite of what "respect silent mode" means here.
+// check-in has zero playback latency, and configures the audio session to play THROUGH the
+// iOS ringer switch (punchlist 15.1).
+//
+// `playsInSilentMode: true` — expo-audio's default, and the fix for "equipped audio never
+// plays". This flag was previously false "to respect silent mode", which sounds right and is
+// wrong: most phones live on silent, so it muted every cosmetic sound at the audio-session
+// level regardless of volume — the equipped ambient loops the user paid for AND the reward
+// SFX. These are deliberate, opt-in media (you equip an environment; you keep the in-app
+// sound toggle), so they behave like a music or meditation app, not like a notification
+// chime. The real controls stay the in-app `sound` preference and the device volume.
 //
 // expo-audio resolves its native binding at import time (AudioModule.js does a top-level
 // `requireNativeModule('ExpoAudio')`, unlike expo-haptics which soft-checks lazily on each
@@ -151,7 +158,7 @@ let players: Partial<Record<RewardCue, AudioPlayer>> | null = null;
 export async function preloadRewardSounds(): Promise<void> {
   try {
     const { createAudioPlayer, setAudioModeAsync } = require('expo-audio') as typeof import('expo-audio');
-    await setAudioModeAsync({ playsInSilentMode: false });
+    await setAudioModeAsync({ playsInSilentMode: true });
     if (players) return;
     // Built by iterating SOURCES rather than listing each cue by hand — the old literal had to be
     // edited in lockstep with SOURCES, and a cue added to one but not the other silently never

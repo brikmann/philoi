@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 
 import { useRankProjection } from '@/hooks/use-rank-projection';
 import { useActiveSession } from '@/lib/active-session-context';
+import { useEquipped } from '@/lib/economy/loadout';
 import { formatProjection } from '@/lib/api/xp-rate';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
 import { endLiveActivity, startLiveActivity, updateLiveActivity } from '@/lib/live-activity';
@@ -20,6 +21,10 @@ export function LiveActivitySync() {
   // Only fetches while something is actually running. Rank can't move mid-session (it moves when a
   // check-in POSTS, which ends the session), so this resolves once per session rather than polling.
   const rankProjection = useRankProjection(!!session);
+  // The flare is a lock-in cosmetic now (punchlist 15.2), so the session's out-of-app surfaces are
+  // the only place the flex is visible to anyone but the owner. null for the empty slot, which is
+  // most users, and which leaves both surfaces on their default styling.
+  const flareHex = useEquipped('flare')?.flare?.colour ?? null;
 
   const sessionId = session?.id ?? null;
   // Prefer the user's own detail over the generic goal label — "Push day" is a better thing to read
@@ -55,17 +60,22 @@ export function LiveActivitySync() {
       rankRatio: 0,
       rankLabel: '',
       projection: null,
+      flareHex,
     });
 
     // NO cleanup teardown on purpose. Cleanup runs on every dep change, not just unmount, so
     // ending the activity there would kill the card whenever `sessionName` resolved a moment late —
     // the same class of bug as the `mounted` flag that froze the gym lock-in. Teardown is the
     // `!sessionId` branch above, which is reached when the session actually ends.
+    //
+    // `flareHex` is deliberately NOT a dep: the loadout store hydrates a beat after launch, and
+    // re-running this on it would restart the activity and reset the Lock Screen clock. The update
+    // effect below repaints the tint instead, which is what update() is for.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, sessionId, sessionName, startedAtMs]);
 
-  // UPDATE. The only thing the OS can't derive by itself: the rank bar. One push per session in
-  // practice, when the rank read resolves.
+  // UPDATE. The two things the OS can't derive by itself: the rank bar and the flare tint. One or
+  // two pushes per session in practice — when the rank read resolves, and when the loadout does.
   useEffect(() => {
     if (!sessionId || !rankProjection) return;
     const { rank, hoursToNext } = rankProjection;
@@ -82,8 +92,9 @@ export function LiveActivitySync() {
       // No rate to project from (a new user), or nothing left to chase — either way the cue is
       // hidden rather than estimated.
       projection: atMax || hoursToNext === null ? null : formatProjection(hoursToNext),
+      flareHex,
     });
-  }, [sessionId, sessionName, startedAtMs, rankProjection]);
+  }, [sessionId, sessionName, startedAtMs, rankProjection, flareHex]);
 
   return null;
 }

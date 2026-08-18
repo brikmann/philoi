@@ -9,7 +9,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PostHogProvider } from 'posthog-react-native';
 
 import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
-import { EquippedFlarePerimeter } from '@/components/economy/flare-perimeter';
 import { LoadoutSync } from '@/components/economy/loadout-sync';
 import { LiveActivitySync } from '@/components/live-activity-sync';
 import { OfflineBanner } from '@/components/offline-banner';
@@ -300,11 +299,6 @@ function RootLayout() {
     <AuthProvider>
       <ActiveSessionProvider>
         <RootNavigator />
-        {/* The equipped flare's perimeter aura (FLARES_SPEC). Mounted at the ROOT, above the
-            navigator, because that is the whole promise of the cosmetic — a flare paints every
-            page, not just the lock-in screen. It is pointer-transparent end to end, and renders nothing
-            when the flare slot is empty (which is most users — there is no free flare). */}
-        <EquippedFlarePerimeter />
         {/* Renders nothing until a rank actually climbs. Mounted here, above the navigator, so a
             rank earned from server-side XP (Strava/Whoop webhook, challenge payout) still gets
             the forge no matter which screen the user is on — the done screen can only ever

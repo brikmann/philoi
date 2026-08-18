@@ -67,6 +67,9 @@ h1{width:100%;font-size:17px;margin:0;color:#e7ddf5;text-align:center}
 .legend{width:100%;max-width:860px;font-size:12px;color:#8f84a6;line-height:1.6;border-top:1px solid #201936;padding-top:14px;margin-top:6px}
 .legend b{color:#c9a2ff;font-weight:600}
 .tag{display:inline-block;font-size:10px;color:#c9a2ff;border:1px solid #8A4FFF55;border-radius:20px;padding:2px 8px;margin-right:4px}
+/* flare reflection — equipped flare tints the session surfaces (Void Smoke purple shown) */
+.la.flare{border-color:rgba(138,79,255,.7);box-shadow:0 8px 26px #0006, 0 0 22px 2px rgba(138,79,255,.4)}
+.session.flare{box-shadow:inset 0 0 30px 5px rgba(138,79,255,.45)}
 </style>
 
 <svg width="0" height="0" style="position:absolute"><defs>
@@ -145,6 +148,41 @@ out-of-app surfaces carry the glanceable reminder. No widget.</p>
     </div>
   </div>
   <div class="cap"><b>Projection (proposed).</b> Pulsing darker-gold segment = the gap to Gold, labelled as time ("≈2h to Gold"). Animated in-app; static-but-updating on the Live Activity.</div>
+</div>
+
+<!-- FLARE TINT — the equipped flare reflects on the session surfaces (lock-in only) -->
+<div class="col">
+  <div class="phone">
+    <div class="di"><div class="notch"></div></div>
+    <div class="clock"><div class="t mono">9:41</div><div class="d">Friday, September 12</div></div>
+    <div class="la flare">
+      <div class="lab brand">PHILOI · STUDY</div>
+      <div class="time mono" data-t="1524">25:24</div>
+      <div class="xp" style="width:198px">
+        <div class="xlab"><span class="g">75% TO GOLD III</span><span class="pc">1,480 / 2,000 XP</span></div>
+        <div class="track"><div class="fill"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="cap"><b>Flare tint — Lock Screen.</b> Faint flare-coloured border + glow on the card (Void Smoke purple). Recolours per equipped flare; the frame only — bar/timer/PHILOI unchanged.</div>
+</div>
+
+<div class="col">
+  <div class="phone">
+    <div class="di"><div class="notch"></div></div>
+    <div class="session flare">
+      <div class="shdr brand">STUDY</div>
+      <div class="mid">
+        <svg class="flame" width="116" height="116" viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#ember)"/></svg>
+        <div class="big mono" data-t="1524">25:24</div>
+      </div>
+      <div class="xp" style="width:212px">
+        <div class="xlab"><span class="g">75% TO GOLD III</span><span class="pc">1,480 / 2,000 XP</span></div>
+        <div class="track"><div class="fill"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="cap"><b>Flare tint — in-app lock-in screen.</b> The faint flare perimeter, active ONLY during a session (not app-wide).</div>
 </div>
 
 <div class="legend">

@@ -50,12 +50,13 @@ This **supersedes / is the real version of task #73** ("Strava-like live session
 them — #73 becomes this. The session-tiered aura (30/60/90, PUNCHLIST_14 #3) can drive the pill's
 color/intensity so a deeper session literally glows on the lock screen.
 
-## Perimeter aura = flares only (FLARES_SPEC.md, mock 88)
-**Decision — no free/base aura.** The perimeter aura IS the flare cosmetic; there's no flame-colour free
-aura. Equipping a flare renders a **faint glowing perimeter on EVERY page in the app**, scoped to that
-flare's colour + signature effect (Void Smoke = purple + smoke · Zeus' Wrath = white + electric zaps ·
-Stormforge = blue pulse + zaps · Toxic = green falling droplets · …). Faint, always-on while equipped,
-no session-length gate. Full model + per-flare effect table: **FLARES_SPEC.md**. For coordination, the
+## Flare = the lock-in aura only (FLARES_SPEC.md, mock 88)
+**Decision (UPDATED) — flare is a lock-in cosmetic, not app-wide.** Equipping a flare renders a **faint
+glowing border ONLY on the lock-in screen while a session is active** (was: every page — too intense, and it
+showed when idle). Scoped to that flare's colour + signature effect (Void Smoke = purple + smoke · Zeus'
+Wrath = white + zaps · …). The flex still travels via the session's out-of-app surfaces: during a lock-in the
+flare colour tints the **Live Activity card + Dynamic Island** (faint border/accent) and the **Android
+notification accent**. Full model + effect table: **FLARES_SPEC.md**. For coordination, the
 pill below can tint to the equipped flare's colour.
 
 ## ⚠️ Honest OS limit — the aura can't paint the whole lock/home screen

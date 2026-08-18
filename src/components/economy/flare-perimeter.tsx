@@ -14,24 +14,28 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useEquipped } from '@/lib/economy/loadout';
 import type { FlareEffect } from '@/lib/economy/catalog';
 
-// The app-wide perimeter aura (FLARES_SPEC.md, mock 88).
+// The lock-in perimeter aura (FLARES_SPEC.md, mock 88).
 //
-// A flare is the ONLY perimeter aura and there is no free one — equipping it paints a faint glow
-// around EVERY screen in the app, not just the lock-in screen, which is what makes it the flex the
-// premium tiers are selling. The old "God-Mode flare, active only during 90m+ sessions" framing is
-// dropped: a cosmetic that appears after an hour and a half is a cosmetic most owners never see.
+// A flare is the ONLY perimeter aura and there is no free one. SCOPE (punchlist 15.2, reversing
+// #86's "app-wide flex"): it is mounted by the LOCK-IN SCREEN and lives only as long as the
+// session does. App-wide was tried and was wrong in practice — an aura on every screen forever
+// stops reading as a cosmetic and becomes a tint over the whole product. The flex still travels,
+// because the session's out-of-app surfaces carry the flare colour too: the iOS Live Activity /
+// Dynamic Island frame and the Android notification accent (see lib/live-activity.ts).
 //
 // Three constraints shape every decision below:
-//   • FAINT. It sits over live content the user is trying to read. Peak opacity is 0.38 at the
-//     screen edge, falling to zero well before the middle.
-//   • CHEAP. This is mounted for the entire session on every screen, so it must not cost battery.
-//     The base glow is STATIC SVG (no animation at all), and each effect animates at most six plain
-//     Views on the UI thread through Reanimated. Nothing re-renders React per frame.
+//   • FAINT. It sits over the live session UI. Peak opacity is 0.14 at the very edge, falling to
+//     zero within a 40px band — a coloured RIM, not a wash. Every effect is tuned to hug that rim
+//     at roughly half its old strength; if you can describe what it is doing without looking for
+//     it, it is too strong.
+//   • CHEAP. This runs for the whole session, so it must not cost battery. The base glow is STATIC
+//     SVG (no animation at all), and each effect animates at most six plain Views on the UI thread
+//     through Reanimated. Nothing re-renders React per frame.
 //   • INERT. pointerEvents="none" throughout — the app stays fully usable underneath.
 
-/** How far the glow reaches in from each edge. */
-const EDGE = 92;
-const PEAK_OPACITY = 0.38;
+/** How far the glow reaches in from each edge. A rim, not a vignette. */
+const EDGE = 40;
+const PEAK_OPACITY = 0.14;
 
 type Props = { colour: string; effect: FlareEffect };
 
@@ -44,7 +48,9 @@ export function FlarePerimeter({ colour, effect }: Props) {
 
   // A slow breath on the whole overlay. Every flare gets it: a perfectly static edge glow reads as
   // a rendering artefact, and the barely-perceptible movement is what makes it read as alive.
-  const breath = useSharedValue(0.82);
+  // Range shrunk along with the opacity (punchlist 15.2): at a 0.14 peak, the old 0.82→1 swing
+  // read as a throb rather than a breath.
+  const breath = useSharedValue(0.9);
   useEffect(() => {
     breath.value = withRepeat(withTiming(1, { duration: 3800, easing: Easing.inOut(Easing.quad) }), -1, true);
   }, [breath]);
@@ -98,6 +104,17 @@ function EffectLayer({ effect, colour, width, height }: { effect: FlareEffect; c
       return <Flames colour={colour} width={width} height={height} />;
     case 'plasma':
       return <Plasma colour={colour} width={width} height={height} />;
+    // Emberfall Ascendant's bespoke layer (punchlist 15.3) — lava pooling along the bottom edge
+    // plus embers raining from the top. Deliberately a composition of the two existing layers
+    // rather than a third primitive: the combination is the signature, and one more animated
+    // primitive would cost battery for a difference nobody can see at these opacities.
+    case 'emberfall':
+      return (
+        <>
+          <Flames colour={colour} width={width} height={height} />
+          <Falling colour={colour} width={width} height={height} />
+        </>
+      );
     // The base glow IS the effect for `glow` flares — the breath above carries them.
     case 'glow':
       return null;
@@ -151,9 +168,9 @@ function Blob({
 function Smoke({ colour, width, height }: { colour: string; width: number; height: number }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Blob colour={colour} size={140} left={-50} top={height * 0.62} travel={-height * 0.5} duration={11000} delay={0} peak={0.16} />
-      <Blob colour={colour} size={110} left={width - 60} top={height * 0.75} travel={-height * 0.55} duration={13000} delay={2600} peak={0.14} />
-      <Blob colour={colour} size={120} left={-40} top={height * 0.9} travel={-height * 0.6} duration={15000} delay={5200} peak={0.12} />
+      <Blob colour={colour} size={90} left={-55} top={height * 0.62} travel={-height * 0.26} duration={11000} delay={0} peak={0.08} />
+      <Blob colour={colour} size={74} left={width - 32} top={height * 0.75} travel={-height * 0.28} duration={13000} delay={2600} peak={0.07} />
+      <Blob colour={colour} size={80} left={-48} top={height * 0.9} travel={-height * 0.3} duration={15000} delay={5200} peak={0.06} />
     </View>
   );
 }
@@ -162,9 +179,9 @@ function Smoke({ colour, width, height }: { colour: string; width: number; heigh
 function Plasma({ colour, width, height }: { colour: string; width: number; height: number }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Blob colour={colour} size={170} left={-70} top={-50} travel={70} duration={7000} delay={0} peak={0.2} />
-      <Blob colour={colour} size={150} left={width - 90} top={height - 140} travel={-70} duration={8200} delay={1400} peak={0.18} />
-      <Blob colour={colour} size={120} left={width * 0.5 - 60} top={-70} travel={50} duration={9500} delay={3000} peak={0.12} />
+      <Blob colour={colour} size={110} left={-56} top={-56} travel={34} duration={7000} delay={0} peak={0.1} />
+      <Blob colour={colour} size={98} left={width - 42} top={height - 60} travel={-34} duration={8200} delay={1400} peak={0.09} />
+      <Blob colour={colour} size={80} left={width * 0.5 - 40} top={-52} travel={24} duration={9500} delay={3000} peak={0.06} />
     </View>
   );
 }
@@ -194,7 +211,7 @@ function Zap({ colour, left, top, w, h, delay }: { colour: string; left: number;
     );
   }, [flash, delay]);
 
-  const style = useAnimatedStyle(() => ({ opacity: flash.value * 0.5 }));
+  const style = useAnimatedStyle(() => ({ opacity: flash.value * 0.25 }));
   return (
     <Animated.View
       pointerEvents="none"
@@ -206,10 +223,10 @@ function Zap({ colour, left, top, w, h, delay }: { colour: string; left: number;
 function Zaps({ colour, width, height }: { colour: string; width: number; height: number }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Zap colour={colour} left={0} top={height * 0.22} w={3} h={70} delay={0} />
-      <Zap colour={colour} left={width - 3} top={height * 0.55} w={3} h={90} delay={900} />
-      <Zap colour={colour} left={width * 0.3} top={0} w={80} h={3} delay={1800} />
-      <Zap colour={colour} left={width * 0.55} top={height - 3} w={64} h={3} delay={2500} />
+      <Zap colour={colour} left={0} top={height * 0.22} w={2} h={44} delay={0} />
+      <Zap colour={colour} left={width - 2} top={height * 0.55} w={2} h={56} delay={900} />
+      <Zap colour={colour} left={width * 0.3} top={0} w={52} h={2} delay={1800} />
+      <Zap colour={colour} left={width * 0.55} top={height - 2} w={42} h={2} delay={2500} />
     </View>
   );
 }
@@ -223,7 +240,7 @@ function Drop({ colour, left, height, duration, delay }: { colour: string; left:
 
   const style = useAnimatedStyle(() => ({
     transform: [{ translateY: t.value * height }],
-    opacity: 0.42 * Math.sin(t.value * Math.PI),
+    opacity: 0.2 * Math.sin(t.value * Math.PI),
   }));
 
   return (
@@ -235,7 +252,9 @@ function Drop({ colour, left, height, duration, delay }: { colour: string; left:
 }
 
 function Falling({ colour, width, height }: { colour: string; width: number; height: number }) {
-  const lanes = [6, 22, width - 12, width - 28, width * 0.5];
+  // Edge lanes only. The old centre lane ran drops down the middle of the screen, which is exactly
+  // the full-screen reading the rim is meant to replace (punchlist 15.2).
+  const lanes = [4, 16, 28, width - 8, width - 20];
   const timings = [
     { duration: 4200, delay: 0 },
     { duration: 5400, delay: 1500 },
@@ -261,7 +280,7 @@ function Tongue({ colour, left, w, delay }: { colour: string; left: number; w: n
 
   const style = useAnimatedStyle(() => ({
     transform: [{ scaleY: 0.55 + t.value * 0.75 }],
-    opacity: 0.16 + t.value * 0.16,
+    opacity: 0.08 + t.value * 0.08,
   }));
 
   return (
@@ -273,7 +292,9 @@ function Tongue({ colour, left, w, delay }: { colour: string; left: number; w: n
           left,
           bottom: 0,
           width: w,
-          height: 110,
+          // Low on the bottom edge (44 from 110): tongues that licked a tenth of the way up the
+          // screen were the single biggest reason the flare read as full-screen.
+          height: 44,
           // Rounded top only — a licking tongue, not a bar chart.
           borderTopLeftRadius: w / 2,
           borderTopRightRadius: w / 2,
@@ -299,9 +320,10 @@ function Flames({ colour, width }: { colour: string; width: number; height: numb
 }
 
 /**
- * The root-mounted instance. Reads the equipped flare and renders nothing at all when the slot is
- * empty — which is the common case, since there is no free flare and most users will never have
- * one equipped. An unequipped user pays one hook read and no views.
+ * The lock-in-screen instance (mounted in src/app/lock-in/index.tsx, in both the base and the gym
+ * branch, so it is up for exactly as long as a session runs). Reads the equipped flare and renders
+ * nothing at all when the slot is empty — which is the common case, since there is no free flare
+ * and most users will never have one equipped. An unequipped user pays one hook read and no views.
  */
 export function EquippedFlarePerimeter() {
   const flare = useEquipped('flare');

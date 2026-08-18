@@ -50,6 +50,15 @@ private extension Color {
     }
     self.init(hex: value)
   }
+
+  /// The optional flare tint. nil in, nil out — the caller then draws nothing at all, which is the
+  /// difference between "no flare equipped" and "flare equipped, colour unreadable".
+  static func philoiOptional(hex: String?) -> Color? {
+    guard let hex, !hex.isEmpty else { return nil }
+    let cleaned = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+    guard cleaned.count == 6, let value = UInt32(cleaned, radix: 16) else { return nil }
+    return Color(hex: value)
+  }
 }
 
 // MARK: - Shared pieces
@@ -167,6 +176,9 @@ private struct RankBar: View {
 private struct LockScreenView: View {
   let context: ActivityViewContext<LockInActivityAttributes>
 
+  /// The equipped flare's colour, or nil. See the flare note in Attributes.swift.
+  private var flare: Color? { Color.philoiOptional(hex: context.state.flareHex) }
+
   var body: some View {
     VStack(spacing: 8) {
       Wordmark(sessionName: context.attributes.sessionName)
@@ -176,6 +188,19 @@ private struct LockScreenView: View {
     .padding(.horizontal, 18)
     .padding(.vertical, 14)
     .frame(maxWidth: .infinity)
+    // The flare, as a hairline rim on the card and nothing more (punchlist 15.2) — the same
+    // restraint as the in-app perimeter, and for the same reason: this sits on a Lock Screen next
+    // to the user's other notifications, so it announces the cosmetic without competing with the
+    // clock. No flare equipped = no overlay at all, not a transparent one.
+    .overlay {
+      if let flare {
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+          .strokeBorder(
+            LinearGradient(colors: [flare.opacity(0.75), flare.opacity(0.25)], startPoint: .top, endPoint: .bottom),
+            lineWidth: 1.5
+          )
+      }
+    }
   }
 }
 
@@ -195,11 +220,24 @@ struct LockInLiveActivity: Widget {
           VStack(spacing: 4) {
             Wordmark(sessionName: context.attributes.sessionName, size: 12)
             SessionTimer(start: context.attributes.startedAt, font: .system(size: 30, weight: .semibold, design: .rounded))
+            // The flare's accent in the island: a short rule under the clock rather than a border,
+            // because the island's shape is the system's to draw and a stroke around this region
+            // would sit inside it as a visible box.
+            if let flare = Color.philoiOptional(hex: context.state.flareHex) {
+              Capsule()
+                .fill(flare.opacity(0.7))
+                .frame(width: 34, height: 2)
+            }
           }
         }
       } compactLeading: {
+        // Takes the flare colour when one is equipped, purple otherwise — the compact presentation
+        // is two glyphs wide, so the dot is the only thing here that can carry the cosmetic.
         Circle()
-          .fill(LinearGradient(colors: [Palette.purpleLight, Palette.purpleDark], startPoint: .top, endPoint: .bottom))
+          .fill(
+            Color.philoiOptional(hex: context.state.flareHex).map { LinearGradient(colors: [$0, $0], startPoint: .top, endPoint: .bottom) }
+              ?? LinearGradient(colors: [Palette.purpleLight, Palette.purpleDark], startPoint: .top, endPoint: .bottom)
+          )
           .frame(width: 8, height: 8)
       } compactTrailing: {
         SessionTimer(start: context.attributes.startedAt, font: .system(size: 13, weight: .semibold, design: .rounded))

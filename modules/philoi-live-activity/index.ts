@@ -21,6 +21,10 @@ export type NativeLiveActivityState = {
    *  notification progress bar is coloured by the system accent and can't be themed. */
   tierOuterHex: string;
   tierInnerHex: string;
+  /** The equipped flare's colour as "#RRGGBB", or null when the slot is empty (the common case).
+   *  Tints the FRAME only — the card border / Dynamic Island dot on iOS, the notification accent
+   *  on Android. The rank bar stays tier metal and the timer stays white on both. */
+  flareHex: string | null;
 };
 
 type PhiloiLiveActivityModule = {
