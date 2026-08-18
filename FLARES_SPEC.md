@@ -15,9 +15,12 @@ tied to the session, not plastered on every in-app page. (See `CODE_PROMPT_locki
 - A flare = `{ colour, effect }`. One reusable **`FlarePerimeter`** overlay, parameterized.
 - **Mounted on the lock-in screen only**, during an active session — **NOT** at the app root.
   `pointer-events: none`, low opacity, over content so the screen stays usable.
-- **Faint border** — a quiet coloured rim + a whisper of the effect hugging the edges; never a full-screen
-  wash. Tuning: `PEAK_OPACITY ~0.14`, `EDGE ~40`, effects pulled to the edges (see PUNCHLIST_15).
+- **Full-screen, faint + soft** — renders over the **entire** screen (behind the header + nav, edge-to-edge
+  — not clipped, no blank strips top/bottom). Faint (low opacity, reads under content) with **soft glowing
+  particles** (radial gradients + blur + glow, never hard shapes). See mock 88 + PUNCHLIST_15.
 - **No session-length gate** — on for the whole session the moment it starts (no 30-60-90 ramp).
+- **Dims the flame.** When a flare is equipped, the lock-in-screen **flame hero renders at ~50% opacity** so
+  the flare effect takes visual priority — a bold chosen flame colour must not wash out the flare.
 
 ## Per-flare colour + effect (this IS the flare's identity)
 Rarity is by **pizzazz**: a glow is Epic, particles are Legendary, and the brand-signature auras

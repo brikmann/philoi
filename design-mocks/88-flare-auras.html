@@ -9,7 +9,7 @@ h1{font-size:17px;margin:0 0 4px;color:#e7ddf5}
 .cell{display:flex;flex-direction:column;gap:8px}
 .fp{position:relative;aspect-ratio:.6;border-radius:24px;overflow:hidden;background:radial-gradient(130% 100% at 50% 0%,#1c1430,#0b0812);border:1px solid #241b38}
 .rim{position:absolute;inset:0;pointer-events:none;animation:breathe 4s ease-in-out infinite}
-@keyframes breathe{0%,100%{opacity:.10}50%{opacity:.14}}
+@keyframes breathe{0%,100%{opacity:.5}50%{opacity:.82}}
 .ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;z-index:3}
 .ctr .t{font-size:22px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums}
 .ctr .s{font-size:8.5px;letter-spacing:1.5px;font-weight:800}
@@ -23,12 +23,12 @@ h1{font-size:17px;margin:0 0 4px;color:#e7ddf5}
 .tongue{position:absolute;bottom:-8px;border-radius:50% 50% 42% 42%;filter:blur(5px);transform-origin:bottom}
 .ember2{position:absolute;border-radius:50%;filter:blur(.4px)}
 .lava{position:absolute;left:-6%;right:-6%;bottom:-10%;height:44%;filter:blur(10px);animation:lavapulse 3.4s ease-in-out infinite}
-@keyframes rise{0%{transform:translateY(30px) scale(.9);opacity:0}22%{opacity:.08}100%{transform:translateY(-130%) scale(1.15);opacity:0}}
-@keyframes drift{0%,100%{transform:translate(0,0);opacity:.04}50%{transform:translate(14px,-18px);opacity:.06}}
-@keyframes flash{0%,76%{opacity:0}82%{opacity:.25}90%{opacity:.10}100%{opacity:0}}
-@keyframes strike{0%,72%{opacity:0}75%{opacity:.25}80%{opacity:.09}84%{opacity:.22}90%{opacity:.05}100%{opacity:0}}
-@keyframes fall{0%{transform:translateY(-14px);opacity:0}50%{opacity:.20}100%{transform:translateY(460px);opacity:0}}
-@keyframes lick{0%,100%{transform:scaleY(.55);opacity:.08}50%{transform:scaleY(1.3);opacity:.16}}
+@keyframes rise{0%{transform:translateY(30px) scale(.9);opacity:0}22%{opacity:.5}100%{transform:translateY(-130%) scale(1.15);opacity:0}}
+@keyframes drift{0%,100%{transform:translate(0,0);opacity:.32}50%{transform:translate(14px,-18px);opacity:.62}}
+@keyframes flash{0%,76%{opacity:0}82%{opacity:.95}90%{opacity:.4}100%{opacity:0}}
+@keyframes strike{0%,72%{opacity:0}75%{opacity:1}80%{opacity:.35}84%{opacity:.9}90%{opacity:.2}100%{opacity:0}}
+@keyframes fall{0%{transform:translateY(-14px);opacity:0}12%{opacity:.85}100%{transform:translateY(460px);opacity:0}}
+@keyframes lick{0%,100%{transform:scaleY(.6);opacity:.4}50%{transform:scaleY(1.05);opacity:.7}}
 @keyframes efall{0%{transform:translateY(-14px);opacity:0}14%{opacity:1}100%{transform:translateY(460px);opacity:0}}
 .lavaglow{position:absolute;left:-12%;right:-12%;bottom:-16%;height:50%;filter:blur(16px);animation:lavapulse 3.6s ease-in-out infinite}
 .lavacore{position:absolute;left:8%;right:8%;bottom:-10%;height:26%;filter:blur(11px);animation:lavapulse 2.6s ease-in-out .6s infinite}
@@ -43,24 +43,16 @@ h1{font-size:17px;margin:0 0 4px;color:#e7ddf5}
 .legend b{color:#c9a2ff;font-weight:600}
 </style>
 
-<h1>🔥 Flare auras — premium, edge-hugging (mock 88)</h1>
+<h1>🔥 Flare auras — premium, full-bleed (mock 88)</h1>
 <p class="sub">All 9 flares with <b>soft glowing particles</b> (radial gradients + blur + glow, not hard
 shapes) hugging the <b>rim</b> of the lock-in screen, <b>behind the header and nav</b>. Six effect types:
 smoke · zaps · falling · flames · plasma · glow, plus Emberfall's bespoke lava-and-embers.</p>
 
-<p class="sub"><b>Retuned to the shipped intensities (punchlist 15.2).</b> The first cut read as a
-full-screen wash rather than an aura, so everything here is dialled to what actually ships in
-<code>flare-perimeter.tsx</code> — this file is the reference, so it has to match the code, not the
-original pitch:
-<br>• <b>Rim</b> — peak opacity <code>.38 → .14</code>, edge band <code>92 → 40px</code>, breath floor
-<code>.82 → .9</code> (the old swing throbs at the new opacity).
-<br>• <b>Smoke</b> <code>.16 → .08</code> · <b>plasma</b> <code>.20 → .10</code>, pulled into the corners ·
-<b>zaps</b> <code>.50 → .25</code>, shorter and thinner · <b>drops</b> <code>.42 → .20</code> ·
-<b>flames</b> <code>.16+.16 → .08+.08</code>, tongue height <code>110 → 44px</code>.
-<br>• <b>Falling is edge-lanes only.</b> The centre lane ran drops down the middle of the screen — the
-single most "full-screen" element left — and is now a third edge lane.
-<br>• <b>Scope:</b> the perimeter mounts on the <b>lock-in screen only</b> (both the normal and gym
-branches), not at the app root.</p>
+<p class="sub"><b>Intensity — visible, NOT a whisper.</b> The flare is scoped to the <b>lock-in screen only</b>
+(mounted there, not app-root) — a sparse screen where the <b>flame dims to ~50%</b> to make room — so it
+should read <b>clearly</b>, as the centrepiece it is (an earned / paid mythic). The old <code>~0.14</code>
+"faint" numbers were for the retired app-wide-over-content scope and make it disappear; at lock-in scope,
+err bright. These are the intended visible values — tune on device.</p>
 
 <div id="grid" class="grid"></div>
 
@@ -97,7 +89,7 @@ function fxBuild(fx,f){var c=f.c;var e=f.fx;
  else if(e==='falling'){var L=['left:4px','left:16px','left:28px','right:8px','right:20px'];L.forEach(function(s,i){var d=el('rain');d.style.cssText='width:3px;height:28px;background:linear-gradient(transparent,'+c+');box-shadow:0 0 8px '+c+';'+s+';top:0;animation:fall '+(3.4+i*.5)+'s linear '+(i*.6)+'s infinite';fx.appendChild(d);});}
  else if(e==='flames'){for(var i=0;i<6;i++){var t=el('tongue');t.style.cssText='left:'+(i*17-2)+'%;width:22%;height:46%;background:linear-gradient(0deg,'+c+',transparent 78%);opacity:.5;animation:lick '+(2+i*.16)+'s ease-in-out '+(i*.28)+'s infinite';fx.appendChild(t);}}
  else if(e==='glow'){var g1=el('gblob');g1.style.cssText='width:150%;height:60%;left:-25%;top:-30%;background:radial-gradient(circle,'+c+',transparent 60%);opacity:.4;animation:gbreathe 4.4s ease-in-out infinite';fx.appendChild(g1);var g2=el('gblob');g2.style.cssText='width:150%;height:60%;left:-25%;bottom:-30%;background:radial-gradient(circle,'+c+',transparent 60%);opacity:.32;animation:gbreathe 5.2s ease-in-out 1s infinite';fx.appendChild(g2);}
- else if(e==='emberfall'){var lg=el('lavaglow');lg.style.cssText+='background:radial-gradient(120% 100% at 50% 100%,'+c+',transparent 64%)';fx.appendChild(lg);var lc=el('lavacore');lc.style.cssText+='background:radial-gradient(120% 100% at 50% 100%,#FFB24D,transparent 58%)';fx.appendChild(lc);var M=[['18%',80,'#FF6A2E',0],['58%',96,'#FF884A',1.3],['38%',70,'#FFB24D',2.4]];M.forEach(function(m){var d=el('molten');d.style.cssText+='left:'+m[0]+';width:'+m[1]+'px;height:'+(m[1]*.6)+'px;background:radial-gradient(circle,'+m[2]+',transparent 66%);animation-delay:'+m[3]+'s';fx.appendChild(d);});var cols=['#FFE0A6','#FFC061','#FF9A4D','#FF6A3C','#FFB84D','#FF7A2E','#FFAE57','#FF8A3A'];for(var i=0;i<14;i++){var sz=2+Math.random()*3.5;var em=el('ember2');em.style.cssText='width:'+sz+'px;height:'+sz+'px;background:'+cols[i%cols.length]+';box-shadow:0 0 '+(6+Math.random()*5)+'px 1px '+cols[i%cols.length]+';left:'+(4+Math.random()*90)+'%;top:0;animation:efall '+(3.4+Math.random()*2.8)+'s linear '+(Math.random()*4)+'s infinite, flick '+(.3+Math.random()*.4)+'s ease-in-out infinite';fx.appendChild(em);}for(var j=0;j<5;j++){var sp=el('spark');sp.style.cssText='width:3px;height:3px;background:#FFD27A;box-shadow:0 0 7px 1px #FFAE57;left:'+(20+Math.random()*60)+'%;bottom:'+(4+Math.random()*12)+'%;animation:sparkrise '+(2.2+Math.random()*1.2)+'s ease-out '+(Math.random()*2)+'s infinite';fx.appendChild(sp);}}
+ else if(e==='emberfall'){var lg=el('lavaglow');lg.style.cssText+='background:radial-gradient(120% 100% at 50% 100%,'+c+',transparent 64%)';fx.appendChild(lg);var lc=el('lavacore');lc.style.cssText+='background:radial-gradient(120% 100% at 50% 100%,#FFB24D,transparent 58%)';fx.appendChild(lc);var M=[['18%',80,'#FF6A2E',0],['58%',96,'#FF884A',1.3],['38%',70,'#FFB24D',2.4]];M.forEach(function(m){var d=el('molten');d.style.cssText+='left:'+m[0]+';width:'+m[1]+'px;height:'+(m[1]*.6)+'px;background:radial-gradient(circle,'+m[2]+',transparent 66%);animation-delay:'+m[3]+'s';fx.appendChild(d);});var cols=['#FFE0A6','#FFC061','#FF9A4D','#FF6A3C','#FFB84D','#FF7A2E','#FFAE57','#FF8A3A'];for(var i=0;i<8;i++){var sz=2.5+Math.random()*3;var em=el('ember2');em.style.cssText='width:'+sz+'px;height:'+sz+'px;background:'+cols[i%cols.length]+';box-shadow:0 0 '+(6+Math.random()*5)+'px 1px '+cols[i%cols.length]+';left:'+(6+Math.random()*88)+'%;top:0;animation:efall '+((3.6+Math.random()*1.8)*2)+'s linear '+(Math.random()*5)+'s infinite, flick '+(.35+Math.random()*.4)+'s ease-in-out infinite';fx.appendChild(em);}for(var j=0;j<4;j++){var sp=el('spark');sp.style.cssText='width:3px;height:3px;background:#FFD27A;box-shadow:0 0 7px 1px #FFAE57;left:'+(20+Math.random()*60)+'%;bottom:'+(4+Math.random()*12)+'%;animation:sparkrise '+(2.2+Math.random()*1.2)+'s ease-out '+(Math.random()*2)+'s infinite';fx.appendChild(sp);}}
 }
 var g=document.getElementById('grid');
 F.forEach(function(f){

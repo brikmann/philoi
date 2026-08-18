@@ -33,11 +33,15 @@ the audio-session flag.
 - **Scope to the lock-in screen.** Remove `<EquippedFlarePerimeter />` from `_layout.tsx`; render
   `FlarePerimeter` **inside the lock-in/session view** (`src/app/lock-in/index.tsx`) only while a session is
   active. ⚠️ This **reverses #86 / FLARES_SPEC's "app-wide flex."** Update FLARES_SPEC.md + mock 88 to match.
-- **Make it faint.** `PEAK_OPACITY 0.38 → ~0.14`; keep the slow breath but shrink its range.
-- **Border, not full-screen.** `EDGE 92 → ~40`; **tame every effect to hug the edges** — halve the effect
-  peak opacities (smoke `.16→.08`, plasma `.20→.10`, drops `.42→.20`, zaps `.50→.25`, flames `.16+.16 →
-  .08+.08`), shrink blob size/travel, cut the flame tongue height `110 → ~44` and keep it low on the bottom
-  edge. Net: a quiet coloured rim + a whisper of the effect, not a screen-filling animation.
+- **Visible + soft — NOT `~0.14`.** The flare is the lock-in screen's **centrepiece** (an earned/paid
+  mythic on a sparse screen where the flame dims to ~50%), so it must read **clearly** — rim ~0.5–0.8, effect
+  particles clearly visible (match **mock 88**'s keyframes) — with **soft glowing particles** (radial-gradient
+  fills + blur + glow, never hard-edged rects). ⚠️ The old `~0.14` "faint" target was for the **retired
+  app-wide-over-content** scope and makes the flare disappear. At lock-in scope, **err bright**; tune on device.
+- **Full-screen / full-bleed (CORRECTED — supersedes the earlier "thin border").** Render over the
+  **entire** screen — absolute inset 0, **behind the header + nav**, edge-to-edge. Do **not** clip to the
+  content area or leave blank strips top/bottom (that's what made it look "chopped"). Visible everywhere, full
+  coverage — not a thin rim, not a whisper.
 
 **CONFIRMED — lock-in only.** The flare is now a **lock-in cosmetic**: the faint border renders **only on the
 lock-in screen while a session is active** (not app-wide). This reverses #86 / FLARES_SPEC's app-wide flex —

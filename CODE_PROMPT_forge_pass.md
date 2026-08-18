@@ -1,4 +1,4 @@
-# Code prompt — Forge Pass (Season 1: Emberfall) + Flares + placement rewards
+# Code prompt — Flame Pass (Season 1: Emberfall) + Flares + placement rewards
 
 Consolidated handoff. Full detail lives in: **FORGE_PASS_DESLOP.md** (screen) · **FORGE_PASS_SEASON1.md**
 (rewards) · **FLARES_SPEC.md** (aura) · mocks **87** (screen), **88** (flares), **89** (all 100 levels).
@@ -6,12 +6,12 @@ Most of this ships OTA; the only native dependencies are the $9.99 IAP (RevenueC
 Activity pill.
 
 ## Copy rule
-The Forge Pass uses **"Level"** everywhere (the RANK system keeps "Tier" — never collide the two).
+The Flame Pass uses **"Level"** everywhere (the RANK system keeps "Tier" — never collide the two).
 
 ---
 
-## 1 · The Forge Pass screen (de-slop) — mock 87, FORGE_PASS_DESLOP.md — OTA
-Tap the Forge Pass icon on Home → this screen.
+## 1 · The Flame Pass screen (de-slop) — mock 87, FORGE_PASS_DESLOP.md — OTA
+Tap the Flame Pass icon on Home → this screen.
 - **Molten-seam levels track:** a vertical seam lit below your level / cold iron above (the rail IS the
   progress bar). Two lanes: **Free** (left) · **Premium-locked** (right, warm border + 🔒 until owned).
 - **Real cosmetic art** per reward tile, pulled by catalog id (same source as the shop, PUNCHLIST_7). No
@@ -66,7 +66,7 @@ Champion share card. Data/JS + a scheduled close job → OTA.
 ## Decisions — 2 resolved, 1 still open
 1. **RESOLVED — trim PAID embers to ~10,000** (tables currently sum to 13,350). Cut the largest named
    ember bonuses (halve the +1k/+1.5k/+2k chunks) + shave late off-level drip; keep paid off-levels > free.
-2. **RESOLVED — placement ranks by cumulative SEASON Forge Pass XP** (prestige past L100 counts;
+2. **RESOLVED — placement ranks by cumulative SEASON Flame Pass XP** (prestige past L100 counts;
    level-150-overall outranks level-100). SEPARATE board from the global Bronze→Primordial rank
    (universal_score / 0066). Code's season-XP board is correct — keep it.
 3. **OPEN — XP-per-level curve** (250→1,450 = 85k) still untuned vs real earn rates; tune post-launch.

@@ -79,7 +79,7 @@ h1{width:100%;font-size:17px;margin:0;color:#e7ddf5;text-align:center}
 <h1>Lock-in pill — minimal (mock 91)</h1>
 <p class="sub"><b>Out of app</b> (Lock Screen · Dynamic Island · Android notification): PHILOI · session +
 centered timer; the Lock Screen adds the <b>75% to Gold</b> bar. <b>In app</b>: only the dedicated
-<b>lock-in screen</b> (flame + STUDY + timer + rank bar). The floating header pill is <b>retired</b> — the
+<b>lock-in screen</b> (flame + STUDY + timer + the flare effect). The floating header pill is <b>retired</b> — the
 out-of-app surfaces carry the glanceable reminder. No widget.</p>
 
 <!-- 1 · LOCK SCREEN -->
@@ -122,33 +122,12 @@ out-of-app surfaces carry the glanceable reminder. No widget.</p>
         <svg class="flame" width="120" height="120" viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#ember)"/></svg>
         <div class="big mono" data-t="1524">25:24</div>
       </div>
-      <div class="xp" style="width:212px">
-        <div class="xlab"><span class="g">75% TO GOLD III</span><span class="pc">1,480 / 2,000 XP</span></div>
-        <div class="track"><div class="fill"></div></div>
-      </div>
     </div>
   </div>
-  <div class="cap"><b>Lock-in screen.</b> STUDY at the top, flame hero, big timer, 75%-to-Gold bar at the bottom — the in-app session view. No floating pill on other pages.</div>
+  <div class="cap"><b>Lock-in screen.</b> STUDY, flame hero, big timer — the equipped <b>flare effect</b> renders full-bleed behind it. <b>No rank bar here</b>; let the effect shine (rank progress lives on Home + the Lock Screen).</div>
 </div>
 
-<!-- PROPOSED · projection ghost -->
-<div class="col">
-  <div class="phone">
-    <div class="di"><div class="notch"></div></div>
-    <div class="session">
-      <div class="shdr brand">STUDY</div>
-      <div class="mid">
-        <svg class="flame" width="120" height="120" viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#ember)"/></svg>
-        <div class="big mono" data-t="1524">25:24</div>
-      </div>
-      <div class="xp" style="width:224px">
-        <div class="xlab"><span class="g">75% TO GOLD III</span><span class="proj">~2h</span></div>
-        <div class="track2"><div class="f"></div><div class="gh"></div></div>
-      </div>
-    </div>
-  </div>
-  <div class="cap"><b>Projection (proposed).</b> Pulsing darker-gold segment = the gap to Gold, labelled as time ("≈2h to Gold"). Animated in-app; static-but-updating on the Live Activity.</div>
-</div>
+<!-- (projection ~time now lives on the Home + Lock Screen rank bar, not the in-app lock-in screen) -->
 
 <!-- FLARE TINT — the equipped flare reflects on the session surfaces (lock-in only) -->
 <div class="col">
@@ -173,16 +152,12 @@ out-of-app surfaces carry the glanceable reminder. No widget.</p>
     <div class="session flare">
       <div class="shdr brand">STUDY</div>
       <div class="mid">
-        <svg class="flame" width="116" height="116" viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#ember)"/></svg>
+        <svg class="flame" width="116" height="116" viewBox="0 0 24 24" style="opacity:.5"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#ember)"/></svg>
         <div class="big mono" data-t="1524">25:24</div>
-      </div>
-      <div class="xp" style="width:212px">
-        <div class="xlab"><span class="g">75% TO GOLD III</span><span class="pc">1,480 / 2,000 XP</span></div>
-        <div class="track"><div class="fill"></div></div>
       </div>
     </div>
   </div>
-  <div class="cap"><b>Flare tint — in-app lock-in screen.</b> The faint flare perimeter, active ONLY during a session (not app-wide).</div>
+  <div class="cap"><b>Flare tint — in-app lock-in screen.</b> Flare effect full-bleed, active ONLY during a session. The <b>flame dims to ~50%</b> when a flare's equipped so the flare takes priority. No rank bar — the effect is the focus.</div>
 </div>
 
 <div class="legend">
@@ -190,8 +165,8 @@ out-of-app surfaces carry the glanceable reminder. No widget.</p>
   <b>Surfaces.</b> <b>Lock Screen + Dynamic Island</b> (out of app) = <b>PHILOI · session</b> (purple wordmark)
   + centered timer; the Lock Screen adds the <b>75%-to-Gold bar</b> at the bottom, the Island omits it (no
   room). The <b>in-app pill is retired</b> — inside the app, only the lock-in screen shows the session; the OS
-  surfaces handle the out-of-app reminder. <b>Lock-in screen</b> = session name on top, the <b>flame</b> hero, big timer, and the rank bar at
-  the bottom. Session name = whatever the user set (Study, Gym, …). Timer = ActivityKit native <i>timer</i>
+  surfaces handle the out-of-app reminder. <b>Lock-in screen</b> = session name, the <b>flame</b> hero + the equipped <b>flare effect</b>
+  (full-bleed), and the big timer — <b>no rank bar</b> (rank progress lives on Home + the Lock Screen). Session name = whatever the user set (Study, Gym, …). Timer = ActivityKit native <i>timer</i>
   style (counts with no pushes). No home-screen widget.
   <br><br><b>Rank bar</b> targets the next <b>division</b> (Gold III → II → I → Platinum III …). <b>Primordial
   has no divisions</b> (Immortal I → "X% to Primordial"). Solid fill = the tier colour; the <b>pulsing ember-orange

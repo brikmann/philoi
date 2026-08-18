@@ -32,11 +32,13 @@ balance chips, item/box costs, salvage payouts, daily-fire reward, ember packs. 
 and the hollow-outline ember** used as currency. One component that recolors + scales.
 - Keep **flame (brand/hero/logo) and ember (currency) visually distinct** — flame = the app, ember = money.
 
-## 5 · Home = Emberfall + one hamburger
-Keep home almost empty so the flame hero owns it. Top row = the **Emberfall season pill centered** (active
-season + countdown, always visible) and a **hamburger menu top-right**. The hamburger opens **Friends ·
-Inventory · Shop · Forge Pass · Settings** (Shop uses a little **market-stall** icon). The **lock-in** CTA
-sits below the hero; **campfires** are a swipe. Everything's one tap from home, but the chrome collapses.
+## 5 · Home = the hub; campfires move into the menu
+**Home is no longer campfire-centric** — the flame / lock-in hub owns it. Top row = the **Emberfall season
+pill centered** + a **hamburger top-right**. The hamburger opens **Campfires · Friends · Inventory · Shop ·
+Flame Pass · Settings** (Campfires = friend group chats, moved off the old swipe so it's an explicit tap like
+everything else — put it **first** for reach; Shop uses a **market-stall** icon). A persistent **bottom nav**
+carries the frequent views: **Home · Leaderboards · Challenges · Profile**. The **lock-in** CTA sits below the
+hero. Everything is reachable from home — nothing hidden behind a gesture.
 
 **Rank + XP under the flame (one row):** a **hexagon badge** with the division numeral inside (e.g. "II"),
 tinted to the tier, next to a wide **XP bar**. The bar fills in the **tier colour** (progress to the next

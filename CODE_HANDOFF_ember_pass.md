@@ -3,11 +3,17 @@
 One map for this pass. Each item points to the mock + spec that has the detail; this doc is the **order,
 dependencies, and acceptance**. Most is OTA; two items are the one native EAS build.
 
+> **Naming — "Forge Pass" → "Flame Pass" (display only).** Rename the **user-facing label** everywhere it's
+> shown (screen titles, the hamburger item, season-track copy, marketing). **Keep all internal identifiers as
+> `forge_pass`** — `forge-pass.ts`, `grant_forge_pass`, the RevenueCat entitlement `forge_pass`, and the
+> product id `app.philoi.forge_pass.season`. They're not user-visible; renaming them churns the App
+> Store / RevenueCat setup and DB functions for no benefit.
+
 ---
 
 ## 0 · Deploy first — unblocks several items below
 Run **`DEPLOY_migrations_0062-0075.sql`** (SQL Editor) or `supabase db push`. This is the prerequisite for
-the ember-unification, challenges, equip, Forge Pass, season gating. Nothing in §4 works until this lands.
+the ember-unification, challenges, equip, Flame Pass, season gating. Nothing in §4 works until this lands.
 
 ## 1 · The design language — `DESIGN_LANGUAGE_EMBER.md`  (OTA, do FIRST — everything else consumes it)
 Establish the app-wide system, then build the rest on top:
@@ -20,8 +26,11 @@ Establish the app-wide system, then build the rest on top:
   **one reskin sweep** so screens consume tokens, not copies.
 
 ## 2 · Three screens — `design-mocks/92-home-done-dailyfire.html`  (OTA)
-- **Home:** Emberfall season pill **centered** + a **hamburger** top-right → Friends · Inventory · Shop
-  (market-stall icon) · **Forge Pass** · Settings. Pulsing **flame hero**. Under it: **hexagon rank badge**
+- **Home:** the **flame / lock-in hub — no longer campfire-centric** (drop the campfire swipe). Emberfall
+  season pill **centered** + a **hamburger** top-right → **Campfires · Friends · Inventory · Shop
+  (market-stall icon) · Flame Pass · Settings** (Campfires = friend group chats, first in the list).
+  Persistent **bottom nav: Home · Leaderboards · Challenges · Profile**. Pulsing **flame hero**. Under it:
+  **hexagon rank badge**
   (division numeral inside, tier-tinted) + a wide **XP bar in the tier colour** with **today's fire encased
   inside as the orange zone** ("620 XP to today's fire").
 - **Done (lock-in complete):** flame replaces the campfire vector; clean summary (XP, duration, rank
@@ -45,7 +54,7 @@ Not two currencies — a deploy gap. `0062-0075` already grants daily-fire ember
 
 ## 5 · IAP product-id alignment — `CODE_PROMPT_iap_id_alignment.md`  (code-only, do anytime)
 Align `forge-pass.ts` / `iap.ts` / the webhook to the real App Store ids: embers
-`app.philoi.embers.500 / .1200 / .2600 / .7000` (amounts 500/1,200/2,600/7,000), Forge Pass
+`app.philoi.embers.500 / .1200 / .2600 / .7000` (amounts 500/1,200/2,600/7,000), Flame Pass
 `app.philoi.forge_pass.season`. Prices come from the RevenueCat offering, not hardcoded. Update the pairing
 test.
 

@@ -80,8 +80,9 @@ Island region (iOS) or notification (Android). So:
 - **In-app pill — RETIRED.** No floating `session · timer` header on other pages; it reflowed clumsily
   page-to-page. In-app, only the lock-in screen shows the session; out of app the Live Activity / Dynamic
   Island / Android notification carry the reminder.
-- **Lock-in screen (dedicated active-session view):** **session name** on top, the **flame** hero, big
-  timer, **75%-to-Gold bar at the bottom**. (The home screen itself just gets the pill, like any page.)
+- **Lock-in screen (dedicated active-session view):** **session name**, the **flame** hero + the equipped
+  **flare effect** (full-bleed), and the big timer. **No rank bar** — let the flare shine; rank progress
+  lives on Home + the Lock Screen Live Activity.
 - **No home-screen widget** (dropped). Flame appears only on the lock-in screen; the pill surfaces are
   text.
 - Build notes for Code: timer = ActivityKit native `timer` style (counts with no pushes); PHILOI = purple

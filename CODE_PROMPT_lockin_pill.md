@@ -43,8 +43,11 @@ the **in-app lock-in screen**, in one consistent treatment:
      category stopwatch/progress. Tear down the FGS + cancel the notification when the session stops.
    - **Android 16+ "Live Updates":** promote to the progress-style status-bar chip where the API exists;
      fall back to the plain ongoing notification below 16.
-3. **In-app lock-in screen** (dedicated active-session view): **session name** on top, the **flame** hero
-   (SVG, ember gradient), big timer, rank bar at the bottom.
+3. **In-app lock-in screen** (dedicated active-session view): **session name**, the **flame** hero (SVG,
+   ember gradient) + the equipped **flare effect full-bleed** behind it, and the big timer. **No rank bar
+   here** — let the flare be the focus; rank progress lives on **Home + the Lock Screen Live Activity**.
+   **When a flare is equipped, dim the flame hero to ~50% opacity** so the flare effect is the visual
+   priority — the user's chosen flame colour must not wash out the flare.
 
 **The in-app pill is RETIRED.** No floating `session · timer` header on other pages — it reflowed clumsily
 page-to-page and adjusting every header was too fiddly. Inside the app, only the lock-in screen shows the
