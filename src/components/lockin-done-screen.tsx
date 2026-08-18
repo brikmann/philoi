@@ -157,9 +157,12 @@ export function LockInDoneScreen({
   }
 
   const willPost = selectedCircleIds.length > 0;
+  // With nothing selected the row used to read "Post to nowhere — pick one", which lands as a
+  // placeholder someone forgot to wire rather than as a choice (punchlist 17 P3). The label below
+  // switches instead of the value, so the empty state asks for the pick rather than narrating it.
   const postTarget =
     selectedCircleIds.length === 0
-      ? 'nowhere — pick one'
+      ? 'a campfire'
       : selectedCircleIds.length === 1
         ? labelForCircle(selectedCircleIds[0])
         : `${selectedCircleIds.length} campfires`;
@@ -299,7 +302,7 @@ export function LockInDoneScreen({
         <View style={styles.post}>
           {groups.length > 0 && (
             <View style={styles.postTo}>
-              <Text style={styles.postToLabel}>Post to</Text>
+              <Text style={styles.postToLabel}>{willPost ? 'Post to' : 'Pick'}</Text>
               <Text style={styles.postToName} numberOfLines={1}>
                 {postTarget}
               </Text>

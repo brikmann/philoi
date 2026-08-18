@@ -20,7 +20,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { BodyDoubleStrip, BodyDoubleStripCollapsed } from '@/components/body-double-strip';
 import { DriftingEmbers } from '@/components/drifting-embers';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { EquippedFlarePerimeter } from '@/components/economy/flare-perimeter';
+import { EquippedFlarePerimeter, useFlareEquipped } from '@/components/economy/flare-perimeter';
 import { FireShareCard } from '@/components/fire-share-card';
 import { FlameMeterComplete } from '@/components/flame-meter-complete';
 import { LockInDoneScreen } from '@/components/lockin-done-screen';
@@ -358,6 +358,7 @@ function LockInScreen() {
   // The real spendable balance (ember_wallet via get_inventory) — see the note at the
   // embersBeforeSnapshot capture below.
   const { embers: walletEmbers, refetch: refetchInventory } = useInventory();
+  const flareEquipped = useFlareEquipped();
   // Keyed off last confirmation, not session start — matches the server-side sweep
   // (notify_stale_lock_ins), so tapping "still here" actually dismisses this banner
   // instead of it staying stuck on for the rest of a long session. Recomputed inline (not
@@ -823,7 +824,10 @@ function LockInScreen() {
           This is what pins BOTTOM to the bottom too — nothing below here needs its own
           flex/margin trick, it just renders right after however much space this consumes. */}
       <View style={styles.stage}>
-        <SessionFlame height={240} />
+        {/* Steps back ~50% when a flare is equipped (punchlist 17 P2c): the flare is the
+            centrepiece, and a full-strength coloured flame competes with it for the same eye.
+            No flare -> full strength. */}
+        <SessionFlame height={240} dimmed={flareEquipped} />
         <TutorialTooltip
           visible={tutorialStep === 1}
           text="This is your flame — it burns for as long as you stay locked in."

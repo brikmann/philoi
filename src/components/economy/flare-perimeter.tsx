@@ -330,6 +330,14 @@ function Flames({ colour, width }: { colour: string; width: number; height: numb
  * nothing at all when the slot is empty — which is the common case, since there is no free flare
  * and most users will never have one equipped. An unequipped user pays one hook read and no views.
  */
+/**
+ * Whether a flare is equipped — the lock-in screen dims its flame ~50% when one is (punchlist 17
+ * P2c). The flare is the centrepiece; a full-strength coloured flame fights it for the same eye.
+ */
+export function useFlareEquipped(): boolean {
+  return Boolean(useEquipped('flare'));
+}
+
 export function EquippedFlarePerimeter() {
   const flare = useEquipped('flare');
   if (!flare?.flare) return null;

@@ -144,7 +144,7 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
           the other. Both bars are gone because the rank row below now carries BOTH facts in a
           single horizontal bar: tier progress as the fill, today's fire encased inside it. */}
       <View style={styles.heroCenter}>
-        <CampfireFlameStage state={flameState} size={140} />
+        <CampfireFlameStage state={flameState} size={132} />
         {activeSession?.circleId && session ? (
           <LockedInBodyDoublesLine circleId={activeSession.circleId} excludeUserId={session.user.id} />
         ) : !activeSession ? (
@@ -183,10 +183,14 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
         </View>
       )}
 
-      <PrimaryButton
-        label={activeSession ? 'Return to your lock-in' : 'Lock in'}
-        onPress={activeSession ? () => router.push('/lock-in') : onLockIn}
-      />
+      {/* Mock 92's `.cta` — its own padded block, not flush against the rank row above it. */}
+      <View style={styles.ctaBlock}>
+        <PrimaryButton
+          label={activeSession ? 'Return to your lock-in' : 'Lock in'}
+          onPress={activeSession ? () => router.push('/lock-in') : onLockIn}
+          pulse={!activeSession}
+        />
+      </View>
 
       {/* Open room below the CTA. The "Your recent lock-ins" journal used to fill this — lock-in
           data now lives ONLY on Profile (punchlist 4B), so the fire is the hero with breathing
@@ -579,6 +583,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.four,
   },
   greet: {
+    // Centered, per mock 92's `.greet{text-align:center}` — it was left-aligned, which pulled the
+    // eye off the flame the hero is built around.
+    textAlign: 'center',
     fontFamily: Fonts.display,
     fontSize: 22,
     lineHeight: 26.4,
@@ -628,12 +635,23 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-end',
   },
+  // Mock 92's `.rankrow`: 238 wide, centered, 14 below the hero — NOT crammed against it or the
+  // CTA. The hero above is flex:1 so the flame keeps room to breathe (punchlist 17 P1).
   rankRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'center',
     gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    marginTop: Spacing.three,
+    width: 238,
+    maxWidth: '100%',
+    marginTop: 14,
+  },
+  // `.cta{padding:0 18px 18px}` — its own padded block, so the button never sits flush against
+  // the rank row.
+  ctaBlock: {
+    paddingHorizontal: 18,
+    paddingBottom: 18,
+    paddingTop: 18,
   },
   heroCenter: {
     flex: 1,
