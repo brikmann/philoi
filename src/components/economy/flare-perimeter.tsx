@@ -33,9 +33,16 @@ import type { FlareEffect } from '@/lib/economy/catalog';
 //     through Reanimated. Nothing re-renders React per frame.
 //   • INERT. pointerEvents="none" throughout — the app stays fully usable underneath.
 
-/** How far the glow reaches in from each edge. A rim, not a vignette. */
-const EDGE = 40;
-const PEAK_OPACITY = 0.14;
+// Built to mock 88 + PUNCHLIST_15 §2, which supersede the earlier "faint / thin border" reading.
+// The ~0.14 numbers were tuned for the RETIRED app-wide-over-content scope; at lock-in scope this
+// is the screen's centrepiece — an earned or paid Mythic, on a sparse screen where the flame
+// deliberately dims to ~50% to make room — so it has to read clearly. The spec's words: err bright.
+//
+// Mock 88's rim is `box-shadow: inset 0 0 42px 8px <colour>` breathing between .5 and .82 opacity
+// across a full-screen `inset: 0` layer. EDGE is the RN equivalent of that blur+spread reach, and
+// 92 is what makes it a full-bleed glow rather than the thin band 40 produced.
+const EDGE = 92;
+const PEAK_OPACITY = 0.82;
 
 type Props = { colour: string; effect: FlareEffect };
 
@@ -47,10 +54,12 @@ export function FlarePerimeter({ colour, effect }: Props) {
   const { width, height } = useWindowDimensions();
 
   // A slow breath on the whole overlay. Every flare gets it: a perfectly static edge glow reads as
-  // a rendering artefact, and the barely-perceptible movement is what makes it read as alive.
-  // Range shrunk along with the opacity (punchlist 15.2): at a 0.14 peak, the old 0.82→1 swing
-  // read as a throb rather than a breath.
-  const breath = useSharedValue(0.9);
+  // a rendering artefact, and the movement is what makes it read as alive.
+  //
+  // 0.61→1 against a 0.82 peak reproduces mock 88's `@keyframes breathe{.5 → .82}` exactly
+  // (0.61 x 0.82 = 0.5). Expressed as a multiplier rather than absolute stops so the rim's peak
+  // lives in ONE constant.
+  const breath = useSharedValue(0.61);
   useEffect(() => {
     breath.value = withRepeat(withTiming(1, { duration: 3800, easing: Easing.inOut(Easing.quad) }), -1, true);
   }, [breath]);
@@ -168,9 +177,9 @@ function Blob({
 function Smoke({ colour, width, height }: { colour: string; width: number; height: number }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Blob colour={colour} size={90} left={-55} top={height * 0.62} travel={-height * 0.26} duration={11000} delay={0} peak={0.08} />
-      <Blob colour={colour} size={74} left={width - 32} top={height * 0.75} travel={-height * 0.28} duration={13000} delay={2600} peak={0.07} />
-      <Blob colour={colour} size={80} left={-48} top={height * 0.9} travel={-height * 0.3} duration={15000} delay={5200} peak={0.06} />
+      <Blob colour={colour} size={90} left={-55} top={height * 0.62} travel={-height * 0.26} duration={11000} delay={0} peak={0.5} />
+      <Blob colour={colour} size={74} left={width - 32} top={height * 0.75} travel={-height * 0.28} duration={13000} delay={2600} peak={0.44} />
+      <Blob colour={colour} size={80} left={-48} top={height * 0.9} travel={-height * 0.3} duration={15000} delay={5200} peak={0.38} />
     </View>
   );
 }
@@ -179,9 +188,9 @@ function Smoke({ colour, width, height }: { colour: string; width: number; heigh
 function Plasma({ colour, width, height }: { colour: string; width: number; height: number }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Blob colour={colour} size={110} left={-56} top={-56} travel={34} duration={7000} delay={0} peak={0.1} />
-      <Blob colour={colour} size={98} left={width - 42} top={height - 60} travel={-34} duration={8200} delay={1400} peak={0.09} />
-      <Blob colour={colour} size={80} left={width * 0.5 - 40} top={-52} travel={24} duration={9500} delay={3000} peak={0.06} />
+      <Blob colour={colour} size={110} left={-56} top={-56} travel={34} duration={7000} delay={0} peak={0.62} />
+      <Blob colour={colour} size={98} left={width - 42} top={height - 60} travel={-34} duration={8200} delay={1400} peak={0.5} />
+      <Blob colour={colour} size={80} left={width * 0.5 - 40} top={-52} travel={24} duration={9500} delay={3000} peak={0.4} />
     </View>
   );
 }
@@ -211,7 +220,7 @@ function Zap({ colour, left, top, w, h, delay }: { colour: string; left: number;
     );
   }, [flash, delay]);
 
-  const style = useAnimatedStyle(() => ({ opacity: flash.value * 0.25 }));
+  const style = useAnimatedStyle(() => ({ opacity: flash.value * 0.95 }));
   return (
     <Animated.View
       pointerEvents="none"
@@ -240,7 +249,7 @@ function Drop({ colour, left, height, duration, delay }: { colour: string; left:
 
   const style = useAnimatedStyle(() => ({
     transform: [{ translateY: t.value * height }],
-    opacity: 0.2 * Math.sin(t.value * Math.PI),
+    opacity: 0.85 * Math.sin(t.value * Math.PI),
   }));
 
   return (
@@ -279,8 +288,8 @@ function Tongue({ colour, left, w, delay }: { colour: string; left: number; w: n
   }, [t, delay]);
 
   const style = useAnimatedStyle(() => ({
-    transform: [{ scaleY: 0.55 + t.value * 0.75 }],
-    opacity: 0.08 + t.value * 0.08,
+    transform: [{ scaleY: 0.6 + t.value * 0.45 }],
+    opacity: 0.4 + t.value * 0.3,
   }));
 
   return (
@@ -292,9 +301,11 @@ function Tongue({ colour, left, w, delay }: { colour: string; left: number; w: n
           left,
           bottom: 0,
           width: w,
-          // Low on the bottom edge (44 from 110): tongues that licked a tenth of the way up the
+          // Mock 88's `.tongue` height. The dimming pass cut this to 44, which is part of the same
+          // retired app-wide tuning as the ~0.14 opacities — at lock-in scope the tongues are meant
+          // to read (see PUNCHLIST_15 §2). Original note, kept for context: tongues that licked
           // screen were the single biggest reason the flare read as full-screen.
-          height: 44,
+          height: 112,
           // Rounded top only — a licking tongue, not a bar chart.
           borderTopLeftRadius: w / 2,
           borderTopRightRadius: w / 2,
