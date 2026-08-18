@@ -63,6 +63,9 @@ type MenuItem = {
 };
 
 const MENU: MenuItem[] = [
+  // First, and first for a reason: campfires lost its bottom-tab slot in §4, so this is now the
+  // only way in. Anything that used to be one tap from the tab bar has to be one tap from here.
+  { label: 'Campfires', icon: 'bonfire-outline', route: '/campfires' },
   { label: 'Friends', icon: 'people-outline', route: '/people' },
   { label: 'Inventory', icon: 'grid-outline', route: '/inventory' },
   // A market stall, per §5 — `storefront` is the closest Ionicon to the mock's awning glyph.

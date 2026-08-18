@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ScreenBackground } from '@/components/ui/screen-background';
+
 import { EquippedHalo, EquippedTitle, useEquippedCardStyle } from '@/components/economy/loadout-bits';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -104,6 +106,11 @@ export default function ProfileScreen() {
   const recentGoalTypes = [...new Set(recentLockIns.map((r) => r.goal_type))].slice(0, 4);
 
   return (
+    // Profile is the one tab that never went through <Screen>, so it never picked up the
+    // deep-purple radial and read as flat dark (punchlist 16 §1). Wrapped rather than converted
+    // to <Screen>: this screen manages its own scroll + header layout, and <Screen> would add a
+    // second SafeAreaView around it.
+    <ScreenBackground>
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       {isOwn ? (
         // The Profile tab root — standardized title (same as the other three tabs). Settings is
@@ -291,13 +298,15 @@ export default function ProfileScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    // Transparent — the radial behind it is the background now.
+    backgroundColor: 'transparent',
   },
   container: {
     padding: Spacing.four,

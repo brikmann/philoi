@@ -69,7 +69,7 @@ export default function GroupScreen() {
     // must be the standard app surface (Colors.cream, #1B1726), never twilight900 (the
     // deeper tone reserved for the field/valley's own twilight-valley look); only the bottom
     // tab bar stays the lighter Colors.card surface.
-    <Screen padded={false} backgroundColor={Colors.cream}>
+    <Screen padded={false}>
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={styles.header}>

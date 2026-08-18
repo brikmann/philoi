@@ -45,16 +45,19 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: Colors.muted,
         tabBarStyle: { backgroundColor: Colors.card, borderTopColor: Colors.line },
         tabBarLabelStyle: styles.label,
-        // backgroundColor here is load-bearing, not cosmetic: without it this nested Tabs
-        // navigator's scene falls back to react-navigation's default (WHITE) background, and the
-        // paddingTop band reserved for the live-session bar renders as a white stripe across the
-        // top of every tab during a lock-in. Pin it to the app background so the inset is dark.
-        sceneStyle: { paddingTop: topInset, backgroundColor: Colors.cream },
+        // Still load-bearing, still not cosmetic: without a colour here the scene falls back to
+        // react-navigation's default WHITE. But it must be the radial's OUTER stop, not the old
+        // flat cream — cream is opaque and was painting straight over the deep-purple radial on
+        // every tab, which is why Settings/Profile/Challenges read as flat dark while screens
+        // outside the tab navigator looked right (punchlist 16 §1).
+        sceneStyle: { paddingTop: topInset, backgroundColor: Colors.bgRadialTo },
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Campfires',
+          // Home, not Campfires — this tab is the flame / lock-in hub now and campfires is a
+          // hamburger destination (punchlist 16 §4).
+          title: 'Home',
           tabBarIcon: () => <FlameLogo size={24} />,
         }}
       />

@@ -2,14 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -27,9 +25,7 @@ import { TAB_HEADER_HEIGHT, TAB_HEADER_PADDING_TOP } from '@/components/ui/tab-h
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
-import { useCampfireHeat } from '@/hooks/use-campfire-heat';
 import { useDailyFire } from '@/hooks/use-daily-fire';
-import { useMyGroups } from '@/hooks/use-my-groups';
 import { useTodayLockInCount } from '@/hooks/use-today-lockin-count';
 import { useActiveSession } from '@/lib/active-session-context';
 import { fetchMyRanks } from '@/lib/api/goals';
@@ -377,7 +373,11 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'popular', label: 'Popular' },
 ];
 
-function ValleyPage({ myGroups, heatByGroupId }: { myGroups: MyGroup[]; heatByGroupId: Record<string, number> }) {
+// Exported so /campfires can render it (punchlist 16 §4). Deliberately NOT moved into its own
+// file: it leans on five helpers co-located here (layoutValleyNodes, MyFireValleyNode, the Filter
+// union, FILTERS, stateForMemberCount) plus a dozen styles, and hauling all of that across right
+// before a build is a lot of churn for no behaviour change. The route is a four-line wrapper.
+export function ValleyPage({ myGroups, heatByGroupId }: { myGroups: MyGroup[]; heatByGroupId: Record<string, number> }) {
   const router = useRouter();
   const { profile } = useAuth();
   const [filter, setFilter] = useState<Filter>('mine');
@@ -512,20 +512,16 @@ function ValleyPage({ myGroups, heatByGroupId }: { myGroups: MyGroup[]; heatByGr
   );
 }
 
-// ─────────────────────────── Shell: the two-page pager ───────────────────────────
-
-type PagerPage = 'yourFire' | 'valley';
-const PAGES: PagerPage[] = ['yourFire', 'valley'];
+// ─────────────────────────── Shell ───────────────────────────
+//
+// Was a two-page horizontal pager (your fire / campfires). Campfires moved to the hamburger and
+// its own route in punchlist 16 §4, so the pager, its page dots, and the group/heat data that only
+// the campfires page consumed are all gone from here.
 
 export default function TodayScreen() {
   const router = useRouter();
-  const { groups } = useMyGroups();
-  const heatByGroupId = useCampfireHeat();
   const [rank, setRank] = useState<MyRank | undefined>(undefined);
-  const [pageIndex, setPageIndex] = useState(0);
   const [lockInPickerVisible, setLockInPickerVisible] = useState(false);
-  const { width } = useWindowDimensions();
-  const listRef = useRef<FlatList<PagerPage>>(null);
   // A tapped "lock in?" nudge (design-mocks/21) deep-links here with ?lockin=1 — pop the goal
   // picker straight away, then clear the param so it doesn't re-fire on the next render.
   const { lockin } = useLocalSearchParams<{ lockin?: string }>();
@@ -550,28 +546,10 @@ export default function TodayScreen() {
           of height that the other three tabs don't have, pushing "Your fire" below their titles.
           Absolute + the shared TabHeader geometry puts the dots in the header's empty centre and
           the title at the exact same Y as Leaderboard/Challenges/Profile. */}
-      <View style={styles.dotsRow} pointerEvents="none">
-        {PAGES.map((p, i) => (
-          <View key={p} style={[styles.dot, i === pageIndex && styles.dotOn]} />
-        ))}
-      </View>
-
-      <FlatList
-        ref={listRef}
-        style={styles.pager}
-        data={PAGES}
-        keyExtractor={(item) => item}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(e) => setPageIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
-        renderItem={({ item }) => (
-          <View style={{ width }}>
-            {item === 'yourFire' && <YourFirePage rank={rank} onLockIn={() => setLockInPickerVisible(true)} />}
-            {item === 'valley' && <ValleyPage myGroups={groups} heatByGroupId={heatByGroupId} />}
-          </View>
-        )}
-      />
+      
+      {/* No pager. Home is the flame / lock-in hub (§4) — campfires moved to the hamburger, so
+          the horizontal swipe and its page dots are gone with it. */}
+      <YourFirePage rank={rank} onLockIn={() => setLockInPickerVisible(true)} />
 
       <LockinGoalPicker visible={lockInPickerVisible} onClose={() => setLockInPickerVisible(false)} />
     </Screen>

@@ -43,9 +43,10 @@ function RootNavigator() {
   // so the global inset is gone too; leaving it would have left a session-shaped dead band at the
   // top of every screen.
 
-  // Header-less screens still need their own background; the paddingTop that used to sit here
-  // reserved room for the pill and went with it.
-  const headerlessContentStyle = { backgroundColor: Colors.cream };
+  // The radial's outer stop, NOT the old flat cream — an opaque colour here paints over the
+  // deep-purple radial that <Screen> draws underneath (punchlist 16 §1). It can't simply be
+  // transparent: react-navigation falls back to white without a value.
+  const headerlessContentStyle = { backgroundColor: Colors.bgRadialTo };
 
   const appReady = ready && interLoaded;
   const [stuck, setStuck] = useState(false);
@@ -251,6 +252,8 @@ function RootNavigator() {
         <Stack.Screen name="health-connect-rationale" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="strava-auth" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="university-leaderboard" options={{ title: '' }} />
+        {/* Campfires is a hamburger destination now, not a tab (punchlist 16 §4). */}
+        <Stack.Screen name="campfires" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="people" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="add-friend" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="friend-profile" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
