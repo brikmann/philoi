@@ -1,0 +1,27 @@
+# What EAS Build does NOT need. The archive was 230 MB, which made both the fingerprint step and
+# the upload slow enough that the CLI warned about each. None of the below is a build input — the
+# app bundle is src/ + assets/ + the native dirs.
+#
+# Careful: .easignore REPLACES .gitignore for the archive, so anything gitignored that must stay
+# out has to be repeated here. node_modules and dist are the ones that matter.
+node_modules/
+dist/
+.expo/
+
+# Design + docs — 94 mock HTML files, specs, punchlists, handoffs.
+design-mocks/
+*.md
+!README.md
+
+# The separate admin dashboard and marketing site: their own apps, not part of this bundle.
+admin/
+site/
+
+# Database migrations and edge functions ship via `supabase db push` / `functions deploy`,
+# never inside the app binary.
+supabase/
+
+# Local tooling and one-off artifacts.
+scripts/
+*.ics
+*.png.bak
