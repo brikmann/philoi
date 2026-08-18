@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
+import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { Colors } from '@/constants/theme';
 
 type CampfireFlameProps = {
@@ -42,8 +43,12 @@ export function CampfireFlame({ heat, size = 32 }: CampfireFlameProps) {
           },
         ]}
       />
-      <Animated.View style={style}>
-        <Text style={[styles.fire, { fontSize: size, opacity: fireOpacity }]}>🔥</Text>
+      {/* Was a literal 🔥 emoji, which rendered as the OS glyph rather than our mark (punchlist 17
+          P0). Now the same FlameSvg every other flame uses, so a campfire's heat gauge and the
+          brand read as one thing. The breathe/scale/glow around it is untouched — only the glyph
+          inside changed. */}
+      <Animated.View style={[style, { opacity: fireOpacity }]}>
+        <FlameSvg width={size * FLAME_ASPECT_RATIO} height={size} />
       </Animated.View>
     </View>
   );
@@ -57,8 +62,5 @@ const styles = StyleSheet.create({
   glow: {
     position: 'absolute',
     backgroundColor: Colors.amber,
-  },
-  fire: {
-    textAlign: 'center',
   },
 });

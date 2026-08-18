@@ -16,7 +16,7 @@ import { Colors, Fonts } from '@/constants/theme';
 // token is a closed, rounded coal.
 
 /** Mock 92's `#flameMark`, viewBox 0 0 24 24. One path — no inner layers; this reads at 16px. */
-const FLAME_PATH =
+export const FLAME_PATH =
   'M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z';
 
 type FlameLogoProps = {
