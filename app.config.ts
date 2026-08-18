@@ -12,6 +12,12 @@ const config: ExpoConfig = {
   backgroundColor: '#3A2E5C',
   ios: {
     bundleIdentifier: 'com.philoi.app',
+    // REQUIRED by @bacons/apple-targets to generate the Live Activity widget target (#87) —
+    // without it prebuild warns "iOS builds may fail until this is corrected" and the widget's
+    // signing can't be resolved. Read from the environment rather than hardcoded so it can live
+    // in .env locally and in the EAS build profile's `env` for CI, like every other secret here.
+    // Find it in App Store Connect > Membership, or Xcode > Signing & Capabilities.
+    appleTeamId: process.env.APPLE_TEAM_ID,
     icon: './assets/images/icon.png',
     associatedDomains: ['applinks:getphiloi.com'],
     // NOTE: no `deploymentTarget` here on purpose. NATIVE_BUILD_CONFIG.md called for 16.1
