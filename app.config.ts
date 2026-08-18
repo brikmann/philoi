@@ -12,12 +12,15 @@ const config: ExpoConfig = {
   backgroundColor: '#3A2E5C',
   ios: {
     bundleIdentifier: 'com.philoi.app',
-    // REQUIRED by @bacons/apple-targets to generate the Live Activity widget target (#87) —
-    // without it prebuild warns "iOS builds may fail until this is corrected" and the widget's
-    // signing can't be resolved. Read from the environment rather than hardcoded so it can live
-    // in .env locally and in the EAS build profile's `env` for CI, like every other secret here.
-    // Find it in App Store Connect > Membership, or Xcode > Signing & Capabilities.
-    appleTeamId: process.env.APPLE_TEAM_ID,
+    // REQUIRED by @bacons/apple-targets to generate and sign the Live Activity widget target
+    // (#87) — without it prebuild warns "iOS builds may fail until this is corrected".
+    //
+    // Committed rather than read from the environment, deliberately. A Team ID is NOT a secret:
+    // it ships inside every provisioning profile and is readable from any IPA. Env-driven, the
+    // failure mode is a build that silently misconfigures the widget when the variable is unset —
+    // which is exactly what happened before this was set at all. The env var stays as an override
+    // for anyone building under a different team.
+    appleTeamId: process.env.APPLE_TEAM_ID ?? 'WA73L5743X',
     icon: './assets/images/icon.png',
     associatedDomains: ['applinks:getphiloi.com'],
     // NOTE: no `deploymentTarget` here on purpose. NATIVE_BUILD_CONFIG.md called for 16.1
