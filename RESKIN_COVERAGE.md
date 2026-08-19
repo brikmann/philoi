@@ -1,5 +1,11 @@
 # Ember reskin — full screen coverage (nothing implied, everything listed)
 
+> ⚠️ **Flame-vector rule (applies to every screen — PUNCHLIST_17 P0).** The brand flame is the
+> **single smooth-gradient silhouette** (`FlameLogo` / mock 92 `#flameMark`), NOT the three-layer
+> tri-colour `FlameSvg` (that reads as the retired campfire) and NEVER the 🔥 emoji. A screen only
+> passes the flame check when its flame is the smooth outline; flame **cosmetics** recolour it via the
+> gradient stops, geometry unchanged.
+
 ## Audit status — commit `13fc3ee` (round 2)
 - **Gradient bg:** 37 → **45/46** (lock-in/index intentionally keeps IMMERSIVE_BG). Fixed via a single
   root-mounted `<ScreenBackground>` behind a **transparent** navigator (covers the 9 that painted their own

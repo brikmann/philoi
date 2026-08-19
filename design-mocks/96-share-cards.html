@@ -1,0 +1,173 @@
+<meta charset="utf-8">
+<title>Mock 96 — share cards (retention-loop set)</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:26px;display:flex;flex-direction:column;align-items:center;gap:6px}
+h1{font-size:18px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:900px;text-align:center;line-height:1.55;margin:0 auto 8px}
+.loop{max-width:900px;font-size:11.5px;color:#c8bcdd;background:#161320;border:1px solid #241c38;border-radius:14px;padding:12px 16px;line-height:1.55;margin-bottom:6px}
+.loop b{color:#F2A33C}
+.trig{max-width:900px;font-size:11px;color:#a99cbd;line-height:1.5;margin:0 0 14px}
+.trig b{color:#e7ddf5}
+.row{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.cell{display:flex;flex-direction:column;align-items:center;gap:8px;width:208px}
+.tag{font-size:10.5px;color:#8a7fa6;text-align:center;line-height:1.4}
+.tag b{color:#e7ddf5}
+.tag i{color:#F2A33C;font-style:normal}
+/* 9:16 story card */
+.card{width:208px;height:370px;border-radius:22px;overflow:hidden;position:relative;
+  background:radial-gradient(120% 55% at 50% 2%,#3a2350,#1a1526 58%,#141019);
+  display:flex;flex-direction:column;align-items:center;padding:20px 16px;border:1px solid rgba(255,255,255,.06)}
+.kick{font-size:9.5px;font-weight:800;letter-spacing:1.8px;color:#F2A33C;text-align:center}
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;position:relative}
+.stat{font-size:54px;font-weight:800;line-height:1;letter-spacing:-1.5px}
+.statsm{font-size:26px;font-weight:800}
+.lbl{font-size:11px;color:#c8bcdd;margin-top:6px;text-align:center;font-weight:600}
+.sublbl{font-size:10px;color:#8a7fa6;margin-top:3px;text-align:center}
+.reward{display:inline-flex;align-items:center;gap:5px;margin-top:12px;background:#241a2e;border:1px solid rgba(242,163,60,.4);border-radius:999px;padding:5px 11px;font-size:10px;font-weight:700;color:#FFD27A}
+/* footer: wordmark + rank-in-hex identity */
+.foot{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:6px}
+.mark{display:flex;align-items:center;gap:5px}
+.mark svg{width:16px;height:16px}
+.mark .w{font-size:14px;font-weight:800;letter-spacing:-.5px}
+.idrow{display:flex;align-items:center;gap:5px;font-size:9px;color:#a99cbd}
+.idrow b{color:#F2A33C}
+.rankhex{width:15px;height:17px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#2a1608}
+/* fire */
+.tongue{transform-box:fill-box;transform-origin:50% 100%}
+@keyframes flick{0%,100%{transform:scaleY(.85) rotate(-2deg)}50%{transform:scaleY(1.08) rotate(2deg)}}
+@keyframes flick2{0%,100%{transform:scaleY(.92) rotate(2deg)}50%{transform:scaleY(1.12) rotate(-2deg)}}
+/* hexagon rank badge (big, rank-up card) */
+.hexwrap{width:120px;height:132px;position:relative;display:grid;place-items:center}
+.hexbg{position:absolute;inset:0;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.hexface{position:absolute;inset:8px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:#161320;display:grid;place-items:center}
+.hexroman{font-size:34px;font-weight:800}
+.flareglow{position:absolute;width:150px;height:150px;border-radius:50%;filter:blur(20px);opacity:.6}
+.bolt{fill:none;stroke-linejoin:round;stroke-linecap:round}
+.cap{font-size:11.5px;color:#a99cbd;max-width:900px;text-align:center;line-height:1.5;margin-top:12px}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="flg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".55" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFD27A"/></linearGradient>
+  <linearGradient id="fO" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".75" stop-color="#F2A33C"/><stop offset="1" stop-color="#F2A33C" stop-opacity="0"/></linearGradient>
+  <linearGradient id="fI" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#F2A33C"/><stop offset=".8" stop-color="#FFE6B0"/><stop offset="1" stop-color="#FFE6B0" stop-opacity="0"/></linearGradient>
+  <radialGradient id="coalHot" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="#FFD27A"/><stop offset="45%" stop-color="#F2A33C"/><stop offset="100%" stop-color="#6e2610"/></radialGradient>
+  <radialGradient id="amb" cx="50%" cy="72%" r="55%"><stop offset="0" stop-color="#E0612C" stop-opacity=".6"/><stop offset="100%" stop-color="#E0612C" stop-opacity="0"/></radialGradient>
+</defs></svg>
+
+<h1>Mock 96 v2 — share cards (the retention loop)</h1>
+<p class="sub">Five story cards, one per component. Every card shows the sharer's <b>rank in a hex</b> + <b>philoi.app</b>
+in the footer, so each share is an install prompt with a status stamp.</p>
+
+<div class="loop"><b>The loop:</b> earn a moment → tap <b>Share</b> → post to story → friends see the flex + rank + <b>philoi.app</b>
+→ they install → they lock in → they hit their own moment.</div>
+<p class="trig"><b>Where Share lives (per card):</b> fire = <b>share icon next to the streak on Home</b> · lock-in = <b>Share on the
+done / daily-fire screen</b> · rank-up = <b>on the rank-up celebration</b> · season = <b>on the season-standing screen</b> ·
+unlock = <b>on the unlock / box-open reveal</b>. Each fires from the screen where the moment happens.</p>
+
+<div class="row">
+
+  <!-- 1. FIRE / STREAK -->
+  <div class="cell">
+    <div class="card">
+      <div class="kick">STILL ON FIRE</div>
+      <div class="hero">
+        <svg width="132" height="132" viewBox="0 0 120 120">
+          <ellipse cx="60" cy="86" rx="52" ry="34" fill="url(#amb)"/>
+          <g>
+            <path class="tongue" d="M48 100 C49 82 51 70 54 40 C57 70 59 82 60 100 Z" fill="url(#fO)" style="animation:flick .9s ease-in-out .1s infinite"/>
+            <path class="tongue" d="M62 100 C63 82 65 71 68 42 C71 71 73 82 74 100 Z" fill="url(#fO)" style="animation:flick2 .95s ease-in-out infinite"/>
+            <path class="tongue" d="M53 100 C54 80 57 66 60 28 C63 66 66 80 67 100 Z" fill="url(#fO)" style="animation:flick .8s ease-in-out .18s infinite"/>
+            <path class="tongue" d="M56 100 C57 86 58 74 60 50 C62 74 63 86 64 100 Z" fill="url(#fI)" style="animation:flick2 .7s ease-in-out .1s infinite"/>
+          </g>
+          <g><ellipse cx="46" cy="103" rx="12" ry="7" fill="url(#coalHot)"/><ellipse cx="74" cy="103" rx="12" ry="7" fill="url(#coalHot)"/><ellipse cx="60" cy="106" rx="15" ry="8" fill="url(#coalHot)"/></g>
+        </svg>
+        <div class="stat" style="color:#FFD27A">12</div>
+        <div class="lbl">DAY STREAK</div>
+        <div class="sublbl">kept the fire alive every day</div>
+      </div>
+      <div class="foot"><div class="mark"><svg viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/></svg><span class="w">philoi</span></div><div class="idrow"><span class="rankhex" style="background:#F5C542">I</span> @noah · <b>philoi.app</b></div></div>
+    </div>
+    <div class="tag"><b>fire-share-card</b> · <i>Home streak</i><br>daily fire / streak flex</div>
+  </div>
+
+  <!-- 2. LOCK-IN SESSION -->
+  <div class="cell">
+    <div class="card">
+      <div class="kick">LOCKED IN</div>
+      <div class="hero">
+        <svg width="104" height="104" viewBox="0 0 24 24" style="filter:drop-shadow(0 0 18px rgba(242,163,60,.5))"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/></svg>
+        <div class="statsm" style="margin-top:16px">2<span style="font-size:16px">h</span> 14<span style="font-size:16px">m</span></div>
+        <div class="lbl">LOCKED IN</div>
+        <div class="sublbl">Study · solo · Aug 19</div>
+      </div>
+      <div class="foot"><div class="mark"><svg viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/></svg><span class="w">philoi</span></div><div class="idrow"><span class="rankhex" style="background:#F5C542">I</span> @noah · <b>philoi.app</b></div></div>
+    </div>
+    <div class="tag"><b>lock-in-share-card</b> · <i>Done / daily-fire</i><br>proof-of-work session</div>
+  </div>
+
+  <!-- 3. RANK UP -->
+  <div class="cell">
+    <div class="card">
+      <div class="kick">RANKED UP</div>
+      <div class="hero">
+        <div class="hexwrap">
+          <div class="hexbg" style="background:linear-gradient(180deg,#FFE9A8,#F5C542 45%,#C79A16);box-shadow:0 0 34px rgba(245,197,66,.5)"></div>
+          <div class="hexface"><span class="hexroman" style="color:#F5C542">I</span></div>
+        </div>
+        <div class="statsm" style="margin-top:14px;color:#F5C542">GOLD I</div>
+        <div class="lbl">climbed a tier</div>
+      </div>
+      <div class="foot"><div class="mark"><svg viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/></svg><span class="w">philoi</span></div><div class="idrow"><span class="rankhex" style="background:#F5C542">I</span> @noah · <b>philoi.app</b></div></div>
+    </div>
+    <div class="tag"><b>rank-up-share-card</b> · <i>Rank-up celebration</i><br>tier achievement</div>
+  </div>
+
+  <!-- 4. SEASON STANDING -->
+  <div class="cell">
+    <div class="card">
+      <div class="kick">SEASON 1 · EMBERFALL</div>
+      <div class="hero">
+        <div style="font-size:40px">🏆</div>
+        <div class="statsm" style="margin-top:10px;color:#8a7fa6;letter-spacing:2px">TOP</div>
+        <div class="stat" style="color:#F2A33C;margin-top:-2px">3%</div>
+        <div class="lbl" style="color:#FFD27A;font-weight:800">Immortal · Campus</div>
+        <div class="reward">🎁 Earned: Hephaestus' Chest</div>
+      </div>
+      <div class="foot"><div class="mark"><svg viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/></svg><span class="w">philoi</span></div><div class="idrow"><span class="rankhex" style="background:#F5C542">I</span> @noah · <b>philoi.app</b></div></div>
+    </div>
+    <div class="tag"><b>season-standing-share-card</b> · <i>Season-standing screen</i><br>⚠ bind to REAL placement + reward</div>
+  </div>
+
+  <!-- 5. UNLOCK -->
+  <div class="cell">
+    <div class="card">
+      <div class="kick" style="color:#FF6B6B">MYTHIC UNLOCKED</div>
+      <div class="hero">
+        <div class="flareglow" style="background:#FFE87A"></div>
+        <svg width="120" height="120" viewBox="0 0 120 120" style="position:relative;z-index:2">
+          <polyline class="bolt" points="60,16 50,52 66,52 52,102" stroke="#FFE87A" stroke-width="5" style="filter:drop-shadow(0 0 8px #FFE87A)"/>
+          <polyline class="bolt" points="80,30 72,56 84,56 74,88" stroke="#FFF3B0" stroke-width="3" opacity=".8"/>
+          <polyline class="bolt" points="40,34 34,58 44,58 38,86" stroke="#FFF3B0" stroke-width="3" opacity=".7"/>
+        </svg>
+        <div class="statsm" style="margin-top:4px;color:#FFE87A">Zeus' Wrath</div>
+        <div class="sublbl" style="max-width:150px;line-height:1.4">Jagged cream-gold lightning cracks around your lock-in.</div>
+      </div>
+      <div class="foot"><div class="mark"><svg viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/></svg><span class="w">philoi</span></div><div class="idrow"><span class="rankhex" style="background:#F5C542">I</span> @noah · <b>philoi.app</b></div></div>
+    </div>
+    <div class="tag"><b>unlock-share-card</b> · <i>Unlock / box-open</i><br>⚠ name + desc from catalog</div>
+  </div>
+
+</div>
+
+<div class="cap"><b>Share cards (mock 96 v2).</b> Footer now stamps the sharer's <b>rank in a hex</b> + philoi.app on every card.
+Two need real data-binding (below). Rarity/tier colours stay semantic.</div>
+
+<div class="loop" style="margin-top:14px"><b>Data-binding for Code (don't fake these):</b>
+<br>• <b>Season card:</b> pull the user's ACTUAL end-of-season placement (percentile / rank / title from the
+placement-titles system, mock 66) and the ACTUAL reward granted (end-of-season placement rewards). The card must
+match what they really placed and earned — no hardcoded "TOP 3%".
+<br>• <b>Unlock card:</b> pull the item's canonical <b>name + description</b> straight from the cosmetics catalog
+(<code>catalog.ts</code>) — the "Zeus' Wrath" copy here is a placeholder for the real catalog string, and the visual
+uses the item's own effect/colour.</div>

@@ -1,0 +1,217 @@
+<meta charset="utf-8">
+<title>Mock 93 — flame heat states (coal-bed fire, personal + campfire)</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:28px;display:flex;flex-direction:column;align-items:center;gap:6px}
+h1{font-size:18px;margin:0 0 2px;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:840px;text-align:center;line-height:1.55;margin:0 auto 22px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;width:100%;max-width:920px}
+.colhead{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:8px}
+.ch{text-align:center;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:800}
+.ch.hot{color:#F2A33C}.ch.warm{color:#C77A3A}.ch.cold{color:#6b6480}
+.rowlbl{grid-column:1/-1;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#7c7194;font-weight:800;margin:18px 2px 0}
+.tile{background:radial-gradient(120% 62% at 50% 12%,#241830,#161320 62%);border:1px solid #241c38;border-radius:20px;padding:18px 14px 16px;display:flex;flex-direction:column;align-items:center;min-height:238px}
+.scene{width:130px;height:130px}
+.cf .scene{width:104px;height:104px}
+/* the campfire tongues — soft, staggered licks (Inferno-flare style) */
+.tongue{transform-box:fill-box;transform-origin:50% 100%}
+.tongue.outer{filter:blur(1px)}
+.fire-sim{transform-box:fill-box;transform-origin:50% 100%;animation:lick 2.4s ease-in-out infinite}
+.spark{animation:rise 2.4s linear infinite}
+.coalpulse{animation:cpulse 2.2s ease-in-out infinite}
+.puff{transform-box:fill-box;opacity:0}
+@keyframes flick{0%,100%{transform:scaleY(.82) rotate(-2.5deg)}50%{transform:scaleY(1.08) rotate(2.5deg)}}
+@keyframes flick2{0%,100%{transform:scaleY(.9) rotate(2deg)}50%{transform:scaleY(1.12) rotate(-2deg)}}
+@keyframes lick{0%,100%{transform:scaleY(.62);opacity:.85}50%{transform:scaleY(1.05);opacity:1}}
+@keyframes rise{0%{opacity:0;transform:translateY(0)}18%{opacity:.95}100%{opacity:0;transform:translateY(-46px)}}
+@keyframes cpulse{0%,100%{opacity:.85}50%{opacity:1}}
+@keyframes puffC{0%{opacity:0;transform:translate(0,0) scale(.6)}22%{opacity:.5}100%{opacity:0;transform:translate(2px,-44px) scale(1.5)}}
+@keyframes puffL{0%{opacity:0;transform:translate(0,0) scale(.6)}22%{opacity:.45}100%{opacity:0;transform:translate(-9px,-40px) scale(1.5)}}
+@keyframes puffR{0%{opacity:0;transform:translate(0,0) scale(.6)}22%{opacity:.45}100%{opacity:0;transform:translate(10px,-42px) scale(1.5)}}
+/* labels */
+.state{font-size:14px;font-weight:800;margin-top:10px}
+.roar .state{color:#FFD27A}.sim .state{color:#E6A867}.cold .state{color:#8a7fa6}
+.when{font-size:10.5px;color:#a99cbd;text-align:center;line-height:1.45;margin-top:5px}
+.heatbadge{font-size:9px;font-weight:800;letter-spacing:.4px;padding:3px 9px;border-radius:999px;margin-top:10px}
+.roar .heatbadge{background:rgba(224,97,44,.2);color:#F2A33C}
+.sim .heatbadge{background:rgba(179,58,21,.16);color:#C77A3A}
+.cold .heatbadge{background:#20182f;color:#6b6480}
+.mini{font-size:9px;color:#8a7fa6;margin-top:3px}
+.legend{max-width:900px;margin-top:26px;background:#161320;border:1px solid #241c38;border-radius:16px;padding:16px 20px;font-size:12px;color:#c8bcdd;line-height:1.6}
+.legend b{color:#F2A33C}
+.legend code{background:#20182f;padding:1px 6px;border-radius:5px;font-size:11px;color:#e7ddf5}
+.note{max-width:900px;font-size:11.5px;color:#8a7fa6;line-height:1.55;text-align:center;margin-top:8px}
+</style>
+
+<!-- shared gradients -->
+<svg width="0" height="0" style="position:absolute"><defs>
+  <radialGradient id="amb1" cx="50%" cy="72%" r="55%"><stop offset="0" stop-color="#E0612C" stop-opacity=".65"/><stop offset="100%" stop-color="#E0612C" stop-opacity="0"/></radialGradient>
+  <radialGradient id="amb2" cx="50%" cy="80%" r="42%"><stop offset="0" stop-color="#B33A15" stop-opacity=".38"/><stop offset="100%" stop-color="#B33A15" stop-opacity="0"/></radialGradient>
+  <radialGradient id="coalHot1" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="#FFD27A"/><stop offset="45%" stop-color="#F2A33C"/><stop offset="100%" stop-color="#6e2610"/></radialGradient>
+  <radialGradient id="coalWarm2" cx="50%" cy="35%" r="80%"><stop offset="0" stop-color="#F2A33C"/><stop offset="40%" stop-color="#B33A15"/><stop offset="100%" stop-color="#3a1c10"/></radialGradient>
+  <radialGradient id="coalDead3" cx="50%" cy="35%" r="80%"><stop offset="0" stop-color="#453f55"/><stop offset="100%" stop-color="#211d2b"/></radialGradient>
+  <linearGradient id="fO1" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".75" stop-color="#F2A33C"/><stop offset="1" stop-color="#F2A33C" stop-opacity="0"/></linearGradient>
+  <linearGradient id="fI1" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#F2A33C"/><stop offset=".8" stop-color="#FFE6B0"/><stop offset="1" stop-color="#FFE6B0" stop-opacity="0"/></linearGradient>
+  <linearGradient id="lick2" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset="1" stop-color="#F2A33C"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 93 v3 — the fire reflects the heat (live campfire, not the logo)</h1>
+<p class="sub">A fire on a <b>persistent coal base</b>, separate from the clean <code>FlameLogo</code> brand mark. Roaring is now a
+<b>live, flickery campfire</b> — a cluster of staggered flame tongues (Inferno-flare style) — not a single static shape. One
+<b>0&ndash;1 heat</b> value picks the whole composition, and the coal base stays put so it reads as one fire roaring up / dying down.</p>
+
+<div class="grid">
+  <div class="colhead">
+    <div class="ch hot">Roaring · on fire</div>
+    <div class="ch warm">Simmering · embers</div>
+    <div class="ch cold">Cold · burnt out</div>
+  </div>
+
+  <!-- ROW 1: PERSONAL -->
+  <div class="rowlbl">Personal flame — home / lock-in</div>
+
+  <!-- ROARING: campfire tongues -->
+  <div class="tile roar">
+    <svg class="scene" viewBox="0 0 120 120">
+      <ellipse cx="60" cy="86" rx="52" ry="34" fill="url(#amb1)"/>
+      <!-- flame tongues, staggered licks -->
+      <g>
+        <path class="tongue outer" d="M37 100 C38 84 41 74 44 56 C47 74 50 84 51 100 Z" fill="url(#fO1)" style="animation:flick 1.05s ease-in-out .0s infinite"/>
+        <path class="tongue outer" d="M69 100 C70 84 73 75 76 58 C79 75 82 84 83 100 Z" fill="url(#fO1)" style="animation:flick2 1.15s ease-in-out .2s infinite"/>
+        <path class="tongue" d="M48 100 C49 82 51 70 54 40 C57 70 59 82 60 100 Z" fill="url(#fO1)" style="animation:flick 0.9s ease-in-out .12s infinite"/>
+        <path class="tongue" d="M62 100 C63 82 65 71 68 42 C71 71 73 82 74 100 Z" fill="url(#fO1)" style="animation:flick2 0.95s ease-in-out .05s infinite"/>
+        <path class="tongue" d="M53 100 C54 80 57 66 60 28 C63 66 66 80 67 100 Z" fill="url(#fO1)" style="animation:flick 0.8s ease-in-out .18s infinite"/>
+        <path class="tongue" d="M54 100 C55 86 56 74 58 52 C60 74 61 86 62 100 Z" fill="url(#fI1)" style="animation:flick2 0.7s ease-in-out .1s infinite"/>
+        <path class="tongue" d="M59 100 C60 86 61 73 63 50 C65 73 66 86 67 100 Z" fill="url(#fI1)" style="animation:flick 0.75s ease-in-out .22s infinite"/>
+      </g>
+      <!-- bright coal bed -->
+      <g class="coalpulse">
+        <ellipse cx="46" cy="103" rx="12" ry="7" fill="url(#coalHot1)"/><ellipse cx="74" cy="103" rx="12" ry="7" fill="url(#coalHot1)"/>
+        <ellipse cx="60" cy="106" rx="15" ry="8" fill="url(#coalHot1)"/><ellipse cx="55" cy="99" rx="9" ry="5.5" fill="url(#coalHot1)"/><ellipse cx="68" cy="99" rx="9" ry="5.5" fill="url(#coalHot1)"/>
+      </g>
+      <circle class="spark" cx="50" cy="70" r="2" fill="#FFD27A" style="animation-delay:0s"/>
+      <circle class="spark" cx="72" cy="66" r="1.6" fill="#F2A33C" style="animation-delay:1s"/>
+      <circle class="spark" cx="61" cy="58" r="1.8" fill="#FFE6B0" style="animation-delay:1.7s"/>
+    </svg>
+    <div class="state">On fire</div>
+    <div class="when">Streak alive &amp; today's goal on track. A live, flickering campfire off a bright coal bed.</div>
+    <div class="heatbadge">HEAT 0.6&ndash;1.0</div>
+  </div>
+
+  <!-- SIMMERING (unchanged) -->
+  <div class="tile sim">
+    <svg class="scene" viewBox="0 0 120 120">
+      <ellipse cx="60" cy="98" rx="40" ry="22" fill="url(#amb2)"/>
+      <g>
+        <path class="tongue" d="M49 100 C50 90 52 84 54 74 C56 84 58 90 59 100 Z" fill="url(#lick2)" style="animation:flick 1.5s ease-in-out .0s infinite"/>
+        <path class="tongue" d="M55 100 C56 88 58 80 60 62 C62 80 64 88 65 100 Z" fill="url(#lick2)" style="animation:flick2 1.35s ease-in-out .2s infinite"/>
+        <path class="tongue" d="M62 100 C63 90 65 85 67 76 C69 85 71 90 72 100 Z" fill="url(#lick2)" style="animation:flick 1.6s ease-in-out .1s infinite"/>
+      </g>
+      <g class="coalpulse">
+        <ellipse cx="46" cy="104" rx="12" ry="7" fill="url(#coalWarm2)"/><ellipse cx="74" cy="104" rx="12" ry="7" fill="url(#coalWarm2)"/>
+        <ellipse cx="60" cy="107" rx="15" ry="8" fill="url(#coalWarm2)"/><ellipse cx="55" cy="100" rx="9" ry="5.5" fill="url(#coalWarm2)"/><ellipse cx="68" cy="100" rx="9" ry="5.5" fill="url(#coalWarm2)"/>
+      </g>
+      <circle cx="50" cy="103" r="2.4" fill="#FFB84D" class="coalpulse"/>
+      <circle cx="70" cy="104" r="2" fill="#FF8A3D" class="coalpulse" style="animation-delay:.8s"/>
+    </svg>
+    <div class="state">Simmering</div>
+    <div class="when">Under goal today, or streak at risk. Low, gentle tongues flickering off a glowing ember bed.</div>
+    <div class="heatbadge">HEAT 0.15&ndash;0.6</div>
+  </div>
+
+  <!-- COLD: multiple smoke puffs -->
+  <div class="tile cold">
+    <svg class="scene" viewBox="0 0 120 120">
+      <g>
+        <ellipse cx="46" cy="104" rx="12" ry="7" fill="url(#coalDead3)"/><ellipse cx="74" cy="104" rx="12" ry="7" fill="url(#coalDead3)"/>
+        <ellipse cx="60" cy="107" rx="15" ry="8" fill="url(#coalDead3)"/><ellipse cx="55" cy="100" rx="9" ry="5.5" fill="url(#coalDead3)"/><ellipse cx="68" cy="100" rx="9" ry="5.5" fill="url(#coalDead3)"/>
+        <circle cx="52" cy="101" r="1.3" fill="#6b6480"/><circle cx="66" cy="103" r="1.1" fill="#6b6480"/><circle cx="60" cy="99" r="1.2" fill="#5a5470"/>
+      </g>
+      <!-- multiple rising smoke puffs -->
+      <circle class="puff" cx="54" cy="94" r="4" fill="#6b6480" style="animation:puffL 3.4s ease-in-out .0s infinite"/>
+      <circle class="puff" cx="60" cy="92" r="4.5" fill="#7a7290" style="animation:puffC 3.8s ease-in-out .6s infinite"/>
+      <circle class="puff" cx="66" cy="94" r="3.6" fill="#6b6480" style="animation:puffR 3.2s ease-in-out 1.2s infinite"/>
+      <circle class="puff" cx="58" cy="90" r="3.2" fill="#5a5470" style="animation:puffC 3.6s ease-in-out 1.8s infinite"/>
+      <circle class="puff" cx="63" cy="93" r="3" fill="#7a7290" style="animation:puffR 3.5s ease-in-out 2.4s infinite"/>
+    </svg>
+    <div class="state">Gone cold</div>
+    <div class="when">Streak broken / no activity. Burnt-out grey coals with smoke curling off &mdash; the nudge to relight.</div>
+    <div class="heatbadge">HEAT 0.0&ndash;0.15</div>
+  </div>
+
+  <!-- ROW 2: CAMPFIRE -->
+  <div class="rowlbl">Campfire flame — group heat (get_my_campfire_heat)</div>
+
+  <!-- roaring cf -->
+  <div class="tile roar cf">
+    <svg class="scene" viewBox="0 0 120 120">
+      <ellipse cx="60" cy="86" rx="52" ry="34" fill="url(#amb1)"/>
+      <g>
+        <path class="tongue outer" d="M37 100 C38 84 41 74 44 56 C47 74 50 84 51 100 Z" fill="url(#fO1)" style="animation:flick 1.05s ease-in-out .0s infinite"/>
+        <path class="tongue outer" d="M69 100 C70 84 73 75 76 58 C79 75 82 84 83 100 Z" fill="url(#fO1)" style="animation:flick2 1.15s ease-in-out .2s infinite"/>
+        <path class="tongue" d="M48 100 C49 82 51 70 54 40 C57 70 59 82 60 100 Z" fill="url(#fO1)" style="animation:flick 0.9s ease-in-out .12s infinite"/>
+        <path class="tongue" d="M62 100 C63 82 65 71 68 42 C71 71 73 82 74 100 Z" fill="url(#fO1)" style="animation:flick2 0.95s ease-in-out .05s infinite"/>
+        <path class="tongue" d="M53 100 C54 80 57 66 60 28 C63 66 66 80 67 100 Z" fill="url(#fO1)" style="animation:flick 0.8s ease-in-out .18s infinite"/>
+        <path class="tongue" d="M54 100 C55 86 56 74 58 52 C60 74 61 86 62 100 Z" fill="url(#fI1)" style="animation:flick2 0.7s ease-in-out .1s infinite"/>
+        <path class="tongue" d="M59 100 C60 86 61 73 63 50 C65 73 66 86 67 100 Z" fill="url(#fI1)" style="animation:flick 0.75s ease-in-out .22s infinite"/>
+      </g>
+      <g class="coalpulse">
+        <ellipse cx="46" cy="103" rx="12" ry="7" fill="url(#coalHot1)"/><ellipse cx="74" cy="103" rx="12" ry="7" fill="url(#coalHot1)"/>
+        <ellipse cx="60" cy="106" rx="15" ry="8" fill="url(#coalHot1)"/><ellipse cx="55" cy="99" rx="9" ry="5.5" fill="url(#coalHot1)"/><ellipse cx="68" cy="99" rx="9" ry="5.5" fill="url(#coalHot1)"/>
+      </g>
+    </svg>
+    <div class="state">Roaring</div>
+    <div class="when">Most of the campfire locked in today.</div>
+    <div class="mini">e.g. 9 / 12 active today</div>
+  </div>
+
+  <!-- simmering cf -->
+  <div class="tile sim cf">
+    <svg class="scene" viewBox="0 0 120 120">
+      <ellipse cx="60" cy="98" rx="40" ry="22" fill="url(#amb2)"/>
+      <g>
+        <path class="tongue" d="M49 100 C50 90 52 84 54 74 C56 84 58 90 59 100 Z" fill="url(#lick2)" style="animation:flick 1.5s ease-in-out .0s infinite"/>
+        <path class="tongue" d="M55 100 C56 88 58 80 60 62 C62 80 64 88 65 100 Z" fill="url(#lick2)" style="animation:flick2 1.35s ease-in-out .2s infinite"/>
+        <path class="tongue" d="M62 100 C63 90 65 85 67 76 C69 85 71 90 72 100 Z" fill="url(#lick2)" style="animation:flick 1.6s ease-in-out .1s infinite"/>
+      </g>
+      <g class="coalpulse">
+        <ellipse cx="46" cy="104" rx="12" ry="7" fill="url(#coalWarm2)"/><ellipse cx="74" cy="104" rx="12" ry="7" fill="url(#coalWarm2)"/>
+        <ellipse cx="60" cy="107" rx="15" ry="8" fill="url(#coalWarm2)"/><ellipse cx="55" cy="100" rx="9" ry="5.5" fill="url(#coalWarm2)"/><ellipse cx="68" cy="100" rx="9" ry="5.5" fill="url(#coalWarm2)"/>
+      </g>
+      <circle cx="50" cy="103" r="2.4" fill="#FFB84D" class="coalpulse"/><circle cx="70" cy="104" r="2" fill="#FF8A3D" class="coalpulse" style="animation-delay:.8s"/>
+    </svg>
+    <div class="state">Simmering</div>
+    <div class="when">A couple people showed up. Come carry it.</div>
+    <div class="mini">e.g. 2 / 12 active today</div>
+  </div>
+
+  <!-- cold cf -->
+  <div class="tile cold cf">
+    <svg class="scene" viewBox="0 0 120 120">
+      <g>
+        <ellipse cx="46" cy="104" rx="12" ry="7" fill="url(#coalDead3)"/><ellipse cx="74" cy="104" rx="12" ry="7" fill="url(#coalDead3)"/>
+        <ellipse cx="60" cy="107" rx="15" ry="8" fill="url(#coalDead3)"/><ellipse cx="55" cy="100" rx="9" ry="5.5" fill="url(#coalDead3)"/><ellipse cx="68" cy="100" rx="9" ry="5.5" fill="url(#coalDead3)"/>
+        <circle cx="52" cy="101" r="1.3" fill="#6b6480"/><circle cx="66" cy="103" r="1.1" fill="#6b6480"/>
+      </g>
+      <circle class="puff" cx="54" cy="94" r="4" fill="#6b6480" style="animation:puffL 3.4s ease-in-out .0s infinite"/>
+      <circle class="puff" cx="60" cy="92" r="4.5" fill="#7a7290" style="animation:puffC 3.8s ease-in-out .6s infinite"/>
+      <circle class="puff" cx="66" cy="94" r="3.6" fill="#6b6480" style="animation:puffR 3.2s ease-in-out 1.2s infinite"/>
+      <circle class="puff" cx="58" cy="90" r="3.2" fill="#5a5470" style="animation:puffC 3.6s ease-in-out 1.8s infinite"/>
+    </svg>
+    <div class="state">Burnt out</div>
+    <div class="when">Nobody's locked in. The campfire's dead.</div>
+    <div class="mini">e.g. 0 active · 3 days quiet</div>
+  </div>
+</div>
+
+<div class="legend">
+  <b>Two marks, two jobs.</b> The clean <code>FlameLogo</code> silhouette stays the <b>brand</b> (tab bar, app icon, wordmark,
+  home hero at rest). This <b>coal-bed campfire</b> is the <b>activity gauge</b>. One <code>heat ∈ [0,1]</code> picks the composition:
+  <b>≥0.6</b> a live cluster of <b>staggered flame tongues</b> (Inferno-flare licks) off a bright coal bed + sparks &middot;
+  <b>0.15&ndash;0.6</b> a few <b>low, gentle tongues</b> off a glowing <b>ember bed</b> &middot; <b>&lt;0.15</b> dead grey coals + ash +
+  <b>several rising smoke puffs</b>, no glow. The coal base is constant across all three — only the fire on top changes.
+  <b>Personal heat</b> = streak + today's progress. <b>Campfire heat</b> = <code>get_my_campfire_heat()</code>.
+</div>
+<p class="note">v3 changes: roaring is now a <b>multi-tongue live campfire</b> (staggered <code>flick</code>/<code>lick</code> licks like the
+Inferno flare) instead of one static flame; burnt-out has <b>multiple smoke puffs</b> curling up, not a single stream. Simmering unchanged.</p>

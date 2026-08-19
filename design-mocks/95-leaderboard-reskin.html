@@ -1,0 +1,102 @@
+<meta charset="utf-8">
+<title>Mock 95 — leaderboard reskin (Greek-pillar podium)</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:26px;display:flex;flex-direction:column;align-items:center;gap:12px}
+h1{font-size:18px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:640px;text-align:center;line-height:1.5;margin:0 0 8px}
+.phone{width:320px;height:640px;background:#14111c;border-radius:36px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:radial-gradient(120% 60% at 50% 4%,#2c1b36,#161320 56%);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;padding:18px 16px}
+.title{font-size:22px;font-weight:800}
+.srch{position:absolute;top:20px;right:16px;color:#a99cbd;font-size:16px}
+.chips{display:flex;gap:7px;margin-top:14px;flex-wrap:wrap}
+.chip{font-size:11px;font-weight:700;padding:6px 13px;border-radius:999px;background:#1b1726;color:#a99cbd}
+.chip.on{background:#20182f;color:#F2A33C;border:1px solid rgba(242,163,60,.5)}
+.sub2{display:flex;gap:7px;margin-top:8px}
+/* podium */
+.podium{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:10px;padding:24px 4px 24px}
+.col{display:flex;flex-direction:column;align-items:center;width:82px}
+.av{position:relative;width:56px;height:56px;border-radius:50%;overflow:hidden;border:3px solid;display:flex;align-items:flex-end;justify-content:center;background:#2d2740;z-index:2}
+.av svg{width:42px;height:42px}
+.medal{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#2a1608;border:2px solid #161320;z-index:3}
+.nm{font-size:12px;font-weight:700;margin-top:14px;white-space:nowrap}
+.you{color:#F2A33C}
+.xp{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:800;margin-top:3px}
+.hex{width:12px;height:13px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:inline-block}
+/* ---- GREEK PILLAR PLINTHS (fluted column: capital + shaft + base) ---- */
+.pillar{margin-top:12px;display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 6px 10px rgba(0,0,0,.4))}
+.cap-top{width:80px;height:11px;border-radius:3px 3px 1px 1px}
+.echinus{width:70px;height:6px;margin-top:-1px}
+.shaft{width:60px;position:relative}
+.base1{width:74px;height:8px;margin-top:-1px}
+.base2{width:84px;height:11px;border-radius:1px 1px 3px 3px}
+/* metals — cylindrical sheen (horizontal) + vertical fluting grooves on the shaft */
+.gold .cap-top,.gold .echinus,.gold .base1,.gold .base2{background:linear-gradient(180deg,#FFE9A8,#F5C542 60%,#C79A16)}
+.silver .cap-top,.silver .echinus,.silver .base1,.silver .base2{background:linear-gradient(180deg,#EDEFF3,#C7CDD6 60%,#9AA2AE)}
+.bronze .cap-top,.bronze .echinus,.bronze .base1,.bronze .base2{background:linear-gradient(180deg,#F0C08A,#C87F3F 60%,#8A4E22)}
+.gold .shaft{height:150px;background:repeating-linear-gradient(90deg,rgba(90,60,0,.30) 0 1px,transparent 1px 9px),linear-gradient(90deg,#8a6a10,#FFE9A8 22%,#F5C542 50%,#FFE9A8 78%,#8a6a10)}
+.silver .shaft{height:110px;background:repeating-linear-gradient(90deg,rgba(60,66,74,.30) 0 1px,transparent 1px 9px),linear-gradient(90deg,#8b929e,#EDEFF3 22%,#C7CDD6 50%,#EDEFF3 78%,#8b929e)}
+.bronze .shaft{height:84px;background:repeating-linear-gradient(90deg,rgba(60,30,10,.32) 0 1px,transparent 1px 9px),linear-gradient(90deg,#7a4420,#F0C08A 22%,#C87F3F 50%,#F0C08A 78%,#7a4420)}
+.gold .av{border-color:#F5C542;width:64px;height:64px}
+.silver .av{border-color:#C7CDD6}
+.bronze .av{border-color:#C87F3F}
+.gold .medal{background:#F5C542}.silver .medal{background:#C7CDD6}.bronze .medal{background:#C87F3F}
+.crown{position:absolute;top:-30px;left:50%;transform:translateX(-50%);font-size:18px;z-index:4}
+/* rest-of-list rows */
+.rows{margin-top:2px}
+.row{display:flex;align-items:center;gap:11px;padding:9px 8px;border-radius:12px}
+.row.me{background:#20182f;border:1px solid rgba(242,163,60,.35)}
+.rk{width:20px;text-align:center;font-size:13px;font-weight:800;color:#8a7fa6}
+.rav{width:32px;height:32px;border-radius:50%;background:#2d2740;flex:0 0 32px}
+.rnm{flex:1;font-size:13px;font-weight:700}
+.rxp{font-size:12px;font-weight:800;color:#F2A33C}
+.nav{display:flex;justify-content:space-around;padding-top:10px;border-top:1px solid #241c38;margin-top:6px;font-size:10px;color:#6f6685}
+.nav .on{color:#F2A33C}
+.cap{font-size:11.5px;color:#a99cbd;max-width:360px;text-align:center;line-height:1.5;margin-top:2px}
+</style>
+
+<h1>Mock 95 v2 — leaderboard (Greek-pillar podium)</h1>
+<p class="sub">Plinths remorphed into <b>fluted pantheon pillars</b> (capital + grooved shaft + base) in tier metals —
+gold / silver / bronze — on the deep-purple ember bg. The distracting ember floor-glow is gone; the columns carry it.</p>
+
+<div class="phone"><div class="stage">
+  <div class="title">Leaderboard</div>
+  <div class="srch">🔍</div>
+  <div class="chips"><span class="chip on">Campfires</span><span class="chip">My uni</span><span class="chip">Vs. unis</span><span class="chip">Global</span></div>
+  <div class="sub2"><span class="chip on">XP</span><span class="chip">Streaks</span></div>
+
+  <div class="podium">
+    <!-- 2nd -->
+    <div class="col silver">
+      <div class="av"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="medal">2</div></div>
+      <div class="nm">Noah&nbsp;B.</div>
+      <div class="xp" style="color:#C7CDD6"><span class="hex" style="background:#C7CDD6"></span> 554</div>
+      <div class="pillar"><div class="cap-top"></div><div class="echinus"></div><div class="shaft"></div><div class="base1"></div><div class="base2"></div></div>
+    </div>
+    <!-- 1st -->
+    <div class="col gold">
+      <div class="av"><span class="crown">👑</span><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="medal">1</div></div>
+      <div class="nm you">Noah&nbsp;B. · you</div>
+      <div class="xp" style="color:#F5C542"><span class="hex" style="background:#F5C542"></span> 6,265</div>
+      <div class="pillar"><div class="cap-top"></div><div class="echinus"></div><div class="shaft"></div><div class="base1"></div><div class="base2"></div></div>
+    </div>
+    <!-- 3rd -->
+    <div class="col bronze">
+      <div class="av"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="medal">3</div></div>
+      <div class="nm">Noah&nbsp;B.</div>
+      <div class="xp" style="color:#C87F3F"><span class="hex" style="background:#C87F3F"></span> 210</div>
+      <div class="pillar"><div class="cap-top"></div><div class="echinus"></div><div class="shaft"></div><div class="base1"></div><div class="base2"></div></div>
+    </div>
+  </div>
+
+  <div class="rows">
+    <div class="row"><div class="rk">4</div><div class="rav"></div><div class="rnm">priya</div><div class="rxp">180 XP</div></div>
+    <div class="row"><div class="rk">5</div><div class="rav"></div><div class="rnm">theo</div><div class="rxp">95 XP</div></div>
+  </div>
+
+  <div class="nav"><span class="on">🔥 Home</span><span>🏆 Leaderboards</span><span>◎ Challenges</span><span>👤 Profile</span></div>
+</div></div>
+
+<div class="cap"><b>Leaderboard (mock 95 v2).</b> Fluted tier-metal pillars, no floor-glow. Tabs, avatars (tier ring +
+medallion), and 4th-place list keep their structure.</div>

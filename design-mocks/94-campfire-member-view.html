@@ -1,0 +1,138 @@
+<meta charset="utf-8">
+<title>Mock 94 — campfire member view (banner + leaderboard)</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:26px;display:flex;flex-direction:column;align-items:center;gap:12px}
+h1{font-size:18px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:760px;text-align:center;line-height:1.55;margin:0 0 10px}
+.phone{width:320px;height:660px;background:#14111c;border-radius:36px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:#161320;border-radius:28px;overflow:hidden;display:flex;flex-direction:column}
+.scroll{overflow:auto;flex:1}.scroll::-webkit-scrollbar{display:none}
+.back{position:absolute;top:14px;left:12px;z-index:6;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center}
+.back svg{width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.gear{position:absolute;top:14px;right:12px;z-index:6;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-size:14px}
+/* BANNER HERO (equipped campfire banner) + campfire heat flame */
+.hero{position:relative;height:172px;overflow:hidden}
+.hero svg.bnr{position:absolute;inset:0;width:100%;height:100%}
+.heroshade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(22,19,32,.1) 0%,transparent 26%,rgba(22,19,32,.9) 100%)}
+.cfflame{position:absolute;top:20px;left:50%;transform:translateX(-50%);z-index:3;display:flex;flex-direction:column;align-items:center}
+.cfglow{position:absolute;top:2px;width:64px;height:64px;border-radius:50%;background:#E0612C;opacity:.5;filter:blur(13px);animation:pg 1.5s ease-in-out infinite}
+.cfflame svg{position:relative;z-index:2;animation:flick 1s ease-in-out infinite}
+.heatlbl{position:relative;z-index:2;margin-top:2px;font-size:9px;font-weight:800;letter-spacing:.5px;color:#FFD27A;text-shadow:0 1px 6px #000}
+.heroname{position:absolute;left:16px;bottom:12px;right:16px;z-index:4}
+.heroname .t{font-size:21px;font-weight:800;line-height:1.05}
+.heroname .s{display:flex;align-items:center;gap:6px;font-size:11px;color:#d8cae8;margin-top:5px}
+.gate{position:absolute;top:14px;right:52px;z-index:5;background:rgba(20,17,28,.72);border:1px solid rgba(79,176,229,.5);color:#bfe0f5;font-size:9px;font-weight:800;letter-spacing:.3px;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px}
+.gate .hx{width:11px;height:12px;background:#4FB0E5;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+/* stat strip */
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 14px 4px}
+.stat{background:#20182f;border-radius:12px;padding:9px 4px;text-align:center}
+.stat .v{font-size:15px;font-weight:800}.stat .k{font-size:8px;color:#8a7fa6;letter-spacing:.4px;margin-top:2px;text-transform:uppercase}
+/* tabs */
+.tabs{display:flex;gap:6px;padding:12px 14px 6px}
+.tab{flex:1;text-align:center;font-size:11.5px;font-weight:700;color:#a99cbd;padding:8px 0;border-radius:10px;background:#1b1726}
+.tab.on{background:linear-gradient(135deg,#E0612C,#B33A15);color:#fff}
+/* leaderboard */
+.lb{padding:4px 12px 6px}
+.lrow{display:flex;align-items:center;gap:11px;padding:9px 8px;border-radius:12px}
+.lrow.me{background:#20182f;border:1px solid rgba(242,163,60,.35)}
+.rk{width:22px;text-align:center;font-size:13px;font-weight:800;color:#8a7fa6}
+.rk.g{color:#F5C542}.rk.s{color:#cfd3dc}.rk.b{color:#d08a4f}
+.av{width:34px;height:34px;border-radius:50%;background:#2d2740;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;position:relative;flex:0 0 34px}
+.av svg{width:24px;height:24px}
+.mh{position:absolute;bottom:-3px;right:-3px;width:14px;height:16px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:flex;align-items:center;justify-content:center;font-size:6.5px;font-weight:800;color:#0f0d15}
+.nm{flex:1;font-size:13px;font-weight:700}
+.nm .u{font-size:9.5px;color:#8a7fa6;font-weight:600;margin-top:1px}
+.xp{font-size:12px;font-weight:800;color:#F2A33C}
+.streak{font-size:9px;color:#8a7fa6;text-align:right;margin-top:1px}
+.rule{margin:10px 12px 0;background:#231a2e;border-left:3px solid #E0612C;border-radius:0 10px 10px 0;padding:9px 12px;font-size:10.5px;color:#e7ddf5;line-height:1.5}
+.rule b{color:#F2A33C}
+/* bottom action */
+.foot{padding:10px 14px 16px;background:linear-gradient(180deg,transparent,#161320 42%);display:flex;gap:9px}
+.foot .btn{flex:1;text-align:center;background:linear-gradient(135deg,#F2A33C,#E0612C);color:#3a1608;border-radius:13px;padding:13px;font-size:13.5px;font-weight:800}
+.foot .ghost{flex:0 0 46px;text-align:center;background:#1b1726;border-radius:13px;padding:13px 0;font-size:16px}
+@keyframes flick{0%,100%{transform:scale(1) rotate(-1deg)}50%{transform:scale(1.06) rotate(1deg)}}
+@keyframes pg{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.72;transform:scale(1.09)}}
+.cap{font-size:11.5px;color:#a99cbd;max-width:340px;text-align:center;line-height:1.5;margin-top:6px}
+.cap b{color:#c8bcdd}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="fg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".55" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFD27A"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 94 — campfire member view</h1>
+<p class="sub">What you land on the moment you open a campfire you're in — a <b>Clash-clan layout</b>: the equipped banner hero
+with the group's <b>heat flame</b> on it, the <b>join gate</b> (min rank), the serious stats, and the <b>leaderboard right there</b>,
+no extra tap. This is what mock 62 (join preview) becomes once you're a member.</p>
+
+<div class="phone"><div class="stage">
+  <div class="back"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+  <div class="gear">⚙️</div>
+
+  <div class="scroll">
+    <!-- BANNER HERO -->
+    <div class="hero">
+      <svg class="bnr" viewBox="0 0 320 172" preserveAspectRatio="xMidYMid slice">
+        <defs><radialGradient id="floor" cx="50%" cy="100%" r="70%"><stop offset="0%" stop-color="#E0612C" stop-opacity=".8"/><stop offset="45%" stop-color="#7a2a12" stop-opacity=".4"/><stop offset="100%" stop-color="#161320" stop-opacity="0"/></radialGradient></defs>
+        <rect width="320" height="172" fill="#0c0a12"/>
+        <g fill="none" stroke-linecap="round">
+          <path d="M-30 200 A245 150 0 0 1 350 200" stroke="#1a1a24" stroke-width="20"/>
+          <path d="M-10 204 A205 122 0 0 1 330 204" stroke="#22222e" stroke-width="17"/>
+          <path d="M14 208 A160 96 0 0 1 306 208" stroke="#1a1a24" stroke-width="15"/>
+          <path d="M40 212 A120 72 0 0 1 280 212" stroke="#26262f" stroke-width="13"/>
+        </g>
+        <ellipse cx="160" cy="188" rx="128" ry="60" fill="url(#floor)"/>
+        <ellipse cx="160" cy="184" rx="32" ry="10" fill="#F2A33C" opacity=".55" style="filter:blur(4px)"/>
+      </svg>
+      <!-- campfire heat flame (roaring here — mock 93 mapping) -->
+      <div class="cfflame">
+        <div class="cfglow"></div>
+        <svg width="52" height="52" viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#fg)"/></svg>
+        <div class="heatlbl">ROARING · 9 of 12 in today</div>
+      </div>
+      <div class="gate"><span class="hx"></span> Gold+ to join</div>
+      <div class="heroshade"></div>
+      <div class="heroname">
+        <div class="t">CS 250 · Grind House</div>
+        <div class="s">🔒 Private · 12 members · founded Sep '25</div>
+      </div>
+    </div>
+
+    <!-- STAT STRIP -->
+    <div class="stats">
+      <div class="stat"><div class="v" style="color:#F2A33C">38<span style="font-size:9px">d</span></div><div class="k">Avg streak</div></div>
+      <div class="stat"><div class="v">3.2<span style="font-size:9px">h</span></div><div class="k">Locked / day</div></div>
+      <div class="stat"><div class="v" style="color:#FF6B6B">2</div><div class="k">Live challenges</div></div>
+    </div>
+
+    <!-- TABS: leaderboard default -->
+    <div class="tabs">
+      <div class="tab on">Leaderboard</div>
+      <div class="tab">Feed</div>
+      <div class="tab">Challenges</div>
+    </div>
+
+    <!-- LEADERBOARD (visible from the second you join) -->
+    <div class="lb">
+      <div class="lrow"><div class="rk g">1</div><div class="av"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="mh" style="background:#FF6B6B">IX</div></div><div class="nm">maya<div class="u">@mayalifts</div></div><div><div class="xp">8,410 XP</div><div class="streak">🔥 41d</div></div></div>
+      <div class="lrow"><div class="rk s">2</div><div class="av"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="mh" style="background:#4FB0E5">D</div></div><div class="nm">theo<div class="u">@theostudies</div></div><div><div class="xp">7,905 XP</div><div class="streak">🔥 33d</div></div></div>
+      <div class="lrow me"><div class="rk b">3</div><div class="av"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="mh" style="background:#cfd3dc">S</div></div><div class="nm">you<div class="u">@noah</div></div><div><div class="xp">6,265 XP</div><div class="streak">🔥 2d</div></div></div>
+      <div class="lrow"><div class="rk">4</div><div class="av"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="mh" style="background:#F5C542">L</div></div><div class="nm">priya<div class="u">@priyap</div></div><div><div class="xp">5,880 XP</div><div class="streak">🔥 28d</div></div></div>
+      <div class="lrow"><div class="rk">5</div><div class="av"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="mh" style="background:#4FB0E5">D</div></div><div class="nm">jordan<div class="u">@jdn</div></div><div><div class="xp">5,140 XP</div><div class="streak">🔥 19d</div></div></div>
+    </div>
+
+    <div class="rule">🔥 <b>House rule:</b> 2h/day minimum, six days a week. Miss three days and the fire drops you.</div>
+  </div>
+
+  <!-- FOOTER ACTIONS -->
+  <div class="foot">
+    <span class="btn">Lock in with the house →</span>
+    <span class="ghost">💬</span>
+  </div>
+</div></div>
+
+<div class="cap"><b>Campfire member view (mock 94).</b> Same banner hero as the join preview (62), now with the group's live
+<b>heat flame</b> (mock 93) + <b>join gate</b>, and the <b>leaderboard as the default tab</b> — visible the instant you're in.
+Feed &amp; Challenges are tabs, not the landing.</div>
