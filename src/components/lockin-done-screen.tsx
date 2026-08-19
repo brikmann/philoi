@@ -40,7 +40,9 @@ type LockInDoneScreenProps = {
   onDone: () => void;
 };
 
-const FLAME_SIZE = 140;
+// Mock 92's done-screen flame (punchlist 17 P3). The glyph itself is already correct — it
+// comes through FlameSvg, fixed in P0 — this is only the size.
+const FLAME_SIZE = 118;
 
 // The "done" screen (design-mocks/81-done-screen.html) — built around the SAME big living flame
 // as the work session, stripped to the four things that matter: you locked in, for how long, the

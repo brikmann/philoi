@@ -334,7 +334,7 @@ export function FlameMeterComplete({
         </View>
         <View ref={counterRef} collapsable={false} style={styles.emberCount}>
           <View style={styles.emberAv}>
-            <Ionicons name="flame" size={11} color={Colors.amber} />
+            <EmberIcon size={11} />
           </View>
           <Animated.Text style={[styles.emberN, counterBumpStyle]}>{embers}</Animated.Text>
         </View>
@@ -344,7 +344,9 @@ export function FlameMeterComplete({
         <Animated.View pointerEvents="none" style={[styles.burst, burstStyle]} />
         <View ref={fireRef} collapsable={false} style={styles.fireZone}>
           <Animated.View style={fireStyle}>
-            <FlameSvg width={78 * FLAME_ASPECT_RATIO} height={78} />
+            {/* The roaring flame at mock 92's daily-fire size (punchlist 17 P3) — 78 was small enough
+                that the celebration's hero read as an icon rather than a roar. */}
+            <FlameSvg width={150 * FLAME_ASPECT_RATIO} height={150} />
           </Animated.View>
           {SPARKS.map((s) => (
             <Spark key={s.delay} delay={s.delay} xOffset={s.xOffset} reduceMotion={reduceMotion} />
@@ -359,7 +361,7 @@ export function FlameMeterComplete({
           You&apos;re on fire, <Text style={styles.headlineName}>{firstName}</Text>!
         </Animated.Text>
         <Animated.View style={[styles.donePill, pillStyle]}>
-          <Text style={styles.donePillText}>Today&apos;s fire complete</Text>
+          <Text style={styles.donePillText}>DAILY FIRE COMPLETE</Text>
         </Animated.View>
 
         <Animated.View style={[styles.xpline, xplineStyle]}>
