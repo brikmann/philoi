@@ -13,6 +13,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from '
 
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
 import { CampfireFlameStage, heatToFlameState, type CampfireFlameState } from '@/components/campfire-flame-stage';
+import { HeatFlame } from '@/components/heat-flame';
 import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { HexagonBadge } from '@/components/hexagon-badge';
@@ -99,7 +100,16 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
   // Personal flame dims when *you've* gone quiet — no one else's activity feeds this fire
   // (PHILOI_UI_SPEC.md §12: "no chat, no feed... a private nudge") — UNLESS a lock-in is
   // actively running right now, which always reads as roaring (design-mocks/25).
-  const flameState = activeSession ? 'roar' : streak > 0 ? 'steady' : 'dead';
+  // PERSONAL heat (punchlist 17 P5) — streak alive + today's progress toward the daily fire, so a
+  // broken streak with nothing done today shows the gone-cold flame on Home rather than a flame
+  // that looks the same whether you turned up or not. Same 0-1 scale a campfire's heat uses, so
+  // one gauge serves both.
+  //   locked in now      -> 1.0  roaring
+  //   streak, no progress-> 0.2  simmering (alive, but today hasn't started)
+  //   no streak, nothing -> 0    cold
+  const fireRatio =
+    dailyFire && dailyFire.goal_xp > 0 ? Math.min(1, dailyFire.progress_xp / dailyFire.goal_xp) : 0;
+  const personalHeat = activeSession ? 1 : streak > 0 ? 0.2 + fireRatio * 0.8 : fireRatio * 0.5;
 
   const name = profile?.display_name?.split(' ')[0] ?? 'there';
   const previousGreetingRef = useRef<string | undefined>(undefined);
@@ -144,7 +154,8 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
           the other. Both bars are gone because the rank row below now carries BOTH facts in a
           single horizontal bar: tier progress as the fill, today's fire encased inside it. */}
       <View style={styles.heroCenter}>
-        <CampfireFlameStage state={flameState} size={132} />
+        {/* The heat gauge, not the brand mark — see HeatFlame. Mock 92's hero size. */}
+        <HeatFlame heat={personalHeat} size={132} />
         {activeSession?.circleId && session ? (
           <LockedInBodyDoublesLine circleId={activeSession.circleId} excludeUserId={session.user.id} />
         ) : !activeSession ? (
