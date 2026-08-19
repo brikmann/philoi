@@ -8,10 +8,11 @@ import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { useGroup } from '@/hooks/use-group';
-import { updateCampfirePrivacy, updateGroup } from '@/lib/api/groups';
+import { updateCampfireHouseRules, updateCampfirePrivacy, updateGroup } from '@/lib/api/groups';
 import { getErrorMessage } from '@/lib/errors';
 import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
-import type { CampfirePrivacy, GoalType } from '@/types/database';
+import { RANK_TIER_LABEL, RANK_TIER_METAL } from '@/lib/rank-tiers';
+import type { CampfirePrivacy, GoalType, RankTierName } from '@/types/database';
 
 // Same lightweight theme set as group/create.tsx — kept in sync there rather than shared,
 // since duplicating a 4-line array is cheaper than a shared-module indirection for two files.
@@ -26,6 +27,11 @@ function themeEmoji(type: GoalType): string {
   return type === 'custom' ? '🔥' : GOAL_TYPE_META[type].emoji;
 }
 
+// The join gate's choices (design-mocks/94). Deliberately NOT the full ten-tier ladder — a gate is a
+// filter on strangers, and past Diamond there is nobody left to filter. Null is the first option
+// because "anyone" is the honest default for a campfire that hasn't decided.
+const GATE_OPTIONS: (RankTierName | null)[] = [null, 'bronze', 'silver', 'gold', 'platinum', 'diamond'];
+
 // design-mocks/10's create form, pre-filled — same stage/field/icon-tile styling. Privacy
 // (PHILOI_UI_SPEC.md §14: "editable by the owner in campfire settings / Edit campfire at any
 // point") is the one setting from create that's also editable here; class/course fields
@@ -37,6 +43,8 @@ export default function EditGroupScreen() {
   const [name, setName] = useState('');
   const [goalType, setGoalType] = useState<GoalType>('custom');
   const [privacy, setPrivacy] = useState<CampfirePrivacy>('open');
+  const [minJoinTier, setMinJoinTier] = useState<RankTierName | null>(null);
+  const [houseRule, setHouseRule] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +53,8 @@ export default function EditGroupScreen() {
     setName(group.name);
     setGoalType(group.goal_type);
     setPrivacy(group.privacy);
+    setMinJoinTier(group.min_join_tier);
+    setHouseRule(group.house_rule ?? '');
   }, [group]);
 
   async function handleSave() {
@@ -58,6 +68,11 @@ export default function EditGroupScreen() {
       await updateGroup(groupId, { name: name.trim(), emoji: themeEmoji(goalType) });
       if (group && privacy !== group.privacy) {
         await updateCampfirePrivacy(groupId, privacy);
+      }
+      // Owner-only RPC — a member editing here would already have been stopped by the update above,
+      // but the house rules carry their own check server-side either way.
+      if (group && (minJoinTier !== group.min_join_tier || houseRule.trim() !== (group.house_rule ?? ''))) {
+        await updateCampfireHouseRules(groupId, { minJoinTier, houseRule: houseRule.trim() || null });
       }
       await refetch();
       router.back();
@@ -106,6 +121,41 @@ export default function EditGroupScreen() {
 
           <Text style={styles.lbl}>Who can join</Text>
           <PrivacySelector value={privacy} onChange={setPrivacy} />
+
+          {/* The join gate (mock 94's chip). Applies to people finding you through discovery — an
+              invite code still gets someone in, because that is a member vouching in person. */}
+          <Text style={styles.lbl}>Minimum rank to join</Text>
+          <View style={styles.gateRow}>
+            {GATE_OPTIONS.map((tier) => {
+              const on = minJoinTier === tier;
+              const metal = tier ? RANK_TIER_METAL[tier] : null;
+              return (
+                <Pressable
+                  key={tier ?? 'any'}
+                  onPress={() => setMinJoinTier(tier)}
+                  style={[styles.gatePill, on && styles.gatePillOn, on && metal ? { borderColor: metal.outer } : null]}>
+                  <Text style={[styles.gateLabel, on ? { color: metal?.text ?? Colors.achieverText } : null]}>
+                    {tier ? `${RANK_TIER_LABEL[tier]}+` : 'Anyone'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={styles.lbl}>House rule</Text>
+          <View style={styles.field}>
+            <View style={styles.fieldIcon}>
+              <Ionicons name="flame" size={15} color={Colors.amber} />
+            </View>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="e.g. 2h/day minimum, six days a week"
+              value={houseRule}
+              onChangeText={setHouseRule}
+              maxLength={160}
+              multiline
+            />
+          </View>
 
           {error && <Text style={styles.error}>{error}</Text>}
         </ScrollView>
@@ -193,6 +243,28 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.achieverBg,
     borderWidth: 1.5,
     borderColor: Colors.coral,
+  },
+  gateRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  gatePill: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: Radius.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  gatePillOn: {
+    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.coral,
+  },
+  gateLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.muted,
   },
   error: {
     fontFamily: Fonts.body,

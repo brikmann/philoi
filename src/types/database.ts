@@ -138,7 +138,21 @@ export type Group = {
   /** Set when this is a class-tagged campfire (PHILOI_UI_SPEC.md §14) — a course study-hall. */
   course_code: string | null;
   school: string | null;
+  /** The join gate (design-mocks/94): the minimum rank tier a stranger needs to get in via
+   * discovery. Null = anyone. Enforced in join_public_group/request_to_join_group, not just drawn. */
+  min_join_tier: RankTierName | null;
+  /** The owner's one-line house rule shown at the bottom of the member view. Null = no rule set. */
+  house_rule: string | null;
   created_at: string;
+};
+
+/** design-mocks/94's stat strip — get_campfire_stats(). Members only; a non-member gets no row. */
+export type CampfireStats = {
+  member_count: number;
+  locked_in_today: number;
+  avg_streak: number;
+  avg_hours_per_day: number;
+  live_challenges: number;
 };
 
 export type DiscoverableGroup = {
@@ -1195,6 +1209,11 @@ export type Database = {
       join_public_group: { Args: { p_group_id: string }; Returns: Group };
       request_to_join_group: { Args: { p_group_id: string }; Returns: undefined };
       update_campfire_privacy: { Args: { p_group_id: string; p_privacy: CampfirePrivacy }; Returns: Group };
+      update_campfire_house_rules: {
+        Args: { p_group_id: string; p_min_join_tier: RankTierName | null; p_house_rule: string | null };
+        Returns: Group;
+      };
+      get_campfire_stats: { Args: { p_group_id: string }; Returns: CampfireStats[] };
       list_join_requests: { Args: { p_group_id: string }; Returns: JoinRequest[] };
       approve_join_request: { Args: { p_request_id: string }; Returns: undefined };
       deny_join_request: { Args: { p_request_id: string }; Returns: undefined };

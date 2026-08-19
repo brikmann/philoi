@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type {
   CampfirePreview,
   CampfirePrivacy,
+  CampfireStats,
   CrossCirclePerson,
   DiscoverableGroup,
   Group,
@@ -10,6 +11,7 @@ import type {
   JoinRequest,
   LeaderboardRow,
   MyCircleRank,
+  RankTierName,
   UniversityLeaderboardRow,
   UniversityTotal,
   WeeklyRecap,
@@ -141,6 +143,29 @@ export async function updateCampfirePrivacy(groupId: string, privacy: CampfirePr
   const { data, error } = await supabase.rpc('update_campfire_privacy', { p_group_id: groupId, p_privacy: privacy });
   if (error) throw error;
   return data;
+}
+
+// The house rules behind design-mocks/94 — the join gate (min rank) and the one-line rule. Owner-
+// only, gated inside the RPC. Passing null to either clears it.
+export async function updateCampfireHouseRules(
+  groupId: string,
+  input: { minJoinTier: RankTierName | null; houseRule: string | null }
+): Promise<Group> {
+  const { data, error } = await supabase.rpc('update_campfire_house_rules', {
+    p_group_id: groupId,
+    p_min_join_tier: input.minJoinTier,
+    p_house_rule: input.houseRule,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// The member view's stat strip. Returns null for a non-member (the RPC yields no row) rather than
+// throwing — the strip is flavour, and a campfire you can't see stats for still opens.
+export async function fetchCampfireStats(groupId: string): Promise<CampfireStats | null> {
+  const { data, error } = await supabase.rpc('get_campfire_stats', { p_group_id: groupId });
+  if (error) throw error;
+  return data?.[0] ?? null;
 }
 
 export async function fetchJoinRequests(groupId: string): Promise<JoinRequest[]> {
