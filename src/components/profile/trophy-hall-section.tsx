@@ -76,8 +76,17 @@ export function TrophyHallSection({ hall, userId, isOwn }: { hall: TrophyHall; u
           <Text style={styles.autoLabel}>FEATURED · auto — rarest + newest</Text>
           <View style={styles.trophies}>
             {featured.map((t) => (
-              <TrophyTile key={t.key} itemKey={t.key} tag={t.tag} />
+              <View key={t.key} style={styles.trophySlot}>
+                <TrophyTile itemKey={t.key} tag={t.tag} />
+              </View>
             ))}
+            {/* One or two featured trophies must not stretch to half the screen each — the strip
+                keeps its 4-up rhythm and simply ends early. */}
+            {featured.length < 4
+              ? Array.from({ length: 4 - featured.length }, (_, i) => (
+                  <View key={`pad-${i}`} style={styles.trophySlot} />
+                ))
+              : null}
           </View>
         </>
       ) : null}
@@ -195,6 +204,10 @@ const styles = StyleSheet.create({
   trophies: {
     flexDirection: 'row',
     gap: 9,
+  },
+  trophySlot: {
+    flex: 1,
+    flexDirection: 'row',
   },
   record: {
     flexDirection: 'row',
