@@ -1,18 +1,21 @@
-# Code handoff — Challenge system (redesign + algorithm + rewards)
+# Code handoff — Challenges + Rewards + Notifications (consolidated)
 
-One consolidated pass. Creation is done; this covers **bugs → algorithm → viewing redesign → reward screens →
-share cards**. Build A (bugs) and B (algorithm) first — they're the broken core loop — then C/D/E (UI).
+One pass covering **bugs → algorithm → viewing redesign → reward screens → share cards → notifications → crown**.
+Build **A (bugs)** and **B (algorithm)** first — they're the broken core loop — then C/D/E/F (UI + notifications).
 
-**Coordination:** commit before every build (remember the stuck `.git/index.lock`); one writer per branch; don't
-edit the mocks/specs — flag disagreements in chat.
+**Coordination (READ FIRST):** ⚠ **clear the stuck `.git/index.lock` and commit the outstanding tree before you
+build** (last pass got stranded uncommitted). One writer per branch; don't edit the mocks/specs — flag disagreements
+in chat.
 
 **Reference files (source of truth):**
-- `CHALLENGE_REDESIGN_SPEC.md` — the master (bugs, algorithm, viewing IA)
+- `CHALLENGE_REDESIGN_SPEC.md` — master (bugs, algorithm, viewing IA, notifications §D)
 - `CHALLENGE_REWARD_ALGO.md` — reward calibration (daily drip + streak milestones + concrete ember bands + guardrails)
 - `REWARD_ECONOMY.md` §3–§5 — the `grantReward` engine + guardrails (fold the ALGO numbers in here)
 - `CHALLENGE_REWARD_COPY.md` — win/loss/placement headline pools
+- `NOTIFICATIONS_SPEC.md` — the **full** notification catalog (all categories) + leading-art + rich-push
 - Mocks: **102** (tab: Friends/Personal + info screens) · **47** (challenge/campfire reward) · **103** (goal/streak
-  reward) · **104** (challenge + goal share cards) · 44/45 (watch) · 46 (pick members)
+  reward) · **104** (challenge + goal share cards) · **105** (leaderboard #1 crown) · **106** (surfacing + push + the
+  new bell) · 44/45 (watch) · 46 (pick members)
 
 ---
 
@@ -67,7 +70,26 @@ Add two to the share set (same frame as mock 96, rank-in-hex + philoi.app footer
 - **`challenge-win-share-card`** — from mock 47's "Share to your story".
 - **`goal-streak-share-card`** — from mock 103's "Share to your story".
 
+## F. Notifications — the full system (`NOTIFICATIONS_SPEC.md`, mock 106)
+Not just challenges — the app-wide notification layer.
+- **One event pipeline → fan-out:** server emits `{type, actor, target, payload, image, imageShape}`; fan-out picks
+  channels by the user's category toggles + defaults + quiet hours + rate-limits, writes the in-app **bell feed** row,
+  and (if push-eligible) sends **Expo push**. Each `type` deep-links to a route.
+- **Event catalog** (full table in the spec): Friends & social · Challenges · Campfires · Streak & reminders ·
+  Season & rank. Sensible defaults (high-value ON, low-value OFF/bell-only), batching, quiet hours.
+- **Leading art — pull the subject's image**, not the generic flame: rank → **tier hexagon** ("You ranked up to
+  Silver I"), friend events → **their avatar**, campfire → **campfire icon**, duel → **opponent avatar**, win →
+  **reward/box art**. Rich push via iOS `UNNotificationAttachment` (Notification Service Extension) / Android
+  `BigPictureStyle`; same image in the bell feed, masked to shape.
+- **Surfaces (mock 106):** Home **active-challenge card** (supersedes daily fire) · **header bell** (the new amber
+  vector bell + ember badge, empty/2/9+, gently rings on unread) · **Challenges-tab badge**.
+- 🔔 **Dedicated Settings → Notifications menu** — its **own screen** with a toggle per **category** (Friends &
+  social · Challenges · Campfires · Streak & reminders · Season & rank) + the **daily-reminder time picker**. OFF
+  categories still populate the in-app bell (just no push). (Replaces the single "Notifications" row.)
+
 ## Acceptance
+- [ ] Notifications: event pipeline + fan-out; **own Settings → Notifications menu** with per-category toggles +
+      reminder time; rich push pulls the subject's art; the new bell + badges render (mock 106).
 - [ ] Rank-up no longer replays on sign-in; leaderboard #1 crown is a vector.
 - [ ] Personal goals track (real progress), reset local-midnight, and pay out per §B; no emoji icons.
 - [ ] Watch: ember header, cheer capped, completed = read-only.
