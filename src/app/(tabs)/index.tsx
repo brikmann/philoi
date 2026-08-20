@@ -656,7 +656,9 @@ const styles = StyleSheet.create({
   },
   markerRow: {
     alignItems: 'center',
-    marginTop: -Spacing.two,
+    // Was -Spacing.two, which lifted this chip over the bottom of HomeXpBar — i.e. straight onto
+    // the "N XP to today's fire" label. Nothing on this screen overlaps anything now.
+    marginTop: Spacing.two,
     marginBottom: Spacing.three,
   },
   heroCol: {
@@ -704,7 +706,15 @@ const styles = StyleSheet.create({
     paddingTop: 18,
   },
   heroCenter: {
-    flex: 1,
+    // grow-but-never-shrink, NOT `flex: 1`. A CSS column flex item gets `min-height: auto`, so
+    // mock 92's .hero can't be squeezed under its own content — Yoga defaults minHeight to 0, and
+    // `flex: 1` (flexShrink 1, flexBasis 0) let this box compress below the 132px flame on shorter
+    // screens. Overflow is visible, so the streak line then rendered ON TOP of the XP bar's labels
+    // (punchlist 21). flexBasis 'auto' floors the box at its content height; heroSpacer above
+    // still absorbs the slack, so the hero stays optically centred.
+    flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: 'auto',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -737,7 +747,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: 2,
+    // 6 on top of heroCenter's gap:8 = 14, the same step rankRow uses below it. flame → streak →
+    // rank/XP bar now breathe on one rhythm instead of the streak hugging the flame.
+    marginTop: 6,
   },
   offscreenCard: {
     position: 'absolute',

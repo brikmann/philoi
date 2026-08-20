@@ -9,7 +9,8 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Ellipse, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle, Defs, Ellipse, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { useEquipped } from '@/lib/economy/loadout';
 import type { FlareEffect } from '@/lib/economy/catalog';
@@ -47,15 +48,31 @@ import type { FlareEffect } from '@/lib/economy/catalog';
 //      centre, so the colour washed across a third of the screen and every corner clamped to full
 //      opacity. A vignette, not a rim.
 //
-// This is (2) with the geometry corrected: `rx/ry 50%` puts gradient offset 1.0 exactly ON the
-// screen's edge midpoints, so the entire ramp can live in the last RIM_FRACTION of the radius —
-// a genuine rim, of a thickness that reads the same top/bottom as left/right. Corners sit past
-// offset 1.0 and clamp, which is what an inset box-shadow does too (its corners are its brightest
-// point), so that clamping is fidelity rather than a bug.
+//   3. One radial at `rx/ry 50%`. Closer, but a PERCENTAGE-radius ellipse cannot give a uniform
+//      rim on a non-square screen: rx resolves against width and ry against height, so on a
+//      390x844 phone the band came out ~31px at the sides and ~67px top and bottom. That 2.2x
+//      asymmetry is precisely the "dark oval vignette" this was reported as (punchlist 21) — it
+//      was never a colour problem (every flare in the catalog is bright and saturated), it was
+//      the geometry.
+//
+// So: back to four bands, but composited the way a box-shadow actually is. Each band spans its
+// FULL edge — top and bottom run the whole width, left and right the whole height — so they
+// OVERLAP in the corners instead of mitring. That is what killed (1): four bands cut to meet at a
+// diagonal leave four seams, whereas four overlapping bands leave none, and the corners simply
+// receive two contributions and land brightest — which is what an inset shadow does too. The
+// thickness is ONE px value, so the rim now reads identically on every edge.
 const PEAK_OPACITY = 0.7;
 
-/** How much of the radius the glow occupies. 0.16 of a ~400px half-width is a ~64px band. */
-const RIM_FRACTION = 0.16;
+/** Uniform rim thickness — mock 88's 60px blur + 14px spread, scaled off the screen's short edge. */
+const RIM_FRACTION_OF_MIN = 0.17;
+
+/** The four edges, as (id suffix, isVertical, runsFromEdge) — one linear ramp each. */
+const RIM_EDGES = [
+  { dir: 't', vertical: true, fromStart: true },
+  { dir: 'b', vertical: true, fromStart: false },
+  { dir: 'l', vertical: false, fromStart: true },
+  { dir: 'r', vertical: false, fromStart: false },
+] as const;
 
 type Props = { colour: string; effect: FlareEffect };
 
@@ -65,7 +82,25 @@ type Props = { colour: string; effect: FlareEffect };
  */
 export function FlarePerimeter({ colour, effect }: Props) {
   const { width, height } = useWindowDimensions();
-  const rimId = `flareRim-${useId()}`;
+  const insets = useSafeAreaInsets();
+  const uid = useId();
+
+  // FULL-BLEED, ESCAPING THE SAFE AREA. <Screen> wraps its children in a SafeAreaView, which insets
+  // by PADDING — so StyleSheet.absoluteFill here covered only the inset box, while the Svg inside it
+  // was sized to the whole window. Two visible bugs fell out of that one mismatch: the status-bar /
+  // notch strip stayed dark (the aura never reached it), and the gradient sat one top-inset lower
+  // than the screen's centre, tipping the rim into a lopsided arc. Offsetting by the negative insets
+  // puts this layer back on the window box wherever it is mounted. Safe because SafeAreaView insets
+  // with padding and RN Views do not clip — nothing above us needs overflow to be visible.
+  const frame = {
+    position: 'absolute' as const,
+    top: -insets.top,
+    left: -insets.left,
+    width,
+    height,
+  };
+
+  const rim = Math.round(Math.min(width, height) * RIM_FRACTION_OF_MIN);
 
   // A slow breath on the whole overlay. Every flare gets it: a perfectly static edge glow reads as
   // a rendering artefact, and the movement is what makes it read as alive. 0.61 -> 1 against the
@@ -78,23 +113,35 @@ export function FlarePerimeter({ colour, effect }: Props) {
   const breathStyle = useAnimatedStyle(() => ({ opacity: breath.value }));
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, styles.layer, breathStyle]} pointerEvents="none">
-      {/* ── the base glow: ONE soft rim, static, full-bleed behind header and nav ── */}
+    <Animated.View style={[frame, styles.layer, breathStyle]} pointerEvents="none">
+      {/* ── the base glow: four soft uniform edge bands, full-bleed behind status bar and nav ── */}
       <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
-          <RadialGradient id={rimId} cx="50%" cy="50%" rx="50%" ry="50%">
-            {/* Dead clear through the middle — the timer never sits in colour. */}
-            <Stop offset="0" stopColor={colour} stopOpacity={0} />
-            <Stop offset={1 - RIM_FRACTION} stopColor={colour} stopOpacity={0} />
-            {/* Two stops through the band, not one: a single linear ramp to the edge has a
-                perceptible "start" line where it leaves zero. Easing in slowly and then hard at
-                the end is what makes the glow arrive without announcing where it began. */}
-            <Stop offset={1 - RIM_FRACTION * 0.55} stopColor={colour} stopOpacity={PEAK_OPACITY * 0.18} />
-            <Stop offset={1 - RIM_FRACTION * 0.22} stopColor={colour} stopOpacity={PEAK_OPACITY * 0.5} />
-            <Stop offset="1" stopColor={colour} stopOpacity={PEAK_OPACITY} />
-          </RadialGradient>
+          {RIM_EDGES.map(({ dir, vertical, fromStart }) => (
+            // Each ramp runs from the screen edge inward to nothing. FOUR stops, not two: a single
+            // linear ramp has a perceptible "start" line where it leaves zero, so the bright part
+            // is kept hard against the edge and the tail stretched long and thin. That is what
+            // makes the light arrive without announcing where it began.
+            <LinearGradient
+              key={dir}
+              id={`flareRim-${dir}-${uid}`}
+              x1={vertical ? '0' : fromStart ? '0' : '1'}
+              y1={vertical ? (fromStart ? '0' : '1') : '0'}
+              x2={vertical ? '0' : fromStart ? '1' : '0'}
+              y2={vertical ? (fromStart ? '1' : '0') : '0'}>
+              <Stop offset="0" stopColor={colour} stopOpacity={PEAK_OPACITY} />
+              <Stop offset="0.32" stopColor={colour} stopOpacity={PEAK_OPACITY * 0.34} />
+              <Stop offset="0.62" stopColor={colour} stopOpacity={PEAK_OPACITY * 0.1} />
+              <Stop offset="1" stopColor={colour} stopOpacity={0} />
+            </LinearGradient>
+          ))}
         </Defs>
-        <Rect x={0} y={0} width={width} height={height} fill={`url(#${rimId})`} />
+        {/* Full-length bands, so top/bottom and left/right overlap in the corners rather than
+            meeting at a mitre. Dead clear through the middle — the timer never sits in colour. */}
+        <Rect x={0} y={0} width={width} height={rim} fill={`url(#flareRim-t-${uid})`} />
+        <Rect x={0} y={height - rim} width={width} height={rim} fill={`url(#flareRim-b-${uid})`} />
+        <Rect x={0} y={0} width={rim} height={height} fill={`url(#flareRim-l-${uid})`} />
+        <Rect x={width - rim} y={0} width={rim} height={height} fill={`url(#flareRim-r-${uid})`} />
       </Svg>
 
       {/* ── the signature effect ── */}
