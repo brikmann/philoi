@@ -7,7 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenBackground } from '@/components/ui/screen-background';
 
-import { EquippedHalo, EquippedTitle, useEquippedCardStyle } from '@/components/economy/loadout-bits';
+import { EquippedAvatarHalo, EquippedCardBackdrop, auraTierForMinutes } from '@/components/economy/applied-art';
+import { EquippedTitle } from '@/components/economy/loadout-bits';
+import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
+import { useActiveSession } from '@/lib/active-session-context';
+import { useEquipped } from '@/lib/economy/loadout';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { TabHeader } from '@/components/ui/tab-header';
@@ -16,7 +20,6 @@ import { useMyRanks } from '@/hooks/use-my-ranks';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchMyRecentLockIns, fetchUserLockInPhotos, type MyRecentLockIn } from '@/lib/api/check-ins';
-import { fetchUniversityMemberCount } from '@/lib/api/groups';
 import { fetchMyLockInStats, fetchProfileById, fetchUserLockInStats, fetchUserRank, type UserRank } from '@/lib/api/profile';
 import { formatSessionDuration, pluralize } from '@/lib/format';
 import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
@@ -46,14 +49,27 @@ export default function ProfileScreen() {
   const isOwn = !userIdParam || userIdParam === myProfile?.id;
   const viewingUserId = isOwn ? myProfile?.id : userIdParam;
 
-  // Only ever decorate YOUR OWN card with YOUR loadout — the store holds one user's equipped set.
-  // Someone else's cosmetics need a public read that doesn't exist yet (get_inventory is
-  // own-rows-only by design), so their card stays stock rather than borrowing yours.
-  const cardStyle = useEquippedCardStyle(isOwn);
+  // ONE resolver for both cases (§2). The comment that used to sit here said someone else's
+  // cosmetics "need a public read that doesn't exist yet" — get_public_loadouts (migration 0065)
+  // has existed since, so a visitor now sees exactly what that person equipped instead of a stock
+  // card wearing nothing.
+  const myCard = useEquipped('card');
+  const myHalo = useEquipped('halo');
+  const publicLoadouts = usePublicLoadouts([isOwn ? null : userIdParam]);
+  const theirs = !isOwn && userIdParam ? publicLoadouts[userIdParam] : undefined;
+  const cardId = isOwn ? myCard?.id : theirs?.card?.id;
+  const haloId = isOwn ? myHalo?.id : theirs?.halo?.id;
+
+  // The live 30/60/90 ramp, and only for your own card: the aura reports the session you are in
+  // right now, and there is no live-session feed for anyone else. A visitor seeing someone's
+  // cosmetic at rest is honest; inventing a tier for them would not be.
+  const { session: activeSession } = useActiveSession();
+  const auraTier = isOwn && activeSession
+    ? auraTierForMinutes((Date.now() - activeSession.startedAt.getTime()) / 60000)
+    : 0;
 
   const [otherProfile, setOtherProfile] = useState<Profile | null>(null);
   const [otherRank, setOtherRank] = useState<UserRank | null>(null);
-  const [universityCount, setUniversityCount] = useState<number | null>(null);
   const [stats, setStats] = useState({ lockin_count: 0, total_seconds: 0 });
   const [recentLockIns, setRecentLockIns] = useState<MyRecentLockIn[]>([]);
 
@@ -79,12 +95,6 @@ export default function ProfileScreen() {
       fetchUserRank(userIdParam).then(setOtherRank).catch(() => {});
     }
   }, [isOwn, userIdParam]);
-
-  useEffect(() => {
-    if (profile?.university) {
-      fetchUniversityMemberCount(profile.university).then(setUniversityCount);
-    }
-  }, [profile?.university]);
 
   useEffect(() => {
     if (!viewingUserId) return;
@@ -134,12 +144,13 @@ export default function ProfileScreen() {
         </View>
       )}
       <ScrollView contentContainerStyle={styles.container}>
-        {/* The identity block is where the equipped loadout shows up — card texture behind it,
-            halo around the avatar, title under the handle (mock 64). All three no-op to the stock
-            look when their slot is empty, so this reads identically for someone who's never
-            opened the shop. */}
-        <View style={[styles.id, cardStyle]}>
-          <EquippedHalo size={AVATAR_HALO_SIZE} enabled={isOwn}>
+        {/* The identity block wearing the equipped loadout — the card's real TEXTURE behind it and
+            the halo's real ring around the avatar, not the flat colours these used to be (§2).
+            Both fall back to the starter items every account is seeded with at signup, so this is
+            never a bare surface even for someone who has never opened the shop. */}
+        <EquippedCardBackdrop cardId={cardId} auraTier={auraTier}>
+        <View style={styles.id}>
+          <EquippedAvatarHalo haloId={haloId} size={AVATAR_HALO_SIZE} auraTier={auraTier}>
             {profile.avatar_url ? (
               <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
             ) : (
@@ -147,7 +158,7 @@ export default function ProfileScreen() {
                 <Text style={styles.avatarInitial}>{profile.display_name.charAt(0).toUpperCase()}</Text>
               </View>
             )}
-          </EquippedHalo>
+          </EquippedAvatarHalo>
           <View style={styles.idInfo}>
             <Text style={styles.name}>{profile.display_name}</Text>
             <Text style={styles.handle}>@{profile.handle}</Text>
@@ -156,15 +167,16 @@ export default function ProfileScreen() {
               <Pressable onPress={() => router.push('/university-leaderboard')}>
                 <View style={styles.uniRow}>
                   <Ionicons name="location" size={11} color={Colors.textTertiary} />
-                  <Text style={styles.uniText}>
-                    {profile.university}
-                    {universityCount !== null && universityCount > 1 ? ` — ${universityCount} here` : ''}
-                  </Text>
+                  {/* "— N here" retired (§1): a dead photo-era metric. The count answered "how
+                      many classmates are on Philoi", which mattered when the campus feed was the
+                      product and means nothing beside a rank strip. */}
+                  <Text style={styles.uniText}>{profile.university}</Text>
                 </View>
               </Pressable>
             )}
           </View>
         </View>
+        </EquippedCardBackdrop>
 
         {universalRank && (
           <View style={styles.rank}>
