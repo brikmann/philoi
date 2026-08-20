@@ -8,6 +8,10 @@ import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTimin
 
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
 import { HexagonBadge } from '@/components/hexagon-badge';
+import { CollectionEntry } from '@/components/profile/collection-entry';
+import { CompareBanner } from '@/components/profile/compare-banner';
+import { TrophyHallSection } from '@/components/profile/trophy-hall-section';
+import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -83,6 +87,11 @@ export default function FriendProfileScreen() {
   const router = useRouter();
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const { profile: myProfile } = useAuth();
+
+  // §4 — the hall renders here too, and the compare banner needs BOTH halls: the claim "she's
+  // ahead on trophies, your win rate's higher" is a comparison, so neither side can be assumed.
+  const theirHall = useTrophyHall(userId);
+  const myHall = useTrophyHall(myProfile?.id);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [rank, setRank] = useState<UserRank | null>(null);
@@ -254,6 +263,25 @@ export default function FriendProfileScreen() {
             <ActiveChallengeMarkerChip marker={marker} onWatch={marker.can_watch ? handleWatch : undefined} />
           </View>
         )}
+
+        {/* §4 — the compare banner, then their hall. This is the payoff of the hall being
+            earned-only: two people's placements, relics and records side by side is a status read
+            no amount of shop spending can fake. */}
+        {myHall && theirHall && profile ? (
+          <CompareBanner mine={myHall} theirs={theirHall} name={profile.display_name} />
+        ) : null}
+
+        {theirHall ? <TrophyHallSection hall={theirHall} userId={userId} isOwn={false} /> : null}
+
+        {/* §7 — their closet, read-only. */}
+        {profile ? (
+          <CollectionEntry
+            userId={userId}
+            isOwn={false}
+            name={profile.display_name}
+            count={theirHall?.collection_count ?? null}
+          />
+        ) : null}
 
         {stats && stats.goal_types.length > 0 && (
           <>

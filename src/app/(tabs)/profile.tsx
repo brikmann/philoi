@@ -10,7 +10,10 @@ import { ScreenBackground } from '@/components/ui/screen-background';
 import { EquippedAvatarHalo, EquippedCardBackdrop, useAuraTier } from '@/components/economy/applied-art';
 import { EquippedTitle } from '@/components/economy/loadout-bits';
 import { BioEditor } from '@/components/profile/bio-editor';
+import { CollectionEntry } from '@/components/profile/collection-entry';
 import { JournalSection } from '@/components/profile/journal-section';
+import { TrophyHallSection } from '@/components/profile/trophy-hall-section';
+import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { useActiveSession } from '@/lib/active-session-context';
 import { useEquipped } from '@/lib/economy/loadout';
@@ -61,6 +64,11 @@ export default function ProfileScreen() {
   // cosmetic at rest is honest; inventing a tier for them would not be.
   const { session: activeSession } = useActiveSession();
   const auraTier = useAuraTier(isOwn ? activeSession?.startedAt : null);
+
+  // §4 + §7. One read serves both: the hall's own contents AND the item count the Collection entry
+  // advertises, so opening this tab costs one request rather than two.
+  const hall = useTrophyHall(viewingUserId);
+  const collectionCount = hall?.collection_count ?? null;
 
   const [otherProfile, setOtherProfile] = useState<Profile | null>(null);
   const [otherRank, setOtherRank] = useState<UserRank | null>(null);
@@ -208,9 +216,25 @@ export default function ProfileScreen() {
             The "Inventory & loadout" row is gone too: the ⚙ menu owns editing, and §7's
             "Loadout & Collection" entry is the read-only browse that replaces it. */}
 
+        {/* §7: the read-only closet. Sits here rather than at the bottom because it is the one
+            thing on this screen that answers "what have I actually collected" — and on someone
+            else's profile, the thing a visitor most wants to open. */}
+        {viewingUserId ? (
+          <CollectionEntry userId={viewingUserId} isOwn={isOwn} name={profile.display_name} count={collectionCount} />
+        ) : null}
+
         {/* §5: the Journal leads, directly under the rank strip. Deliberately above the trophies —
             a viewer should see WHY someone grinds before they see how much. */}
-        {viewingUserId ? <JournalSection userId={viewingUserId} isOwn={isOwn} /> : null}
+        {viewingUserId ? (
+          <JournalSection
+            userId={viewingUserId}
+            isOwn={isOwn}
+            onAddMilestone={() => router.push('/milestone/new')}
+          />
+        ) : null}
+
+        {/* §4: earned proof of status. Below the Journal on purpose — the human layer leads. */}
+        {hall && viewingUserId ? <TrophyHallSection hall={hall} userId={viewingUserId} isOwn={isOwn} /> : null}
 
         {recentGoalTypes.length > 0 && (
           <View style={styles.goals}>

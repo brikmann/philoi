@@ -147,6 +147,84 @@ export type JournalEntry = {
   created_at: string;
 };
 
+/** §4 — one completed season's placement card in the Trophy Hall (migration 0092). */
+export type HallSeason = {
+  season_id: string;
+  /** Final board position. Named `placement` rather than `rank` so it never reads as a rank TIER. */
+  placement: number;
+  board_size: number;
+  /** Display name captured at grant time, so a re-themed title still says what was actually won. */
+  title: string | null;
+  medal_key: string | null;
+  hidden: boolean;
+};
+
+/** A relic, medal or badge in the hall. `key` resolves against the client catalog / badge names. */
+export type HallTrophy = {
+  key: string;
+  provenance: string | null;
+  hidden: boolean;
+};
+
+export type HallRelic = HallTrophy & { acquired_at: string };
+export type HallBadge = HallTrophy & { earned_at: string };
+
+/** Head-to-head record. Draws are counted apart and excluded from the win rate (migration 0092). */
+export type DuelRecord = {
+  won: number;
+  lost: number;
+  drawn: number;
+  hidden: boolean;
+};
+
+/**
+ * The inputs behind the milestone-badge grid. Streak / lock-in / hours badges have no grant path
+ * on purpose — they are a view over facts the profile already stores, so they can never disagree
+ * with the streak shown on Home.
+ */
+export type HallStats = {
+  current_streak: number;
+  longest_streak: number;
+  campus_verified: boolean;
+  lockin_count: number;
+  total_seconds: number;
+};
+
+export type TrophyHall = {
+  is_owner: boolean;
+  seasons: HallSeason[];
+  relics: HallRelic[];
+  badges: HallBadge[];
+  /** Null when the owner has hidden the record from visitors. */
+  record: DuelRecord | null;
+  stats: HallStats;
+  /** Owned cosmetics this viewer may see — the count on the profile's Collection entry. */
+  collection_count: number;
+  /** How many items a visitor is not being shown. Always 0 for the owner. */
+  hidden_count: number;
+};
+
+/** §7 — one owned cosmetic in the read-only Collection browse (migration 0092). */
+export type CollectionItem = {
+  key: string;
+  /** A placement grant's rarity beats the catalog's, same as in the inventory. */
+  rarity_override: string | null;
+  season_stamp: string | null;
+  acquired_at: string;
+  hidden: boolean;
+};
+
+export type PublicCollection = {
+  is_owner: boolean;
+  /** slot -> cosmetic_key. Marks which tile gets the "EQUIPPED" ring. */
+  loadout: Record<string, string>;
+  items: CollectionItem[];
+  hidden_count: number;
+};
+
+/** What `set_profile_item_hidden` can be pointed at (migration 0092). */
+export type HideableKind = 'cosmetic' | 'badge' | 'season' | 'record';
+
 export type DailyFire = {
   day: string;
   goal_xp: number;
@@ -586,6 +664,10 @@ export type AnalyticsEventName =
   | 'journal_note_set'
   | 'journal_entry_hidden'
   | 'bio_updated'
+  | 'trophy_hall_viewed'
+  | 'trophy_hall_see_all'
+  | 'trophy_item_hidden'
+  | 'collection_viewed'
   | 'challenge_logged'
   | 'challenge_accepted'
   | 'challenge_declined'
@@ -1477,6 +1559,12 @@ export type Database = {
       set_journal_note: { Args: { p_entry_key: string; p_note: string | null }; Returns: undefined };
       set_journal_hidden: { Args: { p_entry_key: string; p_hidden: boolean }; Returns: undefined };
       set_my_bio: { Args: { p_bio: string | null }; Returns: string | null };
+      get_trophy_hall: { Args: { p_user: string }; Returns: TrophyHall };
+      get_public_collection: { Args: { p_user: string }; Returns: PublicCollection };
+      set_profile_item_hidden: {
+        Args: { p_kind: HideableKind; p_key: string; p_hidden: boolean };
+        Returns: undefined;
+      };
       get_unread_notification_count: { Args: Record<string, never>; Returns: number };
       mark_notifications_read: { Args: Record<string, never>; Returns: number };
       /** Banks a completed personal goal's embers for one LOCAL day (migration 0085). Difficulty

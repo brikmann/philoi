@@ -263,6 +263,10 @@ function RootNavigator() {
         <Stack.Screen name="friend-profile" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="activity/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="lock-in-history" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* §4/§7 — the two profile showcase surfaces. Both draw their own back row and both take a
+            ?userId, because both render for someone else as readily as for you. */}
+        <Stack.Screen name="trophy-hall" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="collection" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="watch/[challengeId]" options={{ title: 'Watch' }} />
         <Stack.Screen name="challenge-change/[requestId]" options={{ headerShown: false, presentation: 'modal' }} />
         {/* Headerless: the screen draws its own top row (mock 98) — the native header was adding a
