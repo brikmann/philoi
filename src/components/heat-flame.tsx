@@ -105,6 +105,27 @@ const PUFFS = [
 ];
 
 /**
+ * The three fills, as stop lists rather than as <LinearGradient> elements — because each tongue
+ * has to declare its own copy (see Tongue below), so what's shared is the DATA, not the node.
+ */
+const TONGUE_STOPS: Record<TongueSpec['fill'], { offset: string; colour: string; opacity?: number }[]> = {
+  outer: [
+    { offset: '0', colour: '#E0612C' },
+    { offset: '0.75', colour: '#F2A33C' },
+    { offset: '1', colour: '#F2A33C', opacity: 0 },
+  ],
+  inner: [
+    { offset: '0', colour: '#F2A33C' },
+    { offset: '0.8', colour: '#FFE6B0' },
+    { offset: '1', colour: '#FFE6B0', opacity: 0 },
+  ],
+  lick: [
+    { offset: '0', colour: '#E0612C' },
+    { offset: '1', colour: '#F2A33C' },
+  ],
+};
+
+/**
  * One licking tongue: a real pointed <Path> in its own full-scene <Svg>, wrapped in the
  * Animated.View that flicks it.
  *
@@ -113,18 +134,18 @@ const PUFFS = [
  * the whole 120x120 viewBox, a percentage `transformOrigin` puts the pivot exactly on the tongue's
  * base line (y=100 of 120) with no per-path maths. Cost is one extra view per tongue, which buys
  * the mock's geometry at 60fps with nothing re-rendering in React.
+ *
+ * EACH TONGUE DECLARES ITS OWN GRADIENT. The first build followed the HTML mock and hoisted all
+ * three into one hidden `<svg width=0 height=0>` full of <Defs>, referenced by `url(#id)` from the
+ * other roots. That works in a browser, where ids are document-global — it does not work here:
+ * every <Svg> is its own rendering context, and a zero-sized one may never mount its Defs at all.
+ * The fill resolved to nothing and the whole fire rendered as a bare coal bed. A <Defs> is only
+ * ever visible to the <Svg> it lives in.
  */
-function Tongue({
-  spec,
-  size,
-  fills,
-  reduceMotion,
-}: {
-  spec: TongueSpec;
-  size: number;
-  fills: Record<TongueSpec['fill'], string>;
-  reduceMotion: boolean;
-}) {
+function Tongue({ spec, size, reduceMotion }: { spec: TongueSpec; size: number; reduceMotion: boolean }) {
+  // Ids are global to react-native-svg even though lookups are not, so two instances sharing one
+  // id blank each other on Android (the FlameLogo/EmberIcon bug). Per-mount id, per tongue.
+  const gradId = `heatTongue-${useId()}`;
   const t = useSharedValue(0);
   useEffect(() => {
     if (reduceMotion) return;
@@ -149,7 +170,14 @@ function Tongue({
         style,
       ]}>
       <Svg width={size} height={size} viewBox={`0 0 ${VB} ${VB}`}>
-        <Path d={spec.d} fill={fills[spec.fill]} />
+        <Defs>
+          <LinearGradient id={gradId} x1="0" y1="1" x2="0" y2="0">
+            {TONGUE_STOPS[spec.fill].map((s) => (
+              <Stop key={s.offset} offset={s.offset} stopColor={s.colour} stopOpacity={s.opacity ?? 1} />
+            ))}
+          </LinearGradient>
+        </Defs>
+        <Path d={spec.d} fill={`url(#${gradId})`} />
       </Svg>
     </Animated.View>
   );
@@ -218,12 +246,6 @@ export function HeatFlame({ heat, size = 132 }: { heat: number; size?: number })
           : ROARING_TONGUES
         : SIMMERING_TONGUES;
 
-  const fills: Record<TongueSpec['fill'], string> = {
-    outer: `url(#${id('fO')})`,
-    inner: `url(#${id('fI')})`,
-    lick: `url(#${id('lick')})`,
-  };
-
   const coalFill = `url(#${id(state === 'roaring' ? 'coalHot' : state === 'simmering' ? 'coalWarm' : 'coalDead')})`;
   const bedDrop = state === 'roaring' ? 0 : COOLED_BED_DROP;
   const ambColour = state === 'roaring' ? '#E0612C' : '#B33A15';
@@ -265,32 +287,8 @@ export function HeatFlame({ heat, size = 132 }: { heat: number; size?: number })
         </Svg>
       ) : null}
 
-      {/* The gradients every tongue draws from, declared once in a zero-size Svg. Gradient ids are
-          GLOBAL in react-native-svg, hence the useId suffix — duplicate ids blank every instance
-          after the first on Android (the same bug FlameLogo and EmberIcon hit). */}
-      {tongues.length > 0 ? (
-        <Svg width={0} height={0} style={styles.defsOnly}>
-          <Defs>
-            <LinearGradient id={id('fO')} x1="0" y1="1" x2="0" y2="0">
-              <Stop offset="0" stopColor="#E0612C" />
-              <Stop offset="0.75" stopColor="#F2A33C" />
-              <Stop offset="1" stopColor="#F2A33C" stopOpacity={0} />
-            </LinearGradient>
-            <LinearGradient id={id('fI')} x1="0" y1="1" x2="0" y2="0">
-              <Stop offset="0" stopColor="#F2A33C" />
-              <Stop offset="0.8" stopColor="#FFE6B0" />
-              <Stop offset="1" stopColor="#FFE6B0" stopOpacity={0} />
-            </LinearGradient>
-            <LinearGradient id={id('lick')} x1="0" y1="1" x2="0" y2="0">
-              <Stop offset="0" stopColor="#E0612C" />
-              <Stop offset="1" stopColor="#F2A33C" />
-            </LinearGradient>
-          </Defs>
-        </Svg>
-      ) : null}
-
       {tongues.map((spec) => (
-        <Tongue key={spec.d} spec={spec} size={size} fills={fills} reduceMotion={reduceMotion} />
+        <Tongue key={spec.d} spec={spec} size={size} reduceMotion={reduceMotion} />
       ))}
 
       {/* The coal bed, drawn OVER the tongues exactly as the mock stacks it — the licks rise out
@@ -375,10 +373,3 @@ export function HeatFlame({ heat, size = 132 }: { heat: number; size?: number })
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  // A <Defs>-only Svg still takes part in layout at 0x0; absolute keeps it out of the stack.
-  defsOnly: {
-    position: 'absolute',
-  },
-});
