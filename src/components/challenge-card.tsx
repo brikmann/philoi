@@ -6,20 +6,23 @@ import { Card } from '@/components/ui/card';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { logChallengeProgress } from '@/lib/api/challenges';
+import { CHALLENGE_TYPE_ICON } from '@/lib/goal-types';
 import { getErrorMessage } from '@/lib/errors';
 import { AUTO_SOURCE_NAME, getRealFitnessSourceForChallengeType, sourceNeedsConnection } from '@/lib/fitness-sync';
 import type { Challenge, ChallengeType } from '@/types/database';
 
-const TYPE_META: Record<ChallengeType, { icon: string; quickAdds: number[] }> = {
-  steps: { icon: '👟', quickAdds: [1000, 2500, 5000] },
-  run_distance: { icon: '🏃', quickAdds: [1, 5, 10] },
-  ride_distance: { icon: '🚴', quickAdds: [5, 10, 20] },
-  gym_visits: { icon: '🏋️', quickAdds: [1] },
-  study_hours: { icon: '📚', quickAdds: [1, 2] },
-  custom: { icon: '🎯', quickAdds: [1] },
-  workout_minutes: { icon: '⏱️', quickAdds: [15, 30, 60] },
-  strain: { icon: '💪', quickAdds: [1, 2] },
-  sleep_hours: { icon: '😴', quickAdds: [1] },
+// Quick-add amounts only. The ICON moved to CHALLENGE_TYPE_ICON in lib/goal-types — these were
+// emoji, which draw differently on every OS and font version and cannot take the row's tint (§A3).
+const TYPE_QUICK_ADDS: Record<ChallengeType, number[]> = {
+  steps: [1000, 2500, 5000],
+  run_distance: [1, 5, 10],
+  ride_distance: [5, 10, 20],
+  gym_visits: [1],
+  study_hours: [1, 2],
+  custom: [1],
+  workout_minutes: [15, 30, 60],
+  strain: [1, 2],
+  sleep_hours: [1],
 };
 
 function challengeTitle(challenge: Challenge): string {
@@ -44,13 +47,21 @@ function challengeTitle(challenge: Challenge): string {
  * The quiet closing line — when this goal's counter goes back to zero.
  *
  * This promise is finally real: until migration 0072 nothing ever reset a challenge, and the card
- * said "Resets Monday" over a counter that ran forever (task #89). Sunday, not Monday, because the
- * rollover runs on the shared week boundary in lib/time/week.ts. "UTC" is stated for the weekly
- * case rather than quietly implied — a Saturday-evening user in the Americas is genuinely hours
- * from a reset the word "Sunday" alone would put a day away.
+ * said "Resets Monday" over a counter that ran forever (task #89).
+ *
+ * DAILY now says plain "midnight" because migration 0084 made it true: roll_over_challenges()
+ * reads each user's own timezone off their profile, and the job runs every 15 minutes so it
+ * catches each zone's midnight as it passes. Before that it was a single 00:10 UTC sweep, so
+ * "midnight UTC" was accurate but wrong behaviour — a user in UTC+13 lost their day at 11am.
+ *
+ * WEEKLY still says UTC, and still means it. week_start() is the shared boundary leaderboards,
+ * streak decay and the pass period all key off; per-user weeks would make "this week" mean
+ * different windows in different parts of the app, so it stays global — and a Saturday-evening
+ * user in the Americas is genuinely hours from a reset the word "Sunday" alone would put a day
+ * away.
  */
 function resetLabel(period: Challenge['period']): string {
-  return period === 'day' ? 'Resets at midnight UTC' : 'Resets Sunday (UTC)';
+  return period === 'day' ? 'Resets at midnight' : 'Resets Sunday (UTC)';
 }
 
 type ChallengeCardProps = {
@@ -72,7 +83,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
   const [logging, setLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const meta = TYPE_META[challenge.type];
+  const quickAdds = TYPE_QUICK_ADDS[challenge.type];
   const isComplete = challenge.completed_at !== null;
   const pct = Math.min(100, Math.round((challenge.progress / challenge.target) * 100));
 
@@ -112,7 +123,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
     <Card style={styles.card}>
       <Pressable onLongPress={handleDelete} style={styles.header}>
         <View style={styles.iconTile}>
-          <Text style={styles.icon}>{meta.icon}</Text>
+          <Ionicons name={CHALLENGE_TYPE_ICON[challenge.type]} size={18} color={Colors.ember} />
         </View>
         <View style={styles.titleColumn}>
           <Text style={styles.title} numberOfLines={1}>
@@ -174,7 +185,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
             </View>
           ) : (
             <View style={styles.quickRow}>
-              {meta.quickAdds.map((qa) => (
+              {quickAdds.map((qa) => (
                 <Pressable
                   key={qa}
                   style={styles.quickPill}
@@ -212,9 +223,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.achieverBg,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  icon: {
-    fontSize: 19,
   },
   titleColumn: {
     flex: 1,

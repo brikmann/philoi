@@ -49,6 +49,9 @@ export type Profile = {
   handle: string | null;
   display_name: string;
   avatar_url: string | null;
+  /** IANA zone written by the client (migration 0084). Null = the daily goal rollover falls back
+   * to UTC for this user, which is the pre-0084 behaviour rather than a failure. */
+  timezone: string | null;
   university: string | null;
   /** Email domain for the chosen school (migration 0062) — from the shipped top-20 cache or
    * Hipolabs. Null means the school has no known domain, so it can't be verified; that never
@@ -527,6 +530,7 @@ export type AnalyticsEventName =
   | 'first_check_in'
   | 'challenge_created'
   | 'challenge_completed'
+  | 'goal_day_awarded'
   | 'challenge_logged'
   | 'challenge_accepted'
   | 'challenge_declined'
@@ -1413,6 +1417,20 @@ export type Database = {
       };
       forfeit_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       credit_lockin_time_goals: { Args: { p_check_in_id: string }; Returns: number };
+      /** Banks a completed personal goal's embers for one LOCAL day (migration 0085). Difficulty
+       * and streak are derived server-side; only the goal and the device's calendar date go in. */
+      economy_award_goal_day: {
+        Args: { p_goal_id: string; p_local_day: string };
+        Returns: {
+          already_awarded: boolean;
+          embers: number;
+          milestone: number;
+          box: string | null;
+          streak: number;
+          difficulty: string;
+          capped: boolean;
+        };
+      };
       update_group_challenge_terms: {
         Args: { p_challenge_id: string; p_target_count?: number | null; p_window_hours?: number | null };
         Returns: SocialChallenge;

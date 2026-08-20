@@ -52,9 +52,31 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
   });
 }
 
+/** The device's IANA zone ('America/Toronto'), or null if the runtime won't tell us. */
+function deviceTimezone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
+
 async function ensureProfile(user: User): Promise<Profile> {
   const { data: existing } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
-  if (existing) return existing;
+  if (existing) {
+    // Keep the stored zone current. This is what makes daily goals roll at the user's own
+    // midnight instead of UTC's (migration 0084) — the server cannot infer a timezone, so the
+    // device is the only source, and it has to be re-sent because people travel and move.
+    //
+    // Fire-and-forget on a CHANGE only: this runs on every profile load, and writing an identical
+    // value every time would be a pointless round trip on the app's hottest path. A failure is
+    // silently fine — the rollover falls back to UTC, which is exactly today's behaviour.
+    const tz = deviceTimezone();
+    if (tz && tz !== existing.timezone) {
+      void supabase.from('profiles').update({ timezone: tz }).eq('id', user.id);
+    }
+    return existing;
+  }
 
   // Upsert, not insert — getSession() and onAuthStateChange's INITIAL_SESSION event both fire
   // this on first sign-in, racing on the insert otherwise (duplicate key on profiles_pkey).
@@ -68,6 +90,7 @@ async function ensureProfile(user: User): Promise<Profile> {
         id: user.id,
         display_name: meta.full_name ?? meta.name ?? user.email?.split('@')[0] ?? 'New friend',
         avatar_url: meta.avatar_url ?? meta.picture ?? null,
+        timezone: deviceTimezone(),
       },
       { onConflict: 'id' }
     )

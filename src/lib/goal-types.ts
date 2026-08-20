@@ -1,6 +1,6 @@
 import type { Ionicons } from '@expo/vector-icons';
 
-import type { GoalType } from '@/types/database';
+import type { ChallengeType, GoalType } from '@/types/database';
 
 export const GOAL_TYPE_META: Record<GoalType, { label: string; emoji: string }> = {
   gym: { label: 'Gym', emoji: '🏋️' },
@@ -57,4 +57,22 @@ export const GOAL_TYPE_ICON: Record<GoalType, keyof typeof Ionicons.glyphMap> = 
   read: 'book',
   social_media: 'phone-portrait',
   custom: 'add',
+};
+
+// The same idea for ChallengeType, which is a SEPARATE enum from GoalType — a personal goal's
+// tracked metric, not the lock-in tool. It had no vector map at all, so every surface rendering a
+// goal (the card, the completion card, the create picker) fell back to a raw emoji: 👟 for steps,
+// 🏋️ for gym. That is the "raw shoe emoji" §A3 reports, and it is the same problem the podium
+// crown had — an emoji draws differently per OS and font version and cannot take a tint, so it
+// sits in a themed row as a foreign object with its own fixed colours.
+export const CHALLENGE_TYPE_ICON: Record<ChallengeType, keyof typeof Ionicons.glyphMap> = {
+  steps: 'footsteps',
+  run_distance: 'walk',
+  ride_distance: 'bicycle',
+  gym_visits: 'barbell',
+  study_hours: 'book',
+  custom: 'flag',
+  workout_minutes: 'stopwatch',
+  strain: 'fitness',
+  sleep_hours: 'moon',
 };

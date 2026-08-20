@@ -1,0 +1,420 @@
+<meta charset="utf-8">
+<title>Mock 107 — profile redesign + trophy hall</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif;--ember:#F2A33C;--ember2:#FF7A3E}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:26px;display:flex;flex-direction:column;align-items:center;gap:6px}
+h1{font-size:19px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:960px;text-align:center;line-height:1.55;margin:0 auto 6px}
+.note{max-width:960px;font-size:11.5px;color:#c8bcdd;background:#161320;border:1px solid #241c38;border-radius:14px;padding:12px 16px;line-height:1.6;margin:4px 0 16px}
+.note b{color:var(--ember)}
+.note .kill{color:#ff8f8f}
+.note .add{color:#7fe0a0}
+.row{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.frame{display:flex;flex-direction:column;align-items:center;gap:10px}
+.flabel{font-size:11px;color:#8a7fa6;text-align:center;max-width:300px;line-height:1.45}
+.flabel b{color:#e7ddf5}
+/* phone shell */
+.phone{width:300px;height:640px;border-radius:34px;overflow:hidden;position:relative;background:#0e0b14;border:1px solid #241c38;
+  background-image:radial-gradient(120% 42% at 50% 0%,#241633 0%,#140f1e 46%,#0e0b14 100%)}
+.scr{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden}
+.scr::-webkit-scrollbar{width:0}
+.status{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-size:11px;color:#cbb8e0;font-weight:600}
+.status .r{display:flex;gap:5px;align-items:center;opacity:.85}
+/* header */
+.phead{display:flex;align-items:center;justify-content:space-between;padding:4px 18px 8px}
+.phead h2{font-size:22px;margin:0;font-weight:800}
+.gear{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.05)}
+.gear svg{width:17px;height:17px;stroke:#b7a8cf;fill:none;stroke-width:1.6}
+/* ---- IDENTITY CARD: real CARD backdrop + HALO art ---- */
+.idcard{margin:2px 14px 0;border-radius:20px;padding:16px 15px;position:relative;overflow:hidden;
+  border:1px solid rgba(255,150,80,.30)}
+/* "Cracked Magma" (Epic) card texture — real art, not flat colour */
+.magma{background:
+  radial-gradient(80% 120% at 20% 0%,rgba(255,90,40,.30),transparent 55%),
+  radial-gradient(70% 120% at 100% 100%,rgba(255,150,40,.22),transparent 55%),
+  linear-gradient(135deg,#26161f,#180f18 60%,#1d1116)}
+.crackz{position:absolute;inset:0;opacity:.55;pointer-events:none;mix-blend-mode:screen}
+.idtop{display:flex;gap:13px;align-items:center;position:relative;z-index:2}
+/* avatar with Inferno Flare HALO (real ring-of-fire art) */
+.avwrap{position:relative;width:74px;height:74px;flex:none}
+.halo{position:absolute;inset:-9px;border-radius:50%;pointer-events:none}
+.halo .ring{position:absolute;inset:0}
+.av{position:absolute;inset:0;border-radius:50%;overflow:hidden;background:#2d2740;border:2px solid #1a1220;z-index:2}
+.av img{width:100%;height:100%;object-fit:cover}
+.idmeta{min-width:0;position:relative;z-index:2}
+.idname{font-size:19px;font-weight:800;line-height:1.1}
+.idhandle{font-size:12.5px;color:#c8bcdd;margin-top:1px}
+.idtitle{display:inline-flex;align-items:center;gap:5px;margin-top:6px;font-size:12px;font-weight:700;color:#c79bec}
+.idtitle svg{width:12px;height:12px}
+.verified{display:inline-flex;align-items:center;gap:4px;margin-top:7px;font-size:10.5px;font-weight:700;color:#7fe0a0;background:rgba(40,90,60,.28);border:1px solid rgba(120,220,160,.35);border-radius:999px;padding:3px 9px}
+.verified svg{width:11px;height:11px}
+/* bio */
+.bio{margin:12px 2px 0;font-size:12px;line-height:1.5;color:#d8cceb;position:relative;z-index:2}
+.bio .edit{color:var(--ember);font-weight:700;font-size:11px}
+/* rank + xp bar */
+.rankstrip{display:flex;align-items:center;gap:11px;margin:14px 14px 0;background:#171226;border:1px solid #241c38;border-radius:14px;padding:12px 13px}
+.hex{width:40px;height:44px;flex:none;display:grid;place-items:center;position:relative}
+.hex svg{width:40px;height:44px}
+.hex b{position:absolute;font-size:14px;font-weight:800;color:#e9def7}
+.rk{flex:1;min-width:0}
+.rk .rrow{display:flex;justify-content:space-between;align-items:baseline}
+.rk .rname{font-size:14px;font-weight:800}
+.rk .rxp{font-size:11px;color:#9f92b6}
+.track{height:7px;border-radius:6px;background:#2a2140;margin-top:7px;overflow:hidden}
+.fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#F2A33C,#FF7A3E)}
+/* stat strip */
+.stats{display:flex;gap:9px;margin:11px 14px 0}
+.stat{flex:1;background:#141020;border:1px solid #221a34;border-radius:13px;padding:11px 6px;text-align:center}
+.stat .n{font-size:19px;font-weight:800}
+.stat .l{font-size:10px;color:#8f83a8;margin-top:2px}
+/* ---- TROPHY HALL ---- */
+.section{margin:18px 14px 0}
+.shead{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.shead .t{font-size:14px;font-weight:800;display:flex;align-items:center;gap:7px}
+.shead .t svg{width:15px;height:15px}
+.shead .a{font-size:11px;color:var(--ember);font-weight:700}
+/* featured relics/medals — showcase art */
+.trophies{display:flex;gap:9px}
+.trophy{flex:1;aspect-ratio:1;border-radius:14px;position:relative;overflow:hidden;display:grid;place-items:center;border:1px solid rgba(255,255,255,.06)}
+.trophy .glow{position:absolute;inset:0}
+.trophy svg.art{width:52%;height:52%;position:relative;z-index:2}
+.trophy .rr{position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:7.5px;font-weight:800;letter-spacing:.6px;z-index:2}
+.t-myth .glow{background:radial-gradient(70% 70% at 50% 38%,rgba(199,120,255,.4),transparent 70%)}
+.t-myth{border-color:rgba(199,120,255,.4)} .t-myth .rr{color:#d7a6ff}
+.t-leg .glow{background:radial-gradient(70% 70% at 50% 38%,rgba(255,180,60,.38),transparent 70%)}
+.t-leg{border-color:rgba(255,180,60,.4)} .t-leg .rr{color:#FFC14D}
+.t-epic .glow{background:radial-gradient(70% 70% at 50% 38%,rgba(180,110,255,.3),transparent 70%)}
+.t-epic{border-color:rgba(180,110,255,.32)} .t-epic .rr{color:#c79bec}
+/* badges grid — earned proof (not cosmetics) */
+.badges{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.badge{aspect-ratio:1;border-radius:12px;background:#141020;border:1px solid #221a34;display:grid;place-items:center;position:relative}
+.badge svg{width:30px;height:30px}
+.badge.locked{opacity:.32}
+.badge .cnt{position:absolute;bottom:4px;right:5px;font-size:8.5px;font-weight:800;color:#FFD27A}
+.badge .tip{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);font-size:7.5px;color:#8a7fa6;white-space:nowrap}
+/* challenge record */
+.record{display:flex;gap:9px;margin-top:2px}
+.rec{flex:1;background:#141020;border:1px solid #221a34;border-radius:13px;padding:10px 6px;text-align:center}
+.rec .n{font-size:18px;font-weight:800}
+.rec.w .n{color:#7fe0a0}.rec.l .n{color:#c8bcdd}.rec.wr .n{color:var(--ember)}
+.rec .l2{font-size:9.5px;color:#8f83a8;margin-top:2px}
+/* journal / achievement comments */
+.jitem{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid #1e1730}
+.jitem:last-child{border-bottom:0}
+.jic{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;background:#1c1430}
+.jic svg{width:19px;height:19px}
+.jbody{min-width:0}
+.jhead{font-size:12px;font-weight:700}
+.jhead .when{color:#8a7fa6;font-weight:500;font-size:10.5px;margin-left:6px}
+.jcomment{font-size:11.5px;color:#cbbfe0;line-height:1.45;margin-top:3px;font-style:italic}
+.jadd{font-size:11px;color:var(--ember);font-weight:700;margin-top:8px;display:inline-flex;gap:5px;align-items:center}
+/* lock-ins list */
+.li{display:flex;align-items:center;gap:11px;background:#141020;border:1px solid #221a34;border-radius:13px;padding:10px 12px;margin-bottom:8px}
+.li .ic{width:34px;height:34px;border-radius:10px;background:#1c1430;display:grid;place-items:center}
+.li .ic svg{width:20px;height:20px}
+.li .nm{font-size:13px;font-weight:700;flex:1}
+.li .dur{font-size:13px;font-weight:800;color:var(--ember)}
+.li .chev{color:#5c5274}
+.tabbar{position:sticky;bottom:0;display:flex;background:#120e1c;border-top:1px solid #241c38;padding:8px 0 12px}
+.tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:#6f6488}
+.tb.on{color:var(--ember)}
+.tb svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8}
+.tb.on svg{fill:currentColor;stroke:none}
+.pad{height:8px}
+/* ---- share card frame (fixed) ---- */
+.cardwrap{display:flex;gap:22px;flex-wrap:wrap;justify-content:center}
+.cell{display:flex;flex-direction:column;align-items:center;gap:8px;width:214px}
+.tag{font-size:10.5px;color:#8a7fa6;text-align:center;line-height:1.4}
+.tag b{color:#e7ddf5}
+.tag .old{color:#ff8f8f}
+.scard{width:214px;height:380px;border-radius:22px;overflow:hidden;position:relative;
+  background:radial-gradient(120% 55% at 50% 2%,#3a2350,#1a1526 58%,#141019);
+  display:flex;flex-direction:column;align-items:center;padding:22px 16px;border:1px solid rgba(255,255,255,.06)}
+.scard.gym{background:radial-gradient(120% 55% at 50% 2%,#3a1c2a,#1a1526 58%,#141019)}
+.kick{font-size:9.5px;font-weight:800;letter-spacing:1.8px;color:var(--ember);text-align:center}
+.shero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%}
+.stypeic{width:60px;height:60px;border-radius:16px;background:#1c1430;display:grid;place-items:center;margin-bottom:14px;border:1px solid rgba(255,255,255,.07)}
+.stypeic svg{width:34px;height:34px}
+.sbig{font-size:48px;font-weight:800;line-height:1;letter-spacing:-1.5px}
+.sname{font-size:15px;font-weight:800;margin-top:8px}
+.smeta{font-size:10.5px;color:#8a7fa6;margin-top:3px}
+.spills{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+.spill{display:inline-flex;align-items:center;gap:4px;background:#241a2e;border:1px solid rgba(242,163,60,.35);border-radius:999px;padding:5px 10px;font-size:9.5px;font-weight:700;color:#FFD27A}
+.sfoot{display:flex;align-items:center;gap:5px;padding-top:8px;font-size:11px;font-weight:800}
+.sfoot svg{width:15px;height:15px}
+</style>
+
+<!-- shared defs: gems, gold, fire gradients -->
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset=".5" stop-color="#F5C542"/><stop offset="1" stop-color="#C79A16"/></linearGradient>
+  <linearGradient id="emb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD27A"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#E4632A"/></linearGradient>
+  <radialGradient id="fireR" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#FFE39A"/><stop offset=".45" stop-color="#FF9330"/><stop offset="1" stop-color="#E23A1E"/></radialGradient>
+  <linearGradient id="myth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E9B8FF"/><stop offset="1" stop-color="#9A46E0"/></linearGradient>
+  <linearGradient id="silver" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8ECF5"/><stop offset="1" stop-color="#9AA3B8"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 107 — Profile redesign + Trophy Hall</h1>
+<p class="sub">"This is YOU." A flex surface with real cosmetic art, earned trophies as social proof, and a personal journal — plus the same hall on other people's profiles for instant status comparison. Frame 3 fixes the lock-in share card.</p>
+
+<div class="note">
+<b>Cut from the current screen:</b> <span class="kill">"Wilfrid Laurier University — 8 here"</span> (retired — legacy photo-as-lock-in metric) · <span class="kill">the "Inventory &amp; loadout" row</span> and <span class="kill">the floating "Study" chip</span> (moved into the ⚙ menu / editor) · <span class="kill">the duplicate settings gear over the XP bar</span> (one gear, top-right only).
+<b>&nbsp;Added:</b> <span class="add">bio</span>, <span class="add">Trophy Hall</span> (relics/medals + earned badges + challenge W-L), <span class="add">journal comments</span> on achievements. <b>Critical fix:</b> the CARD backdrop + avatar HALO must render as their <b>actual art</b> (ITEM_CATALOG §2a/§2b) — right now they show as flat colours.
+</div>
+
+<div class="row">
+
+<!-- ================= FRAME 1 · YOUR PROFILE ================= -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>3:38</span><span class="r">📶 &nbsp;70</span></div>
+  <div class="phead"><h2>Profile</h2>
+    <div class="gear"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></div>
+  </div>
+
+  <!-- identity card: Cracked Magma texture + Inferno Flare halo -->
+  <div class="idcard magma">
+    <svg class="crackz" viewBox="0 0 300 150" preserveAspectRatio="none">
+      <path d="M0 60 L70 72 L120 55 L180 78 L240 60 L300 80" stroke="#FF5A2E" stroke-width="1" fill="none" opacity=".5"/>
+      <path d="M40 0 L60 40 L45 90 L70 150" stroke="#FF7A3E" stroke-width="1" fill="none" opacity=".4"/>
+      <path d="M210 0 L195 55 L230 100 L215 150" stroke="#FF5A2E" stroke-width="1" fill="none" opacity=".4"/>
+      <path d="M120 55 L130 110 L100 150" stroke="#FFA23C" stroke-width=".8" fill="none" opacity=".35"/>
+    </svg>
+    <div class="idtop">
+      <div class="avwrap">
+        <!-- Inferno Flare halo (real ring-of-fire, not a flat border) -->
+        <svg class="halo" viewBox="0 0 92 92">
+          <g fill="url(#fireR)">
+            <circle cx="46" cy="46" r="44" fill="none" stroke="url(#emb)" stroke-width="3" opacity=".55"/>
+            <path d="M46 2 q4 8 0 14 q-4 -6 0 -14Z"/><path d="M90 46 q-8 4 -14 0 q6 -4 14 0Z"/>
+            <path d="M46 90 q-4 -8 0 -14 q4 6 0 14Z"/><path d="M2 46 q8 -4 14 0 q-6 4 -14 0Z"/>
+            <path d="M77 15 q-2 8 -8 10 q3 -7 8 -10Z"/><path d="M15 15 q8 2 10 8 q-7 -3 -10 -8Z"/>
+            <path d="M77 77 q-8 -2 -10 -8 q7 3 10 8Z"/><path d="M15 77 q2 -8 8 -10 q-3 7 -8 10Z"/>
+          </g>
+        </svg>
+        <div class="av"><img src="https://i.pravatar.cc/150?img=13" alt=""></div>
+      </div>
+      <div class="idmeta">
+        <div class="idname">Noah Brikman</div>
+        <div class="idhandle">@brkmnn</div>
+        <div class="idtitle"><svg viewBox="0 0 24 24" fill="#c79bec"><path d="M12 2l2.4 6.9H22l-6 4.4 2.3 7-6.3-4.6L5.7 20l2.3-7-6-4.4h7.6z"/></svg>The Relentless <span style="color:#6f6488;font-size:10px">· Epic</span></div>
+        <div class="verified"><svg viewBox="0 0 24 24" fill="#7fe0a0"><path d="M9 16.2l-3.5-3.5 1.4-1.4L9 13.4l7.1-7.1 1.4 1.4z"/></svg>Laurier ✓</div>
+      </div>
+    </div>
+    <div class="bio">Comp-sci @ Laurier. Locking in before the sun does. 4:30am club. <span class="edit">✎ edit bio</span></div>
+  </div>
+
+  <!-- rank strip (gear removed from here) -->
+  <div class="rankstrip">
+    <div class="hex"><svg viewBox="0 0 40 44"><path d="M20 1 L38 11 L38 33 L20 43 L2 33 L2 11 Z" fill="#20182e" stroke="url(#silver)" stroke-width="2"/></svg><b>I</b></div>
+    <div class="rk">
+      <div class="rrow"><span class="rname">Silver I</span><span class="rxp">1,248 / 1,500 XP</span></div>
+      <div class="track"><div class="fill" style="width:83%"></div></div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="n">4</div><div class="l">day streak</div></div>
+    <div class="stat"><div class="n">74</div><div class="l">lock-ins</div></div>
+    <div class="stat"><div class="n">23h</div><div class="l">locked in</div></div>
+  </div>
+
+  <!-- TROPHY HALL -->
+  <div class="section">
+    <div class="shead"><div class="t"><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M6 4h12v3a6 6 0 01-12 0zM4 5h2v2a3 3 0 01-2-2zm16 0a3 3 0 01-2 2V5zM10 13h4v4h3v2H7v-2h3z"/></svg>Trophy Hall</div><div class="a">See all ›</div></div>
+    <!-- featured relics/medals (showcase, non-equip) -->
+    <div class="trophies">
+      <div class="trophy t-myth"><div class="glow"></div>
+        <svg class="art" viewBox="0 0 24 24" fill="url(#myth)"><path d="M12 2l2 5 5 1-3.5 3.5L16 17l-4-2.4L8 17l.5-5.5L5 8l5-1z"/></svg>
+        <div class="rr">MYTHIC</div></div>
+      <div class="trophy t-leg"><div class="glow"></div>
+        <svg class="art" viewBox="0 0 24 24" fill="url(#gold)"><circle cx="12" cy="9" r="6"/><path d="M9 14l-1.5 8L12 19l4.5 3L15 14z"/></svg>
+        <div class="rr">LEGENDARY</div></div>
+      <div class="trophy t-epic"><div class="glow"></div>
+        <svg class="art" viewBox="0 0 24 24" fill="#c79bec"><path d="M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/></svg>
+        <div class="rr">EPIC</div></div>
+      <div class="trophy t-epic"><div class="glow"></div>
+        <svg class="art" viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg>
+        <div class="rr">EPIC</div></div>
+    </div>
+    <!-- earned badges (proof, greyed = locked) -->
+    <div class="badges" style="margin-top:10px">
+      <div class="badge"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg><span class="cnt">×7</span></div>
+      <div class="badge"><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M5 3h14l-1 7a6 6 0 01-12 0zM9 17h6v2H9zM8 20h8v1H8z"/></svg><span class="cnt">×3</span></div>
+      <div class="badge"><svg viewBox="0 0 24 24" fill="url(#silver)"><path d="M12 2l2.5 5 5.5.8-4 4 1 5.5L12 20l-5-2.7 1-5.5-4-4L10.5 7z"/></svg></div>
+      <div class="badge"><svg viewBox="0 0 24 24" fill="#7fe0a0"><path d="M4 12l5 5L20 6l-2-2-9 9-3-3z"/></svg><span class="cnt">30d</span></div>
+      <div class="badge"><svg viewBox="0 0 24 24" fill="#6BA8FF"><path d="M12 3l8 4v5c0 5-4 8-8 9-4-1-8-4-8-9V7z"/></svg></div>
+      <div class="badge"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M3 13h4v8H3zm7-5h4v13h-4zm7-4h4v17h-4z"/></svg></div>
+      <div class="badge locked"><svg viewBox="0 0 24 24" fill="#8a7fa6"><path d="M7 10V7a5 5 0 0110 0v3h1v11H6V10zm2 0h6V7a3 3 0 00-6 0z"/></svg></div>
+      <div class="badge locked"><svg viewBox="0 0 24 24" fill="#8a7fa6"><path d="M7 10V7a5 5 0 0110 0v3h1v11H6V10zm2 0h6V7a3 3 0 00-6 0z"/></svg></div>
+    </div>
+    <!-- challenge record -->
+    <div class="record" style="margin-top:10px">
+      <div class="rec w"><div class="n">23</div><div class="l2">duels won</div></div>
+      <div class="rec l"><div class="n">6</div><div class="l2">lost</div></div>
+      <div class="rec wr"><div class="n">79%</div><div class="l2">win rate</div></div>
+    </div>
+  </div>
+
+  <!-- JOURNAL -->
+  <div class="section">
+    <div class="shead"><div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="1.7"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Journal</div></div>
+    <div class="jitem">
+      <div class="jic"><svg viewBox="0 0 24 24"><path d="M12 2 L22 8 V16 L12 22 L2 16 V8 Z" fill="#20182e" stroke="url(#silver)" stroke-width="1.4"/><text x="12" y="15" text-anchor="middle" font-size="8" font-weight="800" fill="#e9def7">I</text></svg></div>
+      <div class="jbody"><div class="jhead">Reached Silver I<span class="when">2d ago</span></div>
+        <div class="jcomment">"finally. the 4:30 alarms are paying off — grinding to Gold before midterms."</div></div>
+    </div>
+    <div class="jitem">
+      <div class="jic"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div>
+      <div class="jbody"><div class="jhead">7-day streak<span class="when">last week</span></div>
+        <div class="jcomment">"first full week i didn't skip. locked in through the Friday i really didn't want to."</div></div>
+    </div>
+    <div class="jitem">
+      <div class="jic"><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M6 4h12v3a6 6 0 01-12 0zM10 13h4v4h3v2H7v-2h3z"/></svg></div>
+      <div class="jbody"><div class="jhead">Beat Maya · Most XP duel<span class="when">last week</span></div>
+        <a class="jadd">＋ add a note</a></div>
+    </div>
+  </div>
+
+  <!-- LOCK-INS (kept) -->
+  <div class="section">
+    <div class="shead"><div class="t">Recent lock-ins</div><div class="a">See all ›</div></div>
+    <div class="li"><div class="ic"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M4 5h11l3 2v11a1 1 0 01-1 1H4z"/><path d="M4 5v13" stroke="#180f18" stroke-width="1"/></svg></div><div class="nm">Study</div><div class="dur">13m</div><span class="chev">›</span></div>
+    <div class="li"><div class="ic"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M4 5h11l3 2v11a1 1 0 01-1 1H4z"/></svg></div><div class="nm">Study</div><div class="dur">2m</div><span class="chev">›</span></div>
+    <div class="pad"></div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tb"><svg viewBox="0 0 24 24"><path d="M12 3c1.5 4 5 5 5 9a5 5 0 01-10 0c0-2 1-4 2-5 0 2 1 3 2 3 1-3-1-4 1-7z"/></svg>Home</div>
+    <div class="tb"><svg viewBox="0 0 24 24"><path d="M6 5h12v3a6 6 0 01-12 0zM10 15h4v3h3v2H7v-2h3z"/></svg>Leaderboards</div>
+    <div class="tb"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Challenges</div>
+    <div class="tb on"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 7 0 0116 0z"/></svg>Profile</div>
+  </div>
+</div></div>
+<div class="flabel"><b>Frame 1 · Your profile.</b> Real Cracked Magma card + Inferno Flare halo · bio · Trophy Hall (relics/medals + earned badges + W-L) · journal.</div>
+</div>
+
+<!-- ================= FRAME 2 · SOMEONE ELSE (compare) ================= -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>3:39</span><span class="r">📶 &nbsp;70</span></div>
+  <div class="phead"><h2 style="font-size:18px;display:flex;align-items:center;gap:8px"><span style="color:#8a7fa6">‹</span> Maya Chen</h2>
+    <div class="gear" style="background:rgba(242,163,60,.14)"><svg viewBox="0 0 24 24" stroke="var(--ember)"><path d="M12 5v14M5 12h14"/></svg></div>
+  </div>
+
+  <!-- their cosmetics: Golden Anvil card (Legendary) + Hades Halo (Mythic) -->
+  <div class="idcard" style="background:radial-gradient(80% 120% at 20% 0%,rgba(255,200,90,.22),transparent 55%),linear-gradient(135deg,#2a2213,#191410 60%,#1d1810);border-color:rgba(255,200,90,.35)">
+    <div class="idtop">
+      <div class="avwrap">
+        <svg class="halo" viewBox="0 0 92 92"><g fill="url(#myth)">
+          <circle cx="46" cy="46" r="44" fill="none" stroke="url(#myth)" stroke-width="3" opacity=".6"/>
+          <path d="M46 1 q5 9 0 15 q-5 -6 0 -15Z"/><path d="M91 46 q-9 5 -15 0 q6 -5 15 0Z"/>
+          <path d="M46 91 q-5 -9 0 -15 q5 6 0 15Z"/><path d="M1 46 q9 -5 15 0 q-6 5 -15 0Z"/>
+          <path d="M78 14 q-3 9 -9 11 q3 -8 9 -11Z"/><path d="M14 14 q9 3 11 9 q-8 -3 -11 -9Z"/>
+          <path d="M78 78 q-9 -3 -11 -9 q8 3 11 9Z"/><path d="M14 78 q3 -9 9 -11 q-3 8 -9 11Z"/>
+        </g></svg>
+        <div class="av"><img src="https://i.pravatar.cc/150?img=45" alt=""></div>
+      </div>
+      <div class="idmeta">
+        <div class="idname">Maya Chen</div>
+        <div class="idhandle">@mayac</div>
+        <div class="idtitle" style="color:#FFC14D"><svg viewBox="0 0 24 24" fill="#FFC14D"><path d="M12 2l2.4 6.9H22l-6 4.4 2.3 7-6.3-4.6L5.7 20l2.3-7-6-4.4h7.6z"/></svg>Final Boss <span style="color:#6f6488;font-size:10px">· Epic</span></div>
+        <div class="verified"><svg viewBox="0 0 24 24" fill="#7fe0a0"><path d="M9 16.2l-3.5-3.5 1.4-1.4L9 13.4l7.1-7.1 1.4 1.4z"/></svg>UWaterloo ✓</div>
+      </div>
+    </div>
+    <div class="bio" style="font-style:normal">Grinding Diamond or bust. Will out-lock-in you. Waterloo SE '27.</div>
+  </div>
+
+  <div class="rankstrip">
+    <div class="hex"><svg viewBox="0 0 40 44"><path d="M20 1 L38 11 L38 33 L20 43 L2 33 L2 11 Z" fill="#241a12" stroke="url(#gold)" stroke-width="2"/></svg><b style="color:#FFD27A">II</b></div>
+    <div class="rk"><div class="rrow"><span class="rname" style="color:#FFD27A">Gold II</span><span class="rxp">above you · +2 tiers</span></div>
+      <div class="track"><div class="fill" style="width:46%"></div></div></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="n" style="color:#7fe0a0">18</div><div class="l">day streak</div></div>
+    <div class="stat"><div class="n">210</div><div class="l">lock-ins</div></div>
+    <div class="stat"><div class="n">96h</div><div class="l">locked in</div></div>
+  </div>
+
+  <!-- compare banner -->
+  <div class="section" style="margin-top:14px">
+    <div style="background:linear-gradient(90deg,rgba(242,163,60,.12),rgba(199,120,255,.10));border:1px solid rgba(242,163,60,.28);border-radius:13px;padding:11px 13px;font-size:11.5px;color:#e7ddf5;display:flex;align-items:center;gap:9px">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--ember)" stroke-width="1.8"><path d="M7 17V9M12 17V5M17 17v-6"/></svg>
+      <span><b>She's ahead:</b> 5 more mythic trophies, 14-day-longer streak. Your win rate's higher though (79% vs 64%).</span>
+    </div>
+  </div>
+
+  <!-- their trophy hall -->
+  <div class="section" style="margin-top:14px">
+    <div class="shead"><div class="t"><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M6 4h12v3a6 6 0 01-12 0zM10 13h4v4h3v2H7v-2h3z"/></svg>Trophy Hall</div><div class="a">See all ›</div></div>
+    <div class="trophies">
+      <div class="trophy t-myth"><div class="glow"></div><svg class="art" viewBox="0 0 24 24" fill="url(#myth)"><path d="M12 2l2 5 5 1-3.5 3.5L16 17l-4-2.4L8 17l.5-5.5L5 8l5-1z"/></svg><div class="rr">MYTHIC</div></div>
+      <div class="trophy t-myth"><div class="glow"></div><svg class="art" viewBox="0 0 24 24" fill="url(#myth)"><path d="M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/></svg><div class="rr">MYTHIC</div></div>
+      <div class="trophy t-leg"><div class="glow"></div><svg class="art" viewBox="0 0 24 24" fill="url(#gold)"><circle cx="12" cy="9" r="6"/><path d="M9 14l-1.5 8L12 19l4.5 3L15 14z"/></svg><div class="rr">LEGENDARY</div></div>
+      <div class="trophy t-leg"><div class="glow"></div><svg class="art" viewBox="0 0 24 24" fill="url(#gold)"><path d="M6 4h12v3a6 6 0 01-12 0zM10 13h4v4h3v2H7v-2h3z"/></svg><div class="rr">LEGENDARY</div></div>
+    </div>
+    <div class="record" style="margin-top:10px">
+      <div class="rec w"><div class="n">51</div><div class="l2">duels won</div></div>
+      <div class="rec l"><div class="n">29</div><div class="l2">lost</div></div>
+      <div class="rec wr"><div class="n">64%</div><div class="l2">win rate</div></div>
+    </div>
+  </div>
+
+  <div class="section" style="margin-top:16px;margin-bottom:14px">
+    <div style="display:flex;gap:9px">
+      <div style="flex:1;background:linear-gradient(90deg,#F2A33C,#FF7A3E);border-radius:13px;padding:12px;text-align:center;font-size:13px;font-weight:800;color:#2a1400">⚡ Challenge</div>
+      <div style="flex:1;background:#171226;border:1px solid #2a2140;border-radius:13px;padding:12px;text-align:center;font-size:13px;font-weight:700;color:#d8cceb">Add friend</div>
+    </div>
+  </div>
+  <div class="pad"></div>
+</div></div>
+<div class="flabel"><b>Frame 2 · Their profile.</b> Same hall = instant, earned status comparison (not just cosmetics). Compare banner + Challenge/Add CTAs.</div>
+</div>
+
+<!-- ================= FRAME 3 · SHARE CARDS (fixed) ================= -->
+<div class="frame">
+<div class="cardwrap">
+  <div class="cell">
+    <!-- STUDY share card: vector icon, NO PRs -->
+    <div class="scard">
+      <div class="kick">LOCKED IN · PHILOI</div>
+      <div class="shero">
+        <div class="stypeic"><svg viewBox="0 0 24 24"><path d="M4 5h11l3 2v12H5a1 1 0 01-1-1z" fill="url(#emb)"/><path d="M15 5v14" stroke="#1a1220" stroke-width="1"/><path d="M7 9h6M7 12h6M7 15h4" stroke="#1a1220" stroke-width="1" fill="none"/></svg></div>
+        <div class="sbig">12:51</div>
+        <div class="sname">Study</div>
+        <div class="smeta">Today · 2:02 p.m.</div>
+        <div class="spills">
+          <span class="spill">🔥 4-day streak · kept alive</span>
+        </div>
+        <div class="spills"><span class="spill">+74 XP</span></div>
+      </div>
+      <div class="sfoot"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg>philoi</div>
+    </div>
+    <div class="tag"><b>Study session — fixed.</b> Vector book icon (was 📚 emoji). <span class="old">No "0 PRs"</span> — study shows Streak + XP.</div>
+  </div>
+
+  <div class="cell">
+    <!-- GYM share card: PRs make sense here -->
+    <div class="scard gym">
+      <div class="kick">LOCKED IN · PHILOI</div>
+      <div class="shero">
+        <div class="stypeic"><svg viewBox="0 0 24 24"><path d="M4 9h2v6H4zM18 9h2v6h-2zM6 11h12v2H6zM2 10h2v4H2zM20 10h2v4h-2z" fill="url(#emb)"/></svg></div>
+        <div class="sbig">48:20</div>
+        <div class="sname">Gym</div>
+        <div class="smeta">Today · 6:10 a.m.</div>
+        <div class="spills">
+          <span class="spill">🔥 4-day streak</span>
+          <span class="spill">🏋 2 PRs</span>
+        </div>
+        <div class="spills"><span class="spill">+120 XP</span></div>
+      </div>
+      <div class="sfoot"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg>philoi</div>
+    </div>
+    <div class="tag"><b>Gym session.</b> Vector dumbbell icon · <b>PRs only appear here</b> — the stat row is per-session-type.</div>
+  </div>
+</div>
+<div class="flabel" style="max-width:470px;margin-top:6px"><b>Frame 3 · Lock-in share card, fixed.</b> Session-type icons are vector art (no emoji). The stat row is conditional: Study/Read → Streak + XP; Gym → Streak + PRs + XP. A "PR" line never shows on a study session.</div>
+</div>
+
+</div>

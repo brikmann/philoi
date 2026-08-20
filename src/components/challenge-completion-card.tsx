@@ -1,21 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Ionicons } from '@expo/vector-icons';
+
 import { Card } from '@/components/ui/card';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { FeedChallengeEvent } from '@/lib/api/challenges';
-import type { ChallengeType } from '@/types/database';
-
-const TYPE_ICON: Record<ChallengeType, string> = {
-  steps: '👟',
-  run_distance: '🏃',
-  ride_distance: '🚴',
-  gym_visits: '🏋️',
-  study_hours: '📚',
-  custom: '🎯',
-  workout_minutes: '⏱️',
-  strain: '💪',
-  sleep_hours: '😴',
-};
+import { CHALLENGE_TYPE_ICON } from '@/lib/goal-types';
 
 function formatRelativeTime(isoDate: string) {
   const diffMs = Date.now() - new Date(isoDate).getTime();
@@ -31,7 +21,7 @@ export function ChallengeCompletionCard({ event }: { event: FeedChallengeEvent }
   const goal = event.challenge_label ?? `${event.target.toLocaleString()} ${event.unit}`;
   return (
     <Card style={styles.card}>
-      <Text style={styles.icon}>{TYPE_ICON[event.challenge_type]}</Text>
+      <Ionicons name={CHALLENGE_TYPE_ICON[event.challenge_type]} size={17} color={Colors.ember} />
       <View style={styles.body}>
         {event.is_completion ? (
           <Text style={styles.text}>

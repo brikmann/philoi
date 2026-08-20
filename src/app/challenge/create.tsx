@@ -17,6 +17,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { createChallenge } from '@/lib/api/challenges';
 import { syncChallengeFromDevice } from '@/lib/api/fitness-challenge-sync';
 import { getErrorMessage } from '@/lib/errors';
+import { CHALLENGE_TYPE_ICON } from '@/lib/goal-types';
 import {
   AUTO_SOURCE_NAME,
   canAutoTrackChallengeType,
@@ -361,21 +362,24 @@ function SocialChallengeForm() {
 // for each — a per-option value rather than a nested ternary in handlePickType, which stopped
 // scaling once there were nine of these.
 const PERSONAL_TYPE_OPTIONS: { value: ChallengeType; label: string; unit: string; defaultTarget: string }[] = [
-  { value: 'steps', label: '👟 Steps', unit: 'steps', defaultTarget: '10000' },
-  { value: 'study_hours', label: '📚 Study time', unit: 'hours', defaultTarget: '10' },
-  { value: 'gym_visits', label: '🏋️ Gym visits', unit: 'visits', defaultTarget: '4' },
-  { value: 'run_distance', label: '🏃 Run', unit: 'km', defaultTarget: '20' },
+  // Labels carry no emoji — MetricChip renders CHALLENGE_TYPE_ICON beside them, so the glyph is a
+  // recolourable vector that takes the chip's selected/unselected tint instead of a fixed-colour
+  // emoji that ignores it (§A3).
+  { value: 'steps', label: 'Steps', unit: 'steps', defaultTarget: '10000' },
+  { value: 'study_hours', label: 'Study time', unit: 'hours', defaultTarget: '10' },
+  { value: 'gym_visits', label: 'Gym visits', unit: 'visits', defaultTarget: '4' },
+  { value: 'run_distance', label: 'Run', unit: 'km', defaultTarget: '20' },
 ];
 
 // Kept off the primary row so it reads as mock 73A's clean five, but NOT deleted: each of these
 // is wired to a real verifiable source (Strava for rides, Whoop for the rest, §17), and dropping
 // them from setup would quietly make those integrations unreachable.
 const MORE_TYPE_OPTIONS: typeof PERSONAL_TYPE_OPTIONS = [
-  { value: 'ride_distance', label: '🚴 Riding', unit: 'km', defaultTarget: '20' },
+  { value: 'ride_distance', label: 'Riding', unit: 'km', defaultTarget: '20' },
   // Whoop has no step count, so its three metrics live here and never on the steps option above.
-  { value: 'workout_minutes', label: '💪 Workout minutes', unit: 'minutes', defaultTarget: '150' },
-  { value: 'strain', label: '🔥 Strain', unit: 'strain', defaultTarget: '70' },
-  { value: 'sleep_hours', label: '😴 Sleep', unit: 'hours', defaultTarget: '49' },
+  { value: 'workout_minutes', label: 'Workout minutes', unit: 'minutes', defaultTarget: '150' },
+  { value: 'strain', label: 'Strain', unit: 'strain', defaultTarget: '70' },
+  { value: 'sleep_hours', label: 'Sleep', unit: 'hours', defaultTarget: '49' },
 ];
 
 // A pill that names its own data source. Previously every metric looked equally automatic, so
@@ -393,7 +397,14 @@ function MetricChip({
   const source = metricSourceShort(option.value);
   return (
     <Pressable onPress={onPress} style={[styles.personalChip, selected && styles.chipSelected]}>
-      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
+      <View style={styles.chipTitleRow}>
+        <Ionicons
+          name={CHALLENGE_TYPE_ICON[option.value]}
+          size={14}
+          color={selected ? Colors.ink : Colors.ember}
+        />
+        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
+      </View>
       {source ? (
         <Text style={[styles.chipSource, selected && styles.chipSourceSelected]} numberOfLines={1}>
           {source}
@@ -829,6 +840,13 @@ const styles = StyleSheet.create({
   },
   // Matches typesRow/typeTile's filled-card treatment above (SocialChallengeForm) — both forms
   // share one visual language for selectable chips now, not two generations of it.
+  // Icon + label on one line so the vector sits where the emoji used to, with the source tag
+  // still stacked beneath it.
+  chipTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   personalChip: {
     backgroundColor: Colors.card,
     borderRadius: Radius.card,

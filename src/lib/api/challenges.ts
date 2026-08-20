@@ -1,4 +1,5 @@
 import { track } from '@/lib/analytics';
+import { formatLocalDate } from '@/lib/local-day';
 import { supabase } from '@/lib/supabase';
 import type {
   Challenge,
@@ -53,7 +54,7 @@ export async function logChallengeProgress(
   challengeId: string,
   amount: number,
   note?: string
-): Promise<{ challenge: Challenge; justCompleted: boolean }> {
+): Promise<{ challenge: Challenge; justCompleted: boolean; award: GoalDayAward | null }> {
   const { data, error } = await supabase.rpc('log_challenge_progress', {
     p_challenge_id: challengeId,
     p_amount: amount,
@@ -67,7 +68,58 @@ export async function logChallengeProgress(
   if (just_completed) {
     track('challenge_completed', { challenge_id: challengeId, type: challenge.type });
   }
-  return { challenge, justCompleted: just_completed };
+  return { challenge, justCompleted: just_completed, award: just_completed ? await awardGoalDay(challengeId) : null };
+}
+
+/** What economy_award_goal_day pays back — see migration 0085. */
+export type GoalDayAward = {
+  already_awarded: boolean;
+  embers: number;
+  milestone: number;
+  box: string | null;
+  streak: number;
+  difficulty: string;
+  /** True when the weekly ceiling clipped the payout, so the UI can say so rather than silently
+   * showing a smaller number than the goal advertises. */
+  capped: boolean;
+};
+
+/**
+ * Bank the day's embers for a completed personal goal (§B).
+ *
+ * The ONLY thing sent is the goal and the device's local calendar date. Difficulty and streak are
+ * derived server-side from the goal row and from goal_day_awards — 0083 originally took both as
+ * parameters, which meant any signed-in caller could claim a 30-day streak and mint 400 embers
+ * plus a box on day one. 0085 closed that.
+ *
+ * The local date has to come from the device: the server cannot know the caller's calendar day,
+ * which is the whole reason §A3 exists. It is bounded server-side to no-further-than-tomorrow.
+ *
+ * Never throws into the log path. A goal that completed but failed to pay is a support ticket, not
+ * a reason to fail the progress write the user actually asked for — and the call is idempotent per
+ * local day, so a later retry settles it.
+ */
+async function awardGoalDay(challengeId: string): Promise<GoalDayAward | null> {
+  try {
+    const { data, error } = await supabase.rpc('economy_award_goal_day', {
+      p_goal_id: challengeId,
+      p_local_day: formatLocalDate(new Date()),
+    });
+    if (error) throw error;
+    const award = data as GoalDayAward | null;
+    if (award && !award.already_awarded) {
+      track('goal_day_awarded', {
+        challenge_id: challengeId,
+        embers: award.embers,
+        milestone: award.milestone,
+        streak: award.streak,
+      });
+    }
+    return award;
+  } catch (e) {
+    console.warn('[goals] could not award goal day:', e);
+    return null;
+  }
 }
 
 export async function deleteChallenge(challengeId: string): Promise<void> {
