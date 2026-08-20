@@ -5,7 +5,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card } from '@/components/ui/card';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { logChallengeProgress } from '@/lib/api/challenges';
+import { logChallengeProgress, type GoalDayAward } from '@/lib/api/challenges';
 import { CHALLENGE_TYPE_ICON } from '@/lib/goal-types';
 import { getErrorMessage } from '@/lib/errors';
 import { AUTO_SOURCE_NAME, getRealFitnessSourceForChallengeType, sourceNeedsConnection } from '@/lib/fitness-sync';
@@ -69,7 +69,10 @@ type ChallengeCardProps = {
   /** True when the device source that COULD track this goal is actually connected — the card
    * only claims "Auto" when something is genuinely feeding it. */
   autoConnected?: boolean;
-  onLogged: (justCompleted: boolean) => void;
+  /** Carries the SERVER's payout up with the completion so the tab can show mock 103's reward
+   * screen. Null when nothing was granted (already awarded today, or the RPC failed) — the caller
+   * shows the plain burst in that case rather than an empty reward screen. */
+  onLogged: (justCompleted: boolean, award: GoalDayAward | null, goalLabel: string) => void;
   onDeleted: () => void;
 };
 
@@ -104,7 +107,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
       const result = await logChallengeProgress(challenge.id, value);
       setAmount('');
       setExpanded(false);
-      onLogged(result.justCompleted);
+      onLogged(result.justCompleted, result.award, challengeTitle(challenge));
     } catch (e) {
       setError(getErrorMessage(e, 'Could not log progress.'));
     } finally {

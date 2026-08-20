@@ -35,21 +35,46 @@ loadout** — the same equip slots the inventory already writes.
   Purpose: make the social layer personal — a one-liner of who they are / what they're grinding for, so a
   profile reads as a person, not just a stats dump.
 
-## D. New: Trophy Hall (the flex surface)
-A dedicated section = **earned proof of status**, distinct from cosmetics (which are equippable / buyable).
-Renders on **your** profile and on **others'** (this is the compare surface).
-1. **Featured trophies** — a row of the user's best **`RELIC` / `MEDAL`** showcase items (ITEM_CATALOG §4a/§4b),
-   each tinted by its rarity aura (Mythic purple / Legendary gold / Epic violet). Tap → item + lore. Non-equip.
-2. **Earned badges grid** — non-cosmetic proof: streak milestones (7/30/…-day), season titles / placements,
-   challenge-win badges (e.g. *Firestarter*), *Built Different*, campus-placement, etc. Locked ones render
-   greyed so there's a visible "collection to complete." Count pips (×7) where a badge stacks.
-3. **Challenge record** — **duels won / lost / win-rate**. Hard, earned social proof (not cosmetics).
-4. **"See all"** → full Trophy Hall (all relics, medals, badges, full W-L history).
+## D. New: Trophy Hall (the flex surface) — SCOPED
+A dedicated section = **earned proof of status ONLY**. Nothing here is purchasable *or* rollable — if a whale
+could get it from a shop or a loot box, it doesn't belong. Cosmetics (CARD/HALO/FLAME/etc.) stay on the
+identity card + inventory; the Hall is the "you can't buy this" surface. Renders on **your** profile and on
+**others'** (the compare surface).
 
-**Why it's on other profiles too:** cosmetics can be bought, so they don't prove much. Badges, medals,
-placements and a W-L record are **earned** — showing them side-by-side is instant, credible status. When
-viewing someone else, add a small **compare banner** ("She's ahead on trophies + streak; your win rate's
-higher") and the **Challenge / Add friend** CTAs (Frame 2).
+### ‼ Change this pulls in: Relics become EARNED (not loot-box)
+Noah's call: **Greek Mythic Relics (`RELIC`, §4a) move out of the loot-box pool and become achievement
+unlocks**, like Medals. **Downstream:** remove relics from box loot tables (ITEM_CATALOG §4a note + the box
+drop config); update §4a to "earned, never rolled/bought." **Proposed earn triggers (confirm before build):**
+- **Hestia's Hearthstone** (Epic) — hold a **30-day streak** (the undying hearth).
+- **Athena's Aegis** (Epic) — a **full month with zero dead days** / never break a defended rank in a season.
+- **Icarus' Feather** (Legendary) — hit a **new personal peak rank** at Gold+ (flew high enough to burn).
+- **Anvil of Hephaestus** (Legendary) — **500 total hours** locked in.
+- **Prometheus' Shard** (Mythic) — **Top 1% of a season** *or* bring **N friends who verify** (spread the fire).
+
+### What the Hall contains (full "See all" view, grouped)
+1. **Peak & Identity** — **Peak rank** ever reached, season-stamped ("Peak: Gold II · S1") · **Campus Verified**
+   · **First Flame** founder badge. Permanent, earned identity.
+2. **Season Résumé** — one card **per completed season**: final **placement + cohort** ("S1 Emberfall · #300 /
+   30,000 · Top 1%"), the **title** earned, and the season **Medal** (§4b). The headline career flex.
+3. **Relics** (§4a, now earned) — Epic→Mythic, rarity-glowed, tap → lore + how it was earned. Showcase only.
+4. **Milestone badges** (grid, locked = greyed so there's a collection to complete) — streak milestones
+   (7/30/100-day), lock-in totals (100/500), hours locked in, challenge-win badges (*Firestarter*, etc.).
+   Count pips (×7) where a badge stacks.
+5. **Challenge record** — **duels won / lost / win-rate**, current **win streak**, biggest upset.
+
+### Collapsed profile (what shows before "See all") — AUTO-featured
+No manual picker. The profile shows an auto-curated strip: **rarest trophy + most-recent unlock + the W-L
+record**, plus a **Peak rank** chip. Always fresh, zero maintenance. **"See all"** → the full grouped hall.
+
+### Visibility (other profiles) — per-item toggle
+Everything defaults **public**. Owner can **hide individual trophies / the record** from public view (own
+profile → long-press or a manage screen). Hidden items still show in the owner's own full hall, just not to
+visitors. (We keep the honest-compare value by defaulting public; hiding is opt-in.)
+
+**Why it's on other profiles too:** cosmetics can be bought, so they don't prove much. Peak rank, medals,
+season placements, earned relics and a W-L record **can't** — showing them side-by-side is instant, credible
+status. Viewing someone else adds a **compare banner** ("She's ahead on trophies + streak; your win rate's
+higher") + the **Challenge / Add friend** CTAs (Frame 2).
 
 ## E. New: Journal (achievement comments)
 - Each notable achievement (rank-up, streak milestone, challenge win, season placement) becomes a **journal

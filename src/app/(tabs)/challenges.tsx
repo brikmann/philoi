@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChallengeCard } from '@/components/challenge-card';
+import { GoalStreakRewardScreen } from '@/components/economy/goal-streak-reward-screen';
+import { GoalStreakShareCard } from '@/components/economy/goal-streak-share-card';
 import { TargetEmberHero } from '@/components/empty-states/target-ember-hero';
 import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
 import { SocialChallengeCard } from '@/components/social-challenge-card';
@@ -16,12 +18,13 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useMyChallenges } from '@/hooks/use-my-challenges';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
-import { deleteChallenge } from '@/lib/api/challenges';
+import { deleteChallenge, type GoalDayAward } from '@/lib/api/challenges';
+import { shareCardImage } from '@/lib/share-card';
 import type { Challenge } from '@/types/database';
 
 export default function ChallengesScreen() {
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const { challenges, loading, error, refetch } = useMyChallenges();
   const { challenges: socialChallenges, loading: socialLoading, refetch: refetchSocial } = useSocialChallenges();
   const { connected: fitnessConnected } = useFitnessConnection();
@@ -43,6 +46,11 @@ export default function ChallengesScreen() {
   const pastSocial = socialChallenges.filter((c) => c.status === 'completed' || c.status === 'expired');
   const historyCount = pastSocial.length + completed.length;
   const [historyOpen, setHistoryOpen] = useState(false);
+  // Mock 103's payout screen, held until dismissed. One nullable object rather than two parallel
+  // states, so the screen can never render with an award but no label to describe it.
+  const [goalAward, setGoalAward] = useState<{ award: GoalDayAward; goalLabel: string } | null>(null);
+  const goalCardRef = useRef<View>(null);
+  const [sharingGoal, setSharingGoal] = useState(false);
 
   // RewardBurst only mounts once `celebrating` flips true (conditional render below) — an
   // already-mounted burst can just be fired again directly, but the very first completion
@@ -51,11 +59,27 @@ export default function ChallengesScreen() {
     if (fireToken > 0) rewardBurstRef.current?.fire();
   }, [fireToken]);
 
-  function handleLogged(justCompleted: boolean) {
+  function handleLogged(justCompleted: boolean, award: GoalDayAward | null, goalLabel: string) {
     refetch();
-    if (justCompleted) {
-      setCelebrating(true);
-      setFireToken((t) => t + 1);
+    if (!justCompleted) return;
+
+    // The full reward SCREEN when the server actually paid; the plain burst otherwise.
+    // `already_awarded` means this local day was banked earlier — re-showing the payout would
+    // announce embers that did not move a second time.
+    if (award && !award.already_awarded) {
+      setGoalAward({ award, goalLabel });
+      return;
+    }
+    setCelebrating(true);
+    setFireToken((t) => t + 1);
+  }
+
+  async function handleShareGoalStreak() {
+    setSharingGoal(true);
+    try {
+      await shareCardImage(goalCardRef, 'Share to your story');
+    } finally {
+      setSharingGoal(false);
     }
   }
 
@@ -134,6 +158,34 @@ export default function ChallengesScreen() {
           into the empty layout mid-animation, and a burst mounted inside either branch would be
           unmounted by that flip. Held at a stable child position so it survives the swap. */}
       {celebrating && <RewardBurst ref={rewardBurstRef} cue="settle" />}
+
+      {/* Mock 103. Full-screen over the tab rather than a route, for the same reason the rank-up
+          forge is an overlay: it fires from wherever the user happened to log the goal, and pushing
+          a route would put it in the back stack for them to swipe back into afterwards. */}
+      {goalAward ? (
+        <View style={styles.rewardOverlay}>
+          <Screen backgroundColor={Colors.forgeBg} padded={false}>
+            <GoalStreakRewardScreen
+              award={goalAward.award}
+              goalLabel={goalAward.goalLabel}
+              displayName={profile?.display_name ?? 'you'}
+              onShare={handleShareGoalStreak}
+              sharing={sharingGoal}
+              onClose={() => setGoalAward(null)}
+            />
+            {/* Rendered offscreen so the story image exists the instant Share is tapped — same
+                pattern the rank-up watcher uses for its card. */}
+            <View style={styles.offscreenCard} pointerEvents="none">
+              <GoalStreakShareCard
+                ref={goalCardRef}
+                streakDays={goalAward.award.streak}
+                goalLabel={goalAward.goalLabel}
+                handle={profile?.handle ?? null}
+              />
+            </View>
+          </Screen>
+        </View>
+      ) : null}
       {showEmpty ? (
         <View style={styles.emptyScreen}>
           <EmptyState
@@ -199,6 +251,21 @@ export default function ChallengesScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Covers the tab while the payout is up. Matches the rank-up watcher: the moment fires from
+  // wherever the user was, so it takes the screen rather than becoming a route to swipe back into.
+  rewardOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+  },
+  offscreenCard: {
+    position: "absolute",
+    top: -10000,
+    left: 0,
+  },
   header: {
     gap: Spacing.two,
     paddingHorizontal: Spacing.four,

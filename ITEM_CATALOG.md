@@ -231,17 +231,20 @@ made the app's rarest audio moment look like a shop item.
 ---
 
 ## 4 · Collection Badges & Trophies — *display showcase*
-Shown off in the personal vault / Inventory. Non-equippable prestige.
+Shown off in the **Trophy Hall** on the profile (PROFILE_SPEC §D) + the personal vault. Non-equippable
+prestige. **Earned only — never bought, never rolled from a box.**
 
-### 4a · Greek Mythic Relics — `RELIC` (Epic → Mythic)
+### 4a · Greek Mythic Relics — `RELIC` (Epic → Mythic) — **EARNED (not loot-box)**
+Relics are **achievement unlocks**, not box drops (decision Aug 20). **Remove from all box loot tables.**
+Earn triggers below are *proposed — confirm before build.*
 
-| Item | Rarity | Lore |
-|---|---|---|
-| **Hestia's Hearthstone** | Epic | A coal from the first hearth infused with an undying flame, passed down as a family heirloom. It's now yours. |
-| **Athena's Aegis** | Epic | The shield that has never once been broken. Now it's yours to stand behind. |
-| **Icarus' Feather** | Legendary | Scorched at the tip. Proof that someone flew high enough to burn. |
-| **Anvil of Hephaestus** | Legendary | Zeus' bolt was forged on this thing. It's that strong. |
-| **Prometheus' Shard** | Mythic | You are now one of us. Spread your fire to all of humanity to rise and ascend. |
+| Item | Rarity | Earned by (proposed) | Lore |
+|---|---|---|---|
+| **Hestia's Hearthstone** | Epic | Hold a 30-day streak | A coal from the first hearth infused with an undying flame, passed down as a family heirloom. It's now yours. |
+| **Athena's Aegis** | Epic | A full month with zero dead days / never break a defended rank in a season | The shield that has never once been broken. Now it's yours to stand behind. |
+| **Icarus' Feather** | Legendary | Hit a new personal peak rank (Gold+) | Scorched at the tip. Proof that someone flew high enough to burn. |
+| **Anvil of Hephaestus** | Legendary | 500 total hours locked in | Zeus' bolt was forged on this thing. It's that strong. |
+| **Prometheus' Shard** | Mythic | Finish Top 1% of a season / bring N friends who verify | You are now one of us. Spread your fire to all of humanity to rise and ascend. |
 
 ### 4b · Seasonal Mastery Medals — `MEDAL` (Legendary)
 Awarded for seasonal milestones / top campus placement. Season-stamped, never re-issued.

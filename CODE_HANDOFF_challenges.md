@@ -100,9 +100,16 @@ Make the profile "this is YOU" — real equipped art, earned trophies, a journal
   from the equipped loadout and render the §2a/§2b art (Cracked Magma cracks, Inferno Flare ring, etc.), with
   the 30/60/90 live-aura ramp; default loadout (task #88) as fallback. Same resolver on your card AND others'.
 - **Bio** — editable one-liner under the identity block (own profile).
-- **Trophy Hall** — featured **RELIC/MEDAL** showcase (rarity-glowed) + **earned-badge grid** (locked =
-  greyed) + **duel W-L / win-rate**. Renders on **own and other** profiles = earned status compare (cosmetics
-  can be bought, badges/record can't). Other-profile: **compare banner** + **Challenge / Add friend** CTAs.
+- **Trophy Hall — EARNED-ONLY** (nothing buyable/rollable). Full "See all" hall groups: **Peak & Identity**
+  (peak rank season-stamped · Campus Verified · First Flame) · **Season Résumé** (per season: placement +
+  cohort + earned title + Medal) · **Relics** (§4a) · **Milestone badges** (grid, locked=greyed) · **Challenge
+  record** (W-L / win-rate / streak). Collapsed profile = **auto-featured** (rarest + newest + record + peak
+  chip); **no manual picker**. Renders on **own and other** profiles = earned status compare. Other-profile:
+  **compare banner** + **Challenge / Add friend** CTAs.
+  - ‼ **Relics become EARNED, not loot-box** (decision Aug 20): **remove `RELIC` from all box drop tables**;
+    grant via achievement triggers (ITEM_CATALOG §4a — triggers proposed, confirm before build).
+  - **Visibility:** everything defaults **public**; owner can **hide individual items / the record** (per-item
+    toggle). Hidden items still show in the owner's own hall.
 - **Journal** — achievements become entries with optional **user comments** (`＋ add a note`); leads with the
   achievement's art (same resolver as the notifications leading-art table). Default public.
 - **Share card fixes (Frame 3):** session-type icon → **vector** (no 📚 emoji); **stat row is per-session-
