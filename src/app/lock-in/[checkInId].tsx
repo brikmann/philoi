@@ -178,6 +178,10 @@ export default function LockInDetailScreen() {
           handle={profile?.handle ?? null}
           tier={shareRank.tier}
           division={shareRank.division}
+          xpEarned={detail.xp_earned}
+          // prCount is computed above from this session's own sets. The card shows it only for a
+          // gym session with at least one PR, so passing it unconditionally is safe.
+          prCount={prCount}
         />
       </View>
     </Screen>

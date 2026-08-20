@@ -676,6 +676,8 @@ function LockInScreen() {
             handle={profile?.handle ?? null}
             tier={rankAfter?.tier}
             division={rankAfter?.division}
+            streakDays={streakAfter}
+            xpEarned={postedCheckIn.xp_earned}
           />
         </View>
       </Screen>

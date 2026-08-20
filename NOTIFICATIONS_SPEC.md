@@ -91,6 +91,16 @@ Fallback → the philoi flame when no subject image exists.
   channels by the user's category toggles + defaults + quiet hours + rate-limits, writes the in-app feed row, and
   (if push-eligible) sends via Expo push.
 - **Deep links**: each `type` maps to a route (accept sheet, watch, reward arc, campfire, leaderboard, inventory…).
-- Settings → Notifications exposes the 5 category toggles + the daily-reminder time; OFF categories still populate
-  the in-app bell (just no push).
+- **Settings location:** the notification settings menu lives **inside the global Settings page, under a
+  "Notifications" row** — NOT as a settings screen hanging off the notifications/activity tab. The Activity
+  (in-app feed) screen is just the feed; it must not host the category toggles or a settings gear of its own.
+  (At most a small "Notification settings" link that deep-links into Settings → Notifications.) It exposes the
+  5 category toggles + daily-reminder + quiet hours + lock-screen previews; OFF categories still populate the
+  in-app bell (just no push).
+- **Read-state:** viewing a notification in-app **marks it read** and **clears the bell badge / activity unread
+  count**. Unread persists until seen.
+- **Push fires independently of in-app view:** on the event, send the Expo push immediately (subject to master
+  switch + category toggle + quiet hours) AND write the feed row. Do NOT gate/suppress the push on whether the
+  user has opened the in-app feed. (Requires a registered Expo push token per device + FCM configured for
+  Android.)
 - Reuse **mock 106**'s push-card + bell + badge visuals for all of the above.
