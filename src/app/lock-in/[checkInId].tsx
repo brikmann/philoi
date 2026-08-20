@@ -9,6 +9,7 @@ import { PhotoViewer } from '@/components/photo-viewer';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useShareRank } from '@/hooks/use-share-rank';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchLockInDetail, type LockInDetail } from '@/lib/api/check-ins';
 import { formatDurationClock } from '@/lib/format';
@@ -36,6 +37,7 @@ export default function LockInDetailScreen() {
   const [viewerUri, setViewerUri] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const cardRef = useRef<View>(null);
+  const shareRank = useShareRank();
 
   useEffect(() => {
     if (!checkInId) return;
@@ -169,13 +171,13 @@ export default function LockInDetailScreen() {
       <View style={styles.offscreenCard} pointerEvents="none">
         <LockInShareCard
           ref={cardRef}
-          displayName={profile?.display_name ?? 'You'}
           goalType={detail.goal_type}
           goalDetail={detail.goal_detail}
           durationSeconds={detail.duration_seconds ?? 0}
-          xpEarned={detail.xp_earned}
-          prCount={prCount}
-          streakDays={streakDays}
+          at={new Date(detail.created_at)}
+          handle={profile?.handle ?? null}
+          tier={shareRank.tier}
+          division={shareRank.division}
         />
       </View>
     </Screen>

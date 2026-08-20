@@ -46,11 +46,16 @@ export const Colors = {
   dangerBg: '#3A1F24', // destructive row's icon-tile background, pairs with danger
 
   // ── "Ember" design language (DESIGN_LANGUAGE_EMBER.md) ──
-  // The deep-purple radial that is now THE background on every screen (§2). Two stops, consumed by
-  // <ScreenBackground>: radial-gradient(120% 62% at 50% 6%, #2C1B36, #161320 56%). Deliberately
-  // NOT a flat colour — the washed-out lighter variants it replaces are what made the daily-fire
-  // screen look grey.
+  // The deep-purple radial that is now THE background on every screen (§2). Consumed by
+  // <ScreenBackground>. Deliberately NOT a flat colour — the washed-out lighter variants it
+  // replaces are what made the daily-fire screen look grey.
+  //
+  // THREE stops, not two (punchlist 20.1): with only from -> to, the purple was spent inside the
+  // top ~15% of a tall phone and the rest of the screen sat on #161320, which reads as black in
+  // the body. bgRadialMid carries the purple down through the middle of the screen so the ramp
+  // lands as depth rather than as a lit strip above a black page.
   bgRadialFrom: '#2C1B36',
+  bgRadialMid: '#231830',
   bgRadialTo: '#161320',
   // The near-black used for text ON an ember-gradient fill (§3). Orange-black rather than pure
   // black so it reads as burnt into the button rather than pasted on top.

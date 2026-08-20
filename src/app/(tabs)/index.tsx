@@ -12,10 +12,11 @@ import {
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
-import { CampfireFlameStage, heatToFlameState, type CampfireFlameState } from '@/components/campfire-flame-stage';
+import { heatToFlameState, type CampfireFlameState } from '@/components/campfire-flame-stage';
 import { HeatFlame } from '@/components/heat-flame';
+import { PersonalFlame } from '@/components/personal-flame';
 import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
-import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
+import { FireShareCard } from '@/components/fire-share-card';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { HomeMenu, SeasonPill } from '@/components/home-chrome';
 import { HomeXpBar } from '@/components/home-xp-bar';
@@ -27,6 +28,7 @@ import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useDailyFire } from '@/hooks/use-daily-fire';
+import { useShareRank } from '@/hooks/use-share-rank';
 import { useTodayLockInCount } from '@/hooks/use-today-lockin-count';
 import { useActiveSession } from '@/lib/active-session-context';
 import { fetchMyRanks } from '@/lib/api/goals';
@@ -34,6 +36,7 @@ import { fetchDiscoverableGroups, type MyGroup } from '@/lib/api/groups';
 import { fetchActiveChallengeMarker } from '@/lib/api/leaderboard-social';
 import { useAuth } from '@/lib/auth/auth-context';
 import { pickGreeting } from '@/lib/greeting';
+import { shareCardImage } from '@/lib/share-card';
 import type { ActiveChallengeMarker, DiscoverableGroup, MyRank } from '@/types/database';
 
 // Both hero-row bars share these exact dimensions so the fire (today) and rank (forever)
@@ -82,6 +85,19 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
   const { dailyFire, error: dailyFireError } = useDailyFire();
   const [myMarker, setMyMarker] = useState<ActiveChallengeMarker | null>(null);
   const streak = profile?.current_streak ?? 0;
+  // The streak share card is captured off-screen, same pipeline as every other card.
+  const fireCardRef = useRef<View>(null);
+  const [sharingStreak, setSharingStreak] = useState(false);
+  const shareRank = useShareRank();
+
+  async function handleShareStreak() {
+    setSharingStreak(true);
+    try {
+      await shareCardImage(fireCardRef, 'Share your streak');
+    } finally {
+      setSharingStreak(false);
+    }
+  }
 
   useEffect(() => {
     if (!session) return;
@@ -97,19 +113,11 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
   // stays correct once progress naturally exceeds goal. (The percentage itself is gone with the
   // vertical fire bar — HomeXpBar takes the raw XP gap and scales it against the division.)
   const fireComplete = dailyFire?.completed ?? false;
-  // Personal flame dims when *you've* gone quiet — no one else's activity feeds this fire
-  // (PHILOI_UI_SPEC.md §12: "no chat, no feed... a private nudge") — UNLESS a lock-in is
-  // actively running right now, which always reads as roaring (design-mocks/25).
-  // PERSONAL heat (punchlist 17 P5) — streak alive + today's progress toward the daily fire, so a
-  // broken streak with nothing done today shows the gone-cold flame on Home rather than a flame
-  // that looks the same whether you turned up or not. Same 0-1 scale a campfire's heat uses, so
-  // one gauge serves both.
-  //   locked in now      -> 1.0  roaring
-  //   streak, no progress-> 0.2  simmering (alive, but today hasn't started)
-  //   no streak, nothing -> 0    cold
-  const fireRatio =
-    dailyFire && dailyFire.goal_xp > 0 ? Math.min(1, dailyFire.progress_xp / dailyFire.goal_xp) : 0;
-  const personalHeat = activeSession ? 1 : streak > 0 ? 0.2 + fireRatio * 0.8 : fireRatio * 0.5;
+  // No personal HEAT any more (punchlist 20.1). Home's hero is your equipped flame, always lit:
+  // Home is you, and the coal-bed gauge — which exists to show a fire going out — is reserved for
+  // CAMPFIRES, where "nobody showed up" is the message worth sending. Whether *you* turned up
+  // today is still on this screen, just in the places built to say it precisely: the daily-fire
+  // segment inside the XP bar, and the streak line under the flame.
 
   const name = profile?.display_name?.split(' ')[0] ?? 'there';
   const previousGreetingRef = useRef<string | undefined>(undefined);
@@ -154,14 +162,30 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
           the other. Both bars are gone because the rank row below now carries BOTH facts in a
           single horizontal bar: tier progress as the fill, today's fire encased inside it. */}
       <View style={styles.heroCenter}>
-        {/* The heat gauge, not the brand mark — see HeatFlame. Mock 92's hero size. */}
-        <HeatFlame heat={personalHeat} size={132} />
+        {/* YOUR equipped flame, breathing over its glow — mock 92's hero, at mock 92's size. */}
+        <PersonalFlame size={132} />
         {activeSession?.circleId && session ? (
           <LockedInBodyDoublesLine circleId={activeSession.circleId} excludeUserId={session.user.id} />
         ) : !activeSession ? (
           <View style={styles.streakRow}>
             <Ionicons name="flame" size={13} color={Colors.ember} />
             <Text style={styles.streakText}>{streak}-day streak</Text>
+            {/* THE share trigger for the streak card (design-mocks/96's trigger table: "fire =
+                share icon next to the streak on Home"). Hidden at zero — there is no flex in a
+                streak you haven't started. */}
+            {streak > 0 && (
+              <Pressable
+                onPress={handleShareStreak}
+                hitSlop={10}
+                disabled={sharingStreak}
+                accessibilityLabel="Share your streak">
+                <Ionicons
+                  name={sharingStreak ? 'hourglass-outline' : 'share-outline'}
+                  size={14}
+                  color={Colors.textTertiary}
+                />
+              </Pressable>
+            )}
           </View>
         ) : null}
       </View>
@@ -207,6 +231,18 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
           data now lives ONLY on Profile (punchlist 4B), so the fire is the hero with breathing
           space under it. This is the space the season graphic (mock 69) will fill. */}
       <View style={styles.heroSpacer} />
+
+      {/* Off-screen capture target — mounted rather than conditionally rendered so it is already
+          laid out by the time the share icon is tapped. */}
+      <View style={styles.offscreenCard} pointerEvents="none">
+        <FireShareCard
+          ref={fireCardRef}
+          streakDays={streak}
+          handle={profile?.handle ?? null}
+          tier={shareRank.tier}
+          division={shareRank.division}
+        />
+      </View>
       </View>
     </View>
   );
@@ -269,18 +305,19 @@ function stateForMemberCount(count: number): CampfireFlameState {
   return 'dead';
 }
 
-// PHILOI_UI_SPEC.md §10's performance rule: "Fully animate only the few roaring fires; render
-// steady/cold/distant ones as low-frame or static flames." Only 'roar' gets
-// CampfireFlameStage's continuous sparks+pulse loop — steady/dead render one static FlameSvg
-// frame with no Reanimated loop running at all.
+// Every campfire in the app is the coal-bed gauge now (punchlist 20.1). This used to render a
+// plain static FlameSvg for 'steady' — the BRAND MARK — so a half-alive campfire wore the same
+// silhouette as the logo while a roaring one wore a different component entirely, and "gone cold"
+// was the logo at 50% opacity. HeatFlame is one composition per state, so the valley, the campfire
+// card and the banner hero can no longer disagree about what a temperature looks like.
+//
+// PHILOI_UI_SPEC.md §10's performance rule ("fully animate only the few roaring fires") still
+// holds and HeatFlame honours it by construction: roaring runs its licks and sparks, simmering
+// runs three slow licks, and cold runs no flame at all — just drifting smoke.
+const HEAT_FOR_STATE: Record<CampfireFlameState, number> = { roar: 1, steady: 0.35, dead: 0 };
+
 function ValleyFlame({ state, size }: { state: CampfireFlameState; size: number }) {
-  if (state === 'roar') return <CampfireFlameStage state="roar" size={size} />;
-  const height = size / FLAME_ASPECT_RATIO;
-  return (
-    <View style={[styles.staticFlame, { width: size, height, opacity: state === 'dead' ? 0.5 : 1 }]}>
-      <FlameSvg width={size} height={height} />
-    </View>
-  );
+  return <HeatFlame heat={HEAT_FOR_STATE[state]} size={size} />;
 }
 
 function ValleyNode({
@@ -572,9 +609,11 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: Colors.cream,
-  },
+  // NO backgroundColor (punchlist 20.1). This style lands on the content view INSIDE <Screen>,
+  // i.e. on top of the deep-purple radial <Screen> just painted — so a flat Colors.cream here was
+  // literally covering the gradient with the near-black it exists to replace, on the one screen
+  // the gradient matters most.
+  screen: {},
   page: {
     flex: 1,
   },
@@ -700,6 +739,11 @@ const styles = StyleSheet.create({
     gap: 5,
     marginTop: 2,
   },
+  offscreenCard: {
+    position: 'absolute',
+    left: -9999,
+    top: 0,
+  },
   livenow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -750,10 +794,6 @@ const styles = StyleSheet.create({
   },
   nodeTouch: {
     alignItems: 'center',
-  },
-  staticFlame: {
-    alignItems: 'center',
-    justifyContent: 'flex-end',
   },
   nodeLabelRow: {
     flexDirection: 'row',

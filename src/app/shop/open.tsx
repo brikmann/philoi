@@ -13,6 +13,7 @@ import { Screen } from '@/components/ui/screen';
 import { useRevealPreview, useRevealSting } from '@/hooks/use-audio-preview';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
+import { useShareRank } from '@/hooks/use-share-rank';
 import { UnlockShareCard } from '@/components/economy/unlock-share-card';
 import { useAuth } from '@/lib/auth/auth-context';
 import { equipCosmetic, openBox, type OpenResult } from '@/lib/api/inventory';
@@ -202,6 +203,7 @@ function SingleMenu({
   onCollect: () => void;
 }) {
   const { profile } = useAuth();
+  const shareRank = useShareRank();
   const cardRef = useRef<View>(null);
   const item = result.item ?? getItem(result.cosmetic_key);
   // Auditions the pull the moment it's revealed, when an audio cosmetic is what dropped — hearing
@@ -232,8 +234,9 @@ function SingleMenu({
           ref={cardRef}
           item={item}
           oddsPct={oddsPct}
-          handle={profile?.handle ?? 'philoi'}
-          rankLabel={profile?.university ?? undefined}
+          handle={profile?.handle ?? null}
+          tier={shareRank.tier}
+          division={shareRank.division}
         />
       </View>
       <View style={styles.heroWrap}>
@@ -303,6 +306,7 @@ function MultiMenu({
   onDone: () => void;
 }) {
   const { profile } = useAuth();
+  const shareRank = useShareRank();
   const cardRef = useRef<View>(null);
   const best = bestOf(results);
   const dupeEmbers = results.reduce((sum, r) => sum + (r.dupe ? r.embers : 0), 0);
@@ -333,8 +337,9 @@ function MultiMenu({
             ref={cardRef}
             item={bestItem}
             oddsPct={BOXES[bestResult?.box_key as BoxKey]?.odds[bestItem.rarity] ?? 0}
-            handle={profile?.handle ?? 'philoi'}
-            rankLabel={profile?.university ?? undefined}
+            handle={profile?.handle ?? null}
+            tier={shareRank.tier}
+            division={shareRank.division}
             haul={results.flatMap((r) => (r.item && r.item.id !== bestItem.id ? [r.item] : []))}
           />
         </View>

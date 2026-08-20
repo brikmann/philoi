@@ -152,9 +152,7 @@ export function RankUpWatcher() {
             handle={profile?.handle ?? null}
             tier={pending.tier}
             division={pending.division}
-            streakDays={profile?.current_streak ?? 0}
             isDivisionBump={pending.isDivisionBump}
-            circleName={null}
           />
         </View>
       </Screen>

@@ -1,0 +1,136 @@
+<meta charset="utf-8">
+<title>Mock 97 — season reward, SPLIT (placement + rewards)</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:26px;display:flex;flex-direction:column;align-items:center;gap:6px}
+h1{font-size:18px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:760px;text-align:center;line-height:1.55;margin:0 auto 14px}
+.row{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.cell{display:flex;flex-direction:column;align-items:center;gap:8px;width:208px}
+.tag{font-size:11px;color:#8a7fa6;text-align:center;line-height:1.4}
+.tag b{color:#e7ddf5}
+.card{width:208px;height:370px;border-radius:22px;overflow:hidden;position:relative;
+  background:radial-gradient(120% 60% at 50% 100%,#3a1c12,#1a1526 55%,#141019);
+  display:flex;flex-direction:column;align-items:center;padding:20px 16px;border:1px solid rgba(255,255,255,.06)}
+.kick{font-size:9.5px;font-weight:800;letter-spacing:1.8px;color:#F2A33C;text-align:center;position:relative;z-index:2}
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;position:relative;z-index:2}
+/* placement inside the roaring flame */
+.flamewrap{position:relative;width:190px;height:190px;display:grid;place-items:center}
+.flamewrap svg{position:absolute;inset:0;margin:auto}
+.inflame{position:relative;z-index:3;font-size:32px;font-weight:800;letter-spacing:-1px;color:#FFF6EC;text-shadow:0 2px 8px rgba(80,25,0,.95),0 0 16px rgba(255,150,60,.7);transform:translateY(10px)}
+.logoflame{transform-origin:50% 62%;animation:breathe 1.7s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.place{font-size:12px;font-weight:800;letter-spacing:.5px;color:#FFD9A0;margin-top:6px;text-align:center}
+.effort{font-size:10px;color:#c8bcdd;margin-top:8px;text-align:center}
+.swipe{font-size:9px;font-weight:700;letter-spacing:.5px;color:#8a7fa6;margin-top:12px}
+/* rewards screen */
+.forged{font-size:10px;font-weight:800;letter-spacing:2px;color:#FFB84D;text-align:center}
+.rewlist{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:16px}
+.rewitem{display:flex;align-items:center;gap:9px;background:rgba(36,26,46,.72);border:1px solid rgba(242,163,60,.28);border-radius:11px;padding:9px 11px}
+.rewitem.perm{border-color:rgba(199,155,236,.5)}
+.ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font-size:14px;background:rgba(255,150,60,.14);flex:none}
+.rewitem.perm .ic{background:rgba(199,155,236,.16)}
+.rtext{display:flex;flex-direction:column;gap:1px}
+.rname{font-size:11.5px;font-weight:800;color:#FFF6EC}
+.rsub{font-size:8px;font-weight:800;letter-spacing:.5px;color:#FFC14D}
+.rewitem.perm .rsub{color:#c79bec}
+/* footer */
+.foot{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:6px;position:relative;z-index:2}
+.mark{display:flex;align-items:center;gap:5px}
+.mark svg{width:16px;height:16px}
+.mark .w{font-size:14px;font-weight:800;letter-spacing:-.5px}
+.idrow{display:flex;align-items:center;gap:5px;font-size:9px;color:#a99cbd}
+.idrow b{color:#F2A33C}
+.rankhex{width:15px;height:17px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#2a1608}
+/* fire */
+.tongue{transform-box:fill-box;transform-origin:50% 100%}
+@keyframes flick{0%,100%{transform:scaleY(.85) rotate(-2deg)}50%{transform:scaleY(1.08) rotate(2deg)}}
+@keyframes flick2{0%,100%{transform:scaleY(.92) rotate(2deg)}50%{transform:scaleY(1.12) rotate(-2deg)}}
+/* emberfall aura */
+.emberfall{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.lavapool{position:absolute;left:50%;bottom:-34px;transform:translateX(-50%);width:230px;height:96px;background:radial-gradient(closest-side,rgba(255,90,46,.55),rgba(255,90,46,.12) 60%,transparent);filter:blur(9px);animation:lavapulse 3s ease-in-out infinite}
+.lavacore{position:absolute;left:50%;bottom:-10px;transform:translateX(-50%);width:130px;height:22px;border-radius:50%;background:radial-gradient(closest-side,#FFC14D,#FF5A2E 60%,transparent);filter:blur(3px);opacity:.85;animation:lavapulse 2.4s ease-in-out infinite}
+.efall{position:absolute;top:-12px;width:3px;height:3px;border-radius:50%;background:#FF7A3E;box-shadow:0 0 6px 1px #FF5A2E;opacity:0;animation:efall linear infinite}
+@keyframes efall{0%{transform:translateY(0);opacity:0}12%{opacity:1}100%{transform:translateY(390px);opacity:0}}
+@keyframes lavapulse{0%,100%{opacity:.55}50%{opacity:.9}}
+.cap{font-size:11.5px;color:#a99cbd;max-width:760px;text-align:center;line-height:1.5;margin-top:14px}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="flg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".55" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFD27A"/></linearGradient>
+  <linearGradient id="fO" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".75" stop-color="#F2A33C"/><stop offset="1" stop-color="#F2A33C" stop-opacity="0"/></linearGradient>
+  <linearGradient id="fI" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#F2A33C"/><stop offset=".8" stop-color="#FFE6B0"/><stop offset="1" stop-color="#FFE6B0" stop-opacity="0"/></linearGradient>
+  <radialGradient id="coalHot" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="#FFD27A"/><stop offset="45%" stop-color="#F2A33C"/><stop offset="100%" stop-color="#6e2610"/></radialGradient>
+  <radialGradient id="amb" cx="50%" cy="70%" r="55%"><stop offset="0" stop-color="#E0612C" stop-opacity=".55"/><stop offset="100%" stop-color="#E0612C" stop-opacity="0"/></radialGradient>
+</defs></svg>
+
+<h1>Mock 97 — season reward, SPLIT into two screens</h1>
+<p class="sub">The alternative to the single card (mock 96): <b>Screen 1 = the placement</b> (big, bold, "TOP 1%" burning
+inside a roaring flame), <b>Screen 2 = the rewards</b> with room to breathe. Both wear the Emberfall aura. Compare
+against mock 96 to pick the direction — swipeable pair, or two separately shareable cards.</p>
+
+<div class="row">
+
+  <!-- SCREEN 1: PLACEMENT -->
+  <div class="cell">
+    <div class="card">
+      <div class="emberfall">
+        <span class="efall" style="left:10%;animation-duration:5.4s;animation-delay:0s"></span>
+        <span class="efall" style="left:26%;animation-duration:6.2s;animation-delay:1.6s"></span>
+        <span class="efall" style="left:44%;animation-duration:4.8s;animation-delay:.8s"></span>
+        <span class="efall" style="left:60%;animation-duration:6.6s;animation-delay:2.4s"></span>
+        <span class="efall" style="left:76%;animation-duration:5.1s;animation-delay:.4s"></span>
+        <span class="efall" style="left:90%;animation-duration:6.0s;animation-delay:3.1s"></span>
+        <div class="lavapool"></div><div class="lavacore"></div>
+      </div>
+      <div class="kick">SEASON 1 · EMBERFALL</div>
+      <div class="hero">
+        <div class="flamewrap">
+          <!-- the person's EQUIPPED flame (logo silhouette, recoloured by their flame ramp) -->
+          <svg class="logoflame" width="188" height="188" viewBox="2 0 24 24" style="filter:drop-shadow(0 0 22px rgba(255,150,70,.6))">
+            <path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/>
+          </svg>
+          <div class="inflame">TOP 1%</div>
+        </div>
+        <div class="place">🎓 MIT · #300 of 30,000</div>
+        <div class="effort">148h locked in · 6,265 XP this season</div>
+        <div class="swipe">your rewards →</div>
+      </div>
+      <div class="foot"><div class="mark"><svg viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/></svg><span class="w">philoi</span></div><div class="idrow"><span class="rankhex" style="background:#F5C542">I</span> @noah · <b>philoi.app</b></div></div>
+    </div>
+    <div class="tag"><b>Screen 1 — Placement</b><br>the flex, big and bold</div>
+  </div>
+
+  <!-- SCREEN 2: REWARDS -->
+  <div class="cell">
+    <div class="card">
+      <div class="emberfall">
+        <span class="efall" style="left:14%;animation-duration:6.0s;animation-delay:.5s"></span>
+        <span class="efall" style="left:34%;animation-duration:5.4s;animation-delay:2.1s"></span>
+        <span class="efall" style="left:54%;animation-duration:6.6s;animation-delay:1.0s"></span>
+        <span class="efall" style="left:72%;animation-duration:5.7s;animation-delay:3.0s"></span>
+        <span class="efall" style="left:88%;animation-duration:6.3s;animation-delay:1.7s"></span>
+        <div class="lavapool"></div><div class="lavacore"></div>
+      </div>
+      <div class="kick">SEASON 1 · EMBERFALL</div>
+      <div class="hero">
+        <div class="forged">FORGED THIS SEASON</div>
+        <div class="rewlist">
+          <div class="rewitem perm"><div class="ic">🏅</div><div class="rtext"><span class="rname">Built Different</span><span class="rsub">LEGENDARY TITLE · PERMANENT</span></div></div>
+          <div class="rewitem perm"><div class="ic">🎴</div><div class="rtext"><span class="rname">Emberfall Banner</span><span class="rsub">SEASON 1 · PERMANENT</span></div></div>
+          <div class="rewitem"><div class="ic">🎁</div><div class="rtext"><span class="rname">Hephaestus' Chest</span><span class="rsub">LEGENDARY BOX</span></div></div>
+          <div class="rewitem"><div class="ic">🔥</div><div class="rtext"><span class="rname">2,000 Embers</span><span class="rsub">CURRENCY</span></div></div>
+        </div>
+      </div>
+      <div class="foot"><div class="mark"><svg viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/></svg><span class="w">philoi</span></div><div class="idrow"><span class="rankhex" style="background:#F5C542">I</span> @noah · <b>philoi.app</b></div></div>
+    </div>
+    <div class="tag"><b>Screen 2 — Rewards</b><br>room to breathe, richer rows</div>
+  </div>
+
+</div>
+
+<div class="cap"><b>Split season reward (mock 97).</b> Compare with the single card (mock 96). The placement flame is the
+<b>logo silhouette recoloured by the person's EQUIPPED flame</b> (use <code>EquippedFlameSvg</code> / their flame ramp),
+so the flex is customised to their cosmetic — not the coal-bed gauge. Same data-binding + Emberfall aura on both. If we go split: could be a swipeable pair in-app, and/or two separate shareable stories (placement flex +
+reward haul). Same rule — REAL placement, cohort size, title, and reward bundle.</div>

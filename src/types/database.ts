@@ -146,6 +146,44 @@ export type Group = {
   created_at: string;
 };
 
+/** One line of the season reward haul (mock 97, screen 2) — a row of the grant ledger, i.e. what
+ * was actually paid, never re-derived from the band at read time. */
+export type SeasonReward = {
+  kind: 'title' | 'banner' | 'card' | 'particle' | 'medal' | 'box' | 'embers';
+  key: string;
+  name: string;
+  rarity: string | null;
+  /** Titles and banners are kept forever; boxes and embers are consumed. Permanent renders first. */
+  permanent: boolean;
+  amount: number | null;
+};
+
+/** Everything mock 97's two screens need — get_my_season_card(). Null until the season is closed. */
+export type SeasonCard = {
+  season_id: string;
+  season_name: string | null;
+  university: string;
+  rank: number;
+  board_size: number;
+  percentile: number;
+  /** 'rank_1'|'rank_2'|'rank_3'|'p1'|'p10'|'p25'|'p50', or null below the halfway line. */
+  band: string | null;
+  pass_xp: number;
+  pass_level: number;
+  hours_locked_in: number;
+  /** The season title actually granted, with the rarity it was granted at (global reads hotter). */
+  title: {
+    key: string;
+    name: string;
+    rarity: string | null;
+    scope: string;
+    description: string;
+    /** Global #1 — the animated 1-of-1, one person per season. */
+    one_of_one: boolean;
+  } | null;
+  rewards: SeasonReward[];
+};
+
 /** design-mocks/94's stat strip — get_campfire_stats(). Members only; a non-member gets no row. */
 export type CampfireStats = {
   member_count: number;
@@ -1214,6 +1252,7 @@ export type Database = {
         Returns: Group;
       };
       get_campfire_stats: { Args: { p_group_id: string }; Returns: CampfireStats[] };
+      get_my_season_card: { Args: { p_season: string | null }; Returns: SeasonCard | null };
       list_join_requests: { Args: { p_group_id: string }; Returns: JoinRequest[] };
       approve_join_request: { Args: { p_request_id: string }; Returns: undefined };
       deny_join_request: { Args: { p_request_id: string }; Returns: undefined };

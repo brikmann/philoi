@@ -7,13 +7,15 @@ import { BoxArt } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { EmberPill, SectionLabel, formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
-import { SeasonStandingShareCard } from '@/components/economy/season-standing-share-card';
+import { SeasonPlacementShareCard, SeasonRewardsShareCard } from '@/components/economy/season-standing-share-card';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
+import { useShareRank } from '@/hooks/use-share-rank';
 import { useAuth } from '@/lib/auth/auth-context';
-import { claimPassLevel, fetchAchievementProgress, fetchMySeasonStanding, type SeasonStanding } from '@/lib/api/forge-pass';
+import { claimPassLevel, fetchAchievementProgress, fetchMySeasonCard } from '@/lib/api/forge-pass';
 import { shareCardImage } from '@/lib/share-card';
+import type { SeasonCard } from '@/types/database';
 import { restorePurchases } from '@/lib/billing';
 import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
 import { useProductPrices, usePurchase } from '@/hooks/use-purchase';
@@ -68,8 +70,12 @@ export default function ForgePassScreen() {
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<{ level: PassLevel; lane: 'free' | 'premium' } | null>(null);
   const listRef = useRef<FlatList<PassLevel>>(null);
-  const cardRef = useRef<View>(null);
-  const [standing, setStanding] = useState<SeasonStanding | null>(null);
+  // Mock 97 is a SPLIT card, so there are two capture targets: the placement flex and the reward
+  // haul, each separately shareable.
+  const placementCardRef = useRef<View>(null);
+  const rewardsCardRef = useRef<View>(null);
+  const [standing, setStanding] = useState<SeasonCard | null>(null);
+  const shareRank = useShareRank();
   const { buy, busy: buying } = usePurchase();
   // Store-supplied localized prices. Empty until the offering loads, and empty forever in a build
   // with no SDK keys — every render site below degrades to omitting the price rather than quoting
@@ -109,7 +115,7 @@ export default function ForgePassScreen() {
   useEffect(() => {
     if (phase === 'upcoming' || phase === 'live') return;
     let cancelled = false;
-    fetchMySeasonStanding()
+    fetchMySeasonCard()
       .then((s) => {
         if (!cancelled) setStanding(s);
       })
@@ -119,9 +125,12 @@ export default function ForgePassScreen() {
     };
   }, [phase]);
 
-  async function shareStanding() {
+  async function shareStanding(which: 'placement' | 'rewards') {
     try {
-      await shareCardImage(cardRef, 'Share your season');
+      await shareCardImage(
+        which === 'placement' ? placementCardRef : rewardsCardRef,
+        which === 'placement' ? 'Share your placement' : 'Share your season haul'
+      );
     } catch (e) {
       Alert.alert("Couldn't share that", getErrorMessage(e, 'Something went wrong.'));
     }
@@ -270,7 +279,7 @@ export default function ForgePassScreen() {
       {/* Season closed out — your final placing, and a card worth posting. Rendered above the
           track because once the season is over the standing IS the headline, not the ladder. */}
       {standing ? (
-        <Pressable style={styles.standing} onPress={shareStanding}>
+        <View style={styles.standing}>
           <View style={styles.standingCol}>
             <Text style={styles.standingRank}>
               #{standing.rank}
@@ -279,21 +288,36 @@ export default function ForgePassScreen() {
             <Text style={styles.standingSub}>
               {standing.university} · finished Level {standing.pass_level} · top {standing.percentile}%
             </Text>
+            {/* The permanent honour leads, not the loot — the whole argument of the title system. */}
+            {standing.title ? <Text style={styles.standingTitle}>“{standing.title.name}”</Text> : null}
           </View>
-          <Text style={styles.standingShare}>Share</Text>
-        </Pressable>
+          <View style={styles.standingActions}>
+            <Pressable onPress={() => shareStanding('placement')}>
+              <Text style={styles.standingShare}>Placement</Text>
+            </Pressable>
+            <Pressable onPress={() => shareStanding('rewards')}>
+              <Text style={styles.standingShare}>Rewards</Text>
+            </Pressable>
+          </View>
+        </View>
       ) : null}
 
-      {/* Off-screen capture target for the share sheet, same pipeline as every other card. */}
+      {/* Off-screen capture targets for the share sheet, same pipeline as every other card. */}
       {standing ? (
         <View style={styles.offscreen} pointerEvents="none">
-          <SeasonStandingShareCard
-            ref={cardRef}
-            rank={standing.rank}
-            boardSize={standing.board_size}
-            university={standing.university}
-            passLevel={standing.pass_level}
-            handle={profile?.handle ?? 'philoi'}
+          <SeasonPlacementShareCard
+            ref={placementCardRef}
+            card={standing}
+            handle={profile?.handle ?? null}
+            tier={shareRank.tier}
+            division={shareRank.division}
+          />
+          <SeasonRewardsShareCard
+            ref={rewardsCardRef}
+            card={standing}
+            handle={profile?.handle ?? null}
+            tier={shareRank.tier}
+            division={shareRank.division}
           />
         </View>
       ) : null}
@@ -1016,6 +1040,16 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     color: '#caa96f',
     marginTop: 2,
+  },
+  standingTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+    color: '#FFD27A',
+    marginTop: 3,
+  },
+  standingActions: {
+    gap: 6,
+    alignItems: 'flex-end',
   },
   standingShare: {
     fontFamily: Fonts.bodyBold,

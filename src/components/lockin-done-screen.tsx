@@ -2,22 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
-import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
+import Animated, { useAnimatedStyle, withDelay, withTiming } from 'react-native-reanimated';
 
-import { CampfireFlameStage } from '@/components/campfire-flame-stage';
 import { GymClipThumbnail } from '@/components/gym-clip-player';
 import { HexagonBadge } from '@/components/hexagon-badge';
+import { PersonalFlame } from '@/components/personal-flame';
 import { TextInput } from '@/components/ui/text-input';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { fetchCheckInClips } from '@/lib/api/gym-clips';
 import { postCheckInToCircle, setCheckInCaption } from '@/lib/api/lock-ins';
+import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import { formatDurationClock } from '@/lib/format';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
-import { formatRankTier, RANK_TIER_METAL, xpProgressRatio } from '@/lib/rank-tiers';
+import { formatRankTier, nextRank, RANK_TIER_METAL, xpProgressRatio } from '@/lib/rank-tiers';
 import { fireConfirm, fireXpTick } from '@/lib/reward-feedback';
 import type { GoalType, MyRank, WorkoutRecap, WorkoutSet } from '@/types/database';
 
@@ -38,11 +38,15 @@ type LockInDoneScreenProps = {
   circleId: string | null;
   circleName: string | null;
   onDone: () => void;
+  /** Share this lock-in as a story card (design-mocks/96, card 2 — the proof-of-work flex). The
+   * capture target lives on the screen that owns the card, so this is just the tap. */
+  onShare?: () => void;
+  sharing?: boolean;
 };
 
-// Mock 92's done-screen flame (punchlist 17 P3). The glyph itself is already correct — it
-// comes through FlameSvg, fixed in P0 — this is only the size.
+// Mock 92's done-screen hero: a 118px flame inside a 170px glow.
 const FLAME_SIZE = 118;
+const GLOW_SIZE = 170;
 
 // The "done" screen (design-mocks/81-done-screen.html) — built around the SAME big living flame
 // as the work session, stripped to the four things that matter: you locked in, for how long, the
@@ -71,8 +75,14 @@ export function LockInDoneScreen({
   circleId,
   circleName,
   onDone,
+  onShare,
+  sharing = false,
 }: LockInDoneScreenProps) {
   const { groups } = useMyGroups();
+  const { profile } = useAuth();
+  // Mock 92 addresses you by name ("Nice work, Noah"). First name only, and the line still reads
+  // correctly without one — a profile that hasn't loaded yet just gets "Nice work".
+  const firstName = profile?.display_name?.split(' ')[0] ?? '';
   // Seeded with the campfire this session was started in, so the common case is one tap — the
   // multi-select is still there, just behind "change" instead of being a decision every time.
   const [selectedCircleIds, setSelectedCircleIds] = useState<string[]>(circleId ? [circleId] : []);
@@ -87,7 +97,6 @@ export function LockInDoneScreen({
 
   const [displayXp, setDisplayXp] = useState(0);
   const [plusVisible, setPlusVisible] = useState(false);
-  const fillRatio = useSharedValue(rankBefore ? xpProgressRatio(rankBefore.xp_into_tier, rankBefore.xp_for_next_tier) : 0);
 
   useEffect(() => {
     if (!GYM_VIDEO_CLIPS_ENABLED || !workoutRecap) return;
@@ -98,20 +107,15 @@ export function LockInDoneScreen({
       });
   }, [checkInId, workoutRecap]);
 
-  // The bar fills from the pre-session position toward the next tier while the "+XP" fades in and
-  // counts up — the one animation this screen keeps. It counts the EARNED xp rather than the
-  // running tier total (mock 81 shows only "+210 XP" on this row), so the number that moves is
-  // the number the session actually produced.
+  // The "+XP" fades in and counts up — the one animation this screen keeps, and now the only one
+  // it needs: mock 92 states the rank as a chip rather than a filling bar, so the number IS the
+  // motion. It counts the EARNED xp rather than the running tier total, so what moves on screen is
+  // what the session actually produced.
   useEffect(() => {
-    if (!rankBefore || !rankAfter) return;
     const end = Math.round(xpEarned);
     const delay = setTimeout(() => {
       setPlusVisible(true);
       fireXpTick();
-      fillRatio.value = withTiming(xpProgressRatio(rankAfter.xp_into_tier, rankAfter.xp_for_next_tier), {
-        duration: 1100,
-        easing: Easing.bezier(0.2, 0.7, 0.3, 1),
-      });
       const durationMs = 1100;
       const t0 = Date.now();
       let raf: ReturnType<typeof requestAnimationFrame>;
@@ -127,8 +131,15 @@ export function LockInDoneScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount for the open animation
   }, []);
 
-  const barStyle = useAnimatedStyle(() => ({ width: `${fillRatio.value * 100}%` }));
   const plusStyle = useAnimatedStyle(() => ({ opacity: withDelay(300, withTiming(plusVisible ? 1 : 0, { duration: 400 })) }));
+
+  // "Diamond II · 75% to I" (mock 92's `.rankchip`). At max rank there is nothing above to chase,
+  // so the chip states the rank alone rather than inventing a target.
+  const up = rankAfter ? nextRank(rankAfter.tier, rankAfter.division) : null;
+  const rankProgressSuffix =
+    rankAfter && up
+      ? ` · ${Math.round(xpProgressRatio(rankAfter.xp_into_tier, rankAfter.xp_for_next_tier) * 100)}% to ${formatRankTier(up.tier, up.division)}`
+      : '';
 
   const streakIncreased = streakAfter > streakBefore;
   // "Deep work · solo" (mock 81) — the goal, plus whatever qualifies it: the typed detail if there
@@ -225,41 +236,32 @@ export function LockInDoneScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        <View style={styles.flameWrap}>
-          <Svg width={FLAME_SIZE * 1.4} height={FLAME_SIZE * 1.4} style={styles.flameGlow} pointerEvents="none">
-            <Defs>
-              <RadialGradient id="doneFlameGlow" cx="50%" cy="50%" r="50%">
-                <Stop offset="0%" stopColor={Colors.amber} stopOpacity={0.28} />
-                <Stop offset="62%" stopColor={Colors.amber} stopOpacity={0} />
-              </RadialGradient>
-            </Defs>
-            <Circle cx={FLAME_SIZE * 0.7} cy={FLAME_SIZE * 0.7} r={FLAME_SIZE * 0.7} fill="url(#doneFlameGlow)" />
-          </Svg>
-          {/* Settled, not roaring — the session is over. Same component the campfire carousel and
-              the running session use, so the flame reads as one continuous thing. */}
-          <CampfireFlameStage state="steady" size={FLAME_SIZE} />
-        </View>
+        {/* YOUR flame, in the ramp you have equipped — the same hero Home wears, at mock 92's
+            done-screen size. Not the coal-bed gauge: this screen exists because you just showed
+            up, so there is no "cold" state for it to be in. */}
+        <PersonalFlame size={FLAME_SIZE} glowSize={GLOW_SIZE} />
 
-        <Text style={styles.lockedInLabel}>LOCKED IN</Text>
-        <Text style={styles.dur}>{formatDurationClock(durationSeconds)}</Text>
-        <Text style={styles.goal} numberOfLines={1}>
-          {goalLine}
+        {/* Mock 92's `.kick` / `.big-name` / `.stat` / `.statlbl` stack. The XP is the headline
+            now and the clock is its caption — the reverse of the old layout, which led with the
+            duration in 44px type. What a session is WORTH is the number that carries forward;
+            how long it took is context for it. */}
+        <Text style={styles.kick}>SESSION COMPLETE</Text>
+        <Text style={styles.bigName}>Nice work{firstName ? `, ${firstName}` : ''}</Text>
+        <Animated.Text style={[styles.stat, plusStyle]}>
+          +{displayXp.toLocaleString()}
+          <Text style={styles.statUnit}> XP</Text>
+        </Animated.Text>
+        <Text style={styles.statLabel} numberOfLines={1}>
+          {formatDurationClock(durationSeconds)} · {goalLine}
         </Text>
 
         {rankBefore && rankAfter && (
-          <View style={styles.rankRow}>
-            <HexagonBadge tier={rankAfter.tier} division={rankAfter.division} size={40} />
-            <View style={styles.rankInfo}>
-              <View style={styles.rankTop}>
-                <Text style={[styles.rankTier, { color: RANK_TIER_METAL[rankAfter.tier].text }]} numberOfLines={1}>
-                  {formatRankTier(rankAfter.tier, rankAfter.division)}
-                </Text>
-                <Animated.Text style={[styles.rankXp, plusStyle]}>+{displayXp.toLocaleString()} XP</Animated.Text>
-              </View>
-              <View style={styles.bar}>
-                <Animated.View style={[styles.barFill, barStyle]} />
-              </View>
-            </View>
+          <View style={[styles.rankChip, { borderColor: `${RANK_TIER_METAL[rankAfter.tier].text}66` }]}>
+            <HexagonBadge tier={rankAfter.tier} division={rankAfter.division} size={18} />
+            <Text style={[styles.rankChipText, { color: RANK_TIER_METAL[rankAfter.tier].text }]} numberOfLines={1}>
+              {formatRankTier(rankAfter.tier, rankAfter.division)}
+              {rankProgressSuffix}
+            </Text>
           </View>
         )}
 
@@ -359,6 +361,14 @@ export function LockInDoneScreen({
         {willPost && (
           <Pressable onPress={handleJustFinish} disabled={posting} style={styles.skip}>
             <Text style={styles.skipLabel}>Just finish</Text>
+          </Pressable>
+        )}
+        {/* Posting to a campfire and posting to a story are different audiences, so Share sits
+            beside the CTA rather than replacing it (mock 96's trigger table: lock-in card fires
+            from the done screen). */}
+        {onShare && (
+          <Pressable onPress={onShare} disabled={sharing || posting} style={styles.skip} accessibilityLabel="Share this lock-in">
+            <Text style={styles.shareLabel}>{sharing ? 'Preparing…' : 'Share to your story'}</Text>
           </Pressable>
         )}
       </View>
@@ -468,71 +478,59 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: Spacing.two,
   },
-  flameWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  flameGlow: {
-    position: 'absolute',
-  },
-  lockedInLabel: {
+  // ── mock 92's hero stack ──
+  kick: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 2.5,
+    fontSize: 10.5,
+    letterSpacing: 1.6,
     color: Colors.amber,
-    marginTop: 10,
+    marginTop: 16,
   },
-  dur: {
+  bigName: {
     fontFamily: Fonts.displayHeavy,
-    fontSize: 44,
-    letterSpacing: 1,
+    fontSize: 23,
+    lineHeight: 28,
     color: Colors.ink,
-    marginTop: 2,
+    textAlign: 'center',
+    marginTop: 14,
   },
-  goal: {
+  stat: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 40,
+    color: Colors.ink,
+    marginTop: 6,
+    // Tabular figures so a counting number doesn't jitter its own width as it ticks.
+    fontVariant: ['tabular-nums'],
+  },
+  statUnit: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 18,
+    color: Colors.ink,
+  },
+  statLabel: {
     fontFamily: Fonts.body,
-    fontSize: 12.5,
+    fontSize: 12,
+    letterSpacing: 0.3,
     color: Colors.muted,
-    marginTop: 2,
+    marginTop: 1,
   },
-  rankRow: {
-    alignSelf: 'stretch',
+  rankChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
-    marginTop: 22,
+    gap: 7,
+    alignSelf: 'center',
+    backgroundColor: Colors.cardDark,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingVertical: 6,
+    paddingHorizontal: 13,
+    maxWidth: '100%',
+    marginTop: 16,
   },
-  rankInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  rankTop: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
-  rankTier: {
+  rankChipText: {
     flexShrink: 1,
     fontFamily: Fonts.bodyBold,
-    fontSize: 11.5,
-  },
-  rankXp: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11.5,
-    color: Colors.green,
-  },
-  bar: {
-    height: 8,
-    borderRadius: 5,
-    backgroundColor: Colors.disabled,
-    overflow: 'hidden',
-    marginTop: 6,
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 5,
-    backgroundColor: Colors.amber,
+    fontSize: 12,
   },
   streak: {
     flexDirection: 'row',
@@ -674,6 +672,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingVertical: Spacing.two,
     marginTop: 3,
+  },
+  shareLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.amber,
+    textAlign: 'center',
   },
   skipLabel: {
     fontFamily: Fonts.bodySemiBold,

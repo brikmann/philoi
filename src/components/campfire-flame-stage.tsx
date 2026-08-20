@@ -70,9 +70,16 @@ function Smoke({ delay, xOffset }: { delay: number; xOffset: number }) {
   return <Animated.View style={[styles.smoke, style]} />;
 }
 
-// The living-flame's three read states across the campfire carousel (design-mocks/02/04/08):
-// roar (everyone locked in — fast pulse + sparks), steady (gentle breathe, the default), dead
-// (grayscale + dim + slow flick + smoke, "gone cold" — needs relighting).
+// RETIRED as a campfire flame (punchlist 20.1) — use <HeatFlame> instead. This animated the BRAND
+// SILHOUETTE at three intensities, which is the thing the coal-bed gauge replaced: a campfire that
+// has gone cold has to look like dead coals, not like the logo at 50% opacity, and "steady" here
+// was literally the app's own mark. Kept only because `heatToFlameState` and CampfireFlameState
+// still bucket a heat score for NODE SIZING on the valley map, which is a different question than
+// what the fire looks like.
+//
+// Original intent, for context: the living-flame's three read states across the campfire carousel
+// (design-mocks/02/04/08) — roar (everyone locked in, fast pulse + sparks), steady (gentle
+// breathe, the default), dead (grayscale + dim + slow flick + smoke, "gone cold").
 export function CampfireFlameStage({ state, size = 150 }: CampfireFlameStageProps) {
   const breathe = useSharedValue(1);
 

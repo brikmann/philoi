@@ -26,6 +26,32 @@ h1{font-size:18px;margin:0;text-align:center}
 .lbl{font-size:11px;color:#c8bcdd;margin-top:6px;text-align:center;font-weight:600}
 .sublbl{font-size:10px;color:#8a7fa6;margin-top:3px;text-align:center}
 .reward{display:inline-flex;align-items:center;gap:5px;margin-top:12px;background:#241a2e;border:1px solid rgba(242,163,60,.4);border-radius:999px;padding:5px 11px;font-size:10px;font-weight:700;color:#FFD27A}
+.place{font-size:11px;font-weight:800;letter-spacing:.5px;color:#c8bcdd;text-align:center}
+.titlebig{font-size:27px;font-weight:800;margin-top:8px;line-height:1.05;text-align:center;background:linear-gradient(90deg,#FFE08A,#FF9E6B,#FFE08A);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 16px rgba(255,140,90,.35);animation:shimmer 3.4s linear infinite}
+@keyframes shimmer{to{background-position:200% 0}}
+.raritystamp{font-size:8px;font-weight:800;letter-spacing:1px;padding:2px 9px;border-radius:4px;margin-top:8px}
+.effort{font-size:10px;color:#8a7fa6;margin-top:7px;text-align:center}
+.rewrow{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;justify-content:center}
+.rchip{display:inline-flex;align-items:center;gap:4px;background:#241a2e;border:1px solid rgba(242,163,60,.35);border-radius:999px;padding:4px 9px;font-size:9px;font-weight:700;color:#FFD27A}
+.rchip.perm{border-color:rgba(199,155,236,.5);color:#d7bff0;background:#251b33}
+/* season card — big placement headline + rewards-forged list */
+.placebig{font-size:40px;font-weight:800;letter-spacing:-1.5px;line-height:1;color:#F2A33C;text-shadow:0 0 20px rgba(255,120,60,.45);margin-top:0}
+.forged{font-size:9px;font-weight:800;letter-spacing:2px;color:#FFB84D;margin-top:9px}
+.rewlist{display:flex;flex-direction:column;gap:4px;width:100%;margin-top:6px}
+.rewitem{display:flex;align-items:center;gap:8px;background:rgba(36,26,46,.72);border:1px solid rgba(242,163,60,.25);border-radius:8px;padding:4px 9px;font-size:10px;font-weight:700;color:#e7ddf5}
+.rewitem .ic{font-size:11px}
+.rewitem .rr{margin-left:auto;font-size:7.5px;font-weight:800;letter-spacing:.5px;color:#FFC14D}
+.rewitem.perm{border-color:rgba(199,155,236,.45)}
+.rewitem.perm .rr{color:#c79bec}
+/* season card wears the Emberfall Ascendant aura (permanent, animated) */
+.card.season{background:radial-gradient(120% 60% at 50% 100%,#3a1c12,#1a1526 55%,#141019)}
+.emberfall{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.card.season>.kick,.card.season>.hero,.card.season>.foot{position:relative;z-index:2}
+.lavapool{position:absolute;left:50%;bottom:-34px;transform:translateX(-50%);width:230px;height:96px;background:radial-gradient(closest-side,rgba(255,90,46,.6),rgba(255,90,46,.14) 60%,transparent);filter:blur(9px);animation:lavapulse 3s ease-in-out infinite}
+.lavacore{position:absolute;left:50%;bottom:-10px;transform:translateX(-50%);width:130px;height:22px;border-radius:50%;background:radial-gradient(closest-side,#FFC14D,#FF5A2E 60%,transparent);filter:blur(3px);opacity:.85;animation:lavapulse 2.4s ease-in-out infinite}
+.efall{position:absolute;top:-12px;width:3px;height:3px;border-radius:50%;background:#FF7A3E;box-shadow:0 0 6px 1px #FF5A2E;opacity:0;animation:efall linear infinite}
+@keyframes efall{0%{transform:translateY(0);opacity:0}12%{opacity:1}100%{transform:translateY(390px);opacity:0}}
+@keyframes lavapulse{0%,100%{opacity:.55}50%{opacity:.9}}
 /* footer: wordmark + rank-in-hex identity */
 .foot{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:6px}
 .mark{display:flex;align-items:center;gap:5px}
@@ -126,14 +152,32 @@ unlock = <b>on the unlock / box-open reveal</b>. Each fires from the screen wher
 
   <!-- 4. SEASON STANDING -->
   <div class="cell">
-    <div class="card">
+    <div class="card season">
+      <div class="emberfall">
+        <span class="efall" style="left:8%;animation-duration:5.4s;animation-delay:0s"></span>
+        <span class="efall" style="left:20%;animation-duration:6.2s;animation-delay:1.6s"></span>
+        <span class="efall" style="left:33%;animation-duration:4.8s;animation-delay:.8s"></span>
+        <span class="efall" style="left:46%;animation-duration:6.6s;animation-delay:2.4s"></span>
+        <span class="efall" style="left:58%;animation-duration:5.1s;animation-delay:.4s"></span>
+        <span class="efall" style="left:70%;animation-duration:6.0s;animation-delay:3.1s"></span>
+        <span class="efall" style="left:82%;animation-duration:5.7s;animation-delay:1.2s"></span>
+        <span class="efall" style="left:92%;animation-duration:6.4s;animation-delay:2.0s"></span>
+        <span class="efall" style="left:27%;animation-duration:7.0s;animation-delay:3.6s"></span>
+        <span class="efall" style="left:64%;animation-duration:6.8s;animation-delay:4.2s"></span>
+        <div class="lavapool"></div><div class="lavacore"></div>
+      </div>
       <div class="kick">SEASON 1 · EMBERFALL</div>
       <div class="hero">
-        <div style="font-size:40px">🏆</div>
-        <div class="statsm" style="margin-top:10px;color:#8a7fa6;letter-spacing:2px">TOP</div>
-        <div class="stat" style="color:#F2A33C;margin-top:-2px">3%</div>
-        <div class="lbl" style="color:#FFD27A;font-weight:800">Immortal · Campus</div>
-        <div class="reward">🎁 Earned: Hephaestus' Chest</div>
+        <div class="placebig">TOP 1%</div>
+        <div class="place" style="margin-top:7px">🎓 MIT · #300 of 30,000</div>
+        <div class="effort">148h locked in · 6,265 XP this season</div>
+        <div class="forged">REWARDS FORGED</div>
+        <div class="rewlist">
+          <div class="rewitem perm"><span class="ic">🏅</span> The Untouchable <span class="rr">LEGENDARY TITLE</span></div>
+          <div class="rewitem perm"><span class="ic">🎴</span> Emberfall Banner <span class="rr">PERMANENT</span></div>
+          <div class="rewitem"><span class="ic">🎁</span> Hephaestus' Chest <span class="rr">LOOT</span></div>
+          <div class="rewitem"><span class="ic">🔥</span> 2,000 Embers <span class="rr">LOOT</span></div>
+        </div>
       </div>
       <div class="foot"><div class="mark"><svg viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/></svg><span class="w">philoi</span></div><div class="idrow"><span class="rankhex" style="background:#F5C542">I</span> @noah · <b>philoi.app</b></div></div>
     </div>
@@ -165,9 +209,18 @@ unlock = <b>on the unlock / box-open reveal</b>. Each fires from the screen wher
 Two need real data-binding (below). Rarity/tier colours stay semantic.</div>
 
 <div class="loop" style="margin-top:14px"><b>Data-binding for Code (don't fake these):</b>
-<br>• <b>Season card:</b> pull the user's ACTUAL end-of-season placement (percentile / rank / title from the
-placement-titles system, mock 66) and the ACTUAL reward granted (end-of-season placement rewards). The card must
-match what they really placed and earned — no hardcoded "TOP 3%".
+<br>• <b>Season card (the big flex):</b> lead with the <b>permanent honor</b>, not just a loot box. Pull from the
+placement-titles system (mock 66): the <b>placement headline</b> (big % or rank) with the <b>university + absolute rank of the pool underneath</b>
+(e.g. "TOP 1%" → "🎓 MIT · #300 of 30,000") so the flex is concrete — real rank / real cohort size, not just a %, the
+earned <b>TITLE</b> (Ascended · Campfire Champion · The Untouchable · "Ascended · Global" 1-of-1 · Vs-Unis campus
+titles like Prometheus' Disciples) with its <b>rarity</b> stamp (Global #1 animates gold→red). Show the full
+<b>reward bundle</b> as chips: PERMANENT things first — <b>Title</b> + <b>Banner</b> (purple chips) — then the loot
+(chest, embers). Add the season <b>effort</b> (hours locked in · XP) so it reads "look how much I locked in, and
+what I earned." Everything must be the user's REAL placement, title, and granted rewards — nothing hardcoded.
+<br>&nbsp;&nbsp;→ <b>Season aura:</b> the whole card is coated in that season's signature aura — S1 = the
+<b>Emberfall Ascendant</b> effect (lava pool at the bottom + embers raining from the top, colour <code>#FF5A2E</code>),
+animated and full-bleed behind the content. <b>Reuse the existing <code>emberfall</code> FlareEffect</b> as the card
+background so the shared story literally carries the falling-ember aura. It's season-unique — S2 gets S2's aura, etc.
 <br>• <b>Unlock card:</b> pull the item's canonical <b>name + description</b> straight from the cosmetics catalog
 (<code>catalog.ts</code>) — the "Zeus' Wrath" copy here is a placeholder for the real catalog string, and the visual
 uses the item's own effect/colour.</div>

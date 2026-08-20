@@ -2,50 +2,52 @@ import { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ItemArt } from '@/components/economy/item-art';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { ShareCardFrame } from '@/components/share-card-frame';
+import { Colors, Fonts } from '@/constants/theme';
 import type { CatalogItem } from '@/lib/economy/catalog';
 import { RARITY_COLOR, RARITY_LABEL, formatOddsFlex, rarityGlow } from '@/lib/economy/rarity';
-
-// The 9:16 unlock story card (mock 60, 21h). Rendered off-screen and captured by the same
-// view-shot pipeline the lock-in cards already use (src/lib/share-card.ts).
-//
-// The flex here is the ODDS, not a call to action: "a 0.8% pull" says more than any tagline, and
-// mock 60 is explicit that there's no CTA line — the item and the number speak for themselves.
-// That's also what makes this a growth loop rather than an ad: rare unlocks are worth posting.
-
-const CARD_WIDTH = 360;
-const CARD_HEIGHT = 640; // 9:16
+import type { RankTierName } from '@/types/database';
 
 type Props = {
   item: CatalogItem;
-  /** Published probability of the tier that dropped — the whole flex. */
+  /** Published probability of the tier that dropped — the second half of the flex. */
   oddsPct: number;
-  handle: string;
-  rankLabel?: string;
+  handle: string | null;
+  tier?: RankTierName;
+  division?: number;
   /** ×10: the rest of the haul as a rarity-bordered chip strip under the hero. */
   haul?: CatalogItem[];
 };
 
+// B4 — the rare-cosmetic flex (design-mocks/96, card 5). Fires from the unlock / box-open reveal.
+//
+// The item's own art and its own words carry the card: NAME AND DESCRIPTION COME FROM THE CATALOG
+// (`catalog.ts`), never from copy written here — the mock's "Zeus' Wrath" text is a stand-in for
+// whatever the real catalog entry says, and hardcoding it would mean the card lies the moment an
+// item is re-themed. Rarity colour stays semantic (Mythic reads red, Legendary gold), which is why
+// the rarity tint is the only thing on this card that isn't ember.
 export const UnlockShareCard = forwardRef<View, Props>(function UnlockShareCard(
-  { item, oddsPct, handle, rankLabel, haul },
+  { item, oddsPct, handle, tier, division, haul },
   ref
 ) {
   const tint = RARITY_COLOR[item.rarity];
-  return (
-    <View ref={ref} collapsable={false} style={styles.card}>
-      {/* Tier-coloured glow — the card's whole palette adapts to what dropped (Mythic reads red,
-          Legendary gold), so the rarity is legible before a single word is read. */}
-      <View style={[styles.glow, { backgroundColor: rarityGlow(item.rarity, 0.4) }]} />
-      <View style={[styles.ring, { borderColor: tint }]} />
 
+  return (
+    <ShareCardFrame
+      ref={ref}
+      kick={`${RARITY_LABEL[item.rarity].toUpperCase()} UNLOCKED`}
+      kickColor={tint}
+      handle={handle}
+      tier={tier}
+      division={division}>
+      <View style={[styles.glow, { backgroundColor: rarityGlow(item.rarity, 0.4) }]} />
       <View style={styles.artWrap}>
-        <ItemArt item={item} size={190} />
+        <ItemArt item={item} size={172} />
       </View>
 
-      <Text style={styles.name}>{item.name}</Text>
-      <Text style={[styles.rarity, { color: tint }]}>
-        {RARITY_LABEL[item.rarity]} · {item.type}
-      </Text>
+      <Text style={[styles.name, { color: tint }]}>{item.name}</Text>
+      {/* The catalog's own lore line — the item describing itself. */}
+      <Text style={styles.lore}>{item.lore}</Text>
 
       <View style={[styles.oddsPill, { borderColor: tint }]}>
         <Text style={[styles.oddsText, { color: tint }]}>{formatOddsFlex(oddsPct)}</Text>
@@ -60,66 +62,43 @@ export const UnlockShareCard = forwardRef<View, Props>(function UnlockShareCard(
           ))}
         </View>
       ) : null}
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          @{handle}
-          {rankLabel ? ` · ${rankLabel}` : ''}
-        </Text>
-      </View>
-    </View>
+    </ShareCardFrame>
   );
 });
 
 const styles = StyleSheet.create({
-  card: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    backgroundColor: Colors.twilight900,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
-    overflow: 'hidden',
-  },
   glow: {
     position: 'absolute',
-    width: 420,
-    height: 420,
-    borderRadius: 210,
-    top: 90,
-  },
-  ring: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    borderWidth: 1,
-    opacity: 0.35,
-    top: 150,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    top: 0,
   },
   artWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.five,
   },
   name: {
     fontFamily: Fonts.bodyBold,
     fontSize: 30,
-    color: Colors.ink,
     textAlign: 'center',
+    marginTop: 18,
   },
-  rarity: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    letterSpacing: 2,
-    marginTop: Spacing.two,
+  lore: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.muted,
+    textAlign: 'center',
+    marginTop: 8,
+    maxWidth: 240,
   },
   oddsPill: {
-    marginTop: Spacing.four,
+    marginTop: 18,
     borderWidth: 1,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 7,
   },
   oddsText: {
     fontFamily: Fonts.bodyBold,
@@ -130,8 +109,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 6,
-    marginTop: Spacing.four,
-    maxWidth: 300,
+    marginTop: 18,
+    maxWidth: 280,
   },
   chip: {
     width: 32,
@@ -140,14 +119,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: Spacing.five,
-  },
-  footerText: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.muted,
   },
 });

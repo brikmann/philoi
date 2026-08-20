@@ -77,6 +77,21 @@ export function rankOrdinal(tier: RankTierName, division: number): number {
   return RANK_TIER_ORDER.indexOf(tier) * 3 + (3 - division);
 }
 
+/**
+ * The rung directly above this one, or null at max rank — "75% to **Diamond I**" (mock 92).
+ *
+ * Division 1 is the TOP sub-tier, so climbing counts DOWN (III -> II -> I) and then rolls over
+ * into the next tier's III. Derived from RANK_TIER_ORDER rather than hardcoded per screen, since
+ * every surface that names the next rung has to agree with rank_tier_for_score's direction.
+ */
+export function nextRank(tier: RankTierName, division: number): { tier: RankTierName; division: number } | null {
+  if (division > 1) return { tier, division: division - 1 };
+  const next = RANK_TIER_ORDER[RANK_TIER_ORDER.indexOf(tier) + 1];
+  if (!next) return null;
+  // Primordial has no divisions at all; its stored division is 1 purely for ordinal arithmetic.
+  return { tier: next, division: next === 'primordial' ? 1 : 3 };
+}
+
 // xpForNextTier comes back 0 at max rank (Primordial) — see get_my_ranks() in schema.sql.
 export function formatXpProgress(xpIntoTier: number, xpForNextTier: number): string {
   if (xpForNextTier <= 0) return `${Math.round(xpIntoTier).toLocaleString()} XP — max rank`;

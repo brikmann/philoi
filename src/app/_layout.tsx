@@ -207,7 +207,11 @@ function RootNavigator() {
         // can't take the offset in its content (that would push the body down while leaving the
         // header itself under the pill), so the PILL moves instead — see LiveSessionBar's
         // topOffset below.
-        contentStyle: { backgroundColor: Colors.cream },
+        // Transparent, like every other scene background in the app: the root <ScreenBackground>
+        // sits behind this navigator and an opaque fill here paints the near-black straight over
+        // it (punchlist 20.1). The HEADER stays cream — that's a real bar with its own surface,
+        // not the page ground.
+        contentStyle: headerlessContentStyle,
         headerStyle: { backgroundColor: Colors.cream },
         headerShadowVisible: false,
         headerTintColor: Colors.ink,
@@ -232,7 +236,7 @@ function RootNavigator() {
             it has to, because contentStyle doesn't reach a nested navigator's scenes). Both were
             applying to the tabs route, stacking two full bar heights of padding and leaving the
             half-screen gap between the pill and each tab's title (punchlist 4D). */}
-        <Stack.Screen name="(tabs)" options={{ headerShown: false, contentStyle: { backgroundColor: Colors.cream, paddingTop: 0 } }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, contentStyle: { backgroundColor: 'transparent', paddingTop: 0 } }} />
         <Stack.Screen name="group/[groupId]/index" options={{ title: '' }} />
         <Stack.Screen name="group/[groupId]/edit" options={{ presentation: 'modal', title: 'Edit Campfire' }} />
         <Stack.Screen name="group/[groupId]/invite" options={{ presentation: 'modal', title: '', headerShown: false }} />

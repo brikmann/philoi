@@ -363,6 +363,27 @@ const TITLES_EARNED: CatalogItem[] = [
   item({ id: 'title-kept-the-fire', name: '"Kept the Fire"', type: 'TITLE', rarity: 'rare', acquisition: 'earned', seasonStamped: true,
     lore: 'Not the top, but you never let the fire go out. That counts.', art: { kind: 'title', from: '#4FB0E5', to: '#FFD27A' } }),
 
+  // ── Season 1 "Emberfall" placement ladder (SEASON_TITLES_SPEC.md) ──
+  // Season-EXCLUSIVE and never re-earnable: S2 ships its own seven, and these retire into the
+  // trophy case. Two classes on purpose — the podium are mythological flame deities, the
+  // percentiles are Gen-Z flexes. The authoritative copy (and each god's significance blurb) lives
+  // in the `season_titles` TABLE so a new season needs no app release; these rows exist so
+  // inventory and profile can draw the tile for a key the server granted.
+  item({ id: 'title-s1-surtur', name: '"Surtur"', type: 'TITLE', rarity: 'mythic', acquisition: 'earned', seasonStamped: true, oneOfOne: true,
+    lore: 'The fire-giant of Ragnarök, whose flaming sword outshines the sun. There is only ever one.', art: { kind: 'title', from: '#F5C542', to: '#FF2A2A' } }),
+  item({ id: 'title-s1-agni', name: '"Agni"', type: 'TITLE', rarity: 'mythic', acquisition: 'earned', seasonStamped: true,
+    lore: 'The divine fire the gods themselves speak through. Second to none but the world-ender.', art: { kind: 'title', from: '#E0612C', to: '#FFD24D' } }),
+  item({ id: 'title-s1-helios', name: '"Helios"', type: 'TITLE', rarity: 'mythic', acquisition: 'earned', seasonStamped: true,
+    lore: 'The Titan who hauls the sun across the sky. Third of three — and still a god.', art: { kind: 'title', from: '#F2A33C', to: '#FFF0B8' } }),
+  item({ id: 'title-s1-built-different', name: '"Built Different"', type: 'TITLE', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
+    lore: 'Top 1% of the whole board. Same twenty-four hours as everyone else, used like nobody else.', art: { kind: 'title', from: '#F5C542', to: '#D4FF4D' } }),
+  item({ id: 'title-s1-firebreather', name: '"Firebreather"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
+    lore: 'Top 10%. Ran hot for ninety days straight and never needed to be talked into it.', art: { kind: 'title', from: '#a06cd5', to: '#FF9A3C' } }),
+  item({ id: 'title-s1-certified-firestarter', name: '"Certified Firestarter"', type: 'TITLE', rarity: 'rare', acquisition: 'earned', seasonStamped: true,
+    lore: 'Top 25%. Lit something in the people around you, then kept it burning.', art: { kind: 'title', from: '#4FB0E5', to: '#FFD27A' } }),
+  item({ id: 'title-s1-warming-up', name: '"Warming Up"', type: 'TITLE', rarity: 'uncommon', acquisition: 'earned', seasonStamped: true,
+    lore: "Top half of the season. Kept a flame all the way through — that's where every fire starts.", art: { kind: 'title', from: '#3DA85C', to: '#FFD27A' } }),
+
   // Vs-Unis is COLLECTIVE — the school places, not the person, so every contributing member of a
   // top-3 uni shares the campus title. No individual "Ascended" ever comes off this board (21j).
   item({ id: 'title-prometheus-disciples', name: '"Prometheus’ Disciples"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,

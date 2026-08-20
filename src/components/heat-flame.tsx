@@ -1,21 +1,28 @@
 import { useEffect, useId } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
-import Svg, { Defs, Ellipse, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
 // The ACTIVITY GAUGE (mock 93). One `heat` in [0,1] drives three states, and the same mapping
-// serves the personal flame and a campfire's.
+// serves every campfire surface — the valley nodes, the campfire card, the banner hero.
 //
-// This is deliberately NOT FlameLogo. The brand mark is one clean silhouette; a gauge has to read
-// as a different *thing* at each state, not the same glyph at three opacities — so every state here
-// is its own composition over a PERSISTENT COAL BED. The bed is what makes it a fire rather than an
-// icon: it stays put while what burns on top changes.
+// This is deliberately NOT FlameLogo. The brand mark is one clean silhouette (and it is what Home
+// wears now — Home is *you*, and you don't go cold); a gauge has to read as a different *thing* at
+// each state, not the same glyph at three opacities. So every state here is its own composition
+// over a PERSISTENT COAL BED. The bed is what makes it a fire rather than an icon: it stays put
+// while what burns on top changes.
 //
 //   >= 0.6  roaring    — a staggered cluster of tongues off a bright bed, plus rising sparks
 //   0.15-0.6 simmering — a few low, slow licks off a glowing ember bed
 //   < 0.15  cold       — dead grey coals, no glow, drifting smoke puffs (the "relight" nudge)
+//
+// GEOMETRY IS MOCK 93'S, LITERALLY. The first build drew each tongue as an Animated.View with a
+// borderRadius — a rounded rectangle, which renders as a yellow lozenge on a brown ellipse, not a
+// flame (punchlist 20.1: "rendered horribly"). A tongue is POINTED: two beziers sweeping from a
+// wide base to a single apex, and that shape only exists as an SVG <Path>. So every path below is
+// copied verbatim out of design-mocks/93-flame-heat-states.html rather than re-derived.
 
 export type HeatState = 'roaring' | 'simmering' | 'cold';
 
@@ -25,140 +32,353 @@ export function heatToState(heat: number): HeatState {
   return 'cold';
 }
 
-/** Mock 93's stops. Bed and tongues are keyed off the same state so they can never disagree. */
-const PALETTE = {
-  roaring: { bedTop: '#E0612C', bedBot: '#3a1c10', tip: '#FFD27A', mid: '#F2A33C', base: '#E0612C', glow: 0.5 },
-  simmering: { bedTop: '#B33A15', bedBot: '#3a1c10', tip: '#F2A33C', mid: '#B33A15', base: '#6e2610', glow: 0.22 },
-  cold: { bedTop: '#453f55', bedBot: '#211d2b', tip: '#3a3450', mid: '#3a3450', base: '#3a3450', glow: 0 },
-} as const;
+/** Mock 93's scene viewBox. Every coordinate in this file is in these units, scaled by size/120. */
+const VB = 120;
 
-/** One licking tongue. Its own timing per index — a real fire never flickers in unison. */
+/** The baseline every tongue stands on (`M.. 100` in the mock) — the scale/rotate pivot. */
+const TONGUE_BASE_Y = 100;
+
+// The mock's two flicker keyframes. `flick` and `flick2` are mirror images of each other: a tongue
+// leaning left while its neighbour leans right is what stops a cluster reading as one pulsing
+// blob. Interpolated from t=0 (rest) to t=1 (peak) — Reanimated's `reverse: true` supplies the
+// return leg, exactly like the CSS `0%,100%` bookends.
+const FLICK = { scaleFrom: 0.82, scaleTo: 1.08, rotFrom: -2.5, rotTo: 2.5 };
+const FLICK2 = { scaleFrom: 0.9, scaleTo: 1.12, rotFrom: 2, rotTo: -2 };
+
+type TongueSpec = {
+  d: string;
+  /** Which gradient fills it — `outer` is the ember body, `inner` the pale core. */
+  fill: 'outer' | 'inner' | 'lick';
+  flick: typeof FLICK;
+  /** Seconds in the mock, milliseconds here. */
+  ms: number;
+  delay: number;
+  /** The mock's `.tongue.outer` carries `filter: blur(1px)`; RN has no SVG blur, so the two
+   *  outermost licks soften with opacity instead — same job (they sit behind), no native dep. */
+  soft?: boolean;
+};
+
+// ── ROARING: seven staggered licks, tallest through the middle (mock 93 `.tile.roar`) ──
+const ROARING_TONGUES: TongueSpec[] = [
+  { d: 'M37 100 C38 84 41 74 44 56 C47 74 50 84 51 100 Z', fill: 'outer', flick: FLICK, ms: 1050, delay: 0, soft: true },
+  { d: 'M69 100 C70 84 73 75 76 58 C79 75 82 84 83 100 Z', fill: 'outer', flick: FLICK2, ms: 1150, delay: 200, soft: true },
+  { d: 'M48 100 C49 82 51 70 54 40 C57 70 59 82 60 100 Z', fill: 'outer', flick: FLICK, ms: 900, delay: 120 },
+  { d: 'M62 100 C63 82 65 71 68 42 C71 71 73 82 74 100 Z', fill: 'outer', flick: FLICK2, ms: 950, delay: 50 },
+  { d: 'M53 100 C54 80 57 66 60 28 C63 66 66 80 67 100 Z', fill: 'outer', flick: FLICK, ms: 800, delay: 180 },
+  { d: 'M54 100 C55 86 56 74 58 52 C60 74 61 86 62 100 Z', fill: 'inner', flick: FLICK2, ms: 700, delay: 100 },
+  { d: 'M59 100 C60 86 61 73 63 50 C65 73 66 86 67 100 Z', fill: 'inner', flick: FLICK, ms: 750, delay: 220 },
+];
+
+// ── SIMMERING: three low licks, slow (mock 93 `.tile.sim`) ──
+const SIMMERING_TONGUES: TongueSpec[] = [
+  { d: 'M49 100 C50 90 52 84 54 74 C56 84 58 90 59 100 Z', fill: 'lick', flick: FLICK, ms: 1500, delay: 0 },
+  { d: 'M55 100 C56 88 58 80 60 62 C62 80 64 88 65 100 Z', fill: 'lick', flick: FLICK2, ms: 1350, delay: 200 },
+  { d: 'M62 100 C63 90 65 85 67 76 C69 85 71 90 72 100 Z', fill: 'lick', flick: FLICK, ms: 1600, delay: 100 },
+];
+
+/** The coal bed — five overlapping ellipses, identical in every state; only the fill changes. */
+const COALS = [
+  { cx: 46, cy: 103, rx: 12, ry: 7 },
+  { cx: 74, cy: 103, rx: 12, ry: 7 },
+  { cx: 60, cy: 106, rx: 15, ry: 8 },
+  { cx: 55, cy: 99, rx: 9, ry: 5.5 },
+  { cx: 68, cy: 99, rx: 9, ry: 5.5 },
+];
+
+/** Simmering and cold sit the bed one unit lower than roaring — the fire has burned down into it. */
+const COOLED_BED_DROP = 1;
+
+const SPARKS = [
+  { cx: 50, cy: 70, r: 2, colour: '#FFD27A', delay: 0 },
+  { cx: 72, cy: 66, r: 1.6, colour: '#F2A33C', delay: 1000 },
+  { cx: 61, cy: 58, r: 1.8, colour: '#FFE6B0', delay: 1700 },
+];
+
+// Mock 93's puffL / puffC / puffR. The sideways drift is what makes five puffs read as smoke
+// curling off a dead fire rather than as bubbles rising in a line.
+const PUFFS = [
+  { cx: 54, cy: 94, r: 4, colour: '#6b6480', dx: -9, ms: 3400, delay: 0 },
+  { cx: 60, cy: 92, r: 4.5, colour: '#7a7290', dx: 2, ms: 3800, delay: 600 },
+  { cx: 66, cy: 94, r: 3.6, colour: '#6b6480', dx: 10, ms: 3200, delay: 1200 },
+  { cx: 58, cy: 90, r: 3.2, colour: '#5a5470', dx: 2, ms: 3600, delay: 1800 },
+  { cx: 63, cy: 93, r: 3, colour: '#7a7290', dx: 10, ms: 3500, delay: 2400 },
+];
+
+/**
+ * One licking tongue: a real pointed <Path> in its own full-scene <Svg>, wrapped in the
+ * Animated.View that flicks it.
+ *
+ * The animation lives on the WRAPPER, not on SVG props: react-native-svg's `transform` is not
+ * reliably drivable from the UI thread, whereas a view transform is — and since the Svg carries
+ * the whole 120x120 viewBox, a percentage `transformOrigin` puts the pivot exactly on the tongue's
+ * base line (y=100 of 120) with no per-path maths. Cost is one extra view per tongue, which buys
+ * the mock's geometry at 60fps with nothing re-rendering in React.
+ */
 function Tongue({
-  colour, left, w, h, delay, duration, reduceMotion,
-}: { colour: string; left: number; w: number; h: number; delay: number; duration: number; reduceMotion: boolean }) {
+  spec,
+  size,
+  fills,
+  reduceMotion,
+}: {
+  spec: TongueSpec;
+  size: number;
+  fills: Record<TongueSpec['fill'], string>;
+  reduceMotion: boolean;
+}) {
   const t = useSharedValue(0);
   useEffect(() => {
     if (reduceMotion) return;
-    t.value = withDelay(delay, withRepeat(withTiming(1, { duration, easing: Easing.inOut(Easing.quad) }), -1, true));
-  }, [t, delay, duration, reduceMotion]);
+    t.value = withDelay(spec.delay, withRepeat(withTiming(1, { duration: spec.ms, easing: Easing.inOut(Easing.quad) }), -1, true));
+  }, [t, spec.delay, spec.ms, reduceMotion]);
+
+  const flick = spec.flick;
   const style = useAnimatedStyle(() => ({
-    transform: [{ scaleY: 0.62 + t.value * 0.55 }],
-    opacity: 0.72 + t.value * 0.28,
+    transform: [
+      { scaleY: flick.scaleFrom + (flick.scaleTo - flick.scaleFrom) * t.value },
+      { rotateZ: `${flick.rotFrom + (flick.rotTo - flick.rotFrom) * t.value}deg` },
+    ],
   }));
+
   return (
     <Animated.View
       pointerEvents="none"
       style={[
-        {
-          position: 'absolute', bottom: h * 0.16, left, width: w, height: h,
-          backgroundColor: colour,
-          // Rounded top, tapered base — a tongue, not a bar.
-          borderTopLeftRadius: w, borderTopRightRadius: w,
-          borderBottomLeftRadius: w * 0.35, borderBottomRightRadius: w * 0.35,
-          transformOrigin: 'bottom',
-        },
+        StyleSheet.absoluteFill,
+        // The pivot: dead centre horizontally, on the tongue's base line vertically.
+        { transformOrigin: `50% ${(TONGUE_BASE_Y / VB) * 100}%`, opacity: spec.soft ? 0.72 : 1 },
         style,
-      ]}
-    />
+      ]}>
+      <Svg width={size} height={size} viewBox={`0 0 ${VB} ${VB}`}>
+        <Path d={spec.d} fill={fills[spec.fill]} />
+      </Svg>
+    </Animated.View>
   );
 }
 
 /** A rising spark (roaring) or smoke puff (cold) — same motion, opposite meaning. */
 function Rising({
-  colour, left, size, delay, duration, travel, reduceMotion,
-}: { colour: string; left: number; size: number; delay: number; duration: number; travel: number; reduceMotion: boolean }) {
+  colour,
+  left,
+  top,
+  size,
+  delay,
+  duration,
+  travel,
+  drift,
+  peak,
+  grow,
+  reduceMotion,
+}: {
+  colour: string;
+  left: number;
+  top: number;
+  size: number;
+  delay: number;
+  duration: number;
+  travel: number;
+  drift: number;
+  peak: number;
+  grow: number;
+  reduceMotion: boolean;
+}) {
   const t = useSharedValue(0);
   useEffect(() => {
     if (reduceMotion) return;
     t.value = withDelay(delay, withRepeat(withTiming(1, { duration, easing: Easing.out(Easing.quad) }), -1, false));
   }, [t, delay, duration, reduceMotion]);
   const style = useAnimatedStyle(() => ({
-    transform: [{ translateY: -t.value * travel }, { scale: 1 - t.value * 0.55 }],
-    opacity: Math.sin(t.value * Math.PI) * 0.9,
+    transform: [{ translateY: -t.value * travel }, { translateX: t.value * drift }, { scale: 1 + t.value * grow }],
+    opacity: Math.sin(t.value * Math.PI) * peak,
   }));
   return (
     <Animated.View
       pointerEvents="none"
-      style={[{ position: 'absolute', bottom: 0, left, width: size, height: size, borderRadius: size, backgroundColor: colour }, style]}
+      style={[{ position: 'absolute', left, top, width: size, height: size, borderRadius: size, backgroundColor: colour }, style]}
     />
   );
 }
 
 export function HeatFlame({ heat, size = 132 }: { heat: number; size?: number }) {
   const state = heatToState(heat);
-  const p = PALETTE[state];
   const reduceMotion = useReduceMotion();
   const uid = useId();
-  const bedId = `heatBed-${uid}`;
+  const id = (name: string) => `heat-${name}-${uid}`;
+  // Scene units -> pixels, for the sparks and puffs that live outside an <Svg>.
+  const k = size / VB;
 
-  const bedH = size * 0.16;
-  const bedW = size * 0.72;
-
-  // Each state is a different COMPOSITION, not a faded copy: how many tongues, how tall, how fast.
+  // Below roughly 70px the two blur-softened outer licks are a couple of pixels wide and cost a
+  // view each — the valley renders a dozen of these at once, so small instances drop them. The
+  // five that carry the silhouette stay.
   const tongues =
     state === 'cold'
       ? []
       : state === 'roaring'
-        ? [
-            { w: size * 0.15, h: size * 0.52, x: 0.30, d: 0, ms: 620 },
-            { w: size * 0.19, h: size * 0.70, x: 0.42, d: 180, ms: 520 },
-            { w: size * 0.14, h: size * 0.46, x: 0.57, d: 340, ms: 700 },
-            { w: size * 0.10, h: size * 0.33, x: 0.24, d: 90, ms: 780 },
-          ]
-        : [
-            { w: size * 0.13, h: size * 0.26, x: 0.36, d: 0, ms: 1500 },
-            { w: size * 0.10, h: size * 0.20, x: 0.52, d: 600, ms: 1800 },
-          ];
+        ? size < 70
+          ? ROARING_TONGUES.filter((t) => !t.soft)
+          : ROARING_TONGUES
+        : SIMMERING_TONGUES;
+
+  const fills: Record<TongueSpec['fill'], string> = {
+    outer: `url(#${id('fO')})`,
+    inner: `url(#${id('fI')})`,
+    lick: `url(#${id('lick')})`,
+  };
+
+  const coalFill = `url(#${id(state === 'roaring' ? 'coalHot' : state === 'simmering' ? 'coalWarm' : 'coalDead')})`;
+  const bedDrop = state === 'roaring' ? 0 : COOLED_BED_DROP;
+  const ambColour = state === 'roaring' ? '#E0612C' : '#B33A15';
+
+  // The bed's slow pulse (the mock's `.coalpulse`, .85 -> 1). Cold coals are dead — they never
+  // pulse, which is half of what sells "burnt out".
+  const coalPulse = useSharedValue(1);
+  useEffect(() => {
+    if (reduceMotion || state === 'cold') {
+      coalPulse.value = 1;
+      return;
+    }
+    coalPulse.value = 0.85;
+    coalPulse.value = withRepeat(withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.quad) }), -1, true);
+  }, [coalPulse, reduceMotion, state]);
+  const coalStyle = useAnimatedStyle(() => ({ opacity: coalPulse.value }));
 
   return (
     <View style={{ width: size, height: size }} pointerEvents="none">
-      {/* Glow behind everything. Cold has none at all — that absence IS the signal. */}
-      {p.glow > 0 ? (
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: p.base, opacity: p.glow * 0.25, borderRadius: size, transform: [{ scaleY: 0.7 }] },
-          ]}
-        />
+      {/* Ambient warmth on the ground, under everything. Cold has none at all — that absence IS
+          the signal, so there is no grey stand-in for it. */}
+      {state !== 'cold' ? (
+        <Svg width={size} height={size} viewBox={`0 0 ${VB} ${VB}`} style={StyleSheet.absoluteFill}>
+          <Defs>
+            <RadialGradient
+              id={id('amb')}
+              cx="50%"
+              cy={state === 'roaring' ? '72%' : '80%'}
+              r={state === 'roaring' ? '55%' : '42%'}>
+              <Stop offset="0" stopColor={ambColour} stopOpacity={state === 'roaring' ? 0.65 : 0.38} />
+              <Stop offset="1" stopColor={ambColour} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          {state === 'roaring' ? (
+            <Ellipse cx={60} cy={86} rx={52} ry={34} fill={`url(#${id('amb')})`} />
+          ) : (
+            <Ellipse cx={60} cy={98} rx={40} ry={22} fill={`url(#${id('amb')})`} />
+          )}
+        </Svg>
       ) : null}
 
-      {tongues.map((t, i) => (
-        <Tongue
-          key={i}
-          colour={i % 2 === 0 ? p.mid : p.tip}
-          left={size * t.x}
-          w={t.w}
-          h={t.h}
-          delay={t.d}
-          duration={t.ms}
-          reduceMotion={reduceMotion}
-        />
+      {/* The gradients every tongue draws from, declared once in a zero-size Svg. Gradient ids are
+          GLOBAL in react-native-svg, hence the useId suffix — duplicate ids blank every instance
+          after the first on Android (the same bug FlameLogo and EmberIcon hit). */}
+      {tongues.length > 0 ? (
+        <Svg width={0} height={0} style={styles.defsOnly}>
+          <Defs>
+            <LinearGradient id={id('fO')} x1="0" y1="1" x2="0" y2="0">
+              <Stop offset="0" stopColor="#E0612C" />
+              <Stop offset="0.75" stopColor="#F2A33C" />
+              <Stop offset="1" stopColor="#F2A33C" stopOpacity={0} />
+            </LinearGradient>
+            <LinearGradient id={id('fI')} x1="0" y1="1" x2="0" y2="0">
+              <Stop offset="0" stopColor="#F2A33C" />
+              <Stop offset="0.8" stopColor="#FFE6B0" />
+              <Stop offset="1" stopColor="#FFE6B0" stopOpacity={0} />
+            </LinearGradient>
+            <LinearGradient id={id('lick')} x1="0" y1="1" x2="0" y2="0">
+              <Stop offset="0" stopColor="#E0612C" />
+              <Stop offset="1" stopColor="#F2A33C" />
+            </LinearGradient>
+          </Defs>
+        </Svg>
+      ) : null}
+
+      {tongues.map((spec) => (
+        <Tongue key={spec.d} spec={spec} size={size} fills={fills} reduceMotion={reduceMotion} />
       ))}
+
+      {/* The coal bed, drawn OVER the tongues exactly as the mock stacks it — the licks rise out
+          from behind the coals, which is what roots them to the ground instead of floating. */}
+      <Animated.View style={[StyleSheet.absoluteFill, coalStyle]} pointerEvents="none">
+        <Svg width={size} height={size} viewBox={`0 0 ${VB} ${VB}`}>
+          <Defs>
+            <RadialGradient id={id('coalHot')} cx="50%" cy="35%" r="75%">
+              <Stop offset="0" stopColor="#FFD27A" />
+              <Stop offset="0.45" stopColor="#F2A33C" />
+              <Stop offset="1" stopColor="#6e2610" />
+            </RadialGradient>
+            <RadialGradient id={id('coalWarm')} cx="50%" cy="35%" r="80%">
+              <Stop offset="0" stopColor="#F2A33C" />
+              <Stop offset="0.4" stopColor="#B33A15" />
+              <Stop offset="1" stopColor="#3a1c10" />
+            </RadialGradient>
+            <RadialGradient id={id('coalDead')} cx="50%" cy="35%" r="80%">
+              <Stop offset="0" stopColor="#453f55" />
+              <Stop offset="1" stopColor="#211d2b" />
+            </RadialGradient>
+          </Defs>
+          <G>
+            {COALS.map((c) => (
+              <Ellipse key={`${c.cx}-${c.cy}`} cx={c.cx} cy={c.cy + bedDrop} rx={c.rx} ry={c.ry} fill={coalFill} />
+            ))}
+            {/* Live embers glinting in the bed (simmering) / ash flecks on dead coals (cold). */}
+            {state === 'simmering' ? (
+              <>
+                <Circle cx={50} cy={103} r={2.4} fill="#FFB84D" />
+                <Circle cx={70} cy={104} r={2} fill="#FF8A3D" />
+              </>
+            ) : null}
+            {state === 'cold' ? (
+              <>
+                <Circle cx={52} cy={101} r={1.3} fill="#6b6480" />
+                <Circle cx={66} cy={103} r={1.1} fill="#6b6480" />
+                <Circle cx={60} cy={99} r={1.2} fill="#5a5470" />
+              </>
+            ) : null}
+          </G>
+        </Svg>
+      </Animated.View>
 
       {/* Roaring throws sparks; cold pushes smoke. Simmering does neither — it just glows. */}
       {state === 'roaring'
-        ? [0, 1, 2].map((i) => (
-            <Rising key={i} colour="#FFE6B0" left={size * (0.34 + i * 0.13)} size={size * 0.028}
-              delay={i * 520} duration={1500} travel={size * 0.62} reduceMotion={reduceMotion} />
+        ? SPARKS.map((s) => (
+            <Rising
+              key={s.cx}
+              colour={s.colour}
+              left={(s.cx - s.r) * k}
+              top={(s.cy - s.r) * k}
+              size={s.r * 2 * k}
+              delay={s.delay}
+              duration={2400}
+              travel={46 * k}
+              drift={0}
+              peak={0.95}
+              grow={0}
+              reduceMotion={reduceMotion}
+            />
           ))
         : null}
       {state === 'cold'
-        ? [0, 1, 2].map((i) => (
-            <Rising key={i} colour="#5a5470" left={size * (0.36 + i * 0.11)} size={size * 0.09}
-              delay={i * 900} duration={3200} travel={size * 0.5} reduceMotion={reduceMotion} />
+        ? PUFFS.map((p) => (
+            <Rising
+              key={`${p.cx}-${p.delay}`}
+              colour={p.colour}
+              left={(p.cx - p.r) * k}
+              top={(p.cy - p.r) * k}
+              size={p.r * 2 * k}
+              delay={p.delay}
+              duration={p.ms}
+              travel={43 * k}
+              drift={p.dx * k}
+              peak={0.5}
+              grow={0.9}
+              reduceMotion={reduceMotion}
+            />
           ))
         : null}
-
-      {/* The coal bed — the one element every state shares. */}
-      <Svg width={size} height={bedH * 2} style={{ position: 'absolute', bottom: 0 }}>
-        <Defs>
-          <LinearGradient id={bedId} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={p.bedTop} />
-            <Stop offset="1" stopColor={p.bedBot} />
-          </LinearGradient>
-        </Defs>
-        <Ellipse cx={size / 2} cy={bedH} rx={bedW / 2} ry={bedH * 0.7} fill={`url(#${bedId})`} />
-      </Svg>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  // A <Defs>-only Svg still takes part in layout at 0x0; absolute keeps it out of the stack.
+  defsOnly: {
+    position: 'absolute',
+  },
+});

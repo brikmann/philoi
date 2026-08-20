@@ -22,6 +22,7 @@ import { DriftingEmbers } from '@/components/drifting-embers';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { EquippedFlarePerimeter, useFlareEquipped } from '@/components/economy/flare-perimeter';
 import { FireShareCard } from '@/components/fire-share-card';
+import { LockInShareCard } from '@/components/lock-in-share-card';
 import { FlameMeterComplete } from '@/components/flame-meter-complete';
 import { LockInDoneScreen } from '@/components/lockin-done-screen';
 import { RankUpCelebration } from '@/components/rank-up-celebration';
@@ -181,6 +182,8 @@ function LockInScreen() {
   // taps Share.
   const fireCardRef = useRef<View>(null);
   const rankCardRef = useRef<View>(null);
+  const lockInCardRef = useRef<View>(null);
+  const [lockInSharing, setLockInSharing] = useState(false);
 
   // Slow ink->coral color breathe on the running timer — a quiet "this is live" signal
   // distinct from SessionFlame's own flick (kept separate to avoid prop-drilling a shared value).
@@ -548,6 +551,17 @@ function LockInScreen() {
     }
   }
 
+  // The proof-of-work card (mock 96, card 2) — the done screen's own share, distinct from the
+  // daily-fire card above it: one is "I did a session", the other is "I kept the fire".
+  async function handleShareLockIn() {
+    setLockInSharing(true);
+    try {
+      await shareCardImage(lockInCardRef, 'Share your lock-in');
+    } finally {
+      setLockInSharing(false);
+    }
+  }
+
   async function handleShareFireComplete() {
     if (!fireCompleteInfo) return;
     setFireSharing(true);
@@ -588,9 +602,7 @@ function LockInScreen() {
             handle={profile?.handle ?? null}
             tier={rankUpInfo.tier}
             division={rankUpInfo.division}
-            streakDays={rankUpInfo.streakDays}
             isDivisionBump={rankUpInfo.fromTier === rankUpInfo.tier}
-            circleName={doneCircleName}
           />
         </View>
       </Screen>
@@ -622,7 +634,7 @@ function LockInScreen() {
         <View style={styles.offscreenCard} pointerEvents="none">
           <FireShareCard
             ref={fireCardRef}
-            displayName={profile?.display_name ?? 'You'}
+            handle={profile?.handle ?? null}
             streakDays={streakAfter}
             tier={rankAfter?.tier ?? 'bronze'}
             division={rankAfter?.division ?? 3}
@@ -651,7 +663,21 @@ function LockInScreen() {
           circleId={doneCircleId}
           circleName={doneCircleName}
           onDone={() => router.replace('/')}
+          onShare={handleShareLockIn}
+          sharing={lockInSharing}
         />
+        <View style={styles.offscreenCard} pointerEvents="none">
+          <LockInShareCard
+            ref={lockInCardRef}
+            goalType={postedCheckIn.goal_type}
+            goalDetail={postedCheckIn.goal_detail}
+            durationSeconds={postedCheckIn.duration_seconds ?? 0}
+            circleName={doneCircleName}
+            handle={profile?.handle ?? null}
+            tier={rankAfter?.tier}
+            division={rankAfter?.division}
+          />
+        </View>
       </Screen>
     );
   }

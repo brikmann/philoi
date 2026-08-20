@@ -7,6 +7,7 @@ import { getItem } from '@/lib/economy/catalog';
 import type { PassReward } from '@/lib/economy/forge-pass';
 import { supabase } from '@/lib/supabase';
 import { weekKey } from '@/lib/time/week';
+import type { SeasonCard } from '@/types/database';
 
 /**
  * Claim one LEVEL's rewards for one lane.
@@ -86,6 +87,19 @@ export async function fetchMySeasonStanding(): Promise<SeasonStanding | null> {
   const { data, error } = await supabase.rpc('get_my_season_standing', { p_season: null });
   if (error) throw error;
   return (data as SeasonStanding | null) ?? null;
+}
+
+/**
+ * Everything the season share card needs (mock 97): placement, the title actually granted with its
+ * granted rarity + significance blurb, and the real reward bundle out of the grant ledger. One
+ * round trip instead of the card assembling itself from three reads, and — the point — nothing on
+ * the card is derived client-side from a band, so it can never claim something the server didn't
+ * pay. Null until the season has been closed out.
+ */
+export async function fetchMySeasonCard(): Promise<SeasonCard | null> {
+  const { data, error } = await supabase.rpc('get_my_season_card', { p_season: null });
+  if (error) throw error;
+  return (data as SeasonCard | null) ?? null;
 }
 
 /** `2026-08-07` for dailies, `W2953` for weeklies, the season id for one-time milestones. */
