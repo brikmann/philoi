@@ -1,7 +1,9 @@
-# Code handoff — Challenges + Rewards + Notifications (consolidated)
+# Code handoff — Challenges + Rewards + Notifications + Profile (consolidated)
 
-One pass covering **bugs → algorithm → viewing redesign → reward screens → share cards → notifications → crown**.
-Build **A (bugs)** and **B (algorithm)** first — they're the broken core loop — then C/D/E/F (UI + notifications).
+One pass covering **bugs → algorithm → viewing redesign → reward screens → share cards → notifications →
+crown → profile/trophy hall**.
+Build **A (bugs)** and **B (algorithm)** first — they're the broken core loop — then C/D/E/F/G (UI +
+notifications + profile).
 
 **Coordination (READ FIRST):** ⚠ **clear the stuck `.git/index.lock` and commit the outstanding tree before you
 build** (last pass got stranded uncommitted). One writer per branch; don't edit the mocks/specs — flag disagreements
@@ -13,9 +15,11 @@ in chat.
 - `REWARD_ECONOMY.md` §3–§5 — the `grantReward` engine + guardrails (fold the ALGO numbers in here)
 - `CHALLENGE_REWARD_COPY.md` — win/loss/placement headline pools
 - `NOTIFICATIONS_SPEC.md` — the **full** notification catalog (all categories) + leading-art + rich-push
+- `PROFILE_SPEC.md` — profile redesign, cosmetic-render bug, Trophy Hall, bio/journal, share-card fixes
+- `ITEM_CATALOG.md` §2a/§2b (CARD/HALO art) · §4a/§4b (RELIC/MEDAL trophies) — cosmetic + trophy source of truth
 - Mocks: **102** (tab: Friends/Personal + info screens) · **47** (challenge/campfire reward) · **103** (goal/streak
   reward) · **104** (challenge + goal share cards) · **105** (leaderboard #1 crown) · **106** (surfacing + push + the
-  new bell) · 44/45 (watch) · 46 (pick members)
+  new bell) · **107** (profile + trophy hall + fixed share card) · 44/45 (watch) · 46 (pick members)
 
 ---
 
@@ -87,7 +91,29 @@ Not just challenges — the app-wide notification layer.
   social · Challenges · Campfires · Streak & reminders · Season & rank) + the **daily-reminder time picker**. OFF
   categories still populate the in-app bell (just no push). (Replaces the single "Notifications" row.)
 
+## G. Profile redesign + Trophy Hall (`PROFILE_SPEC.md`, mock 107)
+Make the profile "this is YOU" — real equipped art, earned trophies, a journal — same hall on other profiles.
+- **Cut:** retire `"{University} — N here"` **app-wide** (dead photo-era metric) · remove the **Inventory &
+  loadout** row + floating **Study** chip (→ ⚙ menu / editor) · remove the **duplicate gear** over the XP bar
+  (one gear, header top-right).
+- 🔴 **Cosmetics must render as ACTUAL ART, not flat colour** — the **CARD** backdrop + avatar **HALO** read
+  from the equipped loadout and render the §2a/§2b art (Cracked Magma cracks, Inferno Flare ring, etc.), with
+  the 30/60/90 live-aura ramp; default loadout (task #88) as fallback. Same resolver on your card AND others'.
+- **Bio** — editable one-liner under the identity block (own profile).
+- **Trophy Hall** — featured **RELIC/MEDAL** showcase (rarity-glowed) + **earned-badge grid** (locked =
+  greyed) + **duel W-L / win-rate**. Renders on **own and other** profiles = earned status compare (cosmetics
+  can be bought, badges/record can't). Other-profile: **compare banner** + **Challenge / Add friend** CTAs.
+- **Journal** — achievements become entries with optional **user comments** (`＋ add a note`); leads with the
+  achievement's art (same resolver as the notifications leading-art table). Default public.
+- **Share card fixes (Frame 3):** session-type icon → **vector** (no 📚 emoji); **stat row is per-session-
+  type** — Study/Read → Streak + XP, Gym → Streak + **PRs** + XP. Never a zeroed "0 PRs" on a study session.
+
 ## Acceptance
+- [ ] Profile: "University — N here" gone app-wide; inv/loadout row + Study chip + duplicate gear removed;
+      CARD + HALO render equipped **art** (not colour) w/ live aura + default fallback; bio editable.
+- [ ] Trophy Hall (relics/medals + badge grid + W-L) on own + other profiles; compare banner + CTAs on others;
+      journal entries take comments and lead with achievement art.
+- [ ] Share card: vector session icons; stat row conditional per session type (no PRs off-gym).
 - [ ] Notifications: event pipeline + fan-out; **own Settings → Notifications menu** with per-category toggles +
       reminder time; rich push pulls the subject's art; the new bell + badges render (mock 106).
 - [ ] Rank-up no longer replays on sign-in; leaderboard #1 crown is a vector.
