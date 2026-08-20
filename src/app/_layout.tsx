@@ -267,6 +267,10 @@ function RootNavigator() {
             ?userId, because both render for someone else as readily as for you. */}
         <Stack.Screen name="trophy-hall" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="collection" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* §8 — the composer is a modal (it's a compose flow you back out of, not a destination);
+            the milestone itself is a pushed permalink, since a cheer notification navigates to it. */}
+        <Stack.Screen name="milestone/new" options={{ presentation: 'modal', headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="milestone/[id]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="watch/[challengeId]" options={{ title: 'Watch' }} />
         <Stack.Screen name="challenge-change/[requestId]" options={{ headerShown: false, presentation: 'modal' }} />
         {/* Headerless: the screen draws its own top row (mock 98) — the native header was adding a

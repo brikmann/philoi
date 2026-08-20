@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -38,6 +39,7 @@ export function JournalSection({
   /** §8's composer entry point. Omitted on someone else's profile. */
   onAddMilestone?: () => void;
 }) {
+  const router = useRouter();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [editing, setEditing] = useState<JournalEntry | null>(null);
   const [draft, setDraft] = useState('');
@@ -110,43 +112,66 @@ export function JournalSection({
           Rank-ups, streaks and challenge wins land here. Add a note to any of them.
         </Text>
       ) : (
-        entries.map((entry) => (
-          <View key={entry.entry_key} style={styles.row}>
-            <Art url={entry.image_url} shape={entry.image_shape} />
-            <View style={styles.rowText}>
-              <Text style={styles.title} numberOfLines={2}>
-                {entry.title}
-              </Text>
-              {entry.body ? (
-                <Text style={styles.body} numberOfLines={2}>
-                  {entry.body}
+        entries.map((entry) => {
+          // §8 — a pinned milestone is a journal entry the USER wrote. It already carries its note
+          // from the composer, so it offers no "＋ add a note" and no note editor: a second,
+          // competing note on a post you just authored would have nothing to say. It taps through
+          // to its own permalink instead, where it can be shared and cheered.
+          const isMilestone = entry.kind === 'milestone';
+          return (
+            <Pressable
+              key={entry.entry_key}
+              style={styles.row}
+              onPress={
+                isMilestone
+                  ? () => router.push({ pathname: '/milestone/[id]', params: { id: entry.entry_key } })
+                  : undefined
+              }
+              disabled={!isMilestone}
+              accessibilityRole={isMilestone ? 'button' : undefined}>
+              {isMilestone ? (
+                <View style={[styles.art, styles.artFallback, styles.milestoneArt]}>
+                  <Ionicons name="ribbon" size={19} color={Colors.ember} />
+                </View>
+              ) : (
+                <Art url={entry.image_url} shape={entry.image_shape} />
+              )}
+              <View style={styles.rowText}>
+                <Text style={styles.title} numberOfLines={2}>
+                  {entry.title}
                 </Text>
-              ) : null}
+                {!isMilestone && entry.body ? (
+                  <Text style={styles.body} numberOfLines={2}>
+                    {entry.body}
+                  </Text>
+                ) : null}
 
-              {entry.note ? (
-                <Text style={styles.note}>“{entry.note}”</Text>
-              ) : isOwn ? (
-                <Pressable onPress={() => openEditor(entry)} hitSlop={6}>
-                  <Text style={styles.addNote}>＋ add a note</Text>
-                </Pressable>
-              ) : null}
-
-              <View style={styles.metaRow}>
-                <Text style={styles.time}>{formatRelativeTime(entry.created_at)}</Text>
-                {isOwn && entry.note ? (
+                {entry.note ? (
+                  <Text style={styles.note}>“{entry.note}”</Text>
+                ) : isOwn && !isMilestone ? (
                   <Pressable onPress={() => openEditor(entry)} hitSlop={6}>
-                    <Text style={styles.metaAction}>Edit</Text>
+                    <Text style={styles.addNote}>＋ add a note</Text>
                   </Pressable>
                 ) : null}
-                {isOwn ? (
-                  <Pressable onPress={() => toggleHidden(entry)} hitSlop={6}>
-                    <Text style={styles.metaAction}>{entry.hidden ? 'Hidden · show' : 'Hide'}</Text>
-                  </Pressable>
-                ) : null}
+
+                <View style={styles.metaRow}>
+                  <Text style={styles.time}>{formatRelativeTime(entry.created_at)}</Text>
+                  {isMilestone ? <Text style={styles.time}>· milestone</Text> : null}
+                  {isOwn && entry.note && !isMilestone ? (
+                    <Pressable onPress={() => openEditor(entry)} hitSlop={6}>
+                      <Text style={styles.metaAction}>Edit</Text>
+                    </Pressable>
+                  ) : null}
+                  {isOwn && !isMilestone ? (
+                    <Pressable onPress={() => toggleHidden(entry)} hitSlop={6}>
+                      <Text style={styles.metaAction}>{entry.hidden ? 'Hidden · show' : 'Hide'}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
-            </View>
-          </View>
-        ))
+            </Pressable>
+          );
+        })
       )}
 
       <Modal visible={editing !== null} transparent animationType="fade" onRequestClose={() => setEditing(null)}>
@@ -238,6 +263,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.card,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Milestones lead with a ribbon rather than the flame: the flame is the effort economy's mark
+  // everywhere else in the app, and a milestone is precisely the thing that earned none of it.
+  milestoneArt: {
+    backgroundColor: 'rgba(242,163,60,0.14)',
   },
   rowText: {
     flex: 1,

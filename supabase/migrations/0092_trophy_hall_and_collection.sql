@@ -107,7 +107,10 @@ as $$
     and (c.created_by = p_user or c.opponent_id = p_user);
 $$;
 
-grant execute on function duel_record(uuid) to authenticated;
+-- NOT granted to authenticated. get_trophy_hall applies the record's hide, and a directly callable
+-- duel_record(uuid) would hand any caller the numbers the owner just chose to hide. get_trophy_hall
+-- is SECURITY DEFINER, so it can still call this regardless of the grant.
+revoke all on function duel_record(uuid) from public, authenticated;
 
 -- ───────────────────────────── 3 · the Trophy Hall ─────────────────────────────
 

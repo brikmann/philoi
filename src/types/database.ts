@@ -135,6 +135,11 @@ export type NotificationEvent = {
 /** One row of the Journal (§5, migration 0091) — an achievement plus its optional human note. */
 export type JournalEntry = {
   entry_key: string;
+  /**
+   * 'achievement' — the system recorded it, and it takes a note. 'milestone' — the user posted it
+   * (§8), and it already carries its own note from the composer (migration 0093).
+   */
+  kind: 'achievement' | 'milestone';
   type: string;
   title: string;
   body: string | null;
@@ -224,6 +229,50 @@ export type PublicCollection = {
 
 /** What `set_profile_item_hidden` can be pointed at (migration 0092). */
 export type HideableKind = 'cosmetic' | 'badge' | 'season' | 'record';
+
+// ───────────────────────────── §8 · Milestones (migration 0093) ─────────────────────────────
+//
+// 🔒 A milestone grants ZERO XP, embers or rank. It is a content post, not an economy event — see
+// the firewall note at the top of migration 0093 before adding anything to this path.
+
+export type MilestoneKind = 'grade' | 'offer' | 'certification' | 'fitness_pr' | 'project' | 'custom';
+
+/** Grades are sensitive: friends-only is the floor, anything wider is a per-post choice. */
+export type MilestoneVisibility = 'friends' | 'campus' | 'public';
+
+/**
+ * The effort receipts, frozen at post time. Computed server-side and never sent by the client —
+ * the user chooses which to KEEP, not what they say.
+ */
+export type MilestoneEffort = {
+  hours?: number;
+  streak?: number;
+  lockins?: number;
+};
+
+/** Which receipts to keep, passed to create_milestone. */
+export type EffortKey = keyof MilestoneEffort;
+
+export type Milestone = {
+  id: string;
+  kind: MilestoneKind;
+  headline: string;
+  note: string | null;
+  visibility: MilestoneVisibility;
+  effort: MilestoneEffort;
+  /** False = share card only; the post exists but is not on the profile for anyone but its author. */
+  pinned: boolean;
+  cheers: number;
+  cheered: boolean;
+  created_at: string;
+};
+
+/** get_milestone() — one post plus its author, for the permalink a cheer notification opens. */
+export type MilestoneDetail = Milestone & {
+  user_id: string;
+  display_name: string;
+  handle: string | null;
+};
 
 export type DailyFire = {
   day: string;
@@ -668,6 +717,10 @@ export type AnalyticsEventName =
   | 'trophy_hall_see_all'
   | 'trophy_item_hidden'
   | 'collection_viewed'
+  | 'milestone_composer_opened'
+  | 'milestone_posted'
+  | 'milestone_cheered'
+  | 'milestone_shared'
   | 'challenge_logged'
   | 'challenge_accepted'
   | 'challenge_declined'
@@ -1560,6 +1613,23 @@ export type Database = {
       set_journal_hidden: { Args: { p_entry_key: string; p_hidden: boolean }; Returns: undefined };
       set_my_bio: { Args: { p_bio: string | null }; Returns: string | null };
       get_trophy_hall: { Args: { p_user: string }; Returns: TrophyHall };
+      get_my_milestone_effort: { Args: Record<string, never>; Returns: MilestoneEffort };
+      /** 🔒 Content insert only — grants no XP, embers or rank (migration 0093). */
+      create_milestone: {
+        Args: {
+          p_kind: MilestoneKind;
+          p_headline: string;
+          p_note?: string | null;
+          p_visibility?: MilestoneVisibility;
+          p_effort_keys?: EffortKey[];
+          p_pinned?: boolean;
+        };
+        Returns: string;
+      };
+      delete_milestone: { Args: { p_id: string }; Returns: undefined };
+      get_milestones: { Args: { p_user: string; p_limit?: number }; Returns: Milestone[] };
+      get_milestone: { Args: { p_id: string }; Returns: MilestoneDetail | null };
+      cheer_milestone: { Args: { p_milestone_id: string }; Returns: number };
       get_public_collection: { Args: { p_user: string }; Returns: PublicCollection };
       set_profile_item_hidden: {
         Args: { p_kind: HideableKind; p_key: string; p_hidden: boolean };
