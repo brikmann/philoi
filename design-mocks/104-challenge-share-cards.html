@@ -1,0 +1,97 @@
+<meta charset="utf-8">
+<title>Mock 104 — challenge / goal share cards</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:26px;display:flex;flex-direction:column;align-items:center;gap:6px}
+h1{font-size:18px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:760px;text-align:center;line-height:1.55;margin:0 auto 18px}
+.row{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.cell{display:flex;flex-direction:column;align-items:center;gap:8px;width:208px}
+.tag{font-size:10.5px;color:#8a7fa6;text-align:center;line-height:1.4}
+.tag b{color:#e7ddf5}
+.card{width:208px;height:370px;border-radius:22px;overflow:hidden;position:relative;
+  background:radial-gradient(120% 55% at 50% 2%,#3a2350,#1a1526 58%,#141019);
+  display:flex;flex-direction:column;align-items:center;padding:20px 16px;border:1px solid rgba(255,255,255,.06)}
+.kick{font-size:9.5px;font-weight:800;letter-spacing:1.8px;color:#F2A33C;text-align:center}
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%}
+.arena{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px}
+.av{width:52px;height:52px;border-radius:50%;border:2.5px solid;display:grid;place-items:center;font-weight:800;font-size:18px;background:#2d2740}
+.av.you{border-color:#F2A33C;color:#FFD27A}.av.them{border-color:#4FB0E5;color:#bfe0f5}
+.vsx{font-size:12px;font-weight:800;color:#6f6685}
+.big{font-size:40px;font-weight:800;letter-spacing:-1px;color:#FFD27A;text-shadow:0 0 18px rgba(255,140,60,.4)}
+.lbl{font-size:12px;color:#c8bcdd;margin-top:6px;text-align:center;font-weight:600}
+.sublbl{font-size:10px;color:#8a7fa6;margin-top:3px}
+/* streak fire */
+.tongue{transform-box:fill-box;transform-origin:50% 100%}
+@keyframes flick{0%,100%{transform:scaleY(.85) rotate(-2deg)}50%{transform:scaleY(1.1) rotate(2deg)}}
+.streaknum{font-size:56px;font-weight:800;color:#FFD27A;line-height:1;margin-top:4px}
+/* footer */
+.foot{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:6px}
+.mark{display:flex;align-items:center;gap:5px}
+.mark svg{width:16px;height:16px}
+.mark .w{font-size:14px;font-weight:800;letter-spacing:-.5px}
+.idrow{display:flex;align-items:center;gap:5px;font-size:9px;color:#a99cbd}
+.idrow b{color:#F2A33C}
+.rankhex{width:15px;height:17px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#2a1608}
+.cap{font-size:11.5px;color:#a99cbd;max-width:720px;text-align:center;line-height:1.5;margin-top:12px}
+.cap b{color:#e7ddf5}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="flg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".55" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFD27A"/></linearGradient>
+  <linearGradient id="fO" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".75" stop-color="#F2A33C"/><stop offset="1" stop-color="#F2A33C" stop-opacity="0"/></linearGradient>
+  <radialGradient id="coalHot" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="#FFD27A"/><stop offset=".45" stop-color="#F2A33C"/><stop offset="1" stop-color="#6e2610"/></radialGradient>
+  <radialGradient id="amb" cx="50%" cy="72%" r="55%"><stop offset="0" stop-color="#E0612C" stop-opacity=".6"/><stop offset="100%" stop-color="#E0612C" stop-opacity="0"/></radialGradient>
+</defs></svg>
+
+<h1>Mock 104 — challenge / goal share cards</h1>
+<p class="sub">Finalises the loop: the "Share to your story" on the reward screens (47 / 103) produces these. Same frame
+as mock 96 — <b>rank-in-hex + philoi.app footer on every one</b>, so a win a friend sees is also an install prompt.</p>
+
+<div class="row">
+
+  <!-- CHALLENGE WIN -->
+  <div class="cell">
+    <div class="card">
+      <div class="kick">⚡ HEAD-TO-HEAD · WON</div>
+      <div class="hero">
+        <div class="arena">
+          <div class="av you">Y</div><div class="vsx">beat</div><div class="av them">N</div>
+        </div>
+        <div class="big">+74 XP</div>
+        <div class="lbl">beat Noah B.</div>
+        <div class="sublbl">Most XP · 3 days</div>
+      </div>
+      <div class="foot"><div class="mark"><svg viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/></svg><span class="w">philoi</span></div><div class="idrow"><span class="rankhex" style="background:#F5C542">I</span> @noah · <b>philoi.app</b></div></div>
+    </div>
+    <div class="tag"><b>challenge-win-share-card</b> · from mock 47 "Share"</div>
+  </div>
+
+  <!-- GOAL STREAK -->
+  <div class="cell">
+    <div class="card">
+      <div class="kick">GOAL STREAK</div>
+      <div class="hero">
+        <svg width="104" height="104" viewBox="0 0 120 120">
+          <ellipse cx="60" cy="86" rx="46" ry="30" fill="url(#amb)"/>
+          <g>
+            <path class="tongue" d="M44 100 C45 82 47 68 49 50 C51 68 53 82 54 100 Z" fill="url(#fO)" style="animation:flick 1s ease-in-out infinite"/>
+            <path class="tongue" d="M64 100 C65 82 67 68 69 50 C71 68 73 82 74 100 Z" fill="url(#fO)" style="animation:flick 1.1s ease-in-out .2s infinite"/>
+            <path class="tongue" d="M52 100 C53 78 56 60 59 34 C62 60 65 78 66 100 Z" fill="url(#fO)" style="animation:flick .85s ease-in-out .1s infinite"/>
+          </g>
+          <g><ellipse cx="47" cy="103" rx="12" ry="6" fill="url(#coalHot)"/><ellipse cx="73" cy="103" rx="12" ry="6" fill="url(#coalHot)"/><ellipse cx="60" cy="106" rx="15" ry="7" fill="url(#coalHot)"/></g>
+        </svg>
+        <div class="streaknum">7</div>
+        <div class="lbl">DAY STREAK</div>
+        <div class="sublbl">10,000 steps — every single day</div>
+      </div>
+      <div class="foot"><div class="mark"><svg viewBox="0 0 24 24"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#flg)"/></svg><span class="w">philoi</span></div><div class="idrow"><span class="rankhex" style="background:#F5C542">I</span> @noah · <b>philoi.app</b></div></div>
+    </div>
+    <div class="tag"><b>goal-streak-share-card</b> · from mock 103 "Share"</div>
+  </div>
+
+</div>
+
+<div class="cap"><b>Challenge / goal share cards (mock 104).</b> Two more triggers for the retention loop (mock 96):
+challenge win (from mock 47) and goal streak (from mock 103). Footer = rank-in-hex + philoi.app on both.</div>

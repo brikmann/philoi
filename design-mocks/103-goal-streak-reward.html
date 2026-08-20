@@ -1,0 +1,104 @@
+<meta charset="utf-8">
+<title>Mock 103 — goal / streak milestone reward (distribution)</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:28px;display:flex;flex-direction:column;align-items:center;gap:8px}
+h1{font-size:18px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:720px;text-align:center;line-height:1.55;margin:0 0 16px}
+.row{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.wrap{display:flex;flex-direction:column;align-items:center;gap:9px}
+.phone{width:320px;height:660px;background:#14111c;border-radius:34px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;background:radial-gradient(120% 55% at 50% 4%,#2c1b36,#161320 60%);border-radius:26px;overflow:hidden;display:flex;flex-direction:column;padding:20px 18px}
+.x{align-self:flex-end;color:#7c7194;font-size:19px}
+.hero{display:flex;flex-direction:column;align-items:center}
+.crest{position:relative;width:120px;height:120px;display:grid;place-items:center;margin-top:2px}
+.ring{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(245,197,66,.5);box-shadow:0 0 26px rgba(242,163,60,.45)}
+.tongue{transform-box:fill-box;transform-origin:50% 100%}
+@keyframes flick{0%,100%{transform:scaleY(.85) rotate(-2deg)}50%{transform:scaleY(1.1) rotate(2deg)}}
+.streaknum{position:absolute;font-size:34px;font-weight:800;color:#FFF6EC;text-shadow:0 2px 8px rgba(80,25,0,.9);z-index:3;transform:translateY(6px)}
+.kick{font-size:10px;font-weight:800;letter-spacing:1.8px;color:#F2A33C;margin-top:12px}
+.head{font-size:22px;font-weight:800;margin-top:6px;text-align:center}
+.sub2{font-size:12px;color:#a99cbd;margin-top:4px;text-align:center}
+/* reward rows */
+.rewards{width:100%;margin-top:20px;display:flex;flex-direction:column;gap:9px}
+.rw{display:flex;align-items:center;gap:11px;background:#1b1726;border:1px solid #2a2440;border-radius:13px;padding:12px}
+.ri{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:none}
+.ri svg{width:22px;height:22px}
+.rlab{flex:1;min-width:0}
+.rl1{font-size:13.5px;font-weight:800}
+.rl2{font-size:10.5px;color:#8a7fa6;margin-top:1px}
+.rval{font-size:17px;font-weight:800;flex:none}
+.rare{font-size:8px;font-weight:800;padding:2px 7px;border-radius:6px;margin-left:6px}
+.dest{font-size:9px;color:#6f6685;font-weight:700}
+.foot{margin-top:auto;display:flex;flex-direction:column;gap:9px}
+.cta{text-align:center;background:linear-gradient(135deg,#F2A33C,#E0612C);color:#3a1608;border-radius:14px;padding:15px;font-size:15px;font-weight:800;box-shadow:0 4px 16px rgba(224,97,44,.4)}
+.share{text-align:center;color:#a99cbd;font-size:13px;font-weight:700;padding:8px}
+.cap{font-size:11.5px;color:#a99cbd;max-width:320px;text-align:center;line-height:1.5}
+.cap b{color:#e7ddf5}
+.brk{width:100%;margin-top:14px;background:#161320;border:1px solid #241c38;border-radius:12px;padding:11px 13px;font-size:10.5px;color:#a99cbd;line-height:1.7}
+.brk b{color:#FFD27A}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="fO" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".75" stop-color="#F2A33C"/><stop offset="1" stop-color="#F2A33C" stop-opacity="0"/></linearGradient>
+  <radialGradient id="coalHot" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="#FFD27A"/><stop offset=".45" stop-color="#F2A33C"/><stop offset="1" stop-color="#6e2610"/></radialGradient>
+  <radialGradient id="amb" cx="50%" cy="72%" r="55%"><stop offset="0" stop-color="#E0612C" stop-opacity=".6"/><stop offset="100%" stop-color="#E0612C" stop-opacity="0"/></radialGradient>
+</defs></svg>
+
+<h1>Mock 103 — goal / streak reward (the distribution)</h1>
+<p class="sub">The missing piece: the payout screen when you clear an <b>ambitious personal goal streak</b> (your "10k steps
+every day for a week"). Shows each reward, the <b>breakdown</b>, and where it's distributed — per CHALLENGE_REWARD_ALGO.</p>
+
+<div class="row">
+
+  <!-- 7-day streak reward -->
+  <div class="wrap">
+    <div class="phone"><div class="stage">
+      <div class="x">✕</div>
+      <div class="hero">
+        <div class="crest">
+          <div class="ring"></div>
+          <svg width="96" height="96" viewBox="0 0 120 120">
+            <ellipse cx="60" cy="86" rx="46" ry="30" fill="url(#amb)"/>
+            <g>
+              <path class="tongue" d="M44 100 C45 82 47 68 49 50 C51 68 53 82 54 100 Z" fill="url(#fO)" style="animation:flick 1s ease-in-out infinite"/>
+              <path class="tongue" d="M64 100 C65 82 67 68 69 50 C71 68 73 82 74 100 Z" fill="url(#fO)" style="animation:flick 1.1s ease-in-out .2s infinite"/>
+              <path class="tongue" d="M52 100 C53 78 56 60 59 34 C62 60 65 78 66 100 Z" fill="url(#fO)" style="animation:flick .85s ease-in-out .1s infinite"/>
+            </g>
+            <g><ellipse cx="47" cy="103" rx="12" ry="6" fill="url(#coalHot)"/><ellipse cx="73" cy="103" rx="12" ry="6" fill="url(#coalHot)"/><ellipse cx="60" cy="106" rx="15" ry="7" fill="url(#coalHot)"/></g>
+          </svg>
+          <div class="streaknum">7</div>
+        </div>
+        <div class="kick">7-DAY GOAL STREAK</div>
+        <div class="head">One week straight, Noah.</div>
+        <div class="sub2">10,000 steps · every single day · 🔥 7</div>
+      </div>
+
+      <div class="rewards">
+        <div class="rw">
+          <span class="ri" style="background:rgba(242,163,60,.16)"><svg viewBox="0 0 24 24"><path d="M12 3c4 3 6 6 6 10a6 6 0 0 1-12 0c0-4 2-7 6-10z" fill="#F2A33C"/></svg></span>
+          <div class="rlab"><div class="rl1">+235 Embers</div><div class="rl2">7 daily drips + the 7-day milestone bonus</div></div>
+          <span class="dest">→ wallet</span>
+        </div>
+        <div class="rw">
+          <span class="ri" style="background:rgba(61,168,92,.16)"><svg viewBox="0 0 24 24" fill="#3DA85C"><path d="M12 2l2.4 5 5.6.5-4.2 3.7 1.3 5.5L12 19l-5.1 2.7 1.3-5.5L4 12.5l5.6-.5z"/></svg></span>
+          <div class="rlab"><div class="rl1">"Firestarter" badge <span class="rare" style="background:rgba(61,168,92,.18);color:#3DA85C">EARNED</span></div><div class="rl2">7-day goal streak · can't be bought</div></div>
+          <span class="dest">→ earned</span>
+        </div>
+      </div>
+
+      <div class="brk">This week: <b>7 × 25</b> daily (ambitious goal) <b>+ 60</b> streak bonus = <b>235 embers</b>.
+        Keep the streak → 14-day banks <b>+150</b>, 30-day <b>+400 &amp; a box</b>.</div>
+
+      <div class="foot"><span class="cta">Collect · +235</span><span class="share">Share to your story</span></div>
+    </div></div>
+    <div class="cap"><b>Goal streak reward (mock 103).</b> Embers → wallet, badge → earned. Transparent breakdown so the
+    payout feels fair. Escalates at 14 / 30 days. Same reward-row language as mock 47.</div>
+  </div>
+
+</div>
+
+<div class="cap" style="max-width:720px;margin-top:12px"><b>Coverage now complete:</b> mock 47 = challenge wins + campfire
+placements; <b>mock 103</b> = personal-goal / streak milestones. Both show the rewards + where they're distributed,
+calibrated to <b>CHALLENGE_REWARD_ALGO.md</b>.</div>

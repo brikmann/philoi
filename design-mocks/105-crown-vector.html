@@ -1,0 +1,93 @@
+<meta charset="utf-8">
+<title>Mock 105 — leaderboard #1 crown vector options</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#161320;color:#FFF6EC;font-family:var(--font);padding:32px;display:flex;flex-direction:column;align-items:center;gap:10px}
+h1{font-size:18px;margin:0}
+.sub{font-size:12.5px;color:#9f92b6;max-width:640px;text-align:center;line-height:1.5;margin:0 0 20px}
+.row{display:flex;gap:40px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.opt{display:flex;flex-direction:column;align-items:center;gap:14px}
+.big{width:120px;height:120px;display:grid;place-items:center;background:#1b1726;border:1px solid #2a2440;border-radius:20px}
+/* #1 avatar in podium context */
+.ctx{position:relative;width:110px;display:flex;flex-direction:column;align-items:center}
+.crown-on{position:absolute;top:-26px;left:50%;transform:translateX(-50%);width:52px;z-index:3}
+.av{width:74px;height:74px;border-radius:50%;border:3px solid #F5C542;background:#2d2740;display:grid;place-items:center;overflow:hidden;position:relative}
+.av .num{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:22px;height:22px;border-radius:50%;background:#F5C542;color:#3a2a00;font-size:12px;font-weight:800;display:grid;place-items:center;border:2px solid #161320}
+.av svg.person{width:52px;height:52px}
+.nm{font-size:12px;font-weight:700;margin-top:12px;color:#FFD27A}
+.lbl{font-size:12px;font-weight:800;color:#e7ddf5}
+.cap{font-size:11px;color:#8a7fa6;text-align:center;max-width:180px;line-height:1.5}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset=".5" stop-color="#F5C542"/><stop offset="1" stop-color="#C79A16"/></linearGradient>
+  <radialGradient id="gem" cx="50%" cy="35%" r="70%"><stop offset="0" stop-color="#FF8A8A"/><stop offset="1" stop-color="#C0392B"/></radialGradient>
+</defs></svg>
+
+<h1>Mock 105 — leaderboard #1 crown</h1>
+<p class="sub">Native vector crowns to replace the 👑 emoji on the podium #1. Same gold as the tier metal. Pick a shape.</p>
+
+<div class="row">
+
+  <!-- OPTION A: 3-peak royal -->
+  <div class="opt">
+    <div class="big">
+      <svg width="72" height="56" viewBox="0 0 48 38">
+        <path d="M5 34 L5 17 L14 23 L24 9 L34 23 L43 17 L43 34 Z" fill="url(#gold)" stroke="#8a6a10" stroke-width="0.6" stroke-linejoin="round"/>
+        <rect x="5" y="30" width="38" height="4.5" fill="#C79A16"/>
+        <circle cx="5" cy="17" r="2.6" fill="url(#gem)"/><circle cx="24" cy="9" r="3" fill="url(#gem)"/><circle cx="43" cy="17" r="2.6" fill="url(#gem)"/>
+        <!-- centre ruby -->
+        <circle cx="24" cy="31.8" r="3.7" fill="url(#gem)" stroke="#7a1f14" stroke-width="0.5"/>
+        <ellipse cx="22.8" cy="30.5" rx="1.4" ry="0.9" fill="#FFC9C9" opacity="0.75"/>
+      </svg>
+    </div>
+    <div class="ctx">
+      <svg class="crown-on" viewBox="0 0 48 38"><path d="M5 34 L5 17 L14 23 L24 9 L34 23 L43 17 L43 34 Z" fill="url(#gold)" stroke="#8a6a10" stroke-width="0.6" stroke-linejoin="round"/><rect x="5" y="30" width="38" height="4.5" fill="#C79A16"/><circle cx="5" cy="17" r="2.6" fill="url(#gem)"/><circle cx="24" cy="9" r="3" fill="url(#gem)"/><circle cx="43" cy="17" r="2.6" fill="url(#gem)"/><circle cx="24" cy="31.8" r="3.7" fill="url(#gem)" stroke="#7a1f14" stroke-width="0.5"/><ellipse cx="22.8" cy="30.5" rx="1.4" ry="0.9" fill="#FFC9C9" opacity="0.75"/></svg>
+      <div class="av"><svg class="person" viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="num">1</div></div>
+      <div class="nm">Noah B. · you</div>
+    </div>
+    <div class="lbl">A · 3-peak royal</div>
+    <div class="cap">Classic king crown — sharp peaks, ruby jewels. Reads instantly as #1.</div>
+  </div>
+
+  <!-- OPTION B: 5-peak ornate -->
+  <div class="opt">
+    <div class="big">
+      <svg width="76" height="56" viewBox="0 0 52 38">
+        <path d="M4 34 L4 17 L12 22 L18 12 L26 8 L34 12 L40 22 L48 17 L48 34 Z" fill="url(#gold)" stroke="#8a6a10" stroke-width="0.6" stroke-linejoin="round"/>
+        <rect x="4" y="30" width="44" height="4.5" fill="#C79A16"/>
+        <circle cx="4" cy="17" r="2.2" fill="url(#gem)"/><circle cx="18" cy="12" r="2.2" fill="url(#gem)"/><circle cx="26" cy="8" r="2.8" fill="url(#gem)"/><circle cx="34" cy="12" r="2.2" fill="url(#gem)"/><circle cx="48" cy="17" r="2.2" fill="url(#gem)"/>
+      </svg>
+    </div>
+    <div class="ctx">
+      <svg class="crown-on" viewBox="0 0 52 38"><path d="M4 34 L4 17 L12 22 L18 12 L26 8 L34 12 L40 22 L48 17 L48 34 Z" fill="url(#gold)" stroke="#8a6a10" stroke-width="0.6" stroke-linejoin="round"/><rect x="4" y="30" width="44" height="4.5" fill="#C79A16"/><circle cx="26" cy="8" r="2.8" fill="url(#gem)"/></svg>
+      <div class="av"><svg class="person" viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="num">1</div></div>
+      <div class="nm">Noah B. · you</div>
+    </div>
+    <div class="lbl">B · 5-peak ornate</div>
+    <div class="cap">More regal, wider. A touch busier at small sizes.</div>
+  </div>
+
+  <!-- OPTION C: rounded soft -->
+  <div class="opt">
+    <div class="big">
+      <svg width="72" height="56" viewBox="0 0 48 38">
+        <path d="M6 33 L6 18 C6 16 8 15 9 17 L15 23 L21 11 C22 9 26 9 27 11 L33 23 L39 17 C40 15 42 16 42 18 L42 33 Z" fill="url(#gold)" stroke="#8a6a10" stroke-width="0.6" stroke-linejoin="round"/>
+        <rect x="6" y="29.5" width="36" height="4.5" fill="#C79A16"/>
+        <circle cx="7.5" cy="17.5" r="2.4" fill="url(#gem)"/><circle cx="24" cy="10.5" r="2.8" fill="url(#gem)"/><circle cx="40.5" cy="17.5" r="2.4" fill="url(#gem)"/>
+      </svg>
+    </div>
+    <div class="ctx">
+      <svg class="crown-on" viewBox="0 0 48 38"><path d="M6 33 L6 18 C6 16 8 15 9 17 L15 23 L21 11 C22 9 26 9 27 11 L33 23 L39 17 C40 15 42 16 42 18 L42 33 Z" fill="url(#gold)" stroke="#8a6a10" stroke-width="0.6" stroke-linejoin="round"/><rect x="6" y="29.5" width="36" height="4.5" fill="#C79A16"/><circle cx="24" cy="10.5" r="2.8" fill="url(#gem)"/></svg>
+      <div class="av"><svg class="person" viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="num">1</div></div>
+      <div class="nm">Noah B. · you</div>
+    </div>
+    <div class="lbl">C · rounded soft</div>
+    <div class="cap">Softer, rounded peaks — friendlier, matches the app's rounded UI.</div>
+  </div>
+
+</div>
+
+<div class="cap" style="max-width:640px;margin-top:16px;color:#a99cbd">Same gold as the podium pillars; ruby jewels for pop
+(could also be ember-orange gems to stay mono-brand). Shown standalone + seated on the #1 avatar.</div>
