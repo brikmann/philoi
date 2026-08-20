@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { HexagonBadge } from '@/components/hexagon-badge';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { getUniversityCrest } from '@/lib/university-crests';
 import type { RankTierName } from '@/types/database';
 
