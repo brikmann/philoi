@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
@@ -76,6 +76,38 @@ export function auraTierForMinutes(minutes: number | null | undefined): AuraTier
   if (minutes >= 60) return 2;
   if (minutes >= 30) return 1;
   return 0;
+}
+
+/**
+ * The live tier for a running session, recomputed as it crosses each threshold.
+ *
+ * A HOOK rather than `auraTierForMinutes(Date.now() - startedAt)` inline, for two reasons. The
+ * inline version reads the clock during render, which is impure — and more importantly it is
+ * computed once and never again, so an aura would be stuck at whatever tier it had when the screen
+ * mounted and would never actually ramp. The whole point of 30/60/90 is that it escalates while
+ * you watch.
+ *
+ * Ticks once a minute. The thresholds are minutes apart, so anything finer would be re-rendering a
+ * profile card sixty times for each change it can possibly produce.
+ */
+export function useAuraTier(startedAt: Date | null | undefined): AuraTier {
+  // A ticking TIMESTAMP in state, with the tier derived from it during render — rather than the
+  // tier itself in state, set from inside the effect. Both lint rules point the same way here:
+  // reading the clock during render is impure, and setting state synchronously in an effect body
+  // cascades renders. A lazily-initialised `now` is neither, and the derivation below is pure.
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!startedAt) return;
+    // setState inside the interval callback is asynchronous, which is the shape the rule wants.
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+
+  if (!startedAt) return 0;
+  // `now` can be up to a minute stale right after a session starts, which costs nothing: the first
+  // threshold is 30 minutes away, so the tier is 0 either way until long after the first tick.
+  return auraTierForMinutes((now - startedAt.getTime()) / 60000);
 }
 
 /** Extra opacity and spread the tier adds. Kept small — this sits behind a person's name. */

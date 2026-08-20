@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenBackground } from '@/components/ui/screen-background';
 
-import { EquippedAvatarHalo, EquippedCardBackdrop, auraTierForMinutes } from '@/components/economy/applied-art';
+import { EquippedAvatarHalo, EquippedCardBackdrop, useAuraTier } from '@/components/economy/applied-art';
 import { EquippedTitle } from '@/components/economy/loadout-bits';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { useActiveSession } from '@/lib/active-session-context';
@@ -64,9 +64,7 @@ export default function ProfileScreen() {
   // right now, and there is no live-session feed for anyone else. A visitor seeing someone's
   // cosmetic at rest is honest; inventing a tier for them would not be.
   const { session: activeSession } = useActiveSession();
-  const auraTier = isOwn && activeSession
-    ? auraTierForMinutes((Date.now() - activeSession.startedAt.getTime()) / 60000)
-    : 0;
+  const auraTier = useAuraTier(isOwn ? activeSession?.startedAt : null);
 
   const [otherProfile, setOtherProfile] = useState<Profile | null>(null);
   const [otherRank, setOtherRank] = useState<UserRank | null>(null);
