@@ -174,10 +174,9 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
           {total > 0 && !tied ? '🔥 ' : ''}{leadText}
         </Text>
 
-        <View style={styles.footRow}>
-          <Ionicons name="trophy" size={12} color={Colors.achieverText} />
-          <Text style={styles.footText}>Winner +{c.payout_xp} XP</Text>
-        </View>
+        {/* No "Winner +N XP" row here any more (mock 102 v2): the browse surface stays avatars +
+            bar + lead + clock, and every reward/rule moved to the Challenge info screen. The
+            RESULT line below stays — once it is over, what you won is the news, not clutter. */}
 
         {c.status === 'completed' && (
           <View style={styles.resultRow}>
@@ -245,7 +244,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
 
       <View style={styles.footRow}>
         <Ionicons name="trophy" size={12} color={Colors.achieverText} />
-        <Text style={styles.footText}>Up to +{c.payout_xp} XP each — more for top finishers — if everyone finishes</Text>
+        <Text style={styles.footText}>Everyone who finishes scores</Text>
       </View>
 
       {manageOpen && (

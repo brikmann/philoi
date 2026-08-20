@@ -74,13 +74,16 @@ type ChallengeCardProps = {
    * shows the plain burst in that case rather than an empty reward screen. */
   onLogged: (justCompleted: boolean, award: GoalDayAward | null, goalLabel: string) => void;
   onDeleted: () => void;
+  /** Opens the Goal info screen (mock 102 v2), where the target, source, reset and reward rules
+   * live now that the card itself stays minimal. */
+  onInfo?: () => void;
 };
 
 // An individual goal (design-mocks/73B). The old card stacked 🔗 / ✅ / 🏆 into the corner and
 // made you decode three glyphs; this reads straight left→right — icon, name, cadence — then one
 // sub-line saying only how it's tracked, one bar, and ONE status. No campfire binding anywhere:
 // a goal is the user's own (migration 0059), and sharing the work is a per-lock-in choice.
-export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDeleted }: ChallengeCardProps) {
+export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDeleted, onInfo }: ChallengeCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [amount, setAmount] = useState('');
   const [logging, setLogging] = useState(false);
@@ -124,7 +127,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
 
   return (
     <Card style={styles.card}>
-      <Pressable onLongPress={handleDelete} style={styles.header}>
+      <Pressable onPress={onInfo} onLongPress={handleDelete} style={styles.header}>
         <View style={styles.iconTile}>
           <Ionicons name={CHALLENGE_TYPE_ICON[challenge.type]} size={18} color={Colors.ember} />
         </View>

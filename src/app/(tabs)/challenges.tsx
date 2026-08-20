@@ -22,6 +22,36 @@ import { deleteChallenge, type GoalDayAward } from '@/lib/api/challenges';
 import { shareCardImage } from '@/lib/share-card';
 import type { Challenge } from '@/types/database';
 
+/** Mock 102's `.tab` — a count badge only when there is something to count, so an empty side
+ * reads as calm rather than as a zero someone has to interpret. */
+function TabPill({
+  label,
+  count,
+  active,
+  onPress,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.tab, active && styles.tabOn]}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={count > 0 ? `${label}, ${count}` : label}>
+      <Text style={[styles.tabText, active && styles.tabTextOn]}>{label}</Text>
+      {count > 0 ? (
+        <View style={[styles.tabCount, active && styles.tabCountOn]}>
+          <Text style={[styles.tabCountText, active && styles.tabCountTextOn]}>{count}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
 export default function ChallengesScreen() {
   const router = useRouter();
   const { session, profile } = useAuth();
@@ -51,6 +81,9 @@ export default function ChallengesScreen() {
   const [goalAward, setGoalAward] = useState<{ award: GoalDayAward; goalLabel: string } | null>(null);
   const goalCardRef = useRef<View>(null);
   const [sharingGoal, setSharingGoal] = useState(false);
+  // Which half of the tab is showing (mock 102 v2). Defaults to Friends: an incoming duel is the
+  // most time-sensitive thing here — a personal goal is still there tomorrow, an invite expires.
+  const [tab, setTab] = useState<'friends' | 'personal'>('friends');
 
   // RewardBurst only mounts once `celebrating` flips true (conditional render below) — an
   // already-mounted burst can just be fired again directly, but the very first completion
@@ -202,7 +235,7 @@ export default function ChallengesScreen() {
       ) : (
         <FlatList
           style={styles.list}
-          data={sections}
+          data={tab === 'personal' ? sections : []}
           keyExtractor={(item: Challenge) => item.id}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -220,26 +253,67 @@ export default function ChallengesScreen() {
               <PrimaryButton label="Start a challenge" onPress={() => router.push('/challenge/create')} />
               {error && <Text style={styles.error}>{error}</Text>}
 
-              {liveSocial.length > 0 && (
-                <View style={styles.socialList}>
-                  {liveSocial.map((c) => {
-                    // A pending invite's own Accept/Decline buttons are the only tap targets on
-                    // that card — wrapping it would swallow them.
-                    const watchable = c.status === 'active';
-                    return (
-                      <Pressable key={c.id} onPress={watchable ? () => goWatch(c.id, c.mode) : undefined}>
-                        <SocialChallengeCard challenge={c} myUserId={session?.user.id ?? ''} onChanged={refetchSocial} />
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
+              {/* Friends | Personal (mock 102 v2). The two lists were stacked in one scroll, so a
+                  few duels pushed personal goals off-screen and neither read as a place. Counts
+                  live in the tab so the other side can say it has something waiting without being
+                  visible. */}
+              <View style={styles.tabs}>
+                <TabPill
+                  label="Friends"
+                  count={liveSocial.length}
+                  active={tab === 'friends'}
+                  onPress={() => setTab('friends')}
+                />
+                <TabPill
+                  label="Personal"
+                  count={sections.length}
+                  active={tab === 'personal'}
+                  onPress={() => setTab('personal')}
+                />
+              </View>
 
-              {sections.length > 0 && <Text style={styles.sectionLabel}>Personal goals</Text>}
+              {tab === 'friends' ? (
+                liveSocial.length > 0 ? (
+                  <View style={styles.socialList}>
+                    {liveSocial.map((c) => {
+                      // A pending invite's own Accept/Decline buttons are the only tap targets on
+                      // that card — wrapping it would swallow them.
+                      const watchable = c.status === 'active';
+                      return (
+                        <Pressable
+                          key={c.id}
+                          onPress={
+                            watchable
+                              ? () =>
+                                  router.push({
+                                    pathname: '/challenge-info/[challengeId]',
+                                    params: { challengeId: c.id },
+                                  })
+                              : undefined
+                          }>
+                          <SocialChallengeCard challenge={c} myUserId={session?.user.id ?? ''} onChanged={refetchSocial} />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <Text style={styles.tabEmpty}>No live challenges with friends.</Text>
+                )
+              ) : sections.length === 0 ? (
+                <Text style={styles.tabEmpty}>No personal goals yet.</Text>
+              ) : null}
             </View>
           }
           renderItem={({ item }) => (
-            <ChallengeCard challenge={item} autoConnected={fitnessConnected} onLogged={handleLogged} onDeleted={() => handleDelete(item.id)} />
+            <ChallengeCard
+              challenge={item}
+              autoConnected={fitnessConnected}
+              onLogged={handleLogged}
+              onDeleted={() => handleDelete(item.id)}
+              onInfo={() =>
+                router.push({ pathname: '/challenge-info/[challengeId]', params: { challengeId: item.id, kind: 'goal' } })
+              }
+            />
           )}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
         />
@@ -251,6 +325,56 @@ export default function ChallengesScreen() {
 }
 
 const styles = StyleSheet.create({
+  tabs: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    marginTop: Spacing.three,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    borderRadius: 11,
+    backgroundColor: Colors.achieverBg,
+  },
+  tabOn: {
+    backgroundColor: Colors.coral,
+  },
+  tabText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+    color: Colors.muted,
+  },
+  tabTextOn: {
+    color: Colors.ink,
+  },
+  tabCount: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    backgroundColor: Colors.disabled,
+  },
+  tabCountOn: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  tabCountText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9,
+    color: Colors.muted,
+  },
+  tabCountTextOn: {
+    color: Colors.ink,
+  },
+  tabEmpty: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.muted,
+    textAlign: 'center',
+    marginTop: Spacing.four,
+  },
   // Covers the tab while the payout is up. Matches the rank-up watcher: the moment fires from
   // wherever the user was, so it takes the screen rather than becoming a route to swipe back into.
   rewardOverlay: {
