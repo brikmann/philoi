@@ -85,8 +85,17 @@ export async function setMyWatchOptIn(enabled: boolean): Promise<void> {
 }
 
 // The Watch screen's Cheer action (§16) — H2H only, a live shared count both spectators see.
-export async function cheerChallenge(challengeId: string, forUserId: string): Promise<void> {
-  const { error } = await supabase.rpc('cheer_challenge', { p_challenge_id: challengeId, p_for_user_id: forUserId });
+//
+// Capped at one per spectator per challenge server-side (0081). Returns the AUTHORITATIVE count
+// for the side that was cheered: the screen used to hold a local optimistic delta and add it to
+// the polled server count, which double-counted as soon as the poll caught up and dropped back
+// when the delta reset — the "7 → 0" the punchlist reports.
+export async function cheerChallenge(challengeId: string, forUserId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('cheer_challenge', {
+    p_challenge_id: challengeId,
+    p_for_user_id: forUserId,
+  });
   if (error) throw error;
   track('challenge_watch_cheered', { challenge_id: challengeId, for_user_id: forUserId });
+  return typeof data === 'number' ? data : 0;
 }

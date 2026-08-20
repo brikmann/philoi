@@ -19,11 +19,54 @@ function ScoreValue({ score, raceMetric }: { score: number; raceMetric: string }
   return <Text style={styles.score}>{Math.round(score)}{raceMetric === 'lockin_time' ? 's' : ' XP'}</Text>;
 }
 
+/**
+ * One side's cheer control. `mine` marks the side this viewer backed — with one cheer per
+ * challenge the count alone can't say who you're behind, and that is the fact the button exists
+ * to record. Disabled renders as a plain count rather than a dead button, so a settled challenge
+ * or a spent cheer reads as information instead of something broken.
+ */
+function CheerButton({
+  count,
+  mine,
+  disabled,
+  isFinal,
+  onPress,
+}: {
+  count: number;
+  mine: boolean;
+  disabled: boolean;
+  isFinal: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[styles.cheerBtn, mine && styles.cheerBtnMine, disabled && styles.cheerBtnDisabled]}
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled, selected: mine }}
+      accessibilityLabel={mine ? `You cheered this side · ${count} cheers` : `Cheer · ${count}`}>
+      <Ionicons
+        name={mine ? 'megaphone' : 'megaphone-outline'}
+        size={14}
+        color={mine ? Colors.ember : disabled ? Colors.textTertiary : Colors.ember}
+      />
+      <Text style={[styles.cheerText, disabled && !mine && styles.cheerTextDisabled]}>
+        {isFinal ? `${count}` : mine ? `Cheered · ${count}` : `Cheer · ${count}`}
+      </Text>
+    </Pressable>
+  );
+}
+
 function H2HWatch({ challengeId }: { challengeId: string }) {
   const { session } = useAuth();
   const { watch, loading, error } = useChallengeWatch(challengeId);
   const [cheering, setCheering] = useState<string | null>(null);
-  const [localCheers, setLocalCheers] = useState<{ created_by?: number; opponent?: number }>({});
+  // The server's count for whichever side this viewer cheered, held only until the next poll
+  // catches up. NOT a delta added on top of the polled value — that was the old shape, and it
+  // double-counted the moment the poll included the cheer, then dropped when the delta reset
+  // (the "7 → 0"). An absolute value can only ever be right or briefly stale.
+  const [cheeredCount, setCheeredCount] = useState<{ side: 'created_by' | 'opponent'; count: number } | null>(null);
 
   if (loading && !watch) {
     return (
@@ -39,11 +82,13 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
   async function handleCheer(forUserId: string, side: 'created_by' | 'opponent') {
     if (cheering) return;
     setCheering(forUserId);
-    setLocalCheers((c) => ({ ...c, [side]: (c[side] ?? 0) + 1 }));
     try {
-      await cheerChallenge(challengeId, forUserId);
+      const count = await cheerChallenge(challengeId, forUserId);
+      setCheeredCount({ side, count });
     } catch {
-      setLocalCheers((c) => ({ ...c, [side]: (c[side] ?? 1) - 1 }));
+      // Server refused (already cheered, challenge settled, or competing in it). The button is
+      // disabled in all three cases, so this is a stale screen — the next poll corrects it, and
+      // inventing a local number here is what caused the count to disagree with the server.
     } finally {
       setCheering(null);
     }
@@ -53,9 +98,22 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
   const oppScore = watch.opponent_score ?? 0;
   const total = myScore + oppScore;
   const creatorShare = total > 0 ? myScore / total : 0.5;
-  const creatorCheers = watch.created_by_cheers + (localCheers.created_by ?? 0);
-  const opponentCheers = (watch.opponent_cheers ?? 0) + (localCheers.opponent ?? 0);
+  const creatorCheers = cheeredCount?.side === 'created_by' ? cheeredCount.count : watch.created_by_cheers;
+  const opponentCheers = cheeredCount?.side === 'opponent' ? cheeredCount.count : watch.opponent_cheers ?? 0;
   const isCreator = session?.user.id === watch.created_by;
+
+  // Read-only once settled (CHALLENGE_UI_SPEC §58) — the RPC also refuses a late cheer, this just
+  // stops the screen offering an action that cannot succeed.
+  const isFinal = watch.status !== 'active';
+  // A competitor can't cheer their own duel, and everyone gets exactly one cheer per challenge.
+  const isCompetitor = session?.user.id === watch.created_by || session?.user.id === watch.opponent_id;
+  const spentCheer = watch.has_cheered || cheeredCount !== null;
+  const cheerDisabled = Boolean(cheering) || isFinal || isCompetitor || spentCheer;
+  const cheeredFor = cheeredCount
+    ? cheeredCount.side === 'created_by'
+      ? watch.created_by
+      : watch.opponent_id
+    : watch.cheered_for;
 
   return (
     <View style={styles.container}>
@@ -95,17 +153,25 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
       </View>
 
       <View style={styles.cheerRow}>
-        <Pressable style={styles.cheerBtn} onPress={() => handleCheer(watch.created_by, 'created_by')} disabled={Boolean(cheering)}>
-          <Ionicons name="megaphone" size={14} color={Colors.ember} />
-          <Text style={styles.cheerText}>Cheer · {creatorCheers}</Text>
-        </Pressable>
+        <CheerButton
+          count={creatorCheers}
+          mine={cheeredFor === watch.created_by}
+          disabled={cheerDisabled}
+          isFinal={isFinal}
+          onPress={() => handleCheer(watch.created_by, 'created_by')}
+        />
         {watch.opponent_id && (
-          <Pressable style={styles.cheerBtn} onPress={() => handleCheer(watch.opponent_id!, 'opponent')} disabled={Boolean(cheering)}>
-            <Ionicons name="megaphone" size={14} color={Colors.ember} />
-            <Text style={styles.cheerText}>Cheer · {opponentCheers}</Text>
-          </Pressable>
+          <CheerButton
+            count={opponentCheers}
+            mine={cheeredFor === watch.opponent_id}
+            disabled={cheerDisabled}
+            isFinal={isFinal}
+            onPress={() => handleCheer(watch.opponent_id!, 'opponent')}
+          />
         )}
       </View>
+
+      {isFinal && <Text style={styles.finalNote}>Final · this challenge has ended</Text>}
     </View>
   );
 }
@@ -270,10 +336,32 @@ const styles = StyleSheet.create({
     borderRadius: Radius.button,
     paddingVertical: Spacing.two,
   },
+  // The side this viewer backed: an ember rim, so "who am I behind" is legible at a glance rather
+  // than inferable only from which count moved.
+  cheerBtnMine: {
+    borderWidth: 1,
+    borderColor: Colors.ember,
+  },
+  // Spent / settled / competing. Kept fully opaque — this is still a readable count, and dimming
+  // it to 0.4 would make the number itself hard to read for the rest of the challenge.
+  cheerBtnDisabled: {
+    backgroundColor: Colors.disabled,
+  },
   cheerText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ember,
+  },
+  cheerTextDisabled: {
+    color: Colors.textTertiary,
+  },
+  finalNote: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    marginTop: Spacing.two,
+    letterSpacing: 0.3,
   },
   groupList: {
     gap: 2,

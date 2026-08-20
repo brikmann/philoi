@@ -672,6 +672,8 @@ export type ChallengeWatch = {
   window_hours: number;
   starts_at: string;
   ends_at: string | null;
+  /** 'active' | 'completed' | … — the watch screen renders read-only once this leaves 'active'. */
+  status: string;
   created_by: string;
   created_by_name: string;
   created_by_score: number;
@@ -682,6 +684,10 @@ export type ChallengeWatch = {
   opponent_score: number | null;
   opponent_live_status: string | null;
   opponent_cheers: number | null;
+  /** One cheer per spectator per challenge — true once this viewer has spent theirs. */
+  has_cheered: boolean;
+  /** Which competitor they backed, so the cheered side can be marked. */
+  cheered_for: string | null;
 };
 
 /** get_group_challenge_watch() — one row per member of the group challenge's campfire (§16). */
