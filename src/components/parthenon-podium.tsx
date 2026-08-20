@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { HexagonBadge } from '@/components/hexagon-badge';
+import { Crown } from '@/components/ui/crown';
 import { Colors, Fonts } from '@/constants/theme';
 import { getUniversityCrest } from '@/lib/university-crests';
 import type { RankTierName } from '@/types/database';
@@ -161,7 +162,11 @@ function PodiumColumn({ item, position, isFirst }: { item: PodiumItem; position:
           clip + metal ring lives one level in, and only for a PERSON — a university keeps its
           rounded-square crest. */}
       <View style={[styles.apex, { width: avatarSize, height: avatarSize }]}>
-        {isFirst && <Text style={styles.crown}>👑</Text>}
+        {isFirst && (
+          <View style={styles.crown}>
+            <Crown size={28} />
+          </View>
+        )}
         {item.kind === 'person' ? (
           <View
             style={[
@@ -257,8 +262,10 @@ const styles = StyleSheet.create({
   },
   crown: {
     position: 'absolute',
-    top: -26,
-    fontSize: 18,
+    // -30 not -26: the vector is 28 wide (~22 tall) against the emoji's 18px line box, so it needs
+    // the extra clearance to sit ON the avatar's rim rather than overlapping into it.
+    top: -30,
+    alignItems: 'center',
   },
   avatarClip: {
     borderRadius: 999,

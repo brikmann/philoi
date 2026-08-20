@@ -23,6 +23,9 @@ h1{font-size:18px;margin:0}
 <svg width="0" height="0" style="position:absolute"><defs>
   <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset=".5" stop-color="#F5C542"/><stop offset="1" stop-color="#C79A16"/></linearGradient>
   <radialGradient id="gem" cx="50%" cy="35%" r="70%"><stop offset="0" stop-color="#FF8A8A"/><stop offset="1" stop-color="#C0392B"/></radialGradient>
+  <linearGradient id="ruby" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF5A72"/><stop offset=".45" stop-color="#C41E3A"/><stop offset="1" stop-color="#7a0f1e"/></linearGradient>
+  <linearGradient id="sapphire" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6BA8FF"/><stop offset=".5" stop-color="#2E5BC0"/><stop offset="1" stop-color="#16307a"/></linearGradient>
+  <linearGradient id="emerald" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6FE0A0"/><stop offset=".5" stop-color="#1FA05A"/><stop offset="1" stop-color="#0d5e33"/></linearGradient>
 </defs></svg>
 
 <h1>Mock 105 — leaderboard #1 crown</h1>
@@ -37,13 +40,17 @@ h1{font-size:18px;margin:0}
         <path d="M5 34 L5 17 L14 23 L24 9 L34 23 L43 17 L43 34 Z" fill="url(#gold)" stroke="#8a6a10" stroke-width="0.6" stroke-linejoin="round"/>
         <rect x="5" y="30" width="38" height="4.5" fill="#C79A16"/>
         <circle cx="5" cy="17" r="2.6" fill="url(#gem)"/><circle cx="24" cy="9" r="3" fill="url(#gem)"/><circle cx="43" cy="17" r="2.6" fill="url(#gem)"/>
-        <!-- centre ruby -->
-        <circle cx="24" cy="31.8" r="3.7" fill="url(#gem)" stroke="#7a1f14" stroke-width="0.5"/>
-        <ellipse cx="22.8" cy="30.5" rx="1.4" ry="0.9" fill="#FFC9C9" opacity="0.75"/>
+        <!-- centre ruby: elongated hexagon cut, dead-centre (24,21.5) -->
+        <path d="M24 17.4 L26.4 19.6 L26.4 23.4 L24 25.6 L21.6 23.4 L21.6 19.6 Z" fill="url(#ruby)" stroke="#5e0c18" stroke-width="0.4" stroke-linejoin="round"/>
+        <path d="M24 17.4 L26.4 19.6 L24 20.9 L21.6 19.6 Z" fill="#FF8397" opacity="0.6"/>
+        <path d="M21.6 19.6 L26.4 19.6 M24 20.9 L24 25.6 M21.6 23.4 L24 20.9 L26.4 23.4" stroke="#7a0f1e" stroke-width="0.3" fill="none" opacity="0.55"/>
+        <!-- side stones: sapphire (L) + emerald (R) -->
+        <circle cx="15.5" cy="24.5" r="2.3" fill="url(#sapphire)" stroke="#12245e" stroke-width="0.4"/><ellipse cx="14.7" cy="23.6" rx=".8" ry=".5" fill="#CFE2FF" opacity=".7"/>
+        <circle cx="32.5" cy="24.5" r="2.3" fill="url(#emerald)" stroke="#0b4a2a" stroke-width="0.4"/><ellipse cx="31.7" cy="23.6" rx=".8" ry=".5" fill="#CFF7E0" opacity=".7"/>
       </svg>
     </div>
     <div class="ctx">
-      <svg class="crown-on" viewBox="0 0 48 38"><path d="M5 34 L5 17 L14 23 L24 9 L34 23 L43 17 L43 34 Z" fill="url(#gold)" stroke="#8a6a10" stroke-width="0.6" stroke-linejoin="round"/><rect x="5" y="30" width="38" height="4.5" fill="#C79A16"/><circle cx="5" cy="17" r="2.6" fill="url(#gem)"/><circle cx="24" cy="9" r="3" fill="url(#gem)"/><circle cx="43" cy="17" r="2.6" fill="url(#gem)"/><circle cx="24" cy="31.8" r="3.7" fill="url(#gem)" stroke="#7a1f14" stroke-width="0.5"/><ellipse cx="22.8" cy="30.5" rx="1.4" ry="0.9" fill="#FFC9C9" opacity="0.75"/></svg>
+      <svg class="crown-on" viewBox="0 0 48 38"><path d="M5 34 L5 17 L14 23 L24 9 L34 23 L43 17 L43 34 Z" fill="url(#gold)" stroke="#8a6a10" stroke-width="0.6" stroke-linejoin="round"/><rect x="5" y="30" width="38" height="4.5" fill="#C79A16"/><circle cx="5" cy="17" r="2.6" fill="url(#gem)"/><circle cx="24" cy="9" r="3" fill="url(#gem)"/><circle cx="43" cy="17" r="2.6" fill="url(#gem)"/><path d="M24 17.4 L26.4 19.6 L26.4 23.4 L24 25.6 L21.6 23.4 L21.6 19.6 Z" fill="url(#ruby)" stroke="#5e0c18" stroke-width="0.4" stroke-linejoin="round"/><path d="M24 17.4 L26.4 19.6 L24 20.9 L21.6 19.6 Z" fill="#FF8397" opacity="0.6"/><path d="M21.6 19.6 L26.4 19.6 M24 20.9 L24 25.6 M21.6 23.4 L24 20.9 L26.4 23.4" stroke="#7a0f1e" stroke-width="0.3" fill="none" opacity="0.55"/><circle cx="15.5" cy="24.5" r="2.3" fill="url(#sapphire)" stroke="#12245e" stroke-width="0.4"/><ellipse cx="14.7" cy="23.6" rx=".8" ry=".5" fill="#CFE2FF" opacity=".7"/><circle cx="32.5" cy="24.5" r="2.3" fill="url(#emerald)" stroke="#0b4a2a" stroke-width="0.4"/><ellipse cx="31.7" cy="23.6" rx=".8" ry=".5" fill="#CFF7E0" opacity=".7"/></svg>
       <div class="av"><svg class="person" viewBox="0 0 24 24"><circle cx="12" cy="9" r="4" fill="#4a4460"/><path d="M4 22a8 7 0 0 1 16 0Z" fill="#4a4460"/></svg><div class="num">1</div></div>
       <div class="nm">Noah B. · you</div>
     </div>

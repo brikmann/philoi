@@ -6,6 +6,7 @@ import { signOutGoogle } from '@/lib/auth/providers';
 import { configureBilling, resetBilling } from '@/lib/billing';
 import { getErrorMessage } from '@/lib/errors';
 import { unregisterPushToken } from '@/lib/notifications';
+import { clearLastSeenRank } from '@/lib/rank-watch';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/types/database';
 
@@ -170,6 +171,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // {school}" panel survived into the next session.
       setSession(null);
       setProfile(null);
+      // Drop the rank baseline with the account (punchlist A1). This is what stops the rank-up
+      // forge replaying on the NEXT sign-in: with no baseline, RankUpWatcher's first check
+      // records where the user is and celebrates nothing. Deliberately done here rather than by
+      // suppressing the watcher's first check — the watcher mounts at the root before auth
+      // resolves, so every cold start looks identical to a sign-in from its side, and gating on
+      // that would also have deleted the Strava/Whoop celebration punchlist 5.6 exists to
+      // provide (a rank earned by webhook while the app was closed has no done screen to fire
+      // from). Sign-out is the one moment we can name a login unambiguously.
+      if (userId) await clearLastSeenRank(userId);
       if (userId) await unregisterPushToken(userId);
       // Same reason as the Google sign-out below: RevenueCat caches the identified user, so on a
       // shared device the next person to sign in would inherit this account's Forge Pass

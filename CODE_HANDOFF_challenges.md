@@ -19,7 +19,10 @@ edit the mocks/specs — flag disagreements in chat.
 ## A. Bugs
 1. **Sign-in replays the rank-up animation** → gate the rank-up trigger to a **live** rank increase during a session;
    never on login / initial hydrate (it's comparing loaded rank vs an empty baseline).
-2. **Leaderboard #1 crown is an emoji (👑)** → native **vector crown** (SVG, gold).
+2. **Leaderboard #1 crown is an emoji (👑)** → build the **exact vector crown from `design-mocks/105-crown-vector.html`
+   (Option A)**: gold 3-peak crown (same gold as the podium pillars), **elongated-hex ruby dead-centre** (midpoint of
+   peak↔band), flanked by a **sapphire (L) + emerald (R)** side stone, ruby accents on the three peaks. Seat it on the
+   #1 podium avatar as in the mock. No emoji.
 3. 🔴 **Personal goals (steps etc.) broken:** raw shoe emoji icon → vector; **not tracked** (0/10,000) → wire to the
    source (Health steps / lock-in time); **no reward** → grant per §B; "Resets midnight **UTC**" → **user-local**.
 4. **Watch screen:** poor header → ember header; **Cheer unlimited-click** → rate-limit (one per user per challenge
@@ -46,7 +49,11 @@ Implement per `CHALLENGE_REWARD_ALGO.md` + `REWARD_ECONOMY.md §3`:
   text on cards.**
 - **Challenge info screen** (new) holds rules + rewards: type · race · duration · winner reward · tiebreak · watching;
   **goal variant** = target · source · reset · reward · goal streak.
-- **Home:** an active challenge shows a **proper card that supersedes the daily fire** (not the tiny chip).
+- **Home:** an active challenge shows a **proper card that supersedes the daily fire** (not the tiny chip) — mock 106.
+- **Surfacing / notifications (mock 106, spec §D):** Challenges-tab **badge** + header **bell** carry the pending count
+  (invites + results to collect); **push** on the key events (challenged · accepted · passed · ending-soon · won/lost ·
+  goal-at-risk), each deep-linking to the right screen (accept sheet / watch / **reward arc mock 47**). Respect OS
+  permission + settings toggles; rate-limit + batch.
 
 ## D. Reward screens (wire — they exist, unwired)
 - **Challenge win / campfire placement → mock 47.** Fire on challenge close; rows = XP + embers + box(open) + badge;

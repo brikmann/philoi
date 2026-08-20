@@ -11,13 +11,24 @@ import type { RankTierName } from '@/types/database';
 // Persisted rather than held in memory because the whole point is to detect a change that
 // happened while the app wasn't looking; an in-memory baseline resets on every cold start and
 // would either re-fire endlessly or never fire.
-const LAST_SEEN_RANK_KEY = 'philoi_last_seen_rank';
+//
+// PER USER (punchlist A1). This used to be one global key that sign-out never cleared, so the
+// baseline outlived the account that wrote it: sign out, sign in as anyone else, and that second
+// account's rank was compared against the first account's baseline. Any upward difference read as
+// a promotion and fired a full-screen forge on login — the "sign-in replays the rank-up animation"
+// bug. Keying by user id makes cross-account comparison structurally impossible, and a fresh
+// account simply has no baseline, which the watcher already handles by recording silently.
+//
+// SecureStore keys allow alphanumerics, '.', '-' and '_', so a UUID appends cleanly.
+const LAST_SEEN_RANK_PREFIX = 'philoi_last_seen_rank_';
+
+const rankKey = (userId: string) => `${LAST_SEEN_RANK_PREFIX}${userId}`;
 
 export type SeenRank = { tier: RankTierName; division: number };
 
-export async function readLastSeenRank(): Promise<SeenRank | null> {
+export async function readLastSeenRank(userId: string): Promise<SeenRank | null> {
   try {
-    const raw = await SecureStore.getItemAsync(LAST_SEEN_RANK_KEY);
+    const raw = await SecureStore.getItemAsync(rankKey(userId));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SeenRank;
     // Guard the shape: a partially-written or older-format value must read as "no baseline"
@@ -37,11 +48,25 @@ export async function readLastSeenRank(): Promise<SeenRank | null> {
   }
 }
 
-export async function writeLastSeenRank(rank: SeenRank): Promise<void> {
+export async function writeLastSeenRank(userId: string, rank: SeenRank): Promise<void> {
   try {
-    await SecureStore.setItemAsync(LAST_SEEN_RANK_KEY, JSON.stringify({ tier: rank.tier, division: rank.division }));
+    await SecureStore.setItemAsync(
+      rankKey(userId),
+      JSON.stringify({ tier: rank.tier, division: rank.division })
+    );
   } catch {
     // A failed write only costs a possible repeat celebration later — never worth surfacing.
+  }
+}
+
+/** Drop a user's baseline. Not needed to prevent cross-account bleed — the key is per user — but
+ * sign-out is the right moment to stop holding rank data for an account that just left the
+ * device, and it keeps a shared phone from accumulating a key per person who ever signed in. */
+export async function clearLastSeenRank(userId: string): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(rankKey(userId));
+  } catch {
+    // Best effort — a surviving key is only ever read by this same user id.
   }
 }
 

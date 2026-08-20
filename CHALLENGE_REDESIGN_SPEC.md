@@ -70,3 +70,22 @@ algorithm**, and the **viewing redesign**. Answers to "do we have X in stock" up
 
 **New mocks to build:** (1) challenges tab with Personal/Friends tabs + redesigned VS card + personal-goal rows,
 (2) the Home "active challenge" card, (3) the refreshed Watch screen. **Reuse mock 47** for the result arc.
+
+## D. Notifications & surfacing (mock 106)
+How a challenge makes itself known. Three in-app surfaces + push.
+- **Home active-challenge card** — when a challenge is live, a prominent card **above the daily-fire hero** (mini VS +
+  lead bar + time + "tap to watch"). Supersedes the daily fire while active.
+- **Badge count** on the **Challenges tab** (bottom nav) *and* a **header bell** — the pending count (invites to
+  answer + results to collect).
+- **Push notifications** (respect OS permission + the settings toggles; rate-limit, batch — don't spam):
+
+| Event | Push copy (example) | Tap → |
+|---|---|---|
+| You're challenged | "⚡ Noah challenged you — Most XP, 72h. Tap to accept." | accept sheet |
+| Your invite accepted | "Noah accepted — the race is on." | active card / watch |
+| Passed / lost the lead | "😤 Maya passed you — 2nd now, 6h left." | watch |
+| Ending soon (ahead/behind) | "🔥 3h left — you're up by 74 XP. Don't let it slip." | lock-in / watch |
+| Resolved (won/lost) | "🏆 You won! Beat Noah by 74 XP. Collect your rewards." | **reward arc (mock 47)** |
+| Daily goal at risk (opt.) | "2k steps to go before midnight." | home / goal |
+
+Tapping a push deep-links to the right screen. In-app, the same events drop into the header-bell activity list.

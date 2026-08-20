@@ -63,9 +63,10 @@ export function RankUpWatcher() {
   // One check at a time: foreground + a post-sync recheck can land together, and two in-flight
   // checks would both see the same stale baseline and could queue the celebration twice.
   const checkingRef = useRef(false);
+  const userId = session?.user.id ?? null;
 
   const check = useCallback(async () => {
-    if (!session || checkingRef.current) return;
+    if (!session || !userId || checkingRef.current) return;
     checkingRef.current = true;
     try {
       const ranks = await fetchMyRanks();
@@ -73,19 +74,19 @@ export function RankUpWatcher() {
       if (!current) return;
 
       const now = { tier: current.tier, division: current.division };
-      const lastSeen = await readLastSeenRank();
+      const lastSeen = await readLastSeenRank(userId);
 
       // No baseline yet — an existing user opening this build for the first time. Record where
       // they are and celebrate nothing; otherwise everyone gets a spurious forge on upgrade.
       if (!lastSeen) {
-        await writeLastSeenRank(now);
+        await writeLastSeenRank(userId, now);
         return;
       }
 
       if (isRankUp(lastSeen, now)) {
         // Written BEFORE showing, not after Continue: if the app is killed mid-celebration the
         // rank is still recorded as seen, so it can't replay on next launch.
-        await writeLastSeenRank(now);
+        await writeLastSeenRank(userId, now);
         showRankUp({
           tier: now.tier,
           division: now.division,
@@ -96,14 +97,14 @@ export function RankUpWatcher() {
       } else if (lastSeen.tier !== now.tier || lastSeen.division !== now.division) {
         // Moved DOWN (or sideways) — a decay or correction. Re-baseline silently so the next
         // genuine climb still reads as an increase.
-        await writeLastSeenRank(now);
+        await writeLastSeenRank(userId, now);
       }
     } catch {
       // Ambient — a failed rank check just means the celebration waits for the next trigger.
     } finally {
       checkingRef.current = false;
     }
-  }, [session]);
+  }, [session, userId]);
 
   useEffect(() => {
     // Baseline read on mount. check() is async — every setState in it lands after an await.
