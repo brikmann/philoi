@@ -36,7 +36,16 @@ create policy challenge_cheers_select on challenge_cheers
 -- totals in place keeps live challenges from visibly losing their numbers; every cheer from here
 -- is deduped, and the counters converge as challenges turn over.
 
-create or replace function cheer_challenge(p_challenge_id uuid, p_for_user_id uuid)
+-- DROP FIRST. 0041's cheer_challenge is `returns void` and this one returns the authoritative
+-- count, and CREATE OR REPLACE cannot change a function's return type — it fails with "cannot
+-- change return type of existing function", which reads like a body error and is easy to
+-- misdiagnose. Same trap as the RETURNS TABLE change further down.
+--
+-- Safe for clients already in the field: supabase-js ignores an unexpected return value, so a
+-- build compiled against the void version keeps working after this lands.
+drop function if exists cheer_challenge(uuid, uuid);
+
+create function cheer_challenge(p_challenge_id uuid, p_for_user_id uuid)
 returns int
 language plpgsql
 security definer

@@ -60,8 +60,32 @@ arc (mock 47)**. Default on (except goal-at-risk = user-tunable).
 
 ---
 
+## Leading art — pull the image that matches the event
+Every notification (in-app feed row AND rich push) leads with the image of its **subject**, not the generic flame:
+| Event group | Leading art | Shape |
+|---|---|---|
+| Rank up | the **tier icon** (e.g. Silver I hexagon in its `RANK_TIER_METAL` colour) — "You ranked up to Silver I" | hexagon |
+| Friend request / accepted / ranked up / passed you / joined | the **friend's profile pic** | circle |
+| Campfire joined / challenge started / going cold / added / message | the **campfire's icon / banner** | rounded square |
+| Duel challenge (challenged / accepted / passed / ending) | the **opponent's avatar** | circle |
+| Challenge / campfire challenge **won-lost** | the **reward art** (box / ember, rarity-coloured) or opponent avatar | square / circle |
+| Streak at risk / milestone | the **flame** (heat state) with the streak count | flame |
+| Season ending / settled | the **season badge / placement art** | hexagon / square |
+| Reward ready to collect | the **box art** (rarity-coloured) | rounded square |
+
+Fallback → the philoi flame when no subject image exists.
+
+## Rich notifications
+- **Push:** use image attachments so the avatar / tier / campfire / box shows in the notification — iOS
+  `UNNotificationAttachment` (needs a Notification Service Extension) · Android `BigPictureStyle` / large-icon. The
+  push payload must carry an `image` URL.
+- **In-app bell feed:** each row leads with the same image, masked to the right shape (circle = avatars, hexagon =
+  ranks, rounded-square = campfire/box, flame = streak).
+- Resolve the asset from the subject: profile pic, `RANK_TIER_METAL` hexagon, campfire icon, catalog box art.
+
 ## Impl notes
-- **One `notifications` event pipeline** — server emits an event `{type, actor, target, payload}`; a fan-out decides
+- **One `notifications` event pipeline** — server emits an event `{type, actor, target, payload, image, imageShape}`;
+  a fan-out (image resolved from the subject) decides
   channels by the user's category toggles + defaults + quiet hours + rate-limits, writes the in-app feed row, and
   (if push-eligible) sends via Expo push.
 - **Deep links**: each `type` maps to a route (accept sheet, watch, reward arc, campfire, leaderboard, inventory…).
