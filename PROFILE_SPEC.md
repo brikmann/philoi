@@ -14,6 +14,12 @@ Frame 3 = fixed lock-in share card).
    Inventory/loadout lives in the ⚙ menu (or the equip editor); the goal chip belongs in the editor, not here.
 3. **Remove the duplicate settings gear** that floats over the XP bar. **One gear, top-right of the header
    only.**
+4. **Remove the streak / lock-ins / hours-locked-in stat strip.** Redundant — those live on Home. Keeps the
+   profile lean: identity banner + rank strip + journal + hall.
+
+**Kept:** the identity banner (name · @handle · title · verified uni · bio) and the **rank strip** (current
+rank + XP bar). Rank is a **global, persistent** signal across a student's whole time on Philoi, so it stays
+here on the identity — it is **not** duplicated into the Trophy Hall as a "peak rank" tile.
 
 ## B. 🔴 Cosmetics must render as their ACTUAL ART (the real bug)
 Right now the **CARD backdrop** and **avatar HALO** render as flat colours. They must render as the vector/
@@ -52,19 +58,20 @@ drop config); update §4a to "earned, never rolled/bought." **Proposed earn trig
 - **Prometheus' Shard** (Mythic) — **Top 1% of a season** *or* bring **N friends who verify** (spread the fire).
 
 ### What the Hall contains (full "See all" view, grouped)
-1. **Peak & Identity** — **Peak rank** ever reached, season-stamped ("Peak: Gold II · S1") · **Campus Verified**
-   · **First Flame** founder badge. Permanent, earned identity.
-2. **Season Résumé** — one card **per completed season**: final **placement + cohort** ("S1 Emberfall · #300 /
-   30,000 · Top 1%"), the **title** earned, and the season **Medal** (§4b). The headline career flex.
-3. **Relics** (§4a, now earned) — Epic→Mythic, rarity-glowed, tap → lore + how it was earned. Showcase only.
-4. **Milestone badges** (grid, locked = greyed so there's a collection to complete) — streak milestones
+No peak-rank tile — rank persists on the identity strip (§A). The hall is placements + collected items + record.
+1. **Season placements** — one card **per completed season**, labeled plainly **"Season 1"** (NOT "résumé"):
+   final **placement + cohort** ("#300 / 30,000 · Top 1%"), the **title** earned, and the season **Medal**
+   (§4b). The headline career flex.
+2. **Relics** (§4a, now earned) — Epic→Mythic, rarity-glowed, tap → lore + how it was earned. Showcase only.
+3. **Milestone badges** (grid, locked = greyed so there's a collection to complete) — streak milestones
    (7/30/100-day), lock-in totals (100/500), hours locked in, challenge-win badges (*Firestarter*, etc.).
-   Count pips (×7) where a badge stacks.
-5. **Challenge record** — **duels won / lost / win-rate**, current **win streak**, biggest upset.
+   Count pips (×7) where a badge stacks. **Campus Verified + First Flame** founder badge live here too.
+4. **Challenge record** — **duels won / lost / win-rate**, current **win streak**, biggest upset.
 
 ### Collapsed profile (what shows before "See all") — AUTO-featured
-No manual picker. The profile shows an auto-curated strip: **rarest trophy + most-recent unlock + the W-L
-record**, plus a **Peak rank** chip. Always fresh, zero maintenance. **"See all"** → the full grouped hall.
+No manual picker. The profile shows: the **latest Season card** (placement + title + medal) + an auto-curated
+strip of **rarest trophy + most-recent unlock** + the **W-L record**. Always fresh, zero maintenance.
+**"See all"** → the full grouped hall.
 
 ### Visibility (other profiles) — per-item toggle
 Everything defaults **public**. Owner can **hide individual trophies / the record** from public view (own
@@ -76,7 +83,11 @@ season placements, earned relics and a W-L record **can't** — showing them sid
 status. Viewing someone else adds a **compare banner** ("She's ahead on trophies + streak; your win rate's
 higher") + the **Challenge / Add friend** CTAs (Frame 2).
 
-## E. New: Journal (achievement comments)
+## E. New: Journal (achievement comments) — surfaced HIGH
+**Placement:** the journal leads — it sits **directly under the identity/rank strip, above the Trophy Hall**.
+It's the "there's a real human behind this screen" layer, so it's the most accessible thing on the profile,
+not buried at the bottom. **Screen order:** identity banner → rank strip → **Journal** → Trophy Hall → recent
+lock-ins.
 - Each notable achievement (rank-up, streak milestone, challenge win, season placement) becomes a **journal
   entry**; the user can attach a **short comment** ("finally — the 4:30 alarms are paying off").
 - Turns the profile into a personal progress log, and softens the social read: instead of "this person just

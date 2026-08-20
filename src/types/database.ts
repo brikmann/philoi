@@ -96,6 +96,40 @@ export type Profile = {
   created_at: string;
 };
 
+/** The five Settings toggles from NOTIFICATIONS_SPEC. Stored in notification_prefs under a
+ * `cat_` prefix so they sit alongside 0026's finer-grained legacy keys without colliding. */
+export type NotificationCategory =
+  | "friends_social"
+  | "challenges"
+  | "campfires"
+  | "streak_reminders"
+  | "season_rank";
+
+/** How the leading art is masked (spec: "circle = avatars, hexagon = ranks, rounded-square =
+ * campfire/box, flame = streak"). */
+export type NotificationImageShape = "circle" | "hexagon" | "rounded" | "square" | "flame";
+
+/** One row of the bell feed — migration 0086. */
+export type NotificationEvent = {
+  id: string;
+  user_id: string;
+  type: string;
+  category: NotificationCategory;
+  actor_id: string | null;
+  target_id: string | null;
+  title: string;
+  body: string | null;
+  /** Stored, not derived, so an old row still navigates after a route rename. */
+  route: string | null;
+  route_params: Record<string, string>;
+  /** Resolved when the event was written — a feed row keeps showing what it looked like then. */
+  image_url: string | null;
+  image_shape: NotificationImageShape;
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+};
+
 export type DailyFire = {
   day: string;
   goal_xp: number;
@@ -531,6 +565,7 @@ export type AnalyticsEventName =
   | 'challenge_created'
   | 'challenge_completed'
   | 'goal_day_awarded'
+  | 'notifications_read'
   | 'challenge_logged'
   | 'challenge_accepted'
   | 'challenge_declined'
@@ -1417,6 +1452,9 @@ export type Database = {
       };
       forfeit_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       credit_lockin_time_goals: { Args: { p_check_in_id: string }; Returns: number };
+      get_my_notifications: { Args: { p_limit?: number }; Returns: NotificationEvent[] };
+      get_unread_notification_count: { Args: Record<string, never>; Returns: number };
+      mark_notifications_read: { Args: Record<string, never>; Returns: number };
       /** Banks a completed personal goal's embers for one LOCAL day (migration 0085). Difficulty
        * and streak are derived server-side; only the goal and the device's calendar date go in. */
       economy_award_goal_day: {

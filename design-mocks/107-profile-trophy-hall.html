@@ -168,8 +168,8 @@ h1{font-size:19px;margin:0;text-align:center}
 <p class="sub">"This is YOU." A flex surface with real cosmetic art, earned trophies as social proof, and a personal journal — plus the same hall on other people's profiles for instant status comparison. Frame 3 fixes the lock-in share card.</p>
 
 <div class="note">
-<b>Cut from the current screen:</b> <span class="kill">"Wilfrid Laurier University — 8 here"</span> (retired — legacy photo-as-lock-in metric) · <span class="kill">the "Inventory &amp; loadout" row</span> and <span class="kill">the floating "Study" chip</span> (moved into the ⚙ menu / editor) · <span class="kill">the duplicate settings gear over the XP bar</span> (one gear, top-right only).
-<b>&nbsp;Added:</b> <span class="add">bio</span>, <span class="add">Trophy Hall</span> (relics/medals + earned badges + challenge W-L), <span class="add">journal comments</span> on achievements. <b>Critical fix:</b> the CARD backdrop + avatar HALO must render as their <b>actual art</b> (ITEM_CATALOG §2a/§2b) — right now they show as flat colours.
+<b>Cut from the current screen:</b> <span class="kill">"Wilfrid Laurier University — 8 here"</span> (retired) · <span class="kill">the "Inventory &amp; loadout" row</span> + <span class="kill">floating "Study" chip</span> (→ ⚙ menu / editor) · <span class="kill">duplicate gear over the XP bar</span> · <span class="kill">the streak / lock-ins / hours stat strip</span> (redundant — lives on Home) · <span class="kill">Peak Rank tile</span> (rank is global &amp; persistent — it stays on the rank strip, not the hall).
+<b>&nbsp;Kept lean:</b> identity banner (name · verified uni · bio) + rank strip. <b>Journal moved up</b> — it's the "there's a human here" layer, so it leads. <b>Added:</b> <span class="add">bio</span>, <span class="add">Trophy Hall</span> (season placements + collected relics/medals/badges + W-L), <span class="add">journal</span>. <b>Critical fix:</b> CARD backdrop + avatar HALO must render as <b>actual art</b> (ITEM_CATALOG §2a/§2b) — currently flat colours.
 </div>
 
 <div class="row">
@@ -223,21 +223,34 @@ h1{font-size:19px;margin:0;text-align:center}
     </div>
   </div>
 
-  <div class="stats">
-    <div class="stat"><div class="n">4</div><div class="l">day streak</div></div>
-    <div class="stat"><div class="n">74</div><div class="l">lock-ins</div></div>
-    <div class="stat"><div class="n">23h</div><div class="l">locked in</div></div>
+  <!-- JOURNAL (moved up — the human layer, most accessible) -->
+  <div class="section">
+    <div class="shead"><div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="1.7"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Journal</div><div class="a">See all ›</div></div>
+    <div class="jitem">
+      <div class="jic"><svg viewBox="0 0 24 24"><path d="M12 2 L22 8 V16 L12 22 L2 16 V8 Z" fill="#20182e" stroke="url(#silver)" stroke-width="1.4"/><text x="12" y="15" text-anchor="middle" font-size="8" font-weight="800" fill="#e9def7">I</text></svg></div>
+      <div class="jbody"><div class="jhead">Reached Silver I<span class="when">2d ago</span></div>
+        <div class="jcomment">"finally. the 4:30 alarms are paying off — grinding to Gold before midterms."</div></div>
+    </div>
+    <div class="jitem">
+      <div class="jic"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div>
+      <div class="jbody"><div class="jhead">7-day streak<span class="when">last week</span></div>
+        <div class="jcomment">"first full week i didn't skip. locked in through the Friday i really didn't want to."</div></div>
+    </div>
+    <div class="jitem">
+      <div class="jic"><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M6 4h12v3a6 6 0 01-12 0zM10 13h4v4h3v2H7v-2h3z"/></svg></div>
+      <div class="jbody"><div class="jhead">Beat Maya · Most XP duel<span class="when">last week</span></div>
+        <a class="jadd">＋ add a note</a></div>
+    </div>
   </div>
 
   <!-- TROPHY HALL (earned-only · auto-featured) -->
   <div class="section">
     <div class="shead"><div class="t"><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M6 4h12v3a6 6 0 01-12 0zM4 5h2v2a3 3 0 01-2-2zm16 0a3 3 0 01-2 2V5zM10 13h4v4h3v2H7v-2h3z"/></svg>Trophy Hall</div><div class="a">See all ›</div></div>
 
-    <!-- peak rank + season résumé (the headline earned flexes) -->
+    <!-- season placement card (season placements live in the hall) -->
     <div class="peakrow">
-      <div class="pcard"><div class="k">PEAK RANK</div><div class="v">Silver I · S1</div></div>
-      <div class="resume">
-        <div class="k">S1 EMBERFALL · RÉSUMÉ</div>
+      <div class="resume" style="flex:1">
+        <div class="k">SEASON 1</div>
         <div class="v">#300 / 30,000 · Top 1%</div>
         <div class="m"><svg viewBox="0 0 24 24" width="11" height="11" fill="url(#gold)"><circle cx="12" cy="9" r="6"/><path d="M9 14l-1.5 8L12 19l4.5 3L15 14z"/></svg>“Built Different” · Emberfall Champion</div>
       </div>
@@ -267,26 +280,6 @@ h1{font-size:19px;margin:0;text-align:center}
       <div class="rec wr"><div class="n">79%</div><div class="l2">win rate</div></div>
     </div>
     <div class="autolbl" style="margin-top:8px;margin-bottom:0">“See all” → season résumés · earned relics · full badge grid · W-L history</div>
-  </div>
-
-  <!-- JOURNAL -->
-  <div class="section">
-    <div class="shead"><div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="1.7"><path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Journal</div></div>
-    <div class="jitem">
-      <div class="jic"><svg viewBox="0 0 24 24"><path d="M12 2 L22 8 V16 L12 22 L2 16 V8 Z" fill="#20182e" stroke="url(#silver)" stroke-width="1.4"/><text x="12" y="15" text-anchor="middle" font-size="8" font-weight="800" fill="#e9def7">I</text></svg></div>
-      <div class="jbody"><div class="jhead">Reached Silver I<span class="when">2d ago</span></div>
-        <div class="jcomment">"finally. the 4:30 alarms are paying off — grinding to Gold before midterms."</div></div>
-    </div>
-    <div class="jitem">
-      <div class="jic"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div>
-      <div class="jbody"><div class="jhead">7-day streak<span class="when">last week</span></div>
-        <div class="jcomment">"first full week i didn't skip. locked in through the Friday i really didn't want to."</div></div>
-    </div>
-    <div class="jitem">
-      <div class="jic"><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M6 4h12v3a6 6 0 01-12 0zM10 13h4v4h3v2H7v-2h3z"/></svg></div>
-      <div class="jbody"><div class="jhead">Beat Maya · Most XP duel<span class="when">last week</span></div>
-        <a class="jadd">＋ add a note</a></div>
-    </div>
   </div>
 
   <!-- LOCK-INS (kept) -->
@@ -344,12 +337,6 @@ h1{font-size:19px;margin:0;text-align:center}
       <div class="track"><div class="fill" style="width:46%"></div></div></div>
   </div>
 
-  <div class="stats">
-    <div class="stat"><div class="n" style="color:#7fe0a0">18</div><div class="l">day streak</div></div>
-    <div class="stat"><div class="n">210</div><div class="l">lock-ins</div></div>
-    <div class="stat"><div class="n">96h</div><div class="l">locked in</div></div>
-  </div>
-
   <!-- compare banner -->
   <div class="section" style="margin-top:14px">
     <div style="background:linear-gradient(90deg,rgba(242,163,60,.12),rgba(199,120,255,.10));border:1px solid rgba(242,163,60,.28);border-radius:13px;padding:11px 13px;font-size:11.5px;color:#e7ddf5;display:flex;align-items:center;gap:9px">
@@ -362,9 +349,8 @@ h1{font-size:19px;margin:0;text-align:center}
   <div class="section" style="margin-top:14px">
     <div class="shead"><div class="t"><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M6 4h12v3a6 6 0 01-12 0zM10 13h4v4h3v2H7v-2h3z"/></svg>Trophy Hall</div><div class="a">See all ›</div></div>
     <div class="peakrow">
-      <div class="pcard"><div class="k">PEAK RANK</div><div class="v" style="color:#FFD27A">Gold II · S1</div></div>
-      <div class="resume">
-        <div class="k">S1 EMBERFALL · RÉSUMÉ</div>
+      <div class="resume" style="flex:1">
+        <div class="k">SEASON 1</div>
         <div class="v">#41 / 30,000 · Top 1%</div>
         <div class="m"><svg viewBox="0 0 24 24" width="11" height="11" fill="url(#gold)"><circle cx="12" cy="9" r="6"/><path d="M9 14l-1.5 8L12 19l4.5 3L15 14z"/></svg>“The Undefeated” · Campus Sovereign</div>
       </div>

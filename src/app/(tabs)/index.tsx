@@ -19,6 +19,7 @@ import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
 import { FireShareCard } from '@/components/fire-share-card';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { HomeMenu, SeasonPill } from '@/components/home-chrome';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { HomeXpBar } from '@/components/home-xp-bar';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -145,6 +146,9 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
         <View style={styles.topSide} />
         <SeasonPill />
         <View style={styles.topSide}>
+          {/* Bell then hamburger, mock 106. The one glyph that can carry a count sits closest to
+              the thumb; the menu is a fixed destination and does not compete for attention. */}
+          <NotificationBell />
           <HomeMenu />
         </View>
       </View>
@@ -685,7 +689,10 @@ const styles = StyleSheet.create({
   // the right, space-between would push the pill off-centre by the icon's width.
   topSide: {
     flex: 1,
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: Spacing.three,
   },
   // Mock 92's `.rankrow`: 238 wide, centered, 14 below the hero — NOT crammed against it or the
   // CTA. The hero above is flex:1 so the flame keeps room to breathe (punchlist 17 P1).

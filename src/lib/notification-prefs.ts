@@ -29,6 +29,9 @@ export type ResolvedNotificationPrefs = {
   quiet_enabled: boolean;
   quiet_start: number;
   quiet_end: number;
+  /** The spec's user-set daily reminder. Hour-granular, like quiet hours. */
+  reminder_enabled: boolean;
+  reminder_hour: number;
 };
 
 export const DEFAULT_NOTIFICATION_PREFS: ResolvedNotificationPrefs = {
@@ -42,7 +45,62 @@ export const DEFAULT_NOTIFICATION_PREFS: ResolvedNotificationPrefs = {
   quiet_enabled: false,
   quiet_start: 22, // 10 PM
   quiet_end: 7, // 7 AM
+  // Default off: an unrequested daily push is exactly the kind of thing that trains people to
+  // mute the app. 7 PM when switched on — late enough that the day is nearly spent, early
+  // enough to still act on it.
+  reminder_enabled: false,
+  reminder_hour: 19,
 };
+
+// ── the five spec categories (NOTIFICATIONS_SPEC, §F) ──
+//
+// These gate the NEW event pipeline (migration 0086 reads `cat_<category>`), while the six keys
+// above still gate the six legacy notify_push callers that predate it.
+//
+// Two overlapping control sets on one screen would be incoherent — "Campfires: on" next to
+// "Messages: off" invites the question of which one wins — so the category toggle is the only
+// thing the UI exposes, and flipping it ALSO writes every legacy key it subsumes. One switch,
+// both systems, no way for them to disagree.
+
+export type NotificationCategoryKey =
+  | 'cat_friends_social'
+  | 'cat_challenges'
+  | 'cat_campfires'
+  | 'cat_streak_reminders'
+  | 'cat_season_rank';
+
+/** Legacy keys each category owns, kept in lockstep with it. */
+export const CATEGORY_LEGACY_KEYS: Record<NotificationCategoryKey, NotificationPrefKey[]> = {
+  cat_friends_social: [],
+  cat_challenges: ['challenges'],
+  cat_campfires: ['campfire_lockins', 'reactions', 'messages', 'campfire_cold'],
+  cat_streak_reminders: ['streak_risk'],
+  cat_season_rank: [],
+};
+
+export const NOTIFICATION_CATEGORIES: {
+  key: NotificationCategoryKey;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: 'cat_friends_social',
+    label: 'Friends & social',
+    description: 'Requests, someone passing you on a board, friends joining',
+  },
+  { key: 'cat_challenges', label: 'Challenges', description: 'Invites, results and goals at risk' },
+  {
+    key: 'cat_campfires',
+    label: 'Campfires',
+    description: 'Joins, campfire challenges, messages and cold campfires',
+  },
+  {
+    key: 'cat_streak_reminders',
+    label: 'Streak & reminders',
+    description: 'Your nightly streak warning and daily reminder',
+  },
+  { key: 'cat_season_rank', label: 'Season & rank', description: 'Season results and rewards to collect' },
+];
 
 export type NotificationPrefGroup = {
   title: string;
@@ -97,6 +155,33 @@ export async function setMyNotificationPrefs(prefs: ResolvedNotificationPrefs): 
   const payload: NotificationPrefs = { ...prefs, timezone: getDeviceTimeZone() };
   const { error } = await supabase.rpc('set_my_notification_prefs', { p_prefs: payload });
   if (error) throw error;
+}
+
+/**
+ * Flip a category and every legacy key it owns, in one object.
+ *
+ * Returns the patch rather than writing it, so the caller can merge it into whatever else it is
+ * saving and do a single round trip — and so this stays pure and testable.
+ */
+export function categoryPatch(
+  key: NotificationCategoryKey,
+  enabled: boolean
+): Partial<ResolvedNotificationPrefs> & Record<string, boolean> {
+  const patch: Record<string, boolean> = { [key]: enabled };
+  for (const legacy of CATEGORY_LEGACY_KEYS[key]) {
+    patch[legacy] = enabled;
+  }
+  return patch;
+}
+
+/** Whether a category currently reads as on. Missing = on, matching the server's coalesce — a
+ * user who has never touched this screen sees every category enabled, which is what they get. */
+export function isCategoryEnabled(
+  prefs: Record<string, unknown>,
+  key: NotificationCategoryKey
+): boolean {
+  const v = prefs[key];
+  return typeof v === 'boolean' ? v : true;
 }
 
 // "22" → "10 PM", "0" → "12 AM", "7" → "7 AM". Hour-granular is enough for a quiet window.

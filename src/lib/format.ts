@@ -38,6 +38,20 @@ export function formatPacePerKm(distanceMeters: number, durationSeconds: number)
 
 // "18h left" / "2d left" — a challenge's time-remaining chip (social-challenge-card.tsx, the
 // active-challenge marker, and the Watch spectator screen all show the same countdown).
+/** "just now" / "14m ago" / "3h ago" / "2d ago". Hoisted out of challenge-completion-card,
+ * which had a private copy — the bell feed needs the same shape and two implementations of
+ * "how long ago" drift. */
+export function formatRelativeTime(isoDate: string): string {
+  const minutes = Math.round((Date.now() - new Date(isoDate).getTime()) / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return minutes + 'm ago';
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return hours + 'h ago';
+  const days = Math.round(hours / 24);
+  if (days < 7) return days + 'd ago';
+  return new Date(isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export function formatTimeLeft(endsAt: string | null): string {
   if (!endsAt) return '';
   const ms = new Date(endsAt).getTime() - Date.now();

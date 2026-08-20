@@ -5,17 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/ui/card';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { FeedChallengeEvent } from '@/lib/api/challenges';
+import { formatRelativeTime } from '@/lib/format';
 import { CHALLENGE_TYPE_ICON } from '@/lib/goal-types';
-
-function formatRelativeTime(isoDate: string) {
-  const diffMs = Date.now() - new Date(isoDate).getTime();
-  const minutes = Math.round(diffMs / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
-}
 
 export function ChallengeCompletionCard({ event }: { event: FeedChallengeEvent }) {
   const goal = event.challenge_label ?? `${event.target.toLocaleString()} ${event.unit}`;

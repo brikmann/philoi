@@ -93,19 +93,23 @@ Not just challenges — the app-wide notification layer.
 
 ## G. Profile redesign + Trophy Hall (`PROFILE_SPEC.md`, mock 107)
 Make the profile "this is YOU" — real equipped art, earned trophies, a journal — same hall on other profiles.
-- **Cut:** retire `"{University} — N here"` **app-wide** (dead photo-era metric) · remove the **Inventory &
-  loadout** row + floating **Study** chip (→ ⚙ menu / editor) · remove the **duplicate gear** over the XP bar
-  (one gear, header top-right).
+- **Cut:** retire `"{University} — N here"` **app-wide** · remove **Inventory & loadout** row + floating
+  **Study** chip (→ ⚙ menu / editor) · remove **duplicate gear** over the XP bar · remove the **streak /
+  lock-ins / hours stat strip** (redundant, lives on Home). **Keep** identity banner (name · verified uni ·
+  bio) + rank strip.
+- **Order (lean):** identity banner → rank strip → **Journal (leads — the human layer)** → Trophy Hall →
+  recent lock-ins.
 - 🔴 **Cosmetics must render as ACTUAL ART, not flat colour** — the **CARD** backdrop + avatar **HALO** read
   from the equipped loadout and render the §2a/§2b art (Cracked Magma cracks, Inferno Flare ring, etc.), with
   the 30/60/90 live-aura ramp; default loadout (task #88) as fallback. Same resolver on your card AND others'.
 - **Bio** — editable one-liner under the identity block (own profile).
-- **Trophy Hall — EARNED-ONLY** (nothing buyable/rollable). Full "See all" hall groups: **Peak & Identity**
-  (peak rank season-stamped · Campus Verified · First Flame) · **Season Résumé** (per season: placement +
-  cohort + earned title + Medal) · **Relics** (§4a) · **Milestone badges** (grid, locked=greyed) · **Challenge
-  record** (W-L / win-rate / streak). Collapsed profile = **auto-featured** (rarest + newest + record + peak
-  chip); **no manual picker**. Renders on **own and other** profiles = earned status compare. Other-profile:
-  **compare banner** + **Challenge / Add friend** CTAs.
+- **Trophy Hall — EARNED-ONLY** (nothing buyable/rollable). **No peak-rank tile** (rank persists on the rank
+  strip). Full "See all" groups: **Season placements** (one card per season, labeled plainly "Season 1" — NOT
+  "résumé": placement + cohort + earned title + Medal) · **Relics** (§4a) · **Milestone badges** (grid,
+  locked=greyed; Campus Verified + First Flame live here) · **Challenge record** (W-L / win-rate / streak).
+  Collapsed profile = latest **Season card** + **auto-featured** (rarest + newest) + **W-L**; **no manual
+  picker**. Renders on **own and other** profiles = earned status compare. Other-profile: **compare banner** +
+  **Challenge / Add friend** CTAs.
   - ‼ **Relics become EARNED, not loot-box** (decision Aug 20): **remove `RELIC` from all box drop tables**;
     grant via achievement triggers (ITEM_CATALOG §4a — triggers proposed, confirm before build).
   - **Visibility:** everything defaults **public**; owner can **hide individual items / the record** (per-item
