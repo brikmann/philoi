@@ -120,7 +120,55 @@ The share sheet that opens from a lock-in (Share / Keep private) has two bugs:
    - **Gym / Lift** → Streak + **PRs** + XP.
    - Only surface a stat that's meaningful for that activity; never show a zeroed-out irrelevant stat.
 
+## G. New: Milestones — the "advertise a win" layer
+People use Philoi as social media to broadcast wins ("85% on a brutal Orgo midterm," "got the internship").
+We support that **without breaking the ipsative ethos** by splitting the app into two layers with a **hard
+firewall**:
+- **Rewarded layer** (exists today) — effort/consistency → XP · embers · rank. Ipsative. **Grades/outcomes
+  never touch this.**
+- **Celebrated layer** (new) — **Milestones**: user-declared wins that are **purely social**.
+
+### 🔒 Firewall (non-negotiable)
+A Milestone grants **ZERO XP, ZERO embers, ZERO rank movement.** The create path must **not** call
+`grantReward` or touch any progression/economy table — it's a **content post**, not an economy event. The
+instant a grade earns currency, Philoi becomes a grade-comparison app and the "effort not outcome" identity
+collapses. (Bonus: because there's no reward, there's no incentive to fake one — self-report stays honest for
+free, so we **don't verify** grades.)
+
+### What it is
+A user-declared win. **Types:** Grade · Admission/Offer · Certification/License · Fitness PR · Project/Deadline
+shipped · Custom. Headline + optional note.
+
+### Where it's reached
+**Primary entry = a "＋ Milestone" button in the Journal section header** on your own profile (Frame 1). Since
+milestones *are* user-authored journal entries, that's the natural, single home — one tap from the Profile tab,
+no extra chrome. (Opens the composer, Frame 5a.) No other entry point needed for v1; if we want more
+discoverability later, the app's global compose "+" could offer "Milestone" alongside challenge/lock-in.
+
+### Effort auto-attach (ON by default) — the Philoi twist
+The milestone auto-pulls the **effort receipts** behind it from the user's own session data over a sensible
+window (the month / since the last milestone / a course tag if we have one): **hours locked in · streak ·
+# lock-ins.** So the card reads *"85% on the Orgo midterm — backed by 23h locked in + a 14-day streak this
+month."* This is the differentiator: it celebrates the grade **through the effort**, tying outcome to the
+receipts no other app has. (User can edit/trim the attached stats, but it's on by default.)
+
+### Surfaces (kept lean — no dedicated shelf)
+1. A **Journal entry** (same feed surfaced high in §E) — user-authored rather than system-generated.
+   **User-controlled via a "Pin to my Journal" toggle in the composer (default ON).** If off, the milestone
+   only produces a share card and posts nothing to the profile.
+2. A **Milestone share card** (share-card family, mock 96/104 frame) — the advertise surface: headline +
+   effort receipts + philoi footer.
+
+### Social + visibility
+- Friends can **cheer / react** → notification ("Maya cheered your milestone") — **add to
+  `NOTIFICATIONS_SPEC.md` Friends & social.**
+- **Default visibility = friends-only** (grades are sensitive). Per-post bump to campus/public. **Never
+  public by default.**
+
 ## Acceptance
+- [ ] Milestones: composer (typed, headline + note); effort receipts auto-attached; posts a journal entry +
+      generates a share card; **grants no XP/embers/rank** (firewall); default friends-only; friend cheer fires
+      a notification. No dedicated shelf.
 - [ ] "University — N here" string gone app-wide; inv/loadout row, Study chip, and duplicate gear removed.
 - [ ] Profile card backdrop + avatar halo render the **equipped art** (not flat colour), from the loadout,
       with the 30/60/90 live aura ramp; default loadout as fallback.

@@ -122,6 +122,16 @@ Make the profile "this is YOU" — real equipped art, earned trophies, a journal
   (Flames/Halos/Cards/Particles/Flares/Titles/Audio/SFX/Banners + earned Relics), **rarity-sorted**, equipped
   tile **ringed**, tap → item lore. Read-only on others; **editing/equipping stays in the inventory** (⚙).
   Respects the same **per-item hide**. Flex + desire engine; pairs with the Hall (earned vs owned).
+- **Milestones (`PROFILE_SPEC.md §G`) — the "advertise a win" layer.** User-declared wins (grade, offer, PR,
+  cert, project, custom). 🔒 **HARD FIREWALL: a milestone grants ZERO XP/embers/rank** — the create path must
+  NOT call `grantReward` or touch progression/economy tables; it's a **content post**. Keeps the app ipsative
+  (grades never buy currency). **Effort auto-attach ON:** pull the user's own effort receipts for the window
+  (hours locked in · streak · # lock-ins) onto the card ("85% on Orgo — backed by 23h + a 14-day streak").
+  Surfaces = a **journal entry** (via a **"Pin to my Journal" toggle, default ON** — off ⇒ share card only,
+  nothing posted) + a **milestone share card** (no dedicated shelf). **Entry point = "＋ Milestone" in the
+  Journal section header** on own profile (opens the composer). Friend **cheer** → notif.
+  **Default visibility friends-only** (grades sensitive); per-post bump to campus/public. Self-reported,
+  unverified (no reward ⇒ no incentive to fake).
 - **Share card fixes (Frame 3):** session-type icon → **vector** (no 📚 emoji); **stat row is per-session-
   type** — Study/Read → Streak + XP, Gym → Streak + **PRs** + XP. Never a zeroed "0 PRs" on a study session.
 
