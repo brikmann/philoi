@@ -60,6 +60,15 @@ export const Colors = {
   // The near-black used for text ON an ember-gradient fill (§3). Orange-black rather than pure
   // black so it reads as burnt into the button rather than pasted on top.
   onEmber: '#3A1608',
+  // The disabled CTA (mock 98) — muted-on-brand, NOT a grey slab. What this replaces: the
+  // disabled primary kept its near-black on-ember label over a flat twilight fill, so the words
+  // all but vanished; and at full opacity the coral base flashed through as an "awkward orange"
+  // button that looked tappable. A disabled primary should read as "not yet" — same shape, fire
+  // removed.
+  disabledSurface: '#241C30',
+  disabledBorder: '#2F2740',
+  disabledText: '#6F6685',
+
   // The forward/urgent accent (§7): today's fire zone on the home XP bar, and the `~time`
   // projection on the lock-in rank bar. Always this, never the tier colour — tier colour says
   // where you ARE, orange says what you're chasing.

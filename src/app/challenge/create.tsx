@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChallengeSentSheet } from '@/components/challenge-sent-sheet';
 import { FitnessSyncPrompt } from '@/components/fitness-sync-prompt';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -49,10 +50,25 @@ const PAYOUT_XP: Record<SocialChallengeMode, number> = { h2h: 200, group: 300 };
 // tracker, but it's real working functionality — folding it in behind a top toggle instead of
 // deleting it.
 export default function CreateChallengeScreen() {
+  const router = useRouter();
   const [kind, setKind] = useState<'social' | 'personal'>('social');
 
+  // Its own top row rather than the navigator's header (mock 98): the native modal header was
+  // drawing a trailing glyph at the right edge of the "New challenge" bar that means nothing
+  // here — there's no forward step to take from a title. Back on the left, title centred, and a
+  // matching spacer on the right so the title stays optically centred.
+  //
+  // <Screen> also brings the deep-purple radial and the keyboard avoidance this screen used to
+  // hand-roll, so the form sits on the same ground as everything else.
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <Screen padded={false}>
+      <View style={styles.topBar}>
+        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.topSide} accessibilityRole="button" accessibilityLabel="Back">
+          <Ionicons name="chevron-back" size={20} color={Colors.muted} />
+        </Pressable>
+        <Text style={styles.topTitle}>New challenge</Text>
+        <View style={styles.topSide} />
+      </View>
       <View style={styles.kindRow}>
         <Pressable onPress={() => setKind('social')} style={[styles.kindTab, kind === 'social' && styles.kindTabActive]}>
           <Text style={[styles.kindTabLabel, kind === 'social' && styles.kindTabLabelActive]}>Challenge a friend</Text>
@@ -62,7 +78,7 @@ export default function CreateChallengeScreen() {
         </Pressable>
       </View>
       {kind === 'social' ? <SocialChallengeForm /> : <PersonalChallengeForm />}
-    </KeyboardAvoidingView>
+    </Screen>
   );
 }
 
@@ -165,168 +181,177 @@ function SocialChallengeForm() {
   const noOpponent = mode === 'h2h' && !effectiveOpponentId;
   const sendLabel = mode === 'h2h' ? (noOpponent ? 'Pick someone to challenge' : `Challenge ${opponentName ?? 'them'}`) : 'Start group challenge';
   return (
-    <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Challenge type</Text>
-      <View style={styles.typesRow}>
-        {MODE_OPTIONS.map((option) => (
-          <Pressable
-            key={option.value}
-            onPress={() => setMode(option.value)}
-            style={[styles.typeTile, mode === option.value && styles.typeTileSelected]}>
-            <Ionicons name={option.icon} size={16} color={mode === option.value ? Colors.achieverText : Colors.muted} />
-            <Text style={[styles.typeLabel, mode === option.value && styles.chipTextSelected2]}>{option.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {mode === 'h2h' && (
-        <>
-          {/* Opponent-first, friend-to-friend — not campfire-bound (§16). */}
-          {opponentPrefilled ? (
-            <View style={styles.vsContext}>
-              <Ionicons name="flash" size={14} color={Colors.achieverText} />
-              <Text style={styles.vsContextText}>Challenging {prefillOpponentName ?? 'them'}</Text>
-            </View>
-          ) : (
-            <>
-              <Text style={styles.label}>Challenge who?</Text>
-              {friends.length === 0 ? (
-                <Text style={styles.hint}>Add a friend first to challenge them.</Text>
-              ) : (
-                <View style={styles.peopleRow}>
-                  {friends.map((f) => (
-                    <Pressable key={f.friend_id} onPress={() => setOpponentId(f.friend_id)} style={styles.personTile}>
-                      <View style={[styles.personAvatar, f.friend_id === effectiveOpponentId && styles.personAvatarSelected]}>
-                        <Text style={styles.personInitial}>{f.display_name.charAt(0).toUpperCase()}</Text>
-                      </View>
-                      <Text style={styles.personName} numberOfLines={1}>
-                        {f.display_name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </>
-          )}
-
-          <Text style={styles.label}>The race</Text>
-          <View style={styles.pillsRow}>
+    <>
+      <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.container}>
+        <Text style={styles.label}>Challenge type</Text>
+        <View style={styles.typesRow}>
+          {MODE_OPTIONS.map((option) => (
             <Pressable
-              onPress={() => setRaceMetric('xp')}
-              style={[styles.pill, raceMetric === 'xp' && styles.chipSelected]}>
-              <Text style={[styles.pillText, raceMetric === 'xp' && styles.chipTextSelected]}>Most XP</Text>
+              key={option.value}
+              onPress={() => setMode(option.value)}
+              style={[styles.typeTile, mode === option.value && styles.typeTileSelected]}>
+              <Ionicons name={option.icon} size={16} color={mode === option.value ? Colors.achieverText : Colors.muted} />
+              <Text style={[styles.typeLabel, mode === option.value && styles.chipTextSelected2]}>{option.label}</Text>
             </Pressable>
-            <Pressable
-              onPress={() => setRaceMetric('lockin_time')}
-              style={[styles.pill, raceMetric === 'lockin_time' && styles.chipSelected]}>
-              <Text style={[styles.pillText, raceMetric === 'lockin_time' && styles.chipTextSelected]}>Most lock-in time</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.shareRow}>
-            <View style={styles.shareText}>
-              <Text style={styles.label}>Let a campfire watch</Text>
-              <Text style={styles.hint}>
-                {canWatch
-                  ? "Optional — a Campfire can cheer you both on, but no one has to watch."
-                  : 'Join a Campfire to have one watch (optional).'}
-              </Text>
-            </View>
-            <Toggle value={watching} onValueChange={setWatchOn} disabled={!canWatch} />
-          </View>
-          {watching && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.circleRow}>
-              {groups.map((g, i) => (
-                <Pressable
-                  key={g.id}
-                  onPress={() => setWatchCircleIndex(i)}
-                  style={[styles.circleChip, i === watchCircleIndex && styles.chipSelected]}>
-                  <Text style={styles.circleEmoji}>{g.emoji}</Text>
-                  <Text style={[styles.chipText, i === watchCircleIndex && styles.chipTextSelected]}>{g.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
-        </>
-      )}
-
-      {mode === 'group' && (
-        <>
-          <Text style={styles.label}>Which campfire?</Text>
-          {groups.length === 0 ? (
-            <Text style={styles.hint}>Join or start a Campfire first to challenge it.</Text>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.circleRow}>
-              {groups.map((g, i) => (
-                <Pressable
-                  key={g.id}
-                  onPress={() => setCircleIndex(i)}
-                  style={[styles.circleChip, i === circleIndex && styles.chipSelected]}>
-                  <Text style={styles.circleEmoji}>{g.emoji}</Text>
-                  <Text style={[styles.chipText, i === circleIndex && styles.chipTextSelected]}>{g.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
-
-          <Text style={styles.label}>The goal</Text>
-          <View style={styles.stepperRow}>
-            <Text style={styles.stepperLabel}>Everyone locks in</Text>
-            <View style={styles.stepper}>
-              <Pressable onPress={() => setTargetCount((n) => Math.max(1, n - 1))} hitSlop={8}>
-                <Ionicons name="remove" size={16} color={Colors.amber} />
-              </Pressable>
-              <Text style={styles.stepperValue}>{targetCount}×</Text>
-              <Pressable onPress={() => setTargetCount((n) => n + 1)} hitSlop={8}>
-                <Ionicons name="add" size={16} color={Colors.amber} />
-              </Pressable>
-            </View>
-          </View>
-          {circle && (
-            <View style={styles.whosInChip}>
-              <Ionicons name="people" size={13} color={Colors.muted} />
-              <Text style={styles.whosInText}>
-                All of {circle.name} · {members.length} members
-              </Text>
-            </View>
-          )}
-        </>
-      )}
-
-      <Text style={styles.label}>How long</Text>
-      <View style={styles.pillsRow}>
-        {WINDOW_OPTIONS.map((option) => (
-          <Pressable
-            key={option.hours}
-            onPress={() => setWindowHours(option.hours)}
-            style={[styles.pill, windowHours === option.hours && styles.chipSelected]}>
-            <Text style={[styles.pillText, windowHours === option.hours && styles.chipTextSelected]}>{option.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <View style={styles.payoutCard}>
-        <Ionicons name="trophy" size={18} color={Colors.achieverText} />
-        <View style={styles.payoutText}>
-          <Text style={styles.payoutTitle}>
-            {mode === 'h2h' ? `Winner takes +${payoutXp} XP` : `Up to +${payoutXp} XP each (more for top finishers) — only if everyone finishes`}
-          </Text>
-          {mode === 'h2h' && <Text style={styles.payoutSubtitle}>scales with effort · capped to keep it fair</Text>}
+          ))}
         </View>
-      </View>
 
-      {error && <Text style={styles.error}>{error}</Text>}
-      <PrimaryButton label={sendLabel} onPress={handleCreate} loading={saving} disabled={noOpponent} />
+        {mode === 'h2h' && (
+          <>
+            {/* Opponent-first, friend-to-friend — not campfire-bound (§16). */}
+            {opponentPrefilled ? (
+              <View style={styles.vsContext}>
+                <Ionicons name="flash" size={14} color={Colors.achieverText} />
+                <Text style={styles.vsContextText}>Challenging {prefillOpponentName ?? 'them'}</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.label}>Challenge who?</Text>
+                {friends.length === 0 ? (
+                  <Text style={styles.hint}>Add a friend first to challenge them.</Text>
+                ) : (
+                  <View style={styles.peopleRow}>
+                    {friends.map((f) => (
+                      <Pressable key={f.friend_id} onPress={() => setOpponentId(f.friend_id)} style={styles.personTile}>
+                        <View style={[styles.personAvatar, f.friend_id === effectiveOpponentId && styles.personAvatarSelected]}>
+                          <Text style={styles.personInitial}>{f.display_name.charAt(0).toUpperCase()}</Text>
+                        </View>
+                        <Text style={styles.personName} numberOfLines={1}>
+                          {f.display_name}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+
+            <Text style={styles.label}>The race</Text>
+            <View style={styles.pillsRow}>
+              <Pressable
+                onPress={() => setRaceMetric('xp')}
+                style={[styles.pill, raceMetric === 'xp' && styles.chipSelected]}>
+                <Text style={[styles.pillText, raceMetric === 'xp' && styles.chipTextSelected]}>Most XP</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setRaceMetric('lockin_time')}
+                style={[styles.pill, raceMetric === 'lockin_time' && styles.chipSelected]}>
+                <Text style={[styles.pillText, raceMetric === 'lockin_time' && styles.chipTextSelected]}>Most lock-in time</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.shareRow}>
+              <View style={styles.shareText}>
+                <Text style={styles.label}>Let a campfire watch</Text>
+                <Text style={styles.hint}>
+                  {canWatch
+                    ? "Optional — a Campfire can cheer you both on, but no one has to watch."
+                    : 'Join a Campfire to have one watch (optional).'}
+                </Text>
+              </View>
+              <Toggle value={watching} onValueChange={setWatchOn} disabled={!canWatch} />
+            </View>
+            {watching && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.circleRow}>
+                {groups.map((g, i) => (
+                  <Pressable
+                    key={g.id}
+                    onPress={() => setWatchCircleIndex(i)}
+                    style={[styles.circleChip, i === watchCircleIndex && styles.chipSelected]}>
+                    <Text style={styles.circleEmoji}>{g.emoji}</Text>
+                    <Text style={[styles.chipText, i === watchCircleIndex && styles.chipTextSelected]}>{g.name}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </>
+        )}
+
+        {mode === 'group' && (
+          <>
+            <Text style={styles.label}>Which campfire?</Text>
+            {groups.length === 0 ? (
+              <Text style={styles.hint}>Join or start a Campfire first to challenge it.</Text>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.circleRow}>
+                {groups.map((g, i) => (
+                  <Pressable
+                    key={g.id}
+                    onPress={() => setCircleIndex(i)}
+                    style={[styles.circleChip, i === circleIndex && styles.chipSelected]}>
+                    <Text style={styles.circleEmoji}>{g.emoji}</Text>
+                    <Text style={[styles.chipText, i === circleIndex && styles.chipTextSelected]}>{g.name}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
+            <Text style={styles.label}>The goal</Text>
+            <View style={styles.stepperRow}>
+              <Text style={styles.stepperLabel}>Everyone locks in</Text>
+              <View style={styles.stepper}>
+                <Pressable onPress={() => setTargetCount((n) => Math.max(1, n - 1))} hitSlop={8}>
+                  <Ionicons name="remove" size={16} color={Colors.amber} />
+                </Pressable>
+                <Text style={styles.stepperValue}>{targetCount}×</Text>
+                <Pressable onPress={() => setTargetCount((n) => n + 1)} hitSlop={8}>
+                  <Ionicons name="add" size={16} color={Colors.amber} />
+                </Pressable>
+              </View>
+            </View>
+            {circle && (
+              <View style={styles.whosInChip}>
+                <Ionicons name="people" size={13} color={Colors.muted} />
+                <Text style={styles.whosInText}>
+                  All of {circle.name} · {members.length} members
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+
+        <Text style={styles.label}>How long</Text>
+        <View style={styles.pillsRow}>
+          {WINDOW_OPTIONS.map((option) => (
+            <Pressable
+              key={option.hours}
+              onPress={() => setWindowHours(option.hours)}
+              style={[styles.pill, windowHours === option.hours && styles.chipSelected]}>
+              <Text style={[styles.pillText, windowHours === option.hours && styles.chipTextSelected]}>{option.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.payoutCard}>
+          <Ionicons name="trophy" size={18} color={Colors.achieverText} />
+          <View style={styles.payoutText}>
+            <Text style={styles.payoutTitle}>
+              {mode === 'h2h' ? `Winner takes +${payoutXp} XP` : `Up to +${payoutXp} XP each (more for top finishers) — only if everyone finishes`}
+            </Text>
+            {mode === 'h2h' && <Text style={styles.payoutSubtitle}>scales with effort · capped to keep it fair</Text>}
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* The one action on this screen, pinned to the bottom edge (mock 98) rather than trailing
+          the last form field — where it landed at a different height per mode and could be
+          scrolled clean out of sight. Disabled it goes muted-on-brand, not orange: see
+          PrimaryButton's `disabled`. */}
+      <View style={styles.footer}>
+        {error && <Text style={styles.error}>{error}</Text>}
+        <PrimaryButton label={sendLabel} onPress={handleCreate} loading={saving} disabled={noOpponent} />
+      </View>
 
       <ChallengeSentSheet
         visible={justSentTo !== null}
         onClose={() => router.back()}
+        onStartAnother={() => setJustSentTo(null)}
         opponentName={justSentTo ?? 'them'}
         raceMetric={raceMetric}
         windowHours={windowHours}
         payoutXp={payoutXp}
       />
-    </ScrollView>
+    </>
   );
 }
 
@@ -510,135 +535,139 @@ function PersonalChallengeForm() {
   }
 
   return (
-    <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.container}>
-      {/* No campfire step anywhere in here (migration 0059): a goal is yours, and who sees the
-          work behind it is picked per lock-in on the done screen, which can post to several
-          campfires at once rather than the one this screen used to bind forever. */}
-      <Text style={styles.label}>What are you tracking?</Text>
-      {/* Horizontally scrollable (punchlist 5.4): this row is a plain non-wrapping flex row, so
-          every metric past the screen edge was rendered but unreachable — you couldn't pick Run or
-          anything after it. */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
-        {PERSONAL_TYPE_OPTIONS.map((option) => (
-          <MetricChip key={option.value} option={option} selected={type === option.value} onPress={() => handlePickType(option)} />
-        ))}
-        <Pressable
-          onPress={() => handlePickType(CUSTOM_TYPE_OPTION)}
-          style={[styles.personalChip, isCustom && styles.chipSelected]}>
-          <Text style={[styles.chipText, isCustom && styles.chipTextSelected]}>{CUSTOM_TYPE_OPTION.label}</Text>
-        </Pressable>
-      </ScrollView>
-
-      {/* The device-verified metrics that aren't in mock 73A's headline five, kept reachable. */}
-      {!moreOpen && !MORE_TYPE_OPTIONS.some((o) => o.value === type) ? (
-        <Pressable onPress={() => setMoreOpen(true)} hitSlop={6}>
-          <Text style={styles.moreLink}>More metrics — riding, Whoop…</Text>
-        </Pressable>
-      ) : (
-        // Same treatment as the headline row above — this one grows as more device metrics land.
+    <>
+      <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.container}>
+        {/* No campfire step anywhere in here (migration 0059): a goal is yours, and who sees the
+            work behind it is picked per lock-in on the done screen, which can post to several
+            campfires at once rather than the one this screen used to bind forever. */}
+        <Text style={styles.label}>What are you tracking?</Text>
+        {/* Horizontally scrollable (punchlist 5.4): this row is a plain non-wrapping flex row, so
+            every metric past the screen edge was rendered but unreachable — you couldn't pick Run or
+            anything after it. */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
-          {MORE_TYPE_OPTIONS.map((option) => (
+          {PERSONAL_TYPE_OPTIONS.map((option) => (
             <MetricChip key={option.value} option={option} selected={type === option.value} onPress={() => handlePickType(option)} />
           ))}
-        </ScrollView>
-      )}
-
-      {/* The full source sentence for whatever's selected. The pills carry a one-word tag; this
-          spells out what actually feeds the number — including the gym metric's photo/sets
-          requirement, which is the difference between a visit counting and not. */}
-      {metricSourceLabel(type) ? <Text style={styles.sourceLine}>{metricSourceLabel(type)}</Text> : null}
-
-      {/* ── Custom (design-mocks/74) ─────────────────────────────────────────── */}
-      {isCustom && (
-        <>
-          <Text style={styles.label}>Name it</Text>
-          <TextInput placeholder="e.g. Read, Cold plunges" value={customLabel} onChangeText={setCustomLabel} maxLength={40} />
-
-          <Text style={styles.label}>What counts toward it</Text>
-          <CountModeOption
-            selected={customCountMode === 'lockin_time'}
-            onPress={() => handlePickCountMode('lockin_time')}
-            emoji="🔥"
-            title="Time locked in"
-            body={`Lock in on "${customLabel.trim() || 'this'}" and the minutes add up — same as a Study or Gym session.`}
-          />
-          <CountModeOption
-            selected={customCountMode === 'manual'}
-            onPress={() => handlePickCountMode('manual')}
-            emoji="#️⃣"
-            title="A count I log"
-            body="Track a number by hand — pages, reps, sessions, glasses…"
-          />
-        </>
-      )}
-
-      <Text style={styles.label}>Target</Text>
-      <View style={styles.targetRow}>
-        <TextInput
-          style={styles.targetInput}
-          placeholder="e.g. 10000"
-          keyboardType="numeric"
-          value={target}
-          onChangeText={setTarget}
-        />
-        <TextInput
-          style={styles.unitInput}
-          placeholder="unit"
-          value={unit}
-          onChangeText={setUnit}
-          // A built-in metric's unit is fixed by the metric; a hand-counted custom goal's unit is
-          // the user's own word for it. Time is always hours, so that stays fixed too.
-          editable={isCustom && customCountMode === 'manual'}
-        />
-      </View>
-
-      <Text style={styles.label}>How often</Text>
-      <View style={styles.pillsRow}>
-        {PERSONAL_PERIOD_OPTIONS.map((option) => (
           <Pressable
-            key={option.value}
-            onPress={() => setPeriod(option.value)}
-            style={[styles.personalChip, period === option.value && styles.chipSelected]}>
-            <Text style={[styles.chipText, period === option.value && styles.chipTextSelected]}>{option.label}</Text>
+            onPress={() => handlePickType(CUSTOM_TYPE_OPTION)}
+            style={[styles.personalChip, isCustom && styles.chipSelected]}>
+            <Text style={[styles.chipText, isCustom && styles.chipTextSelected]}>{CUSTOM_TYPE_OPTION.label}</Text>
           </Pressable>
-        ))}
-      </View>
+        </ScrollView>
 
-      {/* ── Track it (mock 73A) ───────────────────────────────────────────────
-          "Automatically" appears ONLY when a real source can measure this metric. Everything
-          else gets the honest line instead of a Connect row that would never connect. */}
-      <Text style={styles.label}>Track it</Text>
-      {canAutoTrack ? (
-        <>
-          <TrackOption
-            selected={autoOn}
-            onPress={() => setTrackAuto(true)}
-            emoji="⚡"
-            title="Automatically"
-            body={`${AUTO_SOURCE_NAME[getRealFitnessSourceForChallengeType(type)!]} · counts on its own`}
+        {/* The device-verified metrics that aren't in mock 73A's headline five, kept reachable. */}
+        {!moreOpen && !MORE_TYPE_OPTIONS.some((o) => o.value === type) ? (
+          <Pressable onPress={() => setMoreOpen(true)} hitSlop={6}>
+            <Text style={styles.moreLink}>More metrics — riding, Whoop…</Text>
+          </Pressable>
+        ) : (
+          // Same treatment as the headline row above — this one grows as more device metrics land.
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
+            {MORE_TYPE_OPTIONS.map((option) => (
+              <MetricChip key={option.value} option={option} selected={type === option.value} onPress={() => handlePickType(option)} />
+            ))}
+          </ScrollView>
+        )}
+
+        {/* The full source sentence for whatever's selected. The pills carry a one-word tag; this
+            spells out what actually feeds the number — including the gym metric's photo/sets
+            requirement, which is the difference between a visit counting and not. */}
+        {metricSourceLabel(type) ? <Text style={styles.sourceLine}>{metricSourceLabel(type)}</Text> : null}
+
+        {/* ── Custom (design-mocks/74) ─────────────────────────────────────────── */}
+        {isCustom && (
+          <>
+            <Text style={styles.label}>Name it</Text>
+            <TextInput placeholder="e.g. Read, Cold plunges" value={customLabel} onChangeText={setCustomLabel} maxLength={40} />
+
+            <Text style={styles.label}>What counts toward it</Text>
+            <CountModeOption
+              selected={customCountMode === 'lockin_time'}
+              onPress={() => handlePickCountMode('lockin_time')}
+              emoji="🔥"
+              title="Time locked in"
+              body={`Lock in on "${customLabel.trim() || 'this'}" and the minutes add up — same as a Study or Gym session.`}
+            />
+            <CountModeOption
+              selected={customCountMode === 'manual'}
+              onPress={() => handlePickCountMode('manual')}
+              emoji="#️⃣"
+              title="A count I log"
+              body="Track a number by hand — pages, reps, sessions, glasses…"
+            />
+          </>
+        )}
+
+        <Text style={styles.label}>Target</Text>
+        <View style={styles.targetRow}>
+          <TextInput
+            style={styles.targetInput}
+            placeholder="e.g. 10000"
+            keyboardType="numeric"
+            value={target}
+            onChangeText={setTarget}
           />
-          <TrackOption
-            selected={!autoOn}
-            onPress={() => setTrackAuto(false)}
-            emoji="✏️"
-            title="Log it myself"
-            body="Enter progress by hand"
+          <TextInput
+            style={styles.unitInput}
+            placeholder="unit"
+            value={unit}
+            onChangeText={setUnit}
+            // A built-in metric's unit is fixed by the metric; a hand-counted custom goal's unit is
+            // the user's own word for it. Time is always hours, so that stays fixed too.
+            editable={isCustom && customCountMode === 'manual'}
           />
-        </>
-      ) : (
-        <View style={styles.noAutoNote}>
-          <Text style={styles.noAutoText}>
-            {isCustom && customCountMode === 'lockin_time'
-              ? `🔒 Custom goals can't read a device — time comes from your lock-ins on "${customLabel.trim() || 'this'}".`
-              : isCustom
-                ? "🔒 Custom goals can't read a device — this one's a count you log yourself."
-                : '✏️ No device measures this one — you log it by hand.'}
-          </Text>
         </View>
-      )}
 
-      {error && <Text style={styles.error}>{error}</Text>}
-      <PrimaryButton label="Set goal" onPress={handleCreate} loading={saving} />
+        <Text style={styles.label}>How often</Text>
+        <View style={styles.pillsRow}>
+          {PERSONAL_PERIOD_OPTIONS.map((option) => (
+            <Pressable
+              key={option.value}
+              onPress={() => setPeriod(option.value)}
+              style={[styles.personalChip, period === option.value && styles.chipSelected]}>
+              <Text style={[styles.chipText, period === option.value && styles.chipTextSelected]}>{option.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* ── Track it (mock 73A) ───────────────────────────────────────────────
+            "Automatically" appears ONLY when a real source can measure this metric. Everything
+            else gets the honest line instead of a Connect row that would never connect. */}
+        <Text style={styles.label}>Track it</Text>
+        {canAutoTrack ? (
+          <>
+            <TrackOption
+              selected={autoOn}
+              onPress={() => setTrackAuto(true)}
+              emoji="⚡"
+              title="Automatically"
+              body={`${AUTO_SOURCE_NAME[getRealFitnessSourceForChallengeType(type)!]} · counts on its own`}
+            />
+            <TrackOption
+              selected={!autoOn}
+              onPress={() => setTrackAuto(false)}
+              emoji="✏️"
+              title="Log it myself"
+              body="Enter progress by hand"
+            />
+          </>
+        ) : (
+          <View style={styles.noAutoNote}>
+            <Text style={styles.noAutoText}>
+              {isCustom && customCountMode === 'lockin_time'
+                ? `🔒 Custom goals can't read a device — time comes from your lock-ins on "${customLabel.trim() || 'this'}".`
+                : isCustom
+                  ? "🔒 Custom goals can't read a device — this one's a count you log yourself."
+                  : '✏️ No device measures this one — you log it by hand.'}
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        {error && <Text style={styles.error}>{error}</Text>}
+        <PrimaryButton label="Set goal" onPress={handleCreate} loading={saving} />
+      </View>
 
       <FitnessSyncPrompt
         visible={showSyncPrompt}
@@ -651,7 +680,7 @@ function PersonalChallengeForm() {
         challengeTitle={`${target || '0'} ${unit} ${period === 'day' ? 'today' : 'this week'}`}
         challengeSubtitle="Just for you"
       />
-    </ScrollView>
+    </>
   );
 }
 
@@ -691,12 +720,31 @@ function TrackOption({
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    // Was Colors.cream, an opaque flat fill that painted over the deep-purple radial. These
-    // screens don't route through <Screen>, so the radial reaches them from the navigator's
-    // scene background — an opaque colour here blocks it (Ember reskin sweep).
-    backgroundColor: 'transparent',
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
+  },
+  // Equal-width sides keep the title centred whatever the back glyph measures.
+  topSide: {
+    width: 24,
+    alignItems: 'flex-start',
+  },
+  topTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 17,
+    color: Colors.ink,
+  },
+  // Sits below the scroller, so it's always on screen and always in the same place.
+  footer: {
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.twelve,
+    paddingBottom: Spacing.three,
+    borderTopWidth: 1,
+    borderTopColor: Colors.line,
   },
   moreLink: {
     fontFamily: Fonts.body,
@@ -829,7 +877,9 @@ const styles = StyleSheet.create({
   container: {
     padding: Spacing.four,
     gap: Spacing.two,
-    backgroundColor: Colors.cream,
+    // No fill: Colors.cream here was an opaque flat sheet painted straight over the deep-purple
+    // radial (Ember reskin sweep).
+    paddingBottom: Spacing.four,
   },
   label: {
     fontFamily: Fonts.bodyBold,
@@ -893,8 +943,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   typeTileSelected: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.coral,
+    backgroundColor: Colors.cardDark,
+    borderColor: Colors.amber,
   },
   typeLabel: {
     fontFamily: Fonts.body,
@@ -1029,9 +1079,11 @@ const styles = StyleSheet.create({
     color: Colors.coral,
     marginTop: Spacing.two,
   },
+  // mock 98's `.opt.on` — the darker surface with an amber hairline, not a purple fill with a
+  // coral one. Shared by every selectable pill/chip on both forms.
   chipSelected: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.coral,
+    backgroundColor: Colors.cardDark,
+    borderColor: Colors.amber,
   },
   chipText: {
     fontFamily: Fonts.bodySemiBold,

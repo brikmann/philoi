@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChallengeCard } from '@/components/challenge-card';
-import { SpartanArmorEmpty } from '@/components/empty-states/spartan-armor-empty';
+import { TargetEmberHero } from '@/components/empty-states/target-ember-hero';
 import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
 import { SocialChallengeCard } from '@/components/social-challenge-card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -69,52 +69,60 @@ export default function ChallengesScreen() {
   }
 
   // Collapsed by default (punchlist 4E) — finished challenges are a record to go looking for, not
-  // something that should push live ones down the screen. Shared by both layouts: the footer of
-  // the populated list, and the block below the centered empty state when nothing is active but
-  // History still has entries.
-  const historySection =
+  // something that should push live ones down the screen.
+  //
+  // Pinned to the screen's bottom edge now (mock 98), split into a bar and a panel. As a
+  // ListFooter/trailing block it landed wherever the content above it happened to stop, which on
+  // the empty layout was an orphaned row floating mid-screen. A border-top bar on the bottom edge
+  // is a place it always belongs, whichever layout is showing.
+  const historyBar =
     historyCount > 0 ? (
-      <View style={styles.history}>
-        <Pressable
-          onPress={() => setHistoryOpen((v) => !v)}
-          style={styles.historyToggle}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: historyOpen }}
-          accessibilityLabel={`History, ${historyCount} finished`}>
+      <Pressable
+        onPress={() => setHistoryOpen((v) => !v)}
+        style={styles.historyBar}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: historyOpen }}
+        accessibilityLabel={`History, ${historyCount} finished`}>
+        <View style={styles.historyLeft}>
           <Text style={styles.historyLabel}>History</Text>
-          <Text style={styles.historyCount}>{historyCount}</Text>
-          <Ionicons name={historyOpen ? 'chevron-up' : 'chevron-down'} size={15} color={Colors.textTertiary} />
-        </Pressable>
-
-        {historyOpen && (
-          <View style={styles.historyList}>
-            {/* Finished duels/group races ARE tappable now — the watch RPCs accept
-                completed/expired (migration 0056), so this opens the final standings. */}
-            {pastSocial.map((c) => (
-              <Pressable key={c.id} onPress={() => goWatch(c.id, c.mode)}>
-                <SocialChallengeCard challenge={c} myUserId={session?.user.id ?? ''} onChanged={refetchSocial} />
-              </Pressable>
-            ))}
-            {completed.map((item) => (
-              <ChallengeCard
-                key={item.id}
-                challenge={item}
-                autoConnected={fitnessConnected}
-                onLogged={handleLogged}
-                onDeleted={() => handleDelete(item.id)}
-              />
-            ))}
+          <View style={styles.historyChip}>
+            <Text style={styles.historyChipText}>{historyCount}</Text>
           </View>
-        )}
-      </View>
+        </View>
+        {/* The drawer opens UPWARD — there's nothing below a bar sitting on the screen's edge. */}
+        <Ionicons name={historyOpen ? 'chevron-down' : 'chevron-up'} size={15} color={Colors.textTertiary} />
+      </Pressable>
+    ) : null;
+
+  // Its own capped scroller: the finished list opens into the space above the bar and can never
+  // push the bar (or the empty block's CTA) off-screen, however many past challenges pile up.
+  const historyPanel =
+    historyCount > 0 && historyOpen ? (
+      <ScrollView style={styles.historyPanel} contentContainerStyle={styles.historyList}>
+        {/* Finished duels/group races ARE tappable now — the watch RPCs accept
+            completed/expired (migration 0056), so this opens the final standings. */}
+        {pastSocial.map((c) => (
+          <Pressable key={c.id} onPress={() => goWatch(c.id, c.mode)}>
+            <SocialChallengeCard challenge={c} myUserId={session?.user.id ?? ''} onChanged={refetchSocial} />
+          </Pressable>
+        ))}
+        {completed.map((item) => (
+          <ChallengeCard
+            key={item.id}
+            challenge={item}
+            autoConnected={fitnessConnected}
+            onLogged={handleLogged}
+            onDeleted={() => handleDelete(item.id)}
+          />
+        ))}
+      </ScrollView>
     ) : null;
 
   // Nothing live to race — either the tab is brand new, or everything finished and moved into
-  // History. Both get mock 41's empty layout: no title bar, and the CTA INSIDE the centered
-  // illustration column (not a persistent header button above it) so it lands directly under the
-  // body copy. Header-at-top over a CTA-above-the-empty-text read broken (punchlist 6, ex-5.3).
+  // History. Both get mock 98's centered ember hero, with the CTA INSIDE that column (not a
+  // persistent header button above it) so it lands directly under the body copy. Header-at-top
+  // over a CTA-above-the-empty-text read broken (punchlist 6, ex-5.3).
   const hasActive = liveSocial.length > 0 || sections.length > 0;
-  const nothingAtAll = socialChallenges.length === 0 && challenges.length === 0;
   // Still fetching keeps the populated chrome — flashing the empty layout for a frame and then
   // yanking it back is worse than a briefly-bare list.
   const showEmpty = !loading && !socialLoading && !hasActive;
@@ -127,29 +135,21 @@ export default function ChallengesScreen() {
           unmounted by that flip. Held at a stable child position so it survives the swap. */}
       {celebrating && <RewardBurst ref={rewardBurstRef} cue="settle" />}
       {showEmpty ? (
-        // Scrolls rather than flexes so an expanded History can't push the empty block off-screen;
-        // flexGrow keeps that block centered in the leftover space while History is collapsed.
-        <ScrollView contentContainerStyle={styles.emptyScroll}>
-          <View style={styles.emptyScreen}>
-            <EmptyState
-              icon={<SpartanArmorEmpty />}
-              title={nothingAtAll ? 'No challenges yet.' : 'No active challenges'}
-              body={
-                historyCount > 0
-                  ? 'Race a friend or set a personal goal — your finished ones are in History below.'
-                  : "There's no battle. Challenge a friend, race your Campfire, or set a personal goal to see who burns brightest."
-              }
-              action={
-                <Pressable style={styles.emptyCta} onPress={() => router.push('/challenge/create')}>
-                  <Text style={styles.emptyCtaLabel}>Start a challenge</Text>
-                </Pressable>
-              }
-            />
-          </View>
-          {historySection}
-        </ScrollView>
+        <View style={styles.emptyScreen}>
+          <EmptyState
+            icon={<TargetEmberHero />}
+            title="No active challenges"
+            body="Race a friend or set a personal goal. Winner takes the XP."
+            action={
+              <View style={styles.emptyCta}>
+                <PrimaryButton label="Start a challenge" onPress={() => router.push('/challenge/create')} />
+              </View>
+            }
+          />
+        </View>
       ) : (
         <FlatList
+          style={styles.list}
           data={sections}
           keyExtractor={(item: Challenge) => item.id}
           contentContainerStyle={styles.listContent}
@@ -190,9 +190,10 @@ export default function ChallengesScreen() {
             <ChallengeCard challenge={item} autoConnected={fitnessConnected} onLogged={handleLogged} onDeleted={() => handleDelete(item.id)} />
           )}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
-          ListFooterComponent={historySection}
         />
       )}
+      {historyPanel}
+      {historyBar}
     </Screen>
   );
 }
@@ -214,31 +215,50 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     marginTop: Spacing.four,
   },
-  history: {
-    marginTop: Spacing.two,
+  // A border-top row on the screen's bottom edge (mock 98's `.histbar`).
+  historyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: Colors.line,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.twelve,
   },
-  historyToggle: {
+  historyLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    paddingVertical: Spacing.two,
   },
   // Deliberately NOT sectionLabel: that carries marginTop:24 for its use as a standalone heading,
   // which inside this centered row would drop the text below the chevron.
   historyLabel: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontSize: 12.5,
+    color: Colors.muted,
   },
-  historyCount: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
+  historyChip: {
+    backgroundColor: Colors.disabledSurface,
+    borderRadius: Radius.pill,
+    paddingVertical: 2,
+    paddingHorizontal: Spacing.two,
+  },
+  historyChipText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    color: Colors.muted,
+  },
+  historyPanel: {
+    flexShrink: 1,
+    maxHeight: 360,
   },
   historyList: {
     gap: Spacing.three,
-    paddingTop: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    paddingBottom: Spacing.three,
+  },
+  list: {
+    flex: 1,
   },
   listContent: {
     paddingHorizontal: Spacing.four,
@@ -248,31 +268,16 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     color: Colors.coral,
   },
-  // Matches listContent's gutters so History lines up whichever layout it's rendered under.
-  emptyScroll: {
-    flexGrow: 1,
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.six,
-  },
-  // flexGrow, not flex:1 — flex's flexBasis:0 lets an expanded History squeeze this to nothing
-  // once the two together overflow the viewport. Grow-only fills the leftover space when History
-  // is collapsed and keeps its natural height when it isn't.
   emptyScreen: {
-    flexGrow: 1,
-    flexShrink: 0,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
   },
+  // The ember CTA is the one action on this screen, so it gets a real width rather than
+  // stretching edge to edge like a form's submit button (mock 98 draws it at 220).
   emptyCta: {
+    width: 220,
     marginTop: Spacing.two,
-    backgroundColor: Colors.coral,
-    borderRadius: Radius.button,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.five,
-  },
-  emptyCtaLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
-    color: Colors.ink,
   },
 });

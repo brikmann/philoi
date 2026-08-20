@@ -116,7 +116,15 @@ export function PrimaryButton({
       {loading ? (
         <ActivityIndicator color={isCold ? Colors.coldButtonText : isGhost ? Colors.muted : Colors.onEmber} />
       ) : (
-        <Text style={[styles.label, isCold && styles.labelCold, isGhost && styles.labelGhost]}>{label}</Text>
+        <Text
+          style={[
+            styles.label,
+            isCold && styles.labelCold,
+            isGhost && styles.labelGhost,
+            isDisabled && !isCold && !isGhost && styles.labelDisabled,
+          ]}>
+          {label}
+        </Text>
       )}
     </Pressable>
   );
@@ -129,6 +137,10 @@ const styles = StyleSheet.create({
     // Base fill under the SVG — see the note at the render site.
     backgroundColor: Colors.coral,
     borderRadius: Radius.button,
+    // Transparent hairline on every variant so the disabled state can paint its border without
+    // the button growing 2px taller the moment it flips.
+    borderWidth: 1,
+    borderColor: 'transparent',
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.four,
     alignItems: 'center',
@@ -150,8 +162,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
     elevation: 0,
   },
+  // Muted-on-brand (mock 98): the button keeps its shape and loses the fire, rather than
+  // becoming a grey slab carrying a near-black label nobody can read.
   disabled: {
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.disabledSurface,
+    borderColor: Colors.disabledBorder,
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -166,6 +181,10 @@ const styles = StyleSheet.create({
   },
   labelCold: {
     color: Colors.coldButtonText,
+  },
+  // onEmber is near-black — legible burnt into the gradient, invisible on the disabled fill.
+  labelDisabled: {
+    color: Colors.disabledText,
   },
   labelGhost: {
     color: Colors.muted,

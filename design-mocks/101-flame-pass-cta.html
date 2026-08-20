@@ -1,0 +1,122 @@
+<meta charset="utf-8">
+<title>Mock 101 — Flame Pass CTA (animated paywall)</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:28px;display:flex;flex-direction:column;align-items:center;gap:10px}
+h1{font-size:17px;margin:0;text-align:center}
+.sub{font-size:12px;color:#9f92b6;max-width:640px;text-align:center;line-height:1.5;margin:0 0 8px}
+.phone{width:344px;height:730px;background:#14111c;border-radius:36px;padding:10px;border:1px solid rgba(255,255,255,.08)}
+.stage{position:relative;height:100%;border-radius:28px;overflow:hidden;background:radial-gradient(120% 55% at 50% 100%,#3a1c12,#1a1526 55%,#120f18);display:flex;flex-direction:column}
+/* emberfall aura full-bleed */
+.aura{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.efall{position:absolute;top:-12px;width:3px;height:3px;border-radius:50%;background:#FF7A3E;box-shadow:0 0 6px 1px #FF5A2E;opacity:0;animation:efall linear infinite}
+.lavapool{position:absolute;left:50%;bottom:-40px;transform:translateX(-50%);width:280px;height:110px;background:radial-gradient(closest-side,rgba(255,90,46,.5),rgba(255,90,46,.12) 60%,transparent);filter:blur(10px);animation:lavapulse 3s ease-in-out infinite}
+@keyframes efall{0%{transform:translateY(0);opacity:0}12%{opacity:1}100%{transform:translateY(720px);opacity:0}}
+@keyframes lavapulse{0%,100%{opacity:.5}50%{opacity:.85}}
+.content{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;align-items:center;padding:20px 18px 0;overflow:auto}
+.content::-webkit-scrollbar{display:none}
+.kick{font-size:10px;font-weight:800;letter-spacing:1.8px;color:#F2A33C;background:rgba(242,163,60,.12);border:1px solid rgba(242,163,60,.35);border-radius:999px;padding:5px 13px}
+/* hero flame crest */
+.crest{position:relative;width:150px;height:150px;display:grid;place-items:center;margin:14px 0 4px}
+.ring{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(245,197,66,.5);box-shadow:0 0 30px rgba(242,163,60,.5),inset 0 0 24px rgba(242,163,60,.25);animation:ringpulse 2.2s ease-in-out infinite}
+@keyframes ringpulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.06);opacity:1}}
+.tongue{transform-box:fill-box;transform-origin:50% 100%}
+@keyframes flick{0%,100%{transform:scaleY(.85) rotate(-2deg)}50%{transform:scaleY(1.1) rotate(2deg)}}
+@keyframes flick2{0%,100%{transform:scaleY(.92) rotate(2deg)}50%{transform:scaleY(1.14) rotate(-2deg)}}
+.title{font-size:30px;font-weight:800;letter-spacing:-.5px;margin-top:6px;background:linear-gradient(90deg,#FFE08A,#FF9E6B,#FFE08A);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 3.4s linear infinite}
+@keyframes shimmer{to{background-position:200% 0}}
+.tag{font-size:12.5px;color:#c8bcdd;margin-top:4px;text-align:center}
+/* instant unlock banner */
+.instant{display:flex;align-items:center;gap:10px;background:linear-gradient(90deg,rgba(255,60,31,.16),rgba(242,163,60,.10));border:1px solid rgba(255,90,46,.45);border-radius:14px;padding:11px 13px;margin-top:16px;width:100%}
+.instant .bolt{font-size:18px;filter:drop-shadow(0 0 6px #FFE87A)}
+.instant .it{font-size:11px;color:#FFD9A0}.instant .ib{font-size:13px;font-weight:800;color:#FFF6EC}
+/* reward grid */
+.rlbl{align-self:flex-start;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#7c7194;font-weight:800;margin:18px 2px 10px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
+.rt{background:#1b1726;border:1px solid #2a2440;border-radius:13px;padding:11px 6px;text-align:center;position:relative}
+.rt .ic{font-size:22px}
+.rt .rn{font-size:9.5px;font-weight:700;color:#e7ddf5;margin-top:6px;line-height:1.2}
+.rt .rr{font-size:7px;font-weight:800;letter-spacing:.4px;margin-top:4px;display:inline-block;padding:1px 6px;border-radius:999px}
+.rr.myth{background:rgba(255,107,107,.16);color:#FF8A8A}
+.rr.leg{background:rgba(255,193,77,.16);color:#FFC14D}
+.more{font-size:11px;color:#a99cbd;text-align:center;margin:12px 2px 4px;line-height:1.5}
+.more b{color:#FFD27A}
+/* footer CTA */
+.foot{position:relative;z-index:2;padding:12px 18px 16px;background:linear-gradient(180deg,transparent,#120f18 45%)}
+.cta{display:block;text-align:center;background:linear-gradient(135deg,#F2A33C,#E0612C);color:#3a1608;border-radius:15px;padding:16px;font-size:16px;font-weight:800;box-shadow:0 4px 20px rgba(224,97,44,.55);animation:ctapulse 2s ease-in-out infinite}
+@keyframes ctapulse{0%,100%{box-shadow:0 4px 18px rgba(224,97,44,.45)}50%{box-shadow:0 6px 30px rgba(242,163,60,.75)}}
+.restore{text-align:center;color:#8a7fa6;font-size:12px;font-weight:600;margin-top:9px}
+.cap{font-size:11.5px;color:#a99cbd;max-width:344px;text-align:center;line-height:1.45}
+.cap b{color:#e7ddf5}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="fO" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".75" stop-color="#F2A33C"/><stop offset="1" stop-color="#F2A33C" stop-opacity="0"/></linearGradient>
+  <linearGradient id="fI" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#F2A33C"/><stop offset=".8" stop-color="#FFE6B0"/><stop offset="1" stop-color="#FFE6B0" stop-opacity="0"/></linearGradient>
+  <radialGradient id="coalHot" cx="50%" cy="35%" r="75%"><stop offset="0" stop-color="#FFD27A"/><stop offset="45%" stop-color="#F2A33C"/><stop offset="100%" stop-color="#6e2610"/></radialGradient>
+  <radialGradient id="amb" cx="50%" cy="72%" r="55%"><stop offset="0" stop-color="#E0612C" stop-opacity=".6"/><stop offset="100%" stop-color="#E0612C" stop-opacity="0"/></radialGradient>
+</defs></svg>
+
+<h1>Mock 101 — Flame Pass CTA (animated)</h1>
+<p class="sub">The big upsell screen: emberfall aura raining behind a roaring flame crest, the marquee premium
+unlocks, and a pulsing unlock CTA. Everything the pass gives, in one aspirational screen.</p>
+
+<div class="phone"><div class="stage">
+  <div class="aura">
+    <span class="efall" style="left:8%;animation-duration:5.4s;animation-delay:0s"></span>
+    <span class="efall" style="left:20%;animation-duration:6.4s;animation-delay:1.6s"></span>
+    <span class="efall" style="left:33%;animation-duration:4.9s;animation-delay:.8s"></span>
+    <span class="efall" style="left:46%;animation-duration:6.8s;animation-delay:2.4s"></span>
+    <span class="efall" style="left:58%;animation-duration:5.2s;animation-delay:.4s"></span>
+    <span class="efall" style="left:70%;animation-duration:6.1s;animation-delay:3.0s"></span>
+    <span class="efall" style="left:82%;animation-duration:5.8s;animation-delay:1.2s"></span>
+    <span class="efall" style="left:92%;animation-duration:6.6s;animation-delay:2.1s"></span>
+    <div class="lavapool"></div>
+  </div>
+
+  <div class="content">
+    <span class="kick">SEASON 1 · EMBERFALL</span>
+
+    <div class="crest">
+      <div class="ring"></div>
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <ellipse cx="60" cy="86" rx="50" ry="34" fill="url(#amb)"/>
+        <g>
+          <path class="tongue" d="M42 100 C43 80 46 66 49 46 C52 66 55 80 56 100 Z" fill="url(#fO)" style="animation:flick .95s ease-in-out 0s infinite"/>
+          <path class="tongue" d="M64 100 C65 80 68 66 71 46 C74 66 77 80 78 100 Z" fill="url(#fO)" style="animation:flick2 1.05s ease-in-out .2s infinite"/>
+          <path class="tongue" d="M50 100 C51 78 54 60 57 30 C60 60 63 78 64 100 Z" fill="url(#fO)" style="animation:flick .82s ease-in-out .12s infinite"/>
+          <path class="tongue" d="M55 100 C56 84 58 72 60 52 C62 72 64 84 65 100 Z" fill="url(#fI)" style="animation:flick2 .7s ease-in-out .1s infinite"/>
+        </g>
+        <g><ellipse cx="46" cy="103" rx="13" ry="7" fill="url(#coalHot)"/><ellipse cx="74" cy="103" rx="13" ry="7" fill="url(#coalHot)"/><ellipse cx="60" cy="106" rx="16" ry="8" fill="url(#coalHot)"/></g>
+      </svg>
+    </div>
+
+    <div class="title">Flame Pass</div>
+    <div class="tag">Every premium reward this season — yours to keep.</div>
+
+    <div class="instant">
+      <span class="bolt">⚡</span>
+      <div><div class="it">UNLOCK NOW · INSTANTLY</div><div class="ib">Emberfall Ascendant — Mythic flare</div></div>
+    </div>
+
+    <div class="rlbl">The premium track</div>
+    <div class="grid">
+      <div class="rt"><div class="ic">🔥</div><div class="rn">Emberfall Ascendant</div><span class="rr myth">MYTHIC FLARE</span></div>
+      <div class="rt"><div class="ic">👑</div><div class="rn">Crown Halo</div><span class="rr myth">MYTHIC</span></div>
+      <div class="rt"><div class="ic">🎴</div><div class="rn">Emberfall Standard</div><span class="rr myth">BANNER</span></div>
+      <div class="rt"><div class="ic">🃏</div><div class="rn">Sovereign Card</div><span class="rr myth">MYTHIC</span></div>
+      <div class="rt"><div class="ic">🔊</div><div class="rn">Emberfall Strike</div><span class="rr myth">SFX</span></div>
+      <div class="rt"><div class="ic">🏷️</div><div class="rn">Kindled by Emberfall</div><span class="rr leg">TITLE</span></div>
+    </div>
+    <div class="more">+ <b>bonus embers</b> and every reward on the premium track, <b>all season</b>.</div>
+  </div>
+
+  <div class="foot">
+    <span class="cta">Unlock the Flame Pass · CA$8.99</span>
+    <div class="restore">Restore purchases</div>
+  </div>
+</div></div>
+
+<div class="cap"><b>Flame Pass CTA (mock 101).</b> Animated: emberfall rain + lava glow, a roaring flame crest with a
+pulsing gold ring, shimmering title, and a pulsing unlock button. Shows the instant flare + the full premium haul.</div>

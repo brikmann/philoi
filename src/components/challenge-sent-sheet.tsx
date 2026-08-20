@@ -1,13 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useId } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { PrimaryButton } from '@/components/ui/primary-button';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { ScreenBackground } from '@/components/ui/screen-background';
+import { Colors, EMBER_GRADIENT, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { SocialChallengeRaceMetric } from '@/types/database';
 
 type ChallengeSentSheetProps = {
   visible: boolean;
   onClose: () => void;
+  /** Back to the form with everything still filled in — the ghost action under Done. */
+  onStartAnother?: () => void;
   opponentName: string;
   raceMetric: SocialChallengeRaceMetric;
   windowHours: number;
@@ -15,125 +20,139 @@ type ChallengeSentSheetProps = {
 };
 
 function formatWindow(hours: number): string {
-  if (hours >= 168) return 'This week';
-  if (hours >= 72) return `Next ${hours / 24} days`;
-  return `Next ${hours}h`;
+  if (hours >= 168) return '1 week';
+  if (hours >= 72) return `${Math.round(hours / 24)} days`;
+  return `${hours}h`;
 }
 
-// design-mocks/55a — replaces a plain native Alert with a clear, on-brand "sent" confirmation:
-// a green check, the challenge summary, and an explicit PENDING state (punchlist 3: sending a
-// challenge needs a clear confirmation, not a silent bounce back to the previous screen).
-export function ChallengeSentSheet({ visible, onClose, opponentName, raceMetric, windowHours, payoutXp }: ChallengeSentSheetProps) {
+// The paper plane from mock 98's sent screen — filled with the ember gradient, bottom-up.
+function PaperPlaneHero({ size = 110 }: { size?: number }) {
+  // Gradient ids are global in react-native-svg — see the note in primary-button.tsx.
+  const grad = `plane-${useId()}`;
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <View style={styles.scrim}>
-        <View style={styles.sheet}>
-          <View style={styles.checkCircle}>
-            <Ionicons name="checkmark" size={30} color={Colors.green} />
-          </View>
-          <Text style={styles.title}>Challenge sent</Text>
-          <Text style={styles.subtitle}>{opponentName} has to accept before it starts. You&apos;ll be notified.</Text>
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Defs>
+        <LinearGradient id={grad} x1="0" y1="1" x2="0" y2="0">
+          <Stop offset="0" stopColor={EMBER_GRADIENT[0]} />
+          <Stop offset="1" stopColor={EMBER_GRADIENT[2]} />
+        </LinearGradient>
+      </Defs>
+      <Path d="M2 12l19-8-6 18-4-7-9-3z" fill={`url(#${grad})`} />
+    </Svg>
+  );
+}
 
-          <View style={styles.summary}>
-            <View style={styles.summaryIcon}>
-              <Ionicons name="flash" size={15} color={Colors.achieverText} />
-            </View>
-            <View style={styles.summaryText}>
-              <Text style={styles.summaryTitle}>vs {opponentName} · {raceMetric === 'lockin_time' ? 'Most lock-in time' : 'Most XP'}</Text>
-              <Text style={styles.summarySubtitle}>{formatWindow(windowHours)} · winner takes +{payoutXp} XP</Text>
-            </View>
-            <View style={styles.pendingBadge}>
-              <Text style={styles.pendingBadgeText}>PENDING</Text>
-            </View>
-          </View>
+// design-mocks/98 (was 55a) — the confirmation that replaced a plain native Alert (punchlist 3:
+// sending a challenge needs a clear "sent" state, not a silent bounce back to the form).
+//
+// Full-screen on the ember ground rather than a bottom sheet, and with the actions at the BOTTOM:
+// as a sheet the primary sat directly under the summary, i.e. near the top of the sheet with dead
+// space beneath it, so "Done" read as part of the confirmation copy instead of the thing you do
+// after reading it. Confirmation up top, actions on the bottom edge.
+export function ChallengeSentSheet({
+  visible,
+  onClose,
+  onStartAnother,
+  opponentName,
+  raceMetric,
+  windowHours,
+  payoutXp,
+}: ChallengeSentSheetProps) {
+  const metricLabel = raceMetric === 'lockin_time' ? 'Most lock-in time' : 'Most XP';
 
-          <Pressable onPress={onClose}>
-            <PrimaryButton label="Done" onPress={onClose} />
+  return (
+    <Modal visible={visible} animationType="fade" onRequestClose={onClose} transparent={false}>
+      <ScreenBackground>
+        <View style={styles.topBar}>
+          <Pressable onPress={onClose} hitSlop={10} style={styles.topSide} accessibilityRole="button" accessibilityLabel="Close">
+            <Ionicons name="chevron-back" size={20} color={Colors.muted} />
           </Pressable>
+          <Text style={styles.topTitle}>Challenge sent</Text>
+          <View style={styles.topSide} />
         </View>
-      </View>
+
+        <View style={styles.body}>
+          <PaperPlaneHero />
+          <Text style={styles.title}>Sent to {opponentName}</Text>
+          <Text style={styles.meta}>
+            Head-to-head · {metricLabel} · {formatWindow(windowHours)}
+          </Text>
+          <Text style={styles.meta}>
+            Winner takes <Text style={styles.metaXp}>+{payoutXp} XP</Text>
+          </Text>
+          <View style={styles.waiting}>
+            <Text style={styles.waitingText}>⏳ Waiting for {opponentName} to accept</Text>
+          </View>
+        </View>
+
+        <View style={styles.footer}>
+          <PrimaryButton label="Done" onPress={onClose} />
+          {onStartAnother && <PrimaryButton label="Start another challenge" variant="ghost" onPress={onStartAnother} />}
+        </View>
+      </ScreenBackground>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  scrim: {
-    flex: 1,
-    backgroundColor: 'rgba(10,8,14,0.55)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: Colors.card,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    padding: Spacing.four,
-    paddingBottom: Spacing.five,
+  topBar: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.three,
+    // The modal covers the status bar, so this row carries its own top inset.
+    paddingTop: Spacing.six,
   },
-  checkCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(61,168,92,0.16)',
+  topSide: {
+    width: 24,
+    alignItems: 'flex-start',
+  },
+  topTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 17,
+    color: Colors.ink,
+  },
+  body: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.three,
+    paddingHorizontal: Spacing.five,
   },
   title: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 19,
+    fontSize: 20,
     color: Colors.ink,
+    marginTop: Spacing.three,
+    marginBottom: Spacing.two,
+    textAlign: 'center',
   },
-  subtitle: {
+  meta: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
+    lineHeight: 20,
     color: Colors.muted,
     textAlign: 'center',
-    marginTop: Spacing.one,
-    lineHeight: 18,
   },
-  summary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    alignSelf: 'stretch',
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
-    padding: Spacing.three,
-    marginTop: Spacing.four,
-    marginBottom: Spacing.four,
+  metaXp: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.ember,
   },
-  summaryIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: Colors.selectedBg,
-    alignItems: 'center',
-    justifyContent: 'center',
+  waiting: {
+    marginTop: Spacing.three,
+    backgroundColor: Colors.cream,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
   },
-  summaryText: {
-    flex: 1,
-  },
-  summaryTitle: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.ink,
-  },
-  summarySubtitle: {
-    fontFamily: Fonts.body,
+  waitingText: {
+    fontFamily: Fonts.bodyBold,
     fontSize: 11,
     color: Colors.textTertiary,
-    marginTop: 1,
   },
-  pendingBadge: {
-    backgroundColor: 'rgba(242,163,60,0.16)',
-    borderRadius: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-  },
-  pendingBadgeText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 9.5,
-    color: Colors.amber,
+  footer: {
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.twelve,
+    paddingBottom: Spacing.five,
   },
 });
