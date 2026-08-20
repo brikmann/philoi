@@ -9,6 +9,8 @@ import { ScreenBackground } from '@/components/ui/screen-background';
 
 import { EquippedAvatarHalo, EquippedCardBackdrop, useAuraTier } from '@/components/economy/applied-art';
 import { EquippedTitle } from '@/components/economy/loadout-bits';
+import { BioEditor } from '@/components/profile/bio-editor';
+import { JournalSection } from '@/components/profile/journal-section';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { useActiveSession } from '@/lib/active-session-context';
 import { useEquipped } from '@/lib/economy/loadout';
@@ -30,12 +32,6 @@ import type { MyRank, Profile } from '@/types/database';
 // Kept next to the avatar style it has to agree with.
 const AVATAR_HALO_SIZE = 72;
 
-function formatHours(totalSeconds: number): string {
-  const hours = totalSeconds / 3600;
-  if (hours < 1) return `${Math.round(totalSeconds / 60)}m`;
-  return `${Math.round(hours)}h`;
-}
-
 // design-mocks/15 (PHILOI_UI_SPEC.md §18). Doubles as the "Profile" tab (own profile, no
 // params) and a pushed view of someone else's profile (?userId=...) — no other screen
 // currently links to the latter, but the privacy-aware data fetches below are correct
@@ -43,7 +39,7 @@ function formatHours(totalSeconds: number): string {
 export default function ProfileScreen() {
   const router = useRouter();
   const { userId: userIdParam } = useLocalSearchParams<{ userId?: string }>();
-  const { profile: myProfile } = useAuth();
+  const { profile: myProfile, refreshProfile } = useAuth();
   const { ranks: myRanks } = useMyRanks();
 
   const isOwn = !userIdParam || userIdParam === myProfile?.id;
@@ -70,6 +66,8 @@ export default function ProfileScreen() {
   const [otherRank, setOtherRank] = useState<UserRank | null>(null);
   const [stats, setStats] = useState({ lockin_count: 0, total_seconds: 0 });
   const [recentLockIns, setRecentLockIns] = useState<MyRecentLockIn[]>([]);
+  // null = closed. A string (even empty) means the editor is open with that draft.
+  const [bioDraft, setBioDraft] = useState<string | null>(null);
 
   const profile = isOwn ? myProfile : otherProfile;
   const universalRank: MyRank | UserRank | undefined = isOwn ? myRanks.find((r) => r.scope === 'universal') : (otherRank ?? undefined);
@@ -172,6 +170,19 @@ export default function ProfileScreen() {
                 </View>
               </Pressable>
             )}
+            {/* §3 — the bio. Editable in place on your own profile; on someone else's it renders
+                only when they wrote one, so an empty bio is absent rather than an empty slot. */}
+            {isOwn ? (
+              <Pressable onPress={() => setBioDraft(profile.bio ?? '')} hitSlop={6}>
+                <Text style={[styles.bio, !profile.bio && styles.bioEmpty]} numberOfLines={2}>
+                  {profile.bio || '＋ add a bio'}
+                </Text>
+              </Pressable>
+            ) : profile.bio ? (
+              <Text style={styles.bio} numberOfLines={2}>
+                {profile.bio}
+              </Text>
+            ) : null}
           </View>
         </View>
         </EquippedCardBackdrop>
@@ -189,36 +200,17 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        <View style={styles.stats}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{profile.current_streak}</Text>
-            <Text style={styles.statLabel}>day streak</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{stats.lockin_count}</Text>
-            <Text style={styles.statLabel}>{pluralize(stats.lockin_count, 'lock-in')}</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{formatHours(stats.total_seconds)}</Text>
-            <Text style={styles.statLabel}>locked in</Text>
-          </View>
-        </View>
+        {/* §1: the streak / lock-ins / hours strip is GONE. All three already lead Home — the
+            flame, the streak line and the XP bar — so repeating them here made the profile a
+            second dashboard instead of an identity. What survives is the identity banner and the
+            rank strip; everything below is now the Journal, then the Trophy Hall.
 
-        {/* The identity block above is BUILT from the loadout, so this is where it belongs: the
-            equipped card, halo and title are on screen and the way to change them should be too.
-            The only other route in was "Collect all → Inventory" after opening a box (punchlist
-            8 §3), which left everything bought in the shop effectively unreachable. */}
-        {isOwn && (
-          <Pressable
-            style={styles.inventoryRow}
-            onPress={() => router.push('/inventory')}
-            accessibilityRole="button"
-            accessibilityLabel="Inventory and loadout">
-            <Ionicons name="cube-outline" size={16} color={Colors.ember} />
-            <Text style={styles.inventoryText}>Inventory &amp; loadout</Text>
-            <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
-          </Pressable>
-        )}
+            The "Inventory & loadout" row is gone too: the ⚙ menu owns editing, and §7's
+            "Loadout & Collection" entry is the read-only browse that replaces it. */}
+
+        {/* §5: the Journal leads, directly under the rank strip. Deliberately above the trophies —
+            a viewer should see WHY someone grinds before they see how much. */}
+        {viewingUserId ? <JournalSection userId={viewingUserId} isOwn={isOwn} /> : null}
 
         {recentGoalTypes.length > 0 && (
           <View style={styles.goals}>
@@ -307,12 +299,37 @@ export default function ProfileScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* §3 — opened by tapping the bio line. refreshProfile() pulls the saved value back through
+          auth context so the identity block re-renders from the server, not from local state. */}
+      {bioDraft !== null ? (
+        <BioEditor
+          initial={bioDraft}
+          onClose={() => setBioDraft(null)}
+          onSaved={() => {
+            void refreshProfile();
+          }}
+        />
+      ) : null}
     </SafeAreaView>
     </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  bio: {
+    fontFamily: Fonts.body,
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: Colors.warmSubtext,
+    marginTop: 4,
+  },
+  // The prompt on your own empty bio — quieter than a written one, so it reads as an affordance
+  // rather than as text you forgot you wrote.
+  bioEmpty: {
+    color: Colors.textTertiary,
+    fontStyle: "italic",
+  },
   safeArea: {
     flex: 1,
     // Transparent — the radial behind it is the background now.
@@ -410,44 +427,6 @@ const styles = StyleSheet.create({
   rkXp: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
-  },
-  stats: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 11,
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
-    paddingVertical: 9,
-  },
-  inventoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    marginTop: 8,
-  },
-  inventoryText: {
-    flex: 1,
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.ink,
-  },
-  statValue: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 16,
-    color: Colors.ink,
-  },
-  statLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 10,
     color: Colors.muted,
   },
   goals: {

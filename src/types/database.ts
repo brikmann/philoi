@@ -52,6 +52,8 @@ export type Profile = {
   /** IANA zone written by the client (migration 0084). Null = the daily goal rollover falls back
    * to UTC for this user, which is the pre-0084 behaviour rather than a failure. */
   timezone: string | null;
+  /** One-line self-description under the identity block (§3). Owner-editable, publicly visible. */
+  bio: string | null;
   university: string | null;
   /** Email domain for the chosen school (migration 0062) — from the shipped top-20 cache or
    * Hipolabs. Null means the school has no known domain, so it can't be verified; that never
@@ -127,6 +129,21 @@ export type NotificationEvent = {
   image_shape: NotificationImageShape;
   payload: Record<string, unknown>;
   read_at: string | null;
+  created_at: string;
+};
+
+/** One row of the Journal (§5, migration 0091) — an achievement plus its optional human note. */
+export type JournalEntry = {
+  entry_key: string;
+  type: string;
+  title: string;
+  body: string | null;
+  image_url: string | null;
+  image_shape: NotificationImageShape;
+  /** The owner’s comment. Null means the row still offers "+ add a note" on their own profile. */
+  note: string | null;
+  /** Hidden from visitors; still returned to the owner. */
+  hidden: boolean;
   created_at: string;
 };
 
@@ -566,6 +583,9 @@ export type AnalyticsEventName =
   | 'challenge_completed'
   | 'goal_day_awarded'
   | 'notifications_read'
+  | 'journal_note_set'
+  | 'journal_entry_hidden'
+  | 'bio_updated'
   | 'challenge_logged'
   | 'challenge_accepted'
   | 'challenge_declined'
@@ -1453,6 +1473,10 @@ export type Database = {
       forfeit_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       credit_lockin_time_goals: { Args: { p_check_in_id: string }; Returns: number };
       get_my_notifications: { Args: { p_limit?: number }; Returns: NotificationEvent[] };
+      get_journal: { Args: { p_user: string; p_limit?: number }; Returns: JournalEntry[] };
+      set_journal_note: { Args: { p_entry_key: string; p_note: string | null }; Returns: undefined };
+      set_journal_hidden: { Args: { p_entry_key: string; p_hidden: boolean }; Returns: undefined };
+      set_my_bio: { Args: { p_bio: string | null }; Returns: string | null };
       get_unread_notification_count: { Args: Record<string, never>; Returns: number };
       mark_notifications_read: { Args: Record<string, never>; Returns: number };
       /** Banks a completed personal goal's embers for one LOCAL day (migration 0085). Difficulty
