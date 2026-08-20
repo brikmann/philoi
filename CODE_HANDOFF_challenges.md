@@ -115,7 +115,13 @@ Make the profile "this is YOU" — real equipped art, earned trophies, a journal
   - **Visibility:** everything defaults **public**; owner can **hide individual items / the record** (per-item
     toggle). Hidden items still show in the owner's own hall.
 - **Journal** — achievements become entries with optional **user comments** (`＋ add a note`); leads with the
-  achievement's art (same resolver as the notifications leading-art table). Default public.
+  achievement's art (same resolver as the notifications leading-art table). Default public. **Placed high** —
+  under the rank strip, above the hall (the "human here" layer).
+- **Collection browse (RL-style, mock 107 Frame 4)** — a **"Loadout & Collection"** entry on the profile (own
+  + others) opens a **read-only** view: equipped loadout up top, then the **full owned closet grouped by type**
+  (Flames/Halos/Cards/Particles/Flares/Titles/Audio/SFX/Banners + earned Relics), **rarity-sorted**, equipped
+  tile **ringed**, tap → item lore. Read-only on others; **editing/equipping stays in the inventory** (⚙).
+  Respects the same **per-item hide**. Flex + desire engine; pairs with the Hall (earned vs owned).
 - **Share card fixes (Frame 3):** session-type icon → **vector** (no 📚 emoji); **stat row is per-session-
   type** — Study/Read → Streak + XP, Gym → Streak + **PRs** + XP. Never a zeroed "0 PRs" on a study session.
 

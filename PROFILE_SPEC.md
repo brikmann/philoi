@@ -96,6 +96,20 @@ lock-ins.
   public). Leads each row with the achievement's art (rank hexagon, flame, trophy) — same art resolver as
   notifications (`NOTIFICATIONS_SPEC.md` leading-art table).
 
+## E2. New: Collection browse — RL-style closet (Frame 4)
+A read-only view of someone's whole cosmetic collection — reachable from a **"Loadout & Collection"** entry on
+the profile (own + others). This is distinct from the removed cluttered "Inventory & loadout" edit-row (§A):
+**viewing/showcase lives on the profile; editing/equipping stays in the inventory (⚙ menu).**
+- **Equipped loadout up top** — the slots she's running now (Flame · Halo · Card · Title · Particle/Flare/Audio).
+- **Full owned collection below**, **grouped by type** (Flames, Halos, Cards, Particles, Flares, Titles, Audio,
+  SFX, Banners) + **Relics** (earned). Within a group, **rarity-sorted** (Mythic→Common), each tile
+  rarity-tinted, the **equipped one ringed** ("EQUIPPED"). Tap a tile → name · rarity · lore.
+- **Why:** it's both a flex ("look what I've collected") and a **desire engine** — you see a Mythic flame you
+  don't own and now you want it. Pairs with the Trophy Hall: Hall = *what I earned*, Collection = *what I own*.
+- **Read-only on others.** Respects the same **per-item hide** toggle (§D) — hidden items don't show to
+  visitors ("🔒 N hidden by owner"). Own view shows everything.
+- Resolves item art from the catalog (same art the equip UI + notifications use).
+
 ## F. Lock-in share card — fixes (Frame 3)
 The share sheet that opens from a lock-in (Share / Keep private) has two bugs:
 1. **Session-type icon is an emoji** (📚) → replace with the **vector session-type icon** (book for Study,
@@ -114,4 +128,6 @@ The share sheet that opens from a lock-in (Share / Keep private) has two bugs:
 - [ ] Trophy Hall renders featured relics/medals + earned-badge grid (locked = greyed) + duel W-L; visible on
       own AND other profiles; "See all" opens the full hall; other-profile has compare banner + CTAs.
 - [ ] Journal lists achievements with optional user comments + `＋ add a note`; leads with achievement art.
+- [ ] Collection browse: "Loadout & Collection" entry opens equipped loadout + full owned closet grouped by
+      type, rarity-sorted, equipped ringed; read-only on others; per-item hide respected; tap → item lore.
 - [ ] Share card uses vector session icons; stat row is per-session-type (no PRs on non-gym).

@@ -132,6 +132,28 @@ h1{font-size:19px;margin:0;text-align:center}
 .tb svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8}
 .tb.on svg{fill:currentColor;stroke:none}
 .pad{height:8px}
+/* ---- collection (RL-style closet) ---- */
+.colentry{display:flex;align-items:center;gap:9px;margin:12px 14px 0;background:#171226;border:1px solid #241c38;border-radius:13px;padding:11px 13px;font-size:12.5px;font-weight:700;color:#e7ddf5}
+.colentry .em{width:20px;height:20px}
+.colentry .n2{margin-left:auto;font-size:11px;color:#8a7fa6;font-weight:600}
+.colentry .chev{color:#5c5274}
+.loadout{display:flex;gap:7px;margin:2px 14px 0}
+.lslot{flex:1;background:#171226;border:1px solid #241c38;border-radius:12px;padding:9px 3px;text-align:center;position:relative}
+.lslot svg{width:26px;height:26px}
+.lslot .sl{font-size:7.5px;color:#8a7fa6;margin-top:4px;letter-spacing:.3px}
+.collabel{font-size:10px;font-weight:800;letter-spacing:.5px;color:#9f92b6;margin:16px 14px 8px;display:flex;justify-content:space-between;align-items:baseline}
+.collabel .c2{font-size:9px;color:#6f6488;font-weight:700}
+.igrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 14px}
+.item{aspect-ratio:1;border-radius:12px;background:#141020;border:1px solid #2a2140;display:grid;place-items:center;position:relative}
+.item svg{width:30px;height:30px;position:relative;z-index:2}
+.item .g{position:absolute;inset:0;border-radius:12px}
+.item.eq{box-shadow:0 0 0 2px var(--ember)}
+.item .eqb{position:absolute;top:-6px;right:-5px;background:var(--ember);color:#2a1400;font-size:7px;font-weight:800;padding:1px 5px;border-radius:5px;z-index:3}
+.item.r-myth{border-color:rgba(199,120,255,.55)} .item.r-myth .g{background:radial-gradient(65% 65% at 50% 40%,rgba(199,120,255,.28),transparent 70%)}
+.item.r-leg{border-color:rgba(255,180,60,.55)} .item.r-leg .g{background:radial-gradient(65% 65% at 50% 40%,rgba(255,180,60,.24),transparent 70%)}
+.item.r-epic{border-color:rgba(180,110,255,.45)} .item.r-epic .g{background:radial-gradient(65% 65% at 50% 40%,rgba(180,110,255,.2),transparent 70%)}
+.item.r-rare{border-color:rgba(107,168,255,.45)}
+.item.r-unc{border-color:rgba(120,220,160,.4)}
 /* ---- share card frame (fixed) ---- */
 .cardwrap{display:flex;gap:22px;flex-wrap:wrap;justify-content:center}
 .cell{display:flex;flex-direction:column;align-items:center;gap:8px;width:214px}
@@ -169,7 +191,7 @@ h1{font-size:19px;margin:0;text-align:center}
 
 <div class="note">
 <b>Cut from the current screen:</b> <span class="kill">"Wilfrid Laurier University — 8 here"</span> (retired) · <span class="kill">the "Inventory &amp; loadout" row</span> + <span class="kill">floating "Study" chip</span> (→ ⚙ menu / editor) · <span class="kill">duplicate gear over the XP bar</span> · <span class="kill">the streak / lock-ins / hours stat strip</span> (redundant — lives on Home) · <span class="kill">Peak Rank tile</span> (rank is global &amp; persistent — it stays on the rank strip, not the hall).
-<b>&nbsp;Kept lean:</b> identity banner (name · verified uni · bio) + rank strip. <b>Journal moved up</b> — it's the "there's a human here" layer, so it leads. <b>Added:</b> <span class="add">bio</span>, <span class="add">Trophy Hall</span> (season placements + collected relics/medals/badges + W-L), <span class="add">journal</span>. <b>Critical fix:</b> CARD backdrop + avatar HALO must render as <b>actual art</b> (ITEM_CATALOG §2a/§2b) — currently flat colours.
+<b>&nbsp;Kept lean:</b> identity banner (name · verified uni · bio) + rank strip. <b>Journal moved up</b> — it's the "there's a human here" layer, so it leads. <b>Added:</b> <span class="add">bio</span>, <span class="add">Trophy Hall</span> (season placements + collected relics/medals/badges + W-L), <span class="add">journal</span>, <span class="add">RL-style Collection browse</span> (Frame 4 — view anyone's full owned closet). <b>Critical fix:</b> CARD backdrop + avatar HALO must render as <b>actual art</b> (ITEM_CATALOG §2a/§2b) — currently flat colours.
 </div>
 
 <div class="row">
@@ -222,6 +244,9 @@ h1{font-size:19px;margin:0;text-align:center}
       <div class="track"><div class="fill" style="width:83%"></div></div>
     </div>
   </div>
+
+  <!-- collection entry (RL-style closet) -->
+  <div class="colentry"><svg class="em" viewBox="0 0 24 24" fill="url(#emb)"><path d="M3 8l9-5 9 5-9 5z"/><path d="M3 8v8l9 5 9-5V8l-9 5z" opacity=".55"/></svg>Loadout &amp; Collection<span class="n2">42 items</span><span class="chev">›</span></div>
 
   <!-- JOURNAL (moved up — the human layer, most accessible) -->
   <div class="section">
@@ -370,7 +395,10 @@ h1{font-size:19px;margin:0;text-align:center}
     <div class="autolbl" style="margin-top:8px;margin-bottom:0">🔒 2 trophies hidden by owner · defaults public, per-item toggle</div>
   </div>
 
-  <div class="section" style="margin-top:16px;margin-bottom:14px">
+  <!-- view their collection (RL-style) -->
+  <div class="colentry" style="margin-top:14px"><svg class="em" viewBox="0 0 24 24" fill="url(#emb)"><path d="M3 8l9-5 9 5-9 5z"/><path d="M3 8v8l9 5 9-5V8l-9 5z" opacity=".55"/></svg>View Maya's collection<span class="n2">61 items</span><span class="chev">›</span></div>
+
+  <div class="section" style="margin-top:12px;margin-bottom:14px">
     <div style="display:flex;gap:9px">
       <div style="flex:1;background:linear-gradient(90deg,#F2A33C,#FF7A3E);border-radius:13px;padding:12px;text-align:center;font-size:13px;font-weight:800;color:#2a1400">⚡ Challenge</div>
       <div style="flex:1;background:#171226;border:1px solid #2a2140;border-radius:13px;padding:12px;text-align:center;font-size:13px;font-weight:700;color:#d8cceb">Add friend</div>
@@ -378,7 +406,62 @@ h1{font-size:19px;margin:0;text-align:center}
   </div>
   <div class="pad"></div>
 </div></div>
-<div class="flabel"><b>Frame 2 · Their profile.</b> Same hall = instant, earned status comparison (not just cosmetics). Compare banner + Challenge/Add CTAs.</div>
+<div class="flabel"><b>Frame 2 · Their profile.</b> Same hall = earned status compare · compare banner · <b>View collection</b> (RL-style) · Challenge / Add.</div>
+</div>
+
+<!-- ================= FRAME 4 · COLLECTION (RL-style closet) ================= -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>3:39</span><span class="r">📶 &nbsp;70</span></div>
+  <div class="phead"><h2 style="font-size:18px;display:flex;align-items:center;gap:8px"><span style="color:#8a7fa6">‹</span> Maya's Collection</h2></div>
+
+  <!-- equipped loadout -->
+  <div class="collabel" style="margin-top:2px">EQUIPPED<span class="c2">what she's running now</span></div>
+  <div class="loadout">
+    <div class="lslot"><svg viewBox="0 0 24 24" fill="url(#myth)"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg><div class="sl">FLAME</div></div>
+    <div class="lslot"><svg viewBox="0 0 24 24" fill="none" stroke="url(#myth)" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><div class="sl">HALO</div></div>
+    <div class="lslot"><svg viewBox="0 0 24 24" fill="url(#gold)"><rect x="3" y="5" width="18" height="14" rx="2"/></svg><div class="sl">CARD</div></div>
+    <div class="lslot"><svg viewBox="0 0 24 24" fill="#FFC14D"><path d="M12 2l2.4 6.9H22l-6 4.4 2.3 7-6.3-4.6L5.7 20l2.3-7-6-4.4h7.6z"/></svg><div class="sl">TITLE</div></div>
+    <div class="lslot"><svg viewBox="0 0 24 24" fill="url(#emb)"><circle cx="6" cy="8" r="2"/><circle cx="14" cy="6" r="1.5"/><circle cx="18" cy="12" r="2"/><circle cx="10" cy="16" r="1.5"/></svg><div class="sl">PARTICLE</div></div>
+  </div>
+
+  <!-- owned, grouped by type, rarity-sorted, equipped ringed -->
+  <div class="collabel">FLAMES<span class="c2">6 owned</span></div>
+  <div class="igrid">
+    <div class="item r-myth eq"><div class="g"></div><span class="eqb">EQUIPPED</span><svg viewBox="0 0 24 24" fill="url(#myth)"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div>
+    <div class="item r-leg"><div class="g"></div><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div>
+    <div class="item r-epic"><div class="g"></div><svg viewBox="0 0 24 24" fill="#c79bec"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div>
+    <div class="item r-rare"><svg viewBox="0 0 24 24" fill="#6BA8FF"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div>
+    <div class="item r-rare"><svg viewBox="0 0 24 24" fill="#6BA8FF"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div>
+    <div class="item r-unc"><svg viewBox="0 0 24 24" fill="#7fe0a0"><path d="M12 2c1 4 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div>
+  </div>
+
+  <div class="collabel">HALOS<span class="c2">4 owned</span></div>
+  <div class="igrid">
+    <div class="item r-myth eq"><div class="g"></div><span class="eqb">EQUIPPED</span><svg viewBox="0 0 24 24" fill="none" stroke="url(#myth)" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+    <div class="item r-leg"><div class="g"></div><svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+    <div class="item r-epic"><div class="g"></div><svg viewBox="0 0 24 24" fill="none" stroke="#c79bec" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+    <div class="item r-unc"><svg viewBox="0 0 24 24" fill="none" stroke="#7fe0a0" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+  </div>
+
+  <div class="collabel">CARDS<span class="c2">5 owned</span></div>
+  <div class="igrid">
+    <div class="item r-leg eq"><div class="g"></div><span class="eqb">EQUIPPED</span><svg viewBox="0 0 24 24" fill="url(#gold)"><rect x="3" y="5" width="18" height="14" rx="2"/></svg></div>
+    <div class="item r-epic"><div class="g"></div><svg viewBox="0 0 24 24" fill="#c79bec"><rect x="3" y="5" width="18" height="14" rx="2"/></svg></div>
+    <div class="item r-rare"><svg viewBox="0 0 24 24" fill="#6BA8FF"><rect x="3" y="5" width="18" height="14" rx="2"/></svg></div>
+    <div class="item r-unc"><svg viewBox="0 0 24 24" fill="#7fe0a0"><rect x="3" y="5" width="18" height="14" rx="2"/></svg></div>
+  </div>
+
+  <div class="collabel">RELICS · earned<span class="c2">2 owned</span></div>
+  <div class="igrid">
+    <div class="item r-myth"><div class="g"></div><svg viewBox="0 0 24 24" fill="url(#myth)"><path d="M12 2l2 5 5 1-3.5 3.5L16 17l-4-2.4L8 17l.5-5.5L5 8l5-1z"/></svg></div>
+    <div class="item r-leg"><div class="g"></div><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/></svg></div>
+  </div>
+
+  <div class="autolbl" style="margin:14px 14px 0">🔒 3 items hidden by owner · tap any item → name · rarity · lore</div>
+  <div class="pad"></div><div class="pad"></div>
+</div></div>
+<div class="flabel"><b>Frame 4 · Collection (RL-style).</b> Equipped loadout up top, then the full owned closet grouped by type, rarity-sorted, equipped ringed. Read-only on others; owner edits in the inventory. Per-item hide respected.</div>
 </div>
 
 <!-- ================= FRAME 3 · SHARE CARDS (fixed) ================= -->
