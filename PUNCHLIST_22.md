@@ -65,6 +65,17 @@ badge/read-state). **One-time fire. Do NOT create a "John Doe" user row.**
   or a seed that checks a flag so it doesn't re-fire on every boot. Target = the signed-in dev user
   (`spikeythedoge1@gmail.com`). Delete after verifying.
 
+## P1 — profile build gaps (flagged by the worktree session — sibling §1/§3 scope)
+These two were reported as "done" but weren't; they'll fall through unless assigned:
+9. **Floating "Study" chip still present.** The goal-type chips at `src/app/(tabs)/profile.tsx:239` are the
+   "floating Study chip" §1 said to remove. The declutter commit left them. → remove.
+10. **Bio (and §3 cosmetics) never reach visitors.** Bio + hall + compare-banner + collection entry currently
+    render only on `(tabs)/profile.tsx`, but **`friend-profile.tsx`** is the screen leaderboards/campfires
+    actually link to (`(tabs)/profile.tsx?userId=` has no inbound links). **Apply §3 (equipped-art render) +
+    bio + the hall/collection/compare-banner to `friend-profile.tsx`** so other-profile views actually show
+    them. (The worktree session already put hall/compare/collection there; bio + the §3 cosmetic render still
+    need it.)
+
 ## Acceptance
 - [ ] Watch opens (no ambiguous-`status` SQL error).
 - [ ] Viewing a notification in-app clears the bell badge / unread count.

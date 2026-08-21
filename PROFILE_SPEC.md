@@ -100,10 +100,11 @@ lock-ins.
 A read-only view of someone's whole cosmetic collection — reachable from a **"Loadout & Collection"** entry on
 the profile (own + others). This is distinct from the removed cluttered "Inventory & loadout" edit-row (§A):
 **viewing/showcase lives on the profile; editing/equipping stays in the inventory (⚙ menu).**
-- **Equipped loadout up top** — the slots she's running now (Flame · Halo · Card · Title · Particle/Flare/Audio).
-- **Full owned collection below**, **grouped by type** (Flames, Halos, Cards, Particles, Flares, Titles, Audio,
-  SFX, Banners) + **Relics** (earned). Within a group, **rarity-sorted** (Mythic→Common), each tile
-  rarity-tinted, the **equipped one ringed** ("EQUIPPED"). Tap a tile → name · rarity · lore.
+- **Full owned collection, grouped by type** (Flames, Halos, Cards, Particles, Flares, Titles, Audio, SFX,
+  Banners) + **Relics** (earned). **No separate "equipped loadout" strip** — the equipped item in each group
+  is simply **ringed** ("EQUIPPED"). Within a group, **rarity-sorted** (Mythic→Common), each tile
+  rarity-tinted. Tap a tile → name · rarity · lore. *(Supersedes the earlier "loadout up top" phrasing —
+  matches mock 107 Frame 4 + `CODE_PROMPT_profile.md` §7.)*
 - **Why:** it's both a flex ("look what I've collected") and a **desire engine** — you see a Mythic flame you
   don't own and now you want it. Pairs with the Trophy Hall: Hall = *what I earned*, Collection = *what I own*.
 - **Read-only on others.** Respects the same **per-item hide** toggle (§D) — hidden items don't show to

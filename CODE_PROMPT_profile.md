@@ -13,17 +13,26 @@ disagreements in chat.
 - Remove: the **Inventory & loadout** row, the floating **Study** chip (→ ⚙ menu / editor), the **duplicate
   gear** over the XP bar (one gear, header top-right), and the **streak / lock-ins / hours stat strip**
   (redundant — lives on Home).
+  - ⚠ **Still open (PUNCHLIST_22 #9):** the "Study" chip is the **goal-type chips at
+    `src/app/(tabs)/profile.tsx:239`** — the earlier declutter commit left them. Remove them.
 - **Keep:** identity banner (name · @handle · title · verified uni · bio) + the rank strip.
 - **Screen order (lean):** identity banner → rank strip → **Journal** → **Trophy Hall** → recent lock-ins.
+
+> **‼ Apply to `friend-profile.tsx`, not just `(tabs)/profile.tsx`.** `friend-profile.tsx` is the screen
+> leaderboards + campfires actually link to; `(tabs)/profile.tsx?userId=` has no inbound links. Anything that
+> must show on *other* people's profiles (§2 cosmetic render, §3 bio, §4 hall, §7 collection entry, compare
+> banner) has to land on `friend-profile.tsx`. (PUNCHLIST_22 #10.)
 
 ## 2. 🔴 Cosmetics must render as ACTUAL ART (not flat colour)
 The **CARD** backdrop + avatar **HALO** currently render as flat colours. Render the real §2a/§2b art from the
 user's **equipped loadout** (Cracked Magma cracks, Inferno Flare ring, etc.), honoring the **30/60/90 live-aura
 ramp** mid-lock-in, with the **default loadout** (already equipped on signup) as fallback — never a bare
-colour. Same resolver drives your card AND anyone else's profile.
+colour. Same resolver drives your card AND anyone else's profile — **including `friend-profile.tsx`** (see the
+note above).
 
 ## 3. Bio
-Editable one-liner under the identity block (own profile only).
+Editable one-liner under the identity block (own profile only for editing) — but it **renders on visitors'
+views too**, so wire it into **`friend-profile.tsx`** as well, not only `(tabs)/profile.tsx` (PUNCHLIST_22 #10).
 
 ## 4. Trophy Hall — EARNED-ONLY (nothing buyable/rollable)
 Renders on **own and other** profiles = earned status compare. **No peak-rank tile** (rank persists on the rank
@@ -85,9 +94,11 @@ People broadcast wins ("85% on a brutal Orgo midterm"). Two layers, hard firewal
   zeroed "0 PRs" on a study session.
 
 ## Acceptance
-- [ ] "University — N here" gone app-wide; inv/loadout row + Study chip + duplicate gear + stat strip removed;
-      order = banner → rank → journal → hall → lock-ins.
+- [ ] "University — N here" gone app-wide; inv/loadout row + Study chip (`profile.tsx:239`) + duplicate gear +
+      stat strip removed; order = banner → rank → journal → hall → lock-ins.
 - [ ] CARD + HALO render equipped **art** (not colour) w/ 30/60/90 aura + default fallback; bio editable.
+- [ ] **`friend-profile.tsx`** (the linked other-profile screen) shows §2 cosmetic art + bio + hall + collection
+      entry + compare banner — not just `(tabs)/profile.tsx`.
 - [ ] Trophy Hall (season placements + relics + badge grid + W-L) on own + other profiles; auto-featured
       collapsed; per-item hide; compare banner + CTAs on others. No peak-rank tile.
 - [ ] Journal leads (under rank strip); entries take comments + `＋ add a note`; leads with achievement art.
