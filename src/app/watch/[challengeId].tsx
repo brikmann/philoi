@@ -1,19 +1,39 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/ui/avatar';
+import { Crown } from '@/components/ui/crown';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useChallengeWatch, useGroupChallengeWatch } from '@/hooks/use-challenge-watch';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
-import { cheerChallenge } from '@/lib/api/leaderboard-social';
+import { cheerChallenge, fetchChallengeCheerNotes } from '@/lib/api/leaderboard-social';
 import { formatTimeLeft } from '@/lib/format';
+import type { CheerNote } from '@/types/database';
 
 const RACE_METRIC_LABEL: Record<string, string> = { xp: 'Most XP', lockin_time: 'Most lock-in time' };
+
+// Mirrors the challenge_cheers_note_len constraint in 0110. Changing one without the other means
+// the composer either truncates early or offers characters the insert will refuse.
+const MAX_NOTE = 140;
 
 function ScoreValue({ score, raceMetric }: { score: number; raceMetric: string }) {
   return <Text style={styles.score}>{Math.round(score)}{raceMetric === 'lockin_time' ? 's' : ' XP'}</Text>;
@@ -58,6 +78,117 @@ function CheerButton({
   );
 }
 
+// One cheer per challenge is permanent and picks a side (0081), so this is a confirm step, not
+// friction bolted onto a one-tap button. The note is optional — "Cheer" sends with an empty box.
+function CheerComposer({
+  forName,
+  busy,
+  onCancel,
+  onSend,
+}: {
+  forName: string;
+  busy: boolean;
+  onCancel: () => void;
+  onSend: (note: string) => void;
+}) {
+  // Inside a <Modal>, so the OS inset is this component's problem — the parent <Screen>'s
+  // SafeAreaView does not extend over a modal.
+  const insets = useSafeAreaInsets();
+  const [note, setNote] = useState('');
+  const left = MAX_NOTE - note.trim().length;
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onCancel} statusBarTranslucent>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} accessibilityLabel="Close" />
+
+          <View style={[styles.sheet, { paddingBottom: insets.bottom + Spacing.four }]}>
+            <View style={styles.grab} />
+            <Text style={styles.sheetTitle}>Backing {forName}</Text>
+            <Text style={styles.sheetSub}>
+              One cheer per challenge, and it can’t be moved or edited afterwards.
+            </Text>
+
+            <TextInput
+              style={styles.noteInput}
+              value={note}
+              onChangeText={setNote}
+              placeholder="Say something (optional)"
+              placeholderTextColor={Colors.textTertiary}
+              multiline
+              // Hard cap at the column’s own limit so the field cannot compose something the
+              // constraint in 0110 would reject.
+              maxLength={MAX_NOTE}
+              editable={!busy}
+              accessibilityLabel="Note to send with your cheer"
+            />
+            {/* Only once it matters. A counter sitting at 140/140 from the first frame is noise. */}
+            {left <= 40 ? <Text style={styles.noteCount}>{left}</Text> : null}
+
+            <Pressable
+              style={[styles.sendBtn, busy && styles.sendBtnBusy]}
+              onPress={() => onSend(note)}
+              disabled={busy}
+              accessibilityRole="button">
+              <Ionicons name="megaphone" size={15} color={Colors.ink} />
+              <Text style={styles.sendText}>{busy ? 'Sending…' : 'Cheer'}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// The notes wall. Deliberately not part of the polled watch payload (0110) — it is read once and
+// re-read after this viewer cheers, not every few seconds.
+function CheerWall({
+  challengeId,
+  version,
+  nameFor,
+}: {
+  challengeId: string;
+  version: number;
+  nameFor: (userId: string) => string;
+}) {
+  const [notes, setNotes] = useState<CheerNote[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetchChallengeCheerNotes(challengeId)
+      .then((rows) => {
+        if (active) setNotes(rows);
+      })
+      // Silent: the wall is decoration on top of the race. A failed read must not put an error
+      // over a working scoreboard.
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [challengeId, version]);
+
+  if (notes.length === 0) return null;
+
+  return (
+    <View style={styles.wall}>
+      {notes.map((n) => (
+        <View key={n.spectator_id} style={styles.wallRow}>
+          <Avatar label={n.spectator_name} size={22} />
+          <View style={styles.wallBody}>
+            <Text style={styles.wallWho} numberOfLines={1}>
+              {n.spectator_name} <Text style={styles.wallFor}>→ {nameFor(n.backed_user_id)}</Text>
+            </Text>
+            <Text style={styles.wallNote}>{n.note}</Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function H2HWatch({ challengeId }: { challengeId: string }) {
   const { session } = useAuth();
   const { watch, loading, error } = useChallengeWatch(challengeId);
@@ -67,6 +198,16 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
   // double-counted the moment the poll included the cheer, then dropped when the delta reset
   // (the "7 → 0"). An absolute value can only ever be right or briefly stale.
   const [cheeredCount, setCheeredCount] = useState<{ side: 'created_by' | 'opponent'; count: number } | null>(null);
+  // Which side the composer is open for. Held as the whole target rather than an id so the sheet
+  // can title itself without reaching back into `watch`, which is possibly null above the guards.
+  const [composeFor, setComposeFor] = useState<{
+    userId: string;
+    name: string;
+    side: 'created_by' | 'opponent';
+  } | null>(null);
+  // Bumped after this viewer's cheer lands so the wall re-reads. A counter rather than refetching
+  // inline: CheerWall owns its own fetch, and this is the only thing that can change it.
+  const [notesVersion, setNotesVersion] = useState(0);
 
   if (loading && !watch) {
     return (
@@ -79,13 +220,17 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
     return <EmptyState emoji="👀" title="Can't watch this one" body={error ?? 'This challenge has ended or you no longer have access.'} />;
   }
 
-  async function handleCheer(forUserId: string, side: 'created_by' | 'opponent') {
+  async function handleCheer(forUserId: string, side: 'created_by' | 'opponent', note: string) {
     if (cheering) return;
     setCheering(forUserId);
     try {
-      const count = await cheerChallenge(challengeId, forUserId);
+      const count = await cheerChallenge(challengeId, forUserId, note);
       setCheeredCount({ side, count });
+      setComposeFor(null);
+      setNotesVersion((v) => v + 1);
     } catch {
+      // The sheet stays open on failure. Closing it would throw away what they typed for an error
+      // they never saw.
       // Server refused (already cheered, challenge settled, or competing in it). The button is
       // disabled in all three cases, so this is a stale screen — the next poll corrects it, and
       // inventing a local number here is what caused the count to disagree with the server.
@@ -116,7 +261,14 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
     : watch.cheered_for;
 
   return (
-    <View style={styles.container}>
+    // Scrolls now that the cheer wall hangs off the bottom: Screen gives no scroll of its own, and
+    // the wall reads up to 50 notes (0110), which would otherwise run off the bottom of a fixed
+    // View with no way to reach them. GroupWatch keeps its FlatList — nesting one in a ScrollView
+    // is the thing that warning is about.
+    <ScrollView
+      style={styles.flex}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled">
       <View style={styles.goalRow}>
         <Ionicons name="flash" size={13} color={Colors.achieverText} />
         <Text style={styles.goalText}>{RACE_METRIC_LABEL[watch.race_metric] ?? 'Race'}</Text>
@@ -158,7 +310,9 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
           mine={cheeredFor === watch.created_by}
           disabled={cheerDisabled}
           isFinal={isFinal}
-          onPress={() => handleCheer(watch.created_by, 'created_by')}
+          onPress={() =>
+            setComposeFor({ userId: watch.created_by, name: watch.created_by_name, side: 'created_by' })
+          }
         />
         {watch.opponent_id && (
           <CheerButton
@@ -166,13 +320,36 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
             mine={cheeredFor === watch.opponent_id}
             disabled={cheerDisabled}
             isFinal={isFinal}
-            onPress={() => handleCheer(watch.opponent_id!, 'opponent')}
+            onPress={() =>
+              setComposeFor({
+                userId: watch.opponent_id!,
+                name: watch.opponent_name ?? 'them',
+                side: 'opponent',
+              })
+            }
           />
         )}
       </View>
 
       {isFinal && <Text style={styles.finalNote}>Final · this challenge has ended</Text>}
-    </View>
+
+      <CheerWall
+        challengeId={challengeId}
+        version={notesVersion}
+        nameFor={(userId) =>
+          userId === watch.created_by ? watch.created_by_name : watch.opponent_name ?? 'them'
+        }
+      />
+
+      {composeFor ? (
+        <CheerComposer
+          forName={composeFor.name}
+          busy={Boolean(cheering)}
+          onCancel={() => setComposeFor(null)}
+          onSend={(note) => handleCheer(composeFor.userId, composeFor.side, note)}
+        />
+      ) : null}
+    </ScrollView>
   );
 }
 
@@ -192,7 +369,29 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
   }
 
   const head = rows[0];
-  const sorted = [...rows].sort((a, b) => b.member_progress - a.member_progress);
+  // Guard the divisor, not the display: target_count is int not null upstream, but a 0 would turn
+  // every meter into NaN% and silently blank the list rather than fail loudly.
+  const target = Math.max(1, head.target_count);
+
+  // Deterministic order. get_group_challenge_watch (0056) sorts `by member_progress desc` only, so
+  // members on the same count come back in whatever order the planner happened to produce, which
+  // can differ between polls and make the list reshuffle while nothing has actually changed. Name
+  // is the tiebreak because it is the one key that does not move mid-race.
+  const sorted = [...rows].sort(
+    (a, b) => b.member_progress - a.member_progress || a.member_name.localeCompare(b.member_name),
+  );
+
+  // Nobody leads a race nobody has started. Crowning row 0 while everyone sits at 0 invents a
+  // leader the same way the phantom 0-0 duel did (0097) — the sort still has to put someone first,
+  // but first-in-a-tie is not winning. When several genuinely share the top count they all wear
+  // it; picking one of them would be the client deciding the result.
+  const top = sorted[0].member_progress;
+  const isLeading = (progress: number) => top > 0 && progress === top;
+
+  // Competition ranking (1, 1, 3) rather than row position. Numbering tied members 1, 2 down the
+  // column asserts a gap the scores do not contain.
+  const rankOf = (index: number) =>
+    sorted.findIndex((r) => r.member_progress === sorted[index].member_progress) + 1;
 
   return (
     <View style={styles.container}>
@@ -208,21 +407,39 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
         data={sorted}
         keyExtractor={(item) => item.member_id}
         contentContainerStyle={styles.groupList}
-        renderItem={({ item, index }) => (
-          <View style={[styles.groupRow, item.member_id === session?.user.id && styles.groupRowMe]}>
-            <Text style={styles.groupRank}>{index + 1}</Text>
-            <Avatar label={item.member_name} size={30} />
-            <View style={styles.groupWho}>
-              <Text style={styles.groupName} numberOfLines={1}>
-                {item.member_name}
-              </Text>
-              <Text style={styles.groupStatus} numberOfLines={1}>
-                {item.member_live_status}
+        renderItem={({ item, index }) => {
+          const done = item.member_progress >= target;
+          return (
+            <View style={[styles.groupRow, item.member_id === session?.user.id && styles.groupRowMe]}>
+              <Text style={styles.groupRank}>{rankOf(index)}</Text>
+              <Avatar label={item.member_name} size={30} />
+              <View style={styles.groupWho}>
+                <View style={styles.groupNameRow}>
+                  <Text style={styles.groupName} numberOfLines={1}>
+                    {item.member_name}
+                  </Text>
+                  {/* The vector Crown, not an emoji — same reason the podium stopped using one
+                      (punchlist A2): an emoji redraws differently per OS and cannot take the gold. */}
+                  {isLeading(item.member_progress) ? <Crown size={15} /> : null}
+                </View>
+                {/* The meter is the point of the redesign: a bare count says how far someone has
+                    got, not how far they have left. ProgressBar clamps, so an overshoot past the
+                    target reads as full instead of spilling out of the track. */}
+                <ProgressBar
+                  ratio={item.member_progress / target}
+                  height={5}
+                  fillColor={done ? Colors.ember : Colors.coral}
+                />
+                <Text style={styles.groupStatus} numberOfLines={1}>
+                  {item.member_live_status}
+                </Text>
+              </View>
+              <Text style={[styles.groupProgress, done && styles.groupProgressDone]}>
+                {item.member_progress}/{target}
               </Text>
             </View>
-            <Text style={styles.groupProgress}>{item.member_progress}×</Text>
-          </View>
-        )}
+          );
+        }}
       />
     </View>
   );
@@ -389,7 +606,14 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  groupNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    marginBottom: 3,
+  },
   groupName: {
+    flexShrink: 1,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ink,
@@ -403,5 +627,110 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ink,
+  },
+  groupProgressDone: {
+    color: Colors.ember,
+  },
+  flex: {
+    flex: 1,
+  },
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(9,7,14,0.55)',
+  },
+  sheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingTop: 8,
+    paddingHorizontal: Spacing.four,
+  },
+  grab: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.lineStrong,
+    marginBottom: Spacing.three,
+  },
+  sheetTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 16,
+    color: Colors.ink,
+  },
+  sheetSub: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginTop: 2,
+    marginBottom: Spacing.three,
+  },
+  noteInput: {
+    minHeight: 76,
+    maxHeight: 140,
+    borderRadius: Radius.input,
+    backgroundColor: Colors.achieverBg,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    fontFamily: Fonts.body,
+    fontSize: 13.5,
+    color: Colors.ink,
+    textAlignVertical: 'top',
+  },
+  noteCount: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
+  },
+  sendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+    marginTop: Spacing.three,
+    paddingVertical: Spacing.twelve,
+    borderRadius: Radius.button,
+    backgroundColor: Colors.ember,
+  },
+  sendBtnBusy: {
+    opacity: 0.6,
+  },
+  sendText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+  wall: {
+    marginTop: Spacing.three,
+    gap: Spacing.two,
+  },
+  wallRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+  },
+  wallBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  wallWho: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+    color: Colors.muted,
+  },
+  wallFor: {
+    fontFamily: Fonts.body,
+    color: Colors.textTertiary,
+  },
+  wallNote: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.ink,
+    marginTop: 1,
   },
 });

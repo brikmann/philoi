@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type {
   ActiveChallengeMarker,
   ChallengeWatch,
+  CheerNote,
   GlobalLeaderboardRow,
   GroupChallengeWatchRow,
   LeaderboardSearchResult,
@@ -90,12 +91,33 @@ export async function setMyWatchOptIn(enabled: boolean): Promise<void> {
 // for the side that was cheered: the screen used to hold a local optimistic delta and add it to
 // the polled server count, which double-counted as soon as the poll caught up and dropped back
 // when the delta reset — the "7 → 0" the punchlist reports.
-export async function cheerChallenge(challengeId: string, forUserId: string): Promise<number> {
+export async function cheerChallenge(
+  challengeId: string,
+  forUserId: string,
+  note?: string,
+): Promise<number> {
+  // Trimmed here as well as in the RPC (0110). Not belt-and-braces: an all-whitespace string
+  // would otherwise travel as a "note", and the analytics flag below would call it one.
+  const trimmed = note?.trim() ?? '';
   const { data, error } = await supabase.rpc('cheer_challenge', {
     p_challenge_id: challengeId,
     p_for_user_id: forUserId,
+    p_note: trimmed.length > 0 ? trimmed : null,
   });
   if (error) throw error;
-  track('challenge_watch_cheered', { challenge_id: challengeId, for_user_id: forUserId });
+  track('challenge_watch_cheered', {
+    challenge_id: challengeId,
+    for_user_id: forUserId,
+    with_note: trimmed.length > 0,
+  });
   return typeof data === 'number' ? data : 0;
+}
+
+/** Notes left with cheers on this challenge, newest first (0110). Access-gated server-side. */
+export async function fetchChallengeCheerNotes(challengeId: string): Promise<CheerNote[]> {
+  const { data, error } = await supabase.rpc('get_challenge_cheer_notes', {
+    p_challenge_id: challengeId,
+  });
+  if (error) throw error;
+  return (data ?? []) as CheerNote[];
 }

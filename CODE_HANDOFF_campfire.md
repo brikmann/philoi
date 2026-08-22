@@ -51,8 +51,9 @@ build. One writer per branch; don't edit the mocks/specs — flag disagreements 
 - **Custom time** — 1d/1w/1mo presets + **calendar** for arbitrary spans (semester).
 - **Public name** + **milestone tie** — named challenge (e.g. "BU111 grade") races on lock-in time; the grade
   is a **self-reported milestone** (PROFILE_SPEC §G), 🔒 **firewalled — no XP for the grade**.
-- **✨ AI custom goal (PREMIUM)** — 🔴 **server-side Sonnet** parses a fuzzy goal → structured config (metric ·
-  source · win · checkpoints); **never let the client define "winning."** Gating: Flame Pass vs add-on — *confirm*.
+- **✨ AI custom goal (FREE, rate-limited)** — 🔴 **server-side Sonnet** parses a fuzzy goal → structured config
+  (metric · source · win · checkpoints); **never let the client define "winning."** **Free for everyone** (it
+  feeds the competitive loop → paywall = pay-to-win); cost via a **uniform rate limit**, not Flame Pass.
 - **Photos / videos** — challenge-tied lock-in nudges "post a photo or clip (≤30s)"; media shows in the watch
   feed, **video thumbnail (poster frame) is the public preview** + play control; each is **cheerable**.
 - **Watch share card** — story card of the live race + watch deep link ("come cheer us on").
@@ -70,7 +71,7 @@ build. One writer per branch; don't edit the mocks/specs — flag disagreements 
 - **"Cindy" AI assistant** → backlog (`IDEA_CINDY_ASSISTANT.md`).
 
 ## Open decisions (confirm before those bits)
-- [ ] AI custom-goal gating: Flame Pass perk vs paid add-on.
+- [x] AI custom-goal gating: **free + uniform rate limit** (decided — no paywall; paywalling = pay-to-win).
 - [ ] Metric set final = time / volume / distance / AI (XP dropped as a race).
 - [ ] Challenge earn-tuning numbers land from `CHALLENGE_REWARD_ALGO`.
 

@@ -40,13 +40,16 @@ the challenge (ties to Phase-2 lifecycle/admin roles). Non-selected members aren
 - **Custom → a calendar picker** for arbitrary start + end (whole **semester**, a month, three months).
   Store explicit start/end timestamps; the race window = that span.
 
-### ✨ AI custom goal (PREMIUM)
+### ✨ AI custom goal (FREE — utility, not flex)
 - User types a fuzzy goal ("First to reach a 225 lb bench press"). **Sonnet parses it** into a trackable
   definition: **metric · source (synced data or self-log + photo proof) · win condition · checkpoints**. User
   can edit any parsed line before confirming.
-- Makes ambiguous personal goals trackable — the premium differentiator. Where live tracking isn't possible,
-  AI schedules **self-report / photo-proof checkpoints**.
-- **Gating: PREMIUM** (Flame Pass perk **or** a paid add-on — *confirm which*). Badge it clearly.
+- Makes ambiguous personal goals trackable. Where live tracking isn't possible, AI schedules **self-report /
+  photo-proof checkpoints**.
+- 🔓 **FREE for everyone.** It feeds the competitive loop (XP/embers/placement), so **paywalling it would be
+  pay-to-win**, which "pay to flex" exists to prevent. Flame Pass stays cosmetics; this is utility.
+- **Cost control = a uniform rate limit** (a sensible cap on AI parses per user, same for everyone — do NOT
+  tie the cap to Flame Pass, that reintroduces pay-to-win).
 - Needs the AI backend (server-side Sonnet call to parse the goal → structured challenge config; do NOT trust
   the client to define what "winning" means).
 
@@ -91,8 +94,9 @@ All results **shareable** (share card).
 - **CTAs sit above the bottom safe area** — Send challenge · Light campfire · Share invite · Save changes ·
   Submit report · Send cheer are lifted off the very bottom edge (add bottom padding above the home indicator).
 
-## Open decisions (confirm)
-- [ ] **AI custom goal gating** — Flame Pass perk vs standalone paid add-on?
+## Open decisions
+- [x] **AI custom goal gating** — **FREE** for everyone, uniform rate limit (not tied to payment). Paywalling
+      = pay-to-win. (Decided.)
 - [ ] Metric set final = Lock-in time / Volume / Distance / AI custom (XP dropped as a race) — OK?
 
 ## Acceptance

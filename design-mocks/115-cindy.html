@@ -1,0 +1,164 @@
+<meta charset="utf-8">
+<title>Mock 115 — Cindy, the AI Flame</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif;--ember:#F2A33C;--ember2:#FF7A3E}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:28px;display:flex;flex-direction:column;align-items:center;gap:6px}
+h1{font-size:19px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:840px;text-align:center;line-height:1.55;margin:0 auto 6px}
+.note{max-width:840px;font-size:11.5px;color:#c8bcdd;background:#161320;border:1px solid #241c38;border-radius:14px;padding:12px 16px;line-height:1.6;margin:4px 0 18px}
+.note b{color:var(--ember)}
+.row{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.frame{display:flex;flex-direction:column;align-items:center;gap:10px}
+.flabel{font-size:11px;color:#8a7fa6;text-align:center;max-width:300px;line-height:1.45}
+.flabel b{color:#e7ddf5}
+.phone{width:300px;height:640px;border-radius:34px;overflow:hidden;position:relative;background:#0e0b14;border:1px solid #241c38;background-image:radial-gradient(120% 45% at 50% 0%,#241633,#140f1e 48%,#0e0b14)}
+.scr{position:absolute;inset:0;display:flex;flex-direction:column}
+.status{height:34px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-size:11px;color:#cbb8e0;font-weight:600}
+.top{display:flex;align-items:center;gap:10px;padding:2px 16px 6px}
+.top .pill{background:rgba(36,26,46,.7);border:1px solid #2a2140;border-radius:999px;padding:5px 12px;font-size:10.5px;font-weight:700;color:#FFB84D}
+.top .sp{flex:1}
+.top .ic{width:26px;height:26px;display:grid;place-items:center;color:#c8bcdd}
+/* home + cindy */
+.homewrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:0 20px}
+.bubble{position:relative;background:#1c1430;border:1px solid rgba(242,163,60,.35);border-radius:16px 16px 16px 4px;padding:13px 15px;font-size:13px;line-height:1.5;color:#f0e6d8;max-width:250px;margin-bottom:26px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.bubble .who{font-size:10px;font-weight:800;color:var(--ember);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.bubble .who svg{width:12px;height:12px}
+.bubble::after{content:"";position:absolute;left:14px;bottom:-8px;width:16px;height:16px;background:#1c1430;border-right:1px solid rgba(242,163,60,.35);border-bottom:1px solid rgba(242,163,60,.35);transform:rotate(45deg)}
+.cindy{width:120px;height:150px;position:relative;display:grid;place-items:center}
+.cindy .glow{position:absolute;width:150px;height:150px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,120,50,.35),transparent 70%);filter:blur(6px)}
+.cindy svg{width:96px;height:120px;filter:drop-shadow(0 0 22px rgba(255,120,50,.5))}
+.taphint{font-size:11px;color:#8a7fa6;margin-top:14px;display:flex;align-items:center;gap:6px}
+.taphint b{color:var(--ember)}
+.rankstrip{display:flex;align-items:center;gap:10px;margin:0 16px 12px;background:#171226;border:1px solid #241c38;border-radius:14px;padding:11px 13px}
+.hex{width:34px;height:38px;display:grid;place-items:center;position:relative;flex:none}
+.hex svg{width:34px;height:38px}.hex b{position:absolute;font-size:11px;font-weight:800;color:#2a1c00}
+.rk{flex:1}.rk .r1{display:flex;justify-content:space-between;font-size:12px}.rk .rn{font-weight:800}.rk .rx{color:#9f92b6;font-size:10px}
+.track{height:6px;border-radius:6px;background:#2a2140;margin-top:6px;overflow:hidden}.fill{height:100%;background:linear-gradient(90deg,#F2A33C,#FF7A3E)}
+.lockbtn{margin:0 16px 16px;background:linear-gradient(90deg,#F2A33C,#FF7A3E);color:#2a1400;font-weight:800;font-size:15px;text-align:center;border-radius:16px;padding:16px}
+.tabbar{flex:none;display:flex;background:#120e1c;border-top:1px solid #241c38;padding:8px 0 12px}
+.tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;color:#6f6488}
+.tb.on{color:var(--ember)}.tb svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8}.tb.on svg{fill:currentColor;stroke:none}
+/* chat */
+.chead{flex:none;display:flex;align-items:center;gap:9px;padding:4px 16px 10px;border-bottom:1px solid #1e1730}
+.chead .bk{color:#8a7fa6;font-size:16px}
+.chead .av{width:34px;height:34px;border-radius:50%;background:radial-gradient(closest-side,#3a2450,#1a1226);display:grid;place-items:center}
+.chead .av svg{width:20px;height:24px;filter:drop-shadow(0 0 6px rgba(255,120,50,.6))}
+.chead .nm{font-size:15px;font-weight:800}.chead .st{font-size:9.5px;color:#7fe0a0}
+.chat{flex:1;overflow-y:auto;padding:14px 14px 6px;display:flex;flex-direction:column;gap:10px}
+.chat::-webkit-scrollbar{width:0}
+.msg{max-width:78%;font-size:12.5px;line-height:1.45;padding:10px 12px;border-radius:14px}
+.msg.c{align-self:flex-start;background:#1c1430;border:1px solid #2a2140;border-bottom-left-radius:4px;color:#f0e6d8}
+.msg.u{align-self:flex-end;background:linear-gradient(90deg,#F2A33C,#FF7A3E);color:#2a1400;font-weight:600;border-bottom-right-radius:4px}
+.action{align-self:flex-start;display:flex;align-items:center;gap:8px;background:#141020;border:1px solid rgba(242,163,60,.4);border-radius:12px;padding:9px 12px;font-size:12px;font-weight:700;color:#FFD27A;max-width:80%}
+.action svg{width:16px;height:16px;fill:url(#ember)}
+.cbar{flex:none;display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid #1e1730;background:#100c19}
+.cin{flex:1;background:#181226;border:1px solid #2a2140;border-radius:999px;padding:10px 14px;font-size:12px;color:#6f6488}
+.snd{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#F2A33C,#FF7A3E);display:grid;place-items:center}.snd svg{width:15px;height:15px;fill:#2a1400}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="ember" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset=".45" stop-color="#FF9330"/><stop offset="1" stop-color="#E23A1E"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset=".5" stop-color="#F5C542"/><stop offset="1" stop-color="#C79A16"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 115 — Cindy, the AI Flame</h1>
+<p class="sub">The home flame is Cindy — an AI coach (Sonnet) you can talk to. She lives on home with warm, motivating messages; tap her to chat and she'll act on your data. (The protective/pushback voice is mock 116, at the social intercept.)</p>
+<div class="note"><b>Cindy IS the flame</b> — the one on your app icon, lock-in, done screen, home, campfire. The flame you colour/equip cosmetics on <b>is</b> her, so customizing a flame = dressing up your companion. <b>Message routing:</b> warm motivation + chat on <b>home/Cindy</b>; protective pushback only at the <b>social intercept</b> (mock 116). <b>🎙 Tap-to-talk</b> = a real voice convo (ElevenLabs voice + Sonnet brain).</div>
+
+<div class="row">
+
+<!-- FRAME 1 · HOME + CINDY -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>9:41</span><span>📶 70</span></div>
+  <div class="top"><div class="pill">🔥 S1 EMBERFALL · 20d</div><div class="sp"></div><div class="ic">🔔</div><div class="ic">☰</div></div>
+  <div class="homewrap">
+    <div class="bubble">
+      <div class="who"><svg viewBox="0 0 24 24" fill="url(#ember)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg>CINDY</div>
+      Morning 🔥 2h on Orgo already — nice. Your calendar's got the midterm Friday. One more block before lunch?
+    </div>
+    <div class="cindy"><div class="glow"></div><svg viewBox="0 0 24 24" fill="url(#ember)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg></div>
+    <div class="taphint">💬 tap <b>Cindy</b> to talk</div>
+  </div>
+  <div class="rankstrip"><div class="hex"><svg viewBox="0 0 34 38"><path d="M17 1 L32 9 L32 29 L17 37 L2 29 L2 9Z" fill="url(#gold)"/></svg><b>III</b></div><div class="rk"><div class="r1"><span class="rn">Gold III</span><span class="rx">71 / 2,200 XP</span></div><div class="track"><div class="fill" style="width:3%"></div></div></div></div>
+  <div class="lockbtn">🔥 Lock in</div>
+  <div class="tabbar"><div class="tb on"><svg viewBox="0 0 24 24"><path d="M12 3c1.5 4 5 5 5 9a5 5 0 01-10 0c0-2 1-4 2-5 0 2 1 3 2 3 1-3-1-4 1-7z"/></svg>Home</div><div class="tb"><svg viewBox="0 0 24 24"><path d="M6 5h12v3a6 6 0 01-12 0zM10 15h4v3h3v2H7v-2h3z"/></svg>Boards</div><div class="tb"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Challenges</div><div class="tb"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 7 0 0116 0z"/></svg>Profile</div></div>
+</div></div>
+<div class="flabel"><b>Frame 1 · Home + Cindy.</b> The flame is Cindy — a warm, data-aware message bubble ("midterm's Friday, one more block?"). Tap her to chat.</div>
+</div>
+
+<!-- FRAME 2 · CINDY CHAT (start a session) -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>9:42</span><span>📶 70</span></div>
+  <div class="chead"><span class="bk">‹</span><div class="av"><svg viewBox="0 0 24 24" fill="url(#ember)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg></div><div><div class="nm">Cindy</div><div class="st">● here for you</div></div></div>
+  <div class="chat">
+    <div class="msg c">You're at 94h this month — top 15% of BU111 🔥. But the midterm's Friday and you're a little behind pace. Want to lock in?</div>
+    <div class="msg u">Cindy, start a work session for BU111</div>
+    <div class="msg c">On it. 🔥 Starting a <b>BU111</b> work session — I'll tie it to your "pass BU111" challenge so it counts.</div>
+    <div class="action"><svg viewBox="0 0 24 24"><path d="M12 2c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg>▶ BU111 · Work · started · Focus Nudge on</div>
+    <div class="msg c">Go get it. I'll keep the feed off your back — just don't ghost me for TikTok. 😌</div>
+  </div>
+  <div class="cbar"><div class="cin">Message Cindy…</div><div class="snd" style="background:#241a2e;border:1px solid #33294a"><svg viewBox="0 0 24 24" fill="none" stroke="#FFD27A" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg></div><div class="snd"><svg viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg></div></div>
+</div></div>
+<div class="flabel"><b>Frame 2 · Chat.</b> Cindy knows your data + takes actions — "start a work session for BU111" → she starts it, titled + typed + auto-tied to the challenge. Side-effectful actions confirm.</div>
+</div>
+
+<!-- FRAME 3 · CINDY encourages a real rest (positive) -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>10:15</span><span>📶 70</span></div>
+  <div class="chead"><span class="bk">‹</span><div class="av"><svg viewBox="0 0 24 24" fill="url(#ember)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg></div><div><div class="nm">Cindy</div><div class="st">● here for you</div></div></div>
+  <div class="chat">
+    <div class="msg u">honestly kinda fried today</div>
+    <div class="msg c">Yeah — you've locked in 5 days straight and nothing's due till next week. That's not slacking, that's earned. 💛</div>
+    <div class="msg c">Take tonight off, for real. Go see people, get outside, do something that isn't a screen. The fire'll still be here tomorrow — I'll hold it for you.</div>
+    <div class="msg u">thanks cindy</div>
+    <div class="msg c">Anytime. Rest is part of the work. 🔥</div>
+  </div>
+  <div class="cbar"><div class="cin">Message Cindy…</div><div class="snd" style="background:#241a2e;border:1px solid #33294a"><svg viewBox="0 0 24 24" fill="none" stroke="#FFD27A" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg></div><div class="snd"><svg viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg></div></div>
+</div></div>
+<div class="flabel"><b>Frame 3 · Rest, encouraged.</b> On home/chat, "you're tired" gets a warm, positive break — never shame. (The heavier safety voice is reserved for the intercept, mock 116.)</div>
+</div>
+
+<!-- FRAME 4 · VOICE (tap to talk) -->
+<div class="frame">
+<div class="phone"><div class="scr" style="background:radial-gradient(120% 60% at 50% 30%,#2a1710,#160f1c 62%,#0e0b14);align-items:center;justify-content:center">
+  <div class="status"><span>9:44</span><span>📶 70</span></div>
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:0 24px;text-align:center">
+    <div style="font-size:10px;font-weight:800;letter-spacing:.6px;color:var(--ember);margin-bottom:20px">🎙 TALKING TO CINDY</div>
+    <div class="cindy" style="width:150px;height:170px"><div class="glow" style="width:180px;height:180px;animation:none"></div><svg viewBox="0 0 24 24" fill="url(#ember)" style="width:120px;height:150px;filter:drop-shadow(0 0 30px rgba(255,120,50,.6))"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg></div>
+    <!-- waveform -->
+    <div style="display:flex;align-items:center;gap:4px;height:34px;margin-top:18px">
+      <div style="width:4px;height:12px;background:#FF9330;border-radius:2px"></div><div style="width:4px;height:26px;background:#FFB84D;border-radius:2px"></div><div style="width:4px;height:18px;background:#FF9330;border-radius:2px"></div><div style="width:4px;height:32px;background:#FFD27A;border-radius:2px"></div><div style="width:4px;height:14px;background:#FF9330;border-radius:2px"></div><div style="width:4px;height:24px;background:#FFB84D;border-radius:2px"></div><div style="width:4px;height:10px;background:#FF9330;border-radius:2px"></div>
+    </div>
+    <div style="font-size:14px;font-weight:700;color:#f0e6d8;margin-top:16px;line-height:1.4">"Cindy, how am I doing<br>on BU111?"</div>
+    <div style="font-size:11px;color:#8a7fa6;margin-top:14px;line-height:1.5;max-width:230px">Cindy's answering out loud — hands-free while you walk to class or set up at the gym.</div>
+  </div>
+  <div style="flex:none;padding:0 26px 40px;width:100%">
+    <div style="background:#241018;border:1px solid rgba(255,120,90,.4);border-radius:16px;padding:15px;text-align:center;font-size:14px;font-weight:800;color:#ff9a8f">■ Tap to stop</div>
+    <div style="text-align:center;font-size:9px;color:#5c5274;margin-top:12px">🎙 voice by ElevenLabs · 🧠 Cindy by Sonnet</div>
+  </div>
+</div></div>
+<div class="flabel"><b>Frame 4 · Voice (tap to talk).</b> A real spoken convo — ElevenLabs voice in/out, Sonnet brain. Text-first; voice is the hands-free layer. (New ElevenLabs dependency.)</div>
+</div>
+
+<!-- FRAME 5 · DATA MASTERMIND (rank math + add milestone) -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>9:46</span><span>📶 70</span></div>
+  <div class="chead"><span class="bk">‹</span><div class="av"><svg viewBox="0 0 24 24" fill="url(#ember)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg></div><div><div class="nm">Cindy</div><div class="st">● knows your whole app</div></div></div>
+  <div class="chat">
+    <div class="msg u">how much do i need to lock in to hit Hero?</div>
+    <div class="msg c">You're 71 XP into <b>Gold III</b>. Hero's ~6,900 XP up. At your ~110 XP/hr study rate that's <b>≈ 38 hours</b> — about 3 weeks at your pace 🔥 (or ~2 if you keep the BU111 challenge rolling).</div>
+    <div class="msg u">add my 85% in BU111 as a milestone</div>
+    <div class="msg c">85% — let's gooo 👏 Posting it, backed by your <b>41h locked in</b> this term. No XP (grades don't earn) — just the flex.</div>
+    <div class="action"><svg viewBox="0 0 24 24"><path d="M6 4h12v3a6 6 0 01-12 0zM10 13h4v4h3v2H7v-2h3z"/></svg>🏆 Milestone posted · "85% · BU111" · 41h backing</div>
+  </div>
+  <div class="cbar"><div class="cin">Message Cindy…</div><div class="snd" style="background:#241a2e;border:1px solid #33294a"><svg viewBox="0 0 24 24" fill="none" stroke="#FFD27A" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg></div><div class="snd"><svg viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-7-8-3z"/></svg></div></div>
+</div></div>
+<div class="flabel"><b>Frame 5 · Data mastermind.</b> Reads the rank ladder → exact "38h to Hero"; reads cosmetics/unlock conditions; and <b>acts</b> — adds the grade milestone (firewalled, no XP). She knows the whole model.</div>
+</div>
+
+</div>

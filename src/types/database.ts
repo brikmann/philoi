@@ -722,6 +722,9 @@ export type AnalyticsEventName =
   | 'first_check_in'
   | 'challenge_created'
   | 'challenge_completed'
+  | 'challenge_members_invited'
+  | 'challenge_invite_answered'
+  | 'challenge_started'
   | 'goal_day_awarded'
   | 'notifications_read'
   | 'journal_note_set'
@@ -878,6 +881,21 @@ export type ActiveChallengeMarker = {
   can_watch: boolean;
 };
 
+/**
+ * get_challenge_cheer_notes() — the notes spectators left with their cheers (0110).
+ *
+ * Read separately from ChallengeWatch rather than folded into it: the watch RPC is polled, and
+ * widening its RETURNS TABLE is what broke it once already (0081 -> 0099).
+ */
+export type CheerNote = {
+  spectator_id: string;
+  spectator_name: string;
+  /** Which competitor this spectator backed. */
+  backed_user_id: string;
+  note: string;
+  noted_at: string;
+};
+
 /** get_challenge_watch() — the H2H live spectator read (§16). */
 export type ChallengeWatch = {
   challenge_id: string;
@@ -991,8 +1009,46 @@ export type Challenge = {
 // the lock-in flow's own "with the campfire" toggle (PHILOI_UI_SPEC.md §12). Only h2h and
 // group remain.
 export type SocialChallengeMode = 'h2h' | 'group';
-export type SocialChallengeStatus = 'pending' | 'active' | 'completed' | 'declined' | 'expired';
-export type SocialChallengeRaceMetric = 'xp' | 'lockin_time';
+
+/**
+ * The lifecycle. v2 adds exactly ONE state — 'draft' (created, nobody invited yet).
+ *
+ * Everything else reuses the existing vocabulary rather than adding synonyms: 'pending' already
+ * means invite-sent-awaiting-answer, 'active' already means racing, 'completed' already means
+ * settled. Adding 'invited'/'live'/'settled' alongside them forked the vocabulary and silently
+ * broke five readers — including the settle sweep, which would have left v2 races running forever.
+ */
+export type SocialChallengeStatus =
+  | 'draft'
+  | 'pending'
+  | 'active'
+  | 'completed'
+  | 'declined'
+  | 'expired';
+
+/** The three v2 shapes. A collective goal must never render as a 1v1 VS — which is why shape is
+ * explicit rather than inferred from whether opponent_id happens to be set. */
+export type ChallengeShape = 'duel' | 'collective' | 'placement';
+
+/** v2 metric set. 'xp' is no longer OFFERED at creation (it correlates with lock-in time) but
+ * stays in the union because in-flight races still carry it. */
+export type SocialChallengeRaceMetric = 'lockin_time' | 'volume' | 'distance' | 'ai' | 'xp';
+
+/** One racer. Progress is always (current − baseline), which is what stops a challenge crediting
+ * work done before it started. */
+export type ChallengeParticipant = {
+  challenge_id: string;
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  state: 'invited' | 'accepted' | 'declined';
+  baseline: number;
+  /** Live progress for the race so far, already net of the baseline. */
+  progress: number;
+  final_value: number | null;
+  final_rank: number | null;
+  final_percentile: number | null;
+};
 
 // get_my_social_challenges() row — the Challenges tab's feed (PHILOI_UI_SPEC.md,
 // design-mocks/12 & 13). my_score/opponent_score/member_count/completed_count are live-scored
@@ -1577,9 +1633,17 @@ export type Database = {
       get_user_board_position: { Args: { p_user_id: string }; Returns: { board: 'My uni' | 'Global'; rank: number }[] };
       get_active_challenge_marker: { Args: { p_user_id: string }; Returns: ActiveChallengeMarker[] };
       get_challenge_watch: { Args: { p_challenge_id: string }; Returns: ChallengeWatch[] };
+      get_challenge_cheer_notes: { Args: { p_challenge_id: string }; Returns: CheerNote[] };
+      can_watch_challenge: { Args: { p_challenge_id: string }; Returns: boolean };
       get_group_challenge_watch: { Args: { p_challenge_id: string }; Returns: GroupChallengeWatchRow[] };
       set_my_watch_opt_in: { Args: { p_enabled: boolean }; Returns: undefined };
-      cheer_challenge: { Args: { p_challenge_id: string; p_for_user_id: string }; Returns: undefined };
+      cheer_challenge: {
+        // p_note is optional (0110). Returns int, not void: 0081 changed it to hand back the
+        // authoritative count for the cheered side, and this signature was never updated —
+        // which is why cheerChallenge() still guards with `typeof data === 'number'`.
+        Args: { p_challenge_id: string; p_for_user_id: string; p_note?: string | null };
+        Returns: number;
+      };
       set_chat_muted: { Args: { p_group_id: string; p_muted: boolean }; Returns: undefined };
       set_my_photo_visibility: { Args: { p_visibility: PhotoVisibility }; Returns: undefined };
       set_my_notification_prefs: { Args: { p_prefs: NotificationPrefs }; Returns: undefined };
@@ -1704,6 +1768,11 @@ export type Database = {
       };
       forfeit_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       credit_lockin_time_goals: { Args: { p_check_in_id: string }; Returns: number };
+      // Handoff B — challenge v2 lifecycle (migration 0095). is_campfire_admin is A’s (0094).
+      invite_challenge_members: { Args: { p_challenge: string; p_user_ids: string[] }; Returns: number };
+      respond_to_challenge_invite: { Args: { p_challenge: string; p_accept: boolean }; Returns: undefined };
+      start_challenge: { Args: { p_challenge: string }; Returns: undefined };
+      is_campfire_admin: { Args: { p_group_id: string; p_user_id?: string }; Returns: boolean };
       get_my_notifications: { Args: { p_limit?: number }; Returns: NotificationEvent[] };
       get_journal: { Args: { p_user: string; p_limit?: number }; Returns: JournalEntry[] };
       set_journal_note: { Args: { p_entry_key: string; p_note: string | null }; Returns: undefined };
@@ -1823,6 +1892,15 @@ export type Database = {
         Returns: { connected: boolean; granted_scopes: string }[];
       };
       disconnect_my_whoop: { Args: Record<string, never>; Returns: undefined };
+      /** Read-only Google Calendar grant (migration 0105). Never returns the token — the app
+       * only ever learns THAT a calendar is linked and which Google account it is. */
+      get_my_google_calendar_status: {
+        Args: Record<string, never>;
+        Returns: { connected: boolean; account_email: string | null; linked_at: string | null }[];
+      };
+      /** Local-only disconnect. The app's normal path is the gcal-disconnect Edge Function, which
+       * also revokes at Google; this is its fallback (see src/lib/google-calendar.ts). */
+      disconnect_my_google_calendar: { Args: Record<string, never>; Returns: undefined };
       /** Credits study_hours / gym_visits from qualifying lock-ins (migration 0068). */
       sync_challenge_from_lock_ins: { Args: { p_challenge_id: string }; Returns: number };
 

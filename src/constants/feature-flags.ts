@@ -36,3 +36,23 @@ export const FITNESS_SYNC_ENABLED = true;
 // gym-clip-player.tsx) rather than a module-scope import, so an older binary that somehow sees
 // this flag true still degrades to a failed capture rather than a bundle-load crash.
 export const GYM_VIDEO_CLIPS_ENABLED = true;
+
+// Read-only Google Calendar (GCAL_INTEGRATION_SPEC.md) — the AI coach's deadline/free-busy
+// source. No native module is involved (the Google Sign-In SDK is already in the binary and is
+// what runs the consent sheet), so this is NOT a "needs an EAS rebuild" gate like the fitness
+// flags above. It's a GOOGLE-SIDE gate, and it stays false until all three of these are true:
+//
+//   1. https://www.googleapis.com/auth/calendar.readonly is added to the OAuth consent screen
+//      for Google Cloud project 921536564136 (GOOGLE_SIGNIN_SETUP.md). Until it is, the consent
+//      sheet errors out instead of asking — a worse experience than the row simply not being live.
+//   2. That scope is VERIFIED by Google. calendar.readonly is a "sensitive" scope: unverified,
+//      only test users on the consent screen can grant it, and everyone else hits the unverified-
+//      app screen. Verification takes days, not minutes — start it early.
+//   3. The Supabase project has the secrets the server half needs:
+//        supabase secrets set GOOGLE_WEB_CLIENT_ID=... GOOGLE_WEB_CLIENT_SECRET=... \
+//                             GCAL_TOKEN_ENC_KEY="$(openssl rand -base64 32)"
+//
+// src/lib/google-calendar.ts ALSO independently guards on googleWebClientId being configured, so
+// this is a belt-and-suspenders gate, not the only one. Flipping it true is a one-line change and
+// needs no rebuild. See CODE_HANDOFF_gcal.md for the full setup runbook.
+export const GOOGLE_CALENDAR_ENABLED = false;
