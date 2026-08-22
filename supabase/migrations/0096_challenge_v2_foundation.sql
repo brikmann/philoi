@@ -9,6 +9,34 @@
 --   - the WATCH screen needs per-person meters with a real name and avatar;
 --   - the LIFECYCLE needs somewhere to record who accepted.
 -- All four are the same missing row.
+--
+-- ───────────────────────── 0 · hard prerequisite ─────────────────────────
+--
+-- THIS FILE CANNOT DEPLOY ALONE. It gates start/invite on is_campfire_admin(), which handoff A's
+-- 0094_campfire_roles_and_join_request_fix.sql creates.
+--
+-- A hit the mirror image of this: their 0100 called challenge_is_live() from my 0096, their branch
+-- deployed without mine, and it died on `function does not exist (42883)`. We had both said the
+-- apply order "resolves itself via db push" — but filename order guarantees 0096 sorts before
+-- 0100, not that 0096 EXISTS. A cross-branch dependency is a presence problem, not an ordering one.
+--
+-- A fixed theirs with a defensive create-if-absent, which is right for them: challenge_is_live is a
+-- pure one-line function they can reproduce exactly. THE SAME FIX WOULD BE WRONG HERE. 0094 does
+-- two things I depend on — it creates is_campfire_admin AND widens group_members.role to accept
+-- 'admin'. Defensively creating just the function would let this file apply while the constraint
+-- still rejects 'admin', so nobody could ever be promoted and admin gating would silently collapse
+-- to owner-only. That applies cleanly and is quietly wrong, which is worse than failing.
+--
+-- So this fails loudly instead, naming the missing migration rather than surfacing a bare 42883
+-- from whichever RPC happened to reference it first.
+do $prereq$
+begin
+  if to_regprocedure('public.is_campfire_admin(uuid, uuid)') is null then
+    raise exception
+      'Migration 0096 requires 0094_campfire_roles_and_join_request_fix.sql (is_campfire_admin + the widened group_members.role). Apply the campfire roles migration first.';
+  end if;
+end
+$prereq$;
 
 -- ───────────────────────── 1 · participants ─────────────────────────
 
@@ -153,8 +181,12 @@ alter table social_challenges add constraint social_challenges_status_check
  * The three lifecycle bands, as functions rather than literals.
  *
  * Callers should use these instead of comparing to a string — that is what lets the vocabulary
- * change in exactly one place, and it is why handoff A’s 0100 calls challenge_is_live(sc.status)
+ * change in exactly one place, and it is why handoff A's 0100 calls challenge_is_live(sc.status)
  * rather than inlining the values.
+ *
+ * 0100 no longer ASSUMES this file supplies challenge_is_live — it creates it defensively if
+ * absent, so the campfire branch can deploy alone. The create-or-replace below lands on an
+ * identical definition either way, so neither file overrides the other.
  */
 create or replace function challenge_is_live(p_status text)
 returns boolean language sql immutable as $$ select p_status = 'active'; $$;
