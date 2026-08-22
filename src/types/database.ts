@@ -874,6 +874,21 @@ export type ActiveChallengeMarker = {
   can_watch: boolean;
 };
 
+/**
+ * get_challenge_cheer_notes() — the notes spectators left with their cheers (0110).
+ *
+ * Read separately from ChallengeWatch rather than folded into it: the watch RPC is polled, and
+ * widening its RETURNS TABLE is what broke it once already (0081 -> 0099).
+ */
+export type CheerNote = {
+  spectator_id: string;
+  spectator_name: string;
+  /** Which competitor this spectator backed. */
+  backed_user_id: string;
+  note: string;
+  noted_at: string;
+};
+
 /** get_challenge_watch() — the H2H live spectator read (§16). */
 export type ChallengeWatch = {
   challenge_id: string;
@@ -1543,9 +1558,17 @@ export type Database = {
       get_user_board_position: { Args: { p_user_id: string }; Returns: { board: 'My uni' | 'Global'; rank: number }[] };
       get_active_challenge_marker: { Args: { p_user_id: string }; Returns: ActiveChallengeMarker[] };
       get_challenge_watch: { Args: { p_challenge_id: string }; Returns: ChallengeWatch[] };
+      get_challenge_cheer_notes: { Args: { p_challenge_id: string }; Returns: CheerNote[] };
+      can_watch_challenge: { Args: { p_challenge_id: string }; Returns: boolean };
       get_group_challenge_watch: { Args: { p_challenge_id: string }; Returns: GroupChallengeWatchRow[] };
       set_my_watch_opt_in: { Args: { p_enabled: boolean }; Returns: undefined };
-      cheer_challenge: { Args: { p_challenge_id: string; p_for_user_id: string }; Returns: undefined };
+      cheer_challenge: {
+        // p_note is optional (0110). Returns int, not void: 0081 changed it to hand back the
+        // authoritative count for the cheered side, and this signature was never updated —
+        // which is why cheerChallenge() still guards with `typeof data === 'number'`.
+        Args: { p_challenge_id: string; p_for_user_id: string; p_note?: string | null };
+        Returns: number;
+      };
       set_chat_muted: { Args: { p_group_id: string; p_muted: boolean }; Returns: undefined };
       set_my_photo_visibility: { Args: { p_visibility: PhotoVisibility }; Returns: undefined };
       set_my_notification_prefs: { Args: { p_prefs: NotificationPrefs }; Returns: undefined };

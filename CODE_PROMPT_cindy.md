@@ -31,9 +31,12 @@ Turn the app's flame into **Cindy** — an AI coach (Sonnet) you see everywhere 
    relevant challenges**), **add a milestone** ("add my 85% BU111 grade" → PROFILE_SPEC §G, effort receipts
    auto-attached, 🔒 **no XP — firewalled**), join/create a challenge, goal→challenge, mark notifications read,
    equip a cosmetic. 🔴 **Honor every economy rule + firewall** — she can NEVER grant XP/embers/rank.
-5. **🎙 Voice (ElevenLabs) — new dependency.** Tap Cindy → talk: ElevenLabs STT in + her **TTS voice** out,
-   Sonnet as the brain (mock 115 Frame 4). **Text-first**; voice is the hands-free layer. Rate-limit (voice
-   minutes cost). Voice *may* be a premium **convenience** (not pay-to-win — text stays free/full) — *confirm*.
+5. **🎙 Voice — STT-only architecture (build the cheap way).** 🔴 **Do NOT use ElevenLabs' real-time
+   Conversational-AI agent** (~8–10¢/min, 10–15×). Instead: **on-device STT** (iOS Speech / Android
+   SpeechRecognizer, free) → **Sonnet** (our brain) → **ElevenLabs TTS** for Cindy's spoken reply only
+   (~1–2¢/exchange). UX = **hold/tap-to-talk + auto-send on pause**; she replies in her voice (mock 115 Frame
+   4). Free + lightly rate-limited (cap TTS chars/day). The real-time agent is a **future premium "Call Cindy"
+   mode** only. ElevenLabs dependency = **TTS only** for v1.
 6. **Safety-first (inherit `APP_BLOCKER_SPEC §C-safety`).** Never shame; on distress lean to connection + real
    support; safety over productivity. Applies to Cindy everywhere.
 

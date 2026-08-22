@@ -5,7 +5,7 @@ re-engagement) and `CINDY_SPEC.md §3` (data mastermind).
 
 **Status:** code complete, **not deployable yet** — it needs the Google-side setup in §4 and the
 Supabase secrets in §3. The feature flag ships `false` until then. Nothing here is committed:
-another Claude session held the git writer lease for the whole build (see §8).
+another Claude session held the git writer lease for the whole build (see §9).
 
 ---
 
@@ -84,7 +84,8 @@ type CalendarWindow = {
 - **Use `formatCalendarWindowForPrompt()` rather than rolling your own block**, so all three
   callers (nudge, re-engagement, Cindy) describe the calendar identically and "what did the model
   actually see?" has one answer. It writes dates out in the member's own zone on purpose — the
-  model should never be doing timezone arithmetic.
+  model should never be doing timezone arithmetic — with the exception of all-day dates, which are
+  calendar dates with no zone and render exactly as Google wrote them.
 - **Never surface calendar content socially.** It goes into the member's own prompt and nowhere
   else: not the campfire, not a share card, not another member's view.
 - **Don't cache it yourself.** The module already caches the window for 10 minutes per member and
@@ -211,7 +212,32 @@ sign-in already uses. No new project, no new OAuth client.
 
 ---
 
-## 6. Testing it end to end
+## 6. Tests
+
+`supabase/functions/_shared/gcal.test.ts` — no network, no database, Google and the Supabase
+client both stubbed:
+
+```bash
+deno test --allow-env supabase/functions/_shared/gcal.test.ts
+```
+
+It covers the crypto round-trip, event normalization (declined and cancelled dropped, unticked
+calendars never fetched), back-to-back busy-block merging, `busyNow`/`freeAt`/`freeUntil`
+recomputed per call rather than replayed from the cache, cache hits, Google-side revocation,
+rate-limit fallback to a stale window, and a Google outage degrading to `connected: false`.
+
+It exists because it caught two real bugs during the build, both of the silent kind:
+
+1. **The cache never hit.** `from`/`to` default to *now*, so every call asked for a window shifted
+   a few minutes further out, and `readCache` only reuses a window that fully contains the request.
+   The cache was stale-by-shift the instant it was written — every coach message would have hit
+   Google. Fixed by fetching an overhang exactly the length of the TTL.
+2. **All-day events rendered a day early.** Google sends `date: "2026-08-28"`, which parses as UTC
+   midnight; formatted in `America/Toronto` that renders "Thu 27 Aug". The coach would have named
+   the wrong day for a Friday midterm — the single most credibility-destroying thing this feature
+   could do. All-day dates now format in UTC, which is the calendar date Google actually wrote.
+
+## 7. Testing it end to end
 
 Once §3 and §4 are done and the flag is on:
 
@@ -235,7 +261,7 @@ Once §3 and §4 are done and the flag is on:
 
 ---
 
-## 7. Not built (deliberately out of scope)
+## 8. Not built (deliberately out of scope)
 
 - **Deadline-aware challenges / suggested lock-in windows** — the spec marks these
   "(Optional, later)". The data is all in `CalendarWindow` when someone wants them.
@@ -246,14 +272,30 @@ Once §3 and §4 are done and the flag is on:
 
 ---
 
-## 8. Git state
+## 9. Git state
 
 Nothing was committed. `.git/claude-writer.lease` was held by another session (`dfe4cd94`) for the
 duration, and per `AGENTS.md` the lease is not to be cleared without asking. The working tree
 carries all the changes above; whoever owns the repo next should commit them — ideally on their
 own branch, since this build is independent of the campfire / challenge work in flight.
 
-Verified before handoff: `npx tsc --noEmit` clean, `npx expo lint` reports nothing in any of the
-touched files. The Edge Functions are **not** typechecked — neither Deno nor the Supabase CLI is
-installed on this machine, so `deno check supabase/functions/**/*.ts` is worth running once
-wherever they are.
+### What was and wasn't verified
+
+Neither Deno nor the Supabase CLI is installed on this machine, so:
+
+- ✅ **App half** — `npx tsc --noEmit` clean; `npx expo lint` reports nothing in any touched file.
+  (`tsconfig.json` excludes `supabase/functions`, so the Deno code never enters that run.)
+- ✅ **`_shared/gcal.ts` + `_shared/token-crypto.ts`** — compiled under `tsc --strict` and the
+  §6 suite run against the compiled output with Google and Supabase stubbed. All of it passes.
+  That is how both bugs in §6 were found.
+- ❌ **The three function `index.ts` files** (`gcal-oauth-exchange`, `gcal-disconnect`,
+  `gcal-window`) — reviewed but never compiled or executed.
+- ❌ **Anything touching real Google** — no OAuth round trip, no real event fetch, no real
+  revocation. Blocked on §4.
+
+Worth running wherever Deno lives:
+
+```bash
+deno check supabase/functions/**/*.ts
+deno test --allow-env supabase/functions/_shared/gcal.test.ts
+```

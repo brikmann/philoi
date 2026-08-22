@@ -71,15 +71,22 @@ Two channels, tuned to context. **Where a message lands changes its tone.**
 - 🔴 **Safety-first (inherits `APP_BLOCKER_SPEC §C-safety`):** never shames; on distress signals leans to
   connection + real support; safety over productivity. Applies to Cindy everywhere, home + intercept.
 
-## Voice — tap to talk (🎙 ElevenLabs)
-- **Tap Cindy → talk to her out loud.** A real voice conversation: **ElevenLabs** does speech-to-text in +
-  Cindy's **TTS voice** out (their Conversational AI / voice-agent), with the **Sonnet coach as the brain** in
-  between. Pick a warm voice that matches her persona.
-- Genuinely useful **hands-free** — mid-study, walking to class, at the gym. **Text-first**; voice is the
-  richer mode on top.
-- **Cost:** voice minutes have real cost → **rate-limit**. Voice could be a **premium *convenience*** (NOT
-  pay-to-win — text stays free + fully featured, so gating the *modality* doesn't gate power). *Confirm gating.*
-- **Dependency:** ElevenLabs account/API (new integration).
+## Voice — tap to talk (🎙 STT-only architecture — build it the cheap way)
+- 🔴 **Default = turn-based, NOT the real-time agent.** Pipeline: **on-device STT** (free — iOS Speech / Android
+  SpeechRecognizer) → **Sonnet** (the brain we already pay for) → **ElevenLabs TTS** for Cindy's spoken reply
+  only. UX: **hold-to-talk / tap-to-talk**, **auto-send on a pause** (silence detection) so it feels
+  conversational without a literal Send button. She **replies in her voice** (TTS), so it *sounds* like a real
+  convo — walkie-talkie, one turn at a time.
+- 🔴 **Do NOT use ElevenLabs' Conversational-AI agent by default.** It's the always-listening real-time loop —
+  ~**$0.08–0.10/min (10–15× the cost)**, and they currently absorb the LLM cost but "may pass it on." The
+  STT-only path is **~1–2¢/exchange** (STT free · Sonnet ~1¢ · TTS ~0.75¢/reply) and keeps **Sonnet** as the
+  persona instead of their LLM.
+- **Future premium "Call Cindy" mode** — the real-time agent can be offered later as an opt-in premium mode
+  (only power-users choose it, so the higher per-minute cost is self-selecting). NOT pay-to-win: text + STT
+  voice stay free/full; you'd be gating the *seamless modality*, not power. *Confirm if/when.*
+- **Cost control:** STT-voice is cheap enough to be **free + lightly rate-limited**. Cap TTS characters/day if
+  needed.
+- **Dependency:** ElevenLabs account/API (**TTS only** for v1).
 
 ## Backend / economics
 - Same **Sonnet coach** as Focus Nudge + AI goals + re-engagement — one service. **Free** (core coaching
