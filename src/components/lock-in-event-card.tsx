@@ -92,6 +92,11 @@ export function LockInEventCard({ item, onReactionChanged }: LockInEventCardProp
       style={[styles.card, isSynced && styles.cardSynced]}
       onLongPress={handleMore}
       onPress={isStrava && item.external_id ? () => openStravaActivity(item.external_id!) : undefined}>
+      {/* The accent rail (mock 110's `.fcard::before`) — a thin INSET, rounded ember bar rather
+          than the old full-bleed bold-orange border down the card's whole left edge. A synced
+          card doesn't get one: its own orange frame is already the "a connected app did this"
+          signal, and two accents on one card is what made the old chain look loud. */}
+      {!isSynced && <View style={styles.rail} pointerEvents="none" />}
       <View style={[styles.icon, isSynced && styles.iconSynced]}>
         <Ionicons name={GOAL_TYPE_ICON[item.goal_type]} size={18} color={isSynced ? STRAVA_ORANGE : Colors.amber} />
       </View>
@@ -195,32 +200,42 @@ export function LockInEventCard({ item, onReactionChanged }: LockInEventCardProp
 }
 
 const styles = StyleSheet.create({
+  // Mock 110's `.fcard`: no slab. The card is the rail plus the rows — dropping the filled
+  // twilight background is most of what makes the chain read as "crisp" rather than as a stack
+  // of grey bricks, and it lets the campfire's own ground show through.
   card: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 9,
-    backgroundColor: Colors.cardDark,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.coral,
-    borderTopRightRadius: Radius.card,
-    borderBottomRightRadius: Radius.card,
-    paddingVertical: 9,
-    paddingHorizontal: 11,
+    gap: 11,
+    paddingVertical: 11,
+    paddingLeft: 14,
+    paddingRight: 2,
   },
-  // Orange is the "a connected app did this" signal (§17b) — a full border + a faint tinted
-  // background reads as a glow without needing an actual shadow/blur effect.
+  rail: {
+    position: 'absolute',
+    left: 0,
+    top: 12,
+    bottom: 12,
+    width: 3,
+    borderRadius: 3,
+    backgroundColor: Colors.amber,
+  },
+  // A synced card DOES keep a slab, because orange is the "a connected app did this" signal
+  // (§17b) and it has to be visibly a different kind of post — a tinted fill plus a full orange
+  // frame, and no ember rail (see the render).
   cardSynced: {
+    backgroundColor: '#1A1119',
     borderWidth: 1,
-    borderLeftWidth: 3,
     borderColor: 'rgba(252,76,2,0.35)',
-    borderLeftColor: STRAVA_ORANGE,
-    backgroundColor: 'rgba(252,76,2,0.06)',
+    borderRadius: Radius.card,
+    paddingHorizontal: 11,
+    marginVertical: 2,
   },
   icon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: Colors.achieverBg,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#1C1430',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,6 +1,7 @@
 import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 import type {
+  CampfireMember,
   CampfirePreview,
   CampfirePrivacy,
   CampfireStats,
@@ -10,6 +11,7 @@ import type {
   GoalType,
   JoinRequest,
   LeaderboardRow,
+  MemberRole,
   MyCircleRank,
   RankTierName,
   UniversityLeaderboardRow,
@@ -98,13 +100,16 @@ export async function setChatMuted(groupId: string, muted: boolean): Promise<voi
 // to the circle's owner, and there's no derived/computed state to keep in sync here (unlike
 // e.g. set_my_goal_target, which exists specifically to avoid exposing a raw update policy
 // on a table with server-computed columns).
+// Name + theme emoji. An RPC rather than a direct table update since campfire roles landed:
+// the `groups` update RLS policy is still `owner_id = auth.uid()`, so a promoted ADMIN editing
+// here would silently match zero rows and .single() would throw a confusing PGRST116. The RPC
+// gates on is_campfire_admin() instead (migration 0094).
 export async function updateGroup(groupId: string, input: { name: string; emoji: string }): Promise<Group> {
-  const { data, error } = await supabase
-    .from('groups')
-    .update({ name: input.name, emoji: input.emoji })
-    .eq('id', groupId)
-    .select('*')
-    .single();
+  const { data, error } = await supabase.rpc('update_campfire_details', {
+    p_group_id: groupId,
+    p_name: input.name,
+    p_emoji: input.emoji,
+  });
   if (error) throw error;
   return data;
 }
@@ -166,6 +171,36 @@ export async function fetchCampfireStats(groupId: string): Promise<CampfireStats
   const { data, error } = await supabase.rpc('get_campfire_stats', { p_group_id: groupId });
   if (error) throw error;
   return data?.[0] ?? null;
+}
+
+// ── Campfire roles (migration 0094) ─────────────────────────────────────────────────────────
+// The one read every "may I manage this?" gate goes through. `null` means "not a member" —
+// distinct from 'member', which means in the fire but without the keys.
+export async function fetchMyCampfireRole(groupId: string): Promise<MemberRole | null> {
+  const { data, error } = await supabase.rpc('my_campfire_role', { p_group_id: groupId });
+  if (error) throw error;
+  return (data as MemberRole | null) ?? null;
+}
+
+/** The campfire roster with roles — members-only, owner first, then admins, then everyone else. */
+export async function fetchCampfireMembers(groupId: string): Promise<CampfireMember[]> {
+  const { data, error } = await supabase.rpc('list_campfire_members', { p_group_id: groupId });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Promote/demote a member. Owner-only, enforced inside the RPC — 'owner' is not assignable. */
+export async function setCampfireMemberRole(
+  groupId: string,
+  userId: string,
+  role: Exclude<MemberRole, 'owner'>
+): Promise<void> {
+  const { error } = await supabase.rpc('set_campfire_member_role', {
+    p_group_id: groupId,
+    p_user_id: userId,
+    p_role: role,
+  });
+  if (error) throw error;
 }
 
 export async function fetchJoinRequests(groupId: string): Promise<JoinRequest[]> {
@@ -294,11 +329,16 @@ export async function fetchWeeklyRecap(userId: string): Promise<WeeklyRecap[]> {
   return data ?? [];
 }
 
+/** The canonical invite domain. philoi.app is the brand domain the share cards already carry;
+ *  getphiloi.com stays claimed in app.config.ts as a universal/app link so codes shared before
+ *  the switch keep opening the app rather than dead-ending in a browser. */
+export const INVITE_DOMAIN = 'philoi.app';
+
 export async function fetchInviteLink(groupId: string, joinCode: string) {
   return {
     code: joinCode,
     deepLink: `philoi://join?code=${joinCode}`,
-    webLink: `https://getphiloi.com/join/${joinCode}`,
+    webLink: `https://${INVITE_DOMAIN}/join/${joinCode}`,
   };
 }
 

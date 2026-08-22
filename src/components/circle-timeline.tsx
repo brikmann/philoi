@@ -10,6 +10,7 @@ import { FlameCompletionCard } from '@/components/flame-completion-card';
 import { LiveLockInCard } from '@/components/live-lockin-card';
 import { LockInEventCard } from '@/components/lock-in-event-card';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
+import { EmberFill } from '@/components/ui/ember-fill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextInput } from '@/components/ui/text-input';
@@ -218,34 +219,39 @@ export function CircleTimeline({ groupId, myUserId, groupName }: CircleTimelineP
         }
       />
 
-      {/* Suppressed once the chain is empty — the empty state's own centered "Go lock in"
-          button already covers this exact action there (punchlist 2, §3: the docked bar
-          reading "weird" was this literal duplicate CTA stacked right above the chat composer
-          on top of the one the empty state already shows). */}
-      {(rows.length > 0 || timeline.loading) && (
-        <Pressable
-          style={[styles.lockInBar, Boolean(activeSession) && styles.lockInBarDisabled]}
-          onPress={openLockInPicker}
-          disabled={Boolean(activeSession)}>
-          <Ionicons name="lock-closed" size={15} color={activeSession ? Colors.muted : Colors.ink} />
-          <Text style={[styles.lockInBarLabel, Boolean(activeSession) && styles.lockInBarLabelDisabled]}>
-            {activeSession ? 'Already locked in' : 'Lock in'}
-          </Text>
-        </Pressable>
-      )}
+      {/* The docked "Lock in" bar that used to sit here is GONE (CAMPFIRE_REDESIGN_SPEC §Header):
+          lock-in is the header's top-right pill now, and stacking a second copy of the same CTA
+          directly above the composer is what made this bottom edge feel crowded. The empty state
+          still offers its own centered "Go lock in", which is the one place the action isn't
+          already one thumb-reach away. */}
 
       {CHAT_ENABLED && (
+        // Docked at the bottom of the feed with room under it. Screen's SafeAreaView already
+        // clears the home indicator; the padding below is the gap on top of that, so Send is
+        // never flush to the edge.
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
-            placeholder="Message the campfire"
+            placeholder="Message the campfire…"
             value={draft}
             onChangeText={setDraft}
             maxLength={2000}
             multiline
           />
-          <Pressable onPress={handleSend} disabled={sending || !draft.trim()} style={styles.sendButton}>
-            <Text style={styles.sendLabel}>Send</Text>
+          <Pressable
+            onPress={handleSend}
+            disabled={sending || !draft.trim()}
+            accessibilityRole="button"
+            accessibilityLabel="Send message">
+            {draft.trim() && !sending ? (
+              <EmberFill style={styles.sendButton} radius={20} direction="diagonal">
+                <Ionicons name="send" size={16} color={Colors.onEmber} style={styles.sendGlyph} />
+              </EmberFill>
+            ) : (
+              <View style={[styles.sendButton, styles.sendButtonOff]}>
+                <Ionicons name="send" size={16} color={Colors.textTertiary} style={styles.sendGlyph} />
+              </View>
+            )}
           </Pressable>
         </View>
       )}
@@ -345,49 +351,47 @@ const styles = StyleSheet.create({
   timeOwn: {
     color: 'rgba(255,255,255,0.75)',
   },
-  lockInBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-    marginHorizontal: Spacing.three,
-    marginTop: Spacing.two,
-    paddingVertical: Spacing.three,
-    borderRadius: Radius.card,
-    backgroundColor: Colors.coral,
-  },
-  lockInBarDisabled: {
-    backgroundColor: Colors.disabled,
-  },
-  lockInBarLabelDisabled: {
-    color: Colors.muted,
-  },
-  lockInBarLabel: {
-    fontFamily: Fonts.bodyBold,
-    color: Colors.ink,
-    fontSize: 15,
-  },
+  // The composer bar (mock 112's `.chatbar`): its own darker ground with a hairline above it, so
+  // the chain visibly ends and the input reads as furniture rather than as the last message.
   inputRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap: Spacing.two,
-    padding: Spacing.three,
+    paddingHorizontal: Spacing.twelve,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.twelve,
     borderTopWidth: 1,
-    borderTopColor: Colors.line,
+    borderTopColor: '#1E1730',
+    backgroundColor: '#100C19',
   },
+  // Round field, not the app's default 14px-radius box — mock 112's "redesigned text field".
   input: {
     flex: 1,
     maxHeight: 100,
-  },
-  sendButton: {
-    backgroundColor: Colors.coral,
+    backgroundColor: '#181226',
+    borderWidth: 1,
+    borderColor: '#2A2140',
     borderRadius: Radius.pill,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-  },
-  sendLabel: {
-    fontFamily: Fonts.bodyBold,
-    color: Colors.ink,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     fontSize: 14,
+  },
+  // A round ember disc with a send glyph, replacing the coral "Send" word-button. Greys out with
+  // an empty draft instead of being an always-lit button that does nothing.
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButtonOff: {
+    backgroundColor: Colors.disabledSurface,
+    borderWidth: 1,
+    borderColor: Colors.disabledBorder,
+  },
+  sendGlyph: {
+    // Ionicons' paper plane sits visually low-left inside its box; nudge it back to centre.
+    marginLeft: 2,
   },
 });

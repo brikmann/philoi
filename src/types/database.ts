@@ -1,7 +1,11 @@
 // social_media stays for historical rows' typing — the lock-in goal picker (PHILOI_UI_SPEC.md
 // §12) doesn't offer it, only gym/run/study/job_applications/read/custom.
 export type GoalType = 'gym' | 'run' | 'study' | 'social_media' | 'custom' | 'job_applications' | 'read';
-export type MemberRole = 'owner' | 'member';
+// Campfire membership roles (migration 0094, CAMPFIRE_REDESIGN_SPEC.md §Phase 2). 'admin' is
+// the CAPABILITY tier and 'owner' is a subset of it — every "may this person manage the campfire?"
+// question is `role !== 'member'` (or is_campfire_admin() server-side), never `=== 'owner'`. The
+// one thing still reserved to the owner alone is DELETE, plus handing out the role itself.
+export type MemberRole = 'owner' | 'admin' | 'member';
 export type CheckInStatus = 'on_time' | 'late';
 // The 10-tier ladder (RANK_REWORK_SPEC.md, migration 0063, design-mocks/77): the mortal climb
 // bronze→diamond, then the realm of legend hero→immortal, all with I/II/III divisions — topped
@@ -414,6 +418,16 @@ export type JoinRequest = {
   university: string | null;
   shared_circle_name: string | null;
   created_at: string;
+};
+
+/** One row of the campfire roster with its role (list_campfire_members, migration 0094). */
+export type CampfireMember = {
+  user_id: string;
+  display_name: string;
+  handle: string | null;
+  avatar_url: string | null;
+  role: MemberRole;
+  joined_at: string;
 };
 
 export type GroupMember = {
@@ -1447,6 +1461,14 @@ export type Database = {
       join_public_group: { Args: { p_group_id: string }; Returns: Group };
       request_to_join_group: { Args: { p_group_id: string }; Returns: undefined };
       update_campfire_privacy: { Args: { p_group_id: string; p_privacy: CampfirePrivacy }; Returns: Group };
+      update_campfire_details: { Args: { p_group_id: string; p_name: string; p_emoji: string }; Returns: Group };
+      // Campfire roles (migration 0094). my_campfire_role returns null for a non-member.
+      my_campfire_role: { Args: { p_group_id: string }; Returns: MemberRole | null };
+      list_campfire_members: { Args: { p_group_id: string }; Returns: CampfireMember[] };
+      set_campfire_member_role: {
+        Args: { p_group_id: string; p_user_id: string; p_role: Exclude<MemberRole, 'owner'> };
+        Returns: undefined;
+      };
       update_campfire_house_rules: {
         Args: { p_group_id: string; p_min_join_tier: RankTierName | null; p_house_rule: string | null };
         Returns: Group;

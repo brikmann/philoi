@@ -21,7 +21,6 @@ export default function InviteScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const { group } = useGroup(groupId);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [webLink, setWebLink] = useState<InviteLink | null>(null);
 
@@ -36,13 +35,6 @@ export default function InviteScreen() {
     await Clipboard.setStringAsync(code);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 1500);
-  }
-
-  async function handleCopyLink() {
-    if (!webLink) return;
-    await Clipboard.setStringAsync(webLink.webLink);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 1500);
   }
 
   async function handleShare() {
@@ -81,21 +73,15 @@ export default function InviteScreen() {
         </Pressable>
       </View>
 
-      {webLink && (
-        <View style={styles.linkRow}>
-          <Text style={styles.linkText} numberOfLines={1}>
-            {webLink.webLink.replace('https://', '')}
-          </Text>
-          <Pressable onPress={handleCopyLink} accessibilityLabel="Copy link">
-            <Ionicons name={copiedLink ? 'checkmark' : 'copy-outline'} size={15} color={Colors.achieverText} />
-          </Pressable>
-        </View>
-      )}
+      {/* The raw URL line is GONE (mock 112 §B). A long link nobody is going to hand-type was
+          taking a whole row to say what the code above and the Share button below already do —
+          and it was still printing the old getphiloi.com domain. The link itself is unchanged and
+          rides along inside Share. */}
 
       <View style={styles.spring} />
 
       <Pressable style={styles.shareBtn} onPress={handleShare} disabled={sharing || !group}>
-        <Ionicons name="share-social" size={17} color={Colors.ink} />
+        <Ionicons name="share-social" size={17} color={Colors.onEmber} />
         <Text style={styles.shareLabel}>{sharing ? 'Sharing…' : 'Share invite link'}</Text>
       </Pressable>
     </Screen>
@@ -106,7 +92,9 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 15,
     paddingTop: 16,
-    paddingBottom: 14,
+    // Share sat on the safe-area line with nothing under it. SafeAreaView clears the home
+    // indicator; this is the gap above it.
+    paddingBottom: Spacing.three,
   },
   header: {
     flexDirection: 'row',
@@ -181,22 +169,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    marginTop: 9,
-  },
-  linkText: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.soloChipText,
-  },
   spring: {
     flex: 1,
   },
@@ -205,13 +177,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.coral,
-    borderRadius: 14,
+    backgroundColor: Colors.amber,
+    borderRadius: Radius.button,
     paddingVertical: 15,
   },
   shareLabel: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 15,
-    color: Colors.ink,
+    color: Colors.onEmber,
   },
 });

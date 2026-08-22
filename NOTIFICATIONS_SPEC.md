@@ -38,18 +38,36 @@ arc (mock 47)**. Default on (except goal-at-risk = user-tunable).
 | Event | Channel | Copy | Tap → | Default |
 |---|---|---|---|---|
 | Someone joined your campfire | bell · badge | "{name} joined {campfire}." | campfire | on |
-| Join request (private — you're owner/admin) | push · bell · badge | "{name} wants to join {campfire}." | join requests | on |
+| Join request (gated — you're owner/admin) | push · bell · badge | "{name} wants to join {campfire}." | join requests | on |
+| Your join request approved | push · bell | "You're in 🔥 {campfire}" | campfire | on |
+| You were made a campfire admin | push · bell | "You can now manage {campfire}." | campfire | on |
 | Campfire challenge started | push · bell | "🔥 {campfire} started a challenge — jump in." | campfire challenge | on |
 | Campfire going cold | push (rate-limited) | "{campfire} is going cold — nobody's locked in today." | campfire | on |
 | You were added to a campfire | push · bell | "You were added to {campfire}." | campfire | on |
 | Campfire challenge settled | push · bell | placement result | **reward arc (mock 47)** | on |
 | New campfire message | bell (push opt.) | "{name}: {msg}" | campfire chat | **off** by default |
 
+## Safety  *(operator-facing — these do not go to the reporter or the reported)*
+| Event | Channel | Copy | Goes to | Default |
+|---|---|---|---|---|
+| Report filed | **email** (Resend) | subject: "{reporter} reported {campfire} for {reason}." — body carries campfire id, reporter id, reported user/message/check-in ids, timestamp | safety inbox (`SAFETY_ALERT_TO`) | **always** |
+| Child-safety / CSAE report filed | **email, escalated** | same, subject prefixed `[URGENT · CHILD SAFETY]` + an escalate-now banner and the referral line (Cybertip.ca / NCMEC) | safety inbox | **always** |
+
+- **Not user-toggleable.** These are compliance/safety alerts, not notifications — they ignore category
+  toggles, quiet hours and rate-limits by design.
+- **The reporter gets no push.** They get the in-app "Report received" confirmation and nothing else; a
+  notification about a report you filed is a notification the person you reported can see over your shoulder.
+- **Send is fire-and-forget, the row is not.** `moderation_reports` is written first and committed; the alert
+  is a second, non-blocking call (`supabase/functions/report_alert`). A mail outage degrades to "filed but
+  unnotified" and is logged server-side — it must never surface to the reporter as a failed report.
+- **Composed server-side from the stored row**, never from client-supplied strings, so alerts can't be forged
+  about someone else. The client passes only a report id, and only for a report it filed.
+
 ## Streak & reminders
 | Event | Channel | Copy | Tap → | Default |
 |---|---|---|---|---|
 | Streak at risk (evening, not done) | push | "🔥 Your {N}-day streak ends at midnight — lock in." | lock-in | on |
-| Daily-fire reminder (user-set time) | push | "You haven't fed the fire today, {name}." | home | on |
+| Re-engagement nudge (✨ AI-timed, replaces fixed daily reminder) | push | AI-written from data — fires only when the break reads *sufficient*, silent if overworked; e.g. "Solid breather since this morning's Orgo session — exam's in 5 days, round two? 🔥" (APP_BLOCKER_SPEC §C2) | lock-in | on |
 | Streak milestone hit | push · bell | "🔥 {N}-day streak! +{reward}." | **goal/streak reward (mock 103)** | on |
 
 ## Season & rank

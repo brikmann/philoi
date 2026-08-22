@@ -12,9 +12,14 @@ import { approveAllJoinRequests, approveJoinRequest, denyJoinRequest, fetchJoinR
 import { getErrorMessage } from '@/lib/errors';
 import type { JoinRequest } from '@/types/database';
 
-// design-mocks/22 (PHILOI_UI_SPEC.md §14) — owner-only approve/deny for a gated campfire's
-// pending join requests. Gated on role in the RPCs themselves (list/approve/deny all check
-// group.owner_id = auth.uid()), not just hidden client-side.
+// design-mocks/22 + mock 112 §C — ADMIN-only approve/deny for a gated campfire's pending join
+// requests. Gated on role in the RPCs themselves (list/approve/deny all call is_campfire_admin(),
+// migration 0094), not just hidden client-side — so a promoted admin can work the queue and a
+// member gets a refusal from Postgres rather than a hidden button.
+//
+// This screen used to fail outright with `column reference "id" is ambiguous`: list_join_requests
+// declares RETURNS TABLE (id uuid, ...), and its body's `where id = p_group_id` could mean either
+// that OUT variable or groups.id. Fixed in 0094 by alias-qualifying every column in the body.
 export default function JoinRequestsScreen() {
   const router = useRouter();
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
@@ -138,7 +143,7 @@ export default function JoinRequestsScreen() {
 
               <View style={styles.acts}>
                 <Pressable style={styles.app} onPress={() => handleApprove(r.id)} disabled={busyId === r.id}>
-                  <Ionicons name="checkmark" size={14} color={Colors.ink} />
+                  <Ionicons name="checkmark" size={14} color={Colors.onEmber} />
                   <Text style={styles.appLabel}>Approve</Text>
                 </Pressable>
                 <Pressable style={styles.den} onPress={() => handleDeny(r.id)} disabled={busyId === r.id}>
@@ -156,10 +161,11 @@ export default function JoinRequestsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.cream,
     paddingHorizontal: 14,
     paddingTop: 15,
-    paddingBottom: 12,
+    // Room under the last card — Screen's SafeAreaView clears the home indicator, this is the
+    // gap on top of it.
+    paddingBottom: Spacing.three,
   },
   hd: {
     flexDirection: 'row',
@@ -169,7 +175,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontFamily: Fonts.display,
+    fontFamily: Fonts.bodyBold,
     fontSize: 17,
     color: Colors.ink,
   },
@@ -213,7 +219,9 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   req: {
-    backgroundColor: Colors.card,
+    backgroundColor: '#141020',
+    borderWidth: 1,
+    borderColor: '#221A34',
     borderRadius: 14,
     padding: 12,
   },
@@ -226,7 +234,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: '#1C1430',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -266,27 +274,29 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 10,
   },
+  // Amber + near-black, not the old bold coral with cream text — the ember language's "this is
+  // the action" treatment (DESIGN_LANGUAGE_EMBER §3).
   app: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.amber,
     borderRadius: 10,
     paddingVertical: 9,
   },
   appLabel: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: Colors.ink,
+    color: Colors.onEmber,
   },
   den: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: '#2A2140',
     borderRadius: 10,
     paddingVertical: 9,
   },

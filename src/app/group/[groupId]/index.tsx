@@ -1,75 +1,77 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 
-import { CampfireBannerHero } from '@/components/campfire-banner-hero';
+import { CampfireHeader, type CampfireTab } from '@/components/campfire-header';
 import { CampfireOptionsSheet } from '@/components/campfire-options-sheet';
+import { ChallengesTab } from '@/components/challenges-tab';
 import { CircleTimeline } from '@/components/circle-timeline';
 import { LeaderboardPersonRow } from '@/components/leaderboard-person-row';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
-import { SocialChallengeCard } from '@/components/social-challenge-card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useCampfireHeat } from '@/hooks/use-campfire-heat';
+import { useCampfireRole } from '@/hooks/use-campfire-role';
 import { useCampfireStats } from '@/hooks/use-campfire-stats';
 import { useGroup } from '@/hooks/use-group';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
 import { useMyGroups } from '@/hooks/use-my-groups';
-import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { track } from '@/lib/analytics';
 import { fetchJoinRequests } from '@/lib/api/groups';
+import { useActiveSession } from '@/lib/active-session-context';
 import { useAuth } from '@/lib/auth/auth-context';
-import type { LeaderboardRow, SocialChallenge } from '@/types/database';
+import type { LeaderboardRow } from '@/types/database';
 
-type Tab = 'leaderboard' | 'feed' | 'challenges';
-
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'leaderboard', label: 'Leaderboard' },
-  { key: 'feed', label: 'Feed' },
-  { key: 'challenges', label: 'Challenges' },
-];
-
-// THE CAMPFIRE MEMBER VIEW — design-mocks/94, punchlist 17 P6. What you land on the moment you open
-// a campfire you're in, and the member-side twin of the join preview (mock 62).
+// THE CAMPFIRE MEMBER VIEW — the container (mocks 110 + 112 §A; CAMPFIRE_REDESIGN_SPEC §Phase 1).
 //
-// The old version of this screen opened straight into chat with a one-line header. That made a
-// campfire feel like a group DM. Mock 94 makes it a clan page: the banner hero with the group's live
-// heat flame and its join gate, the serious stats, and — the point of the rework — the LEADERBOARD
-// as the landing tab, visible the second you're in, with Feed and Challenges as siblings beside it
-// rather than the thing you land on.
+// This screen owns the CHROME and nothing else: the header, the Leaderboard/Feed/Challenges tab
+// bar, the options entry point, and which tab's content is mounted. The Challenges tab's content
+// is <ChallengesTab/>, which belongs to the challenge subsystem — see challenges-tab.tsx for the
+// seam.
 //
-// Chat/feed is unchanged underneath: the Feed tab is the same CircleTimeline this screen used to
-// render on its own, composer and all.
+// WHAT THE REDESIGN CHANGED HERE:
+//  · The off-brand blue floating gear is gone. It used to be an absolutely-positioned disc drawn
+//    over the content, which is why it appeared mid-screen on tabs that scrolled. The one menu
+//    control now lives in the header's chrome row with everything else.
+//  · Lock-in moved from a big bottom "Lock in with the house" bar to the header's top-right pill,
+//    freeing the entire bottom edge for content and the chat composer.
+//  · Feed is swipe-up-to-full-screen. A half-visible chat under a tall stat strip was the specific
+//    complaint; now Feed opens with a collapsed header and one upward swipe takes the header away
+//    entirely.
 export default function GroupScreen() {
   const router = useRouter();
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const { session } = useAuth();
+  const { session: activeSession } = useActiveSession();
   const { group } = useGroup(groupId);
   const { groups: myGroups } = useMyGroups();
   const heatByGroupId = useCampfireHeat();
   const { stats, refetch: refetchStats } = useCampfireStats(groupId);
   const { rows, loading: boardLoading, refetch: refetchBoard } = useLeaderboard(groupId);
-  const { challenges, refetch: refetchChallenges } = useSocialChallenges();
+  // The roles foundation (migration 0094). isAdmin — not `owner_id === me` — is what gates every
+  // manage affordance from here down, so a promoted admin gets the same keys as the founder.
+  const { isAdmin } = useCampfireRole(groupId);
 
-  const [tab, setTab] = useState<Tab>('leaderboard');
+  const [tab, setTab] = useState<CampfireTab>('leaderboard');
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [lockInPickerVisible, setLockInPickerVisible] = useState(false);
+  const [feedFullScreen, setFeedFullScreen] = useState(false);
   const [chatMutedOverride, setChatMutedOverride] = useState<boolean | null>(null);
   const chatMuted = chatMutedOverride ?? myGroups.find((g) => g.id === groupId)?.chat_muted ?? false;
   const [hasPendingRequests, setHasPendingRequests] = useState(false);
-  const isOwner = Boolean(group && session && group.owner_id === session.user.id);
 
   useEffect(() => {
     track('chat_opened', { group_id: groupId });
   }, [groupId]);
 
-  // Badge dot on the options gear (PHILOI_UI_SPEC.md §14: "a badge dot also appears on the interior
-  // header") — same owner+gated gate as the options sheet's row.
+  // Badge dot on the options control (PHILOI_UI_SPEC.md §14) — same admin+gated gate as the
+  // options sheet's own row, so a member never sees a dot for a screen they can't open.
   useEffect(() => {
-    if (!isOwner || group?.privacy !== 'gated') {
+    if (!isAdmin || group?.privacy !== 'gated') {
       setHasPendingRequests(false);
       return;
     }
@@ -78,62 +80,41 @@ export default function GroupScreen() {
       .catch(() => {
         // Flavor indicator only — a failed fetch just hides the dot.
       });
-  }, [isOwner, group?.privacy, groupId]);
+  }, [isAdmin, group?.privacy, groupId]);
 
-  // This campfire's own live challenges. useSocialChallenges is the whole cross-campfire feed, so
-  // the tab is a filter on it rather than a second fetch of the same table.
-  const groupChallenges = useMemo(
-    () => challenges.filter((c) => c.circle_id === groupId && (c.status === 'active' || c.status === 'pending')),
-    [challenges, groupId]
-  );
+  // Leaving Feed always restores the header — otherwise Leaderboard would come back headerless.
+  function changeTab(next: CampfireTab) {
+    if (next !== 'feed') setFeedFullScreen(false);
+    setTab(next);
+  }
 
   const heat = heatByGroupId[groupId] ?? 0;
   const memberCount = stats?.member_count ?? rows.length;
 
   const header = (
-    <View>
-      {group && (
-        <CampfireBannerHero
-          name={group.name}
-          privacy={group.privacy}
-          memberCount={memberCount}
-          createdAt={group.created_at}
-          heat={heat}
-          lockedInToday={stats?.locked_in_today ?? 0}
-          minJoinTier={group.min_join_tier}
-        />
-      )}
-
-      {/* The serious stat strip. Only renders with real numbers behind it — three zeroed tiles say
-          less than no strip at all. */}
-      {stats && (
-        <View style={styles.stats}>
-          <StatTile value={`${Math.round(stats.avg_streak)}`} unit="d" label="Avg streak" color={Colors.amber} />
-          <StatTile value={`${stats.avg_hours_per_day}`} unit="h" label="Locked / day" />
-          <StatTile
-            value={`${stats.live_challenges}`}
-            label="Live challenges"
-            color={stats.live_challenges > 0 ? Colors.danger : undefined}
-          />
-        </View>
-      )}
-
-      <View style={styles.tabs}>
-        {TABS.map((t) => {
-          const on = tab === t.key;
-          return (
-            <Pressable
-              key={t.key}
-              style={[styles.tab, on && styles.tabOn]}
-              onPress={() => setTab(t.key)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: on }}>
-              <Text style={[styles.tabLabel, on && styles.tabLabelOn]}>{t.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
+    <CampfireHeader
+      group={group}
+      variant={tab === 'leaderboard' ? 'full' : 'collapsed'}
+      tab={tab}
+      onTabChange={changeTab}
+      onBack={() => router.back()}
+      onLockIn={() => setLockInPickerVisible(true)}
+      onOptions={() => setOptionsVisible(true)}
+      heat={heat}
+      memberCount={memberCount}
+      lockedInToday={stats?.locked_in_today ?? 0}
+      stats={
+        stats
+          ? {
+              avgStreak: stats.avg_streak,
+              avgHoursPerDay: stats.avg_hours_per_day,
+              liveChallenges: stats.live_challenges,
+            }
+          : null
+      }
+      hasPendingRequests={hasPendingRequests}
+      lockInDisabled={Boolean(activeSession)}
+    />
   );
 
   const houseRule = group?.house_rule ? (
@@ -145,15 +126,59 @@ export default function GroupScreen() {
     </View>
   ) : null;
 
+  // Mock 110 frame 2's "— swipe up for full-screen feed —". A vertical pan over the hint strip
+  // (or a tap on it) trades the header for screen: past 20px of upward travel the whole header
+  // goes, leaving the feed and its docked composer alone with the screen.
+  const swipe = Gesture.Pan().onEnd((e) => {
+    if (e.translationY < -20) runOnJS(setFeedFullScreen)(true);
+    else if (e.translationY > 20) runOnJS(setFeedFullScreen)(false);
+  });
+
   return (
     <Screen padded={false}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {tab === 'feed' ? (
-        // The one tab that can't scroll under the hero: CircleTimeline is its own inverted list with
-        // a pinned composer, so the hero stays put above it instead of being its list header.
+        // The one tab that can't scroll under the header: CircleTimeline is its own list with a
+        // pinned composer, so the header sits above it rather than being its list header.
         <View style={styles.flex}>
-          {header}
+          {!feedFullScreen && (
+            <GestureDetector gesture={swipe}>
+              <View>
+                {header}
+                <Pressable
+                  style={styles.swipeHint}
+                  onPress={() => setFeedFullScreen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Expand the feed to full screen">
+                  <View style={styles.swipeGrip} />
+                  <Text style={styles.swipeHintLabel}>swipe up for full-screen feed</Text>
+                </Pressable>
+              </View>
+            </GestureDetector>
+          )}
+
+          {feedFullScreen && (
+            // Full-screen feed keeps ONE affordance: get back out. Everything else is the feed.
+            <View style={styles.fullBar}>
+              <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
+                <Ionicons name="chevron-back" size={18} color={Colors.muted} />
+              </Pressable>
+              <Text style={styles.fullBarName} numberOfLines={1}>
+                {group?.name ?? '…'}
+              </Text>
+              <Pressable
+                onPress={() => setFeedFullScreen(false)}
+                hitSlop={10}
+                accessibilityLabel="Show the campfire header">
+                <Ionicons name="chevron-down" size={18} color={Colors.muted} />
+              </Pressable>
+              <Pressable onPress={() => setOptionsVisible(true)} hitSlop={10} accessibilityLabel="Campfire options">
+                <Ionicons name="menu" size={18} color={Colors.muted} />
+              </Pressable>
+            </View>
+          )}
+
           {session && <CircleTimeline groupId={groupId} myUserId={session.user.id} groupName={group?.name} />}
         </View>
       ) : tab === 'leaderboard' ? (
@@ -185,57 +210,15 @@ export default function GroupScreen() {
           ListFooterComponent={houseRule}
         />
       ) : (
-        <FlatList
-          data={groupChallenges}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={refetchChallenges} tintColor={Colors.coral} />}
-          ListHeaderComponent={header}
-          renderItem={({ item }: { item: SocialChallenge }) =>
-            session ? (
-              <View style={styles.challengeWrap}>
-                <SocialChallengeCard challenge={item} myUserId={session.user.id} onChanged={refetchChallenges} />
-              </View>
-            ) : null
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-              <EmptyState title="No live challenges" body="Nobody in this campfire has anything running right now." />
-              <Pressable
-                style={styles.emptyCta}
-                onPress={() => router.push({ pathname: '/challenge/create', params: { mode: 'group', circleId: groupId } })}>
-                <Text style={styles.emptyCtaLabel}>Start a challenge</Text>
-              </Pressable>
-            </View>
-          }
-          ListFooterComponent={houseRule}
-        />
-      )}
-
-      {/* Chrome over the banner (mock 94's `.back` / `.gear`) — dark discs, so they read on top of
-          whatever the banner art is doing behind them. */}
-      <Pressable style={[styles.disc, styles.discBack]} onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
-        <Ionicons name="chevron-back" size={16} color={Colors.ink} />
-      </Pressable>
-      <Pressable
-        style={[styles.disc, styles.discGear]}
-        onPress={() => setOptionsVisible(true)}
-        hitSlop={8}
-        accessibilityLabel="Campfire options">
-        <Ionicons name="settings-outline" size={15} color={Colors.ink} />
-        {hasPendingRequests && <View style={styles.optionsBadge} />}
-      </Pressable>
-
-      {/* The footer action. Not on Feed — the composer already owns that bottom edge. */}
-      {tab !== 'feed' && (
-        <View style={styles.foot}>
-          <View style={styles.flex}>
-            <PrimaryButton label="Lock in with the house" onPress={() => setLockInPickerVisible(true)} />
-          </View>
-          <Pressable style={styles.footGhost} onPress={() => setTab('feed')} accessibilityLabel="Open the feed">
-            <Ionicons name="chatbubble-ellipses-outline" size={18} color={Colors.muted} />
-          </Pressable>
-        </View>
+        session && (
+          <ChallengesTab
+            groupId={groupId}
+            myUserId={session.user.id}
+            isAdmin={isAdmin}
+            ListHeaderComponent={header}
+            bottomGap={Spacing.four}
+          />
+        )
       )}
 
       <CampfireOptionsSheet
@@ -262,18 +245,6 @@ export default function GroupScreen() {
   }
 }
 
-function StatTile({ value, unit, label, color }: { value: string; unit?: string; label: string; color?: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={[styles.statValue, color ? { color } : null]}>
-        {value}
-        {unit ? <Text style={styles.statUnit}>{unit}</Text> : null}
-      </Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 function RosterRow({
   row,
   rank,
@@ -294,6 +265,7 @@ function RosterRow({
         tier={row.tier}
         division={row.division}
         value={`${Math.round(row.score).toLocaleString()} XP`}
+        // Streak under XP, kept subtle per the spec — a small flame and a count, not a second stat.
         secondaryValue={`🔥 ${row.check_ins_this_week}× wk`}
         isMe={isMe}
       />
@@ -305,121 +277,56 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  // Room under the last row. Screen's SafeAreaView already clears the home indicator — this is
+  // the gap on top of it, so the board never ends flush against the edge.
   listContent: {
     paddingBottom: Spacing.four,
   },
   rosterRow: {
     paddingHorizontal: Spacing.twelve,
   },
-  disc: {
-    position: 'absolute',
-    top: 12,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+  swipeHint: {
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 5,
+    paddingTop: 6,
+    paddingBottom: 8,
   },
-  discBack: {
-    left: 12,
+  swipeGrip: {
+    width: 34,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: Colors.trackAlt,
   },
-  discGear: {
-    right: 12,
-  },
-  optionsBadge: {
-    position: 'absolute',
-    top: 1,
-    right: 1,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.coral,
-    borderWidth: 1.5,
-    borderColor: Colors.twilight900,
-  },
-  stats: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    paddingHorizontal: 14,
-    paddingTop: Spacing.twelve,
-  },
-  stat: {
-    flex: 1,
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
-    paddingVertical: 9,
-    paddingHorizontal: Spacing.one,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.ink,
-  },
-  statUnit: {
-    fontSize: 9,
-  },
-  statLabel: {
+  swipeHintLabel: {
     fontFamily: Fonts.body,
-    fontSize: 8.5,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
+    fontSize: 9.5,
+    letterSpacing: 0.3,
     color: Colors.textTertiary,
-    marginTop: 2,
   },
-  tabs: {
+  fullBar: {
     flexDirection: 'row',
-    gap: 6,
+    alignItems: 'center',
+    gap: Spacing.three,
     paddingHorizontal: 14,
-    paddingTop: Spacing.twelve,
+    paddingTop: 6,
     paddingBottom: 6,
   },
-  tab: {
+  fullBarName: {
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-    borderRadius: 10,
-    backgroundColor: Colors.cream,
-  },
-  tabOn: {
-    backgroundColor: Colors.coral,
-  },
-  tabLabel: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11.5,
+    fontSize: 13,
     color: Colors.muted,
-  },
-  tabLabelOn: {
-    color: Colors.ink,
   },
   emptyWrap: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
-  },
-  emptyCta: {
-    alignSelf: 'center',
-    marginTop: Spacing.three,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.selectedBg,
-  },
-  emptyCtaLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12.5,
-    color: Colors.achieverText,
-  },
-  challengeWrap: {
-    paddingHorizontal: Spacing.twelve,
-    paddingTop: Spacing.two,
   },
   rule: {
     marginTop: Spacing.twelve,
     marginHorizontal: Spacing.twelve,
     backgroundColor: '#231A2E',
     borderLeftWidth: 3,
-    borderLeftColor: Colors.coral,
+    borderLeftColor: Colors.amber,
     borderTopRightRadius: 10,
     borderBottomRightRadius: 10,
     paddingVertical: 9,
@@ -434,21 +341,5 @@ const styles = StyleSheet.create({
   ruleLead: {
     fontFamily: Fonts.bodyBold,
     color: Colors.amber,
-  },
-  foot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    paddingHorizontal: 14,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.twelve,
-  },
-  footGhost: {
-    width: 46,
-    height: 46,
-    borderRadius: 13,
-    backgroundColor: Colors.cream,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

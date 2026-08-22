@@ -22,7 +22,9 @@ const config: ExpoConfig = {
     // for anyone building under a different team.
     appleTeamId: process.env.APPLE_TEAM_ID ?? 'WA73L5743X',
     icon: './assets/images/icon.png',
-    associatedDomains: ['applinks:getphiloi.com'],
+    // philoi.app is the live invite domain (FEATURE_feedback_and_domain / CAMPFIRE_REDESIGN_SPEC);
+    // getphiloi.com stays claimed so invite links shared before the switch still open the app.
+    associatedDomains: ['applinks:philoi.app', 'applinks:getphiloi.com'],
     // NOTE: no `deploymentTarget` here on purpose. NATIVE_BUILD_CONFIG.md called for 16.1
     // (ActivityKit's floor, Dynamic Island 16.1+), but SDK 57's own minimum is iOS 16.4+ —
     // pinning 16.1 would LOWER the target below what the SDK supports, not raise it. The
@@ -53,6 +55,13 @@ const config: ExpoConfig = {
         action: 'VIEW',
         autoVerify: true,
         data: [
+          // philoi.app first — it's what fetchInviteLink() now mints. getphiloi.com is kept so
+          // codes already out in the wild keep resolving into the app.
+          {
+            scheme: 'https',
+            host: 'philoi.app',
+            pathPrefix: '/join',
+          },
           {
             scheme: 'https',
             host: 'getphiloi.com',

@@ -6,7 +6,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { PrivacySelector } from '@/components/privacy-selector';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
-import { Colors, Fonts, Radius } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGroup } from '@/hooks/use-group';
 import { updateCampfireHouseRules, updateCampfirePrivacy, updateGroup } from '@/lib/api/groups';
 import { getErrorMessage } from '@/lib/errors';
@@ -161,7 +161,7 @@ export default function EditGroupScreen() {
         </ScrollView>
 
         <Pressable style={styles.saveBtn} onPress={handleSave} disabled={loading}>
-          <Ionicons name="checkmark" size={17} color={Colors.ink} />
+          <Ionicons name="checkmark" size={17} color={Colors.onEmber} />
           <Text style={styles.saveLabel}>{loading ? 'Saving…' : 'Save changes'}</Text>
         </Pressable>
       </KeyboardAvoidingView>
@@ -173,7 +173,9 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 15,
     paddingTop: 16,
-    paddingBottom: 14,
+    // Save changes sat on the safe-area line. SafeAreaView clears the home indicator; this is the
+    // breathing room above it (CAMPFIRE_REDESIGN_SPEC: "CTAs above the bottom safe area").
+    paddingBottom: Spacing.three,
   },
   flex: {
     flex: 1,
@@ -185,7 +187,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   title: {
-    fontFamily: Fonts.display,
+    fontFamily: Fonts.bodyBold,
     fontSize: 17,
     color: Colors.ink,
   },
@@ -271,18 +273,19 @@ const styles = StyleSheet.create({
     color: Colors.coral,
     marginTop: 8,
   },
+  // Ember, near-black label — the §3 "this is the action" treatment, not the old flat coral.
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.coral,
-    borderRadius: 14,
+    backgroundColor: Colors.amber,
+    borderRadius: Radius.button,
     padding: 14,
   },
   saveLabel: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 15,
-    color: Colors.ink,
+    color: Colors.onEmber,
   },
 });

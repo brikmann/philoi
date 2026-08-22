@@ -10,6 +10,13 @@ export function useGroup(groupId: string) {
   const [error, setError] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
+    // No id = nothing to fetch. The report screen mounts this with an empty id when the thing
+    // being reported isn't a campfire, and firing a query for '' just produces a uuid-cast error
+    // nobody reads.
+    if (!groupId) {
+      setLoading(false);
+      return;
+    }
     try {
       setError(null);
       setGroup(await fetchGroup(groupId));

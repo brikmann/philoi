@@ -240,7 +240,8 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 15,
     paddingTop: 16,
-    paddingBottom: 14,
+    // "Light the campfire" was flush against the safe-area line — this is the gap above it.
+    paddingBottom: Spacing.three,
   },
   flex: {
     flex: 1,
