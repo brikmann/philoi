@@ -54,34 +54,24 @@ create policy challenge_participants_read on challenge_participants
 
 -- ───────────────────────── 2 · admin gating ─────────────────────────
 
-/**
- * Whether someone may start / edit / delete a challenge in a campfire.
- *
- * A/B COORDINATION POINT. Handoff A owns membership roles and is adding 'admin' alongside the
- * existing 'owner' | 'member'. This deliberately matches role IN ('owner','admin') rather than
- * naming a single role: it is correct TODAY (owner-only, since 'admin' does not exist yet) and
- * becomes correct automatically the moment A's role lands, with no second edit and no window where
- * admins silently cannot start a challenge.
- *
- * If A instead models admin as a boolean column or a separate table, this is the one function to
- * change — which is the reason it is a function and not an inline predicate in six places.
- */
-create or replace function is_challenge_admin(p_circle uuid, p_user uuid)
-returns boolean
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select exists (
-    select 1 from group_members gm
-    where gm.group_id = p_circle
-      and gm.user_id = p_user
-      and gm.role in ('owner', 'admin')
-  );
-$$;
+-- ADMIN GATING IS HANDOFF A’S, and is consumed rather than duplicated.
+--
+-- A owns campfire roles and shipped is_campfire_admin(p_group_id, p_user_id default auth.uid()) in
+-- 0094_campfire_roles_and_join_request_fix.sql, widening group_members.role to
+-- (owner,admin,member). I had written my own is_challenge_admin() against the roles that
+-- existed at the time; it is deleted here in favour of theirs.
+--
+-- Two predicates for "may this person manage a campfire" is one too many: they would agree today
+-- and drift the first time either side changed, and the failure mode is silent — an admin who can
+-- start a challenge but not edit it, or vice versa.
+--
+-- A’s explicit instruction, followed: gate on is_campfire_admin, never on groups.owner_id, because
+-- owner ⊂ admin and a promoted admin must pass.
+--
+-- ORDERING: this file is 0095 and A’s is 0094, so their helper exists before anything here calls
+-- it. Both files were originally numbered 0094 — two migrations sharing a leading version silently
+-- roll back, which is the trap already recorded in this project.
 
-grant execute on function is_challenge_admin(uuid, uuid) to authenticated;
 
 -- ───────────────────────── 3 · shapes, metrics, lifecycle ─────────────────────────
 
@@ -225,7 +215,7 @@ declare
 begin
   select * into v_c from social_challenges where id = p_challenge;
   if v_c.id is null then raise exception 'Challenge not found.'; end if;
-  if not is_challenge_admin(v_c.circle_id, auth.uid()) then
+  if not is_campfire_admin(v_c.circle_id, auth.uid()) then
     raise exception 'Only campfire admins can invite to a challenge.';
   end if;
   if challenge_is_live(v_c.status) or challenge_is_settled(v_c.status) then
@@ -289,7 +279,7 @@ declare
 begin
   select * into v_c from social_challenges where id = p_challenge;
   if v_c.id is null then raise exception 'Challenge not found.'; end if;
-  if not is_challenge_admin(v_c.circle_id, auth.uid()) then
+  if not is_campfire_admin(v_c.circle_id, auth.uid()) then
     raise exception 'Only campfire admins can start a challenge.';
   end if;
   if challenge_is_live(v_c.status) then raise exception 'Already running.'; end if;
