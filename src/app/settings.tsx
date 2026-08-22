@@ -11,11 +11,13 @@ import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useCindy } from '@/hooks/use-cindy';
 import { useEntitlement } from '@/hooks/use-entitlement';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { useStravaConnection } from '@/hooks/use-strava-connection';
 import { useWhoopConnection } from '@/hooks/use-whoop-connection';
+import { setCoachConsent, setCoachPreference } from '@/lib/api/coach';
 import { setDailyGoalMode, setPublishFlameCompletion } from '@/lib/api/daily-fire';
 import { deleteMyAccount } from '@/lib/api/groups';
 import { setMyWatchOptIn } from '@/lib/api/leaderboard-social';
@@ -106,6 +108,38 @@ export default function SettingsScreen() {
   const [manualTarget, setManualTarget] = useState(profile?.daily_goal_manual_target ?? 1);
   const [publishCompletion, setPublishCompletion] = useState(profile?.publish_flame_completion ?? false);
   const [watchOptIn, setWatchOptInState] = useState(profile?.watch_opt_in ?? false);
+  const cindy = useCindy();
+  const [cindyBubbleOverride, setCindyBubbleOverride] = useState<boolean | null>(null);
+  // Optimistic on top of the fetched value: the toggle has to move on tap, but the hook refetches
+  // on focus, so a local override that starts null lets the server value win once it arrives.
+  const cindyBubbleOn = cindyBubbleOverride ?? cindy.bubbleEnabled;
+
+  function handleToggleCindyBubble(value: boolean) {
+    setCindyBubbleOverride(value);
+    setCoachPreference({ home_bubble_enabled: value }).catch(() => setCindyBubbleOverride(!value));
+  }
+
+  function handleTurnCindyOff() {
+    Alert.alert(
+      'Turn Cindy off?',
+      "She'll stop reading your data and your chat history with her will be deleted. You can turn her back on any time.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Turn her off',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await setCoachConsent(false);
+              cindy.refetch();
+            } catch (e) {
+              Alert.alert('Could not turn Cindy off', getErrorMessage(e, 'Try again.'));
+            }
+          },
+        },
+      ]
+    );
+  }
 
   function handleToggleGoalMode() {
     const next = goalMode === 'auto' ? 'manual' : 'auto';
@@ -224,6 +258,32 @@ export default function SettingsScreen() {
             onPress={() => router.push('/campus')}
           />
         </View>
+
+        {/* CINDY (CINDY_SPEC). Only shown once she's on — before that her entire on-ramp is the
+            consent screen, and a dead toggle here would be a second, worse one. */}
+        {cindy.consented && (
+          <>
+            <Text style={styles.sectionLabel}>CINDY</Text>
+            <View style={styles.group}>
+              <SettingsRow icon="chatbubbles" label="Talk to Cindy" onPress={() => router.push('/cindy')} />
+              <SettingsToggleRow
+                icon="chatbox-ellipses"
+                label="Her messages on Home"
+                value={cindyBubbleOn}
+                onValueChange={handleToggleCindyBubble}
+              />
+              <SettingsRow
+                icon="power"
+                label="Turn Cindy off"
+                chevron={false}
+                onPress={handleTurnCindyOff}
+              />
+            </View>
+            <Text style={styles.sectionHint}>
+              Turning her off deletes your chat history with her and stops her reading your data.
+            </Text>
+          </>
+        )}
 
         <Text style={styles.sectionLabel}>DAILY FIRE</Text>
         <View style={styles.group}>

@@ -36,6 +36,22 @@ const GOAL_TYPES = ['study', 'gym', 'run', 'read', 'job_applications', 'social_m
 // PROFILE_SPEC §G's milestone kinds — same check constraint as the milestones table.
 const MILESTONE_KINDS = ['grade', 'offer', 'certification', 'fitness_pr', 'project', 'custom'];
 
+// ChallengeType / ChallengePeriod from src/types/database.ts. Deliberately NOT the same set as
+// GOAL_TYPES: a challenge measures a METRIC (study_hours, run_distance) while a lock-in has a
+// KIND (study, run). Letting the model pass a goal type here would produce rows the challenges
+// table rejects, so the two vocabularies stay separate and explicit.
+const CHALLENGE_TYPES = [
+  'study_hours',
+  'gym_visits',
+  'run_distance',
+  'ride_distance',
+  'workout_minutes',
+  'steps',
+  'sleep_hours',
+  'strain',
+  'custom',
+];
+
 export const COACH_TOOLS: CoachToolSpec[] = [
   {
     name: 'start_session',
@@ -113,13 +129,29 @@ export const COACH_TOOLS: CoachToolSpec[] = [
     input_schema: {
       type: 'object',
       properties: {
-        goal_type: { type: 'string', enum: GOAL_TYPES },
+        type: {
+          type: 'string',
+          enum: CHALLENGE_TYPES,
+          description: 'Which metric it measures. Use "custom" for anything the built-ins do not cover.',
+        },
         label: { type: 'string', description: 'What the challenge is called, e.g. "Pass BU111".' },
         target: { type: 'number', description: 'The numeric target.' },
         unit: { type: 'string', description: 'What the target counts, e.g. "hours", "sessions", "km".' },
-        period: { type: 'string', enum: ['day', 'week', 'month'], description: 'The window it resets on.' },
+        period: {
+          type: 'string',
+          enum: ['day', 'week'],
+          // Only two windows exist. A month-long challenge is expressed as a weekly target.
+          description: 'The window it resets on. There is no monthly period.',
+        },
+        count_mode: {
+          type: 'string',
+          enum: ['manual', 'lockin_time'],
+          description:
+            'Use "lockin_time" on a custom challenge to accrue minutes automatically from lock-ins ' +
+            'whose detail matches the label — that is what auto-ties sessions to it. Otherwise "manual".',
+        },
       },
-      required: ['goal_type', 'label', 'target', 'unit', 'period'],
+      required: ['type', 'label', 'target', 'unit', 'period'],
       additionalProperties: false,
     },
   },
@@ -193,7 +225,7 @@ export function summarizeAction(tool: string, input: Record<string, unknown>): s
     case 'add_milestone':
       return `Post “${String(input.headline ?? 'milestone')}”`;
     case 'create_challenge':
-      return `${String(input.label ?? 'Challenge')} · ${input.target} ${input.unit} / ${input.period}`;
+      return `${String(input.label ?? 'Challenge')} · ${input.target} ${input.unit} a ${input.period}`;
     case 'equip_cosmetic':
       return `Equip ${String(input.cosmetic_key ?? '')}`;
     case 'mark_notifications_read':

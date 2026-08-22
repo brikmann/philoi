@@ -1,20 +1,25 @@
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// ai-coach-voice — tap-to-talk with Cindy (CINDY_SPEC "🎙 Voice", mock 115 frame 4).
+// ai-coach-voice — tap-to-talk with Cindy (CINDY_SPEC "Voice — STT-only architecture").
 //
-// One round trip per spoken turn: audio in → ElevenLabs STT → the SAME Sonnet coach as text →
-// ElevenLabs TTS → audio out. The brain is identical to chat; voice is only a different way in
-// and out, which is why this delegates to _shared/coach rather than owning any prompt of its own.
+// 🔴 THE CHEAP PIPELINE, ON PURPOSE:
 //
-// 🔑 SHIPS DARK. With no ELEVENLABS_API_KEY set on the project this returns `voice_unavailable`,
-// and the client hides the mic entirely. Nothing crashes, nothing half-works — voice simply is
-// not there until the secret exists.
+//     on-device STT (free)  →  Sonnet (the brain we already pay for)  →  ElevenLabs TTS (reply only)
 //
-//   supabase secrets set ELEVENLABS_API_KEY=...
-//   supabase secrets set ELEVENLABS_VOICE_ID=...   # pick a warm voice that matches her persona
+// The client transcribes locally with the platform recognizer (iOS Speech / Android
+// SpeechRecognizer) and posts TEXT. This function never receives audio and never pays for
+// speech-to-text. That keeps a spoken exchange at roughly 1–2¢ instead of the 8–10¢/min of
+// ElevenLabs' Conversational-AI agent — which the spec explicitly rules out as the default,
+// both on cost and because that path would replace Sonnet with their LLM and lose the persona.
 //
-// 💸 Voice minutes cost real money, so this is metered in SECONDS (a long rambling turn costs more
-// than ten short ones) against a daily cap. Confirmed free-but-capped rather than premium: text
-// stays fully featured either way, so the modality is convenience, never power.
+// A future premium "Call Cindy" real-time mode can sit alongside this; it is deliberately not
+// what ships, and it is not what the free tier runs on.
+//
+// 🔑 SHIPS DARK. No ELEVENLABS_API_KEY → `voice_unavailable`, the client hides the mic entirely.
+//   supabase secrets set ELEVENLABS_API_KEY=... ELEVENLABS_VOICE_ID=...
+//
+// 💸 Metered in TTS CHARACTERS, because synthesis is the only part of a voice turn that costs
+// anything. Free and capped, never paywalled — text stays fully featured either way, so the
+// modality is a convenience and never power.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -22,16 +27,15 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { runCoach } from '../_shared/coach/index.ts';
 
-/** Daily spoken-audio budget per user, in seconds. ~10 minutes of talking. */
-const VOICE_SECONDS_PER_DAY = 600;
+/** Daily synthesis budget per user. ~25k characters is a lot of talking for one day. */
+const TTS_CHARS_PER_DAY = 25_000;
 
-/** A single utterance longer than this is almost certainly a stuck recorder, not a question. */
-const MAX_CLIP_SECONDS = 120;
+/** Hard ceiling on one reply, so a runaway generation cannot drain the day's budget at once. */
+const MAX_REPLY_CHARS = 600;
 
-const STT_MODEL = 'scribe_v2';
 /** Expressive and realtime (~280ms) — the right trade for a companion rather than a reader. */
 const TTS_MODEL = Deno.env.get('ELEVENLABS_TTS_MODEL') ?? 'eleven_v3_conversational';
-/** mp3 at 44.1kHz/128kbps — expo-audio plays it directly, no transcoding on device. */
+/** mp3 44.1kHz/128kbps — expo-audio plays it directly, no transcoding on device. */
 const TTS_FORMAT = 'mp3_44100_128';
 
 Deno.serve(async (req) => {
@@ -65,24 +69,13 @@ Deno.serve(async (req) => {
     if (settings.voice_enabled === false) return json({ error: 'voice_disabled' }, 403);
 
     const body = await req.json().catch(() => ({}));
-    const audioBase64: string = body.audio ?? '';
-    const mimeType: string = body.mime_type ?? 'audio/m4a';
-    const clipSeconds = Math.min(Math.round(Number(body.duration_seconds ?? 0)), MAX_CLIP_SECONDS);
-    if (!audioBase64) return json({ error: 'No audio.' }, 400);
-
-    // Metered before the work, so a burst of parallel turns cannot each slip under the cap.
-    // Charged on the clip they SPOKE plus a flat estimate for the reply we are about to speak —
-    // billing only the input would let a user spend the whole TTS budget invisibly.
-    const spent = await bumpVoice(admin, user.id, Math.max(clipSeconds, 1) + 8);
-    if (spent > VOICE_SECONDS_PER_DAY) {
-      return json({ error: 'voice_rate_limited', limit_seconds: VOICE_SECONDS_PER_DAY }, 429);
-    }
-
-    // ── 1. Speech in ──
-    const transcript = await transcribe(elevenKey, audioBase64, mimeType);
+    const transcript = typeof body.transcript === 'string' ? body.transcript.trim() : '';
+    // A probe (empty body) gets this far only when voice IS wired up — that is exactly how the
+    // client tells "dark" from "available" without spending a credit. See isVoiceAvailable().
     if (!transcript) return json({ error: 'no_speech' }, 422);
+    if (transcript.length > 2000) return json({ error: 'That was too long.' }, 400);
 
-    // ── 2. The same brain as text ──
+    // ── The same brain as text ──
     const { data: recent } = await admin
       .from('coach_messages')
       .select('role, content')
@@ -102,7 +95,7 @@ Deno.serve(async (req) => {
     });
 
     // Voice turns land in the same transcript as typed ones — one conversation, two ways in, so
-    // asking by voice and following up by text carries the thread.
+    // asking aloud and following up by text carries the thread.
     await admin.from('coach_messages').insert([
       { user_id: user.id, role: 'user', content: transcript, surface: 'chat', modality: 'voice' },
       {
@@ -115,8 +108,23 @@ Deno.serve(async (req) => {
       },
     ]);
 
-    // ── 3. Speech out ──
-    const audio = await speak(elevenKey, voiceId, result.text);
+    // ── Speech out — the only paid step ──
+    const spoken = result.text.slice(0, MAX_REPLY_CHARS);
+    const spent = await bumpTts(admin, user.id, spoken.length);
+
+    // Over budget still returns the TEXT. Losing her voice for the rest of the day should not
+    // mean losing her answer — the reply just arrives silently and the screen shows it.
+    if (spent > TTS_CHARS_PER_DAY) {
+      return json({
+        transcript,
+        text: result.text,
+        action: result.action,
+        audio: null,
+        voice_capped: true,
+      });
+    }
+
+    const audio = await speak(elevenKey, voiceId, spoken);
 
     return json({
       transcript,
@@ -124,30 +132,13 @@ Deno.serve(async (req) => {
       action: result.action,
       audio,
       mime_type: 'audio/mpeg',
+      voice_capped: false,
     });
   } catch (e) {
     console.error('ai-coach-voice failed', e);
     return json({ error: e instanceof Error ? e.message : 'Voice failed.' }, 500);
   }
 });
-
-/** Audio → text. Returns null when the clip held no speech (a mis-tap, a pocket recording). */
-async function transcribe(apiKey: string, base64: string, mimeType: string): Promise<string | null> {
-  const form = new FormData();
-  form.append('model_id', STT_MODEL);
-  form.append('file', new Blob([decodeBase64(base64)], { type: mimeType }), 'turn.m4a');
-
-  const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-    method: 'POST',
-    headers: { 'xi-api-key': apiKey },
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Speech-to-text failed (${res.status}).`);
-
-  const data = await res.json();
-  const text = typeof data.text === 'string' ? data.text.trim() : '';
-  return text.length > 0 ? text : null;
-}
 
 /** Text → base64 mp3 in Cindy's voice. */
 async function speak(apiKey: string, voiceId: string, text: string): Promise<string> {
@@ -164,16 +155,9 @@ async function speak(apiKey: string, voiceId: string, text: string): Promise<str
   return encodeBase64(new Uint8Array(await res.arrayBuffer()));
 }
 
-function decodeBase64(b64: string): Uint8Array {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 function encodeBase64(bytes: Uint8Array): string {
-  // Chunked: String.fromCharCode(...bytes) on a whole mp3 blows the argument limit and throws
-  // "Maximum call stack size exceeded" on anything longer than a few seconds of audio.
+  // Chunked: String.fromCharCode(...bytes) over a whole mp3 blows the argument limit and throws
+  // "Maximum call stack size exceeded" on anything past a few seconds of audio.
   let binary = '';
   const CHUNK = 0x8000;
   for (let i = 0; i < bytes.length; i += CHUNK) {
@@ -182,11 +166,11 @@ function encodeBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function bumpVoice(admin: any, userId: string, seconds: number): Promise<number> {
+async function bumpTts(admin: any, userId: string, chars: number): Promise<number> {
   const { data, error } = await admin.rpc('coach_bump_usage', {
     p_user: userId,
     p_kind: 'voice',
-    p_amount: seconds,
+    p_amount: chars,
   });
   if (error) {
     console.error('coach_bump_usage(voice) failed', error);

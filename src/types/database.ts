@@ -777,7 +777,14 @@ export type AnalyticsEventName =
   // Campus verification (UNI_VERIFICATION_SPEC.md). The gap between sent and verified is the
   // number that matters: it's how many students hit a school inbox they couldn't actually reach.
   | 'campus_code_sent'
-  | 'campus_verified';
+  | 'campus_verified'
+  // Cindy (CINDY_SPEC.md). Deliberately NO event carries message text, transcripts, or any
+  // context she read — what a person says to their coach is not analytics. These measure only
+  // that a conversation happened and whether her actions land.
+  | 'cindy_consent'
+  | 'cindy_message_sent'
+  | 'cindy_voice_turn'
+  | 'cindy_action';
 
 export type AnalyticsEvent = {
   id: string;
@@ -1138,6 +1145,43 @@ export type MyRank = {
   xp_for_next_tier: number;
 };
 
+// ── Cindy, the AI coach (migration 0101, CINDY_SPEC.md) ──────────────────────────────────────
+
+/** Consent + per-surface toggles. No row at all = never consented, which fails closed. */
+export type CoachSettingsRow = {
+  user_id: string;
+  enabled: boolean;
+  consented_at: string | null;
+  home_bubble_enabled: boolean;
+  voice_enabled: boolean;
+  updated_at: string;
+};
+
+/** Which channel produced a message — the routing split (CINDY_SPEC), stored so it is auditable. */
+export type CoachSurface = 'chat' | 'home' | 'intercept' | 'reengagement';
+
+export type CoachMessageRow = {
+  id: string;
+  user_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  surface: CoachSurface;
+  /** A proposed action or the receipt of a performed one; null for plain talk. */
+  action: Record<string, unknown> | null;
+  modality: 'text' | 'voice';
+  created_at: string;
+};
+
+export type CoachHomeBubbleRow = {
+  user_id: string;
+  message: string;
+  /** Warm intents only — the protective ones cannot be generated on this surface. */
+  intent: string;
+  context_digest: string | null;
+  dismissed_at: string | null;
+  generated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -1436,6 +1480,37 @@ export type Database = {
       };
       check_in_workout_sets: {
         Row: WorkoutSetEntry & { id: string; check_in_id: string; position: number; created_at: string };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+
+      // ── Cindy, the AI coach (migration 0101) ──
+      // Insert is `never` on the two content tables: every message and every bubble is written
+      // by the ai-coach edge function under the service role, after the model has actually
+      // produced it. A client that could insert an assistant row could forge things Cindy never
+      // said and then have them replayed back to her as history.
+      coach_settings: {
+        Row: CoachSettingsRow;
+        Insert: Partial<CoachSettingsRow> & { user_id: string };
+        Update: Partial<CoachSettingsRow>;
+        Relationships: [];
+      };
+      coach_messages: {
+        Row: CoachMessageRow;
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      coach_home_bubble: {
+        Row: CoachHomeBubbleRow;
+        Insert: never;
+        /** Dismissal only — the message text is service-role. */
+        Update: { dismissed_at?: string | null };
+        Relationships: [];
+      };
+      coach_usage: {
+        Row: { user_id: string; day: string; text_calls: number; bubble_calls: number; voice_seconds: number };
         Insert: never;
         Update: never;
         Relationships: [];
@@ -1750,6 +1825,16 @@ export type Database = {
       disconnect_my_whoop: { Args: Record<string, never>; Returns: undefined };
       /** Credits study_hours / gym_visits from qualifying lock-ins (migration 0068). */
       sync_challenge_from_lock_ins: { Args: { p_challenge_id: string }; Returns: number };
+
+      // ── Cindy (migration 0101) ──
+      // The one read the coach makes. auth.uid()-scoped with no user parameter, so it is not
+      // possible to ask it for anybody else's context. Returns one jsonb document rather than a
+      // row set — a RETURNS TABLE column list would shadow same-named columns in the body.
+      get_coach_context: { Args: Record<string, never>; Returns: Record<string, unknown> };
+      get_my_coach_usage: {
+        Args: Record<string, never>;
+        Returns: { text_calls: number; bubble_calls: number; voice_seconds: number };
+      };
 
       // ── Reward economy / inventory (migration 0064, Step 21) ──
       // Every mutation below is a security-definer RPC because the client is never allowed to

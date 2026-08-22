@@ -13,6 +13,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from '
 
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
 import { heatToFlameState, type CampfireFlameState } from '@/components/campfire-flame-stage';
+import { CindyBubble } from '@/components/cindy/cindy-bubble';
 import { HeatFlame } from '@/components/heat-flame';
 import { PersonalFlame } from '@/components/personal-flame';
 import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
@@ -28,6 +29,8 @@ import { TAB_HEADER_HEIGHT, TAB_HEADER_PADDING_TOP } from '@/components/ui/tab-h
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
+import { useCindy } from '@/hooks/use-cindy';
+import { useCindyBubble } from '@/hooks/use-cindy-bubble';
 import { useDailyFire } from '@/hooks/use-daily-fire';
 import { useShareRank } from '@/hooks/use-share-rank';
 import { useTodayLockInCount } from '@/hooks/use-today-lockin-count';
@@ -86,6 +89,15 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
   const { dailyFire, error: dailyFireError } = useDailyFire();
   const [myMarker, setMyMarker] = useState<ActiveChallengeMarker | null>(null);
   const streak = profile?.current_streak ?? 0;
+  // Cindy. Gated on consent all the way down: un-consented means no bubble, no fetch, and a
+  // flame that behaves exactly as it did before she existed.
+  const { consented: cindyConsented, bubbleEnabled } = useCindy();
+  const { bubble: cindyBubble, dismiss: dismissBubble } = useCindyBubble({
+    enabled: cindyConsented && bubbleEnabled,
+    streak,
+    todayCount,
+    inSession: Boolean(activeSession),
+  });
   // The streak share card is captured off-screen, same pipeline as every other card.
   const fireCardRef = useRef<View>(null);
   const [sharingStreak, setSharingStreak] = useState(false);
@@ -166,8 +178,35 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
           the other. Both bars are gone because the rank row below now carries BOTH facts in a
           single horizontal bar: tier progress as the fill, today's fire encased inside it. */}
       <View style={styles.heroCenter}>
-        {/* YOUR equipped flame, breathing over its glow — mock 92's hero, at mock 92's size. */}
-        <PersonalFlame size={132} />
+        {/* CINDY (CINDY_SPEC, mock 115 frame 1). The bubble is the WARM channel and only the warm
+            channel — the protective pushback lives at the social intercept and is unreachable
+            from here by construction, not by convention (see use-cindy-bubble.ts). */}
+        {cindyBubble && (
+          <CindyBubble
+            message={cindyBubble.message}
+            onPress={() => router.push('/cindy')}
+            onDismiss={dismissBubble}
+          />
+        )}
+        {/* YOUR equipped flame, breathing over its glow — mock 92's hero, at mock 92's size.
+            It is also CINDY: same flame, same cosmetic, now tappable to talk to her. The hit
+            target is the flame itself rather than a separate button, because a chat entry point
+            sitting NEXT to her would say she is something other than the flame. */}
+        <Pressable
+          onPress={() => router.push('/cindy')}
+          disabled={!cindyConsented}
+          accessibilityRole="button"
+          accessibilityLabel="Talk to Cindy">
+          <PersonalFlame size={132} />
+        </Pressable>
+        {cindyConsented && !activeSession && (
+          <Pressable onPress={() => router.push('/cindy')} hitSlop={8} style={styles.cindyHint}>
+            <Ionicons name="chatbubble-ellipses-outline" size={11} color={Colors.textTertiary} />
+            <Text style={styles.cindyHintText}>
+              tap <Text style={styles.cindyHintName}>Cindy</Text> to talk
+            </Text>
+          </Pressable>
+        )}
         {activeSession?.circleId && session ? (
           <LockedInBodyDoublesLine circleId={activeSession.circleId} excludeUserId={session.user.id} />
         ) : !activeSession ? (
@@ -711,6 +750,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 18,
     paddingTop: 18,
+  },
+  // "💬 tap Cindy to talk" (mock 115 frame 1). Hidden during a live session — the flame is busy
+  // being the session's flame then, and the screen already has a Return-to-lock-in CTA.
+  cindyHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+  },
+  cindyHintText: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
+  },
+  cindyHintName: {
+    fontFamily: Fonts.bodySemiBold,
+    color: Colors.amber,
   },
   heroCenter: {
     // grow-but-never-shrink, NOT `flex: 1`. A CSS column flex item gets `min-height: auto`, so

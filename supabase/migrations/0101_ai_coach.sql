@@ -108,9 +108,11 @@ create table if not exists coach_usage (
   day date not null default (now() at time zone 'utc')::date,
   text_calls int not null default 0,
   bubble_calls int not null default 0,
-  /** Voice is metered in seconds, not calls — ElevenLabs bills by audio, and a single long
-   *  rambling turn costs more than ten short ones. Confirmed free-but-capped, not premium. */
-  voice_seconds int not null default 0,
+  /** 🔑 Voice is metered in TTS CHARACTERS, because that is the only part of a voice turn that
+   *  costs anything. STT runs on-device and is free (CINDY_SPEC "STT-only architecture"); the
+   *  brain is the same Sonnet call already counted in text_calls. So the one meter that matters
+   *  is how much speech ElevenLabs synthesises. Confirmed free-but-capped, never premium. */
+  tts_chars int not null default 0,
   primary key (user_id, day)
 );
 
@@ -399,7 +401,7 @@ as $$
 declare
   v_count int;
 begin
-  insert into coach_usage (user_id, day, text_calls, bubble_calls, voice_seconds)
+  insert into coach_usage (user_id, day, text_calls, bubble_calls, tts_chars)
   values (
     p_user, (now() at time zone 'utc')::date,
     case when p_kind = 'text' then p_amount else 0 end,
@@ -409,8 +411,8 @@ begin
   on conflict (user_id, day) do update set
     text_calls   = coach_usage.text_calls   + case when p_kind = 'text' then p_amount else 0 end,
     bubble_calls = coach_usage.bubble_calls + case when p_kind = 'bubble' then p_amount else 0 end,
-    voice_seconds = coach_usage.voice_seconds + case when p_kind = 'voice' then p_amount else 0 end
-  returning case p_kind when 'text' then text_calls when 'bubble' then bubble_calls else voice_seconds end
+    tts_chars = coach_usage.tts_chars + case when p_kind = 'voice' then p_amount else 0 end
+  returning case p_kind when 'text' then text_calls when 'bubble' then bubble_calls else tts_chars end
   into v_count;
 
   return v_count;
@@ -433,10 +435,10 @@ as $$
     (select jsonb_build_object(
               'text_calls', u.text_calls,
               'bubble_calls', u.bubble_calls,
-              'voice_seconds', u.voice_seconds)
+              'tts_chars', u.tts_chars)
      from coach_usage u
      where u.user_id = auth.uid() and u.day = (now() at time zone 'utc')::date),
-    jsonb_build_object('text_calls', 0, 'bubble_calls', 0, 'voice_seconds', 0)
+    jsonb_build_object('text_calls', 0, 'bubble_calls', 0, 'tts_chars', 0)
   );
 $$;
 
