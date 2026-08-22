@@ -68,9 +68,11 @@ create policy challenge_participants_read on challenge_participants
 -- A’s explicit instruction, followed: gate on is_campfire_admin, never on groups.owner_id, because
 -- owner ⊂ admin and a promoted admin must pass.
 --
--- ORDERING: this file is 0095 and A’s is 0094, so their helper exists before anything here calls
--- it. Both files were originally numbered 0094 — two migrations sharing a leading version silently
--- roll back, which is the trap already recorded in this project.
+-- ORDERING: this file is 0096; A holds 0094 (roles) and 0095 (report-alert readback), so their
+-- is_campfire_admin exists before anything here calls it. This file has been renumbered TWICE now
+-- — 0094 -> 0095 -> 0096 — because two sessions picking the next free number independently keeps
+-- landing on the same one. Two migrations sharing a leading version silently roll back, and the
+-- CLI blames the schema_migrations INSERT rather than the real cause.
 
 
 -- ───────────────────────── 3 · shapes, metrics, lifecycle ─────────────────────────
