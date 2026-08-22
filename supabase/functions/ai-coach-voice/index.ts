@@ -14,7 +14,8 @@
 // A future premium "Call Cindy" real-time mode can sit alongside this; it is deliberately not
 // what ships, and it is not what the free tier runs on.
 //
-// 🔑 SHIPS DARK. No ELEVENLABS_API_KEY → `voice_unavailable`, the client hides the mic entirely.
+// 🔑 SHIPS DARK. No ELEVENLABS_API_KEY *or* no ANTHROPIC_API_KEY → `voice_unavailable`, and the
+// client hides the mic entirely rather than offering one that cannot complete a turn.
 //   supabase secrets set ELEVENLABS_API_KEY=... ELEVENLABS_VOICE_ID=...
 //
 // 💸 Metered in TTS CHARACTERS, because synthesis is the only part of a voice turn that costs
@@ -44,7 +45,13 @@ Deno.serve(async (req) => {
   try {
     const elevenKey = Deno.env.get('ELEVENLABS_API_KEY');
     const voiceId = Deno.env.get('ELEVENLABS_VOICE_ID');
-    if (!elevenKey || !voiceId) return json({ error: 'voice_unavailable' }, 503);
+    // The brain counts too. A voice turn is transcript -> Sonnet -> speech, so without
+    // ANTHROPIC_API_KEY the ElevenLabs half is wired to nothing: the client would see the mic,
+    // let someone talk, and 500 at the brain step every time. Reporting voice_unavailable here
+    // means the mic is hidden instead — the same "ships dark" contract the ElevenLabs keys
+    // already have, applied to the one key that is not optional.
+    const brainKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!elevenKey || !voiceId || !brainKey) return json({ error: 'voice_unavailable' }, 503);
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return json({ error: 'Missing Authorization header.' }, 401);
