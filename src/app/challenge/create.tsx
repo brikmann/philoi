@@ -36,6 +36,25 @@ const MODE_OPTIONS: { value: SocialChallengeMode; label: string; icon: keyof typ
   { value: 'group', label: 'Group', icon: 'people' },
 ];
 
+/**
+ * The v2 race metrics. XP is deliberately absent: it correlates with lock-in time, so offering both
+ * asked people to pick between two names for the same effort. The column still ACCEPTS xp so
+ * in-flight races finish on it — it is just not creatable.
+ *
+ * `source` is shown under the picker. Volume and Distance are only real if something is feeding
+ * them, and saying so up front is the same honesty the personal-goal picker already applies.
+ */
+const RACE_METRIC_OPTIONS: {
+  value: SocialChallengeRaceMetric;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  source: string;
+}[] = [
+  { value: 'lockin_time', label: 'Lock-in time', icon: 'time', source: 'From your lock-ins — works for everyone, no setup.' },
+  { value: 'volume', label: 'Volume', icon: 'barbell', source: 'Total weight lifted, from your logged gym sets.' },
+  { value: 'distance', label: 'Distance', icon: 'walk', source: 'From a connected fitness source (Strava).' },
+];
+
 const WINDOW_OPTIONS = [
   { label: '24h', hours: 24 },
   { label: '3 days', hours: 72 },
@@ -113,7 +132,10 @@ function SocialChallengeForm() {
 
   const [mode, setMode] = useState<SocialChallengeMode>(prefillMode);
   const [opponentId, setOpponentId] = useState<string | null>(prefillOpponentId);
-  const [raceMetric, setRaceMetric] = useState<SocialChallengeRaceMetric>('xp');
+  // lockin_time, not xp: xp is retired from creation, and lock-in time is the one metric that
+  // works for every user with no connected source.
+  const [raceMetric, setRaceMetric] = useState<SocialChallengeRaceMetric>('lockin_time');
+  const [publicName, setPublicName] = useState('');
   const [targetCount, setTargetCount] = useState(5);
   const [windowHours, setWindowHours] = useState(72);
   const [saving, setSaving] = useState(false);
@@ -155,6 +177,7 @@ function SocialChallengeForm() {
           raceMetric,
           windowHours,
           circleId: watching ? (watchCircle?.id ?? null) : null,
+          publicName,
         });
         // A visible confirmation, not a silent navigate-back (punchlist 2, §2: "no 'request
         // sent' state") — the opponent sees it as a real Accept/Decline invite on their own
@@ -167,7 +190,7 @@ function SocialChallengeForm() {
           setError('Start or join a Campfire first.');
           return;
         }
-        await createGroupChallenge({ circleId: circle.id, targetCount, windowHours });
+        await createGroupChallenge({ circleId: circle.id, targetCount, windowHours, publicName });
       }
       router.back();
     } catch (e) {
@@ -227,19 +250,44 @@ function SocialChallengeForm() {
               </>
             )}
 
+            {/* THE RACE — v2's four metrics. "Most XP" is gone: XP correlates with lock-in time,
+                so offering both asked people to choose between two names for the same effort.
+                Existing XP races keep running (the column still accepts it); it is simply no
+                longer creatable. */}
             <Text style={styles.label}>The race</Text>
             <View style={styles.pillsRow}>
-              <Pressable
-                onPress={() => setRaceMetric('xp')}
-                style={[styles.pill, raceMetric === 'xp' && styles.chipSelected]}>
-                <Text style={[styles.pillText, raceMetric === 'xp' && styles.chipTextSelected]}>Most XP</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setRaceMetric('lockin_time')}
-                style={[styles.pill, raceMetric === 'lockin_time' && styles.chipSelected]}>
-                <Text style={[styles.pillText, raceMetric === 'lockin_time' && styles.chipTextSelected]}>Most lock-in time</Text>
-              </Pressable>
+              {RACE_METRIC_OPTIONS.map((option) => {
+                const selected = raceMetric === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    onPress={() => setRaceMetric(option.value)}
+                    style={[styles.pill, selected && styles.chipSelected]}>
+                    <Ionicons
+                      name={option.icon}
+                      size={13}
+                      color={selected ? Colors.ink : Colors.muted}
+                    />
+                    <Text style={[styles.pillText, selected && styles.chipTextSelected]}>{option.label}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
+            {/* Each metric names its own source, because "Volume" and "Distance" are only real if
+                something is feeding them — the same honesty the personal-goal picker already
+                applies with its "needs WHOOP" tags. */}
+            <Text style={styles.hint}>{RACE_METRIC_OPTIONS.find((o) => o.value === raceMetric)?.source}</Text>
+
+            <Text style={styles.label}>Name it</Text>
+            <TextInput
+              value={publicName}
+              onChangeText={setPublicName}
+              placeholder="Morning grind"
+              maxLength={60}
+            />
+            <Text style={styles.hint}>
+              What everyone sees on the card and the share. Optional — the metric names it otherwise.
+            </Text>
 
             <View style={styles.shareRow}>
               <View style={styles.shareText}>
