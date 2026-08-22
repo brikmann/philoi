@@ -20,12 +20,15 @@ export async function createH2HChallenge(input: {
   windowHours: number;
   /** Optional "let a campfire watch" — friend-to-friend H2H never requires one (§16). */
   circleId?: string | null;
+  /** The user-set public name (v2). Null/blank falls back to the metric naming it. */
+  publicName?: string | null;
 }): Promise<SocialChallenge> {
   const { data, error } = await supabase.rpc('create_h2h_challenge', {
     p_opponent_id: input.opponentId,
     p_race_metric: input.raceMetric,
     p_window_hours: input.windowHours,
     p_circle_id: input.circleId ?? null,
+    p_public_name: input.publicName ?? null,
   });
   if (error) throw error;
   track('challenge_created', { mode: 'h2h', circle_id: input.circleId ?? null });
@@ -36,11 +39,13 @@ export async function createGroupChallenge(input: {
   circleId: string;
   targetCount: number;
   windowHours: number;
+  publicName?: string | null;
 }): Promise<SocialChallenge> {
   const { data, error } = await supabase.rpc('create_group_challenge', {
     p_circle_id: input.circleId,
     p_target_count: input.targetCount,
     p_window_hours: input.windowHours,
+    p_public_name: input.publicName ?? null,
   });
   if (error) throw error;
   track('challenge_created', { mode: 'group', circle_id: input.circleId });
