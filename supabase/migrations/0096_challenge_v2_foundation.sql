@@ -163,9 +163,24 @@ create or replace function challenge_is_settled(p_status text)
 returns boolean language sql immutable as $$ select p_status in ('completed', 'expired'); $$;
 
 /** Created or invited — not yet racing. The band get_my_social_challenges needs a name for when it
- * floats invites to the top. */
+ * floats invites to the top, and for deciding whether a score exists yet. */
 create or replace function challenge_is_awaiting(p_status text)
 returns boolean language sql immutable as $$ select p_status in ('draft', 'pending'); $$;
+
+/**
+ * Created, and NOBODY HAS BEEN TOLD YET. Deliberately narrower than challenge_is_awaiting, and
+ * kept as its own function precisely so the difference is visible at the call site.
+ *
+ * These two answer different questions and it is easy to reach for the wrong one:
+ *   challenge_is_awaiting — "has this started?"      (draft OR pending: no score exists yet)
+ *   challenge_is_draft    — "has anyone been told?"  (draft ONLY: nobody can see it but its author)
+ *
+ * Using the band for the visibility rule hides a PENDING duel from the person invited to it, since
+ * they are not created_by — which kills the invite flow outright. invite_challenge_members flips
+ * draft -> pending at the moment invites go out, so 'draft' alone is exactly "not yet announced".
+ */
+create or replace function challenge_is_draft(p_status text)
+returns boolean language sql immutable as $$ select p_status = 'draft'; $$;
 
 -- ───────────────────────── 4 · lifecycle RPCs ─────────────────────────
 

@@ -111,7 +111,13 @@ begin
     -- A DRAFT IS PRIVATE UNTIL SOMEONE IS INVITED. Without this a group draft is visible to the
     -- whole campfire the moment it is created, because the group arm above matches on membership
     -- alone. Swapping the status literals does not cover this — it is a separate leak.
-    and (not challenge_is_awaiting(sc.status) or sc.created_by = auth.uid())
+    --
+    -- challenge_is_DRAFT, not challenge_is_awaiting. The band includes 'pending', and a pending
+    -- h2h invitee is not created_by — so the band form excluded the very person the invite is for,
+    -- killing the whole duel-invite flow. The tell was the ORDER BY immediately below: it floats
+    -- rows where opponent_id = auth.uid(), which the band predicate had just removed. A predicate
+    -- that makes the sort beneath it unreachable is the wrong predicate.
+    and (not challenge_is_draft(sc.status) or sc.created_by = auth.uid())
   order by
     (challenge_is_awaiting(sc.status) and sc.opponent_id = auth.uid()) desc,
     sc.created_at desc;
