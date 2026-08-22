@@ -94,8 +94,10 @@ export function ChallengesTab({
 
   // Live races first, then anything awaiting a decision, then the rest. Sorting by lifecycle
   // rather than by date because "what needs me" is the question this tab answers.
-  const live = challenges.filter((c) => c.status === 'live' || c.status === 'active');
-  const awaiting = challenges.filter((c) => c.status === 'draft' || c.status === 'invited' || c.status === 'pending');
+  // Bands, not literals scattered about: 'active' is racing and (draft|pending) is awaiting a
+  // decision. Matches challenge_is_live / challenge_is_awaiting in 0096 so client and server agree.
+  const live = challenges.filter((c) => c.status === 'active');
+  const awaiting = challenges.filter((c) => c.status === 'draft' || c.status === 'pending');
   const done = challenges.filter((c) => !live.includes(c) && !awaiting.includes(c));
   const ordered = [...live, ...awaiting, ...done];
 
@@ -142,7 +144,7 @@ export function ChallengesTab({
 
           {/* The two v2 lifecycle actions that belong on the card. Everything else (edit, delete,
               terms) lives in the manage sheet. */}
-          {item.status === 'invited' ? (
+          {item.status === 'pending' ? (
             <View style={styles.actions}>
               <Pressable
                 style={[styles.btn, styles.accept]}
@@ -159,7 +161,7 @@ export function ChallengesTab({
             </View>
           ) : null}
 
-          {isAdmin && (item.status === 'invited' || item.status === 'draft') ? (
+          {isAdmin && (item.status === 'pending' || item.status === 'draft') ? (
             <Pressable
               style={[styles.btn, styles.start]}
               disabled={busyId === item.id}

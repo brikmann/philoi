@@ -974,13 +974,16 @@ export type Challenge = {
 // group remain.
 export type SocialChallengeMode = 'h2h' | 'group';
 
-/** v2 lifecycle (migration 0095). The legacy values remain because live rows still carry them —
- * renaming a status mid-flight would strand every challenge currently running. */
+/**
+ * The lifecycle. v2 adds exactly ONE state — 'draft' (created, nobody invited yet).
+ *
+ * Everything else reuses the existing vocabulary rather than adding synonyms: 'pending' already
+ * means invite-sent-awaiting-answer, 'active' already means racing, 'completed' already means
+ * settled. Adding 'invited'/'live'/'settled' alongside them forked the vocabulary and silently
+ * broke five readers — including the settle sweep, which would have left v2 races running forever.
+ */
 export type SocialChallengeStatus =
   | 'draft'
-  | 'invited'
-  | 'live'
-  | 'settled'
   | 'pending'
   | 'active'
   | 'completed'

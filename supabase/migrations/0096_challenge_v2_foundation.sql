@@ -129,22 +129,43 @@ alter table social_challenges add column if not exists ends_on timestamptz;
  *
  * The legacy values are kept in the constraint for the same reason as 'xp': there are live rows
  * using them, and a status rename mid-flight would strand every challenge currently running.
- * 'active' and 'live' are treated as the same state by the reads below.
+ *
+ * CORRECTION TO MY OWN FIRST PASS. I had added 'invited', 'live' and 'settled' as v2 names. 0019
+ * already means exactly those things by 'pending' (invite sent, awaiting an answer), 'active'
+ * (racing, starts_at set) and 'completed' (settled) — so the synonyms added no state, they FORKED
+ * the vocabulary, and every reader that reasonably matched the old value silently stopped matching:
+ *
+ *   finalize_social_challenges (0034) gates the settle sweep on status = 'active', so a 'live'
+ *     challenge would NEVER have settled. No winner, no payout, no reward arc; ends_at sails past
+ *     and the race runs forever with nothing erroring. The lifecycle would have terminated in a
+ *     state nothing transitions out of.
+ *   cheer_challenge (0081) · get_challenge_watch (0081) · get_group_challenge_watch (0056) ·
+ *     get_active_challenge_marker (0040) — all equally dead on a v2 challenge.
+ *
+ * Found by handoff A's reader audit, which I had skipped. Collapsing the synonyms fixes all five
+ * without editing any of them, and leaves the helpers below as the one place the vocabulary lives.
  */
 alter table social_challenges drop constraint if exists social_challenges_status_check;
 alter table social_challenges add constraint social_challenges_status_check
-  check (status in (
-    'draft', 'invited', 'live', 'settled',                       -- v2
-    'pending', 'active', 'completed', 'declined', 'expired'      -- legacy, still in flight
-  ));
+  check (status in ('draft', 'pending', 'active', 'completed', 'declined', 'expired'));
 
-/** One place deciding whether a challenge is running, so the two vocabularies cannot diverge. */
+/**
+ * The three lifecycle bands, as functions rather than literals.
+ *
+ * Callers should use these instead of comparing to a string — that is what lets the vocabulary
+ * change in exactly one place, and it is why handoff A’s 0100 calls challenge_is_live(sc.status)
+ * rather than inlining the values.
+ */
 create or replace function challenge_is_live(p_status text)
-returns boolean language sql immutable as $$ select p_status in ('live', 'active'); $$;
+returns boolean language sql immutable as $$ select p_status = 'active'; $$;
 
-/** Likewise for finished. */
 create or replace function challenge_is_settled(p_status text)
-returns boolean language sql immutable as $$ select p_status in ('settled', 'completed', 'expired'); $$;
+returns boolean language sql immutable as $$ select p_status in ('completed', 'expired'); $$;
+
+/** Created or invited — not yet racing. The band get_my_social_challenges needs a name for when it
+ * floats invites to the top. */
+create or replace function challenge_is_awaiting(p_status text)
+returns boolean language sql immutable as $$ select p_status in ('draft', 'pending'); $$;
 
 -- ───────────────────────── 4 · lifecycle RPCs ─────────────────────────
 
@@ -233,7 +254,8 @@ begin
 
   get diagnostics v_n = row_count;
 
-  update social_challenges set status = 'invited' where id = p_challenge and status = 'draft';
+  -- 'pending' IS the invited state — 0019 already uses it for "invite sent, awaiting an answer".
+  update social_challenges set status = 'pending' where id = p_challenge and status = 'draft';
   return v_n;
 end;
 $$;
@@ -302,7 +324,7 @@ begin
    where p.challenge_id = p_challenge;
 
   update social_challenges
-     set status = 'live',
+     set status = 'active',
          starts_at = now(),
          starts_on = coalesce(starts_on, now()),
          ends_at = coalesce(ends_on, now() + make_interval(hours => window_hours))
