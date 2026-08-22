@@ -174,14 +174,37 @@ async function handleRecordAction(admin: any, userId: string, body: any) {
     return json({ error: 'Bad action receipt.' }, 400);
   }
 
+  // 1. Resolve the PROPOSAL in place. Without this, reopening the chat would re-render a pending
+  // confirm for something already done — and tapping it would run the action a second time.
+  const { data: proposal } = await admin
+    .from('coach_messages')
+    .select('id, action')
+    .eq('user_id', userId)
+    .eq('role', 'assistant')
+    .eq('action->>tool', tool)
+    .eq('action->>status', 'proposed')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (proposal) {
+    await admin
+      .from('coach_messages')
+      .update({ action: { ...proposal.action, status } })
+      .eq('id', proposal.id);
+  }
+
+  // 2. Write a receipt row FOR THE MODEL. Only `content` is replayed as history, so without this
+  // line the next turn would have no idea whether the session actually started — she would be
+  // reduced to guessing at her own last action. Flagged `receipt` so the client filters it out of
+  // the transcript: the resolved chip above is what the user sees, and rendering both would say
+  // the same thing twice.
   await admin.from('coach_messages').insert({
     user_id: userId,
     role: 'assistant',
-    // The receipt line is the message: it is what the chip renders and what the model reads back
-    // as "this happened" on the next turn.
     content: receiptLine(tool, status, typeof summary === 'string' ? summary : tool),
     surface: 'chat',
-    action: { tool, summary, status },
+    action: { tool, summary, status, receipt: true },
   });
 
   return json({ ok: true });

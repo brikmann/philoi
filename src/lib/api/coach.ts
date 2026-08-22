@@ -32,6 +32,8 @@ export type CoachAction = {
   summary: string;
   /** Set once the action has been resolved on device. */
   status?: 'proposed' | 'done' | 'declined' | 'failed';
+  /** Marks a model-facing receipt row, which the transcript filters out. See fetchCindyHistory. */
+  receipt?: boolean;
 };
 
 export type CoachReply = { text: string; action: CoachAction | null };
@@ -171,7 +173,11 @@ export async function fetchCindyHistory(limit = 50): Promise<CoachMessage[]> {
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return ((data ?? []) as CoachMessage[]).reverse();
+
+  // Receipt rows exist for the MODEL — they are how the next turn knows the session really
+  // started. The user already sees that as the resolved chip on the message that proposed it,
+  // so showing the receipt row too would say the same thing twice.
+  return ((data ?? []) as CoachMessage[]).filter((m) => !m.action?.receipt).reverse();
 }
 
 export async function clearCindyHistory(): Promise<void> {
