@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/ui/avatar';
+import { Crown } from '@/components/ui/crown';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useChallengeWatch, useGroupChallengeWatch } from '@/hooks/use-challenge-watch';
@@ -192,7 +194,29 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
   }
 
   const head = rows[0];
-  const sorted = [...rows].sort((a, b) => b.member_progress - a.member_progress);
+  // Guard the divisor, not the display: target_count is int not null upstream, but a 0 would turn
+  // every meter into NaN% and silently blank the list rather than fail loudly.
+  const target = Math.max(1, head.target_count);
+
+  // Deterministic order. get_group_challenge_watch (0056) sorts `by member_progress desc` only, so
+  // members on the same count come back in whatever order the planner happened to produce, which
+  // can differ between polls and make the list reshuffle while nothing has actually changed. Name
+  // is the tiebreak because it is the one key that does not move mid-race.
+  const sorted = [...rows].sort(
+    (a, b) => b.member_progress - a.member_progress || a.member_name.localeCompare(b.member_name),
+  );
+
+  // Nobody leads a race nobody has started. Crowning row 0 while everyone sits at 0 invents a
+  // leader the same way the phantom 0-0 duel did (0097) — the sort still has to put someone first,
+  // but first-in-a-tie is not winning. When several genuinely share the top count they all wear
+  // it; picking one of them would be the client deciding the result.
+  const top = sorted[0].member_progress;
+  const isLeading = (progress: number) => top > 0 && progress === top;
+
+  // Competition ranking (1, 1, 3) rather than row position. Numbering tied members 1, 2 down the
+  // column asserts a gap the scores do not contain.
+  const rankOf = (index: number) =>
+    sorted.findIndex((r) => r.member_progress === sorted[index].member_progress) + 1;
 
   return (
     <View style={styles.container}>
@@ -208,21 +232,39 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
         data={sorted}
         keyExtractor={(item) => item.member_id}
         contentContainerStyle={styles.groupList}
-        renderItem={({ item, index }) => (
-          <View style={[styles.groupRow, item.member_id === session?.user.id && styles.groupRowMe]}>
-            <Text style={styles.groupRank}>{index + 1}</Text>
-            <Avatar label={item.member_name} size={30} />
-            <View style={styles.groupWho}>
-              <Text style={styles.groupName} numberOfLines={1}>
-                {item.member_name}
-              </Text>
-              <Text style={styles.groupStatus} numberOfLines={1}>
-                {item.member_live_status}
+        renderItem={({ item, index }) => {
+          const done = item.member_progress >= target;
+          return (
+            <View style={[styles.groupRow, item.member_id === session?.user.id && styles.groupRowMe]}>
+              <Text style={styles.groupRank}>{rankOf(index)}</Text>
+              <Avatar label={item.member_name} size={30} />
+              <View style={styles.groupWho}>
+                <View style={styles.groupNameRow}>
+                  <Text style={styles.groupName} numberOfLines={1}>
+                    {item.member_name}
+                  </Text>
+                  {/* The vector Crown, not an emoji — same reason the podium stopped using one
+                      (punchlist A2): an emoji redraws differently per OS and cannot take the gold. */}
+                  {isLeading(item.member_progress) ? <Crown size={15} /> : null}
+                </View>
+                {/* The meter is the point of the redesign: a bare count says how far someone has
+                    got, not how far they have left. ProgressBar clamps, so an overshoot past the
+                    target reads as full instead of spilling out of the track. */}
+                <ProgressBar
+                  ratio={item.member_progress / target}
+                  height={5}
+                  fillColor={done ? Colors.ember : Colors.coral}
+                />
+                <Text style={styles.groupStatus} numberOfLines={1}>
+                  {item.member_live_status}
+                </Text>
+              </View>
+              <Text style={[styles.groupProgress, done && styles.groupProgressDone]}>
+                {item.member_progress}/{target}
               </Text>
             </View>
-            <Text style={styles.groupProgress}>{item.member_progress}×</Text>
-          </View>
-        )}
+          );
+        }}
       />
     </View>
   );
@@ -389,7 +431,14 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  groupNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    marginBottom: 3,
+  },
   groupName: {
+    flexShrink: 1,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ink,
@@ -403,5 +452,8 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ink,
+  },
+  groupProgressDone: {
+    color: Colors.ember,
   },
 });
