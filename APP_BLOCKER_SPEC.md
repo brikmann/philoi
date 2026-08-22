@@ -47,10 +47,32 @@ Philoi posts the caring message as a **notification / light interstitial** with 
 - No apps picked / no permission → feature off, a subtle "Set up Focus Nudge" prompt; **never blocks locking
   in.**
 
-### C. The nudge (they opened a picked app)
-- Warm message (iOS shield / Android notification-interstitial). Voice = concerned friend, not warden:
-  > **"Come on — you said you'd lock in."** Your {Study} session's still running ({12:47}). If you're tired,
-  > that's fair — go say hi to your friends or step outside, then come back strong.
+### C. The nudge (they opened a picked app) — ✨ AI-WRITTEN (Sonnet)
+The message is **not canned** — Sonnet writes it from the user's data so it lands like a friend who actually
+knows what's going on. This is what makes the loop *actionable*: it steers to **back-to-the-session OR a
+genuine break** (not doomscrolling), and it picks which based on the data.
+- **What Sonnet reads:** the current session (what they're locked in on, its type, whether it's tied to a
+  **personal goal / active challenge**), **session history** (recent frequency/volume, streak, time of day,
+  late-night), the **goal's stakes + deadline** (e.g. "need to pass BU111"), **time context**, plus which app
+  they opened — **and, if connected, the user's Google Calendar** (`GCAL_INTEGRATION_SPEC.md`): real exams,
+  assignment due dates, class times, free/busy. This is what makes deadline lines *true* ("BU111 midterm is
+  Friday") instead of guessed, and unlocks **"you're behind"** awareness (upcoming deadlines vs recent effort).
+- **It chooses the intent:**
+  - **Reinforce (get back to it)** when the session matters and they're not overworked — reads the goal +
+    urgency + a push. *E.g. "It's almost exam season and you've got a few weeks left. You need to pass BU111 —
+    let's get back to it."*
+  - **Permission for a genuine break** when the data says burnout — a lot of recent sessions, long streak, late
+    night. *E.g. "You've put in a ton this week — feeling burnt out? Go outside or text a friend, not the feed."*
+- **Voice:** supportive friend, not warden. 1–2 sentences, concise (fits a shield / notification).
+- 🔴 **Latency pattern (critical):** the iOS shield extension renders **synchronously** and can't wait on a
+  network call. So **generate the message server-side at lock-in start** (and refresh on meaningful context
+  change), **cache it to the shared app group** (UserDefaults/app-group container); the `ShieldConfiguration`
+  extension reads the **latest cached message**. **Static fallback** if none is ready. (Android can generate at
+  fire-time but use the same cache-first pattern.)
+- **Cost:** one generation per session (not per app-open) + a **uniform rate limit**; cache aggressively.
+- **Free** — it's wellbeing utility, not flex; never paywall it (same principle as the AI custom goal). Same
+  Sonnet backend as AI goals / the "Cindy" idea — one AI service.
+- **Privacy:** sends session/goal context to the AI backend (server-side) — note in the permission/consent copy.
 - Actions:
   - **Back to my session** (primary) → returns to Philoi.
   - **Say hi in your campfire** (affordance) → opens the user's campfire chat (turn the pull toward the app's
@@ -58,6 +80,51 @@ Philoi posts the caring message as a **notification / light interstitial** with 
   - **Continue anyway** (ghost) → dismisses, proceeds to the app. **No penalty, no streak loss.**
 - **Frequency guard:** don't re-fire on every second — nudge once per app-open, with a short cooldown, so it
   stays a gentle tap on the shoulder, not nagging.
+
+### C-safety. Safety-first bias (wellbeing) — NON-NEGOTIABLE
+Repeatedly retreating to social apps during focus time is **not laziness** — it's often avoidance, and a person
+who keeps pulling away may be going through something. Philoi is a productivity/competition app, which makes it
+*dangerous* to answer distress with "grind harder." So the AI's default, whenever it's uncertain, is
+**care and connection over productivity.**
+- 🔴 **Never shame. Never imply laziness / falling behind as a character flaw.** Not once.
+- **Graduated response, not one tone:**
+  - *Occasional drift* → the normal caring nudge (back to it, or a break).
+  - *Repeated retreat in a short window / avoidance pattern* → **switch fully to a wellbeing tone**: stop
+    pushing productivity, nudge toward **real-world connection and restraint** — "you've been pulling away a
+    lot today — that's okay. Step away properly: go outside, or text someone you trust." **Connection, not
+    the essay.**
+  - *Signs of genuine distress* (persistent late-night retreat, sharp withdrawal) → gently affirm it's okay to
+    reach out and **point to real support** (a trusted person / campus resources / a helpline) — warm, brief,
+    **never clinical, never alarmist, never diagnosing.** Offer to help find someone to talk to.
+- **Safety overrides the goal.** If it's ever a coin-flip between "get back to your session" and "are you ok —
+  go connect with someone," it **always** picks the second. A missed study block is nothing; a person who
+  needed a check-in and got a productivity nag is a real harm.
+- **Behavioral signals only, non-surveillant framing.** It's a friend who noticed, not a monitor. Don't label
+  or diagnose; keep it gentle and human. Encode this bias in the **system prompt**, not as an afterthought.
+- Pairs with a lightweight **support-resources surface** in-app (a "talk to someone" entry the nudge can link
+  to) — build a minimal one if none exists.
+
+### C2. The other direction — ✨ AI re-engagement nudge (BETWEEN sessions)
+The same brain runs the opposite way: **when you're NOT locked in**, Sonnet reads your data and estimates *"they've
+taken a good break — time to pull them back to their thing."* This makes the AI an actual coach (knows when to
+rest, when to re-engage), not just a blocker.
+- **Trigger:** a background/scheduled check (not during a session) decides **whether and when** to nudge — it's
+  AI-timed, not a fixed hour.
+- **Signals it reads:** time since the last lock-in, today's / this week's effort vs the person's norm, **goal
+  deadlines**, streak-at-risk, time of day, **and the connected Google Calendar** (real exams/deadlines +
+  free/busy — `GCAL_INTEGRATION_SPEC.md`): nudge into a **free window before a deadline**, and **don't nudge
+  during class/busy**. Crucially it also reads the **opposite** signal — if they just grinded hard / are
+  overworked / nothing's due soon, **stay quiet and let them rest**. It only nudges when the break reads
+  *sufficient*, not endless.
+- **Delivery:** an **AI-written push** that deep-links to start a lock-in. *E.g. "You've had a solid breather
+  since this morning's Orgo session. Exam's in 5 days — ready for round two? 🔥"*
+- **Respect:** rate-limited, honors quiet hours + the **Streak & reminders** notification toggle. This
+  **upgrades the fixed daily-fire reminder** (NOTIFICATIONS_SPEC) into an AI-timed, contextual re-engagement —
+  don't also fire the dumb one.
+- **Surface:** when the app is open, this motivational/re-engagement content is **Cindy's home channel**
+  (a home speech bubble — `CINDY_SPEC.md`); when it's closed, it's a push. The **warm** voice lives on home;
+  the **protective pushback** (this §C + §C-safety) lives at the social intercept. Same brain, routed by surface.
+- Same Sonnet backend + free + cost-controlled as the in-session nudge (§C).
 
 ### D. End
 - Session ends → disarm automatically. Failsafe: never leave the nudge armed past the session (schedule end =

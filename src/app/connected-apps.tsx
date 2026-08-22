@@ -7,6 +7,7 @@ import { FITNESS_SYNC_SOURCES, type SyncSource } from '@/components/fitness-sync
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
+import { useGoogleCalendarConnection } from '@/hooks/use-google-calendar-connection';
 import { useStravaConnection } from '@/hooks/use-strava-connection';
 import { useWhoopConnection } from '@/hooks/use-whoop-connection';
 import { getErrorMessage } from '@/lib/errors';
@@ -182,6 +183,106 @@ function StubRow({ source }: { source: SyncSource }) {
   );
 }
 
+// Google Calendar (GCAL_INTEGRATION_SPEC.md) — the odd one out on this screen, and deliberately
+// in its own group rather than in FITNESS_SYNC_SOURCES: a calendar can't measure a challenge, and
+// listing it among the metric sources would offer it up in the challenge sync sheet, which shares
+// that list. It feeds the AI coach and nothing else.
+//
+// It also gets its own consent step rather than launching straight into Google. Every other row
+// here connects a step counter; this one hands Philoi's server a read-only view of everything the
+// member has committed to, so the spec asks for the trade to be spelled out BEFORE the Google
+// sheet appears, not inferred from a chevron.
+const CALENDAR_CONSENT_COPY = [
+  'So Philoi can see your deadlines and free time and coach you around them — the exam on Friday, the two hours you’re free this afternoon.',
+  '• Read-only. Philoi can never add, move or delete anything.',
+  '• Only the next few weeks, read when your coach writes to you — never stored.',
+  '• Never shared with anyone. Not your campfire, not other members.',
+  'You can disconnect any time, and that revokes Philoi’s access at Google too.',
+].join('\n\n');
+
+function GoogleCalendarRow() {
+  const { connected, accountEmail, loading, supported, connect, disconnect } = useGoogleCalendarConnection();
+  const [busy, setBusy] = useState(false);
+
+  async function runConnect() {
+    setBusy(true);
+    try {
+      await connect();
+    } catch (e) {
+      // connectGoogleCalendar throws with copy the member can act on (permission unticked on the
+      // Google sheet, no lasting access granted) — show it rather than a generic line.
+      Alert.alert('Couldn’t connect your calendar', getErrorMessage(e, 'Something went wrong — try again in a moment.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runDisconnect() {
+    setBusy(true);
+    try {
+      await disconnect();
+    } catch (e) {
+      Alert.alert('Couldn’t disconnect', getErrorMessage(e, 'Something went wrong — try again in a moment.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handlePress() {
+    if (!supported) {
+      Alert.alert(
+        'Google Calendar — coming soon',
+        'We’re finishing Google’s review for read-only calendar access. Your coach works without it in the meantime.'
+      );
+      return;
+    }
+    if (connected) {
+      Alert.alert(
+        'Disconnect Google Calendar?',
+        'Philoi will forget your calendar and revoke its access at Google. Your coach keeps working — it just won’t know what’s due.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Disconnect', style: 'destructive', onPress: () => void runDisconnect() },
+        ]
+      );
+      return;
+    }
+    Alert.alert('Connect Google Calendar?', CALENDAR_CONSENT_COPY, [
+      { text: 'Not now', style: 'cancel' },
+      { text: 'Continue', onPress: () => void runConnect() },
+    ]);
+  }
+
+  const showConnected = supported && connected;
+
+  return (
+    <Pressable style={styles.row} onPress={handlePress} disabled={loading || busy}>
+      <View style={[styles.icon, { backgroundColor: '#1b2436' }]}>
+        <Ionicons name="calendar" size={19} color="#5B93F5" />
+      </View>
+      <View style={styles.info}>
+        <Text style={styles.name}>Google Calendar</Text>
+        <Text style={styles.detail} numberOfLines={1}>
+          {showConnected ? (accountEmail ?? 'Connected') : 'Deadlines · exams · free time'}
+        </Text>
+      </View>
+      {busy || loading ? (
+        <ActivityIndicator size="small" color={Colors.achieverText} />
+      ) : showConnected ? (
+        <View style={styles.connectedPill}>
+          <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
+          <Text style={styles.connectedLabel}>Connected</Text>
+        </View>
+      ) : (
+        <>
+          <Text style={styles.connectLabel}>Connect</Text>
+          <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
+        </>
+      )}
+    </Pressable>
+  );
+}
+
 export default function ConnectedAppsScreen() {
   const router = useRouter();
   const platformSource = getPlatformFitnessSource();
@@ -224,6 +325,24 @@ export default function ConnectedAppsScreen() {
           </Pressable>
         )}
 
+        <Text style={styles.sectionTitle}>Your schedule</Text>
+        <Text style={styles.subtitle}>
+          Connect your calendar and Philoi coaches you around what’s actually coming — the exam on Friday, the
+          deadline tonight, the window you’re free this afternoon. Read-only, and it stays between you and Philoi.
+        </Text>
+
+        <View style={styles.group}>
+          <GoogleCalendarRow />
+        </View>
+
+        <View style={styles.privacy}>
+          <Ionicons name="lock-closed" size={13} color={Colors.green} />
+          <Text style={styles.privacyText}>
+            Philoi reads the next few weeks only, on the server, at the moment it writes to you — nothing is stored
+            and nothing is ever shown to another member.
+          </Text>
+        </View>
+
         {/* Official "Powered by Strava" lockup (developers.strava.com/guidelines) — required
             wherever Strava-derived data shows up, kept clearly secondary to Philoi's own mark. */}
         {isStravaSupported() && (
@@ -259,6 +378,13 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: Colors.muted,
     marginBottom: Spacing.four,
+  },
+  sectionTitle: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 14,
+    color: Colors.ink,
+    marginTop: Spacing.five,
+    marginBottom: Spacing.two,
   },
   group: {
     backgroundColor: Colors.card,

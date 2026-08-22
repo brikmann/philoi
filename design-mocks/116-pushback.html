@@ -1,0 +1,107 @@
+<meta charset="utf-8">
+<title>Mock 116 — the pushback (social intercept)</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif;--ember:#F2A33C;--ember2:#FF7A3E}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:28px;display:flex;flex-direction:column;align-items:center;gap:6px}
+h1{font-size:19px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:840px;text-align:center;line-height:1.55;margin:0 auto 6px}
+.note{max-width:840px;font-size:11.5px;color:#c8bcdd;background:#161320;border:1px solid #241c38;border-radius:14px;padding:12px 16px;line-height:1.6;margin:4px 0 18px}
+.note b{color:var(--ember)}
+.row{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.frame{display:flex;flex-direction:column;align-items:center;gap:10px}
+.flabel{font-size:11px;color:#8a7fa6;text-align:center;max-width:300px;line-height:1.45}.flabel b{color:#e7ddf5}
+.phone{width:300px;height:640px;border-radius:34px;overflow:hidden;position:relative;background:#0e0b14;border:1px solid #241c38}
+/* shield screen */
+.shield{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 26px;text-align:center}
+.shield.warm{background:radial-gradient(120% 60% at 50% 22%,#2a1710,#160f1c 60%,#0e0b14)}
+.shield.care{background:radial-gradient(120% 60% at 50% 22%,#141a2e,#12111c 60%,#0e0b14)}
+.status{position:absolute;top:0;left:0;right:0;height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-size:11px;color:#cbb8e0;font-weight:600}
+.flame{width:78px;height:78px;margin-bottom:18px;filter:drop-shadow(0 0 24px rgba(255,120,50,.45))}
+.flame.blue{filter:drop-shadow(0 0 24px rgba(90,140,255,.4))}
+.tag{font-size:10px;font-weight:800;letter-spacing:.5px;margin-bottom:8px}
+.tag.c{color:var(--ember)}.tag.cool{color:#8fb0ff}
+.big{font-size:24px;font-weight:800;letter-spacing:-.5px;line-height:1.15}
+.big.soft{font-size:21px}
+.pill{display:inline-flex;align-items:center;gap:7px;margin-top:14px;background:rgba(36,26,46,.7);border:1px solid #2a2140;border-radius:999px;padding:6px 13px;font-size:11px;font-weight:700}
+.pill .clk{color:var(--ember)}
+.blurb{font-size:12.5px;color:#d8cceb;line-height:1.55;margin-top:18px;max-width:250px}
+.btns{position:absolute;left:26px;right:26px;bottom:44px;display:flex;flex-direction:column;gap:11px}
+.bp{background:linear-gradient(90deg,#F2A33C,#FF7A3E);color:#2a1400;font-size:14.5px;font-weight:800;border-radius:14px;padding:15px;text-align:center}
+.bp.cool{background:linear-gradient(90deg,#6f9bff,#4f6fe0);color:#0a1330}
+.bg{border:1px solid #33294a;border-radius:14px;padding:13px;text-align:center;font-size:13px;font-weight:700;color:#a99cbd}
+.bt{text-align:center;font-size:12.5px;font-weight:600;color:#6f6488;padding:8px;text-decoration:underline;text-underline-offset:3px}
+/* support surface */
+.sup{position:absolute;inset:0;background:radial-gradient(120% 45% at 50% 0%,#1a1f33,#12111c 55%,#0e0b14);display:flex;flex-direction:column}
+.suphd{flex:none;display:flex;align-items:center;gap:10px;padding:40px 16px 8px}
+.suphd .bk{color:#8a7fa6;font-size:16px}.suphd .ti{font-size:18px;font-weight:800}
+.supbody{flex:1;padding:6px 16px;overflow-y:auto}
+.suphero{text-align:center;padding:14px 8px 18px}
+.suphero .h{font-size:17px;font-weight:800}.suphero .p{font-size:12px;color:#c8bcdd;line-height:1.5;margin-top:8px}
+.sopt{display:flex;align-items:center;gap:12px;background:#161a28;border:1px solid #26304a;border-radius:14px;padding:13px 14px;margin-bottom:11px}
+.sopt .si{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:none;font-size:18px}
+.sopt .st1{font-size:13.5px;font-weight:800}.sopt .st2{font-size:10.5px;color:#8f9bbf;margin-top:2px}
+.sopt .cv{margin-left:auto;color:#5c6a8c}
+.supfoot{font-size:10px;color:#7a86a8;text-align:center;padding:8px 20px 20px;line-height:1.5}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="ember" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset=".45" stop-color="#FF9330"/><stop offset="1" stop-color="#E23A1E"/></linearGradient>
+  <linearGradient id="cool" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bcd0ff"/><stop offset="1" stop-color="#5a7fe0"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 116 — The pushback (social-media intercept)</h1>
+<p class="sub">The protective voice — fires only when you drift to social mid-lock-in (Cindy's other half). Two tones: <b>reinforce</b> when you're just drifting, and a <b>wellbeing / safety</b> turn when you keep retreating. Never shames.</p>
+<div class="note"><b>Safety-first:</b> repeated retreat to socials reads as <b>avoidance, not laziness</b>. So on a pattern, Cindy <b>drops the productivity push entirely</b> and leans to connection + restraint — "go outside, text someone who gets it" — and offers a real <b>support surface</b>. Safety always beats "get back to work."</div>
+
+<div class="row">
+
+<!-- FRAME 1 · REINFORCE -->
+<div class="frame">
+<div class="phone">
+  <div class="shield warm">
+    <div class="status"><span>2:03</span><span>📶 70</span></div>
+    <svg class="flame" viewBox="0 0 24 24" fill="url(#ember)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg>
+    <div class="tag c">✨ 📅 CINDY · reading your calendar</div>
+    <div class="big">Come on — you said<br>you'd lock in.</div>
+    <div class="pill">📚 BU111 · <span class="clk">12 min in</span></div>
+    <div class="blurb">Your midterm's Friday and you're mid-session. Twelve minutes of momentum — don't hand it to the feed. Back to it. 💪</div>
+    <div class="btns"><div class="bp">Back to my session</div><div class="bg" style="border-color:rgba(242,163,60,.4);color:#FFD27A">🔥 Say hi in your campfire</div><div class="bt">Continue anyway</div></div>
+  </div>
+</div>
+<div class="flabel"><b>Frame 1 · Reinforce.</b> First drift, session matters, you're fresh → a firm-but-warm push, deadline-grounded (from GCal). "Continue anyway" always works, no penalty.</div>
+</div>
+
+<!-- FRAME 2 · WELLBEING / SAFETY -->
+<div class="frame">
+<div class="phone">
+  <div class="shield care">
+    <div class="status"><span>2:41</span><span>📶 70</span></div>
+    <svg class="flame blue" viewBox="0 0 24 24" fill="url(#cool)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg>
+    <div class="tag cool">💛 CINDY · just checking on you</div>
+    <div class="big soft">Hey — that's the 6th<br>time this hour.</div>
+    <div class="blurb">No judgment, honestly. But the feed isn't going to fix whatever's sitting heavy right now. Step outside for a sec, or text someone who gets it — that helps more than scrolling.</div>
+    <div class="btns"><div class="bp cool">💬 Talk to someone</div><div class="bg">Get some air</div><div class="bt">I'm okay — continue</div></div>
+  </div>
+</div>
+<div class="flabel"><b>Frame 2 · Wellbeing / safety.</b> Repeated retreat → drops productivity entirely, flame cools, tone turns caring: connection + restraint, never shame. Offers real support.</div>
+</div>
+
+<!-- FRAME 3 · SUPPORT SURFACE -->
+<div class="frame">
+<div class="phone">
+  <div class="sup">
+    <div class="suphd"><span class="bk">‹</span><span class="ti">Talk to someone</span></div>
+    <div class="supbody">
+      <div class="suphero"><div class="h">You don't have to power through it alone.</div><div class="p">Reaching out isn't quitting — it's the strong move. Pick whatever feels easiest right now.</div></div>
+      <div class="sopt"><div class="si" style="background:rgba(120,220,160,.15)">💬</div><div><div class="st1">Text a friend</div><div class="st2">Someone from your campfire, or anyone you trust</div></div><div class="cv">›</div></div>
+      <div class="sopt"><div class="si" style="background:rgba(110,155,255,.15)">🎓</div><div><div class="st1">Laurier Student Wellness</div><div class="st2">Free counselling · book or drop in</div></div><div class="cv">›</div></div>
+      <div class="sopt"><div class="si" style="background:rgba(255,120,120,.14)">🫂</div><div><div class="st1">988 · Suicide &amp; Crisis Helpline</div><div class="st2">Call or text, 24/7, if things feel heavy</div></div><div class="cv">›</div></div>
+      <div class="supfoot">Philoi isn't a substitute for real support — these people are. If you're in immediate danger, call your local emergency number.</div>
+    </div>
+  </div>
+</div>
+<div class="flabel"><b>Frame 3 · Support surface.</b> Warm, non-clinical, real options — a friend, campus wellness, a crisis line. Cindy links here from the wellbeing nudge; it's the "talk to someone" surface §C-safety calls for.</div>
+</div>
+
+</div>

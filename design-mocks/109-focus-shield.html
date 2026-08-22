@@ -89,7 +89,7 @@ h1{font-size:19px;margin:0;text-align:center}
 
 <h1>Mock 109 — Focus Nudge (gentle intervention on lock-in)</h1>
 <p class="sub">The #1 feature real users asked for — but a warm nudge, not a wall. User-picked apps · auto every lock-in · soft pass-through. Native intercept (iOS Screen Time / Android) — see APP_BLOCKER_SPEC.md.</p>
-<div class="note"><b>How it behaves:</b> lock in → open a picked app and Philoi greets you with a caring message + real affordances (go talk to friends, step outside, come back strong). You <b>can</b> continue with <b>no penalty</b> — it changes your mind through empathy, not force. Affordances over willpower.</div>
+<div class="note"><b>How it behaves:</b> lock in → open a picked app and Philoi greets you with an <b>AI-written</b> message + real affordances. You <b>can</b> continue with <b>no penalty</b> — empathy, not force. <b>✨ Sonnet writes it from your data</b> — sessions, goals, streak, burnout signals, and (if connected) your <b>Google Calendar</b> (real exams/deadlines/free-busy) — so lines like "midterm's Friday" are <b>true</b>, not guessed. It runs both directions: pull you back when it matters, bless a real break when you're fried, and re-engage when you've rested (Frame 4). <b>🛟 Safety-first:</b> it <b>never shames</b> — repeatedly retreating to socials reads as avoidance, not laziness, so it leans to <b>connection + restraint</b> (go outside, text someone you trust) and, on real distress signals, points to support. Safety always beats "get back to work." GCal is the wedge that makes it a grade-improver, not a toy.</div>
 
 <div class="row">
 
@@ -130,10 +130,10 @@ h1{font-size:19px;margin:0;text-align:center}
 <div class="phone">
   <div class="shieldscr">
     <svg class="flame" viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg>
-    <div class="blocked-app">You opened Instagram</div>
-    <div class="bigline">Come on — you said<br>you'd lock in.</div>
-    <div class="sesspill"><span class="dot"></span>Study <span style="color:#5c5274">·</span> <span class="clk">12:47 in</span></div>
-    <div class="blurb">Your session's still running. If you're tired, that's fair — go say hi to your friends or step outside. Then come back strong. 💪</div>
+    <div class="blocked-app">You opened Instagram · <span style="color:#c79bec">✨ 📅 reading your calendar</span></div>
+    <div class="bigline">BU111 midterm is<br>Friday. Let's go.</div>
+    <div class="sesspill"><span class="dot"></span>Study · BU111 <span style="color:#5c5274">·</span> <span class="clk">12:47 in</span></div>
+    <div class="blurb">Your calendar says the exam's in 3 days and you've got a goal on it. You're 12 minutes deep — don't lose it now. 💪</div>
     <div class="btns">
       <div class="btn-primary">Back to my session</div>
       <div class="btn-afford"><svg viewBox="0 0 24 24" fill="#FFD27A"><path d="M12 3c1 3 4 3.5 4 6.5a4 4 0 0 1-8 0c0-1.5.7-2.6 1.6-3.4 0 1.6.8 2.4 1.6 2.4.5-1.7-1-3 .8-5.5z"/></svg>Say hi in your campfire</div>
@@ -141,7 +141,7 @@ h1{font-size:19px;margin:0;text-align:center}
     </div>
   </div>
 </div>
-<div class="flabel"><b>Frame 2 · The nudge (iOS).</b> The shield rendered as a warm message + affordances. "Continue anyway" always works — <b>no penalty</b>. Empathy, not force.</div>
+<div class="flabel"><b>Frame 2 · The nudge (iOS) — ✨ AI-written.</b> Sonnet writes the line from your data — it picks the intent: <b>reinforce</b> (shown: exam season + goal on the line) <b>or a genuine break</b> when you're burnt out (<i>"You've grinded all week — go outside or text a friend, not the feed."</i>). "Continue anyway" always works, no penalty.</div>
 </div>
 
 <!-- FRAME 3 · Android notification form -->
@@ -166,6 +166,30 @@ h1{font-size:19px;margin:0;text-align:center}
   <div style="text-align:center;font-size:10.5px;color:#5c5274;margin-top:20px">— Android home screen · Instagram in the background —</div>
 </div></div>
 <div class="flabel"><b>Frame 3 · The nudge (Android).</b> Same message as a system notification + actions. Detected via accessibility; you're free to ignore it — nudge, not gate.</div>
+</div>
+
+<!-- FRAME 4 · re-engagement (between sessions) -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>2:15</span><span>📶 70</span></div>
+  <div style="height:14px"></div>
+  <div style="margin:0 12px;background:#1b1626;border:1px solid #2a2140;border-radius:18px;padding:14px 15px;box-shadow:0 8px 30px rgba(0,0,0,.5)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="url(#emb)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg>
+      <span style="font-size:11px;font-weight:800;color:#c8bcdd;letter-spacing:.3px">PHILOI</span>
+      <span style="font-size:10px;color:#6f6488">· now</span>
+      <span style="margin-left:auto;font-size:8.5px;color:#c79bec;font-weight:700">✨ from your data</span>
+    </div>
+    <div style="font-size:14px;font-weight:800;margin-bottom:4px">Solid breather — round two? 🔥</div>
+    <div style="font-size:12.5px;color:#c8bcdd;line-height:1.5">3h since your 2h Orgo session. Your calendar's got the midterm Friday + an essay due tonight — you're a little behind, and free till 4. Good window.</div>
+    <div style="display:flex;gap:8px;margin-top:13px">
+      <div style="flex:1;background:linear-gradient(90deg,#F2A33C,#FF7A3E);border-radius:10px;padding:9px;text-align:center;font-size:12px;font-weight:800;color:#2a1400">Lock in on Orgo</div>
+      <div style="flex:1;background:#241a2e;border:1px solid #33294a;border-radius:10px;padding:9px;text-align:center;font-size:12px;font-weight:700;color:#d8cceb">Not yet</div>
+    </div>
+  </div>
+  <div style="text-align:center;font-size:10px;color:#5c5274;margin-top:20px;padding:0 24px;line-height:1.5">Fires only when the AI estimates the break was <b style="color:#8a7fa6">enough</b> — stays silent if you're overworked. Replaces the fixed daily reminder.</div>
+</div></div>
+<div class="flabel"><b>Frame 4 · Re-engagement (the other direction).</b> Between sessions: Sonnet estimates "nice break taken → pull them back." AI-timed, deadline-aware — and quiet when you're burnt out.</div>
 </div>
 
 </div>

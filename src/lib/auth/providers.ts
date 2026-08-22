@@ -11,13 +11,34 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_WEB_CLIENT_ID: string | null = Constants.expoConfig?.extra?.googleWebClientId ?? null;
 const GOOGLE_IOS_CLIENT_ID: string | null = Constants.expoConfig?.extra?.googleIosClientId ?? null;
 
+// webClientId MUST match the Client ID configured in Supabase's Google provider — that's
+// what makes signInWithIdToken() below accept the idToken this SDK returns (punchlist 2, §0:
+// "native Google Sign-In... user sees the native Google account picker, no Supabase redirect").
+const BASE_GOOGLE_CONFIG = {
+  webClientId: GOOGLE_WEB_CLIENT_ID ?? undefined,
+  iosClientId: GOOGLE_IOS_CLIENT_ID ?? undefined,
+};
+
+/**
+ * GoogleSignin.configure() is process-global — the LAST call wins for every later signIn(),
+ * addScopes() and getTokens() anywhere in the app. So it lives in exactly one place, here, and
+ * anything that needs a wider grant (Google Calendar, src/lib/google-calendar.ts) layers its
+ * extra options on top of the base config through this function and restores the base with a bare
+ * call afterwards. Configuring the SDK directly from a feature module is how the auth flow ends
+ * up silently asking for calendar scopes at sign-in.
+ */
+export function configureGoogleSignin(extra?: {
+  scopes?: string[];
+  offlineAccess?: boolean;
+  forceCodeForRefreshToken?: boolean;
+}) {
+  GoogleSignin.configure({ ...BASE_GOOGLE_CONFIG, ...extra });
+}
+
 let googleConfigured = false;
 function ensureGoogleConfigured() {
   if (googleConfigured) return;
-  // webClientId MUST match the Client ID configured in Supabase's Google provider — that's
-  // what makes signInWithIdToken() below accept the idToken this SDK returns (punchlist 2, §0:
-  // "native Google Sign-In... user sees the native Google account picker, no Supabase redirect").
-  GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID ?? undefined, iosClientId: GOOGLE_IOS_CLIENT_ID ?? undefined });
+  configureGoogleSignin();
   googleConfigured = true;
 }
 

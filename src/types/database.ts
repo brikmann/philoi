@@ -1748,6 +1748,15 @@ export type Database = {
         Returns: { connected: boolean; granted_scopes: string }[];
       };
       disconnect_my_whoop: { Args: Record<string, never>; Returns: undefined };
+      /** Read-only Google Calendar grant (migration 0105). Never returns the token — the app
+       * only ever learns THAT a calendar is linked and which Google account it is. */
+      get_my_google_calendar_status: {
+        Args: Record<string, never>;
+        Returns: { connected: boolean; account_email: string | null; linked_at: string | null }[];
+      };
+      /** Local-only disconnect. The app's normal path is the gcal-disconnect Edge Function, which
+       * also revokes at Google; this is its fallback (see src/lib/google-calendar.ts). */
+      disconnect_my_google_calendar: { Args: Record<string, never>; Returns: undefined };
       /** Credits study_hours / gym_visits from qualifying lock-ins (migration 0068). */
       sync_challenge_from_lock_ins: { Args: { p_challenge_id: string }; Returns: number };
 

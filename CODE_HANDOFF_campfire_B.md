@@ -33,8 +33,10 @@ B2C only. Full context: `CODE_HANDOFF_campfire.md`.
 - **Custom time** — 1d/1w/1mo presets + **calendar** for arbitrary spans (semester).
 - **Public name** + **milestone tie** — named challenge races on lock-in time; grade = self-reported
   **milestone** (PROFILE_SPEC §G), 🔒 **firewalled: no XP for the grade**.
-- **✨ AI custom goal (PREMIUM)** — 🔴 **server-side Sonnet** parses the goal → structured config (metric ·
-  source · win · checkpoints). **Never let the client define "winning."** Gating (Flame Pass vs add-on) — *confirm*.
+- **✨ AI custom goal (FREE, rate-limited)** — 🔴 **server-side Sonnet** parses the goal → structured config
+  (metric · source · win · checkpoints). **Never let the client define "winning."** **Free for everyone** (it
+  feeds the competitive loop → paywalling = pay-to-win); cost control via a **uniform rate limit**, not a
+  paywall, and **not** tied to Flame Pass.
 
 ### Watch (mock 111) + media
 - **Per-person metric meters**, leader **crowned**, real name/avatar, elapsed/left; duel = facing meters + lead bar.
@@ -54,8 +56,8 @@ B2C only. Full context: `CODE_HANDOFF_campfire.md`.
 Prof/B2B2C (S2, Laurier IT) · "Cindy" AI assistant (backlog).
 
 ## Open decisions (confirm before those bits)
-- [ ] AI custom-goal gating (Flame Pass vs add-on). · [ ] Metric set final (time/volume/distance/AI). ·
-      [ ] Reward numbers from `CHALLENGE_REWARD_ALGO`.
+- [x] AI custom-goal = **free + uniform rate limit** (decided — no paywall). · [ ] Metric set final
+      (time/volume/distance/AI). · [ ] Reward numbers from `CHALLENGE_REWARD_ALGO`.
 
 ## Acceptance
 Per `CHALLENGE_V2_SPEC.md` acceptance + `CHALLENGE_REDESIGN_SPEC.md` A–D (your portion): lifecycle, admin gating,
