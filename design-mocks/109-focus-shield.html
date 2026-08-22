@@ -1,0 +1,171 @@
+<meta charset="utf-8">
+<title>Mock 109 — Focus Shield (app blocker on lock-in)</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif;--ember:#F2A33C;--ember2:#FF7A3E}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:28px;display:flex;flex-direction:column;align-items:center;gap:6px}
+h1{font-size:19px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:820px;text-align:center;line-height:1.55;margin:0 auto 6px}
+.note{max-width:820px;font-size:11.5px;color:#c8bcdd;background:#161320;border:1px solid #241c38;border-radius:14px;padding:12px 16px;line-height:1.6;margin:4px 0 16px}
+.note b{color:var(--ember)}
+.row{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.frame{display:flex;flex-direction:column;align-items:center;gap:10px}
+.flabel{font-size:11px;color:#8a7fa6;text-align:center;max-width:300px;line-height:1.45}
+.flabel b{color:#e7ddf5}
+.phone{width:300px;height:640px;border-radius:34px;overflow:hidden;position:relative;background:#0e0b14;border:1px solid #241c38;background-image:radial-gradient(120% 42% at 50% 0%,#241633 0%,#140f1e 46%,#0e0b14 100%)}
+.scr{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden}
+.scr::-webkit-scrollbar{width:0}
+.status{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-size:11px;color:#cbb8e0;font-weight:600}
+.phead{display:flex;align-items:center;gap:10px;padding:4px 18px 10px}
+.phead h2{font-size:19px;margin:0;font-weight:800}
+.phead .bk{color:#8a7fa6}
+/* setup */
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:10px 20px 4px}
+.shieldbig{width:74px;height:74px;margin-bottom:12px}
+.htitle{font-size:17px;font-weight:800}
+.hsub{font-size:12px;color:#9f92b6;line-height:1.5;margin-top:6px}
+.card{margin:14px 14px 0;background:#171226;border:1px solid #241c38;border-radius:14px;padding:13px 14px}
+.perm{display:flex;align-items:center;gap:11px}
+.perm .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(120,220,160,.16)}
+.perm .ic svg{width:19px;height:19px}
+.perm .tx{flex:1}
+.perm .t1{font-size:13px;font-weight:700}
+.perm .t2{font-size:10.5px;color:#8a7fa6;margin-top:1px}
+.perm .ok{font-size:11px;font-weight:800;color:#7fe0a0}
+.slabel{font-size:10px;font-weight:800;letter-spacing:.5px;color:#9f92b6;margin:18px 16px 8px}
+.applist{margin:0 14px}
+.app{display:flex;align-items:center;gap:11px;padding:9px 4px;border-bottom:1px solid #1e1730}
+.app:last-child{border-bottom:0}
+.app .logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:none}
+.app .logo svg{width:19px;height:19px}
+.app .nm{font-size:13px;font-weight:600;flex:1}
+.app .x{color:#6f6488;font-size:16px}
+.addapp{display:flex;align-items:center;gap:8px;margin:10px 14px 0;color:var(--ember);font-size:12.5px;font-weight:700}
+.toggle-row{display:flex;align-items:center;gap:11px;margin:12px 14px 0;background:#171226;border:1px solid #241c38;border-radius:13px;padding:12px 14px}
+.toggle-row .tx{flex:1}
+.toggle-row .t1{font-size:12.5px;font-weight:700}
+.toggle-row .t2{font-size:10px;color:#8a7fa6;margin-top:2px;line-height:1.4}
+.tg{width:38px;height:22px;border-radius:999px;position:relative;flex:none}
+.tg.on{background:linear-gradient(90deg,#F2A33C,#FF7A3E)}
+.tg.off{background:#2a2140}
+.tg::after{content:"";position:absolute;top:2px;width:18px;height:18px;border-radius:50%;background:#fff}
+.tg.on::after{right:2px}.tg.off::after{left:2px}
+/* ===== block screen (shield) ===== */
+.shieldscr{position:absolute;inset:0;background:radial-gradient(120% 60% at 50% 22%,#2a1710,#160f1c 60%,#0e0b14);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 26px;text-align:center}
+.shieldscr .flame{width:88px;height:88px;margin-bottom:22px;filter:drop-shadow(0 0 26px rgba(255,120,50,.45))}
+.blocked-app{font-size:11px;color:#8a7fa6;margin-bottom:6px}
+.bigline{font-size:27px;font-weight:800;letter-spacing:-.5px}
+.sesspill{display:inline-flex;align-items:center;gap:7px;margin-top:16px;background:rgba(36,26,46,.7);border:1px solid #2a2140;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700}
+.sesspill .dot{width:7px;height:7px;border-radius:50%;background:#7fe0a0}
+.sesspill .clk{color:var(--ember)}
+.blurb{font-size:12px;color:#c8bcdd;line-height:1.5;margin-top:20px;max-width:230px}
+.btns{position:absolute;left:26px;right:26px;bottom:40px;display:flex;flex-direction:column;gap:11px}
+.btn-primary{background:linear-gradient(90deg,#F2A33C,#FF7A3E);border-radius:14px;padding:15px;text-align:center;font-size:14.5px;font-weight:800;color:#2a1400}
+.btn-ghost{background:transparent;border:1px solid #33294a;border-radius:14px;padding:14px;text-align:center;font-size:13px;font-weight:700;color:#8f83a8}
+.btn-afford{display:flex;align-items:center;justify-content:center;gap:7px;background:#241a2e;border:1px solid rgba(242,163,60,.4);border-radius:14px;padding:13px;font-size:13px;font-weight:700;color:#FFD27A}
+.btn-afford svg{width:15px;height:15px}
+.btn-continue{text-align:center;font-size:12.5px;font-weight:600;color:#6f6488;padding:8px;text-decoration:underline;text-underline-offset:3px}
+/* ===== break confirm ===== */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#161022;border-top:1px solid #2a2140;border-radius:22px 22px 0 0;padding:22px 20px 30px}
+.sheet .grip{width:38px;height:4px;border-radius:2px;background:#33294a;margin:0 auto 18px}
+.sheet h3{font-size:18px;font-weight:800;margin:0 0 8px;text-align:center}
+.sheet p{font-size:12.5px;color:#c8bcdd;line-height:1.55;text-align:center;margin:0 auto 4px;max-width:240px}
+.sheet .warn{color:#ff9a8f;font-weight:600}
+.hold{margin:20px 0 8px;background:#241018;border:1px solid rgba(255,120,90,.4);border-radius:14px;padding:15px;text-align:center;font-size:13.5px;font-weight:800;color:#ff9a8f;position:relative;overflow:hidden}
+.hold .fillbar{position:absolute;left:0;top:0;bottom:0;width:38%;background:rgba(255,90,60,.22)}
+.hold span{position:relative}
+.stay{text-align:center;font-size:13px;font-weight:800;color:var(--ember);margin-top:14px}
+.consq{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.cchip{font-size:10px;font-weight:700;color:#ffb1a6;background:rgba(255,90,60,.1);border:1px solid rgba(255,120,90,.3);border-radius:999px;padding:4px 10px}
+/* lock-in badge preview */
+.lkbadge{display:inline-flex;align-items:center;gap:7px;background:rgba(36,26,46,.7);border:1px solid rgba(242,163,60,.3);border-radius:999px;padding:7px 13px;font-size:11.5px;font-weight:700;color:#FFD27A}
+.lkbadge svg{width:14px;height:14px}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="emb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD27A"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#E4632A"/></linearGradient>
+  <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD27A"/><stop offset="1" stop-color="#F2842A"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 109 — Focus Nudge (gentle intervention on lock-in)</h1>
+<p class="sub">The #1 feature real users asked for — but a warm nudge, not a wall. User-picked apps · auto every lock-in · soft pass-through. Native intercept (iOS Screen Time / Android) — see APP_BLOCKER_SPEC.md.</p>
+<div class="note"><b>How it behaves:</b> lock in → open a picked app and Philoi greets you with a caring message + real affordances (go talk to friends, step outside, come back strong). You <b>can</b> continue with <b>no penalty</b> — it changes your mind through empathy, not force. Affordances over willpower.</div>
+
+<div class="row">
+
+<!-- FRAME 1 · SETUP -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>3:41</span><span>📶 70</span></div>
+  <div class="phead"><span class="bk">‹</span><h2>Focus Shield</h2></div>
+  <div class="hero">
+    <svg class="shieldbig" viewBox="0 0 24 24" fill="url(#shield)"><path d="M12 21s-7-4.3-9.2-9.2C1.4 8.6 3 5.5 6 5.5c1.9 0 3.2 1 4 2.2.8-1.2 2.1-2.2 4-2.2 3 0 4.6 3.1 3.2 6.3C19 16.7 12 21 12 21z"/></svg>
+    <div class="htitle">A gentle pull back, not a wall</div>
+    <div class="hsub">Drift to a distracting app mid-session and we'll nudge you — warmly. You can always continue; it's a tap on the shoulder, not a lock.</div>
+  </div>
+
+  <div class="card"><div class="perm">
+    <div class="ic"><svg viewBox="0 0 24 24" fill="#7fe0a0"><path d="M9 16.2l-3.5-3.5 1.4-1.4L9 13.4l7.1-7.1 1.4 1.4z"/></svg></div>
+    <div class="tx"><div class="t1">Screen Time access</div><div class="t2">Granted · lets Philoi shield apps</div></div>
+    <div class="ok">ON</div>
+  </div></div>
+
+  <div class="slabel">NUDGE ME ON THESE APPS · 4</div>
+  <div class="applist">
+    <div class="app"><div class="logo" style="background:linear-gradient(135deg,#FEDA75,#D62976,#4F5BD5)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="#fff" stroke="none"/></svg></div><div class="nm">Instagram</div><div class="x">✕</div></div>
+    <div class="app"><div class="logo" style="background:#010101"><svg viewBox="0 0 24 24" fill="#fff"><path d="M14 3c.3 2.3 1.7 3.8 4 4v3c-1.5 0-2.9-.4-4-1.2V16a5.5 5.5 0 1 1-5.5-5.5c.3 0 .7 0 1 .1v3.1a2.5 2.5 0 1 0 1.5 2.3V3z"/></svg></div><div class="nm">TikTok</div><div class="x">✕</div></div>
+    <div class="app"><div class="logo" style="background:#010101"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></div><div class="nm">X</div><div class="x">✕</div></div>
+    <div class="app"><div class="logo" style="background:#FF4500"><svg viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="13" r="7.5"/><circle cx="18.5" cy="6" r="1.8"/><circle cx="9.2" cy="12.6" r="1.1" fill="#FF4500"/><circle cx="14.8" cy="12.6" r="1.1" fill="#FF4500"/><path d="M9 15.6c1.7 1.2 4.3 1.2 6 0" stroke="#FF4500" stroke-width="1.1" fill="none" stroke-linecap="round"/></svg></div><div class="nm">Reddit</div><div class="x">✕</div></div>
+  </div>
+  <div class="addapp"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6v12M6 12h12"/></svg>Add apps</div>
+
+  <div class="toggle-row"><div class="tx"><div class="t1">Nudge me automatically when I lock in</div><div class="t2">Arms with every session · you can always continue</div></div><div class="tg on"></div></div>
+  <div style="height:16px"></div>
+</div></div>
+<div class="flabel"><b>Frame 1 · Setup.</b> Permission → pick your apps (Apple picker / Android list) → auto-on toggle. No consequences to configure — it's a nudge.</div>
+</div>
+
+<!-- FRAME 2 · THE NUDGE (iOS shield rendered as caring message) -->
+<div class="frame">
+<div class="phone">
+  <div class="shieldscr">
+    <svg class="flame" viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg>
+    <div class="blocked-app">You opened Instagram</div>
+    <div class="bigline">Come on — you said<br>you'd lock in.</div>
+    <div class="sesspill"><span class="dot"></span>Study <span style="color:#5c5274">·</span> <span class="clk">12:47 in</span></div>
+    <div class="blurb">Your session's still running. If you're tired, that's fair — go say hi to your friends or step outside. Then come back strong. 💪</div>
+    <div class="btns">
+      <div class="btn-primary">Back to my session</div>
+      <div class="btn-afford"><svg viewBox="0 0 24 24" fill="#FFD27A"><path d="M12 3c1 3 4 3.5 4 6.5a4 4 0 0 1-8 0c0-1.5.7-2.6 1.6-3.4 0 1.6.8 2.4 1.6 2.4.5-1.7-1-3 .8-5.5z"/></svg>Say hi in your campfire</div>
+      <div class="btn-continue">Continue anyway</div>
+    </div>
+  </div>
+</div>
+<div class="flabel"><b>Frame 2 · The nudge (iOS).</b> The shield rendered as a warm message + affordances. "Continue anyway" always works — <b>no penalty</b>. Empathy, not force.</div>
+</div>
+
+<!-- FRAME 3 · Android notification form -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>3:41</span><span>📶 70</span></div>
+  <div style="height:14px"></div>
+  <!-- a real notification card sitting over the home screen -->
+  <div style="margin:0 12px;background:#1b1626;border:1px solid #2a2140;border-radius:18px;padding:14px 15px;box-shadow:0 8px 30px rgba(0,0,0,.5)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="url(#emb)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg>
+      <span style="font-size:11px;font-weight:800;color:#c8bcdd;letter-spacing:.3px">PHILOI</span>
+      <span style="font-size:10px;color:#6f6488">· now</span>
+    </div>
+    <div style="font-size:14px;font-weight:800;margin-bottom:4px">Come on — you said you'd lock in 🔥</div>
+    <div style="font-size:12.5px;color:#c8bcdd;line-height:1.5">Your Study session's still running (12:47 in). Tired? Go say hi to your friends or step outside — then come back strong.</div>
+    <div style="display:flex;gap:8px;margin-top:13px">
+      <div style="flex:1;background:linear-gradient(90deg,#F2A33C,#FF7A3E);border-radius:10px;padding:9px;text-align:center;font-size:12px;font-weight:800;color:#2a1400">Back to my session</div>
+      <div style="flex:1;background:#241a2e;border:1px solid #33294a;border-radius:10px;padding:9px;text-align:center;font-size:12px;font-weight:700;color:#d8cceb">Open campfire</div>
+    </div>
+  </div>
+  <div style="text-align:center;font-size:10.5px;color:#5c5274;margin-top:20px">— Android home screen · Instagram in the background —</div>
+</div></div>
+<div class="flabel"><b>Frame 3 · The nudge (Android).</b> Same message as a system notification + actions. Detected via accessibility; you're free to ignore it — nudge, not gate.</div>
+</div>
+
+</div>

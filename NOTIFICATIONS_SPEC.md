@@ -26,6 +26,7 @@ Friends & social · Challenges · Campfires · Streak & reminders · Season & ra
 | Friend passed you on a board | push | "😤 {name} passed you on {board}." | leaderboard | on |
 | Friend joined from your invite | push · bell | "{name} joined Philoi — say hi." | their profile | on |
 | Friend cheered your milestone | push · bell | "🎉 {name} cheered your milestone." | your milestone / journal | on |
+| Someone cheered you in a challenge | push · bell | "🔥 {name} cheered you on{: note}" | the challenge / watch | on |
 | Friend posted a milestone | bell (push opt.) | "{name} hit a milestone: {headline}." | their milestone | on |
 | Friend just locked in (close friends) | bell only | "{name} just locked in." | their profile | **off** (spammy) |
 

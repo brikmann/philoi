@@ -1,0 +1,260 @@
+<meta charset="utf-8">
+<title>Mock 110 — campfire redesign (inside screen)</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif;--ember:#F2A33C;--ember2:#FF7A3E}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:28px;display:flex;flex-direction:column;align-items:center;gap:6px}
+h1{font-size:19px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:900px;text-align:center;line-height:1.55;margin:0 auto 6px}
+.note{max-width:900px;font-size:11.5px;color:#c8bcdd;background:#161320;border:1px solid #241c38;border-radius:14px;padding:12px 16px;line-height:1.6;margin:4px 0 16px}
+.note b{color:var(--ember)} .note .kill{color:#ff8f8f} .note .add{color:#7fe0a0}
+.row{display:flex;gap:24px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.frame{display:flex;flex-direction:column;align-items:center;gap:10px}
+.flabel{font-size:11px;color:#8a7fa6;text-align:center;max-width:300px;line-height:1.45}
+.flabel b{color:#e7ddf5}
+.phone{width:300px;height:640px;border-radius:34px;overflow:hidden;position:relative;background:#0e0b14;border:1px solid #241c38}
+.scr{position:absolute;inset:0;overflow:hidden;display:flex;flex-direction:column}
+.status{height:32px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:11px;color:#cbb8e0;font-weight:600;z-index:5}
+/* ===== header with banner art ===== */
+.chead{position:relative;flex:none;padding:0 14px 12px;overflow:hidden}
+.banner{position:absolute;inset:0;z-index:0}
+.banner .art{position:absolute;inset:0;width:100%;height:100%}
+.banner .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,11,20,.35) 0%,rgba(14,11,20,.72) 62%,#0f0d15 100%)}
+.topbar{position:relative;z-index:2;display:flex;align-items:center;gap:8px;padding-top:4px}
+.iconbtn{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:rgba(20,14,26,.6);border:1px solid rgba(255,255,255,.08)}
+.iconbtn svg{width:16px;height:16px;stroke:#e7ddf5;fill:none;stroke-width:1.8}
+.spacer{flex:1}
+.lockpill{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(90deg,#F2A33C,#FF7A3E);color:#2a1400;font-size:12.5px;font-weight:800;border-radius:999px;padding:8px 14px;box-shadow:0 4px 16px rgba(242,120,50,.4)}
+.lockpill svg{width:14px;height:14px}
+/* heat flame — cold coal bed */
+.heatwrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;margin-top:6px}
+.coals{width:66px;height:40px}
+.heatstate{font-size:10.5px;font-weight:800;letter-spacing:1px;color:#C98A4A;margin-top:4px}
+.cname{font-size:26px;font-weight:800;line-height:1;margin-top:8px;text-align:center}
+.cmeta{font-size:11.5px;color:#c8bcdd;margin-top:6px;display:flex;align-items:center;gap:6px;justify-content:center}
+.cmeta .g{display:inline-flex;align-items:center;gap:4px}
+.cmeta svg{width:11px;height:11px}
+/* stat strip */
+.stats{position:relative;z-index:2;display:flex;gap:8px;margin-top:14px}
+.stat{flex:1;background:rgba(23,18,38,.72);border:1px solid #241c38;border-radius:12px;padding:9px 4px;text-align:center}
+.stat .n{font-size:17px;font-weight:800}
+.stat .n.on{color:var(--ember)}
+.stat .l{font-size:8.5px;color:#8f83a8;margin-top:2px;letter-spacing:.3px}
+/* tabs */
+.tabs{display:flex;gap:7px;margin-top:12px;position:relative;z-index:2}
+.tab{flex:1;text-align:center;font-size:12.5px;font-weight:700;color:#c8bcdd;background:rgba(23,18,38,.7);border:1px solid #241c38;border-radius:11px;padding:9px 4px}
+.tab.on{color:#2a1400;background:linear-gradient(90deg,#F2A33C,#FF7A3E);border-color:transparent}
+/* body */
+.body{flex:1;overflow-y:auto;padding:12px 14px 0}
+.body::-webkit-scrollbar{width:0}
+/* leaderboard rows */
+.lbrow{display:flex;align-items:center;gap:11px;background:#141020;border:1px solid #221a34;border-radius:14px;padding:11px 12px;margin-bottom:9px}
+.lbrow.me{border-color:var(--ember);background:#1e1428}
+.lbrow .rk{width:16px;font-size:13px;font-weight:800;color:#8f83a8;text-align:center}
+.lbrow.me .rk{color:var(--ember)}
+.lbrow .av{width:38px;height:38px;border-radius:50%;overflow:hidden;background:#2d2740;flex:none}
+.lbrow .av img{width:100%;height:100%;object-fit:cover}
+.lbrow .av.ph{display:grid;place-items:center;font-size:14px;font-weight:800;color:#fff}
+.lbrow .nm{flex:1;min-width:0}
+.lbrow .n1{font-size:13.5px;font-weight:700}
+.lbrow .n2{font-size:11px;color:#9f92b6;margin-top:1px}
+.lbrow .rt{text-align:right}
+.lbrow .xp{font-size:14px;font-weight:800}
+.lbrow .wk{font-size:10px;color:#8f83a8;margin-top:1px}
+.hex{width:26px;height:29px;display:inline-grid;place-items:center;position:relative;vertical-align:middle;margin-left:6px}
+.hex svg{width:26px;height:29px}.hex b{position:absolute;font-size:9px;font-weight:800;color:#2a1c00}
+/* feed cards */
+.fcard{display:flex;gap:11px;padding:11px 0;position:relative;padding-left:14px}
+.fcard::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:3px;background:var(--ember)}
+.fcard .ic{width:36px;height:36px;border-radius:10px;background:#1c1430;display:grid;place-items:center;flex:none}
+.fcard .ic svg{width:20px;height:20px}
+.fcard .fb{flex:1;min-width:0}
+.fcard .fh{font-size:13px;font-weight:700}
+.fcard .fm{font-size:11px;color:#9f92b6;margin-top:2px}
+.fcard .fx{font-size:11px;color:#FFD27A;font-weight:700;margin-top:5px}
+.fcard.strava{background:#1a1119;border:1px solid rgba(252,76,2,.35);border-radius:12px;padding:11px;margin:2px 0}
+.fcard.strava::before{display:none}
+.strava-tag{font-size:8px;font-weight:800;letter-spacing:.5px;color:#FC4C02}
+.chatbar{flex:none;display:flex;gap:8px;padding:10px 12px;border-top:1px solid #1e1730;background:#100c19}
+.chatin{flex:1;background:#181226;border:1px solid #2a2140;border-radius:999px;padding:10px 14px;font-size:12px;color:#6f6488}
+.sendbtn{background:linear-gradient(90deg,#F2A33C,#FF7A3E);color:#2a1400;font-weight:800;font-size:12px;border-radius:999px;padding:10px 16px}
+/* challenge card */
+.chcard{background:#141020;border:1px solid #221a34;border-radius:14px;padding:13px 13px 12px;margin-bottom:11px}
+.chtop{display:flex;align-items:center;gap:8px;margin-bottom:11px}
+.chtop .type{font-size:11px;font-weight:800;color:var(--ember);display:flex;align-items:center;gap:5px}
+.chtop .type svg{width:13px;height:13px}
+.chtop .left{margin-left:auto;font-size:10.5px;color:#8f83a8}
+.kebab{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:#1c1430}
+.kebab svg{width:16px;height:16px;fill:#b7a8cf}
+/* group challenge (goal, not VS) */
+.grow{display:flex;align-items:center;gap:10px}
+.gicon{width:40px;height:40px;border-radius:11px;background:#1c1430;display:grid;place-items:center;flex:none}
+.gicon svg{width:22px;height:22px}
+.gbody{flex:1}
+.gtitle{font-size:14px;font-weight:800}
+.gsub{font-size:11px;color:#9f92b6;margin-top:2px}
+.gtrack{height:7px;border-radius:6px;background:#2a2140;margin-top:9px;overflow:hidden}
+.gfill{height:100%;border-radius:6px;background:linear-gradient(90deg,#F2A33C,#FF7A3E)}
+.gmeta{display:flex;justify-content:space-between;font-size:10.5px;color:#8f83a8;margin-top:6px}
+.gavs{display:flex;margin-top:10px}
+.gavs .a{width:24px;height:24px;border-radius:50%;border:2px solid #141020;margin-left:-6px;overflow:hidden;background:#2d2740;display:grid;place-items:center;font-size:9px;font-weight:800;color:#fff}
+.gavs .a:first-child{margin-left:0}
+/* options sheet */
+.dim{position:absolute;inset:0;background:rgba(6,4,10,.55);z-index:8}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:9;background:#161022;border-top:1px solid #2a2140;border-radius:22px 22px 0 0;padding:16px 16px 26px}
+.sheet .grip{width:38px;height:4px;border-radius:2px;background:#33294a;margin:0 auto 16px}
+.sheet .shead{display:flex;align-items:center;gap:11px;padding:0 2px 12px;border-bottom:1px solid #1e1730;margin-bottom:8px}
+.sheet .shead .logo{width:38px;height:38px;border-radius:11px;background:#1c1430;display:grid;place-items:center}
+.sheet .shead .logo svg{width:22px;height:22px}
+.sheet .shead .t1{font-size:15px;font-weight:800}
+.sheet .shead .t2{font-size:11px;color:#8f83a8}
+.opt{display:flex;align-items:center;gap:13px;padding:12px 4px;font-size:14px;font-weight:600}
+.opt .oi{width:30px;height:30px;border-radius:9px;background:#1c1430;display:grid;place-items:center}
+.opt .oi svg{width:17px;height:17px}
+.opt .chev{margin-left:auto;color:#5c5274}
+.opt.danger{color:#ff8f8f}.opt.danger .oi{background:rgba(255,90,60,.14)}
+.sep{height:1px;background:#1e1730;margin:6px 0}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="emb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD27A"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#E4632A"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset=".5" stop-color="#F5C542"/><stop offset="1" stop-color="#C79A16"/></linearGradient>
+  <linearGradient id="bronze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8B98A"/><stop offset="1" stop-color="#9A6A3C"/></linearGradient>
+  <linearGradient id="ridge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2450"/><stop offset="1" stop-color="#1a1226"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 110 — Campfire, redesigned (inside screen)</h1>
+<p class="sub">Cohesive ember treatment over the vibe-coded original. Banner art lands, heat flame renders, Lock-in moves to a top-right pill, hamburger opens the options sheet. Watch + Report are in mock 111.</p>
+<div class="note">
+<span class="kill">Cut:</span> the bright-blue floating gear · the big bottom "Lock in with the house" bar (old schematic) · the getphiloi link.
+<span class="add">Fixed:</span> <b>banner art</b> as the header bg · <b>heat flame</b> (coal-bed states) · <b>Lock-in pill top-right</b> · <b>hamburger → options</b> · crisper ember feed cards · challenge <b>manage via ⋯</b> (not a trash can) · Delete challenge added.
+</div>
+
+<div class="row">
+
+<!-- ============ FRAME 1 · LEADERBOARD ============ -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>9:41</span><span>📶 70</span></div>
+  <div class="chead">
+    <div class="banner"><svg class="art" viewBox="0 0 300 220" preserveAspectRatio="xMidYMid slice"><rect width="300" height="220" fill="url(#ridge)"/><path d="M0 150 L70 90 L120 130 L180 70 L240 120 L300 80 L300 220 L0 220Z" fill="#241633" opacity=".8"/><path d="M0 175 L60 130 L130 165 L200 120 L300 150 L300 220 L0 220Z" fill="#1a1226"/><circle cx="230" cy="45" r="3" fill="#FF7A3E" opacity=".5"/><circle cx="90" cy="55" r="2" fill="#F2A33C" opacity=".4"/></svg><div class="veil"></div></div>
+    <div class="topbar">
+      <div class="iconbtn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <div class="spacer"></div>
+      <div class="lockpill"><svg viewBox="0 0 24 24" fill="#2a1400"><path d="M12 2c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg>Lock in</div>
+      <div class="iconbtn"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></div>
+    </div>
+    <div class="heatwrap">
+      <svg class="coals" viewBox="0 0 66 40"><ellipse cx="33" cy="33" rx="26" ry="6" fill="#1a1220"/><ellipse cx="22" cy="31" rx="8" ry="5" fill="#2e2233"/><ellipse cx="38" cy="32" rx="9" ry="5" fill="#2a2030"/><ellipse cx="30" cy="30" rx="6" ry="4" fill="#241a28"/><circle cx="24" cy="30" r="1.4" fill="#7a4a2a" opacity=".7"/><circle cx="40" cy="31" r="1.2" fill="#6a3f28" opacity=".6"/><path d="M28 24c-2-3 1-5 0-8" stroke="#4a4460" stroke-width="1" fill="none" opacity=".5"/><path d="M40 23c2-3-1-6 1-8" stroke="#4a4460" stroke-width="1" fill="none" opacity=".4"/></svg>
+      <div class="heatstate">🖤 BURNT OUT · 0 OF 3 TODAY</div>
+    </div>
+    <div class="cname">Goat</div>
+    <div class="cmeta"><span class="g"><svg viewBox="0 0 24 24" fill="#F2A33C"><path d="M12 2c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg>Open</span> · 3 members · founded Jul '26</div>
+    <div class="stats">
+      <div class="stat"><div class="n on">0<span style="font-size:11px">d</span></div><div class="l">AVG STREAK</div></div>
+      <div class="stat"><div class="n">0.3<span style="font-size:11px">h</span></div><div class="l">LOCKED / DAY</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">LIVE CHALLENGES</div></div>
+    </div>
+    <div class="tabs"><div class="tab on">Leaderboard</div><div class="tab">Feed</div><div class="tab">Challenges</div></div>
+  </div>
+  <div class="body">
+    <div class="lbrow me"><div class="rk">1</div><div class="av"><img src="https://i.pravatar.cc/80?img=13"></div><div class="nm"><div class="n1">Noah Brikman · you</div><div class="n2">Gold III</div></div><div class="rt"><div class="xp">7,481 XP<span class="hex"><svg viewBox="0 0 26 29"><path d="M13 1 L24 7 L24 22 L13 28 L2 22 L2 7Z" fill="url(#gold)"/></svg><b>III</b></span></div><div class="wk">🔥 22× wk</div></div></div>
+    <div class="lbrow"><div class="rk">2</div><div class="av"><img src="https://i.pravatar.cc/80?img=12"></div><div class="nm"><div class="n1">Noah Brikman</div><div class="n2">Bronze III</div></div><div class="rt"><div class="xp">554<span class="hex"><svg viewBox="0 0 26 29"><path d="M13 1 L24 7 L24 22 L13 28 L2 22 L2 7Z" fill="url(#bronze)"/></svg><b>III</b></span></div><div class="wk">🔥 0× wk</div></div></div>
+    <div class="lbrow"><div class="rk">3</div><div class="av ph" style="background:#A855F7">N</div><div class="nm"><div class="n1">Noah B2</div><div class="n2">Bronze III</div></div><div class="rt"><div class="xp">0<span class="hex"><svg viewBox="0 0 26 29"><path d="M13 1 L24 7 L24 22 L13 28 L2 22 L2 7Z" fill="url(#bronze)"/></svg><b>III</b></span></div><div class="wk">🔥 0× wk</div></div></div>
+  </div>
+</div></div>
+<div class="flabel"><b>Frame 1 · Header + Leaderboard.</b> Banner art lands · heat flame (cold "burnt out") · Lock-in pill + hamburger top-right · no blue gear.</div>
+</div>
+
+<!-- ============ FRAME 2 · FEED (full screen) ============ -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>9:41</span><span>📶 70</span></div>
+  <!-- collapsed header: name + tabs only, feed takes the screen -->
+  <div class="chead" style="padding-bottom:10px">
+    <div class="banner"><svg class="art" viewBox="0 0 300 120" preserveAspectRatio="xMidYMid slice"><rect width="300" height="120" fill="url(#ridge)"/><path d="M0 90 L80 55 L160 85 L240 50 L300 75 L300 120 L0 120Z" fill="#1a1226"/></svg><div class="veil"></div></div>
+    <div class="topbar">
+      <div class="iconbtn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <div class="cname" style="font-size:17px;margin:0 0 0 6px">Goat</div>
+      <div class="spacer"></div>
+      <div class="lockpill"><svg viewBox="0 0 24 24" fill="#2a1400"><path d="M12 2c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg>Lock in</div>
+      <div class="iconbtn"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></div>
+    </div>
+    <div class="tabs"><div class="tab">Leaderboard</div><div class="tab on">Feed</div><div class="tab">Challenges</div></div>
+    <div style="text-align:center;font-size:9px;color:#5c5274;margin-top:8px;position:relative;z-index:2">— swipe up for full-screen feed —</div>
+  </div>
+  <div class="body">
+    <div class="fcard"><div class="ic"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M13 4a4 4 0 1 0 0 .1M11 22l1-8-3-2 1-4 3 1 2 3 2 1"/><circle cx="13" cy="5" r="2" fill="url(#emb)"/><path d="M9 22l2-6 4 1 1 5" stroke="url(#emb)" stroke-width="1.6" fill="none"/></svg></div><div class="fb"><div class="fh">Noah Brikman locked in</div><div class="fm">0m · Run</div><div class="fx">⚡ +0 XP · fed the fire</div></div></div>
+    <div class="fcard"><div class="ic"><svg viewBox="0 0 24 24" fill="url(#emb)"><rect x="4" y="4" width="14" height="16" rx="2"/><path d="M18 6l2 1v12" stroke="#1a1220" stroke-width="1" fill="none"/></svg></div><div class="fb"><div class="fh">Noah Brikman locked in</div><div class="fm">9m · Study</div><div class="fx">⚡ +54 XP · fed the fire</div></div></div>
+    <div class="fcard strava"><div style="display:flex;gap:11px"><div class="ic" style="background:#2a1410"><svg viewBox="0 0 24 24" fill="#FC4C02"><circle cx="13" cy="5" r="2"/><path d="M9 22l3-9 3 3 3-2" stroke="#FC4C02" stroke-width="1.6" fill="none"/></svg></div><div class="fb"><div class="strava-tag">POWERED BY STRAVA · ACTIVITY</div><div class="fh" style="margin-top:2px">Noah Brikman locked in</div><div class="fm">15m · Night Run · 0.0 km</div><div class="fx">⚡ +78 XP · fed the fire</div><div style="font-size:10.5px;color:#FC4C02;font-weight:700;margin-top:6px">View on Strava ↗</div></div></div></div>
+  </div>
+  <div class="chatbar"><div class="chatin">Message the campfire</div><div class="sendbtn">Send</div></div>
+</div></div>
+<div class="flabel"><b>Frame 2 · Feed, full-screen.</b> Header collapses to name+tabs, feed fills the screen (swipe-up), crisp ember cards (not the old bold orange), chat docked at the bottom.</div>
+</div>
+
+<!-- ============ FRAME 3 · CHALLENGES ============ -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>9:41</span><span>📶 70</span></div>
+  <div class="chead" style="padding-bottom:10px">
+    <div class="banner"><svg class="art" viewBox="0 0 300 120" preserveAspectRatio="xMidYMid slice"><rect width="300" height="120" fill="url(#ridge)"/><path d="M0 90 L80 55 L160 85 L240 50 L300 75 L300 120 L0 120Z" fill="#1a1226"/></svg><div class="veil"></div></div>
+    <div class="topbar">
+      <div class="iconbtn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <div class="cname" style="font-size:17px;margin:0 0 0 6px">Goat</div>
+      <div class="spacer"></div>
+      <div class="lockpill"><svg viewBox="0 0 24 24" fill="#2a1400"><path d="M12 2c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg>Lock in</div>
+      <div class="iconbtn"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></div>
+    </div>
+    <div class="tabs"><div class="tab">Leaderboard</div><div class="tab">Feed</div><div class="tab on">Challenges</div></div>
+  </div>
+  <div class="body">
+    <!-- GROUP goal challenge — renders as a goal, NOT a VS -->
+    <div class="chcard">
+      <div class="chtop"><div class="type"><svg viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Campfire goal</div><div class="left">2d left</div><div class="kebab"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></div></div>
+      <div class="grow"><div class="gicon"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div><div class="gbody"><div class="gtitle">Everyone locks in 4× in 2 days</div><div class="gsub">Whole house · 2 of 3 done</div></div></div>
+      <div class="gtrack"><div class="gfill" style="width:66%"></div></div>
+      <div class="gmeta"><span>8 / 12 lock-ins</span><span>66%</span></div>
+      <div class="gavs"><div class="a"><img src="https://i.pravatar.cc/40?img=13" style="width:100%;height:100%"></div><div class="a"><img src="https://i.pravatar.cc/40?img=12" style="width:100%;height:100%"></div><div class="a" style="background:#A855F7">N</div></div>
+    </div>
+    <!-- an actual duel (VS) — distinct from the group goal above -->
+    <div class="chcard">
+      <div class="chtop"><div class="type"><svg viewBox="0 0 24 24" fill="var(--ember)"><path d="M13 2l-2 7h4l-2 7" stroke="var(--ember)" stroke-width="2" fill="none"/></svg>Duel · Most XP</div><div class="left">3d left</div><div class="kebab"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></div></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><div class="av ph" style="width:38px;height:38px;border-radius:50%;background:#3a2b12;color:#FFD27A;display:grid;place-items:center;font-weight:800;border:2px solid var(--ember)">Y</div><div style="font-size:10px;font-weight:700">You</div></div>
+        <div style="flex:1"><div style="display:flex;justify-content:space-between;font-size:11px;font-weight:800"><span style="color:var(--ember)">347 XP</span><span style="color:#6BA8FF">0 XP</span></div><div class="gtrack" style="margin-top:5px"><div class="gfill" style="width:100%"></div></div><div style="text-align:center;font-size:10px;color:var(--ember);font-weight:700;margin-top:5px">🔥 You lead by 347</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><div class="av ph" style="width:38px;height:38px;border-radius:50%;background:#12233a;color:#6BA8FF;display:grid;place-items:center;font-weight:800;border:2px solid #6BA8FF">M</div><div style="font-size:10px;font-weight:700">Maya</div></div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:4px"><span style="display:inline-block;background:#171226;border:1px solid #2a2140;border-radius:999px;padding:9px 18px;font-size:12.5px;font-weight:700;color:var(--ember)">＋ Start a challenge</span></div>
+  </div>
+</div></div>
+<div class="flabel"><b>Frame 3 · Challenges.</b> A <b>group goal</b> renders as a goal (progress + members), a <b>duel</b> renders as VS — no more mixing them. Manage via the <b>⋯ kebab</b> (Edit · Share · Delete), not a trash can.</div>
+</div>
+
+<!-- ============ FRAME 4 · OPTIONS SHEET (hamburger) ============ -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>9:41</span><span>📶 70</span></div>
+  <div class="chead" style="padding-bottom:10px;filter:brightness(.5)">
+    <div class="banner"><svg class="art" viewBox="0 0 300 120" preserveAspectRatio="xMidYMid slice"><rect width="300" height="120" fill="url(#ridge)"/></svg><div class="veil"></div></div>
+    <div class="topbar"><div class="iconbtn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div><div class="cname" style="font-size:17px;margin:0 0 0 6px">Goat</div><div class="spacer"></div><div class="lockpill">Lock in</div><div class="iconbtn"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></div></div>
+    <div class="tabs"><div class="tab on">Leaderboard</div><div class="tab">Feed</div><div class="tab">Challenges</div></div>
+  </div>
+  <div class="body"></div>
+  <div class="dim"></div>
+  <div class="sheet">
+    <div class="grip"></div>
+    <div class="shead"><div class="logo"><svg viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div><div><div class="t1">Goat</div><div class="t2">Open · 3 members</div></div></div>
+    <div class="opt"><div class="oi"><svg viewBox="0 0 24 24" fill="none" stroke="#c8bcdd" stroke-width="1.8"><path d="M4 20l4-1L19 8l-3-3L5 16z"/></svg></div>Edit campfire<span class="chev">›</span></div>
+    <div class="opt"><div class="oi"><svg viewBox="0 0 24 24" fill="none" stroke="#c8bcdd" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M17 8h4M19 6v4"/></svg></div>Invite people<span class="chev">›</span></div>
+    <div class="opt"><div class="oi"><svg viewBox="0 0 24 24" fill="none" stroke="#c8bcdd" stroke-width="1.8"><path d="M6 8a6 6 0 0 1 12 0v5l2 3H4l2-3zM3 3l18 18"/></svg></div>Mute notifications<span class="chev">›</span></div>
+    <div class="sep"></div>
+    <div class="opt"><div class="oi"><svg viewBox="0 0 24 24" fill="none" stroke="#c8bcdd" stroke-width="1.8"><path d="M5 21V4h11l-1.5 4L16 12H7"/></svg></div>Report this campfire<span class="chev">›</span></div>
+    <div class="opt danger"><div class="oi"><svg viewBox="0 0 24 24" fill="none" stroke="#ff8f8f" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></div>Delete campfire<span class="chev">›</span></div>
+  </div>
+</div></div>
+<div class="flabel"><b>Frame 4 · Options (hamburger).</b> The ⋯/hamburger opens this sheet — Edit · Invite · Mute · Report · Delete. Same kebab pattern manages individual challenges.</div>
+</div>
+
+</div>

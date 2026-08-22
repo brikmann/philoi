@@ -1,0 +1,215 @@
+<meta charset="utf-8">
+<title>Mock 111 — watch + cheers + report</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif;--ember:#F2A33C;--ember2:#FF7A3E}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:28px;display:flex;flex-direction:column;align-items:center;gap:6px}
+h1{font-size:19px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:820px;text-align:center;line-height:1.55;margin:0 auto 14px}
+.row{display:flex;gap:24px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.frame{display:flex;flex-direction:column;align-items:center;gap:10px}
+.flabel{font-size:11px;color:#8a7fa6;text-align:center;max-width:300px;line-height:1.45}
+.flabel b{color:#e7ddf5}
+.phone{width:300px;height:640px;border-radius:34px;overflow:hidden;position:relative;background:#0e0b14;border:1px solid #241c38}
+.scr{position:absolute;inset:0;overflow:hidden;display:flex;flex-direction:column;background:radial-gradient(120% 45% at 50% 0%,#241633,#140f1e 55%,#0e0b14)}
+.status{height:32px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:11px;color:#cbb8e0;font-weight:600}
+.whead{flex:none;padding:2px 16px 12px;text-align:center}
+.whead .top{display:flex;align-items:center;gap:8px}
+.iconbtn{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:rgba(20,14,26,.55);border:1px solid rgba(255,255,255,.08)}
+.iconbtn svg{width:16px;height:16px;stroke:#e7ddf5;fill:none;stroke-width:1.8}
+.whead .ttl{flex:1;font-size:15px;font-weight:800}
+.race-meta{display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:rgba(36,26,46,.7);border:1px solid #2a2140;border-radius:999px;padding:6px 14px;font-size:11.5px;font-weight:700}
+.race-meta .type{color:var(--ember)} .race-meta .dot{width:6px;height:6px;border-radius:50%;background:#7fe0a0} .race-meta .left{color:#FFD27A}
+.body{flex:1;overflow-y:auto;padding:8px 16px 0}
+.body::-webkit-scrollbar{width:0}
+.mrow{margin-bottom:15px;position:relative}
+.mrow .head{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.mrow .rk{font-size:12px;font-weight:800;color:#8f83a8;width:14px}
+.mrow.lead .rk{color:var(--ember)}
+.mrow .av{width:30px;height:30px;border-radius:50%;overflow:hidden;background:#2d2740;flex:none;position:relative}
+.mrow .av img{width:100%;height:100%;object-fit:cover}
+.mrow .av.ph{display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff}
+.crown{position:absolute;top:-11px;left:50%;transform:translateX(-50%);width:18px}
+.mrow .nm{flex:1;font-size:13px;font-weight:700}
+.mrow.me .nm{color:var(--ember)}
+.mrow .val{font-size:13.5px;font-weight:800}
+.mrow.lead .val{color:var(--ember)}
+.gauge{height:15px;border-radius:9px;background:#1c1730;overflow:hidden;position:relative}
+.gfill{height:100%;border-radius:9px;position:relative;background:linear-gradient(90deg,#F2A33C,#FF7A3E)}
+.gfill.dim{background:linear-gradient(90deg,#4a5db0,#3a4a90)} .gfill.dim2{background:linear-gradient(90deg,#7a5aa0,#5a3f80)}
+.gfill .shine{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent);animation:sh 2.4s linear infinite}
+@keyframes sh{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
+/* cheer count under a person */
+.cheers{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:10.5px;color:#c8bcdd}
+.cheers svg{width:12px;height:12px;fill:#FF6B7A}
+.cheers .who{color:#8f83a8}
+.cheers .n{font-weight:800;color:#FFB1B8}
+/* cheer bar */
+.cheerbar{flex:none;padding:12px 16px 20px;border-top:1px solid #1e1730;background:#100c19}
+.cheerbtn{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(90deg,#F2A33C,#FF7A3E);color:#2a1400;font-size:14px;font-weight:800;border-radius:14px;padding:14px}
+.cheerbtn svg{width:17px;height:17px;fill:#2a1400}
+.cheer-note{text-align:center;font-size:10px;color:#6f6488;margin-top:8px}
+/* duel */
+.duel{display:flex;align-items:stretch;gap:12px;margin-top:16px}
+.dcol{flex:1;text-align:center}
+.dav{width:60px;height:60px;border-radius:50%;margin:0 auto 8px;display:grid;place-items:center;font-size:21px;font-weight:800}
+.dav.you{background:#3a2b12;color:#FFD27A;border:3px solid var(--ember)}
+.dav.opp{background:#12233a;color:#6BA8FF;border:3px solid #6BA8FF}
+.dname{font-size:13px;font-weight:800}.drank{font-size:10.5px;color:#9f92b6;margin-top:2px}
+.dval{font-size:24px;font-weight:800;margin-top:7px;letter-spacing:-1px}
+.dval.you{color:var(--ember)}.dval.opp{color:#6BA8FF}
+.dcheer{margin-top:7px;font-size:10px;color:#c8bcdd;display:inline-flex;align-items:center;gap:4px}
+.dcheer svg{width:11px;height:11px;fill:#FF6B7A}
+.vs{align-self:center;font-size:13px;font-weight:800;color:#6f6488}
+.leadbar{height:18px;border-radius:10px;background:#12233a;overflow:hidden;margin:16px 0 8px}
+.leadbar .fill{height:100%;background:linear-gradient(90deg,#F2A33C,#FF7A3E);border-radius:10px}
+.leadlbl{text-align:center;font-size:12px;font-weight:800;color:var(--ember)}
+/* cheer compose sheet */
+.dim{position:absolute;inset:0;background:rgba(6,4,10,.6);z-index:8}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:9;background:#161022;border-top:1px solid #2a2140;border-radius:22px 22px 0 0;padding:18px 16px 24px}
+.sheet .grip{width:38px;height:4px;border-radius:2px;background:#33294a;margin:0 auto 16px}
+.sheet .ch-h{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sheet .ch-h .av{width:42px;height:42px;border-radius:50%;overflow:hidden;background:#12233a;color:#6BA8FF;display:grid;place-items:center;font-weight:800;font-size:16px;border:2px solid #6BA8FF}
+.sheet .ch-h .t1{font-size:16px;font-weight:800}
+.sheet .ch-h .t1 svg{width:15px;height:15px;fill:#FF6B7A;vertical-align:-2px;margin-right:2px}
+.sheet .ch-h .t2{font-size:11px;color:#8f83a8;margin-top:1px}
+.notefield{background:#141020;border:1px solid #2a2140;border-radius:13px;padding:13px 14px;font-size:13px;color:#FFF6EC;min-height:56px;line-height:1.5}
+.notefield .ph{color:#6f6488}
+.sendcheer{margin-top:14px;background:linear-gradient(90deg,#F2A33C,#FF7A3E);color:#2a1400;font-weight:800;font-size:14.5px;text-align:center;border-radius:14px;padding:14px}
+.skip{text-align:center;font-size:12px;color:#8f83a8;font-weight:600;margin-top:12px}
+/* push card */
+.pushwrap{padding-top:14px}
+.push{margin:0 12px;background:#1b1626;border:1px solid #2a2140;border-radius:18px;padding:14px 15px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.push .ph{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.push .ph .ic{width:18px;height:18px}
+.push .ph .nm{font-size:11px;font-weight:800;color:#c8bcdd;letter-spacing:.3px}
+.push .ph .t{font-size:10px;color:#6f6488}
+.push .title{font-size:14px;font-weight:800;margin-bottom:4px}
+.push .msg{font-size:12.5px;color:#d8cceb;line-height:1.5;font-style:italic}
+.push .avatar{width:22px;height:22px;border-radius:50%;overflow:hidden;flex:none}
+.push .avatar img{width:100%;height:100%;object-fit:cover}
+/* report */
+.rphone .scr{background:radial-gradient(120% 40% at 50% 0%,#241633,#140f1e 50%,#0e0b14)}
+.rhead{flex:none;display:flex;align-items:center;gap:10px;padding:6px 16px 16px}
+.rhead .ttl{font-size:19px;font-weight:800}
+.rq{font-size:14px;font-weight:700;color:#e7ddf5;padding:0 16px 12px}
+.ropts{padding:0 16px}
+.ropt{display:flex;align-items:center;gap:12px;background:#141020;border:1px solid #241c38;border-radius:13px;padding:14px 14px;margin-bottom:10px;font-size:13.5px;font-weight:600}
+.ropt.on{border-color:var(--ember);background:#1e1428}
+.ropt.csae{color:#ff9a5a}
+.radio{width:20px;height:20px;border-radius:50%;border:2px solid #4a4460;flex:none;display:grid;place-items:center}
+.ropt.on .radio{border-color:var(--ember)}
+.ropt.on .radio::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--ember)}
+.rsubmit{margin:16px 16px 22px;background:linear-gradient(90deg,#F2A33C,#FF7A3E);color:#2a1400;font-weight:800;font-size:14.5px;text-align:center;border-radius:14px;padding:15px}
+.sendcheer{margin-bottom:8px}
+.emailnote{display:flex;gap:8px;align-items:flex-start;margin:14px 16px 0;background:#141020;border:1px solid #221a34;border-radius:11px;padding:10px 12px;font-size:10.5px;color:#8f83a8;line-height:1.5}
+.emailnote svg{width:14px;height:14px;flex:none;margin-top:1px;stroke:#7fe0a0;fill:none}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset=".5" stop-color="#F5C542"/><stop offset="1" stop-color="#C79A16"/></linearGradient>
+  <linearGradient id="emb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD27A"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#E4632A"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 111 — Watch race + Cheers + Report</h1>
+<p class="sub">Watch = a live per-person race with cheer counts under each person. Cheering is personal: it pushes "X cheered you on!" and lets you attach a note. Report emails the admin.</p>
+
+<div class="row">
+
+<!-- ===== FRAME 1 · WATCH campfire race + cheer counts ===== -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>9:41</span><span>📶 70</span></div>
+  <div class="whead"><div class="top"><div class="iconbtn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div><div class="ttl">Watch · Goat</div><div style="width:32px"></div></div>
+    <div class="race-meta"><span class="type">🏋 Most volume</span><span style="color:#5c5274">·</span><span class="dot"></span><span>live</span><span style="color:#5c5274">·</span><span class="left">6h left</span></div>
+  </div>
+  <div class="body">
+    <div class="mrow lead me">
+      <div class="head"><div class="rk">1</div><div class="av"><img src="https://i.pravatar.cc/60?img=13"><svg class="crown" viewBox="0 0 24 16" fill="url(#gold)"><path d="M2 14 L2 5 L7 9 L12 2 L17 9 L22 5 L22 14 Z"/></svg></div><div class="nm">Noah · you</div><div class="val">18,400 lb</div></div>
+      <div class="gauge"><div class="gfill" style="width:100%"><div class="shine"></div></div></div>
+      <div class="cheers"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54z"/></svg><span class="n">4 cheers</span><span class="who">· Maya, Jordan +2</span></div>
+    </div>
+    <div class="mrow">
+      <div class="head"><div class="rk">2</div><div class="av"><img src="https://i.pravatar.cc/60?img=45"></div><div class="nm">Maya Chen</div><div class="val">15,200 lb</div></div>
+      <div class="gauge"><div class="gfill dim" style="width:82%"></div></div>
+      <div class="cheers"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54z"/></svg><span class="n">6 cheers</span><span class="who">· you, Jordan +4</span></div>
+    </div>
+    <div class="mrow">
+      <div class="head"><div class="rk">3</div><div class="av ph" style="background:#A855F7">J</div><div class="nm">Jordan L.</div><div class="val">9,050 lb</div></div>
+      <div class="gauge"><div class="gfill dim2" style="width:49%"></div></div>
+      <div class="cheers"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54z"/></svg><span class="n">1 cheer</span><span class="who">· you</span></div>
+    </div>
+  </div>
+  <div class="cheerbar">
+    <div class="cheerbtn"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54z"/></svg>Cheer someone on</div>
+    <div class="cheer-note">One cheer each · add a note to make it personal</div>
+  </div>
+</div></div>
+<div class="flabel"><b>Frame 1 · Watch (race).</b> Per-person meters + a <b>cheer count under each person</b> (who + how many). Fixed heart icon.</div>
+</div>
+
+<!-- ===== FRAME 2 · DUEL + cheer compose ===== -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>9:41</span><span>📶 70</span></div>
+  <div class="whead" style="filter:brightness(.55)"><div class="top"><div class="iconbtn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div><div class="ttl">Watch · Duel</div><div style="width:32px"></div></div>
+    <div class="race-meta"><span class="type">🏋 Most volume</span><span style="color:#5c5274">·</span><span class="dot"></span><span>live</span><span style="color:#5c5274">·</span><span class="left">18h left</span></div>
+  </div>
+  <div class="body" style="filter:brightness(.55)">
+    <div class="duel">
+      <div class="dcol"><div class="dav you">Y</div><div class="dname" style="color:var(--ember)">You</div><div class="drank">Gold III</div><div class="dval you">18.4k</div><div class="dcheer"><svg viewBox="0 0 24 24" fill="#FF6B7A"><path d="M12 21l-1.5-1.4C5.4 15 2 12 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.5-3.4 6.5-8.5 11.1z"/></svg>4</div></div>
+      <div class="vs">VS</div>
+      <div class="dcol"><div class="dav opp">M</div><div class="dname">Maya Chen</div><div class="drank">Gold II</div><div class="dval opp">15.2k</div><div class="dcheer"><svg viewBox="0 0 24 24" fill="#FF6B7A"><path d="M12 21l-1.5-1.4C5.4 15 2 12 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.5-3.4 6.5-8.5 11.1z"/></svg>6</div></div>
+    </div>
+    <div class="leadbar"><div class="fill" style="width:55%"></div></div>
+    <div class="leadlbl">🔥 You lead by 3,200 lb</div>
+  </div>
+  <!-- cheer compose sheet -->
+  <div class="dim"></div>
+  <div class="sheet">
+    <div class="grip"></div>
+    <div class="ch-h"><div class="av">M</div><div><div class="t1"><svg viewBox="0 0 24 24"><path d="M12 21l-1.5-1.4C5.4 15 2 12 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.5-3.4 6.5-8.5 11.1z"/></svg>Cheer Maya on</div><div class="t2">Send a little fire her way 🔥</div></div></div>
+    <div class="notefield"><span class="ph">out-lift me? not today 😤 keep grinding tho</span></div>
+    <div class="sendcheer">🔥 Send cheer</div>
+    <div class="skip">Just cheer, no note</div>
+  </div>
+</div></div>
+<div class="flabel"><b>Frame 2 · Cheer + note.</b> Tap Cheer → optionally attach a message. Makes a gym-volume duel personal — trash talk, hype, whatever.</div>
+</div>
+
+<!-- ===== FRAME 3 · the cheer push (recipient) ===== -->
+<div class="frame">
+<div class="phone"><div class="scr">
+  <div class="status"><span>9:42</span><span>📶 70</span></div>
+  <div class="pushwrap">
+    <div class="push">
+      <div class="ph"><svg class="ic" viewBox="0 0 24 24" fill="url(#emb)"><path d="M12 2c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg><span class="nm">PHILOI</span><span class="t">· now</span></div>
+      <div class="title" style="display:flex;align-items:center;gap:7px"><span class="avatar"><img src="https://i.pravatar.cc/40?img=13"></span>Noah cheered you on 🔥</div>
+      <div class="msg">"out-lift me? not today 😤 keep grinding tho"</div>
+    </div>
+    <div style="text-align:center;font-size:10.5px;color:#5c5274;margin-top:20px;padding:0 30px;line-height:1.5">Rich push · leads with the cheerer's avatar · taps through to the challenge.<br>No note? Then just "Noah cheered you on 🔥".</div>
+  </div>
+</div></div>
+<div class="flabel"><b>Frame 3 · The cheer push.</b> Recipient gets "X cheered you on!" with the note. Personal, and it pulls them back into the challenge.</div>
+</div>
+
+<!-- ===== FRAME 4 · REPORT + email wiring ===== -->
+<div class="frame">
+<div class="phone rphone"><div class="scr">
+  <div class="status"><span>9:41</span><span>📶 70</span></div>
+  <div class="rhead"><div class="iconbtn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div><div class="ttl">Report</div></div>
+  <div class="rq">Why are you reporting Goat?</div>
+  <div class="ropts">
+    <div class="ropt"><div class="radio"></div>Spam or misleading</div>
+    <div class="ropt on"><div class="radio"></div>Harassment or bullying</div>
+    <div class="ropt"><div class="radio"></div>Inappropriate or offensive content</div>
+    <div class="ropt csae"><div class="radio"></div>Child safety / CSAE</div>
+    <div class="ropt"><div class="radio"></div>Other</div>
+  </div>
+  <div class="rsubmit">Submit report</div>
+  <div class="emailnote"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM3 6l9 7 9-7"/></svg><span>On submit, an alert emails the safety team: <b style="color:#c8bcdd">"{user} reported Goat for Harassment."</b> Child-safety reports are escalated immediately.</span></div>
+</div></div>
+<div class="flabel"><b>Frame 4 · Report, wired.</b> Clean ember list + on submit it emails the admin ("X reported {campfire} for {reason}").</div>
+</div>
+
+</div>

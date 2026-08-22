@@ -246,6 +246,46 @@ Earn triggers below are *proposed — confirm before build.*
 | **Anvil of Hephaestus** | Legendary | 500 total hours locked in | Zeus' bolt was forged on this thing. It's that strong. |
 | **Prometheus' Shard** | Mythic | Finish Top 1% of a season / bring N friends who verify | You are now one of us. Spread your fire to all of humanity to rise and ascend. |
 
+### 4a-2 · Discipline Relics — `RELIC` (per lock-in type) — **EARNED**
+One signature relic per **lock-in type**, earned by **hours logged in that activity** — the reward for going
+deep in a single discipline (ipsative: pure effort-hours, never an outcome). Non-equippable showcase, sits in
+the Trophy Hall §4-relics group alongside the §4a set. **Earned only — never bought or rolled.** Each maps
+1:1 to an app lock-in category; **hour thresholds proposed — confirm/tune before build.**
+
+| Item | Lock-in type | Earn (proposed) | Rarity | Lore |
+|---|---|---|---|---|
+| **Socrates' Scroll** | Study | 100h studied | Legendary | The unexamined hour isn't worth logging. You examined this one. |
+| **Hercules' Might** | Gym / Lift | **100,000 lbs lifted** (volume) | Legendary | Twelve labours. You're somewhere past the seventh — and it shows. |
+| **Pheidippides' Sandals** | Run / Cardio | **414 km run** (distance — his Athens→Sparta round trip) | Legendary | He ran to Sparta and back — 414 km — to call for help. You've matched every step. |
+| **Calliope's Ink** | Read | 100h read | Legendary | Every page a mile the mind walked. The muse of epics kept the count. |
+| **Daedalus' Blueprint** | **Deep Work** | 100h of deep work | Legendary | The labyrinth wasn't built in a day. Neither is whatever you're shipping. |
+| **Oracle's Stillness** | Meditate | 100h still | Legendary | The Oracle of Delphi spoke only in the quiet. You've kept a great deal of it. |
+| **Orpheus' Lyre** | **Create** (art · music · writing) | 100h creating | Legendary | He played until the stones wept. You just keep showing up to make something. |
+
+**Deep Work vs Create — they are different disciplines, not overlapping:**
+- **Deep Work** = *obligation output* — the job, coding, career tasks, admin, building/shipping something you
+  have to. Daedalus, the master engineer.
+- **Create** = *creative expression for its own sake* — making art, music, or writing because you want to.
+  Orpheus, the artist. If the app later splits these (Music / Art / Writing as separate lock-in types), each
+  can take its own relic (Orpheus' Lyre → Music; e.g. **Apelles' Brush** → Art; **Homer's Quill** → Writing).
+
+**Set-completion capstone:**
+
+| Item | Earn | Rarity | Lore |
+|---|---|---|---|
+| **Crown of Olympus** | Earn **every** Discipline Relic | Mythic | Master of no single art, but of the discipline beneath all of them. Olympus has a seat for that. |
+
+- **Threshold uses the metric that fits the activity**, accumulated from `check_ins` / sessions / synced data
+  of that category (all tunable):
+  - Study · Read · Deep Work · Meditate · Create → **cumulative hours** (100h).
+  - Gym → **total volume lifted** (100,000 lbs).
+  - Run → **total distance** (414 km — Pheidippides' Athens→Sparta round trip).
+  (Gym volume + run distance come from the fitness sync — Health/Strava; where a metric isn't available, fall
+  back to hours.)
+- New lock-in types added later get their own relic (keep the Greek-mythic naming + the "earned, never sold"
+  rule). If a type has no obvious deity, pick the closest myth (e.g. a language study type → **Hermes' Tongue**).
+- Renders exactly like §4a relics: rarity-glowed tile, tap → lore + the hours that earned it.
+
 ### 4b · Seasonal Mastery Medals — `MEDAL` (Legendary)
 Awarded for seasonal milestones / top campus placement. Season-stamped, never re-issued.
 

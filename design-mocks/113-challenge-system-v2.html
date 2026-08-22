@@ -1,0 +1,304 @@
+<meta charset="utf-8">
+<title>Mock 113 — challenge system v2</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif;--ember:#F2A33C;--ember2:#FF7A3E}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:26px 20px 60px}
+h1{font-size:20px;margin:0 0 4px;text-align:center}
+.intro{font-size:12.5px;color:#9f92b6;max-width:840px;text-align:center;line-height:1.55;margin:0 auto 22px}
+h2{font-size:13px;font-weight:800;letter-spacing:1.2px;color:var(--ember);margin:26px 0 4px;padding-bottom:6px;border-bottom:1px solid #241c38;text-transform:uppercase}
+.grid{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin-top:14px}
+.cell{width:216px;display:flex;flex-direction:column;gap:7px}
+.cap{font-size:10.5px;color:#8a7fa6;line-height:1.4}
+.cap b{color:#e7ddf5}.cap .to{color:var(--ember)}
+.mini{width:216px;height:466px;border-radius:26px;overflow:hidden;position:relative;background:#0e0b14;border:1px solid #241c38}
+.ms{position:absolute;inset:0;display:flex;flex-direction:column;background:radial-gradient(120% 42% at 50% 0%,#241633,#140f1e 52%,#0e0b14)}
+.sb{height:22px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:8.5px;color:#cbb8e0;font-weight:600}
+.hd{flex:none;display:flex;align-items:center;gap:6px;padding:2px 11px 8px}
+.hd .bk{font-size:14px;color:#8a7fa6}.hd .ti{font-size:15px;font-weight:800}.hd .sp{flex:1}
+.bd{flex:1;overflow:hidden;padding:0 11px;display:flex;flex-direction:column}
+.lbl{font-size:8px;font-weight:800;letter-spacing:.5px;color:#9f92b6;margin:10px 0 5px}
+.inp{background:#141020;border:1px solid #2a2140;border-radius:9px;padding:9px 10px;font-size:10px;color:#6f6488}
+.inp.f{color:#FFF6EC}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font-size:9px;font-weight:700;color:#c8bcdd;background:#171226;border:1px solid #2a2140;border-radius:999px;padding:5px 9px;display:inline-flex;align-items:center;gap:4px}
+.chip.on{color:#2a1400;background:linear-gradient(90deg,#F2A33C,#FF7A3E);border-color:transparent}
+.chip.prem{border-color:rgba(199,120,255,.5);color:#d7a6ff}
+.chip.prem.on{background:linear-gradient(90deg,#c98bff,#9a46e0);color:#fff}
+.cta{background:linear-gradient(90deg,#F2A33C,#FF7A3E);color:#2a1400;font-weight:800;font-size:11px;text-align:center;border-radius:11px;padding:11px;margin-top:auto;margin-bottom:16px}
+.cta.prem{background:linear-gradient(90deg,#c98bff,#9a46e0);color:#fff}
+.row{display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid #1e1730}
+.row .av{width:28px;height:28px;border-radius:50%;overflow:hidden;flex:none;display:grid;place-items:center;font-size:10px;font-weight:800;color:#fff;background:#2d2740}
+.row .av img{width:100%;height:100%;object-fit:cover}
+.row .nm{flex:1;font-size:11px;font-weight:700}.row .sub{font-size:8px;color:#8f83a8}
+.tgl{width:34px;height:19px;border-radius:999px;position:relative;flex:none}
+.tgl.on{background:linear-gradient(90deg,#F2A33C,#FF7A3E)}.tgl.off{background:#2a2140}
+.tgl::after{content:"";position:absolute;top:2px;width:15px;height:15px;border-radius:50%;background:#fff}
+.tgl.on::after{right:2px}.tgl.off::after{left:2px}
+/* calendar */
+.cal{background:#141020;border:1px solid #241c38;border-radius:11px;padding:10px}
+.calh{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:800;margin-bottom:8px}
+.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cd{aspect-ratio:1;display:grid;place-items:center;font-size:8px;border-radius:6px;color:#c8bcdd}
+.cd.dow{color:#6f6488;font-weight:800}
+.cd.rng{background:rgba(242,163,60,.18);border-radius:0}
+.cd.s{background:var(--ember);color:#2a1400;font-weight:800;border-radius:6px 0 0 6px}
+.cd.e{background:var(--ember);color:#2a1400;font-weight:800;border-radius:0 6px 6px 0}
+.cd.mut{color:#4a4460}
+/* AI card */
+.aicard{background:linear-gradient(160deg,rgba(199,120,255,.14),rgba(154,70,224,.06));border:1px solid rgba(199,120,255,.4);border-radius:12px;padding:11px;margin-top:8px}
+.aicard .ah{font-size:9px;font-weight:800;color:#d7a6ff;letter-spacing:.4px;display:flex;align-items:center;gap:5px;margin-bottom:8px}
+.airow{display:flex;justify-content:space-between;font-size:9.5px;padding:4px 0}
+.airow .k{color:#a99cbd}.airow .v{font-weight:700}
+/* info rows */
+.irow{display:flex;justify-content:space-between;padding:8px 2px;border-bottom:1px solid #1e1730;font-size:10px}
+.irow .k{color:#9f92b6}.irow .v{font-weight:800}
+/* nudge sheet */
+.dim{position:absolute;inset:0;background:rgba(6,4,10,.6);z-index:8}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:9;background:#161022;border-top:1px solid #2a2140;border-radius:16px 16px 0 0;padding:14px 12px 18px}
+.grip{width:30px;height:3px;border-radius:2px;background:#33294a;margin:0 auto 12px}
+.photo{width:100%;height:120px;border-radius:11px;background:linear-gradient(135deg,#3a2b12,#1a1226);display:grid;place-items:center;margin-top:6px;border:1px solid #2a2140;color:#8f83a8;font-size:10px}
+/* watch photo feed */
+.wp{background:#141020;border:1px solid #221a34;border-radius:12px;overflow:hidden;margin-top:8px}
+.wp .im{height:96px;background:linear-gradient(135deg,#2b3a12,#1a2226);display:grid;place-items:center;color:#8f83a8;font-size:9px}
+.wp .cap2{display:flex;align-items:center;gap:6px;padding:8px 9px}
+.wp .av{width:22px;height:22px;border-radius:50%;overflow:hidden}
+.wp .av img{width:100%;height:100%}
+.wp .t{flex:1;font-size:9.5px;font-weight:700}
+.wp .ch{font-size:9px;color:#FFB1B8;display:flex;align-items:center;gap:3px}
+.wp .ch svg{width:10px;height:10px;fill:#FF6B7A}
+/* share card */
+.scard{width:200px;height:356px;border-radius:20px;overflow:hidden;position:relative;margin:0 auto;background:radial-gradient(120% 55% at 50% 2%,#3a2350,#1a1526 58%,#141019);display:flex;flex-direction:column;align-items:center;padding:18px 14px;border:1px solid rgba(255,255,255,.06)}
+.scard .kick{font-size:8.5px;font-weight:800;letter-spacing:1.4px;color:var(--ember)}
+.scard .big{font-size:16px;font-weight:800;text-align:center;margin-top:10px;line-height:1.15}
+.scard .mtr{width:100%;margin-top:14px}
+.scard .m1{display:flex;justify-content:space-between;font-size:9px;font-weight:700;margin-bottom:3px}
+.scard .gg{height:9px;border-radius:6px;background:#1c1730;overflow:hidden}
+.scard .gf{height:100%;border-radius:6px;background:linear-gradient(90deg,#F2A33C,#FF7A3E)}
+.scard .gf.b{background:linear-gradient(90deg,#4a5db0,#3a4a90)}
+.scard .cta2{margin-top:auto;background:linear-gradient(90deg,#F2A33C,#FF7A3E);color:#2a1400;font-weight:800;font-size:10px;border-radius:999px;padding:8px 16px}
+.scard .foot{font-size:8px;color:#a99cbd;margin-top:10px}
+/* result */
+.burst{text-align:center;padding-top:12px}
+.burst .fl{width:56px;height:56px;margin:0 auto;filter:drop-shadow(0 0 20px rgba(255,120,50,.5))}
+.burst .won{font-size:22px;font-weight:800;margin-top:8px}
+.burst .place{font-size:11px;color:#FFD27A;font-weight:700;margin-top:2px}
+.rew{display:flex;align-items:center;gap:9px;background:#141020;border:1px solid #221a34;border-radius:10px;padding:9px 10px;margin-top:8px}
+.rew .ri{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none}
+.rew .rt{flex:1;font-size:10.5px;font-weight:700}
+.rew .rr{font-size:7.5px;font-weight:800;letter-spacing:.5px;color:#FFC14D}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD27A"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#E4632A"/></linearGradient>
+  <linearGradient id="myth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E9B8FF"/><stop offset="1" stop-color="#9A46E0"/></linearGradient>
+  <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset=".5" stop-color="#F5C542"/><stop offset="1" stop-color="#C79A16"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 113 — Challenge system v2</h1>
+<p class="intro">The upgraded challenge pipeline: richer create (real metrics · member ticker · custom dates · public names · an AI custom-goal tier), photo posts + a watch share card during the race, and the post-challenge reward screens with the algorithm applied.</p>
+
+<!-- ============ CREATE ============ -->
+<h2>1 · Create — richer setup</h2>
+<div class="grid">
+
+  <!-- main create -->
+  <div class="cell"><div class="mini"><div class="ms">
+    <div class="sb"><span>9:41</span><span>📶</span></div>
+    <div class="hd"><span class="ti">Start a challenge</span><div class="sp"></div><span class="bk">✕</span></div>
+    <div class="bd">
+      <div class="lbl">NAME · public</div><div class="inp f">Morning grind 💪</div>
+      <div class="lbl">TYPE</div><div class="chips"><span class="chip on">⚡ Duel</span><span class="chip">👥 Group</span></div>
+      <div class="lbl">THE RACE</div>
+      <div class="chips"><span class="chip on">⏱ Lock-in time</span><span class="chip">🏋 Volume</span><span class="chip">🏃 Distance</span><span class="chip prem">✨ Custom goal</span></div>
+      <div class="lbl">WHO</div><div class="inp" style="display:flex;align-items:center;gap:6px"><span style="color:#FFF6EC">＋ Add people</span><span style="margin-left:auto;color:#8f83a8">2 selected</span></div>
+      <div class="lbl">WHEN</div><div class="inp" style="display:flex;align-items:center;gap:6px"><span style="color:#FFF6EC">1 week</span><span style="margin-left:auto;color:#8f83a8">📅</span></div>
+      <div class="cta">⚡ Send challenge</div>
+    </div>
+  </div></div><div class="cap"><b>Create.</b> Public <b>name</b> · type · <b>real metrics</b> (dropped XP/time dup) · Custom goal (✨ AI) · add people · when.</div></div>
+
+  <!-- member ticker -->
+  <div class="cell"><div class="mini"><div class="ms">
+    <div class="sb"><span>9:41</span><span>📶</span></div>
+    <div class="hd"><span class="bk">‹</span><span class="ti">Add people</span></div>
+    <div class="bd">
+      <div class="inp" style="margin-top:8px">🔍 Search the campfire</div>
+      <div class="row"><div class="av"><img src="https://i.pravatar.cc/50?img=45"></div><div><div class="nm">Maya Chen</div><div class="sub">Gold II</div></div><div class="tgl on" style="margin-left:auto"></div></div>
+      <div class="row"><div class="av" style="background:#A855F7">J</div><div><div class="nm">Jordan L.</div><div class="sub">Bronze III</div></div><div class="tgl on" style="margin-left:auto"></div></div>
+      <div class="row"><div class="av"><img src="https://i.pravatar.cc/50?img=32"></div><div><div class="nm">Alex Rivera</div><div class="sub">Silver I</div></div><div class="tgl off" style="margin-left:auto"></div></div>
+      <div style="font-size:8.5px;color:#8f83a8;margin-top:10px;line-height:1.4">Selected people get an invite → they accept → <b style="color:#c8bcdd">admin starts</b> the challenge.</div>
+      <div class="cta">Invite 2 people</div>
+    </div>
+  </div></div><div class="cap"><b>Member ticker.</b> Pick who's in (not whole campfire). Invitees accept; admin starts.</div></div>
+
+  <!-- custom time + calendar -->
+  <div class="cell"><div class="mini"><div class="ms">
+    <div class="sb"><span>9:41</span><span>📶</span></div>
+    <div class="hd"><span class="bk">‹</span><span class="ti">Duration</span></div>
+    <div class="bd">
+      <div class="lbl">QUICK</div>
+      <div class="chips"><span class="chip">1 day</span><span class="chip">1 week</span><span class="chip">1 month</span><span class="chip on">📅 Custom</span></div>
+      <div class="lbl">PICK START &amp; END</div>
+      <div class="cal">
+        <div class="calh"><span>‹</span><span>September 2026</span><span>›</span></div>
+        <div class="calg">
+          <div class="cd dow">S</div><div class="cd dow">M</div><div class="cd dow">T</div><div class="cd dow">W</div><div class="cd dow">T</div><div class="cd dow">F</div><div class="cd dow">S</div>
+          <div class="cd mut">31</div><div class="cd">1</div><div class="cd">2</div><div class="cd">3</div><div class="cd">4</div><div class="cd">5</div><div class="cd">6</div>
+          <div class="cd">7</div><div class="cd s">8</div><div class="cd rng">9</div><div class="cd rng">10</div><div class="cd rng">11</div><div class="cd rng">12</div><div class="cd rng">13</div>
+          <div class="cd rng">14</div><div class="cd rng">15</div><div class="cd rng">16</div><div class="cd rng">17</div><div class="cd rng">18</div><div class="cd rng">19</div><div class="cd rng">20</div>
+          <div class="cd rng">21</div><div class="cd e">22</div><div class="cd">23</div><div class="cd">24</div><div class="cd">25</div><div class="cd">26</div><div class="cd">27</div>
+        </div>
+      </div>
+      <div style="font-size:9px;color:#c8bcdd;text-align:center;margin-top:10px;font-weight:700">Sep 8 → Sep 22 · 2 weeks</div>
+      <div style="font-size:8px;color:#8f83a8;text-align:center;margin-top:4px">Whole semester? Just span it. Presets auto-adjust D/M/Y.</div>
+      <div class="cta">Set duration</div>
+    </div>
+  </div></div><div class="cap"><b>Custom time.</b> 1d/1w/1mo or a <b>calendar</b> for arbitrary spans (semester, month, 3 months).</div></div>
+
+  <!-- AI custom goal -->
+  <div class="cell"><div class="mini"><div class="ms">
+    <div class="sb"><span>9:41</span><span>📶</span></div>
+    <div class="hd"><span class="bk">‹</span><span class="ti" style="font-size:14px">✨ Custom goal</span><div class="sp"></div><span class="chip prem on" style="font-size:7px;padding:3px 7px">PREMIUM</span></div>
+    <div class="bd">
+      <div class="lbl">DESCRIBE THE GOAL</div><div class="inp f" style="min-height:40px">First to reach a 225 lb bench press</div>
+      <div class="aicard">
+        <div class="ah"><svg viewBox="0 0 24 24" width="12" fill="url(#myth)"><path d="M12 2l2 5 5 1-3.5 3.5L16 17l-4-2.4L8 17l.5-5.5L5 8l5-1z"/></svg>PHILOI AI PARSED IT</div>
+        <div class="airow"><span class="k">Tracks</span><span class="v">Bench press · 1-rep max</span></div>
+        <div class="airow"><span class="k">Source</span><span class="v">You log sets (+ photo proof)</span></div>
+        <div class="airow"><span class="k">Win when</span><span class="v">First to 225 lb</span></div>
+        <div class="airow"><span class="k">Checkpoints</span><span class="v">Weekly PR check-in</span></div>
+      </div>
+      <div style="font-size:8px;color:#8f83a8;margin-top:8px;line-height:1.4">AI turns a fuzzy goal into something trackable — logs, checkpoints, proof. You can tweak any line.</div>
+      <div class="cta prem">✨ Use this goal</div>
+    </div>
+  </div></div><div class="cap"><b>AI custom goal (premium).</b> Sonnet parses "225 lb bench" → a trackable definition (metric · source · win · checkpoints).</div></div>
+
+  <!-- public name + milestone tie -->
+  <div class="cell"><div class="mini"><div class="ms">
+    <div class="sb"><span>9:41</span><span>📶</span></div>
+    <div class="hd"><span class="bk">‹</span><span class="ti" style="font-size:14px">Named challenge</span></div>
+    <div class="bd">
+      <div class="lbl">NAME · public</div><div class="inp f">BU111 grade 📊</div>
+      <div class="aicard" style="background:linear-gradient(160deg,rgba(242,163,60,.12),rgba(228,99,42,.05));border-color:rgba(242,163,60,.35)">
+        <div class="ah" style="color:#FFB84D"><svg viewBox="0 0 24 24" width="12" fill="url(#e)"><path d="M12 2c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg>OUTCOME IS SELF-REPORTED</div>
+        <div class="airow"><span class="k">Race metric</span><span class="v">⏱ Lock-in time</span></div>
+        <div class="airow"><span class="k">Payoff</span><span class="v">Grade → milestone</span></div>
+        <div class="airow"><span class="k">Reward</span><span class="v">Effort only (no XP for grade)</span></div>
+      </div>
+      <div style="font-size:8px;color:#8f83a8;margin-top:8px;line-height:1.45">A grade can't be tracked live — so you <b style="color:#c8bcdd">race on the effort (lock-in time)</b>, then announce the result as a <b style="color:#c8bcdd">milestone</b> at the end. Firewalled: the grade earns no XP.</div>
+      <div class="cta">Create challenge</div>
+    </div>
+  </div></div><div class="cap"><b>Public name + milestone tie.</b> "BU111 grade" races on effort; the grade is announced as a self-reported milestone (no XP).</div></div>
+
+</div>
+
+<!-- ============ INTRA ============ -->
+<h2>2 · During the race — photos + share</h2>
+<div class="grid">
+
+  <!-- photo nudge -->
+  <div class="cell"><div class="mini"><div class="ms">
+    <div class="sb"><span>9:41</span><span>📶</span></div>
+    <div style="filter:brightness(.5);flex:1"></div>
+    <div class="dim"></div>
+    <div class="sheet">
+      <div class="grip"></div>
+      <div style="font-size:14px;font-weight:800;text-align:center">Post a photo or clip?</div>
+      <div style="font-size:9.5px;color:#c8bcdd;text-align:center;margin-top:5px;padding:0 8px;line-height:1.5">You just locked in on <b style="color:var(--ember)">Morning grind</b>. Drop a pic or a short video so the others can see you putting in work.</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <div style="flex:1;height:104px;border-radius:11px;background:linear-gradient(135deg,#3a2b12,#1a1226);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;border:1px solid #2a2140;color:#e7ddf5;font-size:10px;font-weight:700"><svg viewBox="0 0 24 24" width="24" fill="none" stroke="var(--ember)" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="3"/><circle cx="12" cy="12.5" r="3.2"/><path d="M8 6l1.5-2h5L16 6"/></svg>Photo</div>
+        <div style="flex:1;height:104px;border-radius:11px;background:linear-gradient(135deg,#12283a,#1a1226);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;border:1px solid #2a2140;color:#e7ddf5;font-size:10px;font-weight:700"><svg viewBox="0 0 24 24" width="24" fill="none" stroke="#6BA8FF" stroke-width="1.8"><rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="M16 10l5-3v10l-5-3z"/></svg>Video · ≤30s</div>
+      </div>
+      <div class="cta" style="margin:12px 0 6px">Post to challenge</div>
+      <div style="text-align:center;font-size:9px;color:#8f83a8;font-weight:600">Skip</div>
+    </div>
+  </div></div><div class="cap"><b>Photo / video nudge.</b> After a challenge-tied lock-in: post a pic or a ≤30s clip. Feeds the watch + the cheer loop.</div></div>
+
+  <!-- watch with photos -->
+  <div class="cell"><div class="mini"><div class="ms">
+    <div class="sb"><span>9:41</span><span>📶</span></div>
+    <div class="hd"><span class="bk">‹</span><span class="ti">Morning grind</span></div>
+    <div style="text-align:center;margin-bottom:4px"><span style="font-size:8px;font-weight:700;background:rgba(36,26,46,.7);border:1px solid #2a2140;border-radius:999px;padding:3px 9px"><span style="color:var(--ember)">🏋 Volume</span> · <span style="color:#7fe0a0">live</span> · 6h left</span></div>
+    <div class="bd" style="overflow-y:auto">
+      <div class="wp"><div class="im" style="position:relative;padding:0;overflow:hidden"><img src="https://picsum.photos/seed/benchpr/240/120" style="width:100%;height:100%;object-fit:cover" alt=""><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.35))"></div><div style="position:absolute;inset:0;display:grid;place-items:center"><div style="width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.55);display:grid;place-items:center"><svg viewBox="0 0 24 24" width="15" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div></div><span style="position:absolute;bottom:5px;right:6px;font-size:7px;background:rgba(0,0,0,.6);padding:2px 5px;border-radius:4px;color:#fff">0:18</span></div><div class="cap2"><span class="av"><img src="https://i.pravatar.cc/40?img=45"></span><span class="t">Maya · 15.2k lb</span><span class="ch"><svg viewBox="0 0 24 24"><path d="M12 21l-1.5-1.4C5.4 15 2 12 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.5-3.4 6.5-8.5 11.1z"/></svg>6</span></div></div>
+      <div class="wp"><div class="im">📷 your PR · 18,400</div><div class="cap2"><span class="av"><img src="https://i.pravatar.cc/40?img=13"></span><span class="t" style="color:var(--ember)">You · 18.4k lb 👑</span><span class="ch"><svg viewBox="0 0 24 24"><path d="M12 21l-1.5-1.4C5.4 15 2 12 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.5-3.4 6.5-8.5 11.1z"/></svg>4</span></div></div>
+    </div>
+  </div></div><div class="cap"><b>Watch w/ media.</b> Challenge photos + video clips make it a battle worth watching — each is cheerable.</div></div>
+
+  <!-- share card -->
+  <div class="cell">
+    <div class="scard">
+      <div class="kick">WATCH THE BATTLE · PHILOI</div>
+      <div class="big">Morning grind 💪<br><span style="font-size:10px;color:#c8bcdd;font-weight:600">Me vs Maya · 6h left</span></div>
+      <div class="mtr"><div class="m1"><span style="color:var(--ember)">You</span><span>18.4k</span></div><div class="gg"><div class="gf" style="width:100%"></div></div></div>
+      <div class="mtr" style="margin-top:9px"><div class="m1"><span style="color:#6BA8FF">Maya</span><span>15.2k</span></div><div class="gg"><div class="gf b" style="width:82%"></div></div></div>
+      <div style="font-size:9px;color:#c8bcdd;text-align:center;margin-top:14px">Come cheer us on 👀</div>
+      <div class="cta2">philoi.app/w/GOAT-9F</div>
+      <div class="foot">🔥 philoi</div>
+    </div>
+    <div class="cap"><b>Watch share card.</b> "Come cheer on my battle" — story card w/ the live race + a watch link. Pulls friends in to cheer.</div>
+  </div>
+
+</div>
+
+<!-- ============ POST ============ -->
+<h2>3 · Post-challenge — results + rewards (algorithm applied)</h2>
+<div class="grid">
+
+  <!-- duel win result -->
+  <div class="cell"><div class="mini"><div class="ms">
+    <div class="sb"><span>9:41</span><span>📶</span></div>
+    <div class="hd"><span class="sp"></span><span class="bk">✕</span></div>
+    <div class="bd">
+      <div class="burst">
+        <svg class="fl" viewBox="0 0 24 24" fill="url(#e)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg>
+        <div class="won">You won! 🏆</div>
+        <div class="place">Morning grind · beat Maya by 3,200 lb</div>
+      </div>
+      <div style="font-size:8px;font-weight:800;letter-spacing:.5px;color:#9f92b6;margin:14px 0 2px">REWARDS · effort-scaled, capped</div>
+      <div class="rew"><div class="ri" style="background:rgba(242,163,60,.16)">⚡</div><div class="rt">Winner XP</div><div class="rr">+200</div></div>
+      <div class="rew"><div class="ri" style="background:rgba(242,163,60,.16)"><svg viewBox="0 0 24 24" width="15" fill="url(#e)"><path d="M12 2c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div><div class="rt">Embers</div><div class="rr">+35</div></div>
+      <div class="rew"><div class="ri" style="background:rgba(199,120,255,.16)">🎁</div><div class="rt">Rare box · tap to open</div><div class="rr">RARE</div></div>
+      <div class="cta">Share the W ↗</div>
+    </div>
+  </div></div><div class="cap"><b>Duel result.</b> Winner arc — algorithm output (XP + embers + box). Loser gets a rematch, no penalty.</div></div>
+
+  <!-- group goal complete -->
+  <div class="cell"><div class="mini"><div class="ms">
+    <div class="sb"><span>9:41</span><span>📶</span></div>
+    <div class="hd"><span class="sp"></span><span class="bk">✕</span></div>
+    <div class="bd">
+      <div class="burst">
+        <svg class="fl" viewBox="0 0 24 24" fill="url(#e)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg>
+        <div class="won" style="font-size:19px">Goal crushed! 🔥</div>
+        <div class="place">Everyone locked in 4× · the whole house did it</div>
+      </div>
+      <div style="font-size:8px;font-weight:800;letter-spacing:.5px;color:#9f92b6;margin:14px 0 2px">EVERYONE EARNS</div>
+      <div class="rew"><div class="ri" style="background:rgba(242,163,60,.16)"><svg viewBox="0 0 24 24" width="15" fill="url(#e)"><path d="M12 2c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 .5-2-1-4 1-8z"/></svg></div><div class="rt">Embers</div><div class="rr">+80</div></div>
+      <div class="rew"><div class="ri" style="background:rgba(255,180,60,.16)">🏅</div><div class="rt">"House That Locked In" badge</div><div class="rr">EARNED</div></div>
+      <div style="display:flex;margin-top:10px;justify-content:center"><div class="av" style="width:26px;height:26px;border-radius:50%;margin-left:-4px;border:2px solid #140f1e;overflow:hidden"><img src="https://i.pravatar.cc/40?img=13" style="width:100%;height:100%"></div><div class="av" style="width:26px;height:26px;border-radius:50%;margin-left:-4px;border:2px solid #140f1e;overflow:hidden"><img src="https://i.pravatar.cc/40?img=45" style="width:100%;height:100%"></div><div class="av" style="width:26px;height:26px;border-radius:50%;margin-left:-4px;border:2px solid #140f1e;background:#A855F7;display:grid;place-items:center;font-size:9px;font-weight:800;color:#fff">J</div></div>
+      <div class="cta">Share the win ↗</div>
+    </div>
+  </div></div><div class="cap"><b>Group goal result.</b> Whole-house win → everyone earns embers + a shared badge (per CHALLENGE_REWARD_ALGO).</div></div>
+
+  <!-- named-challenge / milestone result -->
+  <div class="cell"><div class="mini"><div class="ms">
+    <div class="sb"><span>9:41</span><span>📶</span></div>
+    <div class="hd"><span class="sp"></span><span class="bk">✕</span></div>
+    <div class="bd">
+      <div class="burst">
+        <svg class="fl" viewBox="0 0 24 24" fill="url(#e)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></svg>
+        <div class="won" style="font-size:18px">Challenge done</div>
+        <div class="place">BU111 grade · you logged the most hours</div>
+      </div>
+      <div style="font-size:8px;font-weight:800;letter-spacing:.5px;color:#9f92b6;margin:14px 0 2px">EFFORT REWARD</div>
+      <div class="rew"><div class="ri" style="background:rgba(242,163,60,.16)">⚡</div><div class="rt">Winner XP + embers</div><div class="rr">+ADAPT</div></div>
+      <div style="background:#141020;border:1px solid rgba(242,163,60,.3);border-radius:10px;padding:10px;margin-top:9px">
+        <div style="font-size:9px;color:#FFB84D;font-weight:800;margin-bottom:4px">📊 ANNOUNCE YOUR RESULT?</div>
+        <div style="font-size:9px;color:#c8bcdd;line-height:1.45">Post your BU111 grade as a milestone — no XP, just the flex. "88% · backed by 41h locked in."</div>
+      </div>
+      <div class="cta">＋ Post grade milestone</div>
+    </div>
+  </div></div><div class="cap"><b>Named/milestone result.</b> Effort reward for the race + optional self-reported grade → milestone (firewalled).</div></div>
+
+</div>

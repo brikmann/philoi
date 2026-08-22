@@ -1,0 +1,141 @@
+<meta charset="utf-8">
+<title>Mock 108 — Discipline Relics (per lock-in type)</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif;--ember:#F2A33C}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:30px;display:flex;flex-direction:column;align-items:center;gap:6px}
+h1{font-size:19px;margin:0;text-align:center}
+.sub{font-size:12.5px;color:#9f92b6;max-width:760px;text-align:center;line-height:1.55;margin:0 auto 6px}
+.note{max-width:760px;font-size:11.5px;color:#c8bcdd;background:#161320;border:1px solid #241c38;border-radius:14px;padding:12px 16px;line-height:1.6;margin:6px 0 18px}
+.note b{color:var(--ember)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:760px;width:100%}
+.relic{background:#141020;border:1px solid #241c38;border-radius:16px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden}
+.tile{width:78px;height:78px;border-radius:16px;display:grid;place-items:center;position:relative;margin-bottom:12px;border:1px solid rgba(255,255,255,.06)}
+.tile .glow{position:absolute;inset:0}
+.tile svg{width:46px;height:46px;position:relative;z-index:2}
+.leg .glow{background:radial-gradient(65% 65% at 50% 40%,rgba(255,180,60,.34),transparent 70%)}
+.leg{border-color:rgba(255,180,60,.4)}
+.myth .glow{background:radial-gradient(65% 65% at 50% 40%,rgba(199,120,255,.4),transparent 70%)}
+.myth{border-color:rgba(199,120,255,.45)}
+.name{font-size:14.5px;font-weight:800}
+.chip{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:11.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#2a1400;background:linear-gradient(90deg,#F2A33C,#FF7A3E);border-radius:999px;padding:5px 13px}
+.chip svg{width:13px;height:13px}
+.chip .sub{font-size:8px;font-weight:700;letter-spacing:.3px;text-transform:none;color:#5a3410}
+.earn{font-size:10.5px;color:var(--ember);font-weight:700;margin-top:8px}
+.rr{font-size:8px;font-weight:800;letter-spacing:.8px;margin-top:6px}
+.rr.leg{color:#FFC14D;background:none;border:0}
+.rr.myth{color:#d7a6ff}
+.lore{font-size:10.5px;color:#8f83a8;line-height:1.45;margin-top:9px;font-style:italic}
+/* capstone banner */
+.capstone{max-width:760px;width:100%;margin-top:18px;background:linear-gradient(90deg,rgba(199,120,255,.12),rgba(242,163,60,.08));border:1px solid rgba(199,120,255,.4);border-radius:16px;padding:16px 18px;display:flex;align-items:center;gap:16px}
+.capstone .tile{margin:0;flex:none}
+.capstone .ct{flex:1}
+.capstone .cn{font-size:16px;font-weight:800}
+.capstone .cl{font-size:11.5px;color:#c8bcdd;line-height:1.5;margin-top:4px;font-style:italic}
+.capstone .ce{font-size:11px;color:#d7a6ff;font-weight:700;margin-top:6px}
+.foot{max-width:760px;font-size:11px;color:#a99cbd;line-height:1.5;margin-top:16px;text-align:center}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset=".5" stop-color="#F5C542"/><stop offset="1" stop-color="#C79A16"/></linearGradient>
+  <linearGradient id="myth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E9B8FF"/><stop offset="1" stop-color="#9A46E0"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 108 — Discipline Relics</h1>
+<p class="sub">One earned, showcase relic per lock-in type — the reward for going deep in a single discipline. Ipsative: pure effort-hours, never an outcome. Non-equippable; lives in the Trophy Hall alongside the §4a relics.</p>
+
+<div class="note"><b>Earned, never sold or rolled.</b> Each maps 1:1 to an app lock-in category and unlocks at an <b>activity-appropriate milestone</b> — hours where hours make sense, <b>volume</b> for lifting, <b>distance</b> for running (thresholds tunable). Earn all seven → the Mythic capstone.</div>
+
+<div class="grid">
+
+  <!-- Socrates' Scroll · Study -->
+  <div class="relic"><div class="tile leg"><div class="glow"></div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="1.6"><path d="M6 4h10a2 2 0 0 1 2 2v12"/><path d="M6 4a2 2 0 0 0-2 2v1h4"/><path d="M8 7v11a2 2 0 0 0 2 2h8a2 2 0 0 1-2-2"/><path d="M11 11h5M11 14h5"/></svg></div>
+    <div class="name">Socrates' Scroll</div>
+    <div class="chip"><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M4 5h11l3 2v12H5a1 1 0 0 1-1-1z"/></svg>Study</div>
+    <div class="earn">100h studied</div>
+    <div class="lore">"The unexamined hour isn't worth logging. You examined this one."</div>
+    <div class="rr leg">LEGENDARY</div>
+  </div>
+
+  <!-- Hercules' Might · Gym -->
+  <div class="relic"><div class="tile leg"><div class="glow"></div>
+    <svg viewBox="0 0 24 24" fill="url(#gold)"><rect x="1.5" y="8.5" width="3" height="7" rx="1.2"/><rect x="4.5" y="6.5" width="2.6" height="11" rx="1.1"/><rect x="16.9" y="6.5" width="2.6" height="11" rx="1.1"/><rect x="19.5" y="8.5" width="3" height="7" rx="1.2"/><rect x="7" y="10.6" width="10" height="2.8" rx="1"/></svg></div>
+    <div class="name">Hercules' Might</div>
+    <div class="chip"><svg viewBox="0 0 24 24" fill="#2a1400"><rect x="2" y="9" width="2.5" height="6" rx="1"/><rect x="19.5" y="9" width="2.5" height="6" rx="1"/><rect x="5" y="10.5" width="14" height="3" rx="1"/></svg>Gym</div>
+    <div class="earn">100,000 lbs lifted · volume</div>
+    <div class="lore">"Twelve labours. You're somewhere past the seventh — and it shows."</div>
+    <div class="rr leg">LEGENDARY</div>
+  </div>
+
+  <!-- Pheidippides' Sandals · Run -->
+  <div class="relic"><div class="tile leg"><div class="glow"></div>
+    <svg viewBox="0 0 24 24"><path d="M4 17.5c0-1.7 1.3-2.8 3.2-2.8h6.3l4.5 3.2c.6.4.3 1.4-.5 1.4H7.2C5.4 19.3 4 18.4 4 17.5z" fill="url(#gold)"/><path d="M8 15v-2.2M11 15l.3-2.6M14 15.4l.4-2.4" stroke="#2a1400" stroke-width="1.2" stroke-linecap="round"/><path d="M13 10.5c2.4-1.4 4.8-1.6 7.2-.6-1.6 1.6-3.9 2.2-6.2 1.7" fill="url(#gold)" opacity=".9"/><path d="M15 10.2c1.2-.4 2.4-.4 3.6 0M14.5 11.5c1.3-.2 2.5-.1 3.7.3" stroke="#2a1400" stroke-width=".7" opacity=".5" fill="none"/></svg></div>
+    <div class="name">Pheidippides' Sandals</div>
+    <div class="chip"><svg viewBox="0 0 24 24" fill="#2a1400"><path d="M4 16c0-1.4 1-2.2 2.6-2.2H12l3.6 2.6c.5.4.2 1.2-.4 1.2H6.6C5.1 17.6 4 16.8 4 16z"/></svg>Run</div>
+    <div class="earn">414 km run</div>
+    <div class="lore">"He ran to Sparta and back — 414 km — to call for help. You've matched every step."</div>
+    <div class="rr leg">LEGENDARY</div>
+  </div>
+
+  <!-- Calliope's Ink · Read -->
+  <div class="relic"><div class="tile leg"><div class="glow"></div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="1.6" stroke-linecap="round"><path d="M4 20c3-1 5-3 8-8s5-7 8-8c-1 3-2 8-6 12s-7 4-10 4z"/><path d="M4 20l4-4"/></svg></div>
+    <div class="name">Calliope's Ink</div>
+    <div class="chip"><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M5 4h10l4 4v12H5z"/></svg>Read</div>
+    <div class="earn">100h read</div>
+    <div class="lore">"Every page a mile the mind walked. The muse of epics kept the count."</div>
+    <div class="rr leg">LEGENDARY</div>
+  </div>
+
+  <!-- Daedalus' Blueprint · Deep Work -->
+  <div class="relic"><div class="tile leg"><div class="glow"></div>
+    <svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2" fill="none" stroke="url(#gold)" stroke-width="1.5"/><path d="M3.5 8.5h17M3.5 13h17M8.5 3.5v17M13.5 3.5v17" stroke="url(#gold)" stroke-width=".7" opacity=".4"/><path d="M6 17l4-6 4 3 4-6" fill="none" stroke="url(#gold)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="name">Daedalus' Blueprint</div>
+    <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="#2a1400" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v16M4 9h16"/></svg>Deep Work</div>
+    <div class="earn">100h of deep work</div>
+    <div class="lore">"The labyrinth wasn't built in a day. Neither is whatever you're shipping."</div>
+    <div class="rr leg">LEGENDARY</div>
+  </div>
+
+  <!-- Oracle's Stillness · Meditate -->
+  <div class="relic"><div class="tile leg"><div class="glow"></div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="1.6"><circle cx="12" cy="12" r="2.5" fill="url(#gold)"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="9.5" opacity=".55"/></svg></div>
+    <div class="name">Oracle's Stillness</div>
+    <div class="chip"><svg viewBox="0 0 24 24" fill="url(#gold)"><circle cx="12" cy="12" r="5"/></svg>Meditate</div>
+    <div class="earn">100h still</div>
+    <div class="lore">"The Oracle of Delphi spoke only in the quiet. You've kept a great deal of it."</div>
+    <div class="rr leg">LEGENDARY</div>
+  </div>
+
+  <!-- Orpheus' Lyre · Create (art · music · writing) -->
+  <div class="relic"><div class="tile leg"><div class="glow"></div>
+    <svg viewBox="0 0 24 24"><path d="M6.5 19c-2.6-4-2.6-10.5.8-15.5M17.5 19c2.6-4 2.6-10.5-.8-15.5" fill="none" stroke="url(#gold)" stroke-width="1.7" stroke-linecap="round"/><path d="M7.3 4.2c3.1-1.4 6.3-1.4 9.4 0" fill="none" stroke="url(#gold)" stroke-width="1.7" stroke-linecap="round"/><path d="M9.7 5.4v12.3M12 5.6v12.3M14.3 5.4v12.3" stroke="url(#gold)" stroke-width="1" opacity=".65"/><path d="M6.5 19h11" stroke="url(#gold)" stroke-width="1.7" stroke-linecap="round"/></svg></div>
+    <div class="name">Orpheus' Lyre</div>
+    <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="#2a1400" stroke-width="2" stroke-linecap="round"><path d="M7 5c-2 4-2 10 0 14M17 5c2 4 2 10 0 14"/><path d="M7 5h10"/></svg>Create<span class="sub">art · music · writing</span></div>
+    <div class="earn">100h creating</div>
+    <div class="lore">"He played until the stones wept. You just keep showing up to make something."</div>
+    <div class="rr leg">LEGENDARY</div>
+  </div>
+
+  <!-- empty slot hint -->
+  <div class="relic" style="opacity:.5;justify-content:center">
+    <div class="tile" style="border-style:dashed;border-color:#3a3350"><svg viewBox="0 0 24 24" fill="none" stroke="#6f6488" stroke-width="1.6"><path d="M12 6v12M6 12h12"/></svg></div>
+    <div class="name" style="color:#8f83a8">New lock-in type</div>
+    <div class="lore">Any activity added later gets its own Greek relic (e.g. language → Hermes' Tongue).</div>
+  </div>
+
+</div>
+
+<!-- Mythic capstone -->
+<div class="capstone">
+  <div class="tile myth"><div class="glow"></div>
+    <svg viewBox="0 0 24 24" fill="url(#myth)"><path d="M4 18h16l-2-8-4 3-2-6-2 6-4-3z"/><rect x="4" y="18" width="16" height="2.5" rx="1"/></svg></div>
+  <div class="ct">
+    <div class="cn">Crown of Olympus <span style="font-size:9px;font-weight:800;color:#d7a6ff;letter-spacing:1px">· MYTHIC</span></div>
+    <div class="cl">"Master of no single art, but of the discipline beneath all of them. Olympus has a seat for that."</div>
+    <div class="ce">Earn every Discipline Relic</div>
+  </div>
+</div>
+
+<div class="foot">Surfaces in the <b style="color:#e7ddf5">Trophy Hall</b> (mock 107, §4 relics group) and the Collection · earned-only, non-equippable. Hour thresholds are placeholders — tune per activity (a study hour ≠ a gym hour).</div>

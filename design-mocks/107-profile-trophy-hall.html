@@ -90,6 +90,18 @@ h1{font-size:19px;margin:0;text-align:center}
 .resume .v{font-size:12.5px;font-weight:800;margin-top:2px}
 .resume .m{font-size:10px;color:#c79bec;margin-top:2px;display:flex;align-items:center;gap:4px}
 .autolbl{font-size:9px;color:#8a7fa6;margin-bottom:6px;letter-spacing:.4px;font-weight:700}
+/* discipline relics shelf */
+.discp{display:flex;gap:9px;overflow-x:auto;padding-bottom:2px}
+.discp::-webkit-scrollbar{height:0}
+.dtile{flex:none;width:54px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.dt{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;position:relative;background:#141020;border:1px solid #241c38}
+.dt svg{width:27px;height:27px}
+.dtile.earned .dt{border-color:rgba(255,180,60,.5);background:radial-gradient(65% 65% at 50% 38%,rgba(255,180,60,.22),#141020 75%)}
+.dtile.cap.earned .dt,.dtile.cap .dt{border-color:rgba(199,120,255,.45)}
+.dtile.locked .dt svg{opacity:.26}
+.dt .pct{position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);font-size:7.5px;font-weight:800;color:#9f92b6;background:#1a1426;border:1px solid #2a2140;border-radius:6px;padding:0 4px}
+.dl{font-size:8px;color:#8a7fa6;text-align:center;line-height:1.15}
+.dtile.earned .dl{color:#FFD27A;font-weight:700}
 .t-myth .glow{background:radial-gradient(70% 70% at 50% 38%,rgba(199,120,255,.4),transparent 70%)}
 .t-myth{border-color:rgba(199,120,255,.4)} .t-myth .rr{color:#d7a6ff}
 .t-leg .glow{background:radial-gradient(70% 70% at 50% 38%,rgba(255,180,60,.38),transparent 70%)}
@@ -327,6 +339,22 @@ h1{font-size:19px;margin:0;text-align:center}
       <div class="rec wr"><div class="n">79%</div><div class="l2">win rate</div></div>
     </div>
     <div class="autolbl" style="margin-top:8px;margin-bottom:0">“See all” → season résumés · earned relics · full badge grid · W-L history</div>
+  </div>
+
+  <!-- DISCIPLINE RELICS shelf (per lock-in type — progress + flex) -->
+  <div class="section">
+    <div class="shead"><div class="t"><svg viewBox="0 0 24 24" fill="url(#gold)"><path d="M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/></svg>Discipline Relics <span style="font-size:11px;color:#8f83a8;font-weight:700">· 3 / 7</span></div><div class="a">See all ›</div></div>
+    <div class="discp">
+      <div class="dtile earned"><div class="dt"><svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="1.6"><path d="M7 4h9a2 2 0 0 1 2 2v13H9a2 2 0 0 1-2-2z"/><path d="M7 4a2 2 0 0 0-2 2v1h3"/><path d="M11 10h5M11 13h5"/></svg></div><div class="dl">Study</div></div>
+      <div class="dtile earned"><div class="dt"><svg viewBox="0 0 24 24" fill="url(#gold)"><rect x="1.5" y="9" width="3" height="6" rx="1"/><rect x="4.5" y="7.5" width="2.4" height="9" rx="1"/><rect x="17.1" y="7.5" width="2.4" height="9" rx="1"/><rect x="19.5" y="9" width="3" height="6" rx="1"/><rect x="7" y="10.7" width="10" height="2.6" rx="1"/></svg></div><div class="dl">Gym</div></div>
+      <div class="dtile earned"><div class="dt"><svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="1.5" stroke-linecap="round"><path d="M4 20c3-1 5-3 8-8s5-7 8-8c-1 3-2 8-6 12s-7 4-10 4z"/><path d="M4 20l4-4"/></svg></div><div class="dl">Read</div></div>
+      <div class="dtile locked"><div class="dt"><svg viewBox="0 0 24 24" fill="#c8bcdd"><path d="M4 17.5c0-1.7 1.3-2.8 3.2-2.8h6.3l4.5 3.2c.6.4.3 1.4-.5 1.4H7.2C5.4 19.3 4 18.4 4 17.5z"/></svg><span class="pct">78%</span></div><div class="dl">Run</div></div>
+      <div class="dtile locked"><div class="dt"><svg viewBox="0 0 24 24" fill="none" stroke="#c8bcdd" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v16M4 9h16"/></svg><span class="pct">41%</span></div><div class="dl">Deep&nbsp;Work</div></div>
+      <div class="dtile locked"><div class="dt"><svg viewBox="0 0 24 24" fill="none" stroke="#c8bcdd" stroke-width="1.5"><circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="9.5" opacity=".5"/></svg><span class="pct">12%</span></div><div class="dl">Meditate</div></div>
+      <div class="dtile locked"><div class="dt"><svg viewBox="0 0 24 24" fill="none" stroke="#c8bcdd" stroke-width="1.5" stroke-linecap="round"><path d="M7 5c-2 4-2 10 0 14M17 5c2 4 2 10 0 14"/><path d="M7 5h10"/></svg><span class="pct">30%</span></div><div class="dl">Create</div></div>
+      <div class="dtile cap locked"><div class="dt"><svg viewBox="0 0 24 24" fill="url(#myth)"><path d="M4 18h16l-2-8-4 3-2-6-2 6-4-3z" opacity=".4"/></svg></div><div class="dl">Olympus</div></div>
+    </div>
+    <div class="autolbl" style="margin-top:9px;margin-bottom:0">Earned by depth in one discipline — hours, gym volume, run distance. Locked = live progress.</div>
   </div>
 
   <!-- LOCK-INS (kept) -->
