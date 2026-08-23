@@ -15,6 +15,16 @@ campfire flame · share cards.** One identity, app-wide.
   getting hyped with you.
 - She's the flame you've been leveling up all along — so the persona lands as attachment, not a bolted-on
   chatbot.
+- 🔴 **Two rendering rules (carry into the real build, not just mocks):**
+  1. **One flame orientation, everywhere = the logo flipped horizontally (the "Cindy flame").** 🔴 UPDATED:
+     the mirrored flame is now the **single canonical mark on every surface** — app icon, favicon, launch /
+     splash, home / done / daily-fire hero, iOS/Android ambient (Live Activity / notification), and the
+     website. This **supersedes** the earlier "app-icon keeps the original orientation" split. Flip the master
+     `FLAME_PATH` (`src/components/ui/flame-logo.tsx`) once and make sure nothing applies a *second* mirror, so
+     every flame renders the same way. See `AGENT_PROMPT_global_flame_icon.md`.
+  2. **Never render a 🔥 emoji in Cindy's UI or dialogue.** She *is* the flame — her chat avatar / name-tag is
+     the vector flame (the equipped cosmetic), never the generic emoji, and her generated message text must not
+     emit 🔥 (add "no 🔥 emoji" to her system prompt).
 
 ## Cindy's data + actions — the background mastermind
 Cindy silently aggregates **everything** about you (server-side) into a clean context, so her answers are
@@ -66,6 +76,43 @@ Two channels, tuned to context. **Where a message lands changes its tone.**
   the app would be exhausting and would make Cindy feel like a warden. Home = encouragement; the intercept =
   the protective nudge. **Same persona, different surface + tone.**
 
+## Entry points & surfacing (mock 117 — FINAL)
+How Cindy is reached, decided screen-by-screen. Every entry point is **the flame itself** — never a separate
+chatbot button.
+
+**Home**
+- The flame **is** Cindy. **Tap = text chat · hold = voice** (one hit-target, the flame; a ring appears while
+  held). No separate icon.
+- **Proactive bubble sits ABOVE the flame** (under the greeting) — data-aware, encouraging, auto-dismiss.
+- 🔴 **No attention / notification dot on the flame.** It read as surveillance ("she's watching") — removed
+  everywhere. If Cindy has something, she *says* it in the bubble; she doesn't wear a red badge.
+
+**Tap animation — ring pulse** (mock: `cindy_tap_ring_pulse`)
+- On `onPressIn`: the flame does a quick **squash → spring** (scale .9 → 1.06 → 1), and **3 ember rings ripple
+  outward**, staggered ~140 ms, each ~0.9 s expand + fade. Then navigate to chat. Reads as Cindy "waking up."
+- **Hold (voice):** the rings **pulse continuously** while held instead of firing once.
+- RN build: Reanimated `withSequence` for the bounce; `withTiming` scale+opacity on the rings. Wire into the
+  shared `PersonalFlame`/`SessionFlame` press state so it's identical wherever the flame appears.
+
+**Global — reachable from anywhere**
+- A **small header flame, top-right on every non-home screen** (Boards, Challenges, Profile, …) → opens Cindy.
+  Unobtrusive, always there.
+- ❌ **Skip the floating FAB** — it hovers over content and fights the ember minimalism.
+
+**Lock-in** (mock 117 §C — full chrome: LOCKED IN + timer, "locked in with you" strip, camera + Stop, optional flare)
+- 🔴 **Proactive line placement = ABOVE the flame, under the "Study · BU111 / Laurier Grind" header** (Option A,
+  chosen). Mirrors home; the flame + LOCKED IN label + timer stay the uninterrupted centerpiece below.
+- **Tap the flame → quick-sheet** (not full chat): *How am I doing? · Add a note to this session · Open full
+  chat*. Slides up over the camera/Stop row; screen behind dims — so a check-in never derails the session.
+- Proactive line fires **at milestones only** (30 / 60 / 90 min or a PR), auto-dismiss. Coexists with the
+  optional **flare** aura and the **"locked in with you"** body-doubles strip.
+- 🔴 **BUILD DEPENDENCY (server):** the proactive lock-in line needs a **new `lockin` `CoachSurface`.** Today
+  `CoachSurface = chat | home | intercept | reengagement` and the server hardcodes `surface='home'` — the line
+  can't route as specced without a new server-side routing block. The client tap quick-sheet is built and only
+  needs `cindy.tsx` committed. Do the surface addition before wiring the proactive line.
+- 🔴 **"Add a note to this session" = CONVERSATIONAL via Cindy** (decided). She takes the note in chat; do
+  **not** restore the in-session caption field that the §13 redesign deliberately moved to the done screen.
+
 ## Persona
 - A supportive friend embodied as the flame — encouraging, a little playful, never a taskmaster.
 - 🔴 **Safety-first (inherits `APP_BLOCKER_SPEC §C-safety`):** never shames; on distress signals leans to
@@ -99,8 +146,10 @@ After the Focus Nudge (shares the brain + the safety prompt). The home-flame-as-
 surface; the message-routing split is the key behavior.
 
 ## Mocks
-- **Mock 115** — Cindy: home speech bubble + the chat (start-a-session hook).
+- **Mock 115** — Cindy: home speech bubble + the chat (start-a-session hook). (mirrored flame, no 🔥 in dialogue)
 - **Mock 116** — the pushback channel: reinforce · wellbeing/safety · the "talk to someone" support surface.
+- **Mock 117** — entry points & surfacing (home tap/hold · header flame · lock-in Option A · tap quick-sheet);
+  `cindy_tap_ring_pulse` — the tap ring-pulse animation.
 
 ## Acceptance
 - [ ] Home flame = Cindy; proactive **encouraging** message bubble; tap → chat.
@@ -114,3 +163,8 @@ surface; the message-routing split is the key behavior.
 - [ ] Cindy reads the full data model (ranks/XP math, cosmetics + unlock conditions, milestones, notifications,
       challenges, GCal) → precise answers ("38h to Hero"); acts (add milestone, start session) with confirms +
       firewalls honored.
+- [ ] **Entry points (mock 117):** home flame tap = chat / hold = voice, proactive bubble **above** the flame,
+      **no notification dot**; **header flame** on every non-home screen (no FAB); lock-in proactive line
+      **above the flame under the header** (Option A) + tap → quick-sheet.
+- [ ] **Tap ring-pulse** animation on the shared flame press state (squash→spring + 3 staggered ember rings;
+      hold = continuous pulse).

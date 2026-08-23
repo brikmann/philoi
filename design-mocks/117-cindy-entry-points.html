@@ -1,0 +1,186 @@
+<meta charset="utf-8">
+<title>Mock 117 — Cindy entry points & surfacing</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif;--ember:#F2A33C;--ember2:#FF7A3E}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:26px 20px 60px}
+h1{font-size:20px;margin:0 0 4px;text-align:center}
+.intro{font-size:12.5px;color:#9f92b6;max-width:820px;text-align:center;line-height:1.55;margin:0 auto 8px}
+.rec{max-width:820px;font-size:11.5px;color:#c8bcdd;background:#161320;border:1px solid #241c38;border-radius:14px;padding:12px 16px;line-height:1.6;margin:8px auto 20px}
+.rec b{color:var(--ember)} .rec .y{color:#7fe0a0} .rec .n{color:#ff8f8f}
+h2{font-size:13px;font-weight:800;letter-spacing:1.2px;color:var(--ember);margin:26px 0 4px;padding-bottom:6px;border-bottom:1px solid #241c38;text-transform:uppercase}
+.grid{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin-top:14px}
+.cell{width:216px;display:flex;flex-direction:column;gap:7px}
+.cap{font-size:10.5px;color:#8a7fa6;line-height:1.45}.cap b{color:#e7ddf5}
+.tag{display:inline-block;font-size:8.5px;font-weight:800;letter-spacing:.4px;border-radius:5px;padding:2px 6px;margin-bottom:3px}
+.tag.rec{background:rgba(127,224,160,.15);color:#7fe0a0}
+.tag.alt{background:rgba(255,180,60,.14);color:#FFC14D}
+.mini{width:216px;height:430px;border-radius:26px;overflow:hidden;position:relative;background:#0e0b14;border:1px solid #241c38}
+.ms{position:absolute;inset:0;display:flex;flex-direction:column;background:radial-gradient(120% 42% at 50% 0%,#241633,#140f1e 52%,#0e0b14)}
+.sb{height:20px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:8px;color:#cbb8e0;font-weight:600}
+.top{display:flex;align-items:center;gap:6px;padding:2px 11px 4px}
+.top .t{font-size:11px;font-weight:800}.top .sp{flex:1}
+.ib{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgba(20,14,26,.55);border:1px solid rgba(255,255,255,.08);color:#c8bcdd;font-size:11px}
+/* the cindy flame */
+.flamebtn{position:relative;display:grid;place-items:center}
+.flamebtn .glow{position:absolute;border-radius:50%;background:radial-gradient(closest-side,rgba(255,120,50,.4),transparent 70%);filter:blur(5px)}
+.flamebtn svg{position:relative;filter:drop-shadow(0 0 14px rgba(255,120,50,.5))}
+.hint{font-size:9px;color:#8a7fa6;text-align:center;margin-top:8px;display:flex;align-items:center;gap:5px;justify-content:center}
+.hint b{color:var(--ember)}
+.bubble{background:#1c1430;border:1px solid rgba(242,163,60,.35);border-radius:14px 14px 14px 4px;padding:9px 11px;font-size:10.5px;line-height:1.45;color:#f0e6d8;max-width:180px}
+.bubble .who{font-size:8px;font-weight:800;color:var(--ember);margin-bottom:3px}
+.center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 16px}
+.holdring{position:absolute;width:104px;height:104px;border-radius:50%;border:3px dashed rgba(242,163,60,.6)}
+/* tab bar */
+.tabs{flex:none;display:flex;background:#120e1c;border-top:1px solid #241c38;padding:6px 0 8px}
+.tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:8px;color:#6f6488}
+.tb.on{color:var(--ember)}.tb .i{width:16px;height:16px;border-radius:50%;background:currentColor;opacity:.5}
+.tb.on .i{opacity:1}
+/* lock-in */
+.timer{font-size:34px;font-weight:800;letter-spacing:-1px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#161022;border-top:1px solid #2a2140;border-radius:16px 16px 0 0;padding:12px 12px 16px;z-index:5}
+.grip{width:28px;height:3px;border-radius:2px;background:#33294a;margin:0 auto 10px}
+.qrow{display:flex;align-items:center;gap:9px;padding:8px 4px;font-size:11px;font-weight:600}
+.qrow .qi{width:24px;height:24px;border-radius:7px;background:#1c1430;display:grid;place-items:center;font-size:12px}
+/* FAB */
+.fab{position:absolute;right:14px;bottom:70px;width:52px;height:52px;border-radius:50%;background:radial-gradient(closest-side,#3a2450,#1a1226);display:grid;place-items:center;box-shadow:0 6px 20px rgba(0,0,0,.5);z-index:6}
+</style>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset=".45" stop-color="#FF9330"/><stop offset="1" stop-color="#E23A1E"/></linearGradient>
+</defs></svg>
+<!-- Cindy flame: mirrored vs the logo mark (crest points the opposite way) --><svg width="0" height="0"><symbol id="flame" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#e)"/></g></symbol></svg>
+
+<h1>Mock 117 — How you reach Cindy</h1>
+<p class="intro">Cindy is the flame — so the entry points are all "the flame, but reachable." Options for home, a global always-there entry, and mid-lock-in. Pick a combo; my rec is marked.</p>
+<div class="rec"><b>LOCKED IN (final):</b> <span class="y">A1 + A2</span> on home (the flame, <b>tap = chat / hold = talk</b>, proactive bubble above the flame, no dot) · <span class="y">B1</span> a small <b>header flame on every screen</b> · lock-in <span class="y">Option A</span> (Cindy's line <b>above the flame, under the header</b>) + <b>tap → quick-sheet</b>. <span class="n">Skip B2</span> (floating FAB — clutters the ember minimalism).</div>
+
+<!-- ============ A · HOME ============ -->
+<h2>A · On the home screen</h2>
+<div class="grid">
+
+  <div class="cell"><span class="tag rec">✅ RECOMMENDED</span><div class="mini"><div class="ms">
+    <div class="sb"><span>3:48</span><span>📶</span></div>
+    <div class="top"><div class="ib">🔥</div><div class="t" style="font-size:9px;color:#FFB84D">S1 · 17d</div><div class="sp"></div><div class="ib">🔔</div><div class="ib">☰</div></div>
+    <div class="center">
+      <div style="font-size:13px;font-weight:800;text-align:center;margin-bottom:8px">Afternoon, Noah — time to lock in.</div>
+      <div class="bubble" style="margin-bottom:18px"><div class="who">CINDY</div>2h on Orgo already — midterm's Friday. One more block?</div>
+      <div class="flamebtn"><div class="glow" style="width:110px;height:110px"></div><svg width="88" height="110"><use href="#flame"/></svg></div>
+      <div class="hint">💬 tap <b>Cindy</b> to talk</div>
+    </div>
+    <div class="tabs"><div class="tb on"><div class="i"></div>Home</div><div class="tb"><div class="i"></div>Boards</div><div class="tb"><div class="i"></div>Chall.</div><div class="tb"><div class="i"></div>Profile</div></div>
+  </div></div><div class="cap"><b>A1 · Flame = Cindy + proactive bubble.</b> She greets you with a data-aware line when she has something worth saying. Tap the flame → chat.</div></div>
+
+  <div class="cell"><span class="tag rec">✅ RECOMMENDED</span><div class="mini"><div class="ms">
+    <div class="sb"><span>3:48</span><span>📶</span></div>
+    <div class="top"><div class="ib">🔥</div><div class="sp"></div><div class="ib">🔔</div><div class="ib">☰</div></div>
+    <div class="center">
+      <div class="flamebtn" style="margin-bottom:6px"><div class="holdring"></div><div class="glow" style="width:110px;height:110px"></div><svg width="88" height="110"><use href="#flame"/></svg></div>
+      <div style="font-size:9px;color:#8a7fa6;text-align:center;margin-top:14px;line-height:1.6"><b style="color:var(--ember)">Tap</b> → text chat<br><b style="color:var(--ember)">Hold</b> → talk to Cindy 🎙</div>
+    </div>
+    <div class="tabs"><div class="tb on"><div class="i"></div>Home</div><div class="tb"><div class="i"></div>Boards</div><div class="tb"><div class="i"></div>Chall.</div><div class="tb"><div class="i"></div>Profile</div></div>
+  </div></div><div class="cap"><b>A2 · One flame, two gestures.</b> Tap = text, <b>hold = voice</b> (ring appears while held). Keeps the hit-target the flame itself — no separate button that would say she's something other than the flame.</div></div>
+
+</div>
+
+<!-- ============ B · GLOBAL ============ -->
+<h2>B · Reachable from anywhere</h2>
+<div class="grid">
+
+  <div class="cell"><span class="tag rec">✅ RECOMMENDED</span><div class="mini"><div class="ms">
+    <div class="sb"><span>3:48</span><span>📶</span></div>
+    <div class="top"><div class="t">Leaderboards</div><div class="sp"></div><div class="flamebtn" style="width:26px;height:26px"><svg width="18" height="22"><use href="#flame"/></svg></div></div>
+    <div style="padding:12px 11px;display:flex;flex-direction:column;gap:8px">
+      <div style="background:#141020;border:1px solid #221a34;border-radius:10px;height:34px"></div>
+      <div style="background:#1e1428;border:1px solid var(--ember);border-radius:10px;height:34px"></div>
+      <div style="background:#141020;border:1px solid #221a34;border-radius:10px;height:34px"></div>
+      <div style="background:#141020;border:1px solid #221a34;border-radius:10px;height:34px"></div>
+    </div>
+    <div style="margin-top:auto"></div>
+    <div class="tabs"><div class="tb"><div class="i"></div>Home</div><div class="tb on"><div class="i"></div>Boards</div><div class="tb"><div class="i"></div>Chall.</div><div class="tb"><div class="i"></div>Profile</div></div>
+  </div></div><div class="cap"><b>B1 · Header flame, every screen.</b> A small Cindy flame lives in the top-right on non-home screens — reach her from Boards, Challenges, Profile, anywhere. Unobtrusive, always there.</div></div>
+
+  <div class="cell"><span class="tag alt">⚠ ALTERNATIVE</span><div class="mini"><div class="ms">
+    <div class="sb"><span>3:48</span><span>📶</span></div>
+    <div class="top"><div class="t">Challenges</div><div class="sp"></div><div class="ib">☰</div></div>
+    <div style="padding:12px 11px;display:flex;flex-direction:column;gap:8px">
+      <div style="background:#141020;border:1px solid #221a34;border-radius:10px;height:44px"></div>
+      <div style="background:#141020;border:1px solid #221a34;border-radius:10px;height:44px"></div>
+    </div>
+    <div class="fab"><svg width="30" height="36"><use href="#flame"/></svg></div>
+    <div class="tabs"><div class="tb"><div class="i"></div>Home</div><div class="tb"><div class="i"></div>Boards</div><div class="tb on"><div class="i"></div>Chall.</div><div class="tb"><div class="i"></div>Profile</div></div>
+  </div></div><div class="cap"><b>B2 · Floating flame (FAB).</b> A persistent flame that hovers above the tab bar on every screen. Most prominent, but it <b>floats over content</b> and fights the clean ember minimalism — hence header-flame is the better fit.</div></div>
+
+</div>
+
+<!-- ============ C · LOCK-IN ============ -->
+<style>
+.lms{background:radial-gradient(120% 58% at 50% 40%,#2a1a14,#17131f 62%)!important}
+.lhead{padding:5px 12px 0;text-align:center;position:relative;z-index:2}
+.lact{font-size:11px;font-weight:800}.lcamp{font-size:8px;color:#a99cbd;margin-top:1px}
+.lmin{position:absolute;top:3px;right:11px;color:#8a7fa6;font-size:13px}
+.lcenter{display:flex;flex-direction:column;align-items:center;gap:0;padding-top:8px;z-index:2}
+.lglow{position:absolute;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(224,97,44,.45),transparent 62%)}
+.llbl{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--ember);font-weight:800;margin-top:2px}
+.ltimer{font-size:32px;font-weight:800;font-variant-numeric:tabular-nums;text-shadow:0 0 18px rgba(242,163,60,.4);line-height:1.1}
+.cbub{margin:9px 12px 0;background:#1c1430;border:1px solid rgba(242,163,60,.35);border-radius:12px 12px 12px 4px;padding:7px 9px;font-size:9.5px;line-height:1.4;color:#f0e6d8;z-index:2}
+.cbub .who{font-size:7.5px;font-weight:800;color:var(--ember);margin-bottom:2px;display:flex;align-items:center;gap:4px}
+.cbub .who svg{width:9px;height:11px}
+.lwith{margin-top:auto;padding:6px 12px 0;z-index:2}
+.lwithl{font-size:7.5px;letter-spacing:.7px;text-transform:uppercase;color:#7c7194;display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.lwithl .gd{width:5px;height:5px;border-radius:50%;background:#3DA85C}
+.lwithrow{display:flex;gap:8px}
+.ldbl{display:flex;flex-direction:column;align-items:center;gap:2px;width:36px}
+.ldav{width:28px;height:28px;border-radius:50%;background:#3a2a22;display:grid;place-items:center;font-size:11px;color:#FFD27A;border:1.5px solid rgba(224,97,44,.5)}
+.ldt{font-size:8px;color:#a99cbd;font-variant-numeric:tabular-nums}
+.lctl{display:flex;align-items:center;gap:9px;padding:8px 12px 14px;z-index:2}
+.lcam{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);display:grid;place-items:center;flex:none;position:relative;color:#fff}
+.lcam svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
+.lcam .bdg{position:absolute;top:-3px;right:-3px;background:#E0612C;color:#fff;font-size:7.5px;font-weight:700;border-radius:999px;padding:0 4px}
+.lstop{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.13);border-radius:11px;padding:9px;text-align:center;font-size:12px;font-weight:600;color:#e7ddf5}
+.flare{position:absolute;inset:0;border-radius:26px;pointer-events:none;z-index:1;box-shadow:inset 0 0 24px rgba(124,92,255,.45),inset 0 0 5px rgba(124,92,255,.75)}
+</style>
+<h2>C · Lock-in — compare where Cindy's line goes</h2>
+<p class="intro" style="margin-bottom:2px">Same screen, same full chrome (LOCKED IN + timer, "locked in with you" strip, camera + Stop, optional flare). Two placements for her proactive line — pick one.</p>
+<div class="grid">
+
+  <div class="cell"><span class="tag rec">OPTION A</span><div class="mini"><div class="ms lms">
+    <div class="sb"><span>3:48</span><span>📶</span></div>
+    <div class="lhead"><div class="lact">Study · BU111</div><div class="lcamp">Laurier Grind</div><span class="lmin">–</span></div>
+    <div class="cbub" style="margin:8px auto 0;max-width:172px;text-align:left"><div class="who"><svg viewBox="0 0 24 24" fill="url(#e)"><use href="#flame"/></svg>CINDY</div>1 hour in — you're flying. Same energy for the last stretch.</div>
+    <div class="lcenter"><div style="position:relative;display:grid;place-items:center"><div class="lglow"></div><svg width="66" height="82" style="position:relative"><use href="#flame"/></svg></div><div class="llbl">Locked in</div><div class="ltimer">60:00</div></div>
+    <div class="lwith">
+      <div class="lwithl"><span class="gd"></span>Locked in with you</div>
+      <div class="lwithrow"><div class="ldbl"><div class="ldav">A</div><div class="ldt">08:12</div></div><div class="ldbl"><div class="ldav">M</div><div class="ldt">41:03</div></div><div class="ldbl"><div class="ldav">D</div><div class="ldt">22:47</div></div></div>
+    </div>
+    <div class="lctl"><div class="lcam"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span class="bdg">2</span></div><div class="lstop">Stop</div></div>
+  </div></div><div class="cap"><b>A · Above the flame, under "Laurier Grind."</b> Mirrors the home screen — her line greets you at the top, then the flame + LOCKED IN + timer are the uninterrupted centerpiece below. Reads as "Cindy welcoming you into the session."</div></div>
+
+  <div class="cell"><span class="tag rec">OPTION B</span><div class="mini"><div class="ms lms">
+    <div class="sb"><span>3:48</span><span>📶</span></div>
+    <div class="lhead"><div class="lact">Study · BU111</div><div class="lcamp">Laurier Grind</div><span class="lmin">–</span></div>
+    <div class="lcenter"><div style="position:relative;display:grid;place-items:center"><div class="lglow"></div><svg width="66" height="82" style="position:relative"><use href="#flame"/></svg></div><div class="llbl">Locked in</div><div class="ltimer">60:00</div></div>
+    <div class="lwith">
+      <div class="lwithl"><span class="gd"></span>Locked in with you</div>
+      <div class="lwithrow"><div class="ldbl"><div class="ldav">A</div><div class="ldt">08:12</div></div><div class="ldbl"><div class="ldav">M</div><div class="ldt">41:03</div></div><div class="ldbl"><div class="ldav">D</div><div class="ldt">22:47</div></div></div>
+    </div>
+    <div class="cbub" style="margin:9px 12px 0;max-width:none"><div class="who"><svg viewBox="0 0 24 24" fill="url(#e)"><use href="#flame"/></svg>CINDY</div>1 hour in — you're flying. Same energy for the last stretch.</div>
+    <div class="lctl"><div class="lcam"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span class="bdg">2</span></div><div class="lstop">Stop</div></div>
+  </div></div><div class="cap"><b>B · Underneath the lock-in partners.</b> Her line sits at the bottom, just below the "locked in with you" strip and above camera + Stop. Whole top half (flame, LOCKED IN, timer) stays completely clean; she reads as a quiet footer note.</div></div>
+
+  <div class="cell"><span class="tag alt">TAP · either option</span><div class="mini"><div class="ms lms">
+    <div class="flare"></div>
+    <div class="sb"><span>3:48</span><span>📶</span></div>
+    <div class="lhead" style="filter:brightness(.55)"><div class="lact">Study · BU111</div><div class="lcamp">Laurier Grind</div><span class="lmin">–</span></div>
+    <div class="lcenter" style="filter:brightness(.55)"><div style="position:relative;display:grid;place-items:center"><div class="lglow"></div><svg width="60" height="74" style="position:relative"><use href="#flame"/></svg></div><div class="llbl">Locked in</div><div class="ltimer" style="font-size:26px">60:00</div></div>
+    <div style="margin-top:auto"></div>
+    <div class="sheet" style="border-radius:16px 16px 0 0">
+      <div class="grip"></div>
+      <div class="cbub" style="margin:0 0 8px;border-radius:12px"><div class="who"><svg viewBox="0 0 24 24" fill="url(#e)"><use href="#flame"/></svg>CINDY · quick</div></div>
+      <div class="qrow"><div class="qi">📊</div>How am I doing?</div>
+      <div class="qrow"><div class="qi">📝</div>Add a note to this session</div>
+      <div class="qrow"><div class="qi">💬</div>Open full chat</div>
+    </div>
+  </div></div><div class="cap"><b>Tap the flame → quick-sheet (works with either A or B; flare shown).</b> The sheet slides up over the camera/Stop row so it never fights them; the screen behind dims. The <b>flare aura</b> (purple perimeter) is on here to show it coexists. One-tap actions only — no full chat pulling you out.</div></div>
+
+</div>
