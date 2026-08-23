@@ -14,6 +14,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from '
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
 import { heatToFlameState, type CampfireFlameState } from '@/components/campfire-flame-stage';
 import { CindyBubble } from '@/components/cindy/cindy-bubble';
+import { CindyFlamePress } from '@/components/cindy/cindy-flame-press';
 import { HeatFlame } from '@/components/heat-flame';
 import { PersonalFlame } from '@/components/personal-flame';
 import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
@@ -192,18 +193,18 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
             It is also CINDY: same flame, same cosmetic, now tappable to talk to her. The hit
             target is the flame itself rather than a separate button, because a chat entry point
             sitting NEXT to her would say she is something other than the flame. */}
-        <Pressable
-          onPress={() => router.push('/cindy')}
+        <CindyFlamePress
+          size={132}
           disabled={!cindyConsented}
-          accessibilityRole="button"
-          accessibilityLabel="Talk to Cindy">
+          onTap={() => router.push('/cindy')}
+          onHold={() => router.push('/cindy-voice')}>
           <PersonalFlame size={132} />
-        </Pressable>
+        </CindyFlamePress>
         {cindyConsented && !activeSession && (
           <Pressable onPress={() => router.push('/cindy')} hitSlop={8} style={styles.cindyHint}>
             <Ionicons name="chatbubble-ellipses-outline" size={11} color={Colors.textTertiary} />
             <Text style={styles.cindyHintText}>
-              tap <Text style={styles.cindyHintName}>Cindy</Text> to talk
+              tap <Text style={styles.cindyHintName}>Cindy</Text> to talk · hold to speak
             </Text>
           </Pressable>
         )}
