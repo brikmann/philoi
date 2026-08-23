@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -42,7 +42,12 @@ export default function CindyScreen() {
   const { session: activeSession, start, clear } = useActiveSession();
 
   const [rows, setRows] = useState<Row[]>([]);
-  const [draft, setDraft] = useState('');
+  // ?ask= prefills the composer. Used by the lock-in quick sheet, which hands off a question
+  // rather than answering inline — it does NOT auto-send: arriving in a chat that has already
+  // spoken on your behalf is disorienting, and a prefilled box is still one tap to send and
+  // editable if the canned phrasing is not quite what you meant.
+  const { ask } = useLocalSearchParams<{ ask?: string }>();
+  const [draft, setDraft] = useState(typeof ask === 'string' ? ask : '');
   const [thinking, setThinking] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -188,7 +193,7 @@ export default function CindyScreen() {
           <Ionicons name="chevron-back" size={24} color={Colors.muted} />
         </Pressable>
         <View style={styles.avatar}>
-          <EquippedFlameSvg width={20} height={24} mirrored />
+          <EquippedFlameSvg width={20} height={24} />
         </View>
         <View style={styles.headerText}>
           <Text style={styles.name}>Cindy</Text>
@@ -268,7 +273,7 @@ export default function CindyScreen() {
 function CindyOpener() {
   return (
     <View style={styles.opener}>
-      <EquippedFlameSvg width={64} height={78} mirrored />
+      <EquippedFlameSvg width={64} height={78} />
       <Text style={styles.openerTitle}>I&apos;m Cindy — your flame.</Text>
       <Text style={styles.openerBody}>
         I know your ranks, your sessions, your challenges and what&apos;s left to unlock. Ask me anything, or
