@@ -109,6 +109,23 @@ const config: ExpoConfig = {
     'expo-audio',
     'expo-sharing',
     'expo-updates',
+    // Cindy's voice (CINDY_SPEC "STT-only architecture"). ON-DEVICE speech-to-text — the platform
+    // recognizer, so transcription is free and no microphone audio ever leaves the phone. Only
+    // her spoken REPLY costs anything (ElevenLabs TTS, server-side).
+    //
+    // Needs a dev-client rebuild: this ships native code, so it will not appear in an existing
+    // binary until the next `eas build`. Cindy's text chat has no such dependency and works on
+    // the current build — which is why voice is the layer on top rather than the way in.
+    [
+      'expo-speech-recognition',
+      {
+        microphonePermission: 'Allow Philoi to use the microphone so you can talk to Cindy.',
+        speechRecognitionPermission: 'Allow Philoi to transcribe what you say to Cindy, on your device.',
+        // Android routes recognition through a speech service; without naming Google's, the
+        // recognizer silently finds nothing on devices where it is not the default.
+        androidSpeechServicePackages: ['com.google.android.googlequicksearchbox'],
+      },
+    ],
     [
       '@sentry/react-native/expo',
       {

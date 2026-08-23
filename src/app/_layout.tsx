@@ -249,6 +249,12 @@ function RootNavigator() {
         <Stack.Screen name="lock-in/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="goal/create" options={{ presentation: 'modal', title: 'New goal' }} />
         <Stack.Screen name="group/create" options={{ presentation: 'modal', title: 'Start a Campfire' }} />
+        {/* Cindy (CINDY_SPEC). Chat is a normal push — it is a conversation you come back to,
+            not a modal task. Voice is a modal because it is a mode you enter and leave. */}
+        <Stack.Screen name="cindy" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="cindy-voice" options={{ headerShown: false, presentation: 'modal' }} />
+        {/* The "talk to someone" surface APP_BLOCKER_SPEC §C-safety requires (mock 116 frame 3). */}
+        <Stack.Screen name="support" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="settings-notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="connected-apps" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
