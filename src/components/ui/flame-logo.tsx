@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Defs, G, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { Colors, Fonts } from '@/constants/theme';
 
@@ -19,6 +19,25 @@ import { Colors, Fonts } from '@/constants/theme';
 export const FLAME_PATH =
   'M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z';
 
+/** The viewBox FLAME_PATH is authored in. Square, so this is both width and height. */
+export const FLAME_VIEWBOX = 24;
+
+/**
+ * THE ONE FLIP (CINDY_SPEC rendering rule 1). The canonical mark app-wide is FLAME_PATH mirrored
+ * horizontally — the "Cindy flame". It is applied HERE, once, at the source, and every surface
+ * inherits it: app icon, favicon, splash, notification silhouette, home / done / daily-fire hero,
+ * lock-in, share cards, the website.
+ *
+ * Left as a transform rather than baked into the path data so the glyph stays legible and diffable
+ * against mock 92, and so the raster generators can mirror the same way (they flip x -> 24 - x,
+ * which is this matrix).
+ *
+ * Nothing downstream may apply a SECOND mirror — two flips cancel and the surface silently renders
+ * the retired orientation. The old opt-in `mirrored` prop on FlameSvg is gone for exactly this
+ * reason; if you find yourself reaching for scaleX(-1) on a flame, you are about to unflip it.
+ */
+export const FLAME_MIRROR_TRANSFORM = `translate(${FLAME_VIEWBOX},0) scale(-1,1)`;
+
 type FlameLogoProps = {
   size?: number;
   /** Override the ember ramp with a flat colour (monochrome contexts — a tab bar glyph). */
@@ -32,7 +51,7 @@ export function FlameLogo({ size = 24, color }: FlameLogoProps) {
   const grad = `flameLogo-${uid}`;
 
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Svg width={size} height={size} viewBox={`0 0 ${FLAME_VIEWBOX} ${FLAME_VIEWBOX}`}>
       {!color ? (
         <Defs>
           {/* Vertical, bottom→top: deep ember at the base rising to pale gold at the tip. */}
@@ -43,7 +62,9 @@ export function FlameLogo({ size = 24, color }: FlameLogoProps) {
           </LinearGradient>
         </Defs>
       ) : null}
-      <Path d={FLAME_PATH} fill={color ?? `url(#${grad})`} />
+      <G transform={FLAME_MIRROR_TRANSFORM}>
+        <Path d={FLAME_PATH} fill={color ?? `url(#${grad})`} />
+      </G>
     </Svg>
   );
 }

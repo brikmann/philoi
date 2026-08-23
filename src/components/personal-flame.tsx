@@ -71,8 +71,9 @@ export function PersonalFlame({ size = 132, glowSize }: Props) {
       </Animated.View>
 
       <Animated.View style={[styles.flame, flameStyle]} pointerEvents="none">
-        {/* mirrored: this is Cindy, not the logo (CINDY_SPEC rendering rule 1). */}
-        <EquippedFlameSvg width={size} height={size} mirrored />
+        {/* Orientation is not this component's business any more: the one flip lives in
+            flame-logo, so there is nothing to opt into here (CINDY_SPEC rendering rule 1). */}
+        <EquippedFlameSvg width={size} height={size} />
       </Animated.View>
     </View>
   );

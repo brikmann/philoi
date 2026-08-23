@@ -806,12 +806,18 @@ h3{font-size:clamp(22px,2.6vw,28px);margin-bottom:12px}
       <stop offset="0%" stop-color="#FFD27A"/><stop offset="100%" stop-color="#F2A33C"/>
     </linearGradient>
     <symbol id="campfire" viewBox="0 0 120 150">
-      <rect x="30" y="112" width="60" height="9" rx="4" fill="#8A5A2B" transform="rotate(18 60 116)"/>
-      <rect x="30" y="112" width="60" height="9" rx="4" fill="#6E4423" transform="rotate(-18 60 116)"/>
-      <circle cx="60" cy="116" r="4" fill="#F2A33C"/>
-      <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="url(#gOuter)"/>
-      <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="url(#gMid)"/>
-      <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
+      <!-- Flipped ONCE, here, inside the symbol every stage <use>s — the single flame orientation
+           app-wide (CINDY_SPEC rendering rule 1). Deliberately not a CSS scaleX(-1) on .flame: the
+           roar and breathe keyframes already animate scaleX on that element, so a mirror there
+           would multiply into them and the flame would flip back and forth as it flickered. -->
+      <g transform="translate(120,0) scale(-1,1)">
+        <rect x="30" y="112" width="60" height="9" rx="4" fill="#8A5A2B" transform="rotate(18 60 116)"/>
+        <rect x="30" y="112" width="60" height="9" rx="4" fill="#6E4423" transform="rotate(-18 60 116)"/>
+        <circle cx="60" cy="116" r="4" fill="#F2A33C"/>
+        <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="url(#gOuter)"/>
+        <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="url(#gMid)"/>
+        <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
+      </g>
     </symbol>
   </defs>
 </svg>
@@ -820,9 +826,13 @@ h3{font-size:clamp(22px,2.6vw,28px);margin-bottom:12px}
   <div class="shell">
     <a class="brand" href="/">
       <svg width="22" height="27" viewBox="0 0 120 150" aria-hidden="true" focusable="false">
-        <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/>
-        <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/>
-        <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
+        <!-- Flipped: one flame orientation everywhere (CINDY_SPEC rendering rule 1). Mirrored
+             about x=60 inside the viewBox, so the mark keeps its box and its optical centre. -->
+        <g transform="translate(120,0) scale(-1,1)">
+          <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/>
+          <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/>
+          <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
+        </g>
       </svg>
       Philoi
     </a>
@@ -1033,7 +1043,8 @@ h3{font-size:clamp(22px,2.6vw,28px);margin-bottom:12px}
                   <svg class="hex" viewBox="0 0 100 100">
                     <polygon points="50,4 89.8,27 89.8,73 50,96 10.2,73 10.2,27" fill="#B0431E" stroke="rgba(255,255,255,.08)" stroke-width="3"/>
                     <polygon points="50,9.4 85.15,29.69 85.15,70.31 50,90.6 14.85,70.31 14.85,29.69" fill="#F2A33C"/>
-                    <g transform="translate(38,35) scale(0.2)">
+                    <!-- trailing mirror = THE flip (CINDY_SPEC rendering rule 1) -->
+                    <g transform="translate(38,35) scale(0.2) translate(120,0) scale(-1,1)">
                       <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#B0431E"/>
                       <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#E0612C"/>
                     </g>

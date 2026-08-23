@@ -30,13 +30,18 @@ if (!browser) {
   process.exit(1);
 }
 
+// `?s=` tells icon.html how big to draw itself. It cannot infer that from the viewport: headless
+// Chrome clamps small --window-size values and screenshots the top-left of the real viewport, so
+// the page pins its art to 0,0 at an explicit size instead of centring it (see icon.html).
 const shots = [
   { src: 'og.html', out: 'og.png', w: 1200, h: 630 },
-  { src: 'icon.html', out: 'favicon.png', w: 32, h: 32 },
-  { src: 'icon.html', out: 'apple-touch-icon.png', w: 180, h: 180 },
+  { src: 'icon.html?s=32', out: 'favicon.png', w: 32, h: 32 },
+  { src: 'icon.html?s=180', out: 'apple-touch-icon.png', w: 180, h: 180 },
 ];
 
 for (const { src, out, w, h } of shots) {
+  const [file, query] = src.split('?');
+  const url = pathToFileURL(join(here, file)).href + (query ? `?${query}` : '');
   const profile = mkdtempSync(join(tmpdir(), 'philoi-shot-'));
   try {
     execFileSync(
@@ -48,7 +53,7 @@ for (const { src, out, w, h } of shots) {
         `--user-data-dir=${profile}`,
         `--window-size=${w},${h}`,
         `--screenshot=${join(site, out)}`,
-        pathToFileURL(join(here, src)).href,
+        url,
       ],
       { stdio: 'ignore', timeout: 60_000 }
     );

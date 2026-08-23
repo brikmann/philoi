@@ -1,6 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Philoi">
   <rect width="64" height="64" rx="15" fill="#3A2E5C"/>
-  <g transform="translate(13.6 9) scale(0.3067)">
+  <!-- The trailing translate/scale is THE flip: one flame orientation app-wide
+       (CINDY_SPEC rendering rule 1). It mirrors about x=60 in the 120-wide local box,
+       so the mark stays centred in the 64x64 tile. -->
+  <g transform="translate(13.6 9) scale(0.3067) translate(120,0) scale(-1,1)">
     <rect x="30" y="112" width="60" height="9" rx="4" fill="#8A5A2B" transform="rotate(18 60 116)"/>
     <rect x="30" y="112" width="60" height="9" rx="4" fill="#6E4423" transform="rotate(-18 60 116)"/>
     <circle cx="60" cy="116" r="4" fill="#F2A33C"/>

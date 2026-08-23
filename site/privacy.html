@@ -118,9 +118,13 @@ li::marker{color:var(--coral)}
   <div class="shell">
     <a class="brand" href="/">
       <svg width="22" height="27" viewBox="0 0 120 150" aria-hidden="true" focusable="false">
-        <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/>
-        <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/>
-        <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
+        <!-- Flipped: one flame orientation everywhere (CINDY_SPEC rendering rule 1). Mirrored
+             about x=60 inside the viewBox, so the mark keeps its box and its optical centre. -->
+        <g transform="translate(120,0) scale(-1,1)">
+          <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="#E0612C"/>
+          <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="#F2A33C"/>
+          <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
+        </g>
       </svg>
       Philoi
     </a>

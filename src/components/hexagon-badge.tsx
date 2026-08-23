@@ -10,7 +10,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, G, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
 
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { DIVISION_NUMERAL, RANK_TIER_METAL } from '@/lib/rank-tiers';
@@ -137,8 +137,14 @@ export function HexagonBadge({ tier, division, size = 40, progress, numeralOverr
         <View style={styles.numeralOverlay}>
           {isPrimordial ? (
             <Svg width={size * 0.28} height={size * 0.28 * 1.25} viewBox="0 0 120 150">
-              <Path d={FLAME_CREST_OUTER} fill={metal.outer} />
-              <Path d={FLAME_CREST_INNER} fill={Colors.coral} />
+              {/* Flipped, like every other flame in the app (CINDY_SPEC rendering rule 1). This
+                  crest is the older campfire vector rather than FLAME_PATH, so it cannot inherit
+                  the mirror from flame-logo — it mirrors about x=60 in its own 120-wide viewBox,
+                  which is the same flip its counterpart on the marketing site now carries. */}
+              <G transform="translate(120,0) scale(-1,1)">
+                <Path d={FLAME_CREST_OUTER} fill={metal.outer} />
+                <Path d={FLAME_CREST_INNER} fill={Colors.coral} />
+              </G>
             </Svg>
           ) : (
             numeralOverride ?? (

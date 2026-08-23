@@ -227,7 +227,7 @@ const config: ExpoConfig = {
         // MONOCHROME, not the app icon (punchlist 16 §7). Android masks small notification icons
         // down to their alpha channel and tints the result, so a full-colour logo renders as a
         // solid square — which is exactly what the app icon was doing here. This asset is a white
-        // flame silhouette on transparent; regenerate with `node scripts/gen-notification-icon.js`.
+        // flame silhouette on transparent; regenerate with `node scripts/gen-flame-assets.js`.
         //
         // The plugin emits it as the `notification_icon` drawable, which is the name the Live
         // Activity module's smallIcon() looks up before falling back to applicationInfo.icon.
