@@ -777,6 +777,10 @@ export type AnalyticsEventName =
   | 'challenge_change_declined'
   | 'challenge_forfeited'
   | 'challenge_terms_updated'
+  // Separate from challenge_cancelled: cancelling ENDS a race people are running, deleting
+  // removes one that never got going. Conflating them would hide how many challenges are being
+  // set up and then abandoned before anyone accepts.
+  | 'challenge_deleted'
   // Campus verification (UNI_VERIFICATION_SPEC.md). The gap between sent and verified is the
   // number that matters: it's how many students hit a school inbox they couldn't actually reach.
   | 'campus_code_sent'
@@ -923,19 +927,32 @@ export type ChallengeWatch = {
   cheered_for: string | null;
 };
 
-/** get_group_challenge_watch() — one row per member of the group challenge's campfire (§16). */
+/**
+ * get_group_challenge_watch() — one row per RACER (0112), not per campfire member.
+ *
+ * Since 0096 a group challenge is an invited subset, so "every member of the campfire" is the
+ * wrong field: a four-person race in a thirty-person campfire used to draw thirty meters while
+ * settlement scored it out of four.
+ */
 export type GroupChallengeWatchRow = {
   challenge_id: string;
   target_count: number;
   window_hours: number;
   starts_at: string;
   ends_at: string | null;
+  /** 'active' | 'completed' | 'expired' — settled group races are readable now (0112). */
+  status: string;
   circle_id: string;
   circle_name: string;
+  public_name: string | null;
   member_id: string;
   member_name: string;
   member_progress: number;
   member_live_status: string;
+  /** Cheers backing this racer — the count the spec wants under each meter. */
+  member_cheers: number;
+  /** Whether this viewer's one cheer is the one behind this racer. */
+  cheered_by_me: boolean;
 };
 
 export type WeeklyRecap = {
@@ -1034,6 +1051,8 @@ export type ChallengeShape = 'duel' | 'collective' | 'placement';
  * stays in the union because in-flight races still carry it. */
 export type SocialChallengeRaceMetric = 'lockin_time' | 'volume' | 'distance' | 'ai' | 'xp';
 
+export type ChallengeParticipantState = 'invited' | 'accepted' | 'declined';
+
 /** One racer. Progress is always (current − baseline), which is what stops a challenge crediting
  * work done before it started. */
 export type ChallengeParticipant = {
@@ -1041,7 +1060,7 @@ export type ChallengeParticipant = {
   user_id: string;
   display_name: string;
   avatar_url: string | null;
-  state: 'invited' | 'accepted' | 'declined';
+  state: ChallengeParticipantState;
   baseline: number;
   /** Live progress for the race so far, already net of the baseline. */
   progress: number;
@@ -1078,6 +1097,27 @@ export type SocialChallenge = {
   winner_id: string | null;
   payout_xp: number;
   created_at: string;
+  /** The user-set public name (0096). Null falls back to the metric naming the challenge. */
+  public_name: string | null;
+  /** Null only for rows created before 0096's backfill; every live row has one. */
+  shape: ChallengeShape | null;
+  /** Roster counts (0112) — how the tab says "waiting on 3" without a second round trip. */
+  invited_count: number;
+  accepted_count: number;
+  /** This viewer's own row on the roster, or null if they are not on it. */
+  my_state: ChallengeParticipantState | null;
+};
+
+/** One row of get_challenge_results() (0111) — the settled standings, read rather than
+ * re-derived, so a result page cannot drift as later sessions land. */
+export type ChallengeResultRow = {
+  member_id: string;
+  member_name: string;
+  score_value: number | null;
+  place: number | null;
+  percentile: number | null;
+  awarded_xp: number;
+  is_winner: boolean;
 };
 
 // ───────────── challenge change/cancel consent (migration 0058, design-mocks/70 + 71) ─────────────
@@ -1671,6 +1711,8 @@ export type Database = {
         Returns: { id: string; goal_type: GoalType; goal_detail: string | null; duration_seconds: number | null; photo_url: string | null }[];
       };
       get_my_social_challenges: { Args: Record<string, never>; Returns: SocialChallenge[] };
+      // p_public_name landed in 0098 and the client has been sending it since; the entry here
+      // still described the pre-v2 signature.
       create_h2h_challenge: {
         Args: {
           p_opponent_id: string;
@@ -1678,15 +1720,26 @@ export type Database = {
           p_window_hours: number;
           p_circle_id?: string | null;
           p_payout_xp?: number;
+          p_public_name?: string | null;
         };
         Returns: SocialChallenge;
       };
       create_group_challenge: {
-        Args: { p_circle_id: string; p_target_count: number; p_window_hours: number; p_payout_xp?: number };
+        Args: {
+          p_circle_id: string;
+          p_target_count: number;
+          p_window_hours: number;
+          p_payout_xp?: number;
+          p_public_name?: string | null;
+        };
         Returns: SocialChallenge;
       };
       respond_to_h2h_challenge: { Args: { p_challenge_id: string; p_accept: boolean }; Returns: SocialChallenge };
       cancel_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
+      /** The settled standings (0111) — every racer's final figure, rank and what they were paid. */
+      get_challenge_results: { Args: { p_challenge_id: string }; Returns: ChallengeResultRow[] };
+      /** Pre-start or finished only; a live race is left to cancel/forfeit's consent path (0112). */
+      delete_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       get_my_friends: {
         Args: Record<string, never>;
         Returns: {

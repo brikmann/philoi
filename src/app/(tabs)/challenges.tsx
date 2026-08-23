@@ -72,7 +72,15 @@ export default function ChallengesScreen() {
 
   // Pending invites stay up top with the live ones — they're the most actionable card on the
   // screen (Accept/Decline), so "not active" is the wrong cut for what belongs in History.
-  const liveSocial = socialChallenges.filter((c) => c.status === 'pending' || c.status === 'active');
+  //
+  // 'draft' is in this band too. It was in NEITHER band, so a challenge you created and had not
+  // invited anyone to yet was returned by the RPC (0097 shows a draft to its author) and then
+  // dropped on the floor by both filters — invisible on the one screen that lists your challenges,
+  // while sitting in the campfire's own tab waiting to be started. A status added to the
+  // vocabulary in 0096 that every literal-matching reader silently stopped covering.
+  const liveSocial = socialChallenges.filter(
+    (c) => c.status === 'draft' || c.status === 'pending' || c.status === 'active',
+  );
   const pastSocial = socialChallenges.filter((c) => c.status === 'completed' || c.status === 'expired');
   const historyCount = pastSocial.length + completed.length;
   const [historyOpen, setHistoryOpen] = useState(false);

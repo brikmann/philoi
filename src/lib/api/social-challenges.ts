@@ -4,6 +4,7 @@ import type {
   ChallengeChangeKind,
   ChallengeChangeRequest,
   ChallengeChangeRequestDetail,
+  ChallengeResultRow,
   SocialChallenge,
   SocialChallengeRaceMetric,
 } from '@/types/database';
@@ -68,6 +69,34 @@ export async function cancelSocialChallenge(challengeId: string): Promise<void> 
   const { error } = await supabase.rpc('cancel_social_challenge', { p_challenge_id: challengeId });
   if (error) throw error;
   track('challenge_cancelled', { challenge_id: challengeId });
+}
+
+/**
+ * Delete the challenge outright — CAMPFIRE_REDESIGN_SPEC's missing "Delete challenge" action,
+ * inside the ⋯ menu (0112).
+ *
+ * NOT a way out of a live race: the RPC refuses one, because a running challenge is a deal other
+ * people are still keeping and cancel/forfeit above are the consented routes out. This is for a
+ * draft nobody accepted, an invite that went stale, or clearing a finished row off the list.
+ */
+export async function deleteSocialChallenge(challengeId: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_social_challenge', { p_challenge_id: challengeId });
+  if (error) throw error;
+  track('challenge_deleted', { challenge_id: challengeId });
+}
+
+/**
+ * The settled standings (0111): every racer's final figure, rank, percentile and what they were
+ * actually paid.
+ *
+ * Read, never re-derived. The figures were written once at settlement precisely so a result page
+ * cannot drift as later sessions land — recomputing them here from live data would eventually
+ * disagree with the ledger, and the ledger is what moved.
+ */
+export async function fetchChallengeResults(challengeId: string): Promise<ChallengeResultRow[]> {
+  const { data, error } = await supabase.rpc('get_challenge_results', { p_challenge_id: challengeId });
+  if (error) throw error;
+  return data ?? [];
 }
 
 // ───────────────────────── change / cancel consent (mocks 70 + 71) ─────────────────────────

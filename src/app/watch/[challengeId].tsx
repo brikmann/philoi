@@ -26,17 +26,20 @@ import { useChallengeWatch, useGroupChallengeWatch } from '@/hooks/use-challenge
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { cheerChallenge, fetchChallengeCheerNotes } from '@/lib/api/leaderboard-social';
+import { formatMetricValue, metricLabel } from '@/lib/challenge-metric';
 import { formatTimeLeft } from '@/lib/format';
-import type { CheerNote } from '@/types/database';
-
-const RACE_METRIC_LABEL: Record<string, string> = { xp: 'Most XP', lockin_time: 'Most lock-in time' };
+import type { CheerNote, SocialChallengeRaceMetric } from '@/types/database';
 
 // Mirrors the challenge_cheers_note_len constraint in 0110. Changing one without the other means
 // the composer either truncates early or offers characters the insert will refuse.
 const MAX_NOTE = 140;
 
-function ScoreValue({ score, raceMetric }: { score: number; raceMetric: string }) {
-  return <Text style={styles.score}>{Math.round(score)}{raceMetric === 'lockin_time' ? 's' : ' XP'}</Text>;
+// Was a two-key RACE_METRIC_LABEL map defaulting to "Race", plus a `${Math.round(score)}${metric
+// === 'lockin_time' ? 's' : ' XP'}` inline — so a four-hour lead printed "14400s" and twelve
+// thousand pounds of volume printed "12000 XP". Both now come from challenge-metric.ts, which is
+// the one place that knows the 0096 metric set.
+function ScoreValue({ score, raceMetric }: { score: number; raceMetric: SocialChallengeRaceMetric | null }) {
+  return <Text style={styles.score}>{formatMetricValue(raceMetric, score)}</Text>;
 }
 
 /**
@@ -271,7 +274,7 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
       keyboardShouldPersistTaps="handled">
       <View style={styles.goalRow}>
         <Ionicons name="flash" size={13} color={Colors.achieverText} />
-        <Text style={styles.goalText}>{RACE_METRIC_LABEL[watch.race_metric] ?? 'Race'}</Text>
+        <Text style={styles.goalText}>{metricLabel(watch.race_metric)}</Text>
         <Text style={styles.timeLeft}>{watch.ends_at ? formatTimeLeft(watch.ends_at) : ''}</Text>
       </View>
 
@@ -355,7 +358,12 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
 
 function GroupWatch({ challengeId }: { challengeId: string }) {
   const { session } = useAuth();
-  const { rows, loading, error } = useGroupChallengeWatch(challengeId);
+  const { rows, loading, error, refetch } = useGroupChallengeWatch(challengeId);
+  // Same shape as the duel's: the composer target held whole so the sheet can title itself, and
+  // the server's absolute count held only until the next poll catches up.
+  const [composeFor, setComposeFor] = useState<{ userId: string; name: string } | null>(null);
+  const [cheering, setCheering] = useState(false);
+  const [cheeredCount, setCheeredCount] = useState<{ userId: string; count: number } | null>(null);
 
   if (loading && rows.length === 0) {
     return (
@@ -393,14 +401,43 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
   const rankOf = (index: number) =>
     sorted.findIndex((r) => r.member_progress === sorted[index].member_progress) + 1;
 
+  // Read-only once settled (CHALLENGE_UI_SPEC §58), and a racer can't cheer their own race. Both
+  // are re-checked by cheer_challenge; this only stops the screen offering an action that cannot
+  // succeed. `iAmRacing` is derived from the roster the RPC returns — since 0112 that IS the field,
+  // so being in the campfire no longer implies being in the race.
+  const isFinal = head.status !== 'active';
+  const iAmRacing = rows.some((r) => r.member_id === session?.user.id);
+  const spentCheer = rows.some((r) => r.cheered_by_me) || cheeredCount !== null;
+  const cheerDisabled = cheering || isFinal || iAmRacing || spentCheer;
+
+  async function handleCheer(forUserId: string, note: string) {
+    if (cheering) return;
+    setCheering(true);
+    try {
+      const count = await cheerChallenge(challengeId, forUserId, note);
+      setCheeredCount({ userId: forUserId, count });
+      setComposeFor(null);
+      // The roster's own counts move too, so pull the authoritative row set rather than patching
+      // one number and letting the rest go stale.
+      refetch();
+    } catch {
+      // Sheet stays open on failure — closing it would throw away what they typed for an error
+      // they never saw. The next poll corrects a stale screen.
+    } finally {
+      setCheering(false);
+    }
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.goalRow}>
         <Ionicons name="people" size={13} color={Colors.achieverText} />
-        <Text style={styles.goalText}>
-          Everyone locks in {head.target_count}× · {head.circle_name}
+        <Text style={styles.goalText} numberOfLines={1}>
+          {head.public_name?.trim() || `Everyone locks in ${head.target_count}×`} · {head.circle_name}
         </Text>
-        <Text style={styles.timeLeft}>{head.ends_at ? formatTimeLeft(head.ends_at) : ''}</Text>
+        <Text style={styles.timeLeft}>
+          {isFinal ? 'Final' : head.ends_at ? formatTimeLeft(head.ends_at) : ''}
+        </Text>
       </View>
 
       <FlatList
@@ -409,8 +446,11 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
         contentContainerStyle={styles.groupList}
         renderItem={({ item, index }) => {
           const done = item.member_progress >= target;
+          const isMe = item.member_id === session?.user.id;
+          const cheers = cheeredCount?.userId === item.member_id ? cheeredCount.count : item.member_cheers;
+          const mine = item.cheered_by_me || cheeredCount?.userId === item.member_id;
           return (
-            <View style={[styles.groupRow, item.member_id === session?.user.id && styles.groupRowMe]}>
+            <View style={[styles.groupRow, isMe && styles.groupRowMe]}>
               <Text style={styles.groupRank}>{rankOf(index)}</Text>
               <Avatar label={item.member_name} size={30} />
               <View style={styles.groupWho}>
@@ -430,9 +470,37 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
                   height={5}
                   fillColor={done ? Colors.ember : Colors.coral}
                 />
-                <Text style={styles.groupStatus} numberOfLines={1}>
-                  {item.member_live_status}
-                </Text>
+                {/* CHEER, UNDER EACH PERSON — CAMPFIRE_REDESIGN_SPEC's "cheer count under each
+                    person". Cheering was duel-only until 0112 (cheer_challenge refused anyone who
+                    wasn't created_by/opponent_id), so this row had a live status and nothing else.
+                    A racer sees the count without a button: their own race is not theirs to back. */}
+                <View style={styles.groupUnder}>
+                  <Text style={styles.groupStatus} numberOfLines={1}>
+                    {item.member_live_status}
+                  </Text>
+                  {isMe || cheerDisabled ? (
+                    cheers > 0 || mine ? (
+                      <View style={styles.groupCheerCount}>
+                        <Ionicons
+                          name={mine ? 'megaphone' : 'megaphone-outline'}
+                          size={11}
+                          color={mine ? Colors.ember : Colors.textTertiary}
+                        />
+                        <Text style={[styles.groupCheerText, mine && styles.groupCheerTextMine]}>{cheers}</Text>
+                      </View>
+                    ) : null
+                  ) : (
+                    <Pressable
+                      style={styles.groupCheerBtn}
+                      onPress={() => setComposeFor({ userId: item.member_id, name: item.member_name })}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Cheer ${item.member_name} · ${cheers} cheers`}>
+                      <Ionicons name="megaphone-outline" size={11} color={Colors.ember} />
+                      <Text style={styles.groupCheerText}>{cheers > 0 ? `Cheer · ${cheers}` : 'Cheer'}</Text>
+                    </Pressable>
+                  )}
+                </View>
               </View>
               <Text style={[styles.groupProgress, done && styles.groupProgressDone]}>
                 {item.member_progress}/{target}
@@ -441,6 +509,15 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
           );
         }}
       />
+
+      {composeFor ? (
+        <CheerComposer
+          forName={composeFor.name}
+          busy={cheering}
+          onCancel={() => setComposeFor(null)}
+          onSend={(note) => handleCheer(composeFor.userId, note)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -619,9 +696,40 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
   groupStatus: {
+    flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 10.5,
     color: Colors.textTertiary,
+  },
+  // The strip under each meter: live status on the left, this racer's cheers on the right.
+  groupUnder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    marginTop: 2,
+  },
+  groupCheerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.achieverBg,
+    borderRadius: Radius.pill,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  groupCheerCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  groupCheerText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 10,
+    color: Colors.ember,
+  },
+  groupCheerTextMine: {
+    color: Colors.ember,
   },
   groupProgress: {
     fontFamily: Fonts.bodySemiBold,
