@@ -104,8 +104,16 @@ async function accessTokenFor(admin: SupabaseClient, userId: string): Promise<st
   if (data.access_token && expiresAt > Date.now() + 60_000) return data.access_token;
   if (!data.refresh_token) return null;
 
-  const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
-  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+  // GOOGLE_WEB_*, matching gcal-oauth-exchange. These read GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET
+  // until 2026-08-23, which is the SAME Google credential under a second name — so the project had
+  // GOOGLE_WEB_CLIENT_SECRET set, the exchange worked, and this refresh silently returned null the
+  // moment the first access token expired about an hour later. One credential, one name.
+  //
+  // The null is deliberate (a calendar that cannot be read is not an error worth failing a coach
+  // turn over) which is exactly why the misnaming was invisible: nothing logs, nothing 500s,
+  // Cindy just stops mentioning your deadlines.
+  const clientId = Deno.env.get('GOOGLE_WEB_CLIENT_ID');
+  const clientSecret = Deno.env.get('GOOGLE_WEB_CLIENT_SECRET');
   if (!clientId || !clientSecret) return null;
 
   const res = await fetch('https://oauth2.googleapis.com/token', {

@@ -55,4 +55,9 @@ export const GYM_VIDEO_CLIPS_ENABLED = true;
 // src/lib/google-calendar.ts ALSO independently guards on googleWebClientId being configured, so
 // this is a belt-and-suspenders gate, not the only one. Flipping it true is a one-line change and
 // needs no rebuild. See CODE_HANDOFF_gcal.md for the full setup runbook.
-export const GOOGLE_CALENDAR_ENABLED = false;
+// ON as of 2026-08-23, with precondition 2 knowingly outstanding: calendar.readonly is submitted
+// for verification but not yet granted, so ONLY accounts listed under OAuth consent screen ->
+// Audience -> Test users can complete the grant. Everyone else meets the unverified-app screen.
+// That is the intended state for this build — the connect flow has to work on a real device to
+// record the demo video that verification itself requires.
+export const GOOGLE_CALENDAR_ENABLED = true;

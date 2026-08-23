@@ -119,7 +119,13 @@ const config: ExpoConfig = {
     [
       'expo-speech-recognition',
       {
-        microphonePermission: 'Allow Philoi to use the microphone so you can talk to Cindy.',
+        // ONE string for both microphone consumers. iOS has a single
+        // NSMicrophoneUsageDescription, so the LAST plugin to set it wins — expo-camera sits
+        // further down this array and was overwriting Cindy's copy with the set-clip one, so the
+        // prompt shown on the first tap-to-talk described filming a video. Both entries now carry
+        // the same combined sentence, which makes the outcome independent of plugin order.
+        microphonePermission:
+          'Philoi needs your microphone so you can talk to Cindy, and to record sound when you film a set clip.',
         speechRecognitionPermission: 'Allow Philoi to transcribe what you say to Cindy, on your device.',
         // Android routes recognition through a speech service; without naming Google's, the
         // recognizer silently finds nothing on devices where it is not the default.
@@ -264,7 +270,9 @@ const config: ExpoConfig = {
       'expo-camera',
       {
         cameraPermission: 'Philoi needs your camera to film a set clip to share with your campfire.',
-        microphonePermission: 'Philoi needs your microphone to record sound with your set clip.',
+        // Same combined string as the expo-speech-recognition entry above — see the note there.
+        microphonePermission:
+          'Philoi needs your microphone so you can talk to Cindy, and to record sound when you film a set clip.',
       },
     ],
     'expo-video',
