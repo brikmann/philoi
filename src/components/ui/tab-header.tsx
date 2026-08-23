@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { CindyHeaderFlame } from '@/components/cindy/cindy-header-flame';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 
 // The header band's exact geometry, exported so anything that needs to sit inside that band
@@ -17,6 +18,13 @@ type TabHeaderProps = {
   icon?: keyof typeof Ionicons.glyphMap;
   /** Optional right-aligned content (e.g. Profile's settings/people icons). */
   right?: ReactNode;
+  /**
+   * Cindy's header flame, on by default (CINDY_SPEC mock 117 — she is reachable from anywhere).
+   * There is no opt-out needed for Home: it does not use this component, because its hero flame
+   * already is the entry point. The flag exists for a future full-bleed surface where a header
+   * flame would collide with the content.
+   */
+  cindy?: boolean;
 };
 
 // One shared header for all four main tabs (Campfires/"Your fire", Leaderboard, Challenges,
@@ -24,7 +32,7 @@ type TabHeaderProps = {
 // jump the title. Each screen renders only this for its title row; any tab-specific content
 // (pill rows, buttons, stats) goes in its own container below, with no additional top padding
 // of its own (this component already accounts for it).
-export function TabHeader({ title, icon, right }: TabHeaderProps) {
+export function TabHeader({ title, icon, right, cindy = true }: TabHeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.left}>
@@ -35,7 +43,10 @@ export function TabHeader({ title, icon, right }: TabHeaderProps) {
         )}
         <Text style={styles.title}>{title}</Text>
       </View>
-      {right}
+      <View style={styles.right}>
+        {right}
+        {cindy && <CindyHeaderFlame />}
+      </View>
     </View>
   );
 }
@@ -48,6 +59,11 @@ const styles = StyleSheet.create({
     height: TAB_HEADER_HEIGHT,
     paddingHorizontal: Spacing.four,
     paddingTop: TAB_HEADER_PADDING_TOP,
+  },
+  right: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
   },
   left: {
     flexDirection: 'row',

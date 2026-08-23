@@ -14,6 +14,7 @@ import { LiveActivitySync } from '@/components/live-activity-sync';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { OfflineBanner } from '@/components/offline-banner';
 import { RankUpWatcher } from '@/components/rank-up-watcher';
+import { CindyHeaderFlame } from '@/components/cindy/cindy-header-flame';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useHasAnyCircle } from '@/hooks/use-has-any-circle';
 import { ActiveSessionProvider } from '@/lib/active-session-context';
@@ -216,6 +217,11 @@ function RootNavigator() {
         headerShadowVisible: false,
         headerTintColor: Colors.ink,
         headerTitleStyle: { fontFamily: Fonts.bodyBold },
+        // Cindy in the header of every stack screen that HAS a header (CINDY_SPEC mock 117 —
+        // reachable from anywhere, and explicitly not a floating button). Set once here rather
+        // than per screen; anything with headerShown: false simply never renders it, which is
+        // the right answer for the modals and for Cindy's own screens.
+        headerRight: () => <CindyHeaderFlame />,
       }}>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
