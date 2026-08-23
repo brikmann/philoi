@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy Policy — Philoi</title>
-<meta name="description" content="How Philoi collects, uses and protects your data — including opt-in, read-only fitness integrations with Apple Health, Garmin and Strava.">
+<meta name="description" content="How Philoi collects, uses and protects your data — including opt-in, read-only fitness and Google Calendar integrations, and the AI coach.">
 <link rel="canonical" href="https://philoi.app/privacy.html">
 <meta name="theme-color" content="#14111C">
 <meta name="color-scheme" content="dark">
@@ -14,7 +14,7 @@
 <meta property="og:site_name" content="Philoi">
 <meta property="og:url" content="https://philoi.app/privacy.html">
 <meta property="og:title" content="Privacy Policy — Philoi">
-<meta property="og:description" content="How Philoi collects, uses and protects your data — including opt-in, read-only fitness integrations.">
+<meta property="og:description" content="How Philoi collects, uses and protects your data — including opt-in fitness and Google Calendar integrations, and the AI coach.">
 <meta property="og:image" content="https://philoi.app/og.png">
 <meta name="twitter:card" content="summary_large_image">
 
@@ -81,6 +81,7 @@ h3{font-size:17px;font-weight:600;margin:26px 0 8px;color:var(--ember)}
 p,li{color:var(--muted);font-size:16.5px}
 p{margin:0 0 14px}
 strong{color:var(--ink);font-weight:500}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;color:var(--ember);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
 ul{margin:0 0 16px;padding-left:22px}
 li{margin-bottom:9px}
 li::marker{color:var(--coral)}
@@ -130,7 +131,7 @@ li::marker{color:var(--coral)}
 <div class="doc-head">
   <div class="shell">
     <h1>Privacy Policy</h1>
-    <p>Last updated: 28 July 2026 &nbsp;·&nbsp; Effective: 28 July 2026</p>
+    <p>Last updated: 22 August 2026 &nbsp;·&nbsp; Effective: 22 August 2026</p>
   </div>
 </div>
 
@@ -143,8 +144,9 @@ li::marker{color:var(--coral)}
         <li><a href="#who">Who we are</a></li>
         <li><a href="#collect">What we collect</a></li>
         <li><a href="#fitness">Fitness &amp; health integrations</a></li>
-        <li><a href="#use">How we use your data</a></li>
+        <li><a href="#calendar">Calendar integration</a></li>
         <li><a href="#visibility">Who can see what</a></li>
+        <li><a href="#use">How we use your data</a></li>
         <li><a href="#sharing">Sharing &amp; service providers</a></li>
         <li><a href="#selling">We do not sell your data</a></li>
         <li><a href="#retention">Retention &amp; deletion</a></li>
@@ -191,6 +193,7 @@ li::marker{color:var(--coral)}
 
     <h3>Optional connected sources</h3>
     <p>If — and only if — you choose to connect a fitness source such as Apple Health, Garmin or Strava, we receive activity metrics from it. This is covered in detail in the next section.</p>
+    <p>If you connect <strong>Google Calendar</strong>, we receive read-only event <strong>times and titles</strong> (not their contents) — covered in the <em>Calendar integration</em> section below.</p>
 
     <h2 id="fitness">3. Fitness &amp; health integrations</h2>
 
@@ -209,9 +212,29 @@ li::marker{color:var(--coral)}
       <li><strong>Never used for advertising, profiling or resale.</strong> Data received from a fitness provider is used solely to show you your own progress and to score challenges you chose to enter.</li>
     </ul>
 
-    <p>Data received from a fitness provider is stored in the same protected database as the rest of your account data, is accessible only to you and to the small number of Philoi personnel who need it to operate the service, and is never disclosed to third parties except the infrastructure providers listed in section 6.</p>
+    <p>Data received from a fitness provider is stored in the same protected database as the rest of your account data, is accessible only to you and to the small number of Philoi personnel who need it to operate the service, and is never disclosed to third parties except the infrastructure providers listed in section 7.</p>
 
-    <h2 id="visibility">4. Who can see what</h2>
+    <h2 id="calendar">4. Calendar integration (Google Calendar)</h2>
+
+    <div class="callout">
+      <p><strong>The short version:</strong> connecting your Google Calendar is optional and read-only. Philoi reads only your upcoming event times and titles — never their contents — so your in-app coach can steer you around real deadlines and your free time. It is never shown to other users, never sold, and deleted when you disconnect.</p>
+    </div>
+
+    <p>If — and only if — you choose to connect Google Calendar, Philoi requests <strong>read-only</strong> access so your coach can be useful about your actual schedule. The rules we hold ourselves to:</p>
+
+    <ul>
+      <li><strong>Opt-in.</strong> Google Calendar is never connected by default. You connect it explicitly and grant permission through Google's own authorisation screen. The scope we request is <code>calendar.readonly</code>.</li>
+      <li><strong>Read-only.</strong> We only ever read. Philoi never creates, edits, moves or deletes anything in your calendar.</li>
+      <li><strong>Only what the coach needs — titles and times, for a short window ahead.</strong> We read the start/end times and titles of your <strong>upcoming</strong> events, and your free/busy blocks, for a rolling window of the next few weeks. We deliberately do <strong>not</strong> fetch event descriptions, locations, attendees, or event IDs — the request is masked to exclude them.</li>
+      <li><strong>Used only to personalise your coaching.</strong> Those titles and times are passed to our AI coach (see section 7) so it can nudge you around a real exam or deadline, suggest a free window to lock in, and stay quiet while you're in class. That is the only use.</li>
+      <li><strong>Not stored beyond a short cache.</strong> We don't keep a copy of your calendar. The forward window is held in an encrypted, short-lived cache (minutes) only to avoid re-requesting it on every coaching message, and your Google refresh token is stored encrypted.</li>
+      <li><strong>Never shared, never sold, never used for ads.</strong> Calendar data is never shown to other users, never disclosed to third parties except the AI provider in section 7 that generates your coaching, and never used for advertising or profiling.</li>
+      <li><strong>Disconnect any time.</strong> You can disconnect from within Philoi (Settings → Connected apps) or revoke access from your Google account. When you disconnect, we revoke the token with Google and delete what we cached.</li>
+    </ul>
+
+    <p>Philoi's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+    <h2 id="visibility">5. Who can see what</h2>
     <p>This is the part people actually care about, so it is worth being precise.</p>
     <ul>
       <li><strong>Your health data is shown only to you.</strong> The values we read from a connected fitness source — your daily step counts, your workouts, your distances — appear in your own app, on your own screens. Other users never see your underlying health data.</li>
@@ -221,7 +244,7 @@ li::marker{color:var(--coral)}
       <li><strong>Nothing is public by default.</strong> Philoi has no public profiles and no open feed. Campfires are invite-only.</li>
     </ul>
 
-    <h2 id="use">5. How we use your data</h2>
+    <h2 id="use">6. How we use your data</h2>
     <p>We use the data above to:</p>
     <ul>
       <li>create and secure your account and sign you in;</li>
@@ -234,45 +257,48 @@ li::marker{color:var(--coral)}
     </ul>
     <p>Where the UK/EU GDPR applies, our legal bases are: <strong>performance of a contract</strong> (running the service you signed up for), <strong>consent</strong> (fitness integrations, push notifications, and any marketing email — each of which you can withdraw at any time), <strong>legitimate interests</strong> (security, abuse prevention, and basic product improvement), and <strong>legal obligation</strong> where applicable.</p>
 
-    <h2 id="sharing">6. Sharing &amp; service providers</h2>
+    <h2 id="sharing">7. Sharing &amp; service providers</h2>
     <p>We share personal data only with the infrastructure providers that let Philoi run, and only to the extent needed:</p>
     <ul>
       <li><strong>Supabase</strong> — database, authentication and file storage.</li>
       <li><strong>Expo / Apple Push Notification service / Firebase Cloud Messaging</strong> — delivery of push notifications you have opted into.</li>
       <li><strong>App Store and Google Play</strong> — app distribution, and any purchases, handled under their own policies.</li>
       <li><strong>Our email provider</strong> — sign-in links and essential service messages.</li>
+      <li><strong>Anthropic (Claude)</strong> — powers the in-app AI coach. When you use the coach, the relevant context (your recent activity, goals, streak, and — if you've connected it — your upcoming calendar titles/times and free/busy) is sent to Anthropic's API to generate a coaching message. It is processed to answer you and is <strong>not used to train Anthropic's models</strong>.</li>
+      <li><strong>ElevenLabs</strong> — text-to-speech. If you use voice, the <strong>text of the coach's reply</strong> is sent to ElevenLabs to synthesise the spoken audio. ElevenLabs receives only that reply text, not your account data.</li>
     </ul>
     <p>These providers act as processors on our instructions and are bound by contract to protect your data. We may also disclose data if we are legally required to, or where necessary to protect the rights or safety of our users. If Philoi is ever acquired or merged, your data may transfer as part of that transaction, and we will notify you before it becomes subject to a different privacy policy.</p>
 
-    <h2 id="selling">7. We do not sell your data</h2>
+    <h2 id="selling">8. We do not sell your data</h2>
     <p>We do not sell, rent, or trade your personal data. We do not share it with data brokers, advertisers or ad networks. We do not use your data — and specifically not any health or fitness data — to build advertising profiles or to target ads, on Philoi or anywhere else.</p>
 
-    <h2 id="retention">8. Retention &amp; deletion</h2>
+    <h2 id="retention">9. Retention &amp; deletion</h2>
     <ul>
       <li>We keep your account data for as long as your account exists.</li>
       <li>Metric values pulled from a connected fitness source are deleted when you disconnect that source, other than the final score of an already-completed challenge.</li>
+      <li>If you connected Google Calendar, the short-lived window we cache is deleted and your access token is revoked when you disconnect; we keep no copy of your calendar.</li>
       <li><strong>You can delete your account from inside the app</strong> (Settings → Delete account), or by emailing <a href="mailto:nb@philoi.app">nb@philoi.app</a> from your account address.</li>
       <li>When you delete your account, your profile, goals, sessions, health metrics, messages and progress are deleted from our production systems within <strong>30 days</strong>, and from encrypted backups within <strong>90 days</strong>. Anonymised, non-identifying aggregates (for example “sessions started this week”) may remain.</li>
       <li>We may retain a minimal record of a moderation action or a legal request where we are required to.</li>
     </ul>
 
-    <h2 id="rights">9. Your rights</h2>
+    <h2 id="rights">10. Your rights</h2>
     <p>Depending on where you live, you have some or all of the following rights over your personal data: <strong>access</strong> a copy of it, <strong>correct</strong> it, <strong>delete</strong> it, <strong>export</strong> it in a portable format, <strong>object to or restrict</strong> certain processing, and <strong>withdraw consent</strong> at any time — including by disconnecting a fitness source or turning off notifications.</p>
     <p>To exercise any of these, email <a href="mailto:nb@philoi.app">nb@philoi.app</a> from the address on your account. We will respond within 30 days. Exercising your rights costs nothing and we will never restrict your use of Philoi for doing so. If you are in the UK or EEA and you believe we have mishandled your data, you also have the right to complain to your local supervisory authority — in the UK, the Information Commissioner's Office (ico.org.uk).</p>
 
-    <h2 id="security">10. Security</h2>
+    <h2 id="security">11. Security</h2>
     <p>Data is encrypted in transit (TLS) and at rest. Access to production data is restricted to the people who need it, protected by row-level security rules in the database so that one user cannot read another user's data. We keep dependencies patched and review access regularly. No system is perfectly secure, but if a breach ever affects your personal data we will notify you and the relevant regulator as required by law.</p>
 
-    <h2 id="children">11. Children</h2>
+    <h2 id="children">12. Children</h2>
     <p>Philoi is intended for university and college students and is not directed at children. You must be at least 13 years old to use Philoi (or 16 where your country's law sets a higher age for consent to online services). We do not knowingly collect personal data from anyone below that age. If you believe a child has given us their data, email <a href="mailto:nb@philoi.app">nb@philoi.app</a> and we will delete the account.</p>
 
-    <h2 id="transfers">12. International transfers</h2>
+    <h2 id="transfers">13. International transfers</h2>
     <p>Philoi is operated from the United Kingdom and our infrastructure providers may process data in the United States and the European Union. Where data leaves the UK or EEA, it is transferred under an approved safeguard — typically the European Commission's Standard Contractual Clauses together with the UK Addendum — so that your data keeps an equivalent level of protection.</p>
 
-    <h2 id="changes">13. Changes to this policy</h2>
+    <h2 id="changes">14. Changes to this policy</h2>
     <p>If we change this policy we will update the date at the top of this page. If a change materially affects how we handle your data — particularly anything to do with health or fitness data — we will notify you in the app or by email before it takes effect, and where the law requires it we will ask for your consent again.</p>
 
-    <h2 id="contact">14. Contact us</h2>
+    <h2 id="contact">15. Contact us</h2>
     <p>Questions, requests, or complaints about privacy: <a href="mailto:nb@philoi.app">nb@philoi.app</a>. A real person reads that inbox.</p>
 
   </div>
