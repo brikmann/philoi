@@ -71,7 +71,8 @@ export function PersonalFlame({ size = 132, glowSize }: Props) {
       </Animated.View>
 
       <Animated.View style={[styles.flame, flameStyle]} pointerEvents="none">
-        <EquippedFlameSvg width={size} height={size} />
+        {/* mirrored: this is Cindy, not the logo (CINDY_SPEC rendering rule 1). */}
+        <EquippedFlameSvg width={size} height={size} mirrored />
       </Animated.View>
     </View>
   );

@@ -29,9 +29,16 @@ type FlameSvgProps = {
    * vector are identical whatever is equipped, because those signal real activity.
    */
   ramp?: FlameRamp;
+  /**
+   * Mirror the mark horizontally (CINDY_SPEC, rendering rule 1). Cindy's crest points the OPPOSITE
+   * way to the app-icon flame, so the companion reads as its own character rather than as the logo
+   * pasted into the app. Opt-in and false by default: most callers here ARE the brand mark
+   * (sign-in, campfire, share cards) and must not flip.
+   */
+  mirrored?: boolean;
 };
 
-export function FlameSvg({ width, height, ramp = BASE_FLAME_RAMP }: FlameSvgProps) {
+export function FlameSvg({ width, height, ramp = BASE_FLAME_RAMP, mirrored = false }: FlameSvgProps) {
   // ONE path, ONE smooth vertical gradient — not three stacked opaque layers.
   //
   // The stacked version was the bug (punchlist 17 P0): outer/mid/core painted as three solid fills
@@ -54,7 +61,15 @@ export function FlameSvg({ width, height, ramp = BASE_FLAME_RAMP }: FlameSvgProp
           <Stop offset="1" stopColor={ramp.core} />
         </LinearGradient>
       </Defs>
-      <Path d={FLAME_PATH} fill={`url(#${grad})`} />
+      {/* Mirrored INSIDE the svg, not with an outer scaleX(-1). SessionFlame and PersonalFlame
+          already animate scaleX for the flicker, and a mirror applied on the same wrapper would
+          multiply into it — the flame would flip back and forth as it flickered. Translating by
+          the viewBox width keeps the mark in frame after the flip. */}
+      <Path
+        d={FLAME_PATH}
+        fill={`url(#${grad})`}
+        transform={mirrored ? `translate(${VIEWBOX_WIDTH},0) scale(-1,1)` : undefined}
+      />
     </Svg>
   );
 }
@@ -63,8 +78,16 @@ export function FlameSvg({ width, height, ramp = BASE_FLAME_RAMP }: FlameSvgProp
  * The flame as the user has skinned it. Separate from FlameSvg so the raw component stays usable
  * for fixed-brand marks (the app icon, the splash, anywhere the logo must not change per user).
  */
-export function EquippedFlameSvg({ width, height }: { width: number; height: number }) {
-  return <FlameSvg width={width} height={height} ramp={useFlameRamp()} />;
+export function EquippedFlameSvg({
+  width,
+  height,
+  mirrored = false,
+}: {
+  width: number;
+  height: number;
+  mirrored?: boolean;
+}) {
+  return <FlameSvg width={width} height={height} ramp={useFlameRamp()} mirrored={mirrored} />;
 }
 
 export function FlameIcon({ size = 32, background = Colors.plum }: FlameIconProps) {

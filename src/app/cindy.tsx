@@ -188,7 +188,7 @@ export default function CindyScreen() {
           <Ionicons name="chevron-back" size={24} color={Colors.muted} />
         </Pressable>
         <View style={styles.avatar}>
-          <EquippedFlameSvg width={20} height={24} />
+          <EquippedFlameSvg width={20} height={24} mirrored />
         </View>
         <View style={styles.headerText}>
           <Text style={styles.name}>Cindy</Text>
@@ -268,7 +268,7 @@ export default function CindyScreen() {
 function CindyOpener() {
   return (
     <View style={styles.opener}>
-      <EquippedFlameSvg width={64} height={78} />
+      <EquippedFlameSvg width={64} height={78} mirrored />
       <Text style={styles.openerTitle}>I&apos;m Cindy — your flame.</Text>
       <Text style={styles.openerBody}>
         I know your ranks, your sessions, your challenges and what&apos;s left to unlock. Ask me anything, or

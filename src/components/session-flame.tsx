@@ -102,7 +102,8 @@ export function SessionFlame({ height = 240, dimmed = false }: SessionFlameProps
       </Animated.View>
 
       <Animated.View style={[styles.flame, { opacity: dimmed ? 0.5 : 1 }, flameStyle]}>
-        <FlameSvg width={width} height={height} ramp={ramp} />
+        {/* mirrored: this is Cindy, not the logo (CINDY_SPEC rendering rule 1). */}
+        <FlameSvg width={width} height={height} ramp={ramp} mirrored />
       </Animated.View>
     </View>
   );

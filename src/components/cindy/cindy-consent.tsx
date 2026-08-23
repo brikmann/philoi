@@ -52,7 +52,7 @@ export function CindyConsent({ onDone }: { onDone: () => void }) {
     <Screen>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <EquippedFlameSvg width={76} height={92} />
+          <EquippedFlameSvg width={76} height={92} mirrored />
           <Text style={styles.title}>Meet Cindy</Text>
           <Text style={styles.sub}>
             Your flame, with a voice. She knows your whole app — so she can tell you exactly how far Hero
