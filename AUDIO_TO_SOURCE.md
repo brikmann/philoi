@@ -49,14 +49,13 @@ reward-feedback.ts — only Olympian is stubbed in so far. Platinum stays on the
 | Sub-Bass Drop · `sfx-sub-bass-drop` | floor-dropping bass hit | [bass drop](https://pixabay.com/sound-effects/search/bass%20drop/) · [cinematic bass hit](https://pixabay.com/sound-effects/search/bass%20hit/) |
 | Jet Engine Ignition · `sfx-jet-engine-ignition` | afterburner/jet ignition whoosh, "zero to gone" | [jet engine](https://pixabay.com/sound-effects/search/jet%20engine/) · [afterburner](https://pixabay.com/sound-effects/search/rocket%20ignition/) |
 | Olympian Foghorn · `sfx-olympian-foghorn` | deep, godly foghorn/horn blast | [foghorn](https://pixabay.com/sound-effects/search/foghorn/) · [ship horn](https://pixabay.com/sound-effects/search/horn%20blast/) |
-| Emberfall Strike · `sfx-emberfall-strike` | single ringing hammer-on-anvil strike with a long tail — "hammer on anvil, once, and the whole season rings with it" | [anvil hit](https://pixabay.com/sound-effects/search/anvil/) · [metal ring](https://pixabay.com/sound-effects/search/metal%20impact/) |
+| ~~Emberfall Strike · `sfx-emberfall-strike`~~ **SOURCED** (synthesized, original) — hammer transient + sub thud + inharmonic anvil ring (~3.4s tail) + ember shimmer + light reverb; main + preview placed in `assets/audio/cosmetic/`. Ships on next native rebuild. | — | — |
 | Victory Anthem · `sfx-victory-anthem` | short triumphant fanfare (can double as the Hero/Primordial anthem base) | [victory fanfare](https://pixabay.com/sound-effects/search/victory/) · [triumphant fanfare](https://pixabay.com/sound-effects/search/fanfare/) |
 
 ---
 
 ### Totals
 **6 rank-up sounds** (2 band-crossing mixes + 4 legend tiers) and **13 cosmetic files** (7 ambient loops +
-6 SFX), of which Hearth Hum is now sourced. `sfx-emberfall-strike` is the Forge Pass S1 tier-50 mythic — it
-is owned by whoever finished the pass, so it is silent for them today. Rank-up sounds are the priority (they're part of the core rank experience); the cosmetic set is
+6 SFX), of which **Hearth Hum and Emberfall Strike are now sourced** (both synthesized, original). Rank-up sounds are the priority (they're part of the core rank experience); the cosmetic set is
 needed once the final-pass equipped-audio wiring lands. License note: Pixabay Content License — free for
 commercial use, no attribution, can't resell standalone; perfect for in-app audio.
