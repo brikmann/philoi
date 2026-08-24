@@ -19,6 +19,40 @@ const SLEEP_NOTE_BY_SOURCE: Record<string, string> = {
   health_connect: 'Sleep auto-synced from Health Connect',
 };
 
+/**
+ * The absolute instant a challenge's CURRENT period opened.
+ *
+ * `challenges.period_start` is a Postgres `date` — a bare 'YYYY-MM-DD' carrying no zone at all.
+ * `new Date('2026-08-23')` parses that as **UTC** midnight, which is exactly right for a WEEKLY
+ * goal (week_start() is Sunday 00:00 UTC by deliberate design — see src/lib/time/week.ts and
+ * migration 0071) and wrong for a DAILY one, because migration 0084 rolls daily goals over at the
+ * OWNER'S LOCAL midnight.
+ *
+ * That mismatch is the "weekly totals are right, daily totals are wrong" bug. A daily steps goal
+ * asked the health store for [UTC midnight, now]:
+ *
+ *   - West of Greenwich (Toronto, UTC-4) UTC midnight is 8pm the previous LOCAL evening, so
+ *     yesterday evening's steps got counted into today.
+ *   - East of it (Tokyo, UTC+9) UTC midnight is 9am local, so everything walked before 9am was
+ *     never counted at all — and never could be, since the window only ever moves forward.
+ *
+ * Weekly hid it because the same offset lands in the small hours of Sunday, where there are
+ * almost no steps to misplace and a week's total swamps whatever few there are.
+ *
+ * Both the health-store window and the already-synced log filter below are derived from this one
+ * value, so they stay the same window whichever branch is taken.
+ */
+function periodStartInstant(challenge: Challenge): Date {
+  if (challenge.period !== 'day') return new Date(challenge.period_start);
+  // Local midnight of that calendar date. Split rather than `new Date(str)` because the
+  // date-only form is the one the spec pins to UTC; a y/m/d constructor is the local one.
+  const [y, m, d] = challenge.period_start.split('-').map(Number);
+  // Anything that isn't a bare date (a full timestamp from an older server, say) already carries
+  // its own zone — leave it to Date to interpret rather than guessing at it.
+  if (!y || !m || !d) return new Date(challenge.period_start);
+  return new Date(y, m - 1, d);
+}
+
 // A device-fitness sync never gates participation (§17/18) — it's purely additive on top of the
 // existing manual-log flow, which always keeps working regardless of connection state.
 //
@@ -38,16 +72,17 @@ async function syncStepsFromDevice(challenge: Challenge): Promise<number> {
   // Weekly goals have one fixed period so it never mattered, but a daily goal that resets each day
   // accumulates prior-day logs whose all-time sum exceeds today's device total → negative delta →
   // daily progress silently stops counting. Filtering logs to this period keeps the delta like-for-like.
+  const periodStart = periodStartInstant(challenge);
   const { data, error } = await supabase
     .from('challenge_logs')
     .select('amount')
     .eq('challenge_id', challenge.id)
     .eq('note', note)
-    .gte('created_at', challenge.period_start);
+    .gte('created_at', periodStart.toISOString());
   if (error) throw error;
   const alreadySynced = (data ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
 
-  const total = await getDeviceStepsBetween(new Date(challenge.period_start), new Date());
+  const total = await getDeviceStepsBetween(periodStart, new Date());
   const delta = Math.round(total - alreadySynced);
   if (delta <= 0) return 0;
 
@@ -87,16 +122,17 @@ async function syncSleepFromDevice(challenge: Challenge): Promise<number> {
   if (!source) return 0;
   const note = SLEEP_NOTE_BY_SOURCE[source];
 
+  const periodStart = periodStartInstant(challenge);
   const { data, error } = await supabase
     .from('challenge_logs')
     .select('amount')
     .eq('challenge_id', challenge.id)
     .eq('note', note)
-    .gte('created_at', challenge.period_start);
+    .gte('created_at', periodStart.toISOString());
   if (error) throw error;
   const alreadySynced = (data ?? []).reduce((sum, row) => sum + Number(row.amount), 0);
 
-  const total = await getDeviceSleepHoursBetween(new Date(challenge.period_start), new Date());
+  const total = await getDeviceSleepHoursBetween(periodStart, new Date());
   // Hours are fractional, so round rather than truncate — and 2dp keeps float noise from logging
   // vanishing amounts on every sync.
   const delta = Math.round((total - alreadySynced) * 100) / 100;
