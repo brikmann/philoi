@@ -1,4 +1,4 @@
--- 0116 — the reward reveal: keep what settlement PAID, and let the client read it back once.
+-- 0118 — the reward reveal: keep what settlement PAID, and let the client read it back once.
 --
 -- 0112 joined the challenge loop up as far as the standings: a settled race now writes
 -- final_value / final_rank / final_percentile per racer, and challenge-info renders them. What it
