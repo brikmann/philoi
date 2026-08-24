@@ -48,13 +48,50 @@ readers still counted the whole campfire. The visible consequence was that **no 
 - **Verify:** settle a duel → bell row → challenge-info shows both racers, #1 crowned, `+200 XP` on the winner.
 
 ### 3 · `ChallengeRewardScreen` and `ChallengeWinShareCard` are dead code
-- [ ] approve — **NOT FIXED, needs your call**
-- Both components are fully built and have **zero call sites**. The result arc now terminates at the Final
-  standings block (item 2) rather than at mock 47's full reward screen + share card.
-- Wiring them properly means deciding where they fire (on the settled deep-link? once, then never again?) and
-  where the `grant_reward` payload (`embers/box/badge/band`) is read from — `get_challenge_results` returns XP
-  only. That is a design decision plus a new RPC, not a bugfix, so I stopped at the standings.
-- **Note:**
+- [ ] approve — **NOW FIXED** (0116), per `DECISION_reward_screen_and_goal_drip.md`
+- **Repro:** win a duel → embers land in the wallet, a box appears in the inventory, a badge is minted, and
+  the app says none of it. The result arc terminated at the Final standings block (item 2); mock 47's reward
+  screen and mock 104's share card were fully built with **zero call sites**.
+- **Root cause:** there was no payload to feed them. `grant_reward` *returns* what it paid —
+  `{embers, box, badge, band, significance}` — and all three of its callers throw that return away with
+  `perform`. `get_challenge_results` reports XP only, because XP is the one figure written to a table anyone
+  could read afterwards.
+- **Fix — server (0116):** `challenge_participants` gains `reward_payload jsonb` + `reward_seen_at
+  timestamptz`. `economy_on_social_challenge_closed` now **captures** grant_reward's return per racer instead
+  of discarding it (body is 0112's, unchanged but for the capture; the group arm becomes a `foreach` so a
+  per-row return can be read). Two new RPCs, both `auth.uid()`-scoped and `authenticated`-granted:
+  `get_challenge_reward(uuid)` → `{placement, percentile, field_size, xp, seen_at, payload}`, and
+  `mark_challenge_reward_seen(uuid)`.
+- **Fix — client:** `useChallengeReward` + `challengeRewardResult` (new hook) read it and map it onto the
+  screen's props. `challenge-info` presents the reveal **once**, on the first settled view, for anyone with
+  `my_state = 'accepted'` — winners **and** losers, since a screen that only fires on a win is a victory
+  screen, not a result screen. Dismiss stamps the flag and falls through to the standings. The standings keep
+  their own **Share** affordance so a win stays advertisable after the one-shot reveal is gone.
+- 🔒 **Firewall intact.** This reads what `grant_reward` already paid and grants nothing; no reward figure is
+  re-derived client-side.
+- **Why the RPC returns more than `{placement, xp, payload}`:** `percentile` + `field_size` are what
+  `placementTier()` needs to tell "2nd of 5" from "top 10% of 42" — without them every non-podium finish
+  collapses onto one copy pool. `seen_at` is the fire-once check itself, and `challenge_participants`' RLS
+  runs through `group_members`, so a duel with no watching campfire (`circle_id` null — the normal case for
+  friend-to-friend) is unreadable by its own participants without it.
+- **Also fixed alongside — the push tap never honoured `route`.** `_layout.tsx` matched `group_id` and a
+  handful of literal types; `challenge_won` / `challenge_lost` / `campfire_settled` carry neither, so tapping
+  the **notification** did nothing while tapping the same row in the **bell** worked. It now honours the route
+  the event was written with, ahead of `group_id`. Legacy `notify_push` callers send no `route` key and fall
+  through untouched. No second entry point was built — the deep link lands on `challenge-info` and the same
+  fire-once logic runs.
+- **Degrades gracefully:** a null payload renders as placement + XP with no reward rows, which covers both the
+  completion band (pays no box, no badge) and anything settled before **0114** lands — until then
+  `grant_reward` raises before it can return, so there is nothing to capture.
+- **Not wired: the box's Open button.** `ChallengeRewardScreen`'s `onOpenBox` is left undefined, so the footer
+  reads "Collect" and the box renders as a plain row. The payload carries a box *key*, and `/shop/open` needs
+  a `loot_boxes` row **id** — which cannot be recovered, because `grant_reward`'s insert records no challenge
+  reference. Wiring it would mean guessing which unopened box of that key was this challenge's. The box is in
+  their inventory either way.
+- **Verify:** settle a duel and a group race → winner and a non-winner each see the reveal **once**, then
+  standings on re-open. Share opens with the right placement/stat. `challenge_won` push deep-link fires the
+  reveal. `get_challenge_reward` returns `{}` (no crash) for a non-participant and for an unsettled
+  challenge. — ⚠️ **all of this needs 0116 deployed**; not run here.
 
 ---
 
@@ -260,7 +297,9 @@ These are **unbuilt v2 features**, not regressions. `create.tsx` is still on the
 
 **New**
 - `supabase/migrations/0112_challenge_loop_repair.sql`
+- `supabase/migrations/0116_challenge_reward_reveal.sql` — item 3
 - `src/lib/challenge-metric.ts`
+- `src/hooks/use-challenge-reward.ts` — item 3
 - `src/components/challenge-member-ticker.tsx`
 - `CAMPFIRE_BUG_LEDGER.md`
 
@@ -269,9 +308,12 @@ These are **unbuilt v2 features**, not regressions. `create.tsx` is still on the
   `my_state`; new `ChallengeResultRow`; `GroupChallengeWatchRow` gains `status`/`public_name`/`member_cheers`/
   `cheered_by_me`; corrected the stale `create_h2h_challenge`/`create_group_challenge` signatures (both were
   missing `p_public_name`, which the client has been sending since 0098); new `challenge_deleted` event.
-- `src/lib/api/social-challenges.ts` — `deleteSocialChallenge`, `fetchChallengeResults`
+- `src/lib/api/social-challenges.ts` — `deleteSocialChallenge`, `fetchChallengeResults`; `fetchChallengeReward`
+  + `markChallengeRewardSeen` (item 3)
 - `src/app/challenge/create.tsx` — member ticker + invite call; dropped the dead `useLeaderboard`
-- `src/app/challenge-info/[challengeId].tsx` — shape-aware; Final standings
+- `src/app/challenge-info/[challengeId].tsx` — shape-aware; Final standings; the fire-once reward reveal +
+  both Share entry points (item 3)
+- `src/app/_layout.tsx` — the push tap honours the event's own `route` (item 3)
 - `src/app/watch/[challengeId].tsx` — metric labels/units; group cheer under each meter; settled band
 - `src/app/(tabs)/challenges.tsx` — draft band
 - `src/components/challenges-tab.tsx` — invite sheet; dedupe mount fetch; thread `isAdmin`
@@ -283,9 +325,19 @@ These are **unbuilt v2 features**, not regressions. `create.tsx` is still on the
 
 ## Deploy-gated — for Noah, not run here
 
-1. **`npx supabase db push`** → applies **0112**. Ordinary DDL plus two narrow backfill INSERTs into
-   `challenge_participants` (unsettled challenges only, `ON CONFLICT DO NOTHING`, baseline 0 — so anything
-   mid-flight keeps the deal it was created under).
+1. **`npx supabase db push`** → applies **0112** and **0116**. 0112 is ordinary DDL plus two narrow backfill
+   INSERTs into `challenge_participants` (unsettled challenges only, `ON CONFLICT DO NOTHING`, baseline 0 —
+   so anything mid-flight keeps the deal it was created under). 0116 adds two nullable columns to the same
+   table and restates one trigger function plus two new RPCs; no backfill, nothing destructive.
+
+   **0116 GOES LAST, AFTER 0114.** The train is `0112 → 0113 → 0114 → 0115 → 0116` — 0113/0114/0115 live on
+   `fix/app-sweep`, so both branches must be merged before the push. Deploying 0116 ahead of 0114 is not
+   *broken*, but it is pointless: `grant_reward` still raises 42883 on every call, so nothing is captured and
+   every reveal shows placement + XP with no rewards on it.
+
+   ⚠️ **Re-verify 0116 is still the next free number at integration.** 0113–0115 were claimed on the other
+   branch while this one was in flight, and two migrations sharing a leading version roll back silently with
+   the CLI blaming the `schema_migrations` INSERT rather than the collision.
 2. **No `functions deploy` needed** — no edge function changed.
 3. **Watch the first cron tick** after the push. `finalize_social_challenges` now takes `FOR UPDATE`; confirm
    the sweep still completes and that a settled challenge produces exactly one `bonus_xp_awards` row per
@@ -299,6 +351,22 @@ These are **unbuilt v2 features**, not regressions. `create.tsx` is still on the
    from social_challenges sc
    where not challenge_is_settled(sc.status) and sc.status <> 'declined';
    ```
+6. **Sanity query for 0116** — after the *next* challenge settles (0116 captures at settlement; it backfills
+   nothing, so anything already settled keeps a null payload forever, which is correct — those rewards were
+   never actually paid):
+   ```sql
+   select p.challenge_id, p.user_id, p.final_rank, p.reward_seen_at,
+          p.reward_payload ->> 'band'   as band,
+          p.reward_payload ->> 'embers' as embers
+   from challenge_participants p
+   join social_challenges sc on sc.id = p.challenge_id
+   where challenge_is_settled(sc.status) and p.state = 'accepted'
+   order by sc.ends_at desc nulls last
+   limit 20;
+   ```
+   Every racer on a post-0114 settlement should carry a payload. A **null payload with a non-null
+   `final_rank`** on a challenge settled *after* 0114 means `grant_reward` is still raising — check the
+   Postgres log for `42883` before assuming the capture is at fault.
 
 ---
 
