@@ -18,7 +18,9 @@ Tick the `[ ]` on each entry you want, then hand it to `AGENT_PROMPT_apply_sweep
 
 ## Fixed
 
-### 1. `[ ] approve` — 🔴 `grant_reward` has never paid out, for anyone, ever
+### 1. `[x] approve` — 🔴 `grant_reward` has never paid out, for anyone, ever
+
+> **DONE** — approved, deployed, verified. `0114` in aa48dca (merge of `fix/app-sweep`).
 
 **Repro.** Against the linked project:
 ```sql
@@ -79,7 +81,9 @@ bare-literal call site ambiguous and break the paths that currently work.)*
 
 ---
 
-### 2. `[ ] approve` — 🔴 Migration 0036 is recorded as applied but never ran
+### 2. `[x] approve` — 🔴 Migration 0036 is recorded as applied but never ran
+
+> **DONE** — approved, deployed, verified. `0115` in aa48dca.
 
 **Repro.** Sleep / Workout minutes / Strain are offered in the goal picker
 ([create.tsx:428-430](src/app/challenge/create.tsx#L428-L430)). Creating any of them fails:
@@ -119,7 +123,9 @@ constraint is still doing its job), `whoop_connections` exists, and both RPCs re
 
 ---
 
-### 3. `[ ] approve` — Time-counted custom goals: 60× wrong unit, and credit that never retries
+### 3. `[x] approve` — Time-counted custom goals: 60× wrong unit, and credit that never retries
+
+> **DONE** — approved, deployed, verified. `0113` in aa48dca; the drip it feeds landed with #7 (`0116`, 87e85d1).
 
 **Repro.** Create a custom goal, mode "Lock-in time", target `10` (the UI labels it **hours**). Do a
 45-minute lock-in named the same thing. The card reads **`45 / 10 hours`** and the goal completes.
@@ -151,7 +157,9 @@ is case-insensitive, a second call for the same check-in credits **0**, crossing
 
 ---
 
-### 4. `[ ] approve` — Daily step/sleep goals read the wrong window
+### 4. `[x] approve` — Daily step/sleep goals read the wrong window
+
+> **DONE** — approved. `periodStartInstant()` in aa48dca.
 
 **Repro.** A daily steps goal counts steps that are not from today. West of Greenwich the count starts
 high in the morning; east of it, everything walked before mid-morning never appears.
@@ -183,7 +191,9 @@ Node on Windows, so that half is reasoned, not executed).
 
 ## Found, not fixed — needs an asset or a product call
 
-### 5. `[ ] approve` — Equipped-audio silence: the one Audio item every user owns has no file
+### 5. `[x] approve` — Equipped-audio silence: the one Audio item every user owns has no file
+
+> **DONE** — approved. Asset sourced and wired: 1a31e7b. `sfx-emberfall-strike` still has no file and is now listed in `AUDIO_TO_SOURCE.md`. **Needs a native rebuild** (bundles a new asset).
 
 `audio-base-hearth-hum` is the free starter Audio environment — every account owns it
 (`seed_default_loadout`, 0073) and can equip it in one tap. **There is no audio file for it**: it is
@@ -202,7 +212,9 @@ by pointing hearth-hum at a premium box item's loop, which would hand out a paid
 play a loop into a room the user never agreed to make noise in"), so this is not silence-on-signup — it
 bites the moment someone equips it.
 
-### 6. `[ ] approve` — A lock-in has no way to name a time-counted goal reliably
+### 6. `[x] approve` — A lock-in has no way to name a time-counted goal reliably
+
+> **DONE** — approved. Chips on the detail field: 2173400.
 
 `credit_lockin_time_goals` matches `lower(trim(label)) = lower(trim(goal_detail))`. But `goal_detail`
 comes from a **free-text `TextInput`** in [lockin-goal-picker.tsx](src/components/lockin-goal-picker.tsx),
@@ -212,7 +224,9 @@ this is why it would rarely be *triggered*. The obvious fix — offer the user's
 tappable chips on that field, guaranteeing an exact match — is a UI change, so it is your call rather
 than mine under "don't add features".
 
-### 7. `[ ] approve` — Goal-day award never fires for a lock-in-credited goal
+### 7. `[x] approve` — Goal-day award never fires for a lock-in-credited goal
+
+> **DONE** — approved, deployed, verified. `0116` + `0117` in 87e85d1. **Two premises in this entry were wrong** — see the commit message and `CHALLENGE_REWARD_ALGO.md` §drip: `custom` never scored *ambitious* (0085 guards the `{0,0}` sentinel with `> 0`, so it has always paid the `easy` floor), and the client-side mechanism the decision doc proposed cannot work now that `0113` credits from a trigger. The award moved server-side instead.
 
 `logChallengeProgress` calls `awardGoalDay` when the server reports `just_completed`
 ([challenges.ts:71](src/lib/api/challenges.ts#L71)). `creditLockInTimeGoals` returns a bare count, so a
@@ -276,7 +290,18 @@ function during render", 2 × "Cannot access refs during render", 2 × `react/no
 
 Plus `supabase/verify_0113_0114.sql` — a rolled-back before/after check, safe to run against production.
 
-## Deploy-gated — for Noah
+## Deploy-gated — DONE
+
+All of it was run on 2026-08-23/24 against the linked project and verified. `0113`–`0117` are applied;
+`verify_0113_0114.sql` reproduced `42883` before the push and printed its full expected table after,
+`verify_0116.sql` printed its own. `0115` was checked separately (table, both RPCs, constraint arm).
+Migration `0118` belongs to the campfire pass, not this one.
+
+**Still outstanding: a native rebuild for #5**, which bundles a new audio asset. Nothing else here
+needs one, and no edge function changed.
+
+### The original steps, for the record
+
 
 1. **`npx supabase db push`** — applies 0113, 0114, 0115. Nothing here was pushed.
    - Order matters only in that **0114 should land first**; 0113's completion path calls into it.
