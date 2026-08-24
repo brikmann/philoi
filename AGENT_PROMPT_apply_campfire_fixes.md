@@ -4,6 +4,17 @@ Runs **after** the diagnostic pass (`AGENT_PROMPT_bugfix_campfire.md`) and **aft
 diagnostic agent worked on branch `fix/campfire-pass` and wrote `CAMPFIRE_BUG_LEDGER.md` with a `[ ] approve`
 box per bug. Your job: finalize **only the approved fixes**, cleanly, and get the branch ship-ready.
 
+## Status — ALL 22 items approved (Noah, this pass)
+Every campfire ledger item is approved. Items 1–2 and 4–20 are **already applied + committed** on
+`fix/campfire-pass` (`53dc9c5`) — keep them. #10 is a verified no-op. #21 (pre-existing lint) and #22 (campfire
+flame glyph, step 1's file) stay untouched. **Nothing to revert.**
+
+🔴 **The one net-new build: item #3** — `ChallengeRewardScreen` + `ChallengeWinShareCard` were diagnosed
+*not fixed*. Build them now per **`DECISION_reward_screen_and_goal_drip.md` (#3)**: fire-once on first settled
+view (new `challenge_participants.reward_seen_at` + forward-only migration), new `get_challenge_reward` RPC
+reading the real `grant_reward` payload, share reachable from standings. Then the branch is ready to integrate.
+(Item #6 — goal-picker chips — is on the **sweep** ledger, not here.)
+
 ## Inputs
 - `CAMPFIRE_BUG_LEDGER.md` — the numbered ledger. **Only entries Noah checked `[x] approve` are in scope.**
   Ignore/discard the rest.
