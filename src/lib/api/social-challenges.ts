@@ -5,6 +5,7 @@ import type {
   ChallengeChangeRequest,
   ChallengeChangeRequestDetail,
   ChallengeResultRow,
+  ChallengeReward,
   SocialChallenge,
   SocialChallengeRaceMetric,
 } from '@/types/database';
@@ -97,6 +98,37 @@ export async function fetchChallengeResults(challengeId: string): Promise<Challe
   const { data, error } = await supabase.rpc('get_challenge_results', { p_challenge_id: challengeId });
   if (error) throw error;
   return data ?? [];
+}
+
+/**
+ * This viewer's own payout on a settled challenge (0116) — placement, XP, and the jsonb
+ * grant_reward returned when it paid.
+ *
+ * 🔒 A READ. Nothing here grants anything; the embers, box and badge it describes were moved by
+ * grant_reward at settlement, and the reveal screen exists to say so. A client that derived its
+ * own reward figures from the same inputs would eventually disagree with the ledger.
+ *
+ * Returns nulls across the board for a non-participant and for a challenge that has not settled —
+ * a normal answer, not an error, because the caller asks this speculatively on every open.
+ */
+export async function fetchChallengeReward(challengeId: string): Promise<ChallengeReward> {
+  const { data, error } = await supabase.rpc('get_challenge_reward', { p_challenge_id: challengeId });
+  if (error) throw error;
+  return {
+    placement: data?.placement ?? null,
+    percentile: data?.percentile ?? null,
+    field_size: data?.field_size ?? 0,
+    xp: data?.xp ?? 0,
+    seen_at: data?.seen_at ?? null,
+    payload: data?.payload ?? null,
+  };
+}
+
+/** Fire-once: stamps reward_seen_at so re-opening a settled challenge lands on the standings. */
+export async function markChallengeRewardSeen(challengeId: string): Promise<void> {
+  const { error } = await supabase.rpc('mark_challenge_reward_seen', { p_challenge_id: challengeId });
+  if (error) throw error;
+  track('challenge_reward_seen', { challenge_id: challengeId });
 }
 
 // ───────────────────────── change / cancel consent (mocks 70 + 71) ─────────────────────────

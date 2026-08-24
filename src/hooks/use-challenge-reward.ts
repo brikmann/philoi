@@ -1,0 +1,127 @@
+import { useCallback, useEffect, useState } from 'react';
+
+import { BOXES, type BoxKey } from '@/lib/economy/boxes';
+import { fetchChallengeReward, markChallengeRewardSeen } from '@/lib/api/social-challenges';
+import { isDuel, metricLabel } from '@/lib/challenge-metric';
+import { placementTier } from '@/lib/challenge-reward-copy';
+import type { ChallengeRewardResult } from '@/components/economy/challenge-reward-screen';
+import type { ChallengeReward, SocialChallenge } from '@/types/database';
+
+// The reveal's data half (0116, DECISION_reward_screen_and_goal_drip.md §campfire-3).
+//
+// grant_reward has always paid silently: embers into the wallet, a box into the inventory, a badge
+// minted, and nothing on screen to say so — the most rewarding moment in the app was its quietest.
+// 0116 captures what it paid; this is the read, plus the fire-once bookkeeping around it.
+//
+// FIRE-ONCE IS THE SERVER'S FLAG, NOT LOCAL STATE. `seen_at` lives on challenge_participants, so
+// the reveal survives a reinstall, does not re-fire on a second device, and cannot be re-triggered
+// by remounting the screen. The optimistic local flip below is only so dismiss feels instant; the
+// stamp it mirrors is the durable one.
+
+export type ChallengeRewardState = {
+  /** Null while loading, or when there is nothing to reveal (non-participant, unsettled, pre-0111). */
+  reward: ChallengeReward | null;
+  /** True on the FIRST view of a settled challenge this user raced in. */
+  owed: boolean;
+  /** Stamps reward_seen_at and closes the reveal. Safe to call twice — the RPC no-ops. */
+  dismiss: () => void;
+};
+
+export function useChallengeReward(challengeId: string, enabled: boolean): ChallengeRewardState {
+  const [reward, setReward] = useState<ChallengeReward | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    fetchChallengeReward(challengeId)
+      .then((r) => live && setReward(r))
+      // Silent. The reveal is a flourish on top of rewards that have already landed in the ledger;
+      // a failed read must never take the standings block down with it.
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [challengeId, enabled]);
+
+  const dismiss = useCallback(() => {
+    setDismissed(true);
+    markChallengeRewardSeen(challengeId).catch(() => {});
+  }, [challengeId]);
+
+  // `placement != null` is the real gate, not just `seen_at == null`: a challenge that settled
+  // before 0111 wrote standings has nothing to reveal, and an empty reveal is worse than none.
+  const owed = Boolean(reward && reward.placement != null && reward.seen_at == null && !dismissed);
+
+  return { reward, owed, dismiss };
+}
+
+/**
+ * The read → what mock 47's screen renders.
+ *
+ * Everything monetary comes from the payload and nothing is recomputed here: a screen that derived
+ * its own ember figure from the same inputs would eventually disagree with the ledger, and the
+ * ledger is what moved. What IS derived is presentation — which copy pool, which medal, how loud
+ * the burst — none of which the server has an opinion about.
+ */
+export function challengeRewardResult(
+  reward: ChallengeReward,
+  challenge: Pick<
+    SocialChallenge,
+    'shape' | 'mode' | 'race_metric' | 'window_hours' | 'opponent_id' | 'opponent_name' | 'created_by_name'
+  >,
+  myUserId: string | undefined
+): ChallengeRewardResult {
+  const duel = isDuel(challenge);
+  const payload = reward.payload;
+
+  return {
+    tier: placementTier({
+      absoluteRank: reward.placement,
+      // INVERTED on purpose. final_percentile is stored the way the standings read it — 1.0 is the
+      // top of the board (0111: `1.0 - (rank - 1) / (n - 1)`) — and placementTier counts the other
+      // way, 0 = top. Passing it through unturned would hand a champion the Fraud Watch pool.
+      percentile: reward.percentile == null ? null : 1 - reward.percentile,
+      boardSize: reward.field_size,
+    }),
+    // A 1v1 loss must never draw the board set's "Fraud Watch" copy — the whole reason this axis
+    // exists (CHALLENGE_REWARD_COPY.md).
+    context: duel ? 'duel' : 'board',
+    // Only on a win, and only in a duel: the sub-line reads "You beat Dee", which is a lie in
+    // second place and meaningless in a group race.
+    opponentName:
+      duel && reward.placement === 1
+        ? (myUserId === challenge.opponent_id ? challenge.created_by_name : challenge.opponent_name) ?? null
+        : null,
+    metricLabel: metricLabel(challenge.race_metric),
+    durationLabel: `${challenge.window_hours}h`,
+    xp: reward.xp,
+    // Null payload is the pre-0114 case (grant_reward raised before it could return) and the
+    // completion band (which pays no box and no badge). Both render as placement + XP, which is
+    // still a result worth showing.
+    embers: payload?.embers ?? 0,
+    box: boxRow(payload?.box ?? null),
+    badge: badgeRow(payload?.badge ?? null, payload?.band ?? null),
+  };
+}
+
+function boxRow(key: string | null): ChallengeRewardResult['box'] {
+  if (!key) return null;
+  const box = BOXES[key as BoxKey];
+  // A box key this build's catalog doesn't know (a server-side addition ahead of the app) is
+  // dropped rather than rendered as "undefined" — the box is in their inventory either way.
+  if (!box) return null;
+  return { key: box.key, name: box.name, rarity: box.rarity };
+}
+
+/**
+ * grant_reward stores the badge KEY ('challenge-elite'); the human label it minted alongside is on
+ * the badge row, not in the payload. Rebuilt from the band using the function's own rule
+ * (`initcap(band) || ' challenge win'`) rather than fetching it — one extra round trip to restate
+ * a string this side already has every input for.
+ */
+function badgeRow(key: string | null, band: string | null): ChallengeRewardResult['badge'] {
+  if (!key) return null;
+  const label = band ? `${band.charAt(0).toUpperCase()}${band.slice(1)} challenge win` : 'Challenge win';
+  return { key, name: label };
+}

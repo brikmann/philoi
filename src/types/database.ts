@@ -781,6 +781,11 @@ export type AnalyticsEventName =
   // removes one that never got going. Conflating them would hide how many challenges are being
   // set up and then abandoned before anyone accepts.
   | 'challenge_deleted'
+  // The reward reveal (0116). The pair is the funnel that matters: `seen` counts settled races
+  // where the payout was actually announced, `shared` how many of those were worth advertising.
+  // A gap between them and the standings-block Share is doing nothing.
+  | 'challenge_reward_seen'
+  | 'challenge_result_shared'
   // Campus verification (UNI_VERIFICATION_SPEC.md). The gap between sent and verified is the
   // number that matters: it's how many students hit a school inbox they couldn't actually reach.
   | 'campus_code_sent'
@@ -1118,6 +1123,38 @@ export type ChallengeResultRow = {
   percentile: number | null;
   awarded_xp: number;
   is_winner: boolean;
+};
+
+/**
+ * grant_reward's return value, captured at settlement by 0116 — the payout that actually landed.
+ *
+ * Every field is nullable because the completion band pays no box and no badge, and because a
+ * challenge settled before 0114 has no payload at all (grant_reward raised before it could
+ * return). The reveal renders placement and XP in that case rather than nothing.
+ */
+export type ChallengeRewardPayload = {
+  embers: number | null;
+  /** A `BoxKey` — resolved against the local catalog for its name and rarity. */
+  box: string | null;
+  /** The badge KEY ('challenge-elite'); its label is rebuilt from `band`. */
+  badge: string | null;
+  band: string | null;
+  significance: number | null;
+};
+
+/**
+ * get_challenge_reward() (0116) — this viewer's own result on a settled challenge. `{}` for a
+ * non-participant and for a challenge that has not settled, which lands here as every field null.
+ */
+export type ChallengeReward = {
+  placement: number | null;
+  /** Stored orientation, as in get_challenge_results: 1.0 is the TOP of the board. */
+  percentile: number | null;
+  field_size: number;
+  xp: number;
+  /** Non-null once the reveal has been shown — the server-side fire-once flag. */
+  seen_at: string | null;
+  payload: ChallengeRewardPayload | null;
 };
 
 // ───────────── challenge change/cancel consent (migration 0058, design-mocks/70 + 71) ─────────────
@@ -1738,6 +1775,10 @@ export type Database = {
       cancel_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       /** The settled standings (0111) — every racer's final figure, rank and what they were paid. */
       get_challenge_results: { Args: { p_challenge_id: string }; Returns: ChallengeResultRow[] };
+      /** This viewer's own payout on a settled challenge (0116) — reads what grant_reward paid. */
+      get_challenge_reward: { Args: { p_challenge_id: string }; Returns: ChallengeReward };
+      /** Stamps the fire-once flag so the reveal never plays twice (0116). */
+      mark_challenge_reward_seen: { Args: { p_challenge_id: string }; Returns: undefined };
       /** Pre-start or finished only; a live race is left to cancel/forfeit's consent path (0112). */
       delete_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       get_my_friends: {

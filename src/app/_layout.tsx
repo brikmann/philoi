@@ -119,6 +119,25 @@ function RootNavigator() {
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
       const data = response.notification.request.content.data;
+
+      // THE ROUTE THE EVENT WAS WRITTEN WITH, first (0086's notify_event).
+      //
+      // Every notify_event push carries `route` + `params` in its data payload, and the in-app
+      // bell has honoured them since 0086 — this listener never did, so tapping the PUSH did
+      // something different from tapping the same row in the bell, or nothing at all. That is
+      // what made the settled-challenge deep-link dead: challenge_won / challenge_lost /
+      // campfire_settled all carry '/challenge-info/[challengeId]' and none of them match a
+      // branch below, so the tap fell off the end of this function.
+      //
+      // Ahead of the group_id check because a route is the more specific instruction; the legacy
+      // notify_push callers that rely on group_id (join requests, 0003's challenge_completed)
+      // send no route key at all, so they still fall through untouched. No per-type switch here
+      // for the same reason the bell has none: a new event type gets its destination for free.
+      if (typeof data?.route === 'string') {
+        router.push({ pathname: data.route as never, params: (data.params ?? {}) as never });
+        return;
+      }
+
       const groupId = data?.group_id;
       if (typeof groupId === 'string') {
         router.push(`/group/${groupId}`);
