@@ -28,8 +28,9 @@ export async function createChallenge(input: {
   target: number;
   unit: string;
   period: ChallengePeriod;
-  /** Custom goals only (migration 0061) — 'lockin_time' accrues minutes from lock-ins whose
-   * detail matches `label`, which is what makes that name behave like its own lock-in type. */
+  /** Custom goals only (0061) — 'lockin_time' accrues HOURS from lock-ins whose detail matches
+   * `label`, which is what makes that name behave like its own lock-in type. Minutes until 0113;
+   * the target has always been in hours, so the credit was 60x too generous. */
   countMode?: ChallengeCountMode;
 }): Promise<Challenge> {
   const { data, error } = await supabase
@@ -122,6 +123,27 @@ async function awardGoalDay(challengeId: string): Promise<GoalDayAward | null> {
   }
 }
 
+/**
+ * The caller's live time-counted custom goals — the ones a lock-in can actually feed.
+ *
+ * Exists for the lock-in goal picker's chips. The credit matches lower(trim(label)) against the
+ * session's free-text detail, so the ONLY reliable way to hit it was to retype the goal's name
+ * exactly; the chips make the match a tap instead. Deliberately not routed through
+ * useMyChallenges, which fires a device-fitness sync per focus — far too much work for a bottom
+ * sheet that just needs a handful of names.
+ */
+export async function fetchLockinTimeGoals(userId: string): Promise<Challenge[]> {
+  const { data, error } = await supabase
+    .from('challenges')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('count_mode', 'lockin_time')
+    .is('completed_at', null)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function deleteChallenge(challengeId: string): Promise<void> {
   const { error } = await supabase.from('challenges').delete().eq('id', challengeId);
   if (error) throw error;
@@ -141,9 +163,16 @@ export async function fetchChallengeFeedEvents(groupId: string): Promise<FeedCha
   return (data ?? []) as unknown as FeedChallengeEvent[];
 }
 
-/** Credits a finished lock-in's minutes to any time-counted custom goal whose name matches the
- * session's detail (migration 0061). Idempotent per check-in, so calling it again after a
- * backgrounded app missed the first attempt is safe and cheap. */
+/**
+ * Credits a finished lock-in's HOURS to any time-counted custom goal whose name matches the
+ * session's detail (0061, repaired in 0113 — it used to credit minutes against a target the
+ * create screen states in hours, so every such goal was 60x too easy).
+ *
+ * Now a retry rather than the primary path: 0113 moved the work onto an AFTER INSERT trigger on
+ * check_ins, so the credit — and, since 0116, the goal-day drip that a completion earns — already
+ * landed in the same transaction that created the check-in. This call almost always finds the work
+ * done and returns 0, which is the point: a backgrounded app can no longer lose either one.
+ */
 export async function creditLockInTimeGoals(checkInId: string): Promise<number> {
   const { data, error } = await supabase.rpc('credit_lockin_time_goals', { p_check_in_id: checkInId });
   if (error) throw error;

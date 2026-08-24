@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,8 +8,10 @@ import { GymRoutineBlock } from '@/components/gym-routine-block';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useMyGroups } from '@/hooks/use-my-groups';
+import { fetchLockinTimeGoals } from '@/lib/api/challenges';
+import { useAuth } from '@/lib/auth/auth-context';
 import { GOAL_TYPES, GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
-import type { GoalType, WorkoutEnergy } from '@/types/database';
+import type { Challenge, GoalType, WorkoutEnergy } from '@/types/database';
 
 type LockinGoalPickerProps = {
   visible: boolean;
@@ -21,6 +23,12 @@ type LockinGoalPickerProps = {
   lockedCircleName?: string;
 };
 
+// 1.5 not 1.50, 10 not 10.00 — the credit is stored to 2dp (0113) and a chip reading
+// "1.50/10.00h" is noisier than the number is precise.
+function formatHours(value: number): string {
+  return String(Math.round(value * 100) / 100);
+}
+
 // "What are you locking in for?" — design-mocks/07's real bottom sheet: a dimmed backdrop
 // (the campfire you came from, still visible underneath) with a rounded card floating over
 // its bottom edge. No bottom-sheet library exists in this project, so this is a transparent
@@ -28,6 +36,7 @@ type LockinGoalPickerProps = {
 export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircleName }: LockinGoalPickerProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { session } = useAuth();
   const { groups } = useMyGroups();
   const [goalType, setGoalType] = useState<GoalType>('gym');
   const [detail, setDetail] = useState('');
@@ -38,6 +47,30 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
   const [routineId, setRoutineId] = useState<string | null>(null);
   const [energy, setEnergy] = useState<WorkoutEnergy>('same');
   const isGym = goalType === 'gym';
+
+  // A time-counted custom goal is credited by matching the goal's own name against this
+  // session's detail (0061/0113), which until now meant retyping it character-for-character with
+  // nothing in this sheet saying so. These chips ARE the match: tapping one writes the label
+  // verbatim, so the credit lands rather than depending on the user guessing the mechanism.
+  const [timeGoals, setTimeGoals] = useState<Challenge[]>([]);
+  // A request counter rather than a `mounted` flag: an effect cleanup runs on every dep change,
+  // not only on unmount, so the flag version cancels the fetch it just started when `visible`
+  // flips (the freeze in lock-in/index.tsx was this bug). Comparing ids only ever discards a
+  // response that a newer one has already superseded.
+  const latestGoalReq = useRef(0);
+  useEffect(() => {
+    if (!visible || !session) return;
+    const req = latestGoalReq.current + 1;
+    latestGoalReq.current = req;
+    fetchLockinTimeGoals(session.user.id)
+      .then((goals) => {
+        if (latestGoalReq.current === req) setTimeGoals(goals);
+      })
+      // Silent: the chips are a shortcut, and the free-text field underneath still works.
+      .catch(() => {
+        if (latestGoalReq.current === req) setTimeGoals([]);
+      });
+  }, [visible, session]);
 
   const effectiveCircleId = lockedCircleId ?? (withCampfire ? circleId : null);
   const canStart = !withCampfire || Boolean(effectiveCircleId);
@@ -126,6 +159,34 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
               maxLength={60}
             />
           </View>
+
+          {timeGoals.length > 0 && (
+            <>
+              <Text style={styles.goalHint}>Name it after a goal and the time counts toward it</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.goalRow}>
+                {timeGoals.map((goal) => {
+                  const label = goal.label ?? '';
+                  const selected = detail.trim().toLowerCase() === label.trim().toLowerCase();
+                  return (
+                    <Pressable
+                      key={goal.id}
+                      // Tapping the selected chip clears it again, so the field never becomes a
+                      // one-way door for someone who picked the wrong goal.
+                      onPress={() => setDetail(selected ? '' : label)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      style={[styles.goalChip, selected && styles.goalChipSelected]}>
+                      <Ionicons name="flag" size={12} color={selected ? Colors.coral : Colors.textTertiary} />
+                      <Text style={[styles.goalChipLabel, selected && styles.goalChipLabelSelected]}>{label}</Text>
+                      <Text style={styles.goalChipMeta}>
+                        {formatHours(goal.progress)}/{formatHours(goal.target)}h
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </>
+          )}
 
           {isGym && (
             <GymRoutineBlock
@@ -294,6 +355,44 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: Colors.ink,
     padding: 0,
+  },
+  goalHint: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.textTertiary,
+    marginTop: 9,
+  },
+  goalRow: {
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  goalChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    backgroundColor: Colors.cream,
+  },
+  goalChipSelected: {
+    borderColor: Colors.coral,
+    backgroundColor: Colors.selectedBg,
+  },
+  goalChipLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12.5,
+    color: Colors.muted,
+  },
+  goalChipLabelSelected: {
+    color: Colors.ink,
+  },
+  goalChipMeta: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.textTertiary,
   },
   mode: {
     flexDirection: 'row',
