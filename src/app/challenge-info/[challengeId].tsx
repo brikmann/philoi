@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -183,7 +183,14 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
    * consolation landed, not a victory screen. It is a RESULT screen; losing is a result.
    */
   const { reward, owed, dismiss } = useChallengeReward(c.id, settled && c.my_state === 'accepted');
-  const result = reward && reward.placement != null ? challengeRewardResult(reward, c, session?.user.id) : null;
+  // Memoised on the reward itself, not on `c`: useSocialChallenges hands back a fresh object every
+  // poll, and a new `result` identity each render would rebuild the reveal's reward rows underneath
+  // a running animation. The settled figures cannot change once written.
+  const result = useMemo(
+    () => (reward && reward.placement != null ? challengeRewardResult(reward, c, session?.user.id) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [reward, c.id, session?.user.id]
+  );
 
   async function handleShare() {
     setSharing(true);
