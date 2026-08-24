@@ -6,6 +6,7 @@ import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, EMBER_GRADIENT, Fonts, Radius, Spacing } from '@/constants/theme';
+import { metricLabel } from '@/lib/challenge-metric';
 import type { SocialChallengeRaceMetric } from '@/types/database';
 
 type ChallengeSentSheetProps = {
@@ -58,7 +59,10 @@ export function ChallengeSentSheet({
   windowHours,
   payoutXp,
 }: ChallengeSentSheetProps) {
-  const metricLabel = raceMetric === 'lockin_time' ? 'Most lock-in time' : 'Most XP';
+  // The fourth copy of the same two-branch ternary — this one confirming a challenge the user
+  // JUST created, so a volume duel's confirmation screen said "Most XP" one tap after they picked
+  // Volume. challenge-metric.ts is the one place that knows the 0096 metric set.
+  const raceLabel = metricLabel(raceMetric);
 
   return (
     <Modal visible={visible} animationType="fade" onRequestClose={onClose} transparent={false}>
@@ -75,7 +79,7 @@ export function ChallengeSentSheet({
           <PaperPlaneHero />
           <Text style={styles.title}>Sent to {opponentName}</Text>
           <Text style={styles.meta}>
-            Head-to-head · {metricLabel} · {formatWindow(windowHours)}
+            Head-to-head · {raceLabel} · {formatWindow(windowHours)}
           </Text>
           <Text style={styles.meta}>
             Winner takes <Text style={styles.metaXp}>+{payoutXp} XP</Text>

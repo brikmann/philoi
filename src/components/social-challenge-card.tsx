@@ -10,16 +10,20 @@ import { Avatar } from '@/components/ui/avatar';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { cancelSocialChallenge, respondToH2HChallenge } from '@/lib/api/social-challenges';
 import { getErrorMessage } from '@/lib/errors';
-import { formatSessionDuration, formatTimeLeft } from '@/lib/format';
+import { challengeTitle, formatMetricValue, metricLabel } from '@/lib/challenge-metric';
+import { formatTimeLeft } from '@/lib/format';
 import type { SocialChallenge } from '@/types/database';
 
 type SocialChallengeCardProps = {
   challenge: SocialChallenge;
   myUserId: string;
   onChanged: () => void;
+  /** Campfire-admin, when the card is rendered inside a campfire. Widens who is offered Delete
+   *  in the manage sheet; the RPC is what actually decides. */
+  isAdmin?: boolean;
 };
 
-export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: SocialChallengeCardProps) {
+export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin = false }: SocialChallengeCardProps) {
   const router = useRouter();
   const [manageOpen, setManageOpen] = useState(false);
   const isInvite = c.mode === 'h2h' && c.status === 'pending' && c.opponent_id === myUserId;
@@ -64,9 +68,14 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
     ]);
   }
 
-  const isTimeMetric = c.race_metric === 'lockin_time';
-  const fmtScore = (n: number) => (isTimeMetric ? formatSessionDuration(Math.round(n)) : `${Math.round(n)} XP`);
-  const metricLabel = isTimeMetric ? 'Most lock-in time' : 'Most XP';
+  // Was a two-branch ternary written when the metric set was {lockin_time, xp}: since 0096 it can
+  // also be volume, distance or ai, and all three fell through to "Most XP" / "12000 XP". One
+  // shared spec now (challenge-metric.ts) rather than a copy of this on every screen.
+  const fmtScore = (n: number) => formatMetricValue(c.race_metric, n);
+  const raceLabel = metricLabel(c.race_metric);
+  // public_name is what the spec titles the card with; it was written at creation and read by
+  // nothing until 0112 started selecting it.
+  const title = challengeTitle(c);
 
   // ── Outgoing invite you sent, still unanswered ──────────────────────────────
   if (isOutgoingPending) {
@@ -79,7 +88,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
           </View>
           <Text style={styles.clock}>waiting for a response</Text>
         </View>
-        <Text style={styles.title}>Challenged {otherName ?? 'them'} · {metricLabel}</Text>
+        <Text style={styles.title}>Challenged {otherName ?? 'them'} · {title}</Text>
         <Pressable style={styles.cancelLink} onPress={() => handleCancel('Cancel challenge', `Cancel your challenge to ${otherName ?? 'them'}?`)}>
           <Text style={styles.cancelLinkText}>Cancel</Text>
         </Pressable>
@@ -98,7 +107,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
           </View>
           <Text style={styles.clock}>{c.created_by_name} challenged you</Text>
         </View>
-        <Text style={styles.title}>{metricLabel} · who wins in {c.window_hours}h</Text>
+        <Text style={styles.title}>{title} · who wins in {c.window_hours}h</Text>
         <View style={styles.footRow}>
           <Ionicons name="trophy" size={12} color={Colors.achieverText} />
           <Text style={styles.footText}>winner +{c.payout_xp} XP</Text>
@@ -136,14 +145,22 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
         <View style={styles.labelRow}>
           <View style={styles.labelLeft}>
             <Ionicons name="flash" size={12} color={Colors.achieverText} />
-            <Text style={styles.labelText}>{metricLabel}</Text>
+            <Text style={styles.labelText}>{raceLabel}</Text>
           </View>
           <View style={styles.labelLeft}>
             {c.status === 'active' && <View style={styles.livePulse} />}
             <Text style={styles.clock}>{c.status === 'completed' ? 'finished' : formatTimeLeft(c.ends_at)}</Text>
-            <ManageTrash visible={c.status === 'active'} onPress={() => setManageOpen(true)} />
+            <ManageKebab visible onPress={() => setManageOpen(true)} />
           </View>
         </View>
+
+        {/* The public name, when there is one, is the headline — the metric has already said what
+            the race is in the label row above. */}
+        {c.public_name ? (
+          <Text style={styles.title} numberOfLines={1}>
+            {c.public_name}
+          </Text>
+        ) : null}
 
         <View style={styles.matchRow}>
           <View style={styles.matchSide}>
@@ -198,6 +215,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
           <ChallengeManageSheet
             challenge={c}
             myUserId={myUserId}
+            isAdmin={isAdmin}
             onClose={() => setManageOpen(false)}
             onChanged={onChanged}
           />
@@ -222,11 +240,15 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
         <View style={styles.labelLeft}>
           {c.status === 'active' && <View style={styles.livePulse} />}
           <Text style={styles.clock}>{c.status === 'completed' ? 'finished' : formatTimeLeft(c.ends_at)}</Text>
-          <ManageTrash visible={c.status === 'active'} onPress={() => setManageOpen(true)} />
+          <ManageKebab visible onPress={() => setManageOpen(true)} />
         </View>
       </View>
 
-      <Text style={styles.title}>Everyone locks in {c.target_count}× this {c.window_hours >= 168 ? 'week' : 'window'}</Text>
+      <Text style={styles.title}>
+        {c.public_name?.trim()
+          ? c.public_name
+          : `Everyone locks in ${c.target_count}× this ${c.window_hours >= 168 ? 'week' : 'window'}`}
+      </Text>
 
       <View style={styles.groupCountRow}>
         <Text style={styles.groupCount}>
@@ -251,6 +273,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
         <ChallengeManageSheet
           challenge={c}
           myUserId={myUserId}
+          isAdmin={isAdmin}
           onClose={() => setManageOpen(false)}
           onChanged={onChanged}
         />
@@ -259,17 +282,23 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged }: Socia
   );
 }
 
-// The quiet grey trash from mock 72 — top-right of an ACTIVE card, after the time-left. It is
-// neutral on purpose: it opens Manage (mock 70), it doesn't delete anything, so shouting in red
-// here would misrepresent what tapping it does. Red is spent on "Request to cancel" inside the
-// sheet, where it's accurate. Completed challenges get none of this (nothing left to manage);
-// pending outgoing invites keep their own "Cancel" text link, which IS unilateral because
-// nobody has agreed to anything yet.
-function ManageTrash({ visible, onPress }: { visible: boolean; onPress: () => void }) {
+// THE ⋯ KEBAB — top-right of the card, after the time-left.
+//
+// This was a trash can (mock 72), and CAMPFIRE_REDESIGN_SPEC's 🔴 is precisely that: "Manage = a
+// kebab / hamburger, not a trash can. The trash-can-as-manage is confusing." It was already the
+// wrong glyph for what it did — the old comment here argued at length that the trash was "neutral
+// on purpose" because it opens Manage rather than deleting anything, which is the tell: an icon
+// that needs a paragraph explaining it does not mean what it depicts is the wrong icon. Now that
+// Delete genuinely lives inside the sheet, a trash can would be actively misleading about which
+// of the four actions you were about to get.
+//
+// Visible on every card that has a sheet to open, not only active ones: Delete has to be reachable
+// on a draft that never started and on a finished row, which is where it is most wanted.
+function ManageKebab({ visible, onPress }: { visible: boolean; onPress: () => void }) {
   if (!visible) return null;
   return (
-    <Pressable onPress={onPress} hitSlop={8} style={styles.manageTrash} accessibilityRole="button" accessibilityLabel="Manage challenge">
-      <Ionicons name="trash-outline" size={15} color={Colors.muted} />
+    <Pressable onPress={onPress} hitSlop={8} style={styles.manageKebab} accessibilityRole="button" accessibilityLabel="Manage challenge">
+      <Ionicons name="ellipsis-horizontal" size={15} color={Colors.muted} />
     </Pressable>
   );
 }
@@ -288,7 +317,7 @@ const styles = StyleSheet.create({
   cardPending: {
     opacity: 0.85,
   },
-  manageTrash: {
+  manageKebab: {
     width: 28,
     height: 28,
     borderRadius: 8,

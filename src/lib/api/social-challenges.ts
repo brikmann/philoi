@@ -4,6 +4,8 @@ import type {
   ChallengeChangeKind,
   ChallengeChangeRequest,
   ChallengeChangeRequestDetail,
+  ChallengeResultRow,
+  ChallengeReward,
   SocialChallenge,
   SocialChallengeRaceMetric,
 } from '@/types/database';
@@ -68,6 +70,65 @@ export async function cancelSocialChallenge(challengeId: string): Promise<void> 
   const { error } = await supabase.rpc('cancel_social_challenge', { p_challenge_id: challengeId });
   if (error) throw error;
   track('challenge_cancelled', { challenge_id: challengeId });
+}
+
+/**
+ * Delete the challenge outright — CAMPFIRE_REDESIGN_SPEC's missing "Delete challenge" action,
+ * inside the ⋯ menu (0112).
+ *
+ * NOT a way out of a live race: the RPC refuses one, because a running challenge is a deal other
+ * people are still keeping and cancel/forfeit above are the consented routes out. This is for a
+ * draft nobody accepted, an invite that went stale, or clearing a finished row off the list.
+ */
+export async function deleteSocialChallenge(challengeId: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_social_challenge', { p_challenge_id: challengeId });
+  if (error) throw error;
+  track('challenge_deleted', { challenge_id: challengeId });
+}
+
+/**
+ * The settled standings (0111): every racer's final figure, rank, percentile and what they were
+ * actually paid.
+ *
+ * Read, never re-derived. The figures were written once at settlement precisely so a result page
+ * cannot drift as later sessions land — recomputing them here from live data would eventually
+ * disagree with the ledger, and the ledger is what moved.
+ */
+export async function fetchChallengeResults(challengeId: string): Promise<ChallengeResultRow[]> {
+  const { data, error } = await supabase.rpc('get_challenge_results', { p_challenge_id: challengeId });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * This viewer's own payout on a settled challenge (0116) — placement, XP, and the jsonb
+ * grant_reward returned when it paid.
+ *
+ * 🔒 A READ. Nothing here grants anything; the embers, box and badge it describes were moved by
+ * grant_reward at settlement, and the reveal screen exists to say so. A client that derived its
+ * own reward figures from the same inputs would eventually disagree with the ledger.
+ *
+ * Returns nulls across the board for a non-participant and for a challenge that has not settled —
+ * a normal answer, not an error, because the caller asks this speculatively on every open.
+ */
+export async function fetchChallengeReward(challengeId: string): Promise<ChallengeReward> {
+  const { data, error } = await supabase.rpc('get_challenge_reward', { p_challenge_id: challengeId });
+  if (error) throw error;
+  return {
+    placement: data?.placement ?? null,
+    percentile: data?.percentile ?? null,
+    field_size: data?.field_size ?? 0,
+    xp: data?.xp ?? 0,
+    seen_at: data?.seen_at ?? null,
+    payload: data?.payload ?? null,
+  };
+}
+
+/** Fire-once: stamps reward_seen_at so re-opening a settled challenge lands on the standings. */
+export async function markChallengeRewardSeen(challengeId: string): Promise<void> {
+  const { error } = await supabase.rpc('mark_challenge_reward_seen', { p_challenge_id: challengeId });
+  if (error) throw error;
+  track('challenge_reward_seen', { challenge_id: challengeId });
 }
 
 // ───────────────────────── change / cancel consent (mocks 70 + 71) ─────────────────────────

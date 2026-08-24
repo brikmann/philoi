@@ -1,13 +1,15 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Modal, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ChallengeMemberTicker } from '@/components/challenge-member-ticker';
 import { SocialChallengeCard } from '@/components/social-challenge-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TargetEmberHero } from '@/components/empty-states/target-ember-hero';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { respondToChallengeInvite, startChallenge } from '@/lib/api/challenge-lifecycle';
+import { inviteChallengeMembers, respondToChallengeInvite, startChallenge } from '@/lib/api/challenge-lifecycle';
 import { fetchMySocialChallenges } from '@/lib/api/social-challenges';
 import { getErrorMessage } from '@/lib/errors';
 import type { SocialChallenge } from '@/types/database';
@@ -43,6 +45,7 @@ export function ChallengesTab({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [inviteFor, setInviteFor] = useState<SocialChallenge | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,26 +62,14 @@ export function ChallengesTab({
     }
   }, [groupId]);
 
+  // Mount fetch. This used to be a second, hand-inlined copy of `load` — same RPC, same filter,
+  // same error string — so the campfire-scoping rule lived in two places and a fix to one would
+  // silently miss the other. `load` already owns its own error handling and never rejects, so
+  // there is nothing left here to guard.
   useEffect(() => {
-    let current = true;
-    (async () => {
-      try {
-        const all = await fetchMySocialChallenges();
-        if (current) {
-          setChallenges(all.filter((c) => c.circle_id === groupId));
-          setLoading(false);
-        }
-      } catch (e) {
-        if (current) {
-          setError(getErrorMessage(e, 'Could not load challenges.'));
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      current = false;
-    };
-  }, [groupId]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount, no caching layer to defer to
+    void load();
+  }, [load]);
 
   async function act(id: string, fn: () => Promise<unknown>) {
     setBusyId(id);
@@ -139,8 +130,22 @@ export function ChallengesTab({
             onPress={() =>
               router.push({ pathname: '/challenge-info/[challengeId]', params: { challengeId: item.id } })
             }>
-            <SocialChallengeCard challenge={item} myUserId={myUserId} onChanged={load} />
+            <SocialChallengeCard challenge={item} myUserId={myUserId} onChanged={load} isAdmin={isAdmin} />
           </Pressable>
+
+          {/* A DRAFT WITH NOBODY IN IT. This is the state every group challenge created since 0098
+              has been stuck in: created as a draft, no participants, and "Start the race" below
+              refusing with "Nobody has accepted yet." because nothing ever called
+              invite_challenge_members. The ticker now runs at create time, but drafts stranded
+              before that need a way out, and an admin who skipped the ticker needs one too. */}
+          {isAdmin && item.status === 'draft' && item.invited_count === 0 && item.accepted_count <= 1 ? (
+            <Pressable
+              style={[styles.btn, styles.start]}
+              onPress={() => setInviteFor(item)}
+              accessibilityRole="button">
+              <Text style={styles.startText}>Invite members</Text>
+            </Pressable>
+          ) : null}
 
           {/* The two v2 lifecycle actions that belong on the card. Everything else (edit, delete,
               terms) lives in the manage sheet. */}
@@ -175,9 +180,92 @@ export function ChallengesTab({
       )}
       ItemSeparatorComponent={() => <View style={{ height: Spacing.three }} />}
       ListFooterComponent={
-        error ? <Text style={styles.error}>{error}</Text> : null
+        <>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {inviteFor ? (
+            <InviteSheet
+              challenge={inviteFor}
+              myUserId={myUserId}
+              onClose={() => setInviteFor(null)}
+              onInvited={() => {
+                setInviteFor(null);
+                void load();
+              }}
+            />
+          ) : null}
+        </>
       }
     />
+  );
+}
+
+/** The member ticker as a sheet, for a draft that already exists. Same component the create
+ *  screen uses inline — one definition of "pick people from this campfire". */
+function InviteSheet({
+  challenge,
+  myUserId,
+  onClose,
+  onInvited,
+}: {
+  challenge: SocialChallenge;
+  myUserId: string;
+  onClose: () => void;
+  onInvited: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const [picked, setPicked] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function send() {
+    setBusy(true);
+    setErr(null);
+    try {
+      await inviteChallengeMembers(challenge.id, picked);
+      onInvited();
+    } catch (e) {
+      setErr(getErrorMessage(e, 'Those invites did not go out.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+        {/* Inside a <Modal>, so the OS inset is this component's problem — the parent Screen's
+            SafeAreaView does not extend over a modal. */}
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + Spacing.four }]}>
+          <View style={styles.grab} />
+          <Text style={styles.sheetTitle}>Who&apos;s racing?</Text>
+          <Text style={styles.sheetSub}>
+            They get an invite to accept. Once someone has, you can start the race.
+          </Text>
+
+          {challenge.circle_id ? (
+            <ChallengeMemberTicker
+              groupId={challenge.circle_id}
+              value={picked}
+              onChange={setPicked}
+              excludeUserIds={[myUserId]}
+            />
+          ) : null}
+
+          {err ? <Text style={styles.error}>{err}</Text> : null}
+
+          <Pressable
+            style={[styles.btn, styles.accept, (busy || picked.length === 0) && styles.btnOff]}
+            disabled={busy || picked.length === 0}
+            onPress={send}
+            accessibilityRole="button">
+            <Text style={styles.acceptText}>
+              {busy ? 'Sending…' : picked.length === 0 ? 'Pick someone' : `Invite ${picked.length}`}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -235,5 +323,40 @@ const styles = StyleSheet.create({
     color: Colors.coral,
     textAlign: 'center',
     marginTop: Spacing.three,
+  },
+  btnOff: {
+    opacity: 0.5,
+  },
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  sheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    gap: Spacing.two,
+  },
+  grab: {
+    alignSelf: 'center',
+    width: 34,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: Colors.trackAlt,
+    marginBottom: Spacing.two,
+  },
+  sheetTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 17,
+    color: Colors.ink,
+  },
+  sheetSub: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    lineHeight: 17,
+    color: Colors.muted,
   },
 });

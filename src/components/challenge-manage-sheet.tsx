@@ -4,8 +4,10 @@ import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Tex
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { metricLabel } from '@/lib/challenge-metric';
 import {
   cancelSocialChallenge,
+  deleteSocialChallenge,
   fetchOpenChallengeChangeRequest,
   forfeitSocialChallenge,
   requestChallengeChange,
@@ -21,6 +23,12 @@ type ChallengeManageSheetProps = {
   onClose: () => void;
   /** Refetch the list — terms may have moved, or the challenge may be over. */
   onChanged: () => void;
+  /**
+   * Whether the viewer is a campfire admin here (A's useCampfireRole). Only widens who is offered
+   * Delete; the RPC decides what is actually allowed, so a wrong `false` hides an action rather
+   * than granting one. Defaults false because the global Challenges tab has no campfire context.
+   */
+  isAdmin?: boolean;
 };
 
 // Window presets rather than a free-form number: the stepper in mock 70 walks the same ladder
@@ -45,16 +53,25 @@ function stepWindow(current: number, direction: -1 | 1): number {
   return WINDOW_LADDER[Math.min(WINDOW_LADDER.length - 1, Math.max(0, i + direction))];
 }
 
-// Manage / edit a challenge (design-mocks/70). Opened by the quiet grey trash on an active card
-// (mock 72) — it is NOT a delete button. A challenge is a two-party agreement, so for h2h both
-// editing and ending go out as a request the other side has to agree to (mock 71); nothing here
-// takes effect unilaterally except the forfeit at the bottom, which exists so a silent opponent
-// can't trap someone forever.
-export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChanged }: ChallengeManageSheetProps) {
+// Manage / edit a challenge (design-mocks/70), opened by the ⋯ kebab on the card. A challenge is
+// a two-party agreement, so for h2h both editing and ending go out as a request the other side has
+// to agree to (mock 71); nothing here takes effect unilaterally except the forfeit at the bottom,
+// which exists so a silent opponent can't trap someone forever.
+//
+// TWO BODIES, ONE SHEET. Everything above was written for a LIVE race — terms to renegotiate, a
+// counterparty to ask. The kebab now opens on drafts, unanswered invites and finished rows too,
+// because CAMPFIRE_REDESIGN_SPEC's missing "Delete challenge" has to be reachable exactly where
+// there is nothing to renegotiate. So a non-live challenge gets the short body: what it was, and
+// the one action that applies.
+export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChanged, isAdmin = false }: ChallengeManageSheetProps) {
   const insets = useSafeAreaInsets();
   const isGroup = c.mode === 'group';
   const isCreator = c.created_by === myUserId;
   const otherName = isCreator ? (c.opponent_name ?? 'them') : c.created_by_name;
+  const isLive = c.status === 'active';
+  // The server allows the creator OR a campfire admin (0112). Mirrored here so a member is not
+  // shown a button that will be refused.
+  const canDelete = !isLive && (isCreator || isAdmin);
 
   const [windowHours, setWindowHours] = useState(c.window_hours);
   const [targetCount, setTargetCount] = useState(c.target_count ?? 1);
@@ -167,12 +184,50 @@ export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChange
     );
   }
 
-  const metricLabel = isGroup
-    ? 'Group · all or nothing'
-    : c.race_metric === 'lockin_time'
-      ? 'Most lock-in time'
-      : 'Most XP';
-  const summary = [metricLabel, isGroup ? null : `vs ${otherName}`, formatTimeLeft(c.ends_at)]
+  function handleDelete() {
+    Alert.alert(
+      'Delete this challenge?',
+      isLive
+        ? 'A running race has to be ended with the other side first.'
+        : 'It disappears for everyone who could see it. XP already paid out is not clawed back.',
+      [
+        { text: 'Never mind', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await deleteSocialChallenge(c.id);
+              onChanged();
+              onClose();
+            } catch (e) {
+              Alert.alert('Could not delete that', getErrorMessage(e, 'Try again in a moment.'));
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  // Was `race_metric === 'lockin_time' ? 'Most lock-in time' : 'Most XP'` — the same two-branch
+  // ternary that made a volume duel call itself an XP duel on three other screens.
+  const raceLabel = isGroup ? 'Group · all or nothing' : metricLabel(c.race_metric);
+  const statusLabel: Record<string, string> = {
+    draft: 'not started',
+    pending: 'waiting on answers',
+    completed: 'finished',
+    expired: 'ended',
+    declined: 'declined',
+  };
+  const summary = [
+    c.public_name?.trim() || null,
+    raceLabel,
+    isGroup ? null : `vs ${otherName}`,
+    isLive ? formatTimeLeft(c.ends_at) : statusLabel[c.status],
+  ]
     .filter(Boolean)
     .join(' · ');
 
@@ -187,7 +242,45 @@ export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChange
             <Text style={styles.title}>Manage challenge</Text>
             <Text style={styles.summary}>{summary}</Text>
 
-            {loading ? (
+            {!isLive ? (
+              // NOT RUNNING — no terms to renegotiate and no counterparty to ask, so the whole
+              // consent apparatus below would be offering actions the server refuses. What is
+              // left is the spec's missing Delete.
+              <>
+                <View style={styles.waiting}>
+                  <Ionicons name="information-circle-outline" size={16} color={Colors.amber} />
+                  <Text style={styles.waitingText}>
+                    {c.status === 'draft'
+                      ? 'This race has not started, so there is nothing to renegotiate yet.'
+                      : c.status === 'pending'
+                        ? "It is still waiting on an answer. Once it is running you can ask to change the terms."
+                        : 'This one is over. Its result and any XP paid out stay on record.'}
+                  </Text>
+                </View>
+
+                <TermRow label="Metric" value={<Text style={styles.termFixed}>{raceLabel}</Text>} />
+                <TermRow label="Window" value={<Text style={styles.termFixed}>{windowLabel(c.window_hours)}</Text>} />
+                {isGroup && (
+                  <TermRow label="Lock-ins each" value={<Text style={styles.termFixed}>{c.target_count}</Text>} />
+                )}
+
+                {canDelete ? (
+                  <View style={styles.buttons}>
+                    <Pressable
+                      onPress={handleDelete}
+                      disabled={busy}
+                      style={[styles.btn, styles.btnDanger]}
+                      accessibilityRole="button">
+                      <Text style={styles.btnDangerLabel}>Delete challenge</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Text style={styles.hint}>
+                    Only the person who started it, or a campfire admin, can delete it.
+                  </Text>
+                )}
+              </>
+            ) : loading ? (
               <ActivityIndicator color={Colors.amber} style={styles.loading} />
             ) : openRequest ? (
               // One open request at a time (server-enforced) — offering a second here would just
@@ -249,7 +342,7 @@ export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChange
                 {/* Fixed for the life of the challenge — these are what each side agreed to race
                     on, and letting them move mid-race would make "agree to an extension" a blank
                     cheque. Shown, not hidden, so the terms read as a complete contract. */}
-                <TermRow label="Metric" value={<Text style={styles.termFixed}>{metricLabel}</Text>} />
+                <TermRow label="Metric" value={<Text style={styles.termFixed}>{raceLabel}</Text>} />
                 <TermRow
                   label="Stakes"
                   value={<Text style={styles.termFixed}>🏆 {isGroup ? 'up to ' : 'winner '}+{c.payout_xp} XP</Text>}

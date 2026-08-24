@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ChallengeMemberTicker } from '@/components/challenge-member-ticker';
 import { ChallengeSentSheet } from '@/components/challenge-sent-sheet';
 import { FitnessSyncPrompt } from '@/components/fitness-sync-prompt';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -11,10 +12,11 @@ import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFriends } from '@/hooks/use-friends';
-import { useLeaderboard } from '@/hooks/use-leaderboard';
+
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { useAuth } from '@/lib/auth/auth-context';
 import { createChallenge } from '@/lib/api/challenges';
+import { inviteChallengeMembers } from '@/lib/api/challenge-lifecycle';
 import { syncChallengeFromDevice } from '@/lib/api/fitness-challenge-sync';
 import { getErrorMessage } from '@/lib/errors';
 import { CHALLENGE_TYPE_ICON } from '@/lib/goal-types';
@@ -104,6 +106,7 @@ export default function CreateChallengeScreen() {
 
 function SocialChallengeForm() {
   const router = useRouter();
+  const { session } = useAuth();
   const { groups } = useMyGroups();
   const { friends } = useFriends();
   // Deep-link prefill from the friend-ping sheet (design-mocks/21): a pre-picked opponent, and
@@ -120,7 +123,9 @@ function SocialChallengeForm() {
   // Group's own mandatory campfire.
   const [circleIndex, setCircleIndex] = useState(0);
   const circle = groups[circleIndex];
-  const { rows: members } = useLeaderboard(circle?.id ?? '');
+  // The leaderboard read that fed the old "All of {circle} · N members" label is gone with it.
+  // The ticker fetches the roster itself, and it needs the ROSTER (list_campfire_members) rather
+  // than the leaderboard — a member who has not earned any XP yet is still someone you can invite.
 
   // H2H's OPTIONAL "let a campfire watch" — a friend-to-friend challenge never requires one
   // (§16), so this is tracked completely separately from Group's mandatory circle above.
@@ -136,6 +141,10 @@ function SocialChallengeForm() {
   // works for every user with no connected source.
   const [raceMetric, setRaceMetric] = useState<SocialChallengeRaceMetric>('lockin_time');
   const [publicName, setPublicName] = useState('');
+  // The member ticker's selection. Held here rather than inside the ticker so it survives a
+  // failed submit — retyping the whole invite list because the create call timed out is the
+  // opposite of what a "sent" confirmation is for.
+  const [invitees, setInvitees] = useState<string[]>([]);
   const [targetCount, setTargetCount] = useState(5);
   const [windowHours, setWindowHours] = useState(72);
   const [saving, setSaving] = useState(false);
@@ -190,7 +199,24 @@ function SocialChallengeForm() {
           setError('Start or join a Campfire first.');
           return;
         }
-        await createGroupChallenge({ circleId: circle.id, targetCount, windowHours, publicName });
+        const created = await createGroupChallenge({ circleId: circle.id, targetCount, windowHours, publicName });
+        // The invite is a SECOND call rather than a parameter on create, because that is the
+        // shape the server already has: invite_challenge_members (0096) is admin-gated,
+        // pre-start-only, and flips the draft to 'pending' as it goes. Folding it into create
+        // would duplicate all three rules in a second place.
+        //
+        // Deliberately not fatal. The challenge exists at this point; failing the whole flow
+        // because the invite call was refused would leave a draft behind with an error that
+        // looks like nothing was created. The draft is startable from the campfire's Challenges
+        // tab either way, and the ticker there can invite people afterwards.
+        if (invitees.length > 0) {
+          try {
+            await inviteChallengeMembers(created.id, invitees);
+          } catch (e) {
+            setError(getErrorMessage(e, 'The challenge was created, but the invites did not go out.'));
+            return;
+          }
+        }
       }
       router.back();
     } catch (e) {
@@ -348,13 +374,29 @@ function SocialChallengeForm() {
                 </Pressable>
               </View>
             </View>
+            {/* THE MEMBER TICKER (CHALLENGE_V2_SPEC §1). This was the line
+                  "All of {circle.name} · {members.length} members"
+                — a label, not a control, and it was lying: since 0098 a group challenge is created
+                as a draft with no participants at all, so "all of" was nobody. Nothing in the app
+                called invite_challenge_members, which meant every group challenge created since
+                that migration hit "Nobody has accepted yet." the moment an admin pressed Start.
+
+                Picking people here is what gives the draft a roster. The creator is already on it
+                (0112), so they are not in the list. */}
             {circle && (
-              <View style={styles.whosInChip}>
-                <Ionicons name="people" size={13} color={Colors.muted} />
-                <Text style={styles.whosInText}>
-                  All of {circle.name} · {members.length} members
+              <>
+                <Text style={styles.label}>Who&apos;s racing?</Text>
+                <ChallengeMemberTicker
+                  groupId={circle.id}
+                  value={invitees}
+                  onChange={setInvitees}
+                  excludeUserIds={session?.user.id ? [session.user.id] : []}
+                />
+                <Text style={styles.hint}>
+                  They get an invite to accept. You&apos;re in already — start the race once they&apos;ve
+                  answered.
                 </Text>
-              </View>
+              </>
             )}
           </>
         )}
