@@ -18,8 +18,12 @@ import Animated, {
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { BodyDoubleStrip, BodyDoubleStripCollapsed } from '@/components/body-double-strip';
+import { CindyBubble } from '@/components/cindy/cindy-bubble';
+import { CindyFlamePress } from '@/components/cindy/cindy-flame-press';
+import { CindyQuickSheet, type CindyQuickAction } from '@/components/cindy/cindy-quick-sheet';
 import { DriftingEmbers } from '@/components/drifting-embers';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { EquippedFlameSvg } from '@/components/flame-icon';
 import { EquippedFlarePerimeter, useFlareEquipped } from '@/components/economy/flare-perimeter';
 import { FireShareCard } from '@/components/fire-share-card';
 import { LockInShareCard } from '@/components/lock-in-share-card';
@@ -35,6 +39,8 @@ import { Screen } from '@/components/ui/screen';
 import { WorkoutLog } from '@/components/workout-log';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveWorkout } from '@/hooks/use-active-workout';
+import { useCindy } from '@/hooks/use-cindy';
+import { useCindyLockInLine } from '@/hooks/use-cindy-lockin-line';
 import { useElapsedSeconds } from '@/hooks/use-elapsed-seconds';
 import { useInventory } from '@/hooks/use-inventory';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
@@ -368,6 +374,41 @@ function LockInScreen() {
   // memoized) since useElapsedSeconds above already forces a re-render every second, which
   // this piggybacks on rather than running its own separate ticking interval.
   const stillHereDue = activeSession ? Date.now() - activeSession.lastConfirmedAt.getTime() > STILL_HERE_THRESHOLD_MS : false;
+
+  // ── CINDY, mid-session (CINDY_SPEC "Entry points — Lock-in", mock 117 §C) ──
+  // Consent gates both halves, the same way home does: no consent means no bubble, no fetch, and
+  // a flame that behaves exactly as it did before she existed.
+  const { consented: cindyConsented, bubbleEnabled } = useCindy();
+  const [cindySheetOpen, setCindySheetOpen] = useState(false);
+  const { line: cindyLine, dismiss: dismissCindyLine, notePr } = useCindyLockInLine({
+    enabled: cindyConsented && bubbleEnabled && !posted && !stopping,
+    sessionId: activeSession?.id ?? null,
+    elapsedSeconds,
+  });
+
+  function handleCindyQuickAction(action: CindyQuickAction) {
+    setCindySheetOpen(false);
+    track('cindy_lockin_quick_action', { action });
+    // All three land in the existing chat. "Add a note" is deliberately conversational (§C:
+    // she takes the note in chat) — the in-session caption field the §13 redesign moved to the
+    // done screen does not come back for this.
+    const ask =
+      action === 'status'
+        ? 'how am I doing this session?'
+        : action === 'note'
+          ? 'add a note to my current lock-in'
+          : null;
+    router.push(ask ? `/cindy?ask=${encodeURIComponent(ask)}` : '/cindy');
+  }
+
+  // A personal record is the one milestone the clock cannot predict, so the logger tells her.
+  // Wrapping logSet rather than reaching into useActiveWorkout keeps the server's `is_pr` verdict
+  // the single source of truth — this only listens to it.
+  async function handleLogSet(workoutExerciseId: string, weight: number | null, reps: number) {
+    const set = await logSet(workoutExerciseId, weight, reps);
+    if (set.is_pr) notePr();
+    return set;
+  }
 
   async function handleConfirmStillHere() {
     if (!activeSession) return;
@@ -721,6 +762,19 @@ function LockInScreen() {
             </Text>
             {activeSession.circleName && <Text style={styles.campfireName}>{activeSession.circleName}</Text>}
           </View>
+          {/* Gym's Cindy entry point. The giant flame behind the log is a pointer-transparent
+              background layer here, so it cannot be the hit target the base screen uses — a
+              full-screen tap zone under a scrolling logger would fight every swipe. This is the
+              same small header flame she wears on every non-home screen (mock 117 "Global"),
+              just routed to the session quick-sheet rather than straight to chat. */}
+          {cindyConsented && (
+            <CindyFlamePress
+              size={22}
+              onTap={() => setCindySheetOpen(true)}
+              accessibilityLabel="Ask Cindy about this session">
+              <EquippedFlameSvg width={18} height={22} />
+            </CindyFlamePress>
+          )}
           <View style={styles.gymHeaderRight}>
             <View style={styles.timerPill}>
               <Animated.Text style={[styles.timerPillValue, timerPulseStyle]}>{formatDurationClock(elapsedSeconds)}</Animated.Text>
@@ -738,6 +792,18 @@ function LockInScreen() {
           contentContainerStyle={styles.gymLogContent}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag">
+          {/* Same Option A placement as the base screen, read against gym's own chrome: under the
+              header, above the log — never over the sets being typed. */}
+          {cindyLine && (
+            <View style={styles.gymCindyLine}>
+              <CindyBubble
+                message={cindyLine}
+                onPress={() => setCindySheetOpen(true)}
+                onDismiss={dismissCindyLine}
+              />
+            </View>
+          )}
+
           <BodyDoubleStripCollapsed lockIns={activeLockIns} />
 
           {stillHereDue && (
@@ -753,7 +819,7 @@ function LockInScreen() {
           {workout && (
             <WorkoutLog
               workout={workout}
-              onLogSet={logSet}
+              onLogSet={handleLogSet}
               onRemoveSet={removeSet}
               onAddExercise={addExercise}
               onReplaceExercise={replaceExercise}
@@ -802,6 +868,14 @@ function LockInScreen() {
             </Pressable>
           </View>
         </View>
+
+        {/* Slides up over the camera/Stop row with the screen dimmed behind, so the flame and the
+            timer stay visible above it — you can see your session while you ask about it (§C). */}
+        <CindyQuickSheet
+          visible={cindySheetOpen}
+          onClose={() => setCindySheetOpen(false)}
+          onSelect={handleCindyQuickAction}
+        />
 
         <SessionPhotoGallery
           visible={galleryOpen}
@@ -852,10 +926,32 @@ function LockInScreen() {
           This is what pins BOTTOM to the bottom too — nothing below here needs its own
           flex/margin trick, it just renders right after however much space this consumes. */}
       <View style={styles.stage}>
+        {/* CINDY'S PROACTIVE LINE — ABOVE the flame, under the header (mock 117 §C, Option A).
+            Deliberately not over the flame or beside the timer: those two are the centrepiece the
+            screen exists for, and Option A was chosen precisely so a line from her never lands on
+            top of them. Milestones only, and it takes itself away. */}
+        {cindyLine && (
+          <CindyBubble
+            message={cindyLine}
+            onPress={() => setCindySheetOpen(true)}
+            onDismiss={dismissCindyLine}
+          />
+        )}
         {/* Steps back ~50% when a flare is equipped (punchlist 17 P2c): the flare is the
             centrepiece, and a full-strength coloured flame competes with it for the same eye.
             No flare -> full strength. */}
-        <SessionFlame height={240} dimmed={flareEquipped} />
+        {/* Tapping her HERE opens the quick-sheet, not the full chat — mid-session, a whole
+            conversation over the timer turns a glance into a detour (§C). No hold-to-talk on this
+            screen for the same reason: voice mid-lock-in is the derailment the sheet avoids.
+            Ring size tracks the glow rather than the flame box; at 240 a full-width ripple would
+            run off both edges of the screen. */}
+        <CindyFlamePress
+          size={200}
+          disabled={!cindyConsented}
+          onTap={() => setCindySheetOpen(true)}
+          accessibilityLabel="Ask Cindy about this session">
+          <SessionFlame height={240} dimmed={flareEquipped} />
+        </CindyFlamePress>
         <TutorialTooltip
           visible={tutorialStep === 1}
           text="This is your flame — it burns for as long as you stay locked in."
@@ -924,6 +1020,14 @@ function LockInScreen() {
           </Pressable>
         </View>
       </View>
+
+      {/* Slides up over the camera/Stop row with the screen dimmed behind, so the flame and the
+          timer stay visible above it — you can see your session while you ask about it (§C). */}
+      <CindyQuickSheet
+        visible={cindySheetOpen}
+        onClose={() => setCindySheetOpen(false)}
+        onSelect={handleCindyQuickAction}
+      />
 
       <SessionPhotoGallery
         visible={galleryOpen}
@@ -1190,6 +1294,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textTransform: 'uppercase',
     color: Colors.ember,
+  },
+  gymCindyLine: {
+    // The bubble sizes itself to its own 280px max and centres its tail; the log column it sits
+    // in is full-bleed, so the alignment has to come from here.
+    alignItems: 'center',
+    alignSelf: 'center',
   },
   gymLog: {
     flex: 1,

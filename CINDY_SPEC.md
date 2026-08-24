@@ -106,10 +106,15 @@ chatbot button.
   chat*. Slides up over the camera/Stop row; screen behind dims — so a check-in never derails the session.
 - Proactive line fires **at milestones only** (30 / 60 / 90 min or a PR), auto-dismiss. Coexists with the
   optional **flare** aura and the **"locked in with you"** body-doubles strip.
-- 🔴 **BUILD DEPENDENCY (server):** the proactive lock-in line needs a **new `lockin` `CoachSurface`.** Today
-  `CoachSurface = chat | home | intercept | reengagement` and the server hardcodes `surface='home'` — the line
-  can't route as specced without a new server-side routing block. The client tap quick-sheet is built and only
-  needs `cindy.tsx` committed. Do the surface addition before wiring the proactive line.
+- ✅ **SHIPPED (client-only, no server change).** The proactive line rides the **`home`** surface: the coach
+  context (`get_coach_context` → `active_session`: `goal_type` / `goal_detail` / `minutes_so_far`) already makes
+  a mid-session call lock-in-aware, and `lockInDigest(sessionId, cue)` busts the 90-min home-bubble cache so
+  each milestone is fresh. Fires at 30/60/90 min + gym PR (PR wins a tie), one line, auto-dismiss 14s,
+  consent-gated. Quick-sheet rows route to `/cindy?ask=…`. See `use-cindy-lockin-line.ts`.
+- ⚠️ **Known trade-off:** it borrows the home bubble's row + **12/day quota** (mitigated: `dismissed_at` stops a
+  session line resurfacing as the home greeting; replayed lines are dropped). A dedicated **`lockin`
+  `CoachSurface`** (own op + quota + tuned tone) is the clean separation — **post-launch tuning, not a
+  dependency.** It buys tone, not new facts.
 - 🔴 **"Add a note to this session" = CONVERSATIONAL via Cindy** (decided). She takes the note in chat; do
   **not** restore the in-session caption field that the §13 redesign deliberately moved to the done screen.
 

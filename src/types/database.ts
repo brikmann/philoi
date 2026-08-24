@@ -796,7 +796,11 @@ export type AnalyticsEventName =
   | 'cindy_consent'
   | 'cindy_message_sent'
   | 'cindy_voice_turn'
-  | 'cindy_action';
+  | 'cindy_action'
+  // The lock-in entry points (mock 117 §C). `cue` is the milestone that triggered her
+  // ('min:30', 'pr:1'), `action` the quick-sheet row taken — no session detail, no line text.
+  | 'cindy_lockin_line'
+  | 'cindy_lockin_quick_action';
 
 export type AnalyticsEvent = {
   id: string;

@@ -202,6 +202,24 @@ export function bubbleDigest(input: {
   return `${input.streak}:${input.todayCount}:${input.inSession ? 1 : 0}:${input.hourBucket}`;
 }
 
+/**
+ * The staleness key for a MID-SESSION line (CINDY_SPEC "Entry points — Lock-in", mock 117 §C).
+ *
+ * The proactive lock-in line rides the same `home_bubble` op as the home bubble, because that is
+ * the one generated surface a client can reach without a server deploy — and it needs no extra
+ * facts to do its job: get_coach_context() already hands the model `active_session` (goal type,
+ * detail, minutes_so_far) alongside the streak, so a call made mid-session is lock-in aware on
+ * its own. What it would otherwise return is the CACHED home greeting, and that is exactly what
+ * this digest defeats: one unique key per session per milestone, so each milestone spends one
+ * generation and a re-mount inside the same milestone spends none.
+ *
+ * A dedicated `lockin` CoachSurface would buy tuned TONE, not new facts — see CINDY_SPEC's build
+ * dependency. It is a functions-deploy refinement, and deliberately not required here.
+ */
+export function lockInDigest(sessionId: string, cue: string): string {
+  return `lockin:${sessionId}:${cue}`;
+}
+
 export async function fetchCindyBubble(digest: string, force = false): Promise<CoachBubble | null> {
   const data = await invoke<{ bubble: CoachBubble | null }>('ai-coach', {
     op: 'home_bubble',
