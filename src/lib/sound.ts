@@ -199,12 +199,16 @@ export function hasRewardSound(cue: RewardCue): boolean {
 // Structurally different from every cue above: those are short one-shots on preloaded, long-lived
 // players. An ambient environment is a long loop that only exists while a lock-in is running, so
 // it gets its own single player, created on start and torn down on stop rather than preloaded —
-// preloading six multi-minute loops for the one a user has equipped would be pure waste.
+// preloading seven multi-minute loops for the one a user has equipped would be pure waste.
 //
 // Keyed by CATALOG ID so the equipped item maps straight to its file with no lookup table. Unlike
-// the one-shots above these are NOT preloaded: six multi-minute loops to play the one a user has
+// the one-shots above these are NOT preloaded: seven multi-minute loops to play the one a user has
 // equipped would be pure waste, so the player is built on session start and torn down on stop.
 const AMBIENT_SOURCES: Record<string, number> = {
+  // The free starter environment every account already owns (seed_default_loadout, 0073), and so
+  // by far the most likely Audio item to be equipped — the other six are box-pool cosmetics. It
+  // shipped with no file at all, so equipping it played silence with no explanation.
+  'audio-base-hearth-hum': require('../../assets/audio/cosmetic/audio-base-hearth-hum.mp3'),
   'audio-heavy-bonfire-crackle': require('../../assets/audio/cosmetic/audio-heavy-bonfire-crackle.mp3'),
   'audio-edm-pulse': require('../../assets/audio/cosmetic/audio-edm-pulse.mp3'),
   'audio-midnight-thunder': require('../../assets/audio/cosmetic/audio-midnight-thunder.mp3'),
@@ -340,6 +344,7 @@ export function stopRewardSounds(cues: RewardCue[]): void {
 // very player a rank-up might be mid-way through.
 
 const PREVIEW_SOURCES: Record<string, number> = {
+  'audio-base-hearth-hum': require('../../assets/audio/cosmetic/preview/audio-base-hearth-hum-preview.mp3'),
   'audio-heavy-bonfire-crackle': require('../../assets/audio/cosmetic/preview/audio-heavy-bonfire-crackle-preview.mp3'),
   'audio-edm-pulse': require('../../assets/audio/cosmetic/preview/audio-edm-pulse-preview.mp3'),
   'audio-midnight-thunder': require('../../assets/audio/cosmetic/preview/audio-midnight-thunder-preview.mp3'),
