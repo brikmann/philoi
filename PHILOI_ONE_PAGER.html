@@ -1,0 +1,176 @@
+<!doctype html><meta charset="utf-8">
+<title>Philoi — one-pager</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0e0b14;font-family:'Inter',system-ui,sans-serif;color:#FFF6EC;display:flex;justify-content:center;padding:26px 16px}
+  .page{width:820px;max-width:100%;background:radial-gradient(120% 60% at 50% 0%,#241c38,#161320 55%,#0e0b14);border:1px solid #241c38;border-radius:20px;overflow:hidden}
+  .hero{padding:34px 40px 24px;display:flex;align-items:center;gap:20px;border-bottom:1px solid #241c38}
+  .flame{filter:drop-shadow(0 0 18px rgba(255,120,50,.5))}
+  .wm{font-size:40px;font-weight:800;letter-spacing:-1px;line-height:1}
+  .tag{font-size:15px;color:#FFD27A;font-weight:600;margin-top:6px}
+  .sub{font-size:12.5px;color:#a99cbd;margin-top:5px;max-width:520px;line-height:1.5}
+  .pill{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.5px;color:#3a1608;background:linear-gradient(135deg,#F2A33C,#E0612C);border-radius:999px;padding:4px 11px;margin-top:10px}
+  .body{padding:24px 40px 10px}
+  h2{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:#F2A33C;font-weight:800;margin-bottom:12px}
+  .feat{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+  .card{background:#161320;border:1px solid #241c38;border-radius:12px;padding:13px 15px}
+  .card .t{font-size:14px;font-weight:700;margin-bottom:3px}
+  .card .t span{color:#FFD27A}
+  .card .d{font-size:12px;color:#a99cbd;line-height:1.5}
+  .ask{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px}
+  .ask .row{font-size:12.5px;color:#e7ddf5;line-height:1.7}
+  .ask .row b{color:#FFF6EC}
+  .ask .k{color:#a99cbd}
+  .kit{display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:16px 40px 26px;border-top:1px solid #241c38}
+  .sw{display:flex;gap:7px;align-items:center}
+  .chip{width:26px;height:26px;border-radius:7px;border:1px solid rgba(255,255,255,.12)}
+  .kit .lbl{font-size:10px;color:#a99cbd}
+  .kit .hex{font-size:10.5px;color:#e7ddf5;font-variant:tabular-nums}
+  .foot{font-size:11.5px;color:#a99cbd}
+  .foot b{color:#FFD27A}
+  a{color:#FFD27A;text-decoration:none}
+  /* gallery */
+  .gal{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;margin-bottom:20px}
+  .scrwrap{width:110px}
+  .scr{width:110px;height:196px;border-radius:15px;background:radial-gradient(120% 55% at 50% 0%,#241633,#140f1e 60%);border:1px solid #2a2140;overflow:hidden;padding:8px 7px;position:relative}
+  .cap2{font-size:9px;color:#a99cbd;text-align:center;margin-top:5px}
+  .sb{font-size:9px;font-weight:700;margin-bottom:7px}
+  .ec{color:#FFD27A;font-weight:700}
+  .cta2{font-size:8.5px;font-weight:800;color:#3a1608;text-align:center;background:linear-gradient(135deg,#F2A33C,#E0612C);border-radius:8px;padding:6px 0}
+  .lb{display:flex;align-items:center;gap:5px;font-size:8px;background:#161320;border:1px solid #241c38;border-radius:6px;padding:4px 5px;margin-bottom:4px}
+  .lb .rk{color:#a99cbd;font-weight:700;width:8px}
+  .lb .xp{margin-left:auto;color:#FFD27A;font-weight:700}
+  .vs{background:#161320;border:1px solid #241c38;border-radius:8px;padding:7px;font-size:8px;color:#e7ddf5}
+  .vs .vt{font-size:7px;font-weight:800;color:#F2A33C}
+  .bar{height:5px;border-radius:3px;background:#241c38;margin-top:6px;overflow:hidden}
+  .bar i{display:block;width:52%;height:100%;background:linear-gradient(90deg,#E0612C,#F2A33C)}
+  .av2{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#F2A33C,#E0612C);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#3a1608}
+  .tg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+  .tg span{height:26px;border-radius:6px;background:#1c1430;border:1px solid #2a2140}
+  .tg span:nth-child(1){background:linear-gradient(135deg,#F2A33C,#E0612C)}
+  .tg span:nth-child(4){background:linear-gradient(135deg,#4FB0E5,#241633)}
+  .tabs2{display:flex;gap:3px}
+  .tabs2 span{flex:1;text-align:center;font-size:7px;padding:4px 0;border-radius:5px;background:#161320;color:#a99cbd}
+  .tabs2 .on{background:linear-gradient(135deg,#F2A33C,#E0612C);color:#3a1608;font-weight:800}
+  .shop{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .shop .it{background:#161320;border:1px solid #241c38;border-radius:7px;padding:5px;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .shop .pic{width:100%;height:30px;border-radius:5px;background:linear-gradient(135deg,#3a2450,#1a1226)}
+  .shop .pr{font-size:8px;font-weight:700;color:#FFD27A}
+  .track{display:flex;align-items:center;margin-top:10px}
+  .node{width:20px;height:20px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;background:#1c1430;border:1px solid #2a2140;color:#6f6488}
+  .node.lit{background:linear-gradient(135deg,#F2A33C,#E0612C);border:none;color:#3a1608}
+  .line{flex:1;height:3px;background:linear-gradient(90deg,#F2A33C,#E0612C)}
+  .line.dim{background:#241c38}
+</style>
+<svg width="0" height="0"><defs>
+  <linearGradient id="ember" x1="0" y1="1" x2="0" y2="0">
+    <stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFD27A"/>
+  </linearGradient>
+</defs></svg>
+
+<div class="page">
+  <div class="hero">
+    <svg class="flame" width="72" height="88" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#ember)"/></g></svg>
+    <div>
+      <div class="wm">Philoi</div>
+      <div class="tag">Lock in with your friends.</div>
+      <div class="sub">A gamified social-accountability app for <b style="color:#FFF6EC">Wilfrid Laurier + University of Waterloo</b> students — study, gym and deep-work sessions you do <i>together</i>, with streaks, challenges and a flame you grow as a group.</div>
+      <span class="pill">PRE-LAUNCH · WAITLIST OPEN</span>
+    </div>
+  </div>
+
+  <div class="body">
+    <h2>What it is</h2>
+    <div class="feat">
+      <div class="card"><div class="t">🔥 <span>Campfires</span></div><div class="d">Group accountability circles with your friends or your class — show up together.</div></div>
+      <div class="card"><div class="t">🔒 <span>Lock-ins</span></div><div class="d">Start a focus / gym / study session; your friends see you put in the work.</div></div>
+      <div class="card"><div class="t">⚔ <span>Challenges</span></div><div class="d">Head-to-head and group races to out-work each other over the week.</div></div>
+      <div class="card"><div class="t">📈 <span>Streaks · ranks · the flame</span></div><div class="d">Grow and customize your fire, keep your streak, climb the ladder.</div></div>
+    </div>
+
+    <h2>The ask — a 3-week pre-launch awareness push</h2>
+    <div class="ask">
+      <div class="row">
+        <div><span class="k">Goal:</span> <b>social-media awareness only</b> — pre-launch hype, not installs.</div>
+        <div><span class="k">Window:</span> now → <b>Sept 10</b> (Laurier/UW back-to-school).</div>
+        <div><span class="k">Audience:</span> Laurier + UW undergrads, 18–22.</div>
+      </div>
+      <div class="row">
+        <div><span class="k">Channels:</span> <b>Instagram Reels + TikTok</b>, campus seeding.</div>
+        <div><span class="k">Win =</span> followers + <b>waitlist signups</b>.</div>
+        <div><span class="k">Need:</span> someone to <b>run the content + community</b> (full checklist ready).</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="body" style="padding-top:6px">
+    <h2>Inside the app</h2>
+    <div class="gal">
+
+      <div class="scrwrap"><div class="scr">
+        <div class="sb">Home</div>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:150px;gap:5px">
+          <svg width="40" height="48" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z" fill="url(#ember)"/></g></svg>
+          <div class="ec" style="font-size:8px">17-day streak</div>
+        </div>
+        <div class="cta2">Lock in</div>
+      </div><div class="cap2">Home</div></div>
+
+      <div class="scrwrap"><div class="scr">
+        <div class="sb">Leaderboards</div>
+        <div class="lb" style="border-color:#F2A33C"><span class="rk" style="color:#FFD27A">1</span>Noah · you<span class="xp">8,322</span></div>
+        <div class="lb"><span class="rk">2</span>Alex<span class="xp">8,228</span></div>
+        <div class="lb"><span class="rk">3</span>Maya<span class="xp">7,150</span></div>
+        <div class="lb"><span class="rk">4</span>Dev<span class="xp">6,904</span></div>
+        <div class="lb"><span class="rk">5</span>Kai<span class="xp">6,010</span></div>
+      </div><div class="cap2">Leaderboard</div></div>
+
+      <div class="scrwrap"><div class="scr">
+        <div class="sb">Challenges</div>
+        <div class="cta2" style="margin:2px 0 8px">Start a challenge</div>
+        <div class="vs"><div class="vt">Head-to-head</div>You vs Alex · most lock-in<div class="bar"><i></i></div><div class="vt" style="color:#FFD27A;margin-top:4px">winner +200 XP</div></div>
+      </div><div class="cap2">Challenges</div></div>
+
+      <div class="scrwrap"><div class="scr">
+        <div class="sb">Profile</div>
+        <div style="display:flex;align-items:center;gap:6px;margin:6px 2px 8px"><div class="av2">N</div><div><div style="font-size:9px;font-weight:700">Noah</div><div style="font-size:7.5px;color:#4FB0E5">Gold III</div></div></div>
+        <div style="font-size:7px;letter-spacing:1px;color:#F2A33C;font-weight:800;margin:0 2px 5px">TROPHY HALL</div>
+        <div class="tg"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div><div class="cap2">Profile · trophy hall</div></div>
+
+      <div class="scrwrap"><div class="scr">
+        <div style="height:34px;margin:-8px -7px 6px;background:linear-gradient(120deg,#3a2414,#241633);display:flex;align-items:flex-end;padding:5px 8px;font-size:10px;font-weight:800">Goat 🔥</div>
+        <div class="tabs2"><span class="on">Board</span><span>Feed</span><span>Chall.</span></div>
+        <div class="lb" style="margin-top:6px"><span class="rk" style="color:#FFD27A">1</span>Noah<span class="xp">8.3k</span></div>
+        <div class="lb"><span class="rk">2</span>Alex<span class="xp">8.2k</span></div>
+        <div class="lb"><span class="rk">3</span>Maya<span class="xp">7.1k</span></div>
+      </div><div class="cap2">Campfire</div></div>
+
+      <div class="scrwrap"><div class="scr">
+        <div class="sb">Shop</div>
+        <div class="shop"><div class="it"><div class="pic"></div><div class="pr">240</div></div><div class="it"><div class="pic" style="background:linear-gradient(135deg,#4FB0E5,#241633)"></div><div class="pr">600</div></div><div class="it"><div class="pic" style="background:linear-gradient(135deg,#F2A33C,#E0612C)"></div><div class="pr">180</div></div><div class="it"><div class="pic" style="background:linear-gradient(135deg,#a99cbd,#241633)"></div><div class="pr">90</div></div></div>
+      </div><div class="cap2">Shop</div></div>
+
+      <div class="scrwrap"><div class="scr">
+        <div class="sb">Flame Pass · S1</div>
+        <div class="track"><div class="node lit">1</div><div class="line"></div><div class="node lit">2</div><div class="line"></div><div class="node">3</div><div class="line dim"></div><div class="node">4</div></div>
+        <div style="font-size:7.5px;color:#a99cbd;margin-top:8px;padding:0 3px;line-height:1.5">Free + premium tracks. Earn embers, cosmetics and boxes as you lock in through the season.</div>
+      </div><div class="cap2">Flame Pass</div></div>
+
+    </div>
+  </div>
+
+  <div class="kit">
+    <div class="sw">
+      <span class="chip" style="background:linear-gradient(135deg,#F2A33C,#E0612C)"></span>
+      <span class="chip" style="background:#FFD27A"></span>
+      <span class="chip" style="background:#4FB0E5"></span>
+      <span class="chip" style="background:#241c38"></span>
+      <div><div class="lbl">Brand palette</div><div class="hex">#E0612C · #F2A33C · #FFD27A · #4FB0E5</div></div>
+    </div>
+    <div><div class="lbl">Type</div><div class="hex">Inter</div></div>
+    <div><div class="lbl">Marks</div><div class="hex">flame = the app · ember = currency</div></div>
+    <div style="flex:1;text-align:right" class="foot"><b>philoi.app</b> · spikeythedoge1@gmail.com</div>
+  </div>
+</div>
