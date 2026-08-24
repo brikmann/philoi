@@ -46,6 +46,9 @@ export type RewardCue =
   | 'sfx-sub-bass-drop'
   | 'sfx-jet-engine-ignition'
   | 'sfx-olympian-foghorn'
+  // Forge Pass S1's tier-50 mythic. Last of the SFX set to get a file (AUDIO_TO_SOURCE.md); the
+  // asset landed before the map did, so equipping it was silent even once the mp3 shipped.
+  | 'sfx-emberfall-strike'
   // The two starter stings from the seeded loadout (#88). Same id-is-the-cue rule as the four
   // above, but they re-point at one-shots the app already ships rather than adding assets — a
   // starter set has no business shipping bespoke audio.
@@ -114,6 +117,7 @@ const SOURCES: Omit<Record<RewardCue, number>, 'ascension-hero' | 'ascension-pri
   'sfx-sub-bass-drop': require('../../assets/audio/cosmetic/sfx-sub-bass-drop.mp3'),
   'sfx-jet-engine-ignition': require('../../assets/audio/cosmetic/sfx-jet-engine-ignition.mp3'),
   'sfx-olympian-foghorn': require('../../assets/audio/cosmetic/sfx-olympian-foghorn.mp3'),
+  'sfx-emberfall-strike': require('../../assets/audio/cosmetic/sfx-emberfall-strike.mp3'),
 
   // Starter stings (#88) — deliberately the existing spark/settle one-shots. They already sound
   // like a fire catching and a fire banking down, which is exactly what the two slots mean, and
@@ -355,6 +359,7 @@ const PREVIEW_SOURCES: Record<string, number> = {
   'sfx-sub-bass-drop': require('../../assets/audio/cosmetic/preview/sfx-sub-bass-drop-preview.mp3'),
   'sfx-jet-engine-ignition': require('../../assets/audio/cosmetic/preview/sfx-jet-engine-ignition-preview.mp3'),
   'sfx-olympian-foghorn': require('../../assets/audio/cosmetic/preview/sfx-olympian-foghorn-preview.mp3'),
+  'sfx-emberfall-strike': require('../../assets/audio/cosmetic/preview/sfx-emberfall-strike-preview.mp3'),
 };
 
 const PREVIEW_VOLUME = 0.9;
