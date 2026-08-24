@@ -13,6 +13,14 @@ concretely calibrated. Below is that path + launch-default numbers.
 ## Daily personal goal — the drip
 Each day you hit the goal, a small ember drip scaled by the same `difficulty` signal the XP algo uses:
 - easy goal → ~12 embers · moderate → ~18 · **ambitious** (10k steps, 2h+ lock-in) → ~25.
+- 🔴 **Custom goals pay the floor: `easy` (12/day).** They're free-text and self-defined, so there's no unit
+  to tier them by and no way to verify — the floor is the anti-cheese default. Made explicit in `0116`
+  (`when v_goal.type = 'custom' then 'easy'`), so a config edit can no longer move it.
+  *Correction to the ledger:* the `goal_difficulty.custom = {0,0}` sentinel never paid the top drip —
+  0085's CASE guards both threshold arms with `> 0` precisely for it, so custom has always landed in the
+  final `else 'easy'`. Simulated against the live config at targets 1 and 10 000 before 0116 was written:
+  both `easy`. The rule below is now stated rather than emergent; nothing about what anyone was paid
+  changes. See `DECISION_reward_screen_and_goal_drip.md` #7.
 
 ## Streak milestones — the "week of 10k steps" reward
 On top of the daily drip, an unbroken run banks a milestone bonus:
