@@ -135,7 +135,7 @@ li::marker{color:var(--coral)}
 <div class="doc-head">
   <div class="shell">
     <h1>Privacy Policy</h1>
-    <p>Last updated: 22 August 2026 &nbsp;·&nbsp; Effective: 22 August 2026</p>
+    <p>Last updated: 27 August 2026 &nbsp;·&nbsp; Effective: 27 August 2026</p>
   </div>
 </div>
 
@@ -163,7 +163,7 @@ li::marker{color:var(--coral)}
       </ol>
     </nav>
 
-    <p>Philoi is a social accountability app for students. You set goals, run focused sessions, and share your progress with a small group of friends (a “campfire”). This policy explains exactly what data that involves, who can see it, and how to get rid of it.</p>
+    <p>Philoi is a social accountability app for students. You set goals and run focused “lock in” sessions, close each one with a check-in, and keep at it alongside a small group of friends (a “campfire”). On top of that sit challenges, streaks, XP and ranks, campus leaderboards, milestones you can share, an optional AI coach, and a cosmetic economy you earn or buy your way through. This policy explains exactly what data all of that involves, who can see it, and how to get rid of it.</p>
     <p>It is written to be read, not to be survived. If anything here is unclear, email <a href="mailto:nb@philoi.app">nb@philoi.app</a> and we will answer.</p>
 
     <h2 id="who">1. Who we are</h2>
@@ -177,15 +177,24 @@ li::marker{color:var(--coral)}
       <li><strong>Email address</strong> — used to create and secure your account, to sign you in, and to send essential service messages.</li>
       <li><strong>Display name and handle</strong> — chosen by you, shown to other members of your campfires.</li>
       <li><strong>Profile details you choose to add</strong>, such as an avatar or your university. Your university is optional and is used only to place you on that university's leaderboard.</li>
+      <li><strong>University verification</strong> — if you verify a campus email, we send a six-digit code to that address and record the verified result against your existing account.</li>
+      <li><strong>Sign-in method</strong> — if you sign in with Google, we receive the basic account identifiers that provider returns so we can authenticate you.</li>
+      <li><strong>Purchase records</strong> — if you buy embers or a Forge Pass, we receive confirmation of the purchase and the entitlement it granted. Your card details are handled by Apple or Google and are never seen by Philoi.</li>
     </ul>
 
     <h3>Activity within the app</h3>
     <ul>
       <li><strong>Goals and sessions</strong> — the goals you create, the “lock in” sessions you start, their duration, and whether you completed them.</li>
-      <li><strong>Campfire membership</strong> — which groups you belong to, who invited you, and your check-ins.</li>
+      <li><strong>Check-ins</strong> — the record that closes a session, including the photo you take at the end of it. That photo is captured with the camera in the moment; Philoi does not upload from your photo library.</li>
+      <li><strong>Campfire membership</strong> — which campfires you belong to, how you joined, and your role in them.</li>
       <li><strong>Messages and reactions</strong> you send inside a campfire chat.</li>
-      <li><strong>Progress data</strong> — XP, ranks, streaks, and challenge results derived from the above.</li>
-      <li><strong>Reports and moderation records</strong> if you report content or another user.</li>
+      <li><strong>Challenges</strong> — which challenges you create or join, your progress and final standing, and the cheers and notes you send on them.</li>
+      <li><strong>Progress data</strong> — XP, ranks, streaks, season placements and leaderboard standing, derived from the above.</li>
+      <li><strong>Milestones</strong> — an achievement you choose to post, its note, and the audience you chose for it.</li>
+      <li><strong>Journal notes and profile bio</strong> — your journal notes are private to you.</li>
+      <li><strong>Gym sessions</strong> — the sets you log and, if you record them, short per-set video clips.</li>
+      <li><strong>Embers and inventory</strong> — your ember balance and transaction history, the cosmetic items you own or equip, and Forge Pass progress.</li>
+      <li><strong>Reports and moderation records</strong> if you report content, a user or a campfire.</li>
     </ul>
 
     <h3>Technical and diagnostic data</h3>
@@ -193,6 +202,7 @@ li::marker{color:var(--coral)}
       <li><strong>Device and app information</strong> — device model, operating system version, app version, and language. Used to fix crashes and support the right devices.</li>
       <li><strong>Push notification token</strong>, if you allow notifications, so we can deliver reminders and campfire activity alerts. You can turn notifications off at any time in your device settings.</li>
       <li><strong>Basic error and usage logs</strong> — for example that a screen failed to load. We do not use advertising identifiers and we do not run third-party ad trackers.</li>
+      <li><strong>Product analytics and crash reports</strong> — in-app events (such as “started a lock in” or “joined a campfire”) recorded against your user ID, and crash diagnostics. These are used to understand how the app is used and to fix what breaks. The providers are listed in section 7.</li>
     </ul>
 
     <h3>Optional connected sources</h3>
@@ -243,16 +253,20 @@ li::marker{color:var(--coral)}
     <ul>
       <li><strong>Your health data is shown only to you.</strong> The values we read from a connected fitness source — your daily step counts, your workouts, your distances — appear in your own app, on your own screens. Other users never see your underlying health data.</li>
       <li><strong>Challenge standings are shared only with the people in that challenge.</strong> If you join a step challenge with four friends, those four friends see your total for that challenge and your position on its leaderboard. That is the single number the challenge is about, and joining is what shares it. Nothing else from the connected source is shared — not your route maps, not your heart rate, not your history before or after the challenge window.</li>
-      <li><strong>Your campfire sees your app activity</strong> — your sessions, streaks, XP, check-ins and messages — because that is the purpose of a campfire.</li>
+      <li><strong>Your campfire sees your app activity</strong> — your sessions, check-ins, streaks, XP and messages — because that is the purpose of a campfire.</li>
+      <li><strong>Your check-in photos default to your campfires.</strong> In Settings you can widen this to everyone. It is your choice, and you can change it back at any time.</li>
+      <li><strong>Milestones carry the audience you pick, per post.</strong> The default is <strong>friends</strong>. You can widen a milestone to <strong>campus</strong> (other verified users at your university) or to <strong>public</strong> (any signed-in Philoi user). Grades and similar sensitive achievements start at friends-only for that reason.</li>
       <li><strong>University leaderboards show your handle and score only</strong>, and only if you have set a university.</li>
-      <li><strong>Nothing is public by default.</strong> Philoi has no public profiles and no open feed. Campfires are invite-only.</li>
+      <li><strong>Campfires are not all invite-only.</strong> Some are private and reachable only with a join code; others are listed so students can find and join them, either openly or by requesting approval. The campfire's creator chooses which, and you can see which kind you are joining before you join.</li>
+      <li><strong>Some things are never shown to anyone else</strong> — your journal notes, your calendar data, your conversations with the AI coach, and the raw health data behind a challenge score.</li>
+      <li><strong>You can block another user</strong>, which hides their content from you and yours from them in both directions.</li>
     </ul>
 
     <h2 id="use">6. How we use your data</h2>
     <p>We use the data above to:</p>
     <ul>
       <li>create and secure your account and sign you in;</li>
-      <li>run the core product — sessions, campfires, streaks, XP, ranks, challenges and leaderboards;</li>
+      <li>run the core product — lock-in sessions and check-ins, campfires, streaks, XP, ranks, challenges, leaderboards, milestones, and the ember economy and its cosmetics;</li>
       <li>send notifications you have asked for, such as reminders and campfire activity;</li>
       <li>score challenges you have entered, including from a connected fitness source;</li>
       <li>keep Philoi safe — investigating reports, preventing abuse and enforcing our terms;</li>
@@ -267,7 +281,12 @@ li::marker{color:var(--coral)}
       <li><strong>Supabase</strong> — database, authentication and file storage.</li>
       <li><strong>Expo / Apple Push Notification service / Firebase Cloud Messaging</strong> — delivery of push notifications you have opted into.</li>
       <li><strong>App Store and Google Play</strong> — app distribution, and any purchases, handled under their own policies.</li>
-      <li><strong>Our email provider</strong> — sign-in links and essential service messages.</li>
+      <li><strong>Our email provider (Resend)</strong> — sign-in links, university verification codes and essential service messages.</li>
+      <li><strong>RevenueCat</strong> — processes and validates in-app purchases of embers and the Forge Pass, and tells us which entitlement to grant.</li>
+      <li><strong>Cloudflare R2</strong> — object storage for the per-set gym video clips you choose to record.</li>
+      <li><strong>PostHog</strong> — product analytics. Receives in-app event names and properties against your user ID so we can see how the app is actually used. Hosted in the United States.</li>
+      <li><strong>Sentry</strong> — crash and error reporting, configured not to send personal information along with a crash.</li>
+      <li><strong>The fitness provider you connect</strong> (Apple Health, Garmin, Strava or Whoop) and <strong>Google</strong> (if you connect Calendar) — these send data to us at your instruction, under sections 3 and 4.</li>
       <li><strong>Anthropic (Claude)</strong> — powers the in-app AI coach. When you use the coach, the relevant context (your recent activity, goals, streak, and — if you've connected it — your upcoming calendar titles/times and free/busy) is sent to Anthropic's API to generate a coaching message. It is processed to answer you and is <strong>not used to train Anthropic's models</strong>.</li>
       <li><strong>ElevenLabs</strong> — text-to-speech. If you use voice, the <strong>text of the coach's reply</strong> is sent to ElevenLabs to synthesise the spoken audio. ElevenLabs receives only that reply text, not your account data.</li>
     </ul>
@@ -283,6 +302,7 @@ li::marker{color:var(--coral)}
       <li>If you connected Google Calendar, the short-lived window we cache is deleted and your access token is revoked when you disconnect; we keep no copy of your calendar.</li>
       <li><strong>You can delete your account from inside the app</strong> (Settings → Delete account), or by emailing <a href="mailto:nb@philoi.app">nb@philoi.app</a> from your account address.</li>
       <li>When you delete your account, your profile, goals, sessions, health metrics, messages and progress are deleted from our production systems within <strong>30 days</strong>, and from encrypted backups within <strong>90 days</strong>. Anonymised, non-identifying aggregates (for example “sessions started this week”) may remain.</li>
+      <li>Gym video clips you recorded are deleted from object storage when you remove them or delete your account.</li>
       <li>We may retain a minimal record of a moderation action or a legal request where we are required to.</li>
     </ul>
 
