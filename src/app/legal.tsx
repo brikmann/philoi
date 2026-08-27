@@ -6,9 +6,9 @@ import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 
 const PAGES: Record<string, { title: string; url: string }> = {
-  privacy: { title: 'Privacy Policy', url: 'https://getphiloi.com/privacy' },
-  terms: { title: 'Terms of Service', url: 'https://getphiloi.com/terms' },
-  'child-safety': { title: 'Child Safety Standards', url: 'https://getphiloi.com/child-safety' },
+  privacy: { title: 'Privacy Policy', url: 'https://philoi.app/privacy.html' },
+  terms: { title: 'Terms of Service', url: 'https://philoi.app/terms.html' },
+  'child-safety': { title: 'Child Safety Standards', url: 'https://philoi.app/child-safety.html' },
 };
 
 export default function LegalScreen() {
@@ -20,7 +20,7 @@ export default function LegalScreen() {
       <Stack.Screen options={{ title: info.title }} />
       <View style={styles.content}>
         <Text style={styles.body}>
-          This policy is hosted at getphiloi.com. Tap the button below to open it in your browser.
+          This policy is hosted at philoi.app. Tap the button below to open it in your browser.
         </Text>
         <Pressable style={styles.button} onPress={() => Linking.openURL(info.url)}>
           <Text style={styles.buttonLabel}>Open {info.title}</Text>

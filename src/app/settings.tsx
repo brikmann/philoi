@@ -350,12 +350,12 @@ export default function SettingsScreen() {
 
         <Text style={styles.sectionLabel}>LEGAL</Text>
         <View style={styles.group}>
-          <SettingsRow icon="document-text-outline" label="Privacy Policy" onPress={() => Linking.openURL('https://getphiloi.com/privacy')} />
-          <SettingsRow icon="reader-outline" label="Terms of Service" onPress={() => Linking.openURL('https://getphiloi.com/terms')} />
+          <SettingsRow icon="document-text-outline" label="Privacy Policy" onPress={() => Linking.openURL('https://philoi.app/privacy.html')} />
+          <SettingsRow icon="reader-outline" label="Terms of Service" onPress={() => Linking.openURL('https://philoi.app/terms.html')} />
           <SettingsRow
             icon="shield-checkmark-outline"
             label="Child Safety Standards"
-            onPress={() => Linking.openURL('https://getphiloi.com/child-safety')}
+            onPress={() => Linking.openURL('https://philoi.app/child-safety.html')}
           />
         </View>
 

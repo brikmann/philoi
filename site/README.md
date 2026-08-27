@@ -10,6 +10,8 @@ step, no dependencies** — the files in this folder are exactly what gets serve
 site/
 ├── index.html            landing page (CSS inlined)
 ├── privacy.html          privacy policy (CSS inlined)
+├── terms.html            terms of service (CSS inlined)
+├── child-safety.html     child safety standards — required by Google Play (CSS inlined)
 ├── favicon.svg           logo mark, used by modern browsers
 ├── favicon.png           32×32 fallback
 ├── apple-touch-icon.png  180×180 home-screen icon

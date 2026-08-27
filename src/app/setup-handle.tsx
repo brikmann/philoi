@@ -22,8 +22,8 @@ import {
 } from '@/lib/universities';
 
 const CONSENT_VERSION = '2026-06-30';
-const PRIVACY_URL = 'https://getphiloi.com/privacy';
-const TERMS_URL = 'https://getphiloi.com/terms';
+const PRIVACY_URL = 'https://philoi.app/privacy.html';
+const TERMS_URL = 'https://philoi.app/terms.html';
 
 function normalizeHandle(input: string) {
   return input
