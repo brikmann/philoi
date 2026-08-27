@@ -20,11 +20,12 @@ import {
 } from '../_shared/uni-code.ts';
 
 // MUST be on a domain verified in Resend, or every send fails with a 502 (Resend 403s an
-// unverified sender outright). Both getphiloi.com and philoi.app are verified; philoi.app is the
-// live sender, set via the UNI_CODE_FROM secret. The fallback below stays on getphiloi.com — the
-// domain the privacy/terms URLs already use — so a missing secret degrades to a working sender
-// rather than a dead one.
-const FROM = Deno.env.get('UNI_CODE_FROM') ?? 'Philoi <noreply@getphiloi.com>';
+// unverified sender outright). Both getphiloi.com and philoi.app are verified in Resend, so
+// either fallback would send; philoi.app is the live sender, set via the UNI_CODE_FROM secret.
+// The fallback now matches it. It used to sit on getphiloi.com because that was the domain the
+// privacy/terms URLs used — no longer true, those moved to philoi.app, so the old fallback would
+// have put a stale domain in front of a student verifying their university email.
+const FROM = Deno.env.get('UNI_CODE_FROM') ?? 'Philoi <noreply@philoi.app>';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
