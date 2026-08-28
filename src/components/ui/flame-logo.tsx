@@ -15,9 +15,10 @@ import { Colors, Fonts } from '@/constants/theme';
 // palette but not a silhouette — the flame has the tongue-lick notch and an open base, the ember
 // token is a closed, rounded coal.
 
-/** Mock 92's `#flameMark`, viewBox 0 0 24 24. One path — no inner layers; this reads at 16px. */
+/** Mock 115's flame — the "Cindy flame": sharper and less rounded than the retired mock-92 mark.
+ *  viewBox 0 0 24 24. Rendered mirrored (FLAME_MIRROR_TRANSFORM) to match mock 115 exactly. */
 export const FLAME_PATH =
-  'M13.8 2c.7 3.1-1.2 4.8-2.8 6.2-1.9 1.7-3.5 3.5-3.5 6.3a6.5 6.5 0 0013 0c0-1.4-.45-2.7-1.2-3.8-.25 1.15-1 1.95-2.05 2.2.8-1.75.45-3.9-1-5.3C13.1 6.9 15.1 4.7 13.8 2z';
+  'M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z';
 
 /** The viewBox FLAME_PATH is authored in. Square, so this is both width and height. */
 export const FLAME_VIEWBOX = 24;
