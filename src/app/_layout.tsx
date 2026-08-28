@@ -11,6 +11,7 @@ import { PostHogProvider } from 'posthog-react-native';
 import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
 import { LoadoutSync } from '@/components/economy/loadout-sync';
 import { LiveActivitySync } from '@/components/live-activity-sync';
+import { NavDrawerProvider } from '@/components/nav/app-drawer';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { OfflineBanner } from '@/components/offline-banner';
 import { RankUpWatcher } from '@/components/rank-up-watcher';
@@ -353,25 +354,33 @@ function RootLayout() {
             layer here covers them and every route added later. The navigators above it are
             transparent so it shows through. */}
         <ScreenBackground>
-          <RootNavigator />
-        {/* Renders nothing until a rank actually climbs. Mounted here, above the navigator, so a
-            rank earned from server-side XP (Strava/Whoop webhook, challenge payout) still gets
-            the forge no matter which screen the user is on — the done screen can only ever
-            celebrate a manual stop (punchlist 5.6). */}
-        <RankUpWatcher />
-        {/* Keeps the equipped-cosmetics store fed for the flame / profile / sound layers. Renders
-            nothing; mounted here because the surfaces it feeds are spread across the whole app. */}
-        <LoadoutSync />
-        {/* Drives the iOS Live Activity / Android ongoing notification while a lock-in runs (#87).
-            Renders nothing; mounted here because the session outlives the lock-in screen — you can
-            minimize it, navigate away, and background the app, and the Lock Screen card has to keep
-            counting. No-ops entirely on a build without the native module compiled in. */}
-        <LiveActivitySync />
-        {/* Catches a Forge Pass the store says was paid for but no webhook ever granted (#71).
-            Renders nothing; mounted here because a missed entitlement has to be repaired wherever
-            the user happens to reopen the app. */}
-        <EntitlementReconciler />
-        <OfflineBanner />
+          {/* THE one nav (mock 157 option B). Mounted once, above the navigator, so a single
+              drawer serves every route — the bottom tab bar is retired and this is what replaces
+              it. The drawer renders inside a <Modal>, so its position in this tree decides only
+              what it can READ (auth, active session), not what it can cover. */}
+          <NavDrawerProvider>
+            <RootNavigator />
+            {/* Renders nothing until a rank actually climbs. Mounted here, above the navigator, so
+                a rank earned from server-side XP (Strava/Whoop webhook, challenge payout) still
+                gets the forge no matter which screen the user is on — the done screen can only ever
+                celebrate a manual stop (punchlist 5.6). */}
+            <RankUpWatcher />
+            {/* Keeps the equipped-cosmetics store fed for the flame / profile / sound layers.
+                Renders nothing; mounted here because the surfaces it feeds are spread across the
+                whole app. */}
+            <LoadoutSync />
+            {/* Drives the iOS Live Activity / Android ongoing notification while a lock-in runs
+                (#87). Renders nothing; mounted here because the session outlives the lock-in
+                screen — you can minimize it, navigate away, and background the app, and the Lock
+                Screen card has to keep counting. No-ops entirely on a build without the native
+                module compiled in. */}
+            <LiveActivitySync />
+            {/* Catches a Forge Pass the store says was paid for but no webhook ever granted (#71).
+                Renders nothing; mounted here because a missed entitlement has to be repaired
+                wherever the user happens to reopen the app. */}
+            <EntitlementReconciler />
+            <OfflineBanner />
+          </NavDrawerProvider>
         </ScreenBackground>
       </ActiveSessionProvider>
     </AuthProvider>

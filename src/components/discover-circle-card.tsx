@@ -1,5 +1,6 @@
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
+import { CampfireBadge, heatFromMemberCount } from '@/components/campfire-badge';
 import { Card } from '@/components/ui/card';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -17,7 +18,10 @@ export function DiscoverCircleCard({ group, onJoin, joining, style }: DiscoverCi
   return (
     <Card style={[styles.card, style]}>
       <View style={styles.headerRow}>
-        <Text style={styles.emoji}>{group.emoji}</Text>
+        {/* Was a loose 24px emoji sitting on the card with nothing around it — mock 168's
+            exact complaint. The badge gives it the warm frame and the activity aura, so a
+            discover row draws a campfire the same way the valley and the header do. */}
+        <CampfireBadge emoji={group.emoji} heat={heatFromMemberCount(group.member_count)} size={40} />
         <View style={styles.headerText}>
           <Text style={styles.name}>{group.name}</Text>
           <Text style={styles.meta}>
@@ -40,9 +44,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-  },
-  emoji: {
-    fontSize: 24,
   },
   headerText: {
     flex: 1,

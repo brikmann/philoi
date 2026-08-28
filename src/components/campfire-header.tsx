@@ -2,12 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Polygon } from 'react-native-svg';
 
+import { CampfireBadge } from '@/components/campfire-badge';
 import { CampfireBannerArt, bannerColors } from '@/components/campfire-banner-art';
-import { HeatFlame, heatToState } from '@/components/heat-flame';
+import { heatToState } from '@/components/heat-flame';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { EmberFill } from '@/components/ui/ember-fill';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
+import { useAuth } from '@/lib/auth/auth-context';
+import { useLoadout } from '@/lib/economy/loadout';
 import { RANK_TIER_LABEL, RANK_TIER_METAL } from '@/lib/rank-tiers';
 import type { CampfirePrivacy, Group, RankTierName } from '@/types/database';
 
@@ -94,8 +97,17 @@ export function CampfireHeader({
   // The banner belongs to the campfire, and a campfire's cosmetics are its owner's — §2d's
   // "header art for a Campfire the user owns". So the OWNER's equipped BANNER is what flies here,
   // for every member who opens it.
-  const ownerLoadout = usePublicLoadout(group?.owner_id);
-  const { from, to } = bannerColors(ownerLoadout.banner?.id);
+  //
+  // When the owner IS the viewer, read the live loadout store instead of get_public_loadouts.
+  // That read is a module-level cache keyed by user id with no invalidation, so an owner who has
+  // just picked a banner from the options sheet (mock 164 §3) would sit here watching the old one
+  // fly until the app restarted. The store is what the picker writes to.
+  const { session } = useAuth();
+  const myLoadout = useLoadout();
+  const ownerIsMe = Boolean(group?.owner_id) && group?.owner_id === session?.user.id;
+  const ownerLoadout = usePublicLoadout(ownerIsMe ? null : group?.owner_id);
+  const bannerKey = ownerIsMe ? myLoadout.banner?.id : ownerLoadout.banner?.id;
+  const { from, to } = bannerColors(bannerKey);
 
   const full = variant === 'full';
   const state = heatToState(heat);
@@ -142,9 +154,13 @@ export function CampfireHeader({
 
       {full && (
         <>
-          {/* The collective heat, on its coal bed. Cold reads "BURNT OUT" — the relight nudge. */}
+          {/* The campfire's own badge, at header size (mock 168's fourth frame). It was a bare
+              <HeatFlame> — the collective heat and nothing else — so the landing header for
+              "Late Night Library" and for "Grind Szn" drew the identical fire and the emoji their
+              owners picked appeared nowhere on the screen that is most about them. Cold still
+              reads "BURNT OUT" underneath; that is the relight nudge and the badge doesn't say it. */}
           <View style={styles.heatWrap} pointerEvents="none">
-            <HeatFlame heat={heat} size={62} />
+            <CampfireBadge emoji={group?.emoji ?? '🔥'} heat={heat} size={64} />
             <Text style={styles.heatState}>
               {HEAT_LABEL[state]} · {lockedInToday} OF {memberCount} TODAY
             </Text>

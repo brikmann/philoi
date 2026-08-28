@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { CindyHeaderFlame } from '@/components/cindy/cindy-header-flame';
+import { DrawerButton } from '@/components/nav/app-drawer';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 
 // The header band's exact geometry, exported so anything that needs to sit inside that band
@@ -25,6 +26,13 @@ type TabHeaderProps = {
    * flame would collide with the content.
    */
   cindy?: boolean;
+  /**
+   * The one nav's hamburger, on by default. These three screens ARE top-level destinations — with
+   * the bottom bar retired (mock 157) there is no other way off them, so the drawer control has to
+   * live in their own chrome. Off for a header pushed onto a stack, where the back button already
+   * owns that corner.
+   */
+  menu?: boolean;
 };
 
 // One shared header for all four main tabs (Campfires/"Your fire", Leaderboard, Challenges,
@@ -32,10 +40,11 @@ type TabHeaderProps = {
 // jump the title. Each screen renders only this for its title row; any tab-specific content
 // (pill rows, buttons, stats) goes in its own container below, with no additional top padding
 // of its own (this component already accounts for it).
-export function TabHeader({ title, icon, right, cindy = true }: TabHeaderProps) {
+export function TabHeader({ title, icon, right, cindy = true, menu = true }: TabHeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.left}>
+        {menu && <DrawerButton size={21} />}
         {icon && (
           <View style={styles.iconChip}>
             <Ionicons name={icon} size={13} color={Colors.amber} />

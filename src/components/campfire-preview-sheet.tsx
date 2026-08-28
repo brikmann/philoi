@@ -5,6 +5,7 @@ import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 
 import { Avatar } from '@/components/ui/avatar';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { CampfireBadge, heatFromMemberCount } from '@/components/campfire-badge';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { fetchCampfirePreview, joinPublicGroup, requestToJoinGroup } from '@/lib/api/groups';
 import { getErrorMessage } from '@/lib/errors';
@@ -92,9 +93,16 @@ export function CampfirePreviewSheet({ groupId, onClose }: CampfirePreviewSheetP
           {preview && !loading && (
             <>
               <View style={styles.header}>
-                <View style={styles.flameTile}>
-                  <Ionicons name="flame" size={20} color={Colors.amber} />
-                </View>
+                {/* Was a generic Ionicons flame — the same glyph for every campfire, so the
+                    sheet you get by tapping a valley node said nothing about which node you
+                    tapped. The badge carries the creator's emoji (mock 168). Live lock-ins are
+                    the only real activity signal available for a fire you may not have joined;
+                    member count is the fallback. */}
+                <CampfireBadge
+                  emoji={preview.emoji}
+                  heat={preview.active_lock_in_count > 0 ? 1 : heatFromMemberCount(preview.member_count)}
+                  size={40}
+                />
                 <View style={styles.headerInfo}>
                   <View style={styles.nameRow}>
                     <Text style={styles.name} numberOfLines={1}>
@@ -196,14 +204,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 11,
-  },
-  flameTile: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.achieverBg,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headerInfo: {
     flex: 1,

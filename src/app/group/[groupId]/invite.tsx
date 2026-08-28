@@ -4,9 +4,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
+import { CampfireBadge } from '@/components/campfire-badge';
 import { Screen } from '@/components/ui/screen';
-import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useCampfireHeat } from '@/hooks/use-campfire-heat';
 import { useGroup } from '@/hooks/use-group';
 import { track } from '@/lib/analytics';
 import { fetchInviteLink } from '@/lib/api/groups';
@@ -20,6 +21,7 @@ export default function InviteScreen() {
   const router = useRouter();
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const { group } = useGroup(groupId);
+  const heatByGroupId = useCampfireHeat();
   const [copiedCode, setCopiedCode] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [webLink, setWebLink] = useState<InviteLink | null>(null);
@@ -58,9 +60,8 @@ export default function InviteScreen() {
       </View>
 
       <View style={styles.hero}>
-        <View style={styles.flameTile}>
-          <FlameLogo size={28} />
-        </View>
+        {/* The campfire you are inviting people INTO, not the brand mark (mock 168). */}
+        <CampfireBadge emoji={group?.emoji ?? '🔥'} heat={heatByGroupId[groupId] ?? 0} size={54} />
         <Text style={styles.name}>{group?.name ?? '…'}</Text>
         <Text style={styles.sub}>Anyone with this code can join and lock in with you.</Text>
       </View>
@@ -110,14 +111,6 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
     marginTop: 14,
-  },
-  flameTile: {
-    width: 58,
-    height: 58,
-    borderRadius: 16,
-    backgroundColor: Colors.achieverBg,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   name: {
     fontFamily: Fonts.display,

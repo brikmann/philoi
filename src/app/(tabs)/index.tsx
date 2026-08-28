@@ -15,12 +15,13 @@ import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-
 import { heatToFlameState, type CampfireFlameState } from '@/components/campfire-flame-stage';
 import { CindyBubble } from '@/components/cindy/cindy-bubble';
 import { CindyFlamePress } from '@/components/cindy/cindy-flame-press';
-import { HeatFlame } from '@/components/heat-flame';
 import { PersonalFlame } from '@/components/personal-flame';
 import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
 import { FireShareCard } from '@/components/fire-share-card';
 import { HexagonBadge } from '@/components/hexagon-badge';
-import { HomeMenu, SeasonPill } from '@/components/home-chrome';
+import { SeasonPill } from '@/components/home-chrome';
+import { CampfireBadge } from '@/components/campfire-badge';
+import { DrawerButton } from '@/components/nav/app-drawer';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { HomeXpBar } from '@/components/home-xp-bar';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
@@ -156,13 +157,16 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
           title + two loose icons had grown by accretion — every destination added another glyph
           competing with the hero. Everything is still one tap away, inside the menu. */}
       <View style={styles.topRow}>
-        <View style={styles.topSide} />
+        {/* The hamburger moved to the LEFT (mock 157 frame B). It opens a LEFT-anchored drawer,
+            and a panel that flies in from the opposite edge to its own control reads as two
+            unrelated things. The bell keeps the right — mock 106's rule still holds: the one
+            glyph that can carry a count sits closest to the thumb. */}
+        <View style={[styles.topSide, styles.topSideLeft]}>
+          <DrawerButton />
+        </View>
         <SeasonPill />
         <View style={styles.topSide}>
-          {/* Bell then hamburger, mock 106. The one glyph that can carry a count sits closest to
-              the thumb; the menu is a fixed destination and does not compete for attention. */}
           <NotificationBell />
-          <HomeMenu />
         </View>
       </View>
 
@@ -348,26 +352,24 @@ function stateForMemberCount(count: number): CampfireFlameState {
   return 'dead';
 }
 
-// Every campfire in the app is the coal-bed gauge now (punchlist 20.1). This used to render a
-// plain static FlameSvg for 'steady' — the BRAND MARK — so a half-alive campfire wore the same
-// silhouette as the logo while a roaring one wore a different component entirely, and "gone cold"
-// was the logo at 50% opacity. HeatFlame is one composition per state, so the valley, the campfire
-// card and the banner hero can no longer disagree about what a temperature looks like.
+// The nodes carry the campfire's EMOJI now, not just a flame (mock 168). Every node on this map
+// used to be the same coal-bed gauge at one of three sizes, so a valley of your own campfires was
+// six identical fires distinguishable only by the label underneath — the one thing that actually
+// says WHICH campfire (the emoji its creator picked) was the thing the map dropped. <CampfireBadge>
+// carries both: emoji in the frame, activity as the aura around it.
 //
 // PHILOI_UI_SPEC.md §10's performance rule ("fully animate only the few roaring fires") still
-// holds and HeatFlame honours it by construction: roaring runs its licks and sparks, simmering
-// runs three slow licks, and cold runs no flame at all — just drifting smoke.
+// holds and the badge honours it by construction: roaring pulses fast and wide, steady slow and
+// tight, cold runs no animation at all.
 const HEAT_FOR_STATE: Record<CampfireFlameState, number> = { roar: 1, steady: 0.35, dead: 0 };
-
-function ValleyFlame({ state, size }: { state: CampfireFlameState; size: number }) {
-  return <HeatFlame heat={HEAT_FOR_STATE[state]} size={size} />;
-}
 
 function ValleyNode({
   id,
   name,
+  emoji,
   cue,
   state,
+  heat,
   gated,
   left,
   top,
@@ -377,8 +379,11 @@ function ValleyNode({
 }: {
   id: string;
   name: string;
+  emoji: string;
   cue: string;
   state: CampfireFlameState;
+  /** Drives the aura. Real heat for your own fires; the member-count proxy for discovery. */
+  heat: number;
   gated: boolean;
   left: number;
   top: number;
@@ -408,7 +413,7 @@ function ValleyNode({
       pointerEvents={dimmed ? 'none' : 'auto'}
       key={id}>
       <Pressable onPress={onPress} style={styles.nodeTouch}>
-        <ValleyFlame state={state} size={SIZE_FOR_STATE[state]} />
+        <CampfireBadge emoji={emoji} heat={heat} size={SIZE_FOR_STATE[state]} />
         <View style={styles.nodeLabelRow}>
           {gated && <Ionicons name="lock-closed" size={9} color={Colors.textTertiary} style={styles.nodeLockIcon} />}
           <Text style={styles.nodeLabel} numberOfLines={1}>
@@ -448,8 +453,10 @@ function MyFireValleyNode({
     <ValleyNode
       id={group.id}
       name={group.name}
+      emoji={group.emoji}
       cue={cue}
       state={state}
+      heat={heat}
       gated={false}
       left={left}
       top={top}
@@ -550,12 +557,14 @@ export function ValleyPage({ myGroups, heatByGroupId }: { myGroups: MyGroup[]; h
                 key={group.id}
                 id={group.id}
                 name={group.name}
+                emoji={group.emoji}
                 cue={
                   filter === 'classes' && group.course_code
                     ? `class · ${group.member_count} in`
                     : `${group.member_count} member${group.member_count === 1 ? '' : 's'}`
                 }
                 state={stateForMemberCount(group.member_count)}
+                heat={HEAT_FOR_STATE[stateForMemberCount(group.member_count)]}
                 gated={group.privacy === 'gated'}
                 left={left}
                 top={top}
@@ -724,14 +733,17 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     paddingBottom: Spacing.two,
   },
-  // Equal flex on both sides is what actually CENTRES the season pill — with only a hamburger on
-  // the right, space-between would push the pill off-centre by the icon's width.
+  // Equal flex on both sides is what actually CENTRES the season pill — with one glyph on each
+  // side, space-between would push the pill off-centre by the difference between them.
   topSide: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: Spacing.three,
+  },
+  topSideLeft: {
+    justifyContent: 'flex-start',
   },
   // Mock 92's `.rankrow`: 238 wide, centered, 14 below the hero — NOT crammed against it or the
   // CTA. The hero above is flex:1 so the flame keeps room to breathe (punchlist 17 P1).

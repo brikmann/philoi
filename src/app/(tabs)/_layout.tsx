@@ -1,30 +1,14 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
-import { FlameLogo } from '@/components/ui/flame-logo';
+import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Colors, Fonts } from '@/constants/theme';
 
-// Line icons, not emoji (PHILOI_UI_SPEC.md §4b, design-mocks/33) — emoji render inconsistently
-// across devices and ignore the tab bar's tint-color entirely. Campfires keeps the brand flame
-// vector (the signature mark, deliberately "the odd one out among line icons" per the mock's own
-// caption) — the other three are Ionicons outlines, active = coral, inactive = muted, color only
-// (no focused background chip, matching the mock exactly).
-// Mock 33's icons don't swap shape between states at all — color is the ONLY active signal
-// (same line glyph throughout), so these render one consistent outline variant each.
-function LeaderboardsTabIcon({ focused }: { focused: boolean }) {
-  return <Ionicons name="trophy-outline" size={23} color={focused ? Colors.coral : Colors.muted} />;
-}
-
-function ChallengesTabIcon({ focused }: { focused: boolean }) {
-  // Ionicons has no literal bullseye/target glyph — MaterialCommunityIcons (bundled in the same
-  // @expo/vector-icons package, no extra install) does.
-  return <MaterialCommunityIcons name="target" size={22} color={focused ? Colors.coral : Colors.muted} />;
-}
-
-function ProfileTabIcon({ focused }: { focused: boolean }) {
-  return <Ionicons name="person-outline" size={22} color={focused ? Colors.coral : Colors.muted} />;
-}
+// The bar these feed is hidden (see tabBarStyle below) — the drawer is the nav now. They are kept,
+// and moved onto the mock-158 vector set, so the four core destinations are drawn by the same hand
+// here as in the drawer: one 24 grid, 1.8 stroke, grey outline -> filled ember. What was here
+// before was three families at once (an Ionicons trophy, a MaterialCommunityIcons target, the
+// brand FlameLogo), which is exactly the inconsistency mock 158 exists to end.
 
 export default function TabsLayout() {
   // The root Stack's own `contentStyle.paddingTop` (see app/_layout.tsx's `topInset`) only
@@ -43,7 +27,16 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: Colors.coral,
         tabBarInactiveTintColor: Colors.muted,
-        tabBarStyle: { backgroundColor: Colors.card, borderTopColor: Colors.line },
+        // THE BOTTOM BAR IS RETIRED (mock 157 option B). One nav now — the side drawer in
+        // components/nav/app-drawer.tsx — so Home/Leaderboards/Challenges/Profile are drawer rows
+        // like everything else instead of the four destinations the app privileged by accident of
+        // which navigator they landed in.
+        //
+        // The Tabs navigator itself STAYS, with its bar hidden. Every deep link, push and
+        // notification route in the app names these paths (/(tabs)/challenges from the challenge
+        // pushes, /?lockin=1 from a friend's nudge), and flattening the group into the root Stack
+        // to delete a bar nobody can see would rewrite all of them for no visible gain.
+        tabBarStyle: { display: 'none' },
         tabBarLabelStyle: styles.label,
         // Still load-bearing, still not cosmetic: without a colour here the scene falls back to
         // react-navigation's default WHITE. But it must be the radial's OUTER stop, not the old
@@ -58,28 +51,28 @@ export default function TabsLayout() {
           // Home, not Campfires — this tab is the flame / lock-in hub now and campfires is a
           // hamburger destination (punchlist 16 §4).
           title: 'Home',
-          tabBarIcon: () => <FlameLogo size={24} />,
+          tabBarIcon: ({ focused }) => <PhiloiIcon name="home" size={23} active={focused} />,
         }}
       />
       <Tabs.Screen
         name="leaderboards"
         options={{
           title: 'Leaderboards',
-          tabBarIcon: ({ focused }) => <LeaderboardsTabIcon focused={focused} />,
+          tabBarIcon: ({ focused }) => <PhiloiIcon name="leaderboards" size={23} active={focused} />,
         }}
       />
       <Tabs.Screen
         name="challenges"
         options={{
           title: 'Challenges',
-          tabBarIcon: ({ focused }) => <ChallengesTabIcon focused={focused} />,
+          tabBarIcon: ({ focused }) => <PhiloiIcon name="challenges" size={23} active={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ focused }) => <ProfileTabIcon focused={focused} />,
+          tabBarIcon: ({ focused }) => <PhiloiIcon name="profile" size={23} active={focused} />,
         }}
       />
     </Tabs>
