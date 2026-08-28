@@ -17,6 +17,7 @@ import {
 } from '@/lib/rank-watch';
 import { isRankUp } from '@/lib/rank-tiers';
 import { shareCardImage } from '@/lib/share-card';
+import { syncStepLadder } from '@/lib/step-ladder-sync';
 import type { MyRank } from '@/types/database';
 
 // Imperative presenter, set by the mounted RankUpWatcher. Dev-tools and the watcher itself both
@@ -119,6 +120,22 @@ export function RankUpWatcher() {
   }, [check]);
 
   useEffect(() => subscribeToRankRecheck(check), [check]);
+
+  // Walking -> the Movement relic ladder (migration 0119). Rides this watcher rather than taking
+  // its own root mount: this is already the one component the root layout keeps alive purely to
+  // watch economy state on mount and on foreground, which is exactly the cadence a daily step
+  // total wants. It also keeps app/_layout.tsx untouched.
+  //
+  // Deliberately NOT folded into check() — a slow health-store read must not delay the rank
+  // celebration, and syncStepLadder throttles itself and swallows its own failures.
+  useEffect(() => {
+    if (!userId) return undefined;
+    void syncStepLadder(userId);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void syncStepLadder(userId);
+    });
+    return () => sub.remove();
+  }, [userId]);
 
   async function handleShare() {
     setSharing(true);

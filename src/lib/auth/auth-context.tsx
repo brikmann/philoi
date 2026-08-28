@@ -7,6 +7,7 @@ import { configureBilling, resetBilling } from '@/lib/billing';
 import { getErrorMessage } from '@/lib/errors';
 import { unregisterPushToken } from '@/lib/notifications';
 import { clearLastSeenRank } from '@/lib/rank-watch';
+import { clearStepLadderSyncState } from '@/lib/step-ladder-sync';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/types/database';
 
@@ -203,6 +204,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // provide (a rank earned by webhook while the app was closed has no done screen to fire
       // from). Sign-out is the one moment we can name a login unambiguously.
       if (userId) await clearLastSeenRank(userId);
+      // Same housekeeping for the step-ladder sync timestamp (migration 0119). The key is already
+      // per user id so a stale one could never be read by the next account — this just stops the
+      // device accumulating a key per person who ever signed in on it.
+      if (userId) await clearStepLadderSyncState(userId);
       if (userId) await unregisterPushToken(userId);
       // Same reason as the Google sign-out below: RevenueCat caches the identified user, so on a
       // shared device the next person to sign in would inherit this account's Forge Pass

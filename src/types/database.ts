@@ -2107,6 +2107,30 @@ export type Database = {
           percentile: number;
         } | null;
       };
+
+      // ── AGENT 1 · LOGIC — relic feeder RPCs (migration 0119). Appended; nothing above moved. ──
+      get_my_relic_progress: {
+        Args: Record<string, never>;
+        Returns: {
+          relic_key: string;
+          family: string;
+          unit: string;
+          value: number;
+          tier: number;
+          max_tier: number;
+          rarity: string | null;
+          next_threshold: number | null;
+        }[];
+      };
+      set_my_height_cm: {
+        Args: { p_height_cm: number };
+        Returns: void;
+      };
+      record_step_days: {
+        /** [{ day: 'YYYY-MM-DD', steps, source? }] — one TOTAL per local day. See StepDayInput. */
+        Args: { p_days: { day: string; steps: number; source?: string }[] };
+        Returns: number;
+      };
     };
   };
 };
@@ -2158,4 +2182,46 @@ export type EconomyOpenResult = {
   embers: number;
   box_key: string;
   rolled_rarity: string;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// AGENT 1 · LOGIC — relic progress feeder (migrations 0119–0123).
+// Appended block. Nothing above this line is touched; the integrator unions this with the other
+// agents' blocks.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The four discipline-relic ladders (ITEM_CATALOG §4a-2). Matches `relic_ladders.family`. */
+export type RelicFamilyKey = 'volume' | 'distance' | 'study' | 'deep_work' | 'meditate';
+
+/**
+ * One row of get_my_relic_progress() — where a discipline relic stands and what the next rung
+ * costs. Returned for every ladder, including ones the user has not started (tier 0, value 0).
+ */
+export type RelicProgressRow = {
+  relic_key: string;
+  family: RelicFamilyKey;
+  /** Suffix for the threshold: 'lb' | 'km' | 'h'. */
+  unit: string;
+  /** Lifetime total in `unit`. The numerator of "43 / 50 km". */
+  value: number;
+  /** Rung held, 1-based. 0 = not yet earned, so no relic and no Greek glyph. */
+  tier: number;
+  /** How many rungs this ladder has — 5 for Gym, 4 for the rest. */
+  max_tier: number;
+  /** The rarity of the rung currently held; null at tier 0. */
+  rarity: string | null;
+  /** The next rung's threshold, or null when the top rung is already held. */
+  next_threshold: number | null;
+};
+
+/**
+ * One day of steps for record_step_days(). `day` is the DEVICE's local calendar date as
+ * 'YYYY-MM-DD' — not a UTC instant, for the same reason migration 0084 rolls daily goals at local
+ * midnight. `steps` is the day's TOTAL, never a delta: the server keeps the larger of what it has
+ * and what arrives, which is what makes a re-sync safe.
+ */
+export type StepDayInput = {
+  day: string;
+  steps: number;
+  source?: 'device' | 'healthkit' | 'health_connect' | 'manual';
 };

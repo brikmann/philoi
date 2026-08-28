@@ -464,6 +464,50 @@ const RELICS: CatalogItem[] = [
   item({ id: 'relic-prometheus-shard', name: "Prometheus' Shard", type: 'RELIC', rarity: 'mythic', acquisition: 'earned',
     lore: 'You are now one of us. Spread your fire to all of humanity to rise and ascend.',
     art: { kind: 'relic', from: '#FF2A2A', to: '#FFD27A' } }),
+  // ── added with migration 0119 (ITEM_CATALOG §4a / §4a-3) ──
+  // Zeus' Bolt and Atlas' Burden were in the catalog document but had no entry here and no
+  // evaluation logic at all — they could not be granted, and would have rendered as an unknown
+  // key if they somehow had been.
+  item({ id: 'relic-zeus-bolt', name: "Zeus' Bolt", type: 'RELIC', rarity: 'mythic', acquisition: 'earned',
+    lore: 'The king himself bows toward your greatness.',
+    art: { kind: 'relic', from: '#F5C542', to: '#FFF6EC' } }),
+  item({ id: 'relic-atlas-burden', name: "Atlas' Burden", type: 'RELIC', rarity: 'mythic', acquisition: 'earned',
+    lore: 'A thousand pounds carried across the three great lifts. Atlas nods in approval.',
+    art: { kind: 'relic', from: '#4a4460', to: '#FF2A2A' } }),
+];
+
+/**
+ * §4a-2 — the discipline relics. ONE item each, not one per rung.
+ *
+ * The `rarity` below is the FIRST rung's, because that is what the relic is worth the moment it is
+ * granted. Every rung after that raises `cosmetics_owned.rarity_override`, which collection.tsx
+ * and use-inventory.ts already prefer over this value — so a maxed Hercules' Might reads mythic
+ * without a second catalog entry existing. `relic-ladders.ts` holds the thresholds for display;
+ * the server's `relic_ladders` table (0119) is the authority, and the two are retuned together.
+ *
+ * Deliberately NOT one item per rung: §4a-2 specifies "one showcase item that upgrades its
+ * rarity/tier", and twenty-two inventory rows for five achievements is the shape that rules out.
+ */
+const DISCIPLINE_RELICS: CatalogItem[] = [
+  item({ id: 'relic-hercules-might', name: "Hercules' Might", type: 'RELIC', rarity: 'uncommon', acquisition: 'earned',
+    lore: "Twelve labours. You're somewhere past the seventh — and it shows.",
+    art: { kind: 'relic', from: '#8B3A1F', to: '#FF9A3C' } }),
+  item({ id: 'relic-pheidippides-sandals', name: "Pheidippides' Sandals", type: 'RELIC', rarity: 'rare', acquisition: 'earned',
+    lore: 'He crossed 414 km on foot to call for help. You have matched every step.',
+    art: { kind: 'relic', from: '#4FB0E5', to: '#FFF0B8' } }),
+  item({ id: 'relic-socrates-scroll', name: "Socrates' Scroll", type: 'RELIC', rarity: 'uncommon', acquisition: 'earned',
+    lore: "The unexamined hour isn't worth logging. You examined a hundred.",
+    art: { kind: 'relic', from: '#6B5B95', to: '#FFD27A' } }),
+  item({ id: 'relic-daedalus-blueprint', name: "Daedalus' Blueprint", type: 'RELIC', rarity: 'uncommon', acquisition: 'earned',
+    lore: "The labyrinth wasn't built in a day. Neither is whatever you're making.",
+    art: { kind: 'relic', from: '#2E5E4E', to: '#7BE0FF' } }),
+  item({ id: 'relic-oracles-stillness', name: "Oracle's Stillness", type: 'RELIC', rarity: 'uncommon', acquisition: 'earned',
+    lore: 'The Oracle spoke only in the quiet. You have kept a great deal of it.',
+    art: { kind: 'relic', from: '#1F3A5F', to: '#C9B6FF' } }),
+  // The set-completion capstone: the top rung of all five ladders (§4a-2).
+  item({ id: 'relic-crown-of-olympus', name: 'Crown of Olympus', type: 'RELIC', rarity: 'mythic', acquisition: 'earned',
+    lore: 'Master of no single art, but of the discipline beneath all of them. Olympus has a seat for that.',
+    art: { kind: 'relic', from: '#F5C542', to: '#FF2A2A' } }),
 ];
 
 const MEDALS: CatalogItem[] = [
@@ -688,6 +732,7 @@ export const CATALOG: CatalogItem[] = [
   ...AUDIO,
   ...SFX,
   ...RELICS,
+  ...DISCIPLINE_RELICS,
   ...MEDALS,
   ...EMBERFALL_SET,
   ...EMBERFALL_PLACEMENT,

@@ -97,7 +97,9 @@ export const NOTIFICATION_CATEGORIES: {
   {
     key: 'cat_streak_reminders',
     label: 'Streak & reminders',
-    description: 'Your nightly streak warning and daily reminder',
+    // Session recaps map to this category (notification_category(), migration 0120), so this
+    // toggle is the only way to mute them — it has to say so, or muting recaps looks impossible.
+    description: 'Session recaps, your nightly streak warning and the daily reminder',
   },
   { key: 'cat_season_rank', label: 'Season & rank', description: 'Season results and rewards to collect' },
 ];
