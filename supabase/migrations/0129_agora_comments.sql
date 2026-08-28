@@ -337,7 +337,15 @@ as $nc$
     when p_type in ('campfire_joined', 'campfire_join_request', 'campfire_challenge_started',
                     'campfire_cold', 'campfire_added', 'campfire_settled', 'campfire_message')
       then 'campfires'
-    when p_type in ('streak_at_risk', 'daily_fire_reminder', 'streak_milestone') then 'streak_reminders'
+    when p_type in ('streak_at_risk', 'daily_fire_reminder', 'streak_milestone',
+                    -- INTEGRATION: 0120 (a parallel branch when this file was written) added the
+                    -- session recap and mapped it here — "nudges about my own consistency" is the
+                    -- toggle a user already reads as covering it. This function restates its whole
+                    -- CASE on every redefinition, and this one was built from 0112 + 0093 without
+                    -- sight of 0120, so restating it dropped the mapping onto the else-branch and
+                    -- filed every recap under Friends & social. Exactly the half-copy failure the
+                    -- comment above 0120's own version warns about, one migration later.
+                    'session_complete') then 'streak_reminders'
     when p_type in ('season_ending', 'season_settled', 'ranked_up', 'rank_dropped', 'reward_ready')
       then 'season_rank'
     else 'friends_social'

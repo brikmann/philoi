@@ -75,9 +75,13 @@ function RootNavigator() {
 
   // Preload RewardBurst audio + settings once at startup so the first check-in has zero
   // playback latency and doesn't wait on an AsyncStorage read.
+  //
+  // Sequenced, not fired side by side: the audio session's interruption mode is the "Duck to my
+  // music" preference, so the preload has to know the stored value before it configures the
+  // session. Racing them would set the mode from the default and only correct it the next time
+  // the user touched the switch.
   useEffect(() => {
-    preloadRewardSounds();
-    loadRewardPreferences();
+    loadRewardPreferences().then((prefs) => preloadRewardSounds(prefs.duck_to_music));
   }, []);
 
   // OTA update check, once per cold start — see lib/updates.ts.

@@ -3,15 +3,16 @@ import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { logChallengeProgress, type GoalDayAward } from '@/lib/api/challenges';
-import { CHALLENGE_TYPE_ICON } from '@/lib/goal-types';
+import { CHALLENGE_TYPE_GLYPH } from '@/lib/goal-types';
 import { getErrorMessage } from '@/lib/errors';
 import { AUTO_SOURCE_NAME, getRealFitnessSourceForChallengeType, sourceNeedsConnection } from '@/lib/fitness-sync';
 import type { Challenge, ChallengeType } from '@/types/database';
 
-// Quick-add amounts only. The ICON moved to CHALLENGE_TYPE_ICON in lib/goal-types — these were
+// Quick-add amounts only. The glyph moved to CHALLENGE_TYPE_GLYPH in lib/goal-types — these were
 // emoji, which draw differently on every OS and font version and cannot take the row's tint (§A3).
 const TYPE_QUICK_ADDS: Record<ChallengeType, number[]> = {
   steps: [1000, 2500, 5000],
@@ -129,7 +130,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
     <Card style={styles.card}>
       <Pressable onPress={onInfo} onLongPress={handleDelete} style={styles.header}>
         <View style={styles.iconTile}>
-          <Ionicons name={CHALLENGE_TYPE_ICON[challenge.type]} size={18} color={Colors.ember} />
+          <DisciplineIcon name={CHALLENGE_TYPE_GLYPH[challenge.type]} size={18} color={Colors.ember} />
         </View>
         <View style={styles.titleColumn}>
           <Text style={styles.title} numberOfLines={1}>

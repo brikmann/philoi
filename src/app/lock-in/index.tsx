@@ -26,6 +26,7 @@ import { DriftingEmbers } from '@/components/drifting-embers';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { EquippedFlameSvg } from '@/components/flame-icon';
 import { EquippedFlameParticles, EquippedFlarePerimeter, useFlareEquipped } from '@/components/economy/flare-perimeter';
+import { useKeepScreenAwakePref } from '@/lib/reward-settings';
 import { FireShareCard } from '@/components/fire-share-card';
 import { LockInShareCard } from '@/components/lock-in-share-card';
 import { FlameMeterComplete } from '@/components/flame-meter-complete';
@@ -62,7 +63,7 @@ import { deriveRankUpLevel } from '@/lib/rank-watch';
 import { isRankUp } from '@/lib/rank-tiers';
 import { clearSessionAudioChoice, playEquippedSfx, stopEquippedAmbient } from '@/lib/economy/equipped-audio';
 import { fireIgnite } from '@/lib/reward-feedback';
-import { useKeepScreenAwakePref } from '@/lib/session-prefs';
+
 import { shareCardImage } from '@/lib/share-card';
 import { isFirstLockInTutorialDone, markFirstLockInTutorialDone } from '@/lib/tutorial';
 import type { CheckIn, GoalType, MyRank, RankTierName, WorkoutEnergy, WorkoutRecap } from '@/types/database';

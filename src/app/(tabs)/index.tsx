@@ -15,6 +15,7 @@ import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-
 import { heatToFlameState, type CampfireFlameState } from '@/components/campfire-flame-stage';
 import { CindyBubble } from '@/components/cindy/cindy-bubble';
 import { CindyFlamePress } from '@/components/cindy/cindy-flame-press';
+import { EquippedFlameParticles } from '@/components/economy/flare-perimeter';
 import { PersonalFlame } from '@/components/personal-flame';
 import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
 import { FireShareCard } from '@/components/fire-share-card';
@@ -201,6 +202,13 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
           size={132}
           onTap={() => router.push('/cindy')}
           onHold={() => router.push(cindyConsented ? '/cindy-voice' : '/cindy')}>
+          {/* Particles sit BEHIND the flame in the same box, so they read as thrown off it
+              rather than as a layer over the top of it — the lock-in screen mounts its pair the
+              same way round. Absolutely positioned, so PersonalFlame still sizes the box, and
+              inside the press transform so they ride the tap instead of standing still while the
+              flame moves under them. Renders nothing when the particle slot is empty, which is
+              the common case. */}
+          <EquippedFlameParticles />
           <PersonalFlame size={132} />
         </CindyFlamePress>
         {!activeSession && (

@@ -71,7 +71,7 @@ export const RewardBurst = forwardRef<RewardBurstHandle, { cue: RewardCue }>(fun
   useImperativeHandle(ref, () => ({
     fire: () => {
       const prefs = getRewardPreferencesSync();
-      if (prefs.sound) playRewardSound(cue);
+      if (prefs.reward_sfx_enabled) playRewardSound(cue);
       if (prefs.haptics) HAPTIC_BY_CUE[cue]?.();
       if (!reduceMotionRef.current) lottieRef.current?.play();
     },

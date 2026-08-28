@@ -70,7 +70,7 @@ function safeHaptic(fn: () => Promise<void>): void {
 // notification-style haptic, and plays at full volume — it should feel decisive.
 export function fireIgnite(): void {
   const prefs = getRewardPreferencesSync();
-  if (prefs.sound) playRewardSound('ignite');
+  if (prefs.reward_sfx_enabled) playRewardSound('ignite');
   if (prefs.haptics) safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
   // The equipped START sting (PUNCHLIST_13), LAYERED over the stock ignite rather than replacing
   // it. Lives here rather than at the call site because fireIgnite is already the single "a new
@@ -85,7 +85,7 @@ export function fireIgnite(): void {
 // plays close to full volume rather than a scaled-down stand-in.
 export function fireXpTick(): void {
   const prefs = getRewardPreferencesSync();
-  if (prefs.sound) playRewardSound('whoosh', 0.85);
+  if (prefs.reward_sfx_enabled) playRewardSound('whoosh', 0.85);
   if (prefs.haptics) safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
 }
 
@@ -95,7 +95,7 @@ export function fireXpTick(): void {
 // settle, quieter than the arrival cue so the two don't sound identical back to back.
 export function fireConfirm(): void {
   const prefs = getRewardPreferencesSync();
-  if (prefs.sound) playRewardSound('settle', 0.5);
+  if (prefs.reward_sfx_enabled) playRewardSound('settle', 0.5);
   if (prefs.haptics) safeHaptic(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
 }
 
@@ -117,7 +117,7 @@ export function hasAscensionAnthem(tier: RankTierName): boolean {
  * that cuts it short.
  */
 export function startAscensionAnthem(tier: RankTierName): void {
-  if (!getRewardPreferencesSync().sound) return;
+  if (!getRewardPreferencesSync().reward_sfx_enabled) return;
   const cue = ASCENSION_CUE_BY_TIER[tier];
   if (!cue || !hasRewardSound(cue)) return;
   // Idempotent: rewind anything already playing so a re-mount can't leave two anthems overlapping
@@ -156,7 +156,7 @@ export function fireRankUp(tier: RankTierName, isDivisionBump = false, isBandCro
   // If the anthem is missing, fall through and let the tier's own hit carry the moment.
   const anthemCarriesIt = isBandCrossing && hasAscensionAnthem(tier);
 
-  if (prefs.sound && !anthemCarriesIt) {
+  if (prefs.reward_sfx_enabled && !anthemCarriesIt) {
     // NO cosmetic override here, by design (PUNCHLIST_12). This used to play the equipped SFX
     // instead of the tier's own hit, which meant buying a 2-second anvil quietly downgraded
     // Immortal's chime-plus-souls arrangement — the rarest moment in the app made to sound like
@@ -209,12 +209,12 @@ export function fireRankUp(tier: RankTierName, isDivisionBump = false, isBandCro
 // hellfire that burns the numeral stroke off. Both are existing one-shots — no new assets — and
 // both are sound-only, since the bump's single light haptic lands with the tier hit at the end.
 export function fireIncinerationFuse(): void {
-  if (!getRewardPreferencesSync().sound) return;
+  if (!getRewardPreferencesSync().reward_sfx_enabled) return;
   playRewardSound('whoosh', 0.8);
 }
 
 export function fireIncinerationBurn(): void {
-  if (!getRewardPreferencesSync().sound) return;
+  if (!getRewardPreferencesSync().reward_sfx_enabled) return;
   playRewardSound('ignite', 0.85);
 }
 
@@ -224,7 +224,7 @@ export function fireIncinerationBurn(): void {
 // fill sound. Heavy haptic — a genuine daily milestone, not a light confirm.
 export function fireFlameMeterComplete(): void {
   const prefs = getRewardPreferencesSync();
-  if (prefs.sound) playRewardSound('whoosh');
+  if (prefs.reward_sfx_enabled) playRewardSound('whoosh');
   if (prefs.haptics) safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
 }
 
@@ -240,7 +240,7 @@ export function fireLightTap(): void {
 // single burst under 1s apart; a light tap reads as a "tick," not a repeated heavy thud.
 export function fireEmberLand(): void {
   const prefs = getRewardPreferencesSync();
-  if (prefs.sound) playRewardSound('spark', 0.4);
+  if (prefs.reward_sfx_enabled) playRewardSound('spark', 0.4);
   if (prefs.haptics) safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
 }
 
@@ -253,7 +253,7 @@ export function fireEmberLand(): void {
  * reveal haptic below is where the hands get involved.
  */
 export function fireBoxOpen(): void {
-  if (!getRewardPreferencesSync().sound) return;
+  if (!getRewardPreferencesSync().reward_sfx_enabled) return;
   playRewardSound('box-open', 0.5);
 }
 
@@ -326,7 +326,7 @@ function revealHaptic(rarity: Rarity): void {
  */
 export function fireReveal(rarity: Rarity, dupe = false): void {
   const prefs = getRewardPreferencesSync();
-  if (prefs.sound) playRewardSound(REVEAL_CUE[rarity], dupe ? 0.4 : 1);
+  if (prefs.reward_sfx_enabled) playRewardSound(REVEAL_CUE[rarity], dupe ? 0.4 : 1);
   if (prefs.haptics && !dupe) revealHaptic(rarity);
   else if (prefs.haptics) safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
 }

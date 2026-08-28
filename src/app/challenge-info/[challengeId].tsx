@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChallengeRewardScreen } from '@/components/economy/challenge-reward-screen';
 import { ChallengeWinShareCard } from '@/components/economy/challenge-win-share-card';
 import { Avatar } from '@/components/ui/avatar';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { ScreenBackground } from '@/components/ui/screen-background';
@@ -20,7 +21,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { challengeTitle, formatMetricValue, isDuel, isPlacement, metricLabel, metricNoun } from '@/lib/challenge-metric';
 import { fetchChallengeResults } from '@/lib/api/social-challenges';
 import { getErrorMessage } from '@/lib/errors';
-import { CHALLENGE_TYPE_ICON } from '@/lib/goal-types';
+import { CHALLENGE_TYPE_GLYPH } from '@/lib/goal-types';
 import { formatTimeLeft } from '@/lib/format';
 import { shareCardImage } from '@/lib/share-card';
 import type { ChallengeResultRow, SocialChallenge, SocialChallengeRaceMetric } from '@/types/database';
@@ -497,7 +498,7 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
     <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
       <View style={styles.goalHero}>
         <View style={styles.goalIcon}>
-          <Ionicons name={CHALLENGE_TYPE_ICON[g.type]} size={30} color={Colors.amber} />
+          <DisciplineIcon name={CHALLENGE_TYPE_GLYPH[g.type]} size={30} color={Colors.amber} />
         </View>
         <Text style={styles.goalTitle}>
           {g.label ?? `${g.target.toLocaleString('en-US')} ${g.unit}`}

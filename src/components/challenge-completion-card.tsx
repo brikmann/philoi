@@ -1,18 +1,17 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Ionicons } from '@expo/vector-icons';
-
 import { Card } from '@/components/ui/card';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { FeedChallengeEvent } from '@/lib/api/challenges';
 import { formatRelativeTime } from '@/lib/format';
-import { CHALLENGE_TYPE_ICON } from '@/lib/goal-types';
+import { CHALLENGE_TYPE_GLYPH } from '@/lib/goal-types';
 
 export function ChallengeCompletionCard({ event }: { event: FeedChallengeEvent }) {
   const goal = event.challenge_label ?? `${event.target.toLocaleString()} ${event.unit}`;
   return (
     <Card style={styles.card}>
-      <Ionicons name={CHALLENGE_TYPE_ICON[event.challenge_type]} size={17} color={Colors.ember} />
+      <DisciplineIcon name={CHALLENGE_TYPE_GLYPH[event.challenge_type]} size={17} color={Colors.ember} />
       <View style={styles.body}>
         {event.is_completion ? (
           <Text style={styles.text}>

@@ -33,7 +33,7 @@ export function useRevealPreview(itemId: string | undefined): void {
   useEffect(() => {
     if (!itemId || firedFor.current === itemId) return;
     if (!hasPreview(itemId)) return;
-    if (!getRewardPreferencesSync().sound) return;
+    if (!getRewardPreferencesSync().reward_sfx_enabled) return;
     firedFor.current = itemId;
     playPreview(itemId);
   }, [itemId]);

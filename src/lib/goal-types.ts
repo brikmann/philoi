@@ -60,24 +60,6 @@ export const GOAL_TYPE_ICON: Record<GoalType, keyof typeof Ionicons.glyphMap> = 
   custom: 'add',
 };
 
-// The same idea for ChallengeType, which is a SEPARATE enum from GoalType — a personal goal's
-// tracked metric, not the lock-in tool. It had no vector map at all, so every surface rendering a
-// goal (the card, the completion card, the create picker) fell back to a raw emoji: 👟 for steps,
-// 🏋️ for gym. That is the "raw shoe emoji" §A3 reports, and it is the same problem the podium
-// crown had — an emoji draws differently per OS and font version and cannot take a tint, so it
-// sits in a themed row as a foreign object with its own fixed colours.
-export const CHALLENGE_TYPE_ICON: Record<ChallengeType, keyof typeof Ionicons.glyphMap> = {
-  steps: 'footsteps',
-  run_distance: 'walk',
-  ride_distance: 'bicycle',
-  gym_visits: 'barbell',
-  study_hours: 'book',
-  custom: 'flag',
-  workout_minutes: 'stopwatch',
-  strain: 'fitness',
-  sleep_hours: 'moon',
-};
-
 // ── The mock-163 discipline set ────────────────────────────────────────────────────────────────
 //
 // The brand vectors that replace the raw emoji and the Ionicons fallbacks above — the swap-in
@@ -85,11 +67,14 @@ export const CHALLENGE_TYPE_ICON: Record<ChallengeType, keyof typeof Ionicons.gl
 // instead of `<Ionicons name={GOAL_TYPE_ICON[type]} />` and gets one consistent 1.8-stroke glyph
 // on the same 24 grid as the nav set.
 //
-// GOAL_TYPE_ICON / CHALLENGE_TYPE_ICON are deliberately LEFT IN PLACE rather than retyped. They
-// are read from a dozen files across three feature areas, several of which belong to another
-// agent's branch in this build; changing their type would force an edit into every one of those
-// at once. They stay as the Ionicons fallback for any surface not yet swapped, and go away when
-// the last call site does.
+// GOAL_TYPE_ICON is deliberately LEFT IN PLACE rather than retyped, on the same reasoning that
+// applied to both maps while this was six branches: it is read from a dozen files, and changing
+// its type forces an edit into every one at once. It stays as the Ionicons fallback for any
+// surface not yet swapped, and goes away when the last call site does.
+//
+// CHALLENGE_TYPE_ICON already did: integration swapped its last four call sites (the create
+// picker, the info hero, the challenge card and the completion card) onto CHALLENGE_TYPE_GLYPH,
+// so the map went with them rather than sitting here as a second answer to the same question.
 
 export const GOAL_TYPE_GLYPH: Record<GoalType, DisciplineIconName> = {
   gym: 'gym',

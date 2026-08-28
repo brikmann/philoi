@@ -1,4 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+
+import { applyAudioInterruptionMode } from '@/lib/sound';
 
 // Device-local preferences for everything the app does to your senses: sound, haptics, and
 // whether the screen is allowed to sleep on you mid-session.
@@ -8,6 +12,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // `reward_sfx_enabled`. Settings owns them; the cosmetics layer (`sound.ts`,
 // `equipped-audio.ts`, `lock-in/index.tsx`) reads them. Nothing else should invent its own
 // storage key for these, or the toggle in Settings and the behaviour on the device drift apart.
+//
+// Which is exactly what happened while this was six branches, and why lib/session-prefs.ts no
+// longer exists. It defined the same two lock-in preferences against the UNPREFIXED key names
+// (`session_audio_enabled`, `keep_screen_awake`) while this file wrote the `philoi_`-prefixed
+// ones. Both halves were individually correct and the pair was inert: Settings wrote one entry
+// and the lock-in screen read another, so every toggle in the Sound & Haptics group did nothing
+// at all. Its readers import from here now, and its keep-awake hook is at the bottom of this
+// file — a hook over the cache belongs with the cache.
 //
 // Device-local rather than server-side on purpose. Every one of these is about THIS phone in
 // THIS room — whether the speaker should make noise at the gym, whether this display should stay
@@ -20,15 +32,6 @@ const KEEP_AWAKE_KEY = 'philoi_keep_screen_awake';
 const DUCK_TO_MUSIC_KEY = 'philoi_duck_to_music';
 
 export type RewardPreferences = {
-  /**
-   * @deprecated Read `reward_sfx_enabled` instead — this is the same value under its old name.
-   *
-   * Kept, and kept in lockstep, because eight call sites across reward-feedback, reward-burst,
-   * equipped-audio and use-audio-preview already read `.sound`. Renaming it in place would be a
-   * cross-agent edit for zero behaviour change; the integrator can collapse the alias once the
-   * parallel branches have landed.
-   */
-  sound: boolean;
   haptics: boolean;
   /** Reward & SFX stings: box opens, rank-ups, lock-in start/stop (mock 164 panel 1). */
   reward_sfx_enabled: boolean;
@@ -43,7 +46,6 @@ export type RewardPreferences = {
 };
 
 export const DEFAULT_REWARD_PREFERENCES: RewardPreferences = {
-  sound: true,
   haptics: true,
   reward_sfx_enabled: true,
   session_audio_enabled: true,
@@ -76,7 +78,6 @@ export async function loadRewardPreferences(): Promise<RewardPreferences> {
   const stored = Object.fromEntries(entries) as Record<string, string | null>;
   const sfx = readBool(stored[SFX_KEY], DEFAULT_REWARD_PREFERENCES.reward_sfx_enabled);
   cache = {
-    sound: sfx,
     reward_sfx_enabled: sfx,
     haptics: readBool(stored[HAPTICS_KEY], DEFAULT_REWARD_PREFERENCES.haptics),
     session_audio_enabled: readBool(stored[SESSION_AUDIO_KEY], DEFAULT_REWARD_PREFERENCES.session_audio_enabled),
@@ -90,14 +91,11 @@ export function getRewardPreferencesSync(): RewardPreferences {
   return cache;
 }
 
-/** Reward & SFX stings. `sound` moves with it — see the deprecation note on the type. */
+/** Reward & SFX stings: box opens, rank-ups, lock-in start/stop. */
 export async function setRewardSfxEnabled(enabled: boolean): Promise<void> {
-  cache = { ...cache, sound: enabled, reward_sfx_enabled: enabled };
+  cache = { ...cache, reward_sfx_enabled: enabled };
   await AsyncStorage.setItem(SFX_KEY, String(enabled));
 }
-
-/** @deprecated Call `setRewardSfxEnabled`. Same key, same effect. */
-export const setSoundEnabled = setRewardSfxEnabled;
 
 export async function setHapticsEnabled(enabled: boolean): Promise<void> {
   cache = { ...cache, haptics: enabled };
@@ -114,9 +112,18 @@ export async function setKeepScreenAwake(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(KEEP_AWAKE_KEY, String(enabled));
 }
 
+/**
+ * Writing this one also APPLIES it. Every other preference here is read at the moment it matters,
+ * but the audio session's interruption mode is set once and then persists until something sets it
+ * again — so without this call the switch would be honest only after a cold start, which is the
+ * kind of "works, eventually" that reads as broken.
+ *
+ * sound.ts does not import this module, so this direction adds no cycle.
+ */
 export async function setDuckToMusic(enabled: boolean): Promise<void> {
   cache = { ...cache, duck_to_music: enabled };
   await AsyncStorage.setItem(DUCK_TO_MUSIC_KEY, String(enabled));
+  await applyAudioInterruptionMode(enabled);
 }
 
 // ── Synchronous readers for the cosmetics layer ──
@@ -142,4 +149,30 @@ export function shouldDuckToMusic(): boolean {
 /** Gate reward/SFX one-shots on this. */
 export function isRewardSfxEnabled(): boolean {
   return cache.reward_sfx_enabled;
+}
+
+/**
+ * The keep-awake preference as a hook, re-read whenever the lock-in screen regains focus.
+ *
+ * Focus is the right invalidation point and not a shortcut: the only way to change this is to walk
+ * to Settings and back, so the screen sees the new value the moment the user returns to a session
+ * that is still running.
+ *
+ * Seeds from the cache rather than from `true`. The cache is warmed in _layout on boot and every
+ * write goes through it, so by the time any lock-in screen mounts it holds the real value — where
+ * the old unprefixed module had to guess, because its own read was async and there was no cache to
+ * ask. Guessing ON was the safe guess (the failure that costs a session is the display sleeping,
+ * not it staying lit a beat longer) but it also meant a user who had turned this OFF still got one
+ * frame of wake lock on every mount.
+ */
+export function useKeepScreenAwakePref(): boolean {
+  const [enabled, setEnabled] = useState(isKeepScreenAwakeEnabled);
+
+  useFocusEffect(
+    useCallback(() => {
+      setEnabled(isKeepScreenAwakeEnabled());
+    }, []),
+  );
+
+  return enabled;
 }

@@ -11,8 +11,7 @@
 
 import type { CatalogItem, SfxSlot } from '@/lib/economy/catalog';
 import { getLoadout } from '@/lib/economy/loadout';
-import { getRewardPreferencesSync } from '@/lib/reward-settings';
-import { isSessionAudioEnabled } from '@/lib/session-prefs';
+import { getRewardPreferencesSync, isSessionAudioEnabled } from '@/lib/reward-settings';
 import {
   hasAmbientLoop,
   hasRewardSound,
@@ -50,7 +49,7 @@ export function equippedSfxCue(slot: SfxSlot): RewardCue | undefined {
  * the sting is quiet.
  */
 export function playEquippedSfx(slot: SfxSlot, volume = 1): void {
-  if (!getRewardPreferencesSync().sound) return;
+  if (!getRewardPreferencesSync().reward_sfx_enabled) return;
   const cue = equippedSfxCue(slot);
   if (cue) playRewardSound(cue, volume);
 }
@@ -107,17 +106,18 @@ export function sessionAmbientId(): string | null {
  * Start this session's ambient loop, honouring — in order — the reward sound preference, the
  * "Session audio" setting, and this session's own choice.
  *
- * Async now, because `session_audio_enabled` lives in AsyncStorage (see session-prefs.ts for why it
- * is read rather than cached). Callers fire and forget: the loop is background texture, so there is
- * nothing to await and nothing to show if the read is slow.
+ * Synchronous: both gates read reward-settings' in-memory cache, which _layout warms on boot. It
+ * was briefly async, back when `session_audio_enabled` was its own uncached AsyncStorage read in
+ * lib/session-prefs.ts — that module turned out to be reading a different key than Settings wrote,
+ * and folding it into the cache took the await with it.
  *
  * The `session_audio_enabled` check is the one that matters most. People lock in at the gym with
  * their own music on, and until now the only way to stop Philoi adding a bonfire crackle over the
  * top of it was to unequip the cosmetic entirely.
  */
-export async function startEquippedAmbient(): Promise<void> {
-  if (!getRewardPreferencesSync().sound) return;
-  if (!(await isSessionAudioEnabled())) return;
+export function startEquippedAmbient(): void {
+  if (!getRewardPreferencesSync().reward_sfx_enabled) return;
+  if (!isSessionAudioEnabled()) return;
   const id = sessionAmbientId();
   if (!id) return;
   startAmbientLoop(id);

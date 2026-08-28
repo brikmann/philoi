@@ -152,13 +152,16 @@ let players: Partial<Record<RewardCue, AudioPlayer>> | null = null;
 // sound toggle), so they behave like a music or meditation app, not like a notification
 // chime. The real controls stay the in-app `sound` preference and the device volume.
 //
-// `interruptionMode: 'mixWithOthers'` — the other half of that trade, and the fix for the
-// complaint it created (COSMETIC_UI_FIXES §6). The default playback session is exclusive: the
-// instant Philoi created a player it STOPPED whatever the user was listening to. People lock in
-// at the gym with their own music on, so an app that silences Spotify to play a bonfire crackle
-// over the top of nothing is an app they close. Mixing lets both play; the ambient loop already
-// sits at 0.35 volume, so it lands under their track rather than against it. The `session_audio_
-// enabled` preference (equipped-audio.ts) is the off switch for people who want none of it.
+// `interruptionMode` — the other half of that trade, and the fix for the complaint it created
+// (COSMETIC_UI_FIXES §6). The default playback session is exclusive: the instant Philoi created a
+// player it STOPPED whatever the user was listening to. People lock in at the gym with their own
+// music on, so an app that silences Spotify to play a bonfire crackle over the top of nothing is
+// an app they close. Mixing lets both play; the ambient loop already sits at 0.35 volume, so it
+// lands under their track rather than against it. The `session_audio_enabled` preference
+// (equipped-audio.ts) is the off switch for people who want none of it.
+//
+// Which of the two modes is now the "Duck to my music" switch rather than a constant — see
+// applyAudioInterruptionMode below.
 //
 // expo-audio resolves its native binding at import time (AudioModule.js does a top-level
 // `requireNativeModule('ExpoAudio')`, unlike expo-haptics which soft-checks lazily on each
@@ -167,10 +170,10 @@ let players: Partial<Record<RewardCue, AudioPlayer>> | null = null;
 // out of this file's top level and only `require`-ing it inside this function means that
 // crash, if it happens, happens *inside* the try/catch below instead of during bundle
 // bootstrap. Reward sound is a nice-to-have; it must never take down app startup.
-export async function preloadRewardSounds(): Promise<void> {
+export async function preloadRewardSounds(duckToMusic: boolean): Promise<void> {
   try {
-    const { createAudioPlayer, setAudioModeAsync } = require('expo-audio') as typeof import('expo-audio');
-    await setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'mixWithOthers' });
+    const { createAudioPlayer } = require('expo-audio') as typeof import('expo-audio');
+    await applyAudioInterruptionMode(duckToMusic);
     if (players) return;
     // Built by iterating SOURCES rather than listing each cue by hand — the old literal had to be
     // edited in lockstep with SOURCES, and a cue added to one but not the other silently never
@@ -191,6 +194,38 @@ export async function preloadRewardSounds(): Promise<void> {
     }
   } catch (e) {
     console.warn('[sound] expo-audio unavailable — reward sounds disabled this session:', e);
+  }
+}
+
+/**
+ * Put the audio session into the mode the "Duck to my music" switch asks for.
+ *
+ * The switch reads "Lower the ambient when your music is playing, instead of stopping it", so:
+ *
+ *   ON  → 'mixWithOthers'. Their track keeps playing at full volume and our ambient sits under it
+ *         at its own 0.35. Nothing is ducked in the iOS sense; the ambient is simply quiet, which
+ *         is what the row promises and what everybody wants at the gym. This is the default.
+ *   OFF → 'doNotMix'. The exclusive session — Philoi takes the output and their music stops. That
+ *         is the "instead of stopping it" the copy names as the alternative, and it is the right
+ *         answer for someone using an environment loop as the thing they are listening TO.
+ *
+ * Deliberately not 'duckOthers', which is the option whose NAME matches the row and whose BEHAVIOUR
+ * is backwards: it ducks the OTHER app under ours. Turning on a switch called "duck to my music"
+ * and having it quieten your music is precisely the wrong way round.
+ *
+ * Exported because the preference is live — reward-settings calls this on every write, so the
+ * switch takes effect on the session that is already running rather than at the next cold start.
+ * Sound is a nice-to-have, so a failure here warns and leaves the previous mode standing.
+ */
+export async function applyAudioInterruptionMode(duckToMusic: boolean): Promise<void> {
+  try {
+    const { setAudioModeAsync } = require('expo-audio') as typeof import('expo-audio');
+    await setAudioModeAsync({
+      playsInSilentMode: true,
+      interruptionMode: duckToMusic ? 'mixWithOthers' : 'doNotMix',
+    });
+  } catch (e) {
+    console.warn('[sound] could not set audio interruption mode:', e);
   }
 }
 

@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ChallengeMemberTicker } from '@/components/challenge-member-ticker';
 import { ChallengeSentSheet } from '@/components/challenge-sent-sheet';
 import { FitnessSyncPrompt } from '@/components/fitness-sync-prompt';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
@@ -19,7 +20,7 @@ import { createChallenge } from '@/lib/api/challenges';
 import { inviteChallengeMembers } from '@/lib/api/challenge-lifecycle';
 import { syncChallengeFromDevice } from '@/lib/api/fitness-challenge-sync';
 import { getErrorMessage } from '@/lib/errors';
-import { CHALLENGE_TYPE_ICON } from '@/lib/goal-types';
+import { CHALLENGE_TYPE_GLYPH } from '@/lib/goal-types';
 import {
   AUTO_SOURCE_NAME,
   canAutoTrackChallengeType,
@@ -578,7 +579,7 @@ function PublicNameField({ value, onChange }: { value: string; onChange: (name: 
 // for each — a per-option value rather than a nested ternary in handlePickType, which stopped
 // scaling once there were nine of these.
 const PERSONAL_TYPE_OPTIONS: { value: ChallengeType; label: string; unit: string; defaultTarget: string }[] = [
-  // Labels carry no emoji — MetricChip renders CHALLENGE_TYPE_ICON beside them, so the glyph is a
+  // Labels carry no emoji — MetricChip renders CHALLENGE_TYPE_GLYPH beside them, so the glyph is a
   // recolourable vector that takes the chip's selected/unselected tint instead of a fixed-colour
   // emoji that ignores it (§A3).
   { value: 'steps', label: 'Steps', unit: 'steps', defaultTarget: '10000' },
@@ -614,8 +615,8 @@ function MetricChip({
   return (
     <Pressable onPress={onPress} style={[styles.personalChip, selected && styles.chipSelected]}>
       <View style={styles.chipTitleRow}>
-        <Ionicons
-          name={CHALLENGE_TYPE_ICON[option.value]}
+        <DisciplineIcon
+          name={CHALLENGE_TYPE_GLYPH[option.value]}
           size={14}
           color={selected ? Colors.ink : Colors.ember}
         />
