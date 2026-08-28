@@ -18,7 +18,7 @@
 --   0119 steps reach the ladder   | yes          <- 20000 steps -> ~15 km of distance progress
 --   0119 ladder rung granted      | 1            <- 50 km crosses rung 1 of distance
 --   0119 rarity_override set      | rare         <- rung 1 of the distance ladder
---   0119 relic progress rows      | 5            <- every ladder reported, even at zero
+--   0119 ladders reported by RPC  | 5            <- every ladder reported, even at zero
 --   0120 session_complete cat     | streak_reminders
 --   0120 milestone cat restored   | friends_social
 --   0120 relic push names it      | Zeus' Bolt — unlocked
@@ -96,9 +96,18 @@ begin
   from cosmetics_owned
   where user_id = v_user and cosmetic_key = 'relic-pheidippides-sandals';
 
+  -- "Every ladder reported, even at zero" is a property of the RPC, not of the table — so ask the
+  -- RPC. relic_progress only holds a row for a ladder that has actually been fed, and this
+  -- fabricated user has fed three of the five, so counting the table here reported 3 and read as a
+  -- regression against a 5 that was never going to happen. get_my_relic_progress LEFT JOINs from
+  -- relic_ladders, which is what makes the unstarted ladders show up at tier 0.
+  --
+  -- It reads auth.uid(), so the claim has to be set for the call — the fabricated user is not a
+  -- session.
+  perform set_config('request.jwt.claims', json_build_object('sub', v_user)::text, true);
   insert into _out
-  select '0119 relic progress rows', count(*)::text
-  from relic_progress where user_id = v_user;
+  select '0119 ladders reported by the RPC', count(*)::text from get_my_relic_progress();
+  perform set_config('request.jwt.claims', null, true);
 end;
 $$;
 

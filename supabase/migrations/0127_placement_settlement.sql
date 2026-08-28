@@ -83,11 +83,26 @@ begin
 
       update social_challenges set status = 'completed', winner_id = v_winner where id = r.id;
 
-      -- A draw pays nobody, as in 0034. Splitting the pot would make a deliberate tie the safest
-      -- way to play a duel.
+      -- RESTORED FROM 0122 AT INTEGRATION. This file restates the whole sweep to add the
+      -- placement arm below, and it was written from 0112 — which still said "a draw pays
+      -- nobody, as in 0034". 0122 had already replaced that on a parallel branch, so shipping
+      -- this restatement unamended would have silently reverted it: 0127 > 0122, and the last
+      -- definition of a function is the only one that runs.
+      --
+      -- 0122's rule, unchanged: a draw pays BOTH, but only a draw with a real number on it.
+      -- `v_my = v_opp and v_my > 0` is the whole guard — a 0 - 0 no-show is still worth nothing,
+      -- so "agree to both do nothing" is not a payout strategy, while "we both did 40 km" is a
+      -- good fight and is paid like one.
+      --
+      -- winner_id stays NULL on a tie. It is the record of who won, and nobody did; the payout
+      -- reads the scores, not that column.
       if v_winner is not null then
         insert into bonus_xp_awards (user_id, amount, reason, challenge_id)
         values (v_winner, r.payout_xp, 'challenge_h2h_winner', r.id);
+      elsif v_my = v_opp and v_my > 0 and r.opponent_id is not null then
+        insert into bonus_xp_awards (user_id, amount, reason, challenge_id)
+        values (r.created_by,  r.payout_xp, 'challenge_h2h_winner', r.id),
+               (r.opponent_id, r.payout_xp, 'challenge_h2h_winner', r.id);
       end if;
 
       if v_has_roster then
@@ -273,6 +288,11 @@ declare
   v_payload jsonb;
   -- The per-racer standings row the placement arm reads back (0127).
   v_row record;
+  -- The two sides' scores in the draw branch, restored from 0122 (see below).
+  v_a numeric;
+  v_b numeric;
+  v_a_name text;
+  v_b_name text;
 begin
   if new.status <> 'completed' or coalesce(old.status, '') = 'completed' then
     return new;
@@ -319,6 +339,67 @@ begin
         null, null,
         jsonb_build_object('mode', new.mode, 'outcome', 'lost')
       );
+
+    elsif new.opponent_id is not null then
+      -- RESTORED FROM 0122 AT INTEGRATION — the draw branch, and the other half of the revert
+      -- described in the sweep above. Without it the sweep pays a tie its XP and this trigger
+      -- pays it nothing: no box, no embers, no notification, and no reward_payload for the
+      -- reveal screen to read, because the whole h2h payout used to sit inside
+      -- `if new.winner_id is not null`.
+      select
+        max(case when p.user_id = new.created_by  then p.final_value end),
+        max(case when p.user_id = new.opponent_id then p.final_value end)
+        into v_a, v_b
+      from challenge_participants p
+      where p.challenge_id = new.id;
+
+      if v_a is null or v_b is null then
+        v_a := social_challenge_score(new.created_by,  new.race_metric, new.starts_at, new.ends_at);
+        v_b := social_challenge_score(new.opponent_id, new.race_metric, new.starts_at, new.ends_at);
+      end if;
+
+      if v_a = v_b and v_a > 0 then
+        -- Both get the WINNER's placement (0.0 = first), not the loser's completion band. That is
+        -- the whole point: a dead heat is two firsts, not two consolation prizes.
+        v_payload := grant_reward(new.created_by, 'friend_h2h', 1.0, v_days, v_scope, 0.0, true, new.id);
+        update challenge_participants
+           set reward_payload = v_payload
+         where challenge_id = new.id and user_id = new.created_by;
+
+        v_payload := grant_reward(new.opponent_id, 'friend_h2h', 1.0, v_days, v_scope, 0.0, true, new.id);
+        update challenge_participants
+           set reward_payload = v_payload
+         where challenge_id = new.id and user_id = new.opponent_id;
+
+        select display_name into v_a_name from profiles where id = new.created_by;
+        select display_name into v_b_name from profiles where id = new.opponent_id;
+
+        -- Same event TYPE as a win so it files under Challenges and renders with the win's art;
+        -- the payload says `draw`, which is what the reveal screen branches on.
+        perform notify_event(
+          array[new.created_by], 'challenge_won',
+          'Dead even',
+          case when v_b_name is not null
+               then 'You and ' || v_b_name || ' finished level. You both get the win.'
+               else 'You finished level. You both get the win.' end,
+          new.opponent_id, new.id,
+          '/challenge-info/[challengeId]', jsonb_build_object('challengeId', new.id::text),
+          null, null,
+          jsonb_build_object('mode', new.mode, 'outcome', 'draw')
+        );
+
+        perform notify_event(
+          array[new.opponent_id], 'challenge_won',
+          'Dead even',
+          case when v_a_name is not null
+               then 'You and ' || v_a_name || ' finished level. You both get the win.'
+               else 'You finished level. You both get the win.' end,
+          new.created_by, new.id,
+          '/challenge-info/[challengeId]', jsonb_build_object('challengeId', new.id::text),
+          null, null,
+          jsonb_build_object('mode', new.mode, 'outcome', 'draw')
+        );
+      end if;
     end if;
   elsif new.shape = 'placement' then
     -- ─────────────── PLACEMENT: paid by the band actually finished in ───────────────
