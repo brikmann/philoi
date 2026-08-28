@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Tex
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { metricLabel } from '@/lib/challenge-metric';
+import { isPlacement, metricLabel } from '@/lib/challenge-metric';
 import {
   cancelSocialChallenge,
   deleteSocialChallenge,
@@ -66,6 +66,12 @@ function stepWindow(current: number, direction: -1 | 1): number {
 export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChanged, isAdmin = false }: ChallengeManageSheetProps) {
   const insets = useSafeAreaInsets();
   const isGroup = c.mode === 'group';
+  // A placement race is mode = 'group' but has NO per-member target — target_count is null by
+  // constraint (0126), and writing one back would now be rejected by the database rather than
+  // quietly stored. So the target stepper and its term row are gated on this, while everything
+  // else `isGroup` decides (the creator sets the terms directly, there is no counterparty to ask,
+  // ending it ends it) stays true for a placement race and is deliberately left alone.
+  const hasTarget = isGroup && !isPlacement(c);
   const isCreator = c.created_by === myUserId;
   const otherName = isCreator ? (c.opponent_name ?? 'them') : c.created_by_name;
   const isLive = c.status === 'active';
@@ -94,7 +100,7 @@ export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChange
   }, [c.id]);
 
   const windowEdited = windowHours !== c.window_hours;
-  const targetEdited = isGroup && targetCount !== (c.target_count ?? 1);
+  const targetEdited = hasTarget && targetCount !== (c.target_count ?? 1);
   const edited = windowEdited || targetEdited;
   // Group terms are the creator's to set directly; a member has nothing to edit here.
   const canEdit = isGroup ? isCreator : true;
@@ -214,7 +220,11 @@ export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChange
 
   // Was `race_metric === 'lockin_time' ? 'Most lock-in time' : 'Most XP'` — the same two-branch
   // ternary that made a volume duel call itself an XP duel on three other screens.
-  const raceLabel = isGroup ? 'Group · all or nothing' : metricLabel(c.race_metric);
+  const raceLabel = isPlacement(c)
+    ? `Placement · ${metricLabel(c.race_metric).toLowerCase()}`
+    : isGroup
+      ? 'Group · all or nothing'
+      : metricLabel(c.race_metric);
   const statusLabel: Record<string, string> = {
     draft: 'not started',
     pending: 'waiting on answers',
@@ -260,7 +270,7 @@ export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChange
 
                 <TermRow label="Metric" value={<Text style={styles.termFixed}>{raceLabel}</Text>} />
                 <TermRow label="Window" value={<Text style={styles.termFixed}>{windowLabel(c.window_hours)}</Text>} />
-                {isGroup && (
+                {hasTarget && (
                   <TermRow label="Lock-ins each" value={<Text style={styles.termFixed}>{c.target_count}</Text>} />
                 )}
 
@@ -318,7 +328,7 @@ export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChange
                   }
                 />
 
-                {isGroup && (
+                {hasTarget && (
                   <TermRow
                     label="Lock-ins each"
                     edited={targetEdited}

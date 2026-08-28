@@ -17,13 +17,13 @@ import { useShareRank } from '@/hooks/use-share-rank';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
-import { challengeTitle, isDuel, metricLabel, metricNoun } from '@/lib/challenge-metric';
+import { challengeTitle, formatMetricValue, isDuel, isPlacement, metricLabel, metricNoun } from '@/lib/challenge-metric';
 import { fetchChallengeResults } from '@/lib/api/social-challenges';
 import { getErrorMessage } from '@/lib/errors';
 import { CHALLENGE_TYPE_ICON } from '@/lib/goal-types';
 import { formatTimeLeft } from '@/lib/format';
 import { shareCardImage } from '@/lib/share-card';
-import type { ChallengeResultRow, SocialChallenge } from '@/types/database';
+import type { ChallengeResultRow, SocialChallenge, SocialChallengeRaceMetric } from '@/types/database';
 
 // Challenge / Goal info — design-mocks/102 v2, the screen that makes the minimal card possible.
 //
@@ -72,6 +72,8 @@ function Results({
   myUserId,
   onShare,
   sharing,
+  placement,
+  raceMetric,
 }: {
   challengeId: string;
   myUserId: string | undefined;
@@ -79,6 +81,10 @@ function Results({
    * that settled before 0111 wrote standings). */
   onShare: (() => void) | null;
   sharing: boolean;
+  /** Draws mock 114's podium above the list, and prints each racer's figure beside their rank —
+   *  on a ranked board the number people came for is the metric, not the XP it converted to. */
+  placement: boolean;
+  raceMetric: SocialChallengeRaceMetric | null;
 }) {
   const [rows, setRows] = useState<ChallengeResultRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +110,34 @@ function Results({
   return (
     <View style={styles.results}>
       <Text style={styles.sectionLabel}>Final standings</Text>
+
+      {/* Mock 114's podium. Only for a placement race, and only once there are enough people for a
+          podium to mean anything — three racers standing on three steps is just the list again,
+          drawn taller. `place`, not row order: settlement ranks ties equally (1, 1, 3), and a
+          podium built from array positions would silently break one of them. */}
+      {placement && rows.length > 3 ? (
+        <View style={styles.podium}>
+          {[2, 1, 3].map((place) => {
+            const r = rows.find((x) => x.place === place);
+            if (!r) return <View key={place} style={styles.podiumCol} />;
+            return (
+              <View key={place} style={styles.podiumCol}>
+                <Avatar label={r.member_name} size={place === 1 ? 46 : 36} lit={r.member_id === myUserId} />
+                <Text style={styles.podiumName} numberOfLines={1}>
+                  {r.member_id === myUserId ? 'You' : r.member_name}
+                </Text>
+                <Text style={styles.podiumValue}>
+                  {r.score_value != null ? formatMetricValue(raceMetric, r.score_value) : '—'}
+                </Text>
+                <View style={[styles.podiumStep, place === 1 && styles.podiumStepFirst]}>
+                  <Text style={styles.podiumPlace}>{place}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
+
       {rows.map((r) => (
         <View key={r.member_id} style={[styles.resultRow, r.member_id === myUserId && styles.resultRowMe]}>
           <Text style={[styles.resultPlace, r.is_winner && styles.resultPlaceWin]}>
@@ -120,10 +154,24 @@ function Results({
             ) : null}
           </View>
           {/* What the ledger paid, not what the screen thinks it should have. 0 is shown as a
-              dash: a group race nobody completed pays nobody, and "+0 XP" reads like a bug. */}
-          <Text style={[styles.resultXp, r.awarded_xp > 0 && styles.resultXpPaid]}>
-            {r.awarded_xp > 0 ? `+${r.awarded_xp.toLocaleString('en-US')} XP` : '—'}
-          </Text>
+              dash: a group race nobody completed pays nobody, and "+0 XP" reads like a bug.
+
+              On a ranked board the figure racers came for is the METRIC — "142h", not the XP it
+              converted to — so placement leads with that and keeps the payout underneath. */}
+          {placement ? (
+            <View style={styles.resultFigures}>
+              <Text style={styles.resultValue}>
+                {r.score_value != null ? formatMetricValue(raceMetric, r.score_value) : '—'}
+              </Text>
+              {r.awarded_xp > 0 ? (
+                <Text style={styles.resultXpUnder}>+{r.awarded_xp.toLocaleString('en-US')} XP</Text>
+              ) : null}
+            </View>
+          ) : (
+            <Text style={[styles.resultXp, r.awarded_xp > 0 && styles.resultXpPaid]}>
+              {r.awarded_xp > 0 ? `+${r.awarded_xp.toLocaleString('en-US')} XP` : '—'}
+            </Text>
+          )}
         </View>
       ))}
 
@@ -168,6 +216,11 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
   // group challenge has no opponent_id, the empty half of that arena rendered the literal string
   // "Opponent", which is the spec's other 🔴 on the same line.
   const duel = isDuel(c);
+  // The third branch (mock 114). A placement race is `mode = 'group'` like a collective goal, so
+  // every "is this a duel?" test already routes it correctly — what it must NOT inherit is the
+  // collective's target language, because it has no target: `target_count` is null by constraint
+  // (0126) and its result is a rank, not a pass/fail.
+  const placement = isPlacement(c);
   const settled = c.status === 'completed' || c.status === 'expired';
   const otherName = (isCreator ? c.opponent_name : c.created_by_name) ?? 'them';
 
@@ -202,6 +255,23 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
     }
   }
 
+  /**
+   * "Open your Hephaestus box" — the reveal's second CTA, live at last (ledger item 3 / B4).
+   *
+   * The box id comes from the payload grant_reward wrote at settlement (0125), so this opens the
+   * exact row this challenge minted rather than the newest box of that key — which would be the
+   * wrong one the moment two challenges settle in the same sweep.
+   *
+   * `dismiss()` FIRST. It stamps reward_seen_at and closes the modal; navigating out from under an
+   * open Modal leaves it mounted over the box-open screen, and skipping the stamp would re-fire the
+   * whole reveal the next time they come back for their standings.
+   */
+  function handleOpenBox(boxId: string, boxKey: string) {
+    dismiss();
+    track('challenge_reward_box_opened', { challenge_id: c.id, box_key: boxKey });
+    router.push({ pathname: '/shop/open', params: { boxIds: boxId, boxKey } });
+  }
+
   const rows: Row[] = duel
     ? [
         { k: 'Type', v: 'Head-to-head' },
@@ -216,19 +286,35 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
         { k: "If it's a tie", v: 'First to reach it' },
         { k: 'Campfire watching', v: c.circle_id ? 'On' : 'Off' },
       ]
-    : [
-        { k: 'Type', v: c.shape === 'placement' ? 'Placement race' : 'Collective goal' },
-        { k: 'The goal', v: `Everyone locks in ${c.target_count ?? 1}×` },
-        {
-          k: 'Duration',
-          v: c.ends_at ? `${c.window_hours}h · ${formatTimeLeft(c.ends_at)}` : `${c.window_hours}h`,
-        },
-        { k: 'Everyone takes', v: `up to +${c.payout_xp} XP`, highlight: true },
-        // The racers, not the campfire — since 0096 this is an invited subset, and the count on
-        // the card is the one settlement uses (0112).
-        { k: 'Racing', v: `${c.accepted_count} in${c.invited_count > 0 ? ` · ${c.invited_count} yet to answer` : ''}` },
-        { k: 'Campfire', v: c.circle_name ?? '—' },
-      ];
+    : placement
+      ? [
+          { k: 'Type', v: 'Placement race' },
+          { k: 'The race', v: metricLabel(c.race_metric) },
+          {
+            k: 'Duration',
+            v: c.ends_at ? `${c.window_hours}h · ${formatTimeLeft(c.ends_at)}` : `${c.window_hours}h`,
+          },
+          { k: 'Everyone takes', v: `up to +${c.payout_xp} XP by band`, highlight: true },
+          // The whole campfire is the field — nobody was invited and nobody had to answer, so the
+          // collective row's "N yet to answer" would always read zero and imply a step that
+          // doesn't exist here.
+          { k: 'Racing', v: `${c.accepted_count} in` },
+          { k: 'Tiebreak', v: 'Same figure, same rank' },
+          { k: 'Campfire', v: c.circle_name ?? '—' },
+        ]
+      : [
+          { k: 'Type', v: 'Collective goal' },
+          { k: 'The goal', v: `Everyone locks in ${c.target_count ?? 1}×` },
+          {
+            k: 'Duration',
+            v: c.ends_at ? `${c.window_hours}h · ${formatTimeLeft(c.ends_at)}` : `${c.window_hours}h`,
+          },
+          { k: 'Everyone takes', v: `up to +${c.payout_xp} XP`, highlight: true },
+          // The racers, not the campfire — since 0096 this is an invited subset, and the count on
+          // the card is the one settlement uses (0112).
+          { k: 'Racing', v: `${c.accepted_count} in${c.invited_count > 0 ? ` · ${c.invited_count} yet to answer` : ''}` },
+          { k: 'Campfire', v: c.circle_name ?? '—' },
+        ];
 
   return (
     <>
@@ -250,6 +336,22 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
                 {otherName}
               </Text>
             </View>
+          </View>
+        ) : placement ? (
+          // A ranked board's hero is the SIZE OF THE FIELD, not a completion count — "1 of 48" is
+          // the thing a placement race asks you to care about, and there is no denominator of
+          // "done" to draw because nothing has to be finished.
+          <View style={styles.houseHero}>
+            <View style={styles.houseIcon}>
+              <Ionicons name="trophy" size={26} color={Colors.amber} />
+            </View>
+            <Text style={styles.houseCount}>
+              <Text style={styles.houseCountBig}>{c.member_count ?? c.accepted_count}</Text>
+              <Text style={styles.houseCountMuted}> racing</Text>
+            </Text>
+            <Text style={styles.competitorName} numberOfLines={1}>
+              {c.circle_name ?? 'the campfire'}
+            </Text>
           </View>
         ) : (
           // A collective goal is a house passing together, so the hero is the house — a count and
@@ -277,6 +379,13 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
               it fair. The loser gets a rematch, not a penalty. Whoever has the most{' '}
               {metricNoun(c.race_metric)} when the clock hits zero takes it.
             </Text>
+          ) : placement ? (
+            <Text style={styles.noteText}>
+              <Text style={styles.noteStrong}>Everyone places.</Text> The whole campfire is entered and the
+              board is ranked on {metricNoun(c.race_metric)} when the clock hits zero. There is nothing to
+              pass or fail — your reward scales with the band you finish in, and a bigger field pays more
+              for the same band. Race nothing and you still get a rank, just no payout.
+            </Text>
           ) : (
             <Text style={styles.noteText}>
               <Text style={styles.noteStrong}>All or nothing.</Text> Nobody is paid unless every racer hits{' '}
@@ -292,6 +401,8 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
             myUserId={session?.user.id}
             onShare={result ? handleShare : null}
             sharing={sharing}
+            placement={placement}
+            raceMetric={c.race_metric}
           />
         ) : null}
 
@@ -324,6 +435,7 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
                 onShare={handleShare}
                 sharing={sharing}
                 onClose={dismiss}
+                onOpenBox={result.box?.id ? () => handleOpenBox(result.box!.id!, result.box!.key) : undefined}
               />
             </SafeAreaView>
           </ScreenBackground>
@@ -550,6 +662,65 @@ const styles = StyleSheet.create({
   },
   resultXpPaid: {
     color: Colors.ember,
+  },
+  // ─── placement (mock 114) ───
+  resultFigures: {
+    alignItems: 'flex-end',
+    gap: 1,
+  },
+  resultValue: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.ink,
+  },
+  resultXpUnder: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    color: Colors.ember,
+  },
+  podium: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    gap: Spacing.two,
+    marginBottom: Spacing.three,
+  },
+  podiumCol: {
+    flex: 1,
+    maxWidth: 96,
+    alignItems: 'center',
+    gap: 3,
+  },
+  podiumName: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.ink,
+    maxWidth: '100%',
+  },
+  podiumValue: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    color: Colors.muted,
+  },
+  podiumStep: {
+    width: '100%',
+    height: 26,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+    backgroundColor: Colors.trackAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  // First place stands taller and lit — the ladder is the whole reason a podium beats three rows.
+  podiumStepFirst: {
+    height: 40,
+    backgroundColor: Colors.amber,
+  },
+  podiumPlace: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+    color: Colors.twilight900,
   },
   resultShare: {
     flexDirection: 'row',

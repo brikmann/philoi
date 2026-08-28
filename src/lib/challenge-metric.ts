@@ -113,7 +113,10 @@ export function challengeTitle(challenge: {
 }): string {
   const named = challenge.public_name?.trim();
   if (named) return named;
-  if (isCollective(challenge)) {
+  // A placement race IS a metric race — it just has no opponent. Falling through to the collective
+  // branch would title a semester-long ranked board "Everyone locks in 1×", which describes a
+  // target it does not have (its target_count is null by constraint, 0126).
+  if (isCollective(challenge) && !isPlacement(challenge)) {
     return `Everyone locks in ${challenge.target_count ?? 1}×`;
   }
   return metricLabel(challenge.race_metric);
@@ -134,4 +137,20 @@ export function isDuel(challenge: { shape?: ChallengeShape | null; mode?: string
 
 export function isCollective(challenge: { shape?: ChallengeShape | null; mode?: string }): boolean {
   return !isDuel(challenge);
+}
+
+/**
+ * IS THIS A RANKED BOARD? (mock 114, created for the first time by 0126.)
+ *
+ * Only `shape` answers this — there is no legacy fallback, and that is correct rather than an
+ * oversight: a placement race rides `mode = 'group'` exactly like a collective goal does, so mode
+ * cannot distinguish them, and no row predating 0096's backfill can be one because nothing could
+ * create one until 0126.
+ *
+ * Every caller of isCollective() that renders a TARGET — "N / M done", "everyone locks in 5×",
+ * the all-or-nothing note — has to exclude this: a placement race has no shared target to miss,
+ * only somewhere to place.
+ */
+export function isPlacement(challenge: { shape?: ChallengeShape | null }): boolean {
+  return challenge.shape === 'placement';
 }

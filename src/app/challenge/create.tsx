@@ -27,15 +27,39 @@ import {
   metricSourceLabel,
   metricSourceShort,
 } from '@/lib/fitness-sync';
-import { createGroupChallenge, createH2HChallenge } from '@/lib/api/social-challenges';
-import type { ChallengePeriod, ChallengeType, SocialChallengeMode, SocialChallengeRaceMetric } from '@/types/database';
+import {
+  ChallengeSpanPicker,
+  spanError,
+  spanWindowHours,
+  type ChallengeSpan,
+} from '@/components/challenge-span-picker';
+import { createGroupChallenge, createH2HChallenge, createPlacementChallenge } from '@/lib/api/social-challenges';
+import type {
+  ChallengePeriod,
+  ChallengeShape,
+  ChallengeType,
+  SocialChallengeMode,
+  SocialChallengeRaceMetric,
+} from '@/types/database';
 
 // Solo (announced) mode was removed — a solo goal the campfire can see is already covered by
 // the lock-in flow's own "with the campfire" toggle, so a separate solo-challenge concept was
 // redundant. Only h2h and group remain.
-const MODE_OPTIONS: { value: SocialChallengeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'h2h', label: 'Head-to-head', icon: 'flash' },
-  { value: 'group', label: 'Group', icon: 'people' },
+//
+// THE TILES ARE SHAPES NOW, NOT MODES (mock 114's "⚡ Duel · 🎯 Collective · 🏆 Placement").
+// `shape` has existed since 0096 and 'placement' has always been a legal value; nothing ever
+// created one. `mode` is still what every pre-v2 reader matches on, so each shape carries the mode
+// it rides — placement is a 'group' row, exactly as 0096 intended when it kept the two columns
+// separate rather than widening mode's check constraint.
+const SHAPE_OPTIONS: {
+  value: ChallengeShape;
+  mode: SocialChallengeMode;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { value: 'duel', mode: 'h2h', label: 'Duel', icon: 'flash' },
+  { value: 'collective', mode: 'group', label: 'Collective', icon: 'people' },
+  { value: 'placement', mode: 'group', label: 'Placement', icon: 'trophy' },
 ];
 
 /**
@@ -57,13 +81,10 @@ const RACE_METRIC_OPTIONS: {
   { value: 'distance', label: 'Distance', icon: 'walk', source: 'From a connected fitness source (Strava).' },
 ];
 
-const WINDOW_OPTIONS = [
-  { label: '24h', hours: 24 },
-  { label: '3 days', hours: 72 },
-  { label: '1 week', hours: 168 },
-];
+// The presets and the custom span both live in ChallengeSpanPicker — see its header for why the
+// date picker is hand-drawn rather than a native module.
 
-const PAYOUT_XP: Record<SocialChallengeMode, number> = { h2h: 200, group: 300 };
+const PAYOUT_XP: Record<ChallengeShape, number> = { duel: 200, collective: 300, placement: 300 };
 
 // Two genuinely different challenge kinds live behind this one route: a social challenge
 // (invite/accept, multi-party, scores itself off real check_ins — design-mocks/13) and the
@@ -117,6 +138,7 @@ function SocialChallengeForm() {
   const prefillOpponentId = params.opponentId ?? null;
   const prefillOpponentName = params.opponentName ?? null;
   const prefillCircleId = params.circleId ?? null;
+  const prefillShape: ChallengeShape = params.mode === 'group' ? 'collective' : 'duel';
   const prefillMode: SocialChallengeMode = params.mode === 'group' ? 'group' : 'h2h';
   const opponentPrefilled = Boolean(prefillOpponentId);
 
@@ -135,7 +157,10 @@ function SocialChallengeForm() {
   const canWatch = groups.length > 0;
   const watching = canWatch && watchOn;
 
-  const [mode, setMode] = useState<SocialChallengeMode>(prefillMode);
+  // `shape` is the control now; `mode` is derived from it, so nothing downstream has to learn a
+  // second vocabulary and every existing `mode === 'h2h'` reader keeps meaning what it meant.
+  const [shape, setShape] = useState<ChallengeShape>(prefillShape);
+  const mode: SocialChallengeMode = shape === 'duel' ? 'h2h' : 'group';
   const [opponentId, setOpponentId] = useState<string | null>(prefillOpponentId);
   // lockin_time, not xp: xp is retired from creation, and lock-in time is the one metric that
   // works for every user with no connected source.
@@ -146,7 +171,12 @@ function SocialChallengeForm() {
   // opposite of what a "sent" confirmation is for.
   const [invitees, setInvitees] = useState<string[]>([]);
   const [targetCount, setTargetCount] = useState(5);
-  const [windowHours, setWindowHours] = useState(72);
+  // The window, as either a preset or an explicit start -> end. window_hours is still what gets
+  // sent for both (spanWindowHours resolves a custom span to one); a custom span sends the two
+  // dates ALONGSIDE it, and start_challenge (0096) already prefers them when they are set.
+  const [span, setSpan] = useState<ChallengeSpan>({ kind: 'preset', windowHours: 72 });
+  const windowHours = spanWindowHours(span);
+  const customSpan = span.kind === 'custom' ? span : null;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // design-mocks/55a — kept open until the user taps Done, rather than an Alert dismissed and
@@ -170,13 +200,21 @@ function SocialChallengeForm() {
 
   const effectiveOpponentId = opponentId;
   const opponentName = friends.find((f) => f.friend_id === effectiveOpponentId)?.display_name ?? prefillOpponentName ?? undefined;
-  const payoutXp = PAYOUT_XP[mode];
+  const payoutXp = PAYOUT_XP[shape];
 
   async function handleCreate() {
+    // Checked before the spinner starts: a custom span with the end before the start is a form
+    // error, and it should read like one rather than as a failed round trip. The server refuses
+    // the same range independently — this message is the helpful half, not the enforcing one.
+    const badSpan = spanError(span);
+    if (badSpan) {
+      setError(badSpan);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
-      if (mode === 'h2h') {
+      if (shape === 'duel') {
         if (!effectiveOpponentId) {
           setError('Pick a friend to challenge.');
           return;
@@ -185,6 +223,8 @@ function SocialChallengeForm() {
           opponentId: effectiveOpponentId,
           raceMetric,
           windowHours,
+          startsOn: customSpan?.startsOn.toISOString() ?? null,
+          endsOn: customSpan?.endsOn.toISOString() ?? null,
           circleId: watching ? (watchCircle?.id ?? null) : null,
           publicName,
         });
@@ -194,12 +234,36 @@ function SocialChallengeForm() {
         // router.back() only fires once they dismiss it, not immediately.
         setJustSentTo(opponentName ?? 'They');
         return;
+      } else if (shape === 'placement') {
+        if (!circle) {
+          setError('Start or join a Campfire first.');
+          return;
+        }
+        // NO INVITE STEP, by design (mock 114: "students auto-enter by being in the course
+        // campfire"). A placement race is the admin's to call and the whole campfire is the field,
+        // so create enrols every member as accepted — which is also what makes challenge_field
+        // return a real roster with real baselines instead of falling through to its legacy arm.
+        await createPlacementChallenge({
+          circleId: circle.id,
+          raceMetric,
+          windowHours,
+          startsOn: customSpan?.startsOn.toISOString() ?? null,
+          endsOn: customSpan?.endsOn.toISOString() ?? null,
+          publicName,
+        });
       } else {
         if (!circle) {
           setError('Start or join a Campfire first.');
           return;
         }
-        const created = await createGroupChallenge({ circleId: circle.id, targetCount, windowHours, publicName });
+        const created = await createGroupChallenge({
+          circleId: circle.id,
+          targetCount,
+          windowHours,
+          startsOn: customSpan?.startsOn.toISOString() ?? null,
+          endsOn: customSpan?.endsOn.toISOString() ?? null,
+          publicName,
+        });
         // The invite is a SECOND call rather than a parameter on create, because that is the
         // shape the server already has: invite_challenge_members (0096) is admin-gated,
         // pre-start-only, and flips the draft to 'pending' as it goes. Folding it into create
@@ -228,25 +292,32 @@ function SocialChallengeForm() {
 
   // H2H can't send without an opponent — show a clear instruction + disable, never a dangling
   // "Challenge …" (design-mocks/13's send relabels to the exact action once someone's picked).
-  const noOpponent = mode === 'h2h' && !effectiveOpponentId;
-  const sendLabel = mode === 'h2h' ? (noOpponent ? 'Pick someone to challenge' : `Challenge ${opponentName ?? 'them'}`) : 'Start group challenge';
+  const noOpponent = shape === 'duel' && !effectiveOpponentId;
+  const sendLabel =
+    shape === 'duel'
+      ? noOpponent
+        ? 'Pick someone to challenge'
+        : `Challenge ${opponentName ?? 'them'}`
+      : shape === 'placement'
+        ? 'Start placement race'
+        : 'Start group challenge';
   return (
     <>
       <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.container}>
         <Text style={styles.label}>Challenge type</Text>
         <View style={styles.typesRow}>
-          {MODE_OPTIONS.map((option) => (
+          {SHAPE_OPTIONS.map((option) => (
             <Pressable
               key={option.value}
-              onPress={() => setMode(option.value)}
-              style={[styles.typeTile, mode === option.value && styles.typeTileSelected]}>
-              <Ionicons name={option.icon} size={16} color={mode === option.value ? Colors.achieverText : Colors.muted} />
-              <Text style={[styles.typeLabel, mode === option.value && styles.chipTextSelected2]}>{option.label}</Text>
+              onPress={() => setShape(option.value)}
+              style={[styles.typeTile, shape === option.value && styles.typeTileSelected]}>
+              <Ionicons name={option.icon} size={16} color={shape === option.value ? Colors.achieverText : Colors.muted} />
+              <Text style={[styles.typeLabel, shape === option.value && styles.chipTextSelected2]}>{option.label}</Text>
             </Pressable>
           ))}
         </View>
 
-        {mode === 'h2h' && (
+        {shape === 'duel' && (
           <>
             {/* Opponent-first, friend-to-friend — not campfire-bound (§16). */}
             {opponentPrefilled ? (
@@ -281,39 +352,9 @@ function SocialChallengeForm() {
                 Existing XP races keep running (the column still accepts it); it is simply no
                 longer creatable. */}
             <Text style={styles.label}>The race</Text>
-            <View style={styles.pillsRow}>
-              {RACE_METRIC_OPTIONS.map((option) => {
-                const selected = raceMetric === option.value;
-                return (
-                  <Pressable
-                    key={option.value}
-                    onPress={() => setRaceMetric(option.value)}
-                    style={[styles.pill, selected && styles.chipSelected]}>
-                    <Ionicons
-                      name={option.icon}
-                      size={13}
-                      color={selected ? Colors.ink : Colors.muted}
-                    />
-                    <Text style={[styles.pillText, selected && styles.chipTextSelected]}>{option.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            {/* Each metric names its own source, because "Volume" and "Distance" are only real if
-                something is feeding them — the same honesty the personal-goal picker already
-                applies with its "needs WHOOP" tags. */}
-            <Text style={styles.hint}>{RACE_METRIC_OPTIONS.find((o) => o.value === raceMetric)?.source}</Text>
+            <RaceMetricPills value={raceMetric} onChange={setRaceMetric} />
 
-            <Text style={styles.label}>Name it</Text>
-            <TextInput
-              value={publicName}
-              onChangeText={setPublicName}
-              placeholder="Morning grind"
-              maxLength={60}
-            />
-            <Text style={styles.hint}>
-              What everyone sees on the card and the share. Optional — the metric names it otherwise.
-            </Text>
+            <PublicNameField value={publicName} onChange={setPublicName} />
 
             <View style={styles.shareRow}>
               <View style={styles.shareText}>
@@ -342,6 +383,7 @@ function SocialChallengeForm() {
           </>
         )}
 
+        {/* Both campfire shapes pick a campfire; only what they do with it differs. */}
         {mode === 'group' && (
           <>
             <Text style={styles.label}>Which campfire?</Text>
@@ -361,6 +403,38 @@ function SocialChallengeForm() {
               </ScrollView>
             )}
 
+            {/* THE PUBLIC NAME, ON A GROUP CHALLENGE AT LAST (ledger item 15). The field rendered
+                only in the h2h branch, so a group challenge always sent a null public_name — while
+                the card, the watch screen and the share card all READ it and fell back to
+                describing the metric. One input, not one line of backend: create_group_challenge
+                has taken p_public_name since 0098 and nothing was ever passing it. */}
+            <PublicNameField value={publicName} onChange={setPublicName} />
+          </>
+        )}
+
+        {shape === 'placement' && (
+          <>
+            {/* Everyone is ranked on the same metric, so a placement race HAS one — unlike a
+                collective goal, whose target is a count of lock-ins and which leaves race_metric
+                null on purpose. */}
+            <Text style={styles.label}>The race</Text>
+            <RaceMetricPills value={raceMetric} onChange={setRaceMetric} />
+
+            <View style={styles.payoutCard}>
+              <Ionicons name="people" size={18} color={Colors.achieverText} />
+              <View style={styles.payoutText}>
+                <Text style={styles.payoutTitle}>Everyone in {circle?.name ?? 'the campfire'} is entered</Text>
+                <Text style={styles.payoutSubtitle}>
+                  No invites to chase — members auto-enter, and everyone finishes with a rank. Admins
+                  only.
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
+
+        {shape === 'collective' && (
+          <>
             <Text style={styles.label}>The goal</Text>
             <View style={styles.stepperRow}>
               <Text style={styles.stepperLabel}>Everyone locks in</Text>
@@ -402,24 +476,25 @@ function SocialChallengeForm() {
         )}
 
         <Text style={styles.label}>How long</Text>
-        <View style={styles.pillsRow}>
-          {WINDOW_OPTIONS.map((option) => (
-            <Pressable
-              key={option.hours}
-              onPress={() => setWindowHours(option.hours)}
-              style={[styles.pill, windowHours === option.hours && styles.chipSelected]}>
-              <Text style={[styles.pillText, windowHours === option.hours && styles.chipTextSelected]}>{option.label}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <ChallengeSpanPicker value={span} onChange={setSpan} />
 
         <View style={styles.payoutCard}>
           <Ionicons name="trophy" size={18} color={Colors.achieverText} />
           <View style={styles.payoutText}>
             <Text style={styles.payoutTitle}>
-              {mode === 'h2h' ? `Winner takes +${payoutXp} XP` : `Up to +${payoutXp} XP each (more for top finishers) — only if everyone finishes`}
+              {shape === 'duel'
+                ? `Winner takes +${payoutXp} XP`
+                : shape === 'placement'
+                  ? `Up to +${payoutXp} XP — scaled by where you finish`
+                  : `Up to +${payoutXp} XP each (more for top finishers) — only if everyone finishes`}
             </Text>
-            {mode === 'h2h' && <Text style={styles.payoutSubtitle}>scales with effort · capped to keep it fair</Text>}
+            {shape === 'duel' && <Text style={styles.payoutSubtitle}>scales with effort · capped to keep it fair</Text>}
+            {/* Placement pays EVERYONE by percentile band rather than all-or-nothing, which is the
+                one economic difference between it and a collective goal and therefore the thing
+                worth saying on the create screen. */}
+            {shape === 'placement' && (
+              <Text style={styles.payoutSubtitle}>every finisher is paid · top of the board pays most</Text>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -442,6 +517,57 @@ function SocialChallengeForm() {
         windowHours={windowHours}
         payoutXp={payoutXp}
       />
+    </>
+  );
+}
+
+/**
+ * The race picker, shared by Duel and Placement.
+ *
+ * Extracted rather than copied into the placement branch: the hint under it is per-metric prose
+ * about whether anything is actually feeding that source, and two copies of it is how one of them
+ * goes stale the next time a metric is added.
+ */
+function RaceMetricPills({
+  value,
+  onChange,
+}: {
+  value: SocialChallengeRaceMetric;
+  onChange: (metric: SocialChallengeRaceMetric) => void;
+}) {
+  return (
+    <>
+      <View style={styles.pillsRow}>
+        {RACE_METRIC_OPTIONS.map((option) => {
+          const selected = value === option.value;
+          return (
+            <Pressable
+              key={option.value}
+              onPress={() => onChange(option.value)}
+              style={[styles.pill, selected && styles.chipSelected]}>
+              <Ionicons name={option.icon} size={13} color={selected ? Colors.ink : Colors.muted} />
+              <Text style={[styles.pillText, selected && styles.chipTextSelected]}>{option.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {/* Each metric names its own source, because "Volume" and "Distance" are only real if
+          something is feeding them — the same honesty the personal-goal picker already applies
+          with its "needs WHOOP" tags. */}
+      <Text style={styles.hint}>{RACE_METRIC_OPTIONS.find((o) => o.value === value)?.source}</Text>
+    </>
+  );
+}
+
+/** "Name it" — every shape, not just the duel (ledger item 15). */
+function PublicNameField({ value, onChange }: { value: string; onChange: (name: string) => void }) {
+  return (
+    <>
+      <Text style={styles.label}>Name it</Text>
+      <TextInput value={value} onChangeText={onChange} placeholder="Morning grind" maxLength={60} />
+      <Text style={styles.hint}>
+        What everyone sees on the card and the share. Optional — the metric names it otherwise.
+      </Text>
     </>
   );
 }

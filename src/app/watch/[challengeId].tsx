@@ -377,9 +377,14 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
   }
 
   const head = rows[0];
-  // Guard the divisor, not the display: target_count is int not null upstream, but a 0 would turn
-  // every meter into NaN% and silently blank the list rather than fail loudly.
-  const target = Math.max(1, head.target_count);
+  // A PLACEMENT RACE HAS NO TARGET (mock 114, 0126). Its rows carry a metric score, not a count of
+  // lock-ins, so there is no denominator to draw a meter against and no "done" state to reach —
+  // only a position. Without this branch `target_count` (null by constraint) would coerce to 0,
+  // Math.max would rescue the divisor to 1, and every racer would render as permanently finished.
+  const placement = head.shape === 'placement';
+  // Guard the divisor, not the display: a 0 would turn every meter into NaN% and silently blank
+  // the list rather than fail loudly.
+  const target = Math.max(1, head.target_count ?? 1);
 
   // Deterministic order. get_group_challenge_watch (0056) sorts `by member_progress desc` only, so
   // members on the same count come back in whatever order the planner happened to produce, which
@@ -431,9 +436,11 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
   return (
     <View style={styles.container}>
       <View style={styles.goalRow}>
-        <Ionicons name="people" size={13} color={Colors.achieverText} />
+        <Ionicons name={placement ? 'trophy' : 'people'} size={13} color={Colors.achieverText} />
         <Text style={styles.goalText} numberOfLines={1}>
-          {head.public_name?.trim() || `Everyone locks in ${head.target_count}×`} · {head.circle_name}
+          {head.public_name?.trim() ||
+            (placement ? metricLabel(head.race_metric) : `Everyone locks in ${head.target_count ?? 1}×`)}{' '}
+          · {head.circle_name}
         </Text>
         <Text style={styles.timeLeft}>
           {isFinal ? 'Final' : head.ends_at ? formatTimeLeft(head.ends_at) : ''}
@@ -464,11 +471,17 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
                 </View>
                 {/* The meter is the point of the redesign: a bare count says how far someone has
                     got, not how far they have left. ProgressBar clamps, so an overshoot past the
-                    target reads as full instead of spilling out of the track. */}
+                    target reads as full instead of spilling out of the track.
+
+                    A PLACEMENT RACE GETS A SHARE BAR INSTEAD. There is no target to be a fraction
+                    of, so the meter measures each racer against the LEADER — which is the only
+                    ratio a ranked board actually has, and the one that answers "how far behind am
+                    I". `top` is already computed above and is 0 before anyone has moved, so the
+                    guard also keeps an all-zero board flat rather than NaN. */}
                 <ProgressBar
-                  ratio={item.member_progress / target}
+                  ratio={placement ? (top > 0 ? item.member_progress / top : 0) : item.member_progress / target}
                   height={5}
-                  fillColor={done ? Colors.ember : Colors.coral}
+                  fillColor={placement ? (isLeading(item.member_progress) ? Colors.ember : Colors.coral) : done ? Colors.ember : Colors.coral}
                 />
                 {/* CHEER, UNDER EACH PERSON — CAMPFIRE_REDESIGN_SPEC's "cheer count under each
                     person". Cheering was duel-only until 0112 (cheer_challenge refused anyone who
@@ -502,8 +515,12 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
                   )}
                 </View>
               </View>
-              <Text style={[styles.groupProgress, done && styles.groupProgressDone]}>
-                {item.member_progress}/{target}
+              {/* "12h 30m", not "45000/1" — a placement race's figure is a metric in its own
+                  units, and there is no denominator to print beside it. */}
+              <Text style={[styles.groupProgress, (placement ? isLeading(item.member_progress) : done) && styles.groupProgressDone]}>
+                {placement
+                  ? formatMetricValue(head.race_metric, item.member_progress)
+                  : `${item.member_progress}/${target}`}
               </Text>
             </View>
           );

@@ -10,7 +10,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { cancelSocialChallenge, respondToH2HChallenge } from '@/lib/api/social-challenges';
 import { getErrorMessage } from '@/lib/errors';
-import { challengeTitle, formatMetricValue, metricLabel } from '@/lib/challenge-metric';
+import { challengeTitle, formatMetricValue, isPlacement, metricLabel } from '@/lib/challenge-metric';
 import { formatTimeLeft } from '@/lib/format';
 import type { SocialChallenge } from '@/types/database';
 
@@ -211,6 +211,56 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
             above. The no-consent route survives as "forfeit & leave" inside that sheet. */}
         {/* Mounted only while open, so it re-seeds its editable terms from the live challenge
             every time rather than syncing props into state in an effect. */}
+        {manageOpen && (
+          <ChallengeManageSheet
+            challenge={c}
+            myUserId={myUserId}
+            isAdmin={isAdmin}
+            onClose={() => setManageOpen(false)}
+            onChanged={onChanged}
+          />
+        )}
+      </View>
+    );
+  }
+
+  // ── Placement: a ranked board, not a completion bar (mock 114) ──────────────
+  //
+  // This branch has to come FIRST, because a placement race is mode = 'group' and would otherwise
+  // fall into the block below and claim three things that are not true of it: that it is "all or
+  // nothing" (it has no shared target), that everyone must lock in `target_count`× (null by
+  // constraint, so the title would read "Everyone locks in null×"), and that 0 of 48 are "done"
+  // (nothing is there to be done). The segment strip would draw 48 empty pips that can never fill.
+  if (isPlacement(c)) {
+    const field = c.member_count ?? c.accepted_count ?? 0;
+    return (
+      <View style={styles.card}>
+        <View style={styles.labelRow}>
+          <View style={styles.labelLeft}>
+            <Ionicons name="trophy" size={12} color={Colors.achieverText} />
+            <Text style={styles.labelText}>Placement · ranked</Text>
+          </View>
+          <View style={styles.labelLeft}>
+            {c.status === 'active' && <View style={styles.livePulse} />}
+            <Text style={styles.clock}>{c.status === 'completed' ? 'finished' : formatTimeLeft(c.ends_at)}</Text>
+            <ManageKebab visible onPress={() => setManageOpen(true)} />
+          </View>
+        </View>
+
+        <Text style={styles.title}>{challengeTitle(c)}</Text>
+
+        <View style={styles.groupCountRow}>
+          <Text style={styles.groupCount}>
+            <Text style={styles.groupCountBig}>{field}</Text>
+            <Text style={styles.groupCountMuted}> racing · {metricLabel(c.race_metric).toLowerCase()}</Text>
+          </Text>
+        </View>
+
+        <View style={styles.footRow}>
+          <Ionicons name="trophy" size={12} color={Colors.achieverText} />
+          <Text style={styles.footText}>Everyone places · rewards scale with your band</Text>
+        </View>
+
         {manageOpen && (
           <ChallengeManageSheet
             challenge={c}

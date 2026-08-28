@@ -786,6 +786,10 @@ export type AnalyticsEventName =
   // A gap between them and the standings-block Share is doing nothing.
   | 'challenge_reward_seen'
   | 'challenge_result_shared'
+  // ─── Agent 2 / challenge v2 (0124-0127) ───
+  // The third leg of that funnel: how many announced boxes were actually opened from the reveal.
+  // Before 0125 this was unmeasurable because the CTA could not be rendered at all.
+  | 'challenge_reward_box_opened'
   // Campus verification (UNI_VERIFICATION_SPEC.md). The gap between sent and verified is the
   // number that matters: it's how many students hit a school inbox they couldn't actually reach.
   | 'campus_code_sent'
@@ -945,7 +949,8 @@ export type ChallengeWatch = {
  */
 export type GroupChallengeWatchRow = {
   challenge_id: string;
-  target_count: number;
+  /** Null on a placement race, which has no per-member target (0126's constraint). */
+  target_count: number | null;
   window_hours: number;
   starts_at: string;
   ends_at: string | null;
@@ -954,8 +959,20 @@ export type GroupChallengeWatchRow = {
   circle_id: string;
   circle_name: string;
   public_name: string | null;
+  // ─── Agent 2 / challenge v2 (0126) ───
+  /** 'collective' | 'placement'. Both ride mode = 'group', so this is the only thing that
+   *  separates "N of 5 lock-ins done" from a ranked board. */
+  shape: ChallengeShape | null;
+  /** What a placement race ranks on — the units member_progress is in. Null for a collective
+   *  goal, whose progress is a count of lock-ins and needs no unit. */
+  race_metric: SocialChallengeRaceMetric | null;
   member_id: string;
   member_name: string;
+  /**
+   * A count of qualifying lock-ins for a collective goal; the racer's metric score net of their
+   * baseline for a placement race (0126). Two meanings behind one name because the screen renders
+   * one list either way — `shape` is what says which.
+   */
   member_progress: number;
   member_live_status: string;
   /** Cheers backing this racer — the count the spec wants under each meter. */
@@ -1140,6 +1157,13 @@ export type ChallengeRewardPayload = {
   embers: number | null;
   /** A `BoxKey` — resolved against the local catalog for its name and rarity. */
   box: string | null;
+  /**
+   * The `loot_boxes` ROW id of the box this challenge minted (0125) — what /shop/open needs, and
+   * the only unambiguous way to know which of several identical boxes in the inventory was this
+   * one. Null on every payload written before 0125 deployed, and on the completion band, which
+   * mints no box; the reveal then renders the box row without an Open CTA.
+   */
+  box_id: string | null;
   /** The badge KEY ('challenge-elite'); its label is rebuilt from `band`. */
   badge: string | null;
   band: string | null;
@@ -1754,6 +1778,9 @@ export type Database = {
       get_my_social_challenges: { Args: Record<string, never>; Returns: SocialChallenge[] };
       // p_public_name landed in 0098 and the client has been sending it since; the entry here
       // still described the pre-v2 signature.
+      // ─── Agent 2 / challenge v2 (0124-0127) ───
+      // p_starts_on / p_ends_on landed in 0124 — the columns have existed since 0096 and
+      // start_challenge has always preferred them; nothing could set them until now.
       create_h2h_challenge: {
         Args: {
           p_opponent_id: string;
@@ -1762,6 +1789,8 @@ export type Database = {
           p_circle_id?: string | null;
           p_payout_xp?: number;
           p_public_name?: string | null;
+          p_starts_on?: string | null;
+          p_ends_on?: string | null;
         };
         Returns: SocialChallenge;
       };
@@ -1772,6 +1801,21 @@ export type Database = {
           p_window_hours: number;
           p_payout_xp?: number;
           p_public_name?: string | null;
+          p_starts_on?: string | null;
+          p_ends_on?: string | null;
+        };
+        Returns: SocialChallenge;
+      };
+      /** The third shape (0126) — the whole campfire ranked 1..N on one metric, paid by band. */
+      create_placement_challenge: {
+        Args: {
+          p_circle_id: string;
+          p_race_metric: SocialChallengeRaceMetric;
+          p_window_hours: number;
+          p_payout_xp?: number;
+          p_public_name?: string | null;
+          p_starts_on?: string | null;
+          p_ends_on?: string | null;
         };
         Returns: SocialChallenge;
       };

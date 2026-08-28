@@ -39,7 +39,9 @@ export type ChallengeRewardResult = {
   durationLabel: string;
   xp: number;
   embers: number;
-  box: { key: string; name: string; rarity: string } | null;
+  /** `id` is the loot_boxes row (0125) — null on a payload written before that deployed, which is
+   *  what leaves the Open CTA off rather than pointing it at a box that cannot be found. */
+  box: { id: string | null; key: string; name: string; rarity: string } | null;
   badge: { key: string; name: string } | null;
 };
 
