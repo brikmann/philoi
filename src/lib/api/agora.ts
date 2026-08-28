@@ -127,10 +127,14 @@ export async function createAgoraPost(input: {
 }
 
 export async function deleteAgoraPost(id: string): Promise<void> {
-  const { data, error } = await supabase.rpc('delete_agora_post', { p_id: id });
+  const { error } = await supabase.rpc('delete_agora_post', { p_id: id });
   if (error) throw error;
-  // The RPC hands back the path it just orphaned; storage has no cascade of its own.
-  if (data) await supabase.storage.from(PHOTO_BUCKET).remove([data]);
+  // The photo is gone before this resolves: 0131 puts an after-delete trigger on agora_posts that
+  // drops the storage.objects row, so the public URL 404s from here on. Deliberately NOT also
+  // calling storage.remove() — the object row it would look up no longer exists, so the call is a
+  // no-op, and leaving it in would read like the client is the thing keeping the bucket clean.
+  // It isn't, and it can't be: moderation removals and the account-deletion cascade never run
+  // this function at all. (The RPC still returns the path; nothing needs it here.)
 }
 
 // ───────────────────────────── cheers ─────────────────────────────
