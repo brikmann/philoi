@@ -1,5 +1,5 @@
-import { useEffect, useId } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useEffect, useId, useState } from 'react';
+import { StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -8,6 +8,7 @@ import Animated, {
   withRepeat,
   withSequence,
   withTiming,
+  type EasingFunction,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, Ellipse, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -172,17 +173,11 @@ function EffectLayer({ effect, colour, width, height }: { effect: FlareEffect; c
       return <Flames colour={colour} width={width} height={height} />;
     case 'plasma':
       return <Plasma colour={colour} width={width} height={height} />;
-    // Emberfall Ascendant's bespoke layer (punchlist 15.3) — lava pooling along the bottom edge
-    // plus embers raining from the top. Deliberately a composition of the two existing layers
-    // rather than a third primitive: the combination is the signature, and one more animated
-    // primitive would cost battery for a difference nobody can see at these opacities.
+    // Emberfall Ascendant's bespoke layer (punchlist 15.3) — lava pooling along the bottom edge,
+    // embers raining into it, motes climbing back out. See Ascendant: it was a plain stack of the
+    // two stock layers, which is not what a capstone is.
     case 'emberfall':
-      return (
-        <>
-          <Flames colour={colour} width={width} height={height} />
-          <Falling colour={colour} width={width} height={height} />
-        </>
-      );
+      return <Ascendant colour={colour} width={width} height={height} />;
     // The base glow IS the effect for `glow` flares — the breath above carries them.
     case 'glow':
       return null;
@@ -223,6 +218,71 @@ function Glow({ size, colour, peak, stretch = 1 }: { size: number; colour: strin
   );
 }
 
+// ───────────────────────── never a static first frame ─────────────────────────
+//
+// THE BLOB BUG (COSMETIC_UI_FIXES §4). Every driver in this file used to be `useSharedValue(0)`
+// followed by `withDelay(delay, withRepeat(...))` inside an effect. Two failures came out of that
+// one shape, and together they are the whole "flares load as blobs" report:
+//
+//   • The value SITS at its initial until the delay elapses. A Lick's resting opacity at t=0 is
+//     0.55, so the last of the five flame licks was painted as a stationary soft blob for 1.7s
+//     before it ever moved. A shape that does not move does not read as fire; it reads as a smudge
+//     someone left on the screen.
+//   • Every particle starts its loop at exactly the same point in the cycle, so the layer arrives
+//     as a set of things in lockstep rather than as weather.
+//
+// SEEDING the phase rather than delaying the start fixes both: the first painted frame is already
+// mid-cycle, and the particles are spread across the loop from the moment they mount. The static
+// `opacity: 0` every caller puts UNDER its animated style is the second half of the guarantee —
+// if a frame is ever painted before Reanimated has applied anything, it paints nothing at all
+// rather than a full-strength glow sitting still.
+
+/** Hoisted so the effects below have stable deps — `Easing.inOut(Easing.sin)` allocates a new
+ *  function on every call, which would re-run the loop on every render. */
+const EASE_SINE = Easing.inOut(Easing.sin);
+const EASE_QUAD = Easing.inOut(Easing.quad);
+/** Embers fall at roughly terminal velocity — they do not accelerate the way a water drop does,
+ *  which is why the rain used to read as droplets rather than as fire. */
+const EASE_LINEAR = Easing.linear;
+
+/**
+ * A 0 -> 1 driver that is already `phase` of the way through its cycle on the first frame.
+ *
+ * `pingPong` alternates 0 -> 1 -> 0 forever; otherwise it runs one-way and snaps back, which is
+ * only ever invisible because every one-way consumer's opacity is zero at both ends of the trip.
+ *
+ * Note the shape: a lead-in withTiming for the remainder of the seeded cycle, THEN the repeat.
+ * `withRepeat(..., true)` on its own would ping-pong between the seeded phase and 1 forever
+ * instead of between 0 and 1, quietly halving the travel of every particle it touched.
+ */
+function usePhasedLoop(phase: number, duration: number, easing: EasingFunction, pingPong: boolean) {
+  const t = useSharedValue(phase);
+
+  useEffect(() => {
+    const leadIn = Math.max(1, duration * (1 - phase));
+    t.value = phase;
+    t.value = pingPong
+      ? withSequence(
+          withTiming(1, { duration: leadIn, easing }),
+          withRepeat(withSequence(withTiming(0, { duration, easing }), withTiming(1, { duration, easing })), -1, false)
+        )
+      : withSequence(
+          withTiming(1, { duration: leadIn, easing }),
+          withTiming(0, { duration: 0 }),
+          withRepeat(withTiming(1, { duration, easing }), -1, false)
+        );
+  }, [t, phase, duration, easing, pingPong]);
+
+  return t;
+}
+
+/** Deterministic 0..1 spread for particle `i` — phases, sizes and lane offsets all pull from this
+ *  rather than from Math.random(), so a re-render can never reshuffle the weather mid-session. The
+ *  golden ratio is what keeps successive values far apart instead of clustering. */
+function spread(i: number, offset = 0): number {
+  return ((i + 1) * 0.6180339887 + offset) % 1;
+}
+
 /**
  * One drifting soft particle. The shared movement primitive: a Glow that travels a fixed path on a
  * loop, fading in and back out across the trip so it never pops out of existence at either end.
@@ -235,7 +295,7 @@ function Drifter({
   travelY,
   travelX = 0,
   duration,
-  delay,
+  phase,
   peak,
   stretch = 1,
   /** true = ping-pong (breathing in place), false = one-way (falling, rising). */
@@ -248,15 +308,13 @@ function Drifter({
   travelY: number;
   travelX?: number;
   duration: number;
-  delay: number;
+  /** 0..1 — how far through its loop this particle already is on the very first frame. */
+  phase: number;
   peak: number;
   stretch?: number;
   reverse?: boolean;
 }) {
-  const t = useSharedValue(0);
-  useEffect(() => {
-    t.value = withDelay(delay, withRepeat(withTiming(1, { duration, easing: Easing.inOut(Easing.sin) }), -1, reverse));
-  }, [t, duration, delay, reverse]);
+  const t = usePhasedLoop(phase, duration, EASE_SINE, reverse);
 
   const style = useAnimatedStyle(() => ({
     transform: [{ translateY: t.value * travelY }, { translateX: t.value * travelX }],
@@ -264,7 +322,7 @@ function Drifter({
   }));
 
   return (
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top }, style]}>
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top, opacity: 0 }, style]}>
       <Glow size={size} colour={colour} peak={peak} stretch={stretch} />
     </Animated.View>
   );
@@ -274,9 +332,9 @@ function Drifter({
 function Smoke({ colour, width, height }: { colour: string; width: number; height: number }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Drifter colour={colour} size={190} left={-105} top={height * 0.58} travelY={-height * 0.26} duration={11000} delay={0} peak={0.5} />
-      <Drifter colour={colour} size={160} left={width - 70} top={height * 0.72} travelY={-height * 0.28} duration={13000} delay={2600} peak={0.44} />
-      <Drifter colour={colour} size={170} left={-95} top={height * 0.88} travelY={-height * 0.3} duration={15000} delay={5200} peak={0.38} />
+      <Drifter colour={colour} size={190} left={-105} top={height * 0.58} travelY={-height * 0.26} duration={11000} phase={0.28} peak={0.5} />
+      <Drifter colour={colour} size={160} left={width - 70} top={height * 0.72} travelY={-height * 0.28} duration={13000} phase={0.62} peak={0.44} />
+      <Drifter colour={colour} size={170} left={-95} top={height * 0.88} travelY={-height * 0.3} duration={15000} phase={0.08} peak={0.38} />
     </View>
   );
 }
@@ -285,9 +343,9 @@ function Smoke({ colour, width, height }: { colour: string; width: number; heigh
 function Plasma({ colour, width, height }: { colour: string; width: number; height: number }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Drifter colour={colour} size={230} left={-120} top={-120} travelY={34} duration={7000} delay={0} peak={0.6} reverse />
-      <Drifter colour={colour} size={210} left={width - 95} top={height - 110} travelY={-34} duration={8200} delay={1400} peak={0.5} reverse />
-      <Drifter colour={colour} size={175} left={width * 0.5 - 88} top={-110} travelY={24} duration={9500} delay={3000} peak={0.4} reverse />
+      <Drifter colour={colour} size={230} left={-120} top={-120} travelY={34} duration={7000} phase={0.18} peak={0.6} reverse />
+      <Drifter colour={colour} size={210} left={width - 95} top={height - 110} travelY={-34} duration={8200} phase={0.55} peak={0.5} reverse />
+      <Drifter colour={colour} size={175} left={width * 0.5 - 88} top={-110} travelY={24} duration={9500} phase={0.82} peak={0.4} reverse />
     </View>
   );
 }
@@ -322,7 +380,10 @@ function Zap({ colour, left, top, size, delay }: { colour: string; left: number;
 
   const style = useAnimatedStyle(() => ({ opacity: flash.value, transform: [{ scale: 0.85 + flash.value * 0.3 }] }));
   return (
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top }, style]}>
+    // A strike is the one driver that keeps its delay rather than a seeded phase: the long dark
+    // gap IS the effect, so starting it mid-flash would be wrong. `opacity: 0` underneath is what
+    // stops the un-animated first frame painting a full-strength ball of light.
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top, opacity: 0 }, style]}>
       <Glow size={size} colour={colour} peak={0.95} />
     </Animated.View>
   );
@@ -339,42 +400,96 @@ function Zaps({ colour, width, height }: { colour: string; width: number; height
   );
 }
 
-/** Toxic / Emberfall — glowing droplets running down the edges. */
-function Drop({ colour, left, height, duration, delay }: { colour: string; left: number; height: number; duration: number; delay: number }) {
-  const t = useSharedValue(0);
-  useEffect(() => {
-    t.value = withDelay(delay, withRepeat(withTiming(1, { duration, easing: Easing.in(Easing.quad) }), -1, false));
-  }, [t, duration, delay]);
+/**
+ * ONE FALLING EMBER.
+ *
+ * Was a droplet: `Easing.in(Easing.quad)` down a fixed lane, opacity `sin(t*pi)`. Three things made
+ * that read as rain on glass rather than as fire (COSMETIC_UI_FIXES §4) — it ACCELERATED, it fell
+ * dead straight, and it was uniformly bright for the whole middle of its trip.
+ *
+ * An ember does none of those. It has already reached terminal velocity by the time you see it, so
+ * it falls at a steady rate (EASE_LINEAR); it is light enough to be pushed sideways, so it sways;
+ * and it is BURNING OUT as it falls, so it flares up early and dies away long before it lands.
+ * `sway` and `flicker` are per-particle so no two fall alike.
+ */
+function Ember({
+  colour,
+  left,
+  size,
+  height,
+  duration,
+  phase,
+  sway,
+  flicker,
+}: {
+  colour: string;
+  left: number;
+  size: number;
+  height: number;
+  duration: number;
+  phase: number;
+  /** Horizontal travel, px peak-to-peak, over roughly two swings of the fall. */
+  sway: number;
+  /** Cycles of brightness flutter across the trip. */
+  flicker: number;
+}) {
+  const t = usePhasedLoop(phase, duration, EASE_LINEAR, false);
 
-  const style = useAnimatedStyle(() => ({
-    transform: [{ translateY: t.value * height }],
-    opacity: 0.9 * Math.sin(t.value * Math.PI),
-  }));
+  const style = useAnimatedStyle(() => {
+    const p = t.value;
+    // Catch (fast, over the first 10%), burn, then die out across the last 45% — an ember that
+    // reached the bottom edge at full strength would look like it hit the floor.
+    const life = Math.min(1, p / 0.1) * Math.min(1, (1 - p) / 0.45);
+    return {
+      transform: [
+        { translateY: p * height },
+        { translateX: Math.sin(p * Math.PI * 2) * sway },
+        // Stretched along its own path, and more so the faster it is going.
+        { scaleY: 1 + p * 0.35 },
+      ],
+      opacity: life * (0.72 + 0.28 * Math.sin(p * Math.PI * 2 * flicker)),
+    };
+  });
 
   return (
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top: -34 }, style]}>
-      {/* Taller than wide — a falling ember stretches along its own path. */}
-      <Glow size={22} colour={colour} peak={0.85} stretch={2.2} />
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top: -40, opacity: 0 }, style]}>
+      <Glow size={size} colour={colour} peak={0.9} stretch={2.4} />
     </Animated.View>
   );
 }
 
-function Falling({ colour, width, height }: { colour: string; width: number; height: number }) {
-  // Edge lanes only. The old centre lane ran drops down the middle of the screen, which is exactly
-  // the full-screen reading the rim is meant to replace (punchlist 15.2).
-  const lanes = [-4, 10, 24, width - 26, width - 40];
-  const timings = [
-    { duration: 4200, delay: 0 },
-    { duration: 5400, delay: 1500 },
-    { duration: 4800, delay: 800 },
-    { duration: 6000, delay: 2600 },
-    { duration: 5200, delay: 3400 },
-  ];
+/**
+ * Acid Rain / the Emberfall rain layer — embers falling down both edges.
+ *
+ * EDGE LANES ONLY. The old centre lane ran drops down the middle of the screen, which is exactly
+ * the full-screen reading the rim exists to replace (punchlist 15.2). `density` scales the count
+ * for the season capstone, which wants weather rather than a drizzle.
+ */
+function Falling({ colour, width, height, density = 1 }: { colour: string; width: number; height: number; density?: number }) {
+  const n = Math.round(7 * density);
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {lanes.map((left, i) => (
-        <Drop key={i} colour={colour} left={left} height={height + 60} duration={timings[i].duration} delay={timings[i].delay} />
-      ))}
+      {Array.from({ length: n }, (_, i) => {
+        const jitter = spread(i, 0.31);
+        // Alternating edges, each lane pushed a little way in from its own side. Half the embers
+        // start off-screen at the very edge, which is what stops the two columns reading as two
+        // tidy lines of dots.
+        const fromLeft = i % 2 === 0;
+        const inset = -6 + jitter * 46;
+        return (
+          <Ember
+            key={i}
+            colour={colour}
+            left={fromLeft ? inset : width - inset - 20}
+            size={12 + spread(i, 0.77) * 12}
+            height={height + 90}
+            duration={3600 + jitter * 3200}
+            phase={spread(i)}
+            sway={(fromLeft ? 1 : -1) * (8 + spread(i, 0.11) * 16)}
+            flicker={2 + Math.round(spread(i, 0.44) * 3)}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -387,11 +502,22 @@ function Falling({ colour, width, height }: { colour: string; width: number; hei
  * anchored below the edge gives the same "fire along the bottom" read with no shape to see —
  * only its top half is on screen, so what's visible is a glow that swells and sinks.
  */
-function Lick({ colour, left, w, height, delay }: { colour: string; left: number; w: number; height: number; delay: number }) {
-  const t = useSharedValue(0);
-  useEffect(() => {
-    t.value = withDelay(delay, withRepeat(withTiming(1, { duration: 2400, easing: Easing.inOut(Easing.quad) }), -1, true));
-  }, [t, delay]);
+function Lick({
+  colour,
+  left,
+  w,
+  height,
+  phase,
+  peak = 0.7,
+}: {
+  colour: string;
+  left: number;
+  w: number;
+  height: number;
+  phase: number;
+  peak?: number;
+}) {
+  const t = usePhasedLoop(phase, 2400, EASE_QUAD, true);
 
   const style = useAnimatedStyle(() => ({
     transform: [{ scaleY: 0.72 + t.value * 0.42 }],
@@ -402,22 +528,229 @@ function Lick({ colour, left, w, height, delay }: { colour: string; left: number
     <Animated.View
       pointerEvents="none"
       // Bottom-anchored and pushed half off-screen: the ellipse's own fade does the shaping, so
-      // there is no boundary at the screen edge either.
-      style={[{ position: 'absolute', left, bottom: -height * 0.42, transformOrigin: '50% 100%' }, style]}>
-      <Glow size={w} colour={colour} peak={0.7} stretch={height / w} />
+      // there is no boundary at the screen edge either. `opacity: 0` under the animated style is
+      // the blob guard — this is the driver whose resting value was VISIBLE, so it is the one that
+      // was actually being painted static for over a second on every load.
+      style={[{ position: 'absolute', left, bottom: -height * 0.42, transformOrigin: '50% 100%', opacity: 0 }, style]}>
+      <Glow size={w} colour={colour} peak={peak} stretch={height / w} />
     </Animated.View>
   );
 }
 
-function Flames({ colour, width }: { colour: string; width: number; height: number }) {
+function Flames({ colour, width, tall = 230, peak }: { colour: string; width: number; height: number; tall?: number; peak?: number }) {
   const n = 5;
   const w = width / n;
   // Overlapping by half a lane each side, so the five never read as five separate things.
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {Array.from({ length: n }, (_, i) => (
-        <Lick key={i} colour={colour} left={i * w - w * 0.5} w={w * 2} height={230} delay={i * 420} />
+        <Lick key={i} colour={colour} left={i * w - w * 0.5} w={w * 2} height={tall} phase={spread(i, 0.23)} peak={peak} />
       ))}
+    </View>
+  );
+}
+
+/**
+ * EMBERFALL ASCENDANT — the season capstone's own motion layer (mocks 119 + 126 + 167).
+ *
+ * It used to be literally `<Flames/><Falling/>`, the two stock layers stacked, which is why it read
+ * as a blob field rather than as the mythic it is: the same five licks and the same five droplets
+ * everyone else's flare has, only twice as busy. The capstone should not share a motion layer with
+ * a box drop — the comment in catalog.ts has said so all along; this is the layer catching up.
+ *
+ * Three parts, and the ORDER is the effect: a deep lava pool banked along the bottom, heavier
+ * weather of embers falling into it, and — the ascendant half of the name — motes lifting back OUT
+ * of the pool and climbing the edges. Fall, land, rise.
+ */
+function Ascendant({ colour, width, height }: { colour: string; width: number; height: number }) {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {/* The pool: taller and stronger than Inferno's, because it is the floor everything else
+          falls into rather than the whole effect on its own. */}
+      <Flames colour={colour} width={width} height={height} tall={300} peak={0.8} />
+      <Falling colour={colour} width={width} height={height} density={1.7} />
+      {/* Rising motes, launched from inside the pool and climbing about a third of the screen.
+          Slow and few: this is the part that has to read as ASCENT, and ascent is legible only if
+          it is slower than the fall above it. */}
+      {Array.from({ length: 4 }, (_, i) => (
+        <Drifter
+          key={`rise-${i}`}
+          colour={colour}
+          size={54 + spread(i, 0.5) * 40}
+          left={i % 2 === 0 ? -18 + spread(i, 0.19) * 70 : width - 90 - spread(i, 0.19) * 60}
+          top={height - 120}
+          travelY={-height * (0.3 + spread(i, 0.66) * 0.16)}
+          travelX={(i % 2 === 0 ? 1 : -1) * 22}
+          duration={7200 + spread(i, 0.37) * 3600}
+          phase={spread(i, 0.05)}
+          peak={0.5}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ─────────────────── the APPLIED particle layer (COSMETIC_UI_FIXES §5) ───────────────────
+//
+// PARTICLE cosmetics have been buyable, equippable and box-droppable since 21f, and until now
+// NOTHING painted one. `item-art.tsx` drew the inventory thumbnail and `catalog.ts` carried six of
+// them, but the applied component simply did not exist — so a user could open a Mythic, equip Void
+// Smoke, and see exactly no difference anywhere in the product. This is that missing surface.
+//
+// It lives in this file on purpose rather than beside the flame: a particle field is the same
+// problem the flare already solved (soft glows on cheap UI-thread loops, never a hard edge, never
+// a touch target), and the `Glow` / `Drifter` / `usePhasedLoop` primitives above are the answer to
+// it. A second implementation next to SessionFlame would drift from this one within a season.
+//
+// SCOPED TO THE FLAME, not to the screen. The flare owns the perimeter; particles own the ~1.8x
+// box around the flame itself, so the two can be equipped together without becoming one wash.
+
+/** How an equipped particle cosmetic moves. Keyed by id, like CARD_TEXTURE — the lore names a
+ *  specific behaviour ("they rise", "the quiet snow", "it hunts"), and rarity cannot express it. */
+type ParticleMotion = 'rise' | 'fall' | 'swarm' | 'arc' | 'flicker' | 'coil';
+
+const PARTICLE_MOTION: Record<string, ParticleMotion> = {
+  'particle-base-spark': 'rise',
+  'particle-floating-sparks': 'rise',
+  'particle-falling-ash': 'fall',
+  'particle-ember-swarm': 'swarm',
+  'particle-solar-flares': 'arc',
+  'particle-lightning-tendrils': 'flicker',
+  'particle-void-smoke': 'coil',
+  'particle-emberfall-ascendant': 'rise',
+};
+
+/** Particle count per motion. Capped low and deliberately: this runs for a whole session next to a
+ *  flame that is already animating, and the file's CHEAP constraint applies here too. */
+const PARTICLE_COUNT: Record<ParticleMotion, number> = { rise: 7, fall: 8, swarm: 8, arc: 4, flicker: 5, coil: 4 };
+
+/**
+ * The field itself, sized from its own layout so a caller only has to drop it behind a flame.
+ *
+ * `from` is the body colour and `to` the hot one; alternating between them across the particles is
+ * what keeps a two-stop palette reading as two stops (Falling Ash is grey motes with pale white
+ * ones through it, not a uniform grey) without paying for a gradient per particle.
+ */
+export function FlameParticleField({ from, to, motion }: { from: string; to: string; motion: ParticleMotion }) {
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const onLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setBox((prev) => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
+  };
+
+  return (
+    <View style={StyleSheet.absoluteFill} onLayout={onLayout} pointerEvents="none">
+      {box.w > 0 && box.h > 0 && <Particles from={from} to={to} motion={motion} w={box.w} h={box.h} />}
+    </View>
+  );
+}
+
+function Particles({ from, to, motion, w, h }: { from: string; to: string; motion: ParticleMotion; w: number; h: number }) {
+  const n = PARTICLE_COUNT[motion];
+  // Alternating hot/body colour, deterministic per index — see `spread`.
+  const hue = (i: number) => (i % 2 === 0 ? to : from);
+  // Particles orbit the flame, so their lanes are measured from the box's centre outward.
+  const cx = w / 2;
+
+  if (motion === 'flicker') {
+    // Lightning Tendrils — it reaches rather than drifts. The Zap primitive already IS a reach: a
+    // burst of light with a dark gap after it, which is what "fingers of electricity" looks like at
+    // this size. Ringed around the flame instead of pinned to the screen edges.
+    return (
+      <>
+        {Array.from({ length: n }, (_, i) => {
+          const a = (i / n) * Math.PI * 2 + 0.4;
+          const size = w * (0.2 + spread(i, 0.3) * 0.12);
+          return (
+            <Zap
+              key={i}
+              colour={hue(i)}
+              left={cx + Math.cos(a) * w * 0.4 - size / 2}
+              top={h * 0.52 + Math.sin(a) * w * 0.32 - size / 2}
+              size={size}
+              delay={Math.round(spread(i) * 2800)}
+            />
+          );
+        })}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {Array.from({ length: n }, (_, i) => {
+        const j = spread(i);
+        const side = i % 2 === 0 ? 1 : -1;
+        // Lanes stay inside the middle of the box: a mote hugging the outer edge reads as belonging
+        // to the screen rather than to the flame, which is the flare's job and not this one's.
+        const lane = cx + side * (0.08 + spread(i, 0.41) * 0.32) * w;
+
+        switch (motion) {
+          // Sparks / Floating Sparks / Ascendant Ash — embers climbing off the fire.
+          case 'rise':
+            return (
+              <Drifter key={i} colour={hue(i)} size={w * (0.09 + j * 0.07)} left={lane} top={h * 0.7}
+                travelY={-h * (0.42 + j * 0.26)} travelX={side * w * 0.09}
+                duration={3200 + j * 2600} phase={spread(i, 0.17)} peak={0.75} />
+            );
+
+          // Falling Ash — the quiet snow. Slower than the rise, and it drifts rather than climbs.
+          case 'fall':
+            return (
+              <Drifter key={i} colour={hue(i)} size={w * (0.06 + j * 0.05)} left={lane} top={-h * 0.1}
+                travelY={h * (0.7 + j * 0.3)} travelX={side * w * 0.13}
+                duration={5200 + j * 4200} phase={spread(i, 0.29)} peak={0.6} />
+            );
+
+          // Ember Swarm — short ping-pong hops around the flame, so it hovers instead of leaving.
+          case 'swarm':
+            return (
+              <Drifter key={i} colour={hue(i)} size={w * (0.07 + j * 0.05)} left={lane} top={h * (0.2 + j * 0.5)}
+                travelY={side * h * 0.13} travelX={-side * w * 0.16}
+                duration={1900 + j * 1500} phase={spread(i, 0.53)} peak={0.8} reverse />
+            );
+
+          // Solar Flares — big slow loops that swing out and snap back. Few and large, which is the
+          // only way an arc reads at this scale.
+          case 'arc':
+            return (
+              <Drifter key={i} colour={hue(i)} size={w * (0.26 + j * 0.14)} left={lane - w * 0.15} top={h * (0.28 + j * 0.34)}
+                travelY={-h * 0.14} travelX={side * w * 0.34}
+                duration={4200 + j * 2400} phase={spread(i, 0.61)} peak={0.55} reverse />
+            );
+
+          // Void Smoke — a funeral veil: few, huge, slow, and barely there.
+          case 'coil':
+          default:
+            return (
+              <Drifter key={i} colour={hue(i)} size={w * (0.42 + j * 0.22)} left={lane - w * 0.25} top={h * 0.62}
+                travelY={-h * (0.5 + j * 0.2)} travelX={side * w * 0.12}
+                duration={8000 + j * 5000} phase={spread(i, 0.07)} peak={0.42} stretch={1.25} />
+            );
+        }
+      })}
+    </>
+  );
+}
+
+/**
+ * The equipped particle field, ready to drop behind a flame.
+ *
+ * Mount it as an absolutely-positioned sibling of the flame inside a wrapper sized to the flame —
+ * it fills its parent and works outward from there. Renders nothing when the slot is empty or when
+ * the equipped item predates this build's motion table, which is the same newer-server-than-app
+ * guard the rest of the economy already follows.
+ */
+export function EquippedFlameParticles({ dimmed = false }: { dimmed?: boolean }) {
+  const item = useEquipped('particle');
+  const motion = item ? PARTICLE_MOTION[item.id] : undefined;
+  if (!item || !motion) return null;
+  // `dimmed` follows SessionFlame's own prop for the gym branch, where the flame is a background
+  // layer under a workout log. Particles at full strength behind readable text is the one place
+  // this cosmetic could actively make the product worse.
+  return (
+    <View style={[StyleSheet.absoluteFill, dimmed && { opacity: 0.45 }]} pointerEvents="none">
+      <FlameParticleField from={item.art.from} to={item.art.to} motion={motion} />
     </View>
   );
 }
