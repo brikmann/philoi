@@ -949,7 +949,8 @@ export type ChallengeWatch = {
  */
 export type GroupChallengeWatchRow = {
   challenge_id: string;
-  target_count: number;
+  /** Null on a placement race, which has no per-member target (0126's constraint). */
+  target_count: number | null;
   window_hours: number;
   starts_at: string;
   ends_at: string | null;
@@ -958,8 +959,20 @@ export type GroupChallengeWatchRow = {
   circle_id: string;
   circle_name: string;
   public_name: string | null;
+  // ─── Agent 2 / challenge v2 (0126) ───
+  /** 'collective' | 'placement'. Both ride mode = 'group', so this is the only thing that
+   *  separates "N of 5 lock-ins done" from a ranked board. */
+  shape: ChallengeShape | null;
+  /** What a placement race ranks on — the units member_progress is in. Null for a collective
+   *  goal, whose progress is a count of lock-ins and needs no unit. */
+  race_metric: SocialChallengeRaceMetric | null;
   member_id: string;
   member_name: string;
+  /**
+   * A count of qualifying lock-ins for a collective goal; the racer's metric score net of their
+   * baseline for a placement race (0126). Two meanings behind one name because the screen renders
+   * one list either way — `shape` is what says which.
+   */
   member_progress: number;
   member_live_status: string;
   /** Cheers backing this racer — the count the spec wants under each meter. */
