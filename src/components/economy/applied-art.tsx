@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import { Colors, Radius } from '@/constants/theme';
@@ -160,20 +160,43 @@ export function EquippedCardBackdrop({
   const texture = CARD_TEXTURE[item?.id ?? ''] ?? 'plain';
   const boost = auraBoost(auraTier);
 
+  // MEASURED width/height, never a style-only <Svg>. The art used to be
+  // `<Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100">` with no width/height props at
+  // all — and an <Svg> with no numeric size inside an absolutely-positioned parent measures as
+  // ZERO on Android, so every equipped card painted nothing but its 1px border. That is the whole
+  // "cards are buggy" report; campfire-banner-art.tsx carries a comment about the identical trap.
+  //
+  // One layout pass is the cost. `backgroundColor: from` covers that first frame (and any device
+  // where the Svg still fails), so the card is a colour for a moment rather than a hole — the
+  // "never a bare surface" rule already stated above.
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const onLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setSize((prev) => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
+  };
+
   return (
-    <View style={[styles.cardWrap, { borderRadius: radius, borderColor: to }]}>
-      <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox="0 0 100 100">
-        <Defs>
-          {/* Diagonal, not vertical: a card is wider than it is tall, and a vertical ramp on a
-              short wide box reads as two stacked bands rather than as a finish. */}
-          <LinearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={from} />
-            <Stop offset="1" stopColor={to} stopOpacity={0.55} />
-          </LinearGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100" height="100" fill={`url(#${gradId})`} />
-        <CardTextureLayer texture={texture} to={to} boost={boost.opacity} />
-      </Svg>
+    <View
+      style={[styles.cardWrap, { borderRadius: radius, borderColor: to, backgroundColor: from }]}
+      onLayout={onLayout}>
+      {size.w > 0 && size.h > 0 && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          {/* preserveAspectRatio="none" keeps the 0-100 authoring box the textures below were
+              drawn against, stretched to whatever the card actually is. */}
+          <Svg width={size.w} height={size.h} viewBox="0 0 100 100" preserveAspectRatio="none">
+            <Defs>
+              {/* Diagonal, not vertical: a card is wider than it is tall, and a vertical ramp on a
+                  short wide box reads as two stacked bands rather than as a finish. */}
+              <LinearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+                <Stop offset="0" stopColor={from} />
+                <Stop offset="1" stopColor={to} stopOpacity={0.55} />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100" height="100" fill={`url(#${gradId})`} />
+            <CardTextureLayer texture={texture} to={to} boost={boost.opacity} />
+          </Svg>
+        </View>
+      )}
       {children}
     </View>
   );
@@ -275,6 +298,29 @@ function CardTextureLayer({ texture, to, boost }: { texture: CardTexture; to: st
 // ───────────────────────────── HALO ─────────────────────────────
 
 /**
+ * How far outside the avatar each style's art reaches, as a multiple of the avatar's RADIUS.
+ *
+ * This table is what makes the halo hug the avatar. The box used to be a flat `size * 1.34` while
+ * every mark was drawn at a hardcoded radius of 42 in a 0-100 viewBox — so the ring only landed
+ * correctly at one avatar size and one aura tier. Any other combination either floated the ring
+ * away from the face (a boosted aura grew the box, which shrank the avatar inside a fixed-radius
+ * ring) or pushed the outer decorations past 50 and CLIPPED them at the viewBox edge — Inferno
+ * Flare's tongues, Hades' ticks and the Emberfall crown's points all reached R+9 = 51.
+ *
+ * Now the box is derived from the reach, and every mark is derived from the avatar. Both bugs
+ * ("doesn't centre on the avatar", "reads poorly") come from the same missing link.
+ */
+const HALO_REACH: Record<HaloStyle, number> = {
+  ring: 1.16,
+  double: 1.2,
+  glow: 1.28,
+  prism: 1.2,
+  flare: 1.42,
+  aura: 1.48,
+  crown: 1.38,
+};
+
+/**
  * The ring around an avatar, drawn from the equipped halo's art.
  *
  * `children` is the avatar itself, centred inside. The ring is drawn OUTSIDE the avatar's bounds
@@ -298,41 +344,69 @@ export function EquippedAvatarHalo({
   const style = HALO_STYLE[item?.id ?? ''] ?? 'ring';
   const boost = auraBoost(auraTier);
 
-  // The ring needs room to sit outside the avatar; the box is 34% larger, plus whatever the aura
-  // tier adds. A mythic aura mid-session is the widest this ever gets.
-  const pad = size * 0.17 + boost.spread * 2;
+  // Room for exactly what this style draws, plus the tier's bloom — no more, so the ring stays
+  // tight against the avatar, and no less, so nothing clips.
+  const reach = HALO_REACH[style] + boost.spread * 0.09;
+  const pad = (size / 2) * (reach - 1);
   const box = size + pad * 2;
+  // The avatar's radius expressed in the Svg's own 0-100 space. Every mark in HaloRing is a
+  // multiple of THIS, which is what keeps the geometry correct at any avatar size and any tier.
+  const rAvatar = 50 * (size / box);
 
   return (
     <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={box} height={box} viewBox="0 0 100 100" style={StyleSheet.absoluteFill}>
-        <HaloRing style={style} from={from} to={to} boost={boost.opacity} />
+      <Svg width={box} height={box} viewBox="0 0 100 100" style={StyleSheet.absoluteFill} pointerEvents="none">
+        <HaloRing style={style} from={from} to={to} boost={boost.opacity} spread={boost.spread} rAvatar={rAvatar} />
       </Svg>
       <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }}>{children}</View>
     </View>
   );
 }
 
-function HaloRing({ style, from, to, boost }: { style: HaloStyle; from: string; to: string; boost: number }) {
+function HaloRing({
+  style,
+  from,
+  to,
+  boost,
+  spread,
+  rAvatar,
+}: {
+  style: HaloStyle;
+  from: string;
+  to: string;
+  boost: number;
+  spread: number;
+  rAvatar: number;
+}) {
   const o = (base: number) => Math.min(1, base + boost);
-  // 42 leaves the avatar (radius ~36 in this box) clear with the ring just outside it.
-  const R = 42;
+  // The ring sits just clear of the avatar's edge — 6% of its radius, so a 24px badge and a 72px
+  // profile avatar get the same visual gap rather than the same absolute one.
+  const R = rAvatar * 1.06;
+  // Every offset and stroke below was authored against R = 42, back when that was a constant. `u`
+  // rescales that tuning to whatever R now is, so the proportions survive the fix unchanged.
+  const u = R / 42;
+  // The live-session tier blooms OUTWARD (HALO_REACH already reserved the room for it) instead of
+  // only turning the opacity up. Nothing at tier 0, which is the common case.
+  const tierBloom =
+    spread > 0 ? <Circle cx="50" cy="50" r={R + (3 + spread * 2.6) * u} fill={to} opacity={0.07 + spread * 0.02} /> : null;
 
   switch (style) {
     case 'double':
       return (
         <>
-          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={4} opacity={o(0.9)} />
-          <Circle cx="50" cy="50" r={R - 5} fill="none" stroke={to} strokeWidth={2} opacity={o(0.75)} />
+          {tierBloom}
+          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={4 * u} opacity={o(0.9)} />
+          <Circle cx="50" cy="50" r={R - 5 * u} fill="none" stroke={to} strokeWidth={2 * u} opacity={o(0.75)} />
         </>
       );
 
     case 'glow':
       return (
         <>
-          <Circle cx="50" cy="50" r={R + 4} fill="none" stroke={to} strokeWidth={7} opacity={o(0.16)} />
-          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={4} opacity={o(0.95)} />
-          <Circle cx="50" cy="50" r={R - 3} fill="none" stroke={to} strokeWidth={1.5} opacity={o(0.6)} />
+          {tierBloom}
+          <Circle cx="50" cy="50" r={R + 4 * u} fill="none" stroke={to} strokeWidth={7 * u} opacity={o(0.16)} />
+          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={4 * u} opacity={o(0.95)} />
+          <Circle cx="50" cy="50" r={R - 3 * u} fill="none" stroke={to} strokeWidth={1.5 * u} opacity={o(0.6)} />
         </>
       );
 
@@ -340,8 +414,9 @@ function HaloRing({ style, from, to, boost }: { style: HaloStyle; from: string; 
     case 'prism':
       return (
         <>
-          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={3} opacity={o(0.6)} />
-          <G stroke={to} strokeWidth={4} strokeLinecap="round" opacity={o(0.95)}>
+          {tierBloom}
+          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={3 * u} opacity={o(0.6)} />
+          <G stroke={to} strokeWidth={4 * u} strokeLinecap="round" opacity={o(0.95)}>
             {Array.from({ length: 8 }, (_, i) => {
               const a0 = (i * Math.PI * 2) / 8 + 0.12;
               const a1 = a0 + 0.52;
@@ -361,20 +436,21 @@ function HaloRing({ style, from, to, boost }: { style: HaloStyle; from: string; 
     case 'flare':
       return (
         <>
-          <Circle cx="50" cy="50" r={R + 5} fill="none" stroke={to} strokeWidth={8} opacity={o(0.14)} />
-          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={4} opacity={o(0.95)} />
+          {tierBloom}
+          <Circle cx="50" cy="50" r={R + 5 * u} fill="none" stroke={to} strokeWidth={8 * u} opacity={o(0.14)} />
+          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={4 * u} opacity={o(0.95)} />
           <G fill={to} opacity={o(0.85)}>
             {Array.from({ length: 12 }, (_, i) => {
               const a = (i * Math.PI * 2) / 12;
-              const inner = R + 1;
-              const outer = R + (i % 2 === 0 ? 8 : 5);
-              const spread = 0.11;
+              const inner = R + 1 * u;
+              const outer = R + (i % 2 === 0 ? 8 : 5) * u;
+              const spreadA = 0.11;
               return (
                 <Path
                   key={i}
-                  d={`M${50 + inner * Math.cos(a - spread)} ${50 + inner * Math.sin(a - spread)}
+                  d={`M${50 + inner * Math.cos(a - spreadA)} ${50 + inner * Math.sin(a - spreadA)}
                       L${50 + outer * Math.cos(a)} ${50 + outer * Math.sin(a)}
-                      L${50 + inner * Math.cos(a + spread)} ${50 + inner * Math.sin(a + spread)} Z`}
+                      L${50 + inner * Math.cos(a + spreadA)} ${50 + inner * Math.sin(a + spreadA)} Z`}
                 />
               );
             })}
@@ -386,16 +462,17 @@ function HaloRing({ style, from, to, boost }: { style: HaloStyle; from: string; 
     case 'aura':
       return (
         <>
-          <Circle cx="50" cy="50" r={R + 7} fill={to} opacity={o(0.1)} />
-          <Circle cx="50" cy="50" r={R + 3} fill="none" stroke={to} strokeWidth={9} opacity={o(0.16)} />
-          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={4.5} opacity={o(0.95)} />
-          <G stroke={to} strokeWidth={2} strokeLinecap="round" opacity={o(0.7)}>
+          {tierBloom}
+          <Circle cx="50" cy="50" r={R + 7 * u} fill={to} opacity={o(0.1)} />
+          <Circle cx="50" cy="50" r={R + 3 * u} fill="none" stroke={to} strokeWidth={9 * u} opacity={o(0.16)} />
+          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={4.5 * u} opacity={o(0.95)} />
+          <G stroke={to} strokeWidth={2 * u} strokeLinecap="round" opacity={o(0.7)}>
             {Array.from({ length: 6 }, (_, i) => {
               const a = (i * Math.PI * 2) / 6 + 0.3;
               return (
                 <Path
                   key={i}
-                  d={`M${50 + (R - 2) * Math.cos(a)} ${50 + (R - 2) * Math.sin(a)} L${50 + (R + 9) * Math.cos(a + 0.22)} ${50 + (R + 9) * Math.sin(a + 0.22)}`}
+                  d={`M${50 + (R - 2 * u) * Math.cos(a)} ${50 + (R - 2 * u) * Math.sin(a)} L${50 + (R + 9 * u) * Math.cos(a + 0.22)} ${50 + (R + 9 * u) * Math.sin(a + 0.22)}`}
                   fill="none"
                 />
               );
@@ -408,26 +485,19 @@ function HaloRing({ style, from, to, boost }: { style: HaloStyle; from: string; 
     case 'crown':
       return (
         <>
-          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={4} opacity={o(0.95)} />
+          {tierBloom}
+          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={4 * u} opacity={o(0.95)} />
           <G fill={to} opacity={o(0.9)}>
-            {[-0.9, -0.55, -0.2].map((offset, i) => {
+            {[-0.9, -0.55, -0.2, 0.2, 0.55, 0.9].map((offset, i) => {
               const a = -Math.PI / 2 + offset;
+              // The outer points are tallest at the crown's centre and step down toward the sides,
+              // which is what makes six spikes read as a crown rather than as a cog.
+              const tip = R + (9 - Math.abs(offset) * 3.5) * u;
               return (
                 <Path
                   key={i}
                   d={`M${50 + R * Math.cos(a - 0.1)} ${50 + R * Math.sin(a - 0.1)}
-                      L${50 + (R + 9) * Math.cos(a)} ${50 + (R + 9) * Math.sin(a)}
-                      L${50 + R * Math.cos(a + 0.1)} ${50 + R * Math.sin(a + 0.1)} Z`}
-                />
-              );
-            })}
-            {[0.2, 0.55, 0.9].map((offset, i) => {
-              const a = -Math.PI / 2 + offset;
-              return (
-                <Path
-                  key={`r${i}`}
-                  d={`M${50 + R * Math.cos(a - 0.1)} ${50 + R * Math.sin(a - 0.1)}
-                      L${50 + (R + 9) * Math.cos(a)} ${50 + (R + 9) * Math.sin(a)}
+                      L${50 + tip * Math.cos(a)} ${50 + tip * Math.sin(a)}
                       L${50 + R * Math.cos(a + 0.1)} ${50 + R * Math.sin(a + 0.1)} Z`}
                 />
               );
@@ -438,7 +508,12 @@ function HaloRing({ style, from, to, boost }: { style: HaloStyle; from: string; 
 
     case 'ring':
     default:
-      return <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={3.5} opacity={o(0.9)} />;
+      return (
+        <>
+          {tierBloom}
+          <Circle cx="50" cy="50" r={R} fill="none" stroke={from} strokeWidth={3.5 * u} opacity={o(0.9)} />
+        </>
+      );
   }
 }
 

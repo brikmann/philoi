@@ -12,6 +12,7 @@
 import type { CatalogItem, SfxSlot } from '@/lib/economy/catalog';
 import { getLoadout } from '@/lib/economy/loadout';
 import { getRewardPreferencesSync } from '@/lib/reward-settings';
+import { isSessionAudioEnabled } from '@/lib/session-prefs';
 import {
   hasAmbientLoop,
   hasRewardSound,
@@ -59,16 +60,67 @@ export function equippedAudioEnvironment(): CatalogItem | undefined {
   return getLoadout().audio;
 }
 
+// ───────────────────────── this session's audio (COSMETIC_UI_FIXES §6.2) ─────────────────────
+//
+// The equipped Audio item is the DEFAULT, not the decree. "Change between sessions" is a real ask:
+// the environment you want for a 6am study block is not the one you want mid-workout, and equipping
+// is a trip to the inventory screen you are not going to take while standing at a squat rack. So
+// the lock-in start sheet writes a choice here and the loop honours it for that session only.
+//
+// Module state rather than storage, deliberately — it is scoped to ONE session by definition, and a
+// persisted "this session" that outlived its session would be the equipped slot with extra steps.
+// `startAmbientLoop` is already idempotent per id, so this is purely which id it is handed.
+
+/** The sentinel for "None — my own music": explicitly silent, which is NOT the same as "unset" and
+ *  must not fall through to the equipped item. That distinction is the whole feature. */
+export const SESSION_AUDIO_NONE = 'none';
+
+/** `undefined` = no choice made, use whatever is equipped. */
+let sessionAudioChoice: string | undefined;
+
+/** Called by the start sheet on every lock-in, so a choice can never leak into the next session by
+ *  simply not being overwritten. */
+export function setSessionAudioChoice(choice: string | undefined): void {
+  sessionAudioChoice = choice;
+}
+
+export function getSessionAudioChoice(): string | undefined {
+  return sessionAudioChoice;
+}
+
+/** Cleared when a session actually ends — NOT inside stopEquippedAmbient(), which also runs as the
+ *  cleanup of LoadoutSync's effect on the very render that STARTS a session. Clearing there would
+ *  wipe the choice the start sheet had just made, milliseconds before it was read. */
+export function clearSessionAudioChoice(): void {
+  sessionAudioChoice = undefined;
+}
+
+/** The id this session should loop, or null for silence. Exported so the lock-in UI can say which
+ *  environment is running without duplicating the precedence rules. */
+export function sessionAmbientId(): string | null {
+  if (sessionAudioChoice === SESSION_AUDIO_NONE) return null;
+  const id = sessionAudioChoice ?? equippedAudioEnvironment()?.id;
+  return id && hasAmbientLoop(id) ? id : null;
+}
+
 /**
- * Start the equipped ambient loop for a running lock-in, honouring the user's sound preference.
- * No-ops when nothing is equipped, when the mix hasn't shipped, or when sound is off — so a
- * session never gets quieter or louder than the user asked for.
+ * Start this session's ambient loop, honouring — in order — the reward sound preference, the
+ * "Session audio" setting, and this session's own choice.
+ *
+ * Async now, because `session_audio_enabled` lives in AsyncStorage (see session-prefs.ts for why it
+ * is read rather than cached). Callers fire and forget: the loop is background texture, so there is
+ * nothing to await and nothing to show if the read is slow.
+ *
+ * The `session_audio_enabled` check is the one that matters most. People lock in at the gym with
+ * their own music on, and until now the only way to stop Philoi adding a bonfire crackle over the
+ * top of it was to unequip the cosmetic entirely.
  */
-export function startEquippedAmbient(): void {
+export async function startEquippedAmbient(): Promise<void> {
   if (!getRewardPreferencesSync().sound) return;
-  const audio = equippedAudioEnvironment();
-  if (!audio || !hasAmbientLoop(audio.id)) return;
-  startAmbientLoop(audio.id);
+  if (!(await isSessionAudioEnabled())) return;
+  const id = sessionAmbientId();
+  if (!id) return;
+  startAmbientLoop(id);
 }
 
 export function stopEquippedAmbient(): void {

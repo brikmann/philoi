@@ -152,6 +152,14 @@ let players: Partial<Record<RewardCue, AudioPlayer>> | null = null;
 // sound toggle), so they behave like a music or meditation app, not like a notification
 // chime. The real controls stay the in-app `sound` preference and the device volume.
 //
+// `interruptionMode: 'mixWithOthers'` — the other half of that trade, and the fix for the
+// complaint it created (COSMETIC_UI_FIXES §6). The default playback session is exclusive: the
+// instant Philoi created a player it STOPPED whatever the user was listening to. People lock in
+// at the gym with their own music on, so an app that silences Spotify to play a bonfire crackle
+// over the top of nothing is an app they close. Mixing lets both play; the ambient loop already
+// sits at 0.35 volume, so it lands under their track rather than against it. The `session_audio_
+// enabled` preference (equipped-audio.ts) is the off switch for people who want none of it.
+//
 // expo-audio resolves its native binding at import time (AudioModule.js does a top-level
 // `requireNativeModule('ExpoAudio')`, unlike expo-haptics which soft-checks lazily on each
 // call) — so a dev-client build that predates this dependency crashes the instant anything
@@ -162,7 +170,7 @@ let players: Partial<Record<RewardCue, AudioPlayer>> | null = null;
 export async function preloadRewardSounds(): Promise<void> {
   try {
     const { createAudioPlayer, setAudioModeAsync } = require('expo-audio') as typeof import('expo-audio');
-    await setAudioModeAsync({ playsInSilentMode: true });
+    await setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'mixWithOthers' });
     if (players) return;
     // Built by iterating SOURCES rather than listing each cue by hand — the old literal had to be
     // edited in lockstep with SOURCES, and a cue added to one but not the other silently never
@@ -227,6 +235,19 @@ let ambientKey: string | null = null;
 /** Whether an Audio environment's loop file has actually shipped. */
 export function hasAmbientLoop(itemId: string): boolean {
   return AMBIENT_SOURCES[itemId] !== undefined;
+}
+
+/** Which ambient environments this build can actually play. The per-session picker filters the
+ *  user's owned Audio items through this, so an item granted by a newer server than the installed
+ *  app is never offered as a choice that would silently do nothing. */
+export function shippedAmbientIds(): string[] {
+  return Object.keys(AMBIENT_SOURCES);
+}
+
+/** The environment currently looping, or null. Lets the lock-in UI show what is actually playing
+ *  rather than what is merely equipped — the two diverge the moment a session picks its own. */
+export function currentAmbientId(): string | null {
+  return ambientKey;
 }
 
 /**
