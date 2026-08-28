@@ -105,76 +105,76 @@ begin
       end if;
 
     elsif r.shape = 'placement' then
-    -- ─────────────────── PLACEMENT: everyone is ranked, everyone who raced is paid ───────────────────
-    --
-    -- The new arm (0127). Sits between the duel and the collective goal because it is neither:
-    -- there is no opponent to beat and no target the whole house has to clear — the field is
-    -- ordered 1..N on one metric and each racer is paid for where they landed.
-    --
-    -- NOTE THE STATEMENT ORDER, WHICH IS DELIBERATELY NOT THE COLLECTIVE ARM'S.
-    -- The collective arm flips status first and writes final_rank afterwards, so the reward
-    -- trigger (which fires ON that status flip) cannot see the standings and pays everybody the
-    -- same flat 0.75 placement figure — 0118's own comment admits it is "a guessed rank". A
-    -- placement race is ENTIRELY about where you finished, so a flat band would defeat the shape.
-    -- Writing the standings BEFORE the flip is what lets economy_on_social_challenge_closed read a
-    -- real percentile out of challenge_participants. Same transaction, ordered on purpose.
-    --
-    -- Scores are net of the baseline and evaluated AS OF ends_at, not now(): a sweep that runs late
-    -- must settle the race that was run, not the hours after it. Same expression the live board
-    -- uses (0126's watch RPC), so the last thing racers saw and the result they get agree.
-    select count(*) into v_field_count from challenge_field(r.id, r.circle_id);
-
-    if v_field_count = 0 then
-      -- No field, nothing to rank. 'expired' rather than 'completed' so it is not counted as a
-      -- race that happened.
-      update social_challenges set status = 'expired' where id = r.id;
-    else
-      update challenge_participants p
-         set final_value = ranked.score,
-             final_rank = ranked.placement,
-             -- Stored top-is-1.0, matching every other standings writer (0111). The reward path
-             -- and the client each invert it for their own convention rather than a second
-             -- orientation being stored.
-             final_percentile = 1.0 - (ranked.placement - 1)::numeric / greatest(v_field_count - 1, 1)
-        from (
-          select f.user_id,
-                 greatest(challenge_metric_value(r.race_metric, f.user_id, r.ends_at) - f.baseline, 0) as score,
-                 rank() over (
-                   order by greatest(challenge_metric_value(r.race_metric, f.user_id, r.ends_at) - f.baseline, 0) desc
-                 ) as placement
-          from challenge_field(r.id, r.circle_id) f
-        ) ranked
-       where p.challenge_id = r.id and p.user_id = ranked.user_id;
-
-      -- A winner only when exactly one racer holds rank 1 AND actually moved. A 48-person race
-      -- where nobody logged anything has 48 racers tied on zero, and crowning whichever the
-      -- planner returned first would invent a champion — the same phantom-leader mistake 0097 and
-      -- the watch screen's `top > 0` guard were both written about.
-      -- One aggregate row always comes back, so v_winner is null on a tie and null on an empty
-      -- board without depending on SELECT INTO's no-rows behaviour to say so.
-      select case when count(*) = 1 then min(p.user_id) end into v_winner
-      from challenge_participants p
-      where p.challenge_id = r.id and p.state = 'accepted' and p.final_rank = 1 and p.final_value > 0;
-
-      -- Fires the reward trigger, which now has real standings to read.
-      update social_challenges set status = 'completed', winner_id = v_winner where id = r.id;
-
-      -- NOT all-or-nothing. That gate belongs to the collective goal, whose whole premise is the
-      -- house passing together; a placement race has no shared target to miss, so it pays out on
-      -- the band each racer earned.
+      -- ─────────────────── PLACEMENT: everyone is ranked, everyone who raced is paid ───────────────────
       --
-      -- final_value > 0 IS the entry test, though. placement_multiplier floors at 1.0, so paying
-      -- every row would hand full payout_xp to everyone in a 48-person campfire who never opened
-      -- the app — which would make being enrolled, rather than racing, the thing that pays.
-      insert into bonus_xp_awards (user_id, amount, reason, challenge_id)
-      select p.user_id,
-             round(r.payout_xp * placement_multiplier(p.final_rank, v_field_count)),
-             'challenge_placement',
-             r.id
-      from challenge_participants p
-      where p.challenge_id = r.id and p.state = 'accepted'
-        and p.final_rank is not null and p.final_value > 0;
-    end if;
+      -- The new arm (0127). Sits between the duel and the collective goal because it is neither:
+      -- there is no opponent to beat and no target the whole house has to clear — the field is
+      -- ordered 1..N on one metric and each racer is paid for where they landed.
+      --
+      -- NOTE THE STATEMENT ORDER, WHICH IS DELIBERATELY NOT THE COLLECTIVE ARM'S.
+      -- The collective arm flips status first and writes final_rank afterwards, so the reward
+      -- trigger (which fires ON that status flip) cannot see the standings and pays everybody the
+      -- same flat 0.75 placement figure — 0118's own comment admits it is "a guessed rank". A
+      -- placement race is ENTIRELY about where you finished, so a flat band would defeat the shape.
+      -- Writing the standings BEFORE the flip is what lets economy_on_social_challenge_closed read a
+      -- real percentile out of challenge_participants. Same transaction, ordered on purpose.
+      --
+      -- Scores are net of the baseline and evaluated AS OF ends_at, not now(): a sweep that runs late
+      -- must settle the race that was run, not the hours after it. Same expression the live board
+      -- uses (0126's watch RPC), so the last thing racers saw and the result they get agree.
+      select count(*) into v_field_count from challenge_field(r.id, r.circle_id);
+
+      if v_field_count = 0 then
+        -- No field, nothing to rank. 'expired' rather than 'completed' so it is not counted as a
+        -- race that happened.
+        update social_challenges set status = 'expired' where id = r.id;
+      else
+        update challenge_participants p
+           set final_value = ranked.score,
+               final_rank = ranked.placement,
+               -- Stored top-is-1.0, matching every other standings writer (0111). The reward path
+               -- and the client each invert it for their own convention rather than a second
+               -- orientation being stored.
+               final_percentile = 1.0 - (ranked.placement - 1)::numeric / greatest(v_field_count - 1, 1)
+          from (
+            select f.user_id,
+                   greatest(challenge_metric_value(r.race_metric, f.user_id, r.ends_at) - f.baseline, 0) as score,
+                   rank() over (
+                     order by greatest(challenge_metric_value(r.race_metric, f.user_id, r.ends_at) - f.baseline, 0) desc
+                   ) as placement
+            from challenge_field(r.id, r.circle_id) f
+          ) ranked
+         where p.challenge_id = r.id and p.user_id = ranked.user_id;
+
+        -- A winner only when exactly one racer holds rank 1 AND actually moved. A 48-person race
+        -- where nobody logged anything has 48 racers tied on zero, and crowning whichever the
+        -- planner returned first would invent a champion — the same phantom-leader mistake 0097 and
+        -- the watch screen's `top > 0` guard were both written about.
+        -- One aggregate row always comes back, so v_winner is null on a tie and null on an empty
+        -- board without depending on SELECT INTO's no-rows behaviour to say so.
+        select case when count(*) = 1 then min(p.user_id) end into v_winner
+        from challenge_participants p
+        where p.challenge_id = r.id and p.state = 'accepted' and p.final_rank = 1 and p.final_value > 0;
+
+        -- Fires the reward trigger, which now has real standings to read.
+        update social_challenges set status = 'completed', winner_id = v_winner where id = r.id;
+
+        -- NOT all-or-nothing. That gate belongs to the collective goal, whose whole premise is the
+        -- house passing together; a placement race has no shared target to miss, so it pays out on
+        -- the band each racer earned.
+        --
+        -- final_value > 0 IS the entry test, though. placement_multiplier floors at 1.0, so paying
+        -- every row would hand full payout_xp to everyone in a 48-person campfire who never opened
+        -- the app — which would make being enrolled, rather than racing, the thing that pays.
+        insert into bonus_xp_awards (user_id, amount, reason, challenge_id)
+        select p.user_id,
+               round(r.payout_xp * placement_multiplier(p.final_rank, v_field_count)),
+               'challenge_placement',
+               r.id
+        from challenge_participants p
+        where p.challenge_id = r.id and p.state = 'accepted'
+          and p.final_rank is not null and p.final_value > 0;
+      end if;
 
     else
       select count(*) into v_field_count from challenge_field(r.id, r.circle_id);
