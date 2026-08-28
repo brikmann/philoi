@@ -63,8 +63,11 @@ type MenuItem = {
 };
 
 const MENU: MenuItem[] = [
-  // First, and first for a reason: campfires lost its bottom-tab slot in §4, so this is now the
-  // only way in. Anything that used to be one tap from the tab bar has to be one tap from here.
+  // The Agora leads the social group (AGORA_SPEC "Where it lives", mock 161): the gathering places
+  // sit together — the town square, the campfires, your friends.
+  { label: 'The Agora', icon: 'business-outline', route: '/agora' },
+  // Campfires lost its bottom-tab slot in §4, so this is now the only way in. Anything that used
+  // to be one tap from the tab bar has to be one tap from here.
   { label: 'Campfires', icon: 'bonfire-outline', route: '/campfires' },
   { label: 'Friends', icon: 'people-outline', route: '/people' },
   { label: 'Inventory', icon: 'grid-outline', route: '/inventory' },

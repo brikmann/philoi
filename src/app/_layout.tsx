@@ -290,6 +290,12 @@ function RootNavigator() {
         {/* Campfires is a hamburger destination now, not a tab (punchlist 16 §4). */}
         <Stack.Screen name="campfires" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="people" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* The Agora (AGORA_SPEC) — the town square, a Social destination beside Campfires and
+            Friends. The composer is a modal so posting reads as an interruption you return from,
+            not as somewhere you navigated to. */}
+        <Stack.Screen name="agora/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="agora/[id]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="agora/compose" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="add-friend" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="friend-profile" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="activity/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
