@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { fetchMyLockInsPage, type MyRecentLockIn } from '@/lib/api/check-ins';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import { formatSessionDuration } from '@/lib/format';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 
 const PAGE_SIZE = 30;
 const STRAVA_ORANGE = '#FC4C02';
@@ -86,7 +87,7 @@ export default function LockInHistoryScreen() {
             : router.push({ pathname: '/lock-in/[checkInId]', params: { checkInId: r.id } })
         }>
         <View style={[styles.rowIcon, isSynced && styles.rowIconSynced]}>
-          <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={16} color={isSynced ? STRAVA_ORANGE : Colors.amber} />
+          <DisciplineIcon name={GOAL_TYPE_GLYPH[r.goal_type]} size={16} color={isSynced ? STRAVA_ORANGE : Colors.amber} />
         </View>
         <View style={styles.rowTextCol}>
           <Text style={styles.rowText} numberOfLines={1}>

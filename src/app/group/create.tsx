@@ -8,11 +8,12 @@ import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
 import { FlameLogo } from '@/components/ui/flame-logo';
+import { DisciplineIcon, type DisciplineIconName } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { createGroup, setMyHelperFlag } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import { markOnboardingDone } from '@/lib/onboarding';
 import type { CampfirePrivacy, GoalType } from '@/types/database';
 
@@ -25,11 +26,11 @@ const DEFAULT_CADENCE = 'flexible';
 // the full personal GoalType set. "Custom" doubles as the general/default option (the flame
 // tile, matching design-mocks/10's default-selected icon) rather than reusing its lock-in-
 // picker icon ('add'), since here it represents "this campfire," not "something uncategorized."
-const THEME_OPTIONS: { value: GoalType; icon: keyof typeof Ionicons.glyphMap }[] = [
+const THEME_OPTIONS: { value: GoalType; icon: DisciplineIconName }[] = [
   { value: 'custom', icon: 'flame' },
-  { value: 'study', icon: GOAL_TYPE_ICON.study },
-  { value: 'gym', icon: GOAL_TYPE_ICON.gym },
-  { value: 'run', icon: GOAL_TYPE_ICON.run },
+  { value: 'study', icon: GOAL_TYPE_GLYPH.study },
+  { value: 'gym', icon: GOAL_TYPE_GLYPH.gym },
+  { value: 'run', icon: GOAL_TYPE_GLYPH.run },
 ];
 
 function themeEmoji(type: GoalType): string {
@@ -143,7 +144,7 @@ export default function CreateGroupScreen() {
           <Text style={styles.lbl}>Name</Text>
           <View style={styles.field}>
             <View style={styles.fieldIcon}>
-              <Ionicons name={THEME_OPTIONS.find((t) => t.value === goalType)?.icon ?? 'flame'} size={15} color={Colors.amber} />
+              <DisciplineIcon name={THEME_OPTIONS.find((t) => t.value === goalType)?.icon ?? 'flame'} size={15} color={Colors.amber} />
             </View>
             <TextInput
               style={styles.fieldInput}
@@ -163,7 +164,7 @@ export default function CreateGroupScreen() {
                   onPress={() => setGoalType(option.value)}
                   style={[styles.iconTile, on && styles.iconTileOn]}
                   accessibilityLabel={GOAL_TYPE_META[option.value].label}>
-                  <Ionicons name={option.icon} size={16} color={on ? Colors.amber : Colors.muted} />
+                  <DisciplineIcon name={option.icon} size={16} color={on ? Colors.amber : Colors.muted} />
                 </Pressable>
               );
             })}

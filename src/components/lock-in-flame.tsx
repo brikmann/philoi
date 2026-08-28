@@ -18,8 +18,9 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { GOAL_TYPE_ICON } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH } from '@/lib/goal-types';
 import type { GoalType } from '@/types/database';
 
 // "Bright cream, large, and legible against the flame" (PHILOI_UI_SPEC.md §13's "goal-as-fuel
@@ -75,7 +76,10 @@ type LockInFlameProps = {
 };
 
 export function LockInFlame({ goalType, elapsedSeconds, participants = [] }: LockInFlameProps) {
-  const toolIcon = GOAL_TYPE_ICON[goalType as GoalType] ?? 'flame';
+  // `?? 'flame'` still resolves — the brand flame is part of the mock-163 set now (see
+  // discipline-icon.tsx), so a goal type this build doesn't know still gets a glyph from the
+  // same hand rather than an Ionicons stand-in.
+  const toolGlyph = GOAL_TYPE_GLYPH[goalType as GoalType] ?? 'flame';
   const stage = Math.min(Math.floor(elapsedSeconds / STAGE_INTERVAL_SECONDS), MAX_STAGE);
 
   const breathe = useSharedValue(1);
@@ -121,7 +125,7 @@ export function LockInFlame({ goalType, elapsedSeconds, participants = [] }: Loc
       <Animated.View style={[styles.flameWrap, flameStyle]}>
         <FlameSvg width={(150 + stage * 6) * FLAME_ASPECT_RATIO} height={150 + stage * 6} />
         <View style={styles.toolIcon}>
-          <Ionicons name={toolIcon} size={40 + stage * 3} color={TOOL_COLOR} />
+          <DisciplineIcon name={toolGlyph} size={40 + stage * 3} color={TOOL_COLOR} />
         </View>
       </Animated.View>
 

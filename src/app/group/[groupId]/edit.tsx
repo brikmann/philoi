@@ -6,21 +6,22 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { PrivacySelector } from '@/components/privacy-selector';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
+import { DisciplineIcon, type DisciplineIconName } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGroup } from '@/hooks/use-group';
 import { updateCampfireHouseRules, updateCampfirePrivacy, updateGroup } from '@/lib/api/groups';
 import { getErrorMessage } from '@/lib/errors';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import { RANK_TIER_LABEL, RANK_TIER_METAL } from '@/lib/rank-tiers';
 import type { CampfirePrivacy, GoalType, RankTierName } from '@/types/database';
 
 // Same lightweight theme set as group/create.tsx — kept in sync there rather than shared,
 // since duplicating a 4-line array is cheaper than a shared-module indirection for two files.
-const THEME_OPTIONS: { value: GoalType; icon: keyof typeof Ionicons.glyphMap }[] = [
+const THEME_OPTIONS: { value: GoalType; icon: DisciplineIconName }[] = [
   { value: 'custom', icon: 'flame' },
-  { value: 'study', icon: GOAL_TYPE_ICON.study },
-  { value: 'gym', icon: GOAL_TYPE_ICON.gym },
-  { value: 'run', icon: GOAL_TYPE_ICON.run },
+  { value: 'study', icon: GOAL_TYPE_GLYPH.study },
+  { value: 'gym', icon: GOAL_TYPE_GLYPH.gym },
+  { value: 'run', icon: GOAL_TYPE_GLYPH.run },
 ];
 
 function themeEmoji(type: GoalType): string {
@@ -99,7 +100,7 @@ export default function EditGroupScreen() {
           <Text style={styles.lbl}>Name</Text>
           <View style={styles.field}>
             <View style={styles.fieldIcon}>
-              <Ionicons name={THEME_OPTIONS.find((t) => t.value === goalType)?.icon ?? 'flame'} size={15} color={Colors.amber} />
+              <DisciplineIcon name={THEME_OPTIONS.find((t) => t.value === goalType)?.icon ?? 'flame'} size={15} color={Colors.amber} />
             </View>
             <TextInput style={styles.fieldInput} placeholder="e.g. Morning Lifters" value={name} onChangeText={setName} maxLength={40} />
           </View>
@@ -113,7 +114,7 @@ export default function EditGroupScreen() {
                   onPress={() => setGoalType(option.value)}
                   style={[styles.iconTile, on && styles.iconTileOn]}
                   accessibilityLabel={GOAL_TYPE_META[option.value].label}>
-                  <Ionicons name={option.icon} size={16} color={on ? Colors.amber : Colors.muted} />
+                  <DisciplineIcon name={option.icon} size={16} color={on ? Colors.amber : Colors.muted} />
                 </Pressable>
               );
             })}

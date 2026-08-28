@@ -8,12 +8,13 @@ import { GymClipThumbnail } from '@/components/gym-clip-player';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { ReactionBar } from '@/components/reaction-bar';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import type { FeedCheckIn } from '@/lib/api/check-ins';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchCheckInClips } from '@/lib/api/gym-clips';
 import { formatDistanceKm, formatPacePerKm, formatSessionDuration } from '@/lib/format';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import { openStravaActivity } from '@/lib/strava';
 import { supabase } from '@/lib/supabase';
 import type { WorkoutSet } from '@/types/database';
@@ -98,7 +99,7 @@ export function LockInEventCard({ item, onReactionChanged }: LockInEventCardProp
           signal, and two accents on one card is what made the old chain look loud. */}
       {!isSynced && <View style={styles.rail} pointerEvents="none" />}
       <View style={[styles.icon, isSynced && styles.iconSynced]}>
-        <Ionicons name={GOAL_TYPE_ICON[item.goal_type]} size={18} color={isSynced ? STRAVA_ORANGE : Colors.amber} />
+        <DisciplineIcon name={GOAL_TYPE_GLYPH[item.goal_type]} size={18} color={isSynced ? STRAVA_ORANGE : Colors.amber} />
       </View>
 
       <View style={styles.textCol}>
