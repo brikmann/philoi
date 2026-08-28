@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
