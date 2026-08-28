@@ -1,0 +1,126 @@
+<meta charset="utf-8"><title>Mock 153 — + composer destinations</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:720px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:9px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:210px}
+.ph{width:232px;height:500px;background:linear-gradient(#141019,#0e0b13);border-radius:28px;border:1px solid #241c38;position:relative;overflow:hidden}
+.crumb{font-size:11px;color:#8a7db0;padding:14px 14px 4px}.crumb b{color:#e7ddf5}
+.title{font-size:15px;font-weight:800;padding:0 14px 10px}
+.body{padding:0 14px}
+/* gallery */
+.pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+.pt{aspect-ratio:1;border-radius:7px}
+.cam{background:#241a34;border:1px dashed #4a3a66;display:grid;place-items:center;font-size:18px}
+.sel{position:relative;outline:2px solid #F2A33C;outline-offset:-2px}.sel::after{content:'✓';position:absolute;top:3px;right:4px;font-size:11px;color:#1a1020;background:#F2A33C;border-radius:50%;width:15px;height:15px;display:grid;place-items:center;font-weight:800}
+/* list rows */
+.row{display:flex;align-items:center;gap:10px;background:#17111f;border:1px solid #2a2140;border-radius:12px;padding:11px;margin-bottom:8px}
+.thumb{width:40px;height:40px;border-radius:8px;flex:none;display:grid;place-items:center;font-size:17px}
+.rn{flex:1}.rt{font-size:12.5px;font-weight:700}.rs{font-size:10px;color:#8a7db0}
+.pick{font-size:10.5px;font-weight:800;color:#F2A33C}
+/* challenge prefilled */
+.oppchip{display:inline-flex;align-items:center;gap:7px;background:#241a34;border:1px solid #4a3a66;border-radius:20px;padding:6px 12px 6px 6px;font-size:12.5px;font-weight:700}
+.oppav{width:24px;height:24px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)}
+.lock{color:#6a5d84;font-size:11px;margin-left:4px}
+.lbl{font-size:9.5px;font-weight:800;color:#8a7db0;letter-spacing:.4px;margin:14px 2px 7px;text-transform:uppercase}
+.field{background:#17111f;border:1px solid #2a2140;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#c9bfe0;display:flex;justify-content:space-between;margin-bottom:7px}
+.cindyrow{display:flex;align-items:center;justify-content:center;gap:7px;font-size:11.5px;color:#F2A33C;font-weight:700;margin-top:10px}
+/* cheer */
+.preset{background:#120d1a;border:1px solid #F2A33C;border-radius:12px;padding:12px;text-align:center;font-size:14px;font-weight:800;color:#FFE39A;margin-bottom:10px}
+.msgbox{background:#17111f;border:1px solid #2a2140;border-radius:11px;padding:11px 12px;font-size:12.5px;color:#8a7db0;min-height:30px}
+.cta{position:absolute;left:14px;right:14px;bottom:16px;background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:13.5px;text-align:center;padding:12px;border-radius:12px}
+.camprow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #201830}
+.campav{width:34px;height:34px;border-radius:10px;background:radial-gradient(circle,#3a2a10,#160f0a);border:1px solid #7a4a24;display:grid;place-items:center;font-size:15px;flex:none}
+.invite{font-size:10.5px;font-weight:800;color:#1a1020;background:linear-gradient(#FFE39A,#F2A33C);border-radius:8px;padding:6px 11px}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef2f8"/><stop offset=".5" stop-color="#9aa4b4"/><stop offset="1" stop-color="#5a6474"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset="1" stop-color="#C8891F"/></linearGradient>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<symbol id="sword" viewBox="0 0 24 24"><path d="M12 1.5 L13.5 5.5 V13 H10.5 V5.5 Z" fill="url(#steel)"/><rect x="6.5" y="12.8" width="11" height="2.3" rx="1" fill="url(#gold)"/><rect x="10.9" y="15.1" width="2.2" height="4.6" rx=".6" fill="#8a5a2a"/><circle cx="12" cy="20.6" r="1.6" fill="url(#gold)"/></symbol>
+<symbol id="passflame" viewBox="0 0 24 24"><path d="M12 1.5 C14.6 6.6 18.6 8.6 18.6 14 A6.6 6.6 0 0 1 5.4 14 C5.4 10 7.4 7.4 9 10.6 C8.5 6.4 10 3.4 12 1.5 Z" fill="url(#e)"/></symbol>
+</defs></svg>
+
+<h1>Mock 153 — Where each + option goes</h1>
+<p class="sub">Each item in the DM composer opens the right place, with the friend already in context. Cindy only shows up on <b style="color:#e7ddf5">Challenge</b>.</p>
+
+<div class="wrap">
+  <!-- photo -->
+  <div class="col"><div class="cap">Photo → your gallery</div>
+    <div class="ph">
+      <div class="crumb">‹ <b>Maya</b> · Photo</div>
+      <div class="title">Send a photo</div>
+      <div class="body"><div class="pgrid">
+        <div class="pt cam">📷</div>
+        <div class="pt sel" style="background:#3a4a6a"></div>
+        <div class="pt" style="background:#6a4a3a"></div>
+        <div class="pt" style="background:#4a3a6a"></div>
+        <div class="pt" style="background:#3a5a4a"></div>
+        <div class="pt" style="background:#5a3a4a"></div>
+        <div class="pt" style="background:#4a5a3a"></div>
+        <div class="pt" style="background:#3a4a5a"></div>
+        <div class="pt" style="background:#5a4a3a"></div>
+      </div></div>
+      <div class="cta">Send 1 photo</div>
+    </div>
+  </div>
+
+  <!-- share a lock-in -->
+  <div class="col"><div class="cap">Share a lock-in → your sessions/clips</div>
+    <div class="ph">
+      <div class="crumb">‹ <b>Maya</b> · Share a lock-in</div>
+      <div class="title">Pick one to share</div>
+      <div class="body">
+        <div class="row"><div class="thumb" style="background:#153a2a">🏃</div><div class="rn"><div class="rt">Run · 6.2 km</div><div class="rs">today · 34 min</div></div><span class="pick">Send</span></div>
+        <div class="row"><div class="thumb" style="background:#3a2410">🏋️</div><div class="rn"><div class="rt">Bench PR clip</div><div class="rs">yesterday · set-video</div></div><span class="pick">Send</span></div>
+        <div class="row"><div class="thumb" style="background:#2a1840">📖</div><div class="rn"><div class="rt">Study · 1h 20m</div><div class="rs">2 days ago · share card</div></div><span class="pick">Send</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- challenge prefilled -->
+  <div class="col"><div class="cap">Challenge → menu, opponent pre-filled</div>
+    <div class="ph">
+      <div class="crumb">‹ <b>Maya</b> · Challenge</div>
+      <div class="title">New challenge</div>
+      <div class="body">
+        <div class="lbl">Opponent</div>
+        <span class="oppchip"><span class="oppav"></span> Maya <span class="lock">🔒 from this chat</span></span>
+        <div class="lbl">Metric</div><div class="field"><span>Focus › Study hours</span><span style="color:#6a5d84">›</span></div>
+        <div class="lbl">Shape · window</div><div class="field"><span>Most · this week</span><span style="color:#6a5d84">▾</span></div>
+        <div class="cindyrow"><svg width="13" height="16"><use href="#passflame"/></svg> or describe it to Cindy</div>
+      </div>
+      <div class="cta">Send to Maya</div>
+    </div>
+  </div>
+
+  <!-- lock-in invite -->
+  <div class="col"><div class="cap">Lock-in invite → campfires (rank-gate checked)</div>
+    <div class="ph">
+      <div class="crumb">‹ <b>Maya</b> · Lock-in invite</div>
+      <div class="title">Invite Maya to…</div>
+      <div class="body">
+        <div class="camprow" style="border-top:none"><div class="campav">🔥</div><div class="rn"><div class="rt">Late Night Library</div><div class="rs" style="color:#7fd08a">Gold+ (Gold III up) · Hero II clears it ✓</div></div><span class="invite">Invite</span></div>
+        <div class="camprow"><div class="campav">⚔️</div><div class="rn"><div class="rt">Titan Circle</div><div class="rs" style="color:#ff9a90">Titan+ (Titan III up) · she's Hero II — not yet</div></div><span style="font-size:10px;color:#6a5d84;font-weight:700">🔒 locked</span></div>
+        <div class="camprow"><div class="campav">💪</div><div class="rn"><div class="rt">Grind Szn</div><div class="rs">you + 8 · she's in ✓</div></div><span style="font-size:10px;color:#7fd08a;font-weight:700">already in</span></div>
+        <div class="camprow"><div class="campav" style="background:#241a34;border-color:#4a3a66">🔒</div><div class="rn"><div class="rt">Just us — lock in now</div><div class="rs">a quick 1:1 session</div></div><span class="invite">Start</span></div>
+        <div style="font-size:9.5px;color:#6a5d84;margin-top:10px;line-height:1.5">Only campfires <b style="color:#8a7db0">you're in</b> — you can invite Maya to those.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- cheer -->
+  <div class="col"><div class="cap">Cheer → one-tap + custom note</div>
+    <div class="ph">
+      <div class="crumb">‹ <b>Maya</b> · Cheer</div>
+      <div class="title">Cheer Maya on</div>
+      <div class="body">
+        <div class="preset">🔥 Let's go, Maya!</div>
+        <div class="lbl">Or say your own</div>
+        <div class="msgbox">crushing it this week 👏</div>
+        <div style="font-size:10px;color:#6a5d84;margin-top:10px;line-height:1.5">One tap sends it as a cheer notification — no thread needed, just a lift.</div>
+      </div>
+      <div class="cta">Send cheer</div>
+    </div>
+  </div>
+</div>

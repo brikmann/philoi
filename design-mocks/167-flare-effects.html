@@ -1,0 +1,181 @@
+<meta charset="utf-8"><title>Mock 167 — Flare perimeter effects</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:720px;margin:0 auto 22px;line-height:1.5}
+.marq{max-width:840px;margin:0 auto 18px}
+.mlab{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#FFB84D;margin:0 4px 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:16px;max-width:840px;margin:0 auto}
+.tile{display:flex;flex-direction:column;gap:8px;align-items:center}
+.ph{width:188px;height:308px;border-radius:26px;border:1px solid #241c38;position:relative;overflow:hidden;background:linear-gradient(#141019,#0c0812)}
+.ph.big{width:100%;max-width:840px;height:190px;border-radius:22px}
+.scr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;z-index:3}
+.timer{font-size:26px;font-weight:800;letter-spacing:1px}.lbl{font-size:9px;color:#9c8fbe;font-weight:700}
+.vig{position:absolute;inset:0;pointer-events:none;z-index:1}
+.fx{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2}
+.p{position:absolute;border-radius:50%}
+.cap{font-size:11.5px;font-weight:800}.cap .r{font-size:8px;font-weight:800;padding:1.5px 6px;border-radius:9px;margin-left:6px;vertical-align:1px}
+.epic{background:#3a2456;color:#c9a6ff}.leg{background:#2a3a56;color:#9cc4ff}.myth{background:#4a1414;color:#ff8a80}
+.lore{font-size:9.5px;color:#8a7db0;text-align:center;max-width:186px;line-height:1.4;font-style:italic}
+/* effect keyframes */
+@keyframes fall{0%{transform:translateY(0);opacity:0}12%{opacity:1}90%{opacity:1}100%{transform:translateY(300px);opacity:0}}
+@keyframes rise{0%{transform:translate(0,0);opacity:0}15%{opacity:1}100%{transform:translate(var(--dx),-260px);opacity:0}}
+@keyframes cappulse{0%,100%{opacity:.4}50%{opacity:.9}}
+@keyframes firelick{0%,100%{transform:scaleY(.7);opacity:.65}30%{transform:scaleY(1.3) skewX(-5deg);opacity:1}62%{transform:scaleY(.95) skewX(4deg);opacity:.9}}
+@keyframes firelickX{0%,100%{transform:scaleX(.7);opacity:.65}30%{transform:scaleX(1.3) skewY(-5deg);opacity:1}62%{transform:scaleX(.95) skewY(4deg);opacity:.9}}
+@keyframes plasma{0%{transform:translate(0,0) scale(.9);opacity:.2}50%{transform:translate(var(--dx),var(--dy)) scale(1.4);opacity:.85}100%{transform:translate(0,0) scale(.9);opacity:.2}}
+@keyframes zap{0%,100%{opacity:0}5%{opacity:1}11%{opacity:.1}18%{opacity:.95}30%{opacity:0}}
+@keyframes strike{0%{opacity:0;transform:scaleY(0)}6%{opacity:1;transform:scaleY(1)}12%{opacity:.12}18%{opacity:.95}30%,100%{opacity:0;transform:scaleY(1)}}
+@keyframes breathe{0%,100%{opacity:.3}50%{opacity:.9}}
+.bolt{position:absolute;width:2.4px;transform-origin:top center;clip-path:polygon(42% 0,58% 0,46% 40%,74% 40%,28% 100%,52% 52%,30% 52%);filter:drop-shadow(0 0 4px rgba(255,255,255,.75))}
+.bolt.hammer{clip-path:polygon(40% 0,60% 0,49% 34%,76% 34%,44% 66%,68% 66%,42% 100%,58% 100%,47% 70%,32% 70%,45% 38%,30% 38%);filter:drop-shadow(0 0 7px rgba(143,212,255,.9))}
+.cloud{position:absolute;width:26px;height:26px;border-radius:50%;background:#34313f;transform:translate(-50%,-50%);box-shadow:17px 6px 0 -2px #34313f,-17px 6px 0 -3px #2e2b39,0 8px 0 -1px #2a2836;filter:drop-shadow(0 3px 5px rgba(0,0,0,.5)) drop-shadow(0 8px 8px rgba(255,232,122,.2));z-index:2}
+.cloudbank{position:absolute;top:0;left:0;right:0;height:30px;background:linear-gradient(#2b2836,rgba(43,40,54,0));z-index:1}
+.tongue{position:absolute;bottom:-8px;transform-origin:bottom center;border-radius:50% 50% 32% 32% / 68% 68% 32% 32%;background:linear-gradient(transparent,rgba(255,122,60,.9) 44%,#B01A0E);filter:blur(1.6px)}
+.tongue.top{top:-8px;bottom:auto;transform-origin:top center;border-radius:32% 32% 50% 50% / 32% 32% 68% 68%;background:linear-gradient(#B01A0E,rgba(255,122,60,.9) 56%,transparent)}
+.tongue.left{left:-8px;bottom:auto;transform-origin:left center;border-radius:60% 50% 50% 60% / 50% 60% 40% 50%;background:linear-gradient(to right,#B01A0E,rgba(255,122,60,.9) 56%,transparent)}
+.tongue.right{right:-8px;bottom:auto;transform-origin:right center;border-radius:50% 60% 60% 50% / 60% 50% 50% 40%;background:linear-gradient(to left,#B01A0E,rgba(255,122,60,.9) 56%,transparent)}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<linearGradient id="inf" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#B01A0E"/><stop offset="1" stop-color="#FF7A3C"/></linearGradient>
+<symbol id="flameP" viewBox="0 0 24 24"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#e)"/></symbol>
+<symbol id="flameI" viewBox="0 0 24 24"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#inf)"/></symbol>
+</defs></svg>
+
+<h1>Mock 167 — Flare perimeter effects</h1>
+<p class="sub">The flare paints the <b style="color:#e7ddf5">lock-in screen's edges</b> while a session runs — one signature motion each. Seeded mid-cycle so they load moving, not as blobs. Emberfall Ascendant is the season capstone.</p>
+
+<!-- MARQUEE -->
+<div class="marq">
+  <div class="mlab">★ Season marquee · mythic</div>
+  <div class="ph big">
+    <div class="vig" style="background:radial-gradient(circle at 50% 60%,rgba(255,96,44,.3),rgba(200,34,22,.4))"></div>
+    <div class="fx" id="ascendant"></div>
+    <div class="vig" style="background:radial-gradient(circle at 50% 60%,rgba(255,120,60,.14),transparent 60%);animation:cappulse 2.6s ease-in-out infinite"></div>
+    <div class="scr"><div style="filter:drop-shadow(0 0 10px rgba(255,90,40,.6))"><svg width="46" height="52"><use href="#flameP"/></svg></div><div class="timer">24:18</div><div class="lbl">EMBERFALL ASCENDANT · locked in</div></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="tile">
+    <div class="ph">
+      <div class="vig" style="background:rgba(255,214,74,.3)"></div>
+      <div class="fx" id="zeus"></div>
+      <div class="scr"><svg width="38" height="44"><use href="#flameP"/></svg><div class="timer">24:18</div><div class="lbl">Deep Work</div></div>
+    </div>
+    <div class="cap">Zeus' Wrath <span class="r myth">MYTHIC</span></div>
+    <div class="lore">The heavens split — lightning cracks down the edges.</div>
+  </div>
+
+  <div class="tile">
+    <div class="ph">
+      <div class="vig" style="background:rgba(52,150,58,.32)"></div>
+      <div class="fx" id="toxic"></div>
+      <div class="scr"><svg width="38" height="44"><use href="#flameP"/></svg><div class="timer">24:18</div><div class="lbl">Deep Work</div></div>
+    </div>
+    <div class="cap">Toxic / Acid Rain <span class="r leg">LEGENDARY</span></div>
+    <div class="lore">It drips. Whatever it lands on stops being a problem.</div>
+  </div>
+
+  <div class="tile">
+    <div class="ph">
+      <div class="vig" style="background:radial-gradient(circle at 50% 92%,rgba(255,96,32,.36),rgba(150,22,10,.4))"></div>
+      <div class="fx" id="inferno"></div>
+      <div class="scr"><svg width="38" height="44"><use href="#flameP"/></svg><div class="timer">24:18</div><div class="lbl">Deep Work</div></div>
+    </div>
+    <div class="cap">Inferno Flare <span class="r myth">MYTHIC</span></div>
+    <div class="lore">The edges of your screen catch, and nothing puts them out.</div>
+  </div>
+
+  <div class="tile">
+    <div class="ph">
+      <div class="vig" style="background:rgba(150,30,220,.3)"></div>
+      <div class="fx" id="plasma"></div>
+      <div class="scr"><svg width="38" height="44"><use href="#flameP"/></svg><div class="timer">24:18</div><div class="lbl">Deep Work</div></div>
+    </div>
+    <div class="cap">Void Plasma <span class="r leg">LEGENDARY</span></div>
+    <div class="lore">Pulsing with unholy energy, each spark a thousand suns.</div>
+  </div>
+
+  <div class="tile">
+    <div class="ph">
+      <div class="vig" style="background:rgba(238,236,248,.24);animation:breathe 3.2s ease-in-out infinite"></div>
+      <div class="scr"><svg width="38" height="44"><use href="#flameP"/></svg><div class="timer">24:18</div><div class="lbl">Deep Work</div></div>
+    </div>
+    <div class="cap">White Incandescence <span class="r epic">EPIC</span></div>
+    <div class="lore">No colour left — only the pure, blinding fact of the burn.</div>
+  </div>
+
+  <div class="tile">
+    <div class="ph">
+      <div class="vig" style="background:rgba(40,92,214,.32)"></div>
+      <div class="fx" id="asgard"></div>
+      <div class="scr"><svg width="38" height="44"><use href="#flameP"/></svg><div class="timer">24:18</div><div class="lbl">Deep Work</div></div>
+    </div>
+    <div class="cap">Asgardian Valor <span class="r leg">LEGENDARY</span></div>
+    <div class="lore">Every strike of the hammer answers a strike from the sky.</div>
+  </div>
+</div>
+
+<script>
+function el(cls){const s=document.createElement('span');s.className=cls;return s;}
+function neg(d){return (-Math.random()*d)+'s';}
+// embers rising along both edges (marquee)
+(()=>{const st=document.getElementById('ascendant');
+  // embers up both edges
+  for(let i=0;i<24;i++){const p=el('p');const edge=Math.random()<.5?(3+Math.random()*16):(81+Math.random()*16);const sz=3+Math.random()*3;p.style.cssText=`left:${edge}%;bottom:0;width:${sz}px;height:${sz}px;background:radial-gradient(circle,#FFE0B0,rgba(255,42,42,.3) 70%,transparent);--dx:${Math.random()*20-10}px;animation:rise ${2.4+Math.random()*2}s ease-out ${neg(4)} infinite`;st.appendChild(p);}
+  // embers rising from the middle too
+  for(let i=0;i<20;i++){const p=el('p');const x=24+Math.random()*52;const sz=3+Math.random()*3;p.style.cssText=`left:${x}%;bottom:0;width:${sz}px;height:${sz}px;background:radial-gradient(circle,#FFE0B0,rgba(255,42,42,.3) 70%,transparent);--dx:${Math.random()*26-13}px;animation:rise ${2.4+Math.random()*2}s ease-out ${neg(4)} infinite`;st.appendChild(p);}
+})();
+// zeus / asgard — lightning strikes at RANDOM spots across the whole screen,
+// then jumps to a new random spot on every flash (animationiteration).
+// zeus — random strikes anywhere on screen; asgard — strikes descend from the top like real lightning
+function placeRandom(b,grad){b.style.left=(Math.random()*94)+'%';b.style.top=(Math.random()*66)+'%';b.style.height=(28+Math.random()*72)+'px';b.style.transform=`rotate(${Math.random()*34-17}deg)`;b.style.background=`linear-gradient(${grad})`;}
+function placeTopDown(b,grad){b.classList.add('hammer');b.style.width=(8+Math.random()*4)+'px';b.style.left=(6+Math.random()*82)+'%';b.style.top='0';b.style.bottom='0';b.style.transform='none';b.style.height='100%';b.style.background=`linear-gradient(${grad})`;}
+function bolts(id,grad,placer,anim){const st=document.getElementById(id);const n=anim==='strike'?3:11;const tf=anim==='strike'?'ease-out':'steps(1)';for(let i=0;i<n;i++){const b=el('bolt');placer(b,grad);b.style.animation=`${anim} ${1.4+Math.random()*1.4}s ${tf} ${neg(2.4)} infinite`;b.addEventListener('animationiteration',()=>placer(b,grad));st.appendChild(b);}}
+// zeus' wrath — gold lightning that strikes DOWN FROM STORM CLOUDS, fresh random bolt each flash
+(function(){const ns='http://www.w3.org/2000/svg';const st=document.getElementById('zeus');const w=st.clientWidth||188,h=st.clientHeight||308;
+  // dark overlapping cloud bank across the very top
+  const bank=document.createElement('div');bank.className='cloudbank';st.appendChild(bank);
+  const N=10;for(let i=0;i<N;i++){const c=document.createElement('div');c.className='cloud';c.style.left=((i/(N-1))*100)+'%';c.style.top=(4+Math.random()*3)+'%';c.style.transform=`translate(-50%,-50%) scale(${.9+Math.random()*.5})`;st.appendChild(c);}
+  function jagged(sx,sy){const segs=5+Math.floor(Math.random()*4);let x=sx,d=`M ${x.toFixed(1)} ${sy.toFixed(1)}`;const span=h-sy;for(let i=1;i<=segs;i++){const y=(sy+span*i/segs).toFixed(1);x=Math.max(6,Math.min(w-6,x+(Math.random()*2-1)*w*.3));d+=` L ${x.toFixed(1)} ${y}`;}return d;}
+  for(let k=0;k<3;k++){const svg=document.createElementNS(ns,'svg');svg.setAttribute('width','100%');svg.setAttribute('height','100%');svg.style.cssText='position:absolute;inset:0;overflow:visible';
+    const glow=document.createElementNS(ns,'path');glow.setAttribute('stroke','#FFE87A');glow.setAttribute('stroke-width','11');glow.setAttribute('fill','none');glow.setAttribute('stroke-linecap','round');glow.setAttribute('stroke-linejoin','round');glow.setAttribute('opacity','.5');glow.style.filter='blur(3.5px)';
+    const core=document.createElementNS(ns,'path');core.setAttribute('stroke','#FFF7D6');core.setAttribute('stroke-width','3.2');core.setAttribute('fill','none');core.setAttribute('stroke-linecap','round');core.setAttribute('stroke-linejoin','round');
+    function regen(){const sx=8+Math.random()*(w-16),sy=h*0.09;const d=jagged(sx,sy);glow.setAttribute('d',d);core.setAttribute('d',d);}regen();
+    svg.appendChild(glow);svg.appendChild(core);svg.style.animation=`zap ${1.1+Math.random()*1.3}s steps(1) ${neg(2.2)} infinite`;svg.addEventListener('animationiteration',regen);st.appendChild(svg);}
+})();
+// asgardian valor — heavy hammer-strike lightning: a freshly randomised jagged bolt from top to bottom on every flash
+(function(){const ns='http://www.w3.org/2000/svg';const st=document.getElementById('asgard');const w=st.clientWidth||188,h=st.clientHeight||308;
+  function jagged(){const segs=6+Math.floor(Math.random()*4);let x=w*(.28+Math.random()*.44),d=`M ${x.toFixed(1)} 0`;for(let i=1;i<=segs;i++){const y=(h*i/segs).toFixed(1);x=Math.max(6,Math.min(w-6,x+(Math.random()*2-1)*w*.32));d+=` L ${x.toFixed(1)} ${y}`;}return {d,endX:x};}
+  const C=(tag)=>document.createElementNS(ns,tag);
+  for(let k=0;k<3;k++){const svg=C('svg');svg.setAttribute('width','100%');svg.setAttribute('height','100%');svg.style.cssText='position:absolute;inset:0;overflow:visible';
+    const glow=C('path');glow.setAttribute('stroke','#8FD4FF');glow.setAttribute('stroke-width','12');glow.setAttribute('fill','none');glow.setAttribute('stroke-linecap','round');glow.setAttribute('stroke-linejoin','round');glow.setAttribute('opacity','.55');glow.style.filter='blur(3.5px)';
+    const core=C('path');core.setAttribute('stroke','#EAF7FF');core.setAttribute('stroke-width','3.6');core.setAttribute('fill','none');core.setAttribute('stroke-linecap','round');core.setAttribute('stroke-linejoin','round');
+    // jagged, ragged impact burst — spark shrapnel thrown up where the hammer strikes
+    const iglow=C('circle');iglow.setAttribute('cy',h);iglow.setAttribute('r','13');iglow.setAttribute('fill','#8FD4FF');iglow.setAttribute('opacity','.42');iglow.style.filter='blur(5px)';
+    const sglow=C('path');sglow.setAttribute('stroke','#8FD4FF');sglow.setAttribute('stroke-width','5');sglow.setAttribute('fill','none');sglow.setAttribute('stroke-linecap','round');sglow.setAttribute('opacity','.5');sglow.style.filter='blur(2px)';
+    const spark=C('path');spark.setAttribute('stroke','#EAF7FF');spark.setAttribute('stroke-width','2.2');spark.setAttribute('fill','none');spark.setAttribute('stroke-linecap','round');spark.setAttribute('stroke-linejoin','round');
+    function sparks(cx,cy){const n=7,seg=[];for(let i=0;i<n;i++){const a=Math.PI*(0.1+(i/(n-1))*0.8)+(Math.random()*.22-.11);const len=14+Math.random()*22;const mr=len*(.42+Math.random()*.22);const j=(Math.random()*.6-.3);const mx=cx+Math.cos(a+j)*mr,my=cy-Math.sin(a+j)*mr;const ex=cx+Math.cos(a)*len,ey=cy-Math.sin(a)*len;seg.push(`M ${cx.toFixed(1)} ${cy} L ${mx.toFixed(1)} ${my.toFixed(1)} L ${ex.toFixed(1)} ${ey.toFixed(1)}`);}return seg.join(' ');}
+    function regen(){const r=jagged();glow.setAttribute('d',r.d);core.setAttribute('d',r.d);iglow.setAttribute('cx',r.endX);const sp=sparks(r.endX,h);sglow.setAttribute('d',sp);spark.setAttribute('d',sp);}regen();
+    svg.appendChild(iglow);svg.appendChild(sglow);svg.appendChild(glow);svg.appendChild(core);svg.appendChild(spark);svg.style.animation=`zap ${1.4+Math.random()*1.4}s steps(1) ${neg(2.6)} infinite`;svg.addEventListener('animationiteration',regen);st.appendChild(svg);}
+})();
+// toxic rain — storm clouds up top, thin green streaks falling from them
+(()=>{const st=document.getElementById('toxic');
+  const bank=document.createElement('div');bank.className='cloudbank';st.appendChild(bank);
+  const N=10;for(let i=0;i<N;i++){const c=document.createElement('div');c.className='cloud';c.style.left=((i/(N-1))*100)+'%';c.style.top=(4+Math.random()*3)+'%';c.style.transform=`translate(-50%,-50%) scale(${.9+Math.random()*.5})`;st.appendChild(c);}
+  for(let i=0;i<24;i++){const p=el('p');const h=12+Math.random()*13;p.style.cssText=`left:${Math.random()*100}%;top:7%;width:1.6px;height:${h}px;border-radius:1px;background:linear-gradient(rgba(157,255,90,.08),#9DFF5A 55%,rgba(46,125,50,.25));animation:fall ${1.2+Math.random()*1.2}s linear ${neg(2.6)} infinite`;st.appendChild(p);}
+})();
+// inferno — overlapping CSS flame tongues from BOTH the bottom (licking up) and the top (raining down)
+(()=>{const st=document.getElementById('inferno');
+  const n=22,m=20;
+  // bottom (up) + top (down) — dense, overlapping
+  for(let i=0;i<n;i++){const t=el('tongue');const w=22+Math.random()*26,h=34+Math.random()*48;t.style.cssText=`left:${(i/(n-1))*100+Math.random()*3-1.5}%;width:${w}px;height:${h}px;animation:firelick ${.55+Math.random()*.7}s ease-in-out ${neg(1.2)} infinite`;st.appendChild(t);}
+  for(let i=0;i<n;i++){const t=el('tongue top');const w=20+Math.random()*24,h=30+Math.random()*42;t.style.cssText=`left:${(i/(n-1))*100+Math.random()*3-1.5}%;width:${w}px;height:${h}px;animation:firelick ${.55+Math.random()*.7}s ease-in-out ${neg(1.2)} infinite`;st.appendChild(t);}
+  // left + right — dense, overlapping, from corner to corner
+  for(let i=0;i<m;i++){const t=el('tongue left');const len=30+Math.random()*34,th=20+Math.random()*20;t.style.cssText=`top:${(i/(m-1))*100+Math.random()*3-1.5}%;width:${len}px;height:${th}px;animation:firelickX ${.55+Math.random()*.7}s ease-in-out ${neg(1.2)} infinite`;st.appendChild(t);}
+  for(let i=0;i<m;i++){const t=el('tongue right');const len=30+Math.random()*34,th=20+Math.random()*20;t.style.cssText=`top:${(i/(m-1))*100+Math.random()*3-1.5}%;width:${len}px;height:${th}px;animation:firelickX ${.55+Math.random()*.7}s ease-in-out ${neg(1.2)} infinite`;st.appendChild(t);}
+})();
+// void plasma — large blurred masses that slowly drift & morph (flowing, not popping)
+(()=>{const st=document.getElementById('plasma');const spots=[[6,16],[92,26],[9,72],[88,80],[48,4],[50,94],[28,48],[72,44]];spots.forEach((s)=>{const p=el('p');const sz=42+Math.random()*36;p.style.cssText=`left:${s[0]}%;top:${s[1]}%;width:${sz}px;height:${sz}px;filter:blur(10px);opacity:.5;background:radial-gradient(circle,rgba(255,107,107,.9),rgba(162,0,255,.35) 55%,transparent);--dx:${Math.random()*26-13}px;--dy:${Math.random()*26-13}px;animation:plasma ${4.5+Math.random()*3}s ease-in-out ${neg(6)} infinite`;st.appendChild(p);});})();
+</script>

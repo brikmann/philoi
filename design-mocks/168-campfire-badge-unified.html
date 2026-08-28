@@ -1,0 +1,112 @@
+<meta charset="utf-8"><title>Mock 168 — Unified campfire badge</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:28px 18px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:760px;margin:0 auto 22px;line-height:1.55}
+.section{max-width:840px;margin:0 auto}
+.h2{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#5f5478;margin:26px 0 12px}
+.row{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+/* BADGE: emoji identity (top) + coal-bed heat gauge (bottom) in a warm frame */
+.badge{border-radius:18px;position:relative;display:grid;place-items:center;overflow:visible;flex:none}
+.badge .em{z-index:2;line-height:1}
+.coals{position:absolute;left:0;right:0;bottom:0;height:48%;z-index:1}
+.roar{background:radial-gradient(130% 100% at 50% 40%,#F2A33C,#5a2c12 72%);border:1px solid #7a4a24}
+.steady{background:radial-gradient(130% 100% at 50% 40%,#7a3f18,#2a160c 74%);border:1px solid #5a3418}
+.cold{background:radial-gradient(130% 100% at 50% 40%,#2a2438,#151220 74%);border:1px solid #2a2340}
+.cold .em{opacity:.45;filter:grayscale(.7)}
+/* NO flames — activity is a PULSING AURA behind the emoji; the more locked-in, the bigger + brighter */
+.aura{position:absolute;border-radius:50%;z-index:1;pointer-events:none;filter:blur(2px);display:none}
+.roar .aura{display:block;inset:-48%;background:radial-gradient(circle,rgba(255,178,88,.72),rgba(242,163,60,.24) 46%,transparent 70%);animation:aurapulse 1.5s ease-in-out infinite}
+.steady .aura{display:block;inset:-22%;background:radial-gradient(circle,rgba(242,163,60,.5),transparent 62%);animation:aurapulse 2.7s ease-in-out infinite}
+/* coal bed + tongues; state drives which show + how they move (children injected by JS) */
+.bed{position:absolute;left:15%;right:15%;bottom:8%;height:22%;border-radius:50%;filter:blur(1px)}
+.tongue{position:absolute;bottom:16%;width:22%;transform-origin:bottom center;filter:blur(.3px);display:none}
+.tongue svg{width:100%;height:100%;display:block}
+.fp{fill:url(#flameGrad)}
+.t1{left:12%}.t2{left:29%}.t3{left:43%}.t4{left:59%}.t5{left:75%}
+.spark{position:absolute;bottom:34%;width:6%;aspect-ratio:1;border-radius:50%;background:#FFE39A;display:none}
+.s1{left:40%}.s2{left:56%}
+.smoke{position:absolute;bottom:30%;left:50%;width:20%;aspect-ratio:1;border-radius:50%;background:#8a80a0;transform:translateX(-50%);display:none}
+/* ROAR — tall, fast, staggered tongues behind the emoji + rising sparks */
+.roar .bed{background:radial-gradient(circle,#FFE39A,#E0612C 68%,transparent);box-shadow:0 0 14px #F2A33C}
+.roar .tongue{display:block;animation:lick .5s ease-in-out infinite}
+.roar .t1{height:74%;animation-delay:-.1s}.roar .t2{height:112%;animation-delay:-.35s}.roar .t3{height:130%}.roar .t4{height:108%;animation-delay:-.25s}.roar .t5{height:72%;animation-delay:-.45s}
+.roar .spark{display:block;animation:rise 1.1s ease-out infinite}.roar .s2{animation-delay:.55s}
+/* STEADY — a few low, calm, slowly swaying licks */
+.steady .bed{background:radial-gradient(circle,#F2A33C,#8a4a1e 68%,transparent);opacity:.9}
+.steady .t2,.steady .t3,.steady .t4{display:block;animation:sway 1.8s ease-in-out infinite}
+.steady .t2{height:50%;animation-delay:-.3s}.steady .t3{height:64%}.steady .t4{height:48%;animation-delay:-.7s}
+/* COLD — dead grey coals, no flame, a drifting wisp of smoke */
+.cold .bed{background:radial-gradient(circle,#4a4658,#2a2838 68%,transparent);opacity:.65}
+.cold .smoke{display:block;animation:coldsmoke 3.6s ease-out infinite}
+@keyframes lick{0%,100%{transform:scaleY(.82) skewX(-5deg)}50%{transform:scaleY(1.18) skewX(5deg)}}
+@keyframes sway{0%,100%{transform:scaleY(.94) skewX(-3deg)}50%{transform:scaleY(1.06) skewX(3deg)}}
+@keyframes rise{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-170%);opacity:0}}
+@keyframes aurapulse{0%,100%{opacity:.4;transform:scale(.9)}50%{opacity:.92;transform:scale(1.1)}}
+@keyframes coldsmoke{0%{transform:translate(-50%,0) scale(.6);opacity:0}25%{opacity:.35}100%{transform:translate(-50%,-170%) scale(1.7);opacity:0}}
+/* header card */
+.hdr{max-width:320px;background:radial-gradient(120% 80% at 50% -10%,#2a1a10,#120c1a 70%);border:1px solid #3a2f56;border-radius:18px;padding:20px;text-align:center}
+.hname{font-size:20px;font-weight:800;margin-top:12px}.hmeta{font-size:12px;color:#8a7db0;margin-top:3px}
+.gate{display:inline-block;font-size:9.5px;font-weight:800;color:#9ec6ff;border:1px solid #3d5a8a;border-radius:20px;padding:3px 10px;margin-top:10px}
+/* list */
+.card{max-width:330px;background:#141019;border:1px solid #241c38;border-radius:16px;overflow:hidden}
+.crow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid #1c1526}.crow:first-child{border-top:none}
+.cn{flex:1}.cname{font-size:13.5px;font-weight:800}.cmeta{font-size:10.5px;color:#8a7db0}
+.heat{font-size:10px;font-weight:800}.heat.r{color:#F2A33C}.heat.s{color:#c98a4a}.heat.c{color:#6a5d84}
+.stcap{font-size:10px;font-weight:800;letter-spacing:.3px;margin-top:8px}.stcap.r{color:#F2A33C}.stcap.s{color:#c98a4a}.stcap.c{color:#6a5d84}
+.bw{display:flex;flex-direction:column;align-items:center}
+.node{background:radial-gradient(120% 80% at 50% 20%,#1c1526,#0f0b16 72%);border:1px solid #2a2140;border-radius:16px;padding:16px;display:flex;gap:20px;align-items:flex-end}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="flameGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6D8"/><stop offset=".45" stop-color="#F2A33C"/><stop offset="1" stop-color="#B01A0E"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 168 — One campfire badge, everywhere</h1>
+<p class="sub">Reconciles mock 154 with the shipped code. The badge = the creator's <b style="color:#e7ddf5">emoji</b> (identity) + the existing <b style="color:#e7ddf5">HeatFlame coal-bed gauge</b> (activity) in a warm frame. Same component in the valley, lists, discover/invite/search rows, and the header — so campfires stop rendering as loose emojis or bare flames.</p>
+
+<div class="section">
+  <div class="h2">The badge · three heat states</div>
+  <div class="row">
+    <div class="bw"><div class="badge roar" style="width:78px;height:78px"><span class="em" style="font-size:30px;transform:translateY(-6px)">📚</span><div class="coals"><div class="bed"></div><span class="tongue" style="width:16px;height:26px"></span><span class="tongue t2" style="width:11px;height:18px"></span><span class="tongue t3" style="width:11px;height:18px"></span><span class="spark" style="left:44%"></span><span class="spark" style="left:58%;animation-delay:.5s"></span></div></div><div class="stcap r">ROARING</div></div>
+    <div class="bw"><div class="badge steady" style="width:78px;height:78px"><span class="em" style="font-size:30px;transform:translateY(-6px)">💪</span><div class="coals"><div class="bed"></div><span class="tongue" style="width:11px;height:16px;opacity:.9"></span><span class="tongue t2" style="width:8px;height:11px;opacity:.8"></span></div></div><div class="stcap s">STEADY</div></div>
+    <div class="bw"><div class="badge cold" style="width:78px;height:78px"><span class="em" style="font-size:30px;transform:translateY(-6px)">🎨</span><div class="coals"><div class="bed"></div></div></div><div class="stcap c">COLD</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="h2">In a list · campfires / discover / invite / search</div>
+  <div class="card">
+    <div class="crow"><div class="badge roar" style="width:46px;height:46px"><span class="em" style="font-size:19px;transform:translateY(-3px)">📚</span><div class="coals"><div class="bed"></div><span class="tongue" style="width:9px;height:14px"></span></div></div><div class="cn"><div class="cname">Late Night Library</div><div class="cmeta">you + 5 · Gold+</div></div><div class="heat r">🔥 roaring</div></div>
+    <div class="crow"><div class="badge steady" style="width:46px;height:46px"><span class="em" style="font-size:19px;transform:translateY(-3px)">💪</span><div class="coals"><div class="bed"></div><span class="tongue" style="width:7px;height:10px"></span></div></div><div class="cn"><div class="cname">Grind Szn</div><div class="cmeta">you + 8</div></div><div class="heat s">steady</div></div>
+    <div class="crow"><div class="badge cold" style="width:46px;height:46px"><span class="em" style="font-size:19px;transform:translateY(-3px)">🎨</span><div class="coals"><div class="bed"></div></div></div><div class="cn"><div class="cname">Art House</div><div class="cmeta">you + 3</div></div><div class="heat c">cold</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="h2">On the valley map · nodes carry the emoji now, not just a flame</div>
+  <div class="node">
+    <div class="badge roar" style="width:60px;height:60px"><span class="em" style="font-size:24px;transform:translateY(-4px)">📚</span><div class="coals"><div class="bed"></div><span class="tongue" style="width:12px;height:20px"></span><span class="tongue t2" style="width:8px;height:13px"></span></div></div>
+    <div class="badge steady" style="width:48px;height:48px"><span class="em" style="font-size:19px;transform:translateY(-3px)">💪</span><div class="coals"><div class="bed"></div><span class="tongue" style="width:8px;height:12px"></span></div></div>
+    <div class="badge cold" style="width:40px;height:40px"><span class="em" style="font-size:16px;transform:translateY(-2px)">🎨</span><div class="coals"><div class="bed"></div></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="h2">As the header · top of the campfire screen</div>
+  <div class="hdr">
+    <div class="badge roar" style="width:88px;height:88px;margin:0 auto"><span class="em" style="font-size:36px;transform:translateY(-7px)">📚</span><div class="coals"><div class="bed"></div><span class="tongue" style="width:18px;height:30px"></span><span class="tongue t2" style="width:12px;height:20px"></span><span class="tongue t3" style="width:12px;height:20px"></span><span class="spark" style="left:44%"></span><span class="spark" style="left:58%;animation-delay:.5s"></span></div></div>
+    <div class="hname">Late Night Library</div>
+    <div class="hmeta">6 members · 🔥 roaring · Season 2</div>
+    <div class="gate">Gold+ to join</div>
+  </div>
+</div>
+
+<p class="sub" style="margin-top:26px;max-width:820px">Build note: the coal bed here is a lightweight stand-in — in the app it's the real <code>&lt;HeatFlame&gt;</code>. The point is the <b style="color:#e7ddf5">badge wrapper</b>: <code>CampfireBadge&#123; emoji, heat, size &#125;</code> = warm frame (state-colored) + emoji + HeatFlame, replacing the bare-emoji render in <code>discover-circle-card</code> and the flame-only nodes in the valley.</p>
+
+<script>
+// retire the flames: drop the coal bed, center the emoji, add the pulsing aura
+document.querySelectorAll('.badge').forEach(b=>{
+  const c=b.querySelector('.coals'); if(c) c.remove();
+  const em=b.querySelector('.em'); if(em) em.style.transform='none';
+  b.insertAdjacentHTML('afterbegin','<span class="aura"></span>');
+});
+</script>

@@ -1,0 +1,108 @@
+<meta charset="utf-8"><title>Mock 140 — Cindy custom challenges</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:700px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:270px}
+.ph{width:290px;height:588px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:8px;padding:15px 16px 10px;border-bottom:1px solid #1c1526}
+.ct{font-size:14px;font-weight:800}.ctsub{font-size:10px;color:#8a7db0}
+.chat{flex:1;padding:14px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.msg{max-width:80%;font-size:12.5px;line-height:1.45;padding:10px 12px;border-radius:14px}
+.me{align-self:flex-end;background:#2a2140;border-bottom-right-radius:4px}
+.cin{align-self:flex-start;background:#17111f;border:1px solid #2a2140;border-bottom-left-radius:4px}
+.cin b{color:#FFD27A}
+/* structured challenge card inside chat */
+.chcard{align-self:flex-start;width:88%;background:radial-gradient(120% 80% at 50% 0%,#1e1528,#120c1a);border:1px solid #3a2f56;border-radius:16px;padding:13px}
+.chname{font-size:14px;font-weight:800}
+.chmeta{font-size:10.5px;color:#8a7db0;margin:3px 0 10px}
+.chgrid{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.chip{font-size:9.5px;font-weight:700;background:#241a34;border:1px solid #3a2f56;border-radius:20px;padding:3px 9px;color:#c9bfe0}
+.chip.stem{color:#ff9a90;border-color:#5a2f2a}.chip.ver{color:#7fd08a;border-color:#2f5a3a}
+.rewardline{display:flex;align-items:center;gap:8px;background:#120d1a;border-radius:10px;padding:9px 10px;margin-bottom:5px}
+.rlabel{font-size:9px;font-weight:800;color:#8a7db0;letter-spacing:.4px;margin-bottom:5px}
+.rw{display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:800}
+.rw .b{color:#9ec6ff}.dot{width:3px;height:3px;border-radius:50%;background:#4a3a66}
+.confirm{margin-top:9px;background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:12.5px;text-align:center;padding:10px;border-radius:11px}
+.inbar{display:flex;gap:8px;padding:10px 12px;border-top:1px solid #1c1526}
+.inbox{flex:1;background:#17111f;border:1px solid #2a2140;border-radius:20px;padding:9px 13px;font-size:12px;color:#8a7db0}
+/* example cards column */
+.ex{width:250px;background:radial-gradient(120% 80% at 50% 0%,#1e1528,#120c1a);border:1px solid #2a2140;border-radius:16px;padding:13px}
+.exq{font-size:11.5px;color:#c9bfe0;font-style:italic;margin-bottom:8px}
+.exq b{color:#fff;font-style:normal}
+.exname{font-size:13px;font-weight:800}
+.exrw{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;margin-top:8px;flex-wrap:wrap}
+.u{color:#7fd08a}.r{color:#9ec6ff}.e{color:#c99bf7}.l{color:#FFC98A}.m{color:#ff9a90}
+.exver{font-size:9.5px;color:#8a7db0;margin-top:7px}
+</style>
+<svg width="0" height="0"><defs>
+<radialGradient id="emberCore" cx="50%" cy="60%" r="62%"><stop offset="0" stop-color="#FFF3D6"/><stop offset=".34" stop-color="#FFD27A"/><stop offset=".68" stop-color="#F2A33C"/><stop offset="1" stop-color="#E0612C"/></radialGradient>
+<linearGradient id="emberCoal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8C3A"/><stop offset=".5" stop-color="#E0612C"/><stop offset="1" stop-color="#8A3410"/></linearGradient>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<symbol id="ember" viewBox="0 0 48 60"><path d="M24 3 C26 15 37 23 37 39 C37 49 31 56 24 56 C17 56 11 49 11 39 C11 30 17 26 20 32 C19 21 22 12 24 3 Z" fill="url(#emberCoal)"/><path d="M24 13 C25.5 22 31 28 31 39 C31 47 28 51 24 51 C20 51 17 47 17 39 C17 32 20 30 22 34 C21 26 23 20 24 13 Z" fill="url(#emberCore)"/></symbol>
+<symbol id="passflame" viewBox="0 0 24 24"><path d="M12 1.5 C14.6 6.6 18.6 8.6 18.6 14 A6.6 6.6 0 0 1 5.4 14 C5.4 10 7.4 7.4 9 10.6 C8.5 6.4 10 3.4 12 1.5 Z" fill="url(#e)"/></symbol>
+</defs></svg>
+
+<h1>Mock 140 — Cindy-authored challenges</h1>
+<p class="sub">Every challenge — solo, duel, group — starts as a sentence to Cindy. She structures it, the <b style="color:#e7ddf5">server computes the reward</b> from difficulty + ambition + verifiability, and Cindy shows it before you confirm. She proposes; the server grants.</p>
+
+<div class="wrap">
+  <!-- creation chat -->
+  <div class="col"><div class="cap">Talk it into existence</div>
+    <div class="ph">
+      <div class="top"><svg width="18" height="22"><use href="#passflame"/></svg><div><div class="ct">Cindy</div><div class="ctsub">new challenge</div></div></div>
+      <div class="chat">
+        <div class="msg me">I want a 70% in Physiology this semester</div>
+        <div class="msg cin">Love it — what's the course code? Physiology at one school isn't the same as another, so the code tells me the real difficulty.</div>
+        <div class="msg me">KP451 — advanced human physiology</div>
+        <div class="msg cin">A 400-level physiology course — respect. Here's the challenge:</div>
+        <div class="chcard">
+          <div class="chname">70% in Physiology · KP451</div>
+          <div class="chmeta">Solo · ends at semester close · ipsative</div>
+          <div class="chgrid"><span class="chip">Grade · 70%</span><span class="chip stem">Hard STEM · +1 tier</span><span class="chip">400-level · +XP</span><span class="chip ver">Honor · box −1, −20%</span></div>
+          <div class="rlabel">YOUR REWARD IF YOU HIT IT</div>
+          <div class="rewardline">
+            <div class="rw" style="color:#c99bf7">Vessel of Hestia</div><span class="dot"></span>
+            <div class="rw" style="color:#8a7db0;font-weight:600">Epic box</div>
+          </div>
+          <div class="rewardline">
+            <div class="rw"><span style="color:#FFE39A">480</span> <svg width="11" height="14"><use href="#ember"/></svg> embers</div><span class="dot"></span>
+            <div class="rw"><span class="b">480 XP</span></div>
+          </div>
+          <div class="confirm">Start challenge</div>
+        </div>
+        <div class="msg cin">70% base = Epic, +1 for hard STEM = <b>Legendary</b>. It's honor-based, so I drop the box a tier and trim the rest — no grade-reading, just your word. Lands on <b>Vessel of Hestia</b>.</div>
+      </div>
+      <div class="inbar"><div class="inbox">Change the target or add a friend…</div></div>
+    </div>
+  </div>
+
+  <!-- example computed rewards -->
+  <div class="col"><div class="cap">The reward scales with the ask</div>
+    <div class="ex">
+      <div class="exq">"<b>50% in Art</b> this term"</div>
+      <div class="exname">Pass Art · 50%</div>
+      <div class="exrw"><span class="u">Uncommon</span> → honor: no box · 48 <svg width="10" height="13"><use href="#ember"/></svg> · 80 XP</div>
+      <div class="exver">Humanities +0 · honor discount drops the box</div>
+    </div>
+    <div class="ex">
+      <div class="exq">"<b>50% in Biomechanics KP251</b>" vs "<b>KP451</b>"</div>
+      <div class="exname">Intro vs Advanced</div>
+      <div class="exrw"><span class="r">Rare</span> box both · KP251 <b>160 XP</b> → KP451 <b>200 XP</b></div>
+      <div class="exver">Same box (still STEM) — the higher code just pays more embers/XP</div>
+    </div>
+    <div class="ex">
+      <div class="exq">"first of us to run <b>100 km</b> this month" · 5 runners</div>
+      <div class="exname">Race to 100 km</div>
+      <div class="exrw"><span class="e">Epic</span> · Vessel of Hestia · 300 <svg width="10" height="13"><use href="#ember"/></svg> · 350 XP</div>
+      <div class="exver">Auto-tracked (Strava/steps) · full reward · ties share the win</div>
+    </div>
+    <div class="ex">
+      <div class="exq">"first to <b>learn a backflip</b>" · vs Maya</div>
+      <div class="exname">Backflip duel</div>
+      <div class="exrw"><span class="u">Rare</span> → honor: Ignition Crate · 120 <svg width="10" height="13"><use href="#ember"/></svg> · 160 XP</div>
+      <div class="exver">Honor · lands in the feed, opponent sees it · no proof gate</div>
+    </div>
+    <div class="cap" style="margin-top:4px;max-width:250px">Auto-tracked pays full; honor-based drops the box a tier + trims currency, so faking isn't worth it — no grade-reading required.</div>
+  </div>
+</div>

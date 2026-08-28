@@ -1,0 +1,80 @@
+<meta charset="utf-8"><title>Mock 150 — Roles & proposals</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:720px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:250px}
+.ph{width:280px;height:560px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden}
+.hd{display:flex;align-items:center;justify-content:space-between;padding:15px 16px 10px}.hd h2{font-size:16px;font-weight:800;margin:0}
+.body{padding:6px 16px}
+.lbl{font-size:10px;font-weight:800;color:#8a7db0;letter-spacing:.4px;margin:12px 2px 8px;text-transform:uppercase}
+.rrow{display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid #201830}
+.rrow:first-child{border-top:none}
+.av{width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e);flex:none}
+.a2{background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)}.a3{background:radial-gradient(circle at 40% 30%,#7a5a2a,#3e2a16)}
+.rn{flex:1;font-size:13px;font-weight:700}
+.role{font-size:9px;font-weight:800;border-radius:20px;padding:3px 9px}
+.owner{color:#FFD27A;border:1px solid #6a5a34}.coadmin{color:#9ec6ff;border:1px solid #3d5a8a}.part{color:#8a7db0;border:1px solid #3a2f56}
+.promote{font-size:10.5px;font-weight:800;color:#1a1020;background:linear-gradient(#9ec6ff,#3d8bfd);border-radius:8px;padding:6px 11px}
+.note{font-size:10px;color:#6a5d84;margin-top:14px;line-height:1.55;border-top:1px solid #201830;padding-top:11px}
+.note b{color:#c9bfe0}
+/* proposal */
+.prop{background:radial-gradient(120% 80% at 50% 0%,#1e1528,#120c1a);border:1px solid #3a2f56;border-radius:16px;padding:15px;margin-top:8px}
+.pl{font-size:10px;font-weight:800;color:#8a7db0;letter-spacing:.4px}
+.pq{font-size:13.5px;font-weight:700;line-height:1.4;margin:6px 0 8px}.pq b{color:#FFD27A}
+.diff{background:#120d1a;border-radius:10px;padding:9px 11px;font-size:12px}
+.old{color:#8a7db0;text-decoration:line-through;margin-right:6px}.new{color:#7fd08a;font-weight:800}
+.msg{font-size:11.5px;color:#c9bfe0;font-style:italic;margin-top:9px}
+.tally{margin-top:12px}
+.bar{height:8px;background:#241a34;border-radius:5px;overflow:hidden;margin:6px 0 5px}
+.fill{height:100%;width:66%;background:linear-gradient(90deg,#2f8a3a,#4caf50)}
+.tt{font-size:10.5px;color:#8a7db0}.tt b{color:#7fd08a}
+.pass{display:inline-flex;align-items:center;gap:5px;background:#1e3a26;border:1px solid #2f5a3a;color:#7fd08a;font-size:10px;font-weight:800;border-radius:20px;padding:3px 10px;margin-top:8px}
+.pbtns{display:flex;gap:9px;margin-top:12px}
+.acc{flex:1;background:linear-gradient(#4caf50,#2f8a3a);color:#fff;font-weight:800;font-size:12.5px;padding:10px;border-radius:11px;text-align:center}
+.rej{flex:1;background:#241a34;color:#c9bfe0;font-weight:800;font-size:12.5px;padding:10px;border-radius:11px;text-align:center}
+.ov{font-size:10px;color:#6a5d84;text-align:center;margin-top:11px;line-height:1.5}
+</style>
+<h1>Mock 150 — Roles &amp; bidirectional proposals</h1>
+<p class="sub">The host isn't the only voice. <b style="color:#e7ddf5">Roles</b> (owner · co-admin · participant) decide who can do what — and changes can flow <b style="color:#e7ddf5">both ways</b>: the owner edits (with approval), or any participant proposes a change that passes on a majority.</p>
+
+<div class="wrap">
+  <!-- roles -->
+  <div class="col"><div class="cap">Roles — only the owner grants co-admin</div>
+    <div class="ph">
+      <div class="hd"><h2>Study race · roster</h2></div>
+      <div class="body">
+        <div class="lbl">Roles</div>
+        <div class="rrow"><div class="av"></div><span class="rn">You</span><span class="role owner">★ OWNER</span></div>
+        <div class="rrow"><div class="av a2"></div><span class="rn">Maya</span><span class="role coadmin">CO-ADMIN</span></div>
+        <div class="rrow"><div class="av a3"></div><span class="rn">Jordan</span><span class="promote">Make co-admin</span></div>
+        <div class="rrow"><div class="av"></div><span class="rn">Sam</span><span class="role part">Participant</span></div>
+        <div class="lbl">Owner controls</div>
+        <div class="rrow" style="border-top:none"><span class="rn">Transfer ownership</span><span class="promote" style="background:linear-gradient(#FFE39A,#F2A33C)">Transfer →</span></div>
+        <div class="note"><b>Owner</b> — edit, delete, override votes, grant/revoke roles. Can <b>transfer ownership</b> to a co-admin (a co-admin can also <b>request</b> it). <b>Co-admin</b> — edit &amp; override, can't delete or change roles. <b>Participant</b> — compete, vote, propose. Only the <b>owner</b> sees "Make co-admin" and "Transfer".</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- participant proposal -->
+  <div class="col"><div class="cap">Bottom-up — a participant proposes, majority passes</div>
+    <div class="ph">
+      <div class="hd"><h2>Change proposed</h2></div>
+      <div class="body">
+        <div class="prop">
+          <div class="pl">PROPOSED BY A MEMBER</div>
+          <div class="pq"><b>Sam</b> proposes a change to <b>Study race</b>:</div>
+          <div class="diff">target <span class="old">10h</span> <span class="new">5h / week</span><br><span style="font-size:10.5px;color:#8a7db0">reward <span class="old">Legendary</span> <span style="color:#FFC98A;font-weight:800">Epic ↓</span> · easier goal, smaller prize</span></div>
+          <div class="msg">“midterms month, 10 is brutal 😅”</div>
+          <div class="tally">
+            <div class="tt"><b>4 of 6</b> accepted · 66%</div>
+            <div class="bar"><div class="fill"></div></div>
+            <div class="tt">Voting ends in <b>18h</b> · easing the goal needs a <b>simple majority</b> — <span style="color:#7fd08a;font-weight:800">on track</span></div>
+          </div>
+          <div class="pbtns"><div class="acc">✓ Accept</div><div class="rej">Reject</div></div>
+        </div>
+        <div class="ov">Easing the goal <b style="color:#c9bfe0">shrinks the reward to match</b> (Legendary → Epic), so no one games an easy finish. A <b style="color:#c9bfe0">harder</b> change needs a supermajority the <b style="color:#c9bfe0">owner sets (50–100%, e.g. 80%)</b> — hit it and it auto-applies; miss it by the <b style="color:#c9bfe0">deadline</b> and it fails. Outvoted members can leave with progress kept; owner/co-admin can override.</div>
+      </div>
+    </div>
+  </div>
+</div>

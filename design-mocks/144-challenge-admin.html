@@ -1,0 +1,130 @@
+<meta charset="utf-8"><title>Mock 144 — Challenge admin, edit & hosting</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:720px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:250px}
+.ph{width:272px;height:566px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden}
+.hd{display:flex;align-items:center;justify-content:space-between;padding:15px 16px 8px}.hd h2{font-size:16px;font-weight:800;margin:0}
+.body{padding:6px 16px;overflow:hidden}
+.cbanner{background:radial-gradient(120% 80% at 50% 0%,#1e1528,#120c1a);border:1px solid #2a2140;border-radius:14px;padding:14px}
+.cn{font-size:15px;font-weight:800}.cm{font-size:11px;color:#8a7db0;margin-top:3px}
+.host{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:800;color:#FFD27A;border:1px solid #6a5a34;border-radius:20px;padding:2px 8px;margin-top:9px}
+/* mini board */
+.lbl{font-size:10px;font-weight:800;color:#8a7db0;letter-spacing:.4px;margin:14px 2px 8px;text-transform:uppercase}
+.lrow{display:flex;align-items:center;gap:10px;padding:7px 0}
+.rk{width:18px;text-align:center;font-weight:800;color:#8a7db0;font-size:13px}.rk.g1{color:#FFD27A}
+.av{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e);flex:none}
+.a2{background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)}
+.pn{flex:1;font-size:12.5px;font-weight:600}.scv{font-size:12.5px;font-weight:800;color:#e7ddf5}
+/* admin controls */
+.admin{position:absolute;left:16px;right:16px;bottom:20px;display:flex;flex-direction:column;gap:9px}
+.abtn{display:flex;align-items:center;gap:9px;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:700}
+.edit{background:linear-gradient(#F2A33C,#E0612C);color:#1a1020}
+.del{background:#241318;border:1px solid #5a2a2a;color:#ff8a80}
+.adminnote{font-size:9.5px;color:#6a5d84;text-align:center;margin-top:2px}
+/* edit approval (participant) */
+.prompt{margin:40px 16px 0;background:radial-gradient(120% 80% at 50% 0%,#1e1528,#120c1a);border:1px solid #3a2f56;border-radius:16px;padding:16px;text-align:center}
+.pav{width:46px;height:46px;border-radius:50%;margin:0 auto 10px;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e)}
+.pq{font-size:13.5px;font-weight:700;line-height:1.45}.pq b{color:#FFD27A}
+.diff{background:#120d1a;border-radius:10px;padding:9px;margin:11px 0;font-size:12px}
+.diff .old{color:#8a7db0;text-decoration:line-through}.diff .new{color:#7fd08a;font-weight:800}
+.pbtns{display:flex;gap:9px}
+.appr{flex:1;background:linear-gradient(#4caf50,#2f8a3a);color:#fff;font-weight:800;font-size:13px;padding:11px;border-radius:11px;text-align:center}
+.decl{flex:1;background:#241a34;color:#c9bfe0;font-weight:800;font-size:13px;padding:11px;border-radius:11px;text-align:center}
+.pnote{font-size:10px;color:#6a5d84;margin-top:11px;line-height:1.5}
+/* campfire hosting */
+.chat{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.sys{align-self:center;font-size:10px;color:#6a5d84}
+.bub{max-width:82%;font-size:12px;line-height:1.4;padding:9px 11px;border-radius:12px;background:#1c1526}
+.bub.me{align-self:flex-end;background:#2a2140}
+.hostcard{align-self:stretch;background:radial-gradient(120% 80% at 50% 0%,#22182e,#120c1a);border:1px solid #F2A33C;border-radius:16px;overflow:hidden}
+.hchead{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:800;color:#FFD27A;letter-spacing:.4px;padding:11px 13px 0}
+.hcbody{display:flex;gap:12px;align-items:center;padding:10px 13px}
+.hcart{width:58px;height:58px;border-radius:12px;background:radial-gradient(circle,#2a1c12,#140d0a);border:1px solid #7a4a24;display:grid;place-items:center;flex:none;box-shadow:0 0 16px rgba(242,163,60,.35)}
+.hcname{font-size:14px;font-weight:800;line-height:1.15}
+.hcwho{display:flex;align-items:center;gap:6px;font-size:10.5px;color:#c9bfe0;margin:6px 0 5px}
+.stackav{display:flex}.stackav span{width:18px;height:18px;border-radius:50%;border:1.5px solid #120c1a;margin-left:-5px;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e)}
+.stackav span:first-child{margin-left:0}.stackav span.b{background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)}.stackav span.c{background:radial-gradient(circle at 40% 30%,#7a5a2a,#3e2a16)}
+.hcrw{font-size:11px;font-weight:800}
+.hcjoin{background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:12.5px;text-align:center;padding:11px}
+.pushrow{display:flex;gap:9px;align-items:center;background:#0e0b14;border:1px solid #241c38;border-radius:12px;padding:9px 11px;margin:10px 14px 0}
+.pushrow .ic{width:26px;height:26px;border-radius:7px;background:radial-gradient(120% 90% at 40% 20%,#2a1f3e,#0e0b13);display:grid;place-items:center;flex:none}
+.pushrow .t{font-size:10.5px;color:#c9bfe0;line-height:1.4}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<linearGradient id="steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef2f8"/><stop offset=".5" stop-color="#9aa4b4"/><stop offset="1" stop-color="#5a6474"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset="1" stop-color="#C8891F"/></linearGradient>
+<symbol id="flame" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></g></symbol>
+<symbol id="passflame" viewBox="0 0 24 24"><path d="M12 1.5 C14.6 6.6 18.6 8.6 18.6 14 A6.6 6.6 0 0 1 5.4 14 C5.4 10 7.4 7.4 9 10.6 C8.5 6.4 10 3.4 12 1.5 Z" fill="url(#e)"/></symbol>
+<symbol id="sword" viewBox="0 0 24 24"><path d="M12 1.5 L13.5 5.5 V13 H10.5 V5.5 Z" fill="url(#steel)"/><line x1="12" y1="3.5" x2="12" y2="12.5" stroke="#fff" stroke-width=".5" opacity=".55"/><rect x="6.5" y="12.8" width="11" height="2.3" rx="1" fill="url(#gold)"/><rect x="10.9" y="15.1" width="2.2" height="4.6" rx=".6" fill="#8a5a2a"/><circle cx="12" cy="20.6" r="1.6" fill="url(#gold)"/></symbol>
+<linearGradient id="ember" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<symbol id="boxFurnace" viewBox="0 0 60 60"><rect x="12" y="14" width="36" height="34" rx="5" fill="#241a14" stroke="#7a4a24" stroke-width="2"/><rect x="10" y="11" width="40" height="7" rx="3" fill="#3a2618" stroke="#7a4a24" stroke-width="1.5"/><rect x="18" y="24" width="24" height="6" rx="3" fill="url(#ember)"/><rect x="18" y="35" width="24" height="6" rx="3" fill="url(#ember)"/><g fill="#FFE39A"><circle cx="30" cy="27" r="1.4"/><circle cx="30" cy="38" r="1.4"/></g></symbol>
+</defs></svg>
+
+<h1>Mock 144 — Challenge admin · edit · hosting</h1>
+<p class="sub">The creator is the <b style="color:#e7ddf5">host with admin rights</b>: edit anything (through Cindy) or delete. An edit sends an approval request to everyone in — direct to friends' feeds, or posted to the campfire chat + notification + OS push for a whole-campfire challenge.</p>
+
+<div class="wrap">
+  <!-- 1 · intra admin view -->
+  <div class="col"><div class="cap">1 · Host view — live board + admin</div>
+    <div class="ph">
+      <div class="hd"><h2>Study race</h2><span style="display:flex;align-items:center;gap:10px"><span style="font-size:11px;color:#7fd08a;font-weight:800">● LIVE</span><span style="width:24px;height:24px;border-radius:50%;border:1px solid #4a3a66;background:#241a34;display:grid;place-items:center;font-size:11px;font-weight:800;color:#c9bfe0;font-style:italic">i</span></span></div>
+      <div class="body">
+        <div class="cbanner">
+          <div class="cn" style="display:flex;align-items:center;gap:7px"><svg width="15" height="18"><use href="#sword"/></svg> Most study hours this week</div>
+          <div class="cm">Late Night Library · 6 in · ends in 3d</div>
+          <div class="host">★ You're the host</div>
+        </div>
+        <div class="lbl">Live standings</div>
+        <div class="lrow"><span class="rk g1">1</span><div class="av"></div><span class="pn">You</span><span class="scv">9.4h</span></div>
+        <div class="lrow"><span class="rk">2</span><div class="av a2"></div><span class="pn">Maya</span><span class="scv">8.1h</span></div>
+        <div class="lrow"><span class="rk">3</span><div class="av"></div><span class="pn">Jordan</span><span class="scv">6.7h</span></div>
+      </div>
+      <div class="admin">
+        <div class="abtn edit"><svg width="14" height="17"><use href="#passflame"/></svg> Edit with Cindy</div>
+        <div class="abtn del">🗑 Delete challenge</div>
+        <div class="adminnote">only you see these — edits need everyone's OK</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col"><div class="cap">2 · Participants approve the edit</div>
+    <div class="ph">
+      <div class="hd"><h2>Change request</h2></div>
+      <div class="prompt">
+        <div class="pav"></div>
+        <div class="pq"><b>Noah</b> wants to change <b>Study race</b>:</div>
+        <div class="diff">target <span class="old">8h</span> → <span class="new">10h this week</span></div>
+        <div class="pbtns"><div class="appr">✓ Approve</div><div class="decl">Decline</div></div>
+        <div class="pnote">Edits only apply once everyone approves. Reward re-computes to match — Cindy shows the new prize before it's sent.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 · campfire hosting -->
+  <div class="col"><div class="cap">3 · Hosting for a whole campfire</div>
+    <div class="ph">
+      <div class="hd"><h2>Late Night Library</h2><span style="font-size:16px">🔥</span></div>
+      <div class="chat">
+        <div class="sys">— today —</div>
+        <div class="bub">grind time. finals in 2 weeks 😭</div>
+        <div class="bub me">let's make it a race</div>
+        <div class="hostcard">
+          <div class="hchead"><svg width="11" height="13"><use href="#sword"/></svg> NOAH IS HOSTING A CHALLENGE</div>
+          <div class="hcbody">
+            <div class="hcart"><svg width="42" height="42"><use href="#boxFurnace"/></svg></div>
+            <div>
+              <div class="hcname">Most study hours this week</div>
+              <div class="hcwho"><span class="stackav"><span></span><span class="b"></span><span class="c"></span></span> 6 in · Late Night Library</div>
+              <div class="hcrw"><span style="color:#9ec6ff">The Furnace</span> · <span style="color:#FFE39A">150 embers</span> · <span style="color:#9ec6ff">200 XP</span></div>
+            </div>
+          </div>
+          <div class="hcjoin">Join the race</div>
+        </div>
+      </div>
+      <div class="pushrow"><div class="ic"><svg width="14" height="17"><use href="#flame" fill="url(#e)"/></svg></div><div class="t"><b>Also pushed:</b> "Noah is hosting <b>Most study hours</b> for Late Night Library" → bell + OS notification for everyone in the campfire.</div></div>
+    </div>
+  </div>
+</div>

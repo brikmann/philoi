@@ -1,0 +1,56 @@
+<meta charset="utf-8"><title>Mock 138 — Daily / weekly pass tasks</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:680px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;justify-content:center}
+.panel{width:320px;background:linear-gradient(#17111f,#0e0b13);border-radius:22px;border:1px solid #2e2542;padding:18px 16px 16px}
+.ptop{display:flex;align-items:center;gap:11px;margin-bottom:6px}
+.ptitle{font-size:15px;font-weight:800}.pseason{font-size:11px;color:#8a7db0}
+.lvlrow{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 5px}
+.lvlnow{font-size:13px;font-weight:800;color:#FFD27A}.lvlrew{font-size:11px;color:#8a7db0}
+.bar{height:9px;background:#241a34;border-radius:6px;overflow:hidden}.fill{height:100%;width:62%;background:linear-gradient(90deg,#E0612C,#F2A33C,#FFE39A);border-radius:6px}
+.xp{font-size:10.5px;color:#8a7db0;margin-top:5px;text-align:right}
+.sect{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px}
+.sectl{font-size:11px;font-weight:800;color:#FFD27A;letter-spacing:.4px;text-transform:uppercase}
+.refresh{font-size:10px;font-weight:700;color:#8a7db0;display:flex;align-items:center;gap:4px}
+.refresh .clock{color:#c9bfe0}
+.task{display:flex;align-items:center;gap:11px;padding:9px 0;border-top:1px solid #201830}
+.tick{width:22px;height:22px;border-radius:50%;border:2px solid #3a2f56;flex:none;display:grid;place-items:center;font-size:11px;color:#7fd08a}
+.tick.done{background:#1e3a26;border-color:#2f5a3a}
+.tmid{flex:1}.tname{font-size:12.5px;font-weight:600}.tprog{font-size:10.5px;color:#8a7db0;margin-top:1px}
+.claim{font-size:10.5px;font-weight:800;color:#1a1020;background:linear-gradient(#FFE39A,#F2A33C);border-radius:8px;padding:5px 11px;white-space:nowrap}
+.xpchip{font-size:11px;font-weight:800;color:#9ec6ff;white-space:nowrap}
+.wk{background:linear-gradient(90deg,rgba(120,90,200,.10),transparent)}
+.note{font-size:10px;color:#6a5d84;margin-top:14px;line-height:1.5;border-top:1px solid #201830;padding-top:10px}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset="1" stop-color="#C8891F"/></linearGradient>
+<symbol id="passflame" viewBox="0 0 24 24"><path d="M12 1.5 C14.6 6.6 18.6 8.6 18.6 14 A6.6 6.6 0 0 1 5.4 14 C5.4 10 7.4 7.4 9 10.6 C8.5 6.4 10 3.4 12 1.5 Z" fill="url(#e)"/><path d="M12 8.4 C13.5 11 15.1 12.3 15.1 14.9 A3.1 3.1 0 0 1 8.9 14.9 C8.9 13 9.9 12 11 13.3 C10.7 11 11.3 9.7 12 8.4 Z" fill="#FFEAB4"/></symbol>
+<symbol id="crest" viewBox="0 0 76 86"><path d="M38 3 L71 22 V64 L38 83 L5 64 V22 Z" fill="#160f22" stroke="url(#gold)" stroke-width="2.5"/><use href="#passflame" x="15" y="15" width="46" height="56"/></symbol>
+</defs></svg>
+
+<h1>Mock 138 — Daily / weekly pass tasks</h1>
+<p class="sub">Tasks that <b style="color:#e7ddf5">refresh on a timer</b> so consistent players keep leveling no matter how hard the grinders push. Daily tasks reset every night; weekly tasks reset each week. Steady beats spiky — this rewards the loyalists.</p>
+
+<div class="wrap">
+  <div class="panel">
+    <div class="ptop"><svg width="38" height="43"><use href="#crest"/></svg>
+      <div><div class="ptitle">Flame Pass</div><div class="pseason">Season · Emberfall</div></div></div>
+    <div class="lvlrow"><span class="lvlnow">Level 14</span><span class="lvlrew">Level 15 → <b style="color:#c99bf7">🎨 cosmetic</b> · <span style="color:#8a7db0">L20 = box + ✦</span></span></div>
+    <div class="bar"><div class="fill"></div></div>
+    <div class="xp">620 / 1,000 XP</div>
+
+    <div class="sect"><span class="sectl">Daily</span><span class="refresh">refreshes in <span class="clock">6h 12m</span></span></div>
+    <div class="task"><div class="tick done">✓</div><div class="tmid"><div class="tname">Hit your daily fire</div><div class="tprog">Done</div></div><div class="claim">Claim</div></div>
+    <div class="task"><div class="tick"></div><div class="tmid"><div class="tname">Lock in 45 minutes</div><div class="tprog">31 / 45 min</div></div><div class="xpchip">+120 XP</div></div>
+    <div class="task"><div class="tick"></div><div class="tmid"><div class="tname">Cheer a campfire friend</div><div class="tprog">0 / 1</div></div><div class="xpchip">+40 XP</div></div>
+
+    <div class="sect"><span class="sectl">Weekly</span><span class="refresh">refreshes in <span class="clock">4d 6h</span></span></div>
+    <div class="task wk"><div class="tick"></div><div class="tmid"><div class="tname">Lock in 8 hours this week</div><div class="tprog">5.2 / 8 hrs</div></div><div class="xpchip">+400 XP</div></div>
+    <div class="task wk"><div class="tick"></div><div class="tmid"><div class="tname">Win a challenge or duel</div><div class="tprog">0 / 1</div></div><div class="xpchip">+500 XP</div></div>
+    <div class="task wk"><div class="tick done">✓</div><div class="tmid"><div class="tname">Lock in 5 different days</div><div class="tprog">Done · 5/5</div></div><div class="claim">Claim</div></div>
+
+    <div class="note">Daily tasks reset at local midnight; weekly tasks on the Sunday week boundary. Tasks pay <b style="color:#9ec6ff">XP</b>; leveling unlocks <b style="color:#c99bf7">cosmetics</b>, with <b style="color:#FFE39A">embers + a box only at milestone levels (every 10)</b>. Because the well refills, a steady daily player out-levels a weekend crammer over a season.</div>
+  </div>
+</div>

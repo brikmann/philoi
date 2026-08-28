@@ -1,0 +1,67 @@
+<meta charset="utf-8"><title>Mock 121 — Ancient relics + medals</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:26px 20px 60px}
+h1{font-size:20px;text-align:center;margin:0 0 4px}h2{font-size:14px;font-weight:800;color:#FFD27A;margin:26px 0 4px}
+.intro{font-size:12.5px;color:#9f92b6;max-width:860px;text-align:center;line-height:1.55;margin:0 auto 18px}
+.brief{font-size:11.5px;color:#a99cbd;max-width:900px;line-height:1.5;margin:2px 0 12px}
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:stretch}
+.t{width:172px;border-radius:16px;background:radial-gradient(120% 80% at 50% 18%,#20182e,#120d1c 65%);padding:14px 12px 12px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative}
+.t.e{box-shadow:0 0 0 1.4px #a855f7,0 0 24px rgba(168,85,247,.30)}
+.t.l{box-shadow:0 0 0 1.4px #F2A33C,0 0 24px rgba(242,163,60,.30)}
+.t.m{box-shadow:0 0 0 1.4px #e0473b,0 0 26px rgba(224,71,59,.32)}
+.t.lock{box-shadow:0 0 0 1.4px #34304a,0 0 18px rgba(0,0,0,.4)}
+.art{height:88px;display:grid;place-items:center;margin-bottom:6px}
+.nm{font-size:14px;font-weight:800}.hint{font-size:10.5px;color:#b7a9d8;font-style:italic;line-height:1.4;margin-top:6px}
+.deed{font-size:10px;color:#8a7fa6;margin-top:7px;border-top:1px solid #2a2140;padding-top:7px;line-height:1.45}
+.deed b{color:#FFD27A}.tag{font-size:8.5px;letter-spacing:1.5px;font-weight:800;margin-bottom:2px}
+.tag.e{color:#c99bf7}.tag.l{color:#FFC98A}.tag.m{color:#ff9a90}.tag.k{color:#6f6488}
+svg{overflow:visible}
+.lockglyph{position:absolute;top:10px;right:12px;font-size:13px;opacity:.6}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="g" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<linearGradient id="sil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2438"/><stop offset="1" stop-color="#181322"/></linearGradient>
+<linearGradient id="au" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe6a0"/><stop offset="1" stop-color="#c98a2a"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 121 — Ancient relics &amp; medals</h1>
+<p class="intro">Ancient relics are <b style="color:#e7ddf5">secret</b>: while locked you see a shrouded relic + a cryptic hint, never the condition. Earning it <b style="color:#e7ddf5">reveals</b> the art, the deed, and what it means. Below: the locked→revealed pattern, the five ancient relics, and the medals. Concept vectors — refine in final art.</p>
+
+<h2>The secret pattern — locked → revealed</h2>
+<div class="row">
+  <div class="t lock"><div class="lockglyph">🔒</div><div class="tag k">??? · RELIC</div>
+    <div class="art"><svg width="70" height="80" viewBox="0 0 70 80"><path d="M35 8 L60 16 V40 C60 60 48 72 35 76 C22 72 10 60 10 40 V16 Z" fill="url(#sil)" stroke="#3a3450"/><text x="35" y="52" text-anchor="middle" font-size="30" font-weight="800" fill="#4a4460">?</text></svg></div>
+    <div class="nm" style="color:#7d7597">Unknown relic</div>
+    <div class="hint">"Some shields are never lifted — because they are never set down."</div>
+    <div class="deed" style="color:#6f6488">Hidden · condition unknown</div>
+  </div>
+  <div class="t e"><div class="tag e">EPIC · RELIC</div>
+    <div class="art"><svg width="76" height="82" viewBox="0 0 76 82"><path d="M38 6 L66 16 V42 C66 62 52 74 38 78 C24 74 10 62 10 42 V16 Z" fill="url(#au)" stroke="#7a5a1e" stroke-width="1.5"/><circle cx="38" cy="42" r="15" fill="none" stroke="#7a5a1e" stroke-width="2"/><circle cx="38" cy="42" r="6" fill="#a855f7"/><path d="M38 12 L38 24 M38 60 L38 72 M16 42 h10 M50 42 h10" stroke="#7a5a1e" stroke-width="2"/></svg></div>
+    <div class="nm">Athena's Aegis</div>
+    <div class="deed"><b>Unlocked · how:</b> came back every week, 6 weeks straight, no gap. <b>Defense of your standard.</b></div>
+  </div>
+</div>
+
+<h2>The five ancient relics (revealed state)</h2>
+<div class="row">
+  <div class="t e"><div class="tag e">EPIC</div><div class="art"><svg width="70" height="76"><path d="M35 6 L60 15 V40 C60 58 48 68 35 72 C22 68 10 58 10 40 V15 Z" fill="url(#au)" stroke="#7a5a1e" stroke-width="1.5"/><circle cx="35" cy="40" r="6" fill="#a855f7"/></svg></div><div class="nm">Athena's Aegis</div><div class="hint">"Never lifted — never set down."</div></div>
+  <div class="t l"><div class="tag l">LEGENDARY</div><div class="art"><svg width="80" height="70"><path d="M14 44 h28 l10 -10 v10 h6 v8 H14 z" fill="url(#au)" stroke="#7a4e17" stroke-width="1.5"/><path d="M6 52 q8 4 8 -8" fill="none" stroke="#7a4e17"/><rect x="40" y="10" width="7" height="22" rx="2" fill="#7a5a2e" transform="rotate(22 43 21)"/><rect x="40" y="8" width="16" height="8" rx="2" fill="#9a9fab" transform="rotate(22 48 12)"/><g stroke="#FFD27A" stroke-width="2" stroke-linecap="round"><path d="M30 30 l-3 -6 M38 28 l2 -6"/></g></svg></div><div class="nm">Anvil of Hephaestus</div><div class="hint">"Beaten out over countless hours."</div></div>
+  <div class="t l"><div class="tag l">LEGENDARY</div><div class="art"><svg width="60" height="76"><path d="M50 8 C30 16 16 38 10 66 L18 60 C24 40 36 20 52 10 Z" fill="url(#au)" stroke="#7a4e17" stroke-width="1.2"/><path d="M46 12 C34 22 24 40 16 60" stroke="#7a4e17" fill="none"/><path d="M50 8 C44 10 40 12 36 15 L44 18 C48 14 50 10 52 10 Z" fill="#2a1608"/></svg></div><div class="nm">Icarus' Feather</div><div class="hint">"Flew close to the sun and ascended."</div></div>
+  <div class="t m"><div class="tag m">MYTHIC</div><div class="art"><svg width="56" height="78"><path d="M28 4 L44 30 L32 74 L14 32 Z" fill="url(#au)" stroke="#7a1f18" stroke-width="1.2"/><path d="M28 22 c4 6 -3 8 0 14 c2 -4 5 -3 5 2 a5 5 0 0 1 -10 0 c0 -3 2 -5 5 -16 z" fill="#e0473b"/></svg></div><div class="nm">Prometheus' Shard</div><div class="hint">"Fire was never meant to be hoarded."</div></div>
+  <div class="t m"><div class="tag m">MYTHIC</div><div class="art"><svg width="56" height="80"><path d="M34 4 L14 40 H26 L20 76 L46 32 H32 Z" fill="url(#g)" stroke="#7a1f18" stroke-width="1.2"/><path d="M34 4 L14 40 H26 L20 76 L46 32 H32 Z" fill="none" stroke="#FFF3C9" stroke-width="1" opacity=".5"/></svg></div><div class="nm">Zeus' Bolt</div><div class="hint">"The king himself bows."</div></div>
+</div>
+<p class="brief">Each ships with a <b>locked</b> twin (shrouded silhouette + the hint, no condition) — the reveal on earn is the moment.</p>
+
+<h2>Medals — `MEDAL` (season + placement · showcase, non-equippable)</h2>
+<p class="brief">Circular medal + ribbon, tiered by result. Placement (1st/2nd/3rd), percentile tiers (top 1% / 10%), and a season-participation medal.</p>
+<div class="row">
+  <div class="t l" style="width:132px"><div class="art"><svg width="66" height="80"><path d="M24 6 L18 34 M42 6 L48 34" stroke="#c0392b" stroke-width="7"/><circle cx="33" cy="50" r="24" fill="#FFD24A" stroke="#b8860b" stroke-width="2"/><circle cx="33" cy="50" r="17" fill="none" stroke="#b8860b"/><text x="33" y="59" text-anchor="middle" font-size="22" font-weight="800" fill="#7a5a0a">1</text></svg></div><div class="nm" style="font-size:12px">Gold · 1st</div></div>
+  <div class="t" style="width:132px;box-shadow:0 0 0 1.4px #9aa1ac"><div class="art"><svg width="66" height="80"><path d="M24 6 L18 34 M42 6 L48 34" stroke="#5a6270" stroke-width="7"/><circle cx="33" cy="50" r="24" fill="#cfd6df" stroke="#8a929c" stroke-width="2"/><text x="33" y="59" text-anchor="middle" font-size="22" font-weight="800" fill="#5a6270">2</text></svg></div><div class="nm" style="font-size:12px">Silver · 2nd</div></div>
+  <div class="t" style="width:132px;box-shadow:0 0 0 1.4px #b87333"><div class="art"><svg width="66" height="80"><path d="M24 6 L18 34 M42 6 L48 34" stroke="#7a4a24" stroke-width="7"/><circle cx="33" cy="50" r="24" fill="#d98a4a" stroke="#8a5a2a" stroke-width="2"/><text x="33" y="59" text-anchor="middle" font-size="22" font-weight="800" fill="#5a3410">3</text></svg></div><div class="nm" style="font-size:12px">Bronze · 3rd</div></div>
+  <div class="t m" style="width:132px"><div class="art"><svg width="66" height="80"><path d="M24 6 L18 34 M42 6 L48 34" stroke="#c0392b" stroke-width="7"/><circle cx="33" cy="50" r="24" fill="#e0473b" stroke="#7a1f18" stroke-width="2"/><text x="33" y="56" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">1%</text></svg></div><div class="nm" style="font-size:12px">Top 1%</div></div>
+  <div class="t e" style="width:132px"><div class="art"><svg width="66" height="80"><path d="M24 6 L18 34 M42 6 L48 34" stroke="#6a3ca0" stroke-width="7"/><circle cx="33" cy="50" r="24" fill="#a855f7" stroke="#5a2a8a" stroke-width="2"/><text x="33" y="56" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">10%</text></svg></div><div class="nm" style="font-size:12px">Top 10%</div></div>
+  <div class="t" style="width:132px;box-shadow:0 0 0 1.4px #F2A33C,0 0 20px rgba(242,163,60,.25)"><div class="art"><svg width="66" height="80"><path d="M24 6 L18 34 M42 6 L48 34" stroke="#7a4e17" stroke-width="7"/><circle cx="33" cy="50" r="24" fill="url(#au)" stroke="#7a4e17" stroke-width="2"/><path d="M33 40 c1.5 4.5 5 5 5 9 a5 5 0 0 1 -10 0 c0 -2 1 -3.5 2.4 -4.6 c0 2 1 2.6 2.6 -0.4 z" fill="#E0612C"/><text x="33" y="66" text-anchor="middle" font-size="8" font-weight="800" fill="#7a4e17">S1</text></svg></div><div class="nm" style="font-size:12px">Season 1</div></div>
+</div>
+
+<p class="intro" style="margin-top:24px">Concept vectors — they set the <b style="color:#c7bce0">system</b> (secret relics with locked/reveal states; medals tiered by placement/percentile/season). Final art by an illustrator/image-gen from these.</p>

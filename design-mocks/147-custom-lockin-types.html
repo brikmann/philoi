@@ -1,0 +1,104 @@
+<meta charset="utf-8"><title>Mock 147 — Custom lock-in types (course codes)</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:730px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:250px}
+.arrow{align-self:center;font-size:20px;color:#F2A33C;margin-top:150px}
+.ph{width:272px;height:566px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden}
+.hd{display:flex;align-items:center;justify-content:space-between;padding:15px 16px 8px}.hd h2{font-size:16px;font-weight:800;margin:0}
+.body{padding:6px 16px;overflow:hidden}
+.grouplbl{font-size:10px;font-weight:800;color:#8a7db0;letter-spacing:.4px;margin:14px 2px 8px;text-transform:uppercase}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-size:12px;font-weight:700;padding:9px 13px;border-radius:11px;background:#17111f;border:1px solid #2a2140;color:#c9bfe0;position:relative}
+.chip.on{background:#F2A33C;color:#1a1020;border-color:#F2A33C}
+.chip.aura{border-color:#F2A33C;box-shadow:0 0 0 1px rgba(242,163,60,.4),0 0 14px rgba(242,163,60,.35);color:#FFE39A}
+.chip .spark{position:absolute;top:-6px;right:-6px;font-size:11px}
+.chip.add{border-style:dashed;color:#8a7db0}
+.hint{font-size:10px;color:#6a5d84;margin-top:9px;line-height:1.5}
+.startbtn{position:absolute;left:16px;right:16px;bottom:20px;background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:14px;text-align:center;padding:13px;border-radius:13px}
+/* join sheet */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#17111f;border-top:1px solid #3a2f56;border-radius:22px 22px 0 0;padding:20px 18px 22px}
+.shic{width:60px;height:60px;border-radius:16px;margin:0 auto 12px;display:grid;place-items:center;background:radial-gradient(circle,#3a2a10,#160f0a);border:1px solid #F2A33C;box-shadow:0 0 20px rgba(242,163,60,.4);font-size:26px;position:relative}
+.shic .spark{position:absolute;top:-6px;right:-6px;font-size:14px}
+.sht{font-size:16px;font-weight:800;text-align:center}
+.shb{font-size:12px;color:#9f92b6;text-align:center;line-height:1.5;margin-top:8px}
+.auraline{display:inline-flex;align-items:center;gap:6px;background:#241a10;border:1px solid #6a5a34;border-radius:20px;padding:4px 11px;font-size:10.5px;font-weight:800;color:#FFE39A;margin-top:12px}
+.shcta{margin-top:16px;background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:14px;text-align:center;padding:12px;border-radius:12px}
+/* create form */
+.field{background:#17111f;border:1px solid #2a2140;border-radius:11px;padding:12px 13px;font-size:13px;margin-bottom:8px;display:flex;justify-content:space-between}
+.field .ph3{color:#6a5d84}
+.seg{display:flex;gap:6px;margin-bottom:8px}.segb{flex:1;text-align:center;font-size:11.5px;font-weight:700;padding:9px 0;border-radius:10px;background:#17111f;border:1px solid #2a2140;color:#c9bfe0}
+.segb.on{background:#5a6ad6;color:#fff;border-color:#5a6ad6}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+</defs></svg>
+
+<h1>Mock 147 — Custom lock-in types (course codes)</h1>
+<p class="sub">Log your classes as lock-in types. Custom types (KP251, BU111) sit <b style="color:#e7ddf5">under</b> the general ones — the same code lives under <b>Study</b> (conceptual) and <b>Deep Work</b> (application). Join a course challenge and its type is <b style="color:#FFE39A">auto-added with a challenge aura</b>; or make your own to track any class.</p>
+
+<div class="wrap">
+  <!-- 1 · lock-in type picker -->
+  <div class="col"><div class="cap">1 · Lock-in menu — types nest under the umbrellas</div>
+    <div class="ph">
+      <div class="hd"><h2>What are you locking into?</h2></div>
+      <div class="body">
+        <div class="grouplbl">Study · conceptual</div>
+        <div class="chips">
+          <div class="chip on">General</div>
+          <div class="chip aura">KP251<span class="spark">⚡</span></div>
+          <div class="chip">BU111</div>
+        </div>
+        <div class="grouplbl">Deep Work · application</div>
+        <div class="chips">
+          <div class="chip">General</div>
+          <div class="chip aura">KP251<span class="spark">⚡</span></div>
+          <div class="chip add">+ add class</div>
+        </div>
+        <div class="grouplbl">Fitness</div>
+        <div class="chips">
+          <div class="chip">Gym</div><div class="chip">Run</div><div class="chip">Walk</div>
+        </div>
+        <div class="hint">⚡ = created for a challenge · counts toward it automatically. KP251 appears under both Study and Deep Work so a study session and an assignment log separately.</div>
+      </div>
+      <div class="startbtn">Start lock-in · Study KP251</div>
+    </div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- 2 · join challenge auto-adds -->
+  <div class="col"><div class="cap">2 · Joining a course challenge adds the type</div>
+    <div class="ph">
+      <div class="body" style="opacity:.2"><div class="grouplbl">Study</div><div class="chips"><div class="chip">General</div></div></div>
+      <div class="sheet">
+        <div class="shic">📘<span class="spark">⚡</span></div>
+        <div class="sht">You joined the class challenge</div>
+        <div class="shb"><b style="color:#e7ddf5">Study KP251 · 5h / week</b><br>hosted by Prof. Lee for KP251 Campfire.</div>
+        <div style="text-align:center"><span class="auraline">⚡ KP251 added to your lock-in menu</span></div>
+        <div class="shb" style="margin-top:10px">Every KP251 lock-in now counts toward the challenge — and builds your KP251 history.</div>
+        <div class="shcta">Got it</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- 3 · create your own -->
+  <div class="col"><div class="cap">3 · Or make your own to track a class</div>
+    <div class="ph">
+      <div class="hd"><h2>New lock-in type</h2><span style="font-size:17px;color:#8a7db0">✕</span></div>
+      <div class="body">
+        <div class="grouplbl">Name / code</div>
+        <div class="field"><span>KP231</span><span class="ph3">e.g. course code</span></div>
+        <div class="grouplbl">Lives under</div>
+        <div class="seg"><span class="segb on">Study</span><span class="segb on">Deep Work</span></div>
+        <div class="hint">Pick one or both. It logs separately from your General time, so you can see exactly how much you've put into KP231.</div>
+        <div class="grouplbl">Colour</div>
+        <div class="chips"><div class="chip" style="background:#3d8bfd;width:26px;height:26px;padding:0;border:none"></div><div class="chip" style="background:#a855f7;width:26px;height:26px;padding:0;border:none"></div><div class="chip" style="background:#4caf50;width:26px;height:26px;padding:0;border:none"></div></div>
+      </div>
+      <div class="startbtn">Add KP231</div>
+    </div>
+  </div>
+</div>

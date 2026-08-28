@@ -234,57 +234,138 @@ made the app's rarest audio moment look like a shop item.
 Shown off in the **Trophy Hall** on the profile (PROFILE_SPEC §D) + the personal vault. Non-equippable
 prestige. **Earned only — never bought, never rolled from a box.**
 
-### 4a · Greek Mythic Relics — `RELIC` (Epic → Mythic) — **EARNED (not loot-box)**
-Relics are **achievement unlocks**, not box drops (decision Aug 20). **Remove from all box loot tables.**
-Earn triggers below are *proposed — confirm before build.*
+### 4a · Ancient Relics — `RELIC` (Epic → Mythic) — **EARNED · SECRET**
+Achievement unlocks, not box drops (decision Aug 20). **Remove from all box loot tables.**
 
-| Item | Rarity | Earned by (proposed) | Lore |
-|---|---|---|---|
-| **Hestia's Hearthstone** | Epic | Hold a 30-day streak | A coal from the first hearth infused with an undying flame, passed down as a family heirloom. It's now yours. |
-| **Athena's Aegis** | Epic | A full month with zero dead days / never break a defended rank in a season | The shield that has never once been broken. Now it's yours to stand behind. |
-| **Icarus' Feather** | Legendary | Hit a new personal peak rank (Gold+) | Scorched at the tip. Proof that someone flew high enough to burn. |
-| **Anvil of Hephaestus** | Legendary | 500 total hours locked in | Zeus' bolt was forged on this thing. It's that strong. |
-| **Prometheus' Shard** | Mythic | Finish Top 1% of a season / bring N friends who verify | You are now one of us. Spread your fire to all of humanity to rise and ascend. |
+🔒 **These are SECRET.** Unlike the discipline ladders (whose thresholds are shown), the ancient relics are
+**hidden**: while locked, the Trophy Hall shows only a mysterious relic + a **cryptic hint** — never the
+condition. The instant it's earned it **reveals** — *how you unlocked this* (the deed), the full lore, and what
+it represents. **Discovery is the reward.** So each needs two authored things: the **lore/hint** (shown) and the
+**hidden unlock** (internal — never surfaced before it's earned; telemetry may track progress silently).
 
-### 4a-2 · Discipline Relics — `RELIC` (per lock-in type) — **EARNED**
-One signature relic per **lock-in type**, earned by **hours logged in that activity** — the reward for going
-deep in a single discipline (ipsative: pure effort-hours, never an outcome). Non-equippable showcase, sits in
-the Trophy Hall §4-relics group alongside the §4a set. **Earned only — never bought or rolled.** Each maps
-1:1 to an app lock-in category; **hour thresholds proposed — confirm/tune before build.**
+*(Hestia's Hearthstone — **RETIRED**.)*
 
-| Item | Lock-in type | Earn (proposed) | Rarity | Lore |
+| Relic | Rarity | 🔒 Hidden unlock (internal only) | In-app hint (shown while locked) | On unlock — the deed + what it represents |
 |---|---|---|---|---|
-| **Socrates' Scroll** | Study | 100h studied | Legendary | The unexamined hour isn't worth logging. You examined this one. |
-| **Hercules' Might** | Gym / Lift | **100,000 lbs lifted** (volume) | Legendary | Twelve labours. You're somewhere past the seventh — and it shows. |
-| **Pheidippides' Sandals** | Run / Cardio | **414 km run** (distance — his Athens→Sparta round trip) | Legendary | He ran to Sparta and back — 414 km — to call for help. You've matched every step. |
-| **Calliope's Ink** | Read | 100h read | Legendary | Every page a mile the mind walked. The muse of epics kept the count. |
-| **Daedalus' Blueprint** | **Deep Work** | 100h of deep work | Legendary | The labyrinth wasn't built in a day. Neither is whatever you're shipping. |
-| **Oracle's Stillness** | Meditate | 100h still | Legendary | The Oracle of Delphi spoke only in the quiet. You've kept a great deal of it. |
-| **Orpheus' Lyre** | **Create** (art · music · writing) | 100h creating | Legendary | He played until the stones wept. You just keep showing up to make something. |
+| **Athena's Aegis** | Epic | **Sequential consistency** — active (≥1 lock-in) every week for **6 consecutive weeks**, no dead week (tune) | *"Some shields are never lifted — because they are never set down."* | You came back, week after week, without a gap. **Defense of your standard** — the discipline that never drops its guard. |
+| **Anvil of Hephaestus** | Legendary | **Total consistency** — **500 cumulative hours** locked in (all-time, not sequential). A brutal milestone only hardcore loyalists reach. | *"The gods' weapons were beaten out over countless hours on a single anvil. So is a person."* | 500 hours, forged. **Being forged** — the work didn't fill time, it made you the weapon. The mark of a true loyalist. |
+| **Icarus' Feather** | Legendary | **Reach Hero rank** | *"Flew close to the sun and ascended past what was possible. Zeus admires his effort."* | You climbed to **Hero**. **Daring** — you flew close to the sun and ascended past what was thought possible. |
+| **Prometheus' Shard** | Mythic | **Both:** (1) a **top-10% finish** logged on a season leaderboard (ever), **and** (2) **refer someone** who joins the app | *"Fire was never meant to be hoarded. The one who stole it gave it away."* | You reached the top **and** brought someone into the fire. **The pinnacle, shared** — mastery that doesn't just burn, it spreads. |
+| **Zeus' Bolt** | Mythic | **Reach Primordial rank** (the summit of the whole ladder) | *"The king himself bows toward your greatness."* | You reached **Primordial** — the very top. **The pinnacle of pinnacles** — even Zeus inclines his head. |
 
-**Deep Work vs Create — they are different disciplines, not overlapping:**
-- **Deep Work** = *obligation output* — the job, coding, career tasks, admin, building/shipping something you
-  have to. Daedalus, the master engineer.
-- **Create** = *creative expression for its own sake* — making art, music, or writing because you want to.
-  Orpheus, the artist. If the app later splits these (Music / Art / Writing as separate lock-in types), each
-  can take its own relic (Orpheus' Lyre → Music; e.g. **Apelles' Brush** → Art; **Homer's Quill** → Writing).
+- 🔒 **Never show the unlock condition in-app before it's earned** — only the hint. A visible checklist would
+  kill the reveal moment.
+- **Aegis vs Anvil are a deliberate pair:** Aegis = **sequential** loyalty (weeks in a row); Anvil = **total**
+  loyalty (cumulative hours). Two ways to prove you stay.
+
+### 4a-2 · Discipline Relics — `RELIC` (per lock-in type) — **EARNED, TIERED (4-tier ladder)**
+One relic per discipline, but each is a **4-tier ladder** that upgrades through rarities as you go deeper — so
+it's a running progression milestone, not a single distant unlock. Ipsative: pure effort/output, never an
+outcome. Non-equippable showcase (Trophy Hall §4-relics group). **Earned only — never bought or rolled.** The
+relic shows its **current tier** (rarity glow); the tap sheet shows the **next threshold**. Thresholds tunable.
+
+**The relics (each rides one of the three ladders below):**
+
+| Relic | Discipline | Ladder | Lore (top tier) | Symbolizes / represents for the student |
+|---|---|---|---|---|
+| **Hercules' Might** | Gym / Lift | Volume | Twelve labours. You're somewhere past the seventh — and it shows. | **Strength earned through labour.** Power isn't given, it's accumulated — pound by pound, set by set. |
+| **Pheidippides' Sandals** | Movement (distance moved) | Distance | He crossed 414 km on foot to call for help. You've matched every step. | **Endurance.** The will to keep moving, mile after mile, for something that matters. |
+| **Socrates' Scroll** | Study | Hours | The unexamined hour isn't worth logging. You examined a hundred. | **The examined hour.** Knowledge pursued, not just time passed — the mind sharpened on purpose. (Reading counts as study.) |
+| **Daedalus' Blueprint** | Deep Work (building · coding · creating) | Hours | The labyrinth wasn't built in a day. Neither is whatever you're making. | **What you make.** Real things shipped through focused craft — building, coding, art, writing. The work behind the work. |
+| **Oracle's Stillness** | Meditate | Hours | The Oracle spoke only in the quiet. You've kept a great deal of it. | **Inner stillness.** The rare discipline of doing nothing, well — clarity earned in silence. |
+
+**Ladder A — Volume (Gym / Lift):**
+
+| Tier | Total lifted | Rarity |
+|---|---|---|
+| I | 10,000 lb | Uncommon |
+| II | 25,000 lb | Rare |
+| III | 50,000 lb | Epic |
+| IV | 100,000 lb | Legendary |
+| V | 250,000 lb | Mythic |
+
+**Ladder B — Distance (Movement — total distance *moved*; walking counts, NOT just running):**
+
+| Tier | Distance | Rarity |
+|---|---|---|
+| I | 50 km | Rare |
+| II | 100 km | Epic |
+| III | 250 km | Legendary |
+| IV | 414 km (Athens→Sparta round trip) | Mythic |
+
+**Ladder C — Hours (Study · Deep Work · Meditate):** — caps at **Legendary** (hours are the
+easiest metric to accumulate, so they don't mint Mythics).
+
+| Tier | Hours | Rarity |
+|---|---|---|
+| I | 10 h | Uncommon |
+| II | 25 h | Rare |
+| III | 50 h | Epic |
+| IV | 100 h | Legendary |
+
+**Ceilings, by design (difficulty-weighted):** Gym (250k lb) and Movement (414 km) are hard → they reach
+**Mythic**. Hours cap at **Legendary** (100 h is very reachable). Start points differ for the same reason —
+Gym/Hours start Uncommon (10k / 10 h are trivial); Movement starts Rare (50 km is already real effort).
+Lower tiers can reuse the top-tier lore or get a shorter "on your way" line each.
+
+**Tier presentation — two independent signals on every relic tile:**
+- **Rarity colour** (the tile glow/border — standard gaming palette): Uncommon **green** · Rare **blue** ·
+  Epic **purple** · Legendary **orange** · Mythic **red**.
+- **Greek tier letter** — a small, subtle glyph at the **bottom** of the tile marking which rung you're on:
+  **α** I · **β** II · **γ** III · **δ** IV · **Ω** V (the peak). Colour = *rarity*, letter = *rung* — they're
+  independent, so a maxed Hercules' Might reads **red + Ω**, a maxed Movement relic **red + δ** (its 4th rung is
+  Mythic), a maxed Hours relic **orange + δ**, a first-rung anything **green + α**. Only Gym reaches **Ω**
+  (it's the only 5-tier ladder — makes Ω genuinely rare).
+- Standalone relics (Atlas' Burden §4a-3) show their rarity colour and, being a single peak, carry **Ω**.
+
+**Deep Work covers all focused making** — coding, building, shipping, *and* creative work (art, music,
+writing). Daedalus the master engineer stands for any of it. (Orpheus' Lyre / a separate Create discipline —
+**retired**; creating folds into Deep Work.)
 
 **Set-completion capstone:**
 
 | Item | Earn | Rarity | Lore |
 |---|---|---|---|
-| **Crown of Olympus** | Earn **every** Discipline Relic | Mythic | Master of no single art, but of the discipline beneath all of them. Olympus has a seat for that. |
+| **Crown of Olympus** | Reach the **top tier** of every Discipline Relic (Gym V · Movement IV · each Hours IV) | Mythic | Master of no single art, but of the discipline beneath all of them. Olympus has a seat for that. |
 
-- **Threshold uses the metric that fits the activity**, accumulated from `check_ins` / sessions / synced data
-  of that category (all tunable):
-  - Study · Read · Deep Work · Meditate · Create → **cumulative hours** (100h).
-  - Gym → **total volume lifted** (100,000 lbs).
-  - Run → **total distance** (414 km — Pheidippides' Athens→Sparta round trip).
-  (Gym volume + run distance come from the fitness sync — Health/Strava; where a metric isn't available, fall
-  back to hours.)
-- New lock-in types added later get their own relic (keep the Greek-mythic naming + the "earned, never sold"
-  rule). If a type has no obvious deity, pick the closest myth (e.g. a language study type → **Hermes' Tongue**).
-- Renders exactly like §4a relics: rarity-glowed tile, tap → lore + the hours that earned it.
+- **Metric per ladder** (accumulated from `check_ins` / sessions / synced data — tunable):
+  - **Volume** (Gym) → total lb lifted.
+  - **Distance** (Movement) → **total distance moved — walking counts**, from the fitness sync (Health/steps→km,
+    Strava). Deliberately not run-only, so everyone can climb it.
+  - **Hours** (Study · Deep Work · Meditate) → cumulative hours. (Reading rolls into Study; creating rolls into Deep Work.)
+  (Where a synced metric isn't available, fall back to hours for that discipline.)
+- **Tiering:** the relic is one showcase item that **upgrades its rarity/tier** as each threshold is crossed
+  (I → IV). Award each tier once (idempotent); the tile shows the current tier's glow and the tap sheet shows
+  the next threshold. Earned-only, **zero XP**, non-equippable — same firewall as every relic.
+- New lock-in types added later get their own relic on the fitting ladder (keep the Greek-mythic naming + the
+  "earned, never sold" rule). No obvious deity → nearest myth (e.g. a language type → **Hermes' Tongue**).
+
+### 4a-3 · Strength-milestone relic (Mythic) — the Thousand Pound Club
+A separate axis from Hercules' Might (which is *volume*): this is *max strength* — the classic powerlifting
+**1000 lb club**. **Mythic**, earned-only, showcase, zero XP — same rules as every relic.
+
+| Item | Earn | Rarity | Lore |
+|---|---|---|---|
+| **Atlas' Burden** | **1,000 lb total** — best bench + best squat + best deadlift (any variation) | Mythic | A thousand pounds carried across the three great lifts. Atlas nods in approval. |
+
+**Represents for the student:** *bearing what would crush others* — the peak of raw strength. Atlas held up the
+sky; you held up a thousand pounds across the three lifts that measure a body's true power.
+
+**How it's earned (the engine):**
+- Classify every logged gym exercise into one of three **families**: **bench** (flat / incline / decline /
+  close-grip / dumbbell bench …), **squat** (back / front / box / goblet / hack …), **deadlift** (conventional /
+  sumo / trap-bar / RDL / deficit …). Anything outside the three is ignored.
+- Take the **single best (heaviest) working weight** in each family — estimated 1RM if the app tracks it,
+  otherwise the top-set weight. **Max within a family, never the sum of its variations** (no double-counting an
+  incline + flat bench).
+- Award when **best_bench + best_squat + best_deadlift ≥ 1,000 lb**. Variation-agnostic by design: an incline DB
+  press + a front squat + a trap-bar pull all count toward their families.
+- Units: powerlifting convention is **lb**; if the member logs kg, convert (1000 lb ≈ 453.6 kg total).
+- Data source: per-set gym logging (weight + exercise name) — the same data the gym logger already captures.
+  Needs a small **exercise→family classifier** (name match on the variation list above; unknown lifts ignored).
+- 🔴 Firewall: EARNED, never bought/rolled, **zero XP**, showcase-only (non-equippable), exactly like §4a / §4a-2.
+- **Name: Atlas' Burden (FINAL).** Atlas holding the heavens is *the* universally recognized image of immense
+  strength — the mythic match for the 1000 lb club, which is itself gym culture's canonical strength milestone.
 
 ### 4b · Seasonal Mastery Medals — `MEDAL` (Legendary)
 Awarded for seasonal milestones / top campus placement. Season-stamped, never re-issued.

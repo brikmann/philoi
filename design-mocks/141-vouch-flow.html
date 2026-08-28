@@ -1,0 +1,93 @@
+<meta charset="utf-8"><title>Mock 141 — Social vouch flow</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:700px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:250px}
+.arrow{align-self:center;font-size:22px;color:#F2A33C;margin-top:130px}
+.ph{width:270px;height:540px;background:linear-gradient(#141019,#0e0b13);border-radius:30px;border:1px solid #241c38;position:relative;overflow:hidden;padding:16px}
+.hd{font-size:15px;font-weight:800;margin:2px 2px 12px}
+.card{background:radial-gradient(120% 80% at 50% 0%,#1e1528,#120c1a);border:1px solid #2a2140;border-radius:16px;padding:15px}
+.cname{font-size:14px;font-weight:800}.cmeta{font-size:10.5px;color:#8a7db0;margin-top:2px}
+.pending{display:inline-flex;align-items:center;gap:6px;background:#241a34;border:1px solid #6a5a34;color:#FFD27A;font-size:11px;font-weight:800;padding:5px 12px;border-radius:20px;margin-top:12px}
+.rewardrow{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;font-weight:800}
+.rdim{opacity:.6}
+.lbl{font-size:9px;font-weight:800;color:#8a7db0;letter-spacing:.4px;margin:14px 0 8px}
+.friend{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #201830}
+.av{width:34px;height:34px;border-radius:50%;flex:none;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e)}
+.a2{background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)}.a3{background:radial-gradient(circle at 40% 30%,#7a5a2a,#3e2a16)}
+.fn{flex:1;font-size:12.5px;font-weight:700}
+.req{font-size:10.5px;font-weight:800;color:#1a1020;background:linear-gradient(#FFE39A,#F2A33C);border-radius:8px;padding:5px 12px}
+.reqd{font-size:10px;font-weight:700;color:#8a7db0}
+/* friend prompt */
+.prompt{background:radial-gradient(120% 80% at 50% 0%,#1e1528,#120c1a);border:1px solid #3a2f56;border-radius:16px;padding:16px;text-align:center;margin-top:40px}
+.pav{width:52px;height:52px;border-radius:50%;margin:0 auto 10px;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e)}
+.pq{font-size:14px;font-weight:700;line-height:1.4}.pq b{color:#FFD27A}
+.pbtns{display:flex;gap:10px;margin-top:16px}
+.vouch{flex:1;background:linear-gradient(#4caf50,#2f8a3a);color:#fff;font-weight:800;font-size:13px;padding:11px;border-radius:11px;text-align:center}
+.nah{flex:1;background:#241a34;color:#c9bfe0;font-weight:800;font-size:13px;padding:11px;border-radius:11px;text-align:center}
+.pnote{font-size:10px;color:#6a5d84;margin-top:12px;line-height:1.5}
+/* upgraded */
+.vouched{display:inline-flex;align-items:center;gap:6px;background:#1e3a26;border:1px solid #2f5a3a;color:#7fd08a;font-size:11px;font-weight:800;padding:5px 12px;border-radius:20px;margin-top:12px}
+.up{font-size:11px;color:#7fd08a;font-weight:800;margin-top:10px}
+.arrowup{color:#7fd08a}
+</style>
+<svg width="0" height="0"><defs>
+<radialGradient id="emberCore" cx="50%" cy="60%" r="62%"><stop offset="0" stop-color="#FFF3D6"/><stop offset=".34" stop-color="#FFD27A"/><stop offset=".68" stop-color="#F2A33C"/><stop offset="1" stop-color="#E0612C"/></radialGradient>
+<linearGradient id="emberCoal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8C3A"/><stop offset=".5" stop-color="#E0612C"/><stop offset="1" stop-color="#8A3410"/></linearGradient>
+<symbol id="ember" viewBox="0 0 48 60"><path d="M24 3 C26 15 37 23 37 39 C37 49 31 56 24 56 C17 56 11 49 11 39 C11 30 17 26 20 32 C19 21 22 12 24 3 Z" fill="url(#emberCoal)"/><path d="M24 13 C25.5 22 31 28 31 39 C31 47 28 51 24 51 C20 51 17 47 17 39 C17 32 20 30 22 34 C21 26 23 20 24 13 Z" fill="url(#emberCore)"/></symbol>
+</defs></svg>
+
+<h1>Mock 141 — Social vouch flow</h1>
+<p class="sub">Honor challenges finish as <b style="color:#FFD27A">pending</b>. Get 1–2 friends to vouch and the reward upgrades from the discounted box to the full tier (−10%). A soft check, not proof — so it never beats app-tracked effort, but it beats a bare self-report. <b style="color:#e7ddf5">Anti-collusion:</b> the same friend can only vouch for you twice per 30 days, mutual-pair vouching gets dampened, and a person can give ~5 vouches/week max — so rings can't rubber-stamp.</p>
+
+<div class="wrap">
+  <!-- 1 · pending, request vouches -->
+  <div class="col"><div class="cap">1 · Result pending — ask friends to vouch</div>
+    <div class="ph">
+      <div class="hd">Challenge complete</div>
+      <div class="card">
+        <div class="cname">70% in Physiology</div>
+        <div class="cmeta">Solo · honor · you reported 72%</div>
+        <div class="pending">⏳ Pending · needs 2 vouches · 47h left</div>
+        <div class="rewardrow rdim"><span style="color:#c99bf7">Vessel of Hestia</span> · 480 <svg width="11" height="14"><use href="#ember"/></svg> · 480 XP</div>
+      </div>
+      <div class="lbl">ASK FRIENDS WHO'D KNOW</div>
+      <div class="friend"><div class="av a2"></div><div class="fn">Maya</div><div class="req">Ask</div></div>
+      <div class="friend"><div class="av a3"></div><div class="fn">Jordan</div><div class="req">Ask</div></div>
+      <div class="friend"><div class="av"></div><div class="fn">Sam</div><div class="reqd">requested ✓</div></div>
+    </div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- 2 · friend's prompt -->
+  <div class="col"><div class="cap">2 · Your friend gets the prompt</div>
+    <div class="ph">
+      <div class="hd">Vouch request</div>
+      <div class="prompt">
+        <div class="pav"></div>
+        <div class="pq"><b>Noah</b> says he got a <b>72% in Physiology</b>.<br>Did he really?</div>
+        <div class="pbtns"><div class="vouch">✓ Vouch</div><div class="nah">Nah</div></div>
+        <div class="pnote">Vouching is your name on it. Only vouch if you actually believe them — the campfire can see who vouched.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- 3 · upgraded -->
+  <div class="col"><div class="cap">3 · Vouched → reward upgrades</div>
+    <div class="ph">
+      <div class="hd">Challenge complete</div>
+      <div class="card">
+        <div class="cname">70% in Physiology</div>
+        <div class="cmeta">Solo · honor · vouched by Maya + Jordan</div>
+        <div class="vouched">✓ Vouched by 2 friends</div>
+        <div class="up">Reward upgraded <span class="arrowup">↑</span></div>
+        <div class="rewardrow"><span style="color:#FFC98A">Hephaestus' Chest</span> · 540 <svg width="11" height="14"><use href="#ember"/></svg> · 540 XP</div>
+        <div class="cmeta" style="margin-top:8px">Vessel of Hestia → Hephaestus' Chest · full box tier, −10% currency. Still below an app-tracked Legendary.</div>
+      </div>
+    </div>
+  </div>
+</div>

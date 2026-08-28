@@ -1,0 +1,99 @@
+<meta charset="utf-8"><title>Mock 139 — Challenge leaderboard + share</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:680px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:250px}
+.arrow{align-self:center;font-size:24px;color:#F2A33C;margin-top:120px}
+.ph{width:280px;height:560px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden}
+/* challenge card */
+.ccard{margin:18px 14px;background:radial-gradient(120% 80% at 50% 0%,#1e1528,#120c1a);border:1px solid #2a2140;border-radius:16px;padding:16px}
+.cname{font-size:15px;font-weight:800}.cmeta{font-size:11px;color:#8a7db0;margin-top:2px}
+.place{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:12px;padding:6px 13px;border-radius:20px;margin-top:14px;cursor:pointer;box-shadow:0 0 0 0 rgba(242,163,60,.5);animation:pulse 2.6s ease-in-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(242,163,60,.5)}70%{box-shadow:0 0 0 8px rgba(242,163,60,0)}100%{box-shadow:0 0 0 0 rgba(242,163,60,0)}}
+.tapc{font-size:10.5px;color:#8a7db0;margin-top:10px}
+/* leaderboard */
+.lbhead{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 10px}
+.lbtitle{font-size:16px;font-weight:800}.share{font-size:12px;font-weight:800;color:#F2A33C}
+.lbsub{font-size:11px;color:#8a7db0;padding:0 16px 10px}
+.lrow{display:flex;align-items:center;gap:11px;padding:10px 16px}
+.lrow.me{background:linear-gradient(90deg,rgba(242,163,60,.10),transparent 70%)}
+.rk{width:24px;text-align:center;font-size:14px;font-weight:800;color:#8a7db0;flex:none}
+.rk.g1{color:#FFD27A}.rk.g2{color:#cdd6e3}.rk.g3{color:#d99a5a}
+.av{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e);flex:none}
+.pn{flex:1;font-size:13px;font-weight:700}.pn small{display:block;font-size:10px;color:#8a7db0;font-weight:500}
+.sc{font-size:13px;font-weight:800;color:#e7ddf5}
+.tiebadge{font-size:8.5px;font-weight:800;color:#7fd08a;border:1px solid #2f5a3a;border-radius:20px;padding:1px 6px;margin-left:6px}
+.hr{height:1px;background:#1c1526;margin:0 16px}
+.lbfoot{font-size:10px;color:#6a5d84;padding:12px 16px;line-height:1.5}
+/* share card */
+.sc2{width:250px;border-radius:20px;overflow:hidden;background:radial-gradient(120% 80% at 50% 0%,#2a1a12,#120c1a);border:1.5px solid #F2A33C;box-shadow:0 0 30px rgba(242,163,60,.25)}
+.sc2 .top{padding:18px 18px 10px;text-align:center}
+.sc2 .kick{font-size:10px;font-weight:800;letter-spacing:2px;color:#FFD27A}
+.sc2 .ttl{font-size:17px;font-weight:800;margin:4px 0 2px}
+.sc2 .win{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:13px;padding:6px 14px;border-radius:20px;margin-top:8px}
+.sc2 .mini{padding:6px 16px 16px}
+.mrow{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:12px}
+.mrk{width:16px;font-weight:800;color:#8a7db0}.mnm{flex:1;font-weight:600}.msc{font-weight:800;color:#e7ddf5}
+.brand{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border-top:1px solid #3a2f56;font-size:11px;font-weight:800;color:#FFD27A}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<symbol id="flame" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></g></symbol>
+</defs></svg>
+
+<h1>Mock 139 — Challenge leaderboard + share</h1>
+<p class="sub">Tapping the orange placement chip opens the full challenge leaderboard — live during the race, final after. Ties share a rank (and share the reward). A Share button exports a card. Example below has a <b style="color:#7fd08a">tie for 1st</b>.</p>
+
+<div class="wrap">
+  <!-- entry: the card with tappable chip -->
+  <div class="col"><div class="cap">1 · Tap the placement chip</div>
+    <div class="ph">
+      <div class="ccard">
+        <div class="cname">Most km this week</div>
+        <div class="cmeta">Grind Szn · 8 runners · ends in 2d</div>
+        <div class="place">🏆 1st of 8 · Grind Szn</div>
+        <div class="tapc">tap the chip to see the full board ↑</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- leaderboard -->
+  <div class="col"><div class="cap">2 · The leaderboard (ties share rank + reward)</div>
+    <div class="ph">
+      <div class="lbhead"><span class="lbtitle">Most km this week</span><span class="share">Share</span></div>
+      <div class="lbsub">Grind Szn · live · ends in 2d 4h</div>
+      <div class="lrow me"><div class="rk g1">1</div><div class="av"></div><div class="pn">You <small>tied for 1st</small></div><div class="sc">40.0 km</div></div>
+      <div class="hr"></div>
+      <div class="lrow"><div class="rk g1">1</div><div class="av" style="background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)"></div><div class="pn">Maya <small>tied for 1st</small></div><div class="sc">40.0 km<span class="tiebadge">TIE</span></div></div>
+      <div class="hr"></div>
+      <div class="lrow"><div class="rk g3">3</div><div class="av" style="background:radial-gradient(circle at 40% 30%,#7a5a2a,#3e2a16)"></div><div class="pn">Jordan</div><div class="sc">36.4 km</div></div>
+      <div class="hr"></div>
+      <div class="lrow"><div class="rk">4</div><div class="av"></div><div class="pn">Sam</div><div class="sc">31.1 km</div></div>
+      <div class="hr"></div>
+      <div class="lrow"><div class="rk">5</div><div class="av"></div><div class="pn">Priya</div><div class="sc">28.7 km</div></div>
+      <div class="lbfoot">Two runners tied at 40.0 km — both take 1st and <b style="color:#7fd08a">both get the full 1st-place reward</b>. No coin-flip, no split.</div>
+    </div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- share card -->
+  <div class="col"><div class="cap">3 · The share card</div>
+    <div class="sc2">
+      <div class="top">
+        <div class="kick">CHALLENGE · GRIND SZN</div>
+        <div class="ttl">Most km this week</div>
+        <div class="win">🏆 Tied for 1st · 40.0 km</div>
+      </div>
+      <div class="mini">
+        <div class="mrow"><span class="mrk" style="color:#FFD27A">1</span><span class="mnm">You</span><span class="msc">40.0</span></div>
+        <div class="mrow"><span class="mrk" style="color:#FFD27A">1</span><span class="mnm">Maya</span><span class="msc">40.0</span></div>
+        <div class="mrow"><span class="mrk" style="color:#d99a5a">3</span><span class="mnm">Jordan</span><span class="msc">36.4</span></div>
+      </div>
+      <div class="brand"><svg width="14" height="17"><use href="#flame" fill="url(#e)"/></svg> philoi</div>
+    </div>
+  </div>
+</div>

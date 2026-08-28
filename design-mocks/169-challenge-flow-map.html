@@ -1,0 +1,86 @@
+<meta charset="utf-8"><title>Mock 169 — Challenge flow map</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 18px 70px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:760px;margin:0 auto 14px;line-height:1.5}
+.legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;font-size:10.5px;color:#8a7db0;margin:0 auto 22px}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.wrap{max-width:900px;margin:0 auto}
+.phase{margin:0 0 6px}
+.plabel{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#5f5478;margin:16px 0 8px}
+.rowf{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
+.box{background:#15101d;border:1px solid #2a2140;border-radius:12px;padding:11px 13px;min-width:150px;flex:1;max-width:230px}
+.box .t{font-size:12.5px;font-weight:800}.box .d{font-size:10.5px;color:#9f92b6;margin-top:4px;line-height:1.45}
+.box .rt{font-size:9px;color:#6a5d84;margin-top:6px;font-family:monospace}
+.built{border-color:#2e6b45}.built .t{color:#8fe0b0}
+.gated{border-color:#8a6a2e}.gated .t{color:#f2c86a}
+.gap{border-color:#8a2e46;background:#1a1016}.gap .t{color:#ff8aa0}
+.arrow{text-align:center;color:#5f5478;font-size:16px;margin:2px 0}
+.split{display:flex;gap:12px}.split>div{flex:1}
+.branchlabel{font-size:9.5px;font-weight:800;color:#c9bfe0;margin:4px 0}
+.edge{font-size:10px;color:#7d719c;margin:6px 4px 0;padding-left:10px;border-left:2px solid #2a2140;line-height:1.5}
+</style>
+
+<h1>Mock 169 — Challenge flow, end to end</h1>
+<p class="sub">Everything that happens from pressing <b style="color:#e7ddf5">Challenges</b>, mapped from the code. Use it to stress-test: walk each path, check every branch resolves and every edge case has a screen.</p>
+<div class="legend"><span><b style="background:#2e6b45"></b>built &amp; working (deploy-gated on 0112/0116)</span><span><b style="background:#8a6a2e"></b>built, older schematic</span><span><b style="background:#8a2e46"></b>v2 gap — mocked, not built</span></div>
+
+<div class="wrap">
+
+  <div class="phase"><div class="plabel">1 · Entry — the Challenges screen <code>(tabs)/challenges.tsx</code></div>
+  <div class="rowf">
+    <div class="box built"><div class="t">Empty state</div><div class="d">"No active challenges" + <b>Start a challenge</b>. Shown when no live + no personal goals.</div></div>
+    <div class="box built"><div class="t">Friends tab</div><div class="d">Live social: <b>draft · pending · active</b> cards. Tap → Watch or Challenge-info by state.</div></div>
+    <div class="box built"><div class="t">Personal tab</div><div class="d">Your personal goals. Tap → challenge-info (kind: goal).</div></div>
+    <div class="box built"><div class="t">History ▾</div><div class="d">Collapsible: completed / expired social + finished goals. Count chip.</div></div>
+  </div></div>
+  <div class="arrow">↓ &nbsp; tap "Start a challenge"</div>
+
+  <div class="phase"><div class="plabel">2 · Create <code>/challenge/create</code></div>
+  <div class="rowf">
+    <div class="box built"><div class="t">Mode</div><div class="d"><b>Head-to-head</b> or <b>Group</b>. (Solo = a personal goal, separate flow.)</div></div>
+    <div class="box built"><div class="t">Race metric</div><div class="d">Lock-in time · Volume (gym sets) · Distance (Strava). XP retired. Each names its data source.</div></div>
+    <div class="box gap"><div class="t">Duration</div><div class="d">Only 24h · 3d · 1w. <b>No 1d / 1mo presets, no date picker</b> — custom spans unbuilt.</div></div>
+    <div class="box gap"><div class="t">Placement / ranked shape</div><div class="d">Mock 114. Column + type exist; <b>nothing creates one</b>.</div></div>
+  </div>
+  <div class="split" style="margin-top:12px">
+    <div><div class="branchlabel">▸ Head-to-head branch</div>
+      <div class="box built"><div class="t">Pick opponent</div><div class="d">Friend picker → "Challenge {name}". Public name field (h2h only).</div><div class="rt">create_h2h_challenge</div></div>
+      <div class="arrow">↓</div>
+      <div class="box built"><div class="t">Sent sheet</div><div class="d">"Challenge sent" confirmation, then back. Opponent gets an Accept/Decline invite.</div></div>
+    </div>
+    <div><div class="branchlabel">▸ Group branch</div>
+      <div class="box built"><div class="t">Member ticker + target</div><div class="d">Search + multi-select campfire members; "Everyone locks in N×" stepper.</div><div class="rt">create_group + invite_challenge_members</div></div>
+      <div class="arrow">↓</div>
+      <div class="box gap"><div class="t">Group public name</div><div class="d">Read everywhere, but <b>no field to set it</b> in group mode — always sends null.</div></div>
+    </div>
+  </div></div>
+  <div class="arrow">↓</div>
+
+  <div class="phase"><div class="plabel">3 · Invite &amp; accept</div>
+  <div class="rowf">
+    <div class="box built"><div class="t">Opponent / members respond</div><div class="d">Accept / Decline on their card or challenge-info. Baselines set at acceptance (the gun).</div></div>
+    <div class="box built"><div class="t">Admin: Start the race</div><div class="d">Group only. Enabled once ≥1 accepts (creator is auto-accepted). Was the "nobody accepted" dead end — fixed in 0112.</div></div>
+    <div class="box built"><div class="t">Manage ⋯ (kebab)</div><div class="d">Edit · <b>Delete challenge</b> (creator/admin, refuses a live race) · change request.</div><div class="rt">/challenge-change/[requestId]</div></div>
+  </div>
+  <div class="edge">Edge cases to poke: decline-then-empty roster · invite that fails after create (draft stranded in Friends tab) · a draft you never invited anyone to.</div></div>
+  <div class="arrow">↓ &nbsp; race goes active</div>
+
+  <div class="phase"><div class="plabel">4 · Active — the race <code>/watch/[challengeId]</code></div>
+  <div class="rowf">
+    <div class="box built"><div class="t">Watch — live meters</div><div class="d">One meter per <b>racer</b> (not the whole campfire — fixed 0112). Metric-correct label + units.</div></div>
+    <div class="box built"><div class="t">Cheer</div><div class="d">Cheer control under each racer + note composer. Fires push + bell "🔥 X cheered you on".</div></div>
+    <div class="box gated"><div class="t">Live session tie-in</div><div class="d">Watch reads check_ins live. Persistent live-session notification is a separate pending item (#73).</div></div>
+  </div></div>
+  <div class="arrow">↓ &nbsp; window ends → cron settles → <code>challenge_won / challenge_lost</code> push</div>
+
+  <div class="phase"><div class="plabel">5 · Result <code>/challenge-info/[challengeId]</code></div>
+  <div class="rowf">
+    <div class="box gated"><div class="t">Reward reveal (once)</div><div class="d">First settled view for anyone accepted — winners AND losers. Embers + box + badge from what the ledger paid. Dismiss = seen.</div><div class="rt">needs 0116 deployed (after 0114)</div></div>
+    <div class="box built"><div class="t">Final standings</div><div class="d">Shape-aware: 1v1 crown, group house-hero + count. Place · percentile · XP paid.</div></div>
+    <div class="box built"><div class="t">Share card</div><div class="d">Placement + stat. Stays reachable after the one-shot reveal.</div></div>
+    <div class="box gap"><div class="t">Box "Open" button</div><div class="d">Reward box lands in inventory but its Open isn't wired from here (no challenge→box id link).</div></div>
+  </div></div>
+
+</div>
+
+<p class="sub" style="margin-top:24px;max-width:820px">The spine (create → invite → race → settle → reward) is <b style="color:#8fe0b0">built and green</b> but <b style="color:#f2c86a">uncommitted + deploy-gated</b> on migrations 0112/0116. The <b style="color:#ff8aa0">red</b> boxes are the v2 gaps to build: custom durations, placement shape, group public-name, and wiring the box-open from the result. Cindy-authored challenges + vouching (mocks 140–150) sit entirely outside this map — a separate layer on top of Create.</p>

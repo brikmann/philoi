@@ -1,0 +1,128 @@
+<meta charset="utf-8"><title>Mock 164 — Audio toggle + campfire banner</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:720px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:300px;min-height:32px}
+.ph{width:300px;height:620px;background:linear-gradient(#141019,#0e0b13);border-radius:34px;border:1px solid #241c38;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.tb{padding:16px 18px 10px;font-size:16px;font-weight:800;flex:none;border-bottom:1px solid #1c1526}
+.body{flex:1;overflow-y:auto;padding:14px 16px}
+.sect{font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#5f5478;margin:16px 4px 8px}
+.row{display:flex;align-items:center;gap:12px;background:#15101d;border:1px solid #241c38;border-radius:14px;padding:13px 14px;margin-bottom:9px}
+.ri{width:34px;height:34px;border-radius:10px;background:#221933;border:1px solid #33264a;display:grid;place-items:center;color:#F2A33C;flex:none}
+.rt{flex:1}.rl{font-size:13px;font-weight:700}.rd{font-size:10.5px;color:#8a7db0;margin-top:2px;line-height:1.4}
+.sw{width:44px;height:26px;border-radius:20px;flex:none;position:relative;transition:.2s}
+.sw.on{background:linear-gradient(#F2A33C,#E0612C)}.sw.off{background:#2a2140}
+.sw i{position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff}
+.sw.on i{right:3px}.sw.off i{left:3px}
+.chev{font-size:12px;color:#8a7db0}
+/* lock-in start sheet */
+.scrim{position:absolute;inset:0;background:rgba(6,5,10,.6)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(#181019,#120c17);border-top:1px solid #2e2542;border-radius:20px 20px 0 0;padding:8px 0 16px}
+.grab{width:38px;height:4px;border-radius:3px;background:#3a2f4e;margin:6px auto 12px}
+.sh{font-size:14px;font-weight:800;padding:2px 18px 8px}
+.opt{display:flex;align-items:center;gap:12px;padding:11px 18px}
+.oi{width:36px;height:36px;border-radius:10px;background:#221933;border:1px solid #33264a;display:grid;place-items:center;color:#F2A33C;flex:none}
+.ot{font-size:12.5px;font-weight:700}.od{font-size:10px;color:#8a7db0;margin-top:1px}
+.radio{width:18px;height:18px;border-radius:50%;border:2px solid #3a2f4e;margin-left:auto;flex:none}
+.radio.on{border-color:#F2A33C;background:radial-gradient(circle,#F2A33C 42%,transparent 46%)}
+.startbtn{margin:12px 16px 0;text-align:center;font-size:14px;font-weight:800;color:#1a1020;background:linear-gradient(#F2A33C,#E0612C);border-radius:14px;padding:13px}
+/* campfire header preview */
+.cfhead{height:118px;position:relative;flex:none;display:flex;align-items:flex-end;padding:12px 15px;overflow:hidden}
+.bannerA{position:absolute;inset:0;background:radial-gradient(2px 2px at 20% 62%,#FFE39A,transparent),radial-gradient(1.5px 1.5px at 45% 40%,#FFD27A,transparent),radial-gradient(2px 2px at 70% 55%,#FFE39A,transparent),radial-gradient(1.5px 1.5px at 85% 30%,#FFC98A,transparent),radial-gradient(1.5px 1.5px at 33% 24%,#FFE39A,transparent),linear-gradient(120deg,#3a1608,#c94e1a 70%,#FF9A3C 130%);opacity:.95}
+.bannerA::after{content:'';position:absolute;inset:0;background:linear-gradient(transparent,#120d1a)}
+.cftitle{position:relative;font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px}
+.editb{position:absolute;top:12px;right:12px;font-size:10.5px;font-weight:800;color:#1a1020;background:rgba(255,227,154,.92);border-radius:20px;padding:5px 11px;display:flex;align-items:center;gap:5px;z-index:2}
+.bgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:2px 16px}
+.bopt{height:54px;border-radius:12px;position:relative;border:1px solid #2a2140;overflow:hidden}
+.bsel{outline:2px solid #F2A33C;outline-offset:-2px}
+.bsel::after{content:'✓';position:absolute;top:5px;right:6px;width:17px;height:17px;border-radius:50%;background:#F2A33C;color:#1a1020;font-size:11px;font-weight:800;display:grid;place-items:center}
+.blab{position:absolute;left:8px;bottom:6px;font-size:9.5px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.bopt .mo{position:absolute;inset:0}
+/* Emberfall — embers rising over a warm dusk */
+.b1{background:linear-gradient(120deg,#3a1608,#c94e1a 70%,#FF9A3C)}
+.b1 .mo{background:radial-gradient(2px 2px at 18% 70%,#FFE39A,transparent),radial-gradient(1.5px 1.5px at 40% 45%,#FFD27A,transparent),radial-gradient(2px 2px at 66% 62%,#FFE39A,transparent),radial-gradient(1.5px 1.5px at 82% 35%,#FFC98A,transparent),radial-gradient(1.5px 1.5px at 30% 25%,#FFE39A,transparent)}
+/* Amethyst Rise — crystal facets */
+.b2{background:linear-gradient(120deg,#1a1030,#5a3aa0 75%,#a06cff)}
+.b2 .mo{background:linear-gradient(58deg,transparent 46%,rgba(226,210,255,.4) 47% 49%,transparent 50%),linear-gradient(-52deg,transparent 58%,rgba(200,178,255,.3) 59% 61%,transparent 62%),linear-gradient(20deg,transparent 30%,rgba(226,210,255,.22) 31% 32%,transparent 33%)}
+/* Jade Hearth — concentric hearth arcs */
+.b3{background:linear-gradient(120deg,#062421,#137a5e 78%,#37d0a0)}
+.b3 .mo{background:radial-gradient(circle at 50% 128%,transparent 26%,rgba(150,240,210,.38) 27% 29%,transparent 31%,transparent 42%,rgba(150,240,210,.3) 43% 45%,transparent 47%,transparent 58%,rgba(150,240,210,.2) 59% 61%,transparent 63%)}
+/* Rose Ash — drifting ash streaks */
+.b4{background:linear-gradient(120deg,#2a0e1a,#a02a4a 74%,#ff7a94)}
+.b4 .mo{background:repeating-linear-gradient(118deg,rgba(255,210,220,.28) 0 1.5px,transparent 1.5px 10px)}
+.block{background:#17111f;display:grid;place-items:center;color:#5f5478}
+svg.i{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<symbol id="note" viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></symbol>
+<symbol id="mute" viewBox="0 0 24 24"><path d="M4 9h3l4-3v12l-4-3H4z"/><path d="M15 9l5 5M20 9l-5 5"/></symbol>
+<symbol id="pen" viewBox="0 0 24 24"><path d="M5 18.5 4 20l1.5-.4L18 7.1a1.7 1.7 0 0 0 0-2.4l-.2-.2a1.7 1.7 0 0 0-2.4 0L3 16.9z"/><path d="M14 6.2 16.8 9"/></symbol>
+<symbol id="flame" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#e)"/></g></symbol>
+<symbol id="banner" viewBox="0 0 24 24"><path d="M5 4h14v13l-7-3-7 3z"/></symbol>
+<symbol id="a-bonfire" viewBox="0 0 24 24"><path d="M12 4c1 3 4 3.6 4 6.6a4 4 0 0 1-8 0c0-1.6 1-2.7 1.7-3.4 0 1.6.8 2.4 1.6 2.4.5-1.7-1-3.3.7-5.6z"/><path d="M4.5 19.5 19.5 15.5M4.5 15.5 19.5 19.5"/></symbol>
+<symbol id="a-space" viewBox="0 0 24 24"><circle cx="12" cy="11.5" r="4.5"/><ellipse cx="12" cy="11.5" rx="9" ry="3.2" transform="rotate(-20 12 11.5)"/></symbol>
+<symbol id="a-lofi" viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="17" height="11" rx="2"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><path d="M7.5 15.5h9"/></symbol>
+<symbol id="a-monastery" viewBox="0 0 24 24"><path d="M12 4.5a4.5 4.5 0 0 1 4.5 4.5c0 3.6 1.3 4.6 1.8 6.5H5.7c.5-1.9 1.8-2.9 1.8-6.5A4.5 4.5 0 0 1 12 4.5z"/><path d="M12 4.5V3M10.4 18a1.6 1.6 0 0 0 3.2 0"/></symbol>
+<symbol id="awake" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6"/><path d="M12 3v2.3M12 18.7V21M3 12h2.3M18.7 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/></symbol>
+</defs></svg>
+
+<h1>Mock 164 — Audio off-switch + campfire banner</h1>
+<p class="sub">Two of the quick cosmetic fixes. <b style="color:#e7ddf5">Audio</b> gets a global off-switch (your own music, esp. at the gym) and a per-session picker. <b style="color:#e7ddf5">Banner</b> gets the missing owner affordance — the render component already exists.</p>
+
+<div class="wrap">
+  <!-- 1 · SETTINGS AUDIO TOGGLE -->
+  <div class="col"><div class="cap">1 · Settings → Audio + Lock-in screen. Session audio off = your own music; Keep screen awake stops the display sleeping (which kills flare + audio).</div>
+    <div class="ph">
+      <div class="tb">Settings</div>
+      <div class="body">
+        <div class="sect">Audio</div>
+        <div class="row"><div class="ri"><svg class="i" width="19" height="19"><use href="#note"/></svg></div><div class="rt"><div class="rl">Session audio</div><div class="rd">Play your equipped ambient during lock-ins</div></div><div class="sw on"><i></i></div></div>
+        <div class="row"><div class="ri"><svg class="i" width="19" height="19"><use href="#flame"/></svg></div><div class="rt"><div class="rl">Reward &amp; SFX stings</div><div class="rd">Box opens, rank-ups, lock-in start/stop</div></div><div class="sw on"><i></i></div></div>
+        <div class="row" style="opacity:.85"><div class="ri"><svg class="i" width="19" height="19"><use href="#mute"/></svg></div><div class="rt"><div class="rl">Duck to my music</div><div class="rd">Lower ambient when your music is playing, instead of stopping it</div></div><div class="sw off"><i></i></div></div>
+        <div class="rd" style="padding:8px 6px;color:#6a5d84">Ambient no longer forces over silent mode — turn it off and Philoi stays quiet at the gym.</div>
+        <div class="sect">Lock-in screen</div>
+        <div class="row"><div class="ri"><svg class="i" width="19" height="19"><use href="#awake"/></svg></div><div class="rt"><div class="rl">Keep screen awake</div><div class="rd">Hold the display on during a session — a sleeping screen kills the flare and the music</div></div><div class="sw on"><i></i></div></div>
+        <div class="rd" style="padding:8px 6px;color:#6a5d84">Default on. When a lock-in ends, the screen returns to your normal auto-lock.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 · PER-SESSION AUDIO SWITCHER -->
+  <div class="col"><div class="cap">2 · Lock-in start sheet → pick this session's audio (or none). Swaps the ambient loop.</div>
+    <div class="ph">
+      <div class="scrim"></div>
+      <div class="sheet" style="height:70%">
+        <div class="grab"></div>
+        <div class="sh">This session's audio</div>
+        <div class="opt"><div class="oi"><svg class="i" width="18" height="18"><use href="#mute"/></svg></div><div><div class="ot">None — my own music</div><div class="od">Philoi stays silent</div></div><div class="radio"></div></div>
+        <div class="opt"><div class="oi"><svg class="i" width="19" height="19"><use href="#a-bonfire"/></svg></div><div><div class="ot">Heavy Bonfire Crackle</div><div class="od">Equipped</div></div><div class="radio on"></div></div>
+        <div class="opt"><div class="oi"><svg class="i" width="19" height="19"><use href="#a-space"/></svg></div><div><div class="ot">Deep Space Sub-Bass</div><div class="od">Owned</div></div><div class="radio"></div></div>
+        <div class="opt"><div class="oi"><svg class="i" width="19" height="19"><use href="#a-lofi"/></svg></div><div><div class="ot">Lofi Lullaby</div><div class="od">Owned</div></div><div class="radio"></div></div>
+        <div class="opt"><div class="oi"><svg class="i" width="19" height="19"><use href="#a-monastery"/></svg></div><div><div class="ot">Monastery Drone</div><div class="od">Owned</div></div><div class="radio"></div></div>
+        <div class="startbtn"><svg width="15" height="15" style="vertical-align:-2px"><use href="#flame"/></svg> Start lock-in</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 · CAMPFIRE BANNER PICKER -->
+  <div class="col"><div class="cap">3 · Campfire (owner) → set a banner. Header renders it; picker pulls owned banners.</div>
+    <div class="ph">
+      <div class="cfhead"><div class="bannerA"></div><div class="editb"><svg class="i" width="12" height="12"><use href="#pen"/></svg> Banner</div><div class="cftitle"><svg width="18" height="18"><use href="#flame"/></svg> Grind Club</div></div>
+      <div class="body" style="padding-top:12px">
+        <div class="sect" style="margin-top:2px">Choose a banner · owner only</div>
+        <div class="bgrid">
+          <div class="bopt b1 bsel"><span class="mo"></span><span class="blab">Emberfall</span></div>
+          <div class="bopt b2"><span class="mo"></span><span class="blab">Amethyst Rise</span></div>
+          <div class="bopt b3"><span class="mo"></span><span class="blab">Jade Hearth</span></div>
+          <div class="bopt b4"><span class="mo"></span><span class="blab">Rose Ash</span></div>
+          <div class="bopt block"><svg class="i" width="20" height="20"><use href="#banner"/></svg></div>
+          <div class="bopt block" style="font-size:10px;font-weight:700">+ more owned</div>
+        </div>
+        <div class="rd" style="padding:10px 6px;color:#6a5d84">Only the campfire owner sets this. The banner is their equipped/owned banner cosmetic — the flex is that your group wears your art.</div>
+      </div>
+    </div>
+  </div>
+</div>

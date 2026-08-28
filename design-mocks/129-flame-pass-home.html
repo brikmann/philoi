@@ -1,0 +1,116 @@
+<meta charset="utf-8"><title>Mock 129 — Flame Pass home + panel + level-up</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:660px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;letter-spacing:.4px}
+.ph{width:300px;height:600px;background:linear-gradient(#141019,#0e0b13);border-radius:34px;border:1px solid #241c38;overflow:hidden;position:relative}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 10px}
+.hleft{display:flex;gap:10px;align-items:center}.av{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#4a3a66,#241a38)}
+.greet{font-size:15px;font-weight:800}
+/* the flame-pass chip — new hex-crest emblem + level */
+.pass{display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+.plvl{font-size:10px;font-weight:800;color:#FFD27A;letter-spacing:.5px}
+.pdot{position:absolute;top:-2px;right:2px;width:11px;height:11px;border-radius:50%;background:#e0473b;border:2px solid #0e0b13}
+.body{padding:8px 16px}.streak{font-size:12px;color:#c9bfe0;margin:2px 0 16px}
+.flamebig{display:flex;justify-content:center;margin:26px 0}
+.valley{height:120px;border-top:1px dashed #2a2140;margin-top:20px;padding-top:14px;font-size:11px;color:#6a5d84;text-align:center}
+/* panel */
+.panel{width:300px;background:linear-gradient(#17111f,#0e0b13);border-radius:22px;border:1px solid #2e2542;padding:18px 16px;box-shadow:0 20px 60px rgba(0,0,0,.55)}
+.ptop{display:flex;align-items:center;gap:11px;margin-bottom:6px}
+.ptitle{font-size:15px;font-weight:800}.pseason{font-size:11px;color:#8a7db0}
+.lvlrow{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 5px}
+.lvlnow{font-size:13px;font-weight:800;color:#FFD27A}.lvlrew{font-size:11px;color:#8a7db0}
+.bar{height:9px;background:#241a34;border-radius:6px;overflow:hidden}.fill{height:100%;width:62%;background:linear-gradient(90deg,#E0612C,#F2A33C,#FFE39A);border-radius:6px}
+.xp{font-size:10.5px;color:#8a7db0;margin-top:5px;text-align:right}
+.sect{font-size:11px;font-weight:800;color:#FFD27A;letter-spacing:.4px;margin:18px 0 9px;text-transform:uppercase}
+.task{display:flex;align-items:center;gap:11px;padding:9px 0;border-top:1px solid #201830}
+.tick{width:22px;height:22px;border-radius:50%;border:2px solid #3a2f56;flex:none;display:grid;place-items:center;font-size:11px;color:#7fd08a}
+.tick.done{background:#1e3a26;border-color:#2f5a3a}
+.tmid{flex:1}.tname{font-size:12.5px;font-weight:600}.tprog{font-size:10.5px;color:#8a7db0;margin-top:1px}
+.xpchip{font-size:11px;font-weight:800;color:#9ec6ff;white-space:nowrap}
+.claim{font-size:10.5px;font-weight:800;color:#1a1020;background:linear-gradient(#FFE39A,#F2A33C);border-radius:8px;padding:5px 11px;white-space:nowrap}
+.emb{display:inline-block;vertical-align:-2px}
+.note{font-size:10px;color:#6a5d84;margin-top:12px;line-height:1.5;border-top:1px solid #201830;padding-top:10px}
+/* level-up animation phone */
+.scrim{position:absolute;inset:0;background:radial-gradient(60% 40% at 50% 40%,rgba(242,163,60,.22),transparent 72%)}
+.rays{position:absolute;top:36%;left:50%;width:340px;height:340px;margin:-170px 0 0 -170px;opacity:0;animation:spin 9s linear infinite, rayfade 4.2s ease-in-out infinite}
+.rays::before{content:'';position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,220,150,.6) 0deg 5deg,transparent 5deg 16deg);-webkit-mask:radial-gradient(circle,transparent 30%,#000 33%);mask:radial-gradient(circle,transparent 30%,#000 33%)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes rayfade{0%,8%{opacity:0}22%{opacity:.6}72%{opacity:.5}92%{opacity:0}100%{opacity:0}}
+.flash{position:absolute;top:36%;left:50%;width:16px;height:16px;transform:translate(-50%,-50%);border-radius:50%;background:#fff;animation:flash 4.2s ease-out infinite}
+@keyframes flash{0%,6%{transform:translate(-50%,-50%) scale(0);opacity:0}10%{transform:translate(-50%,-50%) scale(16);opacity:1}18%{transform:translate(-50%,-50%) scale(26);opacity:0}100%{opacity:0}}
+.lstage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.crest{animation:pop 4.2s ease-in-out infinite;margin-top:-20px}
+@keyframes pop{0%{transform:scale(.2) rotate(-10deg);opacity:0}12%{transform:scale(1.15);opacity:1}22%{transform:scale(1)}82%{transform:scale(1);opacity:1}92%{transform:scale(.92);opacity:0}100%{opacity:0}}
+.lu{font-size:11px;font-weight:800;letter-spacing:3px;color:#FFD27A;margin-top:22px;animation:fade 4.2s ease-in-out infinite}
+.lvto{font-size:26px;font-weight:800;animation:fade 4.2s ease-in-out infinite}
+.reward{display:flex;align-items:center;gap:6px;margin-top:8px;animation:fade 4.2s ease-in-out infinite}
+.rpill{background:#241a34;border:1px solid #4a3a66;border-radius:20px;padding:6px 13px;font-size:13px;font-weight:800;color:#FFE39A}
+@keyframes fade{0%,16%{opacity:0;transform:translateY(8px)}28%{opacity:1;transform:none}84%{opacity:1}93%{opacity:0}100%{opacity:0}}
+.ember{position:absolute;bottom:36%;width:6px;height:6px;border-radius:50%;background:#FFD27A;box-shadow:0 0 8px #F2A33C;animation:rise 4.2s ease-in infinite}
+@keyframes rise{0%,12%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-200px) scale(.3);opacity:0}}
+.tapc{position:absolute;bottom:22px;left:0;right:0;text-align:center;font-size:12px;color:#8a7db0}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset="1" stop-color="#C8891F"/></linearGradient>
+<radialGradient id="emberCore" cx="50%" cy="60%" r="62%"><stop offset="0" stop-color="#FFF3D6"/><stop offset=".34" stop-color="#FFD27A"/><stop offset=".68" stop-color="#F2A33C"/><stop offset="1" stop-color="#E0612C"/></radialGradient>
+<linearGradient id="emberCoal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8C3A"/><stop offset=".5" stop-color="#E0612C"/><stop offset="1" stop-color="#8A3410"/></linearGradient>
+<symbol id="flame" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></g></symbol>
+<!-- SCOPED EMBERFALL PASS FLAME — symmetric, two-tongue, inner core. Distinct from the Cindy flame. -->
+<symbol id="passflame" viewBox="0 0 24 24">
+  <path d="M12 1.5 C14.6 6.6 18.6 8.6 18.6 14 A6.6 6.6 0 0 1 5.4 14 C5.4 10 7.4 7.4 9 10.6 C8.5 6.4 10 3.4 12 1.5 Z" fill="url(#e)"/>
+  <path d="M12 8.4 C13.5 11 15.1 12.3 15.1 14.9 A3.1 3.1 0 0 1 8.9 14.9 C8.9 13 9.9 12 11 13.3 C10.7 11 11.3 9.7 12 8.4 Z" fill="#FFEAB4" opacity=".92"/>
+</symbol>
+<symbol id="crest" viewBox="0 0 76 86"><path d="M38 3 L71 22 V64 L38 83 L5 64 V22 Z" fill="#160f22" stroke="url(#gold)" stroke-width="2.5"/><use href="#passflame" x="15" y="15" width="46" height="56"/></symbol>
+<symbol id="ember" viewBox="0 0 48 60"><path d="M24 3 C26 15 37 23 37 39 C37 49 31 56 24 56 C17 56 11 49 11 39 C11 30 17 26 20 32 C19 21 22 12 24 3 Z" fill="url(#emberCoal)"/><path d="M24 13 C25.5 22 31 28 31 39 C31 47 28 51 24 51 C20 51 17 47 17 39 C17 32 20 30 22 34 C21 26 23 20 24 13 Z" fill="url(#emberCore)"/><path d="M24 23 C25 29 27.5 33 27.5 40 C27.5 45 26 48 24 48 C22 48 20.5 45 20.5 40 C20.5 35 22 34 23 36 C22.5 31 23.5 27 24 23 Z" fill="#FFF1CE" opacity=".85"/></symbol></defs></svg>
+
+<h1>Mock 129 — Flame Pass on home</h1>
+<p class="sub">Home chip now carries the new hex-crest emblem (mock 133-A), not the bare flame. Tap → panel: tasks feed <b>Flame Pass XP</b>, and <b>leveling up</b> unlocks a cosmetic (embers + a box at every 10th level) — with a reveal when you cross a level.</p>
+
+<div class="wrap">
+  <div class="col"><div class="cap">HOME — crest chip (top-right)</div>
+    <div class="ph">
+      <div class="hdr">
+        <div class="hleft"><div class="av"></div><div class="greet">Laurier grind</div></div>
+        <div class="pass"><svg width="34" height="39"><use href="#crest"/></svg><span class="plvl">LEVEL 14</span><span class="pdot"></span></div>
+      </div>
+      <div class="body"><div class="streak">🔥 12-day streak</div></div>
+      <div class="flamebig"><svg width="90" height="112"><use href="#flame" fill="url(#e)"/></svg></div>
+      <div class="valley">tap <b style="color:#c9bfe0">Cindy</b> to talk · hold to speak<br><br>— campfire valley below —</div>
+    </div>
+  </div>
+
+  <div class="col"><div class="cap">TAP → Flame Pass panel</div>
+    <div class="panel">
+      <div class="ptop"><svg width="38" height="43"><use href="#crest"/></svg>
+        <div><div class="ptitle">Flame Pass</div><div class="pseason">Season · Emberfall</div></div></div>
+      <div class="lvlrow"><span class="lvlnow">Level 14</span><span class="lvlrew">Level 15 → <b style="color:#c99bf7">🎨 new flame skin</b></span></div>
+      <div class="bar"><div class="fill"></div></div>
+      <div class="xp">620 / 1,000 XP</div>
+
+      <div class="sect">Tasks</div>
+      <div class="task"><div class="tick done">✓</div><div class="tmid"><div class="tname">Hit your daily fire</div><div class="tprog">Done</div></div><div class="claim">Claim</div><div class="xpchip">+120 XP</div></div>
+      <div class="task"><div class="tick"></div><div class="tmid"><div class="tname">Lock in 60 minutes</div><div class="tprog">34 / 60 min</div></div><div class="xpchip">+200 XP</div></div>
+      <div class="task"><div class="tick"></div><div class="tmid"><div class="tname">Complete a challenge</div><div class="tprog">0 / 1</div></div><div class="xpchip">+300 XP</div></div>
+      <div class="task"><div class="tick"></div><div class="tmid"><div class="tname">Cheer a campfire friend</div><div class="tprog">0 / 3</div></div><div class="xpchip">+60 XP</div></div>
+
+      <div class="note">Tasks pay <b style="color:#9ec6ff">XP</b>. Each <b style="color:#c99bf7">level-up unlocks a cosmetic</b>; <b style="color:#FFE39A">embers + a box drop at milestone levels (every 10)</b>. Keeps the free faucet small — see balance note.</div>
+    </div>
+  </div>
+
+  <div class="col"><div class="cap">CROSS A LEVEL → reveal</div>
+    <div class="ph"><div class="scrim"></div><div class="rays"></div><div class="flash"></div>
+      <span class="ember" style="left:40%;animation-delay:.1s"></span><span class="ember" style="left:48%;animation-delay:.5s"></span>
+      <span class="ember" style="left:56%;animation-delay:.3s"></span><span class="ember" style="left:52%;animation-delay:.75s"></span>
+      <div class="lstage">
+        <div class="crest"><svg width="94" height="106"><use href="#crest"/></svg></div>
+        <div class="lu">FLAME PASS</div>
+        <div class="lvto">Level 15</div>
+        <div class="reward"><span class="rpill" style="color:#c99bf7">🎨 Molten Copper flame</span></div>
+      </div>
+      <div class="tapc">tap to continue</div>
+    </div>
+  </div>
+</div>

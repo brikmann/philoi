@@ -1,0 +1,78 @@
+<meta charset="utf-8"><title>Mock 149 — Opt-in group challenge</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:720px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:250px}
+.arrow{align-self:center;font-size:22px;color:#F2A33C;margin-top:150px}
+.ph{width:280px;height:560px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden}
+.hd{display:flex;align-items:center;gap:8px;padding:15px 16px 10px}.hd h2{font-size:15px;font-weight:800;margin:0}
+.body{padding:6px 16px}
+.poster{background:radial-gradient(120% 80% at 50% 0%,#22182e,#120c1a);border:1px solid #3a2f56;border-radius:16px;overflow:hidden}
+.phead{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:800;color:#FFD27A;letter-spacing:.4px;padding:12px 14px 0}
+.pname{font-size:16px;font-weight:800;padding:6px 14px 2px}
+.pmeta{font-size:11px;color:#8a7db0;padding:0 14px}
+.window{display:flex;align-items:center;gap:8px;margin:12px 14px;background:#241a10;border:1px solid #6a5a34;border-radius:11px;padding:10px 12px}
+.wt{flex:1;font-size:11.5px;font-weight:700;color:#FFE39A}.wc{font-size:13px;font-weight:800;color:#fff}
+.count{display:flex;align-items:center;gap:8px;padding:0 14px 12px;font-size:11.5px;color:#c9bfe0}
+.stack{display:flex}.stack span{width:20px;height:20px;border-radius:50%;border:1.5px solid #120c1a;margin-left:-6px;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e)}.stack span:first-child{margin-left:0}
+.optcta{background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:14px;text-align:center;padding:12px;margin:0 14px 14px;border-radius:12px}
+.note{font-size:10.5px;color:#6a5d84;margin:12px 16px 0;line-height:1.55}
+.rewardline{font-size:11px;font-weight:800;padding:0 14px 12px}
+/* locked state */
+.locked{display:inline-flex;align-items:center;gap:6px;background:#1e3a26;border:1px solid #2f5a3a;color:#7fd08a;font-size:10px;font-weight:800;border-radius:20px;padding:4px 11px;margin:12px 14px 0}
+.livebar{display:flex;align-items:center;gap:8px;margin:12px 14px;background:#17111f;border:1px solid #2a2140;border-radius:11px;padding:10px 12px;font-size:11.5px}
+.lb1{flex:1;font-weight:700}
+.myrow{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid #201830;font-size:12.5px}
+.rk{width:20px;font-weight:800;color:#8a7db0}.rk.me{color:#FFD27A}
+.av{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e);flex:none}
+.pn{flex:1;font-weight:600}.sc{font-weight:800;color:#e7ddf5}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef2f8"/><stop offset=".5" stop-color="#9aa4b4"/><stop offset="1" stop-color="#5a6474"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset="1" stop-color="#C8891F"/></linearGradient>
+<symbol id="sword" viewBox="0 0 24 24"><path d="M12 1.5 L13.5 5.5 V13 H10.5 V5.5 Z" fill="url(#steel)"/><line x1="12" y1="3.5" x2="12" y2="12.5" stroke="#fff" stroke-width=".5" opacity=".55"/><rect x="6.5" y="12.8" width="11" height="2.3" rx="1" fill="url(#gold)"/><rect x="10.9" y="15.1" width="2.2" height="4.6" rx=".6" fill="#8a5a2a"/><circle cx="12" cy="20.6" r="1.6" fill="url(#gold)"/></symbol>
+</defs></svg>
+
+<h1>Mock 149 — Opt-in group challenge</h1>
+<p class="sub">For big or open groups (e.g. a 400-person Laurier Gym chat) you don't auto-enroll everyone. A challenge opens with an <b style="color:#e7ddf5">opt-in window</b>: whoever opts in by the deadline is locked into the roster, then it starts and runs among only those people.</p>
+
+<div class="wrap">
+  <!-- opt-in open -->
+  <div class="col"><div class="cap">1 · Opt-in window is open</div>
+    <div class="ph">
+      <div class="hd"><span style="font-size:17px">🏋️</span><h2>Laurier Gym Rats</h2></div>
+      <div class="body">
+        <div class="poster">
+          <div class="phead"><svg width="11" height="13"><use href="#sword"/></svg> OPEN CHALLENGE · OPT IN TO JOIN</div>
+          <div class="pname">Gym 3× a week</div>
+          <div class="pmeta">for the whole chat · 4-week run</div>
+          <div class="window"><span class="wt">Opt in closes</span><span class="wc">Fri · 2d 6h</span></div>
+          <div class="rewardline"><span style="color:#9ec6ff">The Furnace</span> · <span style="color:#FFE39A">150 embers</span> · <span style="color:#9ec6ff">200 XP</span></div>
+          <div class="count"><span class="stack"><span></span><span></span><span></span><span></span></span> 47 opted in so far</div>
+          <div class="optcta">Opt in — I'm doing this</div>
+        </div>
+        <div class="note">You don't have to be friends with anyone. Opt in before Friday and you're on the roster; skip it and you're simply not in. No one who didn't opt in is scored.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- locked & live -->
+  <div class="col"><div class="cap">2 · Deadline hits → roster locks → live</div>
+    <div class="ph">
+      <div class="hd"><span style="font-size:17px">🏋️</span><h2>Laurier Gym Rats</h2></div>
+      <div class="body">
+        <div class="poster">
+          <div class="phead"><svg width="11" height="13"><use href="#sword"/></svg> GYM 3× A WEEK</div>
+          <div style="text-align:left"><span class="locked">🔒 Roster locked · 63 in</span></div>
+          <div class="livebar"><span class="lb1">Week 1 of 4 · you're on track</span><span style="color:#7fd08a;font-weight:800">● LIVE</span></div>
+          <div class="myrow"><span class="rk me">—</span><div class="av"></div><span class="pn">You</span><span class="sc">2 / 3 this wk</span></div>
+          <div class="myrow"><span class="rk">1</span><div class="av"></div><span class="pn">on pace</span><span class="sc">41 of 63</span></div>
+        </div>
+        <div class="note">Only the 63 who opted in are scored. Everyone who keeps the 3×/week pace for the month completes and gets the reward — ties included. People who missed the window aren't in this one (they can catch the next).</div>
+      </div>
+    </div>
+  </div>
+</div>

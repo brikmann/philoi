@@ -1,0 +1,76 @@
+<meta charset="utf-8"><title>Mock 160 — The Agora</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:700px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;justify-content:center}
+.ph{width:300px;height:640px;background:linear-gradient(#141019,#0e0b13);border-radius:34px;border:1px solid #241c38;overflow:hidden;position:relative}
+.hd{padding:16px 16px 6px}.hd h2{font-size:19px;font-weight:800;margin:0;display:flex;align-items:center;gap:8px}
+.hsub{font-size:10.5px;color:#8a7db0;margin-top:2px}
+.filters{display:flex;gap:6px;padding:10px 16px 8px;overflow:hidden}
+.ft{font-size:11px;font-weight:700;padding:6px 12px;border-radius:20px;background:#17111f;border:1px solid #2a2140;color:#8a7db0;white-space:nowrap}
+.ft.on{background:#F2A33C;color:#1a1020;border-color:#F2A33C}
+.composer{display:flex;align-items:center;gap:10px;margin:4px 16px 8px;background:#17111f;border:1px solid #2a2140;border-radius:14px;padding:10px 13px}
+.cav{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#4a3a66,#241a38);flex:none}
+.cph{flex:1;font-size:12px;color:#8a7db0}
+.feed{padding:0 16px 16px;overflow-y:auto;height:430px}
+.card{background:#15101d;border:1px solid #241c38;border-radius:16px;padding:13px;margin-bottom:10px}
+.crow{display:flex;align-items:center;gap:10px}
+.av{width:38px;height:38px;border-radius:50%;flex:none;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e)}
+.a2{background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)}.a3{background:radial-gradient(circle at 40% 30%,#7a5a2a,#3e2a16)}.a4{background:radial-gradient(circle at 40% 30%,#5a2a4a,#3e1628)}
+.nm{font-size:12.5px;font-weight:800}.nm small{color:#8a7db0;font-weight:500}
+.tm{font-size:10px;color:#6a5d84;margin-top:1px}
+.acc{display:flex;align-items:center;gap:11px;margin-top:11px;background:#120d1a;border-radius:12px;padding:10px}
+.ai{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;font-size:20px;flex:none}
+.mythic{background:radial-gradient(circle at 40% 32%,#ff8a70,#e0473b 62%,#7a1e18);box-shadow:0 0 14px rgba(224,71,59,.45)}
+.rankb{background:linear-gradient(#a855f7,#6a2ec9);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.streakb{background:radial-gradient(circle at 50% 60%,#3a1810,#1a0c08)}
+.at{font-size:12.5px;font-weight:800}.as{font-size:10.5px;color:#8a7db0;margin-top:1px}
+.rar{font-size:8.5px;font-weight:800;color:#ff9a90}
+.txt{font-size:12.5px;line-height:1.45;margin-top:10px;color:#e7ddf5}
+.photo{margin-top:10px;height:120px;border-radius:12px;background:linear-gradient(120deg,#3a4a6a,#5a3a4a)}
+.actions{display:flex;gap:18px;margin-top:11px;padding-top:10px;border-top:1px solid #201830;font-size:11.5px;font-weight:700;color:#8a7db0}
+.act{display:flex;align-items:center;gap:6px}.act.cheered{color:#F2A33C}
+.cheerpile{display:flex;margin-right:2px}.cheerpile span{width:15px;height:15px;border-radius:50%;border:1.5px solid #15101d;margin-left:-5px;background:#3a2a4a}.cheerpile span:first-child{margin-left:0}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<symbol id="col" viewBox="0 0 24 24"><path d="M4 8 H20 V10 H4Z M5 10 h2 v9 h-2z M9.5 10 h2 v9 h-2z M12.5 10 h2 v9 h-2z M17 10 h2 v9 h-2z M3 19 H21 V21 H3Z M6 5 L18 5 L12 8 Z" fill="url(#e)"/></symbol>
+<symbol id="flame" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#e)"/></g></symbol>
+</defs></svg>
+
+<h1>Mock 160 — The Agora</h1>
+<p class="sub">The town square — a running feed where wins auto-surface to a real audience and people gather to cheer and talk. Filter by Friends, your campus, or everyone. Reach + validation on top of the private "your friend did something" ping.</p>
+
+<div class="wrap">
+  <div class="ph">
+    <div class="hd"><h2><svg width="20" height="20"><use href="#col"/></svg> The Agora</h2><div class="hsub">where Laurier &amp; Waterloo gather</div></div>
+    <div class="filters"><span class="ft on">Friends</span><span class="ft">Laurier</span><span class="ft">Waterloo</span><span class="ft">All</span></div>
+    <div class="composer"><div class="cav"></div><div class="cph">Share a win, a photo, a thought…</div><svg width="16" height="16"><use href="#flame"/></svg></div>
+    <div class="feed">
+      <div class="card">
+        <div class="crow"><div class="av a2"></div><div><div class="nm">Maya Chen</div><div class="tm">2h ago · Hero II</div></div></div>
+        <div class="acc"><div class="ai mythic">🏛️</div><div><div class="at">Earned Atlas' Burden</div><div class="as"><span class="rar">MYTHIC RELIC</span> · 1,000 lb club</div></div></div>
+        <div class="actions"><div class="act cheered"><svg width="14" height="14"><use href="#flame"/></svg> 42</div><div class="act">💬 6</div><div class="act">↗ Share</div></div>
+      </div>
+
+      <div class="card">
+        <div class="crow"><div class="av a3"></div><div><div class="nm">Jordan Blake</div><div class="tm">4h ago</div></div></div>
+        <div class="acc"><div class="ai rankb">⚔</div><div><div class="at">Ranked up — Hero III</div><div class="as">climbing fast this season</div></div></div>
+        <div class="actions"><div class="act"><span class="cheerpile"><span></span><span></span><span></span></span> 18</div><div class="act">💬 3</div><div class="act">↗ Share</div></div>
+      </div>
+
+      <div class="card">
+        <div class="crow"><div class="av"></div><div><div class="nm">Priya N.</div><div class="tm">6h ago</div></div></div>
+        <div class="txt">finally beat my worst procrastination week — 22h locked in 🔒 the campfire carried me fr</div>
+        <div class="photo"></div>
+        <div class="actions"><div class="act cheered"><svg width="14" height="14"><use href="#flame"/></svg> 31</div><div class="act">💬 9</div><div class="act">↗ Share</div></div>
+      </div>
+
+      <div class="card">
+        <div class="crow"><div class="av a4"></div><div><div class="nm">Sam Rivera</div><div class="tm">yesterday</div></div></div>
+        <div class="acc"><div class="ai streakb"><svg width="20" height="24"><use href="#flame"/></svg></div><div><div class="at">30-day streak 🔥</div><div class="as">a full month, no dead days</div></div></div>
+        <div class="actions"><div class="act"><svg width="14" height="14"><use href="#flame"/></svg> 27</div><div class="act">💬 4</div><div class="act">↗ Share</div></div>
+      </div>
+    </div>
+  </div>
+</div>

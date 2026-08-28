@@ -1,0 +1,77 @@
+<meta charset="utf-8"><title>Mock 124 — Cards · Banners · Halos</title>
+<style>
+:root{--font:'Inter',system-ui,sans-serif}
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:var(--font);padding:24px 20px 60px}
+h1{font-size:20px;text-align:center;margin:0 0 4px}h2{font-size:14px;font-weight:800;color:#FFD27A;margin:26px 0 10px}
+.intro{font-size:12.5px;color:#9f92b6;max-width:880px;text-align:center;line-height:1.55;margin:0 auto 18px}
+.brief{font-size:11.5px;color:#a99cbd;margin:0 0 10px}
+.row{display:flex;gap:16px;flex-wrap:wrap}
+/* ---------- CARDS: render the real texture as the profile card backdrop ---------- */
+.card{width:230px;border-radius:16px;overflow:hidden;position:relative;color:#fff;box-shadow:0 4px 18px rgba(0,0,0,.4)}
+.cardin{position:relative;z-index:2;padding:14px 14px 12px;display:flex;align-items:center;gap:11px;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.45))}
+.av{width:42px;height:42px;border-radius:50%;background:#241633;border:2px solid rgba(255,255,255,.6);display:grid;place-items:center;font-weight:800;color:#FFD27A}
+.who{font-size:14px;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.rk{font-size:11px;opacity:.9;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.vf{font-size:9px;background:rgba(20,30,20,.7);color:#7fe0a0;border-radius:6px;padding:1px 6px;margin-top:3px;display:inline-block}
+.lab{font-size:10.5px;color:#a99cbd;margin-top:6px;text-align:center}.lab b{color:#e7ddf5}
+/* card textures */
+.bronze{background:linear-gradient(135deg,#8a5a2e,#c98a4a 45%,#6e4420),repeating-linear-gradient(90deg,rgba(0,0,0,.06) 0 3px,transparent 3px 7px)}
+.carbon{background:#15151a;background-image:repeating-linear-gradient(45deg,#1c1c22 0 5px,#101014 5px 10px),repeating-linear-gradient(-45deg,rgba(255,255,255,.04) 0 5px,transparent 5px 10px)}
+.magma{background:radial-gradient(120% 90% at 50% 20%,#2a120a,#0e0705)}
+.magma .crk{position:absolute;inset:0;z-index:1;background:
+  linear-gradient(60deg,transparent 48%,rgba(242,110,50,.9) 49% 50%,transparent 51%) 0 0/70px 60px,
+  linear-gradient(-40deg,transparent 48%,rgba(224,80,30,.8) 49% 50%,transparent 51%) 0 0/90px 80px;
+  filter:drop-shadow(0 0 3px rgba(242,110,50,.6));opacity:.8}
+.plasma{background:#0d1020}
+.plasma .crk{position:absolute;inset:0;z-index:1;background:
+  repeating-linear-gradient(0deg,rgba(90,160,255,.35) 0 1px,transparent 1px 22px),
+  repeating-linear-gradient(90deg,rgba(160,90,255,.35) 0 1px,transparent 1px 22px);
+  filter:drop-shadow(0 0 2px rgba(120,140,255,.6))}
+.gold{background:linear-gradient(135deg,#7a5a0a,#FFD24A 45%,#b8860b),repeating-linear-gradient(115deg,rgba(255,255,255,.08) 0 2px,transparent 2px 6px)}
+/* ---------- BANNERS ---------- */
+.ban{width:340px;height:110px;border-radius:14px;overflow:hidden;position:relative;display:flex;align-items:flex-end}
+.bant{position:relative;z-index:2;padding:10px 14px;font-weight:800;text-shadow:0 1px 4px rgba(0,0,0,.7)}
+/* ---------- HALOS ---------- */
+.halos{display:flex;gap:26px;flex-wrap:wrap}
+.hcell{display:flex;flex-direction:column;align-items:center;gap:8px;width:120px;text-align:center}
+.hav{width:56px;height:56px;border-radius:50%;background:#241633;display:grid;place-items:center;font-weight:800;color:#FFD27A;position:relative}
+.hn{font-size:10.5px;font-weight:700}.hr{font-size:8.5px;color:#8a7fa6}
+svg{overflow:visible}
+</style>
+
+<h1>Mock 124 — Cards · Banners · Halos</h1>
+<p class="intro">The outward-facing profile cosmetics, rendered as the <b style="color:#e7ddf5">actual graphics</b> they should show on the profile/collection — not flat colours. Cards = the card backdrop; banners = the header art; halos = the avatar aura (made cooler). Concept — refine textures/effects in final art.</p>
+
+<h2>Cards — `CARD` · the profile-card backdrop (renders as real texture)</h2>
+<div class="row">
+  <div class="card magma"><div class="crk"></div><div class="cardin"><div class="av">N</div><div><div class="who">Noah Brikman</div><div class="rk">Gold III · 8,322 XP</div><span class="vf">🎓 Laurier ✓</span></div></div></div>
+  <div class="card plasma"><div class="crk"></div><div class="cardin"><div class="av">N</div><div><div class="who">Noah Brikman</div><div class="rk">Gold III · 8,322 XP</div><span class="vf">🎓 Laurier ✓</span></div></div></div>
+  <div class="card gold"><div class="cardin"><div class="av">N</div><div><div class="who" style="color:#3a2600">Noah Brikman</div><div class="rk" style="color:#3a2600">Gold III · 8,322 XP</div><span class="vf">🎓 Laurier ✓</span></div></div></div>
+  <div class="card carbon"><div class="cardin"><div class="av">N</div><div><div class="who">Noah Brikman</div><div class="rk">Gold III · 8,322 XP</div><span class="vf">🎓 Laurier ✓</span></div></div></div>
+  <div class="card bronze"><div class="cardin"><div class="av">N</div><div><div class="who">Noah Brikman</div><div class="rk">Gold III · 8,322 XP</div><span class="vf">🎓 Laurier ✓</span></div></div></div>
+</div>
+<div class="lab" style="text-align:left"><b>Cracked Magma</b> (Epic) · <b>Plasma Grid</b> (Epic) · <b>Golden Anvil</b> (Legendary) · <b>Carbon Fiber</b> (Rare) · <b>Forged Bronze</b> (Uncommon). The texture sits behind the identity block; the same art is the collection thumbnail.</div>
+
+<h2>Banners — `BANNER` · header art (renders as real graphic)</h2>
+<div class="row">
+  <div class="ban" style="background:linear-gradient(180deg,#3a2414,#241633)"><svg style="position:absolute;inset:0" width="340" height="110" preserveAspectRatio="none"><path d="M0 90 L70 60 L140 84 L210 54 L280 82 L340 62 V110 H0 Z" fill="#1a1226"/><circle cx="270" cy="34" r="18" fill="#FFD27A" opacity=".85"/><g fill="#FFD27A"><circle cx="60" cy="70" r="1.6"/><circle cx="120" cy="50" r="2"/><circle cx="200" cy="66" r="1.4"/><circle cx="300" cy="44" r="1.6"/></g></svg><div class="bant" style="color:#FFE39A">Ember Field</div></div>
+  <div class="ban" style="background:linear-gradient(180deg,#241633,#0e0b14)"><svg style="position:absolute;inset:0" width="340" height="110" preserveAspectRatio="none"><path d="M0 110 L90 40 L150 90 L220 30 L340 110 Z" fill="#161022"/><ellipse cx="170" cy="96" rx="40" ry="16" fill="rgba(242,163,60,.35)"/><path d="M162 96 c-2 -12 8 -14 3 -22 c2 8 8 6 8 12 a8 8 0 0 1 -16 0 z" fill="url(#fl)"/></svg><div class="bant" style="color:#FFE39A">Campfire Ridge</div></div>
+  <div class="ban" style="background:linear-gradient(135deg,#4a2a1a,#241633)"><svg style="position:absolute;inset:0" width="340" height="110"><g fill="none" stroke="#FFD27A" opacity=".6" stroke-width="3"><path d="M40 30 Q26 55 40 82"/><path d="M300 30 Q314 55 300 82"/></g><text x="170" y="52" text-anchor="middle" font-size="26" font-weight="800" fill="#FFD27A" font-family="Inter">TOP 3</text><text x="170" y="72" text-anchor="middle" font-size="12" font-weight="700" fill="#FFF6EC" font-family="Inter" letter-spacing="2">LAURIER · SEASON 1</text></g></svg></div>
+</div>
+<div class="lab" style="text-align:left"><b>Ember Field</b> · <b>Campfire Ridge</b> (Epic–Legendary campfire banners) · <b>Season campus banner</b> (top-3 finish — earned, shown on the join preview to recruit).</div>
+
+<h2>Halos — `HALO` · avatar aura (cooler)</h2>
+<div class="halos">
+  <div class="hcell"><div class="hav" style="box-shadow:0 0 0 3px #b8732e">N</div><div class="hn">Ember Halo</div><div class="hr">Uncommon · orbiting coals</div></div>
+  <div class="hcell"><div class="hav">N<svg style="position:absolute;inset:-12px" width="80" height="80"><g><circle cx="40" cy="40" r="34" fill="none" stroke="url(#prism)" stroke-width="4"/></g></svg></div><div class="hn">Diamond Prism Border</div><div class="hr">Epic · refracts every colour</div></div>
+  <div class="hcell"><div class="hav">N<svg style="position:absolute;inset:-14px" width="84" height="84" viewBox="0 0 84 84"><g fill="url(#fl)"><path d="M42 2 c3 8 -4 12 0 18 c2 -5 5 -4 5 2 a6 6 0 0 1 -10 0 c0 -8 3 -12 5 -20z"/><path d="M2 42 c8 3 12 -4 18 0 c-5 2 -4 5 2 5 a6 6 0 0 1 0 -10 c-8 0 -12 3 -20 5z"/><path d="M82 42 c-8 3 -12 -4 -18 0 c5 2 4 5 -2 5 a6 6 0 0 1 0 -10 c8 0 12 3 20 5z"/><path d="M42 82 c3 -8 -4 -12 0 -18 c2 5 5 4 5 -2 a6 6 0 0 1 -10 0 c0 8 3 12 5 20z"/><path d="M14 14 c7 4 5 9 10 11 c-3 -4 -1 -6 4 -3 a6 6 0 0 1 -9 8 c-4 -6 -3 -11 -5 -16z"/><path d="M70 14 c-7 4 -5 9 -10 11 c3 -4 1 -6 -4 -3 a6 6 0 0 0 9 8 c4 -6 3 -11 5 -16z"/></g></svg></div><div class="hn">Inferno Flare</div><div class="hr">Legendary · a ring of fire</div></div>
+  <div class="hcell"><div class="hav" style="background:#160a1e">N<svg style="position:absolute;inset:-16px" width="88" height="88" viewBox="0 0 88 88"><g stroke="#7a2ea8" stroke-width="2.5" fill="none" opacity=".9"><path d="M44 6 q10 14 -2 22 q-12 -8 2 -22"/><path d="M82 44 q-14 10 -22 -2 q8 -12 22 2"/><path d="M44 82 q-10 -14 2 -22 q12 8 -2 22"/><path d="M6 44 q14 -10 22 2 q-8 12 -22 -2"/></g><g fill="#e0473b"><circle cx="70" cy="18" r="2.5"/><circle cx="18" cy="70" r="2.5"/><circle cx="72" cy="66" r="2"/></g></svg></div><div class="hn">Hades Halo</div><div class="hr">Mythic · chaotic dark energy</div></div>
+</div>
+<div class="lab" style="text-align:left;margin-top:8px">Made cooler: prismatic conic ring, jagged flame tongues, chaotic dark-energy wisps + soul embers — not a plain ring. Plus the live session-tiered ramp (Ember Halo lore) still applies on top.</div>
+
+<svg width="0" height="0"><defs>
+<linearGradient id="fl" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<linearGradient id="prism" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6b6b"/><stop offset=".3" stop-color="#FFD27A"/><stop offset=".55" stop-color="#5dd6a0"/><stop offset=".8" stop-color="#5aa0ff"/><stop offset="1" stop-color="#c98bff"/></linearGradient>
+</defs></svg>
+
+<p class="intro" style="margin-top:24px">Concept — cards + banners now show their <b style="color:#c7bce0">real texture/art</b> on the card (the render fix), and halos read as distinct effects. Final textures/effects refined by an illustrator; the render behaviour (§A of COSMETIC_ART_PASS) ships as spec.</p>

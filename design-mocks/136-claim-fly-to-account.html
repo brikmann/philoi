@@ -1,0 +1,108 @@
+<meta charset="utf-8"><title>Mock 136 — Claim → fly to account</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:700px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:250px}
+.ph{width:274px;height:560px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px}
+.name{font-size:14px;font-weight:800}
+/* persistent pass badge (col A) */
+.pass{display:flex;flex-direction:column;align-items:center;gap:1px}
+.plvl{font-size:9px;font-weight:800;color:#FFD27A;letter-spacing:.5px}
+.passbar{width:36px;height:4px;background:#241a34;border-radius:3px;margin-top:2px;overflow:hidden}
+.passfill{height:100%;background:linear-gradient(90deg,#E0612C,#FFE39A);width:60%;animation:fill 4.5s ease-in-out infinite}
+@keyframes fill{0%,46%{width:60%}56%,100%{width:76%}}
+.badgepulse{animation:bpulse 4.5s ease-in-out infinite}
+@keyframes bpulse{0%,46%{transform:scale(1);filter:none}52%{transform:scale(1.24);filter:drop-shadow(0 0 8px #F2A33C)}62%{transform:scale(1)}100%{transform:scale(1)}}
+.taskwrap{position:absolute;left:16px;right:16px;bottom:150px}
+.task{display:flex;align-items:center;gap:11px;background:#17111f;border:1px solid #2a2140;border-radius:12px;padding:12px}
+.tick{width:22px;height:22px;border-radius:50%;background:#1e3a26;border:2px solid #2f5a3a;display:grid;place-items:center;font-size:11px;color:#7fd08a}
+.tmid{flex:1}.tname{font-size:12.5px;font-weight:700}.tprog{font-size:10.5px;color:#8a7db0}
+.claim{font-size:11px;font-weight:800;color:#1a1020;background:linear-gradient(#FFE39A,#F2A33C);border-radius:8px;padding:6px 13px;animation:claimtap 4.5s ease-in-out infinite}
+@keyframes claimtap{0%,8%{transform:scale(1)}12%{transform:scale(.9)}18%{transform:scale(1)}100%{transform:scale(1)}}
+.flyxp{position:absolute;left:150px;bottom:186px;font-size:20px;font-weight:800;color:#9ec6ff;opacity:0;animation:flyxp 4.5s ease-in-out infinite}
+@keyframes flyxp{0%,14%{opacity:0;transform:translate(0,0) scale(.6)}
+ 18%{opacity:1;transform:translate(0,-8px) scale(1.1)}
+ 44%{opacity:1;transform:translate(78px,-332px) scale(.7)}
+ 48%{opacity:1;transform:translate(86px,-350px) scale(.35)}
+ 51%{opacity:0;transform:translate(88px,-352px) scale(.2)}100%{opacity:0}}
+.hint{position:absolute;bottom:24px;left:0;right:0;text-align:center;font-size:11px;color:#8a7db0;padding:0 22px;line-height:1.5}
+/* transient ember HUD (col B) */
+.ehud{position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;background:#1c1526;border:1px solid #4a3a66;border-radius:20px;padding:6px 13px;font-size:14px;font-weight:800;color:#FFE39A;opacity:0;animation:ehud 4.5s ease-in-out infinite}
+@keyframes ehud{0%,12%{opacity:0;transform:translateX(-50%) translateY(-10px) scale(.9)}
+ 18%{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+ 60%{opacity:1}62%{transform:translateX(-50%) scale(1.12)}66%{transform:translateX(-50%) scale(1)}
+ 82%{opacity:0;transform:translateX(-50%) translateY(-10px) scale(.95)}100%{opacity:0}}
+.ehlabel{position:absolute;top:52px;left:50%;transform:translateX(-50%);font-size:9.5px;color:#8a7db0;white-space:nowrap;opacity:0;animation:ehl 4.5s ease-in-out infinite}
+@keyframes ehl{0%,16%{opacity:0}24%{opacity:1}70%{opacity:1}82%{opacity:0}100%{opacity:0}}
+.balnum{position:relative;width:44px;text-align:right;display:inline-block;height:16px;overflow:hidden}
+.balold,.baln{position:absolute;right:0}
+.balold{animation:bo 4.5s ease-in-out infinite}.baln{animation:bn 4.5s ease-in-out infinite;opacity:0}
+@keyframes bo{0%,58%{opacity:1}60%,100%{opacity:0}}
+@keyframes bn{0%,58%{opacity:0}62%,100%{opacity:1}}
+.rewardpill{position:absolute;left:0;right:0;top:250px;text-align:center}
+.rp{display:inline-block;background:#17111f;border:1px solid #4a3a66;border-radius:16px;padding:13px 20px;font-size:14px;font-weight:800;color:#FFE39A}
+.etok{position:absolute;opacity:0}
+@keyframes etok{0%,18%{opacity:0;transform:translate(0,0) scale(1)}
+ 26%{opacity:1;transform:translate(0,-10px) scale(1.1)}
+ 56%{opacity:1;transform:translate(0,-210px) scale(.7)}
+ 60%{opacity:0;transform:translate(0,-232px) scale(.4)}100%{opacity:0}}
+/* stacked (col C) */
+.stack{position:absolute;top:16px;right:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.hpass,.hbal{background:#1c1526;border:1px solid #4a3a66;border-radius:14px;padding:8px 11px;display:flex;align-items:center;gap:8px}
+.hpass{border-color:#5a4a80}
+.mininame{font-size:10px;font-weight:800;color:#FFD27A}.minibar{width:54px;height:5px;background:#241a34;border-radius:3px;overflow:hidden}.minibar i{display:block;height:100%;width:72%;background:linear-gradient(90deg,#E0612C,#FFE39A)}
+</style>
+<svg width="0" height="0"><defs>
+<radialGradient id="emberCore" cx="50%" cy="60%" r="62%"><stop offset="0" stop-color="#FFF3D6"/><stop offset=".34" stop-color="#FFD27A"/><stop offset=".68" stop-color="#F2A33C"/><stop offset="1" stop-color="#E0612C"/></radialGradient>
+<linearGradient id="emberCoal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8C3A"/><stop offset=".5" stop-color="#E0612C"/><stop offset="1" stop-color="#8A3410"/></linearGradient>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset="1" stop-color="#C8891F"/></linearGradient>
+<symbol id="ember" viewBox="0 0 48 60"><path d="M24 3 C26 15 37 23 37 39 C37 49 31 56 24 56 C17 56 11 49 11 39 C11 30 17 26 20 32 C19 21 22 12 24 3 Z" fill="url(#emberCoal)"/><path d="M24 13 C25.5 22 31 28 31 39 C31 47 28 51 24 51 C20 51 17 47 17 39 C17 32 20 30 22 34 C21 26 23 20 24 13 Z" fill="url(#emberCore)"/></symbol>
+<symbol id="passflame" viewBox="0 0 24 24"><path d="M12 1.5 C14.6 6.6 18.6 8.6 18.6 14 A6.6 6.6 0 0 1 5.4 14 C5.4 10 7.4 7.4 9 10.6 C8.5 6.4 10 3.4 12 1.5 Z" fill="url(#e)"/><path d="M12 8.4 C13.5 11 15.1 12.3 15.1 14.9 A3.1 3.1 0 0 1 8.9 14.9 C8.9 13 9.9 12 11 13.3 C10.7 11 11.3 9.7 12 8.4 Z" fill="#FFEAB4"/></symbol>
+<symbol id="crest" viewBox="0 0 76 86"><path d="M38 3 L71 22 V64 L38 83 L5 64 V22 Z" fill="#160f22" stroke="url(#gold)" stroke-width="2.5"/><use href="#passflame" x="15" y="15" width="46" height="56"/></symbol>
+</defs></svg>
+
+<h1>Mock 136 — Claim → fly to account</h1>
+<p class="sub">Claimed rewards fly into what they fill. Key rule: each target <b style="color:#e7ddf5">surfaces only to receive its reward</b>, then tucks away — so XP and embers never fight over the same corner. Fires on the claim moment, never on load.</p>
+
+<div class="wrap">
+  <!-- A: XP → persistent pass badge, lands -->
+  <div class="col"><div class="cap">Claim XP on the pass screen → lands on the badge</div>
+    <div class="ph">
+      <div class="hdr">
+        <div style="display:flex;gap:9px;align-items:center"><div style="width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#4a3a66,#241a38)"></div><span class="name">Flame Pass</span></div>
+        <div class="pass"><svg class="badgepulse" width="30" height="34"><use href="#crest"/></svg><span class="plvl">LEVEL 14</span><div class="passbar"><div class="passfill"></div></div></div>
+      </div>
+      <div class="taskwrap"><div class="task"><div class="tick">✓</div><div class="tmid"><div class="tname">Lock in 60 minutes</div><div class="tprog">Done · 60/60</div></div><div class="claim">Claim</div></div></div>
+      <div class="flyxp">◆ +200</div>
+      <div class="hint">the XP flies straight to the badge and lands — it never fades mid-air.</div>
+    </div>
+  </div>
+
+  <!-- B: embers → transient balance that surfaces then disappears -->
+  <div class="col"><div class="cap">Collect embers → balance surfaces, fills, tucks away</div>
+    <div class="ph">
+      <div class="ehud"><span class="balnum"><span class="balold">1,240</span><span class="baln">1,280</span></span><svg width="13" height="16"><use href="#ember"/></svg></div>
+      <div class="ehlabel">your ember balance</div>
+      <div class="rewardpill"><div class="rp">Milestone · Lv 20 · +40 <svg width="14" height="17" style="vertical-align:-3px"><use href="#ember"/></svg></div></div>
+      <svg class="etok" style="left:120px;top:250px;animation:etok 4.5s ease-in infinite;animation-delay:0s" width="16" height="20"><use href="#ember"/></svg>
+      <svg class="etok" style="left:138px;top:250px;animation:etok 4.5s ease-in infinite;animation-delay:.12s" width="16" height="20"><use href="#ember"/></svg>
+      <svg class="etok" style="left:128px;top:250px;animation:etok 4.5s ease-in infinite;animation-delay:.24s" width="16" height="20"><use href="#ember"/></svg>
+      <div class="hint">the balance pops in to show the update, then disappears — it's not a permanent header pill.</div>
+    </div>
+  </div>
+
+  <!-- C: both at once → stacked, never overlapping -->
+  <div class="col"><div class="cap">Claim both at once → they stack, never collide</div>
+    <div class="ph">
+      <div class="stack">
+        <div class="hpass"><svg width="20" height="23"><use href="#crest"/></svg><div><div class="mininame">Level 14</div><div class="minibar"><i></i></div></div></div>
+        <div class="hbal">1,280 <svg width="12" height="15"><use href="#ember"/></svg></div>
+      </div>
+      <div class="rewardpill" style="top:280px"><div class="rp">Reward claimed</div></div>
+      <div class="hint">press Claim on XP and embers together and the two HUDs stack — pass progress on top, ember balance below — instead of both landing in the same top-right spot.</div>
+    </div>
+  </div>
+</div>

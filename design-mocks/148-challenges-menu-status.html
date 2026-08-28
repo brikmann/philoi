@@ -1,0 +1,97 @@
+<meta charset="utf-8"><title>Mock 148 — Challenges menu + status</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:700px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:250px}
+.arrow{align-self:center;font-size:22px;color:#F2A33C;margin-top:150px}
+.ph{width:280px;height:566px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden}
+.hd{display:flex;align-items:center;justify-content:space-between;padding:15px 16px 8px}.hd h2{font-size:17px;font-weight:800;margin:0}
+.plus{font-size:22px;color:#F2A33C}
+.body{padding:6px 16px}
+.seg{display:flex;gap:6px;margin:6px 0 12px}.segb{flex:1;text-align:center;font-size:11.5px;font-weight:700;padding:8px 0;border-radius:9px;background:#17111f;border:1px solid #2a2140;color:#8a7db0}.segb.on{background:#241a34;color:#FFE39A;border-color:#4a3a66}
+.crow{display:flex;align-items:center;gap:11px;background:#17111f;border:1px solid #2a2140;border-radius:14px;padding:12px;margin-bottom:9px}
+.sw{width:16px;height:19px;flex:none}
+.cmid{flex:1;min-width:0}.cname{font-size:13.5px;font-weight:800}.cstat{font-size:11px;margin-top:2px}
+.live{color:#7fd08a}.pend{color:#FFC98A}.done{color:#8a7db0}
+.drag{color:#6a5d84;font-size:16px;flex:none}
+.trash{width:30px;height:30px;border-radius:8px;background:#241318;border:1px solid #5a2a2a;display:grid;place-items:center;font-size:14px;flex:none}
+.held{box-shadow:0 8px 20px rgba(0,0,0,.5);transform:translateY(-2px);border-color:#4a3a66}
+.chev2{color:#6a5d84;font-size:15px;flex:none}
+/* status screen */
+.back{font-size:13px;color:#8a7db0;padding:15px 16px 6px}
+.stitle{font-size:17px;font-weight:800;padding:0 16px;display:flex;align-items:center;gap:8px}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;border-radius:20px;padding:4px 11px;margin:10px 16px 0}
+.badge.pend{background:#241a10;border:1px solid #6a5a34;color:#FFC98A}
+.sbody{padding:12px 16px}
+.card{background:radial-gradient(120% 80% at 50% 0%,#1e1528,#120c1a);border:1px solid #2a2140;border-radius:14px;padding:14px;margin-bottom:12px}
+.diff{background:#120d1a;border-radius:10px;padding:9px 11px;font-size:12px}
+.old{color:#8a7db0;text-decoration:line-through;margin-right:6px}.new{color:#7fd08a;font-weight:800}
+.lbl{font-size:10px;font-weight:800;color:#8a7db0;letter-spacing:.4px;margin:6px 0 8px}
+.arow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #201830;font-size:12.5px}
+.arow:first-child{border-top:none}.av{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e);flex:none}
+.an{flex:1;font-weight:600}.ast{font-size:10.5px;color:#8a7db0}.ast.ok{color:#7fd08a;font-weight:800}.ast.rej{color:#ff8a80;font-weight:800}
+.msg{font-size:11.5px;color:#c9bfe0;font-style:italic;margin-top:8px}
+.thresh{font-size:10px;color:#8a7db0;margin-top:10px;padding-top:9px;border-top:1px solid #201830;line-height:1.5}
+.override{font-size:10px;color:#6a5d84;text-align:center;margin-top:12px;line-height:1.5}
+.hostctl{display:flex;gap:9px;margin-top:6px}
+.hc{flex:1;text-align:center;font-size:12px;font-weight:800;padding:11px;border-radius:11px}
+.hcancel{background:#241318;border:1px solid #5a2a2a;color:#ff8a80}
+.hnudge{background:#241a34;color:#c9bfe0}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef2f8"/><stop offset=".5" stop-color="#9aa4b4"/><stop offset="1" stop-color="#5a6474"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset="1" stop-color="#C8891F"/></linearGradient>
+<symbol id="sword" viewBox="0 0 24 24"><path d="M12 1.5 L13.5 5.5 V13 H10.5 V5.5 Z" fill="url(#steel)"/><line x1="12" y1="3.5" x2="12" y2="12.5" stroke="#fff" stroke-width=".5" opacity=".55"/><rect x="6.5" y="12.8" width="11" height="2.3" rx="1" fill="url(#gold)"/><rect x="10.9" y="15.1" width="2.2" height="4.6" rx=".6" fill="#8a5a2a"/><circle cx="12" cy="20.6" r="1.6" fill="url(#gold)"/></symbol>
+</defs></svg>
+
+<h1>Mock 148 — Challenges menu + status</h1>
+<p class="sub"><b style="color:#e7ddf5">Tap a challenge</b> to open its page (status lives there — live standings, or the <b style="color:#FFC98A">pending-approval</b> view if the host made an edit). <b style="color:#e7ddf5">Hold</b> to reorder (≡) or reveal a trash can to delete. The sword marks a challenge.</p>
+
+<div class="wrap">
+  <!-- menu -->
+  <div class="col"><div class="cap">Challenges menu · tap to open · hold to reorder/delete</div>
+    <div class="ph">
+      <div class="hd"><h2>Challenges</h2><span class="plus">+</span></div>
+      <div class="body">
+        <div class="seg"><span class="segb on">Active</span><span class="segb">Invites</span><span class="segb">Done</span></div>
+        <div class="crow"><svg class="sw"><use href="#sword"/></svg><div class="cmid"><div class="cname">Study race</div><div class="cstat live">● Live · you're 1st · ends 3d</div></div><span class="chev2">›</span></div>
+        <!-- held: drag handle + trash -->
+        <div class="crow held"><span class="drag">≡</span><div class="cmid"><div class="cname">Most km this week</div><div class="cstat pend">⏸ Edit pending approval</div></div><div class="trash">🗑</div></div>
+        <div class="crow"><svg class="sw"><use href="#sword"/></svg><div class="cmid"><div class="cname">Bench PR duel</div><div class="cstat done">✓ Settled · you won</div></div><span class="chev2">›</span></div>
+        <div style="font-size:10px;color:#6a5d84;margin-top:12px;line-height:1.5;text-align:center">Tap a challenge to open it. Hold to reorder (≡) or delete (🗑).</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- status screen -->
+  <div class="col"><div class="cap">Open a challenge → its status (edit pending)</div>
+    <div class="ph">
+      <div class="back">‹ Challenges</div>
+      <div class="stitle"><svg width="16" height="19"><use href="#sword"/></svg> Most km this week</div>
+      <span class="badge pend">⏸ EDIT PENDING APPROVAL</span>
+      <div class="sbody">
+        <div class="card">
+          <div class="lbl">NOAH'S PROPOSED CHANGE</div>
+          <div class="diff">target <span class="old">50 km</span> <span class="new">75 km this week</span></div>
+          <div class="msg">“bumping it — 50 was too easy 💪”</div>
+          <div style="font-size:10.5px;color:#8a7db0;margin-top:8px">reward re-computes when it passes · paused until then</div>
+        </div>
+        <div class="card">
+          <div class="lbl">APPROVAL · everyone votes</div>
+          <div class="arow"><div class="av"></div><span class="an">Maya</span><span class="ast ok">✓ approved</span></div>
+          <div class="arow"><div class="av"></div><span class="an">Jordan</span><span class="ast rej">✗ rejected</span></div>
+          <div class="arow"><div class="av"></div><span class="an">Sam</span><span class="ast">pending…</span></div>
+          <div class="thresh"><b style="color:#ff8a80">1</b> of 3 rejected · the edit is <b>blocked</b> if <b>over 50%</b> reject</div>
+        </div>
+        <div class="hostctl">
+          <div class="hc hnudge">Nudge pending</div>
+          <div class="hc hcancel">Cancel edit</div>
+        </div>
+        <div class="override">Admin / co-admin can <b style="color:#c9bfe0">override</b> and push (or drop) the change regardless of votes.</div>
+      </div>
+    </div>
+  </div>
+</div>

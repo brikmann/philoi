@@ -1,0 +1,61 @@
+<meta charset="utf-8"><title>Mock 166 — Particle effects</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:700px;margin:0 auto 22px;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;max-width:820px;margin:0 auto}
+.tile{background:radial-gradient(circle at 50% 62%,#181022,#0c0812 74%);border:1px solid #2a2140;border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+.stage{height:190px;position:relative;overflow:hidden}
+.flame{position:absolute;left:50%;bottom:30%;transform:translateX(-50%);z-index:2}
+.meta{padding:9px 13px 12px;border-top:1px solid #201830}
+.nm{font-size:12.5px;font-weight:800}.nm .r{font-size:8px;font-weight:800;padding:1.5px 6px;border-radius:9px;margin-left:6px;vertical-align:1px}
+.epic{background:#3a2456;color:#c9a6ff}.leg{background:#4a3410;color:#ffd27a}.myth{background:#4a1414;color:#ff8a80}
+.lore{font-size:10px;color:#8a7db0;margin-top:3px;line-height:1.4;font-style:italic}
+/* particle primitives */
+.p{position:absolute;border-radius:50%;pointer-events:none}
+/* Floating Sparks — rise */
+@keyframes sparks{0%{transform:translateY(0) scale(.5);opacity:0}18%{opacity:1}100%{transform:translate(var(--dx),-140px) scale(1);opacity:0}}
+/* Falling Ash — drift down */
+@keyframes ash{0%{transform:translate(0,-10px);opacity:0}15%{opacity:.9}100%{transform:translate(var(--dx),150px);opacity:0}}
+/* Ember Swarm — circulate / orbit the fire */
+@keyframes swarm{from{transform:rotate(0) translateY(calc(-1 * var(--r)))}to{transform:rotate(360deg) translateY(calc(-1 * var(--r)))}}
+/* Solar Flares — arc out and snap back */
+@keyframes solar{0%{transform:rotate(var(--a)) translateX(8px) scale(.4);opacity:0}30%{opacity:1}55%{transform:rotate(var(--a)) translateX(64px) scale(1)}100%{transform:rotate(var(--a)) translateX(10px) scale(.3);opacity:0}}
+/* Lightning Tendrils — flicker reaching out */
+@keyframes bolt{0%,100%{opacity:0}8%{opacity:1}16%{opacity:.2}24%{opacity:.9}40%{opacity:0}}
+/* Void Smoke — gothic serpentine coil, heavy and slow */
+@keyframes smoke{0%{transform:translate(0,0) scale(.5);opacity:0}18%{opacity:.82}50%{transform:translate(var(--dx),-58px) scale(1.4)}100%{transform:translate(calc(var(--dx) * -1),-128px) scale(2.2);opacity:0}}
+.bolt{position:absolute;transform-origin:bottom center;background:none}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<symbol id="flameP" viewBox="0 0 24 24"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#e)"/></symbol>
+</defs></svg>
+
+<h1>Mock 166 — Particle effects (how each loads)</h1>
+<p class="sub">The six PARTICLE cosmetics from the catalog, each with its own scoped motion. All seeded mid-cycle so they load already moving. This is the applied layer that doesn't render yet — reference for the fix.</p>
+
+<div class="grid">
+  <div class="tile"><div class="stage" id="sparks"><div class="flame"><svg width="40" height="46"><use href="#flameP"/></svg></div></div><div class="meta"><div class="nm">Floating Sparks <span class="r epic">EPIC</span></div><div class="lore">Embers that refuse to fall — they rise, looking for more to burn.</div></div></div>
+  <div class="tile"><div class="stage" id="ash"><div class="flame"><svg width="40" height="46"><use href="#flameP"/></svg></div></div><div class="meta"><div class="nm">Falling Ash <span class="r epic">EPIC</span></div><div class="lore">The quiet snow of everything the fire has already eaten.</div></div></div>
+  <div class="tile"><div class="stage" id="swarm"><div class="flame"><svg width="40" height="46"><use href="#flameP"/></svg></div></div><div class="meta"><div class="nm">Ember Swarm <span class="r epic">EPIC</span></div><div class="lore">A swarm — and it hunts in the direction you're working.</div></div></div>
+  <div class="tile"><div class="stage" id="solar"><div class="flame"><svg width="40" height="46"><use href="#flameP"/></svg></div></div><div class="meta"><div class="nm">Solar Flares <span class="r leg">LEGENDARY</span></div><div class="lore">Arcs of starfire loop off the flame and snap back, screaming.</div></div></div>
+  <div class="tile"><div class="stage" id="bolt"><div class="flame"><svg width="40" height="46"><use href="#flameP"/></svg></div></div><div class="meta"><div class="nm">Lightning Tendrils <span class="r leg">LEGENDARY</span></div><div class="lore">Fingers of white electricity reach for the edges.</div></div></div>
+  <div class="tile"><div class="stage" id="void"><div class="flame"><svg width="40" height="46"><use href="#flameP"/></svg></div></div><div class="meta"><div class="nm">Void Smoke <span class="r myth">MYTHIC</span></div><div class="lore">A funeral veil of smoke coils upward, heavy with silence.</div></div></div>
+</div>
+
+<script>
+function make(stage){const s=document.createElement('span');s.className='p';stage.appendChild(s);return s;}
+function neg(d){return (-Math.random()*d)+'s';}
+// Floating Sparks — warm, rise from flame top
+(()=>{const st=document.getElementById('sparks');for(let i=0;i<16;i++){const p=make(st);const sz=3+Math.random()*3;p.style.cssText=`left:${44+Math.random()*12}%;bottom:44%;width:${sz}px;height:${sz}px;background:radial-gradient(circle,#FFE39A,rgba(224,97,44,.2) 70%,transparent);--dx:${Math.random()*36-18}px;animation:sparks ${2+Math.random()*1.8}s ease-out ${neg(3)} infinite`;}})();
+// Falling Ash — pale, fall from top of stage
+(()=>{const st=document.getElementById('ash');for(let i=0;i<18;i++){const p=make(st);const sz=2.5+Math.random()*2.5;p.style.cssText=`left:${Math.random()*100}%;top:0;width:${sz}px;height:${sz}px;background:radial-gradient(circle,#e8e0f2,rgba(120,110,150,.3) 70%,transparent);--dx:${Math.random()*30-15}px;animation:ash ${3+Math.random()*2.5}s linear ${neg(5)} infinite`;}})();
+// Ember Swarm — dense band circulating the flame
+(()=>{const st=document.getElementById('swarm');const N=24;for(let i=0;i<N;i++){const p=make(st);const sz=2.5+Math.random()*3;p.style.cssText=`left:50%;bottom:44%;width:${sz}px;height:${sz}px;background:radial-gradient(circle,#FF9A3C,rgba(138,43,0,.3) 70%,transparent);--r:${30+Math.random()*24}px;animation:swarm ${3.6+Math.random()*.8}s linear ${-(i/N)*4}s infinite`;}})();
+// Solar Flares — gold arcs loop off and snap back
+(()=>{const st=document.getElementById('solar');for(let i=0;i<10;i++){const p=make(st);p.style.cssText=`left:50%;bottom:44%;width:6px;height:6px;background:radial-gradient(circle,#FFF0B8,rgba(245,197,66,.3) 70%,transparent);--a:${Math.round(Math.random()*360)}deg;animation:solar ${1.8+Math.random()*1.2}s ease-in-out ${neg(2.4)} infinite`;}})();
+// Lightning Tendrils — cyan bolts flicker reaching out
+(()=>{const st=document.getElementById('bolt');for(let i=0;i<8;i++){const b=document.createElement('span');b.className='bolt';const a=Math.round(Math.random()*360),len=26+Math.random()*26;b.style.cssText=`left:50%;bottom:44%;width:2px;height:${len}px;transform:rotate(${a}deg);background:linear-gradient(#7BE0FF,#fff);clip-path:polygon(40% 0,60% 0,45% 45%,70% 45%,30% 100%,50% 55%,30% 55%);animation:bolt ${0.9+Math.random()*1.1}s steps(1) ${neg(1.5)} infinite`;st.appendChild(b);}})();
+// Void Smoke — gothic: heavy near-black violet veils coiling upward
+(()=>{const st=document.getElementById('void');for(let i=0;i<15;i++){const p=make(st);const sz=15+Math.random()*17;p.style.cssText=`left:${40+Math.random()*20}%;bottom:38%;width:${sz}px;height:${sz}px;filter:blur(4px);background:radial-gradient(circle,rgba(70,22,104,.9),rgba(8,4,16,.5) 58%,transparent);--dx:${Math.random()*44-22}px;animation:smoke ${4.2+Math.random()*2.6}s ease-in-out ${neg(6.5)} infinite`;}})();
+</script>

@@ -1,0 +1,76 @@
+<meta charset="utf-8"><title>Mock 133 — Flame Pass emblem options</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:28px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:640px;margin:0 auto 26px;line-height:1.5}
+.row{display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
+.c{width:170px;background:radial-gradient(120% 80% at 50% 14%,#1e1729,#100c19 70%);border:1px solid #2a2140;border-radius:16px;padding:20px 12px 16px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.stage{height:96px;display:grid;place-items:center}
+.nm{font-size:13px;font-weight:800}.ds{font-size:10.5px;color:#8a7db0;line-height:1.4}
+.rec{font-size:9px;font-weight:800;color:#7fd08a;border:1px solid #2f5a3a;border-radius:20px;padding:2px 9px}
+svg{overflow:visible}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a5a94"/><stop offset="1" stop-color="#2e2542"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset="1" stop-color="#C8891F"/></linearGradient>
+<symbol id="flame" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></g></symbol>
+<symbol id="passflame" viewBox="0 0 24 24">
+  <path d="M12 1.5 C14.6 6.6 18.6 8.6 18.6 14 A6.6 6.6 0 0 1 5.4 14 C5.4 10 7.4 7.4 9 10.6 C8.5 6.4 10 3.4 12 1.5 Z" fill="url(#e)"/>
+  <path d="M12 8.4 C13.5 11 15.1 12.3 15.1 14.9 A3.1 3.1 0 0 1 8.9 14.9 C8.9 13 9.9 12 11 13.3 C10.7 11 11.3 9.7 12 8.4 Z" fill="#FFEAB4" opacity=".92"/>
+</symbol></defs></svg>
+
+<h1>Mock 133 — Flame Pass emblem</h1>
+<p class="sub">A distinct mark for the pass, not the bare flame. Same ember flame at the core so it's unmistakably Philoi, but framed as a <b>seasonal badge</b>. Pick one and I'll drop it into the home chip + the pass panel.</p>
+
+<div class="row">
+  <!-- A: hex crest -->
+  <div class="c"><div class="rec">RECOMMENDED</div>
+    <div class="stage">
+      <svg width="76" height="86" viewBox="0 0 76 86">
+        <path d="M38 3 L71 22 V64 L38 83 L5 64 V22 Z" fill="#160f22" stroke="url(#gold)" stroke-width="2.5"/>
+        <path d="M38 9 L66 25 V61 L38 77 L10 61 V25 Z" fill="none" stroke="#3a2f56" stroke-width="1"/>
+        <use href="#passflame" x="15" y="11" width="46" height="46"/>
+        <text x="38" y="69" text-anchor="middle" font-size="13" font-weight="800" fill="#FFE39A" font-family="Inter">14</text>
+      </svg>
+    </div>
+    <div class="nm">A · Hex crest</div><div class="ds">Flame in a gold-edged hex with the level engraved below. Reads as a rank badge.</div>
+  </div>
+
+  <!-- B: laurel flame -->
+  <div class="c"><div class="stage">
+      <svg width="86" height="86" viewBox="0 0 86 86">
+        <circle cx="43" cy="43" r="30" fill="#160f22" stroke="#4a3a66" stroke-width="2"/>
+        <use href="#flame" x="30" y="24" width="26" height="32" fill="url(#e)"/>
+        <g fill="none" stroke="url(#gold)" stroke-width="2.4" stroke-linecap="round">
+          <path d="M20 60 Q10 44 16 26"/><path d="M66 60 Q76 44 70 26"/></g>
+        <g fill="url(#gold)"><path d="M16 30 l-6 -2 l4 5z"/><path d="M15 40 l-6 -1 l4 5z"/><path d="M18 50 l-6 0 l4 5z"/>
+          <path d="M70 30 l6 -2 l-4 5z"/><path d="M71 40 l6 -1 l-4 5z"/><path d="M68 50 l6 0 l-4 5z"/></g>
+      </svg>
+    </div>
+    <div class="nm">B · Laurel flame</div><div class="ds">Flame ringed by a victory laurel. Classical, prestige-forward, ties to the Greek theme.</div>
+  </div>
+
+  <!-- C: tiered chevrons -->
+  <div class="c"><div class="stage">
+      <svg width="80" height="86" viewBox="0 0 80 86">
+        <path d="M40 4 L74 20 V60 L40 82 L6 60 V20 Z" fill="#160f22" stroke="#4a3a66" stroke-width="2"/>
+        <use href="#flame" x="27" y="14" width="26" height="32" fill="url(#e)"/>
+        <g fill="none" stroke="url(#gold)" stroke-width="3" stroke-linecap="round">
+          <path d="M26 56 L40 50 L54 56"/><path d="M26 65 L40 59 L54 65"/></g>
+      </svg>
+    </div>
+    <div class="nm">C · Ascent chevrons</div><div class="ds">Flame over rising chevrons — literal "leveling up." Reads as progression at a glance.</div>
+  </div>
+
+  <!-- D: seal -->
+  <div class="c"><div class="stage">
+      <svg width="86" height="86" viewBox="0 0 86 86">
+        <circle cx="43" cy="43" r="32" fill="none" stroke="url(#gold)" stroke-width="2.5"/>
+        <circle cx="43" cy="43" r="26" fill="#160f22" stroke="#3a2f56" stroke-width="1"/>
+        <g stroke="url(#gold)" stroke-width="1.5"><line x1="43" y1="11" x2="43" y2="17"/><line x1="43" y1="69" x2="43" y2="75"/><line x1="11" y1="43" x2="17" y2="43"/><line x1="69" y1="43" x2="75" y2="43"/></g>
+        <use href="#flame" x="31" y="26" width="24" height="30" fill="url(#e)"/>
+      </svg>
+    </div>
+    <div class="nm">D · Season seal</div><div class="ds">Flame in a double-ring seal with cardinal ticks. Cleanest / most minimal.</div>
+  </div>
+</div>

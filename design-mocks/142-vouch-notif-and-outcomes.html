@@ -1,0 +1,132 @@
+<meta charset="utf-8"><title>Mock 142 — Vouch entry + outcomes</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:700px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:250px}
+.ph{width:274px;height:552px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden}
+/* notification */
+.nb{padding:16px}.nb h2{font-size:16px;font-weight:800;margin:2px 2px 12px}
+.push{display:flex;gap:11px;background:rgba(30,24,40,.9);border:1px solid #3a2f56;border-radius:16px;padding:12px;align-items:flex-start;box-shadow:0 0 0 2px #F2A33C}
+.iconpair{position:relative;width:44px;flex:none}
+.appic{width:38px;height:38px;border-radius:9px;background:radial-gradient(120% 90% at 40% 20%,#2a1f3e,#0e0b13);display:grid;place-items:center;border:1px solid #4a3a66}
+.ovl{position:absolute;right:-3px;bottom:-3px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;border:2.5px solid #1e1828;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e)}
+.pt{font-size:12.5px;font-weight:800}.pb{font-size:11px;color:#c9bfe0;margin-top:2px}
+.tapv{margin-top:9px;display:inline-block;font-size:11px;font-weight:800;color:#1a1020;background:linear-gradient(#FFE39A,#F2A33C);border-radius:8px;padding:7px 15px}
+.finger{position:absolute;right:26px;top:150px;font-size:24px;animation:poke 3s ease-in-out infinite}
+@keyframes poke{0%,30%{transform:translateY(0)}40%{transform:translateY(-7px)}50%{transform:translateY(0)}100%{transform:translateY(0)}}
+.note{position:absolute;left:0;right:0;bottom:34px;text-align:center;font-size:11px;color:#8a7db0;padding:0 22px;line-height:1.5}
+/* outcome screens */
+.rs{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:28px 20px 20px}
+.rays{position:absolute;top:46%;left:50%;width:760px;height:760px;margin:-380px 0 0 -380px;opacity:0;animation:spin 14s linear infinite, rf 4.5s ease-in-out infinite}
+.rays::before{content:'';position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,220,150,.4) 0deg 5deg,transparent 5deg 15deg);-webkit-mask:radial-gradient(circle,transparent 8%,#000 12%);mask:radial-gradient(circle,transparent 8%,#000 12%)}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes rf{0%,54%{opacity:0}64%{opacity:.5}88%{opacity:.45}97%{opacity:0}100%{opacity:0}}
+.kick{font-size:11px;font-weight:800;letter-spacing:2px;z-index:1}
+.vouchers{display:flex;gap:-6px;margin:14px 0 4px;z-index:1}
+.va{width:30px;height:30px;border-radius:50%;border:2px solid #0e0b13;margin-left:-6px;position:relative}
+.va .ok{position:absolute;right:-3px;bottom:-3px;width:14px;height:14px;border-radius:50%;background:#2f8a3a;border:2px solid #0e0b13;display:grid;place-items:center;font-size:8px;color:#fff}
+.boxwrap{position:relative;height:130px;display:grid;place-items:center;margin:6px 0;z-index:1}
+.box{width:100px;height:100px;border-radius:20px;display:grid;place-items:center;position:absolute}
+/* base box fades out, upgraded box pops in */
+.boxbase{background:radial-gradient(circle,#33210f,#160f0a);border:2px solid #6a4a9a;box-shadow:0 0 24px rgba(184,120,240,.4);animation:fizzbox 4.5s ease-in-out infinite}
+@keyframes fizzbox{0%,38%{opacity:1;filter:blur(0);transform:scale(1)}54%{opacity:0;filter:blur(6px);transform:scale(.82)}100%{opacity:0;filter:blur(6px)}}
+.boxup{background:radial-gradient(circle,#3a2a10,#160f0a);border:2px solid #F2A33C;box-shadow:0 0 34px rgba(242,163,60,.6);opacity:0;animation:appearbox 4.5s ease-in-out infinite}
+@keyframes appearbox{0%,50%{opacity:0;filter:blur(5px);transform:scale(.55)}58%{opacity:1;filter:blur(0);transform:scale(1.14)}68%{transform:scale(1)}92%{opacity:1}100%{opacity:0}}
+.bname{position:relative;height:20px;width:100%;text-align:center;font-size:15px;font-weight:800;z-index:1}
+.bn{position:absolute;left:0;right:0}
+.bnbase{color:#c99bf7;animation:fizztext 4.5s ease-in-out infinite}
+.bnup{color:#FFC98A;opacity:0;animation:appeartext 4.5s ease-in-out infinite}
+@keyframes fizztext{0%,38%{opacity:1;filter:blur(0);transform:scale(1)}54%{opacity:0;filter:blur(4px);transform:scale(.9)}100%{opacity:0}}
+@keyframes appeartext{0%,50%{opacity:0;transform:translateY(4px) scale(.9)}60%{opacity:1;transform:translateY(0) scale(1.05)}68%{transform:scale(1)}92%{opacity:1}100%{opacity:0}}
+.upflag{font-size:11px;font-weight:800;color:#7fd08a;margin-top:4px;z-index:1;opacity:0;animation:uf 4.5s ease-in-out infinite}
+@keyframes uf{0%,50%{opacity:0}58%{opacity:1}92%{opacity:1}100%{opacity:0}}
+.stats{display:flex;gap:16px;margin-top:14px;z-index:1}
+.stat{text-align:center;position:relative}.sv{font-size:16px;font-weight:800}.sl{font-size:9px;color:#8a7db0;letter-spacing:.4px;margin-top:2px}
+/* animated tick-up: base value slides out, upgraded value slides in, +delta floats up */
+.svwrap{position:relative;height:20px;width:52px;margin:0 auto}
+.svb,.svu{position:absolute;left:0;right:0;text-align:center;font-size:16px;font-weight:800}
+.svb{animation:svbase 4.5s ease-in-out infinite}
+.svu{opacity:0;animation:svup 4.5s ease-in-out infinite}
+@keyframes svbase{0%,52%{opacity:1;transform:translateY(0)}60%{opacity:0;transform:translateY(-9px)}100%{opacity:0;transform:translateY(-9px)}}
+@keyframes svup{0%,54%{opacity:0;transform:translateY(9px)}62%{opacity:1;transform:translateY(0)}92%{opacity:1}100%{opacity:0}}
+.delta{position:absolute;top:-13px;left:0;right:0;text-align:center;font-size:10px;font-weight:800;color:#7fd08a;opacity:0;animation:delta 4.5s ease-in-out infinite}
+@keyframes delta{0%,56%{opacity:0;transform:translateY(5px)}64%{opacity:1;transform:translateY(-4px)}82%{opacity:1;transform:translateY(-9px)}92%{opacity:0;transform:translateY(-15px)}100%{opacity:0}}
+.done{margin-top:auto;width:100%;background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:14px;text-align:center;padding:13px;border-radius:13px;z-index:1}
+.calm{background:#17111f;border:1px solid #2a2140;color:#c9bfe0}
+</style>
+<svg width="0" height="0"><defs>
+<radialGradient id="emberCore" cx="50%" cy="60%" r="62%"><stop offset="0" stop-color="#FFF3D6"/><stop offset=".34" stop-color="#FFD27A"/><stop offset=".68" stop-color="#F2A33C"/><stop offset="1" stop-color="#E0612C"/></radialGradient>
+<linearGradient id="emberCoal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8C3A"/><stop offset=".5" stop-color="#E0612C"/><stop offset="1" stop-color="#8A3410"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset="1" stop-color="#C8891F"/></linearGradient>
+<linearGradient id="urn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d99a5a"/><stop offset=".5" stop-color="#a5652f"/><stop offset="1" stop-color="#5f3417"/></linearGradient>
+<symbol id="ember" viewBox="0 0 48 60"><path d="M24 3 C26 15 37 23 37 39 C37 49 31 56 24 56 C17 56 11 49 11 39 C11 30 17 26 20 32 C19 21 22 12 24 3 Z" fill="url(#emberCoal)"/><path d="M24 13 C25.5 22 31 28 31 39 C31 47 28 51 24 51 C20 51 17 47 17 39 C17 32 20 30 22 34 C21 26 23 20 24 13 Z" fill="url(#emberCore)"/></symbol>
+<symbol id="flame" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="#F2A33C"/></g></symbol>
+<symbol id="boxHestia" viewBox="0 0 60 66"><path d="M30 24 C41 26 43 42 34 55 L26 55 C17 42 19 26 30 24 Z" fill="url(#urn)" stroke="#e9b57a" stroke-width="1"/><path d="M24 22 L36 22 L34 26 L26 26 Z" fill="#c98a4a"/><path d="M24 26 C14 26 14 38 22 38" fill="none" stroke="#c98a4a" stroke-width="3"/><path d="M36 26 C46 26 46 38 38 38" fill="none" stroke="#c98a4a" stroke-width="3"/><path d="M30 6 C31.5 11 34 13 34 17 A4 4 0 0 1 26 17 C26 14.5 27.2 13 28.4 15 C28 11.5 29 8.5 30 6 Z" fill="#b878f0"/></symbol>
+<symbol id="boxHeph" viewBox="0 0 60 60"><path d="M12 27 L16 19 H44 L48 27 Z" fill="#e6e0d2" stroke="#b0a894" stroke-width="1"/><rect x="12" y="27" width="36" height="23" rx="2" fill="#efe9db" stroke="#b0a894" stroke-width="1"/><rect x="12" y="27" width="36" height="4" fill="#cfc7b4"/><rect x="27" y="32" width="7" height="11" rx="1.5" fill="url(#gold)"/><circle cx="30.5" cy="36" r="1.5" fill="#8a6a1a"/></symbol>
+</defs></svg>
+
+<h1>Mock 142 — Vouch entry + reward outcomes</h1>
+<p class="sub">How you get into the vouch screen, and the two ways it ends: <b style="color:#7fd08a">vouched → reward upgrades</b>, or <b style="color:#8a7db0">not vouched → you keep your regular reward</b> (never a downgrade).</p>
+
+<div class="wrap">
+  <!-- entry notification -->
+  <div class="col"><div class="cap">Entry · the voucher's notification</div>
+    <div class="ph">
+      <div class="nb"><h2>Notifications</h2>
+        <div class="push">
+          <div class="iconpair"><div class="appic"><svg width="18" height="22"><use href="#flame"/></svg></div><div class="ovl"></div></div>
+          <div><div class="pt">Noah wants you to vouch</div><div class="pb">"I got 72% in Physiology (KP451)." Did he? <br><span class="tapv">Tap to vouch</span></div></div>
+        </div>
+      </div>
+      <div class="finger">👆</div>
+      <div class="note">Lands in the bell + as an OS push. Tapping opens the vouch prompt (mock 141-2). Vouch requests never auto-expire silently — the requester sees who's pending.</div>
+    </div>
+  </div>
+
+  <!-- upgrade outcome -->
+  <div class="col"><div class="cap">Outcome A · vouched → upgrade</div>
+    <div class="ph">
+      <div class="rays"></div>
+      <div class="rs">
+        <div class="kick" style="color:#7fd08a">VOUCHED BY 2 FRIENDS</div>
+        <div class="vouchers"><div class="va" style="background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)"><div class="ok">✓</div></div><div class="va" style="background:radial-gradient(circle at 40% 30%,#7a5a2a,#3e2a16)"><div class="ok">✓</div></div></div>
+        <div class="boxwrap">
+          <div class="box boxbase"><svg width="66" height="72"><use href="#boxHestia"/></svg></div>
+          <div class="box boxup"><svg width="72" height="72"><use href="#boxHeph"/></svg></div>
+        </div>
+        <div class="bname"><span class="bn bnbase">Vessel of Hestia</span><span class="bn bnup">Hephaestus' Chest</span></div>
+        <div class="stats">
+          <div class="stat">
+            <div class="delta">+60</div>
+            <div class="svwrap"><span class="svb" style="color:#FFE39A">480</span><span class="svu" style="color:#FFE39A">540</span></div>
+            <div class="sl">EMBERS ↑</div>
+          </div>
+          <div class="stat">
+            <div class="delta">+60</div>
+            <div class="svwrap"><span class="svb" style="color:#9ec6ff">480</span><span class="svu" style="color:#9ec6ff">540</span></div>
+            <div class="sl">XP ↑</div>
+          </div>
+        </div>
+        <div class="upflag">Reward upgraded ↑</div>
+        <div class="done">Open your chest</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kept-base outcome -->
+  <div class="col"><div class="cap">Outcome B · not vouched → keep reward</div>
+    <div class="ph">
+      <div class="rs">
+        <div class="kick" style="color:#8a7db0;margin-top:20px">VOUCH DIDN'T GO THROUGH</div>
+        <div class="boxwrap" style="margin-top:24px"><div class="box" style="background:radial-gradient(circle,#33210f,#160f0a);border:2px solid #6a4a9a;box-shadow:0 0 22px rgba(184,120,240,.35);position:static"><svg width="66" height="72"><use href="#boxHestia"/></svg></div></div>
+        <div class="bname"><span class="u">Vessel of Hestia</span></div>
+        <div style="font-size:11.5px;color:#c9bfe0;text-align:center;margin-top:10px;line-height:1.5;z-index:1">No worries — the window closed without 2 vouches, so you keep your <b>full regular reward</b>. Nothing lost.</div>
+        <div class="stats">
+          <div class="stat"><div class="sv" style="color:#FFE39A">480</div><div class="sl">EMBERS</div></div>
+          <div class="stat"><div class="sv" style="color:#9ec6ff">480</div><div class="sl">XP</div></div>
+        </div>
+        <div class="done calm">Open your box</div>
+      </div>
+    </div>
+  </div>
+</div>

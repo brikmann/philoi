@@ -1,0 +1,245 @@
+<meta charset="utf-8"><title>Mock 162 — The Agora</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:720px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:24px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:290px;min-height:44px}
+.ph{width:296px;height:636px;background:linear-gradient(#141019,#0e0b13);border-radius:34px;border:1px solid #241c38;overflow:hidden;position:relative;display:flex;flex-direction:column}
+/* header + feed (panel 1) */
+.hd{padding:15px 15px 7px;flex:none}
+.htop{display:flex;align-items:center;gap:9px}
+.menu{width:29px;height:29px;border-radius:9px;background:#1c1526;border:1px solid #2e2542;display:grid;place-items:center;gap:3px;flex:none}
+.menu i{display:block;width:13px;height:2px;background:#c9bfe0;border-radius:2px}
+.htop h2{font-size:18px;font-weight:800;margin:0;display:flex;align-items:center;gap:7px}.htop .col{color:#F2A33C}
+.hsub{font-size:10px;color:#7d719c;margin:3px 0 0 38px;font-style:italic}
+.filters{display:flex;gap:6px;padding:10px 15px 8px;flex:none;border-bottom:1px solid #1a1424;overflow:hidden}
+.ft{font-size:10.5px;font-weight:700;padding:6px 11px;border-radius:20px;background:#17111f;border:1px solid #2a2140;color:#8a7db0;white-space:nowrap}
+.ft.on{background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;border-color:#F2A33C}
+.feed{flex:1;overflow-y:auto;padding:11px 13px 80px}
+.composer{display:flex;align-items:center;gap:10px;background:#17111f;border:1px solid #2a2140;border-radius:14px;padding:10px 12px;margin-bottom:11px}
+.cav{width:29px;height:29px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#4a3a66,#241a38);flex:none}
+.cph{flex:1;font-size:12px;color:#8a7db0}
+.card{background:#15101d;border:1px solid #241c38;border-radius:16px;padding:12px;margin-bottom:10px}
+.crow{display:flex;align-items:center;gap:9px}
+.av{width:36px;height:36px;border-radius:50%;flex:none;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e)}
+.av.halo{box-shadow:0 0 0 2px #100c17,0 0 0 3.5px #F2A33C,0 0 12px 2px rgba(242,163,60,.55)}
+.card.flex{background:linear-gradient(150deg,#1e1522,#140d1c);border-color:#4a3320;box-shadow:inset 0 0 34px rgba(242,163,60,.07)}
+.a2{background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)}.a3{background:radial-gradient(circle at 40% 30%,#7a5a2a,#3e2a16)}.a4{background:radial-gradient(circle at 40% 30%,#5a2a4a,#3e1628)}
+.nm{font-size:12px;font-weight:800}.nm small{color:#8a7db0;font-weight:500}
+.tm{font-size:9.5px;color:#6a5d84;margin-top:1px;display:flex;align-items:center;gap:5px}
+.pill{font-size:8px;font-weight:800;padding:1.5px 6px;border-radius:10px;background:#241a34;color:#b9a9d8}
+.pill.uni{background:#16303e;color:#7fbfe0}
+.acc{display:flex;align-items:center;gap:10px;margin-top:10px;background:#120d1a;border-radius:12px;padding:9px 10px}
+.ai{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;flex:none}
+.mythic{background:radial-gradient(circle at 40% 32%,#ff8a70,#e0473b 62%,#7a1e18);box-shadow:0 0 14px rgba(224,71,59,.45)}
+.rankb{background:linear-gradient(#a855f7,#6a2ec9);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);color:#fff;font-weight:800;font-size:12px}
+.streakb{background:radial-gradient(circle at 50% 65%,#3a1810,#150a06)}
+.at{font-size:12.5px;font-weight:800}.as{font-size:10px;color:#8a7db0;margin-top:2px}
+.rar{font-size:8px;font-weight:800;color:#ff9a90;letter-spacing:.04em}
+.txt{font-size:12px;line-height:1.5;margin-top:9px;color:#e7ddf5}
+.photo{margin-top:9px;height:120px;border-radius:12px;background:linear-gradient(120deg,#2a3a5a,#4a2a3a)}
+.actions{display:flex;gap:18px;margin-top:11px;padding-top:9px;border-top:1px solid #201830;font-size:11px;font-weight:700;color:#8a7db0}
+.act{display:flex;align-items:center;gap:6px}.act.cheered{color:#F2A33C}
+.fab{position:absolute;right:15px;bottom:16px;width:52px;height:52px;border-radius:50%;background:linear-gradient(#F2A33C,#E0612C);display:grid;place-items:center;box-shadow:0 6px 20px rgba(224,97,44,.5)}
+/* generic screen bars */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:15px 16px 12px;border-bottom:1px solid #1c1526;flex:none}
+.topbar .t{font-size:14px;font-weight:800}
+.tcancel{font-size:12.5px;color:#9f92b6;font-weight:600}
+.tpost{font-size:12.5px;font-weight:800;color:#1a1020;background:linear-gradient(#F2A33C,#E0612C);padding:6px 14px;border-radius:20px}
+.tpost.off{background:#241a34;color:#6a5d84}
+/* compose (panel 2) */
+.cmphead{display:flex;align-items:center;gap:10px;padding:14px 16px 6px}
+.cmpav{width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e);flex:none}
+.cmpname{font-size:12.5px;font-weight:800}
+.aud{font-size:9.5px;font-weight:700;color:#b9a9d8;background:#221933;border:1px solid #33264a;border-radius:20px;padding:2px 9px;margin-top:3px;display:inline-flex;align-items:center;gap:4px}
+.cmparea{flex:1;padding:8px 18px;font-size:14px;color:#6a5d84;line-height:1.5}
+.attach{border-top:1px solid #1c1526;padding:11px 12px;flex:none}
+.attach .lab{font-size:10px;font-weight:700;color:#7d719c;padding:0 6px 8px}
+.arow{display:flex;gap:8px}
+.achip{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;background:#17111f;border:1px solid #2a2140;border-radius:13px;padding:11px 4px}
+.achip .ci{color:#F2A33C}.achip .cl{font-size:10.5px;font-weight:700;color:#c9bfe0}
+/* picker sheets (panels 3-5) */
+.scrim{position:absolute;inset:0;background:rgba(6,5,10,.6)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(#181019,#120c17);border-top:1px solid #2e2542;border-radius:20px 20px 0 0;padding:8px 0 14px;box-shadow:0 -12px 34px rgba(0,0,0,.5)}
+.grab{width:38px;height:4px;border-radius:3px;background:#3a2f4e;margin:6px auto 10px}
+.sh{font-size:14px;font-weight:800;padding:2px 18px 4px;display:flex;justify-content:space-between;align-items:center}
+.sh .add{font-size:11.5px;font-weight:800;color:#F2A33C}
+.shx{font-size:10px;color:#8a7db0;padding:0 18px 10px}
+.pchips{display:flex;gap:6px;padding:2px 14px 9px;overflow:hidden}
+.pc{font-size:10px;font-weight:700;padding:5px 10px;border-radius:16px;background:#17111f;border:1px solid #2a2140;color:#8a7db0;white-space:nowrap}
+.pc.on{background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;border-color:#F2A33C}
+.plist{overflow-y:auto}
+.gsec{font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#5f5478;padding:9px 18px 1px}
+.legb{background:radial-gradient(circle at 40% 32%,#ffd27a,#e0902c 60%,#7a4a12);color:#2a1600}
+.gradeb{background:radial-gradient(circle at 40% 32%,#7ad0a0,#2c9a68 62%,#12472e);color:#04140c}
+/* photo grid */
+.pgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;padding:4px 12px 0}
+.pcell{aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#33405e,#4a2f42)}
+.pcell:nth-child(3n){background:linear-gradient(135deg,#3e4a2f,#2f4a44)}
+.pcell:nth-child(3n+2){background:linear-gradient(135deg,#4a3350,#2f3a5e)}
+.pcam{background:#221933;border:1px solid #33264a;display:grid;place-items:center;color:#F2A33C}
+.psel{position:relative;outline:2px solid #F2A33C;outline-offset:-2px}
+.psel::after{content:'✓';position:absolute;top:4px;right:5px;width:16px;height:16px;border-radius:50%;background:#F2A33C;color:#1a1020;font-size:10px;font-weight:800;display:grid;place-items:center}
+/* pick rows */
+.prow{display:flex;align-items:center;gap:11px;padding:10px 16px}
+.pri{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:none}
+.prt{font-size:12.5px;font-weight:800}.prd{font-size:10px;color:#8a7db0;margin-top:2px}
+.radio{width:18px;height:18px;border-radius:50%;border:2px solid #3a2f4e;margin-left:auto;flex:none}
+.radio.on{border-color:#F2A33C;background:radial-gradient(circle,#F2A33C 42%,transparent 46%)}
+.sesi{background:#221933;border:1px solid #33264a;color:#F2A33C}
+/* comments (panel 6) */
+.postmini{display:flex;align-items:center;gap:9px;padding:0 16px 8px;border-bottom:1px solid #201830;margin-bottom:4px}
+.cmt{display:flex;gap:9px;padding:11px 16px}
+.cmtb{flex:1}.cmtn{font-size:11.5px;font-weight:800}.cmtn small{color:#8a7db0;font-weight:500;margin-left:5px}
+.cmtx{font-size:11.5px;color:#e2d8f2;margin-top:2px;line-height:1.4}
+.cmtm{font-size:9.5px;color:#6a5d84;margin-top:3px;display:flex;gap:12px}
+.cbar{display:flex;align-items:center;gap:9px;margin:8px 14px 0;background:#17111f;border:1px solid #2a2140;border-radius:22px;padding:8px 12px}
+.cbar .cph{font-size:11.5px}
+.send{width:28px;height:28px;border-radius:50%;background:linear-gradient(#F2A33C,#E0612C);display:grid;place-items:center;flex:none}
+svg.i{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<symbol id="ic-agora" viewBox="0 0 24 24"><path d="M3.6 8.7 12 3.6 20.4 8.7"/><path d="M4.6 9.1H19.4"/><path d="M6.6 9.7V16.6"/><path d="M9.8 9.7V16.6"/><path d="M14.2 9.7V16.6"/><path d="M17.4 9.7V16.6"/><path d="M4.2 19.2H19.8"/></symbol>
+<symbol id="flame" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#e)"/></g></symbol>
+<symbol id="pen" viewBox="0 0 24 24"><path d="M5 18.5 4 20l1.5-.4L18 7.1a1.7 1.7 0 0 0 0-2.4l-.2-.2a1.7 1.7 0 0 0-2.4 0L3 16.9z" stroke="#1a1020" stroke-width="1.9" fill="none" stroke-linejoin="round"/><path d="M14 6.2 16.8 9" stroke="#1a1020" stroke-width="1.9"/></symbol>
+<symbol id="chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-4 3z"/></symbol>
+<symbol id="share" viewBox="0 0 24 24"><path d="M6 12v7h12v-7"/><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/></symbol>
+<symbol id="photo" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M4 17l5-4 4 3 3-2 4 3"/></symbol>
+<symbol id="trophy" viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-10 0z"/><path d="M7 5H4.6a2.4 2.4 0 0 0 2.7 3.5"/><path d="M17 5h2.4a2.4 2.4 0 0 1-2.7 3.5"/><path d="M12 12v3.6"/><path d="M9.5 19.4h5"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
+<symbol id="camera" viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L18 8h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z"/><circle cx="12" cy="13" r="3.2"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M4 5.5A2 2 0 0 1 6 4h6v15H6a2 2 0 0 0-2 1.4z"/><path d="M20 5.5A2 2 0 0 0 18 4h-6v15h6a2 2 0 0 1 2 1.4z"/></symbol>
+<symbol id="dumbbell" viewBox="0 0 24 24"><path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10"/></symbol>
+<symbol id="cap" viewBox="0 0 24 24"><path d="M12 4 2.5 8.5 12 13l9.5-4.5z"/><path d="M6.5 10.7V15c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5v-4.3"/><path d="M21.5 8.5v5"/></symbol>
+<symbol id="run" viewBox="0 0 24 24"><circle cx="14" cy="5" r="2"/><path d="M6 20l3-5 3 2 1-4M12 13l-1-4 4-1 2 3 2 1"/></symbol>
+</defs></svg>
+
+<h1>Mock 162 — The Agora</h1>
+<p class="sub">Universal student feed. The composer opens straight to a <b style="color:#e7ddf5">free-form post screen</b> (write anything) with three things you can attach: a <b style="color:#e7ddf5">photo</b>, an <b style="color:#e7ddf5">achievement</b> you've earned, or a <b style="color:#e7ddf5">lock-in</b> you've completed. Each pulls from what's already yours.</p>
+
+<div class="wrap">
+  <!-- 1 · FEED -->
+  <div class="col"><div class="cap">1 · The feed. Post authors render their equipped cosmetics — halo ring, flex background card. Another reason to grind.</div>
+    <div class="ph">
+      <div class="hd">
+        <div class="htop"><div class="menu"><i></i><i></i><i></i></div><h2><svg class="i col" width="20" height="20"><use href="#ic-agora"/></svg> The Agora</h2></div>
+        <div class="hsub">where students gather, as did the Greeks</div>
+      </div>
+      <div class="filters"><span class="ft on">Friends</span><span class="ft">Campfires</span><span class="ft">University</span><span class="ft">Global</span></div>
+      <div class="feed">
+        <div class="composer"><div class="cav"></div><div class="cph">Share a win, a photo, a thought…</div><svg width="15" height="15"><use href="#pen"/></svg></div>
+        <div class="card flex">
+          <div class="crow"><div class="av a2 halo"></div><div><div class="nm">Maya Chen <small>@mayac</small></div><div class="tm">2h · Hero II <span class="pill uni">Waterloo</span></div></div></div>
+          <div class="acc"><div class="ai mythic">🏛️</div><div><div class="at">Earned Atlas' Burden</div><div class="as"><span class="rar">MYTHIC RELIC</span> · 1,000 lb club</div></div></div>
+          <div class="actions"><div class="act cheered"><svg width="14" height="14"><use href="#flame"/></svg> 42</div><div class="act"><svg class="i" width="14" height="14"><use href="#chat"/></svg> 6</div><div class="act"><svg class="i" width="14" height="14"><use href="#share"/></svg></div></div>
+        </div>
+        <div class="card">
+          <div class="crow"><div class="av"></div><div><div class="nm">Priya N. <small>@priya</small></div><div class="tm">4h <span class="pill uni">McGill</span></div></div></div>
+          <div class="txt">finally beat my worst procrastination week — 22h locked in 🔒 the campfire carried me</div>
+          <div class="photo"></div>
+          <div class="actions"><div class="act cheered"><svg width="14" height="14"><use href="#flame"/></svg> 31</div><div class="act"><svg class="i" width="14" height="14"><use href="#chat"/></svg> 9</div><div class="act"><svg class="i" width="14" height="14"><use href="#share"/></svg></div></div>
+        </div>
+      </div>
+      <div class="fab"><svg width="23" height="23"><use href="#pen"/></svg></div>
+    </div>
+  </div>
+
+  <!-- 2 · COMPOSE -->
+  <div class="col"><div class="cap">2 · The post screen. Write freely (like FB / LinkedIn); the three icons are media you attach.</div>
+    <div class="ph">
+      <div class="topbar"><span class="tcancel">Cancel</span><span class="t">New post</span><span class="tpost">Post</span></div>
+      <div class="cmphead"><div class="cmpav"></div><div><div class="cmpname">Noah</div><span class="aud"><svg class="i" width="11" height="11"><use href="#ic-agora"/></svg> Global ▾</span></div></div>
+      <div class="cmparea">Share a win, a thought, what you're locking in on…</div>
+      <div class="attach">
+        <div class="lab">Add to your post</div>
+        <div class="arow">
+          <div class="achip"><span class="ci"><svg class="i" width="22" height="22"><use href="#photo"/></svg></span><span class="cl">Photo</span></div>
+          <div class="achip"><span class="ci"><svg class="i" width="22" height="22"><use href="#trophy"/></svg></span><span class="cl">Achievement</span></div>
+          <div class="achip"><span class="ci"><svg class="i" width="21" height="21"><use href="#lock"/></svg></span><span class="cl">Lock-in</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 · PHOTO PICKER -->
+  <div class="col"><div class="cap">3 · Photo → your gallery (or shoot one). Same picker the app already uses.</div>
+    <div class="ph">
+      <div class="scrim"></div>
+      <div class="sheet" style="height:74%">
+        <div class="grab"></div>
+        <div class="sh">Add a photo <span class="add">Add</span></div>
+        <div class="shx">From your camera roll</div>
+        <div class="pgrid">
+          <div class="pcell pcam"><svg class="i" width="22" height="22"><use href="#camera"/></svg></div>
+          <div class="pcell psel"></div><div class="pcell"></div>
+          <div class="pcell"></div><div class="pcell"></div><div class="pcell"></div>
+          <div class="pcell"></div><div class="pcell"></div><div class="pcell"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 · ACHIEVEMENT PICKER -->
+  <div class="col"><div class="cap">4 · Achievement → literally anything you've earned or posted: rank, streaks, any collectible, any grade / milestone, any fitness period. Filter by type.</div>
+    <div class="ph">
+      <div class="scrim"></div>
+      <div class="sheet" style="height:86%">
+        <div class="grab"></div>
+        <div class="sh">Share an achievement</div>
+        <div class="pchips"><span class="pc on">All</span><span class="pc">Rank</span><span class="pc">Flame Pass</span><span class="pc">Streaks</span><span class="pc">Collectibles</span><span class="pc">Grades</span><span class="pc">Fitness</span></div>
+        <div class="plist">
+          <div class="gsec">Standing</div>
+          <div class="prow"><div class="pri rankb">II</div><div><div class="prt">Hero II</div><div class="prd">Global rank · career-long, never resets</div></div><div class="radio on"></div></div>
+          <div class="prow"><div class="pri legb"><svg class="i" width="20" height="20"><use href="#trophy"/></svg></div><div><div class="prt">Flame Pass · Level 42</div><div class="prd">Emberfall season · 8 tiers to Ember Phoenix 🔥</div></div><div class="radio"></div></div>
+          <div class="prow"><div class="pri streakb"><svg width="18" height="21"><use href="#flame"/></svg></div><div><div class="prt">30-day streak</div><div class="prd">A full month, no dead days</div></div><div class="radio"></div></div>
+
+          <div class="gsec">Collectibles</div>
+          <div class="prow"><div class="pri mythic">🏛️</div><div><div class="prt">Atlas' Burden</div><div class="prd">Mythic relic · 1,000 lb club</div></div><div class="radio"></div></div>
+          <div class="prow"><div class="pri legb"><svg width="19" height="22"><use href="#flame"/></svg></div><div><div class="prt">Ember Phoenix</div><div class="prd">Legendary flame skin · forged</div></div><div class="radio"></div></div>
+
+          <div class="gsec">Grades &amp; milestones</div>
+          <div class="prow"><div class="pri gradeb"><svg class="i" width="20" height="20"><use href="#cap"/></svg></div><div><div class="prt">A+ · CP386 midterm</div><div class="prd">Posted 2 weeks ago</div></div><div class="radio"></div></div>
+          <div class="prow"><div class="pri sesi"><svg class="i" width="19" height="19"><use href="#lock"/></svg></div><div><div class="prt">100 lock-ins</div><div class="prd">Lifetime milestone</div></div><div class="radio"></div></div>
+
+          <div class="gsec">Fitness periods</div>
+          <div class="prow"><div class="pri sesi"><svg class="i" width="20" height="20"><use href="#dumbbell"/></svg></div><div><div class="prt">Deadlift PR — 405 lb</div><div class="prd">Personal best · 3 days ago</div></div><div class="radio"></div></div>
+          <div class="prow"><div class="pri sesi"><svg class="i" width="20" height="20"><use href="#run"/></svg></div><div><div class="prt">52 km in October</div><div class="prd">Monthly distance</div></div><div class="radio"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 · LOCK-IN PICKER -->
+  <div class="col"><div class="cap">5 · Lock-in → pick a completed session from your history.</div>
+    <div class="ph">
+      <div class="scrim"></div>
+      <div class="sheet" style="height:76%">
+        <div class="grab"></div>
+        <div class="sh">Share a lock-in</div>
+        <div class="shx">A session you've finished</div>
+        <div class="prow"><div class="pri sesi"><svg class="i" width="20" height="20"><use href="#book"/></svg></div><div><div class="prt">Deep Work · 2h 15m</div><div class="prd">Today · CP386 assignment</div></div><div class="radio on"></div></div>
+        <div class="prow"><div class="pri sesi"><svg class="i" width="20" height="20"><use href="#dumbbell"/></svg></div><div><div class="prt">Gym · 1h 05m</div><div class="prd">Yesterday · push day</div></div><div class="radio"></div></div>
+        <div class="prow"><div class="pri sesi"><svg class="i" width="20" height="20"><use href="#book"/></svg></div><div><div class="prt">Reading · 45m</div><div class="prd">Mon · 22 pages</div></div><div class="radio"></div></div>
+        <div class="prow"><div class="pri sesi"><svg class="i" width="20" height="20"><use href="#dumbbell"/></svg></div><div><div class="prt">Run · 32m</div><div class="prd">Sun · 5.4 km</div></div><div class="radio"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6 · COMMENTS -->
+  <div class="col"><div class="cap">6 · Bubble → comments pull up from the bottom. Kept as-is — simple, does the job.</div>
+    <div class="ph">
+      <div class="scrim"></div>
+      <div class="sheet" style="height:78%">
+        <div class="grab"></div>
+        <div class="sh">Cheers &amp; comments</div>
+        <div class="postmini" style="padding-top:6px"><div class="ai mythic" style="width:30px;height:30px;font-size:15px;border-radius:9px">🏛️</div><div><div class="nm" style="font-size:11px">Maya earned Atlas' Burden</div><div class="tm" style="margin-top:1px"><svg width="11" height="11"><use href="#flame"/></svg> 42 cheers</div></div></div>
+        <div class="cmt"><div class="av a3" style="width:30px;height:30px"></div><div class="cmtb"><div class="cmtn">Jordan Blake <small>@jblake</small></div><div class="cmtx">absolute monster 💪 congrats</div><div class="cmtm"><span>2h</span><span><svg width="10" height="10"><use href="#flame"/></svg> 4</span><span>Reply</span></div></div></div>
+        <div class="cmt"><div class="av" style="width:30px;height:30px"></div><div class="cmtb"><div class="cmtn">Priya N. <small>@priya</small></div><div class="cmtx">this is so inspiring, what's your program?</div><div class="cmtm"><span>1h</span><span><svg width="10" height="10"><use href="#flame"/></svg> 1</span><span>Reply</span></div></div></div>
+        <div class="cmt"><div class="av a4" style="width:30px;height:30px"></div><div class="cmtb"><div class="cmtn">Sam Rivera <small>@srivera</small></div><div class="cmtx">1,000 lb club!! goals fr</div><div class="cmtm"><span>44m</span><span>Reply</span></div></div></div>
+        <div class="cbar"><div class="cav" style="width:26px;height:26px"></div><div class="cph">Add a comment…</div><div class="send"><svg width="14" height="14"><use href="#flame"/></svg></div></div>
+      </div>
+    </div>
+  </div>
+</div>

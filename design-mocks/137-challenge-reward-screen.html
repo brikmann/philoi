@@ -1,0 +1,129 @@
+<meta charset="utf-8"><title>Mock 137 — Challenge reward screens</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:700px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:260px}
+.ph{width:280px;height:566px;border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden;background:radial-gradient(80% 55% at 50% 30%,#1c1226,#0b0810 78%)}
+.arrow{align-self:center;font-size:24px;color:#F2A33C}
+/* notification entry */
+.nbell{position:absolute;left:0;right:0;top:0;padding:16px}
+.nbell h2{font-size:16px;font-weight:800;margin:2px 4px 12px}
+.push{display:flex;gap:11px;background:rgba(30,24,40,.9);border:1px solid #3a2f56;border-radius:16px;padding:12px;align-items:center;position:relative}
+.push.tap{box-shadow:0 0 0 2px #F2A33C;animation:tap 3.6s ease-in-out infinite}
+@keyframes tap{0%,20%{box-shadow:0 0 0 2px rgba(242,163,60,0)}30%{box-shadow:0 0 0 2px #F2A33C}55%{box-shadow:0 0 0 2px rgba(242,163,60,.3)}100%{box-shadow:0 0 0 2px rgba(242,163,60,0)}}
+.iconpair{position:relative;width:44px;flex:none}
+.appic{width:38px;height:38px;border-radius:9px;background:radial-gradient(120% 90% at 40% 20%,#2a1f3e,#0e0b13);display:grid;place-items:center;border:1px solid #4a3a66}
+.ovl{position:absolute;right:-3px;bottom:-3px;width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:12px;border:2.5px solid #1e1828;background:linear-gradient(#a855f7,#6a2ec9)}
+.pt{font-size:12.5px;font-weight:800}.pb{font-size:11px;color:#c9bfe0;margin-top:1px}
+.finger{position:absolute;right:24px;bottom:210px;font-size:26px;animation:poke 3.6s ease-in-out infinite}
+@keyframes poke{0%,24%{transform:translateY(0);opacity:.9}32%{transform:translateY(-8px)}40%{transform:translateY(0)}100%{transform:translateY(0);opacity:.9}}
+.tapnote{position:absolute;left:0;right:0;bottom:40px;text-align:center;font-size:11px;color:#8a7db0;padding:0 24px;line-height:1.5}
+/* reward screen */
+.rs{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding:30px 20px 20px}
+.rays{position:absolute;top:44%;left:50%;width:640px;height:640px;margin:-320px 0 0 -320px;opacity:.4;animation:spin 16s linear infinite}
+.rays::before{content:'';position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,220,150,.42) 0deg 5deg,transparent 5deg 15deg);-webkit-mask:radial-gradient(circle,transparent 10%,#000 14%);mask:radial-gradient(circle,transparent 10%,#000 14%)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.kick{font-size:11px;font-weight:800;letter-spacing:2.5px;color:#FFD27A;z-index:1}
+.cname{font-size:16px;font-weight:800;text-align:center;margin:4px 0 2px;z-index:1}
+.place{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:12px;padding:5px 13px;border-radius:20px;margin-top:10px;z-index:1}
+.hero{margin:20px 0 6px;z-index:1;animation:pop 5s ease-in-out infinite}
+@keyframes pop{0%{transform:scale(.3);opacity:0}12%{transform:scale(1.14);opacity:1}22%{transform:scale(1)}100%{transform:scale(1);opacity:1}}
+.box{width:96px;height:96px;border-radius:20px;display:grid;place-items:center;font-size:46px;position:relative}
+.box.rare{background:linear-gradient(#3d8bfd,#1e5ac0);box-shadow:0 0 30px rgba(61,139,253,.6);border:2px solid #9ec6ff}
+.box.epic{background:linear-gradient(#a855f7,#6a2ec9);box-shadow:0 0 30px rgba(168,85,247,.6);border:2px solid #d4b3f5}
+.rlist{width:100%;display:flex;flex-direction:column;gap:9px;margin-top:18px;z-index:1}
+.rrow{display:flex;align-items:center;gap:11px;background:#17111f;border:1px solid #2a2140;border-radius:12px;padding:10px 11px}
+.ric{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font-size:16px;flex:none}
+.rmid{flex:1}.rval{font-size:13.5px;font-weight:800}.rlab{font-size:9px;color:#8a7db0;letter-spacing:.4px;margin-top:1px}
+.rbtn{font-size:11px;font-weight:800;color:#1a1020;background:linear-gradient(#FFE39A,#F2A33C);border-radius:8px;padding:7px 15px}
+.rbtn.open{background:linear-gradient(#9ec6ff,#3d8bfd)}
+.claimsub{font-size:10.5px;color:#8a7db0;text-align:center;margin-top:auto;padding-top:12px;z-index:1}
+.duelrow{display:flex;align-items:center;gap:12px;z-index:1;margin-top:6px}
+.av{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e)}
+.vs{font-size:12px;font-weight:800;color:#8a7db0}
+.win{color:#7fd08a}.score{font-size:11px;color:#9f92b6}
+</style>
+<svg width="0" height="0"><defs>
+<radialGradient id="emberCore" cx="50%" cy="60%" r="62%"><stop offset="0" stop-color="#FFF3D6"/><stop offset=".34" stop-color="#FFD27A"/><stop offset=".68" stop-color="#F2A33C"/><stop offset="1" stop-color="#E0612C"/></radialGradient>
+<linearGradient id="emberCoal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8C3A"/><stop offset=".5" stop-color="#E0612C"/><stop offset="1" stop-color="#8A3410"/></linearGradient>
+<symbol id="ember" viewBox="0 0 48 60"><path d="M24 3 C26 15 37 23 37 39 C37 49 31 56 24 56 C17 56 11 49 11 39 C11 30 17 26 20 32 C19 21 22 12 24 3 Z" fill="url(#emberCoal)"/><path d="M24 13 C25.5 22 31 28 31 39 C31 47 28 51 24 51 C20 51 17 47 17 39 C17 32 20 30 22 34 C21 26 23 20 24 13 Z" fill="url(#emberCore)"/></symbol>
+<linearGradient id="urn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d99a5a"/><stop offset=".5" stop-color="#a5652f"/><stop offset="1" stop-color="#5f3417"/></linearGradient>
+<!-- Vessel of Hestia: two-handled urn, purple flame at the mouth -->
+<symbol id="boxHestia" viewBox="0 0 60 66">
+  <path d="M30 24 C41 26 43 42 34 55 L26 55 C17 42 19 26 30 24 Z" fill="url(#urn)" stroke="#e9b57a" stroke-width="1"/>
+  <path d="M24 22 L36 22 L34 26 L26 26 Z" fill="#c98a4a"/>
+  <path d="M24 26 C14 26 14 38 22 38" fill="none" stroke="#c98a4a" stroke-width="3"/>
+  <path d="M36 26 C46 26 46 38 38 38" fill="none" stroke="#c98a4a" stroke-width="3"/>
+  <path d="M30 6 C31.5 11 34 13 34 17 A4 4 0 0 1 26 17 C26 14.5 27.2 13 28.4 15 C28 11.5 29 8.5 30 6 Z" fill="#b878f0"/>
+  <path d="M30 10 C31 13 32 14 32 16.4 A2 2 0 0 1 28 16.4 C28 15 28.7 14.4 29.3 15.4 C29.1 13.6 29.5 12 30 10 Z" fill="#e6ccff"/>
+</symbol>
+<!-- The Furnace: dark block with two glowing grates -->
+<symbol id="boxFurnace" viewBox="0 0 60 60">
+  <rect x="12" y="14" width="36" height="34" rx="5" fill="#241a14" stroke="#7a4a24" stroke-width="2"/>
+  <rect x="10" y="11" width="40" height="7" rx="3" fill="#3a2618" stroke="#7a4a24" stroke-width="1.5"/>
+  <rect x="18" y="24" width="24" height="6" rx="3" fill="url(#e)"/>
+  <rect x="18" y="35" width="24" height="6" rx="3" fill="url(#e)"/>
+  <g fill="#FFE39A"><circle cx="30" cy="27" r="1.4"/><circle cx="30" cy="38" r="1.4"/></g>
+</symbol>
+</defs></svg>
+
+<h1>Mock 137 — Challenge reward screens</h1>
+<p class="sub">Winning a challenge now pays the same way relics/levels do — a <b style="color:#e7ddf5">reward reveal screen</b>. Crucially, tapping the notification ("you won a Rare box, claim it") <b style="color:#e7ddf5">deep-links straight to this screen</b>, in-app or from an OS push. Claim → the prizes fly into your account (mock 136).</p>
+
+<div class="wrap">
+  <!-- ENTRY: notification -->
+  <div class="col"><div class="cap">1 · The notification (in-app or OS)</div>
+    <div class="ph">
+      <div class="nbell"><h2>Notifications</h2>
+        <div class="push tap">
+          <div class="iconpair"><div class="appic"><svg width="18" height="22" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="#F2A33C"/></g></svg></div><div class="ovl">🎁</div></div>
+          <div><div class="pt">Challenge won — 5h of ECON</div><div class="pb">You earned a <b style="color:#c99bf7">Vessel of Hestia</b>. Tap to claim.</div></div>
+        </div>
+      </div>
+      <div class="finger">👆</div>
+      <div class="tapnote">Tapping routes to the reward screen — the box is unclaimed until you open it there. Same for the OS push.</div>
+    </div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- GROUP challenge reward -->
+  <div class="col"><div class="cap">2 · Group / campfire challenge</div>
+    <div class="ph">
+      <div class="rays"></div>
+      <div class="rs">
+        <div class="kick">CHALLENGE COMPLETE</div>
+        <div class="cname">Study ECON · 5h / week</div>
+        <div class="place">🏆 1st of 8 · Grind Szn</div>
+        <div class="hero"><div class="box" style="background:radial-gradient(circle,#33210f,#160f0a);box-shadow:0 0 30px rgba(184,120,240,.45);border:2px solid #6a4a9a"><svg width="74" height="82"><use href="#boxHestia"/></svg></div></div>
+        <div class="rlist">
+          <div class="rrow"><div class="ric" style="background:#241a10"><svg width="26" height="29"><use href="#boxHestia"/></svg></div><div class="rmid"><div class="rval" style="color:#c99bf7">Vessel of Hestia</div><div class="rlab">EPIC BOX · CHALLENGE REWARD</div></div><div class="rbtn open" style="background:linear-gradient(#d4b3f5,#a855f7)">Open</div></div>
+          <div class="rrow"><div class="ric" style="background:#2a1e10"><svg width="14" height="17"><use href="#ember"/></svg></div><div class="rmid"><div class="rval">300 embers</div></div><div class="rbtn">Claim</div></div>
+          <div class="rrow"><div class="ric" style="background:#101a2e;color:#9ec6ff">◆</div><div class="rmid"><div class="rval">250 XP</div></div><div class="rbtn">Claim</div></div>
+        </div>
+        <div class="claimsub">official box art renders here · claim embers → balance surfaces to catch them; claim XP → pass progress surfaces (balance stacks below). Never both in one corner. (mock 136)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DUEL reward -->
+  <div class="col"><div class="cap">3 · Friend duel (H2H)</div>
+    <div class="ph">
+      <div class="rays"></div>
+      <div class="rs">
+        <div class="kick">DUEL WON</div>
+        <div class="duelrow"><div class="av"></div><span class="vs">beat</span><div class="av" style="background:radial-gradient(circle at 40% 30%,#7a5a2a,#3e2a16)"></div></div>
+        <div class="cname" style="margin-top:8px">You beat Noah Brikman</div>
+        <div class="score">1,240 vs 980 min this week</div>
+        <div class="hero"><div class="box" style="background:radial-gradient(circle,#2a1c12,#140d0a);box-shadow:0 0 30px rgba(61,139,253,.5);border:2px solid #3d5a8a"><svg width="74" height="74"><use href="#boxFurnace"/></svg></div></div>
+        <div class="rlist">
+          <div class="rrow"><div class="ric" style="background:#241a10"><svg width="26" height="26"><use href="#boxFurnace"/></svg></div><div class="rmid"><div class="rval" style="color:#9ec6ff">The Furnace</div><div class="rlab">RARE BOX · DUEL REWARD</div></div><div class="rbtn open" style="background:linear-gradient(#9ec6ff,#3d8bfd)">Open</div></div>
+          <div class="rrow"><div class="ric" style="background:#2a1e10"><svg width="14" height="17"><use href="#ember"/></svg></div><div class="rmid"><div class="rval">150 embers</div></div><div class="rbtn">Claim</div></div>
+          <div class="rrow"><div class="ric" style="background:#101a2e;color:#9ec6ff">◆</div><div class="rmid"><div class="rval">120 XP</div></div><div class="rbtn">Claim</div></div>
+        </div>
+        <div class="claimsub">official box art renders here · claim embers → balance surfaces to catch them; claim XP → pass progress surfaces (balance stacks below). Never both in one corner. (mock 136)</div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,91 @@
+<meta charset="utf-8"><title>Mock 152 — Ping & composer menu</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:720px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:250px}
+.ph{width:280px;height:560px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden}
+.dimbg{position:absolute;inset:0;opacity:.14;padding:16px}.dimbg .r{height:12px;background:#3a2f56;border-radius:6px;margin-bottom:10px}.dimbg .r.s{width:55%}.dimbg .r.m{width:80%}
+.scrim{position:absolute;inset:0;background:rgba(8,6,12,.7)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#17111f;border-top:1px solid #3a2f56;border-radius:22px 22px 0 0;padding:18px 16px 22px;z-index:2}
+.grip{width:36px;height:4px;border-radius:2px;background:#3a2f56;margin:0 auto 14px}
+.stitle{font-size:15px;font-weight:800;text-align:center}
+.ssub{font-size:11px;color:#8a7db0;text-align:center;margin-top:4px;line-height:1.4}
+/* ping options */
+.pings{display:flex;flex-direction:column;gap:9px;margin-top:16px}
+.pg{display:flex;align-items:center;gap:12px;background:#120d1a;border:1px solid #2a2140;border-radius:13px;padding:13px 14px;font-size:13.5px;font-weight:700}
+.pg .em{font-size:19px}
+.pg.hot{border-color:#F2A33C;box-shadow:0 0 0 1px rgba(242,163,60,.3)}
+.ptype{background:#120d1a;border:1px solid #2a2140;border-radius:13px;padding:12px 14px}
+.ptype.hot{border-color:#F2A33C;box-shadow:0 0 0 1px rgba(242,163,60,.3)}
+.ptrow{display:flex;align-items:center;gap:11px;font-size:13.5px}
+.ptname{font-weight:800}.ptdef{color:#8a7db0;font-weight:500;font-size:11.5px;margin-left:auto}
+.ptedit{margin-top:9px;background:#17111f;border:1px solid #3a2f56;border-radius:9px;padding:8px 10px;font-size:12px;color:#e7ddf5;display:flex;justify-content:space-between}
+.ptedit .pen{color:#6a5d84}
+/* composer menu */
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:18px}
+.mi{display:flex;flex-direction:column;align-items:center;gap:8px}
+.mic{width:56px;height:56px;border-radius:16px;background:#120d1a;border:1px solid #2a2140;display:grid;place-items:center;font-size:22px}
+.mic.p{background:radial-gradient(circle,#3a2a10,#160f0a);border-color:#F2A33C}
+.mt{font-size:10.5px;color:#c9bfe0;font-weight:700;text-align:center}
+.note{font-size:10px;color:#6a5d84;margin-top:16px;line-height:1.55;border-top:1px solid #201830;padding-top:11px}
+.note b{color:#c9bfe0}
+.dmhead{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;border-bottom:1px solid #1c1526}
+.dmav{width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)}
+.dmn{font-size:14px;font-weight:800}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef2f8"/><stop offset=".5" stop-color="#9aa4b4"/><stop offset="1" stop-color="#5a6474"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset="1" stop-color="#C8891F"/></linearGradient>
+<symbol id="pingIcon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.4" fill="currentColor"/><circle cx="12" cy="12" r="5.6" fill="none" stroke="currentColor" stroke-width="1.7" opacity=".72"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4"/></symbol>
+<symbol id="sword" viewBox="0 0 24 24"><path d="M12 1.5 L13.5 5.5 V13 H10.5 V5.5 Z" fill="url(#steel)"/><rect x="6.5" y="12.8" width="11" height="2.3" rx="1" fill="url(#gold)"/><rect x="10.9" y="15.1" width="2.2" height="4.6" rx=".6" fill="#8a5a2a"/><circle cx="12" cy="20.6" r="1.6" fill="url(#gold)"/></symbol>
+</defs></svg>
+
+<h1>Mock 152 — Ping &amp; the + composer</h1>
+<p class="sub"><b style="color:#e7ddf5">Ping</b> = a one-tap accountability nudge (no typing, no thread) — the core-loop poke. <b style="color:#e7ddf5">Message</b> = a real conversation, and its <b style="color:#e7ddf5">+</b> menu is where you share and start things.</p>
+
+<div class="wrap">
+  <!-- ping sheet -->
+  <div class="col"><div class="cap">Ping → pick a nudge, one tap sends</div>
+    <div class="ph">
+      <div class="dimbg"><div class="r m"></div><div class="r s"></div><div class="r m"></div><div class="r"></div></div>
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="grip"></div>
+        <div class="stitle" style="display:flex;align-items:center;justify-content:center;gap:7px"><svg width="17" height="17" style="color:#F2A33C"><use href="#pingIcon"/></svg> Ping Maya</div>
+        <div class="ssub">A quick nudge — no back-and-forth. She gets a notification and that's it.</div>
+        <div class="pings">
+          <div class="ptype hot">
+            <div class="ptrow"><span class="em">🔒</span><span class="ptname">Invite</span><span class="ptdef">"Lock in with me"</span></div>
+            <div class="ptedit">actually let's grind at 8 📚 <span class="pen">✎</span></div>
+          </div>
+          <div class="ptype"><div class="ptrow"><span class="em">💪</span><span class="ptname">Nudge</span><span class="ptdef">"Get back to it"</span></div></div>
+          <div class="ptype"><div class="ptrow"><span class="em">🔥</span><span class="ptname">Praise</span><span class="ptdef">"Proud of you"</span></div></div>
+          <div class="ptype"><div class="ptrow"><span class="em">📍</span><span class="ptname">Location</span><span class="ptdef">"Where you at?"</span></div></div>
+        </div>
+        <div class="note"><b>Four ping types</b> — tap to send the default, or write your <b>own message under any type</b> (Invite shown expanded). A ping is one tap and done: lands as “<b>Noah pinged you: actually let's grind at 8</b>”. No thread, just a nudge.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- composer menu -->
+  <div class="col"><div class="cap">The + menu inside a DM</div>
+    <div class="ph">
+      <div class="dmhead"><span style="color:#8a7db0">‹</span><div class="dmav"></div><div class="dmn">Maya Chen</div></div>
+      <div class="scrim" style="top:56px"></div>
+      <div class="sheet">
+        <div class="grip"></div>
+        <div class="stitle">Share with Maya</div>
+        <div class="grid">
+          <div class="mi"><div class="mic">📷</div><div class="mt">Photo</div></div>
+          <div class="mi"><div class="mic">🎬</div><div class="mt">Share a lock-in / clip</div></div>
+          <div class="mi"><div class="mic p"><svg width="22" height="26"><use href="#sword"/></svg></div><div class="mt">Challenge</div></div>
+          <div class="mi"><div class="mic">🔒</div><div class="mt">Lock-in invite</div></div>
+          <div class="mi"><div class="mic">✦</div><div class="mt">Cheer</div></div>
+          <div class="mi"><div class="mic"><svg width="17" height="17" style="color:#F2A33C"><use href="#pingIcon"/></svg></div><div class="mt">Ping</div></div>
+        </div>
+        <div class="note"><b>Share a lock-in / clip</b> pulls from your recent sessions, gym set-videos, or a share card. <b>Challenge</b> drops a duel card inline. <b>Cindy is intentionally NOT here</b> — DMs stay person-to-person; Cindy lives in her own space so a friend chat never feels like a bot's in the room.</div>
+      </div>
+    </div>
+  </div>
+</div>

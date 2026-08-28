@@ -1,0 +1,104 @@
+<meta charset="utf-8"><title>Mock 132 — In-app notification feed</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:660px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;justify-content:center}
+.ph{width:330px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;overflow:hidden}
+.top{display:flex;align-items:center;justify-content:space-between;padding:18px 18px 12px}
+.top h2{font-size:18px;font-weight:800;margin:0}.mark{font-size:11.5px;color:#F2A33C;font-weight:700}
+.day{font-size:10.5px;font-weight:800;color:#6a5d84;letter-spacing:.6px;padding:10px 18px 6px}
+.row{display:flex;gap:12px;padding:12px 18px;align-items:flex-start;position:relative}
+.row.unread{background:linear-gradient(90deg,rgba(242,163,60,.06),transparent 60%)}
+.row.unread::before{content:'';position:absolute;left:7px;top:22px;width:6px;height:6px;border-radius:50%;background:#F2A33C}
+.art{width:44px;height:44px;flex:none;position:relative;display:grid;place-items:center}
+.av{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e)}
+.av2{background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)}
+.av3{background:radial-gradient(circle at 40% 30%,#7a5a2a,#3e2a16)}
+/* equipped-flame badge on an avatar */
+.fbadge{position:absolute;bottom:-3px;right:-4px;width:20px;height:20px;border-radius:50%;background:#0e0b13;display:grid;place-items:center}
+/* relic disc */
+.relic{width:44px;height:44px;border-radius:12px;background:radial-gradient(circle at 40% 32%,#ff8a70,#e0473b 62%,#7a1e18);display:grid;place-items:center;font-size:22px;box-shadow:0 0 14px rgba(224,71,59,.55);border:2px solid #ffb0a0}
+/* rank badge */
+.rank{width:44px;height:44px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(#a855f7,#6a2ec9);display:grid;place-items:center;font-size:20px}
+/* box */
+.box{width:44px;height:44px;border-radius:11px;background:linear-gradient(#3d8bfd,#1e5ac0);display:grid;place-items:center;font-size:22px}
+/* streak flame */
+.streakart{width:44px;height:44px;border-radius:12px;background:radial-gradient(circle at 50% 60%,#3a1810,#1a0c08);display:grid;place-items:center}
+.mid{flex:1;min-width:0}
+.txt{font-size:13px;line-height:1.4}.txt b{font-weight:800}
+.time{font-size:11px;color:#6a5d84;margin-top:3px}
+.btn{margin-top:8px;display:inline-flex;gap:8px}
+.btn span{font-size:11.5px;font-weight:800;padding:6px 14px;border-radius:9px}
+.accept{background:linear-gradient(#F2A33C,#E0612C);color:#1a1020}.decline{background:#241a34;color:#c9bfe0}
+.hr{height:1px;background:#1c1526;margin:0 18px}
+/* swipe-to-read demo */
+.swipe{position:relative;overflow:hidden}
+.swipe .read{position:absolute;inset:0;background:linear-gradient(90deg,#1e3a26,#153019);display:flex;align-items:center;justify-content:flex-end;padding-right:26px;font-size:26px;font-weight:800;color:#7fd08a}
+.swipe .row{position:relative;transform:translateX(-96px);background:#100c19}
+.foot{font-size:10.5px;color:#6a5d84;text-align:center;padding:14px 24px 18px;line-height:1.5}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<linearGradient id="cyan" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#0a4a6a"/><stop offset=".5" stop-color="#33c9e6"/><stop offset="1" stop-color="#a8f6ff"/></linearGradient>
+<symbol id="flame" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></g></symbol></defs></svg>
+
+<h1>Mock 132 — In-app notifications (the bell)</h1>
+<p class="sub">These live in the bell feed — they surface <b>in-app</b>, not as OS banners on the home screen. Each type carries its own leading art instead of the app logo: a friend's avatar with <i>their</i> equipped flame, the actual relic disc, the rank badge, the box you won. Streak/reminder rows read as alerts.</p>
+
+<div class="wrap">
+  <div class="ph">
+    <div class="top"><h2>Notifications</h2><span class="mark">Mark all read</span></div>
+
+    <div class="day">TODAY</div>
+
+    <div class="row unread">
+      <div class="art"><div class="streakart"><svg width="22" height="26"><use href="#flame" fill="url(#e)"/></svg></div></div>
+      <div class="mid"><div class="txt"><b>Your streak is at risk.</b> Lock in before midnight to keep your 12-day flame alive.</div><div class="time">now</div></div>
+    </div>
+    <div class="hr"></div>
+
+    <div class="row unread">
+      <div class="art"><div class="relic">🏛️</div></div>
+      <div class="mid"><div class="txt"><b>Relic unlocked — Atlas' Burden.</b> A thousand pounds across the three great lifts.</div><div class="time">2h ago</div></div>
+    </div>
+    <div class="hr"></div>
+
+    <div class="row unread">
+      <div class="art"><div class="av av2"></div><div class="fbadge"><svg width="12" height="15"><use href="#flame" fill="url(#cyan)"/></svg></div></div>
+      <div class="mid"><div class="txt"><b>Maya</b> sent you a message in <b>Late Night Library</b>.</div><div class="time">3h ago</div></div>
+    </div>
+    <div class="hr"></div>
+
+    <div class="row">
+      <div class="art"><div class="av av3"></div></div>
+      <div class="mid"><div class="txt"><b>Jordan</b> requested to follow you.</div><div class="time">5h ago</div>
+        <div class="btn"><span class="accept">Accept</span><span class="decline">Decline</span></div>
+      </div>
+    </div>
+    <div class="hr"></div>
+
+    <div class="day">EARLIER</div>
+
+    <div class="row">
+      <div class="art"><div class="rank">⚔️</div></div>
+      <div class="mid"><div class="txt"><b>You ranked up — Hero III.</b> Icarus' Feather is now within reach.</div><div class="time">Yesterday</div></div>
+    </div>
+    <div class="hr"></div>
+
+    <div class="row">
+      <div class="art"><div class="box">🎁</div></div>
+      <div class="mid"><div class="txt"><b>Challenge won — 5h of ECON for a month.</b> You earned a <b style="color:#3d8bfd">Rare box</b>. Tap to open.</div><div class="time">Yesterday</div></div>
+    </div>
+    <div class="hr"></div>
+
+    <div class="swipe">
+      <div class="read">✓</div>
+      <div class="row">
+        <div class="art"><div class="av"></div></div>
+        <div class="mid"><div class="txt"><b>Sam</b> cheered you on in <b>Grind Szn</b>.</div><div class="time">2 days ago</div></div>
+      </div>
+    </div>
+
+    <div class="foot">Swipe a row left to mark it read (shown mid-swipe above) · leading art resolved at write-time per type · friend avatars carry their equipped flame · relic / rank / box rows show the real cosmetic. Streak & reminder rows are bell-only by default.</div>
+  </div>
+</div>

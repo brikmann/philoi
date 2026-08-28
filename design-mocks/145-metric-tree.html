@@ -1,0 +1,84 @@
+<meta charset="utf-8"><title>Mock 145 — Metric taxonomy tree</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 18px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:780px;margin:0 auto 16px;line-height:1.55}
+.legend{display:flex;gap:16px;justify-content:center;font-size:11px;color:#9f92b6;margin-bottom:12px;flex-wrap:wrap}
+.lg{display:flex;align-items:center;gap:6px}.sw{width:12px;height:12px;border-radius:3px}
+.frame{max-width:900px;margin:0 auto;background:radial-gradient(120% 90% at 20% 30%,#161020,#0e0b13 75%);border:1px solid #241c38;border-radius:18px;padding:8px}
+svg{display:block;width:100%;height:auto}
+.link{fill:none;stroke:#3a2f56;stroke-width:2}
+.node text{font-family:Inter;font-weight:700;fill:#e7ddf5;font-size:12px}
+.node .thin{font-weight:500;fill:#9f92b6;font-size:8.5px}
+.root rect{fill:#241a34;stroke:#6a5a94}
+.focus rect{fill:#1e2140;stroke:#5a6ad6}.focus text{fill:#c8d0ff}
+.fitness rect{fill:#26170f;stroke:#c98a4a}.fitness text{fill:#ffcf9a}
+.sub rect{fill:#17111f;stroke:#3a2f56}
+.leaf rect{fill:#120d1a;stroke:#2a2140}
+.umbrella rect{fill:#1e2140;stroke:#9ec6ff;stroke-width:2}.umbrella text{fill:#fff}
+.grade rect{fill:#241a10;stroke:#F2A33C}.grade text{fill:#FFE39A}
+.custom rect{fill:#1a1226;stroke:#a855f7;stroke-dasharray:3 3}.custom text{fill:#d4b8ff}
+.note{font-size:11.5px;color:#8a7db0;text-align:center;max-width:800px;margin:16px auto 0;line-height:1.55}.note b{color:#e7ddf5}
+</style>
+<h1>Mock 145 — Metric picker as a branching tree</h1>
+<p class="sub"><b style="color:#c8d0ff">Focus</b> (mind) vs <b style="color:#ffcf9a">Fitness</b> (body) → sub-branch → leaf. The two things students care about most sit up front in Focus: a <b style="color:#FFE39A">grade</b> in a course and <b>how much they study</b>. Every branch — including both Fitness branches — has a <b style="color:#d4b8ff">Custom</b> leaf.</p>
+<div class="legend">
+  <div class="lg"><span class="sw" style="background:#5a6ad6"></span> Focus</div>
+  <div class="lg"><span class="sw" style="background:#c98a4a"></span> Fitness</div>
+  <div class="lg"><span class="sw" style="background:#9ec6ff"></span> Umbrella</div>
+  <div class="lg"><span class="sw" style="background:#F2A33C"></span> Grade · outcome</div>
+  <div class="lg"><span class="sw" style="background:#a855f7"></span> Custom</div>
+</div>
+
+<div class="frame">
+<svg viewBox="0 0 900 660">
+  <path class="link" d="M170 325 C210 325 210 177 250 177"/>
+  <path class="link" d="M170 325 C210 325 210 467 250 467"/>
+  <!-- focus -> 5 leaves -->
+  <path class="link" d="M410 177 C440 177 440 76 470 76"/>
+  <path class="link" d="M410 177 C440 177 440 126 470 126"/>
+  <path class="link" d="M410 177 C440 177 440 166 470 166"/>
+  <path class="link" d="M410 177 C440 177 440 208 470 208"/>
+  <path class="link" d="M410 177 C440 177 440 260 470 260"/>
+  <!-- fitness -> subs -->
+  <path class="link" d="M410 467 C440 467 440 377 470 377"/>
+  <path class="link" d="M410 467 C440 467 440 507 470 507"/>
+  <!-- dynamic -> 4 -->
+  <path class="link" d="M620 377 C660 377 660 333 700 333"/>
+  <path class="link" d="M620 377 C660 377 660 371 700 371"/>
+  <path class="link" d="M620 377 C660 377 660 409 700 409"/>
+  <path class="link" d="M620 377 C660 377 660 449 700 449"/>
+  <!-- static -> 3 -->
+  <path class="link" d="M620 507 C660 507 660 495 700 495"/>
+  <path class="link" d="M620 507 C660 507 660 533 700 533"/>
+  <path class="link" d="M620 507 C660 507 660 573 700 573"/>
+
+  <g class="node root"><rect x="20" y="308" width="150" height="34" rx="8"/><text x="95" y="330" text-anchor="middle">Metric</text></g>
+
+  <g class="node focus"><rect x="250" y="160" width="160" height="34" rx="8"/><text x="330" y="182" text-anchor="middle">Focus · mind</text></g>
+  <g class="node fitness"><rect x="250" y="450" width="160" height="34" rx="8"/><text x="330" y="472" text-anchor="middle">Fitness · body</text></g>
+
+  <!-- Focus leaves -->
+  <g class="node umbrella"><rect x="470" y="58" width="205" height="36" rx="8"/><text x="482" y="75">Lock-in hours</text><text x="482" y="87" class="thin">umbrella — all focus time</text></g>
+  <g class="node leaf"><rect x="470" y="110" width="205" height="32" rx="8"/><text x="482" y="130">Study hours <tspan class="thin">· conceptual</tspan></text></g>
+  <g class="node leaf"><rect x="470" y="150" width="205" height="32" rx="8"/><text x="482" y="170">Deep Work <tspan class="thin">· assignments</tspan></text></g>
+  <g class="node grade"><rect x="470" y="190" width="205" height="36" rx="8"/><text x="482" y="207">Grade <tspan class="thin">· a % in a course</tspan></text><text x="482" y="219" class="thin">outcome · honor-based</text></g>
+  <g class="node custom"><rect x="470" y="242" width="205" height="36" rx="8"/><text x="482" y="259">Custom · KP251, BU111…</text><text x="482" y="271" class="thin">your course codes</text></g>
+
+  <!-- Fitness subs -->
+  <g class="node sub"><rect x="470" y="360" width="150" height="34" rx="8"/><text x="482" y="377">Dynamic</text><text x="482" y="388" class="thin">movement</text></g>
+  <g class="node sub"><rect x="470" y="490" width="150" height="34" rx="8"/><text x="482" y="507">Static</text><text x="482" y="518" class="thin">strength</text></g>
+
+  <!-- Dynamic leaves -->
+  <g class="node leaf"><rect x="700" y="318" width="180" height="30" rx="8"/><text x="712" y="337">Steps</text></g>
+  <g class="node leaf"><rect x="700" y="356" width="180" height="30" rx="8"/><text x="712" y="375">Distance · km</text></g>
+  <g class="node leaf"><rect x="700" y="394" width="180" height="30" rx="8"/><text x="712" y="413">Workout minutes</text></g>
+  <g class="node custom"><rect x="700" y="434" width="180" height="32" rx="8"/><text x="712" y="454">Custom <tspan class="thin">· e.g. backflip</tspan></text></g>
+
+  <!-- Static leaves -->
+  <g class="node leaf"><rect x="700" y="480" width="180" height="30" rx="8"/><text x="712" y="499">Gym volume · lb</text></g>
+  <g class="node leaf"><rect x="700" y="518" width="180" height="30" rx="8"/><text x="712" y="537">Max lift · 1RM</text></g>
+  <g class="node custom"><rect x="700" y="558" width="180" height="32" rx="8"/><text x="712" y="578">Custom <tspan class="thin">· e.g. snatch</tspan></text></g>
+</svg>
+</div>
+
+<p class="note"><b>Focus</b> leads with what students track: <b style="color:#FFE39A">Grade</b> (a % in a course — honor-based) and <b>Study hours</b>, plus <b>Deep Work</b> (assignments/application) and <b style="color:#d4b8ff">Custom</b> course codes. <b>Lock-in hours</b> is the umbrella summing all focus types. <b>Fitness</b> splits dynamic vs static and each has a <b style="color:#d4b8ff">Custom</b> leaf for skills — "learn a backflip" (dynamic), "learn a snatch" (static).</p>

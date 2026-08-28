@@ -1,0 +1,72 @@
+<meta charset="utf-8"><title>Mock 134 — OS push (out-of-app)</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:680px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0}
+/* iOS lock screen */
+.lock{width:300px;height:600px;border-radius:36px;overflow:hidden;position:relative;border:1px solid #241c38;
+  background:linear-gradient(160deg,#2a2140,#141019 60%,#0c0a12)}
+.clock{text-align:center;color:#fff;margin-top:44px}.clock .d{font-size:13px;opacity:.8}.clock .t{font-size:62px;font-weight:700;letter-spacing:-2px;line-height:1}
+.stack{position:absolute;left:12px;right:12px;bottom:52px;display:flex;flex-direction:column;gap:9px}
+.push{background:rgba(30,24,40,.82);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:11px 13px;display:flex;gap:11px;align-items:flex-start}
+/* venn icon cluster: app logo + overlapping custom badge (Strava-style) */
+.iconpair{position:relative;width:46px;height:40px;flex:none}
+.icon{width:38px;height:38px;border-radius:9px;background:radial-gradient(120% 90% at 40% 20%,#2a1f3e,#0e0b13);display:grid;place-items:center;border:1px solid #4a3a66}
+.ovl{position:absolute;right:-2px;bottom:-3px;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:13px;border:2.5px solid #1e1828}
+.ovl.relic{background:radial-gradient(circle at 40% 32%,#ff8a70,#e0473b 62%,#7a1e18);box-shadow:0 0 8px rgba(224,71,59,.5)}
+.ovl.rank{clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(#a855f7,#6a2ec9);border:none;font-size:12px}
+.ovl.dm{border-radius:50%;background:radial-gradient(circle at 40% 30%,#2a5a7a,#16303e)}
+.pmid{flex:1;min-width:0}
+.prow1{display:flex;justify-content:space-between;align-items:center}
+.app{font-size:11px;font-weight:800;letter-spacing:.3px;color:#e7ddf5;text-transform:uppercase}
+.ago{font-size:11px;color:#9f92b6}
+.ptitle{font-size:13px;font-weight:800;margin-top:2px;color:#fff}.pbody{font-size:12px;color:#d6cced;line-height:1.35;margin-top:1px}
+/* android heads-up */
+.andro{width:300px;background:#1b1622;border:1px solid #2e2542;border-radius:16px;padding:12px 13px}
+.arow{display:flex;gap:10px;align-items:center;font-size:11px;color:#b7abd0;font-weight:700}
+.adot{width:4px;height:4px;border-radius:50%;background:#6a5d84}
+.abody{margin-top:7px;display:flex;gap:11px;align-items:flex-start}
+.foot{font-size:10.5px;color:#6a5d84;max-width:300px;line-height:1.5;margin-top:4px}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<linearGradient id="cyan" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#0a4a6a"/><stop offset=".5" stop-color="#33c9e6"/><stop offset="1" stop-color="#a8f6ff"/></linearGradient>
+<symbol id="flame" viewBox="0 0 24 24"><g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z"/></g></symbol></defs></svg>
+
+<h1>Mock 134 — Out-of-app (OS) push</h1>
+<p class="sub">The same events, pushed to the lock screen when the app is closed — we reuse the in-app content and hand it to the OS. Strava-style icon cluster: the app flame plus the event's own badge (relic disc, rank hex, sender avatar) overlapping it bottom-right like a venn, so the text gets the full width. Not everything pushes — low-value events stay bell-only so we don't train people to mute us.</p>
+
+<div class="wrap">
+  <div class="col"><div class="cap">iOS — lock screen</div>
+    <div class="lock">
+      <div class="clock"><div class="d">Friday, August 21</div><div class="t">9:41</div></div>
+      <div class="stack">
+        <div class="push"><div class="iconpair"><div class="icon"><svg width="20" height="24"><use href="#flame" fill="url(#e)"/></svg></div></div>
+          <div class="pmid"><div class="prow1"><span class="app">Philoi</span><span class="ago">now</span></div>
+            <div class="ptitle">Your streak is at risk 🔥</div><div class="pbody">Lock in before midnight to keep your 12-day flame alive.</div></div></div>
+
+        <div class="push"><div class="iconpair"><div class="icon"><svg width="20" height="24"><use href="#flame" fill="url(#e)"/></svg></div><div class="ovl relic">🏛️</div></div>
+          <div class="pmid"><div class="prow1"><span class="app">Philoi</span><span class="ago">2h ago</span></div>
+            <div class="ptitle"><span style="color:#ff6a5e">Mythic</span> relic unlocked — Atlas' Burden</div><div class="pbody">A thousand pounds across the three great lifts. Atlas nods in approval.</div></div></div>
+
+        <div class="push"><div class="iconpair"><div class="icon"><svg width="20" height="24"><use href="#flame" fill="url(#e)"/></svg></div><div class="ovl rank">⚔️</div></div>
+          <div class="pmid"><div class="prow1"><span class="app">Philoi</span><span class="ago">Yesterday</span></div>
+            <div class="ptitle">You ranked up — Hero III</div><div class="pbody">+300 embers and a box are waiting. Tap to open.</div></div></div>
+
+        <div class="push"><div class="iconpair"><div class="icon"><svg width="20" height="24"><use href="#flame" fill="url(#e)"/></svg></div><div class="ovl dm"></div></div>
+          <div class="pmid"><div class="prow1"><span class="app">Philoi</span><span class="ago">Yesterday</span></div>
+            <div class="ptitle">Maya messaged Late Night Library</div><div class="pbody">"anyone up for a 9pm lock-in?"</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col"><div class="cap">Android — heads-up banner</div>
+    <div class="andro">
+      <div class="arow">Philoi<span class="adot"></span><span style="color:#8a7db0">now</span></div>
+      <div class="abody"><div class="iconpair"><div class="icon"><svg width="20" height="24"><use href="#flame" fill="url(#e)"/></svg></div><div class="ovl dm" style="background:radial-gradient(circle at 40% 30%,#7a5a2a,#3e2a16)"></div></div>
+        <div class="pmid"><div class="ptitle">Jordan requested to follow you</div><div class="pbody">Tap to accept or decline.</div></div></div>
+    </div>
+    <div class="foot"><b>Pushes:</b> streak-at-risk · relic unlock · rank up · challenge won · direct message · follow request.<br><b>Bell-only</b> (no push): friend locked in, campfire chatter, someone ranked up, rank drops — governed by the same category toggles in Settings. Overlap badge = relic disc / rank hex / sender avatar / won box.</div>
+  </div>
+</div>

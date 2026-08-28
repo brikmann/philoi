@@ -1,0 +1,138 @@
+<meta charset="utf-8"><title>Mock 146 — Edit with Cindy</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:720px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:10px}.cap{font-size:11px;font-weight:700;color:#8a7db0;text-align:center;max-width:250px}
+.arrow{align-self:center;font-size:20px;color:#F2A33C;margin-top:200px}
+.ph{width:272px;height:566px;background:linear-gradient(#141019,#0e0b13);border-radius:32px;border:1px solid #241c38;position:relative;overflow:hidden}
+/* dimmed background content */
+.dim{position:absolute;inset:0;padding:16px;opacity:.16;filter:grayscale(.6)}
+.dim .row{height:12px;background:#3a2f56;border-radius:6px;margin-bottom:10px}
+.dim .row.s{width:60%}.dim .row.m{width:85%}
+.scrim{position:absolute;inset:0;background:rgba(8,6,12,.72)}
+/* the focused edit card */
+.edit{position:absolute;left:16px;right:16px;top:56px;z-index:2}
+.etitle{font-size:11px;font-weight:800;color:#FFD27A;letter-spacing:.4px;text-align:center;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:6px}
+.card{background:radial-gradient(120% 80% at 50% 0%,#1e1528,#120c1a);border:1px solid #3a2f56;border-radius:16px;padding:15px}
+.cname{font-size:15px;font-weight:800;display:flex;align-items:center;gap:7px}
+.field{display:flex;justify-content:space-between;font-size:12.5px;padding:9px 0;border-top:1px solid #201830}
+.field:first-of-type{border-top:none}
+.fl{color:#8a7db0}.fv{font-weight:700}
+.chg .fv{color:#7fd08a}
+.old{color:#8a7db0;text-decoration:line-through;margin-right:6px}
+.rw{font-size:11.5px;font-weight:800;margin-top:10px;padding-top:10px;border-top:1px solid #201830}
+.sl2{font-size:8.5px;color:#8a7db0;letter-spacing:.4px;margin-bottom:2px;font-weight:800}
+.oldv{color:#8a7db0;text-decoration:line-through;font-size:12px;font-weight:700}
+.newv{color:#7fd08a;font-weight:800;font-size:15px}
+.rwstats{display:flex;gap:22px;margin-top:8px}
+/* mic / speech */
+.mic{position:absolute;left:0;right:0;bottom:26px;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:3}
+.micbtn{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#F2A33C,#E0612C);display:grid;place-items:center;font-size:26px;box-shadow:0 0 24px rgba(242,163,60,.5)}
+.michint{font-size:11px;color:#8a7db0}
+.speech{background:#2a2140;border-radius:14px;border-bottom-right-radius:4px;padding:9px 12px;font-size:12.5px;max-width:80%;margin:0 auto}
+.cindy{font-size:11px;color:#c8d0ff;text-align:center}
+.editcta{position:absolute;left:16px;right:16px;bottom:22px;background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:14px;text-align:center;padding:13px;border-radius:13px;z-index:3}
+/* paused state */
+.paused{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+.pauseicon{font-size:34px;margin-bottom:12px}
+.ph2{font-size:16px;font-weight:800}.pbody{font-size:12px;color:#9f92b6;line-height:1.5;margin-top:8px}
+.approvals{align-self:stretch;margin-top:18px;background:#17111f;border:1px solid #2a2140;border-radius:14px;padding:6px 14px}
+.arow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #201830;font-size:12.5px}
+.arow:first-child{border-top:none}
+.av{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#5a4a7a,#2a1f3e);flex:none}
+.an{flex:1;text-align:left;font-weight:600}.ast{font-size:10.5px;color:#8a7db0}.ast.ok{color:#7fd08a;font-weight:800}
+.conote{font-size:10px;color:#6a5d84;margin-top:14px;line-height:1.5}
+.back2{font-size:16px;font-weight:800;padding:18px 16px 6px}
+.sbody2{padding:8px 16px}
+.chgsum{background:#120d1a;border:1px solid #2a2140;border-radius:11px;padding:11px 13px;font-size:12.5px;font-weight:700}
+.lbl2{font-size:10px;font-weight:800;color:#8a7db0;letter-spacing:.4px;margin:16px 0 8px;text-transform:uppercase}
+.seg3{display:flex;gap:6px}.sb{flex:1;text-align:center;font-size:11.5px;font-weight:700;padding:9px 0;border-radius:10px;background:#17111f;border:1px solid #2a2140;color:#c9bfe0}
+.sb.on{background:#F2A33C;color:#1a1020;border-color:#F2A33C}
+.hintx{font-size:9.5px;color:#6a5d84;margin-top:7px;line-height:1.5}
+.msgbox{background:#17111f;border:1px solid #2a2140;border-radius:11px;padding:11px 13px;font-size:12.5px;color:#e7ddf5;min-height:34px}
+</style>
+<svg width="0" height="0"><defs>
+<linearGradient id="e" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFE39A"/></linearGradient>
+<linearGradient id="steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef2f8"/><stop offset=".5" stop-color="#9aa4b4"/><stop offset="1" stop-color="#5a6474"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE39A"/><stop offset="1" stop-color="#C8891F"/></linearGradient>
+<symbol id="sword" viewBox="0 0 24 24"><path d="M12 1.5 L13.5 5.5 V13 H10.5 V5.5 Z" fill="url(#steel)"/><line x1="12" y1="3.5" x2="12" y2="12.5" stroke="#fff" stroke-width=".5" opacity=".55"/><rect x="6.5" y="12.8" width="11" height="2.3" rx="1" fill="url(#gold)"/><rect x="10.9" y="15.1" width="2.2" height="4.6" rx=".6" fill="#8a5a2a"/><circle cx="12" cy="20.6" r="1.6" fill="url(#gold)"/></symbol>
+<symbol id="passflame" viewBox="0 0 24 24"><path d="M12 1.5 C14.6 6.6 18.6 8.6 18.6 14 A6.6 6.6 0 0 1 5.4 14 C5.4 10 7.4 7.4 9 10.6 C8.5 6.4 10 3.4 12 1.5 Z" fill="url(#e)"/></symbol>
+</defs></svg>
+
+<h1>Mock 146 — Edit with Cindy</h1>
+<p class="sub">Editing dims the rest of the app and focuses on the challenge. You <b style="color:#e7ddf5">talk</b>, your words appear, Cindy recomputes, and the changes show in <b style="color:#7fd08a">green</b>. Tap Edit → the challenge pauses and waits on approvals.</p>
+
+<div class="wrap">
+  <!-- 1 · edit mode, mic -->
+  <div class="col"><div class="cap">1 · Challenge in focus, everything else dims</div>
+    <div class="ph">
+      <div class="dim"><div class="row m"></div><div class="row s"></div><div class="row m"></div><div class="row"></div><div class="row s"></div><div class="row m"></div></div>
+      <div class="scrim"></div>
+      <div class="edit">
+        <div class="etitle"><svg width="13" height="16"><use href="#passflame"/></svg> EDITING WITH CINDY</div>
+        <div class="card">
+          <div class="cname"><svg width="15" height="18"><use href="#sword"/></svg> Study race</div>
+          <div class="field"><span class="fl">Metric</span><span class="fv">Study hours</span></div>
+          <div class="field"><span class="fl">Target</span><span class="fv">8h this week</span></div>
+          <div class="field"><span class="fl">Window</span><span class="fv">This week</span></div>
+          <div class="rw"><span style="color:#9ec6ff">The Furnace</span> · <span style="color:#FFE39A">150 embers</span> · <span style="color:#9ec6ff">200 XP</span></div>
+        </div>
+      </div>
+      <div class="mic">
+        <div class="micbtn">🎙</div>
+        <div class="michint">Hold to tell Cindy what to change</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- 2 · spoke, recomputed, green diff -->
+  <div class="col"><div class="cap">2 · You talk → Cindy recomputes → green changes</div>
+    <div class="ph">
+      <div class="dim"><div class="row m"></div><div class="row s"></div><div class="row m"></div><div class="row"></div></div>
+      <div class="scrim"></div>
+      <div class="edit">
+        <div class="etitle"><svg width="13" height="16"><use href="#passflame"/></svg> EDITING WITH CINDY</div>
+        <div class="card">
+          <div class="cname"><svg width="15" height="18"><use href="#sword"/></svg> Study race</div>
+          <div class="field"><span class="fl">Metric</span><span class="fv">Study hours</span></div>
+          <div class="field chg"><span class="fl">Target</span><span><span class="old">8h</span><span class="fv">10h this week</span></span></div>
+          <div class="field"><span class="fl">Window</span><span class="fv">This week</span></div>
+          <div class="rw">
+            <div style="color:#9ec6ff">The Furnace <span style="color:#6a5d84;font-weight:600">· box stays (Rare)</span></div>
+            <div class="rwstats">
+              <div><div class="sl2">EMBERS</div><div class="oldv">150</div><div class="newv">190 ↑</div></div>
+              <div><div class="sl2">XP</div><div class="oldv">200</div><div class="newv">250 ↑</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mic" style="bottom:88px">
+        <div class="speech">make it 10 hours instead</div>
+        <div class="cindy">Cindy bumped the reward to match ✓</div>
+      </div>
+      <div class="editcta">Edit challenge</div>
+    </div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- 3 · confirm: who approves + a note -->
+  <div class="col"><div class="cap">3 · Confirm — set who approves + a note</div>
+    <div class="ph">
+      <div class="back2">Send this change</div>
+      <div class="sbody2">
+        <div class="chgsum">target <span class="old">8h</span> <span style="color:#7fd08a;font-weight:800">10h</span> · reward <span style="color:#FFE39A">190✦ / 250 XP</span></div>
+        <div class="lbl2">WHO NEEDS TO APPROVE</div>
+        <div class="seg3"><span class="sb on">Everyone</span><span class="sb">Co-admins</span><span class="sb">Just me</span></div>
+        <div class="hintx">Small friend group → <b style="color:#c9bfe0">Everyone</b>. Big campfire → <b style="color:#c9bfe0">Co-admins</b> keeps it fast.</div>
+        <div class="lbl2">NOTE TO THE GROUP</div>
+        <div class="msgbox">making it 10h so we actually push 😤</div>
+        <div class="hintx">Your note goes out with the request so everyone knows why.</div>
+      </div>
+      <div class="editcta">Send this change</div>
+    </div>
+  </div>
+</div>

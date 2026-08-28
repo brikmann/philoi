@@ -1,0 +1,125 @@
+<meta charset="utf-8"><title>Mock 130 — Discipline ladder progress</title>
+<style>
+body{margin:0;background:#0f0d15;color:#FFF6EC;font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:19px;text-align:center;margin:0 0 4px}.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:660px;margin:0 auto 22px;line-height:1.5}
+.wrap{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.card{width:320px;background:radial-gradient(120% 70% at 50% 0%,#1c1428,#100c19 72%);border:1px solid #2a2140;border-radius:20px;padding:20px 18px}
+.ctop{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.ico{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;flex:none}
+.ctitle{font-size:15px;font-weight:800}.csub{font-size:11px;color:#8a7db0;margin-top:1px}
+.big{font-size:34px;font-weight:800;letter-spacing:-1px}.bigunit{font-size:14px;color:#9f92b6;font-weight:600}
+.tonext{font-size:11.5px;color:#8a7db0;margin:3px 0 12px}
+.pctbar{height:8px;background:#241a34;border-radius:5px;overflow:hidden;margin:4px 0 2px}.pctfill{height:100%;border-radius:5px}
+.rail{position:relative;margin:10px 0 2px}
+.rung{display:flex;align-items:center;gap:12px;position:relative;padding:9px 0;cursor:pointer}
+.rung.u{--rar:#4caf50}.rung.r{--rar:#3d8bfd}.rung.e{--rar:#a855f7}.rung.l{--rar:#F2A33C}.rung.m{--rar:#e0473b}
+.rung::before{content:'';position:absolute;left:12px;top:0;bottom:0;width:2px;background:#241a34}
+.rung:first-child::before{top:50%}.rung:last-child::before{bottom:50%}
+.rung.done::before{background:var(--rar);opacity:.5}
+.node{width:26px;height:26px;border-radius:50%;background:#160f22;border:2px solid var(--rar);color:var(--rar);opacity:.5;
+  z-index:1;flex:none;display:grid;place-items:center;font-size:12px;font-weight:800}
+.node.done{background:var(--rar);border-color:var(--rar);color:#fff;opacity:1;box-shadow:0 0 10px -1px var(--rar)}
+.node.cur{opacity:1;box-shadow:0 0 0 4px rgba(255,255,255,.06)}
+.rname{flex:1;font-size:12.5px;font-weight:600;color:#8a7db0}
+.rung.done .rname{color:var(--rar);font-weight:700}
+.rthr{font-size:11px;color:#8a7db0}
+.info{display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;background:#241a34;border:1px solid #4a3a66;font-size:9px;font-weight:800;color:#c9bfe0;vertical-align:middle;margin-left:4px}
+.foot{font-size:10.5px;color:#6a5d84;margin-top:12px;text-align:center;border-top:1px solid #201830;padding-top:11px}
+.lore{font-size:10.5px;color:#8a7db0;margin-top:12px;border-top:1px solid #201830;padding-top:11px;line-height:1.5}.lore b{color:#ff9a90}
+.hint{font-size:10.5px;color:#6a5d84;text-align:center;margin:2px 0 0;font-style:italic}
+/* preview card */
+.pcol{display:flex;flex-direction:column;align-items:center;gap:9px}.pcap{font-size:11px;font-weight:700;color:#8a7db0}
+.pcard{width:250px;border-radius:20px;padding:22px 20px;text-align:center;position:relative;overflow:hidden;
+  background:radial-gradient(120% 70% at 50% 0%,#3a2410,#140d0a 72%);border:1.5px solid #F2A33C;box-shadow:0 0 30px rgba(242,163,60,.28)}
+.pdisc{width:96px;height:96px;border-radius:50%;margin:6px auto 14px;display:grid;place-items:center;font-size:44px;
+  background:radial-gradient(circle at 40% 32%,#ffd8a0,#F2A33C 60%,#a35c12);box-shadow:0 0 26px rgba(242,163,60,.6);border:3px solid #ffe0b0}
+.prar{font-size:10px;font-weight:800;letter-spacing:2px;color:#FFC98A}
+.pname{font-size:19px;font-weight:800;margin:3px 0 2px}
+.pgk{font-size:11px;color:#8a7db0}
+.pdesc{font-size:11.5px;color:#c9bfe0;line-height:1.5;margin:12px 0 16px}
+.pshare{background:linear-gradient(#F2A33C,#E0612C);color:#1a1020;font-weight:800;font-size:13px;padding:11px;border-radius:12px}
+</style>
+<h1>Mock 130 — Discipline ladder progress</h1>
+<p class="sub">Each ladder: big lifetime total, distance to the next rung, and the α→Ω rail — the Greek rung sits <b>inside</b> each node, achieved rungs fill with their rarity colour and the name takes that colour too. Tap any rung to open its shareable relic card. Four ladders: Distance (walking counts), Gym Volume, Deep Work, Studying.</p>
+
+<div class="wrap">
+  <!-- DISTANCE -->
+  <div class="card">
+    <div class="ctop"><div class="ico" style="background:linear-gradient(#153a2a,#0e2a1e)">🏃</div>
+      <div><div class="ctitle">Distance</div><div class="csub">Every run, ride & walk · lifetime</div></div></div>
+    <div><span class="big">128</span> <span class="bigunit">km</span></div>
+    <div class="tonext">122 km to <b style="color:#F2A33C">Trailblazer</b> — 250 km</div>
+    <div class="pctbar"><div class="pctfill" style="width:51%;background:linear-gradient(90deg,#a855f7,#F2A33C)"></div></div>
+    <div class="rail">
+      <div class="rung r done"><div class="node done">α</div><div class="rname">Wayfarer</div><div class="rthr">50 km</div></div>
+      <div class="rung e done"><div class="node done cur">β</div><div class="rname">Pathfinder</div><div class="rthr">100 km ✓</div></div>
+      <div class="rung l"><div class="node">γ</div><div class="rname">Trailblazer</div><div class="rthr">250 km</div></div>
+      <div class="rung m"><div class="node">Ω</div><div class="rname">The Long Road <span class="info">i</span></div><div class="rthr">414 km</div></div>
+    </div>
+    <div class="lore"><b>Why 414 km?</b> The distance Pheidippides ran from Athens to Sparta and back to signal victory over the Persians — one of the greatest feats of distance ever achieved.</div>
+  </div>
+
+  <!-- VOLUME -->
+  <div class="card">
+    <div class="ctop"><div class="ico" style="background:linear-gradient(#3a2410,#2a1808)">🏋️</div>
+      <div><div class="ctitle">Gym Volume</div><div class="csub">Total weight moved · lifetime</div></div></div>
+    <div><span class="big">63,400</span> <span class="bigunit">lb</span></div>
+    <div class="tonext">36,600 lb to <b style="color:#F2A33C">Sisyphus' Stone</b> — 100k</div>
+    <div class="pctbar"><div class="pctfill" style="width:63%;background:linear-gradient(90deg,#a855f7,#F2A33C)"></div></div>
+    <div class="rail">
+      <div class="rung u done"><div class="node done">α</div><div class="rname">First Iron</div><div class="rthr">10k lb</div></div>
+      <div class="rung r done"><div class="node done">β</div><div class="rname">Forged</div><div class="rthr">25k lb</div></div>
+      <div class="rung e done"><div class="node done cur">γ</div><div class="rname">Sculpted</div><div class="rthr">50k lb ✓</div></div>
+      <div class="rung l"><div class="node">δ</div><div class="rname">Sisyphus' Stone</div><div class="rthr">100k lb</div></div>
+      <div class="rung m"><div class="node">Ω</div><div class="rname">Hercules' Labours</div><div class="rthr">250k lb</div></div>
+    </div>
+    <div class="foot">Gym volume ladder · ITEM_CATALOG §4a-2.</div>
+  </div>
+
+  <!-- DEEP WORK -->
+  <div class="card">
+    <div class="ctop"><div class="ico" style="background:linear-gradient(#2a1840,#1a0e2a)">🛠️</div>
+      <div><div class="ctitle">Deep Work</div><div class="csub">Building · coding · creating · hours</div></div></div>
+    <div><span class="big">31</span> <span class="bigunit">hrs</span></div>
+    <div class="tonext">19 hrs to <b style="color:#a855f7">Labyrinth Architect</b> — 50 h</div>
+    <div class="pctbar"><div class="pctfill" style="width:62%;background:linear-gradient(90deg,#3d8bfd,#a855f7)"></div></div>
+    <div class="rail">
+      <div class="rung u done"><div class="node done">α</div><div class="rname">Spark of the Artificer</div><div class="rthr">10 h</div></div>
+      <div class="rung r done"><div class="node done cur">β</div><div class="rname">Feather and Wax</div><div class="rthr">25 h ✓</div></div>
+      <div class="rung e"><div class="node">γ</div><div class="rname">Labyrinth Architect</div><div class="rthr">50 h</div></div>
+      <div class="rung l"><div class="node">δ</div><div class="rname">Flight of the Artificer</div><div class="rthr">100 h</div></div>
+      <div class="rung m"><div class="node">Ω</div><div class="rname">Daedalian Mind</div><div class="rthr">250 h</div></div>
+    </div>
+    <div class="foot">Deep Work — now its own ladder.</div>
+  </div>
+
+  <!-- STUDYING -->
+  <div class="card">
+    <div class="ctop"><div class="ico" style="background:linear-gradient(#153a3a,#0e2a2a)">📖</div>
+      <div><div class="ctitle">Studying</div><div class="csub">Focused study · lifetime hours</div></div></div>
+    <div><span class="big">58</span> <span class="bigunit">hrs</span></div>
+    <div class="tonext">42 hrs to <b style="color:#F2A33C">Thought Creation</b> — 100 h</div>
+    <div class="pctbar"><div class="pctfill" style="width:58%;background:linear-gradient(90deg,#a855f7,#F2A33C)"></div></div>
+    <div class="rail">
+      <div class="rung u done"><div class="node done">α</div><div class="rname">Spark of Wonder</div><div class="rthr">10 h</div></div>
+      <div class="rung r done"><div class="node done">β</div><div class="rname">Enlightenment</div><div class="rthr">25 h</div></div>
+      <div class="rung e done"><div class="node done cur">γ</div><div class="rname">Unexamined Mind</div><div class="rthr">50 h ✓</div></div>
+      <div class="rung l"><div class="node">δ</div><div class="rname">Thought Creation</div><div class="rthr">100 h</div></div>
+      <div class="rung m"><div class="node">Ω</div><div class="rname">Oracle's Verdict</div><div class="rthr">250 h</div></div>
+    </div>
+    <div class="foot">Studying — now its own ladder. Thresholds provisional.</div>
+  </div>
+
+  <!-- PREVIEW CARD (tap a rung) -->
+  <div class="pcol"><div class="pcap">TAP A RUNG → shareable card</div>
+    <div class="pcard">
+      <div class="prar">LEGENDARY RELIC · DISTANCE</div>
+      <div class="pdisc">🧭</div>
+      <div class="pname">Trailblazer</div>
+      <div class="pgk">γ · third rung</div>
+      <div class="pdesc">250 kilometres under your own power. The map remembers everyone who kept going.</div>
+      <div class="pshare">Share</div>
+    </div>
+    <div class="hint">disc art = the scoped relic graphic (placeholder here)</div>
+  </div>
+</div>
