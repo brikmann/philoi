@@ -440,10 +440,16 @@ begin
     loop
       -- Scope is the WHOLE field, not just the movers: placing 5th out of 48 is a bigger result
       -- than placing 5th out of 6, and that is exactly what grant_reward's log(scope) term is for.
+      --
+      -- CAPPED AT 'elite' (#148). That same log(scope) term, multiplied by a duration measured in
+      -- weeks, is what makes the ceiling necessary: a semester-long race across a large campfire
+      -- clears the apex threshold on scale alone, and would pay a Promethean Vault for winning
+      -- among people who mostly did not compete. The Vault stays the season's apex; Hephaestus'
+      -- Chest is the most a placement race can pay, however long it ran and however many entered.
       v_payload := grant_reward(
         v_row.user_id, 'campfire_group', 1.0, v_days, greatest(v_scope, 1),
         greatest(0, least(1, 1 - coalesce(v_row.final_percentile, 0))),
-        true, new.id);
+        true, new.id, 'elite');
       update challenge_participants p
          set reward_payload = v_payload
        where p.challenge_id = new.id and p.user_id = v_row.user_id;

@@ -28,6 +28,29 @@
 -- The function reports one more fact about a decision it had already made. The client still
 -- derives no figure of its own — it now merely knows which row to hand to /shop/open.
 --
+-- ───────────────────── AND ONE CEILING (#148) ─────────────────────
+--
+-- `p_max_band` — the highest band a caller will allow, regardless of what significance computes.
+-- Null (every existing caller) means no ceiling and the behaviour above is untouched.
+--
+-- It exists for placement races. v_sig multiplies difficulty by log(field size) by duration-in-
+-- weeks, so the apex band is not reached by an exceptional result — it is reached by an
+-- exceptional FIELD or an exceptional CALENDAR. A semester-long race across a large campfire
+-- clears 24 on scale alone, and would mint a Promethean Vault (the mythic box) for finishing
+-- first among people who mostly did not compete. Capping at 'elite' keeps the Vault where it
+-- belongs — the season apex — and leaves Hephaestus' Chest as the best thing a placement race
+-- can pay, which is still the second-best box in the game.
+--
+-- A CEILING RATHER THAN A RESHAPED CURVE. Clamping v_sig's inputs (log-capping the field, or
+-- truncating duration) would move every band boundary underneath the race and quietly change what
+-- 5th-of-48 pays too. The ceiling only ever removes the top rung, so the whole ladder below it is
+-- the one that was tested.
+--
+-- Declared as a NEW SIGNATURE, with the old one dropped first. Appending a defaulted parameter to
+-- a live Postgres function does not replace it — it creates a second overload, and every existing
+-- 8-argument call site then resolves ambiguously. Dropping first is the only way to end up with
+-- exactly one grant_reward.
+--
 -- Body is 0114's, unchanged except for the declared v_box_id, the `returning id into` on the
 -- insert, and one more key in the returned object. A restatement rather than a targeted patch
 -- because plpgsql has no way to replace one line. Signature is identical, so `create or replace`
@@ -38,9 +61,31 @@
 -- the Open CTA does not). And the unverified early-return below still carries no box_id, because
 -- that branch mints no box.
 
+-- The band ladder as a number, so a ceiling can be compared against a computed band without
+-- restating the order at each site. -1 for anything unrecognised, which is what lets grant_reward
+-- ignore a bad p_max_band instead of clamping to the floor.
+create or replace function reward_band_rank(p_band text)
+returns int
+language sql
+immutable
+as $rank$
+  select case p_band
+    when 'completion' then 0
+    when 'casual'     then 1
+    when 'notable'    then 2
+    when 'impressive' then 3
+    when 'elite'      then 4
+    when 'apex'       then 5
+    else -1
+  end;
+$rank$;
+
+drop function if exists grant_reward(uuid, text, numeric, int, int, numeric, boolean, uuid);
+
 create or replace function grant_reward(
   p_user uuid, p_type text, p_difficulty numeric, p_duration_days int,
-  p_scope int, p_placement_pct numeric, p_verified boolean, p_ref uuid default null
+  p_scope int, p_placement_pct numeric, p_verified boolean, p_ref uuid default null,
+  p_max_band text default null
 ) returns jsonb
 language plpgsql
 security definer
@@ -75,6 +120,26 @@ begin
   elsif v_sig >= 3  then v_band := 'notable';    v_box := 'furnace';
   elsif v_sig >= 1  then v_band := 'casual';     v_box := 'ignition';
   else                   v_band := 'completion'; v_box := null;
+  end if;
+
+  -- The caller's ceiling (#148), applied to the band AFTER it is chosen so the curve above is the
+  -- one that was tested. Everything downstream — embers, box, badge — reads v_band/v_box, so
+  -- lowering them here lowers all three together and cannot leave an apex badge on an elite box.
+  --
+  -- An unrecognised p_max_band is ignored rather than treated as 'completion': a typo in a caller
+  -- must not silently zero out a real reward.
+  if p_max_band is not null
+     and reward_band_rank(p_max_band) >= 0
+     and reward_band_rank(v_band) > reward_band_rank(p_max_band) then
+    v_band := p_max_band;
+    v_box  := case p_max_band
+                when 'apex'       then 'promethean'
+                when 'elite'      then 'hephaestus'
+                when 'impressive' then 'hestia'
+                when 'notable'    then 'furnace'
+                when 'casual'     then 'ignition'
+                else null
+              end;
   end if;
 
   -- coalesce so a malformed/missing config row degrades to the completion floor rather than
