@@ -738,6 +738,14 @@ export type AnalyticsEventName =
   | 'milestone_posted'
   | 'milestone_cheered'
   | 'milestone_shared'
+  // The Agora (AGORA_SPEC) — appended block. No event carries a cheer or comment COUNT, only that
+  // the action happened, for the same reason the economy events carry no balance.
+  | 'agora_viewed'
+  | 'agora_scope_changed'
+  | 'agora_composer_opened'
+  | 'agora_posted'
+  | 'agora_cheered'
+  | 'agora_commented'
   | 'challenge_logged'
   | 'challenge_accepted'
   | 'challenge_declined'
@@ -1483,6 +1491,10 @@ export type Database = {
           reported_message_id: string | null;
           reported_user_id: string | null;
           reported_group_id: string | null;
+          // The Agora (migrations 0128/0129) — so a report arrives pointing at the CONTENT, not
+          // just at a person.
+          reported_agora_post_id: string | null;
+          reported_agora_comment_id: string | null;
           circle_id: string | null;
           note: string | null;
           reason: string;
@@ -1495,6 +1507,8 @@ export type Database = {
           reported_message_id?: string | null;
           reported_user_id?: string | null;
           reported_group_id?: string | null;
+          reported_agora_post_id?: string | null;
+          reported_agora_comment_id?: string | null;
           circle_id?: string | null;
           note?: string | null;
           reason: string;
@@ -2175,6 +2189,55 @@ export type Database = {
         Args: { p_days: { day: string; steps: number; source?: string }[] };
         Returns: number;
       };
+
+      // ── THE AGORA (AGORA_SPEC.md, migrations 0128-0130) — appended block ──
+      //
+      // Note what these signatures do NOT accept: no title, subtitle or rarity anywhere. The
+      // composer sends WHICH achievement (kind + ref id or catalog key) and the server looks up
+      // what it says. That asymmetry is the feature — see agora_attachment_snapshot in 0130.
+      get_agora_feed: {
+        Args: {
+          p_scope: AgoraScope;
+          p_before_at?: string | null;
+          p_before_id?: string | null;
+          p_limit?: number;
+        };
+        Returns: AgoraItem[];
+      };
+      get_agora_item: {
+        Args: { p_id: string; p_item_type?: AgoraItem['item_type'] };
+        Returns: AgoraItem | null;
+      };
+      create_agora_post: {
+        Args: {
+          p_body?: string | null;
+          p_photo_path?: string | null;
+          p_visibility?: AgoraVisibility;
+          p_attach_kind?: AgoraAttachKind | null;
+          p_attach_ref_id?: string | null;
+          p_attach_key?: string | null;
+        };
+        Returns: string;
+      };
+      /**
+       * Returns the deleted post's photo path. Informational only — 0131's after-delete trigger
+       * has already dropped the storage object by the time this returns, on this path and on the
+       * two that never call this function (moderation, account cascade).
+       */
+      delete_agora_post: { Args: { p_id: string }; Returns: string | null };
+      cheer_agora_post: { Args: { p_post_id: string }; Returns: number };
+      add_agora_comment: {
+        Args: { p_post_id: string | null; p_milestone_id: string | null; p_body: string };
+        Returns: string;
+      };
+      get_agora_comments: {
+        Args: { p_post_id: string | null; p_milestone_id: string | null; p_limit?: number };
+        Returns: AgoraComment[];
+      };
+      delete_agora_comment: { Args: { p_id: string }; Returns: undefined };
+      get_agora_achievements: { Args: Record<string, never>; Returns: AgoraAchievement[] };
+      get_agora_lockins: { Args: { p_limit?: number }; Returns: AgoraLockIn[] };
+      set_milestone_in_agora: { Args: { p_id: string; p_in_agora: boolean }; Returns: undefined };
     };
   };
 };
@@ -2268,4 +2331,139 @@ export type StepDayInput = {
   day: string;
   steps: number;
   source?: 'device' | 'healthkit' | 'health_connect' | 'manual';
+};
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// THE AGORA (AGORA_SPEC.md, migrations 0128-0130, mocks 160 + 162) — appended block.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The feed's reach dials. Narrowest → widest, the order the chips render in. */
+export type AgoraScope = 'friends' | 'campfires' | 'university' | 'global';
+
+/**
+ * A post's audience — the MILESTONE vocabulary (0093), deliberately reused rather than invented.
+ * `can_see_agora` is a thin wrapper over `can_see_milestone_for` for exactly this reason: one
+ * friends/campus/public rule, in one place, for both row types.
+ *
+ * Not the same axis as AgoraScope. A scope is "whose posts am I looking at right now"; a
+ * visibility is "who may ever see mine", and it travels with the post forever.
+ */
+export type AgoraVisibility = 'friends' | 'campus' | 'public';
+
+/** What a post can carry (mock 162 panels 4-5), plus the milestone rows the feed folds in. */
+export type AgoraAttachKind = 'milestone' | 'lockin' | 'rank' | 'streak' | 'pass' | 'cosmetic' | 'pr';
+
+/**
+ * The frozen attachment, as `agora_attachment_snapshot` wrote it at post time.
+ *
+ * FACTS, NOT DISPLAY STRINGS — `rank_index` rather than "Hero II", `pass_xp` rather than
+ * "Level 42", `cosmetic_key` rather than "Atlas' Burden". The names live client-side in the
+ * catalog / rank-tiers / forge-pass modules that already own them, so there is exactly one
+ * spelling of every item; the server owns the number, which is the half that could be faked.
+ *
+ * A partial rather than a discriminated union keyed off `attach_kind`: the shape genuinely varies
+ * per kind, but the renderer switches on `attach_kind` anyway and a union here would force a cast
+ * at every one of those branches for no extra safety.
+ */
+export type AgoraAttachSnapshot = {
+  // milestone
+  milestone_id?: string;
+  kind?: MilestoneKind;
+  headline?: string;
+  note?: string | null;
+  effort?: MilestoneEffort;
+  // lockin
+  check_in_id?: string;
+  goal_type?: string | null;
+  goal_label?: string | null;
+  goal_detail?: string | null;
+  duration_seconds?: number | null;
+  distance_m?: number | null;
+  completed_at?: string;
+  // rank
+  rank_index?: number;
+  tier?: string;
+  division?: number;
+  // streak
+  days?: number;
+  longest?: number;
+  // pass
+  season_id?: string;
+  pass_xp?: number;
+  owns_premium?: boolean;
+  // cosmetic
+  cosmetic_key?: string;
+  slot?: string | null;
+  source?: string;
+  provenance?: string | null;
+  rarity_override?: string | null;
+  season_stamp?: string | null;
+  acquired_at?: string;
+  // pr
+  exercise?: string;
+  weight?: number;
+  reps?: number;
+  e1rm?: number;
+  achieved_at?: string;
+};
+
+/** One card in the square — a freeform post, or a milestone that auto-surfaced into it. */
+export type AgoraItem = {
+  item_type: 'post' | 'milestone';
+  id: string;
+  user_id: string;
+  display_name: string;
+  handle: string | null;
+  avatar_url: string | null;
+  university: string | null;
+  /**
+   * The author's standing, resolved server-side against rank_thresholds. Both null until they
+   * have ranked at all, and the card's "· Hero II" line simply drops.
+   */
+  rank_tier: RankTierName | null;
+  rank_division: number | null;
+  visibility: AgoraVisibility;
+  body: string | null;
+  /** Storage path in the public `agora-photos` bucket. Resolve with agoraPhotoUrl(). */
+  photo_path: string | null;
+  attach_kind: AgoraAttachKind | null;
+  attach_snapshot: AgoraAttachSnapshot;
+  cheers: number;
+  cheered: boolean;
+  comments: number;
+  created_at: string;
+};
+
+/** The keyset cursor. Both halves, because two posts can share a millisecond. */
+export type AgoraCursor = { created_at: string; id: string };
+
+export type AgoraComment = {
+  id: string;
+  user_id: string;
+  display_name: string;
+  handle: string | null;
+  avatar_url: string | null;
+  body: string;
+  is_mine: boolean;
+  created_at: string;
+};
+
+/** A row in the achievement picker. `facts` is the same jsonb the post would freeze. */
+export type AgoraAchievement = {
+  kind: AgoraAttachKind;
+  ref_id: string | null;
+  item_key: string | null;
+  section: 'standing' | 'collectibles' | 'milestones' | 'fitness';
+  facts: AgoraAttachSnapshot;
+  sort_at: string | null;
+};
+
+export type AgoraLockIn = {
+  id: string;
+  goal_type: string | null;
+  goal_label: string | null;
+  goal_detail: string | null;
+  duration_seconds: number | null;
+  distance_m: number | null;
+  completed_at: string;
 };
