@@ -5,7 +5,9 @@ import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } 
 
 import { AutoPostSyncedToggle } from '@/components/auto-post-synced-toggle';
 import { DevTools } from '@/components/dev-tools';
+import { CONTACT_EMAIL, FeedbackSheet } from '@/components/feedback-sheet';
 import { ReminderSettings } from '@/components/reminder-settings';
+import { Avatar } from '@/components/ui/avatar';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
@@ -25,8 +27,24 @@ import { setMyPhotoVisibility } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
 import { restorePurchases } from '@/lib/billing';
 import { getErrorMessage } from '@/lib/errors';
-import { getRewardPreferencesSync, setHapticsEnabled, setSoundEnabled } from '@/lib/reward-settings';
+import {
+  getRewardPreferencesSync,
+  setDuckToMusic,
+  setHapticsEnabled,
+  setKeepScreenAwake,
+  setRewardSfxEnabled,
+  setSessionAudioEnabled,
+} from '@/lib/reward-settings';
 import type { PhotoVisibility } from '@/types/database';
+
+// Settings, reorganised (BUILD_SEQUENCE §2.6 · "settings cleanup").
+//
+// What changed and why: everything used to land in one 8-row PREFERENCES bucket — sound sat next
+// to campus verification, which meant the list had no shape and you scanned all of it every time.
+// The rows are now grouped by WHAT THEY AFFECT, in rough order of how often anyone touches them:
+// notifications, then what the app does to your senses (Audio, Lock-in screen — mock 164 panel 1),
+// then your daily fire, then privacy, then the things you connect, then the per-campfire lists,
+// and finally the once-a-year rows (help, legal, purchases, account).
 
 const PHOTO_VISIBILITY_LABEL: Record<PhotoVisibility, string> = {
   campfires: 'My campfires',
@@ -46,18 +64,23 @@ const DELETE_CONFIRM_WORD = 'DELETE';
 function SettingsToggleRow({
   icon,
   label,
+  description,
   value,
   onValueChange,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  description?: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
 }) {
   return (
     <View style={styles.row}>
       <Ionicons name={icon} size={18} color={Colors.amber} style={styles.rowIcon} />
-      <Text style={styles.rowLabel}>{label}</Text>
+      <View style={styles.rowText}>
+        <Text style={styles.rowTitle}>{label}</Text>
+        {description ? <Text style={styles.rowDescription}>{description}</Text> : null}
+      </View>
       <Toggle value={value} onValueChange={onValueChange} />
     </View>
   );
@@ -66,6 +89,7 @@ function SettingsToggleRow({
 function SettingsRow({
   icon,
   label,
+  description,
   value,
   danger,
   chevron = true,
@@ -73,6 +97,7 @@ function SettingsRow({
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  description?: string;
   value?: string;
   danger?: boolean;
   chevron?: boolean;
@@ -81,7 +106,10 @@ function SettingsRow({
   return (
     <Pressable style={styles.row} onPress={onPress}>
       <Ionicons name={icon} size={18} color={danger ? Colors.danger : Colors.amber} style={styles.rowIcon} />
-      <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{label}</Text>
+      <View style={styles.rowText}>
+        <Text style={[styles.rowTitle, danger && styles.rowLabelDanger]}>{label}</Text>
+        {description ? <Text style={styles.rowDescription}>{description}</Text> : null}
+      </View>
       {value && <Text style={styles.rowValue}>{value}</Text>}
       {chevron && <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />}
     </Pressable>
@@ -102,8 +130,17 @@ export default function SettingsScreen() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
-  const [soundEnabled, setSoundEnabledState] = useState(() => getRewardPreferencesSync().sound);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  // The device-local sense prefs (reward-settings). Seeded from the sync cache, which _layout
+  // warms on boot, so these render at their real value on the first frame rather than flicking
+  // from the default a moment later.
+  const [rewardSfxEnabled, setRewardSfxEnabledState] = useState(() => getRewardPreferencesSync().reward_sfx_enabled);
   const [hapticsEnabled, setHapticsEnabledState] = useState(() => getRewardPreferencesSync().haptics);
+  const [sessionAudioEnabled, setSessionAudioEnabledState] = useState(
+    () => getRewardPreferencesSync().session_audio_enabled
+  );
+  const [keepScreenAwake, setKeepScreenAwakeState] = useState(() => getRewardPreferencesSync().keep_screen_awake);
+  const [duckToMusic, setDuckToMusicState] = useState(() => getRewardPreferencesSync().duck_to_music);
   const [goalMode, setGoalMode] = useState<'auto' | 'manual'>(profile?.daily_goal_mode ?? 'auto');
   const [manualTarget, setManualTarget] = useState(profile?.daily_goal_manual_target ?? 1);
   const [publishCompletion, setPublishCompletion] = useState(profile?.publish_flame_completion ?? false);
@@ -163,14 +200,32 @@ export default function SettingsScreen() {
     setMyWatchOptIn(value).catch(() => setWatchOptInState(!value));
   }
 
-  function handleToggleSound(value: boolean) {
-    setSoundEnabledState(value);
-    setSoundEnabled(value);
+  // The sense prefs write to AsyncStorage through an in-memory cache that updates synchronously,
+  // so there is nothing to roll back — the toggle and the behaviour change on the same frame and
+  // the write is just durability.
+  function handleToggleRewardSfx(value: boolean) {
+    setRewardSfxEnabledState(value);
+    setRewardSfxEnabled(value);
   }
 
   function handleToggleHaptics(value: boolean) {
     setHapticsEnabledState(value);
     setHapticsEnabled(value);
+  }
+
+  function handleToggleSessionAudio(value: boolean) {
+    setSessionAudioEnabledState(value);
+    setSessionAudioEnabled(value);
+  }
+
+  function handleToggleKeepScreenAwake(value: boolean) {
+    setKeepScreenAwakeState(value);
+    setKeepScreenAwake(value);
+  }
+
+  function handleToggleDuckToMusic(value: boolean) {
+    setDuckToMusicState(value);
+    setDuckToMusic(value);
   }
 
   function handleSelectPhotoVisibility(next: PhotoVisibility) {
@@ -186,6 +241,12 @@ export default function SettingsScreen() {
   // tap signs out directly and the auth gate lands them on the entry page.
   function handleSignOut() {
     signOut();
+  }
+
+  function handleEmailUs() {
+    Linking.openURL(`mailto:${CONTACT_EMAIL}`).catch(() => {
+      Alert.alert('No mail app found', `Email us at ${CONTACT_EMAIL} and we'll pick it up from there.`);
+    });
   }
 
   // Restores the Flame Pass entitlement only. Ember packs are consumables — they were spent into a
@@ -218,15 +279,121 @@ export default function SettingsScreen() {
   }
 
   const deleteArmed = deleteConfirmText.trim().toUpperCase() === DELETE_CONFIRM_WORD;
+  const displayName = profile?.display_name ?? 'Your profile';
 
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.sectionLabel}>PREFERENCES</Text>
+        {/* Identity first (mock 16) — the screen should open by telling you whose settings these
+            are, and the most common reason anyone lands here is to change their own details. */}
+        <Pressable style={styles.identity} onPress={() => router.push('/edit-profile')}>
+          <Avatar label={displayName} size={44} />
+          <View style={styles.rowText}>
+            <Text style={styles.identityName}>{displayName}</Text>
+            <Text style={styles.identityHandle}>
+              {profile?.handle ? `@${profile.handle} · edit profile` : 'Edit profile'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+        </Pressable>
+
+        <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
         <View style={styles.group}>
-          <SettingsToggleRow icon="volume-high" label="Sound effects" value={soundEnabled} onValueChange={handleToggleSound} />
-          <SettingsToggleRow icon="phone-portrait" label="Haptics" value={hapticsEnabled} onValueChange={handleToggleHaptics} />
-          <SettingsRow icon="notifications" label="Notifications" onPress={() => router.push('/settings-notifications')} />
+          <SettingsRow
+            icon="notifications"
+            label="Notifications"
+            description="Categories, quiet hours and your daily reminder"
+            onPress={() => router.push('/settings-notifications')}
+          />
+        </View>
+
+        {/* AUDIO — mock 164 panel 1. The session-audio switch is the one that matters: the ambient
+            loop plays over your own music, and at the gym that made the app unusable rather than
+            merely annoying (COSMETIC_UI_FIXES §6). */}
+        <Text style={styles.sectionLabel}>AUDIO</Text>
+        <View style={styles.group}>
+          <SettingsToggleRow
+            icon="musical-notes"
+            label="Session audio"
+            description="Play your equipped ambient during lock-ins"
+            value={sessionAudioEnabled}
+            onValueChange={handleToggleSessionAudio}
+          />
+          <SettingsToggleRow
+            icon="volume-high"
+            label="Reward & SFX stings"
+            description="Box opens, rank-ups, lock-in start and stop"
+            value={rewardSfxEnabled}
+            onValueChange={handleToggleRewardSfx}
+          />
+          <SettingsToggleRow
+            icon="headset"
+            label="Duck to my music"
+            description="Lower the ambient when your music is playing, instead of stopping it"
+            value={duckToMusic}
+            onValueChange={handleToggleDuckToMusic}
+          />
+          <SettingsToggleRow
+            icon="phone-portrait"
+            label="Haptics"
+            description="Buzz on rewards and rank-ups"
+            value={hapticsEnabled}
+            onValueChange={handleToggleHaptics}
+          />
+        </View>
+        <Text style={styles.sectionHint}>
+          Turn session audio off and Philoi stays quiet — your own music keeps playing.
+        </Text>
+
+        {/* LOCK-IN SCREEN — mock 164 panel 1, second block. Default on: a sleeping display stops
+            the flare animations AND pauses the ambient loop, so a session left alone quietly dies
+            (COSMETIC_UI_FIXES §7). */}
+        <Text style={styles.sectionLabel}>LOCK-IN SCREEN</Text>
+        <View style={styles.group}>
+          <SettingsToggleRow
+            icon="sunny"
+            label="Keep screen awake"
+            description="Hold the display on during a session — a sleeping screen kills the flare and the music"
+            value={keepScreenAwake}
+            onValueChange={handleToggleKeepScreenAwake}
+          />
+        </View>
+        <Text style={styles.sectionHint}>
+          When a lock-in ends, the screen goes back to your normal auto-lock.
+        </Text>
+
+        <Text style={styles.sectionLabel}>DAILY FIRE</Text>
+        <View style={styles.group}>
+          <Pressable style={styles.row} onPress={handleToggleGoalMode}>
+            <FlameLogo size={18} />
+            <Text style={styles.rowLabel}>Goal mode</Text>
+            <Text style={styles.rowValue}>{goalMode === 'auto' ? 'Adaptive' : 'Manual'}</Text>
+          </Pressable>
+          {goalMode === 'manual' && (
+            <View style={styles.row}>
+              <Ionicons name="options" size={18} color={Colors.amber} style={styles.rowIcon} />
+              <Text style={styles.rowLabel}>Daily target</Text>
+              <View style={styles.stepper}>
+                <Pressable onPress={() => handleAdjustManualTarget(-1)} hitSlop={8} style={styles.stepperBtn}>
+                  <Ionicons name="remove" size={14} color={Colors.ink} />
+                </Pressable>
+                <Text style={styles.stepperValue}>{manualTarget}</Text>
+                <Pressable onPress={() => handleAdjustManualTarget(1)} hitSlop={8} style={styles.stepperBtn}>
+                  <Ionicons name="add" size={14} color={Colors.ink} />
+                </Pressable>
+              </View>
+            </View>
+          )}
+          <SettingsToggleRow
+            icon="send"
+            label="Publish completion to campfires"
+            value={publishCompletion}
+            onValueChange={handleTogglePublishCompletion}
+          />
+        </View>
+
+        <Text style={styles.sectionLabel}>PRIVACY</Text>
+        <View style={styles.group}>
           <SettingsRow
             icon="image"
             label="Who can see my photos"
@@ -240,6 +407,10 @@ export default function SettingsScreen() {
             value={watchOptIn}
             onValueChange={handleToggleWatchOptIn}
           />
+        </View>
+
+        <Text style={styles.sectionLabel}>CONNECTIONS</Text>
+        <View style={styles.group}>
           <SettingsRow icon="fitness" label="Connected apps" onPress={() => router.push('/connected-apps')} />
           {/* Campus verification state (UNI_VERIFICATION_SPEC.md §6) — the value column is the
               whole story: verified, or the reason it isn't. */}
@@ -285,36 +456,6 @@ export default function SettingsScreen() {
           </>
         )}
 
-        <Text style={styles.sectionLabel}>DAILY FIRE</Text>
-        <View style={styles.group}>
-          <Pressable style={styles.row} onPress={handleToggleGoalMode}>
-            <FlameLogo size={18} />
-            <Text style={styles.rowLabel}>Goal mode</Text>
-            <Text style={styles.rowValue}>{goalMode === 'auto' ? 'Adaptive' : 'Manual'}</Text>
-          </Pressable>
-          {goalMode === 'manual' && (
-            <View style={styles.row}>
-              <Ionicons name="options" size={18} color={Colors.amber} style={styles.rowIcon} />
-              <Text style={styles.rowLabel}>Daily target</Text>
-              <View style={styles.stepper}>
-                <Pressable onPress={() => handleAdjustManualTarget(-1)} hitSlop={8} style={styles.stepperBtn}>
-                  <Ionicons name="remove" size={14} color={Colors.ink} />
-                </Pressable>
-                <Text style={styles.stepperValue}>{manualTarget}</Text>
-                <Pressable onPress={() => handleAdjustManualTarget(1)} hitSlop={8} style={styles.stepperBtn}>
-                  <Ionicons name="add" size={14} color={Colors.ink} />
-                </Pressable>
-              </View>
-            </View>
-          )}
-          <SettingsToggleRow
-            icon="send"
-            label="Publish completion to campfires"
-            value={publishCompletion}
-            onValueChange={handleTogglePublishCompletion}
-          />
-        </View>
-
         {groups.length > 0 && (
           <>
             <Text style={styles.sectionLabel}>REMINDERS</Text>
@@ -347,6 +488,34 @@ export default function SettingsScreen() {
             </View>
           </>
         )}
+
+        {/* HELP & FEEDBACK (FEATURE_feedback_and_domain.md §1). "Talk to someone" is the support
+            surface, kept in the same group but LAST — reaching a human about the app and reaching
+            a human about yourself are different errands, and the wellbeing one shouldn't be the
+            first thing a bug report walks past. */}
+        <Text style={styles.sectionLabel}>HELP & FEEDBACK</Text>
+        <View style={styles.group}>
+          <SettingsRow
+            icon="chatbox-ellipses"
+            label="Send feedback"
+            description="Bug report, feature request, or anything else"
+            chevron={false}
+            onPress={() => setFeedbackOpen(true)}
+          />
+          <SettingsRow
+            icon="mail"
+            label="Email us"
+            value={CONTACT_EMAIL}
+            chevron={false}
+            onPress={handleEmailUs}
+          />
+          <SettingsRow
+            icon="heart"
+            label="Talk to someone"
+            description="Support if things feel heavy"
+            onPress={() => router.push('/support')}
+          />
+        </View>
 
         <Text style={styles.sectionLabel}>LEGAL</Text>
         <View style={styles.group}>
@@ -383,6 +552,8 @@ export default function SettingsScreen() {
 
         <DevTools devOverride={devOverride} setDevOverride={setDevOverride} groups={groups} />
       </ScrollView>
+
+      <FeedbackSheet visible={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
 
       {/* Who can see my photos — 3-way single-select (§19). Mock 16 shows the value inline, so
           the row stays chevron-less and taps open this sheet. */}
@@ -458,6 +629,26 @@ const styles = StyleSheet.create({
   container: {
     padding: Spacing.four,
   },
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    padding: Spacing.three,
+    marginBottom: Spacing.four,
+  },
+  identityName: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 16,
+    color: Colors.ink,
+  },
+  identityHandle: {
+    fontFamily: Fonts.body,
+    fontSize: 12.5,
+    color: Colors.muted,
+    marginTop: 2,
+  },
   sectionLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
@@ -498,11 +689,29 @@ const styles = StyleSheet.create({
     width: 22,
     textAlign: 'center',
   },
+  rowText: {
+    flex: 1,
+  },
+  // Standalone label — still the flex spacer in the rows that have no rowText wrapper.
   rowLabel: {
     flex: 1,
     fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.ink,
+  },
+  // The same label INSIDE rowText, which is already the flex spacer. No flex here: rowText is a
+  // column, so a flexed child would stretch against the description below it.
+  rowTitle: {
+    fontFamily: Fonts.body,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+  rowDescription: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: Colors.muted,
+    marginTop: 2,
   },
   rowLabelDanger: {
     color: Colors.danger,

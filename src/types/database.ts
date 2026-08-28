@@ -46,6 +46,21 @@ export type NotificationPrefs = {
   quiet_end?: number; // 0–23, local hour (may be < start to wrap past midnight)
   /** IANA zone (e.g. 'America/Toronto') the client stows so quiet hours resolve to local time. */
   timezone?: string;
+
+  // ── Agent 6 · Settings (additive) ──────────────────────────────────────────────
+  // Keys the client has been writing into this blob since migration 0086 but that were never
+  // typed here, so every reader had to cast through Record<string, unknown>. Same blob, same
+  // column — just declared.
+  /** The five spec categories gating the 0086 event pipeline (`cat_<category>`). */
+  cat_friends_social?: boolean;
+  cat_challenges?: boolean;
+  cat_campfires?: boolean;
+  cat_streak_reminders?: boolean;
+  cat_season_rank?: boolean;
+  /** The user-set daily reminder, hour-granular like quiet hours. */
+  reminder_enabled?: boolean;
+  reminder_hour?: number;
+  // ── end Agent 6 block ─────────────────────────────────────────────────────────
 };
 
 export type Profile = {
