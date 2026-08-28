@@ -10,13 +10,33 @@ import type { ArtKind, CatalogItem } from '@/lib/economy/catalog';
 type Props = { item: CatalogItem; size?: number };
 
 export function ItemArt({ item, size = 44 }: Props) {
-  const { from, to } = item.art;
+  const { from, to } = tilePalette(item);
   const h = Math.round(size * 1.07);
   return (
     <Svg width={size} height={h} viewBox="0 0 90 96">
       {shapeFor(item.art.kind, from, to)}
     </Svg>
   );
+}
+
+/**
+ * The two stops this tile draws with — `item.art` for everything except a FLARE.
+ *
+ * A flare tile is a preview of the perimeter aura, so it leads with `flare.colour`, which IS the
+ * colour the aura paints. Zeus' Wrath is why: its stops run blue -> gold and its aura is golden
+ * thunderbolts, but the tile is built dominant-stop-first, so the mythic rendered as a BLUE
+ * starburst — the wrong item entirely (COSMETIC_UI_FIXES §4). Leading with the aura's own colour
+ * fixes it by construction rather than by special-casing one id, and it can never drift again:
+ * change the aura and the tile follows.
+ *
+ * The trailing stop is whichever of the two the lead is NOT, so Zeus keeps its blue as the faint
+ * storm undertone the spec asks for, and Asgardian Valor — blue stops, blue aura — stays blue.
+ */
+function tilePalette(item: CatalogItem): { from: string; to: string } {
+  const lead = item.flare?.colour;
+  if (item.art.kind !== 'flare' || !lead) return item.art;
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  return { from: lead, to: same(lead, item.art.to) ? item.art.from : item.art.to };
 }
 
 function shapeFor(kind: ArtKind, from: string, to: string) {
