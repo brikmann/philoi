@@ -202,6 +202,23 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
     }
   }
 
+  /**
+   * "Open your Hephaestus box" — the reveal's second CTA, live at last (ledger item 3 / B4).
+   *
+   * The box id comes from the payload grant_reward wrote at settlement (0125), so this opens the
+   * exact row this challenge minted rather than the newest box of that key — which would be the
+   * wrong one the moment two challenges settle in the same sweep.
+   *
+   * `dismiss()` FIRST. It stamps reward_seen_at and closes the modal; navigating out from under an
+   * open Modal leaves it mounted over the box-open screen, and skipping the stamp would re-fire the
+   * whole reveal the next time they come back for their standings.
+   */
+  function handleOpenBox(boxId: string, boxKey: string) {
+    dismiss();
+    track('challenge_reward_box_opened', { challenge_id: c.id, box_key: boxKey });
+    router.push({ pathname: '/shop/open', params: { boxIds: boxId, boxKey } });
+  }
+
   const rows: Row[] = duel
     ? [
         { k: 'Type', v: 'Head-to-head' },
@@ -324,6 +341,7 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
                 onShare={handleShare}
                 sharing={sharing}
                 onClose={dismiss}
+                onOpenBox={result.box?.id ? () => handleOpenBox(result.box!.id!, result.box!.key) : undefined}
               />
             </SafeAreaView>
           </ScreenBackground>

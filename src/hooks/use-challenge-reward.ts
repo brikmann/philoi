@@ -100,18 +100,21 @@ export function challengeRewardResult(
     // completion band (which pays no box and no badge). Both render as placement + XP, which is
     // still a result worth showing.
     embers: payload?.embers ?? 0,
-    box: boxRow(payload?.box ?? null),
+    box: boxRow(payload?.box ?? null, payload?.box_id ?? null),
     badge: badgeRow(payload?.badge ?? null, payload?.band ?? null),
   };
 }
 
-function boxRow(key: string | null): ChallengeRewardResult['box'] {
+function boxRow(key: string | null, id: string | null): ChallengeRewardResult['box'] {
   if (!key) return null;
   const box = BOXES[key as BoxKey];
   // A box key this build's catalog doesn't know (a server-side addition ahead of the app) is
   // dropped rather than rendered as "undefined" — the box is in their inventory either way.
   if (!box) return null;
-  return { key: box.key, name: box.name, rarity: box.rarity };
+  // `id` may be null on a challenge settled before 0125 taught grant_reward to report which row it
+  // minted. The box still renders; only the Open CTA is withheld, because the alternative is a CTA
+  // that opens whichever same-key box happened to sort first.
+  return { id, key: box.key, name: box.name, rarity: box.rarity };
 }
 
 /**

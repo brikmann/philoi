@@ -16,41 +16,96 @@ export async function fetchMySocialChallenges(): Promise<SocialChallenge[]> {
   return data ?? [];
 }
 
-export async function createH2HChallenge(input: {
-  opponentId: string;
-  raceMetric: SocialChallengeRaceMetric;
-  windowHours: number;
-  /** Optional "let a campfire watch" — friend-to-friend H2H never requires one (§16). */
-  circleId?: string | null;
-  /** The user-set public name (v2). Null/blank falls back to the metric naming it. */
-  publicName?: string | null;
-}): Promise<SocialChallenge> {
+/**
+ * An explicit span, when the creator picked dates rather than a preset (0124).
+ *
+ * Both null is the preset case, and the server then does exactly what it did before —
+ * start_challenge derives the window from window_hours at the gun. When they ARE set,
+ * start_challenge (0096) already prefers them; it has since long before anything sent them.
+ */
+type CustomSpan = {
+  /** ISO. Null for a preset window. */
+  startsOn?: string | null;
+  /** ISO. Null for a preset window. */
+  endsOn?: string | null;
+};
+
+export async function createH2HChallenge(
+  input: {
+    opponentId: string;
+    raceMetric: SocialChallengeRaceMetric;
+    windowHours: number;
+    /** Optional "let a campfire watch" — friend-to-friend H2H never requires one (§16). */
+    circleId?: string | null;
+    /** The user-set public name (v2). Null/blank falls back to the metric naming it. */
+    publicName?: string | null;
+  } & CustomSpan
+): Promise<SocialChallenge> {
   const { data, error } = await supabase.rpc('create_h2h_challenge', {
     p_opponent_id: input.opponentId,
     p_race_metric: input.raceMetric,
     p_window_hours: input.windowHours,
     p_circle_id: input.circleId ?? null,
     p_public_name: input.publicName ?? null,
+    p_starts_on: input.startsOn ?? null,
+    p_ends_on: input.endsOn ?? null,
   });
   if (error) throw error;
-  track('challenge_created', { mode: 'h2h', circle_id: input.circleId ?? null });
+  track('challenge_created', { mode: 'h2h', circle_id: input.circleId ?? null, custom_span: input.endsOn != null });
   return data;
 }
 
-export async function createGroupChallenge(input: {
-  circleId: string;
-  targetCount: number;
-  windowHours: number;
-  publicName?: string | null;
-}): Promise<SocialChallenge> {
+export async function createGroupChallenge(
+  input: {
+    circleId: string;
+    targetCount: number;
+    windowHours: number;
+    publicName?: string | null;
+  } & CustomSpan
+): Promise<SocialChallenge> {
   const { data, error } = await supabase.rpc('create_group_challenge', {
     p_circle_id: input.circleId,
     p_target_count: input.targetCount,
     p_window_hours: input.windowHours,
     p_public_name: input.publicName ?? null,
+    p_starts_on: input.startsOn ?? null,
+    p_ends_on: input.endsOn ?? null,
   });
   if (error) throw error;
-  track('challenge_created', { mode: 'group', circle_id: input.circleId });
+  track('challenge_created', { mode: 'group', circle_id: input.circleId, custom_span: input.endsOn != null });
+  return data;
+}
+
+/**
+ * The third shape (mock 114, 0126) — everyone in the campfire ranked 1..N on one metric, paid by
+ * percentile band.
+ *
+ * NO INVITE STEP AND NO SEPARATE START. `shape = 'placement'` has been a legal value since 0096 and
+ * nothing ever created one. Unlike a collective goal this enrols the whole campfire as accepted
+ * on the server and takes every baseline in the same statement, because "who is in this race" is
+ * not a question for a class of 48 — being in the course campfire IS the entry.
+ *
+ * Admin-gated server-side. MyGroup carries no role, so the client cannot grey the tile out; a
+ * non-admin gets the RPC's own refusal, which says the useful thing.
+ */
+export async function createPlacementChallenge(
+  input: {
+    circleId: string;
+    raceMetric: SocialChallengeRaceMetric;
+    windowHours: number;
+    publicName?: string | null;
+  } & CustomSpan
+): Promise<SocialChallenge> {
+  const { data, error } = await supabase.rpc('create_placement_challenge', {
+    p_circle_id: input.circleId,
+    p_race_metric: input.raceMetric,
+    p_window_hours: input.windowHours,
+    p_public_name: input.publicName ?? null,
+    p_starts_on: input.startsOn ?? null,
+    p_ends_on: input.endsOn ?? null,
+  });
+  if (error) throw error;
+  track('challenge_created', { mode: 'placement', circle_id: input.circleId, custom_span: input.endsOn != null });
   return data;
 }
 
