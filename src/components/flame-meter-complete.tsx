@@ -15,12 +15,13 @@ import Animated, {
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { EmberIcon } from '@/components/economy/ember-icon';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { postCheckInToCircle } from '@/lib/api/lock-ins';
 import { getErrorMessage } from '@/lib/errors';
 import { formatDurationClock } from '@/lib/format';
 import { markFlameMeterCelebrated } from '@/lib/flame-meter-local';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import { formatRankTier, xpProgressRatio } from '@/lib/rank-tiers';
 import { fireConfirm, fireEmberLand, fireFlameMeterComplete, fireXpTick } from '@/lib/reward-feedback';
 import type { GoalType, MyRank } from '@/types/database';
@@ -326,7 +327,7 @@ export function FlameMeterComplete({
     <View style={styles.container} ref={overlayRef} collapsable={false}>
       <View style={styles.topbar}>
         <View style={styles.recap}>
-          <Ionicons name={GOAL_TYPE_ICON[goalType]} size={12} color={Colors.amber} />
+          <DisciplineIcon name={GOAL_TYPE_GLYPH[goalType]} size={12} color={Colors.amber} />
           <Text style={styles.recapText} numberOfLines={1}>
             {GOAL_TYPE_META[goalType].label}
             {goalDetail ? ` · ${goalDetail}` : ''} · {formatDurationClock(durationSeconds)}

@@ -1,5 +1,6 @@
 import type { Ionicons } from '@expo/vector-icons';
 
+import type { DisciplineIconName } from '@/components/ui/discipline-icon';
 import type { ChallengeType, GoalType } from '@/types/database';
 
 export const GOAL_TYPE_META: Record<GoalType, { label: string; emoji: string }> = {
@@ -75,4 +76,43 @@ export const CHALLENGE_TYPE_ICON: Record<ChallengeType, keyof typeof Ionicons.gl
   workout_minutes: 'stopwatch',
   strain: 'fitness',
   sleep_hours: 'moon',
+};
+
+// ── The mock-163 discipline set ────────────────────────────────────────────────────────────────
+//
+// The brand vectors that replace the raw emoji and the Ionicons fallbacks above — the swap-in
+// point mock 163 asks for. A surface renders `<DisciplineIcon name={GOAL_TYPE_GLYPH[type]} />`
+// instead of `<Ionicons name={GOAL_TYPE_ICON[type]} />` and gets one consistent 1.8-stroke glyph
+// on the same 24 grid as the nav set.
+//
+// GOAL_TYPE_ICON / CHALLENGE_TYPE_ICON are deliberately LEFT IN PLACE rather than retyped. They
+// are read from a dozen files across three feature areas, several of which belong to another
+// agent's branch in this build; changing their type would force an edit into every one of those
+// at once. They stay as the Ionicons fallback for any surface not yet swapped, and go away when
+// the last call site does.
+
+export const GOAL_TYPE_GLYPH: Record<GoalType, DisciplineIconName> = {
+  gym: 'gym',
+  study: 'study',
+  run: 'run',
+  job_applications: 'jobs',
+  read: 'read',
+  // No vector of its own — a phone with a slash is the one "goal" that is an absence, and
+  // social_media isn't offered in the picker any more (see GOAL_TYPES). The bullseye is the
+  // honest stand-in rather than inventing a glyph for a type nothing renders.
+  social_media: 'custom',
+  custom: 'custom',
+};
+
+export const CHALLENGE_TYPE_GLYPH: Record<ChallengeType, DisciplineIconName> = {
+  steps: 'steps',
+  run_distance: 'run',
+  ride_distance: 'ride',
+  gym_visits: 'gym',
+  // "Study hrs — reuses Study" (mock 163's own caption).
+  study_hours: 'study',
+  custom: 'custom',
+  workout_minutes: 'minutes',
+  strain: 'strain',
+  sleep_hours: 'sleep',
 };

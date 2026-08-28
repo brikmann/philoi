@@ -3,8 +3,9 @@ import { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ShareCardFrame } from '@/components/share-card-frame';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts } from '@/constants/theme';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import type { GoalType, RankTierName } from '@/types/database';
 
 type LockInShareCardProps = {
@@ -59,7 +60,7 @@ export const LockInShareCard = forwardRef<View, LockInShareCardProps>(function L
           GOAL_TYPE_ICON set the lock-in list rows use, so the card and the row a person taps to
           reach it show the same glyph. */}
       <View style={styles.typeTile}>
-        <Ionicons name={GOAL_TYPE_ICON[goalType]} size={34} color={Colors.amber} />
+        <DisciplineIcon name={GOAL_TYPE_GLYPH[goalType]} size={34} color={Colors.amber} />
       </View>
       <Text style={styles.duration}>
         {h > 0 ? (

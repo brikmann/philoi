@@ -6,13 +6,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SessionAudioPicker } from '@/components/economy/session-audio-picker';
 import { GymRoutineBlock } from '@/components/gym-routine-block';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { fetchLockinTimeGoals } from '@/lib/api/challenges';
 import { useAuth } from '@/lib/auth/auth-context';
 import { setSessionAudioChoice } from '@/lib/economy/equipped-audio';
-import { GOAL_TYPES, GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPES, GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import type { Challenge, GoalType, WorkoutEnergy } from '@/types/database';
 
 type LockinGoalPickerProps = {
@@ -146,7 +147,7 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
                   onPress={() => setGoalType(type)}
                   style={[styles.tile, selected && styles.tileSelected]}>
                   <View style={styles.tileIcon}>
-                    <Ionicons name={GOAL_TYPE_ICON[type]} size={16} color={Colors.amber} />
+                    <DisciplineIcon name={GOAL_TYPE_GLYPH[type]} size={16} color={Colors.amber} />
                   </View>
                   <Text style={[styles.tileLabel, selected && styles.tileLabelSelected]}>
                     {GOAL_TYPE_META[type].label}

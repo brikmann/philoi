@@ -14,6 +14,7 @@ import { TrophyHallSection } from '@/components/profile/trophy-hall-section';
 import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { ProgressBar } from '@/components/ui/progress-bar';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -22,7 +23,7 @@ import { respondFriendRequest, sendFriendRequest } from '@/lib/api/friend-reques
 import { fetchActiveChallengeMarker, fetchProfileStats, fetchRelationshipWith, fetchUserBoardPosition } from '@/lib/api/leaderboard-social';
 import { fetchProfileById, fetchUserRank, type UserRank } from '@/lib/api/profile';
 import { formatSessionDuration } from '@/lib/format';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import { formatRankTier, formatXpProgress, xpProgressRatio } from '@/lib/rank-tiers';
 import { supabase } from '@/lib/supabase';
 import { getErrorMessage } from '@/lib/errors';
@@ -289,7 +290,7 @@ export default function FriendProfileScreen() {
             <View style={styles.chips}>
               {stats.goal_types.map((type) => (
                 <View key={type} style={styles.chip}>
-                  <Ionicons name={GOAL_TYPE_ICON[type as keyof typeof GOAL_TYPE_ICON]} size={12} color={Colors.ember} />
+                  <DisciplineIcon name={GOAL_TYPE_GLYPH[type as keyof typeof GOAL_TYPE_GLYPH]} size={12} color={Colors.ember} />
                   <Text style={styles.chipText}>{GOAL_TYPE_META[type as keyof typeof GOAL_TYPE_META]?.label ?? type}</Text>
                 </View>
               ))}
@@ -307,11 +308,11 @@ export default function FriendProfileScreen() {
                     <Image source={{ uri: p.signedPhotoUrl }} style={styles.phImage} />
                   ) : (
                     <View style={[styles.phImage, styles.phFallback]}>
-                      <Ionicons name={GOAL_TYPE_ICON[p.goal_type]} size={26} color={Colors.textTertiary} />
+                      <DisciplineIcon name={GOAL_TYPE_GLYPH[p.goal_type]} size={26} color={Colors.textTertiary} />
                     </View>
                   )}
                   <View style={styles.ov}>
-                    <Ionicons name={GOAL_TYPE_ICON[p.goal_type]} size={11} color="#FFFFFF" />
+                    <DisciplineIcon name={GOAL_TYPE_GLYPH[p.goal_type]} size={11} color="#FFFFFF" />
                     <Text style={styles.ovDuration}>{formatSessionDuration(p.duration_seconds ?? 0)}</Text>
                   </View>
                 </View>

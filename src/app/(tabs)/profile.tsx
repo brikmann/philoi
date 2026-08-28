@@ -20,6 +20,7 @@ import { useEquipped } from '@/lib/economy/loadout';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { TabHeader } from '@/components/ui/tab-header';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyRanks } from '@/hooks/use-my-ranks';
 import { track } from '@/lib/analytics';
@@ -27,7 +28,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { fetchMyRecentLockIns, fetchUserLockInPhotos, type MyRecentLockIn } from '@/lib/api/check-ins';
 import { fetchMyLockInStats, fetchProfileById, fetchUserLockInStats, fetchUserRank, type UserRank } from '@/lib/api/profile';
 import { formatSessionDuration, pluralize } from '@/lib/format';
-import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import { formatRankTier, formatXpProgress, xpProgressRatio } from '@/lib/rank-tiers';
 import type { MyRank, Profile } from '@/types/database';
 
@@ -240,7 +241,7 @@ export default function ProfileScreen() {
           <View style={styles.goals}>
             {recentGoalTypes.map((type) => (
               <View key={type} style={styles.gchip}>
-                <Ionicons name={GOAL_TYPE_ICON[type]} size={12} color={Colors.ember} />
+                <DisciplineIcon name={GOAL_TYPE_GLYPH[type]} size={12} color={Colors.ember} />
                 <Text style={styles.gchipText}>{GOAL_TYPE_META[type]?.label ?? type}</Text>
               </View>
             ))}
@@ -288,7 +289,7 @@ export default function ProfileScreen() {
                           : router.push({ pathname: '/lock-in/[checkInId]', params: { checkInId: r.id } })
                       }>
                       <View style={[styles.rowIcon, isSynced && styles.rowIconSynced]}>
-                        <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={16} color={isSynced ? '#FC4C02' : Colors.amber} />
+                        <DisciplineIcon name={GOAL_TYPE_GLYPH[r.goal_type]} size={16} color={isSynced ? '#FC4C02' : Colors.amber} />
                       </View>
                       <Text style={styles.rowText} numberOfLines={1}>
                         {isStrava && r.goal_detail ? r.goal_detail : GOAL_TYPE_META[r.goal_type].label}
@@ -309,11 +310,11 @@ export default function ProfileScreen() {
                       <Image source={{ uri: r.signedPhotoUrl }} style={styles.phImage} />
                     ) : (
                       <View style={[styles.phImage, styles.phFallback]}>
-                        <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={26} color={Colors.textTertiary} />
+                        <DisciplineIcon name={GOAL_TYPE_GLYPH[r.goal_type]} size={26} color={Colors.textTertiary} />
                       </View>
                     )}
                     <View style={styles.ov}>
-                      <Ionicons name={GOAL_TYPE_ICON[r.goal_type]} size={11} color="#FFFFFF" />
+                      <DisciplineIcon name={GOAL_TYPE_GLYPH[r.goal_type]} size={11} color="#FFFFFF" />
                       <Text style={styles.ovDuration}>{formatSessionDuration(r.duration_seconds ?? 0)}</Text>
                     </View>
                   </View>

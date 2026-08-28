@@ -1,0 +1,337 @@
+import { usePathname, useRouter } from 'expo-router';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { PhiloiIcon, type PhiloiIconName } from '@/components/ui/philoi-icon';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+
+// THE SINGLE NAV (mock 157 option B, drawn per mocks 158/159/161).
+//
+// Philoi had TWO navigations and they disagreed about what the app contains: a bottom tab bar with
+// Home/Leaderboards/Challenges/Profile, and a top-right menu with Campfires/Friends/Inventory/
+// Shop/Flame Pass/Settings. Neither one told you the other existed, and a destination's rank in
+// the app was decided by which of the two it happened to land in. Mock 157 puts the whole app in
+// one grouped drawer: PLAY is the core loop, SOCIAL is the gathering places, REWARDS is the
+// economy, and Settings sits apart because it is app config, not a place you go to play.
+//
+// The cost is real and worth naming: Home/Leaderboards/Challenges/Profile are two taps now
+// (open drawer, pick) instead of one, which is exactly the trade-off mock 157's own caption
+// flags. What it buys is the whole bottom edge back — the flame and the campfire valley get the
+// screen — and one place where every destination is visible at once.
+
+type NavRow = {
+  key: string;
+  label: string;
+  icon: PhiloiIconName;
+  route: string;
+  /** Paths that light this row up. Defaults to `route`. */
+  match?: string[];
+  badge?: string;
+};
+
+type NavGroup = { title: string; rows: NavRow[] };
+
+const GROUPS: NavGroup[] = [
+  {
+    title: 'Play',
+    rows: [
+      { key: 'home', label: 'Home', icon: 'home', route: '/', match: ['/'] },
+      { key: 'leaderboards', label: 'Leaderboards', icon: 'leaderboards', route: '/leaderboards' },
+      { key: 'challenges', label: 'Challenges', icon: 'challenges', route: '/challenges' },
+      { key: 'profile', label: 'Profile', icon: 'profile', route: '/profile' },
+    ],
+  },
+  {
+    title: 'Social',
+    rows: [
+      // The Agora leads Social (mock 161) — the gathering places sit together, and the town square
+      // is the newest of them. The route itself is Agent 3's; this row is what points at it.
+      { key: 'agora', label: 'The Agora', icon: 'agora', route: '/agora', badge: 'NEW' },
+      { key: 'campfires', label: 'Campfires', icon: 'campfires', route: '/campfires' },
+      {
+        key: 'friends',
+        label: 'Friends',
+        icon: 'friends',
+        route: '/people',
+        match: ['/people', '/add-friend', '/friend-profile'],
+      },
+    ],
+  },
+  {
+    title: 'Rewards',
+    rows: [
+      { key: 'pass', label: 'Flame Pass', icon: 'pass', route: '/forge-pass' },
+      { key: 'shop', label: 'Shop', icon: 'shop', route: '/shop' },
+      { key: 'inventory', label: 'Inventory', icon: 'inventory', route: '/inventory' },
+      // Mock 161's fourth Rewards row, The Forge, is deliberately NOT here: mocks 155/156 design
+      // it but no /forge route exists yet, and a menu row that lands on "Unmatched Route" is worse
+      // than a row that is not there. PhiloiIcon already carries its anvil — the row is one line
+      // the day the screen ships, plus mock 158's `.mrow.forge` ember treatment (left border +
+      // ember label) if it should lead its group the way the mock draws it.
+    ],
+  },
+];
+
+const SETTINGS_ROW: NavRow = { key: 'settings', label: 'Settings', icon: 'settings', route: '/settings' };
+
+const PANEL_WIDTH = 292;
+
+type NavDrawerValue = { open: () => void; close: () => void };
+const NavDrawerContext = createContext<NavDrawerValue>({ open: () => {}, close: () => {} });
+
+/** Opens the one nav from anywhere — a header button, an empty state, a deep link. */
+export function useNavDrawer(): NavDrawerValue {
+  return useContext(NavDrawerContext);
+}
+
+/**
+ * Mounted once, above the navigator, in app/_layout.tsx. The drawer renders inside a <Modal>, so
+ * it sits over whatever screen is on top regardless of where this provider lives in the tree —
+ * which is what lets ONE instance serve every route instead of each screen carrying its own copy
+ * of the menu, the way home-chrome's did.
+ */
+export function NavDrawerProvider({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const value = useMemo(() => ({ open: () => setOpen(true), close: () => setOpen(false) }), []);
+
+  return (
+    <NavDrawerContext.Provider value={value}>
+      {children}
+      <AppDrawer open={open} onClose={value.close} />
+    </NavDrawerContext.Provider>
+  );
+}
+
+/**
+ * The hamburger. One control, one glyph, every surface that has a header.
+ *
+ * Rendered at the caller's tint rather than the nav grey: this sits in a header next to a title,
+ * not in a list of destinations, so it takes the header's colour.
+ */
+export function DrawerButton({ color = Colors.ink, size = 22 }: { color?: string; size?: number }) {
+  const { open } = useNavDrawer();
+  return (
+    <Pressable onPress={open} hitSlop={10} accessibilityRole="button" accessibilityLabel="Menu">
+      <PhiloiIcon name="menu" size={size} color={color} />
+    </Pressable>
+  );
+}
+
+function AppDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  // Held mounted through the closing animation — a <Modal> unmounts its children the instant
+  // `visible` flips, so animating the panel out means keeping it here a beat longer than `open`.
+  const [mounted, setMounted] = useState(open);
+  const t = useSharedValue(0);
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      t.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) });
+      return;
+    }
+    t.value = withTiming(0, { duration: 170, easing: Easing.in(Easing.cubic) }, (finished) => {
+      if (finished) runOnJS(setMounted)(false);
+    });
+  }, [open, t]);
+
+  const panelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: -PANEL_WIDTH * (1 - t.value) }],
+  }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: t.value }));
+
+  const go = useCallback(
+    (route: string) => {
+      // Close BEFORE navigating: leaving the modal mounted across a route change strands it over
+      // the destination on Android — the same bug the old home menu had to guard.
+      onClose();
+      // navigate(), not push(). A menu is not a "go deeper" gesture: pushing would stack a second
+      // Home on top of the Shop you opened from the last drawer visit, and three trips through the
+      // menu would leave three back-presses of history that no user built on purpose. navigate()
+      // returns to a screen already in the stack and only pushes when there isn't one.
+      //
+      // Cast for the reason every other route table in this app casts: expo-router's typed routes
+      // cannot type destinations held as data.
+      router.navigate(route as never);
+    },
+    [onClose, router]
+  );
+
+  if (!mounted) return null;
+
+  return (
+    <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.root}>
+        {/* The backdrop is the dismiss target — a drawer with no visible close button needs
+            tapping-away to work, and it is the gesture people try first. */}
+        <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close menu" />
+        </Animated.View>
+
+        <Animated.View style={[styles.panel, panelStyle]}>
+          <SafeAreaView edges={['top', 'bottom']} style={styles.panelInner}>
+            <View style={styles.head}>
+              <Text style={styles.headTitle}>Menu</Text>
+              <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close menu">
+                <Text style={styles.close}>✕</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+              {GROUPS.map((group) => (
+                <View key={group.title} style={styles.group}>
+                  <Text style={styles.groupTitle}>{group.title.toUpperCase()}</Text>
+                  {group.rows.map((row) => (
+                    <Row key={row.key} row={row} pathname={pathname} onPress={() => go(row.route)} />
+                  ))}
+                </View>
+              ))}
+
+              <View style={styles.group}>
+                <Row row={SETTINGS_ROW} pathname={pathname} onPress={() => go(SETTINGS_ROW.route)} muted />
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
+function isActive(row: NavRow, pathname: string): boolean {
+  const targets = row.match ?? [row.route];
+  return targets.some((target) =>
+    target === '/' ? pathname === '/' : pathname === target || pathname.startsWith(target + '/')
+  );
+}
+
+function Row({
+  row,
+  pathname,
+  onPress,
+  muted = false,
+}: {
+  row: NavRow;
+  pathname: string;
+  onPress: () => void;
+  muted?: boolean;
+}) {
+  const active = isActive(row, pathname);
+  // Mock 159: the screen you are on is filled + Philoi orange, everything else is a grey outline.
+  // Style AND colour, so the active row still reads at 21px in a list of eleven.
+  const restTint = muted ? Colors.textTertiary : Colors.muted;
+
+  return (
+    <Pressable
+      style={[styles.row, active && styles.rowActive]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}>
+      <PhiloiIcon name={row.icon} size={21} active={active} color={active ? undefined : restTint} />
+      <Text style={[styles.rowLabel, active && styles.rowLabelActive, muted && styles.rowLabelMuted]}>{row.label}</Text>
+      {row.badge ? (
+        <View style={styles.badge}>
+          <Text style={styles.badgeLabel}>{row.badge}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  backdrop: {
+    backgroundColor: 'rgba(6,4,10,0.62)',
+  },
+  panel: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: PANEL_WIDTH,
+    backgroundColor: '#17111F',
+    borderRightWidth: 1,
+    borderRightColor: '#2E2542',
+  },
+  panelInner: {
+    flex: 1,
+  },
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  headTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 17,
+    color: Colors.ink,
+  },
+  close: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 15,
+    color: Colors.textTertiary,
+  },
+  scroll: {
+    paddingBottom: Spacing.four,
+  },
+  group: {
+    paddingVertical: 5,
+    borderTopWidth: 1,
+    borderTopColor: '#201830',
+    marginTop: 4,
+  },
+  groupTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9,
+    letterSpacing: 0.5,
+    color: '#6A5D84',
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+  },
+  rowActive: {
+    backgroundColor: 'rgba(242,163,60,0.10)',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.amber,
+    paddingLeft: 15,
+  },
+  rowLabel: {
+    flex: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: '#C9BFE0',
+  },
+  rowLabelActive: {
+    color: Colors.ember,
+  },
+  rowLabelMuted: {
+    color: Colors.textTertiary,
+  },
+  badge: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    backgroundColor: Colors.achieverBg,
+  },
+  badgeLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 8.5,
+    letterSpacing: 0.6,
+    color: Colors.achieverText,
+  },
+});

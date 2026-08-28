@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FlameLogo } from '@/components/ui/flame-logo';
+import { CampfireBadge } from '@/components/campfire-badge';
+import { CampfireBannerPicker } from '@/components/campfire-banner-picker';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useCampfireHeat } from '@/hooks/use-campfire-heat';
 import { useCampfireRole } from '@/hooks/use-campfire-role';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
 import { deleteGroup, fetchJoinRequests, leaveGroup, setChatMuted } from '@/lib/api/groups';
@@ -65,6 +67,8 @@ export function CampfireOptionsSheet({
   const [muting, setMuting] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [bannerOpen, setBannerOpen] = useState(false);
+  const heatByGroupId = useCampfireHeat();
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,6 +125,22 @@ export function CampfireOptionsSheet({
     ...(isAdmin
       ? [{ key: 'edit', icon: 'pencil' as const, label: 'Edit campfire', onPress: () => go(`/group/${groupId}/edit`) }]
       : []),
+    // The banner affordance mock 164 §3 asks for. OWNER only, not admin: the header flies the
+    // owner's cosmetic (see campfire-banner-picker.tsx), so an admin picking one here would be
+    // equipping a banner off someone else's account.
+    ...(isOwner
+      ? [
+          {
+            key: 'banner',
+            icon: 'color-palette' as const,
+            label: 'Set banner',
+            onPress: () => {
+              onClose();
+              setBannerOpen(true);
+            },
+          },
+        ]
+      : []),
     { key: 'invite', icon: 'person-add', label: 'Invite people', onPress: () => go(`/group/${groupId}/invite`) },
     // Everyone can see who's in and who holds keys; only the owner can change it (gated on the
     // screen and in set_campfire_member_role()).
@@ -156,9 +176,10 @@ export function CampfireOptionsSheet({
             <View style={styles.grab} />
 
             <View style={styles.header}>
-              <View style={styles.flameTile}>
-                <FlameLogo size={20} />
-              </View>
+              {/* The campfire's own badge (mock 168), not the brand flame — every sheet header
+                  drew the identical FlameLogo, so the one place you go to delete a campfire gave
+                  you no confirmation of WHICH one you had open. */}
+              <CampfireBadge emoji={group?.emoji ?? '🔥'} heat={heatByGroupId[groupId] ?? 0} size={38} />
               <View style={styles.headerText}>
                 <Text style={styles.name} numberOfLines={1}>
                   {group?.name ?? '…'}
@@ -207,6 +228,12 @@ export function CampfireOptionsSheet({
           </View>
         </View>
       </Modal>
+
+      <CampfireBannerPicker
+        visible={bannerOpen}
+        onClose={() => setBannerOpen(false)}
+        campfireName={group?.name ?? 'Your campfire'}
+      />
 
       <ConfirmDialog
         visible={confirmOpen}
@@ -259,14 +286,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#1E1730',
     marginBottom: Spacing.two,
-  },
-  flameTile: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
-    backgroundColor: '#1C1430',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headerText: {
     flex: 1,
