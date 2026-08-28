@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -24,7 +25,7 @@ import { CindyQuickSheet, type CindyQuickAction } from '@/components/cindy/cindy
 import { DriftingEmbers } from '@/components/drifting-embers';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { EquippedFlameSvg } from '@/components/flame-icon';
-import { EquippedFlarePerimeter, useFlareEquipped } from '@/components/economy/flare-perimeter';
+import { EquippedFlameParticles, EquippedFlarePerimeter, useFlareEquipped } from '@/components/economy/flare-perimeter';
 import { FireShareCard } from '@/components/fire-share-card';
 import { LockInShareCard } from '@/components/lock-in-share-card';
 import { FlameMeterComplete } from '@/components/flame-meter-complete';
@@ -59,8 +60,9 @@ import { shareFireCompleteStory } from '@/lib/fire-share-card';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
 import { deriveRankUpLevel } from '@/lib/rank-watch';
 import { isRankUp } from '@/lib/rank-tiers';
-import { playEquippedSfx, stopEquippedAmbient } from '@/lib/economy/equipped-audio';
+import { clearSessionAudioChoice, playEquippedSfx, stopEquippedAmbient } from '@/lib/economy/equipped-audio';
 import { fireIgnite } from '@/lib/reward-feedback';
+import { useKeepScreenAwakePref } from '@/lib/session-prefs';
 import { shareCardImage } from '@/lib/share-card';
 import { isFirstLockInTutorialDone, markFirstLockInTutorialDone } from '@/lib/tutorial';
 import type { CheckIn, GoalType, MyRank, RankTierName, WorkoutEnergy, WorkoutRecap } from '@/types/database';
@@ -68,6 +70,8 @@ import type { CheckIn, GoalType, MyRank, RankTierName, WorkoutEnergy, WorkoutRec
 const PARTICIPANTS_POLL_MS = 20000;
 const STILL_HERE_THRESHOLD_MS = 55 * 60 * 1000; // matches the ~1hr server-side reminder, shown client-side too so it's not a surprise
 const MAX_PHOTOS = 6;
+// One tag for this screen's wake lock, so activate/deactivate always refer to the same lock.
+const KEEP_AWAKE_TAG = 'philoi-lock-in';
 // "Immersive darker background, minimal chrome" (PHILOI_UI_SPEC.md §13, design-mocks/51) —
 // distinct from every other screen's Colors.cream, a one-off for this screen only.
 const IMMERSIVE_BG = '#17131f';
@@ -364,6 +368,36 @@ function LockInScreen() {
   }, [activeSession, isGym, posted, stopping, routineIdParam, energyParam, refetchWorkout]);
 
   const elapsedSeconds = useElapsedSeconds(activeSession?.startedAt ?? null);
+
+  // ── HOLD THE SCREEN ON (COSMETIC_UI_FIXES §7) ──
+  //
+  // The reported bug is that a lock-in quietly dies: the display auto-sleeps mid-session and the
+  // flare, the flame and the ambient loop all stop at the same instant, because all three are
+  // driven by things a sleeping screen suspends. Every cosmetic on this screen is undercut by it,
+  // and the user's own read of the moment is that the app broke.
+  //
+  // activateKeepAwakeAsync/deactivateKeepAwake rather than `useKeepAwake()`: the hook holds the
+  // lock for as long as the component is mounted, unconditionally, and this has to be gated on
+  // BOTH an actually-running session and the user's preference — neither of which a hook call at
+  // the top of the component can express. The tag is explicit so this lock is the only one this
+  // screen releases, whatever else in the app might hold one.
+  //
+  // Failures are swallowed. A device that cannot take a wake lock is a device where the session
+  // still runs; it is not a reason to put an error on top of someone's timer.
+  //
+  // NOTE (deliberately not built): this covers auto-sleep, which is the bug. If the user manually
+  // locks the phone or backgrounds the app, the audio still stops — that needs true background
+  // audio (`shouldPlayInBackground` plus UIBackgroundModes: ['audio'] in app.config), which is an
+  // App Store review question rather than a rendering fix. Flagged, not slipped in.
+  const keepScreenAwake = useKeepScreenAwakePref();
+  useEffect(() => {
+    if (!activeSession || !keepScreenAwake) return;
+    activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
+    return () => {
+      deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
+    };
+  }, [activeSession, keepScreenAwake]);
+
   // The real spendable balance (ember_wallet via get_inventory) — see the note at the
   // embersBeforeSnapshot capture below.
   const { embers: walletEmbers, refetch: refetchInventory } = useInventory();
@@ -484,6 +518,11 @@ function LockInScreen() {
       // running. LoadoutSync would stop the loop anyway once activeSession clears, but that's a
       // render away — too late for a sting firing on this tick.
       stopEquippedAmbient();
+      // This session's audio choice dies with this session (COSMETIC_UI_FIXES §6.2). Cleared HERE
+      // rather than inside stopEquippedAmbient(), which also runs as LoadoutSync's effect cleanup
+      // on the very render that starts the next session — clearing there would wipe the choice the
+      // start sheet had just made, a frame before it was read.
+      clearSessionAudioChoice();
       playEquippedSfx('sfx_stop');
 
       // The gym log was already persisted set-by-set; stop_lock_in_session bound it to this
@@ -750,7 +789,14 @@ function LockInScreen() {
     return (
       <Screen backgroundColor={IMMERSIVE_BG} style={styles.gymContainer} padded={false}>
         <View style={styles.gymFlameLayer} pointerEvents="none">
-          <SessionFlame height={240} dimmed />
+          {/* The equipped PARTICLE cosmetic, finally painted (COSMETIC_UI_FIXES §5) — a field
+              scoped to the flame's own box, not to the screen, so it can be worn alongside a flare
+              without the two becoming one wash. Dimmed here for the same reason the flame is: the
+              workout log has to stay readable over it. */}
+          <View style={styles.flameField}>
+            <EquippedFlameParticles dimmed />
+            <SessionFlame height={240} dimmed />
+          </View>
         </View>
         <GymScrim />
 
@@ -950,7 +996,12 @@ function LockInScreen() {
           disabled={!cindyConsented}
           onTap={() => setCindySheetOpen(true)}
           accessibilityLabel="Ask Cindy about this session">
-          <SessionFlame height={240} dimmed={flareEquipped} />
+          <View style={styles.flameField}>
+            {/* Particles sit BEHIND the flame in the same box, so they read as thrown off it
+                rather than as a layer over the top of it. */}
+            <EquippedFlameParticles />
+            <SessionFlame height={240} dimmed={flareEquipped} />
+          </View>
         </CindyFlamePress>
         <TutorialTooltip
           visible={tutorialStep === 1}
@@ -1047,6 +1098,12 @@ function LockInScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Wraps the flame so the particle field has a box to fill: it is absolutely positioned and works
+  // outward from its parent, and this parent is sized to the flame and nothing else.
+  flameField: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   container: {
     flex: 1,
     gap: Spacing.three,

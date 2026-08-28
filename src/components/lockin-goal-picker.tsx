@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SessionAudioPicker } from '@/components/economy/session-audio-picker';
 import { GymRoutineBlock } from '@/components/gym-routine-block';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { fetchLockinTimeGoals } from '@/lib/api/challenges';
 import { useAuth } from '@/lib/auth/auth-context';
+import { setSessionAudioChoice } from '@/lib/economy/equipped-audio';
 import { GOAL_TYPES, GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
 import type { Challenge, GoalType, WorkoutEnergy } from '@/types/database';
 
@@ -46,6 +48,9 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
   // inside GymRoutineBlock because both values ride along to /lock-in as route params.
   const [routineId, setRoutineId] = useState<string | null>(null);
   const [energy, setEnergy] = useState<WorkoutEnergy>('same');
+  // This session's ambient environment (COSMETIC_UI_FIXES §6.2). `undefined` means "whatever is
+  // equipped", which is what every session did before the picker existed.
+  const [audioChoice, setAudioChoice] = useState<string | undefined>(undefined);
   const isGym = goalType === 'gym';
 
   // A time-counted custom goal is credited by matching the goal's own name against this
@@ -87,6 +92,9 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
 
   function handleStart() {
     const trimmedDetail = detail.trim();
+    // Written on EVERY start, including when nothing was picked, so a choice can never survive into
+    // a session the user did not make it for. LoadoutSync reads it the moment the session appears.
+    setSessionAudioChoice(audioChoice);
     onClose();
     setDetail('');
     router.push({
@@ -196,6 +204,11 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
               onEnergyChange={setEnergy}
             />
           )}
+
+          {/* Which ambient this session runs, or none at all. Sits after the goal and before the
+              campfire choice because it is about how the next hour SOUNDS, not about what it is
+              for — and because "none" is the row people reach for on the way into a gym. */}
+          <SessionAudioPicker value={audioChoice} onChange={setAudioChoice} />
 
           {!lockedCircleId && (
             <View style={styles.mode}>
