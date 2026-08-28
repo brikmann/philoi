@@ -3,7 +3,6 @@ import { StyleSheet, View } from 'react-native';
 
 import { CindyFlamePress } from '@/components/cindy/cindy-flame-press';
 import { EquippedFlameSvg } from '@/components/flame-icon';
-import { useCindy } from '@/hooks/use-cindy';
 
 // Cindy, reachable from anywhere (CINDY_SPEC, mock 117 "Global").
 //
@@ -21,18 +20,13 @@ const SIZE = 20;
 
 export function CindyHeaderFlame() {
   const router = useRouter();
-  const { consented } = useCindy();
 
-  // Nothing to reach before consent. Home disables its flame rather than hiding it because the
-  // flame is the screen's centrepiece either way; a dead 20px glyph in a header is just a puzzle.
-  if (!consented) return null;
-
+  // Always present. Tap routes to /cindy, which shows the consent gate before any chat — so this is
+  // a valid entry point pre-consent too. (It used to hide until consented, which, combined with the
+  // home flame being disabled pre-consent, left NO way to reach the consent screen. Dead-end fixed.)
   return (
     <View style={styles.wrap}>
-      <CindyFlamePress
-        size={SIZE}
-        onTap={() => router.push('/cindy')}
-        onHold={() => router.push('/cindy-voice')}>
+      <CindyFlamePress size={SIZE} onTap={() => router.push('/cindy')}>
         <EquippedFlameSvg width={SIZE * 0.82} height={SIZE} />
       </CindyFlamePress>
     </View>

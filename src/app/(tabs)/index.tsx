@@ -195,12 +195,11 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
             sitting NEXT to her would say she is something other than the flame. */}
         <CindyFlamePress
           size={132}
-          disabled={!cindyConsented}
           onTap={() => router.push('/cindy')}
-          onHold={() => router.push('/cindy-voice')}>
+          onHold={() => router.push(cindyConsented ? '/cindy-voice' : '/cindy')}>
           <PersonalFlame size={132} />
         </CindyFlamePress>
-        {cindyConsented && !activeSession && (
+        {!activeSession && (
           <Pressable onPress={() => router.push('/cindy')} hitSlop={8} style={styles.cindyHint}>
             <Ionicons name="chatbubble-ellipses-outline" size={11} color={Colors.textTertiary} />
             <Text style={styles.cindyHintText}>
