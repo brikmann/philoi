@@ -157,7 +157,12 @@ function Ring({ progress, size }: { progress: SharedValue<number>; size: number 
     transform: [{ scale: 0.55 + progress.value * (RING_MAX_SCALE - 0.55) }],
     // Fades across the whole travel; never fully opaque, since three overlapping rings at full
     // strength read as a target reticle rather than heat.
-    opacity: (1 - progress.value) * 0.42,
+    //
+    // At EXACT rest (progress === 0) the ring is fully invisible — otherwise an idle ring sits
+    // permanently over the flame at 0.42 (a static "circle" in front of it). It was hidden behind
+    // the small home flame but peeked past the taller lock-in flame. A ripple animates progress
+    // off 0 immediately, so the tap/hold ripple is unaffected; only the resting frame is cleared.
+    opacity: progress.value === 0 ? 0 : (1 - progress.value) * 0.42,
   }));
   return (
     <Animated.View
