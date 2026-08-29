@@ -201,6 +201,7 @@ export default function AgoraScreen() {
           }
           onEndReached={loadMore}
           onEndReachedThreshold={0.6}
+          ItemSeparatorComponent={() => <View style={styles.postSep} />}
           ListHeaderComponent={
             <Pressable
               style={styles.composer}
@@ -352,6 +353,11 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: Spacing.three,
     paddingBottom: 96,
+  },
+  // Breathing room between consecutive posts — the feed rendered them flush before, so two cards
+  // read as one. Between-items only (FlatList separator); the composer header keeps its own spacing.
+  postSep: {
+    height: Spacing.three,
   },
   composer: {
     flexDirection: 'row',
