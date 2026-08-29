@@ -146,6 +146,8 @@ function ForgeFlow() {
   if (phase === 'forging' && result) {
     return (
       <Screen padded={false}>
+        {/* The kicker is UNDER the strike in z-order, so the closing flash washes it out along with
+            everything else — a label still sitting there on white would break the hand-off. */}
         <View style={styles.strikeWrap}>
           <Text style={styles.forgingKicker}>FORGING…</Text>
           <ForgeStrike inputs={consumedItems} reduceMotion={reduceMotion} onDone={onStrikeDone} />
@@ -729,15 +731,20 @@ const styles = StyleSheet.create({
   // ── forging ──
   strikeWrap: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
+  // Parked absolutely near the top and rendered BEFORE the strike, so the strike's full-screen
+  // flash paints over it. Laid out in flow it would sit above the stage and survive the wash,
+  // leaving one grey label on a white screen at the exact moment the reveal takes over.
   forgingKicker: {
+    position: 'absolute',
+    top: 90,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
     letterSpacing: 2,
     color: Colors.muted,
-    marginBottom: Spacing.four,
   },
   center: {
     flex: 1,

@@ -202,8 +202,13 @@ function Spark({ dx, dy, burst }: { dx: number; dy: number; burst: SharedValue<n
 }
 
 const styles = StyleSheet.create({
+  // Fills its parent rather than standing 280px tall, so the flash below covers the SCREEN. The
+  // anvil still sits at the bottom of the stage and every absolutely-placed piece is measured from
+  // that same bottom edge, so the composition is unchanged — what changes is that the strike hands
+  // off to the reveal through full white instead of through a bright rectangle on a dark screen.
   stage: {
-    height: 280,
+    flex: 1,
+    alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'flex-end',
     paddingBottom: 40,
