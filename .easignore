@@ -21,6 +21,13 @@ site/
 # never inside the app binary.
 supabase/
 
+# Agent worktrees. `.claude/worktrees/` holds a FULL checkout per parallel agent — ten of them
+# during wave-0, ~61 MB each — and none of it is a build input. Left out, the archive had grown
+# from the 230 MB this file was written to fix, back up to 506 MB: about 80% of every upload was
+# ten copies of the same repo. This is also why the fingerprint step started warning that it was
+# taking longer than expected.
+.claude/
+
 # Local tooling and one-off artifacts.
 scripts/
 *.ics
