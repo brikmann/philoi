@@ -19,15 +19,22 @@ export type ForgeStep = {
 };
 
 /**
- * Five for the first step, three for every step after, all the way to Mythic (Noah, confirmed).
+ * Four for the first step, three for every step after, all the way to Mythic (Noah, confirmed).
  *
  * Rare is a real cosmetic tier and is deliberately NOT skipped — the shorthand the design note was
  * written in ("3 U -> 1 E") collapses two rungs, and collapsing them would make Rares a dead tier
  * with nothing to do. Mythic is the top OUTPUT and never an input; there is no rung above it, which
  * is why the ladder ends at legendary rather than carrying a `mythic` entry with nowhere to go.
+ *
+ * 🔴 The Common rung is FOUR because of a content fact, not a balance one. The drop pool holds
+ * exactly four commons, every other common is starter gear or earned, and cosmetics_owned is unique
+ * on (user_id, cosmetic_key) — so no one can own a fifth by owning a duplicate. At five it was
+ * unsatisfiable by anyone, ever. At four it costs the complete set of droppable commons: a real
+ * price, and a payable one. It also leaves zero margin, which is why isRungReachable exists below
+ * and why the migration asserts the same thing on every deploy.
  */
 export const FORGE_LADDER: readonly ForgeStep[] = [
-  { from: 'common', into: 'uncommon', need: 5 },
+  { from: 'common', into: 'uncommon', need: 4 },
   { from: 'uncommon', into: 'rare', need: 3 },
   { from: 'rare', into: 'epic', need: 3 },
   { from: 'epic', into: 'legendary', need: 3 },
@@ -111,19 +118,16 @@ export function isForgeFuel(item: ForgeCandidate): boolean {
 }
 
 /**
- * 🔴 The Common rung cannot currently be completed, and every surface says so rather than offering
- * a tab that silently never fills.
+ * Can this rung be filled at all — are there even `need` distinct items of that rarity in the world?
  *
- * 5 × Common → 1 Uncommon needs five distinct commons in the drop pool. There are four
- * (title-kindled, title-ember-stoker, title-night-owl, title-locked-in) — verified against the live
- * box_droppable_items table, not just the catalog. Every other common is 'default' (starter gear) or
- * 'earned' (medal-emberfall-participant), both ineligible by design. And cosmetics_owned is unique
- * on (user_id, cosmetic_key), so nobody can make up the difference with a duplicate: there is no such
- * thing as owning two of the same item in this economy.
+ * A live guard, not a formality. cosmetics_owned is unique on (user_id, cosmetic_key), so the most
+ * anyone can hold at a rarity is the size of its drop pool; a recipe asking for more than that is a
+ * tab nobody can ever fill, and it doesn't look broken — it looks like an empty inventory.
  *
- * Left in the ladder rather than deleted. The ratios are Noah's and are recorded correctly; the rung
- * opens the moment a fifth droppable common exists, and deleting it would hide a one-row content fix
- * behind a code change. Derived here instead of hardcoded so it heals itself on that day.
+ * Every rung passes today, but Common passes with ZERO margin: it needs four and the pool holds
+ * exactly four. Retire one droppable common and the recipe silently dies. So the screen asks this
+ * question every render rather than trusting a number, the migration asserts the same thing on every
+ * deploy, and if it ever goes false the Forge says so in words instead of showing nothing.
  */
 export function isRungReachable(step: ForgeStep): boolean {
   return dropPoolAt(step.from).length >= step.need;

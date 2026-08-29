@@ -262,8 +262,10 @@ function ForgeFlow() {
         {loading ? <Text style={styles.hint}>Loading…</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {/* 🔴 The Common rung has no fifth droppable common to find, so it is stated rather than left
-            to read as an empty inventory. See isRungReachable — it opens itself the day one exists. */}
+        {/* Every rung is satisfiable today, so this branch is dead — and it stays, because Common is
+            satisfiable with zero margin (it needs 4 and exactly 4 commons can drop). Retire one and
+            the recipe becomes impossible, which would otherwise present as an inventory that looks
+            empty for no reason. Cheaper to say it than to debug it. */}
         {!reachable ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>This recipe isn&apos;t open yet.</Text>

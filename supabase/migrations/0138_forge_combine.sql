@@ -14,15 +14,28 @@
 --
 -- ─────────────────────────── the ladder ───────────────────────────
 --
---   5 x Common     -> 1 Uncommon
+--   4 x Common     -> 1 Uncommon
 --   3 x Uncommon   -> 1 Rare
 --   3 x Rare       -> 1 Epic
 --   3 x Epic       -> 1 Legendary
 --   3 x Legendary  -> 1 Mythic
 --
--- Five for the first step, three for every step after, all the way up. Mythic IS forgeable — it is
+-- Four for the first step, three for every step after, all the way up. Mythic IS forgeable — it is
 -- the top OUTPUT — and is never an input: there is no rung above it, so a call naming it as the
 -- input rarity is refused rather than silently treated as legendary.
+--
+-- 🔴 The Common rung is FOUR, not five, and the reason is a content fact rather than a balance one.
+-- The box drop pool holds exactly four commons — title-kindled, title-ember-stoker, title-night-owl,
+-- title-locked-in. Every other common in the catalog is 'default' (starter gear, ineligible by
+-- design) or 'earned' (medal-emberfall-participant, likewise). And cosmetics_owned is unique on
+-- (user_id, cosmetic_key), so nobody can make up a fifth by holding a duplicate — there is no such
+-- thing as owning two of the same item in this economy. At five the rung was unsatisfiable by
+-- anyone, ever; at four it costs the complete set of droppable commons, which is a real price and a
+-- reachable one.
+--
+-- Worth knowing: that leaves the rung with ZERO slack. If a common is ever retired from the drop
+-- pool the recipe becomes impossible again, silently. isRungReachable() on the client and the
+-- assertion at the foot of this file both watch for it rather than trusting the count to hold.
 --
 -- The output TIER is guaranteed. The gamble is WHICH item of that tier you get, rolled here, before
 -- the hammer-strike animation plays a single frame — same ordering rule as open_loot_box (REWARD
@@ -79,7 +92,7 @@
 
 insert into economy_config (key, value) values
   ('forge_ratios', '{
-     "common":    {"need": 5, "into": "uncommon"},
+     "common":    {"need": 4, "into": "uncommon"},
      "uncommon":  {"need": 3, "into": "rare"},
      "rare":      {"need": 3, "into": "epic"},
      "epic":      {"need": 3, "into": "legendary"},
@@ -374,26 +387,35 @@ begin
 end;
 $assert_season$;
 
--- 4. 🔴 The Common rung is currently UNREACHABLE, and this says so out loud rather than shipping a
---    tab that can never be satisfied in silence.
+-- 4. Every rung is actually satisfiable. Derived from the ratios above and the live drop pool
+--    rather than spot-checked, because the failure is silent: a recipe needing more distinct items
+--    than its rarity can ever drop is a tab nobody can fill, and nothing about it looks broken —
+--    it reads as an empty inventory.
 --
---    5 x Common -> 1 Uncommon needs five distinct commons in the drop pool. There are four:
---    title-kindled, title-ember-stoker, title-night-owl, title-locked-in. Every other common in the
---    catalog is 'default' (the starter loadout, ineligible by design) or 'earned'
---    (medal-emberfall-participant, ineligible by design). And cosmetics_owned is unique on
---    (user_id, cosmetic_key), so nobody can hold a fifth by holding a duplicate.
---
---    Deliberately a NOTICE, not an exception: the ladder is Noah's and is written down correctly
---    here, the recipe works the moment a fifth common enters the drop pool, and failing the deploy
---    over a content gap would be the tail wagging the dog. The client greys the tab and says the
---    same thing on screen.
-do $notice_common$
+--    This is not hypothetical. At 5 x Common the rung was unsatisfiable by anyone, ever, because
+--    the pool holds four commons and cosmetics_owned allows one row per key. Dropping it to 4 is
+--    what made it reachable, and it is reachable with ZERO margin — so this stays as a permanent
+--    guard rather than a one-time check, and it fails the deploy rather than warning. The day
+--    somebody retires a common from the drop pool, this is what tells them what they just broke.
+do $assert_reachable$
 declare
-  v_commons int;
+  v_rarity text;
+  v_need int;
+  v_pool int;
+  v_bad text := '';
 begin
-  select count(*) into v_commons from box_droppable_items where rarity = 'common';
-  if v_commons < 5 then
-    raise notice 'FORGE: 5 x Common -> 1 Uncommon is unreachable — the drop pool holds % common item(s), and cosmetics_owned allows one row per key. Add a fifth droppable common to open the rung.', v_commons;
+  for v_rarity, v_need in
+    select key, (value ->> 'need')::int
+    from jsonb_each((select value from economy_config where key = 'forge_ratios'))
+  loop
+    select count(*) into v_pool from box_droppable_items d where d.rarity = v_rarity;
+    if v_pool < v_need then
+      v_bad := v_bad || format('%s needs %s distinct but only %s can drop; ', v_rarity, v_need, v_pool);
+    end if;
+  end loop;
+
+  if v_bad <> '' then
+    raise exception 'FORGE: unsatisfiable recipe(s) — %. cosmetics_owned is unique on (user_id, cosmetic_key), so nobody can make up the difference with a duplicate. Either add droppable items at that rarity or lower the ratio in economy_config.forge_ratios.', v_bad;
   end if;
 end;
-$notice_common$;
+$assert_reachable$;
