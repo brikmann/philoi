@@ -1259,7 +1259,10 @@ function SolarArc({
   return (
     <View
       pointerEvents="none"
-      style={{ position: 'absolute', left: cx, top: cy - size / 2, transform: [{ rotate: `${angle}deg` }] }}>
+      // Centred exactly on the flame point so the rotation origin IS the emission point. With
+      // `left: cx` the view's own centre — and therefore the spoke's pivot — sat half a mote to
+      // the right, which fans the arcs off-centre once the motes are scaled up from the mock's 6px.
+      style={{ position: 'absolute', left: cx - size / 2, top: cy - size / 2, transform: [{ rotate: `${angle}deg` }] }}>
       <Animated.View style={[{ opacity: 0 }, style]}>
         <Mote size={size} hot={hot} body={body} />
       </Animated.View>
