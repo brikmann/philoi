@@ -66,10 +66,15 @@ export function useChallengeReward(challengeId: string, enabled: boolean): Chall
  */
 export function challengeRewardResult(
   reward: ChallengeReward,
+  // `created_by_name` is widened to nullable against SocialChallenge's own declaration. The body
+  // already treats both names as possibly absent (the `?? null` on opponentName below), and
+  // get_my_unseen_challenge_rewards (0137) LEFT JOINs profiles, so a deleted creator genuinely
+  // comes back null there. Widening the parameter is honest about what the function accepts rather
+  // than making the settlement watcher cast a null into a string it would then have to render.
   challenge: Pick<
     SocialChallenge,
-    'shape' | 'mode' | 'race_metric' | 'window_hours' | 'opponent_id' | 'opponent_name' | 'created_by_name'
-  >,
+    'shape' | 'mode' | 'race_metric' | 'window_hours' | 'opponent_id' | 'opponent_name'
+  > & { created_by_name: string | null },
   myUserId: string | undefined
 ): ChallengeRewardResult {
   const duel = isDuel(challenge);

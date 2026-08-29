@@ -8,6 +8,7 @@ import type {
   ChallengeReward,
   SocialChallenge,
   SocialChallengeRaceMetric,
+  UnseenChallengeReward,
 } from '@/types/database';
 
 export async function fetchMySocialChallenges(): Promise<SocialChallenge[]> {
@@ -177,6 +178,23 @@ export async function fetchChallengeReward(challengeId: string): Promise<Challen
     seen_at: data?.seen_at ?? null,
     payload: data?.payload ?? null,
   };
+}
+
+/**
+ * Every settled challenge this user raced in and has not been shown yet (migration 0137).
+ *
+ * The input to the global settlement watcher. Settlement is a pg_cron job, so a challenge closes
+ * and pays while the app is shut — and until this existed the only surface that could announce it
+ * was the one challenge's own info screen, which you had to think to go and open. This is the
+ * "anything to celebrate?" question, asked once on foreground instead of once per challenge.
+ *
+ * 🔒 A READ, like get_challenge_reward. The embers, box and badge were moved by grant_reward at
+ * settlement; the reveal only says so.
+ */
+export async function fetchUnseenChallengeRewards(): Promise<UnseenChallengeReward[]> {
+  const { data, error } = await supabase.rpc('get_my_unseen_challenge_rewards');
+  if (error) throw error;
+  return (data ?? []) as UnseenChallengeReward[];
 }
 
 /** Fire-once: stamps reward_seen_at so re-opening a settled challenge lands on the standings. */

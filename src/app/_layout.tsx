@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { PostHogProvider } from 'posthog-react-native';
 
+import { ChallengeSettlementWatcher } from '@/components/challenge-settlement-watcher';
 import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
 import { LoadoutSync } from '@/components/economy/loadout-sync';
 import { FocusNudgeSync } from '@/components/focus-nudge-sync';
@@ -400,6 +401,16 @@ function RootLayout() {
                 gets the forge no matter which screen the user is on — the done screen can only ever
                 celebrate a manual stop (punchlist 5.6). */}
             <RankUpWatcher />
+            {/* The same argument, for challenge payouts. Settlement is a pg_cron job, so a duel or
+                a placement race closes and pays while the app is shut — and until this was mounted
+                the only surface that could announce it was that one challenge's info screen, which
+                you had to think to go and open. Renders nothing when there is nothing owed.
+
+                DELIBERATELY AFTER RankUpWatcher. A challenge payout is itself an XP source, so both
+                can be pending on the same foreground; the rank forge is a full-screen overlay at
+                zIndex 100 and this is a Modal, and ordering them here is what keeps the two
+                celebrations from landing on the same frame. */}
+            <ChallengeSettlementWatcher />
             {/* Keeps the equipped-cosmetics store fed for the flame / profile / sound layers.
                 Renders nothing; mounted here because the surfaces it feeds are spread across the
                 whole app. */}

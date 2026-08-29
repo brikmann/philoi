@@ -82,8 +82,18 @@ export type Profile = {
    * and this is never an auth identity (see supabase/functions/send_uni_code). */
   university_email: string | null;
   /** Gates the My Uni + Vs Unis leaderboards, client-side AND in the RPCs themselves. Reset by
-   * the profiles_reset_uni_verification trigger when someone changes school. */
+   * the profiles_reset_uni_verification trigger when someone changes school.
+   *
+   * At most ONE profile can hold a given address with this flag set — a partial unique index on
+   * `lower(university_email) where university_email_verified` (migration 0136). Before that, one
+   * campus inbox verified an unlimited number of accounts. */
   university_email_verified: boolean;
+  /** Centimetres, collected by onboarding's optional height step (design-mocks/128) and written
+   * through `set_my_height_cm` (migration 0119). Null for anyone who skipped it, which is a
+   * supported state: `stride_m_for` then falls back to a 0.75 m adult-average stride, so the only
+   * cost is precision on the steps→distance relic ladder. `numeric` server-side, so PostgREST can
+   * hand it back as a string — coerce before doing arithmetic on it. */
+  height_cm: number | null;
   /** Has an active paid Philoi membership. Unused for gating during free early access — see use-entitlement.ts. */
   is_pro: boolean;
   pro_until: string | null;
@@ -1230,6 +1240,35 @@ export type ChallengeReward = {
   payload: ChallengeRewardPayload | null;
 };
 
+/**
+ * One row of get_my_unseen_challenge_rewards() (0137) — a settled challenge this user raced in and
+ * has not been shown yet, plus everything the reveal needs to draw itself.
+ *
+ * `ChallengeReward`'s payout fields (placement/percentile/field_size/xp/payload) are here in the
+ * same orientation, alongside the handful of challenge columns `challengeRewardResult()` reads. No
+ * `seen_at`: the RPC only returns rows where it is null, so carrying it would be a field that is
+ * always the same value.
+ */
+export type UnseenChallengeReward = {
+  challenge_id: string;
+  public_name: string | null;
+  shape: ChallengeShape | null;
+  mode: SocialChallengeMode;
+  race_metric: SocialChallengeRaceMetric | null;
+  window_hours: number;
+  opponent_id: string | null;
+  opponent_name: string | null;
+  created_by_name: string | null;
+  /** When the race closed — the order two settlements landed in, so they are celebrated that way. */
+  settled_at: string;
+  placement: number | null;
+  /** Stored orientation, as everywhere else: 1.0 is the TOP of the board. */
+  percentile: number | null;
+  field_size: number;
+  xp: number;
+  payload: ChallengeRewardPayload | null;
+};
+
 // ───────────── challenge change/cancel consent (migration 0058, design-mocks/70 + 71) ─────────────
 
 export type ChallengeChangeKind = 'edit' | 'cancel';
@@ -1878,6 +1917,7 @@ export type Database = {
       get_challenge_results: { Args: { p_challenge_id: string }; Returns: ChallengeResultRow[] };
       /** This viewer's own payout on a settled challenge (0116) — reads what grant_reward paid. */
       get_challenge_reward: { Args: { p_challenge_id: string }; Returns: ChallengeReward };
+      get_my_unseen_challenge_rewards: { Args: Record<string, never>; Returns: UnseenChallengeReward[] };
       /** Stamps the fire-once flag so the reveal never plays twice (0116). */
       mark_challenge_reward_seen: { Args: { p_challenge_id: string }; Returns: undefined };
       /** Pre-start or finished only; a live race is left to cancel/forfeit's consent path (0112). */
