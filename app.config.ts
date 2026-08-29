@@ -1,5 +1,30 @@
 import type { ExpoConfig } from 'expo/config';
 
+/**
+ * Focus Nudge on Android — a BUILD-TIME flag, and it has to be one.
+ *
+ * Everything else in src/constants/feature-flags.ts is a JS constant, because everything else only
+ * decides what the app DOES. This one decides what the app's MANIFEST SAYS, and that is a different
+ * kind of switch: Play treats a manifest containing an AccessibilityService as a sensitive-
+ * permission app, which owes the declaration in PLAY_ACCESSIBILITY_DECLARATION.md and a multi-week
+ * extended review, whether or not a single line of JS ever reaches the feature. A runtime flag
+ * would hide the UI and change nothing about the review.
+ *
+ * So: OFF by default. The Google Play closed test (12 testers x 14 days) ships with no trace of the
+ * service and is not gated on a review it does not need. Focus Nudge for Android is its own build
+ * and its own submission —
+ *
+ *     FOCUS_NUDGE_ANDROID=1 eas build --platform android --profile development
+ *
+ * — and that submission is what starts the extended-review clock.
+ *
+ * ONE flag drives both halves: the plugin below (the manifest) and extra.focusNudgeAndroid (the JS
+ * gate, read by src/constants/feature-flags.ts). They cannot disagree, which matters — a build
+ * whose JS offers a setup screen for a service its manifest never registered would send people to
+ * an Accessibility list that has no Philoi row in it.
+ */
+const FOCUS_NUDGE_ANDROID = process.env.FOCUS_NUDGE_ANDROID === '1';
+
 const config: ExpoConfig = {
   name: 'Philoi',
   slug: 'philoi-app',
@@ -288,6 +313,11 @@ const config: ExpoConfig = {
     // the App Group half fails silently — the shield draws its built-in fallback copy forever
     // because Cindy's line never reaches the shared container.
     './plugins/withFocusNudgeEntitlements',
+    // The ANDROID half — the AccessibilityService <service>, its minimal-scope config XML,
+    // SYSTEM_ALERT_WINDOW, and the <queries> allow-list for the curated guardable apps. Gated,
+    // because this is the entry that turns Philoi into a sensitive-permission app in Play's eyes;
+    // see the FOCUS_NUDGE_ANDROID note at the top of this file.
+    ...(FOCUS_NUDGE_ANDROID ? ['./plugins/withFocusNudgeAndroid'] : []),
     // Native Google Sign-In (punchlist 2, §0) — replaces the Supabase-hosted OAuth redirect
     // page with the native account picker; supabase.auth.signInWithIdToken() still does the
     // actual auth exchange server-side, this just changes how the user gets the idToken.
@@ -344,6 +374,9 @@ const config: ExpoConfig = {
     reactCompiler: true,
   },
   extra: {
+    // The JS half of the build-time flag above. Read through Constants rather than hardcoded in
+    // feature-flags.ts precisely so it cannot drift from the manifest: one env var, one source.
+    focusNudgeAndroid: FOCUS_NUDGE_ANDROID,
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
     // TODO: RevenueCat — public SDK keys go here once billing is wired up.

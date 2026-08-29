@@ -1,0 +1,21 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- 🔴 EMPTY ON PURPOSE — and this is the build flag.
+
+       A local Expo module's manifest is merged into the app's unconditionally, so anything
+       declared here ships in every build. The <service> that registers
+       PhiloiFocusNudgeAccessibilityService, the SYSTEM_ALERT_WINDOW permission, and the <queries>
+       allow-list therefore live in plugins/withFocusNudgeAndroid.js instead, which app.config.ts
+       only applies when FOCUS_NUDGE_ANDROID=1.
+
+       Why it has to work that way: Play decides an app "uses the AccessibilityService API" — and
+       so requires the sensitive-permission declaration and its multi-week extended review — by
+       reading the MANIFEST, not the JS. A feature flag in src/constants/feature-flags.ts would
+       hide the UI and change nothing about the review. The closed test (12 testers x 14 days) must
+       not be gated on that review, so the closed-test build has to be able to ship with no trace of
+       the service in its manifest at all.
+
+       With the flag off, the Kotlin classes still compile into the APK. That is fine and it is the
+       line worth understanding: an accessibility service class that no <service> element registers
+       is unreachable code — the system can never bind it, hasAccessibility() can never find its
+       component in the enabled list, and arm() therefore returns false. Nothing to declare. -->
+</manifest>

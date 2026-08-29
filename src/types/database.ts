@@ -846,8 +846,16 @@ export type AnalyticsEventName =
   // funnel to measure. `focus_nudge_apps_picked` carries a count only; `focus_nudge_line_fetched`
   // carries the intent, which is a fact about the copy we generated, not about their behaviour.
   // Same principle as the support screen, which logs nothing whatsoever.
+  //
+  // ANDROID adds one, and only because Google asks for it: the AccessibilityService declaration
+  // commits Philoi to a prominent disclosure shown BEFORE the permission is requested, and this is
+  // how we can answer "is it actually being seen" without guessing. It carries no properties.
+  // Android also reuses `focus_nudge_apps_picked` with a count — the native side knows the package
+  // names there (Android has no opaque-token picker) and deliberately does not pass them up, so the
+  // event is identical on both platforms.
   | 'focus_nudge_permission'
   | 'focus_nudge_apps_picked'
+  | 'focus_nudge_disclosure_accepted'
   | 'focus_nudge_auto_toggled'
   | 'focus_nudge_line_fetched';
 

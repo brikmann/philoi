@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+
 // Circle chat is built (schema, RLS, moderation audit log, report/block/remove) and the
 // chat-safety build (philoi_chat_safety_build.md) acceptance checklist — server-enforced
 // blocking, rate limiting, disabled-account enforcement, circle/profile reportability, and
@@ -61,3 +63,23 @@ export const GYM_VIDEO_CLIPS_ENABLED = true;
 // That is the intended state for this build — the connect flow has to work on a real device to
 // record the demo video that verification itself requires.
 export const GOOGLE_CALENDAR_ENABLED = true;
+
+// Focus Nudge on ANDROID (CODE_PROMPT_focus_nudge_android.md, PLAY_ACCESSIBILITY_DECLARATION.md).
+//
+// The odd one out in this file: it is not a constant, it is read from the build.
+//
+// Every other flag here decides what the app does, so a JS constant is the right shape and
+// flipping one is a one-line change. This one decides what the app's MANIFEST contains — an
+// AccessibilityService <service> element, which is what makes Play treat Philoi as a
+// sensitive-permission app owing a declaration and a multi-week extended review. A constant in
+// this file could not express that: it would hide the setup screen and change nothing about the
+// review, and worse, a `true` here in a binary built without FOCUS_NUDGE_ANDROID=1 would walk
+// people to an Accessibility settings list with no Philoi row in it.
+//
+// So the single source of truth is the FOCUS_NUDGE_ANDROID env var at build time, which
+// app.config.ts uses for BOTH the config plugin and this value. Off by default, which is what lets
+// the closed-test build ship without Focus Nudge. See the note at the top of app.config.ts.
+//
+// iOS is unaffected — Family Controls is gated by the entitlement and the picker, not by this.
+export const FOCUS_NUDGE_ANDROID_ENABLED: boolean =
+  Constants.expoConfig?.extra?.focusNudgeAndroid === true;

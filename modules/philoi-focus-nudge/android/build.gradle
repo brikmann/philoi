@@ -1,0 +1,37 @@
+apply plugin: 'com.android.library'
+
+group = 'expo.modules.philoifocusnudge'
+version = '0.1.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+// Inherits compileSdk/targetSdk from the app rather than pinning them here — app.config.ts is
+// already opinionated about those (compileSdk 36 for the AndroidX bump, targetSdk 35) and a second
+// source of truth in a library module is how you get an AAR-metadata mismatch at build time.
+useDefaultAndroidSdkVersions()
+useExpoPublishing()
+
+android {
+  namespace "expo.modules.philoifocusnudge"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+// NO DEPENDENCIES, deliberately.
+//
+// Everything this module touches — AccessibilityService, WindowManager, SharedPreferences,
+// org.json — is in the Android framework itself. The overlay is built in code rather than inflated
+// from a layout, so there is no AppCompat, no Material, and no resource merging.
+//
+// That is not minimalism for its own sake. PLAY_ACCESSIBILITY_DECLARATION.md asserts that nothing
+// leaves the device, and the cheapest way to keep that claim true forever is for the accessibility
+// service to sit in a module with no transitive dependency that could ever open a socket.
+dependencies {
+}

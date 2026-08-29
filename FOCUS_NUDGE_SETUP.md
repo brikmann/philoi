@@ -105,10 +105,11 @@ out. `@bacons/apple-targets` already understands all three Screen Time target ty
 - **The campfire affordance** ("Say hi in your campfire", mock 109 frame 2). An iOS shield gets
   exactly two buttons; the two that survive are the ones the spec makes non-negotiable — a way back
   in and a way through. It can return on the Android notification, which has room for three actions.
-- **Android**, which has no Family Controls at all. Detect app opens via `UsageStatsManager` (needs
-  `PACKAGE_USAGE_STATS`, user-granted in Settings) plus a foreground/accessibility service, then post
-  the nudge. Its own task; don't block iOS on it. The setup screen already says so honestly rather
-  than showing a dead toggle.
+- **Android** — no longer cut. Built, on its own mechanism; see **Part D** below. The original plan
+  in this slot was `UsageStatsManager` + a foreground service, and it was abandoned for a reason
+  worth keeping: `UsageStatsManager` only answers when polled, so the nudge lands up to a second
+  after the feed is already on screen — and that second IS the habit loop the feature exists to
+  interrupt. A nudge that arrives after the dopamine is not a nudge.
 
 ---
 
@@ -135,6 +136,125 @@ Then:
   main app.
 - Force-quit Philoi mid-session: the shield must come down within the failsafe window
   (`intervalDidEnd`), and immediately on the next launch (`FocusNudgeSync`'s cold-start sweep).
+
+---
+
+---
+
+## Part D — Android — ✅ BUILT
+
+No Family Controls, no Screen Time, no system picker. A different mechanism end to end, joined to
+iOS at `src/lib/focus-nudge.ts` — which is where the shared half lives: the payload format, the
+10-minute deferral, the two buttons, the escalation rule, the coach call, and
+`src/components/focus-nudge-sync.tsx`, which drives both platforms without a single `Platform.OS`
+check in it.
+
+### The mechanism, and why it costs a Play review
+
+**AccessibilityService**, subscribed to `typeWindowStateChanged` only, reading **only**
+`event.getPackageName()`. On a match against the user's guarded list it attaches a
+`TYPE_APPLICATION_OVERLAY` view **synchronously, inside the same event dispatch** — so the nudge is
+on screen in the frame the guarded app comes forward, with no glimpse of the feed.
+
+That instantness is the whole justification. `UsageStatsManager` needs no accessibility permission
+and no review, and it is the wrong tool: it answers only when polled, ~1s late, which is exactly
+long enough to deliver the hit the nudge was meant to interrupt. An Activity would be wrong for the
+same reason at a smaller scale — a window transition animates, and the app underneath is visible for
+all of it. Hence a WindowManager overlay, not a screen.
+
+The cost is Google's **sensitive permission declaration** (`PLAY_ACCESSIBILITY_DECLARATION.md`) and
+its multi-week extended review, accepted deliberately.
+
+### What exists now
+
+| Piece | Where |
+|---|---|
+| The service (detection only) | `modules/philoi-focus-nudge/android/…/PhiloiFocusNudgeAccessibilityService.kt` |
+| The overlay (the nudge itself) | `…/FocusNudgeOverlay.kt` |
+| Prefs contract + payload parsing | `…/FocusNudgeShared.kt` (the Kotlin twin of `FocusNudgeShared.swift`) |
+| RN bridge (permissions, picker, arm/disarm) | `…/PhiloiFocusNudgeModule.kt` |
+| Manifest, config XML, `<queries>`, strings | `plugins/withFocusNudgeAndroid.js` |
+| The curated app catalog | `modules/philoi-focus-nudge/android-guarded-apps.json` |
+| Setup screen (shared, Android branch) | `src/app/focus-nudge.tsx` |
+
+### 🔴 The three things that must stay true
+
+The declaration is only honest if the code matches it. Check all three before any Android release:
+
+1. `android:canRetrieveWindowContent="false"` and `android:accessibilityEventTypes="typeWindowStateChanged"`
+   — and nothing else — in `res/xml/philoi_focus_nudge_accessibility_config.xml`.
+2. The service reads `event.getPackageName()` and no other field. No `getSource()`, no
+   `rootInActiveWindow`, no `event.text`, no `performGlobalAction`.
+3. No data egress. The Android library has **zero** gradle dependencies precisely so nothing
+   transitive can ever open a socket.
+
+Verify from the generated manifest, not from memory:
+
+```bash
+FOCUS_NUDGE_ANDROID=1 npx expo prebuild --platform android --no-install
+cat android/app/src/main/res/xml/philoi_focus_nudge_accessibility_config.xml
+grep -n "philoifocusnudge" -A 10 android/app/src/main/AndroidManifest.xml
+grep -c "QUERY_ALL_PACKAGES" android/app/src/main/AndroidManifest.xml   # must be 0
+```
+
+### The picker: curated, not "any app"
+
+Android has no `FamilyActivityPicker`, and enumerating installed apps needs `QUERY_ALL_PACKAGES` —
+**a second sensitive-permission declaration**, reviewed separately from the AccessibilityService one.
+So v1 guards a **curated list of ~14 known distracting apps** by package name, shown only if
+installed. That needs only a `<queries>` allow-list and **no declaration at all**. One JSON file
+feeds both the manifest and the picker so they cannot drift. "Pick any app" is a v2 upgrade that
+buys a second review — take it only if people actually ask.
+
+Deliberately absent from the catalog: browsers, messaging apps, phone/maps/banking. Guarding
+WhatsApp catches far more genuine need than drift, and this feature must never be why someone could
+not answer a message.
+
+### The build flag — and why it is not in `feature-flags.ts`
+
+`FOCUS_NUDGE_ANDROID=1` is a **build-time env var**, read by `app.config.ts` for *both* the config
+plugin and `extra.focusNudgeAndroid` (which `FOCUS_NUDGE_ANDROID_ENABLED` reads back). It has to be,
+because Play decides an app "uses the AccessibilityService API" by reading the **manifest** — a JS
+constant would hide the setup screen and change nothing about the review.
+
+Off by default, so the **closed test (12 testers × 14 days) ships with no trace of the service** and
+is not gated on a review it does not need.
+
+```bash
+# dev-signed APK, service ON — for on-device smoke and the demo video
+eas build --platform android --profile focus-nudge-dev
+
+# AAB for the Play track that carries the declaration (starts the extended-review clock)
+eas build --platform android --profile focus-nudge-play
+```
+
+Confirm the flag actually took: a `focus-nudge-*` build's manifest must contain
+`expo.modules.philoifocusnudge.PhiloiFocusNudgeAccessibilityService`; every other profile's must not.
+
+### On-device verification
+
+- Settings → **Focus Nudge** → the disclosure card appears **before** the Accessibility hand-off
+  (this is a policy requirement, not a nicety) → enable **both** switches → pick Instagram.
+- Start a lock-in → open Instagram → the nudge is there **instantly, with no visible glimpse of the
+  feed**. If you can see the feed at all, something has been added between the event and `addView`.
+- **Primary** opens Philoi into the lock-in. **"Continue anyway"** drops you straight into Instagram
+  and holds for **exactly 10 minutes** — check at ~9 min (still quiet) and ~11 min (nudges again).
+- **Back** goes home rather than through; it is not a free bypass.
+- **Airplane mode**, same as iOS: start the session online so the line is cached, then fly and open
+  a guarded app. Cindy's *specific* line must still appear — the generic fallback means
+  `writePayload` never landed.
+- Open the app a third time inside an hour: the wellbeing card, with **"Talk to someone"**.
+
+### Known limit: OEM battery killers
+
+Xiaomi, Samsung, Oppo and friends aggressively kill background work, and some will unbind an
+accessibility service. **The guard is best-effort, not ironclad**, and it is honest to say so.
+
+No foreground service was added to fight this, deliberately. It would not help — the system unbinds
+the *accessibility* service, and a foreground service of ours cannot prevent that — and
+`FOREGROUND_SERVICE_SPECIAL_USE` carries its own Play Console justification, i.e. a second review to
+buy nothing. If a real device shows the service dying in practice, the fix is the OEM's own
+autostart/battery allow-list, surfaced as a note on the setup screen.
 
 ---
 

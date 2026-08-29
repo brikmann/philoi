@@ -1,6 +1,10 @@
-// The seam between a running lock-in and the iOS Screen Time shield (APP_BLOCKER_SPEC, mocks
-// 109 + 116). Native side lives in modules/philoi-focus-nudge (the bridge) and three extension
-// targets under targets/ (the monitor, the shield, its buttons).
+// The seam between a running lock-in and the native guard (APP_BLOCKER_SPEC, mocks 109 + 116).
+//
+// TWO PLATFORMS, ONE SEAM. The native side is modules/philoi-focus-nudge: on iOS the bridge plus
+// three Screen Time extension targets under targets/ (the monitor, the shield, its buttons); on
+// Android an AccessibilityService and a SYSTEM_ALERT_WINDOW overlay. They share this file, the
+// payload format, the 10-minute deferral, the two buttons and the escalation rule — everything
+// below is written once and runs on both.
 //
 // Both invariants from live-activity.ts hold here too, for the same reasons:
 //
@@ -8,31 +12,48 @@
 //    `available()`. A native module resolved at import time takes the whole app down at launch in
 //    any runtime that did not compile it in — Expo Go, the web, every binary cut before this
 //    landed. Every function below degrades to a no-op rather than an error.
-// 2. THE SHIELD NEVER FETCHES. iOS asks the ShieldConfiguration extension for its UI
-//    synchronously, in a system process; it cannot await a network call. So Cindy's line is
-//    fetched HERE, while the app has a connection, and written into the App Group. The shield only
-//    reads. That is what makes the nudge work in airplane mode — and it is why `refreshNudgeCopy`
-//    is called at session start rather than at the moment of drift.
+// 2. THE NUDGE NEVER FETCHES, on either platform, and for two different reasons that land in the
+//    same place. iOS asks the ShieldConfiguration extension for its UI synchronously, in a system
+//    process; it cannot await a network call. Android could, in principle — and must not, because
+//    the overlay has to be on screen in the same frame the guarded app comes forward, and a
+//    request there would reintroduce the exact glimpse of the feed the feature exists to prevent.
+//    So Cindy's line is fetched HERE, while the app has a connection, and cached natively; the
+//    shield and the overlay only read. That is what makes the nudge work in airplane mode, and it
+//    is why `refreshNudgeCopy` runs at session start rather than at the moment of drift.
 //
-// iOS only. Family Controls has no Android counterpart; the Android implementation (UsageStats +
-// a foreground service posting a notification-interstitial) is its own task per
-// FOCUS_NUDGE_SETUP.md Part B.5, and nothing here pretends to cover it.
+// WHERE THE PLATFORMS DIVERGE, and why (the shared functions below are silent about it; these are
+// the only three places it shows):
+//
+//   · PERMISSION. iOS raises one prompt this app controls. Android has two switches — Accessibility
+//     and "display over other apps" — and NEITHER can be granted from inside an app; an
+//     AccessibilityService cannot be enabled programmatically by any API, which is the point of the
+//     permission. Hence openFocusNudgeAccessibilitySettings/openFocusNudgeOverlaySettings and a
+//     setup screen that explains, rather than a requestAuthorization() that cannot exist.
+//   · THE PICKER. Apple provides FamilyActivityPicker and hands back opaque tokens. Android
+//     provides nothing, and enumerating installed apps needs QUERY_ALL_PACKAGES — a second
+//     sensitive-permission declaration on top of the AccessibilityService one. So Android guards a
+//     CURATED list of known distracting apps by package name, declared up front in the manifest's
+//     <queries> allow-list. See android-guarded-apps.json and plugins/withFocusNudgeAndroid.js.
+//   · THE FLAG. Android is gated by FOCUS_NUDGE_ANDROID_ENABLED, which is a build-time fact rather
+//     than a JS constant, because the manifest is what Play reviews. See app.config.ts.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
+import { FOCUS_NUDGE_ANDROID_ENABLED } from '@/constants/feature-flags';
 import { fetchInterceptLine, type InterceptIntent } from '@/lib/api/coach';
 import type {
   FocusNudgeAuthorizationStatus,
+  FocusNudgePermissions,
   FocusNudgeSelectionCounts,
+  GuardableApp,
 } from '../../modules/philoi-focus-nudge';
+import GUARDED_APPS from '../../modules/philoi-focus-nudge/android-guarded-apps.json';
 
-export type { FocusNudgeAuthorizationStatus, FocusNudgeSelectionCounts };
+export type { FocusNudgeAuthorizationStatus, FocusNudgePermissions, FocusNudgeSelectionCounts, GuardableApp };
 
 type NativeModule = {
   authorizationStatus: () => FocusNudgeAuthorizationStatus;
-  requestAuthorization: () => Promise<FocusNudgeAuthorizationStatus>;
-  presentPicker: () => Promise<FocusNudgeSelectionCounts>;
   selectionCounts: () => FocusNudgeSelectionCounts;
   clearSelection: () => void;
   writePayload: (json: string) => void;
@@ -41,6 +62,17 @@ type NativeModule = {
   arm: (options: { maxMinutes: number; deferMinutes: number }) => Promise<boolean>;
   disarm: () => Promise<void>;
   reconcile: () => Promise<boolean>;
+  // Optional because they exist on exactly one platform each — see "WHERE THE PLATFORMS DIVERGE"
+  // above. Every call site below checks rather than assuming, so a build that somehow has the
+  // module without one of these degrades to "feature off" instead of throwing.
+  requestAuthorization?: () => Promise<FocusNudgeAuthorizationStatus>;
+  presentPicker?: () => Promise<FocusNudgeSelectionCounts>;
+  permissions?: () => FocusNudgePermissions;
+  openAccessibilitySettings?: () => void;
+  openOverlaySettings?: () => void;
+  installedPackages?: (candidates: string[]) => string[];
+  guardedPackages?: () => string[];
+  setGuardedPackages?: (packages: string[]) => void;
 };
 
 // `undefined` = not yet looked up, `null` = looked up and absent. Distinguishing the two keeps the
@@ -49,7 +81,12 @@ let cached: NativeModule | null | undefined;
 
 function native(): NativeModule | null {
   if (cached !== undefined) return cached;
-  if (Platform.OS !== 'ios') {
+  // Android is additionally gated on the build flag: a binary compiled without
+  // FOCUS_NUDGE_ANDROID=1 has the Kotlin classes but no <service> registering them, so the feature
+  // could never work and the setup screen must not offer it.
+  const platformSupported =
+    Platform.OS === 'ios' || (Platform.OS === 'android' && FOCUS_NUDGE_ANDROID_ENABLED);
+  if (!platformSupported) {
     cached = null;
     return cached;
   }
@@ -58,7 +95,7 @@ function native(): NativeModule | null {
     cached = require('../../modules/philoi-focus-nudge').default as NativeModule | null;
   } catch {
     // A build without the module compiled in. Not an error worth reporting — it is the expected
-    // state on every binary cut before this landed, and on Android forever.
+    // state on every binary cut before this landed.
     cached = null;
   }
   return cached;
@@ -88,6 +125,10 @@ export const DEFER_MS = 10 * 60 * 1000;
  * The failsafe ceiling on the DeviceActivity window (§D). Long enough that it never truncates a
  * genuine session — there is no server-side max lock-in, and notify_stale_lock_ins only *nudges*
  * after an hour — but finite, so a force-quit cannot leave someone shielded overnight.
+ *
+ * iOS only in effect. Android accepts it in arm() and ignores it, because the failure it guards
+ * against cannot happen there: nothing is applied to the system, so there is no shield a dead
+ * process could leave standing.
  */
 export const FAILSAFE_MAX_MINUTES = 12 * 60;
 
@@ -119,9 +160,17 @@ export function focusNudgeAuthorization(): FocusNudgeAuthorizationStatus {
   }
 }
 
+/**
+ * iOS's one prompt.
+ *
+ * On Android there is nothing to request — both switches live in system Settings and no API can
+ * flip them — so this reports the status as it stands and the setup screen sends people to
+ * openFocusNudgeAccessibilitySettings/openFocusNudgeOverlaySettings instead.
+ */
 export async function requestFocusNudgeAuthorization(): Promise<FocusNudgeAuthorizationStatus> {
   const module = native();
   if (!module) return 'denied';
+  if (!module.requestAuthorization) return focusNudgeAuthorization();
   try {
     return await module.requestAuthorization();
   } catch {
@@ -150,7 +199,7 @@ export function focusNudgeSelectionSize(counts: FocusNudgeSelectionCounts): numb
 /** Apple's own picker. Resolves with the new counts; cancelling resolves with the old ones. */
 export async function pickFocusNudgeApps(): Promise<FocusNudgeSelectionCounts> {
   const module = native();
-  if (!module) return NO_SELECTION;
+  if (!module?.presentPicker) return focusNudgeSelectionCounts();
   try {
     return await module.presentPicker();
   } catch {
@@ -166,6 +215,114 @@ export function clearFocusNudgeApps(): void {
   }
 }
 
+// ───────────────────────────── Android: the two switches ─────────────────────────────
+
+const NO_PERMISSIONS: FocusNudgePermissions = { accessibility: false, overlay: false };
+
+/**
+ * Which of Android's two toggles are on. Both false on iOS, where the concept does not exist and
+ * `focusNudgeAuthorization()` is the whole story.
+ *
+ * Read fresh on every screen focus rather than cached: either one can be revoked in system Settings
+ * while Philoi is backgrounded, and a setup screen that still claims "On" for a switch someone just
+ * turned off is how you end up debugging a nudge that was never going to appear.
+ */
+export function focusNudgePermissions(): FocusNudgePermissions {
+  const module = native();
+  if (!module?.permissions) return NO_PERMISSIONS;
+  try {
+    return module.permissions();
+  } catch {
+    return NO_PERMISSIONS;
+  }
+}
+
+/** Settings > Accessibility. The list, not Philoi's row — see the note in the Kotlin module. */
+export function openFocusNudgeAccessibilitySettings(): void {
+  try {
+    native()?.openAccessibilitySettings?.();
+  } catch {
+    // The screen re-reads permissions on focus regardless, so a failed launch self-corrects.
+  }
+}
+
+/** Settings > "Display over other apps", scoped to Philoi. */
+export function openFocusNudgeOverlaySettings(): void {
+  try {
+    native()?.openOverlaySettings?.();
+  } catch {
+    // As above.
+  }
+}
+
+// ───────────────────────────── Android: the curated picker ─────────────────────────────
+
+/**
+ * The whole catalog of apps Focus Nudge can guard on Android, in the order the picker shows them.
+ *
+ * This list is not a UI convenience — it is a Play-permission decision. Offering "any installed
+ * app" would need QUERY_ALL_PACKAGES, which is its own sensitive-permission declaration reviewed
+ * separately from the AccessibilityService one, i.e. two extended reviews instead of one. A fixed
+ * allow-list needs only <queries>, and the same JSON file feeds both this and the manifest so the
+ * two can never disagree.
+ */
+const CATALOG: GuardableApp[] = GUARDED_APPS.apps;
+
+/** Whether this platform picks apps from our own curated list rather than a system picker. */
+export function focusNudgeUsesCuratedPicker(): boolean {
+  return Platform.OS === 'android';
+}
+
+/**
+ * The catalog, narrowed to what is actually on this phone.
+ *
+ * An app counts as present if ANY of its package ids resolve — TikTok and a few others ship under
+ * more than one id across regions, and someone with the `trill` build should still be offered it.
+ */
+export function installedGuardableApps(): GuardableApp[] {
+  const module = native();
+  if (!module?.installedPackages) return [];
+  try {
+    const present = new Set(module.installedPackages(CATALOG.flatMap((app) => app.packages)));
+    return CATALOG.filter((app) => app.packages.some((packageName) => present.has(packageName)));
+  } catch {
+    return [];
+  }
+}
+
+/** Which catalog entries are currently guarded, by id. Device-local; never sent anywhere. */
+export function guardedAppIds(): string[] {
+  const module = native();
+  if (!module?.guardedPackages) return [];
+  try {
+    const guarded = new Set(module.guardedPackages());
+    return CATALOG.filter((app) => app.packages.some((p) => guarded.has(p))).map((app) => app.id);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Replace the guarded set.
+ *
+ * All of an app's package ids go in, not only the installed one: the cost of guarding an id that is
+ * not on the phone is zero (no window ever fires for it), and it means installing the regional
+ * build of something you already chose does not silently leave it unguarded.
+ */
+export function setGuardedAppIds(ids: string[]): void {
+  const module = native();
+  if (!module?.setGuardedPackages) return;
+  const chosen = new Set(ids);
+  try {
+    module.setGuardedPackages(
+      CATALOG.filter((app) => chosen.has(app.id)).flatMap((app) => app.packages)
+    );
+  } catch {
+    // The screen re-reads the selection on focus, so a failed write shows up as the row simply not
+    // ticking rather than as a lie.
+  }
+}
+
 // ───────────────────────────── the payload ─────────────────────────────
 
 /**
@@ -176,6 +333,10 @@ export function clearFocusNudgeApps(): void {
  * that folds — it is the only one that is not load-bearing, and the campfire is one tap away once
  * Philoi is open. What survives is the pair the spec makes non-negotiable: a way back in, and a
  * way through with no penalty.
+ *
+ * Android's overlay could have fitted the third; it keeps two anyway. The constraint that cut it
+ * was Apple's, but the reasoning was not, and a nudge offering different choices depending on which
+ * phone you own is a worse nudge than either version of itself.
  */
 const BUTTONS: Record<InterceptIntent, { primaryLabel: string; primaryURL: string; secondaryLabel: string }> = {
   reinforce: {
@@ -257,12 +418,12 @@ export function focusNudgeRetreats(): number {
 }
 
 /**
- * Fetch Cindy's line and hand it to the shield.
+ * Fetch Cindy's line and hand it to the shield / overlay.
  *
- * Best-effort by design. A failure here means the shield falls back to the copy baked into
- * FocusNudgeShared.swift — warm, generic, and biased to care — which is a fine nudge and a much
- * better outcome than either a blank shield or no shield at all. So this never throws and never
- * blocks arming.
+ * Best-effort by design. A failure here means it falls back to the copy baked into the native side
+ * — FocusNudgePayload.fallback, word-for-word identical in FocusNudgeShared.swift and
+ * FocusNudgeShared.kt, warm and generic and biased to care. That is a fine nudge and a much better
+ * outcome than either a blank one or none at all, so this never throws and never blocks arming.
  */
 export async function refreshNudgeCopy(input: {
   sessionLabel: string | null;
@@ -314,9 +475,12 @@ export async function armFocusNudge(): Promise<boolean> {
 /**
  * Take it down.
  *
- * Swallows everything. This is the call that must not fail quietly-and-then-give-up: an app still
- * shielded after its lock-in ended is the only genuinely harmful failure this feature has, so the
- * DeviceActivity window in the monitor extension is there to sweep up behind a throw here.
+ * Swallows everything. This is the call that must not fail quietly-and-then-give-up: a guard still
+ * up after its lock-in ended is the only genuinely harmful failure this feature has. On iOS the
+ * DeviceActivity window in the monitor extension sweeps up behind a throw here. Android needs no
+ * equivalent, and that is worth knowing rather than assuming: "armed" there is a timestamp in
+ * SharedPreferences rather than state applied to the system, so a throw leaves a stale flag that
+ * the next cold start's unconditional disarm clears — there is nothing that could outlive the app.
  */
 export async function disarmFocusNudge(): Promise<void> {
   const module = native();
@@ -335,7 +499,8 @@ export async function reconcileFocusNudge(): Promise<void> {
   try {
     await module.reconcile();
   } catch {
-    // Reconciliation is opportunistic; the monitor extension's threshold event covers the same
-    // ground from the other side.
+    // Reconciliation is opportunistic. On iOS the monitor extension's threshold event covers the
+    // same ground from the other side; on Android the deferral expires on its own clock, so a
+    // missed reconcile costs nothing at all.
   }
 }
