@@ -1,7 +1,7 @@
 import { usePathname, useRouter } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PhiloiIcon, type PhiloiIconName } from '@/components/ui/philoi-icon';
@@ -77,6 +77,8 @@ const GROUPS: NavGroup[] = [
 const SETTINGS_ROW: NavRow = { key: 'settings', label: 'Settings', icon: 'settings', route: '/settings' };
 
 const PANEL_WIDTH = 292;
+const OPEN_MS = 220;
+const CLOSE_MS = 170;
 
 type NavDrawerValue = { open: () => void; close: () => void };
 const NavDrawerContext = createContext<NavDrawerValue>({ open: () => {}, close: () => {} });
@@ -130,12 +132,45 @@ function AppDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   useEffect(() => {
     if (open) {
       setMounted(true);
-      t.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) });
+      t.value = withTiming(1, { duration: OPEN_MS, easing: Easing.out(Easing.cubic) });
       return;
     }
-    t.value = withTiming(0, { duration: 170, easing: Easing.in(Easing.cubic) }, (finished) => {
-      if (finished) runOnJS(setMounted)(false);
-    });
+
+    // 🔴 THE UNMOUNT IS A JS TIMER, NOT THE ANIMATION'S COMPLETION CALLBACK.
+    //
+    // What used to be here:
+    //
+    //     t.value = withTiming(0, { ... }, (finished) => {
+    //       if (finished) runOnJS(setMounted)(false);
+    //     });
+    //
+    // That third argument is a WORKLET — Babel compiles it onto the UI runtime with
+    // `{ runOnJS, setMounted }` captured into its `__closure`, which means React's state setter has
+    // to be serialised across the runtime boundary and called back 170ms later. It crashed the app
+    // outright, every time, on every drawer row:
+    //
+    //     libworklets.so  jsi.h:2014  Value::getObject(IRuntime&) &&: assertion "isObject()" failed
+    //     signal 6 (SIGABRT), thread mqt_v_js, via CallInvoker::invokeAsync
+    //
+    // A hard SIGABRT, not a JS error — so nothing reached Metro, LogBox, or a red screen; the app
+    // simply vanished to the home screen. It took a tombstone off the device to see it at all.
+    //
+    // `go()` calls onClose() and then router.navigate() in the same tick, so the route tree is
+    // already being torn down while that 170ms animation runs. By the time the completion worklet
+    // fires and asks the JS runtime for its captured setter, what comes back is not an object, and
+    // worklets asserts rather than degrading.
+    //
+    // The fix is to not cross the boundary at all. Nothing here needs to run on the UI thread: the
+    // animation is pure shared-value interpolation that Reanimated drives by itself, and the only
+    // JS work is a setState that a plain timer does perfectly well. Fewer moving parts than the
+    // version that crashed.
+    //
+    // The cleanup is load-bearing too, and it is what the old `finished` check was doing: reopen
+    // the drawer mid-close and the timer is cancelled, so it cannot unmount a panel that is on its
+    // way back in.
+    t.value = withTiming(0, { duration: CLOSE_MS, easing: Easing.in(Easing.cubic) });
+    const timer = setTimeout(() => setMounted(false), CLOSE_MS);
+    return () => clearTimeout(timer);
   }, [open, t]);
 
   const panelStyle = useAnimatedStyle(() => ({
