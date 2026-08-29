@@ -68,6 +68,20 @@ class PhiloiFocusNudgeAccessibilityService : AccessibilityService() {
       if (!FocusNudgeState.isArmed(this)) return
       // A "continue anyway" is still holding. Exactly ten minutes, then the guard resumes on its
       // own — no re-arming call, no service round trip, just a timestamp comparison.
+      //
+      // ONE DELIBERATE DIVERGENCE FROM iOS, and it is worth knowing rather than discovering. iOS
+      // registers a DeviceActivity usage-threshold event that puts the shield BACK mid-scroll once
+      // ten minutes of guarded-app usage have actually been spent. Here the deferral only lifts at
+      // the next window change — so someone who taps "continue anyway" and then scrolls for forty
+      // unbroken minutes is not interrupted again, where on iOS they would be.
+      //
+      // That gap is left open on purpose. Closing it means a delayed callback living in an
+      // accessibility service that the OS may unbind at any moment, cancelled correctly on disarm,
+      // on unbind, and on every departure — new state whose failure mode is an overlay stranded
+      // over the wrong app. The spec asks for "set defer-until, dismiss" and nothing more, and the
+      // iOS re-arm exists only because a shield there is APPLIED state that had to be restored;
+      // nothing is applied here. If real use shows the continuous-scroll case matters, it is a
+      // small follow-up — but it should be a decision, not a leftover.
       if (FocusNudgeState.isDeferred(this)) return
       FocusNudgeOverlay.show(this)
       return

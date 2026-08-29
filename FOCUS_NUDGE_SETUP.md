@@ -245,6 +245,24 @@ Confirm the flag actually took: a `focus-nudge-*` build's manifest must contain
   `writePayload` never landed.
 - Open the app a third time inside an hour: the wellbeing card, with **"Talk to someone"**.
 
+### Deliberate divergences from iOS
+
+Everything user-facing matches — same copy, same two buttons, same 10-minute deferral, same one-way
+escalation. Three things underneath do not, and all three are the platform forcing it:
+
+- **Permission is two switches, not one prompt**, and no app can grant either. Hence the disclosure
+  card and two hand-offs to Settings, where iOS raises one dialog.
+- **"Continue anyway" continues in one tap.** iOS costs an extra one, because `ShieldActionResponse`
+  has no value meaning "let them straight through"; the Android overlay just comes down onto the app
+  they were already opening. Android is the better of the two here.
+- **No mid-scroll re-arm.** iOS's DeviceActivity usage-threshold event puts the shield back once ten
+  minutes of guarded-app usage have actually been spent, so a continuous forty-minute scroll after a
+  "continue anyway" gets interrupted again. On Android the deferral only lifts at the next window
+  change, so it does not. Left open deliberately — closing it means a delayed callback inside a
+  service the OS may unbind at any moment, whose failure mode is an overlay stranded over the wrong
+  app, and the iOS re-arm only exists because a shield there is *applied state* that had to be
+  restored. Nothing is applied here. Reconsider if real use shows it matters.
+
 ### Known limit: OEM battery killers
 
 Xiaomi, Samsung, Oppo and friends aggressively kill background work, and some will unbind an
