@@ -19,6 +19,7 @@ import { useMyChallenges } from '@/hooks/use-my-challenges';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { deleteChallenge, type GoalDayAward } from '@/lib/api/challenges';
+import { shiftGoalReveal, useNextGoalReveal } from '@/lib/goal-reveal-queue';
 import { shareCardImage } from '@/lib/share-card';
 import type { Challenge } from '@/types/database';
 
@@ -56,6 +57,8 @@ export default function ChallengesScreen() {
   const router = useRouter();
   const { session, profile } = useAuth();
   const { challenges, loading, error, refetch } = useMyChallenges();
+  // Payouts that landed without a tap — a device sync finishing a goal here or on the create screen.
+  const autoCompletion = useNextGoalReveal();
   const { challenges: socialChallenges, loading: socialLoading, refetch: refetchSocial } = useSocialChallenges();
   const { connected: fitnessConnected } = useFitnessConnection();
   const [celebrating, setCelebrating] = useState(false);
@@ -99,6 +102,23 @@ export default function ChallengesScreen() {
   useEffect(() => {
     if (fireToken > 0) rewardBurstRef.current?.fire();
   }, [fireToken]);
+
+  // 🐛 A goal the DEVICE finished, not the user. useMyChallenges syncs Health Connect / Strava /
+  // Whoop on every focus of this tab, and a sync that fills the last of a 10k-step goal completes
+  // it and banks embers — but it goes nowhere near ChallengeCard, so `handleLogged` never ran and
+  // the payout was invisible. Same screen, same reward component, just the other way in.
+  //
+  // DERIVED, not copied into `goalAward` by an effect. Mirroring the store into local state would
+  // give the same payout two owners that have to be kept in step, and the effect that did the
+  // copying would fire a cascading render on every focus. A manual log still wins the slot while its
+  // reveal is up; the queue holds anything that lands behind it.
+  const activeAward =
+    goalAward ?? (autoCompletion ? { award: autoCompletion.award, goalLabel: autoCompletion.goalLabel } : null);
+  /** Close the reveal by retiring whichever source produced it. */
+  function dismissAward() {
+    if (goalAward) setGoalAward(null);
+    else shiftGoalReveal();
+  }
 
   function handleLogged(justCompleted: boolean, award: GoalDayAward | null, goalLabel: string) {
     refetch();
@@ -203,24 +223,28 @@ export default function ChallengesScreen() {
       {/* Mock 103. Full-screen over the tab rather than a route, for the same reason the rank-up
           forge is an overlay: it fires from wherever the user happened to log the goal, and pushing
           a route would put it in the back stack for them to swipe back into afterwards. */}
-      {goalAward ? (
+      {activeAward ? (
         <View style={styles.rewardOverlay}>
           <Screen backgroundColor={Colors.forgeBg} padded={false}>
             <GoalStreakRewardScreen
-              award={goalAward.award}
-              goalLabel={goalAward.goalLabel}
+              // Keyed by the goal, so a second payout queued behind the first gets a fresh mount —
+              // otherwise it reuses this instance and the burst's one-per-mount effect never fires
+              // again, which is the same gotcha RankUpWatcher's presentToken exists for.
+              key={`${activeAward.goalLabel}-${activeAward.award.streak}`}
+              award={activeAward.award}
+              goalLabel={activeAward.goalLabel}
               displayName={profile?.display_name ?? 'you'}
               onShare={handleShareGoalStreak}
               sharing={sharingGoal}
-              onClose={() => setGoalAward(null)}
+              onClose={dismissAward}
             />
             {/* Rendered offscreen so the story image exists the instant Share is tapped — same
                 pattern the rank-up watcher uses for its card. */}
             <View style={styles.offscreenCard} pointerEvents="none">
               <GoalStreakShareCard
                 ref={goalCardRef}
-                streakDays={goalAward.award.streak}
-                goalLabel={goalAward.goalLabel}
+                streakDays={activeAward.award.streak}
+                goalLabel={activeAward.goalLabel}
                 handle={profile?.handle ?? null}
               />
             </View>

@@ -1,10 +1,39 @@
-import { logChallengeProgress } from '@/lib/api/challenges';
+import { awardGoalDay, logChallengeProgress, type GoalDayAward } from '@/lib/api/challenges';
 import { getDeviceSleepHoursBetween, getDeviceStepsBetween, getPlatformFitnessSource } from '@/lib/fitness-sync';
+import { pushGoalReveal } from '@/lib/goal-reveal-queue';
+import { personalGoalTitle } from '@/lib/goal-types';
 import { requestRankRecheck } from '@/lib/rank-watch';
 import { syncChallengeFromStrava } from '@/lib/strava';
 import { supabase } from '@/lib/supabase';
 import { syncChallengeFromWhoop } from '@/lib/whoop';
 import type { Challenge } from '@/types/database';
+
+/**
+ * What a sync did — and, when it finished the goal, what the server PAID for it.
+ *
+ * 🐛 THE AWARD USED TO BE THROWN AWAY HERE. Every one of these functions returned a bare `number`,
+ * so the only thing that escaped a sync was "how much progress moved". But an auto-tracked goal
+ * completes through the exact same `logChallengeProgress` a manual log uses, which means it also
+ * runs `economy_award_goal_day` and banks real embers — and that payout went straight into the
+ * floor. Noah's repro is precisely this shape: a 10k-step goal filled by Health Connect on focus,
+ * embers granted server-side, and nothing on screen because `onLogged` (the card's callback) was
+ * never involved. The manual path had a reveal; the automatic one silently paid.
+ */
+export type ChallengeSyncOutcome = {
+  /** Progress units this sync submitted. 0 for every no-op path. */
+  synced: number;
+  /** The server's payout, only when this sync is what completed the goal. Null otherwise — including
+   * when the day was already banked (`already_awarded`), which is not a new payout to announce. */
+  award: GoalDayAward | null;
+  /** The goal in its own words, so a caller with no card on screen can still title the reveal. */
+  goalLabel: string;
+};
+
+const nothing = (challenge: Challenge, synced = 0): ChallengeSyncOutcome => ({
+  synced,
+  award: null,
+  goalLabel: personalGoalTitle(challenge),
+});
 
 const SYNC_NOTE_BY_SOURCE: Record<string, string> = {
   apple_health: 'Auto-synced from Apple Health',
@@ -62,9 +91,9 @@ function periodStartInstant(challenge: Challenge): Date {
 // mechanism has already logged (tagged with its own per-source note) and only submits the
 // difference — through the exact same RPC a manual log uses, never a second, parallel progress
 // field.
-async function syncStepsFromDevice(challenge: Challenge): Promise<number> {
+async function syncStepsFromDevice(challenge: Challenge): Promise<ChallengeSyncOutcome> {
   const source = getPlatformFitnessSource();
-  if (!source) return 0;
+  if (!source) return nothing(challenge);
   const note = SYNC_NOTE_BY_SOURCE[source];
 
   // Scope already-synced to the CURRENT period, not all-time. `total` below is the device's step
@@ -84,16 +113,26 @@ async function syncStepsFromDevice(challenge: Challenge): Promise<number> {
 
   const total = await getDeviceStepsBetween(periodStart, new Date());
   const delta = Math.round(total - alreadySynced);
-  if (delta <= 0) return 0;
+  if (delta <= 0) return nothing(challenge);
 
-  await logChallengeProgress(challenge.id, delta, note);
-  return delta;
+  const result = await logChallengeProgress(challenge.id, delta, note);
+  return {
+    synced: delta,
+    // `already_awarded` is not a payout — it means this local day was banked earlier, so announcing
+    // it would show embers that did not move. Same rule challenges.tsx applies to a manual log.
+    award: result.award && !result.award.already_awarded ? result.award : null,
+    goalLabel: personalGoalTitle(challenge),
+  };
 }
 
 // Strava's token refresh + activity fetch + reduction all happen server-side
 // (supabase/functions/strava-sync) — this just invokes it, same delta-tracking logic lives there.
-async function syncRunOrRideFromStrava(challenge: Challenge): Promise<number> {
-  return syncChallengeFromStrava(challenge.id);
+//
+// Reports only how much it synced — the Edge Function calls the SQL `log_challenge_progress` as
+// the user and throws `just_completed` away, so a completion here pays nothing on its own. That is
+// settled centrally by `settleGoalDay` below rather than per route (#167).
+async function syncRunOrRideFromStrava(challenge: Challenge): Promise<ChallengeSyncOutcome> {
+  return nothing(challenge, await syncChallengeFromStrava(challenge.id));
 }
 
 // Whoop's token refresh + record fetch + reduction all happen server-side
@@ -101,25 +140,25 @@ async function syncRunOrRideFromStrava(challenge: Challenge): Promise<number> {
 // when the connection was made for a different Whoop metric and doesn't cover this one — treated
 // as "nothing synced" here rather than an error, since the manual log is still right there and
 // Settings → Connected apps can widen the grant (§18: never gate participation).
-async function syncWhoopMetric(challenge: Challenge): Promise<number> {
+async function syncWhoopMetric(challenge: Challenge): Promise<ChallengeSyncOutcome> {
   const { synced } = await syncChallengeFromWhoop(challenge.id);
-  return synced;
+  return nothing(challenge, synced);
 }
 
 // study_hours and gym_visits credit from the user's OWN lock-ins. Computed entirely server-side so
 // the qualification rules (≥20 min, and a gym check-in needs a photo or logged sets) can't be
 // argued with by a client — see sync_challenge_from_lock_ins in migration 0068.
-async function syncFromLockIns(challenge: Challenge): Promise<number> {
+async function syncFromLockIns(challenge: Challenge): Promise<ChallengeSyncOutcome> {
   const { data, error } = await supabase.rpc('sync_challenge_from_lock_ins', { p_challenge_id: challenge.id });
   if (error) throw error;
-  return Number(data ?? 0);
+  return nothing(challenge, Number(data ?? 0));
 }
 
 // Sleep from the phone's own health store. Same delta-tracking shape as steps: the health total is
 // cumulative for the window, so only the difference from what this source already logged is sent.
-async function syncSleepFromDevice(challenge: Challenge): Promise<number> {
+async function syncSleepFromDevice(challenge: Challenge): Promise<ChallengeSyncOutcome> {
   const source = getPlatformFitnessSource();
-  if (!source) return 0;
+  if (!source) return nothing(challenge);
   const note = SLEEP_NOTE_BY_SOURCE[source];
 
   const periodStart = periodStartInstant(challenge);
@@ -136,10 +175,14 @@ async function syncSleepFromDevice(challenge: Challenge): Promise<number> {
   // Hours are fractional, so round rather than truncate — and 2dp keeps float noise from logging
   // vanishing amounts on every sync.
   const delta = Math.round((total - alreadySynced) * 100) / 100;
-  if (delta <= 0) return 0;
+  if (delta <= 0) return nothing(challenge);
 
-  await logChallengeProgress(challenge.id, delta, note);
-  return delta;
+  const result = await logChallengeProgress(challenge.id, delta, note);
+  return {
+    synced: delta,
+    award: result.award && !result.award.already_awarded ? result.award : null,
+    goalLabel: personalGoalTitle(challenge),
+  };
 }
 
 /** Whether this account has a live Whoop connection — decides who owns the sleep metric. */
@@ -158,18 +201,76 @@ async function isWhoopConnected(): Promise<boolean> {
 /** One entry point for every auto-tracked challenge type — routes to whichever source is real for
  * it (steps → the platform pedometer, run/ride → Strava, study/gym → your own lock-ins, sleep →
  * health data unless Whoop is connected, workouts/strain → Whoop) and no-ops for everything else. */
-export async function syncChallengeFromDevice(challenge: Challenge): Promise<number> {
-  const synced = await routeChallengeSync(challenge);
+/**
+ * 🐛 #167 — the goal-day payout for a completion this module did not personally log.
+ *
+ * `awardGoalDay` fires from `logChallengeProgress` (lib/api/challenges.ts), so only the two routes
+ * that go through that wrapper — steps and sleep — ever paid. The other three reach
+ * `log_challenge_progress` by a different door:
+ *
+ *   · study_hours / gym_visits → `sync_challenge_from_lock_ins`, which `perform`s the SQL function
+ *     and returns a bare numeric;
+ *   · run_distance / ride_distance → the strava-sync Edge Function, which calls the RPC as the user
+ *     and returns `{ synced }`;
+ *   · workout_minutes / strain / sleep-via-Whoop → whoop-sync, same shape.
+ *
+ * All three drop `just_completed` on the floor, and nothing downstream awards. So finishing a
+ * 10-hour study goal with lock-ins, or a 20 km run goal on Strava, banked exactly zero embers —
+ * silently, because the goal DID complete and the XP DID land. Only the drip was missing.
+ *
+ * Settled here, once, rather than in each route: the routes disagree about what they return and two
+ * of them are Edge Functions we would have to change in lockstep, whereas "did this sync finish the
+ * goal?" is one question with one answer — re-read the row.
+ *
+ * 🔒 SAFE TO CALL TWICE. `economy_award_goal_day` is keyed on (goal, local day) server-side (0085),
+ * so a manual log and a sync that both complete the same goal on the same day pay once; the loser
+ * gets `already_awarded: true`, which is not a payout and is not revealed. The re-read costs one
+ * small select and only runs on the completion edge — `routeChallengeSync` has already returned
+ * early for anything with a `completed_at`, so an established goal never reaches this.
+ */
+async function settleGoalDay(challenge: Challenge): Promise<GoalDayAward | null> {
+  try {
+    const { data, error } = await supabase
+      .from('challenges')
+      .select('completed_at')
+      .eq('id', challenge.id)
+      .maybeSingle();
+    if (error || !data?.completed_at) return null;
+    const award = await awardGoalDay(challenge.id);
+    return award && !award.already_awarded ? award : null;
+  } catch {
+    // Best-effort, like every other sync in this file (§18 — a sync must never gate participation).
+    // The award is idempotent per local day, so the next focus settles what this attempt missed.
+    return null;
+  }
+}
+
+export async function syncChallengeFromDevice(challenge: Challenge): Promise<ChallengeSyncOutcome> {
+  const outcome = await routeChallengeSync(challenge);
   // Logged progress can finish a challenge, and finishing one pays XP out server-side — which can
   // cross a rank with no lock-in and therefore no done screen (RANKUP_SPEC §6: the moment must fire
   // for EVERY XP source, challenge payouts included). The watcher de-dupes against the rank it last
   // actually showed, so an extra nudge that didn't cross anything costs one query and shows nothing.
-  if (synced > 0) requestRankRecheck();
-  return synced;
+  if (outcome.synced > 0) requestRankRecheck();
+
+  // The routes that log through a door this module does not own still owe a goal-day payout (#167).
+  // Only asked when this sync actually moved something AND the route did not already report an
+  // award — steps and sleep come back paid, so they never re-read.
+  const settled =
+    outcome.synced > 0 && !outcome.award ? await settleGoalDay(challenge) : null;
+  const award = outcome.award ?? settled;
+
+  // A payout the user never asked for goes on the reveal queue rather than back to the caller alone.
+  // Both callers need this and only one of them is in a position to use a return value: the
+  // Challenges tab is mounted and watching, but challenge/create.tsx fires this and immediately
+  // `router.back()`s, so its screen is gone before the promise settles. Queued here — once, at the
+  // single point every sync passes through — the reveal survives either way.
+  if (award) pushGoalReveal({ award, goalLabel: outcome.goalLabel });
+  return { ...outcome, award };
 }
 
-async function routeChallengeSync(challenge: Challenge): Promise<number> {
-  if (challenge.completed_at) return 0;
+async function routeChallengeSync(challenge: Challenge): Promise<ChallengeSyncOutcome> {
+  if (challenge.completed_at) return nothing(challenge);
   if (challenge.type === 'steps') return syncStepsFromDevice(challenge);
   if (challenge.type === 'run_distance' || challenge.type === 'ride_distance') return syncRunOrRideFromStrava(challenge);
   if (challenge.type === 'study_hours' || challenge.type === 'gym_visits') return syncFromLockIns(challenge);
@@ -180,5 +281,5 @@ async function routeChallengeSync(challenge: Challenge): Promise<number> {
   // Strain is a Whoop-native concept with no health-store equivalent, and workout_minutes stays on
   // Whoop for now. Both no-op harmlessly until a Whoop connection exists (#39).
   if (challenge.type === 'workout_minutes' || challenge.type === 'strain') return syncWhoopMetric(challenge);
-  return 0;
+  return nothing(challenge);
 }

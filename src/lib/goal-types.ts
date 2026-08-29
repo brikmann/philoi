@@ -1,7 +1,7 @@
 import type { Ionicons } from '@expo/vector-icons';
 
 import type { DisciplineIconName } from '@/components/ui/discipline-icon';
-import type { ChallengeType, GoalType } from '@/types/database';
+import type { Challenge, ChallengeType, GoalType } from '@/types/database';
 
 export const GOAL_TYPE_META: Record<GoalType, { label: string; emoji: string }> = {
   gym: { label: 'Gym', emoji: '🏋️' },
@@ -101,3 +101,32 @@ export const CHALLENGE_TYPE_GLYPH: Record<ChallengeType, DisciplineIconName> = {
   strain: 'strain',
   sleep_hours: 'sleep',
 };
+
+/**
+ * A personal goal in its own words — "10,000 steps", "3× gym", "2h study".
+ *
+ * Lived privately inside challenge-card.tsx until the auto-sync reveal needed it too: a steps goal
+ * that completes from Health Connect never touches the card, so the payout screen it opens has to
+ * get its label from somewhere else, and two copies of this would eventually name the same goal
+ * two different things on two screens.
+ *
+ * `label` wins whenever the user gave the goal one — it is the name they chose, and no derived
+ * phrasing beats it.
+ */
+export function personalGoalTitle(challenge: Pick<Challenge, 'label' | 'type' | 'target' | 'unit'>): string {
+  if (challenge.label) return challenge.label;
+  switch (challenge.type) {
+    case 'steps':
+      return `${challenge.target.toLocaleString()} steps`;
+    case 'gym_visits':
+      return `${challenge.target}× gym`;
+    case 'study_hours':
+      return `${challenge.target}h study`;
+    case 'run_distance':
+      return `${challenge.target}km run`;
+    case 'ride_distance':
+      return `${challenge.target}km ride`;
+    default:
+      return `${challenge.target} ${challenge.unit}`;
+  }
+}

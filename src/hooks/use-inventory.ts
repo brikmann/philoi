@@ -1,9 +1,10 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { fetchInventory, type Inventory } from '@/lib/api/inventory';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getItem, type CatalogItem, type EquipSlot } from '@/lib/economy/catalog';
+import { subscribeToInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { getErrorMessage } from '@/lib/errors';
 
 /**
@@ -65,6 +66,16 @@ export function useInventory() {
       refetch();
     }, [refetch])
   );
+
+  // 🐛 The second invalidation point, and the one focus could never cover: a grant that lands while
+  // this screen is already up and staying up. Finishing a goal pays embers server-side without
+  // navigating anywhere, so nothing ever remounted the pill and it kept showing the pre-payout
+  // figure until a reload — Noah's "balance doesn't refresh" report. See lib/economy/wallet-refresh.
+  //
+  // NOT useFocusEffect: an unfocused screen still has to be correct when it comes back, and its
+  // own focus effect will run then anyway. This is the cheaper, more immediate path for the screen
+  // the user is actually looking at.
+  useEffect(() => subscribeToInventoryRefresh(() => void refetch()), [refetch]);
 
   // Ownership rows are joined onto the static catalog here so no screen ever has to do it. An
   // owned row whose key isn't in the catalog is dropped rather than rendered blank — that only

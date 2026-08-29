@@ -45,8 +45,17 @@ export function useMyChallenges() {
       // connected" to decide whether attempting a sync is worthwhile at all.
       if (deviceFitnessConnected || stravaConnected || whoopConnected) {
         const deviceChallenges = data.filter((c) => DEVICE_METRIC_TYPES.includes(c.type) && !c.completed_at);
-        const synced = await Promise.all(deviceChallenges.map((c) => syncChallengeFromDevice(c).catch(() => 0)));
-        if (synced.some((amount) => amount > 0)) {
+        const outcomes = await Promise.all(
+          deviceChallenges.map((c) => syncChallengeFromDevice(c).catch(() => null))
+        );
+
+        // 🐛 A goal the phone finished for you now gets its payout screen — but the queuing happens
+        // inside syncChallengeFromDevice, not here (lib/goal-reveal-queue.ts), so create.tsx's
+        // fire-and-forget sync is covered by the same mechanism. Until that existed, an auto-tracked
+        // completion (Noah's 10k-step repro) paid embers server-side and showed NOTHING: the reveal
+        // was wired only to the card's manual-log callback, which a Health Connect sync never
+        // touches.
+        if (outcomes.some((o) => (o?.synced ?? 0) > 0)) {
           setChallenges(await fetchMyChallenges(session.user.id));
         }
       }

@@ -7,7 +7,7 @@ import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { logChallengeProgress, type GoalDayAward } from '@/lib/api/challenges';
-import { CHALLENGE_TYPE_GLYPH } from '@/lib/goal-types';
+import { CHALLENGE_TYPE_GLYPH, personalGoalTitle } from '@/lib/goal-types';
 import { getErrorMessage } from '@/lib/errors';
 import { AUTO_SOURCE_NAME, getRealFitnessSourceForChallengeType, sourceNeedsConnection } from '@/lib/fitness-sync';
 import type { Challenge, ChallengeType } from '@/types/database';
@@ -25,24 +25,6 @@ const TYPE_QUICK_ADDS: Record<ChallengeType, number[]> = {
   strain: [1, 2],
   sleep_hours: [1],
 };
-
-function challengeTitle(challenge: Challenge): string {
-  if (challenge.label) return challenge.label;
-  switch (challenge.type) {
-    case 'steps':
-      return `${challenge.target.toLocaleString()} steps`;
-    case 'gym_visits':
-      return `${challenge.target}× gym`;
-    case 'study_hours':
-      return `${challenge.target}h study`;
-    case 'run_distance':
-      return `${challenge.target}km run`;
-    case 'ride_distance':
-      return `${challenge.target}km ride`;
-    default:
-      return `${challenge.target} ${challenge.unit}`;
-  }
-}
 
 /**
  * The quiet closing line — when this goal's counter goes back to zero.
@@ -111,7 +93,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
       const result = await logChallengeProgress(challenge.id, value);
       setAmount('');
       setExpanded(false);
-      onLogged(result.justCompleted, result.award, challengeTitle(challenge));
+      onLogged(result.justCompleted, result.award, personalGoalTitle(challenge));
     } catch (e) {
       setError(getErrorMessage(e, 'Could not log progress.'));
     } finally {
@@ -134,7 +116,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
         </View>
         <View style={styles.titleColumn}>
           <Text style={styles.title} numberOfLines={1}>
-            {challengeTitle(challenge)}
+            {personalGoalTitle(challenge)}
           </Text>
           <Text style={styles.source} numberOfLines={1}>
             {sourceLine}

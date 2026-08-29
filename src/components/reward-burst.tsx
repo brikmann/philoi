@@ -91,6 +91,21 @@ const styles = StyleSheet.create({
     top: '30%',
     width: 220,
     height: 220,
+    // 🐛 "The burst doesn't play." It played — behind the screen.
+    //
+    // Every call site mounts this ABOVE its content in the tree (challenges.tsx says so outright:
+    // hoisted above the empty/populated branch so the layout swap can't unmount it mid-animation),
+    // and React Native paints siblings in document order with no implicit stacking. So a 220pt
+    // Lottie positioned at 30% sat underneath the FlatList, the reward screen and every opaque card
+    // that came after it — visible only in whatever gap happened to be behind. On Android the
+    // opaque `elevation` on Card/Screen surfaces buried it completely, which is exactly the
+    // "renders broken / blank" half of the report.
+    //
+    // 50, not 100: the rank-up watcher's full-screen overlay is 100 and has to stay on top of this.
+    zIndex: 50,
+    // Android composites by elevation FIRST and only falls back to zIndex to break ties, so the
+    // web-shaped fix alone changes nothing there. Kept equal to zIndex so the two orderings agree.
+    elevation: 50,
   },
   fill: {
     width: '100%',

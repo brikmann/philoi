@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { RewardRow, type RewardRowSpec } from '@/components/economy/reward-rows';
 import { PersonalFlame } from '@/components/personal-flame';
+import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { useInventory } from '@/hooks/use-inventory';
 import type { GoalDayAward } from '@/lib/api/challenges';
 
 // The personal-goal / streak payout screen — design-mocks/103.
@@ -47,6 +49,27 @@ export function GoalStreakRewardScreen({
   const total = award.embers + award.milestone;
   const isMilestone = award.milestone > 0;
 
+  // 🐛 THE BALANCE HAD NOWHERE TO LAND. Noah reported the ember balance not updating after finishing
+  // a goal, and the wallet-refresh pub/sub only fixes that for screens carrying an `EmberPill` —
+  // Shop, Inventory, Flame Pass, box/item detail. A goal completion lands the user HERE, on the
+  // Challenges tab, and this tab has no pill at all. So there was no number on screen to move, and
+  // "it didn't update" was really "it was never shown".
+  //
+  // The lock-in done screen already solved the same problem its own way (FlameMeterComplete takes
+  // `embersBefore` and counts up to the new figure). This is the goal-side equivalent: say what was
+  // paid AND what the wallet now holds, so the change is legible without a pill anywhere.
+  //
+  // Mounted here rather than in the parent on purpose. `useInventory` costs a get_inventory round
+  // trip, and hanging it off the Challenges tab would pay that on every focus for a screen that
+  // usually shows no reward at all; this component only ever mounts on a real payout. Its fetch runs
+  // after the award has resolved (the parent only renders this once `awardGoalDay` came back), and
+  // it re-renders again if the shared refresh lands later — see lib/economy/wallet-refresh.ts.
+  const { embers: walletEmbers, loading: walletLoading } = useInventory();
+  // Withheld rather than guessed while the read is in flight: a total is a factual claim about the
+  // ledger, and `embersBefore + total` would be this screen deriving a balance the server owns —
+  // wrong the moment anything else moved the wallet in the same window.
+  const newBalance = walletLoading ? null : walletEmbers;
+
   const rows = useMemo<RewardRowSpec[]>(() => {
     const list: RewardRowSpec[] = [];
     if (total > 0) {
@@ -56,7 +79,8 @@ export function GoalStreakRewardScreen({
         detail: isMilestone
           ? `${award.streak} daily drips + the ${award.streak}-day milestone bonus`
           : `Daily goal · ${award.difficulty} target`,
-        destination: '→ wallet',
+        destination:
+          newBalance == null ? '→ wallet' : `→ wallet · ${newBalance.toLocaleString('en-US')}`,
       });
     }
     if (award.box) {
@@ -69,10 +93,30 @@ export function GoalStreakRewardScreen({
       });
     }
     return list;
-  }, [total, isMilestone, award.streak, award.difficulty, award.box]);
+  }, [total, isMilestone, award.streak, award.difficulty, award.box, newBalance]);
+
+  // 🐛 THE MISSING BURST. challenges.tsx has always had two completion branches, and only one of
+  // them celebrated: when the server actually PAID, `handleLogged` set `goalAward` and returned
+  // early — straight past the `setCelebrating(true)` that fires the burst. So the louder outcome
+  // (a real payout, this screen) played nothing, while the quieter one (already banked today) got
+  // the animation. Owning the burst here rather than fixing the branch is what keeps it that way:
+  // this screen cannot be shown without its own reveal.
+  //
+  // Fired from an effect, not inline, for the same reason check-in.tsx and challenges.tsx do it —
+  // the ref only attaches after the first render, so calling on the render pass would no-op.
+  // Empty deps: exactly once per mount, and the parent only ever mounts this on a fresh award.
+  //
+  // 🔒 PRESENTATION ONLY. The embers landed server-side before this screen existed; the burst
+  // announces the payout, it does not create one. Reduce-motion and the sound/haptic preferences
+  // are all honoured inside RewardBurst.fire().
+  const burstRef = useRef<RewardBurstHandle>(null);
+  useEffect(() => {
+    burstRef.current?.fire();
+  }, []);
 
   return (
     <View style={styles.root}>
+      <RewardBurst ref={burstRef} cue="settle" />
       <Pressable style={styles.close} onPress={onClose} hitSlop={12} accessibilityLabel="Close">
         <Ionicons name="close" size={22} color={Colors.textTertiary} />
       </Pressable>

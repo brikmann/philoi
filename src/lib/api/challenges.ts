@@ -1,4 +1,5 @@
 import { track } from '@/lib/analytics';
+import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { formatLocalDate } from '@/lib/local-day';
 import { supabase } from '@/lib/supabase';
 import type {
@@ -99,8 +100,18 @@ export type GoalDayAward = {
  * Never throws into the log path. A goal that completed but failed to pay is a support ticket, not
  * a reason to fail the progress write the user actually asked for — and the call is idempotent per
  * local day, so a later retry settles it.
+ *
+ * EXPORTED as of #167, because this was the whole bug. `logChallengeProgress` below calls it on
+ * `just_completed`, and for a long time that read as "every completion pays". It does not: it is
+ * every completion that goes through THIS MODULE. Three of the five auto-sync routes do not —
+ * `sync_challenge_from_lock_ins` calls the SQL `log_challenge_progress` directly, and the
+ * Strava/Whoop Edge Functions call it as the user from the server — so `just_completed` came back
+ * true inside a function nobody had taught to award, and a goal met by a study lock-in or a Strava
+ * run banked nothing at all. Idempotency is what makes a second caller safe: the award is keyed on
+ * (goal, local day) server-side (0085), so calling this from the sync path cannot double-pay a goal
+ * the manual path already banked today — the second call comes back `already_awarded: true`.
  */
-async function awardGoalDay(challengeId: string): Promise<GoalDayAward | null> {
+export async function awardGoalDay(challengeId: string): Promise<GoalDayAward | null> {
   try {
     const { data, error } = await supabase.rpc('economy_award_goal_day', {
       p_goal_id: challengeId,
@@ -115,6 +126,12 @@ async function awardGoalDay(challengeId: string): Promise<GoalDayAward | null> {
         milestone: award.milestone,
         streak: award.streak,
       });
+      // The wallet just moved. Fired HERE rather than from the screen that shows the reveal,
+      // because this function is the one place every payout passes through — a manual log, an
+      // auto-sync from Health Connect, a lock-in credit — and only two of those have a screen
+      // watching. Without it the ember pill keeps its pre-payout figure until something remounts
+      // it (see lib/economy/wallet-refresh.ts).
+      requestInventoryRefresh();
     }
     return award;
   } catch (e) {
