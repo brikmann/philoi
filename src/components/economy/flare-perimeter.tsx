@@ -1077,6 +1077,13 @@ const PARTICLE_COUNT: Record<ParticleMotion, number> = {
 /** Mock 166's stage is 190px tall. Every px distance below is scaled against it so the motion keeps
  *  its proportions on a box of any size. */
 const MOCK_STAGE_H = 190;
+/**
+ * Mock motes are solid dots; ours are radial gradients that fade to nothing at their rim, so only
+ * the inner ~45% of the box reads as the mote. This multiplier sizes the BOX so the visible core
+ * lands at the mock's stated diameter — without it every particle set renders at roughly half the
+ * size the mock draws.
+ */
+const MOTE_BOX = 2.2;
 /** The emission point — the flame's own tip, as a fraction of the box height from the top. Mock 166
  *  puts every emitter at `bottom: 44%`. */
 const FLAME_Y = 0.56;
@@ -1406,7 +1413,7 @@ function Particles({ from, to, motion, w, h }: { from: string; to: string; motio
                 key={i}
                 hot={hot}
                 body={body}
-                size={(3 + j * 3) * k * 2.2}
+                size={(3 + j * 3) * k * MOTE_BOX}
                 left={w * (0.44 + spread(i, 0.31) * 0.12)}
                 top={fy}
                 dx={(spread(i, 0.63) * 36 - 18) * k}
@@ -1436,7 +1443,7 @@ function Particles({ from, to, motion, w, h }: { from: string; to: string; motio
                 key={i}
                 hot={hot}
                 body={body}
-                size={(2.5 + j * 2.5) * k * 2.2}
+                size={(2.5 + j * 2.5) * k * MOTE_BOX}
                 left={spread(i, 0.41) * w}
                 top={-10 * k}
                 dx={(spread(i, 0.77) * 30 - 15) * k}
@@ -1461,7 +1468,7 @@ function Particles({ from, to, motion, w, h }: { from: string; to: string; motio
               key={i}
               hot={hot}
               body={body}
-              size={(2.5 + spread(i, 0.19) * 3) * k * 2.2}
+              size={(2.5 + spread(i, 0.19) * 3) * k * MOTE_BOX}
               cx={cx}
               cy={fy}
               radius={(30 + spread(i, 0.53) * 24) * k}
@@ -1483,7 +1490,7 @@ function Particles({ from, to, motion, w, h }: { from: string; to: string; motio
               key={i}
               hot={hot}
               body={body}
-              size={6 * k * 2.6}
+              size={6 * k * MOTE_BOX}
               cx={cx}
               cy={fy}
               angle={Math.round(spread(i, 0.37) * 360)}
@@ -1522,7 +1529,7 @@ function Particles({ from, to, motion, w, h }: { from: string; to: string; motio
         <>
           {Array.from({ length: n }, (_, i) => {
             const j = spread(i);
-            const size = (15 + j * 17) * k * 2.2;
+            const size = (15 + j * 17) * k * MOTE_BOX;
             return (
               <Veil
                 key={i}
