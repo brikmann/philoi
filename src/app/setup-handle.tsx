@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CampusVerification, CampusVerifiedPanel } from '@/components/campus-verification';
+import { DEFAULT_HEIGHT_CM, HeightRuler } from '@/components/onboarding/height-ruler';
 import { OnboardingProgress } from '@/components/ui/onboarding-progress';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
@@ -11,6 +12,7 @@ import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversities } from '@/lib/api/groups';
+import { setMyHeightCm } from '@/lib/api/relics';
 import { getErrorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 import {
@@ -34,20 +36,29 @@ function normalizeHandle(input: string) {
 
 type Availability = 'idle' | 'checking' | 'available' | 'taken';
 
-// design-mocks/17-onboarding.html — all three onboarding steps (username, school, consent)
-// live on this one screen, gated while `needsHandle || needsConsent` is true (see
+// design-mocks/17-onboarding.html — all the onboarding steps (username, school, height, campus,
+// consent) live on this one screen, gated while `needsHandle || needsConsent` is true (see
 // _layout.tsx). Keeping them in one component (rather than one route per step) is what lets
 // Back actually work: it's just local `step` state, not navigation across a gate boundary a
 // user shouldn't be able to re-enter once past it.
-// Step 3 is the OPTIONAL campus verification (UNI_VERIFICATION_SPEC.md §5). It's skipped
+//
+// Step 3 is the OPTIONAL height estimate (design-mocks/128). Migration 0119 shipped the whole
+// server half of this — the `height_cm` column, `stride_m_for` (height/100 × 0.42, falling back to
+// a 0.75 m adult average) and the `set_my_height_cm` RPC — and its own header says "until the
+// onboarding step collects one". Nothing ever did: `setMyHeightCm` in lib/api/relics.ts had zero
+// call sites, so every user in the app is on the fallback stride and Noah's "height estimation
+// didn't render" was simply a step that had never been built. Skippable by design, because the
+// fallback is a real answer and the distance relic must not be gated behind a measurement.
+//
+// Step 4 is the OPTIONAL campus verification (UNI_VERIFICATION_SPEC.md §5). It's skipped
 // entirely — not shown, not counted — when the chosen school has no known email domain, since
 // there's nothing to send a code to. Never a blocker either way: skipping just leaves the two
 // campus boards locked.
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 
 export default function SetupHandleScreen() {
   const { session, profile, refreshProfile } = useAuth();
-  const [step, setStep] = useState<Step>(profile?.handle ? 4 : 1);
+  const [step, setStep] = useState<Step>(profile?.handle ? 5 : 1);
 
   const [handle, setHandle] = useState(profile?.handle ?? '');
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
@@ -60,6 +71,15 @@ export default function SetupHandleScreen() {
   // for the ~20 cached schools; anything else falls back to Hipolabs in the background.
   const [universityDomain, setUniversityDomain] = useState<string | null>(profile?.university_domain ?? null);
   const [resolvingDomain, setResolvingDomain] = useState(false);
+
+  // Pre-filled from the profile so re-entering onboarding shows what was saved rather than
+  // resetting to the default and quietly re-writing it. `height_cm` is `numeric` server-side, so it
+  // can come back as a string through PostgREST — coerced here, once, instead of inside the picker.
+  const [heightCm, setHeightCm] = useState<number>(() => {
+    const saved = Number(profile?.height_cm);
+    return Number.isFinite(saved) && saved > 0 ? Math.round(saved) : DEFAULT_HEIGHT_CM;
+  });
+  const [heightTouched, setHeightTouched] = useState(false);
 
   const [ageChecked, setAgeChecked] = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
@@ -160,8 +180,39 @@ export default function SetupHandleScreen() {
 
     await refreshProfile();
     setLoading(false);
-    // No domain → nothing to verify against, so don't show a step that can only dead-end.
-    setStep(domain ? 3 : 4);
+    // Height is next for everyone — it depends on nothing and gates nothing.
+    setStep(3);
+  }
+
+  /** Where the height step leads. No domain → nothing to verify against, so don't show a step
+   * that can only dead-end. */
+  const afterHeight: Step = universityDomain ? 4 : 5;
+
+  /**
+   * Save the height and move on.
+   *
+   * SKIPPING IS A REAL PATH, not a shortcut past a required field: with no height the server uses
+   * a 0.75 m adult-average stride (0119), so the cost is accuracy on one relic ladder and nothing
+   * else. `heightTouched` is what tells the two apart — an untouched picker sitting on its default
+   * is not a measurement, and writing it would turn "I skipped" into a claim about the user's body.
+   *
+   * A failed write is swallowed on purpose. This is the optional step; blocking onboarding on it
+   * would make an estimate more load-bearing than the account itself, and Settings can set a
+   * height later.
+   */
+  async function handleContinueHeight(persist: boolean) {
+    if (persist && heightTouched) {
+      setLoading(true);
+      try {
+        await setMyHeightCm(heightCm);
+        await refreshProfile();
+      } catch (e) {
+        console.warn('[onboarding] could not save height:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    setStep(afterHeight);
   }
 
   async function handleFinish() {
@@ -188,9 +239,10 @@ export default function SetupHandleScreen() {
 
   return (
     <Screen padded={false} style={styles.container}>
-      {/* Four segments only when verification is actually on this user's path — a school with no
-          domain never sees that step, so showing a fourth dot would promise one that never comes. */}
-      <OnboardingProgress step={step} total={universityDomain ? 4 : 3} />
+      {/* Five segments only when verification is actually on this user's path — a school with no
+          domain never sees that step, so showing a fifth dot would promise one that never comes.
+          Height is on everyone's path, so it always counts. */}
+      <OnboardingProgress step={step} total={universityDomain ? 5 : 4} />
 
       {step === 1 && (
         <View style={styles.step}>
@@ -315,13 +367,43 @@ export default function SetupHandleScreen() {
         </View>
       )}
 
+      {/* OPTIONAL height (design-mocks/128). Framed as what it actually does — it estimates a
+          stride so walking can be scored in kilometres — and never as a requirement, because the
+          server has a perfectly good default for anyone who walks past it. */}
+      {step === 3 && (
+        <View style={styles.step}>
+          <Text style={styles.h}>How tall are you?</Text>
+          <Text style={styles.sub}>
+            Lets us turn your steps into kilometres, so walking counts towards rewards.
+          </Text>
+
+          <View style={styles.heightPicker}>
+            <HeightRuler
+              value={heightCm}
+              onChange={(cm) => {
+                setHeightCm(cm);
+                setHeightTouched(true);
+              }}
+            />
+          </View>
+
+          <Pressable
+            onPress={() => handleContinueHeight(false)}
+            accessibilityRole="button"
+            hitSlop={8}
+            style={styles.skipHeight}>
+            <Text style={styles.skipHeightText}>Skip — we&apos;ll use an average</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* OPTIONAL campus verification (§5). Only ever reached when the school has a domain. */}
-      {step === 3 && university && universityDomain && (
+      {step === 4 && university && universityDomain && (
         <View style={styles.step}>
           {campusVerified ? (
             <CampusVerifiedPanel
               university={shortSchoolName(university)}
-              onContinue={() => setStep(4)}
+              onContinue={() => setStep(5)}
               continueLabel="Continue"
             />
           ) : (
@@ -329,7 +411,7 @@ export default function SetupHandleScreen() {
               university={shortSchoolName(university)}
               domain={universityDomain}
               verifyCtaLabel="Verify & unlock My Uni"
-              onSkip={() => setStep(4)}
+              onSkip={() => setStep(5)}
               onVerified={async () => {
                 await refreshProfile();
               }}
@@ -338,7 +420,7 @@ export default function SetupHandleScreen() {
         </View>
       )}
 
-      {step === 4 && (
+      {step === 5 && (
         <View style={styles.step}>
           <Text style={styles.h}>One last thing</Text>
           <Text style={styles.sub}>Then you&apos;re in.</Text>
@@ -381,30 +463,42 @@ export default function SetupHandleScreen() {
 
       {error && <Text style={styles.error}>{error}</Text>}
 
-      {/* Step 3 carries its own CTAs (Send code / Verify / Skip), so the shared nav bar sits it
+      {/* Step 4 carries its own CTAs (Send code / Verify / Skip), so the shared nav bar sits it
           out entirely — two competing primary buttons on one screen is how someone taps
-          "Continue" and skips verification without meaning to. Back still works. */}
+          "Continue" and skips verification without meaning to. Back still works.
+          Step 3's Skip is a plain text link, not a second button, so it keeps the shared CTA. */}
       <View style={styles.nav}>
         {step > 1 && (
           <Pressable
             style={styles.back}
             onPress={() =>
-              // Step 3 only exists for a school with a domain, so stepping back from consent has
+              // Step 4 only exists for a school with a domain, so stepping back from consent has
               // to skip over it when there isn't one — otherwise Back lands on a blank screen.
-              setStep((s) => (s === 4 && !universityDomain ? 2 : ((s - 1) as Step)))
+              setStep((s) => (s === 5 && !universityDomain ? 3 : ((s - 1) as Step)))
             }>
             <Text style={styles.backLabel}>Back</Text>
           </Pressable>
         )}
-        {step !== 3 && (
+        {step !== 4 && (
           <View style={styles.nextWrap}>
             <PrimaryButton
-              label={step === 4 ? 'Enter Philoi' : 'Continue'}
+              label={step === 5 ? 'Enter Philoi' : 'Continue'}
               loading={loading}
-              disabled={step === 1 ? !canContinueStep1 : step === 2 ? !canContinueStep2 : !canContinueStep3}
+              // Step 3 has nothing to validate — every position on the ruler is inside the column's
+              // range by construction, and the step is skippable anyway, so it is never disabled.
+              disabled={
+                step === 1
+                  ? !canContinueStep1
+                  : step === 2
+                    ? !canContinueStep2
+                    : step === 3
+                      ? false
+                      : !canContinueStep3
+              }
               onPress={() => {
                 if (step === 1) setStep(2);
                 else if (step === 2) handleContinueStep2();
+                else if (step === 3) handleContinueHeight(true);
                 else handleFinish();
               }}
             />
@@ -436,6 +530,21 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     marginTop: 5,
     marginBottom: 16,
+  },
+  // The ruler takes the whole middle of the step and centres itself in it (mock 128's `.picker`),
+  // so the readout sits at eye level rather than pinned under the question.
+  heightPicker: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  skipHeight: {
+    alignSelf: 'center',
+    paddingVertical: Spacing.twelve,
+  },
+  skipHeightText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.textTertiary,
   },
   lbl: {
     fontFamily: Fonts.body,
