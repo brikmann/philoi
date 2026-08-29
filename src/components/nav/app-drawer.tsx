@@ -29,6 +29,16 @@ type NavRow = {
   /** Paths that light this row up. Defaults to `route`. */
   match?: string[];
   badge?: string;
+  /**
+   * Mock 158's `.mrow.forge` treatment — an ember left border, ember icon and ember label, on a
+   * faint ember wash. One row in the whole drawer gets it, and mock 158 gives it to the Forge.
+   *
+   * Not a "NEW" badge (the Agora has one of those, and it is a different promise): a badge says
+   * "recently added" and goes stale, this says "this row leads its group". It sits UNDER the active
+   * state — the screen you are on is still the one drawn filled and orange, because a permanently
+   * lit row that also looked selected would break the one signal the drawer has.
+   */
+  lit?: boolean;
 };
 
 type NavGroup = { title: string; rows: NavRow[] };
@@ -65,11 +75,15 @@ const GROUPS: NavGroup[] = [
       { key: 'pass', label: 'Flame Pass', icon: 'pass', route: '/forge-pass' },
       { key: 'shop', label: 'Shop', icon: 'shop', route: '/shop' },
       { key: 'inventory', label: 'Inventory', icon: 'inventory', route: '/inventory' },
-      // Mock 161's fourth Rewards row, The Forge, is deliberately NOT here: mocks 155/156 design
-      // it but no /forge route exists yet, and a menu row that lands on "Unmatched Route" is worse
-      // than a row that is not there. PhiloiIcon already carries its anvil — the row is one line
-      // the day the screen ships, plus mock 158's `.mrow.forge` ember treatment (left border +
-      // ember label) if it should lead its group the way the mock draws it.
+      // Mock 161's fourth Rewards row. It was held back until /forge existed — a menu row that
+      // lands on "Unmatched Route" is worse than a row that is not there — and the screen ships in
+      // this commit, so here it is, one line as promised.
+      //
+      // `lit` is mock 158's `.mrow.forge` treatment: an ember left border, an ember label and an
+      // ember icon. The only row in the drawer that gets it. Mock 158 gives it to the Forge and
+      // nothing else, which is the point — it is not a "new" badge that goes stale, it is the row
+      // the Rewards group is built around.
+      { key: 'forge', label: 'Forge', icon: 'forge', route: '/forge', lit: true },
     ],
   },
 ];
@@ -257,16 +271,27 @@ function Row({
   const active = isActive(row, pathname);
   // Mock 159: the screen you are on is filled + Philoi orange, everything else is a grey outline.
   // Style AND colour, so the active row still reads at 21px in a list of eleven.
-  const restTint = muted ? Colors.textTertiary : Colors.muted;
+  //
+  // A `lit` row (mock 158's `.mrow.forge`) sits between the two: ember, but outline rather than
+  // filled, so the active row is still the only filled glyph in the drawer.
+  const restTint = row.lit ? Colors.amber : muted ? Colors.textTertiary : Colors.muted;
 
   return (
     <Pressable
-      style={[styles.row, active && styles.rowActive]}
+      style={[styles.row, row.lit && styles.rowLit, active && styles.rowActive]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}>
       <PhiloiIcon name={row.icon} size={21} active={active} color={active ? undefined : restTint} />
-      <Text style={[styles.rowLabel, active && styles.rowLabelActive, muted && styles.rowLabelMuted]}>{row.label}</Text>
+      <Text
+        style={[
+          styles.rowLabel,
+          row.lit && styles.rowLabelLit,
+          active && styles.rowLabelActive,
+          muted && styles.rowLabelMuted,
+        ]}>
+        {row.label}
+      </Text>
       {row.badge ? (
         <View style={styles.badge}>
           <Text style={styles.badgeLabel}>{row.badge}</Text>
@@ -345,11 +370,24 @@ const styles = StyleSheet.create({
     borderLeftColor: Colors.amber,
     paddingLeft: 15,
   },
+  // Mock 158's `.mrow.forge`: the same ember left border, over a wash weaker than the active row's
+  // so the two never read as the same state. Listed BEFORE rowActive at the call site, so being on
+  // /forge still paints the full active treatment over the top.
+  rowLit: {
+    backgroundColor: 'rgba(242,163,60,0.055)',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.amber,
+    paddingLeft: 15,
+  },
   rowLabel: {
     flex: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: '#C9BFE0',
+  },
+  // Mock 158's `.mrow.forge .mt` — the ember label that comes with the lit border.
+  rowLabelLit: {
+    color: Colors.ember,
   },
   rowLabelActive: {
     color: Colors.ember,

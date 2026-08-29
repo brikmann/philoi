@@ -334,6 +334,11 @@ function RootNavigator() {
         <Stack.Screen name="inventory/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="inventory/[itemId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="forge-pass" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* The Forge (mocks 155/156). Headerless like the rest of the Rewards surface — it draws its
+            own top row, and the reveal it hands off to is full-bleed. Deliberately NOT a modal:
+            unlike shop/open, this screen is a place you browse before you commit, and the Inventory
+            shortcut deep-links into it with a preselection that should be backable-out-of. */}
+        <Stack.Screen name="forge" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* Post-purchase (#71). Not swipe-dismissable: it's the only confirmation the user gets
             that a real charge produced something, and losing it to a stray gesture reads as a
             purchase that vanished. */}
