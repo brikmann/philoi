@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { PostHogProvider } from 'posthog-react-native';
 
 import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
@@ -104,15 +105,34 @@ function RootNavigator() {
     if (hasCircle) markOnboardingDone().then(() => setOnboardingDone(true));
   }, [hasCircle]);
 
-  // Register for server-sent pushes once the user has actually joined/created their first
-  // circle — not right after consent, so the OS permission prompt has real in-context
-  // meaning ("notify me about my circle") instead of firing cold before there's anything to
-  // be notified about.
+  // Register for server-sent pushes as soon as the account is usable — NOT once they have a
+  // circle.
+  //
+  // 🔴 `&& hasCircle` used to be here, and it silently disabled push for a whole class of user.
+  // The reasoning behind it was good: hold the OS permission prompt until it has in-context
+  // meaning ("notify me about my circle") rather than firing cold before there is anything to be
+  // notified about. What it missed is that this gate does not merely delay the PROMPT, it delays
+  // the TOKEN — and the token is the whole delivery path. No row in `push_tokens` means
+  // notify_push_raw() builds an empty message list, skips its net.http_post to Expo, and sends
+  // nothing. Forever, for every event type.
+  //
+  // So a solo user got the full in-app feed (notify_event writes notification_events regardless)
+  // and not one device banner, which reads exactly like "push is broken" rather than like a
+  // deliberate gate. And most of what we push at someone is not social at all: rank-ups, relic
+  // unlocks, session-complete, streak-at-risk. Those are the reasons a solo user opens the app.
+  //
+  // The in-context concern is real, and the honest trade is that the prompt now lands earlier than
+  // its author wanted. It does not land repeatedly: registerPushToken() returns at the first
+  // `granted` check on every later run, and once someone has declined, both platforms stop showing
+  // the system prompt (iOS resolves a second request without UI; Android 13+ auto-denies after
+  // two). So the cost is one prompt at a less perfect moment. The cost of the gate was every
+  // notification, permanently, for anyone without a circle. Token registration must not depend on
+  // social state.
   useEffect(() => {
-    if (appReady && session && !needsHandle && !needsConsent && !needsAccountDisabled && hasCircle) {
+    if (appReady && session && !needsHandle && !needsConsent && !needsAccountDisabled) {
       registerPushToken(session.user.id);
     }
-  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, hasCircle]);
+  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled]);
 
   // Tapping a notification (from background or a cold start) deep-links to the relevant
   // circle — every push we send includes group_id in its data payload (see notify_push()'s
@@ -416,9 +436,26 @@ function RootLayout() {
   // cause on both counts, not two separate bugs.
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar style="light" />
-      {/* No-op wrapper when POSTHOG_API_KEY isn't set — see src/lib/posthog.ts. */}
-      {posthog ? <PostHogProvider client={posthog}>{content}</PostHogProvider> : content}
+      {/* One real SafeAreaProvider at the app root. The only other safe-area context in the tree
+          comes from react-navigation's internal SafeAreaProviderCompat, which lives INSIDE the
+          navigator — and the nav drawer is mounted as a SIBLING of the navigator in
+          NavDrawerProvider, so its <Modal>'s <SafeAreaView> was resolving insets from outside the
+          provider it should be using. initialWindowMetrics gives correct first-frame insets and
+          avoids a layout flash.
+
+          🔴 CORRECTION, because this block originally claimed otherwise: this is NOT what caused
+          the drawer crash-on-open. That crash was a native SIGABRT out of libworklets.so —
+          `Value::getObject(): assertion "isObject()" failed` on the mqt_v_js thread — from the
+          drawer's close animation calling runOnJS on a state setter serialised into a worklet
+          closure while the route was being torn down (see the note in app-drawer.tsx). It was
+          fixed there, and verified on-device with this provider absent: a missing provider throws
+          a catchable JS error and a red box, never a SIGABRT. Keeping this for correct insets,
+          which it does give — but it is hygiene, not the fix. */}
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <StatusBar style="light" />
+        {/* No-op wrapper when POSTHOG_API_KEY isn't set — see src/lib/posthog.ts. */}
+        {posthog ? <PostHogProvider client={posthog}>{content}</PostHogProvider> : content}
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

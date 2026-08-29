@@ -56,10 +56,17 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 }
 
 // Registers this device for server-sent pushes (friend checked in / reaction / streak at
-// risk / chat mentions / batched chat — see notify_push and its triggers in schema.sql).
+// risk / chat mentions / batched chat, plus the solo ones — rank-up, relic unlock,
+// session-complete — see notify_push and its triggers in schema.sql).
+//
 // Best-effort: a user who declines the OS permission prompt just doesn't get these, same as
-// local reminders. Called once the user has actually joined/created their first circle (see
-// _layout.tsx) rather than cold on launch, so the permission prompt has real context.
+// local reminders.
+//
+// Called as soon as the account is usable — past handle, consent and account-disabled — and
+// deliberately NOT once they have a circle. That earlier gate meant no row in `push_tokens`,
+// which meant notify_push_raw() had nobody to send to and skipped its net.http_post entirely, so
+// a solo user got the in-app feed and zero device banners. See the long note at the call site in
+// _layout.tsx; the ordering there is the contract this function relies on.
 export async function registerPushToken(userId: string): Promise<void> {
   if (Platform.OS === 'web') return;
   try {
