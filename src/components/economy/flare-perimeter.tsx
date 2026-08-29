@@ -828,15 +828,15 @@ function Lick({
  * `edges` defaults to the bottom alone because Emberfall Ascendant reuses this as its lava pool and
  * wants a floor, not an engulf. Inferno passes all four.
  *
- * COUNT IS A DELIBERATE DEVIATION FROM THE MOCK, and the only one in this file. Mock 167 places 22
- * tongues per vertical edge and 20 per lateral — but that is a 188px-wide tile, i.e. one tongue
- * every ~8px. Held to the same density, a real 412pt screen needs ~48 per edge, and ~190 Reanimated
- * views is not something to run for an hour-long session on a phone in a pocket. PER_EDGE keeps the
- * mock's PROPERTY — continuous overlapping fire, laterals carrying the same weight as top and
- * bottom, which is what its own comment ("dense, overlapping, from corner to corner") is asking for
- * — at a count the battery survives. Each tongue is correspondingly wider so coverage is unbroken.
+ * COUNTS ARE THE MOCK'S, LITERALLY: 22 tongues on each of the top and bottom edges, 20 on each
+ * lateral. That is 84 animated views for one flare, which is far past the "at most six" this file's
+ * header budgets — and it is what mock 167 draws, so it is what ships. Each is a single
+ * transform+opacity driven on the UI thread by Reanimated with no React render per frame, which is
+ * the cheapest shape 84 of anything can take. If a device ever shows this costing frames, the fix
+ * is these two numbers and nothing else.
  */
-const PER_EDGE = 10;
+const PER_EDGE_VERTICAL = 22;
+const PER_EDGE_LATERAL = 20;
 
 function Flames({
   colour,
@@ -858,8 +858,9 @@ function Flames({
       {edges.map((edge, e) => {
         const vertical = edge === 'bottom' || edge === 'top';
         const span = vertical ? width : height;
-        const lane = span / PER_EDGE;
-        return Array.from({ length: PER_EDGE }, (_, i) => (
+        const count = vertical ? PER_EDGE_VERTICAL : PER_EDGE_LATERAL;
+        const lane = span / count;
+        return Array.from({ length: count }, (_, i) => (
           <Lick
             key={`${edge}-${i}`}
             colour={colour}
@@ -880,34 +881,32 @@ function Flames({
 const INFERNO_EDGES = ['bottom', 'top', 'left', 'right'] as const;
 
 /**
- * 🔴 DROP SHAPE — the one place mock 167 and the build brief disagree, so it is a named constant
- * rather than a silent choice.
+ * ONE ACID STREAK.
  *
- * The mock draws acid rain as 1.6px-wide streaks 12-25px tall (aspect ~11:1). The brief for this
- * pass says "Toxic Rain — clouds at top; BLOB drops (not thin streaks)", which reads as a
- * deliberate correction of exactly that, and it is the newer instruction, so blobs is what ships.
- * Every other bullet in that brief matches the mock precisely, which is what makes this one look
- * like an intended override rather than a slip — but it IS the one thing here not taken from the
- * mock, so: flip this to ~11 and you have the mock's streaks back, and nothing else changes.
+ * Mock 167 draws acid rain as a 1.6px-wide bar 12-25px tall carrying a three-stop vertical gradient
+ * — near-transparent at the head, full #9DFF5A at 55%, dark green at the tail — which is what makes
+ * it read as a falling streak rather than as a dot. So this is the one mark in the file that is
+ * legitimately a hard-edged rect: at 1.6px wide there is no interior for a gradient to be soft in,
+ * and the gradient it does carry runs along its LENGTH, which is where the softness lives.
  */
-const DROP_ASPECT = 1.6;
-
-/** One acid drop: falls at a steady rate, fades in early, holds, then dies at the floor. */
 function Drop({
   colour,
   left,
-  size,
+  w,
+  len,
   travel,
   duration,
   phase,
 }: {
   colour: string;
   left: number;
-  size: number;
+  w: number;
+  len: number;
   travel: number;
   duration: number;
   phase: number;
 }) {
+  const id = `acid-${useId()}`;
   const t = usePhasedLoop(phase, duration, EASE_LINEAR, false);
   // Mock 167 `@keyframes fall`: opacity 0 at 0%, 1 by 12%, held to 90%, 0 at 100%.
   const style = useAnimatedStyle(() => ({
@@ -916,7 +915,16 @@ function Drop({
   }));
   return (
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top: 0, opacity: 0 }, style]}>
-      <Glow size={size} colour={colour} peak={0.85} stretch={DROP_ASPECT} />
+      <Svg width={w} height={len} pointerEvents="none">
+        <Defs>
+          <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={colour} stopOpacity={0.08} />
+            <Stop offset="0.55" stopColor={colour} stopOpacity={1} />
+            <Stop offset="1" stopColor="#2E7D32" stopOpacity={0.25} />
+          </LinearGradient>
+        </Defs>
+        <Rect x={0} y={0} width={w} height={len} rx={w / 2} fill={`url(#${id})`} />
+      </Svg>
     </Animated.View>
   );
 }
@@ -930,24 +938,25 @@ function Drop({
  * whole screen, out of the same cloud bank Zeus strikes from.
  */
 function ToxicRain({ colour, width, height }: { colour: string; width: number; height: number }) {
-  // Mock: 24 drops on a 188px tile. Kept near that literal count rather than scaled to the real
-  // width — each drop is one small Svg, so the cost is low, and 24 across a phone still reads as
-  // rain rather than as a downpour.
-  const N = 22;
+  // Mock 167: 24 drops, `top:7%`, width 1.6px, height 12-25px, on a 188px-wide tile.
+  const N = 24;
+  const scale = width / MOCK_W;
   const bandH = Math.max(30, height * 0.05);
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <CloudBank width={width} height={height} />
       {Array.from({ length: N }, (_, i) => {
-        const size = (width / MOCK_W) * (5 + spread(i, 0.53) * 4);
+        const len = (12 + spread(i, 0.53) * 13) * scale;
         return (
           <Drop
             key={i}
             colour={colour}
             left={spread(i, 0.19) * width}
-            size={size}
-            // Starts inside the cloud bank and falls clear off the bottom.
-            travel={height - bandH * 0.5 + size * DROP_ASPECT}
+            w={Math.max(1.6, 1.6 * scale)}
+            len={len}
+            // The mock's drops start at 7% of the height, inside the cloud bank, and `fall` carries
+            // them 300px down a 308px box — i.e. clear off the bottom.
+            travel={height - bandH * 0.5 + len}
             duration={1200 + spread(i, 0.37) * 1200}
             phase={spread(i, 0.71)}
           />
@@ -1047,9 +1056,30 @@ const PARTICLE_MOTION: Record<string, ParticleMotion> = {
   'particle-emberfall-ascendant': 'rise',
 };
 
-/** Particle count per motion. Capped low and deliberately: this runs for a whole session next to a
- *  flame that is already animating, and the file's CHEAP constraint applies here too. */
-const PARTICLE_COUNT: Record<ParticleMotion, number> = { rise: 7, fall: 8, swarm: 8, arc: 4, flicker: 5, coil: 4 };
+/**
+ * Particle count per motion — mock 166's own numbers, exactly.
+ *
+ * These used to be `{rise:7, fall:8, swarm:8, arc:4, flicker:5, coil:4}`, "capped low and
+ * deliberately". The cap is what made every set read as a handful of drifting dots rather than the
+ * field the mock draws: Ember Swarm at 8 cannot look like a swarm, and Falling Ash at 8 cannot look
+ * like snow. Each mote is one small Svg on a UI-thread transform, so 24 of them is still cheaper
+ * than a single re-rendering React tree.
+ */
+const PARTICLE_COUNT: Record<ParticleMotion, number> = {
+  rise: 16,
+  fall: 18,
+  swarm: 24,
+  arc: 10,
+  flicker: 8,
+  coil: 15,
+};
+
+/** Mock 166's stage is 190px tall. Every px distance below is scaled against it so the motion keeps
+ *  its proportions on a box of any size. */
+const MOCK_STAGE_H = 190;
+/** The emission point — the flame's own tip, as a fraction of the box height from the top. Mock 166
+ *  puts every emitter at `bottom: 44%`. */
+const FLAME_Y = 0.56;
 
 /**
  * The field itself, sized from its own layout so a caller only has to drop it behind a flame.
@@ -1073,132 +1103,444 @@ export function FlameParticleField({ from, to, motion }: { from: string; to: str
 }
 
 /**
- * A soft flash that swells and dies.
+ * ONE MOTE — the mock's `radial-gradient(circle, HOT, BODY 70%, transparent)`.
  *
- * This used to be Zeus' Wrath's whole lightning layer — four of these pulsing at fixed points on
- * the screen edges — and mock 167 replaced that with real jagged bolts (see Zeus / Hammer above).
- * It survives because the PARTICLE set still wants it: Lightning Tendrils is a ring of small
- * reaches around the flame, and at ~30px a burst of light genuinely is what a fork of electricity
- * looks like. What made it wrong as a full-screen flare — no shape, just a glow — is exactly what
- * makes it right at this size.
+ * Two stops rather than `Glow`'s one, because that is what mock 166 specifies for every particle
+ * set, and the two-tone core is most of why Falling Ash reads as ash and Ember Swarm as embers.
  */
-function Zap({ colour, left, top, size, delay }: { colour: string; left: number; top: number; size: number; delay: number }) {
+function Mote({ size, hot, body, peak = 1 }: { size: number; hot: string; body: string; peak?: number }) {
+  const id = `mote-${useId()}`;
+  return (
+    <Svg width={size} height={size} pointerEvents="none">
+      <Defs>
+        <RadialGradient id={id} cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor={hot} stopOpacity={peak} />
+          <Stop offset="0.7" stopColor={body} stopOpacity={peak * 0.35} />
+          <Stop offset="1" stopColor={body} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Circle cx={size / 2} cy={size / 2} r={size / 2} fill={`url(#${id})`} />
+    </Svg>
+  );
+}
+
+/** Floating Sparks + Falling Ash: a straight travel with a fade in and a long fade out. */
+function Travel({
+  hot,
+  body,
+  size,
+  left,
+  top,
+  dx,
+  dy,
+  duration,
+  phase,
+  easing,
+  fadeIn,
+  peak,
+  grow,
+}: {
+  hot: string;
+  body: string;
+  size: number;
+  left: number;
+  top: number;
+  dx: number;
+  dy: number;
+  duration: number;
+  phase: number;
+  easing: EasingFunction;
+  fadeIn: number;
+  peak: number;
+  grow?: readonly [number, number];
+}) {
+  const t = usePhasedLoop(phase, duration, easing, false);
+  const style = useAnimatedStyle(() => {
+    const o = t.value < fadeIn ? t.value / fadeIn : 1 - (t.value - fadeIn) / (1 - fadeIn);
+    const sc = grow ? grow[0] + (grow[1] - grow[0]) * t.value : 1;
+    return {
+      transform: [{ translateX: t.value * dx }, { translateY: t.value * dy }, { scale: sc }],
+      opacity: Math.max(0, o) * peak,
+    };
+  });
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top, opacity: 0 }, style]}>
+      <Mote size={size} hot={hot} body={body} />
+    </Animated.View>
+  );
+}
+
+/**
+ * EMBER SWARM — a true orbit, which is the whole point of the set and the thing it did not do.
+ *
+ * Mock 166: `@keyframes swarm { rotate(0) translateY(-r) -> rotate(360deg) translateY(-r) }` — the
+ * mote is pushed out to radius r and then carried all the way round. What was here instead was a
+ * short ping-pong hop, so the "swarm that circulates the fire" hovered beside it and circled
+ * nothing. Transform ORDER matters and matches the mock: rotate first, then translate in the
+ * rotated frame.
+ */
+function Orbit({
+  hot,
+  body,
+  size,
+  cx,
+  cy,
+  radius,
+  duration,
+  phase,
+}: {
+  hot: string;
+  body: string;
+  size: number;
+  cx: number;
+  cy: number;
+  radius: number;
+  duration: number;
+  phase: number;
+}) {
+  const t = usePhasedLoop(phase, duration, EASE_LINEAR, false);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${t.value * 360}deg` }, { translateY: -radius }],
+  }));
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[{ position: 'absolute', left: cx - size / 2, top: cy - size / 2 }, style]}>
+      <Mote size={size} hot={hot} body={body} />
+    </Animated.View>
+  );
+}
+
+/**
+ * SOLAR FLARES — arcs that loop off the flame and snap back.
+ *
+ * Mock 166's `solar` keyframes hold a FIXED angle and animate distance: translateX 8 -> 64 -> 10,
+ * scale .4 -> 1 -> .3. The outer view carries the static rotation and the inner one the travel,
+ * which is the only way to get "out and back along a spoke" instead of a drift.
+ */
+function SolarArc({
+  hot,
+  body,
+  size,
+  cx,
+  cy,
+  angle,
+  reach,
+  duration,
+  phase,
+}: {
+  hot: string;
+  body: string;
+  size: number;
+  cx: number;
+  cy: number;
+  angle: number;
+  reach: number;
+  duration: number;
+  phase: number;
+}) {
+  const t = usePhasedLoop(phase, duration, EASE_SINE, false);
+  const style = useAnimatedStyle(() => {
+    // 0 -> .55 travels out to `reach`; .55 -> 1 snaps back almost to the flame.
+    const out = t.value < 0.55;
+    const k = out ? t.value / 0.55 : (t.value - 0.55) / 0.45;
+    const x = out ? reach * (0.125 + 0.875 * k) : reach * (1 - 0.844 * k);
+    const sc = out ? 0.4 + 0.6 * k : 1 - 0.7 * k;
+    const o = t.value < 0.3 ? t.value / 0.3 : 1 - (t.value - 0.3) / 0.7;
+    return { transform: [{ translateX: x }, { scale: sc }], opacity: Math.max(0, o) };
+  });
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: 'absolute', left: cx, top: cy - size / 2, transform: [{ rotate: `${angle}deg` }] }}>
+      <Animated.View style={[{ opacity: 0 }, style]}>
+        <Mote size={size} hot={hot} body={body} />
+      </Animated.View>
+    </View>
+  );
+}
+
+/**
+ * LIGHTNING TENDRILS — the mock's jagged glyph, not a ball of light.
+ *
+ * `.bolt` in mock 166 is a 2px-wide bar with a `clip-path` polygon cut into a fork, gradient-filled
+ * cyan-to-white, rotated to a random angle about its BOTTOM edge so it reaches outward from the
+ * flame. The path below is that clip-path, point for point.
+ */
+function Tendril({
+  hot,
+  body,
+  cx,
+  cy,
+  angle,
+  len,
+  duration,
+  phase,
+}: {
+  hot: string;
+  body: string;
+  cx: number;
+  cy: number;
+  angle: number;
+  len: number;
+  duration: number;
+  phase: number;
+}) {
+  const id = `tendril-${useId()}`;
+  const w = Math.max(2, len * 0.075);
   const flash = useSharedValue(0);
   useEffect(() => {
+    // mock `@keyframes bolt`: 0 -> 8% on -> 16% .2 -> 24% .9 -> 40% out, then dark for the rest.
+    const d = duration;
     flash.value = withDelay(
-      delay,
+      phase * d,
       withRepeat(
-        // Snap on, hold barely, fall off, then a long dark gap — the gap is what makes it a strike
-        // rather than a blinking light.
         withSequence(
-          withTiming(1, { duration: 70 }),
-          withTiming(0.25, { duration: 110 }),
-          withTiming(0, { duration: 180 }),
-          withTiming(0, { duration: 2600 })
+          withTiming(1, { duration: d * 0.08 }),
+          withTiming(0.2, { duration: d * 0.08 }),
+          withTiming(0.9, { duration: d * 0.08 }),
+          withTiming(0, { duration: d * 0.16 }),
+          withTiming(0, { duration: d * 0.6 })
         ),
         -1,
         false
       )
     );
-  }, [flash, delay]);
-
-  const style = useAnimatedStyle(() => ({ opacity: flash.value, transform: [{ scale: 0.85 + flash.value * 0.3 }] }));
+  }, [flash, duration, phase]);
+  const style = useAnimatedStyle(() => ({ opacity: flash.value }));
+  // clip-path: polygon(40% 0, 60% 0, 45% 45%, 70% 45%, 30% 100%, 50% 55%, 30% 55%)
+  const d = `M ${0.4 * w} 0 L ${0.6 * w} 0 L ${0.45 * w} ${0.45 * len} L ${0.7 * w} ${0.45 * len} L ${0.3 * w} ${len} L ${0.5 * w} ${0.55 * len} L ${0.3 * w} ${0.55 * len} Z`;
   return (
-    // A strike is the one driver that keeps its delay rather than a seeded phase: the long dark gap
-    // IS the effect, so starting it mid-flash would be wrong. `opacity: 0` underneath is what stops
-    // the un-animated first frame painting a full-strength ball of light.
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        {
+          position: 'absolute',
+          left: cx - w / 2,
+          top: cy - len,
+          transformOrigin: '50% 100%' as const,
+          transform: [{ rotate: `${angle}deg` }],
+          opacity: 0,
+        },
+        style,
+      ]}>
+      <Svg width={w} height={len} pointerEvents="none">
+        <Defs>
+          <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={hot} />
+            <Stop offset="1" stopColor={body} />
+          </LinearGradient>
+        </Defs>
+        <Path d={d} fill={`url(#${id})`} />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/**
+ * VOID SMOKE — gothic, and serpentine rather than straight.
+ *
+ * Mock 166 coils it: at 50% the veil is at `(dx, -58)`, at 100% at `(-dx, -128)` — it sways one way
+ * and then back as it climbs, which is what makes it a coil rather than a rising blob. It also
+ * swells hard (scale .5 -> 1.4 -> 2.2) and stays heavy and dark. The old version rose in a straight
+ * line at constant size, which is why "a funeral veil coiling upward" read as four grey circles.
+ */
+function Veil({
+  hot,
+  body,
+  size,
+  left,
+  top,
+  dx,
+  rise,
+  duration,
+  phase,
+}: {
+  hot: string;
+  body: string;
+  size: number;
+  left: number;
+  top: number;
+  dx: number;
+  rise: number;
+  duration: number;
+  phase: number;
+}) {
+  const t = usePhasedLoop(phase, duration, EASE_SINE, false);
+  const style = useAnimatedStyle(() => {
+    // The coil: out to +dx by halfway, then back through zero to -dx at the top.
+    const x = t.value < 0.5 ? dx * (t.value / 0.5) : dx * (1 - 2 * ((t.value - 0.5) / 0.5));
+    const y = t.value < 0.5 ? rise * 0.45 * (t.value / 0.5) : rise * (0.45 + 0.55 * ((t.value - 0.5) / 0.5));
+    const sc = t.value < 0.5 ? 0.5 + 0.9 * (t.value / 0.5) : 1.4 + 0.8 * ((t.value - 0.5) / 0.5);
+    const o = t.value < 0.18 ? (t.value / 0.18) * 0.82 : 0.82 * (1 - (t.value - 0.18) / 0.82);
+    return { transform: [{ translateX: x }, { translateY: y }, { scale: sc }], opacity: Math.max(0, o) };
+  });
+  return (
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top, opacity: 0 }, style]}>
-      <Glow size={size} colour={colour} peak={0.95} />
+      <Mote size={size} hot={hot} body={body} peak={0.9} />
     </Animated.View>
   );
 }
 
 function Particles({ from, to, motion, w, h }: { from: string; to: string; motion: ParticleMotion; w: number; h: number }) {
   const n = PARTICLE_COUNT[motion];
-  // Alternating hot/body colour, deterministic per index — see `spread`.
-  const hue = (i: number) => (i % 2 === 0 ? to : from);
-  // Particles orbit the flame, so their lanes are measured from the box's centre outward.
+  // `to` is the hot colour and `from` the body. Mock 166 fills every mote
+  // `radial-gradient(circle, HOT, BODY 70%, transparent)`, and the catalog's two stops already ARE
+  // that pair for all six sets — checked one by one against the mock rather than assumed.
+  const hot = to;
+  const body = from;
   const cx = w / 2;
+  // The emission point is the flame's own tip, not the middle of the box.
+  const fy = h * FLAME_Y;
+  const k = h / MOCK_STAGE_H;
 
-  if (motion === 'flicker') {
-    // Lightning Tendrils — it reaches rather than drifts. The Zap primitive already IS a reach: a
-    // burst of light with a dark gap after it, which is what "fingers of electricity" looks like at
-    // this size. Ringed around the flame instead of pinned to the screen edges.
-    return (
-      <>
-        {Array.from({ length: n }, (_, i) => {
-          const a = (i / n) * Math.PI * 2 + 0.4;
-          const size = w * (0.2 + spread(i, 0.3) * 0.12);
-          return (
-            <Zap
+  switch (motion) {
+    // FLOATING SPARKS — off the flame's tip, climbing and spreading. Mock: left 44-56%, bottom 44%.
+    case 'rise':
+      return (
+        <>
+          {Array.from({ length: n }, (_, i) => {
+            const j = spread(i);
+            return (
+              <Travel
+                key={i}
+                hot={hot}
+                body={body}
+                size={(3 + j * 3) * k * 2.2}
+                left={w * (0.44 + spread(i, 0.31) * 0.12)}
+                top={fy}
+                dx={(spread(i, 0.63) * 36 - 18) * k}
+                dy={-140 * k}
+                duration={2000 + j * 1800}
+                phase={spread(i, 0.17)}
+                easing={EASE_QUAD}
+                fadeIn={0.18}
+                peak={1}
+                grow={[0.5, 1] as const}
+              />
+            );
+          })}
+        </>
+      );
+
+    // FALLING ASH — the quiet snow, falling across the WHOLE width from the very top. The old
+    // version put it in two lanes either side of centre, which is why it read as emitting from the
+    // flame rather than settling onto it.
+    case 'fall':
+      return (
+        <>
+          {Array.from({ length: n }, (_, i) => {
+            const j = spread(i);
+            return (
+              <Travel
+                key={i}
+                hot={hot}
+                body={body}
+                size={(2.5 + j * 2.5) * k * 2.2}
+                left={spread(i, 0.41) * w}
+                top={-10 * k}
+                dx={(spread(i, 0.77) * 30 - 15) * k}
+                dy={150 * k}
+                duration={3000 + j * 2500}
+                phase={spread(i, 0.29)}
+                easing={EASE_LINEAR}
+                fadeIn={0.15}
+                peak={0.9}
+              />
+            );
+          })}
+        </>
+      );
+
+    // EMBER SWARM — 24 motes circling the fire at 30-54px.
+    case 'swarm':
+      return (
+        <>
+          {Array.from({ length: n }, (_, i) => (
+            <Orbit
               key={i}
-              colour={hue(i)}
-              left={cx + Math.cos(a) * w * 0.4 - size / 2}
-              top={h * 0.52 + Math.sin(a) * w * 0.32 - size / 2}
-              size={size}
-              delay={Math.round(spread(i) * 2800)}
+              hot={hot}
+              body={body}
+              size={(2.5 + spread(i, 0.19) * 3) * k * 2.2}
+              cx={cx}
+              cy={fy}
+              radius={(30 + spread(i, 0.53) * 24) * k}
+              duration={3600 + spread(i, 0.11) * 800}
+              // Evenly staggered round the ring, exactly as the mock's `-(i/N)*4s` delay does, so
+              // the band is continuous from the very first frame.
+              phase={i / n}
             />
-          );
-        })}
-      </>
-    );
+          ))}
+        </>
+      );
+
+    // SOLAR FLARES — ten spokes, out and back.
+    case 'arc':
+      return (
+        <>
+          {Array.from({ length: n }, (_, i) => (
+            <SolarArc
+              key={i}
+              hot={hot}
+              body={body}
+              size={6 * k * 2.6}
+              cx={cx}
+              cy={fy}
+              angle={Math.round(spread(i, 0.37) * 360)}
+              reach={64 * k}
+              duration={1800 + spread(i, 0.71) * 1200}
+              phase={spread(i, 0.61)}
+            />
+          ))}
+        </>
+      );
+
+    // LIGHTNING TENDRILS — eight forked glyphs reaching out at random angles.
+    case 'flicker':
+      return (
+        <>
+          {Array.from({ length: n }, (_, i) => (
+            <Tendril
+              key={i}
+              hot={hot}
+              body={body}
+              cx={cx}
+              cy={fy}
+              angle={Math.round(spread(i, 0.23) * 360)}
+              len={(26 + spread(i, 0.59) * 26) * k}
+              duration={900 + spread(i, 0.43) * 1100}
+              phase={spread(i, 0.83)}
+            />
+          ))}
+        </>
+      );
+
+    // VOID SMOKE — fifteen heavy veils coiling up off the flame.
+    case 'coil':
+    default:
+      return (
+        <>
+          {Array.from({ length: n }, (_, i) => {
+            const j = spread(i);
+            const size = (15 + j * 17) * k * 2.2;
+            return (
+              <Veil
+                key={i}
+                hot={hot}
+                body={body}
+                size={size}
+                left={w * (0.4 + spread(i, 0.29) * 0.2) - size / 2}
+                top={h * 0.62}
+                dx={(spread(i, 0.67) * 44 - 22) * k}
+                rise={-128 * k}
+                duration={4200 + j * 2600}
+                phase={spread(i, 0.07)}
+              />
+            );
+          })}
+        </>
+      );
   }
-
-  return (
-    <>
-      {Array.from({ length: n }, (_, i) => {
-        const j = spread(i);
-        const side = i % 2 === 0 ? 1 : -1;
-        // Lanes stay inside the middle of the box: a mote hugging the outer edge reads as belonging
-        // to the screen rather than to the flame, which is the flare's job and not this one's.
-        const lane = cx + side * (0.08 + spread(i, 0.41) * 0.32) * w;
-
-        switch (motion) {
-          // Sparks / Floating Sparks / Ascendant Ash — embers climbing off the fire.
-          case 'rise':
-            return (
-              <Drifter key={i} colour={hue(i)} size={w * (0.09 + j * 0.07)} left={lane} top={h * 0.7}
-                travelY={-h * (0.42 + j * 0.26)} travelX={side * w * 0.09}
-                duration={3200 + j * 2600} phase={spread(i, 0.17)} peak={0.75} />
-            );
-
-          // Falling Ash — the quiet snow. Slower than the rise, and it drifts rather than climbs.
-          case 'fall':
-            return (
-              <Drifter key={i} colour={hue(i)} size={w * (0.06 + j * 0.05)} left={lane} top={-h * 0.1}
-                travelY={h * (0.7 + j * 0.3)} travelX={side * w * 0.13}
-                duration={5200 + j * 4200} phase={spread(i, 0.29)} peak={0.6} />
-            );
-
-          // Ember Swarm — short ping-pong hops around the flame, so it hovers instead of leaving.
-          case 'swarm':
-            return (
-              <Drifter key={i} colour={hue(i)} size={w * (0.07 + j * 0.05)} left={lane} top={h * (0.2 + j * 0.5)}
-                travelY={side * h * 0.13} travelX={-side * w * 0.16}
-                duration={1900 + j * 1500} phase={spread(i, 0.53)} peak={0.8} reverse />
-            );
-
-          // Solar Flares — big slow loops that swing out and snap back. Few and large, which is the
-          // only way an arc reads at this scale.
-          case 'arc':
-            return (
-              <Drifter key={i} colour={hue(i)} size={w * (0.26 + j * 0.14)} left={lane - w * 0.15} top={h * (0.28 + j * 0.34)}
-                travelY={-h * 0.14} travelX={side * w * 0.34}
-                duration={4200 + j * 2400} phase={spread(i, 0.61)} peak={0.55} reverse />
-            );
-
-          // Void Smoke — a funeral veil: few, huge, slow, and barely there.
-          case 'coil':
-          default:
-            return (
-              <Drifter key={i} colour={hue(i)} size={w * (0.42 + j * 0.22)} left={lane - w * 0.25} top={h * 0.62}
-                travelY={-h * (0.5 + j * 0.2)} travelX={side * w * 0.12}
-                duration={8000 + j * 5000} phase={spread(i, 0.07)} peak={0.42} stretch={1.25} />
-            );
-        }
-      })}
-    </>
-  );
 }
 
 /**
