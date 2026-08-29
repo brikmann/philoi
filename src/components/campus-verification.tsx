@@ -99,6 +99,16 @@ export function CampusVerification({
         setCode('');
         setCooldown(0);
       }
+      // The code was RIGHT — the address is simply spoken for (migration 0136). Nothing about this
+      // screen can free it, so go back to the email field: the only move left is a different
+      // address, and leaving them on a code entry implies a retry that can never succeed. The
+      // server's sentence survives the stage change, which is what tells them why they moved.
+      if (e instanceof CampusVerificationError && e.reason === 'email_taken') {
+        setCode('');
+        setCooldown(0);
+        setLocalPart('');
+        setStage('email');
+      }
     } finally {
       setBusy(false);
     }

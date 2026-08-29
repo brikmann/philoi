@@ -23,6 +23,10 @@ export type CampusVerificationReason =
   | 'email_mismatch'
   | 'too_many_attempts'
   | 'school_changed'
+  // The address is verified on a DIFFERENT account already (migration 0136). Terminal for this
+  // address: no amount of retrying frees it, so the UI has to send them back to the email field
+  // rather than leave them on a code they can keep re-entering.
+  | 'email_taken'
   | 'malformed';
 
 export class CampusVerificationError extends Error {

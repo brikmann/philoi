@@ -80,11 +80,44 @@ Deno.serve(async (req) => {
       return json({ error: 'Your school changed — start verification again.', reason: 'school_changed' }, 409);
     }
 
+    // ONE ACCOUNT PER CAMPUS EMAIL (migration 0136). Without this the code check above proves only
+    // that the caller can read that inbox — not that the inbox is unspent — so a single working
+    // @school.ca verified an unlimited number of accounts, one after another.
+    //
+    // `ilike` rather than `eq`: `email` is already lowercased (line 25), but the column is plain
+    // text and nothing forced older rows to be, so an exact match would miss a stored Brik8334@.
+    // Same folding the unique index uses.
+    const { data: taken } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('university_email_verified', true)
+      .ilike('university_email', email)
+      .neq('id', user.id)
+      .maybeSingle();
+    if (taken) {
+      return json(
+        { error: 'This school email is already linked to another Philoi account.', reason: 'email_taken' },
+        409
+      );
+    }
+
     const { error: updateError } = await admin
       .from('profiles')
       .update({ university_email: email, university_email_verified: true })
       .eq('id', user.id);
-    if (updateError) return json({ error: 'Could not save your verification.' }, 500);
+    if (updateError) {
+      // The pre-check above is a read followed by a write, so two devices verifying the same
+      // address in the same second both pass it and the SECOND one lands here on the unique index.
+      // That is the same situation the user is in either way — the address is spoken for — so it
+      // gets the same 409 and the same sentence, not a generic 500 that reads like our fault.
+      if (updateError.code === '23505') {
+        return json(
+          { error: 'This school email is already linked to another Philoi account.', reason: 'email_taken' },
+          409
+        );
+      }
+      return json({ error: 'Could not save your verification.' }, 500);
+    }
 
     // Single-use: the row goes as soon as it has done its job.
     await admin.from('uni_verification_codes').delete().eq('user_id', user.id);
