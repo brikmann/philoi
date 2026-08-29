@@ -29,7 +29,7 @@ struct FocusNudgeArmOptions: Record {
   @Field var maxMinutes: Double = 720
   /// How long a "continue anyway" holds the shield down before the monitor's usage-threshold event
   /// puts it back. Kept in step with the payload's own `deferMs`.
-  @Field var deferMinutes: Double = 15
+  @Field var deferMinutes: Double = 10
 }
 
 public class PhiloiFocusNudgeModule: Module {

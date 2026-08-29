@@ -93,7 +93,7 @@ out. `@bacons/apple-targets` already understands all three Screen Time target ty
    §C-safety escalation card, so repeated retreat turns caring with no connection required.
 3. **The buttons.** Primary opens Philoi — `philoi://lock-in` on a reinforce card,
    `philoi://support` on wellbeing/support. Secondary is the pass-through: it disarms the store for
-   15 minutes and returns `.close`. **iOS has no `ShieldActionResponse` meaning "let them straight
+   10 minutes and returns `.close`. **iOS has no `ShieldActionResponse` meaning "let them straight
    through"**, so after the disarm the app opens on the next tap. That extra tap is the entire cost
    of continuing — no penalty, no streak loss, nothing recorded.
 4. **Safety (§C-safety).** The ShieldConfiguration extension records each presentation (debounced

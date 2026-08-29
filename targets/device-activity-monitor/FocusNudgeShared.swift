@@ -154,7 +154,7 @@ public struct FocusNudgePayload {
     ),
     escalateAfter: 3,
     escalateWindowMs: 60 * 60 * 1000,
-    deferMs: 15 * 60 * 1000
+    deferMs: 10 * 60 * 1000
   )
 
   public init(

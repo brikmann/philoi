@@ -82,7 +82,7 @@ export const ESCALATE_AFTER = 3;
 export const ESCALATE_WINDOW_MS = 60 * 60 * 1000;
 
 /** How long "continue anyway" keeps the shield down. A tap on the shoulder, not nagging (§C). */
-export const DEFER_MS = 15 * 60 * 1000;
+export const DEFER_MS = 10 * 60 * 1000;
 
 /**
  * The failsafe ceiling on the DeviceActivity window (§D). Long enough that it never truncates a
