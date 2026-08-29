@@ -132,3 +132,22 @@ export function isForgeFuel(item: ForgeCandidate): boolean {
 export function isRungReachable(step: ForgeStep): boolean {
   return dropPoolAt(step.from).length >= step.need;
 }
+
+/**
+ * Does the caller already own every droppable item at this rarity?
+ *
+ * The Forge outputs an item you do not own or it outputs nothing (migration 0139) — there is no
+ * dupe, and no embers in place of an item. So a rung whose TARGET tier is complete has nothing to
+ * forge toward, and the server rejects it with `tier_complete` before consuming anything.
+ *
+ * This is the client's mirror of that check, and its only job is to say so BEFORE the user spends
+ * the effort of filling a recipe. It is not the guard: the guard is server-side, and it holds
+ * whatever this returns.
+ *
+ * Note which rarity gets passed in — the rung's `into`, not its `from`. Owning every Epic is what
+ * closes the Rare→Epic rung; owning every Rare is just a lot of fuel.
+ */
+export function isTierComplete(rarity: Rarity, ownedKeys: ReadonlySet<string>): boolean {
+  const pool = dropPoolAt(rarity);
+  return pool.length > 0 && pool.every((i) => ownedKeys.has(i.id));
+}

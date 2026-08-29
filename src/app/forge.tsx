@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { EmberAmount, EmberPill, RarityLabel, formatEmbers } from '@/components/economy/economy-bits';
+import { EmberPill, RarityLabel } from '@/components/economy/economy-bits';
 import { ForgeStrike } from '@/components/economy/forge-strike';
 import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
@@ -14,12 +14,13 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useRevealPreview, useRevealSting } from '@/hooks/use-audio-preview';
 import { useInventory, type OwnedItem } from '@/hooks/use-inventory';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
-import { forgeCombine, type ForgeResult } from '@/lib/api/forge';
+import { forgeCombine, isTierCompleteError, type ForgeResult } from '@/lib/api/forge';
 import {
   FORGE_LADDER,
   dropPoolAt,
   isForgeFuel,
   isRungReachable,
+  isTierComplete,
   stepRecipeLabel,
   stepTabLabel,
   type ForgeStep,
@@ -64,7 +65,7 @@ type Phase = 'picking' | 'forging' | 'reveal';
 function ForgeFlow() {
   const router = useRouter();
   const reduceMotion = useReduceMotion();
-  const { embers, owned, loading, error, refetch } = useInventory();
+  const { embers, owned, ownedKeys, loading, error, refetch } = useInventory();
   // The Inventory shortcut (mock 156 frame 2) deep-links with a rarity and a pre-made selection, so
   // "send these to the Forge" lands on a recipe that is already half full rather than on a blank one.
   const params = useLocalSearchParams<{ rarity?: string; items?: string }>();
@@ -101,8 +102,15 @@ function ForgeFlow() {
 
   const fuel = fuelByRarity.get(step.from) ?? [];
   const picked = fuel.filter((i) => selected.includes(i.ownedId));
-  const ready = picked.length === step.need;
   const reachable = isRungReachable(step);
+  // Owning the whole target tier closes the rung: the Forge only ever outputs something you don't
+  // own, so there is nothing left for it to make. Checked here so the recipe greys out before any
+  // effort goes into filling it — the server refuses it anyway, with `tier_complete`, having
+  // consumed nothing.
+  const tierComplete = isTierComplete(step.into, ownedKeys);
+  const ready = picked.length === step.need && !tierComplete;
+  // The size of the set the roll actually draws from — what's left at the target tier, not the tier.
+  const unownedAtTarget = dropPoolAt(step.into).filter((i) => !ownedKeys.has(i.id)).length;
 
   function chooseStep(next: ForgeStep) {
     setPickedRarity(next.from);
@@ -135,7 +143,16 @@ function ForgeFlow() {
       void refetch();
     } catch (e) {
       setConsumedItems([]);
-      Alert.alert("The Forge wouldn't take that", getErrorMessage(e, 'Something went wrong.'));
+      // tier_complete is not a failure, it is an answer — and the one thing the user needs to hear
+      // is that the attempt cost them nothing. Titled accordingly rather than as an error.
+      if (isTierCompleteError(e)) {
+        Alert.alert(
+          `You own every ${step.into}`,
+          `There's nothing left for the Forge to make at that tier, so your ${step.from}s weren't touched. Try a different reforge path.`
+        );
+      } else {
+        Alert.alert("The Forge wouldn't take that", getErrorMessage(e, 'Something went wrong.'));
+      }
     } finally {
       setBusy(false);
     }
@@ -190,14 +207,21 @@ function ForgeFlow() {
           {FORGE_LADDER.map((s) => {
             const on = s.from === step.from;
             const have = fuelByRarity.get(s.from)?.length ?? 0;
+            // Two different ways a rung can be shut, dimmed the same way because they are the same
+            // news to the user: this path has nothing to give you.
+            const shut = !isRungReachable(s) || isTierComplete(s.into, ownedKeys);
             return (
               <Pressable
                 key={s.from}
-                style={[styles.tab, on && styles.tabOn, !isRungReachable(s) && styles.tabDead]}
+                style={[styles.tab, on && styles.tabOn, shut && styles.tabDead]}
                 onPress={() => chooseStep(s)}
                 accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={`${stepRecipeLabel(s)}, you have ${have}`}>
+                accessibilityState={{ selected: on, disabled: shut }}
+                accessibilityLabel={
+                  isTierComplete(s.into, ownedKeys)
+                    ? `${stepRecipeLabel(s)}, closed — you own every ${s.into}`
+                    : `${stepRecipeLabel(s)}, you have ${have}`
+                }>
                 <Text style={[styles.tabText, on && styles.tabTextOn]}>{stepTabLabel(s)}</Text>
               </Pressable>
             );
@@ -230,24 +254,36 @@ function ForgeFlow() {
               <Text style={[styles.outQ, { color: RARITY_COLOR[step.into] }]}>?</Text>
             </View>
           </View>
-          <Text style={styles.recipeHint}>
-            {ready
-              ? `Ready — one ${step.into} guaranteed`
-              : `Pick ${step.need - picked.length} more ${step.from} from below`}
+          <Text style={[styles.recipeHint, tierComplete && styles.recipeHintShut]}>
+            {tierComplete
+              ? `You own every ${step.into} — nothing to forge toward`
+              : ready
+                ? `Ready — one ${step.into} you don't own, guaranteed`
+                : `Pick ${step.need - picked.length} more ${step.from} from below`}
           </Text>
         </View>
 
         {/* ── What you'll get ──
-            The pool is named honestly, including its size, because "a random Epic" without a
-            denominator is the kind of claim a loot screen shouldn't make. */}
+            The pool is named honestly, including how much of it is still open to you, because
+            "a random Epic" without a denominator is the kind of claim a loot screen shouldn't make.
+            Since 0139 the denominator is the UN-OWNED count, not the pool size — that is the set the
+            roll actually draws from, so it is the number that tells the truth. */}
         <Text style={styles.sectionLabel}>What you&apos;ll get</Text>
         <View style={styles.explain}>
-          <Text style={styles.explainText}>
-            A <Text style={{ color: RARITY_COLOR[step.into], fontFamily: Fonts.bodyBold }}>random {step.into}</Text> you
-            don&apos;t own — flame, particle, card, halo, whatever the Forge spits out, from the{' '}
-            {dropPoolAt(step.into).length} in the box drop pool. The tier is guaranteed; which
-            one you get is the gamble.
-          </Text>
+          {tierComplete ? (
+            <Text style={styles.explainText}>
+              You own <Text style={{ color: RARITY_COLOR[step.into], fontFamily: Fonts.bodyBold }}>every {step.into}</Text>{' '}
+              the Forge can make — all {dropPoolAt(step.into).length} of them. This path has nothing
+              left to give you, so it won&apos;t take your {step.from}s. Pick another above.
+            </Text>
+          ) : (
+            <Text style={styles.explainText}>
+              A <Text style={{ color: RARITY_COLOR[step.into], fontFamily: Fonts.bodyBold }}>random {step.into}</Text> you
+              don&apos;t own — flame, particle, card, halo, whatever the Forge spits out, one of the{' '}
+              {unownedAtTarget} still missing from your collection. Never a duplicate, and never
+              embers instead.
+            </Text>
+          )}
           <Text style={styles.explainFine}>
             Season and Flame Pass items can never be forged — not made by the Forge, and never taken
             by it. Relics are earned, not fuel.
@@ -273,6 +309,17 @@ function ForgeFlow() {
               {stepRecipeLabel(step)} needs {step.need} different {step.from}s, and only{' '}
               {dropPoolAt(step.from).length} can drop today. Nothing you can do about it — pick
               another path above.
+            </Text>
+          </View>
+        ) : tierComplete ? (
+          /* The completionist's dead end, and it should read as an achievement rather than an
+             error — they finished the tier. The one thing that must be unambiguous is that their
+             fuel is safe, because the previous behaviour here was to eat it and pay embers. */
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>Every {step.into} is yours.</Text>
+            <Text style={styles.emptyBody}>
+              All {dropPoolAt(step.into).length} of them. The Forge only makes things you don&apos;t
+              own, so this path is closed — and your {step.from}s stay exactly where they are.
             </Text>
           </View>
         ) : !loading && fuel.length === 0 ? (
@@ -328,9 +375,11 @@ function ForgeFlow() {
           <Text style={[styles.primaryBtnText, (!ready || busy) && styles.primaryBtnTextOff]}>
             {busy
               ? 'Forging…'
-              : ready
-                ? 'Forge'
-                : `Forge · needs ${step.need - picked.length} more ${step.from}`}
+              : tierComplete
+                ? `Nothing left to forge at ${step.into}`
+                : ready
+                  ? 'Forge'
+                  : `Forge · needs ${step.need - picked.length} more ${step.from}`}
           </Text>
         </Pressable>
         <Text style={styles.ctaFine}>The Forge is free — the items are the cost.</Text>
@@ -393,15 +442,10 @@ function ForgeReveal({
           <PreviewButton item={item} />
         </View>
         <Text style={styles.heroLore}>{item.lore}</Text>
-
-        {result.dupe ? (
-          <View style={styles.dupeNote}>
-            <Text style={styles.dupeText}>
-              You already owned every {item.rarity} the Forge can make, so this one turned into{' '}
-              <Text style={styles.dupeEmbers}>{formatEmbers(result.embers)} embers</Text> instead.
-            </Text>
-          </View>
-        ) : null}
+        {/* No dupe branch, and that is the point. Since 0139 the roll draws only from what you don't
+            own, so a reveal is always something new — there is no "turned into embers instead" case
+            left to render, and a screen that still handled it would be describing behaviour the
+            server refuses to produce. */}
       </View>
 
       {/* Pushed to the bottom with marginTop rather than pinned like the picker's bar: there is no
@@ -413,7 +457,6 @@ function ForgeReveal({
         <Pressable style={styles.ghostBtn} onPress={onAgain}>
           <Text style={styles.ghostBtnText}>Forge again</Text>
         </Pressable>
-        {result.dupe ? <EmberAmount amount={result.embers} containerStyle={styles.revealEmbers} size={11} /> : null}
       </View>
     </Screen>
   );
@@ -544,6 +587,11 @@ const styles = StyleSheet.create({
     color: Colors.amber,
     marginTop: Spacing.twelve,
     textAlign: 'center',
+  },
+  // A closed rung drops out of ember: the amber line is the call to action, and "you own every Epic"
+  // is not one. It is information, and it should read at the weight of information.
+  recipeHintShut: {
+    color: Colors.textTertiary,
   },
   sectionLabel: {
     fontFamily: Fonts.bodyBold,
@@ -802,25 +850,5 @@ const styles = StyleSheet.create({
     color: '#b7a9cc',
     textAlign: 'center',
     marginTop: Spacing.twelve,
-  },
-  dupeNote: {
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
-    padding: Spacing.twelve,
-    marginTop: Spacing.three,
-  },
-  dupeText: {
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    lineHeight: 17,
-    color: Colors.muted,
-    textAlign: 'center',
-  },
-  dupeEmbers: {
-    fontFamily: Fonts.bodyBold,
-    color: Colors.ember,
-  },
-  revealEmbers: {
-    alignSelf: 'center',
   },
 });

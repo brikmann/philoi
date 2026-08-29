@@ -15,13 +15,17 @@ import { supabase } from '@/lib/supabase';
  * strike is a flourish over a settled outcome and a crash mid-animation cannot cost anyone the pull.
  */
 export type ForgeResult = {
-  /** The item the Forge made. */
+  /** The item the Forge made. Always one the caller did not already own — see forgeCombine. */
   cosmetic_key: string;
   /** Its rarity — the next rung up from what was fed in. Guaranteed, never rolled. */
   rarity: string;
-  /** True when the roll landed on something already owned; it auto-salvaged instead. */
+  /**
+   * Always false since migration 0139, and kept only because economy_grant_cosmetic returns it.
+   * The Forge rolls exclusively from the un-owned subset, so there is no dupe path; the server
+   * treats a true here as a lost race and aborts the whole combine rather than paying embers.
+   */
   dupe: boolean;
-  /** Ember payout on that dupe path, 0 otherwise. */
+  /** Always 0, for the same reason. */
   embers: number;
   /** The rarity that was consumed, echoed back so the reveal can say "from 3 Rare". */
   input_rarity: string;
@@ -31,7 +35,27 @@ export type ForgeResult = {
 };
 
 /**
+ * The caller owns every droppable item at the target rarity, so there was nothing to forge toward
+ * and the combine was refused WITHOUT consuming anything.
+ *
+ * Detected off `details` rather than the message: migration 0139 raises it with
+ * `using detail = 'tier_complete'`, which PostgREST surfaces as `error.details`, precisely so the
+ * screen never has to pattern-match prose that a copy edit would break. The message is checked as a
+ * fallback only for the case where a proxy drops the field.
+ */
+export function isTierCompleteError(e: unknown): boolean {
+  const err = e as { details?: unknown; message?: unknown } | null;
+  if (!err || typeof err !== 'object') return false;
+  if (err.details === 'tier_complete') return true;
+  return typeof err.message === 'string' && err.message.includes('nothing left to forge toward');
+}
+
+/**
  * Feed N owned cosmetics of one rarity into the Forge and get one of the next rarity up.
+ *
+ * The result is ALWAYS an item the caller did not already own (migration 0139). If they own the
+ * whole target tier the call is refused with `tier_complete` and nothing is consumed — the Forge
+ * never hands back embers in place of an item.
  *
  * `ownedIds` are cosmetics_owned row ids (OwnedItem.ownedId), not catalog keys — the row is the
  * thing being destroyed, so it is what gets named. Nothing else is sent: not the pool, not the
