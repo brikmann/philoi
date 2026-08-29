@@ -204,7 +204,7 @@ function EffectLayer({ effect, colour, width, height }: { effect: FlareEffect; c
     // embers raining into it, motes climbing back out. See Ascendant: it was a plain stack of the
     // two stock layers, which is not what a capstone is.
     case 'emberfall':
-      return <Ascendant colour={colour} width={width} height={height} />;
+      return <Ascendant width={width} height={height} />;
     // The base glow IS the effect for `glow` flares — the breath above carries them.
     case 'glow':
       return null;
@@ -666,100 +666,6 @@ function Hammer({ width, height }: { width: number; height: number }) {
 }
 
 /**
- * ONE FALLING EMBER.
- *
- * Was a droplet: `Easing.in(Easing.quad)` down a fixed lane, opacity `sin(t*pi)`. Three things made
- * that read as rain on glass rather than as fire (COSMETIC_UI_FIXES §4) — it ACCELERATED, it fell
- * dead straight, and it was uniformly bright for the whole middle of its trip.
- *
- * An ember does none of those. It has already reached terminal velocity by the time you see it, so
- * it falls at a steady rate (EASE_LINEAR); it is light enough to be pushed sideways, so it sways;
- * and it is BURNING OUT as it falls, so it flares up early and dies away long before it lands.
- * `sway` and `flicker` are per-particle so no two fall alike.
- */
-function Ember({
-  colour,
-  left,
-  size,
-  height,
-  duration,
-  phase,
-  sway,
-  flicker,
-}: {
-  colour: string;
-  left: number;
-  size: number;
-  height: number;
-  duration: number;
-  phase: number;
-  /** Horizontal travel, px peak-to-peak, over roughly two swings of the fall. */
-  sway: number;
-  /** Cycles of brightness flutter across the trip. */
-  flicker: number;
-}) {
-  const t = usePhasedLoop(phase, duration, EASE_LINEAR, false);
-
-  const style = useAnimatedStyle(() => {
-    const p = t.value;
-    // Catch (fast, over the first 10%), burn, then die out across the last 45% — an ember that
-    // reached the bottom edge at full strength would look like it hit the floor.
-    const life = Math.min(1, p / 0.1) * Math.min(1, (1 - p) / 0.45);
-    return {
-      transform: [
-        { translateY: p * height },
-        { translateX: Math.sin(p * Math.PI * 2) * sway },
-        // Stretched along its own path, and more so the faster it is going.
-        { scaleY: 1 + p * 0.35 },
-      ],
-      opacity: life * (0.72 + 0.28 * Math.sin(p * Math.PI * 2 * flicker)),
-    };
-  });
-
-  return (
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top: -40, opacity: 0 }, style]}>
-      <Glow size={size} colour={colour} peak={0.9} stretch={2.4} />
-    </Animated.View>
-  );
-}
-
-/**
- * Acid Rain / the Emberfall rain layer — embers falling down both edges.
- *
- * EDGE LANES ONLY. The old centre lane ran drops down the middle of the screen, which is exactly
- * the full-screen reading the rim exists to replace (punchlist 15.2). `density` scales the count
- * for the season capstone, which wants weather rather than a drizzle.
- */
-function Falling({ colour, width, height, density = 1 }: { colour: string; width: number; height: number; density?: number }) {
-  const n = Math.round(7 * density);
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {Array.from({ length: n }, (_, i) => {
-        const jitter = spread(i, 0.31);
-        // Alternating edges, each lane pushed a little way in from its own side. Half the embers
-        // start off-screen at the very edge, which is what stops the two columns reading as two
-        // tidy lines of dots.
-        const fromLeft = i % 2 === 0;
-        const inset = -6 + jitter * 46;
-        return (
-          <Ember
-            key={i}
-            colour={colour}
-            left={fromLeft ? inset : width - inset - 20}
-            size={12 + spread(i, 0.77) * 12}
-            height={height + 90}
-            duration={3600 + jitter * 3200}
-            phase={spread(i)}
-            sway={(fromLeft ? 1 : -1) * (8 + spread(i, 0.11) * 16)}
-            flicker={2 + Math.round(spread(i, 0.44) * 3)}
-          />
-        );
-      })}
-    </View>
-  );
-}
-
-/**
  * ONE TONGUE OF FLAME, on any of the four edges.
  *
  * Was bottom-only, which is why Inferno licked up from the floor and nowhere else. Mock 167's
@@ -845,7 +751,6 @@ function Flames({
   tall = 230,
   peak,
   edges = ['bottom'],
-  count,
 }: {
   colour: string;
   width: number;
@@ -853,15 +758,13 @@ function Flames({
   tall?: number;
   peak?: number;
   edges?: readonly ('bottom' | 'top' | 'left' | 'right')[];
-  /** Overrides the per-edge count. Emberfall Ascendant uses this — see the note below. */
-  count?: number;
 }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {edges.map((edge, e) => {
         const vertical = edge === 'bottom' || edge === 'top';
         const span = vertical ? width : height;
-        const perEdge = count ?? (vertical ? PER_EDGE_VERTICAL : PER_EDGE_LATERAL);
+        const perEdge = vertical ? PER_EDGE_VERTICAL : PER_EDGE_LATERAL;
         const lane = span / perEdge;
         return Array.from({ length: perEdge }, (_, i) => (
           <Lick
@@ -970,66 +873,67 @@ function ToxicRain({ colour, width, height }: { colour: string; width: number; h
 }
 
 /**
- * EMBERFALL ASCENDANT — the season capstone's own motion layer (mocks 119 + 126 + 167).
+ * EMBERFALL ASCENDANT — the season capstone, and mock 167's marquee is emphatic about what it is:
+ * embers rising, and nothing else.
  *
- * It used to be literally `<Flames/><Falling/>`, the two stock layers stacked, which is why it read
- * as a blob field rather than as the mythic it is: the same five licks and the same five droplets
- * everyone else's flare has, only twice as busy. The capstone should not share a motion layer with
- * a box drop — the comment in catalog.ts has said so all along; this is the layer catching up.
+ * 🔴 WHAT THIS REPLACES, because it was not a small drift. The old layer was a 300px lava pool
+ * banked along the bottom, a heavy ember-rain falling into it, and ten rising `Drifter`s sized
+ * 40-94px. None of the three is in the mock. The pool and the rain were invented for punchlist
+ * 15.3 ("fall, land, rise"), and the drifters were soft glows an order of magnitude too large — a
+ * 94px radial gradient is a blob by any reading, which is what got reported.
  *
- * Three parts, and the ORDER is the effect: a deep lava pool banked along the bottom, heavier
- * weather of embers falling into it, and — the ascendant half of the name — motes lifting back OUT
- * of the pool and climbing the edges. Fall, land, rise.
+ * The mock builds it in exactly two passes and stops:
+ *   · 24 embers up the two EDGES — left 3-19% or right 81-97%, drifting +/-10px sideways;
+ *   · 20 embers up the MIDDLE — 24-76%, drifting +/-13px;
+ *   · both 3-6px, both rising 260px over 2.4-4.4s ease-out, both fading in by 15% and out at the top.
+ *
+ * Sizes scale by the tile width like every other flare in this file; the rise is expressed as a
+ * fraction of stage height (260/190 = 1.37) so the embers still leave the top of a real screen.
+ *
+ * Colours are the mock's own `#FFE0B0 -> rgba(255,42,42,.3)`, not the catalog swatch — which is why
+ * this takes no `colour`. The capstone's palette is part of its identity in the mock, the same way
+ * Zeus is gold-on-white regardless of what the catalog says.
  */
-function Ascendant({ colour, width, height }: { colour: string; width: number; height: number }) {
+function Ascendant({ width, height }: { width: number; height: number }) {
+  const s = width / MOCK_W;
+  const HOT = '#FFE0B0';
+  const BODY = '#FF2A2A';
+  // 260px of rise over the mock's 190px-tall stage — 1.37 stage-heights, so they exit the top.
+  const RISE = -height * 1.37;
+
+  const ember = (key: string, i: number, left: number, drift: number) => (
+    <Travel
+      key={key}
+      hot={HOT}
+      body={BODY}
+      size={(3 + spread(i, 0.47) * 3) * s}
+      left={left}
+      // bottom: 0 — they start at the very foot of the screen and climb out of it.
+      top={height}
+      dx={drift}
+      dy={RISE}
+      duration={2400 + spread(i, 0.83) * 2000}
+      phase={spread(i, 0.07)}
+      easing={EASE_QUAD}
+      fadeIn={0.15}
+      peak={1}
+    />
+  );
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {/* The pool: taller and stronger than Inferno's, because it is the floor everything else
-          falls into rather than the whole effect on its own. */}
-      {/* FIVE wide licks, not Inferno's 22. The mock's 22/20 is Inferno's own spec — a wall of
-          fire on every edge — whereas this is the capstone's lava POOL, a floor for the embers to
-          fall into. At 22 the lane width drops to ~37px and the pool renders as a hard sawtooth
-          band across the bottom of the screen instead of a soft swell, which is exactly the
-          "row of flat bars" punchlist 20.2 removed. Caught on device. */}
-      <Flames colour={colour} width={width} height={height} tall={300} peak={0.8} count={5} />
-      <Falling colour={colour} width={width} height={height} density={1.7} />
-      {/* MIDDLE RISERS. Mock 167's marquee builds the ascendant field in two passes — 24 embers up
-          the two edges AND 20 more up the middle third — and only the edge pass existed here, which
-          is why the capstone read as two bright margins with a dead centre. The middle band is what
-          makes it a field you are inside rather than a frame you are looking at.
-
-          Launched across 24-76% of the width, exactly the mock's `x = 24 + Math.random()*52`. */}
-      {Array.from({ length: 6 }, (_, i) => (
-        <Drifter
-          key={`mid-${i}`}
-          colour={colour}
-          size={40 + spread(i, 0.61) * 34}
-          left={width * (0.24 + spread(i, 0.29) * 0.52)}
-          top={height - 90}
-          travelY={-height * (0.42 + spread(i, 0.83) * 0.24)}
-          travelX={spread(i, 0.47) * 26 - 13}
-          duration={6400 + spread(i, 0.11) * 3400}
-          phase={spread(i, 0.67)}
-          peak={0.42}
-        />
-      ))}
-      {/* Rising motes up the two edges, launched from inside the pool and climbing about a third of
-          the screen. Slow and few: this is the part that has to read as ASCENT, and ascent is
-          legible only if it is slower than the fall above it. */}
-      {Array.from({ length: 4 }, (_, i) => (
-        <Drifter
-          key={`rise-${i}`}
-          colour={colour}
-          size={54 + spread(i, 0.5) * 40}
-          left={i % 2 === 0 ? -18 + spread(i, 0.19) * 70 : width - 90 - spread(i, 0.19) * 60}
-          top={height - 120}
-          travelY={-height * (0.3 + spread(i, 0.66) * 0.16)}
-          travelX={(i % 2 === 0 ? 1 : -1) * 22}
-          duration={7200 + spread(i, 0.37) * 3600}
-          phase={spread(i, 0.05)}
-          peak={0.5}
-        />
-      ))}
+      {/* Up both edges. The mock picks a side at random per ember; `spread` keeps it deterministic
+          so a re-render cannot reshuffle the weather mid-session. */}
+      {Array.from({ length: 24 }, (_, i) => {
+        const right = spread(i, 0.13) < 0.5;
+        const pct = right ? 81 + spread(i, 0.29) * 16 : 3 + spread(i, 0.29) * 16;
+        return ember(`edge-${i}`, i, (pct / 100) * width, (spread(i, 0.61) * 20 - 10) * s);
+      })}
+      {/* And up the middle third — the pass that turns two lit margins into a field. */}
+      {Array.from({ length: 20 }, (_, i) => {
+        const pct = 24 + spread(i, 0.37) * 52;
+        return ember(`mid-${i}`, i, (pct / 100) * width, (spread(i, 0.71) * 26 - 13) * s);
+      })}
     </View>
   );
 }
@@ -1086,12 +990,19 @@ const PARTICLE_COUNT: Record<ParticleMotion, number> = {
  *  its proportions on a box of any size. */
 const MOCK_STAGE_H = 190;
 /**
- * Mock motes are solid dots; ours are radial gradients that fade to nothing at their rim, so only
- * the inner ~45% of the box reads as the mote. This multiplier sizes the BOX so the visible core
- * lands at the mock's stated diameter — without it every particle set renders at roughly half the
- * size the mock draws.
+ * 🔴 1, not 2.2 — and the 2.2 is what turned every particle into a blob.
+ *
+ * The reasoning behind the multiplier was that our motes are radial gradients fading to nothing at
+ * the rim, so only the core "reads", and the box therefore had to be bigger than the mock's stated
+ * diameter. That is wrong, because the MOCK'S DOTS ARE THE SAME KIND OF OBJECT: every particle in
+ * 166/167 is `radial-gradient(circle, HOT, BODY 70%, transparent)` sized to the element. Its 3-6px
+ * ember is a 3-6px soft gradient, exactly like ours. Compensating for a softness the mock already
+ * has just scaled everything up by 2.2 — Void Smoke's veils landed at 63-134px instead of 15-32px,
+ * which is precisely the "renders as blobs" report.
+ *
+ * Kept as a named constant rather than deleted so the mistake stays legible.
  */
-const MOTE_BOX = 2.2;
+const MOTE_BOX = 1;
 /** The emission point — the flame's own tip, as a fraction of the box height from the top. Mock 166
  *  puts every emitter at `bottom: 44%`. */
 const FLAME_Y = 0.56;
