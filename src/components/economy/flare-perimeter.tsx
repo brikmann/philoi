@@ -845,6 +845,7 @@ function Flames({
   tall = 230,
   peak,
   edges = ['bottom'],
+  count,
 }: {
   colour: string;
   width: number;
@@ -852,15 +853,17 @@ function Flames({
   tall?: number;
   peak?: number;
   edges?: readonly ('bottom' | 'top' | 'left' | 'right')[];
+  /** Overrides the per-edge count. Emberfall Ascendant uses this — see the note below. */
+  count?: number;
 }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {edges.map((edge, e) => {
         const vertical = edge === 'bottom' || edge === 'top';
         const span = vertical ? width : height;
-        const count = vertical ? PER_EDGE_VERTICAL : PER_EDGE_LATERAL;
-        const lane = span / count;
-        return Array.from({ length: count }, (_, i) => (
+        const perEdge = count ?? (vertical ? PER_EDGE_VERTICAL : PER_EDGE_LATERAL);
+        const lane = span / perEdge;
+        return Array.from({ length: perEdge }, (_, i) => (
           <Lick
             key={`${edge}-${i}`}
             colour={colour}
@@ -983,7 +986,12 @@ function Ascendant({ colour, width, height }: { colour: string; width: number; h
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {/* The pool: taller and stronger than Inferno's, because it is the floor everything else
           falls into rather than the whole effect on its own. */}
-      <Flames colour={colour} width={width} height={height} tall={300} peak={0.8} />
+      {/* FIVE wide licks, not Inferno's 22. The mock's 22/20 is Inferno's own spec — a wall of
+          fire on every edge — whereas this is the capstone's lava POOL, a floor for the embers to
+          fall into. At 22 the lane width drops to ~37px and the pool renders as a hard sawtooth
+          band across the bottom of the screen instead of a soft swell, which is exactly the
+          "row of flat bars" punchlist 20.2 removed. Caught on device. */}
+      <Flames colour={colour} width={width} height={height} tall={300} peak={0.8} count={5} />
       <Falling colour={colour} width={width} height={height} density={1.7} />
       {/* MIDDLE RISERS. Mock 167's marquee builds the ascendant field in two passes — 24 embers up
           the two edges AND 20 more up the middle third — and only the edge pass existed here, which
