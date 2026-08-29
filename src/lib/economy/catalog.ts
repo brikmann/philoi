@@ -94,7 +94,23 @@ export type ArtKind = 'flame' | 'particle' | 'flare' | 'card' | 'halo' | 'title'
  * the top. It exists for exactly one item (the season's Forge Pass capstone), which is the point —
  * the capstone should not share a motion layer with a box drop.
  */
-export type FlareEffect = 'smoke' | 'zaps' | 'falling' | 'flames' | 'plasma' | 'glow' | 'emberfall';
+/**
+ * `hammer` is Asgardian Valor's, and it had to be split off `zaps` rather than reusing it with a
+ * blue colour. Mock 167 gives the two lightning flares opposite motion, not one motion in two
+ * palettes: Zeus strikes at RANDOM points across the screen out of a storm-cloud bank, while
+ * Asgard's bolts fall the full height top-to-bottom — fewer, thicker — and each one lands with a
+ * ragged shrapnel burst at the floor. Sharing an effect meant the two mythics were the same
+ * animation, which is the one thing a distinct drop must never be.
+ */
+export type FlareEffect =
+  | 'smoke'
+  | 'zaps'
+  | 'hammer'
+  | 'falling'
+  | 'flames'
+  | 'plasma'
+  | 'glow'
+  | 'emberfall';
 
 export type CatalogItem = {
   id: string;
@@ -230,7 +246,7 @@ const FLARES: CatalogItem[] = [
   item({ id: 'flare-asgardian-valor', name: 'Asgardian Valor', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
     lore: 'Every strike of the hammer answers a strike from the sky.',
     art: { kind: 'flare', from: '#1B4FD8', to: '#8FD4FF' },
-    flare: { colour: '#2E7BFF', effect: 'zaps' } }),
+    flare: { colour: '#2E7BFF', effect: 'hammer' } }),
   item({ id: 'flare-acid-rain', name: 'Acid Rain Flare', type: 'FLARE', rarity: 'legendary', acquisition: 'box',
     lore: 'It drips. Whatever it lands on stops being a problem.',
     art: { kind: 'flare', from: '#2E7D32', to: '#9DFF5A' },

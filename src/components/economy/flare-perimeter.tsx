@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
@@ -11,7 +11,7 @@ import Animated, {
   type EasingFunction,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Defs, Ellipse, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { useEquipped } from '@/lib/economy/loadout';
 import type { FlareEffect } from '@/lib/economy/catalog';
@@ -63,6 +63,10 @@ import type { FlareEffect } from '@/lib/economy/catalog';
 // receive two contributions and land brightest — which is what an inset shadow does too. The
 // thickness is ONE px value, so the rim now reads identically on every edge.
 const PEAK_OPACITY = 0.7;
+
+/** Mock 167's `.vig` alpha runs .24-.32 flat across the whole screen. Held at the bottom of that
+ *  range because, unlike the mock's static tiles, this sits under a live timer for a full hour. */
+const TINT_ALPHA = 0.24;
 
 /** Uniform rim thickness — mock 88's 60px blur + 14px spread, scaled off the screen's short edge. */
 const RIM_FRACTION_OF_MIN = 0.17;
@@ -137,6 +141,20 @@ export function FlarePerimeter({ colour, effect }: Props) {
             </LinearGradient>
           ))}
         </Defs>
+        {/* ── THE FULL-SCREEN WASH (mock 167 `.vig`) ──
+            🔴 This deliberately softens the "dead clear through the middle" rule the bands below
+            were built on. Every tile in mock 167 paints a flat `position:absolute; inset:0` colour
+            across the WHOLE screen — `rgba(255,214,74,.3)` for Zeus, `rgba(40,92,214,.32)` for
+            Asgard — and the note above the grid calls the flare the screen's signature, not its
+            border. The rim survives underneath it because the mock's marquee still reads
+            edge-heavy; what changes is that the middle is no longer empty.
+
+            Kept LOW (see TINT_ALPHA) for the reason the three rejected attempts in the header
+            failed: a heavy centre wash is how this became "the red box" in punchlist 17/20.2/21.
+            The difference now is that it is a flat, even, low-alpha tint rather than a gradient
+            whose ramp clamped to full opacity across a third of the screen. If this reads as a box
+            again, TINT_ALPHA is the one number to turn down. */}
+        <Rect x={0} y={0} width={width} height={height} fill={colour} opacity={TINT_ALPHA} />
         {/* Full-length bands, so top/bottom and left/right overlap in the corners rather than
             meeting at a mitre. Dead clear through the middle — the timer never sits in colour. */}
         <Rect x={0} y={0} width={width} height={rim} fill={`url(#flareRim-t-${uid})`} />
@@ -165,12 +183,21 @@ function EffectLayer({ effect, colour, width, height }: { effect: FlareEffect; c
   switch (effect) {
     case 'smoke':
       return <Smoke colour={colour} width={width} height={height} />;
+    // Zeus and Asgard are deliberately NOT the same renderer — see the note on FlareEffect in
+    // catalog.ts. Neither takes `colour`: mock 167 fixes their palettes (gold-on-white,
+    // ice-on-white) as part of the identity, and tinting a lightning bolt to the catalog swatch
+    // is what made them interchangeable in the first place.
     case 'zaps':
-      return <Zaps colour={colour} width={width} height={height} />;
+      return <Zeus width={width} height={height} />;
+    case 'hammer':
+      return <Hammer width={width} height={height} />;
+    // Acid Rain is weather, not embers: it falls out of the same storm bank Zeus strikes from,
+    // across the whole width. `Falling` stays as the Ascendant's ember rain and nothing else.
     case 'falling':
-      return <Falling colour={colour} width={width} height={height} />;
+      return <ToxicRain colour={colour} width={width} height={height} />;
+    // All four edges — mock 167's inferno is a full engulf, not a floor fire.
     case 'flames':
-      return <Flames colour={colour} width={width} height={height} />;
+      return <Flames colour={colour} width={width} height={height} edges={INFERNO_EDGES} />;
     case 'plasma':
       return <Plasma colour={colour} width={width} height={height} />;
     // Emberfall Ascendant's bespoke layer (punchlist 15.3) — lava pooling along the bottom edge,
@@ -339,63 +366,301 @@ function Smoke({ colour, width, height }: { colour: string; width: number; heigh
   );
 }
 
-/** Void Plasma — overlapping glows breathing against each other at the corners. */
+/**
+ * VOID PLASMA — mock 167's eight blurred masses drifting and morphing in place.
+ *
+ * Three corner blobs is what this was, and the mock is emphatic that the motion is a slow PULSE
+ * rather than a pop: `@keyframes plasma` scales .9 -> 1.4 -> .9 while opacity breathes .2 -> .85
+ * -> .2, over 4.5-7.5s. So each mass ping-pongs (reverse) rather than travelling one way, and the
+ * eight fixed spots are lifted straight from the mock's `spots` array so the field covers the whole
+ * screen — corners, edge midpoints and two in the middle — instead of clustering at three corners.
+ */
 function Plasma({ colour, width, height }: { colour: string; width: number; height: number }) {
+  // Mock 167: spots = [[6,16],[92,26],[9,72],[88,80],[48,4],[50,94],[28,48],[72,44]] as % of the box.
+  const SPOTS = [
+    [6, 16], [92, 26], [9, 72], [88, 80],
+    [48, 4], [50, 94], [28, 48], [72, 44],
+  ] as const;
+  const base = Math.min(width, height);
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Drifter colour={colour} size={230} left={-120} top={-120} travelY={34} duration={7000} phase={0.18} peak={0.6} reverse />
-      <Drifter colour={colour} size={210} left={width - 95} top={height - 110} travelY={-34} duration={8200} phase={0.55} peak={0.5} reverse />
-      <Drifter colour={colour} size={175} left={width * 0.5 - 88} top={-110} travelY={24} duration={9500} phase={0.82} peak={0.4} reverse />
+      {SPOTS.map(([px, py], i) => {
+        // Mock sizes are 42-78px against a 188px-wide tile; scaled to the real screen's short edge
+        // so the masses stay the same fraction of the view rather than shrinking to dots.
+        const size = (base / MOCK_W) * (42 + spread(i, 0.23) * 36) * 0.62;
+        return (
+          <Drifter
+            key={i}
+            colour={colour}
+            size={size}
+            left={(px / 100) * width - size / 2}
+            top={(py / 100) * height - size / 2}
+            travelY={(spread(i, 0.51) * 26 - 13) * (base / MOCK_W) * 0.4}
+            travelX={(spread(i, 0.77) * 26 - 13) * (base / MOCK_W) * 0.4}
+            duration={4500 + spread(i, 0.4) * 3000}
+            phase={spread(i, 0.13)}
+            peak={0.5}
+            reverse
+          />
+        );
+      })}
     </View>
   );
 }
 
+/** Mock 167's tile is 188x308. Every size below is expressed as its fraction of that width, so the
+ *  bolts scale to a real phone instead of rendering as hairlines. */
+const MOCK_W = 188;
+
 /**
- * A soft flash that swells and dies. Zeus' Wrath and Stormforge are built from four of these on
- * staggered loops — an arc that actually forked would need a path animation, and at this size the
- * fork would not be visible anyway. What reads is the SUDDENNESS, which is all this does.
- *
- * Previously a 2px hard-edged bar, which is exactly the "hard rect" this file no longer contains:
- * a lightning strike lights the air around it, so what belongs on the edge is a burst of light.
+ * One jagged polyline. Ported from the mock's `jagged()` — same segment count, same lateral jitter
+ * as a fraction of width, same clamp away from the edges.
  */
-function Zap({ colour, left, top, size, delay }: { colour: string; left: number; top: number; size: number; delay: number }) {
+function jaggedPath(
+  w: number,
+  h: number,
+  startY: number,
+  startX: number,
+  segs: number,
+  jitterFraction: number
+): { d: string; endX: number } {
+  let x = startX;
+  let d = `M ${x.toFixed(1)} ${startY.toFixed(1)}`;
+  const span = h - startY;
+  for (let i = 1; i <= segs; i++) {
+    const y = startY + (span * i) / segs;
+    x = Math.max(6, Math.min(w - 6, x + (Math.random() * 2 - 1) * w * jitterFraction));
+    d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }
+  return { d, endX: x };
+}
+
+/**
+ * The mock's `zap` keyframes, exactly: 0% dark, 5% full, 11% almost out, 18% full again, 30% dark,
+ * then a long tail of nothing. The double-strike is what makes it read as lightning rather than as
+ * a pulse, and the long dark tail is what stops it reading as a strobe.
+ */
+function useFlash(period: number, phaseMs: number) {
   const flash = useSharedValue(0);
   useEffect(() => {
     flash.value = withDelay(
-      delay,
+      phaseMs,
       withRepeat(
-        // Snap on, hold barely, fall off, then a long dark gap — the gap is what makes it a strike
-        // rather than a blinking light.
         withSequence(
-          withTiming(1, { duration: 70 }),
-          withTiming(0.25, { duration: 110 }),
-          withTiming(0, { duration: 180 }),
-          withTiming(0, { duration: 2600 })
+          withTiming(1, { duration: period * 0.05 }),
+          withTiming(0.1, { duration: period * 0.06 }),
+          withTiming(0.95, { duration: period * 0.07 }),
+          withTiming(0, { duration: period * 0.12 }),
+          withTiming(0, { duration: period * 0.7 })
         ),
         -1,
         false
       )
     );
-  }, [flash, delay]);
+  }, [flash, period, phaseMs]);
+  return flash;
+}
 
-  const style = useAnimatedStyle(() => ({ opacity: flash.value, transform: [{ scale: 0.85 + flash.value * 0.3 }] }));
+type BoltGeo = { d: string; sparks: string | null; endX: number };
+
+/**
+ * Roll one bolt's geometry.
+ *
+ * A plain module function called ONLY from an effect, never during render. React Compiler is on for
+ * this project and its purity rule is right to reject `Math.random()` inside a `useMemo`: a memo may
+ * be re-evaluated whenever React likes, so a bolt shaped during render would silently re-roll on
+ * unrelated re-renders. Generating in the effect makes the randomness an explicit event — one roll
+ * per flash — which is also exactly what the mock's `animationiteration` listener does.
+ */
+function rollBolt(width: number, height: number, topDown: boolean, impact: boolean): BoltGeo {
+  const startY = topDown ? 0 : height * 0.09;
+  const startX = topDown ? width * (0.28 + Math.random() * 0.44) : 8 + Math.random() * (width - 16);
+  const segs = (topDown ? 6 : 5) + Math.floor(Math.random() * 4);
+  const bolt = jaggedPath(width, height, startY, startX, segs, topDown ? 0.32 : 0.3);
+  return { d: bolt.d, sparks: impact ? sparkBurst(bolt.endX, height) : null, endX: bolt.endX };
+}
+
+function Bolt({
+  width,
+  height,
+  glowColour,
+  coreColour,
+  glowWidth,
+  coreWidth,
+  period,
+  phaseMs,
+  topDown,
+  impact = false,
+}: {
+  width: number;
+  height: number;
+  glowColour: string;
+  coreColour: string;
+  glowWidth: number;
+  coreWidth: number;
+  period: number;
+  phaseMs: number;
+  /** Asgard: full height, top to bottom. Zeus: starts just under the cloud bank. */
+  topDown: boolean;
+  /** Asgard only — the ragged shrapnel burst where the hammer lands. */
+  impact?: boolean;
+}) {
+  const flash = useFlash(period, phaseMs);
+  const [geo, setGeo] = useState<BoltGeo | null>(null);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const roll = () => setGeo(rollBolt(width, height, topDown, impact));
+    roll();
+    // Re-roll 45% into each cycle. The mock's zap keyframe is already dark by 30%, so the new shape
+    // is always swapped in behind a black frame and never changes mid-strike.
+    const kickoff = setTimeout(
+      () => {
+        roll();
+        interval = setInterval(roll, period);
+      },
+      phaseMs + period * 0.45
+    );
+    return () => {
+      clearTimeout(kickoff);
+      if (interval) clearInterval(interval);
+    };
+  }, [width, height, topDown, impact, period, phaseMs]);
+
+  const style = useAnimatedStyle(() => ({ opacity: flash.value }));
+
+  if (!geo) return null;
+
   return (
-    // A strike is the one driver that keeps its delay rather than a seeded phase: the long dark
-    // gap IS the effect, so starting it mid-flash would be wrong. `opacity: 0` underneath is what
-    // stops the un-animated first frame painting a full-strength ball of light.
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top, opacity: 0 }, style]}>
-      <Glow size={size} colour={colour} peak={0.95} />
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 0 }, style]}>
+      <Svg width={width} height={height} pointerEvents="none">
+        {/* The impact burst sits UNDER the bolt so the core reads as landing on top of it. */}
+        {geo.sparks && (
+          <>
+            <Circle cx={geo.endX} cy={height} r={glowWidth * 1.1} fill={glowColour} opacity={0.42} />
+            <Path d={geo.sparks} stroke={glowColour} strokeWidth={glowWidth * 0.42} fill="none" strokeLinecap="round" opacity={0.5} />
+          </>
+        )}
+        <Path d={geo.d} stroke={glowColour} strokeWidth={glowWidth} fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={0.5} />
+        <Path d={geo.d} stroke={coreColour} strokeWidth={coreWidth} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        {geo.sparks && (
+          <Path d={geo.sparks} stroke={coreColour} strokeWidth={coreWidth * 0.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        )}
+      </Svg>
     </Animated.View>
   );
 }
 
-function Zaps({ colour, width, height }: { colour: string; width: number; height: number }) {
+/**
+ * Asgard's impact shrapnel — seven three-point splinters thrown up in a fan from the strike point.
+ * Ported from the mock's `sparks()`: same fan across 0.1pi..0.9pi, same per-splinter angle jitter,
+ * same mid-point kink that makes each one ragged rather than a clean ray.
+ */
+function sparkBurst(cx: number, cy: number): string {
+  const n = 7;
+  const out: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.PI * (0.1 + (i / (n - 1)) * 0.8) + (Math.random() * 0.22 - 0.11);
+    const len = 14 + Math.random() * 22;
+    const mr = len * (0.42 + Math.random() * 0.22);
+    const j = Math.random() * 0.6 - 0.3;
+    const mx = cx + Math.cos(a + j) * mr;
+    const my = cy - Math.sin(a + j) * mr;
+    const ex = cx + Math.cos(a) * len;
+    const ey = cy - Math.sin(a) * len;
+    out.push(`M ${cx.toFixed(1)} ${cy.toFixed(1)} L ${mx.toFixed(1)} ${my.toFixed(1)} L ${ex.toFixed(1)} ${ey.toFixed(1)}`);
+  }
+  return out.join(' ');
+}
+
+/**
+ * The storm-cloud bank across the very top — Zeus and Toxic Rain both strike out of it.
+ *
+ * Ten overlapping puffs plus a gradient band behind them, which is the mock's `.cloudbank` +
+ * `.cloud` pair. The bolts start BELOW it (at 9% of the height) so they read as coming out of the
+ * cloud rather than out of the top of the screen.
+ */
+function CloudBank({ width, height }: { width: number; height: number }) {
+  const id = `cloudband-${useId()}`;
+  const r = (width / MOCK_W) * 13;
+  const bandH = Math.max(30, height * 0.05);
+  const N = 10;
+  return (
+    <Svg width={width} height={bandH + r * 2} style={{ position: 'absolute', top: 0, left: 0 }} pointerEvents="none">
+      <Defs>
+        <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#2b2836" stopOpacity={1} />
+          <Stop offset="1" stopColor="#2b2836" stopOpacity={0} />
+        </LinearGradient>
+      </Defs>
+      <Rect x={0} y={0} width={width} height={bandH} fill={`url(#${id})`} />
+      {Array.from({ length: N }, (_, i) => {
+        const cx = (i / (N - 1)) * width;
+        const scale = 0.9 + spread(i, 0.31) * 0.5;
+        const cy = bandH * 0.55;
+        return (
+          <React.Fragment key={i}>
+            <Circle cx={cx} cy={cy} r={r * scale} fill="#34313f" />
+            <Circle cx={cx + r * 1.3} cy={cy + r * 0.45} r={r * scale * 0.85} fill="#34313f" />
+            <Circle cx={cx - r * 1.3} cy={cy + r * 0.45} r={r * scale * 0.8} fill="#2e2b39" />
+          </React.Fragment>
+        );
+      })}
+    </Svg>
+  );
+}
+
+/**
+ * ZEUS' WRATH — gold lightning striking at random points across the whole screen, out of a storm
+ * bank at the top. Three bolts, each on its own period, each re-rolled every flash.
+ */
+function Zeus({ width, height }: { width: number; height: number }) {
+  const scale = width / MOCK_W;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Zap colour={colour} left={-60} top={height * 0.22} size={120} delay={0} />
-      <Zap colour={colour} left={width - 60} top={height * 0.55} size={130} delay={900} />
-      <Zap colour={colour} left={width * 0.3} top={-58} size={116} delay={1800} />
-      <Zap colour={colour} left={width * 0.55} top={height - 58} size={110} delay={2500} />
+      <CloudBank width={width} height={height} />
+      {[0, 1, 2].map((i) => (
+        <Bolt
+          key={i}
+          width={width}
+          height={height}
+          glowColour="#FFE87A"
+          coreColour="#FFF7D6"
+          glowWidth={11 * scale}
+          coreWidth={3.2 * scale}
+          period={1100 + spread(i, 0.4) * 1300}
+          phaseMs={spread(i, 0.17) * 2200}
+          topDown={false}
+        />
+      ))}
+    </View>
+  );
+}
+
+/**
+ * ASGARDIAN VALOR — heavier and fewer than Zeus: bolts that fall the FULL height of the screen and
+ * land with a ragged shrapnel burst. Thicker strokes, slower periods, no cloud bank (the hammer
+ * comes from above the frame, not out of weather).
+ */
+function Hammer({ width, height }: { width: number; height: number }) {
+  const scale = width / MOCK_W;
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {[0, 1, 2].map((i) => (
+        <Bolt
+          key={i}
+          width={width}
+          height={height}
+          glowColour="#8FD4FF"
+          coreColour="#EAF7FF"
+          glowWidth={12 * scale}
+          coreWidth={3.6 * scale}
+          period={1400 + spread(i, 0.62) * 1400}
+          phaseMs={spread(i, 0.29) * 2600}
+          topDown
+          impact
+        />
+      ))}
     </View>
   );
 }
@@ -495,57 +760,199 @@ function Falling({ colour, width, height, density = 1 }: { colour: string; width
 }
 
 /**
- * Inferno / Emberfall Ascendant — light welling up off the bottom edge.
+ * ONE TONGUE OF FLAME, on any of the four edges.
  *
- * This was five rounded rectangles 112px tall, which is the single hardest-edged thing the aura
- * ever drew: a row of flat bars pumping up the screen (punchlist 20.2). A tall soft ellipse
- * anchored below the edge gives the same "fire along the bottom" read with no shape to see —
- * only its top half is on screen, so what's visible is a glow that swells and sinks.
+ * Was bottom-only, which is why Inferno licked up from the floor and nowhere else. Mock 167's
+ * inferno is a full ENGULF: 22 tongues up from the bottom, 22 raining down from the top, and 20 on
+ * each lateral edge. Its lore line is "the edges of your screen catch, and nothing puts them out",
+ * and three of the four edges were not catching.
+ *
+ * Still a soft ellipse rather than the mock's clip-path tongue: the no-hard-edges rule from the
+ * header still holds for ambient fire, since a hard lozenge pumping up the screen is exactly what
+ * punchlist 20.2 rejected. The engulf comes from coverage and count, not from edge definition.
  */
 function Lick({
   colour,
-  left,
-  w,
-  height,
+  pos,
+  len,
+  thick,
   phase,
   peak = 0.7,
+  edge = 'bottom',
 }: {
   colour: string;
-  left: number;
-  w: number;
-  height: number;
+  /** Distance along the edge — acts as `left` on top/bottom, `top` on left/right. */
+  pos: number;
+  /** How far the tongue reaches INTO the screen. */
+  len: number;
+  /** Its width across the edge. */
+  thick: number;
   phase: number;
   peak?: number;
+  edge?: 'bottom' | 'top' | 'left' | 'right';
 }) {
   const t = usePhasedLoop(phase, 2400, EASE_QUAD, true);
+  const vertical = edge === 'bottom' || edge === 'top';
 
-  const style = useAnimatedStyle(() => ({
-    transform: [{ scaleY: 0.72 + t.value * 0.42 }],
-    opacity: 0.55 + t.value * 0.3,
-  }));
+  const style = useAnimatedStyle(() =>
+    vertical
+      ? { transform: [{ scaleY: 0.72 + t.value * 0.42 }], opacity: 0.55 + t.value * 0.3 }
+      : { transform: [{ scaleX: 0.72 + t.value * 0.42 }], opacity: 0.55 + t.value * 0.3 }
+  );
+
+  // Anchored half off-screen on its own edge, so the ellipse's own fade does the shaping and no
+  // boundary is visible where it meets the screen edge — the same trick the bottom-only version used.
+  const anchor =
+    edge === 'bottom'
+      ? { left: pos, bottom: -len * 0.42, transformOrigin: '50% 100%' as const }
+      : edge === 'top'
+        ? { left: pos, top: -len * 0.42, transformOrigin: '50% 0%' as const }
+        : edge === 'left'
+          ? { top: pos, left: -len * 0.42, transformOrigin: '0% 50%' as const }
+          : { top: pos, right: -len * 0.42, transformOrigin: '100% 50%' as const };
 
   return (
-    <Animated.View
-      pointerEvents="none"
-      // Bottom-anchored and pushed half off-screen: the ellipse's own fade does the shaping, so
-      // there is no boundary at the screen edge either. `opacity: 0` under the animated style is
-      // the blob guard — this is the driver whose resting value was VISIBLE, so it is the one that
-      // was actually being painted static for over a second on every load.
-      style={[{ position: 'absolute', left, bottom: -height * 0.42, transformOrigin: '50% 100%', opacity: 0 }, style]}>
-      <Glow size={w} colour={colour} peak={peak} stretch={height / w} />
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', opacity: 0 }, anchor, style]}>
+      {vertical ? (
+        <Glow size={thick} colour={colour} peak={peak} stretch={len / thick} />
+      ) : (
+        <Glow size={len} colour={colour} peak={peak} stretch={thick / len} />
+      )}
     </Animated.View>
   );
 }
 
-function Flames({ colour, width, tall = 230, peak }: { colour: string; width: number; height: number; tall?: number; peak?: number }) {
-  const n = 5;
-  const w = width / n;
-  // Overlapping by half a lane each side, so the five never read as five separate things.
+/**
+ * INFERNO FLARE — fire on every edge at once.
+ *
+ * `edges` defaults to the bottom alone because Emberfall Ascendant reuses this as its lava pool and
+ * wants a floor, not an engulf. Inferno passes all four.
+ *
+ * COUNT IS A DELIBERATE DEVIATION FROM THE MOCK, and the only one in this file. Mock 167 places 22
+ * tongues per vertical edge and 20 per lateral — but that is a 188px-wide tile, i.e. one tongue
+ * every ~8px. Held to the same density, a real 412pt screen needs ~48 per edge, and ~190 Reanimated
+ * views is not something to run for an hour-long session on a phone in a pocket. PER_EDGE keeps the
+ * mock's PROPERTY — continuous overlapping fire, laterals carrying the same weight as top and
+ * bottom, which is what its own comment ("dense, overlapping, from corner to corner") is asking for
+ * — at a count the battery survives. Each tongue is correspondingly wider so coverage is unbroken.
+ */
+const PER_EDGE = 10;
+
+function Flames({
+  colour,
+  width,
+  height,
+  tall = 230,
+  peak,
+  edges = ['bottom'],
+}: {
+  colour: string;
+  width: number;
+  height: number;
+  tall?: number;
+  peak?: number;
+  edges?: readonly ('bottom' | 'top' | 'left' | 'right')[];
+}) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {Array.from({ length: n }, (_, i) => (
-        <Lick key={i} colour={colour} left={i * w - w * 0.5} w={w * 2} height={tall} phase={spread(i, 0.23)} peak={peak} />
-      ))}
+      {edges.map((edge, e) => {
+        const vertical = edge === 'bottom' || edge === 'top';
+        const span = vertical ? width : height;
+        const lane = span / PER_EDGE;
+        return Array.from({ length: PER_EDGE }, (_, i) => (
+          <Lick
+            key={`${edge}-${i}`}
+            colour={colour}
+            edge={edge}
+            // Overlapping by half a lane each side, so the set never reads as N separate things.
+            pos={i * lane - lane * 0.5}
+            len={tall * (0.78 + spread(i, e * 0.17) * 0.44)}
+            thick={lane * 2}
+            phase={spread(i, 0.23 + e * 0.11)}
+            peak={peak}
+          />
+        ));
+      })}
+    </View>
+  );
+}
+
+const INFERNO_EDGES = ['bottom', 'top', 'left', 'right'] as const;
+
+/**
+ * 🔴 DROP SHAPE — the one place mock 167 and the build brief disagree, so it is a named constant
+ * rather than a silent choice.
+ *
+ * The mock draws acid rain as 1.6px-wide streaks 12-25px tall (aspect ~11:1). The brief for this
+ * pass says "Toxic Rain — clouds at top; BLOB drops (not thin streaks)", which reads as a
+ * deliberate correction of exactly that, and it is the newer instruction, so blobs is what ships.
+ * Every other bullet in that brief matches the mock precisely, which is what makes this one look
+ * like an intended override rather than a slip — but it IS the one thing here not taken from the
+ * mock, so: flip this to ~11 and you have the mock's streaks back, and nothing else changes.
+ */
+const DROP_ASPECT = 1.6;
+
+/** One acid drop: falls at a steady rate, fades in early, holds, then dies at the floor. */
+function Drop({
+  colour,
+  left,
+  size,
+  travel,
+  duration,
+  phase,
+}: {
+  colour: string;
+  left: number;
+  size: number;
+  travel: number;
+  duration: number;
+  phase: number;
+}) {
+  const t = usePhasedLoop(phase, duration, EASE_LINEAR, false);
+  // Mock 167 `@keyframes fall`: opacity 0 at 0%, 1 by 12%, held to 90%, 0 at 100%.
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: t.value * travel }],
+    opacity: Math.min(t.value / 0.12, 1) * (1 - Math.max(0, (t.value - 0.9) / 0.1)),
+  }));
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top: 0, opacity: 0 }, style]}>
+      <Glow size={size} colour={colour} peak={0.85} stretch={DROP_ASPECT} />
+    </Animated.View>
+  );
+}
+
+/**
+ * TOXIC / ACID RAIN — mock 167: a storm bank across the top with drops falling out of it, the full
+ * width of the screen.
+ *
+ * What this replaces: the shared `Falling` ember layer, which ran seven drops down two narrow edge
+ * lanes and never drew a cloud. That is a drizzle at the border; the mock is weather across the
+ * whole screen, out of the same cloud bank Zeus strikes from.
+ */
+function ToxicRain({ colour, width, height }: { colour: string; width: number; height: number }) {
+  // Mock: 24 drops on a 188px tile. Kept near that literal count rather than scaled to the real
+  // width — each drop is one small Svg, so the cost is low, and 24 across a phone still reads as
+  // rain rather than as a downpour.
+  const N = 22;
+  const bandH = Math.max(30, height * 0.05);
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <CloudBank width={width} height={height} />
+      {Array.from({ length: N }, (_, i) => {
+        const size = (width / MOCK_W) * (5 + spread(i, 0.53) * 4);
+        return (
+          <Drop
+            key={i}
+            colour={colour}
+            left={spread(i, 0.19) * width}
+            size={size}
+            // Starts inside the cloud bank and falls clear off the bottom.
+            travel={height - bandH * 0.5 + size * DROP_ASPECT}
+            duration={1200 + spread(i, 0.37) * 1200}
+            phase={spread(i, 0.71)}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -569,9 +976,29 @@ function Ascendant({ colour, width, height }: { colour: string; width: number; h
           falls into rather than the whole effect on its own. */}
       <Flames colour={colour} width={width} height={height} tall={300} peak={0.8} />
       <Falling colour={colour} width={width} height={height} density={1.7} />
-      {/* Rising motes, launched from inside the pool and climbing about a third of the screen.
-          Slow and few: this is the part that has to read as ASCENT, and ascent is legible only if
-          it is slower than the fall above it. */}
+      {/* MIDDLE RISERS. Mock 167's marquee builds the ascendant field in two passes — 24 embers up
+          the two edges AND 20 more up the middle third — and only the edge pass existed here, which
+          is why the capstone read as two bright margins with a dead centre. The middle band is what
+          makes it a field you are inside rather than a frame you are looking at.
+
+          Launched across 24-76% of the width, exactly the mock's `x = 24 + Math.random()*52`. */}
+      {Array.from({ length: 6 }, (_, i) => (
+        <Drifter
+          key={`mid-${i}`}
+          colour={colour}
+          size={40 + spread(i, 0.61) * 34}
+          left={width * (0.24 + spread(i, 0.29) * 0.52)}
+          top={height - 90}
+          travelY={-height * (0.42 + spread(i, 0.83) * 0.24)}
+          travelX={spread(i, 0.47) * 26 - 13}
+          duration={6400 + spread(i, 0.11) * 3400}
+          phase={spread(i, 0.67)}
+          peak={0.42}
+        />
+      ))}
+      {/* Rising motes up the two edges, launched from inside the pool and climbing about a third of
+          the screen. Slow and few: this is the part that has to read as ASCENT, and ascent is
+          legible only if it is slower than the fall above it. */}
       {Array.from({ length: 4 }, (_, i) => (
         <Drifter
           key={`rise-${i}`}
@@ -642,6 +1069,47 @@ export function FlameParticleField({ from, to, motion }: { from: string; to: str
     <View style={StyleSheet.absoluteFill} onLayout={onLayout} pointerEvents="none">
       {box.w > 0 && box.h > 0 && <Particles from={from} to={to} motion={motion} w={box.w} h={box.h} />}
     </View>
+  );
+}
+
+/**
+ * A soft flash that swells and dies.
+ *
+ * This used to be Zeus' Wrath's whole lightning layer — four of these pulsing at fixed points on
+ * the screen edges — and mock 167 replaced that with real jagged bolts (see Zeus / Hammer above).
+ * It survives because the PARTICLE set still wants it: Lightning Tendrils is a ring of small
+ * reaches around the flame, and at ~30px a burst of light genuinely is what a fork of electricity
+ * looks like. What made it wrong as a full-screen flare — no shape, just a glow — is exactly what
+ * makes it right at this size.
+ */
+function Zap({ colour, left, top, size, delay }: { colour: string; left: number; top: number; size: number; delay: number }) {
+  const flash = useSharedValue(0);
+  useEffect(() => {
+    flash.value = withDelay(
+      delay,
+      withRepeat(
+        // Snap on, hold barely, fall off, then a long dark gap — the gap is what makes it a strike
+        // rather than a blinking light.
+        withSequence(
+          withTiming(1, { duration: 70 }),
+          withTiming(0.25, { duration: 110 }),
+          withTiming(0, { duration: 180 }),
+          withTiming(0, { duration: 2600 })
+        ),
+        -1,
+        false
+      )
+    );
+  }, [flash, delay]);
+
+  const style = useAnimatedStyle(() => ({ opacity: flash.value, transform: [{ scale: 0.85 + flash.value * 0.3 }] }));
+  return (
+    // A strike is the one driver that keeps its delay rather than a seeded phase: the long dark gap
+    // IS the effect, so starting it mid-flash would be wrong. `opacity: 0` underneath is what stops
+    // the un-animated first frame painting a full-strength ball of light.
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top, opacity: 0 }, style]}>
+      <Glow size={size} colour={colour} peak={0.95} />
+    </Animated.View>
   );
 }
 
