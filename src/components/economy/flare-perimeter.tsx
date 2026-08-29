@@ -62,11 +62,54 @@ import type { FlareEffect } from '@/lib/economy/catalog';
 // diagonal leave four seams, whereas four overlapping bands leave none, and the corners simply
 // receive two contributions and land brightest — which is what an inset shadow does too. The
 // thickness is ONE px value, so the rim now reads identically on every edge.
-const PEAK_OPACITY = 0.7;
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// THE INTENSITY DIALS
+//
+// Mock 167 was matched literally, and in the hand it was too much: the washes engulfed the screen,
+// too many elements moved at once, and the glow burned. These three numbers pull every flare back
+// from the mock deliberately — this is not drift, it is a tuning pass, and the mock remains the
+// reference for SHAPE, COLOUR and MOTION.
+//
+// Each axis is separate on purpose, because "a touch less" usually means one of them and not the
+// other two. Nothing else in this file hardcodes an alpha, a count or a glow width: every flare
+// reads from here, so a future adjustment is one edit rather than a re-derivation across six
+// effects.
+//
+//   coverage — the full-screen wash and the rim. The flare must read as a PERIMETER aura the flame
+//              lives inside, never as a solid fill behind it. The acceptance bar is the timer:
+//              it has to stay easy to read with any flare equipped.
+//   density  — every element count. ~45% of the mock, which also relieves the 84-view Inferno load
+//              the last pass flagged as past this file's budget.
+//   glow     — luminance and bloom. "Lit from within", not flashbang: the colour must still
+//              obviously be the flare's, it just must not burn.
+//
+// DELIBERATELY NOT A DIAL: motion and cadence. Speeds, durations and easings are untouched — the
+// rhythm was right, only the intensity was wrong.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+const FLARE_INTENSITY = {
+  coverage: 0.45,
+  density: 0.45,
+  glow: 0.6,
+} as const;
 
-/** Mock 167's `.vig` alpha runs .24-.32 flat across the whole screen. Held at the bottom of that
- *  range because, unlike the mock's static tiles, this sits under a live timer for a full hour. */
-const TINT_ALPHA = 0.24;
+/**
+ * A mock element count, thinned by the density dial.
+ *
+ * `floor` exists because thinning is not uniformly safe at small counts. A field of 24 embers
+ * losing half is still a field; the lightning flares' THREE bolts rounding to one is a different
+ * effect — the mock runs three on independent periods, so strikes overlap and land at unpredictable
+ * intervals, and a single bolt makes them rare, regular and lonely. Proportional thinning has to
+ * stop before it costs a flare its identity.
+ */
+function dens(mockCount: number, floor = 1): number {
+  return Math.max(floor, Math.round(mockCount * FLARE_INTENSITY.density));
+}
+
+const PEAK_OPACITY = 0.7 * FLARE_INTENSITY.glow;
+
+/** Mock 167's `.vig` alpha runs .24-.32 FLAT across the whole screen. Taken through the coverage
+ *  dial, and then shaped: see the wash note in the render below. */
+const TINT_ALPHA = 0.3 * FLARE_INTENSITY.coverage;
 
 /** Uniform rim thickness — mock 88's 60px blur + 14px spread, scaled off the screen's short edge. */
 const RIM_FRACTION_OF_MIN = 0.17;
@@ -141,20 +184,31 @@ export function FlarePerimeter({ colour, effect }: Props) {
             </LinearGradient>
           ))}
         </Defs>
-        {/* ── THE FULL-SCREEN WASH (mock 167 `.vig`) ──
-            🔴 This deliberately softens the "dead clear through the middle" rule the bands below
-            were built on. Every tile in mock 167 paints a flat `position:absolute; inset:0` colour
-            across the WHOLE screen — `rgba(255,214,74,.3)` for Zeus, `rgba(40,92,214,.32)` for
-            Asgard — and the note above the grid calls the flare the screen's signature, not its
-            border. The rim survives underneath it because the mock's marquee still reads
-            edge-heavy; what changes is that the middle is no longer empty.
-
-            Kept LOW (see TINT_ALPHA) for the reason the three rejected attempts in the header
-            failed: a heavy centre wash is how this became "the red box" in punchlist 17/20.2/21.
-            The difference now is that it is a flat, even, low-alpha tint rather than a gradient
-            whose ramp clamped to full opacity across a third of the screen. If this reads as a box
-            again, TINT_ALPHA is the one number to turn down. */}
-        <Rect x={0} y={0} width={width} height={height} fill={colour} opacity={TINT_ALPHA} />
+        {/* ── THE WASH (mock 167 `.vig`), EDGE-WEIGHTED ──
+            The mock paints a FLAT colour across the whole tile. Rendered literally at full alpha
+            that is a solid sheet behind the flame — "the entire screen is solid yellow" — and the
+            timer has to fight it for an hour.
+            So the wash is kept, because the colour identity is the flare, but it is shaped: a
+            CIRCULAR falloff that is nearly clear where the flame and timer sit and reaches full
+            strength out at the corners. The perimeter reading survives; the solid-fill reading
+            goes.
+            🔴 r is in USER SPACE (px), not a percentage. That distinction is the whole reason the
+            three rejected attempts in this file's header failed: a percentage radius resolves rx
+            against width and ry against height, so on a 390x844 phone it becomes a lopsided oval.
+            A px radius is a true circle on any aspect ratio. */}
+        <Defs>
+          <RadialGradient
+            id={`flareWash-${uid}`}
+            cx={width / 2}
+            cy={height / 2}
+            r={Math.max(width, height) * 0.62}
+            gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor={colour} stopOpacity={TINT_ALPHA * 0.15} />
+            <Stop offset="0.5" stopColor={colour} stopOpacity={TINT_ALPHA * 0.45} />
+            <Stop offset="1" stopColor={colour} stopOpacity={TINT_ALPHA} />
+          </RadialGradient>
+        </Defs>
+        <Rect x={0} y={0} width={width} height={height} fill={`url(#flareWash-${uid})`} />
         {/* Full-length bands, so top/bottom and left/right overlap in the corners rather than
             meeting at a mitre. Dead clear through the middle — the timer never sits in colour. */}
         <Rect x={0} y={0} width={width} height={rim} fill={`url(#flareRim-t-${uid})`} />
@@ -230,9 +284,11 @@ function Glow({ size, colour, peak, stretch = 1 }: { size: number; colour: strin
   return (
     <Svg width={size} height={h} pointerEvents="none">
       <Defs>
+        {/* Every ambient mark in every flare goes through this one gradient, so the glow dial is
+            applied HERE rather than at thirty call sites. */}
         <RadialGradient id={id} cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor={colour} stopOpacity={peak} />
-          <Stop offset="0.45" stopColor={colour} stopOpacity={peak * 0.55} />
+          <Stop offset="0" stopColor={colour} stopOpacity={peak * FLARE_INTENSITY.glow} />
+          <Stop offset="0.45" stopColor={colour} stopOpacity={peak * 0.55 * FLARE_INTENSITY.glow} />
           <Stop offset="1" stopColor={colour} stopOpacity={0} />
         </RadialGradient>
       </Defs>
@@ -377,10 +433,15 @@ function Smoke({ colour, width, height }: { colour: string; width: number; heigh
  */
 function Plasma({ colour, width, height }: { colour: string; width: number; height: number }) {
   // Mock 167: spots = [[6,16],[92,26],[9,72],[88,80],[48,4],[50,94],[28,48],[72,44]] as % of the box.
-  const SPOTS = [
+  // Mock 167's eight spots, thinned to the density dial. Sliced rather than randomly sampled, and
+  // the list is ordered so the survivors keep the field spread — four corners first, then the edge
+  // midpoints, then the two centre masses. Taking the first N therefore always leaves the corners
+  // covered instead of clustering whatever happened to be first.
+  const ALL_SPOTS: [number, number][] = [
     [6, 16], [92, 26], [9, 72], [88, 80],
-    [48, 4], [50, 94], [28, 48], [72, 44],
-  ] as const;
+    [50, 94], [48, 4], [28, 48], [72, 44],
+  ];
+  const SPOTS = ALL_SPOTS.slice(0, dens(8));
   const base = Math.min(width, height);
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -423,16 +484,42 @@ function jaggedPath(
   startX: number,
   segs: number,
   jitterFraction: number
-): { d: string; endX: number } {
+): { d: string; endX: number; points: { x: number; y: number }[] } {
   let x = startX;
-  let d = `M ${x.toFixed(1)} ${startY.toFixed(1)}`;
+  const points = [{ x, y: startY }];
   const span = h - startY;
   for (let i = 1; i <= segs; i++) {
     const y = startY + (span * i) / segs;
     x = Math.max(6, Math.min(w - 6, x + (Math.random() * 2 - 1) * w * jitterFraction));
+    points.push({ x, y });
+  }
+  const d = points.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`).join(' ');
+  return { d, endX: x, points };
+}
+
+/**
+ * A short branch splitting off the main bolt.
+ *
+ * A thin stroke on its own reads as a drawn RULE, not a strike — thickness was doing the work of
+ * saying "lightning", and thickness is exactly what had to go. A fork is what replaces it: real
+ * lightning branches, and a branch is unmistakable at any width.
+ */
+function forkFrom(points: { x: number; y: number }[], w: number, h: number): string {
+  if (points.length < 3) return '';
+  // Split from somewhere in the middle third, never from the tip or the cloud.
+  const i = 1 + Math.floor(Math.random() * Math.max(1, points.length - 2));
+  const from = points[i];
+  const dir = Math.random() < 0.5 ? -1 : 1;
+  let x = from.x;
+  let y = from.y;
+  const segs = 2 + Math.floor(Math.random() * 2);
+  let d = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
+  for (let k = 1; k <= segs; k++) {
+    x = Math.max(4, Math.min(w - 4, x + dir * (0.06 + Math.random() * 0.1) * w));
+    y = Math.min(h, y + (0.05 + Math.random() * 0.08) * h);
     d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
   }
-  return { d, endX: x };
+  return d;
 }
 
 /**
@@ -461,7 +548,7 @@ function useFlash(period: number, phaseMs: number) {
   return flash;
 }
 
-type BoltGeo = { d: string; sparks: string | null; endX: number };
+type BoltGeo = { d: string; fork: string; sparks: string | null; endX: number };
 
 /**
  * Roll one bolt's geometry.
@@ -475,9 +562,17 @@ type BoltGeo = { d: string; sparks: string | null; endX: number };
 function rollBolt(width: number, height: number, topDown: boolean, impact: boolean): BoltGeo {
   const startY = topDown ? 0 : height * 0.09;
   const startX = topDown ? width * (0.28 + Math.random() * 0.44) : 8 + Math.random() * (width - 16);
-  const segs = (topDown ? 6 : 5) + Math.floor(Math.random() * 4);
-  const bolt = jaggedPath(width, height, startY, startX, segs, topDown ? 0.32 : 0.3);
-  return { d: bolt.d, sparks: impact ? sparkBurst(bolt.endX, height) : null, endX: bolt.endX };
+  // MORE SEGMENTS, MORE JITTER than the mock. Its bolts are thick enough to read as lightning with
+  // 5-9 lazy segments; ours are now thin filaments, and a thin line with gentle bends reads as a
+  // drawn stroke. The zigzag is doing the work the stroke width used to do.
+  const segs = (topDown ? 10 : 8) + Math.floor(Math.random() * 5);
+  const bolt = jaggedPath(width, height, startY, startX, segs, topDown ? 0.42 : 0.38);
+  return {
+    d: bolt.d,
+    fork: forkFrom(bolt.points, width, height),
+    sparks: impact ? sparkBurst(bolt.endX, height) : null,
+    endX: bolt.endX,
+  };
 }
 
 function Bolt({
@@ -537,12 +632,47 @@ function Bolt({
         {/* The impact burst sits UNDER the bolt so the core reads as landing on top of it. */}
         {geo.sparks && (
           <>
-            <Circle cx={geo.endX} cy={height} r={glowWidth * 1.1} fill={glowColour} opacity={0.42} />
-            <Path d={geo.sparks} stroke={glowColour} strokeWidth={glowWidth * 0.42} fill="none" strokeLinecap="round" opacity={0.5} />
+            {/* The impact is now carrying more of the "hit" than the bolt's width does, so it is
+                sized off the GLOW width and kept — thinning the strike must not thin the landing. */}
+            <Circle cx={geo.endX} cy={height} r={glowWidth * 1.6} fill={glowColour} opacity={0.42 * FLARE_INTENSITY.glow} />
+            <Path d={geo.sparks} stroke={glowColour} strokeWidth={glowWidth * 0.5} fill="none" strokeLinecap="round" opacity={0.5 * FLARE_INTENSITY.glow} />
           </>
         )}
-        <Path d={geo.d} stroke={glowColour} strokeWidth={glowWidth} fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={0.5} />
-        <Path d={geo.d} stroke={coreColour} strokeWidth={coreWidth} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        {/* THIN BRIGHT CORE OVER A SOFT WIDE GLOW. The impact comes from the contrast between the
+            two and from the jag, never from the core's width — a wide core is a bar, and a bar is
+            what got reported. */}
+        <Path
+          d={geo.d}
+          stroke={glowColour}
+          strokeWidth={glowWidth}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.5 * FLARE_INTENSITY.glow}
+        />
+        {geo.fork ? (
+          <Path
+            d={geo.fork}
+            stroke={glowColour}
+            strokeWidth={glowWidth * 0.55}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.4 * FLARE_INTENSITY.glow}
+          />
+        ) : null}
+        <Path d={geo.d} stroke={coreColour} strokeWidth={coreWidth} fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={0.95} />
+        {geo.fork ? (
+          <Path
+            d={geo.fork}
+            stroke={coreColour}
+            strokeWidth={coreWidth * 0.7}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.8}
+          />
+        ) : null}
         {geo.sparks && (
           <Path d={geo.sparks} stroke={coreColour} strokeWidth={coreWidth * 0.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         )}
@@ -619,15 +749,17 @@ function Zeus({ width, height }: { width: number; height: number }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <CloudBank width={width} height={height} />
-      {[0, 1, 2].map((i) => (
+      {Array.from({ length: dens(3, 2) }, (_, i) => (
         <Bolt
           key={i}
           width={width}
           height={height}
           glowColour="#FFE87A"
           coreColour="#FFF7D6"
-          glowWidth={11 * scale}
-          coreWidth={3.2 * scale}
+          // Mock: 11 / 3.2. The core is more than halved — the same thin-filament treatment as
+          // Asgard, so the two lightning flares stay siblings.
+          glowWidth={7 * scale}
+          coreWidth={1.5 * scale}
           period={1100 + spread(i, 0.4) * 1300}
           phaseMs={spread(i, 0.17) * 2200}
           topDown={false}
@@ -646,15 +778,19 @@ function Hammer({ width, height }: { width: number; height: number }) {
   const scale = width / MOCK_W;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {[0, 1, 2].map((i) => (
+      {Array.from({ length: dens(3, 2) }, (_, i) => (
         <Bolt
           key={i}
           width={width}
           height={height}
           glowColour="#8FD4FF"
           coreColour="#EAF7FF"
-          glowWidth={12 * scale}
-          coreWidth={3.6 * scale}
+          // 🔴 THE FLAGGED ONE. Mock: 12 / 3.6, which at phone scale is a ~8px core — a bar, not a
+          // bolt. The core drops to well under half; what carries the strike instead is the
+          // near-white core against the dim wide glow, the extra jag and the fork, and the impact
+          // burst at the floor, which was widened to compensate.
+          glowWidth={6.5 * scale}
+          coreWidth={1.5 * scale}
           period={1400 + spread(i, 0.62) * 1400}
           phaseMs={spread(i, 0.29) * 2600}
           topDown
@@ -741,8 +877,8 @@ function Lick({
  * the cheapest shape 84 of anything can take. If a device ever shows this costing frames, the fix
  * is these two numbers and nothing else.
  */
-const PER_EDGE_VERTICAL = 22;
-const PER_EDGE_LATERAL = 20;
+const PER_EDGE_VERTICAL = dens(22);
+const PER_EDGE_LATERAL = dens(20);
 
 function Flames({
   colour,
@@ -825,7 +961,7 @@ function Drop({
         <Defs>
           <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={colour} stopOpacity={0.08} />
-            <Stop offset="0.55" stopColor={colour} stopOpacity={1} />
+            <Stop offset="0.55" stopColor={colour} stopOpacity={FLARE_INTENSITY.glow} />
             <Stop offset="1" stopColor="#2E7D32" stopOpacity={0.25} />
           </LinearGradient>
         </Defs>
@@ -845,7 +981,7 @@ function Drop({
  */
 function ToxicRain({ colour, width, height }: { colour: string; width: number; height: number }) {
   // Mock 167: 24 drops, `top:7%`, width 1.6px, height 12-25px, on a 188px-wide tile.
-  const N = 24;
+  const N = dens(24);
   const scale = width / MOCK_W;
   const bandH = Math.max(30, height * 0.05);
   return (
@@ -916,7 +1052,8 @@ function Ascendant({ width, height }: { width: number; height: number }) {
       phase={spread(i, 0.07)}
       easing={EASE_QUAD}
       fadeIn={0.15}
-      peak={1}
+      // Ascendant's embers draw through Mote rather than Glow, so the glow dial lands here.
+      peak={FLARE_INTENSITY.glow}
     />
   );
 
@@ -924,13 +1061,13 @@ function Ascendant({ width, height }: { width: number; height: number }) {
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {/* Up both edges. The mock picks a side at random per ember; `spread` keeps it deterministic
           so a re-render cannot reshuffle the weather mid-session. */}
-      {Array.from({ length: 24 }, (_, i) => {
+      {Array.from({ length: dens(24) }, (_, i) => {
         const right = spread(i, 0.13) < 0.5;
         const pct = right ? 81 + spread(i, 0.29) * 16 : 3 + spread(i, 0.29) * 16;
         return ember(`edge-${i}`, i, (pct / 100) * width, (spread(i, 0.61) * 20 - 10) * s);
       })}
       {/* And up the middle third — the pass that turns two lit margins into a field. */}
-      {Array.from({ length: 20 }, (_, i) => {
+      {Array.from({ length: dens(20) }, (_, i) => {
         const pct = 24 + spread(i, 0.37) * 52;
         return ember(`mid-${i}`, i, (pct / 100) * width, (spread(i, 0.71) * 26 - 13) * s);
       })}
