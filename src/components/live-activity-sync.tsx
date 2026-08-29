@@ -6,7 +6,7 @@ import { useEquipped } from '@/lib/economy/loadout';
 import { formatProjection } from '@/lib/api/xp-rate';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
 import { endLiveActivity, startLiveActivity, updateLiveActivity } from '@/lib/live-activity';
-import { formatRankTier, xpProgressRatio } from '@/lib/rank-tiers';
+import { formatRankTier, nextRank, xpProgressRatio } from '@/lib/rank-tiers';
 
 // Renders nothing. Drives the out-of-app live surfaces (#87) — the iOS Live Activity and the
 // Android ongoing notification — off the one active-session store.
@@ -88,7 +88,16 @@ export function LiveActivitySync() {
       // Pinned full at the apex, which has no next division — the raw ratio would be 0 there and
       // read as an empty bar, i.e. as a bug. Same rule as rank-projection-bar.tsx.
       rankRatio: atMax ? 1 : xpProgressRatio(rank.xp_into_tier, rank.xp_for_next_tier),
-      rankLabel: formatRankTier(rank.tier, rank.division),
+      // Native renders this as "X% to {rankLabel}" (LockInLiveActivity.swift / the Android module),
+      // so it must be the NEXT division, not the current one — same off-by-one the in-app bar had
+      // (it read "to Gold III" while you were reaching Gold II). Advance with nextRank(), matching
+      // rank-projection-bar.tsx. At the apex nextRank() is null; keep the CURRENT label (non-empty)
+      // there so native's hasRank stays true and it still renders "Max rank" rather than hiding the
+      // whole block.
+      rankLabel: (() => {
+        const next = nextRank(rank.tier, rank.division);
+        return next ? formatRankTier(next.tier, next.division) : formatRankTier(rank.tier, rank.division);
+      })(),
       // No rate to project from (a new user), or nothing left to chase — either way the cue is
       // hidden rather than estimated.
       projection: atMax || hoursToNext === null ? null : formatProjection(hoursToNext),

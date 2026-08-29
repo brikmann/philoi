@@ -5,7 +5,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { formatProjection } from '@/lib/api/xp-rate';
-import { RANK_TIER_METAL, formatRankTier, xpProgressRatio } from '@/lib/rank-tiers';
+import { RANK_TIER_METAL, formatRankTier, nextRank, xpProgressRatio } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
 // "75% to Gold III" with a pulsing ghost showing the gap and roughly how long it'll take (#87,
@@ -85,9 +85,14 @@ export function RankProjectionBar({
 
   const onTrackLayout = (e: LayoutChangeEvent) => setTrackW(e.nativeEvent.layout.width);
 
-  // `formatRankTier` already returns "Primordial" with no numeral for the apex and "Gold III" for
-  // everything else, so the label needs no special-casing of its own.
-  const nextLabel = atMax ? 'Primordial' : formatRankTier(tier, division);
+  // The caption names the division you're climbing TOWARD, so it must be the NEXT rank, not the
+  // current one — the props carry the user's current tier/division (home passes rank.tier/division).
+  // Labelling `formatRankTier(tier, division)` here read "86% to Gold III" while you were actually
+  // reaching Gold II; the done screen was right because it advances with nextRank() first. Mirror it.
+  // `formatRankTier` already returns "Primordial" with no numeral for the apex and "Gold III"
+  // otherwise, so the label needs no special-casing beyond the max-rank guard.
+  const next = atMax ? null : nextRank(tier, division);
+  const nextLabel = atMax || !next ? 'Primordial' : formatRankTier(next.tier, next.division);
   // Keep a sliver visible at 0% so the bar never looks broken on a fresh division.
   const fillW = Math.max(trackW * ratio, ratio > 0 ? 3 : 0);
 
