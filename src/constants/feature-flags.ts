@@ -77,8 +77,9 @@ export const GOOGLE_CALENDAR_ENABLED = true;
 // people to an Accessibility settings list with no Philoi row in it.
 //
 // So the single source of truth is the FOCUS_NUDGE_ANDROID env var at build time, which
-// app.config.ts uses for BOTH the config plugin and this value. Off by default, which is what lets
-// the closed-test build ship without Focus Nudge. See the note at the top of app.config.ts.
+// app.config.ts uses for BOTH the config plugin and this value. eas.json sets it on `preview` and
+// `production` — the Android test build carries the service, because testers have to exercise it —
+// and leaves `development` off. See the note at the top of app.config.ts.
 //
 // iOS is unaffected — Family Controls is gated by the entitlement and the picker, not by this.
 export const FOCUS_NUDGE_ANDROID_ENABLED: boolean =

@@ -10,13 +10,13 @@ import type { ExpoConfig } from 'expo/config';
  * extended review, whether or not a single line of JS ever reaches the feature. A runtime flag
  * would hide the UI and change nothing about the review.
  *
- * So: OFF by default. The Google Play closed test (12 testers x 14 days) ships with no trace of the
- * service and is not gated on a review it does not need. Focus Nudge for Android is its own build
- * and its own submission —
- *
- *     FOCUS_NUDGE_ANDROID=1 eas build --platform android --profile development
- *
- * — and that submission is what starts the extended-review clock.
+ * Off unless the environment says otherwise, so a build can always be cut with no trace of the
+ * service. Which builds say otherwise is a product decision, and Noah's is: the AccessibilityService
+ * ships IN the Android test build, because it is a key feature testers have to exercise. So eas.json
+ * sets FOCUS_NUDGE_ANDROID=1 on `preview` (the Android test build) and `production` (the release),
+ * and `development` is the one profile left flag-off. The accepted cost is Google's extended review
+ * on any track carrying that manifest — lead time, planned for in
+ * PLAY_ACCESSIBILITY_DECLARATION.md, not a blocker.
  *
  * ONE flag drives both halves: the plugin below (the manifest) and extra.focusNudgeAndroid (the JS
  * gate, read by src/constants/feature-flags.ts). They cannot disagree, which matters — a build

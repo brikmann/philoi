@@ -217,19 +217,55 @@ plugin and `extra.focusNudgeAndroid` (which `FOCUS_NUDGE_ANDROID_ENABLED` reads 
 because Play decides an app "uses the AccessibilityService API" by reading the **manifest** — a JS
 constant would hide the setup screen and change nothing about the review.
 
-Off by default, so the **closed test (12 testers × 14 days) ships with no trace of the service** and
-is not gated on a review it does not need.
+**Where the flag is set — Noah's call, reversing the original plan.** The service ships **in** the
+Android test build: it is a key feature testers have to exercise, so hiding it from them to protect
+the closed test's schedule was optimising the wrong thing. `FOCUS_NUDGE_ANDROID=1` therefore sits in
+`eas.json` on:
+
+| Profile | Flag | Why |
+|---|---|---|
+| `preview` | **1** | the profile the Android test build ships from — testers get Focus Nudge |
+| `production` | **1** | the Play release |
+| `focus-nudge-dev` | **1** | dev-signed APK for on-device smoke and the demo video (extends `development`) |
+| `development` | off | the one flag-off profile; keeps a plain dev client free of the service |
+
+`focus-nudge-play` is **gone**. It existed only to add this flag on top of `production`, which now
+carries it — leaving it in place would mean two names for one identical build, which is how the
+wrong one gets built.
+
+The accepted consequence: a manifest declaring an AccessibilityService is not distributable on the
+closed track until Google's extended review clears (up to several weeks). That is lead time, not a
+blocker — see the sequencing section of `PLAY_ACCESSIBILITY_DECLARATION.md`, including the
+**Internal testing** fast path for getting a small group onto a flag-on build before the review lands.
 
 ```bash
 # dev-signed APK, service ON — for on-device smoke and the demo video
 eas build --platform android --profile focus-nudge-dev
 
+# the Android test build testers install — service ON
+eas build --platform android --profile preview
+
 # AAB for the Play track that carries the declaration (starts the extended-review clock)
-eas build --platform android --profile focus-nudge-play
+eas build --platform android --profile production
 ```
 
-Confirm the flag actually took: a `focus-nudge-*` build's manifest must contain
-`expo.modules.philoifocusnudge.PhiloiFocusNudgeAccessibilityService`; every other profile's must not.
+Confirm the flag actually took: a `preview` / `production` / `focus-nudge-dev` build's manifest must
+contain `expo.modules.philoifocusnudge.PhiloiFocusNudgeAccessibilityService`; a `development` build's
+must not.
+
+**Verified on this branch**, by prebuilding both ways rather than reading the plugin:
+
+| | flag OFF | flag ON |
+|---|---|---|
+| `philoifocusnudge` in manifest | 0 | the `<service>`, `BIND_ACCESSIBILITY_SERVICE`-guarded |
+| any `accessibility` string | 0 | the config XML + its strings |
+| `res/xml/philoi_focus_nudge_accessibility_config.xml` | absent | `typeWindowStateChanged`, `canRetrieveWindowContent="false"`, `isAccessibilityTool="false"` |
+| guarded-app `<package>` entries | 0 | 15, from `android-guarded-apps.json` |
+| `QUERY_ALL_PACKAGES` | 0 | 0 |
+
+(The lone `<service>` in a flag-off manifest is expo-audio's `AudioControlsService`, and the lone
+`SYSTEM_ALERT_WINDOW` is the bare template's — both predate Focus Nudge, as the plugin's comment
+predicted.)
 
 ### On-device verification
 

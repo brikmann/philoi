@@ -23,6 +23,7 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
+        "FOCUS_NUDGE_ANDROID": "1",
         "GOOGLE_IOS_CLIENT_ID": "921536564136-s18vdec893u1dlgvhs5aaep59fdetmi3.apps.googleusercontent.com",
         "GOOGLE_WEB_CLIENT_ID": "921536564136-a1up91voavotk62kg5l24t1ja1uinbqc.apps.googleusercontent.com",
         "POSTHOG_API_KEY": "phc_mqNBQujdHrWsZoquwHCH3FvotLpiiNuFFUCMFKDDPBZe",
@@ -40,6 +41,7 @@
       "autoIncrement": true,
       "channel": "production",
       "env": {
+        "FOCUS_NUDGE_ANDROID": "1",
         "GOOGLE_IOS_CLIENT_ID": "921536564136-s18vdec893u1dlgvhs5aaep59fdetmi3.apps.googleusercontent.com",
         "GOOGLE_WEB_CLIENT_ID": "921536564136-a1up91voavotk62kg5l24t1ja1uinbqc.apps.googleusercontent.com",
         "POSTHOG_API_KEY": "phc_mqNBQujdHrWsZoquwHCH3FvotLpiiNuFFUCMFKDDPBZe",
@@ -56,12 +58,6 @@
       },
       "android": {
         "buildType": "apk"
-      }
-    },
-    "focus-nudge-play": {
-      "extends": "production",
-      "env": {
-        "FOCUS_NUDGE_ANDROID": "1"
       }
     }
   },
