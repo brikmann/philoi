@@ -95,16 +95,34 @@ const TARGETS = [
     note: 'white silhouette on transparent (notification + Live Activity)',
     pixel: (cov) => [255, 255, 255, Math.round(cov * 255)],
   },
+  {
+    file: 'flame.png',
+    // NOT assets/images — this one is bundled into the Focus Nudge shield extension's own asset
+    // catalogue, because an icon read out of the App Group container can be missing and a
+    // half-drawn shield over someone's Instagram is worse than a plain one.
+    dir: path.join('targets', 'shield-configuration'),
+    // 300px ≈ 3x for the ~100pt icon a ShieldConfiguration draws. The notification silhouette
+    // above is 96px and was visibly soft at that size.
+    size: 300,
+    heightFrac: 0.82,
+    // White, like the notification icon, and for the same reason: the extension tints it at
+    // runtime — ember on the reinforce card, cool blue when the tone turns to care (mock 116) —
+    // and withTintColor only has a shape to work with if the source carries no colour of its own.
+    note: 'white silhouette on transparent (Focus Nudge shield)',
+    pixel: (cov) => [255, 255, 255, Math.round(cov * 255)],
+  },
 ];
 
 const flame = readFlameSource();
 const outDir = path.join(__dirname, '..', 'assets', 'images');
 const root = path.join(__dirname, '..');
 
-for (const { file, size, heightFrac, note, pixel } of TARGETS) {
+for (const { file, dir, size, heightFrac, note, pixel } of TARGETS) {
   const cov = rasterize({ ...flame, size, heightFrac });
   const png = encodePng(size, (x, y) => pixel(cov[y * size + x], y / size));
-  const out = path.join(outDir, file);
+  // Everything lands in assets/images except the shield's flame, which has to sit inside its own
+  // extension target's directory for @bacons/apple-targets to fold it into that target's catalogue.
+  const out = dir ? path.join(root, dir, file) : path.join(outDir, file);
   fs.writeFileSync(out, png);
   console.log(`wrote ${path.relative(root, out)} (${size}x${size}, ${note})`);
 }

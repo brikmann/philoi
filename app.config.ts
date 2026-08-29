@@ -275,7 +275,19 @@ const config: ExpoConfig = {
     // @expo/ui can't render images (we need the flame), and it has no self-counting timer
     // component — the entire design rests on Text(timerInterval:) so the OS ticks the clock and
     // we never push. Revisit when it exits alpha and exposes a timer.
+    // ...AND, with no change to the line above, the three Focus Nudge Screen Time extensions
+    // (APP_BLOCKER_SPEC / FOCUS_NUDGE_SETUP.md): targets/device-activity-monitor,
+    // targets/shield-configuration, targets/shield-action. This plugin generates every directory
+    // under targets/, so adding those three needed nothing here — which is exactly why
+    // react-native-device-activity was NOT adopted: it scaffolds its own targets through
+    // @kingstinct/expo-apple-targets, a 0.1.x fork of this same plugin, and the two would each
+    // generate all five targets. See targets/device-activity-monitor/expo-target.config.js.
     '@bacons/apple-targets',
+    // The MAIN app's Family Controls + App Group entitlements. The three extensions declare their
+    // own inside their expo-target.config.js files; nothing does the same for com.philoi.app, and
+    // the App Group half fails silently — the shield draws its built-in fallback copy forever
+    // because Cindy's line never reaches the shared container.
+    './plugins/withFocusNudgeEntitlements',
     // Native Google Sign-In (punchlist 2, §0) — replaces the Supabase-hosted OAuth redirect
     // page with the native account picker; supabase.auth.signInWithIdToken() still does the
     // actual auth exchange server-side, this just changes how the user gets the idToken.

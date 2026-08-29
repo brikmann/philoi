@@ -24,6 +24,7 @@ import { CindyFlamePress } from '@/components/cindy/cindy-flame-press';
 import { CindyQuickSheet, type CindyQuickAction } from '@/components/cindy/cindy-quick-sheet';
 import { DriftingEmbers } from '@/components/drifting-embers';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { useFocusNudgeArmed } from '@/components/focus-nudge-sync';
 import { EquippedFlameSvg } from '@/components/flame-icon';
 import { EquippedFlameParticles, EquippedFlarePerimeter, useFlareEquipped } from '@/components/economy/flare-perimeter';
 import { useKeepScreenAwakePref } from '@/lib/reward-settings';
@@ -140,6 +141,9 @@ function LockInScreen() {
   }>();
   const { session, profile, refreshProfile } = useAuth();
   const { session: activeSession, loading: activeLoading, start, clear, touchConfirmedAt } = useActiveSession();
+  // Read-only. FocusNudgeSync in _layout owns arming and disarming — this screen only reports
+  // whether it happened, because the shield has to survive navigating away from here.
+  const focusNudgeOn = useFocusNudgeArmed();
 
   const [activeLockIns, setActiveLockIns] = useState<ActiveCircleLockIn[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -1031,6 +1035,17 @@ function LockInScreen() {
           </Animated.View>
         )}
 
+        {/* "Focus Nudge on" (APP_BLOCKER_SPEC §B). Deliberately a quiet pill and not a claim about
+            enforcement — nothing is being blocked, and someone who reads this as a lock will feel
+            tricked the first time they walk straight through it. Absent entirely when the feature
+            is off, which is the common case and must never look like a broken control. */}
+        {focusNudgeOn && (
+          <View style={styles.focusNudgePill}>
+            <Ionicons name="heart-circle" size={13} color={Colors.ember} />
+            <Text style={styles.focusNudgePillText}>Focus Nudge on</Text>
+          </View>
+        )}
+
         <BodyDoubleStrip lockIns={activeLockIns} />
 
         {error && <Text style={styles.error}>{error}</Text>}
@@ -1210,6 +1225,26 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     color: Colors.achieverText,
     textAlign: 'center',
+  },
+  // Mock 109's `.lkbadge` — a warm-outlined pill, not a chip with a fill. It is status, not an
+  // action, and nothing on this screen should compete with the flame.
+  focusNudgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: Spacing.two,
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(242,163,60,0.3)',
+    backgroundColor: 'rgba(36,26,46,0.7)',
+    marginBottom: Spacing.two,
+  },
+  focusNudgePillText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+    color: Colors.ember,
   },
   actions: {
     flexDirection: 'row',

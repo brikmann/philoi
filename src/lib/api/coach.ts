@@ -238,6 +238,48 @@ export async function dismissCindyBubble(): Promise<void> {
   if (error) throw error;
 }
 
+// ───────────────────────────── the focus-nudge intercept ─────────────────────────────
+
+/** The protective intents (APP_BLOCKER_SPEC §C / _shared/coach/prompt.ts ROUTING_INTERCEPT). */
+export type InterceptIntent = 'reinforce' | 'wellbeing' | 'support';
+
+export type InterceptLine = { message: string; intent: InterceptIntent };
+
+/**
+ * Cindy's line for the shield that appears when they drift to a picked app mid-lock-in.
+ *
+ * 🔴 CALLED AHEAD OF TIME, NEVER AT THE MOMENT OF DRIFT. The iOS ShieldConfiguration extension is
+ * asked for its UI synchronously, in a system process, and cannot await a network call — so this
+ * runs at lock-in start (and on meaningful context changes) and the result is cached into the App
+ * Group for the shield to read offline. See src/lib/focus-nudge.ts, which is the only caller.
+ *
+ * `situation` carries the facts get_coach_context() cannot know: how many times they have already
+ * retreated this session, and how deep into it they are. That count is what turns the third
+ * retreat in an hour into the wellbeing tone rather than another push (§C-safety).
+ */
+export async function fetchInterceptLine(situation: {
+  retreats: number;
+  minutesIntoSession: number;
+  sessionLabel: string | null;
+}): Promise<InterceptLine | null> {
+  const data = await invoke<{ skip: boolean; message: string | null; intent: string | null }>('ai-coach', {
+    op: 'intercept',
+    situation,
+  });
+  if (data.skip || !data.message) return null;
+
+  // Anything the model returns that is not one of the three known intents is read as 'wellbeing',
+  // not as 'reinforce'. §C-safety: when it is uncertain, care beats productivity — and an
+  // unrecognised label is exactly that kind of uncertainty.
+  const intent: InterceptIntent =
+    data.intent === 'reinforce' || data.intent === 'support' || data.intent === 'wellbeing'
+      ? data.intent
+      : 'wellbeing';
+
+  track('focus_nudge_line_fetched', { intent });
+  return { message: data.message, intent };
+}
+
 // ───────────────────────────── voice ─────────────────────────────
 
 export type VoiceTurn = {

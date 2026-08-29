@@ -50,32 +50,91 @@ draws the nudge screen over the blocked app, **ShieldAction** handles the button
 
 ---
 
-## Part B — Implementation (the actual build)
-🔴 Portal steps unlock the capability; this is the code, and it's the real lift.
+## Part B — Implementation — ✅ BUILT
+🔴 Portal steps unlock the capability; this is the code, and it was the real lift.
 
-1. **Add native targets.** Expo managed can't add extra native targets alone. Either adopt
-   **`react-native-device-activity`** (wraps the 3 extensions + the JS API) or write a **config plugin** that
-   injects the entitlement + three extension targets at prebuild. Add the Family Controls + App Groups
-   entitlements to the main app and each extension.
-2. **JS flow (main app):**
-   - Request **Screen Time authorization** (`FamilyControls` — `AuthorizationCenter`).
-   - **FamilyActivityPicker** so the user chooses which apps to shield (store the opaque selection).
-   - Set a **DeviceActivitySchedule** so the monitor watches those apps.
-3. **The nudge text via the App Group.** The *brain* is already built — the coach has an **`intercept`** surface
-   (`_shared/coach/index.ts`). Pre-fetch the line (e.g. at lock-in start, per the coach comment) and **write it
-   to the shared App Group**; the **ShieldConfiguration** extension reads it from there and displays it. Wire
-   the **ShieldAction** buttons ("okay, back to it" / "I really need a sec") to dismiss or defer.
-4. **Safety (APP_BLOCKER_SPEC §C-safety):** repeated retreat → the wellbeing/support surface, never shame.
-5. **Android is a separate implementation** — no Family Controls. Detect app opens via `UsageStatsManager`
-   (needs `PACKAGE_USAGE_STATS`, user-granted in Settings) + a foreground/accessibility service, then post the
-   nudge. Plan it as its own task; don't block iOS on it.
+**Decision: hand-rolled on `@bacons/apple-targets`, NOT `react-native-device-activity`.**
+The community package was evaluated first, and it genuinely does cover this well — its shield is
+config-driven from JS through the App Group, which is exactly the shape needed here. It was rejected
+on one structural conflict: it scaffolds its targets through **`@kingstinct/expo-apple-targets`
+0.1.19**, a fork of the very plugin this repo already runs at **`@bacons/apple-targets` 5.0.0**, and
+both scan the same `targets/` directory. Running the pair would generate the Live Activity and
+notification-service targets *twice*, and the only way out would be porting those two onto a fork
+four majors behind — i.e. disturbing the existing Widget/Live Activity config, which the brief rules
+out. `@bacons/apple-targets` already understands all three Screen Time target types natively
+(`device-activity-monitor`, `shield-config`, `shield-action`) and writes each one's Info.plist,
+`NSExtensionPointIdentifier` and principal class, so hand-rolling the Swift on top of it is less code
+**and** one Xcode-project mutator instead of two.
+
+### What exists now
+
+| Piece | Where |
+|---|---|
+| Device Activity Monitor target | `targets/device-activity-monitor/` → `com.philoi.app.DeviceActivityMonitor` |
+| Shield Configuration target | `targets/shield-configuration/` → `com.philoi.app.ShieldConfiguration` |
+| Shield Action target | `targets/shield-action/` → `com.philoi.app.ShieldAction` |
+| App-group contract (4 mirrored copies) | `FocusNudgeShared.swift`, guarded by `npm run check:focus-nudge` |
+| Main-app entitlements | `plugins/withFocusNudgeEntitlements.js`, wired in `app.config.ts` |
+| RN bridge (auth, picker, arm/disarm, handoff) | `modules/philoi-focus-nudge/` |
+| The seam + payload builder | `src/lib/focus-nudge.ts` |
+| Arm/disarm on session | `src/components/focus-nudge-sync.tsx`, mounted in `_layout` |
+| Setup screen | `src/app/focus-nudge.tsx` (Settings → FOCUS → Focus Nudge) |
+| Coach call | `fetchInterceptLine()` in `src/lib/api/coach.ts` → the existing `intercept` op |
+
+### How it actually works
+1. **Arming.** The app applies `ManagedSettingsStore(named: .focusNudge).shield.*` itself the moment
+   a lock-in starts — instant, no waiting on a system callback. Alongside it a
+   `DeviceActivitySchedule` is registered for a **12-hour failsafe window**: the monitor's
+   `intervalDidEnd` is what takes the shield down if Philoi is force-quit mid-session (§D). A
+   usage-threshold event re-arms after a "continue anyway" cooldown.
+2. **The handoff.** At lock-in start the app calls the coach's `intercept` surface, splits the line
+   into a headline + blurb, and writes JSON into `group.com.philoi.app`. The shield reads it
+   synchronously and offline. **Nothing in any extension networks.** The payload also carries the
+   §C-safety escalation card, so repeated retreat turns caring with no connection required.
+3. **The buttons.** Primary opens Philoi — `philoi://lock-in` on a reinforce card,
+   `philoi://support` on wellbeing/support. Secondary is the pass-through: it disarms the store for
+   15 minutes and returns `.close`. **iOS has no `ShieldActionResponse` meaning "let them straight
+   through"**, so after the disarm the app opens on the next tap. That extra tap is the entire cost
+   of continuing — no penalty, no streak loss, nothing recorded.
+4. **Safety (§C-safety).** The ShieldConfiguration extension records each presentation (debounced
+   30s). Three inside an hour and it draws the wellbeing card instead — productivity push dropped,
+   primary becomes "Talk to someone" → `src/app/support.tsx`. Escalation is **one-way**: a line the
+   coach already marked wellbeing/support is never downgraded back to a push.
+
+### Deliberately cut
+- **The campfire affordance** ("Say hi in your campfire", mock 109 frame 2). An iOS shield gets
+  exactly two buttons; the two that survive are the ones the spec makes non-negotiable — a way back
+  in and a way through. It can return on the Android notification, which has room for three actions.
+- **Android**, which has no Family Controls at all. Detect app opens via `UsageStatsManager` (needs
+  `PACKAGE_USAGE_STATS`, user-granted in Settings) plus a foreground/accessibility service, then post
+  the nudge. Its own task; don't block iOS on it. The setup screen already says so honestly rather
+  than showing a dead toggle.
 
 ---
 
 ## Part C — Build + verify
-- New native targets → **its own `eas build`** (not the Cindy build). `runtimeVersion` changes; can't OTA.
-- Test on device: grant Screen Time auth → pick Instagram → open it → shield appears with Cindy's line →
-  buttons behave → repeated opens escalate to the support surface.
+
+**🔴 BEFORE BUILDING — verify in the portal.** Neither can be checked from the repo, and both fail
+*silently* rather than failing the build:
+- [ ] App Group `group.com.philoi.app` **exists** and is enabled on **all four** App IDs. Missing on
+      an extension → `UserDefaults(suiteName:)` is nil there → blank shield. Missing on the **main
+      app** → everything looks wired and the shield shows the built-in fallback copy forever.
+- [ ] Family Controls enabled on all four App IDs, and the three extensions' provisioning profiles
+      **regenerated since** (a profile predating the capability signs fine and fails at runtime).
+
+Then:
+- New native targets → **its own `eas build`**, development-signed. `runtimeVersion` changes; can't
+  OTA, and Expo Go cannot run extensions.
+- On device: Settings → **Focus Nudge** → grant Screen Time auth → pick Instagram → start a lock-in →
+  open Instagram → shield appears with Cindy's line → **primary** returns to the session,
+  **secondary** lets you through on the next tap → repeated opens escalate to the wellbeing card and
+  its "Talk to someone" button.
+- **Airplane mode is the real test of the handoff.** Start a lock-in with the network on (so the line
+  is fetched and cached), then turn airplane mode on and open a picked app. The shield must still
+  show Cindy's *specific* line — the generic fallback instead means the App Group is not wired on the
+  main app.
+- Force-quit Philoi mid-session: the shield must come down within the failsafe window
+  (`intervalDidEnd`), and immediately on the next launch (`FocusNudgeSync`'s cold-start sweep).
 
 ---
 

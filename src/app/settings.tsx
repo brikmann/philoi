@@ -307,6 +307,21 @@ export default function SettingsScreen() {
           />
         </View>
 
+        {/* FOCUS NUDGE (APP_BLOCKER_SPEC §A, mock 109 frame 1). Shown on every build, including
+            ones without the extensions compiled in and on Android — the screen itself explains
+            why it is unavailable there. A settings list that hides the row would leave the #1
+            most-requested feature undiscoverable on exactly the devices most likely to be asking
+            for it. */}
+        <Text style={styles.sectionLabel}>FOCUS</Text>
+        <View style={styles.group}>
+          <SettingsRow
+            icon="heart-circle-outline"
+            label="Focus Nudge"
+            description="A warm pull back when you drift mid-lock-in — never a block"
+            onPress={() => router.push('/focus-nudge')}
+          />
+        </View>
+
         {/* AUDIO — mock 164 panel 1. The session-audio switch is the one that matters: the ambient
             loop plays over your own music, and at the gym that made the app unusable rather than
             merely annoying (COSMETIC_UI_FIXES §6). */}

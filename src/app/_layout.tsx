@@ -10,6 +10,7 @@ import { PostHogProvider } from 'posthog-react-native';
 
 import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
 import { LoadoutSync } from '@/components/economy/loadout-sync';
+import { FocusNudgeSync } from '@/components/focus-nudge-sync';
 import { LiveActivitySync } from '@/components/live-activity-sync';
 import { NavDrawerProvider } from '@/components/nav/app-drawer';
 import { ScreenBackground } from '@/components/ui/screen-background';
@@ -287,6 +288,10 @@ function RootNavigator() {
         <Stack.Screen name="support" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="settings-notifications" options={{ title: 'Notifications' }} />
+        {/* Focus Nudge setup — mock 109 frame 1. A real route, not just a settings sub-page: the
+            shield's primary button deep-links into the app and the support surface next door is
+            reached the same way. */}
+        <Stack.Screen name="focus-nudge" options={{ title: 'Focus Nudge' }} />
         <Stack.Screen name="connected-apps" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="campus" options={{ title: 'Campus' }} />
         <Stack.Screen name="health-connect-rationale" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
@@ -385,6 +390,12 @@ function RootLayout() {
                 Screen card has to keep counting. No-ops entirely on a build without the native
                 module compiled in. */}
             <LiveActivitySync />
+            {/* Arms the iOS Screen Time shield for the duration of a lock-in and — the part that
+                matters — takes it down when the session ends (APP_BLOCKER_SPEC §B/§D). Renders
+                nothing; mounted here for the same reason as LiveActivitySync, since the shield has
+                to stay armed while the user is anywhere in the app or out of it entirely. No-ops
+                on Android and on any build without the extensions compiled in. */}
+            <FocusNudgeSync />
             {/* Catches a Forge Pass the store says was paid for but no webhook ever granted (#71).
                 Renders nothing; mounted here because a missed entitlement has to be repaired
                 wherever the user happens to reopen the app. */}

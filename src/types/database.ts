@@ -836,7 +836,20 @@ export type AnalyticsEventName =
   // The lock-in entry points (mock 117 §C). `cue` is the milestone that triggered her
   // ('min:30', 'pr:1'), `action` the quick-sheet row taken — no session detail, no line text.
   | 'cindy_lockin_line'
-  | 'cindy_lockin_quick_action';
+  | 'cindy_lockin_quick_action'
+  // Focus Nudge (APP_BLOCKER_SPEC.md). Setup funnel plus which tone the coach chose, and that is
+  // deliberately ALL: no line text, no app identities (Apple's selection tokens are opaque and we
+  // never resolve one), and — the important omission — nothing at all about the nudge FIRING.
+  //
+  // A retreat-to-social event would be the single most sensitive thing this app could log: §C-safety
+  // reads repeated retreat as possible avoidance or distress, and a person in that state is not a
+  // funnel to measure. `focus_nudge_apps_picked` carries a count only; `focus_nudge_line_fetched`
+  // carries the intent, which is a fact about the copy we generated, not about their behaviour.
+  // Same principle as the support screen, which logs nothing whatsoever.
+  | 'focus_nudge_permission'
+  | 'focus_nudge_apps_picked'
+  | 'focus_nudge_auto_toggled'
+  | 'focus_nudge_line_fetched';
 
 export type AnalyticsEvent = {
   id: string;
