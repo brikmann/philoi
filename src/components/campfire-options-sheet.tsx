@@ -29,6 +29,8 @@ type CampfireOptionsSheetProps = {
   groupId: string;
   chatMuted: boolean;
   onChatMutedChanged: (muted: boolean) => void;
+  /** Re-read the group — the banner picker changes a column the header renders from. */
+  onGroupChanged: () => void | Promise<void>;
 };
 
 type RowConfig = {
@@ -58,6 +60,7 @@ export function CampfireOptionsSheet({
   groupId,
   chatMuted,
   onChatMutedChanged,
+  onGroupChanged,
 }: CampfireOptionsSheetProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -233,6 +236,9 @@ export function CampfireOptionsSheet({
         visible={bannerOpen}
         onClose={() => setBannerOpen(false)}
         campfireName={group?.name ?? 'Your campfire'}
+        groupId={groupId}
+        currentBannerId={group?.banner_item_id ?? null}
+        onChanged={onGroupChanged}
       />
 
       <ConfirmDialog

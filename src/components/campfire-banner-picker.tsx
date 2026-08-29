@@ -6,9 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CampfireBannerArt, bannerColors } from '@/components/campfire-banner-art';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
-import { equipCosmetic } from '@/lib/api/inventory';
+import { setCampfireBanner } from '@/lib/api/groups';
 import { DEFAULT_LOADOUT, getItem, type CatalogItem } from '@/lib/economy/catalog';
-import { getLoadout, setLoadoutFromInventory } from '@/lib/economy/loadout';
 import { getErrorMessage } from '@/lib/errors';
 
 // THE BANNER-SET AFFORDANCE (mock 164 §3).
@@ -30,11 +29,17 @@ type CampfireBannerPickerProps = {
   onClose: () => void;
   /** Named in the sheet so it is obvious WHICH fire is about to change. */
   campfireName: string;
+  /** The fire being restyled. The banner is ITS property now, not the owner's (0134). */
+  groupId: string;
+  /** What it currently flies. Null = never chosen, which is the base hearth. */
+  currentBannerId: string | null;
+  /** Refetch the group so the header behind this sheet repaints. */
+  onChanged: () => void | Promise<void>;
 };
 
-export function CampfireBannerPicker({ visible, onClose, campfireName }: CampfireBannerPickerProps) {
+export function CampfireBannerPicker({ visible, onClose, campfireName, groupId, currentBannerId, onChanged }: CampfireBannerPickerProps) {
   const insets = useSafeAreaInsets();
-  const { owned, equippedBySlot, loading, refetch } = useInventory();
+  const { owned, loading } = useInventory();
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,22 +53,21 @@ export function CampfireBannerPicker({ visible, onClose, campfireName }: Campfir
     return base && !hasBase ? [base, ...mine] : mine;
   }, [owned]);
 
-  const equippedId = equippedBySlot.banner?.id ?? DEFAULT_LOADOUT.banner ?? null;
+  const equippedId = currentBannerId ?? DEFAULT_LOADOUT.banner ?? null;
 
   async function choose(item: CatalogItem) {
     if (busyKey) return;
     setBusyKey(item.id);
     setError(null);
     try {
-      await equipCosmetic(item, 'banner');
-      // Push into the loadout store by hand. <LoadoutSync> re-reads on NAVIGATION, and this is a
-      // modal over the campfire screen — no route change happens, so without this the header the
-      // owner is looking at keeps flying the old banner until they leave and come back.
-      const next: Record<string, string> = {};
-      for (const [slot, equipped] of Object.entries(getLoadout())) next[slot] = equipped.id;
-      next.banner = item.id;
-      setLoadoutFromInventory(next);
-      await refetch();
+      // Writes the CAMPFIRE, not the owner's loadout (0134). The old call was equipCosmetic, which
+      // is why picking a banner here used to restyle the owner's profile and every other fire they
+      // ran — the header read whatever they had equipped.
+      await setCampfireBanner(groupId, item.id);
+      // The header behind this sheet reads group.banner_item_id, so the group is what has to be
+      // re-read. No route change happens (this is a modal over the campfire screen), and nothing
+      // else invalidates it.
+      await onChanged();
       onClose();
     } catch (e) {
       setError(getErrorMessage(e, 'Could not set that banner — try again.'));

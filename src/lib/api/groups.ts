@@ -347,3 +347,20 @@ export async function ensurePersonalInviteCode(): Promise<string> {
   if (error) throw error;
   return data;
 }
+
+/**
+ * Set (or clear) the banner this campfire flies. Owner only — the server checks both that you own
+ * the campfire and that you own the banner, so this never has to be gated on the client for
+ * correctness, only for what the UI offers.
+ *
+ * `null` clears back to the base hearth. Not the same call as equipping a banner on yourself:
+ * before 0134 this WAS that call, which is why setting a campfire's art used to restyle the
+ * owner's profile and every other fire they ran.
+ */
+export async function setCampfireBanner(groupId: string, itemKey: string | null): Promise<void> {
+  const { error } = await supabase.rpc('set_campfire_banner', {
+    p_group_id: groupId,
+    p_item_key: itemKey,
+  });
+  if (error) throw error;
+}

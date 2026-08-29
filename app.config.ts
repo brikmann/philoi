@@ -38,6 +38,19 @@ const config: ExpoConfig = {
       // than failing at build time. No push entitlement: the timer self-counts via
       // Text(timerInterval:), so we never push a tick (see modules/philoi-live-activity).
       NSSupportsLiveActivities: true,
+      // Background audio (#147). The equipped ambient loop is the whole point of the Audio
+      // cosmetics, and without this iOS tears the session down the moment the screen locks — so
+      // the one time people most want a bonfire crackle running, a locked phone on a desk during
+      // a study session, is exactly when it stopped.
+      //
+      // 'audio' ONLY. Not 'fetch', not 'processing', not 'remote-notification': each background
+      // mode is separately justified at review, and the only thing that needs to survive
+      // backgrounding is playback that the user started and can hear.
+      //
+      // expo-audio's config plugin adds this too when enableBackgroundPlayback is on (set
+      // explicitly below). Declared here as well because it is a review-visible capability and it
+      // should be readable in this file rather than inferred from a plugin default.
+      UIBackgroundModes: ['audio'],
     },
   },
   android: {
@@ -89,11 +102,22 @@ const config: ExpoConfig = {
       // setRequestPromotedOngoing(true) is silently ignored and you get a plain notification
       // with no error. Harmless on older versions (unknown permissions are dropped).
       'android.permission.POST_PROMOTED_NOTIFICATIONS',
-      // Deliberately NOT here: FOREGROUND_SERVICE / FOREGROUND_SERVICE_SPECIAL_USE /
-      // WAKE_LOCK. That's Path B in NATIVE_BUILD_CONFIG.md and we're on Path A — the
-      // chronometer ticks in the OS from a start timestamp, so nothing of ours needs to run
-      // in the background. Path A dodges the Android 14 FGS-type declaration and the Play
-      // Console justification entirely.
+      // Background audio (#147). Android will not let a process keep playing once it is no
+      // longer foreground unless a foreground service is holding it up, so the ambient loop needs
+      // these two. expo-audio's plugin declares the AudioControlsService that uses them.
+      'android.permission.FOREGROUND_SERVICE',
+      'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+      // NOTE ON PATH A vs PATH B (NATIVE_BUILD_CONFIG.md). Path A was chosen for the SESSION
+      // NOTIFICATION and that reasoning still holds untouched: a chronometer anchored to a start
+      // timestamp ticks in the OS, so nothing of ours needs to run for the timer to stay right.
+      //
+      // Audio is a different requirement that argument never covered — a sound cannot be played
+      // by a timestamp. So this is not Path B arriving late: the type here is MEDIA_PLAYBACK, the
+      // ordinary one Android designed for exactly this, and not SPECIAL_USE, which is the type
+      // that carries the Play Console justification Path A was avoiding. Media playback the user
+      // started and can hear is the least contentious foreground service there is.
+      //
+      // Still deliberately NOT here: FOREGROUND_SERVICE_SPECIAL_USE and WAKE_LOCK.
     ],
   },
   web: {
@@ -106,7 +130,14 @@ const config: ExpoConfig = {
     'expo-image',
     'expo-status-bar',
     'expo-web-browser',
-    'expo-audio',
+    // Background playback is opt-in territory and the default is not something this build should
+    // depend on — it decides whether the plugin writes UIBackgroundModes and the Android
+    // foreground-service permissions at all (#147). Stated, not inherited.
+    //
+    // microphonePermission is left alone on purpose: expo-speech-recognition sets the mic string
+    // later in this array and therefore wins, which is the arrangement Cindy's copy already
+    // depends on. Touching it here is how that regression comes back.
+    ['expo-audio', { enableBackgroundPlayback: true }],
     'expo-sharing',
     'expo-updates',
     // Cindy's voice (CINDY_SPEC "STT-only architecture"). ON-DEVICE speech-to-text — the platform

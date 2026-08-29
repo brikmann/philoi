@@ -343,6 +343,15 @@ export type Group = {
   min_join_tier: RankTierName | null;
   /** The owner's one-line house rule shown at the bottom of the member view. Null = no rule set. */
   house_rule: string | null;
+  /**
+   * The BANNER catalog key this campfire flies (0134). Null = never chosen, which renders as
+   * `banner-base-hearth`.
+   *
+   * Per-campfire, deliberately: before 0134 the header read the OWNER's equipped banner, so an
+   * owner with two fires flew the same art on both and setting one restyled their profile too.
+   * Written only through set_campfire_banner, which checks ownership server-side.
+   */
+  banner_item_id: string | null;
   created_at: string;
 };
 
@@ -1750,6 +1759,8 @@ export type Database = {
       };
       get_campfire_preview: { Args: { p_group_id: string }; Returns: CampfirePreview[] };
       set_my_helper_flag: { Args: { p_group_id: string; p_is_helper: boolean }; Returns: undefined };
+      /** Owner-only; null clears back to the base hearth. Ownership of the key is checked server-side. */
+      set_campfire_banner: { Args: { p_group_id: string; p_item_key: string | null }; Returns: undefined };
       set_my_auto_post_synced: { Args: { p_group_id: string; p_enabled: boolean }; Returns: undefined };
       set_my_check_in_caption: { Args: { p_check_in_id: string; p_caption: string }; Returns: undefined };
       ensure_personal_invite: { Args: Record<string, never>; Returns: string };

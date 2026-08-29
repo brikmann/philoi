@@ -8,9 +8,6 @@ import { heatToState } from '@/components/heat-flame';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { EmberFill } from '@/components/ui/ember-fill';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { usePublicLoadout } from '@/hooks/use-public-loadouts';
-import { useAuth } from '@/lib/auth/auth-context';
-import { useLoadout } from '@/lib/economy/loadout';
 import { RANK_TIER_LABEL, RANK_TIER_METAL } from '@/lib/rank-tiers';
 import type { CampfirePrivacy, Group, RankTierName } from '@/types/database';
 
@@ -94,20 +91,18 @@ export function CampfireHeader({
   hasPendingRequests = false,
   lockInDisabled = false,
 }: CampfireHeaderProps) {
-  // The banner belongs to the campfire, and a campfire's cosmetics are its owner's — §2d's
-  // "header art for a Campfire the user owns". So the OWNER's equipped BANNER is what flies here,
-  // for every member who opens it.
+  // The banner belongs to the CAMPFIRE (0134), so it is read off the campfire's own column and
+  // not off whatever its owner happens to have equipped.
   //
-  // When the owner IS the viewer, read the live loadout store instead of get_public_loadouts.
-  // That read is a module-level cache keyed by user id with no invalidation, so an owner who has
-  // just picked a banner from the options sheet (mock 164 §3) would sit here watching the old one
-  // fly until the app restarted. The store is what the picker writes to.
-  const { session } = useAuth();
-  const myLoadout = useLoadout();
-  const ownerIsMe = Boolean(group?.owner_id) && group?.owner_id === session?.user.id;
-  const ownerLoadout = usePublicLoadout(ownerIsMe ? null : group?.owner_id);
-  const bannerKey = ownerIsMe ? myLoadout.banner?.id : ownerLoadout.banner?.id;
-  const { from, to } = bannerColors(bannerKey);
+  // It used to be the owner's equipped BANNER, resolved through the loadout store for the owner
+  // and get_public_loadouts for everyone else. That made one owner's two fires fly the same art,
+  // made setting a campfire's banner restyle the owner's profile, and needed a hand-written push
+  // into the loadout store to repaint at all. All three go away with the column: every viewer
+  // reads the same value from the same row, and the picker re-reads the group.
+  //
+  // Null = never chosen, and bannerColors already falls back to the base hearth for an unknown or
+  // missing key.
+  const { from, to } = bannerColors(group?.banner_item_id);
 
   const full = variant === 'full';
   const state = heatToState(heat);

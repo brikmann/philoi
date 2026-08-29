@@ -47,7 +47,7 @@ export default function GroupScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const { session } = useAuth();
   const { session: activeSession } = useActiveSession();
-  const { group } = useGroup(groupId);
+  const { group, refetch: refetchGroup } = useGroup(groupId);
   const { groups: myGroups } = useMyGroups();
   const heatByGroupId = useCampfireHeat();
   const { stats, refetch: refetchStats } = useCampfireStats(groupId);
@@ -228,6 +228,7 @@ export default function GroupScreen() {
         groupId={groupId}
         chatMuted={chatMuted}
         onChatMutedChanged={setChatMutedOverride}
+        onGroupChanged={refetchGroup}
       />
 
       <LockinGoalPicker

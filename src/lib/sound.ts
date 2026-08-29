@@ -223,6 +223,15 @@ export async function applyAudioInterruptionMode(duckToMusic: boolean): Promise<
     await setAudioModeAsync({
       playsInSilentMode: true,
       interruptionMode: duckToMusic ? 'mixWithOthers' : 'doNotMix',
+      // #147 — the session survives the app going to the background, so a locked phone on a desk
+      // keeps the ambient loop running through a study session instead of falling silent at the
+      // exact moment it was doing its job. Paired with UIBackgroundModes:['audio'] on iOS and the
+      // media-playback foreground service on Android; without those this flag is inert, which is
+      // why it ships in the same native build.
+      //
+      // The property is `shouldPlayInBackground`. expo-av called it `staysActiveInBackground` and
+      // expo-audio renamed it — the old name is not an error, it is silently ignored.
+      shouldPlayInBackground: true,
     });
   } catch (e) {
     console.warn('[sound] could not set audio interruption mode:', e);

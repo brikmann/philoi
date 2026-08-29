@@ -386,10 +386,10 @@ function LockInScreen() {
   // Failures are swallowed. A device that cannot take a wake lock is a device where the session
   // still runs; it is not a reason to put an error on top of someone's timer.
   //
-  // NOTE (deliberately not built): this covers auto-sleep, which is the bug. If the user manually
-  // locks the phone or backgrounds the app, the audio still stops — that needs true background
-  // audio (`shouldPlayInBackground` plus UIBackgroundModes: ['audio'] in app.config), which is an
-  // App Store review question rather than a rendering fix. Flagged, not slipped in.
+  // This covers auto-sleep. The other half — a manually locked phone or a backgrounded app — was
+  // flagged here as not built, and now is (#147): shouldPlayInBackground in sound.ts plus
+  // UIBackgroundModes:['audio'] and the Android media-playback service in app.config. It needed a
+  // native rebuild, which is why it landed as its own bundle rather than with the wake lock.
   const keepScreenAwake = useKeepScreenAwakePref();
   useEffect(() => {
     if (!activeSession || !keepScreenAwake) return;
