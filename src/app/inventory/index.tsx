@@ -8,6 +8,7 @@ import { BoxStackSheet } from '@/components/economy/box-stack-sheet';
 import { EmberPill, RarityLabel, SectionLabel, SourceTag } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
+import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -15,8 +16,9 @@ import { useInventory, type BoxStack, type OwnedItem } from '@/hooks/use-invento
 import { BOXES, type BoxKey } from '@/lib/economy/boxes';
 import { TYPE_FILTERS, itemsOfType, type ItemType } from '@/lib/economy/catalog';
 import { badgeLabel } from '@/lib/economy/badges';
+import { FORGE_LADDER, isForgeFuel } from '@/lib/economy/forge';
 import { SORT_LABEL, SORT_MODES, loadSortMode, saveSortMode, sortOwned, type SortMode } from '@/lib/economy/inventory-sort';
-import { RARITY_COLOR } from '@/lib/economy/rarity';
+import { RARITY_COLOR, type Rarity } from '@/lib/economy/rarity';
 
 // Inventory + Equip (mock 67, 21a/21i). Opens on a live LOADOUT preview — the equipped card, halo,
 // flame and title composed the way other people actually see you — because that's what makes an
@@ -56,6 +58,23 @@ export default function InventoryScreen() {
 
   // "6 of 7 Flames owned" — the completion line under the grid. Only meaningful on a single type.
   const ownedOfType = filter === 'ALL' ? null : `${shown.length} of ${itemsOfType(filter).length} ${filter.toLowerCase()}s owned`;
+
+  // What the Forge could take, and the best rung it could actually complete. Computed off `owned`
+  // rather than `shown` on purpose: the Forge does not care which category chip is active, and a
+  // shortcut that vanished when you filtered to Flames would read as a bug.
+  const forgeReady = useMemo(() => {
+    const counts = new Map<Rarity, number>();
+    let total = 0;
+    for (const item of owned) {
+      if (!isForgeFuel(item)) continue;
+      total += 1;
+      counts.set(item.rarity, (counts.get(item.rarity) ?? 0) + 1);
+    }
+    // Highest completable rung wins — that is the one worth naming, and it is what /forge will open
+    // on if the user taps through with no rarity of their own in mind.
+    const best = [...FORGE_LADDER].reverse().find((s) => (counts.get(s.from) ?? 0) >= s.need)?.from;
+    return { total, best };
+  }, [owned]);
 
   const flame = equippedBySlot.flame;
   const halo = equippedBySlot.halo;
@@ -165,6 +184,39 @@ export default function InventoryScreen() {
         )}
 
         {ownedOfType && shown.length > 0 ? <Text style={styles.hint}>{ownedOfType} · tap any to equip</Text> : null}
+
+        {/* ── The Forge (mock 156 frame 2) ──
+            The second way in, and the one that matters: the drawer row is for people who already
+            know what the Forge is, this is for people standing in front of the spares.
+
+            A ROUTE, not a select-mode over this grid. Mock 156 draws the shortcut as a multi-select
+            action bar here, and building that would mean two fuel pickers — this one and /forge's —
+            that have to agree about which items are eligible, on a rule (drop-pool membership plus
+            grant source) that is exactly the kind that drifts when it lives in two places. So the
+            selection happens once, on the screen that owns it, and this is the door.
+
+            Counted rather than always shown, because "3 rares ready" is the whole pitch and an
+            empty Forge has nothing to say. */}
+        {forgeReady.total > 0 ? (
+          <Pressable
+            style={styles.forgeRow}
+            onPress={() => router.push(forgeReady.best ? { pathname: '/forge', params: { rarity: forgeReady.best } } : '/forge')}
+            accessibilityRole="button"
+            accessibilityLabel="Open the Forge">
+            <View style={styles.forgeIcon}>
+              <PhiloiIcon name="forge" size={20} color={Colors.ember} />
+            </View>
+            <View style={styles.forgeText}>
+              <Text style={styles.forgeTitle}>The Forge</Text>
+              <Text style={styles.forgeSub}>
+                {forgeReady.best
+                  ? `You have enough ${forgeReady.best}s to forge one of the next tier up.`
+                  : `${forgeReady.total} item${forgeReady.total === 1 ? '' : 's'} you could melt down into something better.`}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+          </Pressable>
+        ) : null}
 
         {/* ── Unopened boxes ──
             Without this the earn path dead-ends: grant_reward and the Flame Pass both drop boxes
@@ -551,6 +603,43 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     textAlign: 'center',
     marginTop: Spacing.twelve,
+  },
+  // Mock 158's ember treatment, borrowed for the one row in the Inventory that leads somewhere new.
+  forgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.twelve,
+    backgroundColor: Colors.cardDark,
+    borderWidth: 1,
+    borderColor: 'rgba(242,163,60,0.35)',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.amber,
+    borderRadius: 13,
+    padding: Spacing.twelve,
+    marginTop: Spacing.three,
+  },
+  forgeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.achieverBg,
+  },
+  forgeText: {
+    flex: 1,
+    gap: 2,
+  },
+  forgeTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.ember,
+  },
+  forgeSub: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: Colors.muted,
   },
   boxRow: {
     flexDirection: 'row',

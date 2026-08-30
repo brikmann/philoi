@@ -32,3 +32,12 @@ supabase/
 scripts/
 *.ics
 *.png.bak
+
+# The generated native dirs. Gitignored, but .easignore REPLACES .gitignore for the archive, so
+# they need saying again here — and this one is not just size, it is correctness: with android/
+# present in the upload EAS reads the project as BARE and SKIPS PREBUILD, so it would build
+# whatever native config happened to be on the machine that last ran `expo prebuild` rather than
+# what app.config.ts says. That is exactly how a FOCUS_NUDGE_ANDROID=1 verification prebuild would
+# leak the AccessibilityService into a build that was meant to ship without it.
+/android
+/ios

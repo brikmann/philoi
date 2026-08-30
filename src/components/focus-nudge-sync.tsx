@@ -16,14 +16,21 @@ import {
 } from '@/lib/focus-nudge';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
 
-// Renders nothing. Arms the iOS Screen Time shield for the duration of a lock-in and takes it down
-// when the session ends (APP_BLOCKER_SPEC §B/§D) — the Focus Nudge counterpart to LiveActivitySync,
-// and mounted in _layout for the same reason: the session outlives the lock-in screen. You can
-// minimize it, wander to the valley, background the app entirely, and the shield has to stay armed
-// through all of it. Anchoring this to a screen would disarm the moment you navigated away.
+// Renders nothing. Arms the guard for the duration of a lock-in and takes it down when the session
+// ends (APP_BLOCKER_SPEC §B/§D) — the Focus Nudge counterpart to LiveActivitySync, and mounted in
+// _layout for the same reason: the session outlives the lock-in screen. You can minimize it, wander
+// to the valley, background the app entirely, and the guard has to stay armed through all of it.
+// Anchoring this to a screen would disarm the moment you navigated away.
 //
-// Copy is fetched HERE, on the way in, not at the moment of drift — the shield extension renders
-// synchronously and cannot await a network call. See the invariants in src/lib/focus-nudge.ts.
+// PLATFORM-BLIND ON PURPOSE, and it is worth noticing that there is not a single Platform.OS check
+// below. iOS's Screen Time shield and Android's AccessibilityService overlay are nothing alike
+// underneath, but the seam in src/lib/focus-nudge.ts gives them the same six verbs, so the session
+// lifecycle — the part with the actual bugs in it, like the retreat history that must not reset on
+// every touchConfirmedAt() tick — is written once and debugged once.
+//
+// Copy is fetched HERE, on the way in, not at the moment of drift. On iOS the shield extension
+// renders synchronously and cannot await a network call; on Android the overlay must be up in the
+// same frame the app comes forward. See the invariants in src/lib/focus-nudge.ts.
 
 export function FocusNudgeSync() {
   const { session, loading } = useActiveSession();

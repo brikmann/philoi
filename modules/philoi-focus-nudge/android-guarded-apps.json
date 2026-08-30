@@ -1,0 +1,19 @@
+{
+  "$comment": "THE CURATED LIST — the single source of truth for which apps Focus Nudge can guard on Android, read by BOTH plugins/withFocusNudgeAndroid.js (which turns it into the manifest's <queries> allow-list) and src/lib/focus-nudge.ts (which renders the picker). One file so the two can never disagree: an app offered in the picker but missing from <queries> is invisible to the package manager, so it would show as 'not installed' forever with no error anywhere. WHY CURATED AND NOT 'PICK ANY APP': enumerating every installed app needs QUERY_ALL_PACKAGES, which is its OWN sensitive-permission declaration on top of the AccessibilityService one (PLAY_ACCESSIBILITY_DECLARATION.md) — two extended reviews instead of one. Checking a fixed allow-list of ~14 named packages needs only <queries> and no declaration at all. Full 'pick any app' is a v2 upgrade, deliberately not taken here. NOT IN THIS LIST, on purpose: browsers, messaging apps, and phone/maps/banking. A guard on a browser or on WhatsApp catches far more genuine need than drift, and this feature must never be the reason someone could not answer a message.",
+  "apps": [
+    { "id": "instagram", "label": "Instagram", "packages": ["com.instagram.android"] },
+    { "id": "tiktok", "label": "TikTok", "packages": ["com.zhiliaoapp.musically", "com.ss.android.ugc.trill"] },
+    { "id": "x", "label": "X", "packages": ["com.twitter.android"] },
+    { "id": "youtube", "label": "YouTube", "packages": ["com.google.android.youtube"] },
+    { "id": "reddit", "label": "Reddit", "packages": ["com.reddit.frontpage"] },
+    { "id": "snapchat", "label": "Snapchat", "packages": ["com.snapchat.android"] },
+    { "id": "facebook", "label": "Facebook", "packages": ["com.facebook.katana"] },
+    { "id": "threads", "label": "Threads", "packages": ["com.instagram.barcelona"] },
+    { "id": "discord", "label": "Discord", "packages": ["com.discord"] },
+    { "id": "twitch", "label": "Twitch", "packages": ["tv.twitch.android.app"] },
+    { "id": "netflix", "label": "Netflix", "packages": ["com.netflix.mediaclient"] },
+    { "id": "pinterest", "label": "Pinterest", "packages": ["com.pinterest"] },
+    { "id": "tinder", "label": "Tinder", "packages": ["com.tinder"] },
+    { "id": "bereal", "label": "BeReal", "packages": ["com.bereal.ft"] }
+  ]
+}

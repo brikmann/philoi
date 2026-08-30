@@ -8,11 +8,13 @@ import { RarityLabel, SourceTag, formatEmbers } from '@/components/economy/econo
 import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
 import { SfxSlotPicker, type SfxChoice } from '@/components/economy/sfx-slot-picker';
+import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAudioPreview, useStopPreviewOnLeave } from '@/hooks/use-audio-preview';
 import { useInventory } from '@/hooks/use-inventory';
 import { equipCosmetic, salvageCosmetic, unequipCosmetic } from '@/lib/api/inventory';
+import { forgeStepFor, isForgeFuel } from '@/lib/economy/forge';
 import { SFX_SLOTS, SLOT_LABEL, isDefaultItem, type SfxSlot } from '@/lib/economy/catalog';
 import { getErrorMessage } from '@/lib/errors';
 import { SALVAGE_EMBERS, SALVAGE_PCT, rarityGlow } from '@/lib/economy/rarity';
@@ -220,6 +222,34 @@ export default function ItemDetailScreen() {
             <Text style={styles.sellNote}>Part of your starter set · permanent, can&apos;t be sold</Text>
           ) : (
             <>
+              {/* The Forge shortcut (mock 156 frame 2), sitting where it belongs: next to Sell, on
+                  the screen you are already on when you have decided you don't want something.
+                  That is the decision the Forge competes for — sell it for embers, or feed it in.
+                  Offering the choice anywhere else would mean asking it before it has been made.
+
+                  Only shown for items the Forge can actually take. isForgeFuel is the client's
+                  mirror of forge_combine's gate, so a season item, a relic or starter gear never
+                  gets a button that would fail — and the server refuses them anyway. Mythics get no
+                  button either: there is no rung above them, so they are output only. */}
+              {isForgeFuel(item) && forgeStepFor(item.rarity) ? (
+                <Pressable
+                  style={styles.forgeBtn}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/forge',
+                      // Carried through so the Forge opens on the right recipe with this item
+                      // already in a slot — "send to Forge" should not mean "find it again".
+                      params: { rarity: item.rarity, items: item.ownedId },
+                    })
+                  }
+                  disabled={busy}>
+                  <PhiloiIcon name="forge" size={16} color={Colors.ember} />
+                  <Text style={styles.forgeBtnText}>
+                    Send to the Forge · {forgeStepFor(item.rarity)!.need} {item.rarity}s make a{' '}
+                    {forgeStepFor(item.rarity)!.into}
+                  </Text>
+                </Pressable>
+              ) : null}
               <Pressable style={styles.sellBtn} onPress={confirmSell} disabled={busy}>
                 <View style={styles.sellBtnRow}>
                   <Text style={styles.sellBtnText}>Sell ·</Text>
@@ -348,6 +378,26 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: '#2a1608',
+  },
+  // Ember-outlined rather than filled: Sell is the established action on this screen and the Forge
+  // is the alternative to it, not a replacement — a solid ember slab here would outrank Equip.
+  forgeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    backgroundColor: Colors.cardDark,
+    borderWidth: 1,
+    borderColor: Colors.amber,
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: Spacing.two,
+  },
+  forgeBtnText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.ember,
+    textAlign: 'center',
   },
   sellBtn: {
     backgroundColor: Colors.card,

@@ -739,6 +739,10 @@ export type AnalyticsEventName =
   | 'cosmetic_equipped'
   | 'cosmetic_unequipped'
   | 'cosmetic_salvaged'
+  // The Forge (migration 0138). Carries the rungs and the dupe flag, never a balance — a rising
+  // dupe rate at a tier is the signal that the pool at that tier is too small, which is the one
+  // question this feature can go wrong on.
+  | 'forge_combined'
   | 'pass_tier_claimed'
   | 'pass_level_claimed'
   | 'iap_purchase_completed'
@@ -856,8 +860,16 @@ export type AnalyticsEventName =
   // funnel to measure. `focus_nudge_apps_picked` carries a count only; `focus_nudge_line_fetched`
   // carries the intent, which is a fact about the copy we generated, not about their behaviour.
   // Same principle as the support screen, which logs nothing whatsoever.
+  //
+  // ANDROID adds one, and only because Google asks for it: the AccessibilityService declaration
+  // commits Philoi to a prominent disclosure shown BEFORE the permission is requested, and this is
+  // how we can answer "is it actually being seen" without guessing. It carries no properties.
+  // Android also reuses `focus_nudge_apps_picked` with a count — the native side knows the package
+  // names there (Android has no opaque-token picker) and deliberately does not pass them up, so the
+  // event is identical on both platforms.
   | 'focus_nudge_permission'
   | 'focus_nudge_apps_picked'
+  | 'focus_nudge_disclosure_accepted'
   | 'focus_nudge_auto_toggled'
   | 'focus_nudge_line_fetched';
 
@@ -2173,6 +2185,20 @@ export type Database = {
        * no longer identifies what to clear. */
       unequip_cosmetic: { Args: { p_slot: string }; Returns: undefined };
       salvage_cosmetic: { Args: { p_key: string; p_rarity: string }; Returns: { embers: number } };
+      /**
+       * The Forge (migration 0138). Consume N owned cosmetics of p_rarity, grant one of the next
+       * rarity up.
+       *
+       * p_item_ids are cosmetics_owned ROW ids, not catalog keys — the row is what gets destroyed,
+       * and naming rows is what makes "you selected the same item three times" a distinguishable
+       * mistake. Nothing else is sent: unlike open_loot_box, which has to hand over a candidate pool
+       * because the catalog lives in the bundle, the Forge's pool is box_droppable_items and the
+       * server already holds it. There is no argument here a patched client could aim.
+       */
+      forge_combine: {
+        Args: { p_rarity: string; p_item_ids: string[] };
+        Returns: EconomyForgeResult;
+      };
       credit_pass_xp: { Args: { p_achievement: string; p_xp: number; p_period: string }; Returns: number };
       /** Live counters for the progress-style achievements (migration 0065). */
       get_pass_achievement_progress: { Args: Record<string, never>; Returns: Record<string, number> };
@@ -2371,6 +2397,27 @@ export type EconomyOpenResult = {
   embers: number;
   box_key: string;
   rolled_rarity: string;
+};
+
+/**
+ * A combine the SERVER already decided (migration 0138) — the hammer strike only visualizes it,
+ * same ordering rule as EconomyOpenResult above.
+ *
+ * `rarity` is the OUTPUT tier and is guaranteed, never rolled; the gamble is which item of that tier
+ * `cosmetic_key` turns out to be. `dupe` is the one path where nothing new arrives: cosmetics_owned
+ * is unique on (user_id, cosmetic_key), so a roll that lands on something already owned auto-salvages
+ * to `embers` instead of stacking. The server prefers un-owned items, so that only happens to someone
+ * who already holds the whole tier.
+ */
+export type EconomyForgeResult = {
+  cosmetic_key: string;
+  rarity: string;
+  dupe: boolean;
+  embers: number;
+  /** The rarity that was consumed, echoed back so the reveal can say "from 3 Rare". */
+  input_rarity: string;
+  consumed: number;
+  consumed_keys: string[];
 };
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
