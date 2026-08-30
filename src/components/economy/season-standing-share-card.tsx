@@ -24,7 +24,7 @@ import type { RankTierName, SeasonCard, SeasonReward } from '@/types/database';
 // reused as the card's animated background so the shared story carries the season's signature.
 
 /** Season 1's aura colour (catalog: Emberfall Ascendant). */
-const EMBERFALL = '#FF5A2E';
+const EMBERFALL = '#F5401C';
 
 /** Band -> the words on the placement screen. The band itself is decided server-side. */
 const BAND_HEADLINE: Record<string, string> = {

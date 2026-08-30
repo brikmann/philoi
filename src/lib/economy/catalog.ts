@@ -566,7 +566,7 @@ const EMBERFALL_SET: CatalogItem[] = [
     art: { kind: 'flare', from: '#FF2A2A', to: '#FFE0B0' },
     // The one bespoke effect in the set (punchlist 15.3) — lava pooling low plus embers raining
     // from above. The capstone doesn't share a motion layer with a box drop.
-    flare: { colour: '#FF5A2E', effect: 'emberfall' } }),
+    flare: { colour: '#F5401C', effect: 'emberfall' } }),
   item({ id: 'flame-forge', name: 'Forge Flame', type: 'FLAME', rarity: 'legendary', acquisition: 'forge-pass-S1',
     lore: 'Struck, folded, struck again. The colour a thing turns when it stops being raw.',
     art: { kind: 'flame', from: '#7A2E00', to: '#FFB03C' } }),
