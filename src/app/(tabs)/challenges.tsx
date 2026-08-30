@@ -21,7 +21,7 @@ import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { deleteChallenge, type GoalDayAward } from '@/lib/api/challenges';
 import { shiftGoalReveal, useNextGoalReveal } from '@/lib/goal-reveal-queue';
 import { shareCardImage } from '@/lib/share-card';
-import type { Challenge } from '@/types/database';
+import type { Challenge, SocialChallenge } from '@/types/database';
 
 /** Mock 102's `.tab` — a count badge only when there is something to count, so an empty side
  * reads as calm rather than as a zero someone has to interpret. */
@@ -50,6 +50,46 @@ function TabPill({
         </View>
       ) : null}
     </Pressable>
+  );
+}
+
+/**
+ * One band of the Friends list, with its heading — and nothing at all when the band is empty.
+ *
+ * An always-present "Waiting on an answer" heading over a blank space is worse than no heading: it
+ * reads as something failing to load. Headings appear only when they have something under them,
+ * which also means the common case (one live duel, nothing pending) is a single unlabelled-looking
+ * list rather than a form with sections.
+ */
+function SocialGroup({
+  label,
+  challenges,
+  myUserId,
+  onChanged,
+  onOpen,
+}: {
+  label: string;
+  challenges: SocialChallenge[];
+  myUserId: string;
+  onChanged: () => void;
+  onOpen?: (challengeId: string) => void;
+}) {
+  if (challenges.length === 0) return null;
+  return (
+    <>
+      <Text style={styles.groupHeading}>{label}</Text>
+      <View style={styles.socialList}>
+        {challenges.map((c) => {
+          const card = <SocialChallengeCard challenge={c} myUserId={myUserId} onChanged={onChanged} />;
+          if (!onOpen) return <View key={c.id}>{card}</View>;
+          return (
+            <Pressable key={c.id} onPress={() => onOpen(c.id)}>
+              {card}
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
   );
 }
 
@@ -84,6 +124,16 @@ export default function ChallengesScreen() {
   const liveSocial = socialChallenges.filter(
     (c) => c.status === 'draft' || c.status === 'pending' || c.status === 'active',
   );
+  // THE THREE STATES, TOLD APART. `liveSocial` above is still the count the Friends pill shows —
+  // "there is something over here" is one number — but the LIST is grouped, because racing and
+  // waiting-on-an-answer are different situations and stacking them made the tab read as one
+  // undifferentiated pile. A challenge nobody has answered is not live; it is a thing you are
+  // waiting on, and the manage-sheet state that says so had nowhere to show on the tab itself.
+  //
+  // Bands, not literals: 'active' is racing and (draft|pending) is awaiting a decision, matching
+  // challenge_is_live / challenge_is_awaiting server-side so the two agree (0096).
+  const racingSocial = liveSocial.filter((c) => c.status === 'active');
+  const awaitingSocial = liveSocial.filter((c) => c.status === 'draft' || c.status === 'pending');
   const pastSocial = socialChallenges.filter((c) => c.status === 'completed' || c.status === 'expired');
   const historyCount = pastSocial.length + completed.length;
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -306,28 +356,27 @@ export default function ChallengesScreen() {
 
               {tab === 'friends' ? (
                 liveSocial.length > 0 ? (
-                  <View style={styles.socialList}>
-                    {liveSocial.map((c) => {
-                      // A pending invite's own Accept/Decline buttons are the only tap targets on
-                      // that card — wrapping it would swallow them.
-                      const watchable = c.status === 'active';
-                      return (
-                        <Pressable
-                          key={c.id}
-                          onPress={
-                            watchable
-                              ? () =>
-                                  router.push({
-                                    pathname: '/challenge-info/[challengeId]',
-                                    params: { challengeId: c.id },
-                                  })
-                              : undefined
-                          }>
-                          <SocialChallengeCard challenge={c} myUserId={session?.user.id ?? ''} onChanged={refetchSocial} />
-                        </Pressable>
-                      );
-                    })}
-                  </View>
+                  <>
+                    <SocialGroup
+                      label="Racing now"
+                      challenges={racingSocial}
+                      myUserId={session?.user.id ?? ''}
+                      onChanged={refetchSocial}
+                      onOpen={(id) =>
+                        router.push({ pathname: '/challenge-info/[challengeId]', params: { challengeId: id } })
+                      }
+                    />
+                    <SocialGroup
+                      label="Waiting on an answer"
+                      challenges={awaitingSocial}
+                      myUserId={session?.user.id ?? ''}
+                      onChanged={refetchSocial}
+                      // Deliberately NOT tappable. A pending invite's own Accept/Decline buttons are
+                      // the only tap targets on that card, and a Pressable wrapping them swallows
+                      // the taps; a draft has no info screen worth opening yet either.
+                      onOpen={undefined}
+                    />
+                  </>
                 ) : (
                   <Text style={styles.tabEmpty}>No live challenges with friends.</Text>
                 )
@@ -430,6 +479,13 @@ const styles = StyleSheet.create({
   },
   socialList: {
     gap: Spacing.three,
+    marginTop: Spacing.two,
+  },
+  groupHeading: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    color: Colors.textTertiary,
     marginTop: Spacing.three,
   },
   sectionLabel: {

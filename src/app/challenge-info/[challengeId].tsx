@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChallengeRewardScreen } from '@/components/economy/challenge-reward-screen';
 import { ChallengeWinShareCard } from '@/components/economy/challenge-win-share-card';
+import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { Avatar } from '@/components/ui/avatar';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -19,6 +20,7 @@ import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { challengeTitle, formatMetricValue, isDuel, isPlacement, metricLabel, metricNoun } from '@/lib/challenge-metric';
+import { challengeRevealKind } from '@/lib/challenge-outcome';
 import { fetchChallengeResults } from '@/lib/api/social-challenges';
 import { getErrorMessage } from '@/lib/errors';
 import { CHALLENGE_TYPE_GLYPH } from '@/lib/goal-types';
@@ -237,6 +239,15 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
    * consolation landed, not a victory screen. It is a RESULT screen; losing is a result.
    */
   const { reward, owed, dismiss } = useChallengeReward(c.id, settled && c.my_state === 'accepted');
+  // THROUGH THE SHARED QUEUE, like every other reveal in the app.
+  //
+  // The global ChallengeSettlementWatcher has taken the floor before presenting since the
+  // reward-rays pass; this screen — the OTHER door onto the same reveal, and the one a
+  // challenge_won deep-link opens — was still presenting unconditionally. So opening a settled
+  // race while a rank-up was on screen stacked the two, which is the exact thing the floor exists
+  // to stop. `owed` holds the reveal until the floor is free rather than dropping it: the reward
+  // is in the ledger either way and the seen-flag is only stamped on dismiss.
+  const hasRevealFloor = useRevealFloor(challengeRevealKind(c), Boolean(owed && reward));
   // Memoised on the reward itself, not on `c`: useSocialChallenges hands back a fresh object every
   // poll, and a new `result` identity each render would rebuild the reveal's reward rows underneath
   // a running animation. The settled figures cannot change once written.
@@ -319,6 +330,12 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
 
   return (
     <>
+      {/* 🔴 The header was rendering the literal route string `challenge-info/[challengeId]`. The
+          root layout now registers this screen so it can never fall back to its own path again;
+          this names it with the actual challenge, which is what a title is for. Set here rather
+          than in the layout because only this screen knows the name — the layout has the id and
+          nothing else. */}
+      <Stack.Screen options={{ title: challengeTitle(c) }} />
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Text style={styles.publicName} numberOfLines={2}>
           {challengeTitle(c)}
@@ -426,7 +443,7 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
           entry point: the challenge_won / challenge_lost / campfire_settled deep-links all land on
           this screen, and a second route would need the same seen-flag logic written twice. On
           dismiss the flag is stamped and this falls through to the standings underneath. */}
-      {owed && result ? (
+      {owed && result && hasRevealFloor ? (
         <Modal visible animationType="fade" onRequestClose={dismiss} statusBarTranslucent>
           <ScreenBackground>
             <SafeAreaView style={styles.revealSafe}>
@@ -496,6 +513,9 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
 
   return (
     <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      {/* Same reason as the social variant: this route reaches the header with nothing but an id,
+          so the name has to be set from whichever body knows it. */}
+      <Stack.Screen options={{ title: g.label ?? 'Goal' }} />
       <View style={styles.goalHero}>
         <View style={styles.goalIcon}>
           <DisciplineIcon name={CHALLENGE_TYPE_GLYPH[g.type]} size={30} color={Colors.amber} />

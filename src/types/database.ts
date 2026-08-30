@@ -790,6 +790,10 @@ export type AnalyticsEventName =
   | 'first_check_in'
   | 'challenge_created'
   | 'challenge_completed'
+  // 0145's grade races: who reports a mark, and who takes Cindy's door into the create screen
+  // rather than the form (mock 143's two paths — worth knowing which one people actually use).
+  | 'challenge_grade_reported'
+  | 'cindy_challenge_entry_opened'
   | 'challenge_members_invited'
   | 'challenge_invite_answered'
   | 'challenge_started'
@@ -1175,7 +1179,10 @@ export type ChallengeShape = 'duel' | 'collective' | 'placement';
 
 /** v2 metric set. 'xp' is no longer OFFERED at creation (it correlates with lock-in time) but
  * stays in the union because in-flight races still carry it. */
-export type SocialChallengeRaceMetric = 'lockin_time' | 'volume' | 'distance' | 'ai' | 'xp';
+/** 'grade' (0145) is the odd one out and the type cannot say so: the other four accumulate and are
+ *  observed, a grade is a single absolute mark the racer reports once. Anything that formats or
+ *  settles a metric has to branch on it — see challenge-metric.ts and challenge_racer_score(). */
+export type SocialChallengeRaceMetric = 'lockin_time' | 'volume' | 'distance' | 'ai' | 'xp' | 'grade';
 
 export type ChallengeParticipantState = 'invited' | 'accepted' | 'declined';
 
@@ -1232,6 +1239,19 @@ export type SocialChallenge = {
   accepted_count: number;
   /** This viewer's own row on the roster, or null if they are not on it. */
   my_state: ChallengeParticipantState | null;
+  /** The mark to hit, as a percentage. Non-null exactly when race_metric is 'grade' — except on a
+   *  placement board, where the ranking is the result and there is no bar to clear (0145). */
+  grade_target: number | null;
+  /** "KP451". Free text, and what makes the target mean anything. */
+  course_code: string | null;
+  /** What THIS viewer has reported so far on a grade race. Null is "not in yet", which is a
+   *  different thing from a reported 0 and has to render differently. */
+  my_reported_value: number | null;
+  /** This viewer's settled standing (0111 wrote these; 0145 is the first thing to select them).
+   *  Null while the race is live, and on any row the viewer is not on the roster for. */
+  my_final_rank: number | null;
+  /** Stored top-is-1.0, matching every other standings writer. Invert for a "top N%" reading. */
+  my_final_percentile: number | null;
 };
 
 /** One row of get_challenge_results() (0111) — the settled standings, read rather than
@@ -1941,18 +1961,26 @@ export type Database = {
           p_public_name?: string | null;
           p_starts_on?: string | null;
           p_ends_on?: string | null;
+          /** 0145 · a grade race's two extra terms. Both null on every other metric. */
+          p_grade_target?: number | null;
+          p_course_code?: string | null;
         };
         Returns: SocialChallenge;
       };
       create_group_challenge: {
         Args: {
           p_circle_id: string;
-          p_target_count: number;
+          /** Null ONLY for a grade goal, whose bar is p_grade_target instead. The server takes
+           *  exactly one of the two and refuses both or neither. */
+          p_target_count: number | null;
           p_window_hours: number;
           p_payout_xp?: number;
           p_public_name?: string | null;
           p_starts_on?: string | null;
           p_ends_on?: string | null;
+          /** 0145 · a grade race's two extra terms. Both null on every other metric. */
+          p_grade_target?: number | null;
+          p_course_code?: string | null;
         };
         Returns: SocialChallenge;
       };
@@ -1966,10 +1994,16 @@ export type Database = {
           p_public_name?: string | null;
           p_starts_on?: string | null;
           p_ends_on?: string | null;
+          /** 0145 · a grade race's two extra terms. Both null on every other metric. */
+          p_grade_target?: number | null;
+          p_course_code?: string | null;
         };
         Returns: SocialChallenge;
       };
       respond_to_h2h_challenge: { Args: { p_challenge_id: string; p_accept: boolean }; Returns: SocialChallenge };
+      /** Self-report your mark on a grade race (0145). Returns the value the SERVER stored — it
+       *  rounds to 2dp, and that copy is what settlement scores. */
+      report_challenge_grade: { Args: { p_challenge_id: string; p_grade: number }; Returns: number };
       cancel_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       /** The settled standings (0111) — every racer's final figure, rank and what they were paid. */
       get_challenge_results: { Args: { p_challenge_id: string }; Returns: ChallengeResultRow[] };

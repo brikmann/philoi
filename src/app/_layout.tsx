@@ -341,6 +341,13 @@ function RootNavigator() {
         <Stack.Screen name="milestone/new" options={{ presentation: 'modal', headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="milestone/[id]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="watch/[challengeId]" options={{ title: 'Watch' }} />
+        {/* 🔴 The header read `challenge-info/[challengeId]`, literally — the raw route string, in
+            the title bar, on a screen three different notifications deep-link into. It was the one
+            challenge route never registered here, and expo-router's fallback for an unregistered
+            screen is its own path. A placeholder title is not the fix on its own either, so the
+            screen overrides this with the challenge's real name once it has loaded one; this is
+            what shows for the frame before that, and what shows if the fetch fails. */}
+        <Stack.Screen name="challenge-info/[challengeId]" options={{ title: 'Challenge' }} />
         <Stack.Screen name="challenge-change/[requestId]" options={{ headerShown: false, presentation: 'modal' }} />
         {/* Headerless: the screen draws its own top row (mock 98) — the native header was adding a
             trailing glyph at the right edge of "New challenge" that leads nowhere. */}

@@ -27,6 +27,7 @@ import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { cheerChallenge, fetchChallengeCheerNotes } from '@/lib/api/leaderboard-social';
 import { formatMetricValue, metricLabel } from '@/lib/challenge-metric';
+import { viewerLabels } from '@/lib/challenge-outcome';
 import { formatTimeLeft } from '@/lib/format';
 import type { CheerNote, SocialChallengeRaceMetric } from '@/types/database';
 
@@ -246,6 +247,22 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
   const oppScore = watch.opponent_score ?? 0;
   const total = myScore + oppScore;
   const creatorShare = total > 0 ? myScore / total : 0.5;
+  // 🔴 "Noah Brikman vs Noah Brikman". This screen printed both competitors by their real
+  // display_name, so a racer watching their own duel saw their own name where every other surface
+  // says "You" — and with two accounts that share a display name (which the test pair do) the
+  // matchup became literally unreadable. challenge-info has always got this right; viewerLabels is
+  // that rule, extracted so the two screens cannot drift again.
+  //
+  // A SPECTATOR keeps both real names, because for them "You" would be false.
+  const labels = viewerLabels(
+    {
+      createdById: watch.created_by,
+      createdByName: watch.created_by_name,
+      opponentId: watch.opponent_id,
+      opponentName: watch.opponent_name,
+    },
+    session?.user.id
+  );
   const creatorCheers = cheeredCount?.side === 'created_by' ? cheeredCount.count : watch.created_by_cheers;
   const opponentCheers = cheeredCount?.side === 'opponent' ? cheeredCount.count : watch.opponent_cheers ?? 0;
   const isCreator = session?.user.id === watch.created_by;
@@ -280,9 +297,9 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
 
       <View style={styles.matchup}>
         <View style={styles.competitor}>
-          <Avatar label={watch.created_by_name} size={44} lit={isCreator} />
+          <Avatar label={labels.createdByLabel} size={44} lit={isCreator} />
           <Text style={styles.competitorName} numberOfLines={1}>
-            {watch.created_by_name}
+            {labels.createdByLabel}
           </Text>
           <ScoreValue score={myScore} raceMetric={watch.race_metric} />
           <Text style={styles.liveStatus} numberOfLines={1}>
@@ -291,9 +308,9 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
         </View>
         <Text style={styles.vs}>vs</Text>
         <View style={styles.competitor}>
-          <Avatar label={watch.opponent_name ?? '?'} size={44} lit={!isCreator} />
+          <Avatar label={labels.opponentLabel} size={44} lit={!isCreator} />
           <Text style={styles.competitorName} numberOfLines={1}>
-            {watch.opponent_name ?? 'Waiting…'}
+            {labels.opponentLabel}
           </Text>
           <ScoreValue score={oppScore} raceMetric={watch.race_metric} />
           <Text style={styles.liveStatus} numberOfLines={1}>
@@ -340,7 +357,7 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
         challengeId={challengeId}
         version={notesVersion}
         nameFor={(userId) =>
-          userId === watch.created_by ? watch.created_by_name : watch.opponent_name ?? 'them'
+          userId === watch.created_by ? labels.createdByLabel : labels.opponentLabel
         }
       />
 

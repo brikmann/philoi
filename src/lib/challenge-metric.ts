@@ -62,6 +62,17 @@ const METRICS: Record<SocialChallengeRaceMetric, MetricSpec> = {
     noun: 'XP',
     format: (v) => `${Math.round(v).toLocaleString('en-US')} XP`,
   },
+  grade: {
+    // NOT "Most grade". Every other label here describes a race to accumulate the most of
+    // something; a grade race is a bar you clear, and the shared bar is the whole reason a grade
+    // duel is a race at all rather than two unrelated numbers (0145's constraint says the same in
+    // SQL). gradeChallengeLabel() below puts the actual target in front of people.
+    label: 'Grade target',
+    noun: 'grade',
+    // One decimal at most, and never a trailing ".0": a 70 is a 70, and "70.0%" reads like a
+    // measurement taken by an instrument rather than a mark somebody was given.
+    format: (v) => `${Number(v.toFixed(1))}%`,
+  },
 };
 
 /**
@@ -113,6 +124,10 @@ export function challengeTitle(challenge: {
 }): string {
   const named = challenge.public_name?.trim();
   if (named) return named;
+  // A grade race is named by its BAR, whatever shape it is. Falling through to the collective
+  // branch would title "everyone in KP451 hits 70" as "Everyone locks in null×" — its target_count
+  // is null by constraint (0145), the same way a placement race's is.
+  if (challenge.race_metric === 'grade') return gradeChallengeLabel(challenge);
   // A placement race IS a metric race — it just has no opponent. Falling through to the collective
   // branch would title a semester-long ranked board "Everyone locks in 1×", which describes a
   // target it does not have (its target_count is null by constraint, 0126).
@@ -120,6 +135,31 @@ export function challengeTitle(challenge: {
     return `Everyone locks in ${challenge.target_count ?? 1}×`;
   }
   return metricLabel(challenge.race_metric);
+}
+
+/** A grade race scores a self-reported mark rather than anything the app can observe (0145). */
+export function isGrade(challenge: { race_metric?: SocialChallengeRaceMetric | null }): boolean {
+  return challenge.race_metric === 'grade';
+}
+
+/**
+ * "70% in KP451" — the bar and the course, which is the only pair that means anything.
+ *
+ * Mock 140's first exchange is Cindy refusing to price the challenge until she has the course code,
+ * because "Physiology at one school isn't the same as another". The same reasoning applies to
+ * displaying it: a bare "70%" tells you nothing about what was asked of anybody.
+ *
+ * A placement board has no target — the ranking is the result — so it names the course alone.
+ */
+export function gradeChallengeLabel(challenge: {
+  grade_target?: number | null;
+  course_code?: string | null;
+  shape?: ChallengeShape | null;
+}): string {
+  const course = challenge.course_code?.trim();
+  if (challenge.grade_target == null) return course ? `${course} · ranked by grade` : 'Ranked by grade';
+  const target = formatMetricValue('grade', challenge.grade_target);
+  return course ? `${target} in ${course}` : `${target} target`;
 }
 
 /**

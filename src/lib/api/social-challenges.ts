@@ -31,6 +31,21 @@ type CustomSpan = {
   endsOn?: string | null;
 };
 
+/**
+ * The two extra fields a grade race carries (0145). Optional on every create call, so a lock-in,
+ * volume or distance race sends neither and behaves exactly as it did.
+ *
+ * `gradeTarget` is a PERCENTAGE. A GPA-scale entry is converted before it gets here — the column
+ * stores one unit, for the same reason distance is stored in metres.
+ */
+type GradeTerms = {
+  /** The mark to hit. Required for a grade duel or collective goal; omitted on a placement board,
+   *  where the ranking is the result and there is no bar (server constraint says the same). */
+  gradeTarget?: number | null;
+  /** "KP451". Optional, but Cindy asks for it first for a reason — see gradeChallengeLabel. */
+  courseCode?: string | null;
+};
+
 export async function createH2HChallenge(
   input: {
     opponentId: string;
@@ -40,7 +55,8 @@ export async function createH2HChallenge(
     circleId?: string | null;
     /** The user-set public name (v2). Null/blank falls back to the metric naming it. */
     publicName?: string | null;
-  } & CustomSpan
+  } & CustomSpan &
+    GradeTerms
 ): Promise<SocialChallenge> {
   const { data, error } = await supabase.rpc('create_h2h_challenge', {
     p_opponent_id: input.opponentId,
@@ -50,6 +66,8 @@ export async function createH2HChallenge(
     p_public_name: input.publicName ?? null,
     p_starts_on: input.startsOn ?? null,
     p_ends_on: input.endsOn ?? null,
+    p_grade_target: input.gradeTarget ?? null,
+    p_course_code: input.courseCode ?? null,
   });
   if (error) throw error;
   track('challenge_created', { mode: 'h2h', circle_id: input.circleId ?? null, custom_span: input.endsOn != null });
@@ -59,10 +77,13 @@ export async function createH2HChallenge(
 export async function createGroupChallenge(
   input: {
     circleId: string;
-    targetCount: number;
+    /** Lock-ins each member must log. Null ONLY for a grade goal, whose bar is `gradeTarget`
+     *  instead — the server takes exactly one of the two and refuses both or neither. */
+    targetCount: number | null;
     windowHours: number;
     publicName?: string | null;
-  } & CustomSpan
+  } & CustomSpan &
+    GradeTerms
 ): Promise<SocialChallenge> {
   const { data, error } = await supabase.rpc('create_group_challenge', {
     p_circle_id: input.circleId,
@@ -71,6 +92,8 @@ export async function createGroupChallenge(
     p_public_name: input.publicName ?? null,
     p_starts_on: input.startsOn ?? null,
     p_ends_on: input.endsOn ?? null,
+    p_grade_target: input.gradeTarget ?? null,
+    p_course_code: input.courseCode ?? null,
   });
   if (error) throw error;
   track('challenge_created', { mode: 'group', circle_id: input.circleId, custom_span: input.endsOn != null });
@@ -95,7 +118,8 @@ export async function createPlacementChallenge(
     raceMetric: SocialChallengeRaceMetric;
     windowHours: number;
     publicName?: string | null;
-  } & CustomSpan
+  } & CustomSpan &
+    GradeTerms
 ): Promise<SocialChallenge> {
   const { data, error } = await supabase.rpc('create_placement_challenge', {
     p_circle_id: input.circleId,
@@ -104,6 +128,8 @@ export async function createPlacementChallenge(
     p_public_name: input.publicName ?? null,
     p_starts_on: input.startsOn ?? null,
     p_ends_on: input.endsOn ?? null,
+    p_grade_target: input.gradeTarget ?? null,
+    p_course_code: input.courseCode ?? null,
   });
   if (error) throw error;
   track('challenge_created', { mode: 'placement', circle_id: input.circleId, custom_span: input.endsOn != null });
@@ -118,6 +144,27 @@ export async function respondToH2HChallenge(challengeId: string, accept: boolean
   if (error) throw error;
   track(accept ? 'challenge_accepted' : 'challenge_declined', { challenge_id: challengeId });
   return data;
+}
+
+/**
+ * Report — or correct — your mark on a grade challenge (0145).
+ *
+ * The one metric the app cannot observe, so it is the one metric with a write path. Editable for
+ * as long as the race is live, which the RPC enforces: a mark is the racer's current standing,
+ * not a one-shot submission, and a typo'd 7 for a 70 has to be fixable. It hardens at settlement
+ * because the sweep simply stops reading it.
+ *
+ * Returns the value the SERVER stored, not the one that was sent — it rounds to 2dp and it is the
+ * copy settlement will score.
+ */
+export async function reportChallengeGrade(challengeId: string, grade: number): Promise<number> {
+  const { data, error } = await supabase.rpc('report_challenge_grade', {
+    p_challenge_id: challengeId,
+    p_grade: grade,
+  });
+  if (error) throw error;
+  track('challenge_grade_reported', { challenge_id: challengeId });
+  return Number(data);
 }
 
 // Punchlist 3 — creator cancels an unanswered invite; either participant ends an active

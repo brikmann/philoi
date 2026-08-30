@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChallengeRewardScreen } from '@/components/economy/challenge-reward-screen';
 import { ChallengeWinShareCard } from '@/components/economy/challenge-win-share-card';
-import { useRevealFloor, type RewardRevealKind } from '@/components/economy/reward-reveal';
+import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { challengeRewardResult } from '@/hooks/use-challenge-reward';
 import { useShareRank } from '@/hooks/use-share-rank';
@@ -13,6 +13,7 @@ import { track } from '@/lib/analytics';
 import { fetchUnseenChallengeRewards, markChallengeRewardSeen } from '@/lib/api/social-challenges';
 import { useAuth } from '@/lib/auth/auth-context';
 import { metricLabel } from '@/lib/challenge-metric';
+import { challengeRevealKind } from '@/lib/challenge-outcome';
 import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { shareCardImage } from '@/lib/share-card';
 import type { UnseenChallengeReward } from '@/types/database';
@@ -136,15 +137,10 @@ export function ChallengeSettlementWatcher() {
     router.push({ pathname: '/shop/open', params: { boxIds: boxId, boxKey } });
   }
 
-  // Which of the three challenge reveals this is, so it queues at its own priority — a placement
-  // result outranks a duel, and all three clear before a rank-up. `shape` is the authoritative
-  // field; `mode` only distinguishes h2h from group and says nothing about placement races.
-  const revealKind: RewardRevealKind =
-    current?.shape === 'placement'
-      ? 'challenge_placement'
-      : current?.shape === 'collective' || current?.mode === 'group'
-        ? 'challenge_team'
-        : 'challenge_solo';
+  // Which of the three challenge reveals this is, so it queues at its own priority. Shared with
+  // challenge-info, which presents the SAME reveal through the other door and has to agree with
+  // this about what kind it is — see challengeRevealKind.
+  const revealKind = challengeRevealKind(current ?? {});
   // Held, not dropped: `queue` keeps the settlement while another celebration has the floor, so a
   // rank-up landing in the same moment delays this reveal rather than swallowing it.
   const hasFloor = useRevealFloor(revealKind, Boolean(current && result));

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChallengeMemberTicker } from '@/components/challenge-member-ticker';
+import { CindyChallengeEntry, cindyChallengeSeed } from '@/components/cindy/cindy-challenge-entry';
 import { ChallengeSentSheet } from '@/components/challenge-sent-sheet';
 import { FitnessSyncPrompt } from '@/components/fitness-sync-prompt';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
@@ -80,6 +81,35 @@ const RACE_METRIC_OPTIONS: {
   { value: 'lockin_time', label: 'Lock-in time', icon: 'time', source: 'From your lock-ins — works for everyone, no setup.' },
   { value: 'volume', label: 'Volume', icon: 'barbell', source: 'Total weight lifted, from your logged gym sets.' },
   { value: 'distance', label: 'Distance', icon: 'walk', source: 'From a connected fitness source (Strava).' },
+  // THE ONE METRIC NOBODY CAN OBSERVE (0145). Every option above is scored off something the app
+  // already wrote — check-ins, gym sets, a Strava sync — and the `source` line under the picker
+  // exists to say which. A grade has no source: you type it in, and the honesty this picker
+  // already practises about Volume needing a feed applies double here, so the line says outright
+  // that it is honour-based and pays less.
+  {
+    value: 'grade',
+    label: 'Grade',
+    icon: 'school',
+    source: 'A mark you report yourself — honour-based, so it pays a little less than tracked races.',
+  },
+];
+
+/**
+ * A COLLECTIVE goal's bar, as a choice of two.
+ *
+ * 'lockin_time' here is a deliberate stand-in for "count of lock-ins", not a metric race: the
+ * challenge is still created with race_metric null and a target_count, exactly as before. It is in
+ * this list only so the pills have something to show as selected when the goal is the ordinary
+ * kind — the alternative was a picker whose default state was nothing selected.
+ */
+const COLLECTIVE_METRIC_OPTIONS: typeof RACE_METRIC_OPTIONS = [
+  { value: 'lockin_time', label: 'Lock-ins', icon: 'time', source: 'Everyone logs the same number of qualifying lock-ins.' },
+  {
+    value: 'grade',
+    label: 'Grade',
+    icon: 'school',
+    source: 'Everyone in the course hits the same mark — honour-based, so it pays a little less.',
+  },
 ];
 
 // The presets and the custom span both live in ChallengeSpanPicker — see its header for why the
@@ -167,6 +197,13 @@ function SocialChallengeForm() {
   // works for every user with no connected source.
   const [raceMetric, setRaceMetric] = useState<SocialChallengeRaceMetric>('lockin_time');
   const [publicName, setPublicName] = useState('');
+  // The grade race's two extra terms. Held as strings because they are text fields: an empty box
+  // is "not set", which a number state cannot represent without conflating it with zero.
+  const [gradeTarget, setGradeTarget] = useState('');
+  const [courseCode, setCourseCode] = useState('');
+  const grading = raceMetric === 'grade';
+  const gradeTargetNum = Number(gradeTarget.trim());
+  const gradeTargetValid = gradeTarget.trim().length > 0 && Number.isFinite(gradeTargetNum) && gradeTargetNum > 0 && gradeTargetNum <= 100;
   // The member ticker's selection. Held here rather than inside the ticker so it survives a
   // failed submit — retyping the whole invite list because the create call timed out is the
   // opposite of what a "sent" confirmation is for.
@@ -212,8 +249,20 @@ function SocialChallengeForm() {
       setError(badSpan);
       return;
     }
+    // A grade duel or collective goal is a shared BAR — "who got more" between two people in
+    // different courses is not a race, which is why the server's constraint requires the target
+    // too. A placement board ranks without one and is exempt.
+    if (grading && shape !== 'placement' && !gradeTargetValid) {
+      setError('Set the grade everyone is aiming for, between 1 and 100.');
+      return;
+    }
     setSaving(true);
     setError(null);
+    // Only sent on a grade race — every other metric leaves both null and behaves exactly as it
+    // did before 0145.
+    const gradeTerms = grading
+      ? { gradeTarget: shape === 'placement' ? null : gradeTargetNum, courseCode: courseCode.trim() || null }
+      : {};
     try {
       if (shape === 'duel') {
         if (!effectiveOpponentId) {
@@ -228,6 +277,7 @@ function SocialChallengeForm() {
           endsOn: customSpan?.endsOn.toISOString() ?? null,
           circleId: watching ? (watchCircle?.id ?? null) : null,
           publicName,
+          ...gradeTerms,
         });
         // A visible confirmation, not a silent navigate-back (punchlist 2, §2: "no 'request
         // sent' state") — the opponent sees it as a real Accept/Decline invite on their own
@@ -251,6 +301,7 @@ function SocialChallengeForm() {
           startsOn: customSpan?.startsOn.toISOString() ?? null,
           endsOn: customSpan?.endsOn.toISOString() ?? null,
           publicName,
+          ...gradeTerms,
         });
       } else {
         if (!circle) {
@@ -259,11 +310,14 @@ function SocialChallengeForm() {
         }
         const created = await createGroupChallenge({
           circleId: circle.id,
-          targetCount,
+          // Exactly one bar, matching the server's constraint: a grade goal's target is the mark,
+          // not a count of lock-ins, and sending both is refused.
+          targetCount: grading ? null : targetCount,
           windowHours,
           startsOn: customSpan?.startsOn.toISOString() ?? null,
           endsOn: customSpan?.endsOn.toISOString() ?? null,
           publicName,
+          ...gradeTerms,
         });
         // The invite is a SECOND call rather than a parameter on create, because that is the
         // shape the server already has: invite_challenge_members (0096) is admin-gated,
@@ -305,6 +359,17 @@ function SocialChallengeForm() {
   return (
     <>
       <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.container}>
+        {/* Mock 143's other door, above the form rather than in front of it — see the component's
+            header for why it is opt-in and what it deliberately does not promise. Seeded from
+            whatever the form already knows, so a half-filled duel does not have to be retyped. */}
+        <CindyChallengeEntry
+          seed={cindyChallengeSeed({
+            shape,
+            opponentName,
+            circleName: mode === 'group' ? circle?.name : null,
+          })}
+        />
+
         <Text style={styles.label}>Challenge type</Text>
         <View style={styles.typesRow}>
           {SHAPE_OPTIONS.map((option) => (
@@ -354,6 +419,16 @@ function SocialChallengeForm() {
                 longer creatable. */}
             <Text style={styles.label}>The race</Text>
             <RaceMetricPills value={raceMetric} onChange={setRaceMetric} />
+
+            {grading && (
+              <GradeTermsFields
+                target={gradeTarget}
+                onTarget={setGradeTarget}
+                course={courseCode}
+                onCourse={setCourseCode}
+                showTarget
+              />
+            )}
 
             <PublicNameField value={publicName} onChange={setPublicName} />
 
@@ -421,6 +496,19 @@ function SocialChallengeForm() {
             <Text style={styles.label}>The race</Text>
             <RaceMetricPills value={raceMetric} onChange={setRaceMetric} />
 
+            {/* No target field here on purpose. A placement board ranks the field 1..N and the
+                ranking IS the result — a bar on top would be a second, redundant verdict, which
+                is what the server's constraint says too. */}
+            {grading && (
+              <GradeTermsFields
+                target={gradeTarget}
+                onTarget={setGradeTarget}
+                course={courseCode}
+                onCourse={setCourseCode}
+                showTarget={false}
+              />
+            )}
+
             <View style={styles.payoutCard}>
               <Ionicons name="people" size={18} color={Colors.achieverText} />
               <View style={styles.payoutText}>
@@ -437,6 +525,20 @@ function SocialChallengeForm() {
         {shape === 'collective' && (
           <>
             <Text style={styles.label}>The goal</Text>
+            {/* A collective goal's bar is normally a count of lock-ins. On a course it is a mark,
+                and the two are mutually exclusive — the metric picker is what chooses between
+                them, so the stepper is replaced rather than sitting there meaning nothing. */}
+            <RaceMetricPills value={raceMetric} onChange={setRaceMetric} collective />
+            {grading ? (
+              <GradeTermsFields
+                target={gradeTarget}
+                onTarget={setGradeTarget}
+                course={courseCode}
+                onCourse={setCourseCode}
+                showTarget
+                targetLabel="Everyone has to hit"
+              />
+            ) : (
             <View style={styles.stepperRow}>
               <Text style={styles.stepperLabel}>Everyone locks in</Text>
               <View style={styles.stepper}>
@@ -449,6 +551,7 @@ function SocialChallengeForm() {
                 </Pressable>
               </View>
             </View>
+            )}
             {/* THE MEMBER TICKER (CHALLENGE_V2_SPEC §1). This was the line
                   "All of {circle.name} · {members.length} members"
                 — a label, not a control, and it was lying: since 0098 a group challenge is created
@@ -532,14 +635,20 @@ function SocialChallengeForm() {
 function RaceMetricPills({
   value,
   onChange,
+  /** A COLLECTIVE goal is not a metric race — its bar is a count of lock-ins and it leaves
+   *  race_metric null on purpose (0098). The one exception is a grade goal, whose bar is a mark,
+   *  so this variant offers exactly that choice and nothing else: "lock-ins" vs "a grade". */
+  collective = false,
 }: {
   value: SocialChallengeRaceMetric;
   onChange: (metric: SocialChallengeRaceMetric) => void;
+  collective?: boolean;
 }) {
+  const options = collective ? COLLECTIVE_METRIC_OPTIONS : RACE_METRIC_OPTIONS;
   return (
     <>
       <View style={styles.pillsRow}>
-        {RACE_METRIC_OPTIONS.map((option) => {
+        {options.map((option) => {
           const selected = value === option.value;
           return (
             <Pressable
@@ -555,7 +664,57 @@ function RaceMetricPills({
       {/* Each metric names its own source, because "Volume" and "Distance" are only real if
           something is feeding them — the same honesty the personal-goal picker already applies
           with its "needs WHOOP" tags. */}
-      <Text style={styles.hint}>{RACE_METRIC_OPTIONS.find((o) => o.value === value)?.source}</Text>
+      <Text style={styles.hint}>{options.find((o) => o.value === value)?.source}</Text>
+    </>
+  );
+}
+
+/**
+ * The two extra terms a grade race carries — the mark, and the course it is in.
+ *
+ * The course is not decoration. Mock 140's Cindy refuses to price the challenge until she has the
+ * code, because "Physiology at one school isn't the same as another"; the same is true of reading
+ * the result later, where a bare "70%" says nothing about what was actually asked of anyone.
+ */
+function GradeTermsFields({
+  target,
+  onTarget,
+  course,
+  onCourse,
+  showTarget,
+  targetLabel = 'The mark to hit',
+}: {
+  target: string;
+  onTarget: (v: string) => void;
+  course: string;
+  onCourse: (v: string) => void;
+  showTarget: boolean;
+  targetLabel?: string;
+}) {
+  return (
+    <>
+      {showTarget ? (
+        <>
+          <Text style={styles.label}>{targetLabel}</Text>
+          <TextInput
+            value={target}
+            // Digits and one decimal point: keyboardType is a hint the OS may ignore, and several
+            // Android locales still offer a comma on the decimal pad.
+            onChangeText={(t) => onTarget(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+            placeholder="70"
+            keyboardType="decimal-pad"
+            inputMode="decimal"
+            maxLength={6}
+          />
+          <Text style={styles.hint}>A percentage. Everyone in the challenge is aiming at the same one.</Text>
+        </>
+      ) : null}
+      <Text style={styles.label}>Course</Text>
+      <TextInput value={course} onChangeText={onCourse} placeholder="KP451" maxLength={24} autoCapitalize="characters" />
+      <Text style={styles.hint}>
+        Optional, but it is what makes the target mean something — a 70 in an intro course and a 70
+        in a 400-level one are not the same ask.
+      </Text>
     </>
   );
 }
