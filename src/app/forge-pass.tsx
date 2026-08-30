@@ -38,7 +38,29 @@ import {
   type PassReward,
 } from '@/lib/economy/forge-pass';
 import { RARITY_COLOR, RARITY_LABEL } from '@/lib/economy/rarity';
+import { showRewardReveal, type RewardLine } from '@/components/economy/reward-reveal';
 import { getErrorMessage } from '@/lib/errors';
+
+/**
+ * A pass reward as a line in the reveal.
+ *
+ * Reads the CLAIMED reward, not a guess at it: `rewards` here is the same array handed to
+ * claim_pass_level, which is what the server pays against, so the reveal cannot congratulate you
+ * for something you did not get. Names come from the catalog and the box table rather than being
+ * re-typed, so a renamed item renames itself here too.
+ */
+function passRewardLine(reward: PassReward): RewardLine {
+  switch (reward.kind) {
+    case 'embers':
+      return { kind: 'embers', label: `${reward.amount.toLocaleString()} embers` };
+    case 'box':
+      return { kind: 'box', label: BOXES[reward.box].name };
+    case 'item':
+      return { kind: 'cosmetic', label: getItem(reward.itemId)?.name ?? 'A new cosmetic' };
+    case 'badge':
+      return { kind: 'rank', label: reward.label };
+  }
+}
 
 // The Flame Pass track (FORGE_PASS_DESLOP.md, mock 87).
 //
@@ -151,6 +173,15 @@ export default function ForgePassScreen() {
       await claimPassLevel(target.level.level, target.lane, rewards);
       await refetch();
       setDetail(null);
+      // Claiming used to be silent — the embers landed, the box appeared in the inventory, and
+      // nothing on screen marked it. Queued rather than presented directly so it sequences behind
+      // anything else that paid out in the same moment.
+      showRewardReveal({
+        kind: 'pass_level',
+        title: `Level ${target.level.level} claimed`,
+        subtitle: target.lane === 'premium' ? 'Premium track' : 'Free track',
+        rewards: rewards.map(passRewardLine),
+      });
     } catch (e) {
       Alert.alert("Couldn't claim that", getErrorMessage(e, 'Something went wrong.'));
     } finally {
@@ -164,10 +195,26 @@ export default function ForgePassScreen() {
   async function claimAll() {
     setBusy(true);
     try {
+      const claimed: PassReward[] = [];
+      let levels = 0;
       for (const target of pending) {
-        await claimPassLevel(target.level.level, target.lane, target.lane === 'free' ? target.level.free : target.level.premium);
+        const rewards = target.lane === 'free' ? target.level.free : target.level.premium;
+        await claimPassLevel(target.level.level, target.lane, rewards);
+        // Pushed only AFTER the await resolves, so a partial failure reveals exactly what was
+        // actually paid rather than what was attempted — the same reason this loop is sequential.
+        claimed.push(...rewards);
+        levels += 1;
       }
       await refetch();
+      if (levels > 0) {
+        // ONE reveal for the batch, not one per level. Claim-all can settle a dozen levels at once
+        // and a dozen modals to tap through is a chore, not a celebration.
+        showRewardReveal({
+          kind: 'pass_level',
+          title: levels === 1 ? '1 level claimed' : `${levels} levels claimed`,
+          rewards: claimed.map(passRewardLine),
+        });
+      }
     } catch (e) {
       await refetch();
       Alert.alert('Stopped partway', getErrorMessage(e, 'Some rewards were claimed before this failed.'));

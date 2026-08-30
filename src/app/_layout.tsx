@@ -10,6 +10,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { PostHogProvider } from 'posthog-react-native';
 
 import { ChallengeSettlementWatcher } from '@/components/challenge-settlement-watcher';
+import { RewardRevealHost } from '@/components/economy/reward-reveal';
 import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
 import { LoadoutSync } from '@/components/economy/loadout-sync';
 import { FocusNudgeSync } from '@/components/focus-nudge-sync';
@@ -416,6 +417,11 @@ function RootLayout() {
                 zIndex 100 and this is a Modal, and ordering them here is what keeps the two
                 celebrations from landing on the same frame. */}
             <ChallengeSettlementWatcher />
+            {/* The shared reward reveal — one at a time, app-wide, ordered as a crescendo so the
+                rank-up lands last. Everything that pays out queues through showRewardReveal()
+                rather than presenting itself, which is what stops a session that is simultaneously
+                a rank-up, a daily fire and a settled challenge from stacking three modals. */}
+            <RewardRevealHost />
             {/* Keeps the equipped-cosmetics store fed for the flame / profile / sound layers.
                 Renders nothing; mounted here because the surfaces it feeds are spread across the
                 whole app. */}
