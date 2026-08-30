@@ -35,7 +35,11 @@ export function RelicLadderRow({ relic }: { relic: HallRelic }) {
   const value = relic.value ?? 0;
   const unit = relic.unit ?? ladder.unit;
   const maxTier = relic.max_tier ?? ladder.thresholds.length;
-  const earned = tier >= 1 && !relic.in_progress;
+  // `in_progress` IS the earned/unearned line, and it is exact: get_trophy_hall only sets it false
+  // for rows that exist in cosmetics_owned, so !in_progress means the relic is genuinely owned.
+  // Deliberately not `tier >= 1` — that infers ownership from the ladder standing, and would draw an
+  // owned relic whose progress row went missing as something the user has not earned.
+  const earned = !relic.in_progress;
 
   // The rung's rarity, not the catalog's — the catalog carries rung one's, and the server raises
   // rarity_override on every rung after it. get_trophy_hall does not return the override, so this
@@ -67,13 +71,13 @@ export function RelicLadderRow({ relic }: { relic: HallRelic }) {
           </Text>
           {/* The rung badge only exists once a rung has been reached — at tier 0 there is no glyph
               to draw, and inventing one would claim a rung the user has not earned. */}
-          {glyph && earned ? (
+          {earned && glyph ? (
             <View style={[styles.rung, { borderColor: colour + '66' }]}>
               <Text style={[styles.rungText, { color: colour }]}>
                 {glyph} {tier}/{maxTier}
               </Text>
             </View>
-          ) : (
+          ) : earned ? null : (
             <Text style={styles.notYet}>NOT YET EARNED</Text>
           )}
         </View>
