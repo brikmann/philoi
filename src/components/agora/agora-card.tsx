@@ -226,7 +226,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.line,
     padding: Spacing.twelve,
-    marginBottom: Spacing.two,
   },
   cardInner: {
     padding: Spacing.twelve,
