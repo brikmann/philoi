@@ -3,6 +3,7 @@ import { AppState, StyleSheet, View } from 'react-native';
 
 import { RankUpCelebration } from '@/components/rank-up-celebration';
 import { RankUpShareCard } from '@/components/rank-up-share-card';
+import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { Screen } from '@/components/ui/screen';
 import { Colors } from '@/constants/theme';
 import { fetchMyRanks } from '@/lib/api/goals';
@@ -146,7 +147,14 @@ export function RankUpWatcher() {
     }
   }
 
-  if (!pending) return null;
+  // Takes its turn like every other reward presenter. Rank-up carries the HIGHEST priority in
+  // REVEAL_TUNING, so when a lock-in lands a rank-up, a settled challenge and a claimed pass level
+  // at once, the other two clear first and this is the one the user is left looking at. Holding the
+  // event while waiting rather than dropping it: `pending` stays set, so nothing is lost — it just
+  // does not draw yet.
+  const hasFloor = useRevealFloor('rank_up', pending !== null);
+
+  if (!pending || !hasFloor) return null;
 
   return (
     <View style={styles.overlay}>

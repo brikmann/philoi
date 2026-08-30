@@ -220,6 +220,93 @@ function RevealCard({ event, onDismiss }: { event: RewardRevealEvent; onDismiss:
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// THE FLOOR — one celebration on screen at a time, across presenters that render nothing alike.
+//
+// The queue below owns the shared card, but two of the six rewards do not use it: the rank-up
+// celebration is 1,500 lines of tier ladders and anthems, and the challenge reveal is its own
+// full-screen result screen. Both are right to stay bespoke, and both used to present themselves
+// the instant they had something — so a lock-in that ended as a rank-up AND settled a challenge
+// stacked two modals, and adding the pass-level card would have made three.
+//
+// So the arbiter does not own RENDERING, it owns PERMISSION. Every presenter asks for the floor
+// and draws only while it holds it. That is what lets a component keep its own UI, its own state
+// and its own share sheet while still taking its turn.
+//
+// Ordering is the crescendo again: the LOWEST priority holds the floor first, so the small payouts
+// clear and the rank-up is what you are left looking at.
+//
+// Listeners are notified on a microtask, not synchronously. A synchronous notify inside
+// requestFloor would land the resulting setState in the caller's effect body, which is the
+// cascading-render lint error this repo already carries in two dozen files.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+type FloorWaiter = { id: string; priority: number };
+
+let waiters: FloorWaiter[] = [];
+const floorListeners = new Set<() => void>();
+
+function notifyFloor(): void {
+  queueMicrotask(() => {
+    for (const listener of floorListeners) listener();
+  });
+}
+
+function floorHolder(): string | null {
+  if (waiters.length === 0) return null;
+  return [...waiters].sort((a, b) => a.priority - b.priority)[0].id;
+}
+
+/**
+ * Ask for the floor, or update the priority of a request already in flight.
+ *
+ * The update matters: RewardRevealHost's kind changes as its own queue advances, so the same
+ * waiter can legitimately want a different priority without releasing and re-requesting (which
+ * would let another presenter cut in between the two calls).
+ */
+function requestFloor(id: string, priority: number): void {
+  const existing = waiters.find((w) => w.id === id);
+  if (existing) {
+    if (existing.priority === priority) return;
+    waiters = waiters.map((w) => (w.id === id ? { ...w, priority } : w));
+  } else {
+    waiters = [...waiters, { id, priority }];
+  }
+  notifyFloor();
+}
+
+function releaseFloor(id: string): void {
+  if (!waiters.some((w) => w.id === id)) return;
+  waiters = waiters.filter((w) => w.id !== id);
+  notifyFloor();
+}
+
+/**
+ * Hold the floor while `wants` is true. Returns whether this caller may draw right now.
+ *
+ * A presenter with something to show but no floor renders nothing and keeps waiting — it does not
+ * lose the event, because `wants` stays true until it has actually been shown and dismissed.
+ */
+export function useRevealFloor(kind: RewardRevealKind, wants: boolean): boolean {
+  const id = useId();
+  const [granted, setGranted] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setGranted(floorHolder() === id);
+    floorListeners.add(sync);
+    if (wants) requestFloor(id, REVEAL_TUNING[kind].priority);
+    else releaseFloor(id);
+    return () => {
+      // Unsubscribe BEFORE releasing, so this component's own listener cannot be called back for a
+      // notify it triggered on the way out.
+      floorListeners.delete(sync);
+      releaseFloor(id);
+    };
+  }, [id, kind, wants]);
+
+  return granted;
+}
+
 // ─────────────────────────── the queue ───────────────────────────
 //
 // One reveal at a time, app-wide.
@@ -278,10 +365,17 @@ export function RewardRevealHost() {
   }, []);
 
   const current = queue[0] ?? null;
+  // The host is just another presenter — it waits its turn behind a rank-up like everyone else.
+  const hasFloor = useRevealFloor(current?.kind ?? 'daily_fire', current !== null);
 
   return (
-    <Modal visible={current !== null} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setQueue((q) => q.slice(1))}>
-      {current ? (
+    <Modal
+      visible={current !== null && hasFloor}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={() => setQueue((q) => q.slice(1))}>
+      {current && hasFloor ? (
         <RevealCard key={current.id} event={current} onDismiss={() => setQueue((q) => q.slice(1))} />
       ) : (
         <View />
