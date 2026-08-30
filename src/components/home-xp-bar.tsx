@@ -5,7 +5,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { Colors, EMBER_GRADIENT, Fonts, Radius } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
-import { RANK_TIER_METAL, formatRankTier, xpProgressRatio } from '@/lib/rank-tiers';
+import { RANK_TIER_METAL, formatRankTier, nextRank, xpProgressRatio } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
 // The home rank row's XP bar (DESIGN_LANGUAGE_EMBER §5/§7, mock 92).
@@ -72,10 +72,19 @@ export function HomeXpBar({ tier, division, xpIntoTier, xpForNextTier, fireRemai
   const fillW = Math.max(trackW * ratio, ratio > 0 ? 3 : 0);
   const fireW = trackW * fireRatio;
 
+  // The caption names the division you're climbing TOWARD — the NEXT rank, not the current one.
+  // The props carry the current tier/division, so labelling `formatRankTier(tier, division)` read
+  // "86% to Gold III" while you were actually reaching Gold II. This is the SECOND home bar with
+  // that off-by-one (rank-projection-bar.tsx was the first); advance with nextRank(), same as the
+  // done screen. At the apex there's no next — keep the current label (the caption shows "Max rank"
+  // there anyway via atMax).
+  const nextRankUp = atMax ? null : nextRank(tier, division);
+  const nextRankLabel = nextRankUp ? formatRankTier(nextRankUp.tier, nextRankUp.division) : formatRankTier(tier, division);
+
   return (
     <View style={styles.wrap}>
       <View style={styles.top}>
-        <Text style={styles.topLabel}>{atMax ? 'Max rank' : `${pct}% to ${formatRankTier(tier, division)}`}</Text>
+        <Text style={styles.topLabel}>{atMax ? 'Max rank' : `${pct}% to ${nextRankLabel}`}</Text>
         <Text style={styles.topXp}>
           {atMax
             ? `${Math.round(xpIntoTier).toLocaleString('en-US')} XP`
