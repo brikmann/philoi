@@ -110,7 +110,7 @@ const SPIN_MS = 22000;
  * sticker; it is deliberately far slower than anything else on screen so it never competes with
  * the numbers it is behind.
  */
-function Rays({ kind, size }: { kind: RewardRevealKind; size: number }) {
+export function RewardRays({ kind, size }: { kind: RewardRevealKind; size: number }) {
   const id = `rays-${useId()}`;
   const tuning = REVEAL_TUNING[kind];
   const reducedMotion = useReducedMotion();
@@ -197,7 +197,7 @@ function RevealCard({ event, onDismiss }: { event: RewardRevealEvent; onDismiss:
 
   return (
     <Pressable style={styles.scrim} onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Dismiss reward">
-      <Rays kind={event.kind} size={340 * tuning.scale} />
+      <RewardRays kind={event.kind} size={340 * tuning.scale} />
       <Animated.View style={[styles.card, cardStyle]}>
         <Text style={[styles.eyebrow, { color: tuning.tint }]}>{tuning.eyebrow}</Text>
         <Text style={styles.title}>{event.title}</Text>

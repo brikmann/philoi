@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
+import { RewardRays } from '@/components/economy/reward-reveal';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
@@ -342,6 +343,11 @@ export function FlameMeterComplete({
       </View>
 
       <View style={styles.celebrate}>
+        {/* The rays, from the shared reveal language. This screen already SHOWED its reward — the
+            fire-bonus chip and the ember counter flying up — and was the one payout with no rays at
+            all, which is the mirror image of the rank-up's problem. Tinted and sized from
+            REVEAL_TUNING.daily_fire, so it moves with the rest of the family. */}
+        <RewardRays kind="daily_fire" size={280} />
         <Animated.View pointerEvents="none" style={[styles.burst, burstStyle]} />
         <View ref={fireRef} collapsable={false} style={styles.fireZone}>
           <Animated.View style={fireStyle}>
