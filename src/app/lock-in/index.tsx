@@ -26,7 +26,14 @@ import { DriftingEmbers } from '@/components/drifting-embers';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { useFocusNudgeArmed } from '@/components/focus-nudge-sync';
 import { EquippedFlameSvg } from '@/components/flame-icon';
-import { EquippedFlameParticles, EquippedFlarePerimeter, useFlareEquipped } from '@/components/economy/flare-perimeter';
+import {
+  EquippedFlameParticles,
+  EquippedFlarePerimeter,
+  FlareTierCaption,
+  flareTierForMinutes,
+  GYM_FLARE_DAMPEN,
+  useFlareEquipped,
+} from '@/components/economy/flare-perimeter';
 import { useKeepScreenAwakePref } from '@/lib/reward-settings';
 import { FireShareCard } from '@/components/fire-share-card';
 import { LockInShareCard } from '@/components/lock-in-share-card';
@@ -373,6 +380,11 @@ function LockInScreen() {
   }, [activeSession, isGym, posted, stopping, routineIdParam, energyParam, refetchWorkout]);
 
   const elapsedSeconds = useElapsedSeconds(activeSession?.startedAt ?? null);
+  // How hard the equipped flare burns right now — it starts near-invisible and steps up at
+  // 15/30/60 minutes of THIS session. Derived here rather than inside the renderer because this
+  // screen already re-renders every second for the clock, so the ramp costs nothing extra, and
+  // because the caption under the timer has to read the same tier the aura is drawing at.
+  const flareTier = flareTierForMinutes(elapsedSeconds / 60);
 
   // ── HOLD THE SCREEN ON (COSMETIC_UI_FIXES §7) ──
   //
@@ -830,6 +842,7 @@ function LockInScreen() {
             <View style={styles.timerPill}>
               <Animated.Text style={[styles.timerPillValue, timerPulseStyle]}>{formatDurationClock(elapsedSeconds)}</Animated.Text>
             </View>
+            <FlareTierCaption tier={flareTier} />
             {workout && (
               <View style={styles.energyChip}>
                 <Text style={styles.energyChipText}>{ENERGY_CHIP_LABEL[workout.energy]}</Text>
@@ -939,8 +952,12 @@ function LockInScreen() {
             only for as long as the session runs — it used to be mounted at the root and painted
             every screen in the app, which read as a permanent full-screen wash rather than a
             cosmetic. Renders nothing when the slot is empty (most users — there is no free flare),
-            and is pointer-transparent end to end. */}
-        <EquippedFlarePerimeter />
+            and is pointer-transparent end to end.
+
+            GYM RUNS FAINTER (GYM_FLARE_DAMPEN). This screen is picked up between every set, so a
+            full-strength perimeter is in the user's face in a way it never is for study — where the
+            phone goes face-down. The ramp still happens here, it is just quieter throughout. */}
+        <EquippedFlarePerimeter tier={flareTier} dampen={GYM_FLARE_DAMPEN} />
       </Screen>
     );
   }
@@ -1015,6 +1032,9 @@ function LockInScreen() {
         />
         <Text style={styles.lockedLabel}>Locked in</Text>
         <Animated.Text style={[styles.timer, timerPulseStyle]}>{formatDurationClock(elapsedSeconds)}</Animated.Text>
+        {/* "15m elapsed — flare up" and friends. Invisible except for a few seconds after a
+            threshold crossing, so it never competes with the clock it sits under. */}
+        <FlareTierCaption tier={flareTier} />
       </View>
 
       {/* BOTTOM — pinned, natural size. */}
@@ -1108,7 +1128,7 @@ function LockInScreen() {
           every screen in the app, which read as a permanent full-screen wash rather than a
           cosmetic. Renders nothing when the slot is empty (most users — there is no free flare),
           and is pointer-transparent end to end. */}
-      <EquippedFlarePerimeter />
+      <EquippedFlarePerimeter tier={flareTier} />
     </Screen>
   );
 }
