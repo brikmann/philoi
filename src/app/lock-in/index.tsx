@@ -58,6 +58,7 @@ import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useActiveSession } from '@/lib/active-session-context';
 import { track } from '@/lib/analytics';
 import { creditLockInTimeGoals } from '@/lib/api/challenges';
+import { sendToCindy } from '@/lib/api/coach';
 import { fetchOrCreateDailyFire } from '@/lib/api/daily-fire';
 import { fetchMyRanks } from '@/lib/api/goals';
 import { fetchWorkoutRecap, startWorkout } from '@/lib/api/gym';
@@ -82,6 +83,17 @@ const STILL_HERE_THRESHOLD_MS = 55 * 60 * 1000; // matches the ~1hr server-side 
 const MAX_PHOTOS = 6;
 // One tag for this screen's wake lock, so activate/deactivate always refer to the same lock.
 const KEEP_AWAKE_TAG = 'philoi-lock-in';
+// Cindy's inline status check. The ask is the same string the quick-sheet used to push into
+// /cindy?ask=, kept verbatim so her answers read identically whichever route the user takes.
+const CINDY_STATUS_ASK = 'how am I doing this session?';
+const CINDY_STATUS_PENDING = 'Checking your session…';
+const CINDY_STATUS_FAILED = "Couldn't reach Cindy right now. Tap to open the chat.";
+/** Idle = show whatever proactive line the hook has, if any. The other three own the bubble. */
+type CindyStatusState =
+  | { phase: 'idle' }
+  | { phase: 'pending' }
+  | { phase: 'answered'; text: string }
+  | { phase: 'failed' };
 // "Immersive darker background, minimal chrome" (PHILOI_UI_SPEC.md §13, design-mocks/51) —
 // distinct from every other screen's Colors.cream, a one-off for this screen only.
 const IMMERSIVE_BG = '#17131f';
@@ -441,19 +453,76 @@ function LockInScreen() {
     elapsedSeconds,
   });
 
+  // ── "How am I doing?" answers HERE (mock 117 §C) ──
+  // A status check is read-only and one sentence long, so pushing /cindy for it turned a glance
+  // into a detour — the exact thing the quick-sheet exists to avoid. `note` still goes to chat
+  // because she has to take the note conversationally, and chat is chat.
+  //
+  // The request counter is what makes dismissing mid-flight mean it: a reply that lands after the
+  // user closed the bubble (or asked again) is dropped rather than re-opening something they just
+  // took away.
+  const cindyStatusReq = useRef(0);
+  const [cindyStatus, setCindyStatus] = useState<CindyStatusState>({ phase: 'idle' });
+
+  function dismissCindyStatus() {
+    cindyStatusReq.current += 1;
+    setCindyStatus({ phase: 'idle' });
+  }
+
+  async function askCindyStatus() {
+    const req = ++cindyStatusReq.current;
+    setCindyStatus({ phase: 'pending' });
+    try {
+      const reply = await sendToCindy(CINDY_STATUS_ASK);
+      if (cindyStatusReq.current !== req) return;
+      const text = reply.text?.trim();
+      setCindyStatus(text ? { phase: 'answered', text } : { phase: 'failed' });
+      track('cindy_lockin_status_result', { ok: Boolean(text) });
+    } catch {
+      // Never a dead tap and never a stuck spinner: the bubble says so, and tapping it opens the
+      // full chat with the same question prefilled — the pre-inline behaviour, kept as the escape
+      // hatch rather than as the default.
+      if (cindyStatusReq.current !== req) return;
+      setCindyStatus({ phase: 'failed' });
+      track('cindy_lockin_status_result', { ok: false });
+    }
+  }
+
   function handleCindyQuickAction(action: CindyQuickAction) {
     setCindySheetOpen(false);
-    track('cindy_lockin_quick_action', { action });
-    // All three land in the existing chat. "Add a note" is deliberately conversational (§C:
-    // she takes the note in chat) — the in-session caption field the §13 redesign moved to the
-    // done screen does not come back for this.
-    const ask =
-      action === 'status'
-        ? 'how am I doing this session?'
-        : action === 'note'
-          ? 'add a note to my current lock-in'
-          : null;
+    track('cindy_lockin_quick_action', { action, inline: action === 'status' });
+    if (action === 'status') {
+      void askCindyStatus();
+      return;
+    }
+    // "Add a note" is deliberately conversational (§C: she takes the note in chat) — the
+    // in-session caption field the §13 redesign moved to the done screen does not come back here.
+    const ask = action === 'note' ? 'add a note to my current lock-in' : null;
     router.push(ask ? `/cindy?ask=${encodeURIComponent(ask)}` : '/cindy');
+  }
+
+  // ONE bubble over the flame, never two stacked on it. An inline answer outranks the proactive
+  // line because the user just asked for it; the proactive line comes back once it is dismissed.
+  //
+  // Deliberately not gated on `bubbleEnabled`: that preference governs lines she volunteers, and
+  // this is one the user explicitly requested.
+  const cindyBubbleMessage =
+    cindyStatus.phase === 'pending'
+      ? CINDY_STATUS_PENDING
+      : cindyStatus.phase === 'answered'
+        ? cindyStatus.text
+        : cindyStatus.phase === 'failed'
+          ? CINDY_STATUS_FAILED
+          : cindyLine;
+  const cindyBubbleIdle = cindyStatus.phase === 'idle';
+
+  function handleCindyBubblePress() {
+    if (cindyStatus.phase === 'failed') {
+      dismissCindyStatus();
+      router.push(`/cindy?ask=${encodeURIComponent(CINDY_STATUS_ASK)}`);
+      return;
+    }
+    setCindySheetOpen(true);
   }
 
   // A personal record is the one milestone the clock cannot predict, so the logger tells her.
@@ -862,12 +931,12 @@ function LockInScreen() {
           keyboardDismissMode="on-drag">
           {/* Same Option A placement as the base screen, read against gym's own chrome: under the
               header, above the log — never over the sets being typed. */}
-          {cindyLine && (
+          {cindyBubbleMessage && (
             <View style={styles.gymCindyLine}>
               <CindyBubble
-                message={cindyLine}
-                onPress={() => setCindySheetOpen(true)}
-                onDismiss={dismissCindyLine}
+                message={cindyBubbleMessage}
+                onPress={handleCindyBubblePress}
+                onDismiss={cindyBubbleIdle ? dismissCindyLine : dismissCindyStatus}
               />
             </View>
           )}
@@ -1002,11 +1071,11 @@ function LockInScreen() {
             Deliberately not over the flame or beside the timer: those two are the centrepiece the
             screen exists for, and Option A was chosen precisely so a line from her never lands on
             top of them. Milestones only, and it takes itself away. */}
-        {cindyLine && (
+        {cindyBubbleMessage && (
           <CindyBubble
-            message={cindyLine}
-            onPress={() => setCindySheetOpen(true)}
-            onDismiss={dismissCindyLine}
+            message={cindyBubbleMessage}
+            onPress={handleCindyBubblePress}
+            onDismiss={cindyBubbleIdle ? dismissCindyLine : dismissCindyStatus}
           />
         )}
         {/* Steps back ~50% when a flare is equipped (punchlist 17 P2c): the flare is the

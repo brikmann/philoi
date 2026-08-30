@@ -851,6 +851,9 @@ export type AnalyticsEventName =
   // ('min:30', 'pr:1'), `action` the quick-sheet row taken — no session detail, no line text.
   | 'cindy_lockin_line'
   | 'cindy_lockin_quick_action'
+  // Whether the inline "How am I doing?" answer actually landed. A boolean `ok` and nothing else —
+  // the question is fixed and her answer is session content, so neither is worth logging.
+  | 'cindy_lockin_status_result'
   // Focus Nudge (APP_BLOCKER_SPEC.md). Setup funnel plus which tone the coach chose, and that is
   // deliberately ALL: no line text, no app identities (Apple's selection tokens are opaque and we
   // never resolve one), and — the important omission — nothing at all about the nudge FIRING.
