@@ -4,6 +4,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTim
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
 import { EquippedFlameSvg } from '@/components/flame-icon';
+import { useFlameRamp } from '@/lib/economy/flame-ramp';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
 // YOUR flame (mock 92's `.hero`) — the clean brand silhouette in the ramp you have equipped,
@@ -27,6 +28,11 @@ type Props = {
 export function PersonalFlame({ size = 132, glowSize }: Props) {
   const reduceMotion = useReduceMotion();
   const uid = useId();
+  // The glow was a hardcoded #E0612C while the silhouette above it followed the equipped ramp, so
+  // an equipped flame (and now an equipped flare) recoloured the flame and left its own light
+  // brand-orange behind it. SessionFlame's glow already tracked `ramp.outer`; this is the same
+  // rule, and it is what makes the flare recolour reach home rather than stopping at the lock-in.
+  const ramp = useFlameRamp();
   const glowId = `personalFlameGlow-${uid}`;
   const glow = glowSize ?? size * GLOW_RATIO;
 
@@ -61,9 +67,9 @@ export function PersonalFlame({ size = 132, glowSize }: Props) {
                 filter, so the falloff does that job: the stop at 62% with a soft midpoint is what
                 keeps this a glow rather than a visible disc. */}
             <RadialGradient id={glowId} cx="50%" cy="50%" r="50%">
-              <Stop offset="0" stopColor="#E0612C" stopOpacity={0.42} />
-              <Stop offset="0.38" stopColor="#E0612C" stopOpacity={0.24} />
-              <Stop offset="0.62" stopColor="#E0612C" stopOpacity={0} />
+              <Stop offset="0" stopColor={ramp.outer} stopOpacity={0.42} />
+              <Stop offset="0.38" stopColor={ramp.outer} stopOpacity={0.24} />
+              <Stop offset="0.62" stopColor={ramp.outer} stopOpacity={0} />
             </RadialGradient>
           </Defs>
           <Circle cx={glow / 2} cy={glow / 2} r={glow / 2} fill={`url(#${glowId})`} />

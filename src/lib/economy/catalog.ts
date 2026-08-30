@@ -563,7 +563,9 @@ const EMBERFALL_SET: CatalogItem[] = [
   // marquee unlock 25 levels away is a promise, and this one has to be a receipt.
   item({ id: 'flare-emberfall-ascendant', name: 'Emberfall Ascendant', type: 'FLARE', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
     lore: 'The capstone. The whole season, compressed into one unbearable light.',
-    art: { kind: 'flare', from: '#FF2A2A', to: '#FFE0B0' },
+    // Hellfire body, ember tip — the same two stops the applied flare now renders its risers and
+    // the session flame with, so the thumbnail and the live effect are the same fire.
+    art: { kind: 'flare', from: '#F5401C', to: '#FFD27A' },
     // The one bespoke effect in the set (punchlist 15.3) — lava pooling low plus embers raining
     // from above. The capstone doesn't share a motion layer with a box drop.
     flare: { colour: '#F5401C', effect: 'emberfall' } }),
@@ -590,7 +592,7 @@ const EMBERFALL_SET: CatalogItem[] = [
     art: { kind: 'sfx', from: '#B01A0E', to: '#FFC24D' } }),
   item({ id: 'card-emberfall-mythic', name: 'Emberfall Sovereign Card', type: 'CARD', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
     lore: 'Black glass, one seam of living ember running through it.',
-    art: { kind: 'card', from: '#14090c', to: '#FF5A2E' } }),
+    art: { kind: 'card', from: '#14090c', to: '#F5401C' } }),
   item({ id: 'relic-emberfall', name: 'Emberfall Relic', type: 'RELIC', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
     lore: 'A fragment of the first forge, still too hot to hold. Kept, not worn.',
     art: { kind: 'relic', from: '#3a1608', to: '#FF9A3C' } }),

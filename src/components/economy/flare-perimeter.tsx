@@ -1923,11 +1923,6 @@ export function EquippedFlameParticles({ dimmed = false }: { dimmed?: boolean })
  * Whether a flare is equipped — the lock-in screen dims its flame ~50% when one is (punchlist 17
  * P2c). The flare is the centrepiece; a full-strength coloured flame fights it for the same eye.
  */
-/** The equipped flare's colour, or null. Drives the flame's tint on the lock-in screen. */
-export function useFlareColour(): string | null {
-  return useEquipped('flare')?.flare?.colour ?? null;
-}
-
 export function useFlareEquipped(): boolean {
   return Boolean(useEquipped('flare'));
 }

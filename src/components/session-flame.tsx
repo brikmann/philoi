@@ -5,8 +5,7 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
-import { rampFor, useFlameRamp } from '@/lib/economy/flame-ramp';
-import { Colors } from '@/constants/theme';
+import { useFlameRamp } from '@/lib/economy/flame-ramp';
 
 // The running session's flame — the SAME brand silhouette home wears, recoloured by the equipped
 // ramp. What stays here is only the session behaviour: the glow, the flick, and `dimmed`.
@@ -32,30 +31,14 @@ type SessionFlameProps = {
   /** Gym (mock 52): the flame drops to a dimmed background layer behind the workout log — lower
    * opacity and a softer glow. */
   dimmed?: boolean;
-  /**
-   * Overrides the equipped FLAME cosmetic's colour with the equipped FLARE's.
-   *
-   * 🔴 A deliberate exception to the rule two lines below, and a product trade worth stating: while
-   * a flare is equipped, the flame slot's colourway is not what you see. That is the point — a
-   * hellfire perimeter around a pale blue flame reads as two unrelated cosmetics rather than one
-   * effect — and the lock-in screen already dims the flame when a flare is on, so the flare
-   * already influences it. This extends that from brightness to hue.
-   *
-   * Only the COLOUR is overridden. The flick, the glow pulse and `dimmed` remain the activity
-   * signal and stay untouched, exactly as before. Passing nothing restores the old behaviour.
-   */
-  tint?: string;
 };
 
-export function SessionFlame({ height = 240, dimmed = false, tint }: SessionFlameProps) {
+export function SessionFlame({ height = 240, dimmed = false }: SessionFlameProps) {
   const reduceMotion = useReduceMotion();
   // Colour ONLY. `dimmed`, the flick animation, and the glow opacity below are all untouched by
   // whatever is equipped — they're the activity signal, and a cosmetic must never move them.
-  // Both are computed unconditionally — useFlameRamp is a hook and cannot sit behind the branch.
-  const equippedRamp = useFlameRamp();
-  // Deep at the body, ember at the core: the same two stops the Ascendant's flame risers use, so
-  // the big flame and the little ones rising off it are unmistakably the same fire.
-  const ramp = tint ? rampFor({ art: { from: tint, to: Colors.ember } }) : equippedRamp;
+  // Flare-aware — see useFlameRamp. A screen does not decide what colour your flame is.
+  const ramp = useFlameRamp();
   // Gradient ids are GLOBAL in react-native-svg: a hardcoded id makes every instance after the
   // first render blank on Android, and this component mounts twice on the lock-in screen. Same
   // bug FlameLogo and EmberIcon already carry a useId for.
