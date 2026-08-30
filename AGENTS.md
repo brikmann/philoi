@@ -23,3 +23,15 @@ If you are blocked:
 - Wait for the other session, or ask the user which session should own the repo.
 
 If you are the writer, commit early. A dirty tree is the thing at risk.
+
+# One branch, one push path (migrations)
+
+The writer lease above protects the git index. It does **not** protect the prod
+migration ledger — that has been corrupted twice by sibling worktrees running
+`supabase db push` at the same prod DB.
+
+Before you write, renumber, or push a migration, read `MIGRATIONS.md`. The short
+version: claim the number by creating the file on the push branch, push from
+that one branch only, and when the ledger and the schema disagree, verify both
+before touching either — then fix it with `supabase migration repair`, never a
+re-push.
