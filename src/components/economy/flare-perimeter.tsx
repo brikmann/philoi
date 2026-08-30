@@ -482,7 +482,7 @@ function EffectLayer({ effect, colour, width, height }: { effect: FlareEffect; c
     // embers raining into it, motes climbing back out. See Ascendant: it was a plain stack of the
     // two stock layers, which is not what a capstone is.
     case 'emberfall':
-      return <Ascendant width={width} height={height} />;
+      return <Ascendant colour={colour} width={width} height={height} />;
     // The base glow IS the effect for `glow` flares — the breath above carries them.
     case 'glow':
       return null;
@@ -1260,15 +1260,23 @@ function ToxicRain({ colour, width, height }: { colour: string; width: number; h
  * Sizes scale by the tile width like every other flare in this file; the rise is expressed as a
  * fraction of stage height (260/190 = 1.37) so the embers still leave the top of a real screen.
  *
- * Colours are the mock's own `#FFE0B0 -> rgba(255,42,42,.3)`, not the catalog swatch — which is why
- * this takes no `colour`. The capstone's palette is part of its identity in the mock, the same way
- * Zeus is gold-on-white regardless of what the catalog says.
+ * 🔴 COLOUR COMES FROM THE CATALOG, and this is a reversal worth explaining. It previously
+ * hardcoded the mock's `#FFE0B0 / #FF2A2A` on the reasoning that a capstone's palette is part of
+ * its identity, the way Zeus is gold-on-white whatever the catalog says. That was defensible for
+ * Zeus, whose two colours ARE the effect, and wrong here: it made the item's own swatch decorative,
+ * so retuning Emberfall from a dirty sienna to hellfire changed the rim and the wash and left the
+ * risers — the part you actually look at — untouched.
+ *
+ * So the riser BODY is the equipped flare's colour and the tip is the app's ember token, which
+ * keeps the base-deep / tip-bright ramp a flame needs while letting one catalog edit actually
+ * recolour the capstone.
  */
-function Ascendant({ width, height }: { width: number; height: number }) {
+function Ascendant({ colour, width, height }: { colour: string; width: number; height: number }) {
   const { density, glow } = useIntensity();
   const s = width / MOCK_W;
-  const HOT = '#FFE0B0';
-  const BODY = '#FF2A2A';
+  // Bright tip, deep base — the direction flame colour actually runs.
+  const HOT = Colors.ember;
+  const BODY = colour;
   // 260px of rise over the mock's 190px-tall stage — 1.37 stage-heights, so they exit the top.
   const RISE = -height * 1.37;
 
@@ -1915,6 +1923,11 @@ export function EquippedFlameParticles({ dimmed = false }: { dimmed?: boolean })
  * Whether a flare is equipped — the lock-in screen dims its flame ~50% when one is (punchlist 17
  * P2c). The flare is the centrepiece; a full-strength coloured flame fights it for the same eye.
  */
+/** The equipped flare's colour, or null. Drives the flame's tint on the lock-in screen. */
+export function useFlareColour(): string | null {
+  return useEquipped('flare')?.flare?.colour ?? null;
+}
+
 export function useFlareEquipped(): boolean {
   return Boolean(useEquipped('flare'));
 }
