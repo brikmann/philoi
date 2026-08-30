@@ -50,7 +50,33 @@ export function rampFor(item: { art: { from: string; to: string } } | undefined)
   };
 }
 
-/** Hook form — the live flame surfaces call this and get the base ramp when nothing is equipped. */
+/**
+ * Hook form — every live flame surface calls this, and gets the base ramp when nothing is equipped.
+ *
+ * 🔴 AN EQUIPPED FLARE OVERRIDES THE FLAME'S COLOURWAY, everywhere.
+ *
+ * This was first done as a `tint` prop on the lock-in screen's flame, which fixed that one screen
+ * and left home, Cindy, the done screen and the share cards on the old colour — so the same flame
+ * was two different colours depending which screen you were on. The rule belongs here, at the one
+ * place that answers "what colour is my flame", rather than being threaded through thirteen call
+ * sites and forgotten at the fourteenth.
+ *
+ * The product trade, stated plainly: while a flare is equipped you do not see your FLAME slot's
+ * colourway on any live surface. That is intentional — a hellfire perimeter around a pale blue
+ * flame reads as two unrelated cosmetics rather than one fire, and the lock-in screen already
+ * dimmed the flame for an equipped flare, so the flare already influenced it. This extends that
+ * from brightness to hue.
+ *
+ * What it does NOT touch: inventory and shop tiles, which draw from `item.art` through item-art.tsx
+ * and never call this. So the flame you own still shows its true colours in the place you go to
+ * look at it — the override is on the live surfaces only.
+ *
+ * Deep body, ember core, matching what the Ascendant's flame risers render, so the big flame and
+ * the embers rising off it are visibly the same fire.
+ */
 export function useFlameRamp(): FlameRamp {
-  return rampFor(useEquipped('flame'));
+  const flareColour = useEquipped('flare')?.flare?.colour;
+  const flame = useEquipped('flame');
+  if (flareColour) return rampFor({ art: { from: flareColour, to: Colors.ember } });
+  return rampFor(flame);
 }

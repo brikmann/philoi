@@ -32,7 +32,6 @@ import {
   FlareTierCaption,
   flareTierForMinutes,
   GYM_FLARE_DAMPEN,
-  useFlareColour,
   useFlareEquipped,
 } from '@/components/economy/flare-perimeter';
 import { useKeepScreenAwakePref } from '@/lib/reward-settings';
@@ -386,9 +385,6 @@ function LockInScreen() {
   // screen already re-renders every second for the clock, so the ramp costs nothing extra, and
   // because the caption under the timer has to read the same tier the aura is drawing at.
   const flareTier = flareTierForMinutes(elapsedSeconds / 60);
-  // The flame takes the flare's colour while one is equipped, so the two read as one fire rather
-  // than as two cosmetics that happen to be on at once. See SessionFlame's `tint`.
-  const flareColour = useFlareColour();
 
   // ── HOLD THE SCREEN ON (COSMETIC_UI_FIXES §7) ──
   //
@@ -816,7 +812,7 @@ function LockInScreen() {
               workout log has to stay readable over it. */}
           <View style={styles.flameField}>
             <EquippedFlameParticles dimmed />
-            <SessionFlame height={240} dimmed tint={flareColour ?? undefined} />
+            <SessionFlame height={240} dimmed />
           </View>
         </View>
         <GymScrim />
@@ -1026,7 +1022,7 @@ function LockInScreen() {
             {/* Particles sit BEHIND the flame in the same box, so they read as thrown off it
                 rather than as a layer over the top of it. */}
             <EquippedFlameParticles />
-            <SessionFlame height={240} dimmed={flareEquipped} tint={flareColour ?? undefined} />
+            <SessionFlame height={240} dimmed={flareEquipped} />
           </View>
         </CindyFlamePress>
         <TutorialTooltip
