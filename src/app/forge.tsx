@@ -95,9 +95,25 @@ function ForgeFlow() {
 
   // Open on the highest rung you can actually complete — the one you came here to use. Falling back
   // to the first rung would put a new user on Common, which is the one rung nobody can finish.
+  //
+  // 🐛 "The Forge is broken" (Noah, on-device). It was this line, and it had nothing to do with the
+  // backend: the landing rung was chosen on FUEL ALONE. Owning three legendaries selected Legendary
+  // → Mythic — and both test accounts own all five droppable mythics, so that rung is closed by
+  // `tier_complete`. A closed rung does not merely disable the button: the fuel grid is REPLACED by
+  // the "every mythic is yours" panel, so the screen opens with no items to feed, nothing to
+  // animate and nothing to grant. Exactly the report, and every rung below it was open the whole
+  // time.
+  //
+  // So a rung has to be OPEN to be landed on, not just affordable. `isRungReachable` joins the test
+  // for the same reason: a rung the content can't satisfy is equally a dead screen to open on.
+  const isOpen = (s: ForgeStep) => isRungReachable(s) && !isTierComplete(s.into, ownedKeys);
   const step: ForgeStep =
     FORGE_LADDER.find((s) => s.from === pickedRarity) ??
-    [...FORGE_LADDER].reverse().find((s) => (fuelByRarity.get(s.from)?.length ?? 0) >= s.need) ??
+    [...FORGE_LADDER].reverse().find((s) => isOpen(s) && (fuelByRarity.get(s.from)?.length ?? 0) >= s.need) ??
+    // Nothing is fillable yet. Still land on an OPEN rung so the picker shows real fuel and asks for
+    // more, rather than on a closed one that explains why it can never be used.
+    [...FORGE_LADDER].reverse().find((s) => isOpen(s) && (fuelByRarity.get(s.from)?.length ?? 0) > 0) ??
+    [...FORGE_LADDER].find(isOpen) ??
     FORGE_LADDER[2];
 
   const fuel = fuelByRarity.get(step.from) ?? [];
@@ -184,6 +200,53 @@ function ForgeFlow() {
           setPhase('picking');
         }}
       />
+    );
+  }
+
+  // EVERY RUNG CLOSED. Not a variant of the per-rung "you own every Epic" panel — that one tells you
+  // to pick another path, and here there is no other path to pick. Noah's main account is in exactly
+  // this state (it owns all 64 droppable cosmetics), so the old screen greeted it with a dead recipe
+  // and an instruction it could not follow, which is the other half of "the Forge doesn't work".
+  //
+  // Checked only once the inventory has actually loaded: `owned` is empty on the first frame, which
+  // makes every tier look complete for a moment, and flashing "you finished the collection" at
+  // someone who owns nothing would be the worst possible version of this screen.
+  const anyOpen = FORGE_LADDER.some(isOpen);
+  if (!loading && !error && owned.length > 0 && !anyOpen) {
+    return (
+      <Screen padded={false}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.top}>
+            <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
+              <Ionicons name="chevron-back" size={22} color={Colors.ink} />
+            </Pressable>
+            <View style={styles.titleRow}>
+              <PhiloiIcon name="forge" size={20} color={Colors.ember} />
+              <Text style={styles.title}>The Forge</Text>
+            </View>
+            <EmberPill embers={embers} />
+          </View>
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>The Forge has nothing left to make you.</Text>
+            <Text style={styles.emptyBody}>
+              You own every one of the {dropPoolAt('common').length +
+                dropPoolAt('uncommon').length +
+                dropPoolAt('rare').length +
+                dropPoolAt('epic').length +
+                dropPoolAt('legendary').length +
+                dropPoolAt('mythic').length}{' '}
+              cosmetics the Forge can produce, at every rarity. It only ever outputs something you
+              don&apos;t own, so every path is closed — and nothing of yours will be taken.
+            </Text>
+            <Text style={styles.emptyBody}>
+              Season and Flame Pass items are earned, never forged. New drops open the Forge back up.
+            </Text>
+            <Pressable style={styles.emptyCta} onPress={() => router.push('/inventory')}>
+              <Text style={styles.emptyCtaText}>Go to inventory</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </Screen>
     );
   }
 

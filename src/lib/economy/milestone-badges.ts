@@ -178,6 +178,10 @@ export type FeaturedTrophy = HallRelic & {
  */
 export function featuredTrophies(relics: HallRelic[], limit = 4): FeaturedTrophy[] {
   const withRarity = relics.flatMap((r) => {
+    // A ladder below its first threshold is progress, not a trophy (migration 0143). It rides in
+    // hall.relics so the profile can draw "3.3 / 10 h", and it must never reach this strip — the
+    // hall is earned-only, and "rarest" applied to something nobody has earned is a false claim.
+    if (r.in_progress) return [];
     const item = getItem(r.key);
     if (!item) return [];
     return [{ ...r, rarity: item.rarity, tag: null as FeaturedTrophy['tag'] }];

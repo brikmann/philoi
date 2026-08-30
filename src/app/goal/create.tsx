@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -14,7 +14,14 @@ import type { GoalType } from '@/types/database';
 export default function CreateGoalScreen() {
   const router = useRouter();
   const { session } = useAuth();
-  const [type, setType] = useState<GoalType>('gym');
+  // Opened from the lock-in picker's "+ New" chip with the category the user was already looking
+  // at. Landing on Gym regardless of where they came from is how a "KP231 under Study" ends up
+  // filed under something else — and the type is the ONLY thing that decides which discipline
+  // ladder the hours reach (0119 §3), so getting it wrong here is not cosmetic.
+  const params = useLocalSearchParams<{ type?: string }>();
+  const [type, setType] = useState<GoalType>(
+    (GOAL_TYPES as string[]).includes(params.type ?? '') ? (params.type as GoalType) : 'gym'
+  );
   const [label, setLabel] = useState('');
   const [cadence, setCadence] = useState(GOAL_CADENCE_PRESETS.gym[1]);
   const [customCadence, setCustomCadence] = useState(false);
@@ -62,6 +69,10 @@ export default function CreateGoalScreen() {
       </View>
 
       <Text style={styles.label}>Give it a name (optional)</Text>
+      <Text style={styles.help}>
+        A named goal stays a {GOAL_TYPE_META[type].label} goal — &ldquo;KP231&rdquo; under Study still counts toward
+        Study&rsquo;s totals and its relic. Re-using a name you already have just opens that goal again.
+      </Text>
       <TextInput
         placeholder={type === 'custom' ? 'e.g. Learn guitar' : `e.g. ${GOAL_TYPE_META[type].label}`}
         value={label}
@@ -115,6 +126,13 @@ const styles = StyleSheet.create({
     // screens don't route through <Screen>, so the radial reaches them from the navigator's
     // scene background — an opaque colour here blocks it (Ember reskin sweep).
     backgroundColor: 'transparent',
+  },
+  help: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.muted,
+    lineHeight: 17,
+    marginTop: -4,
   },
   label: {
     fontFamily: Fonts.bodyBold,

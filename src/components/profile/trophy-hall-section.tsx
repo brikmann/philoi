@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { RelicLadderRow, isLadderHallRelic } from '@/components/profile/relic-ladder-row';
 import { TrophyTile } from '@/components/profile/trophy-tile';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { winRate } from '@/lib/api/trophy-hall';
@@ -30,9 +31,24 @@ export function TrophyHallSection({ hall, userId, isOwn }: { hall: TrophyHall; u
   const record = hall.record;
   const rate = record ? winRate(record.won, record.lost) : null;
 
+  // The discipline ladders (migration 0143), furthest along first, so the collapsed section leads
+  // with the climb the user is actually closest to finishing rather than whichever relic the server
+  // happened to touch last. Earned rungs outrank raw progress: a tier-1 relic at 12 h is a bigger
+  // claim than an unearned one at 9.9 h, even though the bar is fuller on the second.
+  const ladders = hall.relics
+    .filter(isLadderHallRelic)
+    .sort((a, b) => (b.tier ?? 0) - (a.tier ?? 0) || (b.value ?? 0) - (a.value ?? 0));
+  // Three is what fits under the featured strip without the section turning into a scroller of its
+  // own — "See all" carries the rest.
+  const topLadders = ladders.slice(0, 3);
+
   // Nothing earned yet and it isn't yours: render nothing. An empty hall on a profile you are
   // visiting is a comment on that person, not a prompt you can act on.
-  const isEmpty = !season && featured.length === 0 && !record;
+  //
+  // A ladder in progress counts as something to show even though it is not yet EARNED — it is the
+  // one thing on this surface that can be true of someone who has never won anything, and it is the
+  // whole reason the hall stopped rendering blank for users with real hours behind them.
+  const isEmpty = !season && featured.length === 0 && !record && ladders.length === 0;
   if (isEmpty && !isOwn) return null;
 
   return (
@@ -87,6 +103,19 @@ export function TrophyHallSection({ hall, userId, isOwn }: { hall: TrophyHall; u
                   <View key={`pad-${i}`} style={styles.trophySlot} />
                 ))
               : null}
+          </View>
+        </>
+      ) : null}
+
+      {topLadders.length > 0 ? (
+        <>
+          <Text style={styles.autoLabel}>
+            DISCIPLINE RELICS{ladders.length > topLadders.length ? ` · ${topLadders.length} of ${ladders.length}` : ''}
+          </Text>
+          <View style={styles.ladders}>
+            {topLadders.map((r) => (
+              <RelicLadderRow key={r.key} relic={r} />
+            ))}
           </View>
         </>
       ) : null}
@@ -204,6 +233,9 @@ const styles = StyleSheet.create({
   trophies: {
     flexDirection: 'row',
     gap: 9,
+  },
+  ladders: {
+    gap: 7,
   },
   trophySlot: {
     flex: 1,

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,10 +11,11 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { fetchLockinTimeGoals } from '@/lib/api/challenges';
+import { fetchMyGoals } from '@/lib/api/goals';
 import { useAuth } from '@/lib/auth/auth-context';
 import { setSessionAudioChoice } from '@/lib/economy/equipped-audio';
 import { GOAL_TYPES, GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
-import type { Challenge, GoalType, WorkoutEnergy } from '@/types/database';
+import type { Challenge, Goal, GoalType, WorkoutEnergy } from '@/types/database';
 
 type LockinGoalPickerProps = {
   visible: boolean;
@@ -63,6 +64,16 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
   // not only on unmount, so the flag version cancels the fetch it just started when `visible`
   // flips (the freeze in lock-in/index.tsx was this bug). Comparing ids only ever discards a
   // response that a newer one has already superseded.
+  // The user's own named goals, as SUB-ITEMS OF THE CATEGORY they were created under (§3).
+  //
+  // This is what makes "KP231 under Study" a real thing rather than a string in a text field: the
+  // chip carries the goal's label, and picking it starts the session with type='study' — the
+  // category tile above is untouched. That is the whole counting story, because
+  // economy_evaluate_relics aggregates hours by session_discipline(goal_type) and never looks at
+  // the label (0119 §7). A named Study lock-in therefore feeds Socrates' Scroll and Study's totals
+  // identically to an unnamed one, and the same holds for every other category — nothing here is
+  // Study-specific.
+  const [myGoals, setMyGoals] = useState<Goal[]>([]);
   const latestGoalReq = useRef(0);
   useEffect(() => {
     if (!visible || !session) return;
@@ -77,6 +88,43 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
         if (latestGoalReq.current === req) setTimeGoals([]);
       });
   }, [visible, session]);
+
+  const latestMineReq = useRef(0);
+  const loadMyGoals = useCallback(() => {
+    if (!session) return;
+    const req = latestMineReq.current + 1;
+    latestMineReq.current = req;
+    fetchMyGoals(session.user.id)
+      .then((g) => {
+        if (latestMineReq.current === req) setMyGoals(g);
+      })
+      // Silent, for the same reason the challenge chips are: these are a shortcut over a text
+      // field that still works without them.
+      .catch(() => {
+        if (latestMineReq.current === req) setMyGoals([]);
+      });
+  }, [session]);
+
+  // Two triggers, because neither covers the other.
+  //
+  //   opening the sheet — the ordinary path.
+  //   regaining focus   — the "+ New" chip PUSHES /goal/create over this modal without ever
+  //                       closing it, so `visible` is still true when the user comes back and the
+  //                       open-effect would never re-run. Without this the goal they just created
+  //                       is missing from the row that sent them to create it.
+  useEffect(() => {
+    if (visible) loadMyGoals();
+  }, [visible, loadMyGoals]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (visible) loadMyGoals();
+    }, [visible, loadMyGoals])
+  );
+
+  // Grouped under the selected category, and only the NAMED ones — the category's own unnamed goal
+  // is the tile already selected above, so a chip for it would be the same choice twice.
+  const categoryGoals = myGoals.filter((g) => g.type === goalType && (g.label ?? '').trim().length > 0);
 
   const effectiveCircleId = lockedCircleId ?? (withCampfire ? circleId : null);
   const canStart = !withCampfire || Boolean(effectiveCircleId);
@@ -168,6 +216,51 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
               maxLength={60}
             />
           </View>
+
+          {/* ── The selected category's named goals (§3) ──
+              Rendered directly under the category grid and above the free-text detail, because
+              that is the reading order of the claim they make: Study → KP231 → anything else you
+              want to add. Picking one fills the detail field rather than replacing it with a
+              separate mechanism, so the credit path (0061/0113 matches the session's detail against
+              the goal's name) is the one that already works. */}
+          <Text style={styles.goalHint}>
+            Under {GOAL_TYPE_META[goalType].label}
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.goalRow}>
+            {categoryGoals.map((goal) => {
+              const label = (goal.label ?? '').trim();
+              const selected = detail.trim().toLowerCase() === label.toLowerCase();
+              return (
+                <Pressable
+                  key={goal.id}
+                  onPress={() => setDetail(selected ? '' : label)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={`${label}, a ${GOAL_TYPE_META[goalType].label} goal`}
+                  style={[styles.goalChip, selected && styles.goalChipSelected]}>
+                  <DisciplineIcon
+                    name={GOAL_TYPE_GLYPH[goalType]}
+                    size={12}
+                    color={selected ? Colors.coral : Colors.textTertiary}
+                  />
+                  <Text style={[styles.goalChipLabel, selected && styles.goalChipLabelSelected]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+            {/* The create pathway's only entry point. /goal/create was registered as a route and
+                linked from nowhere, which is the literal reason "the custom-goal pathway isn't
+                built" — the screen existed and was unreachable. Opened WITH the category so the
+                new goal lands under the one the user is already looking at, rather than defaulting
+                to Gym and stranding itself somewhere else. */}
+            <Pressable
+              onPress={() => router.push({ pathname: '/goal/create', params: { type: goalType } })}
+              accessibilityRole="button"
+              accessibilityLabel={`New ${GOAL_TYPE_META[goalType].label} goal`}
+              style={[styles.goalChip, styles.goalChipNew]}>
+              <Ionicons name="add" size={12} color={Colors.amber} />
+              <Text style={[styles.goalChipLabel, styles.goalChipNewLabel]}>New</Text>
+            </Pressable>
+          </ScrollView>
 
           {timeGoals.length > 0 && (
             <>
@@ -390,6 +483,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.line,
     backgroundColor: Colors.cream,
+  },
+  goalChipNew: {
+    borderStyle: 'dashed',
+    borderColor: Colors.amber,
+  },
+  goalChipNewLabel: {
+    color: Colors.amber,
   },
   goalChipSelected: {
     borderColor: Colors.coral,

@@ -200,7 +200,37 @@ export type HallTrophy = {
   hidden: boolean;
 };
 
-export type HallRelic = HallTrophy & { acquired_at: string };
+/**
+ * A relic in the hall, with its ladder standing when it rides one (migration 0143).
+ *
+ * `family` is the discriminator, not `in_progress`: medals and the secret Greek relics ride no
+ * ladder and come back with family null, so "is this a rung or a trophy" is one null check rather
+ * than a second list of keys the client would have to keep in step with `relic_ladders`.
+ *
+ * `in_progress` is the earned/unearned line. A ladder below its first threshold has real progress
+ * but no grant — it is in this array so the profile can draw "3.3 / 10 h", and it must stay out of
+ * the featured strip and out of the "has this person earned anything" test, both of which are
+ * earned-only by design (§4).
+ */
+export type HallRelic = HallTrophy & {
+  /** For an in-progress ladder this is relic_progress.updated_at — "last moved", not "earned at". */
+  acquired_at: string;
+  /** The ladder this relic rides, or null for a medal or a secret relic. */
+  family: RelicFamilyKey | null;
+  /** Suffix for the numbers: 'lb' | 'km' | 'h'. Null off-ladder. */
+  unit: string | null;
+  /** Lifetime total in `unit` — the numerator of "43 / 50 km". Null off-ladder. */
+  value: number | null;
+  /** Rung held, 1-based. 0 while the first threshold is still ahead. Null off-ladder. */
+  tier: number | null;
+  /** How many rungs the ladder has — 5 for Gym, 4 for the rest. Null off-ladder. */
+  max_tier: number | null;
+  /** The next rung's threshold, or null at the top rung and off-ladder. */
+  next_threshold: number | null;
+  /** True when the ladder has progress but has not been granted yet. Never true for a medal. */
+  in_progress: boolean;
+};
+
 export type HallBadge = HallTrophy & { earned_at: string };
 
 /** Head-to-head record. Draws are counted apart and excluded from the win rate (migration 0092). */

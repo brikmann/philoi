@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { RelicLadderRow, isLadderHallRelic } from '@/components/profile/relic-ladder-row';
 import { TrophyTile } from '@/components/profile/trophy-tile';
 import { seasonLabel } from '@/components/profile/trophy-hall-section';
 import { ScreenBackground } from '@/components/ui/screen-background';
@@ -106,6 +107,17 @@ export default function TrophyHallScreen() {
   const badges = hall ? milestoneBadges(hall.stats, hall.record, hall.badges) : [];
   const extras = hall ? extraGrantedBadges(hall.badges) : [];
 
+  // Two groups out of one array (migration 0143). A relic that rides a discipline ladder is drawn as
+  // a rung with its numbers; everything else — medals, the secret Greek relics — stays a tile.
+  //
+  // Deliberately NOT both: a granted ladder relic would otherwise appear twice on this screen, once
+  // as a tile and once as a bar, and the two would disagree about what it is worth (the tile reads
+  // the catalog's rung-one rarity, the bar reads the rung actually held).
+  const ladders = (hall?.relics ?? [])
+    .filter(isLadderHallRelic)
+    .sort((a, b) => (b.tier ?? 0) - (a.tier ?? 0) || (b.value ?? 0) - (a.value ?? 0));
+  const trophies = (hall?.relics ?? []).filter((r) => !isLadderHallRelic(r));
+
   return (
     <ScreenBackground>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -151,17 +163,35 @@ export default function TrophyHallScreen() {
             </View>
           ) : null}
 
-          {hall && hall.relics.length > 0 ? (
+          {ladders.length > 0 ? (
             <View style={styles.group}>
-              <Text style={styles.groupLabel}>RELICS & MEDALS</Text>
+              <Text style={styles.groupLabel}>DISCIPLINE RELICS</Text>
+              <View style={styles.ladders}>
+                {ladders.map((r) => (
+                  <RelicLadderRow key={r.key} relic={r} />
+                ))}
+              </View>
+              {/* The one place on an earned-only surface where something UNEARNED is shown, so it
+                  says why in words rather than leaving a greyed row to be read as a bug. */}
+              {ladders.some((r) => r.in_progress) ? (
+                <Text style={styles.ladderNote}>
+                  Greyed relics haven&apos;t been earned yet — the bar is how far along that discipline is.
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          {trophies.length > 0 ? (
+            <View style={styles.group}>
+              <Text style={styles.groupLabel}>RELICS &amp; MEDALS</Text>
               <View style={styles.trophies}>
-                {hall.relics.map((r) => (
+                {trophies.map((r) => (
                   <View key={r.key} style={styles.trophySlot}>
                     <TrophyTile itemKey={r.key} hidden={r.hidden} onPress={() => pressTrophy(r.key, r.hidden)} />
                   </View>
                 ))}
                 {/* Keeps a short final row left-aligned on the 4-up grid instead of stretching. */}
-                {padding(hall.relics.length).map((i) => (
+                {padding(trophies.length).map((i) => (
                   <View key={`pad-${i}`} style={styles.trophySlot} />
                 ))}
               </View>
@@ -342,6 +372,15 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 10.5,
     color: RARITY_COLOR.mythic,
+  },
+  ladders: {
+    gap: 7,
+  },
+  ladderNote: {
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    color: Colors.textTertiary,
+    lineHeight: 15,
   },
   trophies: {
     flexDirection: 'row',
