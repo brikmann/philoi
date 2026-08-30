@@ -7,7 +7,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { EquippedAvatarHalo, EquippedCardBackdrop } from '@/components/economy/applied-art';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
-import { attachmentView } from '@/lib/agora-attachment';
+import { attachmentKey, attachmentView, itemAttachments } from '@/lib/agora-attachment';
+import type { AgoraAttachmentView } from '@/lib/agora-attachment';
 import { agoraPhotoUrl } from '@/lib/api/agora';
 import { formatRelativeTime } from '@/lib/format';
 import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
@@ -21,6 +22,11 @@ import type { AgoraItem } from '@/types/database';
 // card. Another reason to grind." That art is `applied-art.tsx` (Agent 4's surface); this file
 // only calls it, and passes the ids the batched `usePublicLoadouts` read already fetched for the
 // whole page.
+//
+// MEDIA STACKS. A post can carry a photo and a lock-in and a reward at once (migration 0140), so
+// the attachment is a LIST here, drawn in ATTACH_ORDER. Milestone rows arrive as a one-element
+// list, and a post written before 0140 is normalised into one by `itemAttachments` — there is no
+// second rendering path for the old shape to fall down.
 
 /** "Hero II", tinted with its own metal. Null for anyone who hasn't ranked yet. */
 function rankLabel(item: AgoraItem): { label: string; color: string } | null {
@@ -46,7 +52,7 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
   const router = useRouter();
   const [photoFailed, setPhotoFailed] = useState(false);
 
-  const attachment = attachmentView(item.attach_kind, item.attach_snapshot);
+  const attachments = itemAttachments(item);
   const rank = rankLabel(item);
   const photo = photoFailed ? null : agoraPhotoUrl(item.photo_path);
 
@@ -54,11 +60,12 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
     router.push({ pathname: '/friend-profile', params: { userId: item.user_id } });
   }
 
-  function openAttachment() {
+  function openAttachment(view: AgoraAttachmentView) {
     // Spec: "Feed item routes to the underlying thing (relic → inventory, challenge → board)."
-    // A card with nothing to route to falls through to the comments, which is the other thing
-    // someone tapping a card is plausibly reaching for.
-    if (attachment?.route) router.push(attachment.route as never);
+    // PER ATTACHMENT, not per card: on a post carrying a lock-in and a relic, tapping the relic
+    // must not open the session. One with nothing to route to falls through to the comments,
+    // which is the other thing someone tapping a card is plausibly reaching for.
+    if (view.route) router.push(view.route as never);
     else onComment(item);
   }
 
@@ -100,33 +107,13 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
         </Pressable>
       </View>
 
-      {attachment ? (
-        <Pressable style={styles.attach} onPress={openAttachment} accessibilityRole="button">
-          <View style={[styles.attachIcon, { backgroundColor: attachment.tint }]}>
-            <Ionicons name={attachment.icon} size={20} color={Colors.ink} />
-          </View>
-          <View style={styles.attachText}>
-            <Text style={styles.attachTitle} numberOfLines={2}>
-              {attachment.title}
-            </Text>
-            <View style={styles.attachSubRow}>
-              {attachment.eyebrow ? (
-                <Text style={[styles.attachEyebrow, { color: attachment.eyebrowColor }]}>
-                  {attachment.eyebrow}
-                </Text>
-              ) : null}
-              {attachment.eyebrow && attachment.subtitle ? (
-                <Text style={styles.attachSub}> · </Text>
-              ) : null}
-              {attachment.subtitle ? (
-                <Text style={styles.attachSub} numberOfLines={1}>
-                  {attachment.subtitle}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-        </Pressable>
-      ) : null}
+      {attachments.map((a) => {
+        const view = attachmentView(a.kind, a.snapshot);
+        if (!view) return null;
+        return (
+          <AttachmentRow key={attachmentKey(a)} view={view} onPress={() => openAttachment(view)} />
+        );
+      })}
 
       {item.body ? <Text style={styles.body}>{item.body}</Text> : null}
 
@@ -168,6 +155,37 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
   );
 }
 
+/** One attachment tile. Stacked, one per row, in the order `itemAttachments` fixed. */
+function AttachmentRow({ view, onPress }: { view: AgoraAttachmentView; onPress: () => void }) {
+  return (
+    <Pressable
+      style={styles.attach}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={[view.eyebrow, view.title, view.subtitle].filter(Boolean).join(' · ')}>
+      <View style={[styles.attachIcon, { backgroundColor: view.tint }]}>
+        <Ionicons name={view.icon} size={20} color={Colors.ink} />
+      </View>
+      <View style={styles.attachText}>
+        <Text style={styles.attachTitle} numberOfLines={2}>
+          {view.title}
+        </Text>
+        <View style={styles.attachSubRow}>
+          {view.eyebrow ? (
+            <Text style={[styles.attachEyebrow, { color: view.eyebrowColor }]}>{view.eyebrow}</Text>
+          ) : null}
+          {view.eyebrow && view.subtitle ? <Text style={styles.attachSub}> · </Text> : null}
+          {view.subtitle ? (
+            <Text style={styles.attachSub} numberOfLines={1}>
+              {view.subtitle}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 /**
  * The card's own surface.
  *
@@ -187,6 +205,9 @@ function CardSurface({ cardId, children }: { cardId?: string; children: ReactNod
 
 // Memoized on the fields the card actually draws. A feed re-renders on every cheer, and without
 // this each one re-renders all twenty rows — including their halo and card SVGs.
+//
+// Attachments are not compared: they are frozen at post time and a page's items are replaced
+// wholesale on refresh, so the only thing that moves under a stable id is the cheer/comment counts.
 export const AgoraCard = memo(
   AgoraCardInner,
   (a, b) =>

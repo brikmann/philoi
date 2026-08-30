@@ -2292,9 +2292,12 @@ export type Database = {
           p_body?: string | null;
           p_photo_path?: string | null;
           p_visibility?: AgoraVisibility;
+          /** 0128's single-attachment triple. Kept for builds predating 0140; unused by this one. */
           p_attach_kind?: AgoraAttachKind | null;
           p_attach_ref_id?: string | null;
           p_attach_key?: string | null;
+          /** 0140 — every attachment on the post, at most one per kind. Ownership checked per item. */
+          p_attachments?: AgoraAttachInput[] | null;
         };
         Returns: string;
       };
@@ -2433,6 +2436,21 @@ export type AgoraVisibility = 'friends' | 'campus' | 'public';
 export type AgoraAttachKind = 'milestone' | 'lockin' | 'rank' | 'streak' | 'pass' | 'cosmetic' | 'pr';
 
 /**
+ * What the composer SENDS: which achievement, never what it says. `create_agora_post` re-reads
+ * each one from the table that owns it and freezes the snapshot server-side (0130, per-item 0140).
+ */
+export type AgoraAttachInput = {
+  kind: AgoraAttachKind;
+  ref_id: string | null;
+  key: string | null;
+};
+
+/** One frozen attachment as migration 0140 stored it — the input, plus the server's snapshot. */
+export type AgoraAttachment = AgoraAttachInput & {
+  snapshot: AgoraAttachSnapshot;
+};
+
+/**
  * The frozen attachment, as `agora_attachment_snapshot` wrote it at post time.
  *
  * FACTS, NOT DISPLAY STRINGS — `rank_index` rather than "Hero II", `pass_xp` rather than
@@ -2505,8 +2523,23 @@ export type AgoraItem = {
   body: string | null;
   /** Storage path in the public `agora-photos` bucket. Resolve with agoraPhotoUrl(). */
   photo_path: string | null;
+  /**
+   * Element [0] of `attachments`, restated. Kept only so a build that predates migration 0140
+   * still renders a post's first attachment; nothing in this codebase should read it.
+   *
+   * @deprecated Read `attachments`.
+   */
   attach_kind: AgoraAttachKind | null;
+  /** @deprecated Read `attachments`. */
   attach_snapshot: AgoraAttachSnapshot;
+  /**
+   * Every frozen attachment on the item, in composed order (migration 0140).
+   *
+   * A post carries a photo AND a lock-in AND an achievement together — mock 162 scoped the three
+   * as combinable media, and 0128's single slot made each new pick delete the last. A milestone
+   * row arrives as a one-element array, so the renderer walks one list for both row types.
+   */
+  attachments: AgoraAttachment[];
   cheers: number;
   cheered: boolean;
   comments: number;

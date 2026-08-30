@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { attachmentView } from '@/lib/agora-attachment';
+import { attachmentView, itemAttachments } from '@/lib/agora-attachment';
 import {
   addAgoraComment,
   blockAgoraUser,
@@ -179,7 +179,10 @@ function Thread({
     ]);
   }
 
-  const attachment = attachmentView(item.attach_kind, item.attach_snapshot);
+  // The header is one line, so it names the FIRST attachment — ATTACH_ORDER makes that the
+  // lock-in on a post that carries several, which is the half a comment thread is usually about.
+  const [first] = itemAttachments(item);
+  const attachment = first ? attachmentView(first.kind, first.snapshot) : null;
 
   return (
     <>

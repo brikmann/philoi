@@ -10,6 +10,8 @@ import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
 import type {
   AgoraAttachKind,
   AgoraAttachSnapshot,
+  AgoraAttachment,
+  AgoraItem,
   GoalType,
   RankTierName,
 } from '@/types/database';
@@ -177,6 +179,66 @@ export function attachmentView(
     default:
       return null;
   }
+}
+
+/**
+ * The order attachments are DRAWN in, which is not the order they were composed in.
+ *
+ * Mock 162 lets a post carry a photo, a lock-in and an achievement at once, and the composer has
+ * no meaningful sequence to offer — you tap the three buttons in whatever order you think of them.
+ * Pinning the render order here means the same three attachments look the same on every card, and
+ * that a reader learns where to find the lock-in on a card instead of re-scanning each one.
+ *
+ * Lock-in first: it is the thing that just happened, and the achievement is the standing it moved.
+ */
+const ATTACH_ORDER: AgoraAttachKind[] = [
+  'lockin',
+  'milestone',
+  'rank',
+  'streak',
+  'pass',
+  'cosmetic',
+  'pr',
+];
+
+function attachRank(kind: AgoraAttachKind): number {
+  const i = ATTACH_ORDER.indexOf(kind);
+  return i < 0 ? ATTACH_ORDER.length : i;
+}
+
+/**
+ * Every attachment on a feed item, ordered — the ONE list every renderer walks.
+ *
+ * Falls back to the 0128 single-attachment pair when `attachments` is missing or empty. Migration
+ * 0140 backfilled the array and the feed query normalises on read, so that branch should never
+ * fire against a current server; it exists because the alternative failure is a post rendering as
+ * though it had no attachment at all, which is indistinguishable from the bug this all replaced.
+ */
+export function itemAttachments(
+  item: Pick<AgoraItem, 'attach_kind' | 'attach_snapshot' | 'attachments'>
+): AgoraAttachment[] {
+  const raw: AgoraAttachment[] =
+    Array.isArray(item.attachments) && item.attachments.length > 0
+      ? item.attachments
+      : item.attach_kind
+        ? [
+            {
+              kind: item.attach_kind,
+              ref_id: null,
+              key: null,
+              snapshot: item.attach_snapshot ?? {},
+            },
+          ]
+        : [];
+
+  return raw
+    .filter((a) => Boolean(a?.kind))
+    .sort((a, b) => attachRank(a.kind) - attachRank(b.kind));
+}
+
+/** A stable React key for one attachment. Kind is unique per post, so it alone would do. */
+export function attachmentKey(a: AgoraAttachment): string {
+  return `${a.kind}:${a.ref_id ?? a.key ?? ''}`;
 }
 
 /** The picker's section headers, in the order mock 162 panel 4 lists them. */

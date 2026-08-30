@@ -6,7 +6,7 @@ import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 import type {
   AgoraAchievement,
-  AgoraAttachKind,
+  AgoraAttachInput,
   AgoraComment,
   AgoraCursor,
   AgoraItem,
@@ -28,6 +28,8 @@ import type {
 // SAYS, only which one. `create_agora_post` re-reads the fact from the table that owns it and
 // freezes it server-side (see agora_attachment_snapshot, migration 0130). Anything else and a
 // crafted RPC call could put "Mythic relic · 1,000 lb club" on a card in front of a whole campus.
+// 0140 made that a LIST — a post carries a photo and a lock-in and a reward at once — and the
+// rule is unchanged per item: every element is re-read and ownership-checked on its own.
 
 const PHOTO_BUCKET = 'agora-photos';
 
@@ -98,18 +100,26 @@ export async function createAgoraPost(input: {
   photoUri?: string | null;
   userId: string;
   visibility: AgoraVisibility;
-  attach?: { kind: AgoraAttachKind; refId?: string | null; key?: string | null } | null;
+  /**
+   * The post's media, beyond the photo. At most one of each kind — the composer offers one Photo,
+   * one Lock-in and one Achievement slot, and 0140 refuses a second of any kind server-side rather
+   * than trusting that. Order is irrelevant: the card draws them in its own (see ATTACH_ORDER).
+   */
+  attachments?: AgoraAttachInput[];
 }): Promise<string> {
   let photoPath: string | null = null;
   if (input.photoUri) photoPath = await uploadAgoraPhoto(input.userId, input.photoUri);
+
+  const attachments = input.attachments ?? [];
 
   const { data, error } = await supabase.rpc('create_agora_post', {
     p_body: input.body?.trim() || null,
     p_photo_path: photoPath,
     p_visibility: input.visibility,
-    p_attach_kind: input.attach?.kind ?? null,
-    p_attach_ref_id: input.attach?.refId ?? null,
-    p_attach_key: input.attach?.key ?? null,
+    // p_attach_kind / p_attach_ref_id / p_attach_key are deliberately not sent. They are 0128's
+    // single slot, still on the signature so that installs older than 0140 keep posting; this
+    // build sends the array and lets the server mirror element [0] back into them.
+    p_attachments: attachments,
   });
   if (error) {
     // The upload succeeded and the post did not — same cleanup lock-ins.ts does, so a rejected
@@ -121,7 +131,12 @@ export async function createAgoraPost(input: {
   track('agora_posted', {
     visibility: input.visibility,
     has_photo: Boolean(photoPath),
-    attach_kind: input.attach?.kind ?? null,
+    // `attach_kind` stays singular so the existing funnel keeps reading. The other two answer the
+    // question this change was made to ask — are people actually combining media? — and are a
+    // joined string rather than an array because track() takes scalars only.
+    attach_kind: attachments[0]?.kind ?? null,
+    attach_kinds: attachments.map((a) => a.kind).join(',') || null,
+    attach_count: attachments.length,
   });
   return data;
 }
