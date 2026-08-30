@@ -28,6 +28,7 @@ import {
   startAscensionAnthem,
   stopRankUpAudio,
 } from '@/lib/reward-feedback';
+import { BOXES, type BoxKey } from '@/lib/economy/boxes';
 import type { RankTierName } from '@/types/database';
 
 // Warm flash color at the flare beat (design-mocks/85's `.white` / `#FFE9C2`) — a one-off,
@@ -76,6 +77,14 @@ type RankUpCelebrationProps = {
    * forced true by the dev-tools ascension buttons so both can be auditioned without climbing. */
   isBandCrossing?: boolean;
   onContinue: () => void;
+  /**
+   * What this rank-up actually paid (0142). Optional: a failed read, or an older client, simply
+   * omits the line rather than blocking the celebration.
+   *
+   * 🔒 Display only. economy_track_rank_change moved the embers and minted the box when the rank
+   * landed; this is a read of that, arriving well after the fact.
+   */
+  reward?: { embers: number; boxKey: string | null } | null;
   onShare: () => void;
   sharing?: boolean;
 };
@@ -840,6 +849,7 @@ export function RankUpCelebration({
   handle,
   isBandCrossing = false,
   onContinue,
+  reward,
   onShare,
   sharing,
 }: RankUpCelebrationProps) {
@@ -1210,6 +1220,22 @@ export function RankUpCelebration({
           <Text style={[styles.whoRank, { color: metal.inner }]}>{formatRankTier(tier, division)}</Text>
         </View>
         <Text style={styles.streakLine}>forged from a {streakDays}-day streak</Text>
+        {/* WHAT IT PAID. The rising embers elsewhere on this card are a per-tier visual signature —
+            particles, not the grant — so until now the loudest celebration in the app was the only
+            one that never told you what you got. */}
+        {reward && (reward.embers > 0 || reward.boxKey) && (
+          <View style={styles.rewardLine}>
+            {reward.embers > 0 && (
+              <Text style={[styles.rewardText, { color: metal.inner }]}>+{reward.embers.toLocaleString()} embers</Text>
+            )}
+            {reward.embers > 0 && reward.boxKey ? <Text style={styles.whoDot}>·</Text> : null}
+            {reward.boxKey ? (
+              <Text style={[styles.rewardText, { color: metal.inner }]}>
+                {BOXES[reward.boxKey as BoxKey]?.name ?? 'a box'}
+              </Text>
+            ) : null}
+          </View>
+        )}
       </Animated.View>
 
       <Animated.View style={[styles.ctas, ctasStyle]}>
@@ -1410,6 +1436,16 @@ const styles = StyleSheet.create({
   foot: {
     alignItems: 'center',
     gap: 6,
+  },
+  rewardLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 2,
+  },
+  rewardText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
   },
   who: {
     flexDirection: 'row',

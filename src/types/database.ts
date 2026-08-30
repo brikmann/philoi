@@ -1264,6 +1264,19 @@ export type ChallengeReward = {
  * `seen_at`: the RPC only returns rows where it is null, so carrying it would be a field that is
  * always the same value.
  */
+/**
+ * What a rank-up paid — re-derived from the event's tiers against the same reward config the
+ * trigger used. Presentation only; nothing reads this to grant.
+ */
+export type RankUpReward = {
+  kind: 'division' | 'tier' | 'primordial';
+  embers: number;
+  box_key: string | null;
+  to_tier: string;
+  to_division: number;
+  awarded_at: string;
+};
+
 export type UnseenChallengeReward = {
   challenge_id: string;
   public_name: string | null;
@@ -1933,6 +1946,8 @@ export type Database = {
       /** This viewer's own payout on a settled challenge (0116) — reads what grant_reward paid. */
       get_challenge_reward: { Args: { p_challenge_id: string }; Returns: ChallengeReward };
       get_my_unseen_challenge_rewards: { Args: Record<string, never>; Returns: UnseenChallengeReward[] };
+      /** What the last rank-up actually paid (0142). Read-only; the grant happened at 0121. */
+      get_my_last_rank_up_reward: { Args: Record<string, never>; Returns: RankUpReward[] };
       /** Stamps the fire-once flag so the reveal never plays twice (0116). */
       mark_challenge_reward_seen: { Args: { p_challenge_id: string }; Returns: undefined };
       /** Pre-start or finished only; a live race is left to cancel/forfeit's consent path (0112). */

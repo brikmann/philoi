@@ -6,7 +6,7 @@ import { RankUpShareCard } from '@/components/rank-up-share-card';
 import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { Screen } from '@/components/ui/screen';
 import { Colors } from '@/constants/theme';
-import { fetchMyRanks } from '@/lib/api/goals';
+import { fetchLastRankUpReward, fetchMyRanks } from '@/lib/api/goals';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
   deriveRankUpLevel,
@@ -19,7 +19,7 @@ import {
 import { isRankUp } from '@/lib/rank-tiers';
 import { shareCardImage } from '@/lib/share-card';
 import { syncStepLadder } from '@/lib/step-ladder-sync';
-import type { MyRank } from '@/types/database';
+import type { MyRank, RankUpReward } from '@/types/database';
 
 // Imperative presenter, set by the mounted RankUpWatcher. Dev-tools and the watcher itself both
 // go through showRankUp() so there is exactly ONE path into the celebration (RANKUP_SPEC §7b) —
@@ -49,12 +49,18 @@ export function RankUpWatcher() {
   // the 5s timeline would never restart. Most visible from the dev-tools tester, where two events
   // land back to back.
   const [presentToken, setPresentToken] = useState(0);
+  // What the rank-up paid, fetched alongside the presentation. Null until it lands (or forever, if
+  // the read fails) — the celebration simply omits the line, which is what it always did.
+  const [reward, setReward] = useState<RankUpReward | null>(null);
 
   // Register this mount as the global presenter for showRankUp().
   useEffect(() => {
     present = (event) => {
       setPending(event);
       setPresentToken((n) => n + 1);
+      // Cleared first so a second rank-up cannot show the previous one's payout for a frame.
+      setReward(null);
+      fetchLastRankUpReward().then(setReward).catch(() => {});
     };
     return () => {
       present = null;
@@ -168,6 +174,7 @@ export function RankUpWatcher() {
           streakDays={profile?.current_streak ?? 0}
           handle={profile?.handle ?? null}
           isBandCrossing={pending.isBandCrossing}
+          reward={reward ? { embers: reward.embers, boxKey: reward.box_key } : null}
           onContinue={() => setPending(null)}
           onShare={handleShare}
           sharing={sharing}

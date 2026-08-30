@@ -1,6 +1,6 @@
 import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
-import type { Goal, GoalType, MyRank } from '@/types/database';
+import type { Goal, GoalType, MyRank, RankUpReward } from '@/types/database';
 
 export async function fetchMyGoals(userId: string): Promise<Goal[]> {
   const { data, error } = await supabase
@@ -46,6 +46,19 @@ export async function archiveGoal(goalId: string, goalType: GoalType): Promise<v
   const { error } = await supabase.from('goals').update({ archived_at: new Date().toISOString() }).eq('id', goalId);
   if (error) throw error;
   track('goal_archived', { type: goalType });
+}
+
+/**
+ * What the user's most recent rank-up paid.
+ *
+ * Best-effort by design: the celebration is the point, and a failed read must never stop it
+ * playing. Null just means the reward line is omitted — which is exactly what every rank-up did
+ * before 0142 anyway.
+ */
+export async function fetchLastRankUpReward(): Promise<RankUpReward | null> {
+  const { data, error } = await supabase.rpc('get_my_last_rank_up_reward');
+  if (error) return null;
+  return (data as RankUpReward[] | null)?.[0] ?? null;
 }
 
 export async function fetchMyRanks(): Promise<MyRank[]> {
