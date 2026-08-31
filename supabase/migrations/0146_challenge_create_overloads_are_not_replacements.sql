@@ -77,7 +77,8 @@ begin
   -- The survivor must still be reachable by a caller that supplies only the original three
   -- arguments, or this migration has replaced one break with another.
   for r in
-    select p.proname,
+    select p.oid as fn_oid,
+           p.proname,
            p.pronargs - p.pronargdefaults as required_args,
            pg_get_function_arguments(p.oid) as args
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -93,9 +94,11 @@ begin
         r.proname, r.args;
     end if;
 
-    if not has_function_privilege('authenticated', r.proname || '(' || pg_get_function_identity_arguments(
-         (select p2.oid from pg_proc p2 join pg_namespace n2 on n2.oid = p2.pronamespace
-          where n2.nspname = 'public' and p2.proname = r.proname)) || ')', 'EXECUTE') then
+    -- The oid form, deliberately. The text form takes a signature of TYPES, while
+    -- pg_get_function_identity_arguments returns names alongside them ("p_opponent_id uuid, ..."),
+    -- so building the string version raises 42601 "syntax error at or near uuid" instead of
+    -- answering the question. That is exactly how this migration failed its first push.
+    if not has_function_privilege('authenticated', r.fn_oid, 'EXECUTE') then
       raise exception '0146: authenticated cannot execute %. The drop took a grant with it.', r.proname;
     end if;
   end loop;
