@@ -88,11 +88,21 @@ export const REVEAL_TUNING: Record<
   // this row's visual fields are unused by it today, and are here so that if it is ever folded in
   // it lands in the same table as everything else rather than in a second one.
   rank_up: { tint: Colors.ember, rays: 18, scale: 1.15, intensity: 0.9, cue: 'rankup', eyebrow: 'RANK UP', priority: 100 },
-  pass_level: { tint: Colors.amber, rays: 14, scale: 1, intensity: 0.72, cue: 'settle', eyebrow: 'FLAME PASS', priority: 60 },
+  // The four win rows now carry the real fanfare (#185) instead of 'settle'/'spark' — the quiet
+  // Post-confirmation tick and the per-ember landing blip, which were only ever standing in
+  // because no bespoke win cue existed. Winning a duel sounded quieter than opening a common box.
+  //
+  // WHICH CUT, AND WHY IT IS A FIELD: 'victory-short' (2.53s) on the frequent row, 'victory'
+  // (3.84s) on the rare ones. A pass level gets claimed many times a season and a four-second
+  // tail would still be ringing after the card is gone; a settled challenge happens once and
+  // should get the whole thing. Both cuts are loaded, so A/B-ing on device is editing the cue
+  // here — no asset swap, no rebuild.
+  pass_level: { tint: Colors.amber, rays: 14, scale: 1, intensity: 0.72, cue: 'victory-short', eyebrow: 'FLAME PASS', priority: 60 },
+  // Untouched: the daily fire is the day's small beat, not a win, and 'ignite' is its own cue.
   daily_fire: { tint: Colors.coral, rays: 12, scale: 0.92, intensity: 0.66, cue: 'ignite', eyebrow: "TODAY'S FIRE", priority: 40 },
-  challenge_solo: { tint: Colors.amber, rays: 13, scale: 0.96, intensity: 0.7, cue: 'settle', eyebrow: 'CHALLENGE WON', priority: 50 },
-  challenge_team: { tint: Colors.sky, rays: 15, scale: 1.02, intensity: 0.74, cue: 'settle', eyebrow: 'TEAM CHALLENGE', priority: 55 },
-  challenge_placement: { tint: Colors.ember, rays: 16, scale: 1.05, intensity: 0.78, cue: 'spark', eyebrow: 'PLACEMENT', priority: 58 },
+  challenge_solo: { tint: Colors.amber, rays: 13, scale: 0.96, intensity: 0.7, cue: 'victory', eyebrow: 'CHALLENGE WON', priority: 50 },
+  challenge_team: { tint: Colors.sky, rays: 15, scale: 1.02, intensity: 0.74, cue: 'victory', eyebrow: 'TEAM CHALLENGE', priority: 55 },
+  challenge_placement: { tint: Colors.ember, rays: 16, scale: 1.05, intensity: 0.78, cue: 'victory', eyebrow: 'PLACEMENT', priority: 58 },
 };
 
 /** How long the rays take to bloom in, and how long one full rotation takes. */

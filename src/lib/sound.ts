@@ -10,6 +10,14 @@ export type RewardCue =
   | 'settle'
   | 'rankup'
   | 'spark'
+  // The real victory fanfare (#185). Pass-level claims and challenge settlements had been
+  // borrowing 'settle'/'spark' — the quiet confirmation tick and the per-ember landing blip —
+  // because no bespoke win cue existed, so the app's actual wins sounded smaller than a box
+  // opening. Two variants ship: the full 3.84s for the rare, earned moments and a 2.53s trim for
+  // the frequent ones, where a four-second tail would outlast the card it plays under. Which row
+  // gets which is a REVEAL_TUNING field, not a decision baked in here.
+  | 'victory'
+  | 'victory-short'
   | 'rankup-bronze'
   | 'rankup-silver'
   | 'rankup-gold'
@@ -90,6 +98,11 @@ const SOURCES: Omit<Record<RewardCue, number>, 'ascension-hero' | 'ascension-pri
   settle: require('../../assets/sounds/settle.wav'), // Done / Post
   rankup: require('../../assets/sounds/rankup.wav'), // generic rank-up fallback (platinum's crossing)
   spark: require('../../assets/sounds/spark.wav'), // per-ember landing tick (fire-complete celebration)
+  // Victory fanfare, both cuts (#185). Preloaded with the rest of the one-shots: a settlement
+  // reveal draws its rays on the same tick it asks for sound, so a file read here would put the
+  // fanfare behind the animation it is supposed to be scoring.
+  victory: require('../../assets/sounds/victory-fanfare.mp3'), // 3.84s — full
+  'victory-short': require('../../assets/sounds/victory-fanfare-short.mp3'), // 2.53s — trimmed
   // Per-tier-crossing cues (PHILOI_UI_SPEC.md §11/§22, selected by the NEW tier type).
   'rankup-bronze': require('../../assets/sounds/rankup-bronze.wav'), // blacksmith hammer strike
   'rankup-silver': require('../../assets/sounds/rankup-silver.wav'), // cash-register ka-ching
