@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Philoi · Sell flow (confirm + reward)</title>
+<style>
+  :root{
+    --twilight900:#14111C; --cream:#1B1726; --card:#241C38; --disabled:#2D2740;
+    --plum:#3A2E5C; --selected:#2B2036;
+    --coral:#E0612C; --amber:#F2A33C; --ember:#FFD27A; --onEmber:#3A1608;
+    --ink:#FFF6EC; --muted:#A99CBD; --tertiary:#7C7194;
+    --line:rgba(255,255,255,0.08); --lineStrong:rgba(255,255,255,0.12);
+    --radialFrom:#2C1B36; --radialMid:#231830; --radialTo:#161320;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#0d0b13; color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
+    display:flex; flex-wrap:wrap; gap:48px; justify-content:center; align-items:flex-start;
+    padding:56px 32px; min-height:100vh;
+  }
+  .col{display:flex;flex-direction:column;align-items:center;gap:16px}
+  .caption{color:var(--muted);font-size:13px;letter-spacing:.3px;max-width:390px;text-align:center;line-height:1.5}
+  .caption b{color:var(--ember);font-weight:700}
+  .phone{
+    width:390px;height:844px;border-radius:44px;position:relative;overflow:hidden;
+    background:radial-gradient(120% 80% at 50% 8%, var(--radialFrom) 0%, var(--radialMid) 42%, var(--radialTo) 100%);
+    box-shadow:0 30px 80px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.04);
+  }
+  /* status bar */
+  .status{height:54px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 8px;font-size:14px;font-weight:600;color:var(--ink)}
+  .status .r{display:flex;gap:6px;align-items:center;opacity:.9}
+  /* top bar with balance pill */
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 20px 0}
+  .back{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px}
+  .balance{
+    display:flex;align-items:center;gap:7px;background:rgba(255,210,122,.12);
+    border:1px solid rgba(255,210,122,.28);padding:7px 14px 7px 11px;border-radius:22px;
+    font-weight:700;font-size:16px;color:var(--ember);
+  }
+  .balance .fire{font-size:15px;filter:drop-shadow(0 0 6px rgba(242,163,60,.6))}
+  .balance.pulse{animation:balPulse .5s ease}
+  @keyframes balPulse{0%{transform:scale(1)}40%{transform:scale(1.12);border-color:rgba(255,210,122,.7)}100%{transform:scale(1)}}
+
+  /* item hero */
+  .hero{display:flex;flex-direction:column;align-items:center;margin-top:34px}
+  .disc{
+    width:150px;height:150px;border-radius:50%;position:relative;
+    background:radial-gradient(circle at 50% 45%, rgba(224,97,44,.30), rgba(58,46,92,.35) 62%, transparent 74%);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .disc.dim{opacity:.9}
+  .flame{width:78px;height:96px;position:relative;filter:drop-shadow(0 6px 22px rgba(224,97,44,.45))}
+  .flame .outer{position:absolute;inset:0;background:var(--coral);border-radius:50% 50% 50% 50%/60% 60% 40% 40%;clip-path:path('M39 0 C50 26 78 40 78 66 C78 88 60 96 39 96 C18 96 0 88 0 66 C0 40 28 26 39 0 Z')}
+  .flame .inner{position:absolute;left:22px;top:34px;width:34px;height:54px;background:var(--ember);border-radius:50% 50% 50% 50%/60% 60% 42% 42%;filter:drop-shadow(0 0 10px rgba(255,210,122,.8))}
+  .itemName{margin-top:18px;font-size:26px;font-weight:800;letter-spacing:.2px}
+  .itemMeta{margin-top:6px;font-size:12px;font-weight:700;letter-spacing:1.4px;color:#C79BE8}
+
+  /* confirm block — question centered in the space under the item */
+  .confirm{position:absolute;top:340px;bottom:120px;left:0;right:0;padding:0 30px;text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:0}
+  .qMain{font-size:29px;line-height:1.32;font-weight:800;letter-spacing:.1px}
+  .qMain .epic{color:#C79BE8}
+  .qMain .amt{color:var(--ember)}
+  .qMain .fire{font-size:24px}
+  .confirmBtns{position:absolute;left:30px;right:30px;bottom:40px;width:auto;margin:0}
+  .qSub{margin-top:14px;font-size:13px;color:var(--tertiary);letter-spacing:.2px}
+  .btns{margin-top:28px;width:100%;display:flex;flex-direction:column;gap:12px}
+  .btn{height:56px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;letter-spacing:.2px;border:none}
+  .btn.sell{background:linear-gradient(180deg,var(--amber),var(--coral));color:var(--onEmber);box-shadow:0 10px 26px rgba(224,97,44,.34)}
+  .btn.sell .fire{margin-left:8px}
+  .btn.keep{background:transparent;color:var(--muted);border:1px solid var(--lineStrong);height:50px}
+
+  /* reward frame */
+  .reward{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center}
+  /* the dissolving item sits up top; smoke curls off it, embers lift to the balance */
+  .rwStage{position:absolute;top:150px;left:0;right:0;display:flex;justify-content:center;z-index:2}
+  .dissolve .disc{transform:scale(.92)}
+  @keyframes dissolveAway{
+    0%{opacity:1;filter:blur(0) brightness(1);transform:translateY(0) scale(1)}
+    55%{opacity:.7;filter:blur(2px) brightness(1.15)}
+    100%{opacity:0;filter:blur(9px) brightness(1.4);transform:translateY(-26px) scale(1.06)}
+  }
+  .dissolve.go{animation:dissolveAway 1.35s ease-in forwards}
+  .smoke-fx{position:absolute;inset:0;pointer-events:none;z-index:1;overflow:hidden}
+  .puff{
+    position:absolute;border-radius:50%;
+    background:radial-gradient(circle at 50% 45%, rgba(180,170,205,.42), rgba(120,110,150,.20) 55%, transparent 72%);
+    filter:blur(7px);opacity:0;
+  }
+  @keyframes puffUp{
+    0%{opacity:0;transform:translate(0,0) scale(.5)}
+    18%{opacity:.75}
+    100%{opacity:0;transform:translate(var(--sx),var(--sy)) scale(2.1)}
+  }
+  .rwCenter{position:absolute;top:340px;left:0;right:0;display:flex;flex-direction:column;align-items:center;text-align:center;z-index:2}
+  .rwPlus{font-size:64px;font-weight:900;color:var(--ember);letter-spacing:-1px;text-shadow:0 0 30px rgba(242,163,60,.55);display:flex;align-items:center;gap:10px}
+  .rwPlus .fire{font-size:46px;filter:drop-shadow(0 0 14px rgba(242,163,60,.7))}
+  .rwLabel{margin-top:2px;font-size:15px;font-weight:700;color:var(--ink)}
+  .rwSub{margin-top:8px;font-size:13px;color:var(--tertiary)}
+  .rwDone{margin-top:auto;margin-bottom:44px;height:54px;width:calc(100% - 56px);border-radius:18px;background:rgba(255,255,255,.06);border:1px solid var(--lineStrong);color:var(--ink);font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center}
+
+  /* drifting embers */
+  .ember-fx{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:3}
+  .spark{
+    position:absolute;width:12px;height:12px;border-radius:50%;
+    background:radial-gradient(circle at 40% 35%, #FFE9C2, var(--amber) 55%, var(--coral) 100%);
+    box-shadow:0 0 12px rgba(242,163,60,.9);opacity:0;
+  }
+  @keyframes drift{
+    0%{opacity:0;transform:translate(0,0) scale(.4)}
+    12%{opacity:1;transform:translate(var(--x1),var(--y1)) scale(1)}
+    100%{opacity:0;transform:translate(var(--x2),var(--y2)) scale(.5)}
+  }
+  .tag{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.35);color:var(--muted);font-size:11px;letter-spacing:1.5px;font-weight:700;padding:5px 12px;border-radius:20px;border:1px solid var(--line)}
+  .replay{margin-top:2px;font-size:12px;color:var(--tertiary);cursor:pointer;text-decoration:underline}
+</style>
+</head>
+<body>
+
+  <!-- ───────────── Frame 1 · Sell confirm (branded text, no system alert) ───────────── -->
+  <div class="col">
+    <div class="phone">
+      <div class="tag">FRAME 1 · CONFIRM</div>
+      <div class="status"><span>3:56</span><span class="r">📶 🔋</span></div>
+      <div class="topbar">
+        <div class="back">‹</div>
+        <div class="balance"><span class="fire">🔥</span><span>9,081,519</span></div>
+      </div>
+
+      <div class="hero">
+        <div class="disc">
+          <div class="flame"><div class="outer"></div><div class="inner"></div></div>
+        </div>
+      </div>
+
+      <div class="confirm">
+        <div class="qMain">Sell <span class="epic">Solar&nbsp;Flare</span> for<br><span class="amt"><span class="fire">🔥</span> 420 embers</span>?</div>
+        <div class="qSub">Selling unequips it and is permanent.</div>
+      </div>
+
+      <div class="btns confirmBtns">
+        <button class="btn sell">Sell · <span class="fire">🔥</span>&nbsp;420</button>
+        <button class="btn keep">Keep it</button>
+      </div>
+    </div>
+    <div class="caption">Replaces the grey system dialog with <b>Philoi-brand text on the screen</b> — the ask sits over the dimmed item, ember-orange amount, clean Sell / Keep.</div>
+  </div>
+
+  <!-- ───────────── Frame 2 · Sell reward (ember loop → balance) ───────────── -->
+  <div class="col">
+    <div class="phone">
+      <div class="tag">FRAME 2 · REWARD LOOP</div>
+      <div class="status"><span>3:56</span><span class="r">📶 🔋</span></div>
+      <div class="topbar">
+        <div class="back">‹</div>
+        <div class="balance" id="bal"><span class="fire">🔥</span><span id="balNum">9,081,519</span></div>
+      </div>
+
+      <div class="reward">
+        <!-- the item, which dissolves into smoke as the embers lift off it -->
+        <div class="rwStage">
+          <div class="dissolve" id="dissolveItem">
+            <div class="disc dim">
+              <div class="flame"><div class="outer"></div><div class="inner"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rwCenter" id="rwCenter">
+          <div class="rwPlus"><span class="fire">🔥</span><span>+420</span></div>
+          <div class="rwLabel">Sold Solar Flare</div>
+        </div>
+        <div class="rwDone">Done</div>
+      </div>
+
+      <div class="smoke-fx" id="smoke"></div>
+      <div class="ember-fx" id="fx"></div>
+    </div>
+    <div class="caption">On sell, <b>embers drift up to the top-right balance</b> — the same ember loop we scoped — and the balance ticks <b>+420</b> as they land. <span class="replay" onclick="playLoop()">↻ replay</span></div>
+  </div>
+
+<script>
+  const START = 9081519, GAIN = 420;
+  const fx = document.getElementById('fx');
+  const bal = document.getElementById('bal');
+  const balNum = document.getElementById('balNum');
+
+  const smoke = document.getElementById('smoke');
+  const dissolveItem = document.getElementById('dissolveItem');
+  const rwCenter = document.getElementById('rwCenter');
+  // balance pill center (top-right) as the drift target, relative to the phone
+  const TARGET = {x: 300, y: 78};   // approx center of the balance pill
+  const ORIGIN = {x: 195, y: 226};  // the item — embers lift OFF it as it dissolves
+
+  function fmt(n){return n.toLocaleString('en-US')}
+
+  function spawnSpark(i, total){
+    const s = document.createElement('div');
+    s.className = 'spark';
+    // start near origin with slight scatter
+    const sx = ORIGIN.x + (Math.random()*60-30);
+    const sy = ORIGIN.y + (Math.random()*30-15);
+    s.style.left = sx+'px'; s.style.top = sy+'px';
+    // rise a little first (x1,y1), then curve into the balance pill (x2,y2)
+    s.style.setProperty('--x1', (Math.random()*40-20)+'px');
+    s.style.setProperty('--y1', (-40-Math.random()*40)+'px');
+    s.style.setProperty('--x2', (TARGET.x - sx)+'px');
+    s.style.setProperty('--y2', (TARGET.y - sy)+'px');
+    const dur = 1100 + Math.random()*500;
+    s.style.animation = `drift ${dur}ms cubic-bezier(.45,.05,.35,1) forwards`;
+    s.style.animationDelay = (i * (700/total))+'ms';
+    fx.appendChild(s);
+    setTimeout(()=>s.remove(), dur + i*(700/total) + 100);
+  }
+
+  function tickBalance(){
+    // count up as embers land
+    const dur = 1200, t0 = performance.now();
+    function step(t){
+      const p = Math.min(1,(t-t0)/dur);
+      const eased = 1-Math.pow(1-p,2);
+      balNum.textContent = fmt(START + Math.round(GAIN*eased));
+      if(p<1) requestAnimationFrame(step);
+      else { bal.classList.add('pulse'); setTimeout(()=>bal.classList.remove('pulse'),500); }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function spawnPuff(i, total){
+    const p = document.createElement('div');
+    p.className = 'puff';
+    const sz = 34 + Math.random()*40;
+    const sx = ORIGIN.x + (Math.random()*70-35);
+    const sy = ORIGIN.y + (Math.random()*30-15);
+    p.style.width = sz+'px'; p.style.height = sz+'px';
+    p.style.left = (sx - sz/2)+'px'; p.style.top = (sy - sz/2)+'px';
+    p.style.setProperty('--sx', (Math.random()*50-25)+'px');
+    p.style.setProperty('--sy', (-80-Math.random()*90)+'px');   // smoke rises
+    const dur = 1400 + Math.random()*700;
+    p.style.animation = `puffUp ${dur}ms ease-out forwards`;
+    p.style.animationDelay = (i*(500/total))+'ms';
+    smoke.appendChild(p);
+    setTimeout(()=>p.remove(), dur + i*(500/total) + 100);
+  }
+
+  function playLoop(){
+    balNum.textContent = fmt(START);
+    fx.innerHTML=''; smoke.innerHTML='';
+    // 1. the item dissolves
+    dissolveItem.classList.remove('go'); void dissolveItem.offsetWidth; dissolveItem.classList.add('go');
+    // 2. smoke curls off it
+    const P = 9; for(let i=0;i<P;i++) spawnPuff(i,P);
+    // 3. embers lift off it toward the balance
+    const N = 14; for(let i=0;i<N;i++) spawnSpark(i,N);
+    // 4. the payout resolves under it, balance ticks as embers land
+    rwCenter.style.opacity = 0;
+    setTimeout(()=>{ rwCenter.style.transition='opacity .5s ease'; rwCenter.style.opacity = 1; }, 700);
+    setTimeout(tickBalance, 650);
+  }
+
+  window.addEventListener('load', ()=>{ setTimeout(playLoop, 500); });
+  setInterval(playLoop, 4200); // loop the demo
+</script>
+</body>
+</html>

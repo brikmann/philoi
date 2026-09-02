@@ -12,6 +12,7 @@ import { SocialChallengeCard } from '@/components/social-challenge-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
+import { ScreenBackground } from '@/components/ui/screen-background';
 import { TabHeader } from '@/components/ui/tab-header';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -19,7 +20,7 @@ import { useMyChallenges } from '@/hooks/use-my-challenges';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { deleteChallenge, type GoalDayAward } from '@/lib/api/challenges';
-import { shiftGoalReveal, useNextGoalReveal } from '@/lib/goal-reveal-queue';
+import { useNextGoalReveal } from '@/lib/goal-reveal-queue';
 import { shareCardImage } from '@/lib/share-card';
 import type { Challenge, SocialChallenge } from '@/types/database';
 
@@ -98,7 +99,11 @@ export default function ChallengesScreen() {
   const { session, profile } = useAuth();
   const { challenges, loading, error, refetch } = useMyChallenges();
   // Payouts that landed without a tap — a device sync finishing a goal here or on the create screen.
-  const autoCompletion = useNextGoalReveal();
+  // Still READ, never drawn here any more. GoalRevealWatcher (root layout) owns the queue now, so
+  // a goal the device finished celebrates wherever the user is standing rather than waiting for
+  // this tab. What the tab still needs from it is the knowledge that a payout is on screen SOMEWHERE
+  // — its own manual-log reveal must not open underneath the global one.
+  const queuedElsewhere = useNextGoalReveal() !== null;
   const { challenges: socialChallenges, loading: socialLoading, refetch: refetchSocial } = useSocialChallenges();
   const { connected: fitnessConnected } = useFitnessConnection();
   const [celebrating, setCelebrating] = useState(false);
@@ -153,21 +158,20 @@ export default function ChallengesScreen() {
     if (fireToken > 0) rewardBurstRef.current?.fire();
   }, [fireToken]);
 
-  // 🐛 A goal the DEVICE finished, not the user. useMyChallenges syncs Health Connect / Strava /
-  // Whoop on every focus of this tab, and a sync that fills the last of a 10k-step goal completes
-  // it and banks embers — but it goes nowhere near ChallengeCard, so `handleLogged` never ran and
-  // the payout was invisible. Same screen, same reward component, just the other way in.
+  // ONE OWNER PER PAYOUT (§A). A goal the DEVICE finished used to be drawn here too, off the same
+  // queue — that was this tab covering for the fact that nothing else could. Now the root layout's
+  // GoalRevealWatcher draws every queued payout from wherever the user is, and this tab draws only
+  // the one kind it is uniquely placed to: a goal the user finished by tapping a card in front of
+  // them, which arrives through `onLogged` and never touches the queue at all.
   //
-  // DERIVED, not copied into `goalAward` by an effect. Mirroring the store into local state would
-  // give the same payout two owners that have to be kept in step, and the effect that did the
-  // copying would fire a cascading render on every focus. A manual log still wins the slot while its
-  // reveal is up; the queue holds anything that lands behind it.
-  const activeAward =
-    goalAward ?? (autoCompletion ? { award: autoCompletion.award, goalLabel: autoCompletion.goalLabel } : null);
-  /** Close the reveal by retiring whichever source produced it. */
+  // Suppressed while the global reveal holds the floor, so a manual log that lands in the same beat
+  // as a queued one does not open a second screen under the first. The card's own callback is
+  // synchronous with the tap, so this is a narrow window — but it is exactly the window a user who
+  // taps Log while a sync is resolving lands in.
+  const activeAward = queuedElsewhere ? null : goalAward;
+  /** Close the reveal. Only the manual path reaches this now; the queue is retired by the watcher. */
   function dismissAward() {
-    if (goalAward) setGoalAward(null);
-    else shiftGoalReveal();
+    setGoalAward(null);
   }
 
   function handleLogged(justCompleted: boolean, award: GoalDayAward | null, goalLabel: string) {
@@ -275,7 +279,17 @@ export default function ChallengesScreen() {
           a route would put it in the back stack for them to swipe back into afterwards. */}
       {activeAward ? (
         <View style={styles.rewardOverlay}>
-          <Screen backgroundColor={Colors.forgeBg} padded={false}>
+          {/* Brand purple radial behind the reveal (not the near-black forgeBg), so the rays sit on
+              the Philoi background the rest of the app uses. */}
+          <ScreenBackground>
+          {/* 🐛 A PLAIN VIEW, NOT A SECOND <Screen>. `Screen` wraps its children in a SafeAreaView,
+              and react-native-safe-area-context does not subtract what an ancestor already
+              consumed — so this path was applying the status-bar inset TWICE: once on the tab's own
+              <Screen>, whose container this overlay absolutely fills, and again here. The reveal's
+              top bar started a whole status bar lower than it does when the same screen is
+              presented by GoalRevealWatcher, which has one. The keyboard avoidance Screen also
+              brings is dead weight on a reveal with no inputs. */}
+          <View style={styles.rewardScreen}>
             <GoalStreakRewardScreen
               // Keyed by the goal, so a second payout queued behind the first gets a fresh mount —
               // otherwise it reuses this instance and the burst's one-per-mount effect never fires
@@ -283,7 +297,6 @@ export default function ChallengesScreen() {
               key={`${activeAward.goalLabel}-${activeAward.award.streak}`}
               award={activeAward.award}
               goalLabel={activeAward.goalLabel}
-              displayName={profile?.display_name ?? 'you'}
               onShare={handleShareGoalStreak}
               sharing={sharingGoal}
               onClose={dismissAward}
@@ -298,7 +311,8 @@ export default function ChallengesScreen() {
                 handle={profile?.handle ?? null}
               />
             </View>
-          </Screen>
+          </View>
+          </ScreenBackground>
         </View>
       ) : null}
       {showEmpty ? (
@@ -458,6 +472,9 @@ const styles = StyleSheet.create({
   },
   // Covers the tab while the payout is up. Matches the rank-up watcher: the moment fires from
   // wherever the user was, so it takes the screen rather than becoming a route to swipe back into.
+  rewardScreen: {
+    flex: 1,
+  },
   rewardOverlay: {
     position: "absolute",
     top: 0,

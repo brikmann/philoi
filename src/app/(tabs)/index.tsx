@@ -21,7 +21,7 @@ import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
 import { FireShareCard } from '@/components/fire-share-card';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { SeasonPill } from '@/components/home-chrome';
-import { CampfireBadge } from '@/components/campfire-badge';
+import { HeatFlame } from '@/components/heat-flame';
 import { DrawerButton } from '@/components/nav/app-drawer';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { HomeXpBar } from '@/components/home-xp-bar';
@@ -349,7 +349,20 @@ function layoutValleyNodes<T>(items: T[], idOf: (t: T) => string, stateOf: (t: T
 }
 
 // design-mocks/04's sizeFor(): roaring reads big/foreground, steady medium, cold/dead small.
-const SIZE_FOR_STATE: Record<CampfireFlameState, number> = { roar: 56, steady: 42, dead: 32 };
+//
+// Bigger than the badge sizes these replaced (56/42/32), because a badge FILLS its box and the
+// hearth does not: HeatFlame draws into a 120-unit scene where the coal bed spans x=45..89 and the
+// tallest lick tops out at y=28, so roughly 45% of the box width and 70% of its height carry any
+// art at all. At 56px the fire came out ~25px wide — a smudge. These are picked so the bed reads
+// at about the diameter the badge frame used to occupy.
+const SIZE_FOR_STATE: Record<CampfireFlameState, number> = { roar: 88, steady: 68, dead: 52 };
+
+// The hearth's own bounds inside HeatFlame's 120-unit scene, as fractions of `size`. The box is
+// square but the fire is not: everything below the coal bed's lower edge (y=111) and above the
+// tallest roaring lick (y=28) is empty, and laying the node out against the full square would
+// hang the campfire's name a third of a box below its fire.
+const HEARTH_BOTTOM = 111 / 120;
+const HEARTH_BOX = 0.82;
 
 // No live heat/activity data exists for circles you haven't joined (lock_in_sessions' RLS
 // scopes visibility to circle-mates only) — member_count is the honest proxy for discovery
@@ -360,16 +373,58 @@ function stateForMemberCount(count: number): CampfireFlameState {
   return 'dead';
 }
 
-// The nodes carry the campfire's EMOJI now, not just a flame (mock 168). Every node on this map
-// used to be the same coal-bed gauge at one of three sizes, so a valley of your own campfires was
-// six identical fires distinguishable only by the label underneath — the one thing that actually
-// says WHICH campfire (the emoji its creator picked) was the thing the map dropped. <CampfireBadge>
-// carries both: emoji in the frame, activity as the aura around it.
+// THE NODE IS THE CAMPFIRE, AND THE EMOJI IS ITS NAME TAG (#186).
 //
-// PHILOI_UI_SPEC.md §10's performance rule ("fully animate only the few roaring fires") still
-// holds and the badge honours it by construction: roaring pulses fast and wide, steady slow and
-// tight, cold runs no animation at all.
+// This map has swung between two wrong answers. It drew a bare <HeatFlame> and nothing else, so
+// six of your own campfires were six identical fires told apart only by the label underneath;
+// mock 168 answered that with <CampfireBadge>, which centres the creator's EMOJI in a lit frame
+// and carries heat as an aura around it. That fixed identity and lost the campfire: at cold heat
+// the aura is null by design, so a quiet fire rendered as an emoji in a box — Noah's report, in
+// one line: "it just shows the icons as emojis and not the actual campfire mock we scoped… the
+// icon + emoji should only be an internal identifier."
+//
+// So the centrepiece goes back to the scoped hearth — mock 110's `.coals`, mock 112's `.coals`,
+// the same <HeatFlame> the campfire header and the home carousel wear — and the emoji comes along
+// as a CHIP pinned to the bed. Identity without taking the middle.
+//
+// NOT <CampfireFlameStage>, which the prompt for this pass named: that component is retired (its
+// own header says so). It animates the BRAND SILHOUETTE at three opacities, which is exactly what
+// the coal-bed gauge was built to replace — a campfire that has gone cold has to look like dead
+// coals, not like the app's logo dimmed. Only its `heatToFlameState` / CampfireFlameState survive,
+// and only for node SIZING, which is the question they still answer.
+//
+// PHILOI_UI_SPEC.md §10's performance rule ("fully animate only the few roaring fires") is honoured
+// by HeatFlame itself: roaring throws sparks, simmering just glows, cold runs three drifting puffs
+// and no licks at all — and below 70px it drops the two blur-softened outer licks, which is why the
+// dead/steady sizes above stay under that line.
 const HEAT_FOR_STATE: Record<CampfireFlameState, number> = { roar: 1, steady: 0.35, dead: 0 };
+
+/**
+ * One valley node's art: the campfire itself, with its owner's emoji as a corner identifier.
+ *
+ * The chip is anchored to the BED rather than to the box corner. HeatFlame's upper third is empty
+ * for everything but a roaring fire, so a true top-right chip would float in dead space with
+ * nothing to belong to; sitting it on the coals' right shoulder reads as a tag ON the fire.
+ */
+function ValleyCampfireArt({ emoji, heat, size }: { emoji: string; heat: number; size: number }) {
+  const chip = Math.max(15, Math.round(size * 0.3));
+  return (
+    <View style={{ width: size, height: size * HEARTH_BOX }}>
+      {/* Pulled down so the coal bed's lower edge lands on the box's, which is what puts the
+          campfire's name directly under its fire instead of a third of a box below it. */}
+      <View style={{ position: 'absolute', left: 0, bottom: -(HEARTH_BOTTOM - HEARTH_BOX) * size }}>
+        <HeatFlame heat={heat} size={size} />
+      </View>
+      <View
+        style={[
+          styles.nodeEmojiChip,
+          { width: chip, height: chip, borderRadius: chip / 2, right: -chip * 0.12, bottom: 0 },
+        ]}>
+        <Text style={{ fontSize: chip * 0.58 }}>{emoji}</Text>
+      </View>
+    </View>
+  );
+}
 
 function ValleyNode({
   id,
@@ -421,7 +476,7 @@ function ValleyNode({
       pointerEvents={dimmed ? 'none' : 'auto'}
       key={id}>
       <Pressable onPress={onPress} style={styles.nodeTouch}>
-        <CampfireBadge emoji={emoji} heat={heat} size={SIZE_FOR_STATE[state]} />
+        <ValleyCampfireArt emoji={emoji} heat={heat} size={SIZE_FOR_STATE[state]} />
         <View style={styles.nodeLabelRow}>
           {gated && <Ionicons name="lock-closed" size={9} color={Colors.textTertiary} style={styles.nodeLockIcon} />}
           <Text style={styles.nodeLabel} numberOfLines={1}>
@@ -889,6 +944,16 @@ const styles = StyleSheet.create({
   },
   nodeTouch: {
     alignItems: 'center',
+  },
+  // The emoji, demoted to an identifier (#186). A disc rather than a bare glyph so it reads as a
+  // tag pinned to the fire and keeps its legibility over the bed's own bright coals.
+  nodeEmojiChip: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.twilight900,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
   },
   nodeLabelRow: {
     flexDirection: 'row',

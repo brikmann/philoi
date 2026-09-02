@@ -546,9 +546,14 @@ function Glow({ size, colour, peak, stretch = 1 }: { size: number; colour: strin
 // if a frame is ever painted before Reanimated has applied anything, it paints nothing at all
 // rather than a full-strength glow sitting still.
 
+/** EXPORTED FOR THE CAMPFIRE BANNER (R2). The banner is asked to move "like the flares", and the
+ *  honest way to do that is to run it off the flares' own drivers rather than a second, subtly
+ *  different set — `usePhasedLoop`, `spread` and EASE_SINE below are the three primitives
+ *  campfire-banner-art.tsx imports. Nothing about this file's own behaviour changes; they were
+ *  already module-private helpers and are now module-public ones. */
 /** Hoisted so the effects below have stable deps — `Easing.inOut(Easing.sin)` allocates a new
  *  function on every call, which would re-run the loop on every render. */
-const EASE_SINE = Easing.inOut(Easing.sin);
+export const EASE_SINE = Easing.inOut(Easing.sin);
 const EASE_QUAD = Easing.inOut(Easing.quad);
 /** Embers fall at roughly terminal velocity — they do not accelerate the way a water drop does,
  *  which is why the rain used to read as droplets rather than as fire. */
@@ -564,7 +569,7 @@ const EASE_LINEAR = Easing.linear;
  * `withRepeat(..., true)` on its own would ping-pong between the seeded phase and 1 forever
  * instead of between 0 and 1, quietly halving the travel of every particle it touched.
  */
-function usePhasedLoop(phase: number, duration: number, easing: EasingFunction, pingPong: boolean) {
+export function usePhasedLoop(phase: number, duration: number, easing: EasingFunction, pingPong: boolean) {
   const t = useSharedValue(phase);
 
   useEffect(() => {
@@ -588,7 +593,7 @@ function usePhasedLoop(phase: number, duration: number, easing: EasingFunction, 
 /** Deterministic 0..1 spread for particle `i` — phases, sizes and lane offsets all pull from this
  *  rather than from Math.random(), so a re-render can never reshuffle the weather mid-session. The
  *  golden ratio is what keeps successive values far apart instead of clustering. */
-function spread(i: number, offset = 0): number {
+export function spread(i: number, offset = 0): number {
   return ((i + 1) * 0.6180339887 + offset) % 1;
 }
 

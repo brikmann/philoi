@@ -19,8 +19,8 @@ import {
   isPlacement,
   metricLabel,
 } from '@/lib/challenge-metric';
-import { duelOutcome, isFinished, isSettled, type ChallengeVerdict } from '@/lib/challenge-outcome';
-import { formatTimeLeft } from '@/lib/format';
+import { challengeClockText, duelOutcome, isFinished, isSettled, type ChallengeVerdict } from '@/lib/challenge-outcome';
+import { rewardChips, type RewardChip } from '@/lib/challenge-reward-summary';
 import type { SocialChallenge } from '@/types/database';
 
 type SocialChallengeCardProps = {
@@ -97,6 +97,10 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
   // nothing until 0112 started selecting it.
   const title = challengeTitle(c);
   const finished = isFinished(c.status);
+  // §3 — the receipt, from the server's stored payload. Computed once here rather than in each of
+  // the three finished branches, so a shape cannot quietly be left out of the payout row the way
+  // the collective and placement branches were left out of the verdict row before ResultFooter.
+  const rewards = finished ? rewardChips(c.my_awarded_xp, c.my_reward_payload) : [];
   const manageSheet = manageOpen ? (
     <ChallengeManageSheet
       challenge={c}
@@ -194,7 +198,10 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
           </View>
           <View style={styles.labelLeft}>
             {c.status === 'active' && <View style={styles.livePulse} />}
-            <Text style={styles.clock}>{finished ? 'finished' : formatTimeLeft(c.ends_at)}</Text>
+            {/* §2/§6 — one derivation of the clock line. "finished" was at least past tense, but
+                it says nothing about a race whose result is known; challengeClockText prefers the
+                verdict and only counts down while it is genuinely undecided. */}
+            <Text style={styles.clock}>{challengeClockText(c.status, c.ends_at, o.verdict)}</Text>
             <ManageKebab visible onPress={() => setManageOpen(true)} />
           </View>
         </View>
@@ -267,9 +274,14 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
         {finished && (
           <ResultFooter
             verdict={o.verdict}
-            text={o.verdict === 'won' ? `You won +${c.payout_xp} XP` : o.verdictText}
+            // The verdict alone. The XP used to be spliced in here from `payout_xp` — the pot
+            // ADVERTISED at creation, not the figure the ledger moved — and it only appeared on a
+            // win, so a draw (which 0122 pays both sides for) showed no payout at all. The chips
+            // below carry the real numbers, for every outcome.
+            text={o.verdictText}
             actionLabel="Rematch"
             onAction={otherId ? handleRematch : undefined}
+            rewards={rewards}
           />
         )}
         {/* The old unilateral "Leave challenge" link is gone — ending a race the other person is
@@ -301,7 +313,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
           </View>
           <View style={styles.labelLeft}>
             {c.status === 'active' && <View style={styles.livePulse} />}
-            <Text style={styles.clock}>{finished ? 'finished' : formatTimeLeft(c.ends_at)}</Text>
+            <Text style={styles.clock}>{challengeClockText(c.status, c.ends_at)}</Text>
             <ManageKebab visible onPress={() => setManageOpen(true)} />
           </View>
         </View>
@@ -339,6 +351,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
             text={placementText(c.my_final_rank, field, c.status)}
             actionLabel="Run it again"
             onAction={c.circle_id ? handleRunAgain : undefined}
+            rewards={rewards}
           />
         )}
 
@@ -370,13 +383,11 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
         <View style={styles.labelLeft}>
           {c.status === 'active' && <View style={styles.livePulse} />}
           <Text style={awaitingAnswers ? styles.pendingClock : styles.clock}>
-            {finished
-              ? 'finished'
-              : awaitingAnswers
-                ? c.invited_count > 0
-                  ? `waiting on ${c.invited_count}`
-                  : 'not started yet'
-                : formatTimeLeft(c.ends_at)}
+            {awaitingAnswers && !finished
+              ? c.invited_count > 0
+                ? `waiting on ${c.invited_count}`
+                : 'not started yet'
+              : challengeClockText(c.status, c.ends_at)}
           </Text>
           <ManageKebab visible onPress={() => setManageOpen(true)} />
         </View>
@@ -384,19 +395,45 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
 
       <Text style={styles.title}>{title}</Text>
 
+      {/* R5 — THE COUNTS SAID TWO DIFFERENT THINGS AT ONCE.
+          This row is a COMPLETION count: `completed_count / member_count`, where member_count is
+          challenge_field(), which is "participants in state = accepted". On a race that has not
+          started, nobody can have completed anything, so it read "0 / 0 done" — and then "0 / 1
+          done" the moment one person accepted, because the denominator is the accepted count and
+          was moving for a reason that has nothing to do with anyone finishing. Sat next to
+          "waiting on 2" in the clock, that is three numbers describing two different quantities
+          and no way to tell which is which. Exactly the recording's confusion.
+          Before the gun it is an ENROLMENT count and says so; after it, the completion count it
+          always was. (The reason the field itself was one short — the creator never got a
+          participant row — is create_group_challenge, fixed in 0147.) */}
       <View style={styles.groupCountRow}>
-        <Text style={styles.groupCount}>
-          <Text style={[styles.groupCountBig, everyoneDone && { color: Colors.green }]}>{completedCount}</Text>
-          <Text style={styles.groupCountMuted}> / {memberCount} done</Text>
-        </Text>
-        {everyoneDone && <Text style={styles.groupDoneTag}>Everyone finished 🎉</Text>}
+        {awaitingAnswers ? (
+          <Text style={styles.groupCount}>
+            <Text style={styles.groupCountBig}>{memberCount}</Text>
+            <Text style={styles.groupCountMuted}>
+              {' '}
+              in{c.invited_count > 0 ? ` · ${c.invited_count} yet to answer` : ' · ready to start'}
+            </Text>
+          </Text>
+        ) : (
+          <Text style={styles.groupCount}>
+            <Text style={[styles.groupCountBig, everyoneDone && { color: Colors.green }]}>{completedCount}</Text>
+            <Text style={styles.groupCountMuted}> / {memberCount} done</Text>
+          </Text>
+        )}
+        {everyoneDone && !awaitingAnswers && <Text style={styles.groupDoneTag}>Everyone finished 🎉</Text>}
       </View>
 
-      <View style={styles.segRow}>
-        {segments.map((on, i) => (
-          <View key={i} style={[styles.seg, on && styles.segOn]} />
-        ))}
-      </View>
+      {/* Same reasoning as the row above: `segments` is one pip per accepted member, filled when
+          they finish. Before the gun that is a row of empty pips that cannot fill, sized by how
+          many people have accepted so far — it looked like progress stuck at zero. */}
+      {!awaitingAnswers && (
+        <View style={styles.segRow}>
+          {segments.map((on, i) => (
+            <View key={i} style={[styles.seg, on && styles.segOn]} />
+          ))}
+        </View>
+      )}
 
       <View style={styles.footRow}>
         <Ionicons name="trophy" size={12} color={Colors.achieverText} />
@@ -425,6 +462,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
           }
           actionLabel="Run it again"
           onAction={c.circle_id ? handleRunAgain : undefined}
+          rewards={rewards}
         />
       )}
 
@@ -447,31 +485,62 @@ function ResultFooter({
   text,
   actionLabel,
   onAction,
+  rewards,
 }: {
   verdict: ChallengeVerdict;
   text: string;
   actionLabel: string;
   onAction?: () => void;
+  /** What the settlement actually paid this viewer (§3). Empty on a live race, on a shape that
+   *  paid nothing, and on a result whose payload predates the receipt being captured. */
+  rewards?: RewardChip[];
 }) {
   return (
-    <View style={styles.resultRow}>
-      <Text
-        style={[
-          styles.resultText,
-          verdict === 'draw' ? styles.resultTied : verdict === 'won' ? styles.resultWon : styles.resultLost,
-        ]}
-        numberOfLines={1}>
-        {text}
-      </Text>
-      {onAction ? (
-        <Pressable style={styles.rematchBtn} onPress={onAction} accessibilityRole="button">
-          <Ionicons name="refresh" size={12} color={Colors.achieverText} />
-          <Text style={styles.rematchText}>{actionLabel}</Text>
-        </Pressable>
+    <View style={styles.resultBlock}>
+      <View style={styles.resultRow}>
+        <Text
+          style={[
+            styles.resultText,
+            verdict === 'draw' ? styles.resultTied : verdict === 'won' ? styles.resultWon : styles.resultLost,
+          ]}
+          numberOfLines={1}>
+          {text}
+        </Text>
+        {onAction ? (
+          <Pressable style={styles.rematchBtn} onPress={onAction} accessibilityRole="button">
+            <Ionicons name="refresh" size={12} color={Colors.achieverText} />
+            <Text style={styles.rematchText}>{actionLabel}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {/* 🔴 §3 — THE REWARDS OUTLIVE THE ANIMATION. Until now the embers and the box existed on
+          exactly one screen, for exactly one viewing: the reveal, which fires once and is then
+          stamped seen forever. What you earned is the most durable fact about a finished race and
+          it was the least durable thing on it. Rendered from grant_reward's stored receipt, not
+          re-derived — see lib/challenge-reward-summary.ts. */}
+      {rewards && rewards.length > 0 ? (
+        <View style={styles.rewardRow}>
+          {rewards.map((chip) => (
+            <View key={chip.kind} style={styles.rewardChip}>
+              <Ionicons name={REWARD_ICON[chip.kind]} size={11} color={Colors.amber} />
+              <Text style={styles.rewardChipText} numberOfLines={1}>
+                {chip.text}
+              </Text>
+            </View>
+          ))}
+        </View>
       ) : null}
     </View>
   );
 }
+
+const REWARD_ICON: Record<RewardChip['kind'], keyof typeof Ionicons.glyphMap> = {
+  xp: 'flash',
+  embers: 'flame',
+  box: 'cube',
+  badge: 'ribbon',
+};
 
 /** Top third of the field reads as a win, bottom third as a loss, the middle as neither. Purely a
  *  colour choice — the reward that was actually paid scales continuously with the percentile. */
@@ -855,15 +924,39 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: Colors.achieverText,
   },
+  // The divider moved up to the block when the payout chips were added (§3) — leaving it on the
+  // verdict row would have drawn a rule between the verdict and its own rewards.
+  resultBlock: {
+    marginTop: Spacing.two,
+    paddingTop: Spacing.two,
+    borderTopWidth: 1,
+    borderTopColor: Colors.line,
+    gap: Spacing.two,
+  },
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.two,
-    marginTop: Spacing.two,
-    paddingTop: Spacing.two,
-    borderTopWidth: 1,
-    borderTopColor: Colors.line,
+  },
+  rewardRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  rewardChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.achieverBg,
+    borderRadius: Radius.pill,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  rewardChipText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.amber,
   },
   resultText: {
     flexShrink: 1,

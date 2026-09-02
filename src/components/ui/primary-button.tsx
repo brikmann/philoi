@@ -39,6 +39,18 @@ type PrimaryButtonProps = {
   variant?: 'primary' | 'cold' | 'ghost';
   /** Slow breathing glow. Use on the ONE main action of a screen, never several at once. */
   pulse?: boolean;
+  /**
+   * Row-sized rather than slab-sized, for a CTA that lives INSIDE something — the claim in the
+   * reward reveal's ember row.
+   *
+   * A size, not a second button. The reveal's claim was drawn with EmberFill and it read as
+   * off-brand for a reason that is easy to miss: EmberFill defaults to a HORIZONTAL ramp and a
+   * `Radius.pill` corner, while every primary CTA in the app is the same two stops at 135° with
+   * `Radius.button`. Same colours, different treatment — which is exactly the drift a shared
+   * primitive exists to stop. Routing that button back through this component means it cannot
+   * drift again.
+   */
+  compact?: boolean;
 };
 
 export function PrimaryButton({
@@ -48,6 +60,7 @@ export function PrimaryButton({
   loading,
   variant = 'primary',
   pulse = false,
+  compact = false,
 }: PrimaryButtonProps) {
   // Gradient ids are global in react-native-svg — a shared literal renders every button after the
   // first as blank on Android.
@@ -90,6 +103,7 @@ export function PrimaryButton({
       accessibilityState={{ disabled: Boolean(isDisabled), busy: Boolean(loading) }}
       style={({ pressed }) => [
         styles.button,
+        compact && styles.buttonCompact,
         isCold && styles.buttonCold,
         isGhost && styles.buttonGhost,
         isDisabled && styles.disabled,
@@ -117,8 +131,10 @@ export function PrimaryButton({
         <ActivityIndicator color={isCold ? Colors.coldButtonText : isGhost ? Colors.muted : Colors.onEmber} />
       ) : (
         <Text
+          numberOfLines={1}
           style={[
             styles.label,
+            compact && styles.labelCompact,
             isCold && styles.labelCold,
             isGhost && styles.labelGhost,
             isDisabled && !isCold && !isGhost && styles.labelDisabled,
@@ -133,6 +149,17 @@ export function PrimaryButton({
 }
 
 const styles = StyleSheet.create({
+  buttonCompact: {
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    // No shadow at this size: an ember glow under a 34pt button inside a card reads as a smudge
+    // rather than as lift.
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  labelCompact: {
+    fontSize: 13.5,
+  },
   button: {
     // Base fill under the SVG — see the note at the render site.
     backgroundColor: Colors.coral,

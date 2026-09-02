@@ -754,9 +754,21 @@ export type Message = {
   id: string;
   group_id: string;
   user_id: string;
-  body: string;
+  /** Null when the message is a bare attachment — posting a photo with no caption is the normal
+   *  case, so migration 0158 stopped requiring text. */
+  body: string | null;
   created_at: string;
   deleted_at: string | null;
+  // ── attachments (migration 0158) ──
+  // Three nullable columns rather than a child table: a chat message carries at most ONE thing,
+  // unlike an Agora post which carries up to one of each kind. The legal combinations are enforced
+  // by the messages_attachment_shape CHECK, not by this type.
+  /** 'photo' | 'lockin' | null. */
+  attach_kind: string | null;
+  /** Storage key in the campfire-photos bucket. Photo only; always starts with the author's id. */
+  attach_path: string | null;
+  /** A check_ins.id being re-posted into the chat. Lock-in only. */
+  attach_ref_id: string | null;
 };
 
 export type AnalyticsEventName =
@@ -861,6 +873,9 @@ export type AnalyticsEventName =
   // removes one that never got going. Conflating them would hide how many challenges are being
   // set up and then abandoned before anyone accepts.
   | 'challenge_deleted'
+  // The campfire chat's + menu (mock 101). No target user id — who was nudged is not analytics'
+  // business, only that the affordance is used.
+  | 'campfire_member_pinged'
   // The reward reveal (0116). The pair is the funnel that matters: `seen` counts settled races
   // where the payout was actually announced, `shared` how many of those were worth advertising.
   // A gap between them and the standings-block Share is doing nothing.
@@ -1126,7 +1141,15 @@ export type ChallengeType =
   | 'workout_minutes'
   | 'strain'
   | 'sleep_hours';
-export type ChallengePeriod = 'day' | 'week';
+/**
+ * A goal's cadence.
+ *
+ * 'once' (0155) is a SINGLE non-recurring target — "run a half marathon", "1000 push-ups". It has
+ * one window, opened at creation and never closed: roll_over_challenges enumerates 'day' and
+ * 'week' positively, so a one-time goal is never rolled, never archived and never zeroed, and once
+ * it completes it stays completed.
+ */
+export type ChallengePeriod = 'day' | 'week' | 'once';
 export type ChallengeVisibility = 'circle' | 'private';
 
 // An individual goal. NOT bound to a campfire (migration 0059) — a goal is the user's own, and
@@ -1149,6 +1172,15 @@ export type Challenge = {
   visibility: ChallengeVisibility;
   period_start: string;
   completed_at: string | null;
+  /**
+   * Set when this goal was collapsed as a duplicate of another reading the same source (0156).
+   *
+   * A retired goal is FROZEN, not merely hidden: a trigger holds its progress and completed_at at
+   * the values they had, so it accrues nothing from any feeder and can never complete — which is
+   * what stops a collapsed duplicate paying a second drip off the one effort it was collapsed for.
+   * fetchMyChallenges filters these out; nothing else should have to think about them.
+   */
+  retired_at: string | null;
   created_at: string;
 };
 
@@ -1252,6 +1284,19 @@ export type SocialChallenge = {
   my_final_rank: number | null;
   /** Stored top-is-1.0, matching every other standings writer. Invert for a "top N%" reading. */
   my_final_percentile: number | null;
+  /**
+   * WHAT THIS VIEWER WAS PAID (0154), so a settled challenge is a durable record and not only a
+   * one-shot reveal.
+   *
+   * The LEDGER's XP, not `payout_xp`. Those are different numbers: payout_xp is the pot advertised
+   * at creation, while a placement or collective finish is paid a fraction of it by band — so a
+   * card printing the pot would tell a 4th-place finisher they earned the winner's XP. 0 until the
+   * race settles.
+   */
+  my_awarded_xp: number;
+  /** grant_reward's own receipt, stored at settlement. Null while live, and on a challenge that
+   *  settled before its payload could be captured. */
+  my_reward_payload: ChallengeRewardPayload | null;
 };
 
 /** One row of get_challenge_results() (0111) — the settled standings, read rather than
@@ -1264,6 +1309,9 @@ export type ChallengeResultRow = {
   percentile: number | null;
   awarded_xp: number;
   is_winner: boolean;
+  /** What this racer's settlement paid beyond the XP — embers, a box, a badge (0154). Null on a
+   *  race that settled before the payload was captured, and on the completion band. */
+  reward: ChallengeRewardPayload | null;
 };
 
 /**
@@ -1625,7 +1673,9 @@ export type Database = {
       };
       messages: {
         Row: Message;
-        Insert: Partial<Message> & { group_id: string; user_id: string; body: string };
+        // `body` is no longer required: migration 0158 made it nullable so a photo can be posted
+        // with no caption. The two attachment columns come along through Partial<Message>.
+        Insert: Partial<Message> & { group_id: string; user_id: string };
         Update: never;
         Relationships: [
           {
@@ -2100,6 +2150,10 @@ export type Database = {
       // Handoff B — challenge v2 lifecycle (migration 0095). is_campfire_admin is A’s (0094).
       invite_challenge_members: { Args: { p_challenge: string; p_user_ids: string[] }; Returns: number };
       respond_to_challenge_invite: { Args: { p_challenge: string; p_accept: boolean }; Returns: undefined };
+      /** The + menu's silent nudge (mock 101, migration 0152). Returns nothing and posts nothing —
+       *  one notification to one member, with the copy fixed server-side so a ping can never
+       *  carry a message. Not notify_event, which clients cannot call. */
+      ping_campfire_member: { Args: { p_group_id: string; p_user_id: string }; Returns: undefined };
       start_challenge: { Args: { p_challenge: string }; Returns: undefined };
       is_campfire_admin: { Args: { p_group_id: string; p_user_id?: string }; Returns: boolean };
       get_my_notifications: { Args: { p_limit?: number }; Returns: NotificationEvent[] };

@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 // The reward-row language shared by mocks 47 and 103 (`.rw` / `.ri` / `.rlab` / `.rval`).
@@ -20,8 +22,12 @@ export type RewardRowSpec = {
   kind: RewardRowKind;
   /** Bold first line — "+235 Embers", "\"Firestarter\" badge". */
   title: string;
-  /** The quiet second line explaining where it came from. */
-  detail: string;
+  /**
+   * The quiet second line explaining where it came from. Optional — the daily reveal's ember row
+   * drops it entirely ("Daily goal · easy target" was a caption on a screen whose whole point is
+   * that it is one number and one button).
+   */
+  detail?: string;
   /** Right-aligned amount (mock 47's `.rval`), e.g. "+1,000". Omit for rows with a chip instead. */
   value?: string;
   /** Small pill after the title — "LEGENDARY", "EARNED". */
@@ -30,6 +36,18 @@ export type RewardRowSpec = {
   destination?: string;
   /** Renders the row as the openable box (mock 47's `.rw.box` with its Open button). */
   onOpen?: () => void;
+  /**
+   * The claim, INSIDE the row, in the slot `destination` would have used.
+   *
+   * The daily reveal is now a title and one row (see goal-streak-reward-screen), so its footer CTA
+   * is gone and the row itself has to carry the action. "→ wallet" was a label describing where the
+   * embers were going once you pressed something else; this is the something else, in the same
+   * place, saying the same thing as a verb.
+   *
+   * Takes precedence over `value` and `destination` — a row that can be claimed is a row whose
+   * right-hand side is the claim.
+   */
+  claim?: { label: string; onPress: () => void; disabled?: boolean };
 };
 
 const KIND_ICON: Record<RewardRowKind, { name: keyof typeof Ionicons.glyphMap; tint: string; bg: string }> = {
@@ -39,7 +57,9 @@ const KIND_ICON: Record<RewardRowKind, { name: keyof typeof Ionicons.glyphMap; t
   badge: { name: 'star', tint: Colors.green, bg: 'rgba(61,168,92,0.16)' },
 };
 
-export function RewardRow({ spec }: { spec: RewardRowSpec }) {
+// Memoised: `rows` is already a stable useMemo for the length of a flight, so this stops the
+// balance counter re-rendering rows that cannot have changed.
+export const RewardRow = memo(function RewardRow({ spec }: { spec: RewardRowSpec }) {
   const icon = KIND_ICON[spec.kind];
   const isBox = Boolean(spec.onOpen);
 
@@ -60,15 +80,32 @@ export function RewardRow({ spec }: { spec: RewardRowSpec }) {
             </View>
           ) : null}
         </View>
-        <Text style={styles.detail} numberOfLines={2}>
-          {spec.detail}
-        </Text>
+        {spec.detail ? (
+          <Text style={styles.detail} numberOfLines={2}>
+            {spec.detail}
+          </Text>
+        ) : null}
       </View>
 
       {spec.onOpen ? (
         <Pressable style={styles.openBtn} onPress={spec.onOpen} accessibilityRole="button">
           <Text style={styles.openBtnText}>Open</Text>
         </Pressable>
+      ) : spec.claim ? (
+        // 🎨 THE REAL PRIMARY BUTTON, at row size. This was drawn with EmberFill, which paints the
+        // same two ember stops but HORIZONTALLY and at a pill radius — while every other primary
+        // CTA in the app is those stops at 135° with Radius.button. Identical palette, visibly
+        // different object, which is what "isn't the ember UI the other buttons use" was. Now it is
+        // literally the same component, so its press state, its disabled state and its gradient can
+        // never drift from the rest again.
+        <View style={styles.claimSlot}>
+          <PrimaryButton
+            label={spec.claim.label}
+            onPress={spec.claim.onPress}
+            disabled={spec.claim.disabled}
+            compact
+          />
+        </View>
       ) : spec.value ? (
         <Text style={[styles.value, { color: icon.tint }]}>{spec.value}</Text>
       ) : spec.destination ? (
@@ -76,7 +113,7 @@ export function RewardRow({ spec }: { spec: RewardRowSpec }) {
       ) : null}
     </View>
   );
-}
+});
 
 /** The chip background is the chip's own colour at low alpha — one input, so a new rarity can't
  * arrive with a background that doesn't match its text. */
@@ -164,5 +201,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
     color: '#3A2410',
+  },
+  // The button sizes itself; this only stops the row's flex from squeezing it when the title runs
+  // long ("+1,000 Embers").
+  claimSlot: {
+    flexShrink: 0,
   },
 });

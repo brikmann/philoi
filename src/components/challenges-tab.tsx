@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Modal, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ChallengeAcceptRow } from '@/components/campfire/challenge-accept-row';
 import { ChallengeMemberTicker } from '@/components/challenge-member-ticker';
 import { SocialChallengeCard } from '@/components/social-challenge-card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -83,6 +84,23 @@ export function ChallengesTab({
     }
   }
 
+  // ONE DOOR TO CREATION, and it opens on the campfire you are standing in.
+  //
+  // `circleId` is the name the create screen reads; this tab had been sending `groupId`, which it
+  // ignored — so "Start a challenge" from inside a campfire opened on whatever campfire sorted
+  // first, with the shape defaulted to a duel. create.tsx now accepts either name, and this sends
+  // the one it was always documented to take.
+  //
+  // `shape: 'placement'` is #113's "set a race": the whole-campfire race is what an owner wants
+  // from this button — every member enrolled as the field, no invite round — so it is the tile the
+  // screen opens on rather than one the owner has to go looking for. They can still switch.
+  const startRace = useCallback(() => {
+    router.push({
+      pathname: '/challenge/create',
+      params: { circleId: groupId, mode: 'group', shape: 'placement' },
+    });
+  }, [router, groupId]);
+
   // Live races first, then anything awaiting a decision, then the rest. Sorting by lifecycle
   // rather than by date because "what needs me" is the question this tab answers.
   // Bands, not literals scattered about: 'active' is racing and (draft|pending) is awaiting a
@@ -96,7 +114,26 @@ export function ChallengesTab({
     <FlatList
       data={ordered}
       keyExtractor={(c) => c.id}
-      ListHeaderComponent={ListHeaderComponent}
+      ListHeaderComponent={
+        // 🐛 CREATION USED TO EXIST ONLY IN THE EMPTY STATE (#113). The moment a campfire had one
+        // challenge — settled, abandoned, anything — the "Start a challenge" button disappeared
+        // with the EmptyState that owned it, and there was no other entry point on this screen.
+        // An owner's second race was unreachable from the campfire; they had to go out to the
+        // top-level Challenges tab and pick the campfire back out of a list. That is the "is 'set
+        // a race' discoverable from the campfire for owners?" gap, and the answer was no.
+        //
+        // Admins only. Creation is admin-gated server-side either way (create_placement_challenge
+        // raises "Only campfire admins can start a placement race"), so this is about not offering
+        // an action that would be refused, not about enforcement.
+        <>
+          {ListHeaderComponent}
+          {isAdmin && ordered.length > 0 ? (
+            <View style={styles.headerCta}>
+              <PrimaryButton label="Set a race for the campfire" onPress={startRace} />
+            </View>
+          ) : null}
+        </>
+      }
       contentContainerStyle={[styles.content, { paddingBottom: bottomGap }]}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={Colors.coral} />}
       ListEmptyComponent={
@@ -114,10 +151,7 @@ export function ChallengesTab({
               // regardless; hiding it is about not offering an action that will be refused.
               isAdmin ? (
                 <View style={styles.emptyCta}>
-                  <PrimaryButton
-                    label="Start a challenge"
-                    onPress={() => router.push({ pathname: '/challenge/create', params: { groupId } })}
-                  />
+                  <PrimaryButton label="Set a race for the campfire" onPress={startRace} />
                 </View>
               ) : undefined
             }
@@ -148,23 +182,18 @@ export function ChallengesTab({
           ) : null}
 
           {/* The two v2 lifecycle actions that belong on the card. Everything else (edit, delete,
-              terms) lives in the manage sheet. */}
-          {item.status === 'pending' ? (
-            <View style={styles.actions}>
-              <Pressable
-                style={[styles.btn, styles.accept]}
-                disabled={busyId === item.id}
-                onPress={() => act(item.id, () => respondToChallengeInvite(item.id, true))}>
-                <Text style={styles.acceptText}>Accept</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.btn, styles.decline]}
-                disabled={busyId === item.id}
-                onPress={() => act(item.id, () => respondToChallengeInvite(item.id, false))}>
-                <Text style={styles.declineText}>Decline</Text>
-              </Pressable>
-            </View>
-          ) : null}
+              terms) lives in the manage sheet.
+
+              EXTRACTED to campfire/challenge-accept-row.tsx — mock 101 §7 surfaces challenges as
+              feed embeds as well as in this list, and "the R5 fixes apply there too" is only true
+              if both render the same component. The three faults it encodes (off-brand colours, a
+              gate on the challenge's status rather than the viewer's own invite, no accepted
+              state) are documented at its definition. */}
+          <ChallengeAcceptRow
+            challenge={item}
+            busy={busyId === item.id}
+            onRespond={(accept) => act(item.id, () => respondToChallengeInvite(item.id, accept))}
+          />
 
           {isAdmin && (item.status === 'pending' || item.status === 'draft') ? (
             <Pressable
@@ -248,21 +277,25 @@ function InviteSheet({
               groupId={challenge.circle_id}
               value={picked}
               onChange={setPicked}
+              // R5's sibling — "the owner cannot be invited to their own challenge". Excluding
+              // yourself from the ticker is CORRECT, but only once you are already in the field;
+              // with the creator enrolled by 0147 there is genuinely nobody to invite here, and
+              // offering to invite yourself to a race you are already in would be the bug.
               excludeUserIds={[myUserId]}
             />
           ) : null}
 
           {err ? <Text style={styles.error}>{err}</Text> : null}
 
-          <Pressable
-            style={[styles.btn, styles.accept, (busy || picked.length === 0) && styles.btnOff]}
+          {/* Was the same `styles.accept` pale-gold fill as the old Accept button, so it carried
+              R5's colour bug into the invite sheet too. One primary action on the sheet, one
+              PrimaryButton. */}
+          <PrimaryButton
+            label={busy ? 'Sending…' : picked.length === 0 ? 'Pick someone' : `Invite ${picked.length}`}
             disabled={busy || picked.length === 0}
+            loading={busy}
             onPress={send}
-            accessibilityRole="button">
-            <Text style={styles.acceptText}>
-              {busy ? 'Sending…' : picked.length === 0 ? 'Pick someone' : `Invite ${picked.length}`}
-            </Text>
-          </Pressable>
+          />
         </View>
       </View>
     </Modal>
@@ -287,22 +320,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.button,
     paddingVertical: Spacing.twelve,
   },
-  accept: {
-    backgroundColor: Colors.ember,
-  },
-  acceptText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 13.5,
-    color: Colors.ink,
-  },
-  decline: {
-    backgroundColor: Colors.achieverBg,
-  },
-  declineText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13.5,
-    color: Colors.muted,
-  },
+  // Accept and Decline are PrimaryButton now (see the render site) and PrimaryButton has no flex
+  // of its own, so each half gets one. `accept`/`acceptText`/`decline`/`declineText` are gone with
+  // the Pressables they styled.
   start: {
     backgroundColor: Colors.achieverBg,
     borderWidth: 1,
@@ -312,6 +332,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 13.5,
     color: Colors.ember,
+  },
+  headerCta: {
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
   },
   emptyCta: {
     alignSelf: 'stretch',

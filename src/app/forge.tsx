@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { EmberPill, RarityLabel } from '@/components/economy/economy-bits';
-import { ForgeStrike } from '@/components/economy/forge-strike';
+import { ForgeStrike, FORGE_STRIKE_BLOCK_H } from '@/components/economy/forge-strike';
 import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -15,6 +15,7 @@ import { useRevealPreview, useRevealSting } from '@/hooks/use-audio-preview';
 import { useInventory, type OwnedItem } from '@/hooks/use-inventory';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { forgeCombine, isTierCompleteError, type ForgeResult } from '@/lib/api/forge';
+import { equipCosmetic } from '@/lib/api/inventory';
 import {
   FORGE_LADDER,
   dropPoolAt,
@@ -228,18 +229,14 @@ function ForgeFlow() {
           </View>
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>The Forge has nothing left to make you.</Text>
-            <Text style={styles.emptyBody}>
-              You own every one of the {dropPoolAt('common').length +
+            <Text style={styles.emptyFine}>
+              All {dropPoolAt('common').length +
                 dropPoolAt('uncommon').length +
                 dropPoolAt('rare').length +
                 dropPoolAt('epic').length +
                 dropPoolAt('legendary').length +
                 dropPoolAt('mythic').length}{' '}
-              cosmetics the Forge can produce, at every rarity. It only ever outputs something you
-              don&apos;t own, so every path is closed — and nothing of yours will be taken.
-            </Text>
-            <Text style={styles.emptyBody}>
-              Season and Flame Pass items are earned, never forged. New drops open the Forge back up.
+              forgeable cosmetics are yours · nothing will be taken · new drops reopen it.
             </Text>
             <Pressable style={styles.emptyCta} onPress={() => router.push('/inventory')}>
               <Text style={styles.emptyCtaText}>Go to inventory</Text>
@@ -327,30 +324,27 @@ function ForgeFlow() {
         </View>
 
         {/* ── What you'll get ──
-            The pool is named honestly, including how much of it is still open to you, because
-            "a random Epic" without a denominator is the kind of claim a loot screen shouldn't make.
-            Since 0139 the denominator is the UN-OWNED count, not the pool size — that is the set the
-            roll actually draws from, so it is the number that tells the truth. */}
+            One line. The coloured {into} word and the mystery `?` output slot above already say
+            "a random item of the next tier" better than a paragraph does, and this block used to
+            enumerate the cosmetic types and then explain the season/relic exclusion at body weight —
+            two dense paragraphs on the main flow for facts the visuals and the fine print carry.
+            What survives is the part the visuals CAN'T say: the denominator, and the two promises.
+            Since 0139 that denominator is the UN-OWNED count, not the pool size — that is the set
+            the roll actually draws from, so it is the number that tells the truth. */}
         <Text style={styles.sectionLabel}>What you&apos;ll get</Text>
         <View style={styles.explain}>
           {tierComplete ? (
             <Text style={styles.explainText}>
               You own <Text style={{ color: RARITY_COLOR[step.into], fontFamily: Fonts.bodyBold }}>every {step.into}</Text>{' '}
-              the Forge can make — all {dropPoolAt(step.into).length} of them. This path has nothing
-              left to give you, so it won&apos;t take your {step.from}s. Pick another above.
+              — all {dropPoolAt(step.into).length}. Pick another path above.
             </Text>
           ) : (
             <Text style={styles.explainText}>
               A <Text style={{ color: RARITY_COLOR[step.into], fontFamily: Fonts.bodyBold }}>random {step.into}</Text> you
-              don&apos;t own — flame, particle, card, halo, whatever the Forge spits out, one of the{' '}
-              {unownedAtTarget} still missing from your collection. Never a duplicate, and never
-              embers instead.
+              don&apos;t own, 1 of {unownedAtTarget} · never a duplicate · never embers.
             </Text>
           )}
-          <Text style={styles.explainFine}>
-            Season and Flame Pass items can never be forged — not made by the Forge, and never taken
-            by it. Relics are earned, not fuel.
-          </Text>
+          <Text style={styles.explainFine}>Season, Flame Pass and relic items are never forged — or taken.</Text>
         </View>
 
         {/* ── The fuel ── */}
@@ -368,9 +362,8 @@ function ForgeFlow() {
         {!reachable ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>This recipe isn&apos;t open yet.</Text>
-            <Text style={styles.emptyBody}>
-              {stepRecipeLabel(step)} needs {step.need} different {step.from}s, and only{' '}
-              {dropPoolAt(step.from).length} can drop today. Nothing you can do about it — pick
+            <Text style={styles.emptyFine}>
+              Needs {step.need} {step.from}s and only {dropPoolAt(step.from).length} can drop — pick
               another path above.
             </Text>
           </View>
@@ -380,18 +373,15 @@ function ForgeFlow() {
              fuel is safe, because the previous behaviour here was to eat it and pay embers. */
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>Every {step.into} is yours.</Text>
-            <Text style={styles.emptyBody}>
-              All {dropPoolAt(step.into).length} of them. The Forge only makes things you don&apos;t
-              own, so this path is closed — and your {step.from}s stay exactly where they are.
+            <Text style={styles.emptyFine}>
+              All {dropPoolAt(step.into).length} of them · your {step.from}s stay put · pick another
+              rung above.
             </Text>
           </View>
         ) : !loading && fuel.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No {step.from}s to spare.</Text>
-            <Text style={styles.emptyBody}>
-              Only items from the box drop pool can be forged. Open a box or win a challenge, then
-              come back with the ones you don&apos;t want.
-            </Text>
+            <Text style={styles.emptyFine}>Box-pool items only — open a box or win a challenge.</Text>
             <Pressable style={styles.emptyCta} onPress={() => router.push('/shop')}>
               <Text style={styles.emptyCtaText}>Open the Shop</Text>
             </Pressable>
@@ -466,6 +456,7 @@ function ForgeReveal({
   onAgain: () => void;
 }) {
   const item = result.item;
+  const [equipping, setEquipping] = useState(false);
   // Auditions an audio cosmetic the moment it's revealed — hearing it IS the reveal for those items.
   // Both hooks sit above the null guard because hooks may not be called conditionally.
   useRevealPreview(item?.id);
@@ -485,6 +476,21 @@ function ForgeReveal({
         </View>
       </Screen>
     );
+  }
+
+  async function onEquip() {
+    if (!item?.slot || equipping) return;
+    setEquipping(true);
+    try {
+      await equipCosmetic(item);
+      // Same landing as the box-open equip: the item is on, and the inventory is where you go to
+      // see it that way.
+      onDone();
+    } catch (e) {
+      Alert.alert("Couldn't equip that", getErrorMessage(e, 'Something went wrong.'));
+    } finally {
+      setEquipping(false);
+    }
   }
 
   return (
@@ -512,10 +518,26 @@ function ForgeReveal({
       </View>
 
       {/* Pushed to the bottom with marginTop rather than pinned like the picker's bar: there is no
-          scrolling content to sit over here, and a bordered bar under a hero reads as a toolbar. */}
+          scrolling content to sit over here, and a bordered bar under a hero reads as a toolbar.
+
+          EQUIP is the primary, mirroring shop/open.tsx's single-pull reveal: the moment you have
+          just been shown a new flame is the moment you want to wear it, and sending you to the
+          inventory to find it again is a step the box-open flow already decided not to charge. On
+          success it resolves the same way that one does — into the inventory, with the item on.
+
+          The slot guard is belt-and-braces: the Forge only outputs slotted cosmetics, so it should
+          never miss, but a slotless grant would otherwise hand equipCosmetic something it throws on
+          and this screen would rather quietly show one fewer button than blow up over it. */}
       <View style={styles.revealCtas}>
-        <Pressable style={styles.primaryBtn} onPress={onDone}>
-          <Text style={styles.primaryBtnText}>Add to inventory</Text>
+        {item.slot ? (
+          <Pressable style={styles.primaryBtn} onPress={onEquip} disabled={equipping}>
+            <Text style={styles.primaryBtnText}>
+              {equipping ? 'Equipping…' : `Equip ${item.type.toLowerCase()}`}
+            </Text>
+          </Pressable>
+        ) : null}
+        <Pressable style={styles.ghostBtn} onPress={onDone}>
+          <Text style={styles.ghostBtnText}>Add to inventory</Text>
         </Pressable>
         <Pressable style={styles.ghostBtn} onPress={onAgain}>
           <Text style={styles.ghostBtnText}>Forge again</Text>
@@ -759,6 +781,15 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     textAlign: 'center',
   },
+  // The second paragraph these panels used to carry, at the weight it should always have had. The
+  // verdict is the title; this is the footnote under it, not more body copy.
+  emptyFine: {
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    lineHeight: 16,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+  },
   emptyCta: {
     backgroundColor: Colors.card,
     borderRadius: Radius.button,
@@ -844,13 +875,20 @@ const styles = StyleSheet.create({
   // ── forging ──
   strikeWrap: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  // Parked absolutely near the top and rendered BEFORE the strike, so the strike's full-screen
-  // flash paints over it. Laid out in flow it would sit above the stage and survive the wash,
-  // leaving one grey label on a white screen at the exact moment the reveal takes over.
+  // Parked absolutely and rendered BEFORE the strike, so the strike's full-screen flash paints over
+  // it. Laid out in flow it would sit above the stage and survive the wash, leaving one grey label
+  // on a white screen at the exact moment the reveal takes over.
+  //
+  // Measured off the CENTRE rather than off the status bar (it used to sit at top: 90), because the
+  // strike itself is centred now: half the composition block up, plus a gap, puts it just above the
+  // anvil instead of stranded at the top of an otherwise empty screen.
   forgingKicker: {
     position: 'absolute',
-    top: 90,
+    bottom: '50%',
+    marginBottom: FORGE_STRIKE_BLOCK_H / 2 + 16,
     left: 0,
     right: 0,
     textAlign: 'center',

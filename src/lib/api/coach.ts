@@ -405,12 +405,19 @@ export async function performCoachAction(action: CoachAction, ctx: ActionContext
       }
 
       case 'create_challenge': {
+        const label = typeof action.input.label === 'string' ? action.input.label : null;
         await createChallenge({
           userId: ctx.userId,
           type: (action.input.type as ChallengeType) ?? 'custom',
-          label: typeof action.input.label === 'string' ? action.input.label : null,
+          label,
           target: Number(action.input.target ?? 0),
-          unit: String(action.input.unit ?? 'hours'),
+          // 🔴 §4a — the fallback used to be a bare 'hours', and the model's own string went
+          // through untouched. That is how "Cold plunges · 0 / 1 bath" reached a real tab.
+          // createChallenge now overrides the unit for every built-in metric and falls back to the
+          // goal's NAME for a custom one, so an empty or absent unit lands on something the user
+          // recognises instead of an unrelated noun. Passed through as-is here because that is the
+          // one place the decision belongs.
+          unit: typeof action.input.unit === 'string' ? action.input.unit : '',
           period: (action.input.period as ChallengePeriod) ?? 'week',
           countMode: action.input.count_mode === 'lockin_time' ? 'lockin_time' : 'manual',
         });

@@ -190,7 +190,12 @@ const NAMED_LEVELS: Record<number, { free: PassReward[]; premium: PassReward[] }
   5: { free: [box('common')], premium: [box('uncommon'), gear('flame-molten-copper')] },
   10: { free: [box('uncommon')], premium: [box('rare'), gear('title-kindled')] },
   15: { free: [embers(50)], premium: [embers(250), gear('audio-monastery-drone')] },
-  20: { free: [box('uncommon')], premium: [box('rare'), gear('banner-emberfall')] },
+  // §0: was gear('banner-emberfall'), which no longer exists. The prompt suggested Emberfall
+  // Standard or Ashfall — both are ALREADY in this table (L25 and L70), and granting the same
+  // banner twice in one pass is a worse bug than the one being fixed, so the slot takes the one
+  // legendary banner the pass does not otherwise hand out. Same rarity as the item it replaces.
+  // pass_track_rewards on prod carries its own copy of this row — 0148 moves it too.
+  20: { free: [box('uncommon')], premium: [box('rare'), gear('banner-obsidian-colosseum')] },
   25: { free: [box('rare')], premium: [gear('banner-emberfall-mythic')] },
   // ── Arena ──
   30: { free: [box('uncommon')], premium: [box('rare'), embers(500)] },

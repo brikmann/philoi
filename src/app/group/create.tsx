@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { CampfireBannerArt } from '@/components/campfire-banner-art';
 import { PrivacySelector } from '@/components/privacy-selector';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
@@ -10,7 +11,9 @@ import { Toggle } from '@/components/ui/toggle';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { DisciplineIcon, type DisciplineIconName } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { createGroup, setMyHelperFlag } from '@/lib/api/groups';
+import { createGroup, setCampfireBanner, setMyHelperFlag } from '@/lib/api/groups';
+import { useInventory } from '@/hooks/use-inventory';
+import { DEFAULT_LOADOUT, getItem, type CatalogItem } from '@/lib/economy/catalog';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
@@ -64,6 +67,55 @@ function ToggleRow({
   );
 }
 
+/**
+ * The creation-time banner choice (R2, mock 164 §3's picker at strip size).
+ *
+ * Same source of truth as the old options-sheet modal — the owner's inventory plus Hearthlight,
+ * which is granted by DEFAULT_LOADOUT rather than owned as a row and so never appears in `owned`.
+ * Drawn with the real CampfireBannerArt at swatch size rather than as a flat two-colour chip,
+ * because otherwise someone picks a banner whose ridgeline they have never seen — and this is the
+ * only time they get to pick it.
+ *
+ * A horizontal strip rather than the modal's 2-up grid: this is one field on a form, not a
+ * destination, and a new account owning nothing should see a single Hearthlight tile and move on.
+ */
+function BannerStrip({ value, onChange }: { value: string | null; onChange: (id: string | null) => void }) {
+  const { owned } = useInventory();
+
+  const banners = useMemo<CatalogItem[]>(() => {
+    const mine = owned.filter((item) => item.type === 'BANNER');
+    const base = getItem(DEFAULT_LOADOUT.banner ?? '');
+    const hasBase = base && mine.some((item) => item.id === base.id);
+    return base && !hasBase ? [base, ...mine] : mine;
+  }, [owned]);
+
+  const selected = value ?? DEFAULT_LOADOUT.banner ?? null;
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bannerRow}>
+      {banners.map((item) => {
+        const on = item.id === selected;
+        return (
+          <Pressable
+            key={item.id}
+            onPress={() => onChange(item.id)}
+            style={[styles.bannerTile, on && styles.bannerTileOn]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={item.name}>
+            <View style={styles.bannerSwatch}>
+              <CampfireBannerArt itemKey={item.id} fadeTo="#161022" />
+            </View>
+            <Text style={[styles.bannerName, on && styles.bannerNameOn]} numberOfLines={1}>
+              {item.name}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 export default function CreateGroupScreen() {
   const router = useRouter();
   const { profile } = useAuth();
@@ -75,6 +127,8 @@ export default function CreateGroupScreen() {
   const [isClass, setIsClass] = useState(false);
   const [courseCode, setCourseCode] = useState('');
   const [isHelper, setIsHelper] = useState(false);
+  // R2: chosen ONCE, here. Null means the fire flies base Hearthlight.
+  const [bannerId, setBannerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,6 +161,23 @@ export default function CreateGroupScreen() {
         courseCode: isClass ? courseCode.trim() : null,
         school: isClass ? (profile?.university ?? null) : null,
       });
+
+      // R2 — THE BANNER IS SET HERE AND ONLY HERE.
+      //
+      // "Set banner" used to live in the campfire options sheet, which made the banner editable
+      // for the life of the fire; R2 makes it immutable like the emoji. Moving the choice to
+      // creation is what keeps that from meaning "no campfire can ever have a banner": the owner
+      // picks from what they own at the moment they light it, and it is settled from then on.
+      //
+      // A separate call rather than a create_group_with_owner argument, because that RPC takes
+      // seven parameters on prod and appending an eighth is exactly the overload trap 0146 was
+      // written to clean up. set_campfire_banner is already owner-gated and already exists.
+      //
+      // Non-critical, like the helper flag below: the campfire is created either way, and a fire
+      // that fell back to Hearthlight is a cosmetic loss, not a failed creation.
+      if (bannerId) {
+        await setCampfireBanner(group.id, bannerId).catch(() => {});
+      }
 
       if (isClass && isHelper) {
         await setMyHelperFlag(group.id, true).catch(() => {
@@ -169,6 +240,12 @@ export default function CreateGroupScreen() {
               );
             })}
           </View>
+
+          <View style={styles.divider} />
+
+          <Text style={styles.lbl}>Banner</Text>
+          <Text style={styles.bannerNote}>Your fire flies this. Chosen once, when you light it.</Text>
+          <BannerStrip value={bannerId} onChange={setBannerId} />
 
           <View style={styles.divider} />
 
@@ -326,6 +403,44 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.achieverBg,
     borderWidth: 1.5,
     borderColor: Colors.coral,
+  },
+  bannerNote: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    lineHeight: 15,
+    color: Colors.textTertiary,
+    marginTop: -2,
+    marginBottom: 8,
+  },
+  bannerRow: {
+    flexDirection: 'row',
+    gap: 9,
+    paddingRight: Spacing.two,
+  },
+  bannerTile: {
+    width: 116,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    backgroundColor: Colors.card,
+    overflow: 'hidden',
+  },
+  bannerTileOn: {
+    borderColor: Colors.amber,
+  },
+  bannerSwatch: {
+    height: 52,
+    backgroundColor: '#120C1A',
+  },
+  bannerName: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 10.5,
+    color: Colors.muted,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+  },
+  bannerNameOn: {
+    color: Colors.ember,
   },
   divider: {
     height: 1,

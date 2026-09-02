@@ -1,15 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { TextInput } from '@/components/ui/text-input';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCampfireRole } from '@/hooks/use-campfire-role';
 import { useGroup } from '@/hooks/use-group';
 import { fetchCampfireMembers, setCampfireMemberRole } from '@/lib/api/groups';
+import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import type { CampfireMember } from '@/types/database';
 
@@ -38,6 +40,8 @@ export default function CampfireMembersScreen() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<CampfireMember | null>(null);
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState('');
+  const { session } = useAuth();
 
   const load = useCallback(async () => {
     try {
@@ -53,6 +57,13 @@ export default function CampfireMembersScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  function openProfile(userId: string) {
+    // Your own row goes to your own profile, everyone else's to theirs — the same split every
+    // other roster in the app makes (the campfire board, the global leaderboards, an Agora card).
+    if (userId === session?.user.id) router.push('/profile');
+    else router.push({ pathname: '/friend-profile', params: { userId } });
+  }
 
   async function applyRoleChange() {
     if (!pending) return;
@@ -70,7 +81,14 @@ export default function CampfireMembersScreen() {
     }
   }
 
-  const admins = members.filter((m) => m.role !== 'member').length;
+  // Name OR handle, case-insensitive — people search for whichever of the two they remember.
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter(
+      (m) => m.display_name.toLowerCase().includes(q) || (m.handle ?? '').toLowerCase().includes(q)
+    );
+  }, [members, query]);
 
   return (
     <Screen padded={false} style={styles.container}>
@@ -82,19 +100,52 @@ export default function CampfireMembersScreen() {
         </Pressable>
         <Text style={styles.title}>Members</Text>
       </View>
+      {/* §6: "· N with keys" is gone. Every row already carries its own role chip, so the count
+          was restating in aggregate what the list says per person — and "keys" is internal
+          vocabulary that means nothing to a member reading it for the first time. */}
       <Text style={styles.sub} numberOfLines={1}>
-        {group?.name ?? '…'} · {members.length} {members.length === 1 ? 'member' : 'members'} · {admins} with keys
+        {group?.name ?? '…'} · {members.length} {members.length === 1 ? 'member' : 'members'}
       </Text>
+
+      <View style={styles.searchRow}>
+        <Ionicons name="search" size={15} color={Colors.textTertiary} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search members"
+          value={query}
+          onChangeText={setQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+        />
+        {query.length > 0 && (
+          <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear search">
+            <Ionicons name="close-circle" size={16} color={Colors.textTertiary} />
+          </Pressable>
+        )}
+      </View>
 
       {error && <Text style={styles.error}>{error}</Text>}
 
       <ScrollView contentContainerStyle={styles.list}>
-        {members.map((m) => {
+        {visible.map((m) => {
           // The owner's own row is never actionable — a campfire always has exactly one owner, and
           // transferring it is a different act than promoting someone.
           const canChange = isOwner && m.role !== 'owner';
           return (
-            <View key={m.user_id} style={styles.row}>
+            // §6 · THE ROW OPENS THE PERSON. This is where people meet each other — you scroll a
+            // campfire's roster, see a name you have been racing, and want to add them. The
+            // add-friend action lives on the profile, so the row's job is to get you there.
+            //
+            // The admin toggle at the end keeps its own Pressable and therefore wins the touch:
+            // nested Pressables deliver to the innermost, so promoting someone does not also
+            // navigate away from the screen you promoted them on.
+            <Pressable
+              key={m.user_id}
+              style={styles.row}
+              onPress={() => openProfile(m.user_id)}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${m.display_name}'s profile`}>
               <View style={styles.avatar}>
                 {m.avatar_url ? (
                   <Image source={{ uri: m.avatar_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -125,11 +176,14 @@ export default function CampfireMembersScreen() {
                   />
                 </Pressable>
               )}
-            </View>
+            </Pressable>
           );
         })}
 
         {!loading && members.length === 0 && <Text style={styles.empty}>Nobody here yet.</Text>}
+        {!loading && members.length > 0 && visible.length === 0 && (
+          <Text style={styles.empty}>Nobody matches “{query.trim()}”.</Text>
+        )}
 
         {isOwner && (
           <Text style={styles.footnote}>
@@ -187,6 +241,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.danger,
     marginBottom: Spacing.two,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    marginTop: 12,
+    marginHorizontal: 2,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    padding: 0,
+    fontSize: 13.5,
+    color: Colors.ink,
   },
   list: {
     gap: 8,

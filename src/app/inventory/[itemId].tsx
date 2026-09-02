@@ -7,15 +7,17 @@ import { EmberIcon } from '@/components/economy/ember-icon';
 import { RarityLabel, SourceTag, formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
+import { SellConfirmScreen, SellRewardScreen } from '@/components/economy/sell-flow';
 import { SfxSlotPicker, type SfxChoice } from '@/components/economy/sfx-slot-picker';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAudioPreview, useStopPreviewOnLeave } from '@/hooks/use-audio-preview';
 import { useInventory } from '@/hooks/use-inventory';
-import { equipCosmetic, salvageCosmetic, unequipCosmetic } from '@/lib/api/inventory';
+import { equipCosmetic, salvageCosmetic, unequipCosmetic, type Inventory } from '@/lib/api/inventory';
 import { forgeStepFor, isForgeFuel } from '@/lib/economy/forge';
 import { SFX_SLOTS, SLOT_LABEL, isDefaultItem, type SfxSlot } from '@/lib/economy/catalog';
+import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { getErrorMessage } from '@/lib/errors';
 import { SALVAGE_EMBERS, SALVAGE_PCT, rarityGlow } from '@/lib/economy/rarity';
 
@@ -25,16 +27,55 @@ import { SALVAGE_EMBERS, SALVAGE_PCT, rarityGlow } from '@/lib/economy/rarity';
 // title only comes back by earning it again. So the confirm escalates with what's at stake:
 // anything Epic+ or earned gets a confirm, and the 1-of-1 "Ascended · Global" and dated season
 // medals get an extra "this cannot be undone" step.
+//
+// Both halves of that sell used to be `Alert.alert` — a grey iOS dialog asking whether to part with
+// a Mythic, and a second one announcing the payout. Mock 100 replaces them with our own two frames
+// (components/economy/sell-flow.tsx): the confirm, and the reward whose embers fly into the balance
+// chip. The GATE is unchanged — a throwaway Common still sells in one tap — but the reward loop
+// plays on EVERY sale, gated or not, because the payout is the part worth showing either way.
 
 export default function ItemDetailScreen() {
   const router = useRouter();
   const { itemId } = useLocalSearchParams<{ itemId: string }>();
-  const { owned, equippedBySlot, refetch } = useInventory();
+  const { inventory, owned, equippedBySlot, embers: walletEmbers, refetch } = useInventory();
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  // Everything the reward frame needs, captured at the moment of the sale. It has to be self-
+  // contained: the sold item leaves `owned` the instant the refetch lands, so by the time this
+  // renders there is no `item` left to read a name or a balance-before off.
+  //
+  // `inventoryAtSale` is the identity of the read the sale happened against. It is how the reward
+  // frame knows whether the wallet has actually come back yet: `loading` cannot say — useInventory
+  // never flips it true again for a refetch — and comparing the NUMBER would call a genuinely
+  // unchanged balance "not refreshed yet" forever. fetchInventory returns a fresh object each call,
+  // so a different identity means a completed round trip and nothing else.
+  const [sold, setSold] = useState<{
+    name: string;
+    embers: number;
+    balanceBefore: number;
+    inventoryAtSale: Inventory | null;
+  } | null>(null);
   // Navigating away has to kill the audition — a preview that follows you to the next screen reads
   // as a bug, and the player is a shared singleton so it genuinely would.
   useStopPreviewOnLeave(itemId);
   const { stop: stopPreviewNow } = useAudioPreview();
+
+  // Ahead of the `!found` guard on purpose. A sold item is gone from the inventory by design, and
+  // checking ownership first would swap the reward frame for "You don't own that item" the moment
+  // the refetch came back — the payout screen replaced by an error, on success.
+  if (sold) {
+    return (
+      <SellRewardScreen
+        itemName={sold.name}
+        embers={sold.embers}
+        balanceBefore={sold.balanceBefore}
+        // Null until the refresh lands, which is what keeps the counter from finishing on a number
+        // this screen invented. See the prop's own note in sell-flow.tsx.
+        serverBalance={inventory && inventory !== sold.inventoryAtSale ? inventory.embers : null}
+        onDone={() => router.back()}
+      />
+    );
+  }
 
   const found = owned.find((o) => o.id === itemId);
   if (!found) {
@@ -98,43 +139,47 @@ export default function ItemDetailScreen() {
     }
   }
 
-  function confirmSell() {
-    const permanent = item.oneOfOne || item.type === 'MEDAL' || item.seasonStamped;
-    const needsConfirm = permanent || item.source === 'earned' || ['epic', 'legendary', 'mythic'].includes(item.rarity);
+  // The gate is exactly what it was: a throwaway Common or Uncommon still sells in one tap, and
+  // anything you cannot get back — permanent, earned, or Epic+ — is asked about first.
+  const permanent = item.oneOfOne || item.type === 'MEDAL' || item.seasonStamped;
+  const needsConfirm = permanent || item.source === 'earned' || ['epic', 'legendary', 'mythic'].includes(item.rarity);
 
-    const run = async () => {
-      setBusy(true);
-      // Selling deletes the item; leaving its preview playing over the confirmation would be the
-      // one sound in the app with nothing left to point at.
-      stopPreviewNow();
-      try {
-        const embers = await salvageCosmetic(item);
-        await refetch();
-        Alert.alert('Sold', `${item.name} became 🔥 ${formatEmbers(embers)}.`);
-        router.back();
-      } catch (e) {
-        Alert.alert("Couldn't sell that", getErrorMessage(e, 'Something went wrong.'));
-      } finally {
-        setBusy(false);
-      }
-    };
-
-    if (!needsConfirm) {
-      run();
-      return;
+  async function runSell() {
+    setBusy(true);
+    // Selling deletes the item; leaving its preview playing over the reward would be the one sound
+    // in the app with nothing left to point at.
+    stopPreviewNow();
+    // Snapshotted BEFORE the sale and before any refresh — it is the figure the reward frame counts
+    // UP FROM, so reading it afterwards would have the balance start where it ends.
+    const balanceBefore = walletEmbers;
+    try {
+      // Untouched: the RPC decides the payout, and `embers` is what it actually granted. The
+      // reward frame shows that number, never SALVAGE_EMBERS.
+      const embers = await salvageCosmetic(item);
+      setConfirming(false);
+      setSold({ name: item.name, embers, balanceBefore, inventoryAtSale: inventory });
+      // One broadcast rather than a local `refetch()`: this screen's own useInventory subscribes to
+      // it (that is what feeds `serverBalance` below), and so does every other pill still mounted —
+      // the inventory grid behind this screen, the shop, the Forge. See lib/economy/wallet-refresh.
+      requestInventoryRefresh();
+    } catch (e) {
+      setConfirming(false);
+      Alert.alert("Couldn't sell that", getErrorMessage(e, 'Something went wrong.'));
+    } finally {
+      setBusy(false);
     }
+  }
 
-    Alert.alert(
-      `Sell ${item.name}?`,
-      permanent
-        ? `This is a one-of-a-kind, season-stamped item. Selling it is PERMANENT — it can never be re-issued, and no amount of embers buys it back. You'll get 🔥 ${formatEmbers(payout)}.`
-        : item.source === 'earned'
-          ? `You earned this. Selling it is permanent — the only way to get it back is to earn it again. You'll get 🔥 ${formatEmbers(payout)}.`
-          : `Selling is permanent. You'll get 🔥 ${formatEmbers(payout)}.`,
-      [
-        { text: 'Keep it', style: 'cancel' },
-        { text: permanent ? 'Sell forever' : 'Sell', style: 'destructive', onPress: run },
-      ]
+  if (confirming) {
+    return (
+      <SellConfirmScreen
+        item={item}
+        payout={payout}
+        balance={walletEmbers}
+        busy={busy}
+        onConfirm={() => void runSell()}
+        onCancel={() => setConfirming(false)}
+      />
     );
   }
 
@@ -244,13 +289,15 @@ export default function ItemDetailScreen() {
                   }
                   disabled={busy}>
                   <PhiloiIcon name="forge" size={16} color={Colors.ember} />
-                  <Text style={styles.forgeBtnText}>
-                    Send to the Forge · {forgeStepFor(item.rarity)!.need} {item.rarity}s make a{' '}
-                    {forgeStepFor(item.rarity)!.into}
-                  </Text>
+                  {/* No rung math on the tail: "3 epics make a legendary" is the Forge screen's
+                      job, and it made this button read like a spec sheet. */}
+                  <Text style={styles.forgeBtnText}>Send to the Forge</Text>
                 </Pressable>
               ) : null}
-              <Pressable style={styles.sellBtn} onPress={confirmSell} disabled={busy}>
+              <Pressable
+                style={styles.sellBtn}
+                onPress={() => (needsConfirm ? setConfirming(true) : void runSell())}
+                disabled={busy}>
                 <View style={styles.sellBtnRow}>
                   <Text style={styles.sellBtnText}>Sell ·</Text>
                   <EmberIcon size={14} />
@@ -262,7 +309,9 @@ export default function ItemDetailScreen() {
                   </Text>
                 </View>
               </Pressable>
-              <Text style={styles.sellNote}>Selling unequips it and is permanent · confirm required</Text>
+              <Text style={styles.sellNote}>
+                Selling unequips it and is permanent{needsConfirm ? ' · confirm required' : ''}
+              </Text>
             </>
           )}
         </View>

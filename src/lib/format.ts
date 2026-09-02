@@ -36,8 +36,6 @@ export function formatPacePerKm(distanceMeters: number, durationSeconds: number)
   return `${min}:${String(sec).padStart(2, '0')}/km`;
 }
 
-// "18h left" / "2d left" — a challenge's time-remaining chip (social-challenge-card.tsx, the
-// active-challenge marker, and the Watch spectator screen all show the same countdown).
 /** "just now" / "14m ago" / "3h ago" / "2d ago". Hoisted out of challenge-completion-card,
  * which had a private copy — the bell feed needs the same shape and two implementations of
  * "how long ago" drift. */
@@ -52,10 +50,25 @@ export function formatRelativeTime(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/**
+ * "18h left" / "2d left" / "ended" — a challenge's time-remaining chip.
+ *
+ * 🔴 THE PAST-TENSE BUG. This used to return "ending soon" once `ends_at` had passed, which is a
+ * sentence about the future written on a race that is over. Noah's device: a duel whose own body
+ * read "Final · this challenge has ended" still carried "Most lock-in time · ending soon" in its
+ * header and "Duration 72h · ending soon" in its rules table, because both were built from this
+ * one function and this one function had no past tense.
+ *
+ * "ended", not "ending soon", and not "settling". A challenge is over the moment its clock runs
+ * out; the settle sweep that writes the result runs afterwards, and the gap between the two is an
+ * implementation detail nobody watching should be asked to hold. Callers that know the challenge
+ * has SETTLED should say what happened instead — "You won", "Final" — and use this only while the
+ * verdict is genuinely not in yet.
+ */
 export function formatTimeLeft(endsAt: string | null): string {
   if (!endsAt) return '';
   const ms = new Date(endsAt).getTime() - Date.now();
-  if (ms <= 0) return 'ending soon';
+  if (ms <= 0) return 'ended';
   const hours = Math.ceil(ms / (60 * 60 * 1000));
   if (hours < 24) return `${hours}h left`;
   return `${Math.ceil(hours / 24)}d left`;

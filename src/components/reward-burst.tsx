@@ -51,8 +51,8 @@ export type RewardBurstHandle = { fire: () => void };
 // Sound + animation + haptic fired together, peaking on the same frame — none of the three
 // wait on each other or on an async preference read (see reward-settings.ts). Mount this
 // once per screen and call `ref.fire()` at the moment of success; it doesn't render eagerly.
-export const RewardBurst = forwardRef<RewardBurstHandle, { cue: RewardCue }>(function RewardBurst(
-  { cue },
+export const RewardBurst = forwardRef<RewardBurstHandle, { cue: RewardCue; silent?: boolean }>(function RewardBurst(
+  { cue, silent },
   ref
 ) {
   const lottieRef = useRef<LottieView>(null);
@@ -71,7 +71,10 @@ export const RewardBurst = forwardRef<RewardBurstHandle, { cue: RewardCue }>(fun
   useImperativeHandle(ref, () => ({
     fire: () => {
       const prefs = getRewardPreferencesSync();
-      if (prefs.reward_sfx_enabled) playRewardSound(cue);
+      // `silent` is for a screen that owns its own audio: the goal reveal fires the universal
+      // victory fanfare on mount, and its burst playing 'settle' underneath that was two cues
+      // fighting over one moment. The Lottie and the haptic are still this component's.
+      if (!silent && prefs.reward_sfx_enabled) playRewardSound(cue);
       if (prefs.haptics) HAPTIC_BY_CUE[cue]?.();
       if (!reduceMotionRef.current) lottieRef.current?.play();
     },

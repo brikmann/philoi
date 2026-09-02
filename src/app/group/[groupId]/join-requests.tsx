@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeOut } from 'react-native-reanimated';
 
 import { FlameSvg } from '@/components/flame-icon';
+import { EmberFill } from '@/components/ui/ember-fill';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGroup } from '@/hooks/use-group';
@@ -142,9 +143,11 @@ export default function JoinRequestsScreen() {
               )}
 
               <View style={styles.acts}>
-                <Pressable style={styles.app} onPress={() => handleApprove(r.id)} disabled={busyId === r.id}>
-                  <Ionicons name="checkmark" size={14} color={Colors.onEmber} />
-                  <Text style={styles.appLabel}>Approve</Text>
+                <Pressable style={styles.appWrap} onPress={() => handleApprove(r.id)} disabled={busyId === r.id}>
+                  <EmberFill style={styles.app} radius={10} direction="diagonal">
+                    <Ionicons name="checkmark" size={14} color={Colors.onEmber} />
+                    <Text style={styles.appLabel}>Approve</Text>
+                  </EmberFill>
                 </Pressable>
                 <Pressable style={styles.den} onPress={() => handleDeny(r.id)} disabled={busyId === r.id}>
                   <Text style={styles.denLabel}>Deny</Text>
@@ -276,14 +279,16 @@ const styles = StyleSheet.create({
   },
   // Amber + near-black, not the old bold coral with cream text — the ember language's "this is
   // the action" treatment (DESIGN_LANGUAGE_EMBER §3).
-  app: {
+  // §3, third instance of the same drift: flat Colors.amber under a comment describing the ember
+  // treatment. The Pressable keeps the flex; EmberFill paints the gradient inside it.
+  appWrap: {
     flex: 1,
+  },
+  app: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    backgroundColor: Colors.amber,
-    borderRadius: 10,
     paddingVertical: 9,
   },
   appLabel: {

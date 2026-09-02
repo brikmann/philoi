@@ -158,6 +158,9 @@ export function ChallengeSettlementWatcher() {
             key={current.challenge_id}
             result={result}
             displayName={profile?.display_name ?? 'you'}
+            // The same kind this watcher took the floor with, so the rays are tinted by the row
+            // that ordered the queue rather than by a second guess at the shape.
+            revealKind={revealKind}
             onShare={handleShare}
             sharing={sharing}
             onClose={() => dismiss(current.challenge_id)}

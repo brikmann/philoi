@@ -552,9 +552,10 @@ const EMBERFALL_SET: CatalogItem[] = [
   item({ id: 'card-emberfall', name: 'Emberfall Card', type: 'CARD', rarity: 'epic', acquisition: 'forge-pass-S1',
     lore: 'Ash on dark glass, still warm to the touch.',
     art: { kind: 'card', from: '#2a1533', to: '#E0612C' } }),
-  item({ id: 'banner-emberfall', name: 'Emberfall Banner', type: 'BANNER', rarity: 'legendary', acquisition: 'forge-pass-S1',
-    lore: 'Fly it and the whole arena knows which season you came up in.',
-    art: { kind: 'banner', from: '#6a2a18', to: '#FFC24D' } }),
+  // ── CUT (§0). `banner-emberfall` "Emberfall Banner" lived here. Noah cut it as too specific,
+  //    alongside `banner-emberfall-elite` below. The Forge Pass L20 premium slot it used to fill is
+  //    now banner-obsidian-colosseum — see forge-pass.ts, and migration 0148 for the server copy of
+  //    that table (pass_track_rewards), which grants independently of this file.
   item({ id: 'title-kindled-by-emberfall', name: '"Kindled by Emberfall"', type: 'TITLE', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
     lore: 'The season lit you, and you never went out.',
     art: { kind: 'title', from: '#E0612C', to: '#FFD24D' } }),
@@ -629,9 +630,16 @@ const EMBERFALL_PLACEMENT: CatalogItem[] = [
   // NOTE: the Champion's medal is the EXISTING `medal-emberfall-champion` (in MEDALS above, minted
   // by 0066's placement grants). It is deliberately not redefined here — a second entry under the
   // same id would shadow the first depending on array order and silently change its rarity.
-  item({ id: 'banner-emberfall-elite', name: 'Emberfall Elite', type: 'BANNER', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
-    lore: 'Top ten on your campus. Nine other people know exactly what this took.',
-    art: { kind: 'banner', from: '#4a1508', to: '#FFC24D' } }),
+  // ── CUT (§0). `banner-emberfall-elite` "Emberfall Elite" lived here (earned, season-stamped,
+  //    Top 10 on campus). Removing the catalog entry does NOT revoke anybody's item: cosmetics_owned
+  //    rows survive and are grandfathered deliberately. What it does mean is getItem() returns
+  //    undefined for the key, so any surface still holding it falls back — bannerColors() to base
+  //    Hearthlight, the inventory row to its unknown-item path.
+  //
+  //    THE SERVER STILL GRANTS IT. grant_season_placement_rewards() hardcodes this key for the Top
+  //    10 band and season_titles.banner_asset points at it for rank_2/rank_3, so a season settling
+  //    after this ships would mint an item the client cannot name. That is migration 0148's job,
+  //    not this file's — see the report; do not consider §0 finished on the catalog edit alone.
   item({ id: 'title-emberfall-elite', name: '"Emberfall Elite"', type: 'TITLE', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
     lore: 'Top ten, all season, no quiet weeks.',
     art: { kind: 'title', from: '#E0612C', to: '#FFD24D' } }),

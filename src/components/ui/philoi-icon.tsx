@@ -39,7 +39,24 @@ export type PhiloiIconName =
   // `.burger`) — deliberately not the settings glyph, whose knobs make it a different word: one
   // says "menu", the other says "preferences", and the drawer contains a Settings row that would
   // otherwise wear the same icon as the button you pressed to get there.
-  | 'menu';
+  | 'menu'
+  // ── design-mocks/101 (the campfire-as-chat pass) ──────────────────────────────────────────────
+  // The + menu's four actions and the ⋯ sheet's six rows. Same rule as everything above: paths
+  // copied verbatim out of the mock rather than re-derived, so the stroke weight and the corner
+  // radii are the mock's and not an approximation of them.
+  //
+  // 'challenges' is deliberately NOT duplicated here — mock 101's "Start a challenge" dot draws the
+  // identical crossed swords already sitting on the Challenges nav row, and one glyph meaning one
+  // thing in two places is the whole point of this file.
+  | 'camera'
+  | 'share'
+  | 'bell'
+  | 'bell-off'
+  | 'person-plus'
+  | 'members'
+  | 'sliders'
+  | 'flag'
+  | 'leave';
 
 type PhiloiIconProps = {
   name: PhiloiIconName;
@@ -95,24 +112,114 @@ function glyph(name: PhiloiIconName, wash: string, washOpacity: number, tint: st
         </>
       );
 
-    // Crossed swords. Solid in both states (mock 158's `.fillp`) — a sword at 1.8 stroke on a
-    // 24 grid is four hairlines and reads as noise.
+    // Crossed swords — the X-crossing pair from design-mocks/101 (Lucide "swords"), replacing the
+    // earlier fanned solid swords. Stroke, inheriting the parent G's 1.8 round: two blades cross
+    // near centre, hilts + pommels at the two bottom corners, tips at the two top corners.
     case 'challenges':
       return (
-        <G fill={tint} stroke="none">
-          <G transform="rotate(-40 12 12)">
-            <Path d="M12 2.6 10.7 13 h2.6z" />
-            <Rect x={8.2} y={13} width={7.6} height={1.9} rx={0.7} />
-            <Rect x={10.9} y={14.9} width={2.2} height={4} rx={0.6} />
-            <Circle cx={12} cy={20.3} r={1.5} />
-          </G>
-          <G transform="rotate(40 12 12)">
-            <Path d="M12 2.6 10.7 13 h2.6z" />
-            <Rect x={8.2} y={13} width={7.6} height={1.9} rx={0.7} />
-            <Rect x={10.9} y={14.9} width={2.2} height={4} rx={0.6} />
-            <Circle cx={12} cy={20.3} r={1.5} />
-          </G>
+        <G fill="none">
+          <Path d="M14.5 17.5 3 6 3 3 6 3 17.5 14.5" />
+          <Path d="M13 19 19 13" />
+          <Path d="M16 16 20 20" />
+          <Path d="M19 21 21 19" />
+          <Path d="M14.5 6.5 18 3 21 3 21 6 17.5 9.5" />
+          <Path d="M5 14 9 18" />
+          <Path d="M7 17 4 20" />
+          <Path d="M3 19 5 21" />
         </G>
+      );
+
+    // ── mock 101 ────────────────────────────────────────────────────────────────────────────────
+
+    case 'camera':
+      return (
+        <>
+          <Path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.3-1.9A1 1 0 0 1 9.1 4.7h5.8a1 1 0 0 1 .83.44L17 7h2.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z" />
+          <Circle cx={12} cy={12.5} r={3.3} fill={wash} fillOpacity={washOpacity} />
+        </>
+      );
+
+    // A box with an arrow leaving it — "put this somewhere else", which is what sharing a lock-in
+    // into the feed is. Not the iOS share sheet's glyph by accident; it is the same idea.
+    case 'share':
+      return (
+        <>
+          <Path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+          <Path d="M16 6 12 2 8 6" />
+          <Path d="M12 2v13" />
+        </>
+      );
+
+    case 'bell':
+      return (
+        <>
+          <Path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5 1.5 5h-15S6 14 6 10Z" fill={wash} fillOpacity={washOpacity} />
+          <Path d="M10 19a2 2 0 0 0 4 0" />
+        </>
+      );
+
+    // The muted bell: the same silhouette cut open on the left and struck through, so it reads as
+    // the bell it is turning off rather than as an unrelated "no" symbol.
+    case 'bell-off':
+      return (
+        <>
+          <Path d="M6 10a6 6 0 0 1 9.2-5.1" />
+          <Path d="M18 10c0 4 1.5 5 1.5 5H7" />
+          <Path d="M10 19a2 2 0 0 0 4 0" />
+          <Path d="M3.5 3.5 20.5 20.5" />
+        </>
+      );
+
+    case 'person-plus':
+      return (
+        <>
+          <Circle cx={9} cy={8} r={3.4} fill={wash} fillOpacity={washOpacity} />
+          <Path d="M3.5 19a5.6 5.6 0 0 1 11 0" />
+          <Path d="M18.5 8v6" />
+          <Path d="M15.5 11h6" />
+        </>
+      );
+
+    case 'members':
+      return (
+        <>
+          <Circle cx={8.5} cy={8.5} r={3} fill={wash} fillOpacity={washOpacity} />
+          <Circle cx={16.5} cy={9} r={2.3} />
+          <Path d="M2.6 19a6 6 0 0 1 11.8 0" />
+          <Path d="M15 19.2a5 5 0 0 1 6.4-4.3" />
+        </>
+      );
+
+    // Two rails with a knob on each — settings as a mixing desk. The knobs carry a constant light
+    // fill in BOTH states (mock 101 draws them at fill-opacity .15), because they are mass in the
+    // drawing rather than a state signal; see the header note on `solid` shapes.
+    case 'sliders':
+      return (
+        <>
+          <Path d="M4 7.5h16" />
+          <Circle cx={9} cy={7.5} r={2.3} fill={tint} fillOpacity={0.15} />
+          <Path d="M4 16h16" />
+          <Circle cx={15} cy={16} r={2.3} fill={tint} fillOpacity={0.15} />
+        </>
+      );
+
+    case 'flag':
+      return (
+        <>
+          <Path d="M6 3v18" />
+          <Path d="M6 4.2h11l-2.2 3.2L17 10.6H6" fill={wash} fillOpacity={washOpacity} />
+        </>
+      );
+
+    // Door on the right, arrow walking out to the left. Points AWAY from the room, which is the
+    // half of this glyph that stops it reading as "log in".
+    case 'leave':
+      return (
+        <>
+          <Path d="M14 4h3.5A1.5 1.5 0 0 1 19 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14" />
+          <Path d="M10 8.5 6 12l4 3.5" />
+          <Path d="M6 12h9" />
+        </>
       );
 
     case 'profile':

@@ -20,11 +20,11 @@ import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { challengeTitle, formatMetricValue, isDuel, isPlacement, metricLabel, metricNoun } from '@/lib/challenge-metric';
-import { challengeRevealKind } from '@/lib/challenge-outcome';
+import { challengeClockText, challengeRevealKind, duelOutcome, type ChallengeVerdict } from '@/lib/challenge-outcome';
 import { fetchChallengeResults } from '@/lib/api/social-challenges';
+import { rewardChips } from '@/lib/challenge-reward-summary';
 import { getErrorMessage } from '@/lib/errors';
-import { CHALLENGE_TYPE_GLYPH } from '@/lib/goal-types';
-import { formatTimeLeft } from '@/lib/format';
+import { CHALLENGE_TYPE_GLYPH, canonicalGoalUnit } from '@/lib/goal-types';
 import { shareCardImage } from '@/lib/share-card';
 import type { ChallengeResultRow, SocialChallenge, SocialChallengeRaceMetric } from '@/types/database';
 
@@ -152,9 +152,24 @@ function Results({
               {r.member_id === myUserId ? 'You' : r.member_name}
               {r.is_winner ? ' 👑' : ''}
             </Text>
-            {r.percentile != null && rows.length > 2 ? (
+              {r.percentile != null && rows.length > 2 ? (
               <Text style={styles.resultBand}>Top {Math.max(1, Math.round((1 - r.percentile) * 100))}%</Text>
             ) : null}
+            {/* §3 — WHAT THIS RACER WAS ACTUALLY PAID, beside their rank rather than only inside a
+                reveal that fires once. The XP already had a column on the right; the embers, the
+                box and the badge had nowhere on this screen at all, which is why a settled race
+                could not answer "what did I get for that" the day after. Read from the payload
+                grant_reward stored (0154), never re-derived. XP is dropped from the chips here —
+                it has its own column two elements over, and printing it twice on one row reads as
+                a bug. */}
+            {(() => {
+              const chips = rewardChips(null, r.reward);
+              return chips.length > 0 ? (
+                <Text style={styles.resultReward} numberOfLines={1}>
+                  {chips.map((chip) => chip.text).join(' · ')}
+                </Text>
+              ) : null;
+            })()}
           </View>
           {/* What the ledger paid, not what the screen thinks it should have. 0 is shown as a
               dash: a group race nobody completed pays nobody, and "+0 XP" reads like a bug.
@@ -195,11 +210,36 @@ function Results({
   );
 }
 
+/**
+ * THE DURATION ROW, IN THE RIGHT TENSE.
+ *
+ * 🔴 "Duration · 72h · ending soon" on a duel that had ended. All three shapes built this row from
+ * `formatTimeLeft(ends_at)`, which only knows about a clock and therefore kept promising a future
+ * on a race with a result. challengeClockText is the one derivation every challenge surface now
+ * shares — it prefers the stored verdict and falls back to the countdown only while the race is
+ * genuinely undecided.
+ *
+ * The window itself ("72h") stays either way: it is a rule of the challenge, not a countdown, and
+ * it is exactly the thing somebody opens this table to read.
+ */
+function durationValue(c: SocialChallenge, verdict?: ChallengeVerdict): string {
+  if (!c.ends_at) return `${c.window_hours}h`;
+  return `${c.window_hours}h · ${challengeClockText(c.status, c.ends_at, verdict)}`;
+}
+
 function SocialInfo({ challengeId }: { challengeId: string }) {
-  const { challenges } = useSocialChallenges();
+  const { challenges, loading } = useSocialChallenges();
   const c = challenges.find((x) => x.id === challengeId);
 
-  if (!c) return <Missing what="challenge" />;
+  // 🔴 "That challenge isn't available any more." on a race that exists. The list starts EMPTY and
+  // `loading` starts true (use-social-challenges), so every open of this screen missed on the first
+  // frame — including the ones arriving from a challenge_won deep-link, which is the single most
+  // important door onto it. The dead end was a race condition, not a missing row.
+  //
+  // The RPC does return settled challenges to their racers, so once the fetch lands a finished duel
+  // resolves and this screen shows its result. It is only genuinely gone when the fetch has
+  // completed and still has no row for this id.
+  if (!c) return loading ? <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} /> : <Missing what="challenge" />;
   // Split so the body can use hooks. The lookup above can miss (a deep link into a cache that
   // hasn't loaded, a stale back-stack entry), and an early return above a useEffect is the
   // hook-order bug that comes back the next time somebody adds one.
@@ -226,6 +266,10 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
   const placement = isPlacement(c);
   const settled = c.status === 'completed' || c.status === 'expired';
   const otherName = (isCreator ? c.opponent_name : c.created_by_name) ?? 'them';
+  // The stored verdict, from the one module that knows who won. Only a duel has one — a group or
+  // placement race reads "Final" — so this is null for the other two shapes and the rows below
+  // pass undefined.
+  const outcome = duel ? duelOutcome(c, session?.user.id, otherName) : null;
 
   /**
    * THE REVEAL (ledger #3 / DECISION_reward_screen_and_goal_drip.md).
@@ -288,11 +332,10 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
     ? [
         { k: 'Type', v: 'Head-to-head' },
         { k: 'The race', v: metricLabel(c.race_metric) },
-        {
-          k: 'Duration',
-          v: c.ends_at ? `${c.window_hours}h · ${formatTimeLeft(c.ends_at)}` : `${c.window_hours}h`,
-        },
-        { k: 'Winner takes', v: `+${c.payout_xp} XP`, highlight: true },
+        { k: 'Duration', v: durationValue(c, outcome?.verdict) },
+        // Past tense once it is decided. "Winner takes +200 XP" over a finished race reads as an
+        // offer that is still open.
+        { k: settled ? 'Winner took' : 'Winner takes', v: `+${c.payout_xp} XP`, highlight: true },
         // The tiebreak is the spec's resolution rule, stated here because it is precisely the
         // sort of thing nobody thinks about until it decides their challenge.
         { k: "If it's a tie", v: 'First to reach it' },
@@ -302,11 +345,8 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
       ? [
           { k: 'Type', v: 'Placement race' },
           { k: 'The race', v: metricLabel(c.race_metric) },
-          {
-            k: 'Duration',
-            v: c.ends_at ? `${c.window_hours}h · ${formatTimeLeft(c.ends_at)}` : `${c.window_hours}h`,
-          },
-          { k: 'Everyone takes', v: `up to +${c.payout_xp} XP by band`, highlight: true },
+          { k: 'Duration', v: durationValue(c) },
+          { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP by band`, highlight: true },
           // The whole campfire is the field — nobody was invited and nobody had to answer, so the
           // collective row's "N yet to answer" would always read zero and imply a step that
           // doesn't exist here.
@@ -317,11 +357,8 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
       : [
           { k: 'Type', v: 'Collective goal' },
           { k: 'The goal', v: `Everyone locks in ${c.target_count ?? 1}×` },
-          {
-            k: 'Duration',
-            v: c.ends_at ? `${c.window_hours}h · ${formatTimeLeft(c.ends_at)}` : `${c.window_hours}h`,
-          },
-          { k: 'Everyone takes', v: `up to +${c.payout_xp} XP`, highlight: true },
+          { k: 'Duration', v: durationValue(c) },
+          { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP`, highlight: true },
           // The racers, not the campfire — since 0096 this is an invited subset, and the count on
           // the card is the one settlement uses (0112).
           { k: 'Racing', v: `${c.accepted_count} in${c.invited_count > 0 ? ` · ${c.invited_count} yet to answer` : ''}` },
@@ -450,6 +487,9 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
               <ChallengeRewardScreen
                 result={result}
                 displayName={profile?.display_name ?? 'you'}
+                // The same kind this screen already took the floor with, so the rays are tinted by
+                // the row that ordered the queue rather than by a second guess at the shape.
+                revealKind={challengeRevealKind(c)}
                 onShare={handleShare}
                 sharing={sharing}
                 onClose={dismiss}
@@ -492,23 +532,35 @@ function shareContextLine(c: SocialChallenge, opponentName: string | null): stri
 }
 
 function GoalInfo({ challengeId }: { challengeId: string }) {
-  const { challenges } = useMyChallenges();
+  const { challenges, loading } = useMyChallenges();
   const g = challenges.find((x) => x.id === challengeId);
 
-  if (!g) return <Missing what="goal" />;
+  // Same first-frame miss as SocialInfo above — the list is empty until the fetch lands, and
+  // "isn't available any more" is a lie about a goal that is sitting on the tab behind you.
+  if (!g) return loading ? <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} /> : <Missing what="goal" />;
 
   const pct = Math.min(100, Math.round((g.progress / g.target) * 100));
   const isAuto = g.count_mode !== 'manual';
 
+  // §4a — the metric decides the unit for a built-in goal; a custom one keeps the owner's word and
+  // falls back to its own name. Same helper the card reads, so the two cannot disagree.
+  const unit = canonicalGoalUnit(g.type, g.unit, g.label);
+  const oneTime = g.period === 'once';
+
   const rows: Row[] = [
-    { k: 'Type', v: 'Personal goal' },
-    { k: 'Target', v: `${g.target.toLocaleString('en-US')} ${g.unit}` },
+    { k: 'Type', v: oneTime ? 'Personal goal · one-time' : 'Personal goal' },
+    { k: 'Target', v: `${g.target.toLocaleString('en-US')} ${unit}` },
     { k: 'Source', v: isAuto ? 'Tracked automatically' : 'Logged by hand' },
     // Plain "midnight" is now true — migration 0084 rolls each user at their OWN midnight rather
-    // than a single 00:10 UTC sweep. Weekly is still the shared UTC boundary.
-    { k: 'Resets', v: g.period === 'day' ? 'Every night at midnight' : 'Every Sunday (UTC)' },
+    // than a single 00:10 UTC sweep. Weekly is still the shared UTC boundary. §5 — a one-time goal
+    // is not rolled by either arm of that sweep, so it has no reset to name.
+    {
+      k: 'Resets',
+      v: oneTime ? 'Never — finish it once' : g.period === 'day' ? 'Every night at midnight' : 'Every Sunday (UTC)',
+    },
     { k: 'Reward', v: 'Embers on completion', highlight: true },
-    { k: 'Goal streak', v: 'Milestones at 3 · 7 · 14 · 30 days' },
+    // A streak needs consecutive windows to be a streak, and a one-time goal has exactly one.
+    ...(oneTime ? [] : [{ k: 'Goal streak', v: 'Milestones at 3 · 7 · 14 · 30 days' }]),
   ];
 
   return (
@@ -521,23 +573,31 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
           <DisciplineIcon name={CHALLENGE_TYPE_GLYPH[g.type]} size={30} color={Colors.amber} />
         </View>
         <Text style={styles.goalTitle}>
-          {g.label ?? `${g.target.toLocaleString('en-US')} ${g.unit}`}
+          {g.label ?? `${g.target.toLocaleString('en-US')} ${unit}`}
         </Text>
         <Text style={styles.goalProgress}>
           {g.progress.toLocaleString('en-US')} / {g.target.toLocaleString('en-US')}{' '}
-          {g.period === 'day' ? 'today' : 'this week'} · {pct}%
+          {g.period === 'day' ? 'today' : oneTime ? 'total' : 'this week'} · {pct}%
         </Text>
       </View>
 
       <Rules rows={rows} />
 
       <View style={styles.note}>
-        <Text style={styles.noteText}>
-          Each day you clear this banks a small ember drip that scales with how ambitious the target
-          is. An unbroken run pays a bonus on top at{' '}
-          <Text style={styles.noteStrong}>3, 7, 14 and 30 days</Text> — the 30-day milestone also
-          drops a box.
-        </Text>
+        {oneTime ? (
+          <Text style={styles.noteText}>
+            <Text style={styles.noteStrong}>One target, no reset.</Text> This counter keeps running
+            until you hit {g.target.toLocaleString('en-US')} {unit} — midnight and Sunday do nothing
+            to it. Clearing it banks an ember drip once, and then it stays done.
+          </Text>
+        ) : (
+          <Text style={styles.noteText}>
+            Each day you clear this banks a small ember drip that scales with how ambitious the target
+            is. An unbroken run pays a bonus on top at{' '}
+            <Text style={styles.noteStrong}>3, 7, 14 and 30 days</Text> — the 30-day milestone also
+            drops a box.
+          </Text>
+        )}
       </View>
     </ScrollView>
   );
@@ -670,6 +730,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ink,
+  },
+  resultReward: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.amber,
+    marginTop: 1,
   },
   resultBand: {
     fontFamily: Fonts.body,

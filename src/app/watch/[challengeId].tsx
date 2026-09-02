@@ -27,8 +27,7 @@ import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { cheerChallenge, fetchChallengeCheerNotes } from '@/lib/api/leaderboard-social';
 import { formatMetricValue, metricLabel } from '@/lib/challenge-metric';
-import { viewerLabels } from '@/lib/challenge-outcome';
-import { formatTimeLeft } from '@/lib/format';
+import { challengeClockText, viewerLabels } from '@/lib/challenge-outcome';
 import type { CheerNote, SocialChallengeRaceMetric } from '@/types/database';
 
 // Mirrors the challenge_cheers_note_len constraint in 0110. Changing one without the other means
@@ -292,7 +291,13 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
       <View style={styles.goalRow}>
         <Ionicons name="flash" size={13} color={Colors.achieverText} />
         <Text style={styles.goalText}>{metricLabel(watch.race_metric)}</Text>
-        <Text style={styles.timeLeft}>{watch.ends_at ? formatTimeLeft(watch.ends_at) : ''}</Text>
+        {/* 🔴 "Most lock-in time · ending soon", four lines above "Final · this challenge has
+            ended". This was `formatTimeLeft(ends_at)` unconditionally, and a countdown cannot know
+            the race has a result — the GROUP header two hundred lines down has always had the
+            `isFinal ? 'Final'` guard, and this one never got it. Both now read the same helper.
+            No verdict is passed because get_challenge_watch does not return winner_id: a spectator
+            gets "Final", which is what the note under the board already says. */}
+        <Text style={styles.timeLeft}>{challengeClockText(watch.status, watch.ends_at)}</Text>
       </View>
 
       <View style={styles.matchup}>
@@ -459,9 +464,7 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
             (placement ? metricLabel(head.race_metric) : `Everyone locks in ${head.target_count ?? 1}×`)}{' '}
           · {head.circle_name}
         </Text>
-        <Text style={styles.timeLeft}>
-          {isFinal ? 'Final' : head.ends_at ? formatTimeLeft(head.ends_at) : ''}
-        </Text>
+        <Text style={styles.timeLeft}>{challengeClockText(head.status, head.ends_at)}</Text>
       </View>
 
       <FlatList

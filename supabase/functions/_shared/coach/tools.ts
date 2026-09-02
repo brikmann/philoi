@@ -136,12 +136,33 @@ export const COACH_TOOLS: CoachToolSpec[] = [
         },
         label: { type: 'string', description: 'What the challenge is called, e.g. "Pass BU111".' },
         target: { type: 'number', description: 'The numeric target.' },
-        unit: { type: 'string', description: 'What the target counts, e.g. "hours", "sessions", "km".' },
+        unit: {
+          type: 'string',
+          // 🔴 A goal named "Cold plunges" reached a real user's tab reading "0 / 1 bath", because
+          // this said only "e.g. hours, sessions, km" and a plausible-sounding noun satisfied it.
+          // The unit is rendered directly into "<progress> / <target> <unit>", so it has to be the
+          // PLURAL NOUN OF THE THING THE LABEL COUNTS and nothing else.
+          //
+          // Ignored entirely for a built-in type — the client and migration 0157 both overwrite it
+          // with the metric's own unit — so it matters only for `custom`, which is exactly the case
+          // that went wrong.
+          description:
+            'The plural noun the target counts, taken from the goal itself. It is rendered as ' +
+            '"0 / <target> <unit>", so it must read correctly there: "Cold plunges" counts ' +
+            '"plunges", not "bath"; "Push-ups" counts "push-ups"; "Read Dune" counts "pages". ' +
+            'Never invent a container or a synonym for the activity. Ignored for non-custom types, ' +
+            'which take their unit from the metric.',
+        },
         period: {
           type: 'string',
-          enum: ['day', 'week'],
-          // Only two windows exist. A month-long challenge is expressed as a weekly target.
-          description: 'The window it resets on. There is no monthly period.',
+          enum: ['day', 'week', 'once'],
+          // Three windows. 'once' (migration 0155) is the non-recurring one: a single target that
+          // never resets and stays done once it is hit.
+          description:
+            'The window it resets on. "day" resets at their local midnight, "week" every Sunday, ' +
+            'and "once" never resets — use "once" for a single target like "run a half marathon" ' +
+            'or "1000 push-ups", where resetting the counter would destroy the goal. There is no ' +
+            'monthly period; a month-long recurring target is a weekly one.',
         },
         count_mode: {
           type: 'string',

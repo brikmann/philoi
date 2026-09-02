@@ -16,6 +16,10 @@ type ErrorBoundaryProps = {
    * user to where that work landed instead. */
   exitTo?: string;
   exitLabel?: string;
+  /** When set, this is rendered instead of the full recovery UI on error — for a non-essential,
+   * decorative subtree (e.g. an animated banner backdrop) that should fail to nothing rather than
+   * trap the screen behind an alert. `fallback={null}` = degrade silently. Sentry still logs it. */
+  fallback?: ReactNode;
 };
 
 type ErrorBoundaryState = {
@@ -48,6 +52,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render() {
     if (!this.state.error) return this.props.children;
+    // A decorative subtree opts out of the recovery UI: fail to `fallback` (often null) so the rest
+    // of the screen renders normally. `'fallback' in props` so an explicit `fallback={null}` counts.
+    if ('fallback' in this.props) return this.props.fallback ?? null;
 
     return (
       <View style={styles.container}>

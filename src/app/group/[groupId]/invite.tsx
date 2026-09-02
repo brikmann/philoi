@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { CampfireBadge } from '@/components/campfire-badge';
+import { EmberFill } from '@/components/ui/ember-fill';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCampfireHeat } from '@/hooks/use-campfire-heat';
@@ -81,9 +82,14 @@ export default function InviteScreen() {
 
       <View style={styles.spring} />
 
-      <Pressable style={styles.shareBtn} onPress={handleShare} disabled={sharing || !group}>
-        <Ionicons name="share-social" size={17} color={Colors.onEmber} />
-        <Text style={styles.shareLabel}>{sharing ? 'Sharing…' : 'Share invite link'}</Text>
+      <Pressable onPress={handleShare} disabled={sharing || !group} accessibilityRole="button">
+        <EmberFill
+          style={[styles.shareBtn, (sharing || !group) && styles.shareBtnBusy]}
+          radius={Radius.button}
+          direction="diagonal">
+          <Ionicons name="share-social" size={17} color={Colors.onEmber} />
+          <Text style={styles.shareLabel}>{sharing ? 'Sharing…' : 'Share invite link'}</Text>
+        </EmberFill>
       </Pressable>
     </Screen>
   );
@@ -165,14 +171,22 @@ const styles = StyleSheet.create({
   spring: {
     flex: 1,
   },
+  // §3 · EMBER GRADIENT, NOT FLAT AMBER.
+  //
+  // This carried a comment claiming it was "the ember treatment" while painting
+  // `backgroundColor: Colors.amber` — one flat yellow. DESIGN_LANGUAGE_EMBER §3's primary is the
+  // amber→coral GRADIENT (what PrimaryButton and the FAB paint); a solid amber slab is the
+  // washed-out thing the rule exists to abolish, and it has now been reported three times. The
+  // fill is <EmberFill> now, so there is no colour here to drift back.
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.amber,
-    borderRadius: Radius.button,
     paddingVertical: 15,
+  },
+  shareBtnBusy: {
+    opacity: 0.6,
   },
   shareLabel: {
     fontFamily: Fonts.bodyBold,

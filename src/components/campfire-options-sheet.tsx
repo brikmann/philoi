@@ -1,4 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
+
+import { PhiloiIcon, type PhiloiIconName } from '@/components/ui/philoi-icon';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -35,7 +37,10 @@ type CampfireOptionsSheetProps = {
 
 type RowConfig = {
   key: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  // mock 101 frame 4 draws this sheet with the PHILOI line set, not Ionicons. Same reason
+  // philoi-icon.tsx exists at all: a menu reads as a menu only when every row is drawn by the
+  // same hand, and this sheet was mixing three families' idea of a stroke weight.
+  icon: PhiloiIconName;
   label: string;
   badge?: number;
   onPress: () => void;
@@ -126,31 +131,33 @@ export function CampfireOptionsSheet({
 
   const rows: RowConfig[] = [
     ...(isAdmin
-      ? [{ key: 'edit', icon: 'pencil' as const, label: 'Edit campfire', onPress: () => go(`/group/${groupId}/edit`) }]
+      ? [{ key: 'edit', icon: 'sliders' as const, label: 'Campfire settings', onPress: () => go(`/group/${groupId}/edit`) }]
       : []),
-    // The banner affordance mock 164 §3 asks for. OWNER only, not admin: the header flies the
-    // owner's cosmetic (see campfire-banner-picker.tsx), so an admin picking one here would be
-    // equipping a banner off someone else's account.
-    ...(isOwner
-      ? [
-          {
-            key: 'banner',
-            icon: 'color-palette' as const,
-            label: 'Set banner',
-            onPress: () => {
-              onClose();
-              setBannerOpen(true);
-            },
-          },
-        ]
-      : []),
-    { key: 'invite', icon: 'person-add', label: 'Invite people', onPress: () => go(`/group/${groupId}/invite`) },
+    // R2 — "Set banner" IS DELIBERATELY GONE FROM HERE.
+    //
+    // The banner is immutable after creation, the same rule as the emoji in R1: a campfire's
+    // identity is what everyone else remembers it by, and a fire that restyles itself weekly has
+    // no identity. The choice moved to group/create.tsx's BannerStrip, which is the one moment it
+    // is offered.
+    //
+    // TO PUT IT BACK, this array entry is the whole affordance — the picker component, its state
+    // and the setCampfireBanner call below all still exist and still work:
+    //
+    //   ...(isOwner ? [{ key: 'banner', icon: 'color-palette' as const, label: 'Set banner',
+    //                    onPress: () => { onClose(); setBannerOpen(true); } }] : []),
+    //
+    // NOT ENFORCED SERVER-SIDE, and that is on purpose for this pass. set_campfire_banner stays
+    // callable by the owner, so the campfires that already exist — every one of which predates
+    // the creation-time picker and therefore has a null banner_item_id — are not permanently
+    // stranded on Hearthlight with no route to a banner. Locking the RPC to a first-write-wins
+    // rule is a one-line migration when those fires have been dealt with.
+    { key: 'invite', icon: 'person-plus', label: 'Invite people', onPress: () => go(`/group/${groupId}/invite`) },
     // Everyone can see who's in and who holds keys; only the owner can change it (gated on the
     // screen and in set_campfire_member_role()).
-    { key: 'members', icon: 'people-circle', label: 'Members', onPress: () => go(`/group/${groupId}/members`) },
+    { key: 'members', icon: 'members', label: 'Members', onPress: () => go(`/group/${groupId}/members`) },
     {
       key: 'mute',
-      icon: chatMuted ? 'notifications-off' : 'notifications-off-outline',
+      icon: chatMuted ? 'bell' : 'bell-off',
       label: chatMuted ? 'Unmute notifications' : 'Mute notifications',
       onPress: handleToggleMute,
     },
@@ -158,7 +165,7 @@ export function CampfireOptionsSheet({
       ? [
           {
             key: 'join-requests',
-            icon: 'people' as const,
+            icon: 'members' as const,
             label: 'Join requests',
             badge: pendingCount,
             onPress: () => go(`/group/${groupId}/join-requests`),
@@ -198,7 +205,7 @@ export function CampfireOptionsSheet({
             {rows.map((row) => (
               <Pressable key={row.key} style={styles.row} onPress={row.onPress} disabled={muting}>
                 <View style={styles.rowIcon}>
-                  <Ionicons name={row.icon} size={16} color={Colors.soloChipText} />
+                  <PhiloiIcon name={row.icon} size={18} color={Colors.ember} />
                 </View>
                 <Text style={styles.rowLabel}>{row.label}</Text>
                 {Boolean(row.badge) && (
@@ -214,7 +221,7 @@ export function CampfireOptionsSheet({
 
             <Pressable style={styles.row} onPress={() => go(`/report?groupId=${groupId}`)}>
               <View style={[styles.rowIcon, styles.rowIconWarn]}>
-                <Ionicons name="flag" size={15} color={Colors.amber} />
+                <PhiloiIcon name="flag" size={18} color={Colors.ember} />
               </View>
               <Text style={styles.rowLabel}>Report this campfire</Text>
               <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
@@ -222,7 +229,7 @@ export function CampfireOptionsSheet({
 
             <Pressable style={styles.row} onPress={() => setConfirmOpen(true)}>
               <View style={[styles.rowIcon, styles.rowIconDanger]}>
-                <Ionicons name={isOwner ? 'trash' : 'log-out'} size={15} color={Colors.danger} />
+                <PhiloiIcon name="leave" size={18} color={Colors.danger} />
               </View>
               <Text style={[styles.rowLabel, styles.rowLabelDanger]}>
                 {isOwner ? 'Delete campfire' : 'Leave campfire'}

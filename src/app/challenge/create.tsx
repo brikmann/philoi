@@ -8,8 +8,10 @@ import { CindyChallengeEntry, cindyChallengeSeed } from '@/components/cindy/cind
 import { ChallengeSentSheet } from '@/components/challenge-sent-sheet';
 import { FitnessSyncPrompt } from '@/components/fitness-sync-prompt';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
+import { EmberFill } from '@/components/ui/ember-fill';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
+import { SelectField, type SelectOption } from '@/components/ui/select-field';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -17,7 +19,7 @@ import { useFriends } from '@/hooks/use-friends';
 
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { useAuth } from '@/lib/auth/auth-context';
-import { createChallenge } from '@/lib/api/challenges';
+import { createChallenge, duplicateGoalMessage, findDuplicateActiveGoal } from '@/lib/api/challenges';
 import { inviteChallengeMembers } from '@/lib/api/challenge-lifecycle';
 import { syncChallengeFromDevice } from '@/lib/api/fitness-challenge-sync';
 import { getErrorMessage } from '@/lib/errors';
@@ -144,15 +146,44 @@ export default function CreateChallengeScreen() {
         <View style={styles.topSide} />
       </View>
       <View style={styles.kindRow}>
-        <Pressable onPress={() => setKind('social')} style={[styles.kindTab, kind === 'social' && styles.kindTabActive]}>
-          <Text style={[styles.kindTabLabel, kind === 'social' && styles.kindTabLabelActive]}>Challenge a friend</Text>
-        </Pressable>
-        <Pressable onPress={() => setKind('personal')} style={[styles.kindTab, kind === 'personal' && styles.kindTabActive]}>
-          <Text style={[styles.kindTabLabel, kind === 'personal' && styles.kindTabLabelActive]}>Personal goal</Text>
-        </Pressable>
+        <KindTab label="Challenge a friend" active={kind === 'social'} onPress={() => setKind('social')} />
+        <KindTab label="Personal goal" active={kind === 'personal'} onPress={() => setKind('personal')} />
       </View>
       {kind === 'social' ? <SocialChallengeForm /> : <PersonalChallengeForm />}
     </Screen>
+  );
+}
+
+/**
+ * The segmented toggle at the top.
+ *
+ * 🎨 WAS THE OLD PHILOI ORANGE. `kindTabActive` filled with Colors.coral (#E0612C) and wrote
+ * Colors.ink over it — the pre-Ember primary treatment, and the last control on this screen still
+ * wearing it. DESIGN_LANGUAGE_EMBER §3 is explicit that a flat coral fill with cream text "is
+ * legible but says nothing"; the lit surfaces in this app are the ember gradient with near-black
+ * on top, which is what the Lock-in pill, the send button and PrimaryButton all use.
+ *
+ * EmberFill rather than a hand-rolled SVG: its header names "the selected tab" as one of the three
+ * surfaces it exists for, and this is that tab. Horizontal direction, per §3's rule for pills.
+ */
+function KindTab({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  if (!active) {
+    return (
+      <Pressable onPress={onPress} style={[styles.kindTab, styles.kindTabIdle]} accessibilityRole="button">
+        <Text style={styles.kindTabLabel}>{label}</Text>
+      </Pressable>
+    );
+  }
+  return (
+    <Pressable
+      onPress={onPress}
+      style={styles.kindTabPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: true }}>
+      <EmberFill radius={Radius.pill} style={styles.kindTab}>
+        <Text style={[styles.kindTabLabel, styles.kindTabLabelActive]}>{label}</Text>
+      </EmberFill>
+    </Pressable>
   );
 }
 
@@ -165,12 +196,38 @@ function SocialChallengeForm() {
   // optionally a shared campfire — h2h treats it as a "let this campfire watch" default, group
   // treats it as the (mandatory) campfire itself. Captured once; `mode` can change afterward if
   // the user taps a different challenge type tile, so this doesn't move with it.
-  const params = useLocalSearchParams<{ mode?: string; opponentId?: string; opponentName?: string; circleId?: string }>();
+  const params = useLocalSearchParams<{
+    mode?: string;
+    shape?: string;
+    opponentId?: string;
+    opponentName?: string;
+    circleId?: string;
+    groupId?: string;
+  }>();
   const prefillOpponentId = params.opponentId ?? null;
   const prefillOpponentName = params.opponentName ?? null;
-  const prefillCircleId = params.circleId ?? null;
-  const prefillShape: ChallengeShape = params.mode === 'group' ? 'collective' : 'duel';
-  const prefillMode: SocialChallengeMode = params.mode === 'group' ? 'group' : 'h2h';
+  // 🐛 `groupId` IS ACCEPTED HERE BECAUSE THAT IS WHAT THE CAMPFIRE ACTUALLY SENDS (#128).
+  //
+  // Two callers deep-link into this screen from inside a campfire — challenges-tab.tsx's "Start a
+  // challenge" and social-challenge-card.tsx's "Run it again" — and BOTH pass `groupId`, while this
+  // screen only ever read `circleId`. So the param was dropped on the floor: opening the create
+  // screen from a campfire landed on `groups[0]` (whatever campfire happens to sort first) with the
+  // shape defaulted to a duel. An owner starting a race for the fire they were standing in had to
+  // find that fire again in the picker, and would silently create the race in the wrong campfire if
+  // they didn't notice. Reading both names fixes every existing caller without a coordinated change.
+  const prefillCircleId = params.circleId ?? params.groupId ?? null;
+
+  // `shape` is the direct control (#113): a campfire owner tapping "Set a race" should ARRIVE on
+  // the placement tile, not have to find it. `mode` stays supported because the friend-ping sheet
+  // and the rematch button still speak it, and it only distinguishes duel from campfire.
+  const paramShape = params.shape;
+  const prefillShape: ChallengeShape =
+    paramShape === 'placement' || paramShape === 'collective' || paramShape === 'duel'
+      ? paramShape
+      : params.mode === 'group'
+        ? 'collective'
+        : 'duel';
+  const prefillMode: SocialChallengeMode = prefillShape === 'duel' ? 'h2h' : 'group';
   const opponentPrefilled = Boolean(prefillOpponentId);
 
   // Group's own mandatory campfire.
@@ -758,51 +815,60 @@ const MORE_TYPE_OPTIONS: typeof PERSONAL_TYPE_OPTIONS = [
   { value: 'sleep_hours', label: 'Sleep', unit: 'hours', defaultTarget: '49' },
 ];
 
-// A pill that names its own data source. Previously every metric looked equally automatic, so
-// study/gym/sleep read as auto-tracked while silently sitting at zero — the tag is what makes
-// "this needs WHOOP" and "this comes from your own lock-ins" visible before you commit to a goal.
-function MetricChip({
-  option,
-  selected,
-  onPress,
-}: {
-  option: (typeof PERSONAL_TYPE_OPTIONS)[number];
-  selected: boolean;
-  onPress: () => void;
-}) {
-  const source = metricSourceShort(option.value);
-  return (
-    <Pressable onPress={onPress} style={[styles.personalChip, selected && styles.chipSelected]}>
-      <View style={styles.chipTitleRow}>
-        <DisciplineIcon
-          name={CHALLENGE_TYPE_GLYPH[option.value]}
-          size={14}
-          color={selected ? Colors.ink : Colors.ember}
-        />
-        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.label}</Text>
-      </View>
-      {source ? (
-        <Text style={[styles.chipSource, selected && styles.chipSourceSelected]} numberOfLines={1}>
-          {source}
-        </Text>
-      ) : null}
-    </Pressable>
-  );
-}
-
 const CUSTOM_TYPE_OPTION: (typeof PERSONAL_TYPE_OPTIONS)[number] = {
   value: 'custom',
-  label: '＋ Custom',
+  // No '＋' any more: it was a chip that had to look like an add button sitting among peers. In a
+  // list of things you can track, "Custom" is just the last one.
+  label: 'Custom',
   unit: '',
   defaultTarget: '',
 };
 
+/**
+ * ONE PICKER, NOT TWO SLIDING ROWS (§F).
+ *
+ * What this replaces: the headline four as a horizontal chip scroller, a "More metrics — riding,
+ * Whoop…" link under it, and a SECOND horizontal scroller that appeared when you tapped it. Noah:
+ * "two sliding bars… really weird, should just be a dropdown where you select what you're
+ * racing/tracking."
+ *
+ * The metric set is unchanged and nothing is hidden any more — the four headline metrics, the four
+ * that were behind the More link, and Custom, in one list, each with the full source sentence it
+ * previously had to abbreviate to one word to fit in a chip. `metricSourceShort` was written for
+ * that constraint and is no longer needed here; the sheet has the width for the real thing.
+ */
+const METRIC_SELECT_OPTIONS: SelectOption<ChallengeType>[] = [
+  ...PERSONAL_TYPE_OPTIONS,
+  ...MORE_TYPE_OPTIONS,
+  CUSTOM_TYPE_OPTION,
+].map((option) => ({
+  value: option.value,
+  label: option.label,
+  detail: metricSourceLabel(option.value) ?? metricSourceShort(option.value),
+  icon: <DisciplineIcon name={CHALLENGE_TYPE_GLYPH[option.value]} size={16} color={Colors.ember} />,
+}));
+
+/** Every option the dropdown offers, keyed for the unit/target defaults its selection carries. */
+const METRIC_OPTION_BY_TYPE = new Map(
+  [...PERSONAL_TYPE_OPTIONS, ...MORE_TYPE_OPTIONS, CUSTOM_TYPE_OPTION].map((o) => [o.value, o])
+);
+
 // "How often" (mock 73A) — the cadence itself, not a one-off window. The old labels ("This week"
 // / "Today") described a single period; these describe the repeat, which is what a goal that
 // resets every Monday actually is.
-const PERSONAL_PERIOD_OPTIONS: { value: ChallengePeriod; label: string }[] = [
-  { value: 'day', label: 'Daily' },
-  { value: 'week', label: 'Weekly' },
+//
+// §5 — "Once" is the third, and it is not a repeat at all. Noah: "you can only pick Daily or
+// Weekly — every goal is forced to recur", which makes "run a half marathon", "read Dune" and
+// "1000 push-ups" unexpressible: each is a single target, and both recurring cadences reset the
+// counter underneath it. A 'once' goal has one window that opens at creation and never closes, and
+// when it is hit it stays hit (migration 0155).
+//
+// LAST IN THE ROW on purpose. Daily is what most goals are and the first chip is the one people
+// take; a one-time target is the deliberate choice, not the default.
+const PERSONAL_PERIOD_OPTIONS: { value: ChallengePeriod; label: string; hint: string }[] = [
+  { value: 'day', label: 'Daily', hint: 'Resets every night at your midnight.' },
+  { value: 'week', label: 'Weekly', hint: 'Resets every Sunday (UTC).' },
+  { value: 'once', label: 'Once', hint: 'One target, no reset — it stays done once you hit it.' },
 ];
 
 /** What a custom goal counts (mock 74). Built-in metrics all have their own source, so this
@@ -821,7 +887,6 @@ function PersonalChallengeForm() {
   const [customLabel, setCustomLabel] = useState('');
   const [customCountMode, setCustomCountMode] = useState<CustomCountMode>('lockin_time');
   const [period, setPeriod] = useState<ChallengePeriod>('week');
-  const [moreOpen, setMoreOpen] = useState(false);
   // "Track it" (mock 73A) — only ever offered when a real device metric exists for the chosen
   // metric; see canAutoTrack below.
   const [trackAuto, setTrackAuto] = useState(true);
@@ -896,6 +961,21 @@ function PersonalChallengeForm() {
     setSaving(true);
     setError(null);
     try {
+      // 🔴 §B — THE STACKING EXPLOIT'S FRONT DOOR. Two identical auto-tracked goals read one number
+      // and each bank their own drip (see migration 0148 for the full account). The server refuses
+      // it now; this asks first, so the answer arrives as a sentence in the form instead of as a
+      // failed insert. The trigger is the enforcement — this is only the helpful half, and a race
+      // between two devices still lands on it rather than getting through.
+      const clash = await findDuplicateActiveGoal({
+        userId: session.user.id,
+        type,
+        period,
+        label: isCustom ? customLabel.trim() : null,
+      });
+      if (clash) {
+        setError(duplicateGoalMessage(clash));
+        return;
+      }
       const created = await createChallenge({
         userId: session.user.id,
         type,
@@ -928,38 +1008,20 @@ function PersonalChallengeForm() {
             work behind it is picked per lock-in on the done screen, which can post to several
             campfires at once rather than the one this screen used to bind forever. */}
         <Text style={styles.label}>What are you tracking?</Text>
-        {/* Horizontally scrollable (punchlist 5.4): this row is a plain non-wrapping flex row, so
-            every metric past the screen edge was rendered but unreachable — you couldn't pick Run or
-            anything after it. */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
-          {PERSONAL_TYPE_OPTIONS.map((option) => (
-            <MetricChip key={option.value} option={option} selected={type === option.value} onPress={() => handlePickType(option)} />
-          ))}
-          <Pressable
-            onPress={() => handlePickType(CUSTOM_TYPE_OPTION)}
-            style={[styles.personalChip, isCustom && styles.chipSelected]}>
-            <Text style={[styles.chipText, isCustom && styles.chipTextSelected]}>{CUSTOM_TYPE_OPTION.label}</Text>
-          </Pressable>
-        </ScrollView>
-
-        {/* The device-verified metrics that aren't in mock 73A's headline five, kept reachable. */}
-        {!moreOpen && !MORE_TYPE_OPTIONS.some((o) => o.value === type) ? (
-          <Pressable onPress={() => setMoreOpen(true)} hitSlop={6}>
-            <Text style={styles.moreLink}>More metrics — riding, Whoop…</Text>
-          </Pressable>
-        ) : (
-          // Same treatment as the headline row above — this one grows as more device metrics land.
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsScroll}>
-            {MORE_TYPE_OPTIONS.map((option) => (
-              <MetricChip key={option.value} option={option} selected={type === option.value} onPress={() => handlePickType(option)} />
-            ))}
-          </ScrollView>
-        )}
-
-        {/* The full source sentence for whatever's selected. The pills carry a one-word tag; this
-            spells out what actually feeds the number — including the gym metric's photo/sets
-            requirement, which is the difference between a visit counting and not. */}
-        {metricSourceLabel(type) ? <Text style={styles.sourceLine}>{metricSourceLabel(type)}</Text> : null}
+        {/* §F — one dropdown. See METRIC_SELECT_OPTIONS for what this replaces and why. The source
+            sentence rides inside each row now (including the gym metric's photo/sets requirement,
+            which is the difference between a visit counting and not), so it no longer needs its own
+            line under the picker. */}
+        <SelectField
+          value={type}
+          options={METRIC_SELECT_OPTIONS}
+          onChange={(next) => {
+            const option = METRIC_OPTION_BY_TYPE.get(next);
+            if (option) handlePickType(option);
+          }}
+          title="What are you tracking?"
+          accessibilityLabel="What are you tracking"
+        />
 
         {/* ── Custom (design-mocks/74) ─────────────────────────────────────────── */}
         {isCustom && (
@@ -1011,11 +1073,20 @@ function PersonalChallengeForm() {
             <Pressable
               key={option.value}
               onPress={() => setPeriod(option.value)}
-              style={[styles.personalChip, period === option.value && styles.chipSelected]}>
+              style={[styles.personalChip, period === option.value && styles.chipSelected]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: period === option.value }}
+              accessibilityHint={option.hint}>
               <Text style={[styles.chipText, period === option.value && styles.chipTextSelected]}>{option.label}</Text>
             </Pressable>
           ))}
         </View>
+        {/* The cadence is the one field on this form whose consequence is invisible until the next
+            morning — a daily goal that resets is indistinguishable at creation from a one-time goal
+            that does not. One line saying which, under the chip that is actually selected. */}
+        <Text style={styles.cadenceHint}>
+          {PERSONAL_PERIOD_OPTIONS.find((o) => o.value === period)?.hint}
+        </Text>
 
         {/* ── Track it (mock 73A) ───────────────────────────────────────────────
             "Automatically" appears ONLY when a real source can measure this metric. Everything
@@ -1044,7 +1115,11 @@ function PersonalChallengeForm() {
               {isCustom && customCountMode === 'lockin_time'
                 ? `🔒 Custom goals can't read a device — time comes from your lock-ins on "${customLabel.trim() || 'this'}".`
                 : isCustom
-                  ? "🔒 Custom goals can't read a device — this one's a count you log yourself."
+                  ? // 0149: a count goal is no longer purely hand-logged. If its NAME matches an
+                    // exercise, the reps from a gym lock-in roll into it — which is the whole point
+                    // of "1000 pushups" being a goal you can actually chase in the gym. Said here
+                    // because the old line promised the opposite.
+                    `#️⃣ A count you log yourself — and reps logged in a gym session under "${customLabel.trim() || 'this name'}" roll in on their own.`
                   : '✏️ No device measures this one — you log it by hand.'}
             </Text>
           </View>
@@ -1064,7 +1139,7 @@ function PersonalChallengeForm() {
         }}
         onSourceConnected={() => setJustConnectedDeviceFitness(true)}
         challengeType={type}
-        challengeTitle={`${target || '0'} ${unit} ${period === 'day' ? 'today' : 'this week'}`}
+        challengeTitle={`${target || '0'} ${unit} ${period === 'day' ? 'today' : period === 'once' ? 'total' : 'this week'}`}
         challengeSubtitle="Just for you"
       />
     </>
@@ -1194,25 +1269,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
   },
-  kindTab: {
+  // The Pressable is the flex child; the fill is what paints, so it has to be the full-width box
+  // inside it rather than shrink-wrapping the label.
+  kindTabPress: {
     flex: 1,
+  },
+  kindTab: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: Spacing.two,
     borderRadius: Radius.pill,
+  },
+  kindTabIdle: {
+    flex: 1,
     borderWidth: 2,
     borderColor: Colors.line,
-  },
-  kindTabActive: {
-    backgroundColor: Colors.coral,
-    borderColor: Colors.coral,
   },
   kindTabLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
     color: Colors.muted,
   },
+  // Near-black on the gradient, not cream — §3's pairing. Cream on ember is the one combination
+  // that loses contrast at the amber end of the ramp.
   kindTabLabelActive: {
-    color: Colors.ink,
+    color: Colors.onEmber,
   },
   // Matches typesRow/typeTile's filled-card treatment above (SocialChallengeForm) — both forms
   // share one visual language for selectable chips now, not two generations of it.
@@ -1254,6 +1335,12 @@ const styles = StyleSheet.create({
   },
   targetInput: {
     flex: 2,
+  },
+  cadenceHint: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginTop: -Spacing.one,
   },
   unitInput: {
     flex: 1,

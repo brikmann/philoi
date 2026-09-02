@@ -41,6 +41,9 @@ const STRIKE_MS = 260;
 const SETTLE_MS = 420;
 const TOTAL_MS = FALL_MS + STRIKE_MS + SETTLE_MS;
 
+/** Height of the composition block — see the `block` style for what has to fit inside it. */
+const BLOCK_H = 250;
+
 /** Where each spark flies. Fixed rather than random so the burst is the same shape every strike. */
 const SPARKS: { dx: number; dy: number }[] = [
   { dx: -46, dy: -44 },
@@ -85,24 +88,28 @@ export function ForgeStrike({ inputs, reduceMotion, onDone }: Props) {
     swing.value = withDelay(
       FALL_MS - 120,
       withSequence(
-        withTiming(1, { duration: 160, easing: Easing.in(Easing.cubic) }),
-        withTiming(0.82, { duration: 90 }),
-        withTiming(0, { duration: 260, easing: Easing.out(Easing.quad) })
+        // A shorter, steeper fall and a deeper follow-through than the first cut: the hammer used to
+        // arrive as if it were being lowered. The recoil (0.78) is the rebound off the face.
+        withTiming(1, { duration: 140, easing: Easing.in(Easing.cubic) }),
+        withTiming(0.78, { duration: 90 }),
+        withTiming(0, { duration: 280, easing: Easing.out(Easing.quad) })
       )
     );
 
     anvilHit.value = withDelay(
       FALL_MS,
-      withSequence(withTiming(1, { duration: 60 }), withTiming(0, { duration: 200 }))
+      withSequence(withTiming(1, { duration: 45 }), withTiming(0, { duration: 220 }))
     );
 
-    burst.value = withDelay(FALL_MS, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }));
+    burst.value = withDelay(FALL_MS, withTiming(1, { duration: 560, easing: Easing.out(Easing.poly(4)) }));
 
     flash.value = withDelay(
       FALL_MS,
       withSequence(
-        withTiming(1, { duration: 90 }),
-        withTiming(0, { duration: STRIKE_MS + SETTLE_MS - 90 }, (finished) => {
+        // Snaps on in 55ms rather than 90 — a flash that FADES up reads as a glow, and this one is
+        // supposed to read as the moment metal met metal.
+        withTiming(1, { duration: 55, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: STRIKE_MS + SETTLE_MS - 55 }, (finished) => {
           if (finished) runOnJS(onDone)();
         })
       )
@@ -114,37 +121,47 @@ export function ForgeStrike({ inputs, reduceMotion, onDone }: Props) {
   // Rocks on impact rather than translating — an anvil is the one thing on screen that must not
   // look light.
   const anvilStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: anvilHit.value * 3 }, { scaleY: 1 - anvilHit.value * 0.06 }],
+    transform: [{ translateY: anvilHit.value * 4 }, { scaleY: 1 - anvilHit.value * 0.08 }],
   }));
 
+  // Swings through 86° from its cocked -62° and gains a little size on the way down, so the head
+  // reads as coming at the anvil rather than sweeping past it.
   const hammerStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${-62 + swing.value * 78}deg` }],
+    transform: [{ rotate: `${-62 + swing.value * 86}deg` }, { scale: 1 + swing.value * 0.07 }],
   }));
 
   return (
     <View style={styles.stage} pointerEvents="none">
-      {/* The inputs, falling in. */}
-      {inputs.map((item, i) => (
-        <FallingInput key={`${item.id}-${i}`} item={item} index={i} count={inputs.length} fall={fall} />
-      ))}
+      {/* The composition lives in a fixed-height block so it can be CENTRED. Everything inside is
+          still measured from the block's own bottom edge — the anvil at its base, the hammer above
+          it, the sparks off the anvil face — so the arrangement is exactly what it was; what moved
+          is the block, not the pieces within it. */}
+      <View style={styles.block}>
+        {/* The inputs, falling in. */}
+        {inputs.map((item, i) => (
+          <FallingInput key={`${item.id}-${i}`} item={item} index={i} count={inputs.length} fall={fall} />
+        ))}
 
-      {/* Sparks off the anvil face. */}
-      {SPARKS.map((s, i) => (
-        <Spark key={i} dx={s.dx} dy={s.dy} burst={burst} />
-      ))}
+        {/* Sparks off the anvil face. */}
+        {SPARKS.map((s, i) => (
+          <Spark key={i} dx={s.dx} dy={s.dy} burst={burst} />
+        ))}
 
-      <Animated.View style={[styles.anvil, anvilStyle]}>
-        <PhiloiIcon name="forge" size={78} color={Colors.muted} />
-      </Animated.View>
+        <Animated.View style={[styles.anvil, anvilStyle]}>
+          <PhiloiIcon name="forge" size={78} color={Colors.muted} />
+        </Animated.View>
 
-      <Animated.View style={[styles.hammer, hammerStyle]}>
-        <Svg width={30} height={52} viewBox="0 0 30 52">
-          <Rect x={9} y={14} width={4.5} height={34} rx={2} fill={Colors.logBrown} />
-          <Rect x={2} y={4} width={24} height={13} rx={3.5} fill="#9aa4b4" />
-        </Svg>
-      </Animated.View>
+        <Animated.View style={[styles.hammer, hammerStyle]}>
+          <Svg width={30} height={52} viewBox="0 0 30 52">
+            <Rect x={9} y={14} width={4.5} height={34} rx={2} fill={Colors.logBrown} />
+            <Rect x={2} y={4} width={24} height={13} rx={3.5} fill="#9aa4b4" />
+          </Svg>
+        </Animated.View>
+      </View>
 
-      {/* The white flash the strike ends on — and the last thing before the reveal takes over. */}
+      {/* The white flash the strike ends on — and the last thing before the reveal takes over.
+          Sibling of the block, not a child of it, so it still covers the whole SCREEN rather than
+          the 250px the composition occupies. */}
       <Animated.View style={[styles.flash, flashStyle]} />
     </View>
   );
@@ -193,25 +210,44 @@ function FallingInput({
   );
 }
 
+/** Sparks throw a little further than the table says and shrink as they go — a burst that holds its
+ *  size to the end reads as drifting embers rather than as debris off a hammer face. */
+const SPARK_REACH = 1.2;
+
 function Spark({ dx, dy, burst }: { dx: number; dy: number; burst: SharedValue<number> }) {
   const style = useAnimatedStyle(() => ({
-    opacity: burst.value < 0.15 ? burst.value / 0.15 : 1 - (burst.value - 0.15) / 0.85,
-    transform: [{ translateX: dx * burst.value }, { translateY: dy * burst.value }],
+    opacity: burst.value < 0.1 ? burst.value / 0.1 : 1 - (burst.value - 0.1) / 0.9,
+    transform: [
+      { translateX: dx * SPARK_REACH * burst.value },
+      { translateY: dy * SPARK_REACH * burst.value },
+      { scale: 1.3 - burst.value * 0.8 },
+    ],
   }));
   return <Animated.View style={[styles.spark, style]} />;
 }
 
 const styles = StyleSheet.create({
-  // Fills its parent rather than standing 280px tall, so the flash below covers the SCREEN. The
-  // anvil still sits at the bottom of the stage and every absolutely-placed piece is measured from
-  // that same bottom edge, so the composition is unchanged — what changes is that the strike hands
-  // off to the reveal through full white instead of through a bright rectangle on a dark screen.
+  // Fills its parent rather than standing 280px tall, so the flash covers the SCREEN.
+  //
+  // 🐛 It used to also END the composition at its own bottom edge (`flex-end` + a 40px pad), and
+  // since it fills the screen that edge IS the bottom of the phone — so the strike played down by
+  // the home indicator instead of in front of you. Fixed by splitting the two jobs: the stage still
+  // fills the parent (for the flash), and the composition sits in a fixed-height `block` that gets
+  // centred inside it. Every piece is still measured from the block's bottom edge, so nothing about
+  // the arrangement moved — only where the whole thing sits.
   stage: {
     flex: 1,
     alignSelf: 'stretch',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Tall enough to hold the composition at rest AND at full extension: the hammer sits at bottom 66
+  // and stands 52 tall, the inputs start at bottom 190, and the sparks fly 60 up from bottom 106.
+  block: {
+    width: '100%',
+    height: BLOCK_H,
+    alignItems: 'center',
     justifyContent: 'flex-end',
-    paddingBottom: 40,
   },
   input: {
     position: 'absolute',
@@ -247,3 +283,5 @@ const styles = StyleSheet.create({
 });
 
 export const FORGE_STRIKE_MS = TOTAL_MS;
+/** So a caller can park a label directly above the centred composition rather than guessing. */
+export const FORGE_STRIKE_BLOCK_H = BLOCK_H;

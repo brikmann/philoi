@@ -92,6 +92,20 @@ export function challengeRewardResult(
     // A 1v1 loss must never draw the board set's "Fraud Watch" copy — the whole reason this axis
     // exists (CHALLENGE_REWARD_COPY.md).
     context: duel ? 'duel' : 'board',
+    // WHERE THEY CAME, AND OUT OF HOW MANY (#183/#186). These three used to be consumed into
+    // `tier` above and thrown away, so the reveal could say "TOP 25%" but never "12th of 48" — and
+    // a 3-person campfire race and a 48-person one settled to the identical screen. That is the
+    // whole of Noah's point: winning a race with lots of people has to FEEL bigger than winning a
+    // race with two, and the only thing that carries that is the size of the field you beat.
+    //
+    // Passed through raw. `tier` is a bucket and buckets round: 1st of 3 and 1st of 300 are both
+    // `rank1`. The screen needs the numbers themselves to say which race this was.
+    placement: reward.placement,
+    fieldSize: reward.field_size,
+    // Kept in placementTier's orientation (0 = top of the board), NOT the stored one, so nothing
+    // downstream has to remember which way this particular copy is turned. One flip, here, next to
+    // the other one.
+    percentile: reward.percentile == null ? null : 1 - reward.percentile,
     // Only on a win, and only in a duel: the sub-line reads "You beat Dee", which is a lie in
     // second place and meaningless in a group race.
     opponentName:

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Philoi · Campfire as full-screen chat (Discord-style)</title>
+<style>
+  :root{
+    --twilight900:#14111C; --cream:#1B1726; --card:#241C38; --disabled:#2D2740;
+    --plum:#3A2E5C; --selected:#2B2036;
+    --coral:#E0612C; --amber:#F2A33C; --ember:#FFD27A; --onEmber:#3A1608;
+    --ink:#FFF6EC; --muted:#A99CBD; --tertiary:#7C7194;
+    --line:rgba(255,255,255,0.08); --lineStrong:rgba(255,255,255,0.14);
+    --sky:#4FB0E5;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#0d0b13;color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
+    display:flex;flex-wrap:wrap;gap:48px;justify-content:center;align-items:flex-start;
+    padding:56px 32px;min-height:100vh;
+  }
+  .col{display:flex;flex-direction:column;align-items:center;gap:16px}
+  .caption{color:var(--muted);font-size:13px;max-width:390px;text-align:center;line-height:1.5}
+  .caption b{color:var(--ember);font-weight:700}
+  .phone{
+    width:390px;height:844px;border-radius:44px;position:relative;overflow:hidden;
+    background:#141019;box-shadow:0 30px 80px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.04);
+  }
+  /* FULL-SCREEN BANNER ART as the background (animated ember wash) */
+  .banner{position:absolute;inset:0;z-index:0;
+    background:
+      radial-gradient(120% 55% at 50% 0%, rgba(224,97,44,.55), transparent 60%),
+      radial-gradient(90% 40% at 20% 90%, rgba(242,163,60,.28), transparent 70%),
+      linear-gradient(180deg,#3a1e1a 0%, #241528 45%, #161018 100%);
+  }
+  .banner::after{content:"";position:absolute;inset:0;
+    background:radial-gradient(60% 30% at 50% 42%, rgba(255,180,90,.22), transparent 70%);
+    animation:flicker 3.2s ease-in-out infinite;}
+  @keyframes flicker{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.85;transform:scale(1.04)}}
+  .scrim{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg, rgba(10,8,14,.35) 0%, rgba(10,8,14,.15) 34%, rgba(10,8,14,.55) 100%);}
+
+  .status{position:absolute;top:0;left:0;right:0;height:52px;z-index:5;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 8px;font-size:14px;font-weight:600}
+  .status .r{opacity:.9}
+
+  /* top bar: name + leaderboard entry (leaderboard lives INSIDE this screen) */
+  .topbar{position:absolute;top:52px;left:0;right:0;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:8px 16px 12px;
+    background:linear-gradient(180deg, rgba(20,14,22,.72), rgba(20,14,22,0));backdrop-filter:blur(2px)}
+  .fireId{display:flex;align-items:center;gap:10px}
+  .fireEmoji{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;
+    background:rgba(255,210,122,.14);border:1px solid rgba(255,210,122,.3)}
+  .fireName{font-size:18px;font-weight:800;line-height:1}
+  .fireSub{font-size:11px;color:var(--warm,#E7C9B8);margin-top:3px}
+  .topActions{display:flex;gap:8px}
+  .iconBtn{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.07);border:1px solid var(--line);font-size:16px}
+  .iconBtn.lead{background:rgba(255,210,122,.14);border-color:rgba(255,210,122,.3)}
+
+  /* chat feed */
+  .feed{position:absolute;top:118px;bottom:74px;left:0;right:0;z-index:4;overflow:hidden;padding:10px 14px 8px;display:flex;flex-direction:column;gap:12px}
+  .day{align-self:center;font-size:11px;color:var(--tertiary);background:rgba(0,0,0,.3);padding:3px 10px;border-radius:12px;margin:2px 0}
+  .msg{display:flex;gap:9px;max-width:86%}
+  .msg .av{width:30px;height:30px;border-radius:50%;flex:none;background:var(--plum);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--ember)}
+  .bubble{background:rgba(36,28,56,.86);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:8px 12px;font-size:14px;line-height:1.35}
+  .who{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:2px}
+  .msg.me{align-self:flex-end;flex-direction:row-reverse}
+  .msg.me .bubble{background:linear-gradient(180deg,var(--coral),#b64e22);border:none;border-radius:14px 4px 14px 14px;color:#fff}
+  /* rich cards inline in the chat (Discord embed style) */
+  .embed{align-self:flex-start;max-width:90%;background:rgba(20,14,24,.82);border:1px solid var(--lineStrong);border-left:3px solid var(--amber);border-radius:10px;padding:11px 13px;font-size:13px}
+  .embed.strava{border-left-color:#FC4C02}
+  .embed .etop{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px}
+  .embed .etitle{font-weight:800;font-size:14px;margin-bottom:3px}
+  .embed .emeta{color:var(--tertiary);font-size:12px}
+  .embed.chal{border-left-color:var(--ember);background:rgba(58,42,26,.5)}
+  .chalRow{display:flex;align-items:center;justify-content:space-between;margin-top:8px;gap:8px}
+  .chalBtn{flex:1;text-align:center;padding:8px;border-radius:10px;font-weight:800;font-size:13px}
+  .chalBtn.acc{background:linear-gradient(180deg,var(--amber),var(--coral));color:var(--onEmber)}
+  .chalBtn.dec{background:transparent;border:1px solid var(--lineStrong);color:var(--muted)}
+
+  /* composer + FAB */
+  .composer{position:absolute;left:0;right:0;bottom:0;z-index:6;height:74px;display:flex;align-items:center;gap:10px;padding:10px 14px 20px;
+    background:linear-gradient(0deg, rgba(16,12,20,.92), rgba(16,12,20,0))}
+  .input{flex:1;height:44px;border-radius:22px;background:rgba(36,28,56,.9);border:1px solid var(--lineStrong);display:flex;align-items:center;padding:0 16px;color:var(--tertiary);font-size:14px}
+  .fab{width:52px;height:52px;border-radius:50%;flex:none;background:linear-gradient(180deg,var(--amber),var(--coral));display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--onEmber);font-weight:700;box-shadow:0 8px 22px rgba(224,97,44,.45)}
+
+  /* FAB expanded menu (Discord-style radial/stack) */
+  .fabMenu{position:absolute;right:16px;bottom:88px;z-index:7;display:flex;flex-direction:column;gap:12px;align-items:flex-end}
+  .fabItem{display:flex;align-items:center;gap:10px}
+  .fabItem .lbl{background:rgba(20,14,24,.92);border:1px solid var(--lineStrong);padding:8px 13px;border-radius:12px;font-size:13px;font-weight:700}
+  .fabItem .dot{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--card);border:1px solid var(--lineStrong)}
+  .fabItem .dot.hot{background:rgba(255,210,122,.16);border-color:rgba(255,210,122,.35)}
+  .backdrop{position:absolute;inset:0;z-index:6;background:rgba(8,6,12,.55)}
+
+  /* leaderboard overlay (a view INSIDE the campfire) */
+  .lbSheet{position:absolute;left:0;right:0;bottom:0;top:118px;z-index:8;background:rgba(16,11,20,.94);border-radius:22px 22px 0 0;border-top:1px solid var(--lineStrong);padding:14px 16px}
+  .lbGrab{width:40px;height:4px;border-radius:2px;background:var(--trackAlt,#4A4460);margin:0 auto 12px}
+  .lbHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .lbHead .t{font-size:18px;font-weight:800}
+  .seg{display:flex;gap:6px;background:rgba(255,255,255,.05);padding:4px;border-radius:12px;font-size:12px}
+  .seg span{padding:5px 12px;border-radius:9px;color:var(--muted)}
+  .seg span.on{background:rgba(255,210,122,.16);color:var(--ember);font-weight:700}
+  .lbRow{display:flex;align-items:center;gap:12px;padding:11px 8px;border-bottom:1px solid var(--line)}
+  .lbRank{width:20px;font-weight:800;color:var(--muted)}
+  .lbAv{width:34px;height:34px;border-radius:50%;background:var(--plum);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--ember);font-size:13px}
+  .lbName{flex:1}.lbName b{font-size:14px}.lbName div{font-size:11px;color:var(--tertiary)}
+  .lbXP{font-weight:800;color:var(--ember)}
+  .tag{position:absolute;top:60px;left:50%;transform:translateX(-50%);z-index:9;background:rgba(0,0,0,.4);color:var(--muted);font-size:10px;letter-spacing:1.5px;font-weight:700;padding:4px 11px;border-radius:20px;border:1px solid var(--line)}
+
+  /* custom Philoi line icons */
+  .ic{width:22px;height:22px;display:block}
+  .fabItem .dot{color:var(--ember)}
+  .fabItem .dot.hot{color:var(--ember)}
+  .optRow .oi{color:var(--ember);display:flex;align-items:center;justify-content:center}
+  .optRow.danger .oi{color:var(--danger,#E86A5A)}
+
+  /* @mention */
+  .mention{color:var(--ember);font-weight:700;background:rgba(255,210,122,.14);padding:1px 5px;border-radius:6px}
+  .msg.me .mention{color:#fff;background:rgba(255,255,255,.22)}
+  .bubble.mentioned{border-left:3px solid var(--ember);background:rgba(58,42,26,.6)}
+  /* @-autocomplete popover above the composer */
+  .mentionPop{position:absolute;left:14px;right:70px;bottom:78px;z-index:7;background:rgba(20,14,24,.97);border:1px solid var(--lineStrong);border-radius:14px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.5)}
+  .mpHead{font-size:10px;letter-spacing:1.4px;font-weight:700;color:var(--tertiary);padding:10px 14px 6px}
+  .mpRow{display:flex;align-items:center;gap:11px;padding:10px 14px;border-top:1px solid var(--line)}
+  .mpRow .mav{width:30px;height:30px;border-radius:50%;background:var(--plum);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--ember);font-size:12px}
+  .mpRow.all .mav{background:rgba(255,210,122,.16)}
+  .mpRow .mnm{flex:1;font-size:14px;font-weight:600}
+  .mpRow .mnm small{display:block;font-size:11px;color:var(--tertiary);font-weight:400}
+  .mpRow.on{background:rgba(255,210,122,.08)}
+
+  /* kebab options sheet */
+  .optSheet{position:absolute;left:0;right:0;bottom:0;z-index:8;background:rgba(16,11,20,.96);border-radius:22px 22px 0 0;border-top:1px solid var(--lineStrong);padding:14px 12px 26px}
+  .optHead{display:flex;align-items:center;gap:12px;padding:4px 8px 14px;border-bottom:1px solid var(--line);margin-bottom:6px}
+  .optRow{display:flex;align-items:center;gap:14px;padding:14px 10px;border-bottom:1px solid var(--line)}
+  .optRow:last-child{border-bottom:none}
+  .optRow .oi{width:26px;text-align:center;font-size:18px}
+  .optRow .ol{flex:1;font-size:15px;font-weight:600}
+  .optRow .oc{color:var(--tertiary);font-size:18px}
+  .optRow .ohint{font-size:10px;letter-spacing:.5px;color:var(--ember);background:rgba(255,210,122,.14);padding:2px 7px;border-radius:8px;margin-left:6px;font-weight:700;vertical-align:middle}
+  .optRow.danger .ol{color:var(--danger,#E86A5A)}
+  .optRow.danger .oi{filter:none}
+</style>
+</head>
+<body>
+
+  <!-- ── Frame 1 · Full-screen campfire chat over the banner ── -->
+  <div class="col">
+    <div class="phone">
+      <div class="banner"></div><div class="scrim"></div>
+      <div class="tag">FRAME 1 · CAMPFIRE = FULL-SCREEN CHAT</div>
+      <div class="status"><span>9:41</span><span class="r">📶 🔋</span></div>
+      <div class="topbar">
+        <div class="fireId">
+          <div class="fireEmoji">🐐</div>
+          <div><div class="fireName">Goat</div><div class="fireSub">🔥 3 members · roaring</div></div>
+        </div>
+        <div class="topActions">
+          <div class="iconBtn lead" title="Leaderboard">🏆</div>
+          <div class="iconBtn">⋯</div>
+        </div>
+      </div>
+
+      <div class="feed">
+        <div class="day">Today</div>
+        <div class="msg"><div class="av">B2</div><div><div class="who">Noah B2</div><div class="bubble">yo who's running tn</div></div></div>
+        <div class="embed strava">
+          <div class="etop">🏃 NOAH BRIKMAN · STRAVA</div>
+          <div class="etitle">Night Run · 5.1 km</div>
+          <div class="emeta">6:23/km · +140 XP · fed the fire 🔥</div>
+        </div>
+        <div class="msg me"><div class="bubble">just locked in 45m 💪 <span class="mention">@Noah B2</span> you in for pushups?</div></div>
+        <div class="msg"><div class="av">B2</div><div><div class="who">Noah B2</div><div class="bubble mentioned"><span class="mention">@all</span> race starts at 8, don't be late</div></div></div>
+        <div class="embed chal">
+          <div class="etop">👥 GROUP · ALL OR NOTHING · 22h left</div>
+          <div class="etitle">1000 Pushups</div>
+          <div class="emeta">0 / 2 done · everyone who finishes scores</div>
+          <div class="chalRow"><div class="chalBtn acc">Accept</div><div class="chalBtn dec">Decline</div></div>
+        </div>
+        <div class="msg"><div class="av">B2</div><div><div class="who">Noah B2</div><div class="bubble">bet, I'm in</div></div></div>
+      </div>
+
+      <div class="composer">
+        <div class="input">Message the campfire…</div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+    <div class="caption">The campfire IS the chat — <b>banner art fills the whole screen</b>, feed scrolls over it. Lock-ins, Strava, and challenges drop in as <b>inline embeds</b> (Discord style). 🏆 top-right opens the leaderboard.</div>
+  </div>
+
+  <!-- ── Frame 2 · FAB menu (post photo / challenge / ping) ── -->
+  <div class="col">
+    <div class="phone">
+      <div class="banner"></div><div class="scrim"></div>
+      <div class="tag">FRAME 2 · THE + MENU</div>
+      <div class="status"><span>9:41</span><span class="r">📶 🔋</span></div>
+      <div class="topbar">
+        <div class="fireId"><div class="fireEmoji">🐐</div><div><div class="fireName">Goat</div><div class="fireSub">🔥 3 members · roaring</div></div></div>
+        <div class="topActions"><div class="iconBtn lead">🏆</div><div class="iconBtn">⋯</div></div>
+      </div>
+      <div class="feed" style="filter:blur(1px);opacity:.5">
+        <div class="msg"><div class="av">B2</div><div><div class="bubble">yo who's running tn</div></div></div>
+        <div class="msg me"><div class="bubble">just locked in 45m 💪</div></div>
+      </div>
+      <div class="backdrop"></div>
+      <div class="fabMenu">
+        <div class="fabItem"><div class="lbl">Post a photo</div><div class="dot">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.3-1.9A1 1 0 0 1 9.1 4.7h5.8a1 1 0 0 1 .83.44L17 7h2.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="12.5" r="3.3"/></svg>
+        </div></div>
+        <div class="fabItem"><div class="lbl">Start a challenge</div><div class="dot hot">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" y1="14" x2="9" y2="18"/><line x1="7" y1="17" x2="4" y2="20"/><line x1="3" y1="19" x2="5" y2="21"/></svg>
+        </div></div>
+        <div class="fabItem"><div class="lbl">Share a lock-in</div><div class="dot">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        </div></div>
+        <div class="fabItem"><div class="lbl">Ping a member <span style="color:var(--tertiary);font-weight:400">· silent nudge</span></div><div class="dot">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5 1.5 5h-15S6 14 6 10Z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>
+        </div></div>
+      </div>
+      <div class="composer">
+        <div class="input">Message the campfire…</div>
+        <div class="fab" style="transform:rotate(45deg)">+</div>
+      </div>
+    </div>
+    <div class="caption">Bottom-right <b>+</b> fans out the actions — <b>post a photo, start a challenge, share a lock-in, ping a member</b>. One button for everything richer than a message, like a Discord composer.</div>
+  </div>
+
+  <!-- ── Frame 3 · Leaderboard as a view INSIDE the campfire ── -->
+  <div class="col">
+    <div class="phone">
+      <div class="banner"></div><div class="scrim"></div>
+      <div class="tag">FRAME 3 · LEADERBOARD (INNER VIEW)</div>
+      <div class="status"><span>9:41</span><span class="r">📶 🔋</span></div>
+      <div class="topbar">
+        <div class="fireId"><div class="fireEmoji">🐐</div><div><div class="fireName">Goat</div><div class="fireSub">🔥 3 members · roaring</div></div></div>
+        <div class="topActions"><div class="iconBtn lead">🏆</div><div class="iconBtn">⋯</div></div>
+      </div>
+      <div class="lbSheet">
+        <div class="lbGrab"></div>
+        <div class="lbHead"><div class="t">Leaderboard</div>
+          <div class="seg"><span class="on">This week</span><span>All time</span></div>
+        </div>
+        <div class="lbRow"><div class="lbRank">1</div><div class="lbAv">Y</div><div class="lbName"><b>You</b><div>Gold II</div></div><div class="lbXP">10,272 XP</div></div>
+        <div class="lbRow"><div class="lbRank">2</div><div class="lbAv">NB</div><div class="lbName"><b>Noah Brikman</b><div>Gold II</div></div><div class="lbXP">8,697 XP</div></div>
+        <div class="lbRow"><div class="lbRank">3</div><div class="lbAv">B2</div><div class="lbName"><b>Noah B2</b><div>Bronze III</div></div><div class="lbXP">0 XP</div></div>
+        <div class="caption" style="margin-top:16px">Slides up over the same campfire — <b>Leaderboard is a view inside</b>, not a separate tab. Swipe down returns to chat.</div>
+      </div>
+    </div>
+    <div class="caption">🏆 opens the <b>leaderboard as a panel over the same fire</b> (this week / all time) — one campfire screen, chat + leaderboard + composer all in it.</div>
+  </div>
+
+  <!-- ── Frame 4 · Kebab (⋯) menu — campfire options ── -->
+  <div class="col">
+    <div class="phone">
+      <div class="banner"></div><div class="scrim"></div>
+      <div class="tag">FRAME 4 · THE ⋯ MENU</div>
+      <div class="status"><span>9:41</span><span class="r">📶 🔋</span></div>
+      <div class="topbar">
+        <div class="fireId"><div class="fireEmoji">🐐</div><div><div class="fireName">Goat</div><div class="fireSub">🔥 3 members · roaring</div></div></div>
+        <div class="topActions"><div class="iconBtn lead">🏆</div><div class="iconBtn" style="background:rgba(255,210,122,.16);border-color:rgba(255,210,122,.35)">⋯</div></div>
+      </div>
+      <div class="feed" style="filter:blur(1px);opacity:.4">
+        <div class="msg"><div class="av">B2</div><div><div class="bubble">yo who's running tn</div></div></div>
+        <div class="msg me"><div class="bubble">just locked in 45m 💪</div></div>
+      </div>
+      <div class="backdrop"></div>
+
+      <div class="optSheet">
+        <div class="lbGrab"></div>
+        <div class="optHead">
+          <div class="fireEmoji" style="width:44px;height:44px;font-size:22px">🐐</div>
+          <div><div class="fireName" style="font-size:20px">Goat</div><div class="fireSub">Open · 3 members</div></div>
+        </div>
+        <div class="optRow"><div class="oi"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.4"/><path d="M3.5 19a5.6 5.6 0 0 1 11 0"/><path d="M18.5 8v6M15.5 11h6"/></svg></div><div class="ol">Invite people</div><div class="oc">›</div></div>
+        <div class="optRow"><div class="oi"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="3"/><circle cx="16.5" cy="9" r="2.3"/><path d="M2.6 19a6 6 0 0 1 11.8 0"/><path d="M15 19.2a5 5 0 0 1 6.4-4.3"/></svg></div><div class="ol">Members</div><div class="oc">›</div></div>
+        <div class="optRow"><div class="oi"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10a6 6 0 0 1 9.2-5.1"/><path d="M18 10c0 4 1.5 5 1.5 5H7"/><path d="M10 19a2 2 0 0 0 4 0"/><line x1="3.5" y1="3.5" x2="20.5" y2="20.5"/></svg></div><div class="ol">Mute notifications</div><div class="oc">›</div></div>
+        <div class="optRow"><div class="oi"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7.5" x2="20" y2="7.5"/><circle cx="9" cy="7.5" r="2.3" fill="currentColor" fill-opacity="0.15"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.3" fill="currentColor" fill-opacity="0.15"/></svg></div><div class="ol">Campfire settings <span class="ohint">owner</span></div><div class="oc">›</div></div>
+        <div class="optRow"><div class="oi"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v18"/><path d="M6 4.2h11l-2.2 3.2L17 10.6H6"/></svg></div><div class="ol">Report this campfire</div><div class="oc">›</div></div>
+        <div class="optRow danger"><div class="oi"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h3.5A1.5 1.5 0 0 1 19 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14"/><path d="M10 8.5 6 12l4 3.5"/><line x1="6" y1="12" x2="15" y2="12"/></svg></div><div class="ol">Leave campfire</div><div class="oc">›</div></div>
+      </div>
+    </div>
+    <div class="caption">The <b>⋯</b> opens campfire options — <b>Invite people, Members, Mute, settings (owner), Report, Leave</b>. Same sheet as today, now over the full-screen fire.</div>
+  </div>
+
+  <!-- ── Frame 5 · @mention autocomplete (directs the message to them) ── -->
+  <div class="col">
+    <div class="phone">
+      <div class="banner"></div><div class="scrim"></div>
+      <div class="tag">FRAME 5 · @MENTION</div>
+      <div class="status"><span>9:41</span><span class="r">📶 🔋</span></div>
+      <div class="topbar">
+        <div class="fireId"><div class="fireEmoji">🐐</div><div><div class="fireName">Goat</div><div class="fireSub">🔥 3 members · roaring</div></div></div>
+        <div class="topActions"><div class="iconBtn lead">🏆</div><div class="iconBtn">⋯</div></div>
+      </div>
+      <div class="feed" style="filter:blur(1px);opacity:.45">
+        <div class="msg me"><div class="bubble">just locked in 45m 💪</div></div>
+        <div class="msg"><div class="av">B2</div><div><div class="bubble"><span class="mention">@all</span> race at 8</div></div></div>
+      </div>
+
+      <div class="mentionPop">
+        <div class="mpHead">MENTION</div>
+        <div class="mpRow all on"><div class="mav">📢</div><div class="mnm">@all<small>Notify everyone in the campfire</small></div></div>
+        <div class="mpRow"><div class="mav">NB</div><div class="mnm">Noah Brikman<small>@brkmn</small></div></div>
+        <div class="mpRow"><div class="mav">B2</div><div class="mnm">Noah B2<small>@brkmn2</small></div></div>
+      </div>
+
+      <div class="composer">
+        <div class="input" style="color:var(--ink)">@<span style="color:var(--ember)">No</span>│</div>
+        <div class="fab">+</div>
+      </div>
+    </div>
+    <div class="caption">Type <b>@</b> in the message box → member picker. <b>@username</b> directs the message to them (they're notified it's aimed at them); <b>@all</b> notifies the whole fire. Standard mention — <b>separate from the FAB "Ping"</b>, which is a silent direct nudge, not a chat message.</div>
+  </div>
+
+</body>
+</html>

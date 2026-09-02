@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { StyleSheet, View, type LayoutChangeEvent, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { EMBER_GRADIENT, Radius } from '@/constants/theme';
@@ -21,7 +21,9 @@ type EmberFillProps = {
   children?: React.ReactNode;
   /** Match the container's own borderRadius, or the painted corners will square off under it. */
   radius?: number;
-  style?: ViewStyle | ViewStyle[];
+  /** StyleProp, not ViewStyle[] — callers pass conditional entries (`busy && styles.dim`), and
+   *  a bare array type rejects the `false` those produce. */
+  style?: StyleProp<ViewStyle>;
   /** 135° (top-left → bottom-right) for slabs; horizontal for pills, per DESIGN_LANGUAGE_EMBER §3. */
   direction?: 'diagonal' | 'horizontal';
 };

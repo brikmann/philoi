@@ -7,7 +7,7 @@ import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { logChallengeProgress, type GoalDayAward } from '@/lib/api/challenges';
-import { CHALLENGE_TYPE_GLYPH, personalGoalTitle } from '@/lib/goal-types';
+import { CHALLENGE_TYPE_GLYPH, canonicalGoalUnit, personalGoalTitle } from '@/lib/goal-types';
 import { getErrorMessage } from '@/lib/errors';
 import { AUTO_SOURCE_NAME, getRealFitnessSourceForChallengeType, sourceNeedsConnection } from '@/lib/fitness-sync';
 import type { Challenge, ChallengeType } from '@/types/database';
@@ -44,7 +44,16 @@ const TYPE_QUICK_ADDS: Record<ChallengeType, number[]> = {
  * away.
  */
 function resetLabel(period: Challenge['period']): string {
+  // §5 — a ONE-TIME goal has no reset to promise, and the honest line is the one that says so.
+  // Printing "Resets Sunday (UTC)" here (which is what the old `else` did for any non-daily value)
+  // would tell somebody their half-marathon target was about to go back to zero.
+  if (period === 'once') return 'One-time · never resets';
   return period === 'day' ? 'Resets at midnight' : 'Resets Sunday (UTC)';
+}
+
+/** The chip in the card's top-right. Same three-way split, in the shortest words that fit. */
+function cadenceLabel(period: Challenge['period']): string {
+  return period === 'day' ? 'Daily' : period === 'once' ? 'One-time' : 'Weekly';
 }
 
 type ChallengeCardProps = {
@@ -108,6 +117,31 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
     ]);
   }
 
+  /**
+   * 🔴 §4c — "you can't delete a challenge."
+   *
+   * Everything behind this already worked: `deleteChallenge` is a plain RLS-guarded delete on
+   * `challenges` (the "challenges: delete own" policy is live on prod), and BOTH lists on the
+   * Challenges tab — active and History — have always passed `onDeleted`. The only way to reach it
+   * was a LONG-PRESS on the card header, with nothing on screen saying so. An affordance nobody can
+   * see is the same as no affordance, which is exactly how a user concludes the feature is missing.
+   *
+   * A visible ⋯ now sits beside the cadence chip, matching the one every social challenge card
+   * already carries (ManageKebab in social-challenge-card.tsx) so "⋯ means there are actions here"
+   * means the same thing on both kinds of card. The long-press is KEPT — it costs nothing and it is
+   * the gesture anyone who found it once will reach for again.
+   *
+   * An Alert rather than a bottom sheet: two options, one of them destructive, and Alert is the
+   * one presentation that cannot be dismissed by accident on either platform.
+   */
+  function handleMenu() {
+    Alert.alert(personalGoalTitle(challenge), undefined, [
+      ...(onInfo ? [{ text: 'Goal info', onPress: onInfo }] : []),
+      { text: 'Delete goal', style: 'destructive' as const, onPress: handleDelete },
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
+  }
+
   return (
     <Card style={styles.card}>
       <Pressable onPress={onInfo} onLongPress={handleDelete} style={styles.header}>
@@ -123,8 +157,18 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
           </Text>
         </View>
         <View style={styles.cadenceChip}>
-          <Text style={styles.cadenceChipText}>{challenge.period === 'day' ? 'Daily' : 'Weekly'}</Text>
+          <Text style={styles.cadenceChipText}>{cadenceLabel(challenge.period)}</Text>
         </View>
+        {/* §4c — the visible way out. Sits INSIDE the header Pressable but takes its own onPress,
+            so a tap here opens the menu instead of falling through to Goal info. */}
+        <Pressable
+          onPress={handleMenu}
+          hitSlop={10}
+          style={styles.kebab}
+          accessibilityRole="button"
+          accessibilityLabel={`Manage ${personalGoalTitle(challenge)}`}>
+          <Ionicons name="ellipsis-horizontal" size={16} color={Colors.muted} />
+        </Pressable>
       </Pressable>
 
       <View style={styles.progressTrack}>
@@ -134,8 +178,15 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
       {/* Numbers on the left, ONE status on the right — a percentage while it's live, the green
           "Smashed" once the target's beaten. Never both, and never a third badge elsewhere. */}
       <View style={styles.statusRow}>
+        {/* 🔴 §4a — "Cold plunges · 0 / 1 bath". `unit` is a free text column and Cindy's
+            create_challenge tool lets the model fill it with whatever noun it likes, so a goal
+            could be counted in a word that has nothing to do with what it measures. For a built-in
+            metric the unit is decided by the METRIC (steps count steps), and for a custom goal it
+            falls back to the goal's own name rather than rendering a bare "0 / 1". Rows written
+            before the write path was fixed are corrected on read by the same helper. */}
         <Text style={styles.progressLabel}>
-          {challenge.progress.toLocaleString()} / {challenge.target.toLocaleString()} {challenge.unit}
+          {challenge.progress.toLocaleString()} / {challenge.target.toLocaleString()}{' '}
+          {canonicalGoalUnit(challenge.type, challenge.unit, challenge.label)}
         </Text>
         {isComplete ? (
           <View style={styles.smashed}>
@@ -180,7 +231,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
                   style={styles.quickPill}
                   disabled={logging}
                   onPress={() => handleLog(qa)}
-                  accessibilityLabel={`Log +${qa} ${challenge.unit}`}>
+                  accessibilityLabel={`Log +${qa} ${canonicalGoalUnit(challenge.type, challenge.unit, challenge.label)}`}>
                   <Text style={styles.quickPillLabel}>+{qa.toLocaleString()}</Text>
                 </Pressable>
               ))}
@@ -227,6 +278,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.muted,
     marginTop: 2,
+  },
+  kebab: {
+    paddingLeft: Spacing.one,
+    paddingVertical: Spacing.half,
   },
   cadenceChip: {
     borderRadius: Radius.pill,

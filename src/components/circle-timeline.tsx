@@ -1,43 +1,73 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { CampfireFab, type CampfireFabAction } from '@/components/campfire/campfire-fab';
+import { ChallengeAcceptRow } from '@/components/campfire/challenge-accept-row';
+import { MentionAutocomplete } from '@/components/campfire/mention-autocomplete';
+import { PingMemberSheet } from '@/components/campfire/ping-member-sheet';
+import { ShareLockInSheet } from '@/components/campfire/share-lockin-sheet';
 import { ChallengeCompletionCard } from '@/components/challenge-completion-card';
 import { FeedItem } from '@/components/feed-item';
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { FlameCompletionCard } from '@/components/flame-completion-card';
 import { LiveLockInCard } from '@/components/live-lockin-card';
 import { LockInEventCard } from '@/components/lock-in-event-card';
-import { LockinGoalPicker } from '@/components/lockin-goal-picker';
+import { SocialChallengeCard } from '@/components/social-challenge-card';
 import { EmberFill } from '@/components/ui/ember-fill';
 import { EmptyState } from '@/components/ui/empty-state';
-import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextInput } from '@/components/ui/text-input';
 import { CHAT_ENABLED } from '@/constants/feature-flags';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useCircleTimeline, type TimelineRow } from '@/hooks/use-circle-timeline';
-import { useActiveSession } from '@/lib/active-session-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchFlameCompletionFeed, type FlameCompletionFeedItem } from '@/lib/api/daily-fire';
+import { respondToChallengeInvite } from '@/lib/api/challenge-lifecycle';
 import type { ActiveCircleLockIn } from '@/lib/api/lock-ins';
-import { deleteMyMessage, sendMessage, type ChatMessage } from '@/lib/api/messages';
+import { campfirePhotoUrl, deleteMyMessage, sendMessage, type ChatMessage } from '@/lib/api/messages';
+import { fetchMySocialChallenges } from '@/lib/api/social-challenges';
+import { getErrorMessage } from '@/lib/errors';
+import { activeMentionQuery, applyMention, splitMentions } from '@/lib/mentions';
 import { supabase } from '@/lib/supabase';
+import type { CampfireMember, SocialChallenge } from '@/types/database';
 
-// A trailing system line, not part of the merged/sorted timeline data itself — it's a
-// standing nudge about *your* streak, not an event that happened at a point in time
-// (design-mocks/06's `.sys`: "12-day streak — don't let it die").
+// THE CAMPFIRE IS THE CHAT (mock 101 frame 1).
+//
+// This used to be one of three tabs behind a Leaderboard / Feed / Challenges bar. The
+// campfire-as-chat pass deletes that bar: the chat is the whole screen, full-bleed over the
+// animated banner, and everything else — the leaderboard, the options, the four + actions — opens
+// ON TOP of it and dismisses back to here. See group/[groupId]/index.tsx for the chrome.
+//
+// WHAT THIS FILE ALREADY DID, AND WHY IT WAS THE RIGHT THING TO RE-COMPOSE RATHER THAN REPLACE:
+// it has always merged chat messages, check-ins, challenge completions, live sessions and flame
+// completions into ONE chronological chain (see useCircleTimeline). That merge is precisely the
+// Discord model — a stream of messages with rich things dropped inline — so mock 101 is much less
+// a rewrite than a restyle of a structure that was already correct.
+//
+// WHAT IS NEW HERE:
+//   · Bubbles get AVATARS and a sender name (mock's `.msg .av` / `.who`).
+//   · DAY DIVIDERS ("Today"), computed from the chain rather than fetched.
+//   · Non-message rows render inside an EMBED FRAME — the mock's left-accent card — so a lock-in
+//     and a Strava import read as attachments to the conversation instead of as loose cards.
+//   · ACTIVE CHALLENGES are injected into the chain as embeds carrying Accept/Decline (§7). They
+//     used to live only in the Challenges tab, which no longer exists.
+//   · @MENTIONS: an autocomplete over the composer, and highlighted tokens in delivered messages.
+//   · THE + FAB and its four actions.
+//   · AUTOSCROLL to the newest message.
+
 type StreakSystemRow = { kind: 'streak_system'; id: 'streak-system'; days: number };
-// A currently-running session — sorted into the chain by when it started, distinct from a
-// `check_in` row (which only exists once a session ends). Live, not fetched: sourced from
-// useActiveCircleLockIns' own poll (design-mocks/06's `.livecard`).
 type LiveSessionRow = { kind: 'live_session'; id: string; created_at: string; data: ActiveCircleLockIn };
-// The opt-in daily-flame-meter completion card (§5) — fetched once per mount (not polled;
-// these are historical posts, not live state like LiveSessionRow above).
 type FlameCompletionRow = { kind: 'flame_completion'; id: string; created_at: string; data: FlameCompletionFeedItem };
-type Row = TimelineRow | StreakSystemRow | LiveSessionRow | FlameCompletionRow;
+/** §7 — a live challenge, in the chat, where the Challenges tab used to be. */
+type ActiveChallengeRow = { kind: 'active_challenge'; id: string; created_at: string; data: SocialChallenge };
+/** Not data: a separator the renderer inserts between calendar days. */
+type DayRow = { kind: 'day'; id: string; created_at: string; label: string };
+type Row = TimelineRow | StreakSystemRow | LiveSessionRow | FlameCompletionRow | ActiveChallengeRow | DayRow;
 
 function formatRelativeTime(isoDate: string) {
   const diffMs = Date.now() - new Date(isoDate).getTime();
@@ -49,26 +79,51 @@ function formatRelativeTime(isoDate: string) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+/** "Today" / "Yesterday" / a date. Compared on the local calendar day, not on elapsed hours —
+ *  a message sent at 00:30 is yesterday's, not "1h ago"'s. */
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((startOf(today) - startOf(d)) / 86400000);
+  if (diffDays <= 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return d.toLocaleDateString(undefined, { weekday: 'long' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function dayKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
 type CircleTimelineProps = {
   groupId: string;
   myUserId: string;
-  groupName?: string;
+  /** For the mention autocomplete and the ping sheet. Fetched once by the screen above. */
+  members: CampfireMember[];
+  /** Room under the composer for the OS home indicator. */
+  bottomInset: number;
 };
 
-// The merged Campfire timeline (UI_REDESIGN_SPEC.md) — check-ins, challenge completions, and
-// chat messages interleaved in one chronological scroll with the composer pinned at the
-// bottom, replacing the old separate Feed and Chat tabs. See useCircleTimeline for the merge
-// itself and why it's ascending-sorted.
-export function CircleTimeline({ groupId, myUserId, groupName }: CircleTimelineProps) {
+export function CircleTimeline({ groupId, myUserId, members, bottomInset }: CircleTimelineProps) {
   const router = useRouter();
   const { profile } = useAuth();
-  const { session: activeSession } = useActiveSession();
   const timeline = useCircleTimeline(groupId);
   const activeLockIns = useActiveCircleLockIns(groupId);
+  const listRef = useRef<FlatList<Row>>(null);
+
   const [draft, setDraft] = useState('');
+  const [caret, setCaret] = useState(0);
   const [sending, setSending] = useState(false);
-  const [lockInPickerVisible, setLockInPickerVisible] = useState(false);
   const [flameCompletions, setFlameCompletions] = useState<FlameCompletionFeedItem[]>([]);
+  const [challenges, setChallenges] = useState<SocialChallenge[]>([]);
+  const [busyChallengeId, setBusyChallengeId] = useState<string | null>(null);
+  const [fabOpen, setFabOpen] = useState(false);
+  const [pingOpen, setPingOpen] = useState(false);
+  const [lockInPickerOpen, setLockInPickerOpen] = useState(false);
+
+  const myHandle = (profile?.handle ?? '').toLowerCase();
 
   useEffect(() => {
     fetchFlameCompletionFeed(groupId)
@@ -78,15 +133,22 @@ export function CircleTimeline({ groupId, myUserId, groupName }: CircleTimelineP
       });
   }, [groupId]);
 
-  // One lock-in at a time app-wide (design-mocks/25) — this composer's own "Lock in" hero
-  // bar is disabled rather than opening a second picker while one is already running; the
-  // global mini-map is the one "return to it" affordance.
-  function openLockInPicker() {
-    if (activeSession) return;
-    setLockInPickerVisible(true);
-  }
+  // §7 — challenges are feed embeds now, so this screen has to know about them. Campfire-scoped,
+  // the same filter the Challenges tab used to apply.
+  const loadChallenges = useCallback(() => {
+    fetchMySocialChallenges()
+      .then((all) => setChallenges(all.filter((c) => c.circle_id === groupId)))
+      .catch(() => {
+        // The chat still works without them; a failed fetch just means no challenge embeds.
+      });
+  }, [groupId]);
+
+  useEffect(() => {
+    loadChallenges();
+  }, [loadChallenges]);
 
   const streakDays = profile?.current_streak ?? 0;
+
   const rows = useMemo<Row[]>(() => {
     const liveRows: LiveSessionRow[] = activeLockIns.map((a) => ({
       kind: 'live_session',
@@ -100,11 +162,43 @@ export function CircleTimeline({ groupId, myUserId, groupName }: CircleTimelineP
       created_at: f.posted_at,
       data: f,
     }));
-    const merged: (TimelineRow | LiveSessionRow | FlameCompletionRow)[] = [...timeline.rows, ...liveRows, ...flameRows].sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-    return streakDays > 0 ? [...merged, { kind: 'streak_system', id: 'streak-system', days: streakDays }] : merged;
-  }, [timeline.rows, activeLockIns, flameCompletions, streakDays]);
+    // Settled challenges already arrive as `challenge` completion rows in the timeline; these are
+    // the ones still to be answered or still running, which had no home in the chat before.
+    const challengeRows: ActiveChallengeRow[] = challenges
+      .filter((c) => c.status === 'draft' || c.status === 'pending' || c.status === 'active')
+      .map((c) => ({ kind: 'active_challenge', id: `chal-${c.id}`, created_at: c.created_at, data: c }));
+
+    const merged: (TimelineRow | LiveSessionRow | FlameCompletionRow | ActiveChallengeRow)[] = [
+      ...timeline.rows,
+      ...liveRows,
+      ...flameRows,
+      ...challengeRows,
+    ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    // Day dividers, inserted between calendar days. Done here rather than in the renderer so the
+    // FlatList's own keys and separators stay simple.
+    const withDays: Row[] = [];
+    let lastKey = '';
+    for (const row of merged) {
+      const key = dayKey(row.created_at);
+      if (key !== lastKey) {
+        withDays.push({ kind: 'day', id: `day-${key}`, created_at: row.created_at, label: dayLabel(row.created_at) });
+        lastKey = key;
+      }
+      withDays.push(row);
+    }
+
+    return streakDays > 0
+      ? [...withDays, { kind: 'streak_system', id: 'streak-system', days: streakDays }]
+      : withDays;
+  }, [timeline.rows, activeLockIns, flameCompletions, challenges, streakDays]);
+
+  // Newest at the bottom, so the chain has to be pinned there. `onContentSizeChange` rather than a
+  // rows-length effect: the list has to have LAID OUT before scrollToEnd means anything, and a
+  // freshly-measured tall embed changes the content height after the row count stopped changing.
+  const scrollToEnd = useCallback(() => {
+    listRef.current?.scrollToEnd({ animated: true });
+  }, []);
 
   async function handleSend() {
     const body = draft.trim();
@@ -113,9 +207,86 @@ export function CircleTimeline({ groupId, myUserId, groupName }: CircleTimelineP
     setDraft('');
     try {
       await sendMessage(groupId, myUserId, body);
+      // Mentions notify from a trigger on the insert (migration 0152), not from here — so a
+      // message and the notification it causes cannot come apart.
     } catch {
       setDraft(body);
       Alert.alert('Could not send', 'Try again.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function respondToChallenge(challengeId: string, accept: boolean) {
+    setBusyChallengeId(challengeId);
+    try {
+      await respondToChallengeInvite(challengeId, accept);
+      loadChallenges();
+    } catch (e) {
+      Alert.alert('That did not work', e instanceof Error ? e.message : 'Try again.');
+    } finally {
+      setBusyChallengeId(null);
+    }
+  }
+
+  function handleFabAction(action: CampfireFabAction) {
+    setFabOpen(false);
+    if (action === 'challenge') {
+      // Scoped to THIS campfire, and opening on the whole-campfire placement race — the shape an
+      // owner wants from a campfire (CODE_PROMPT_campfires §6). They can still switch.
+      router.push({
+        pathname: '/challenge/create',
+        params: { circleId: groupId, mode: 'group', shape: 'placement' },
+      });
+      return;
+    }
+    if (action === 'ping') {
+      setPingOpen(true);
+      return;
+    }
+    if (action === 'photo') {
+      void postPhoto();
+      return;
+    }
+    if (action === 'lockin') {
+      setLockInPickerOpen(true);
+      return;
+    }
+  }
+
+  // §7a — pick, upload, post. The upload lives inside sendMessage so a failed insert can delete
+  // the file it just wrote rather than orphaning it in the bucket.
+  async function postPhoto() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Photo access needed', 'Philoi needs photo access to post an image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+    if (result.canceled || !result.assets[0]) return;
+
+    setSending(true);
+    try {
+      await sendMessage(groupId, myUserId, '', { kind: 'photo', photoUri: result.assets[0].uri });
+      timeline.chat.refetch();
+    } catch (e) {
+      Alert.alert('Could not post that photo', getErrorMessage(e, 'Try again.'));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  // §7b — re-post one of your own lock-ins into the chat. The card it renders as is the same
+  // LockInEventCard the feed already draws for a fresh lock-in; this just puts an older one back
+  // in front of people.
+  async function shareLockIn(lockInId: string) {
+    setLockInPickerOpen(false);
+    setSending(true);
+    try {
+      await sendMessage(groupId, myUserId, '', { kind: 'lockin', lockInId });
+      timeline.chat.refetch();
+    } catch (e) {
+      Alert.alert('Could not share that lock-in', getErrorMessage(e, 'Try again.'));
     } finally {
       setSending(false);
     }
@@ -151,56 +322,200 @@ export function CircleTimeline({ groupId, myUserId, groupName }: CircleTimelineP
     Alert.alert(isOwn ? 'Message options' : 'Report or block', '', options);
   }
 
+  // The live "@…" under the caret, or null. Recomputed per keystroke; see lib/mentions.ts for why
+  // the token is a handle rather than a display name.
+  const mention = activeMentionQuery(draft, caret);
+
+  function pickMention(handle: string) {
+    if (!mention) return;
+    const next = applyMention(draft, mention.start, caret, handle);
+    setDraft(next.text);
+    setCaret(next.caret);
+  }
+
   function renderRow({ item: row }: { item: Row }) {
+    if (row.kind === 'day') {
+      return (
+        <View style={styles.dayWrap}>
+          <Text style={styles.dayLabel}>{row.label}</Text>
+        </View>
+      );
+    }
+
     if (row.kind === 'streak_system') {
       return (
         <View style={styles.sysRow}>
           {/* Streak heat — the brand flame, not the ember coal (ember = currency). */}
           <FlameLogo size={12} />
-          <Text style={styles.sysText}>{row.days}-day streak — don't let it die</Text>
+          <Text style={styles.sysText}>{row.days}-day streak — don&apos;t let it die</Text>
         </View>
       );
     }
-    if (row.kind === 'live_session') return <LiveLockInCard activeLockIn={row.data} />;
-    if (row.kind === 'flame_completion') return <FlameCompletionCard item={row.data} />;
-    if (row.kind === 'check_in') {
-      return row.data.duration_seconds != null ? (
-        <LockInEventCard item={row.data} onReactionChanged={timeline.feed.refetch} />
-      ) : (
-        <FeedItem item={row.data} onReactionChanged={timeline.feed.refetch} />
+
+    // ── the inline embeds (mock 101's `.embed`) ────────────────────────────────────────────────
+    // Everything that is not a message is an attachment to the conversation, so it gets the same
+    // frame: a left accent stripe in the colour of what it is, over the chat's own ground. That
+    // one frame is what makes a lock-in card and a challenge card read as the same KIND of thing
+    // — a rich thing someone dropped in — rather than as two unrelated widgets.
+    if (row.kind === 'live_session') {
+      return (
+        <Embed accent={Colors.amber}>
+          <LiveLockInCard activeLockIn={row.data} />
+        </Embed>
       );
     }
-    if (row.kind === 'challenge') return <ChallengeCompletionCard event={row.data} />;
+    if (row.kind === 'flame_completion') {
+      return (
+        <Embed accent={Colors.amber}>
+          <FlameCompletionCard item={row.data} />
+        </Embed>
+      );
+    }
+    if (row.kind === 'active_challenge') {
+      return (
+        <Embed accent={Colors.ember}>
+          <Pressable
+            onPress={() =>
+              router.push({ pathname: '/challenge-info/[challengeId]', params: { challengeId: row.data.id } })
+            }>
+            <SocialChallengeCard challenge={row.data} myUserId={myUserId} onChanged={loadChallenges} isAdmin={false} />
+          </Pressable>
+          <ChallengeAcceptRow
+            challenge={row.data}
+            busy={busyChallengeId === row.data.id}
+            onRespond={(accept) => respondToChallenge(row.data.id, accept)}
+          />
+        </Embed>
+      );
+    }
+    if (row.kind === 'check_in') {
+      return (
+        <Embed accent={Colors.amber}>
+          {row.data.duration_seconds != null ? (
+            <LockInEventCard item={row.data} onReactionChanged={timeline.feed.refetch} />
+          ) : (
+            <FeedItem item={row.data} onReactionChanged={timeline.feed.refetch} />
+          )}
+        </Embed>
+      );
+    }
+    if (row.kind === 'challenge') {
+      return (
+        <Embed accent={Colors.ember}>
+          <ChallengeCompletionCard event={row.data} />
+        </Embed>
+      );
+    }
 
+    // ── a plain message ───────────────────────────────────────────────────────────────────────
     const message = row.data;
     const isOwn = message.user_id === myUserId;
+    // `body` is nullable since 0158 — a photo with no caption is a message with no text.
+    const body = message.body ?? '';
+    const pieces = splitMentions(body);
+    // "This one is aimed at me" — the mock's `.bubble.mentioned` ember stripe. Own messages never
+    // light up: you already know you wrote it.
+    const mentionsMe =
+      !isOwn &&
+      pieces.some((p) => p.mention && (p.text.toLowerCase() === '@all' || p.text.toLowerCase() === `@${myHandle}`));
+
     return (
-      <View style={[styles.bubbleRow, isOwn && styles.bubbleRowOwn]}>
-        <Pressable
-          onLongPress={() => handleMoreMessage(message)}
-          style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
+      <View style={[styles.msgRow, isOwn && styles.msgRowOwn]}>
+        {!isOwn && (
+          <View style={styles.avatar}>
+            {message.profiles.avatar_url ? (
+              <Image source={{ uri: message.profiles.avatar_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
+            ) : (
+              <Text style={styles.avatarInitial}>{message.profiles.display_name.charAt(0).toUpperCase()}</Text>
+            )}
+          </View>
+        )}
+        <View style={styles.msgBody}>
           {!isOwn && <Text style={styles.sender}>{message.profiles.display_name}</Text>}
-          <Text style={[styles.body, isOwn && styles.bodyOwn]}>{message.body}</Text>
-          <Text style={[styles.time, isOwn && styles.timeOwn]}>{formatRelativeTime(message.created_at)}</Text>
-        </Pressable>
+          <Pressable
+            onLongPress={() => handleMoreMessage(message)}
+            style={[
+              styles.bubble,
+              isOwn ? styles.bubbleOwn : styles.bubbleOther,
+              mentionsMe && styles.bubbleMentioned,
+            ]}>
+            {/* §4 · YOUR OWN BUBBLE IS THE EMBER GRADIENT, NOT FLAT ORANGE.
+                It was `backgroundColor: Colors.coral` — one flat orange, which is the same drift
+                §3 fixes on the buttons. Mock 101 paints `.msg.me .bubble` as a coral→ember
+                gradient, so it gets the app's real primary fill.
+                Painted UNDERNEATH via absoluteFill rather than as the Pressable's background,
+                because the bubble's corners are ASYMMETRIC (the squared tail corner points at the
+                sender) and EmberFill takes one radius. The parent clips with `overflow: 'hidden'`,
+                so the gradient takes the bubble's real shape including that 4px corner. */}
+            {isOwn && (
+              <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                <EmberFill style={styles.ownFill} radius={0} direction="diagonal" />
+              </View>
+            )}
+            {/* §7a/§7b · the attachment, above the caption. A photo renders inline; a shared
+                lock-in renders as the same card the feed draws for a fresh one, so a re-post and
+                the original read identically. */}
+            {message.attach_kind === 'photo' && message.attach_path && (
+              <Image
+                source={{ uri: campfirePhotoUrl(message.attach_path) }}
+                style={styles.attachPhoto}
+                contentFit="cover"
+                transition={120}
+              />
+            )}
+            {message.attach_kind === 'lockin' && message.attach_ref_id && (
+              <View style={styles.attachLockIn}>
+                <Text style={styles.attachLockInLabel}>Shared a lock-in</Text>
+              </View>
+            )}
+
+            {body.length > 0 && (
+              <Text style={[styles.body, isOwn && styles.bodyOwn]}>
+                {pieces.map((piece, i) =>
+                  piece.mention ? (
+                    <Text key={i} style={[styles.mention, isOwn && styles.mentionOwn]}>
+                      {piece.text}
+                    </Text>
+                  ) : (
+                    <Text key={i}>{piece.text}</Text>
+                  )
+                )}
+              </Text>
+            )}
+            <Text style={[styles.time, isOwn && styles.timeOwn]}>{formatRelativeTime(message.created_at)}</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
 
+  const composerHeight = 64 + bottomInset;
+
   return (
-    // A plain View, not a second KeyboardAvoidingView — this is already nested inside the
-    // parent screen's Screen component, which provides ONE keyboard-avoiding wrapper for the
-    // whole page (PHILOI_UI_SPEC.md §4b). Two nested KeyboardAvoidingViews fight each other's
-    // padding math, which was the actual cause of "nothing moves" here.
+    // A plain View, not a second KeyboardAvoidingView — this is already nested inside the parent
+    // screen's Screen component, which provides ONE keyboard-avoiding wrapper for the whole page
+    // (PHILOI_UI_SPEC.md §4b). Two nested KeyboardAvoidingViews fight each other's padding math,
+    // which was the actual cause of "nothing moves" here.
     <View style={styles.container}>
       {timeline.error && <Text style={styles.error}>{timeline.error}</Text>}
 
       <FlatList
+        ref={listRef}
         data={rows}
         keyExtractor={(row) => row.id}
         style={styles.flatlist}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={timeline.loading} onRefresh={timeline.refetch} tintColor={Colors.coral} />}
+        onContentSizeChange={scrollToEnd}
+        refreshControl={
+          <RefreshControl
+            refreshing={timeline.loading}
+            onRefresh={() => {
+              timeline.refetch();
+              loadChallenges();
+            }}
+            tintColor={Colors.coral}
+          />
+        }
         renderItem={renderRow}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
         ListEmptyComponent={
@@ -211,30 +526,33 @@ export function CircleTimeline({ groupId, myUserId, groupName }: CircleTimelineP
                   <FlameSvg width={44 * FLAME_ASPECT_RATIO} height={44} />
                 </View>
               }
-              title="No lock-ins yet"
-              body="Tap Lock in to start the fire."
-              action={activeSession ? undefined : <PrimaryButton label="Go lock in" onPress={openLockInPicker} />}
+              title="Nothing here yet"
+              body="Say something, or tap + to start a challenge."
             />
           ) : null
         }
       />
 
-      {/* The docked "Lock in" bar that used to sit here is GONE (CAMPFIRE_REDESIGN_SPEC §Header):
-          lock-in is the header's top-right pill now, and stacking a second copy of the same CTA
-          directly above the composer is what made this bottom edge feel crowded. The empty state
-          still offers its own centered "Go lock in", which is the one place the action isn't
-          already one thumb-reach away. */}
+      {mention && CHAT_ENABLED && (
+        <MentionAutocomplete
+          query={mention.query}
+          members={members}
+          myUserId={myUserId}
+          onPick={pickMention}
+          bottom={composerHeight + 4}
+        />
+      )}
+
+      <CampfireFab open={fabOpen} onToggle={() => setFabOpen((v) => !v)} onAction={handleFabAction} bottom={composerHeight} />
 
       {CHAT_ENABLED && (
-        // Docked at the bottom of the feed with room under it. Screen's SafeAreaView already
-        // clears the home indicator; the padding below is the gap on top of that, so Send is
-        // never flush to the edge.
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { paddingBottom: Spacing.two + bottomInset }]}>
           <TextInput
             style={styles.input}
             placeholder="Message the campfire…"
             value={draft}
             onChangeText={setDraft}
+            onSelectionChange={(e) => setCaret(e.nativeEvent.selection.start)}
             maxLength={2000}
             multiline
           />
@@ -256,24 +574,38 @@ export function CircleTimeline({ groupId, myUserId, groupName }: CircleTimelineP
         </View>
       )}
 
-      <LockinGoalPicker
-        visible={lockInPickerVisible}
-        onClose={() => setLockInPickerVisible(false)}
-        lockedCircleId={groupId}
-        lockedCircleName={groupName}
+      <ShareLockInSheet
+        visible={lockInPickerOpen}
+        onClose={() => setLockInPickerOpen(false)}
+        myUserId={myUserId}
+        onPick={shareLockIn}
+      />
+
+      <PingMemberSheet
+        visible={pingOpen}
+        onClose={() => setPingOpen(false)}
+        groupId={groupId}
+        members={members}
+        myUserId={myUserId}
       />
     </View>
   );
 }
 
+/** The mock's `.embed` frame: a left accent stripe over the chat's ground, so every rich thing in
+ *  the chain reads as the same kind of attachment. */
+function Embed({ accent, children }: { accent: string; children: React.ReactNode }) {
+  return <View style={[styles.embed, { borderLeftColor: accent }]}>{children}</View>;
+}
+
 const styles = StyleSheet.create({
-  // Explicit backgroundColor at every layer (not just relying on the parent Screen's) — the
-  // interior was repeatedly reported as reading a shade darker than the rest of the app despite
-  // no override anywhere in this tree; setting it here too closes off any transparency/
-  // compositing gap in this View's own layer.
+  // Transparent throughout — group/[groupId]/index.tsx paints the animated banner as an
+  // absolutely-filled sibling BEHIND this, so an opaque fill here is a lid over it. That is what
+  // made the banner stop at the header before: the feed was painting the ground the banner was
+  // supposed to be.
   container: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: 'transparent',
   },
   error: {
     fontFamily: Fonts.body,
@@ -284,10 +616,26 @@ const styles = StyleSheet.create({
   },
   flatlist: {
     flex: 1,
-    backgroundColor: Colors.cream,
+    backgroundColor: 'transparent',
   },
   list: {
-    padding: Spacing.four,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 8,
+  },
+  dayWrap: {
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  dayLabel: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   sysRow: {
     flexDirection: 'row',
@@ -300,23 +648,73 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.muted,
   },
-  bubbleRow: {
-    flexDirection: 'row',
+  // 🐛 §4 · WHY EMBEDS RENDERED AS A TALL THIN SLIVER.
+  //
+  // This was `alignSelf: 'flex-start'` with `maxWidth: '92%'` and no width. `alignSelf:
+  // 'flex-start'` on a column child means SHRINK-TO-FIT, so the embed took its intrinsic width —
+  // and its children are cards like LockInEventCard whose root is `flexDirection: 'row'` with
+  // `flex: 1` sections inside. A flex child has an intrinsic width of zero, so the row collapsed,
+  // the box came out a few characters wide, and every label wrapped one letter per line. That is
+  // the "tall, thin, squished box" exactly: not a height bug, a MISSING DEFINITE WIDTH.
+  //
+  // `width` instead of `maxWidth` is the whole fix — it gives the flex children something to
+  // divide up. alignSelf stays flex-start so embeds still hang on the left like the mock's, and
+  // `flexShrink: 0` stops the FlatList's own cross-axis sizing undoing it again.
+  embed: {
+    alignSelf: 'flex-start',
+    width: '92%',
+    flexShrink: 0,
+    backgroundColor: 'rgba(20,14,24,0.82)',
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    borderLeftWidth: 3,
+    borderRadius: 10,
+    padding: 4,
   },
-  bubbleRowOwn: {
-    justifyContent: 'flex-end',
+  msgRow: {
+    flexDirection: 'row',
+    gap: 9,
+    maxWidth: '86%',
+  },
+  msgRowOwn: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row-reverse',
+  },
+  avatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.plum,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    // Sits at the bottom of a multi-line bubble, as in the mock.
+    alignSelf: 'flex-end',
+  },
+  avatarInitial: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.ember,
+  },
+  msgBody: {
+    flexShrink: 1,
+  },
+  sender: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    color: Colors.muted,
+    marginBottom: 2,
   },
   bubble: {
-    maxWidth: '78%',
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
     gap: 2,
   },
-  // Asymmetric "tail" corner (design-mocks/06's `.bub`/`.me .bub`) — the squared corner
-  // points toward whoever's avatar/side the bubble came from.
+  // Asymmetric "tail" corner (mock 101's `.bubble`) — the squared corner points toward whoever's
+  // side the bubble came from.
   bubbleOther: {
-    backgroundColor: Colors.card,
-    borderWidth: 2,
+    backgroundColor: 'rgba(36,28,56,0.86)',
+    borderWidth: 1,
     borderColor: Colors.line,
     borderTopLeftRadius: 4,
     borderTopRightRadius: Radius.card,
@@ -324,16 +722,22 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: Radius.card,
   },
   bubbleOwn: {
+    // The solid coral stays as the UNDER-colour: EmberFill needs one layout pass to measure
+    // before it can paint, and a transparent bubble for that frame would flash.
     backgroundColor: Colors.coral,
+    overflow: 'hidden',
     borderTopLeftRadius: Radius.card,
     borderTopRightRadius: 4,
     borderBottomLeftRadius: Radius.card,
     borderBottomRightRadius: Radius.card,
   },
-  sender: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    color: Colors.muted,
+  ownFill: {
+    flex: 1,
+  },
+  bubbleMentioned: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.ember,
+    backgroundColor: 'rgba(58,42,26,0.6)',
   },
   body: {
     fontFamily: Fonts.body,
@@ -343,6 +747,30 @@ const styles = StyleSheet.create({
   bodyOwn: {
     color: Colors.ink,
   },
+  attachPhoto: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: 10,
+    marginBottom: 4,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  attachLockIn: {
+    marginBottom: 4,
+  },
+  attachLockInLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    color: Colors.ember,
+  },
+  mention: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.ember,
+  },
+  // On the coral bubble the ember token disappears into the fill, so own-message mentions go
+  // white instead — the mock does the same thing with `.msg.me .mention`.
+  mentionOwn: {
+    color: '#FFFFFF',
+  },
   time: {
     fontFamily: Fonts.body,
     fontSize: 10,
@@ -351,33 +779,27 @@ const styles = StyleSheet.create({
   timeOwn: {
     color: 'rgba(255,255,255,0.75)',
   },
-  // The composer bar (mock 112's `.chatbar`): its own darker ground with a hairline above it, so
-  // the chain visibly ends and the input reads as furniture rather than as the last message.
+  // The composer sits on a gradient-ish translucent shelf so the banner continues behind it
+  // rather than ending at an opaque bar.
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: Spacing.two,
-    paddingHorizontal: Spacing.twelve,
+    paddingHorizontal: 14,
     paddingTop: Spacing.two,
-    paddingBottom: Spacing.twelve,
-    borderTopWidth: 1,
-    borderTopColor: '#1E1730',
-    backgroundColor: '#100C19',
+    backgroundColor: Colors.scrim,
   },
-  // Round field, not the app's default 14px-radius box — mock 112's "redesigned text field".
   input: {
     flex: 1,
     maxHeight: 100,
-    backgroundColor: '#181226',
+    backgroundColor: 'rgba(36,28,56,0.9)',
     borderWidth: 1,
-    borderColor: '#2A2140',
+    borderColor: Colors.lineStrong,
     borderRadius: Radius.pill,
     paddingVertical: 10,
     paddingHorizontal: 16,
     fontSize: 14,
   },
-  // A round ember disc with a send glyph, replacing the coral "Send" word-button. Greys out with
-  // an empty draft instead of being an always-lit button that does nothing.
   sendButton: {
     width: 40,
     height: 40,

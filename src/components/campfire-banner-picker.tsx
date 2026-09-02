@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CampfireBannerArt, bannerColors } from '@/components/campfire-banner-art';
+import { CampfireBannerArt } from '@/components/campfire-banner-art';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
 import { setCampfireBanner } from '@/lib/api/groups';
@@ -33,11 +33,24 @@ type CampfireBannerPickerProps = {
   groupId: string;
   /** What it currently flies. Null = never chosen, which is the base hearth. */
   currentBannerId: string | null;
-  /** Refetch the group so the header behind this sheet repaints. */
+  /** Refetch the group so the header behind this sheet repaints. Unused in deferred mode. */
   onChanged: () => void | Promise<void>;
+  /**
+   * DEFERRED MODE (§1). When provided, picking a banner REPORTS the choice and writes nothing —
+   * the caller owns the save.
+   *
+   * Edit campfire needs this: its brief is that the emoji and the banner "save with the rest of
+   * the form", and a picker that calls set_campfire_banner on tap would commit half the form
+   * while Save changes is still sitting there unpressed. That is worse than a slow save — it makes
+   * Cancel a lie.
+   *
+   * Without it the component behaves exactly as before (writes immediately, then onChanged), which
+   * is right for the options sheet where the picker IS the whole interaction.
+   */
+  onSelect?: (itemId: string) => void;
 };
 
-export function CampfireBannerPicker({ visible, onClose, campfireName, groupId, currentBannerId, onChanged }: CampfireBannerPickerProps) {
+export function CampfireBannerPicker({ visible, onClose, campfireName, groupId, currentBannerId, onChanged, onSelect }: CampfireBannerPickerProps) {
   const insets = useSafeAreaInsets();
   const { owned, loading } = useInventory();
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -57,6 +70,12 @@ export function CampfireBannerPicker({ visible, onClose, campfireName, groupId, 
 
   async function choose(item: CatalogItem) {
     if (busyKey) return;
+    // Deferred: hand the choice back and close. No write, no spinner — there is nothing to wait on.
+    if (onSelect) {
+      onSelect(item.id);
+      onClose();
+      return;
+    }
     setBusyKey(item.id);
     setError(null);
     try {
@@ -101,7 +120,6 @@ export function CampfireBannerPicker({ visible, onClose, campfireName, groupId, 
           ) : (
             <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
               {banners.map((item) => {
-                const { from, to } = bannerColors(item.id);
                 const on = item.id === equippedId;
                 return (
                   <Pressable
@@ -113,9 +131,12 @@ export function CampfireBannerPicker({ visible, onClose, campfireName, groupId, 
                     accessibilityState={{ selected: on }}
                     accessibilityLabel={item.name}>
                     <View style={styles.swatch}>
-                      {/* The real header art, at tile size — a flat two-colour chip would let
-                          someone pick a banner whose ridgeline they have never seen. */}
-                      <CampfireBannerArt from={from} to={to} fadeTo="#161022" />
+                      {/* The real scene, at tile size — a flat two-colour chip would let someone
+                          pick a banner whose art they have never seen, and since 101c the banners
+                          differ by SCENE rather than by hue that would now be no preview at all.
+                          Scenery only: 'header' never runs particles, so a grid of these costs
+                          nothing to leave open. */}
+                      <CampfireBannerArt itemKey={item.id} fadeTo="#161022" />
                       {busyKey === item.id && (
                         <View style={styles.swatchBusy}>
                           <ActivityIndicator color={Colors.ink} size="small" />

@@ -89,6 +89,68 @@ export const GOAL_TYPE_GLYPH: Record<GoalType, DisciplineIconName> = {
   custom: 'custom',
 };
 
+/**
+ * WHAT EACH BUILT-IN METRIC COUNTS, and the only correct answer for it.
+ *
+ * 🔴 Noah's Personal tab: a goal called "Cold plunges" reading "0 / 1 bath". The unit is a free
+ * text column, and until now every writer chose its own value for it:
+ *
+ *   · the create form picks the right one from PERSONAL_TYPE_OPTIONS — correct, but only because
+ *     the form and that table happen to agree;
+ *   · Cindy's `create_challenge` tool takes `unit` as a freeform string from the model
+ *     (supabase/functions/_shared/coach/tools.ts) and lib/api/coach.ts passed it straight through
+ *     with a fallback of 'hours'. A model asked for a cold-plunge goal is free to answer "bath",
+ *     and nothing between the model and the row disagreed with it.
+ *
+ * For a BUILT-IN metric the unit is not a matter of opinion: a steps goal counts steps and a
+ * distance goal counts kilometres, whatever any writer thinks. This map is that fact, and
+ * `canonicalGoalUnit` below applies it — so the type decides the unit and no caller can drift.
+ * The server enforces the same rule in a trigger (migration 0157) so a writer that never loads
+ * this file cannot get around it either.
+ *
+ * 'custom' is deliberately absent: a custom goal counts whatever the user says it counts —
+ * plunges, pages, reps — and there is nobody better placed than them to name it.
+ */
+export const CHALLENGE_TYPE_UNIT: Record<Exclude<ChallengeType, 'custom'>, string> = {
+  steps: 'steps',
+  run_distance: 'km',
+  ride_distance: 'km',
+  gym_visits: 'visits',
+  study_hours: 'hours',
+  workout_minutes: 'minutes',
+  strain: 'strain',
+  sleep_hours: 'hours',
+};
+
+/**
+ * The unit a goal should actually be stored and displayed with.
+ *
+ * A built-in metric gets the canonical word for it. A custom goal keeps what its owner typed, and
+ * falls back to its own NAME when that is empty — "0 / 1 cold plunges" is a worse label than "0 /
+ * 1 plunges" and a much better one than "0 / 1", which is what an empty unit renders as.
+ */
+export function canonicalGoalUnit(
+  type: ChallengeType,
+  unit: string | null | undefined,
+  label?: string | null
+): string {
+  if (type !== 'custom') return CHALLENGE_TYPE_UNIT[type];
+  const typed = (unit ?? '').trim();
+  // A CADENCE IS NEVER A UNIT. Prod holds a "Cold plunge" goal whose unit is literally 'day' — the
+  // model answering Cindy's tool put the goal's FREQUENCY in the field that names what is being
+  // counted, and "0 / 1 day" describes nothing. `period` already carries the cadence, so this is a
+  // category error rather than a matter of taste, and it is the one custom value overruled here.
+  if (typed && !CADENCE_WORDS.has(typed.toLowerCase())) return typed;
+  const named = (label ?? '').trim().toLowerCase();
+  return named || typed || 'done';
+}
+
+/** Mirrors the same list in `canonical_goal_unit` (migration 0157). */
+const CADENCE_WORDS = new Set([
+  'day', 'days', 'daily', 'week', 'weeks', 'weekly',
+  'month', 'months', 'monthly', 'once', 'today', 'period',
+]);
+
 export const CHALLENGE_TYPE_GLYPH: Record<ChallengeType, DisciplineIconName> = {
   steps: 'steps',
   run_distance: 'run',

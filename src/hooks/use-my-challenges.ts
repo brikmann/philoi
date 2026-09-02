@@ -5,19 +5,13 @@ import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useStravaConnection } from '@/hooks/use-strava-connection';
 import { useWhoopConnection } from '@/hooks/use-whoop-connection';
 import { fetchMyChallenges } from '@/lib/api/challenges';
-import { syncChallengeFromDevice } from '@/lib/api/fitness-challenge-sync';
+import { DEVICE_METRIC_TYPES, syncChallengeFromDevice } from '@/lib/api/fitness-challenge-sync';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import type { Challenge } from '@/types/database';
 
-const DEVICE_METRIC_TYPES: Challenge['type'][] = [
-  'steps',
-  'run_distance',
-  'ride_distance',
-  'workout_minutes',
-  'strain',
-  'sleep_hours',
-];
+// The list moved to lib/api/fitness-challenge-sync.ts when GoalRevealWatcher became a second
+// caller (§A) — this tab is no longer the only thing that syncs.
 
 export function useMyChallenges() {
   const { session } = useAuth();

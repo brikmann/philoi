@@ -1,5 +1,6 @@
 import { track } from '@/lib/analytics';
 import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
+import { canonicalGoalUnit } from '@/lib/goal-types';
 import { formatLocalDate } from '@/lib/local-day';
 import { supabase } from '@/lib/supabase';
 import type {
@@ -15,6 +16,11 @@ export async function fetchMyChallenges(userId: string): Promise<Challenge[]> {
     .from('challenges')
     .select('*')
     .eq('user_id', userId)
+    // §4b — a RETIRED goal is one that was collapsed as a duplicate reading the same source as
+    // another (migration 0156). It is frozen server-side: it accrues nothing and can never
+    // complete, so it is over in every sense and has no business on the tab. Filtered rather than
+    // deleted so the row — and its archived periods, which cascade — survive the collapse.
+    .is('retired_at', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data ?? [];
@@ -41,7 +47,16 @@ export async function createChallenge(input: {
       type: input.type,
       label: input.label,
       target: input.target,
-      unit: input.unit,
+      // 🔴 §4a — THE UNIT FOLLOWS THE METRIC, not the caller. "Cold plunges · 0 / 1 bath" got onto
+      // the tab because `unit` is a free text column and Cindy's create_challenge tool hands the
+      // model a freeform string for it. For every built-in metric the answer is fixed by the
+      // metric itself, so it is decided here rather than trusted from whoever called. A custom
+      // goal keeps its owner's own word — and falls back to the goal's name rather than to
+      // nothing, which used to render as a bare "0 / 1".
+      //
+      // Migration 0157 enforces the same rule in a trigger, so this is the helpful half: a writer
+      // that never loads this file still cannot store a steps goal counted in baths.
+      unit: canonicalGoalUnit(input.type, input.unit, input.label),
       period: input.period,
       count_mode: input.countMode ?? 'manual',
     })
@@ -50,6 +65,95 @@ export async function createChallenge(input: {
   if (error) throw error;
   track('challenge_created', { type: input.type, target: input.target });
   return data;
+}
+
+/**
+ * The one active goal already reading the source this new one would read, or null.
+ *
+ * 🔴 §B — THE STACKING EXPLOIT. Noah, on device: "you can set multiple 10,000-step goals for the
+ * week which all have the same progress. They'd all give the same reward." Confirmed on prod: two
+ * (steps, week, 10000) rows and two (steps, day, 10000) rows for one user. Auto-tracked metrics all
+ * read a SHARED number — the health store, Strava, Whoop, or the user's own lock-ins — so N
+ * identical goals fill from one walk and each bank their own drip.
+ *
+ * `goals_one_active_per_type_name` (0143) does not catch it because a personal goal is not a
+ * `goals` row: this file writes it straight into `challenges`.
+ *
+ * THE KEY IS THE SOURCE, NOT THE TARGET. For a built-in metric the type IS the source
+ * (getRealFitnessSourceForChallengeType returns one for every type except `custom`), so 8k weekly
+ * steps and 12k weekly steps are still the same walk counted twice. For a custom goal the LABEL is
+ * the source, because that is what both feeders match on — credit_lockin_time_goals_for (0116) and
+ * the gym-set feeder (0149). Different cadences are legitimately different windows, so daily and
+ * weekly versions of the same metric are fine and stay fine.
+ *
+ * 🔒 ADVISORY ONLY. Migration 0148's trigger is the enforcement — it refuses the insert whatever
+ * this returns, so a stale read or a second device cannot get past it. This exists so the answer
+ * arrives as a sentence in the form instead of as a failed round trip.
+ */
+export async function findDuplicateActiveGoal(input: {
+  userId: string;
+  type: ChallengeType;
+  period: ChallengePeriod;
+  /** The custom goal's name. Ignored for built-in types, which key on the type itself. */
+  label: string | null;
+}): Promise<Challenge | null> {
+  let query = supabase
+    .from('challenges')
+    .select('*')
+    .eq('user_id', input.userId)
+    .eq('period', input.period)
+    .is('completed_at', null)
+    // Retired goals read no source and pay nothing, so they cannot be the other half of a stack —
+    // and clashing against one would mean collapsing a duplicate silently forbade the user from
+    // ever making that goal again. 0156's trigger applies the same rule server-side.
+    .is('retired_at', null);
+
+  if (input.type === 'custom') {
+    const name = (input.label ?? '').trim();
+    // An unnamed custom goal clashes with nothing — nothing can feed it by label either.
+    if (!name) return null;
+    query = query.eq('type', 'custom').ilike('label', name);
+  } else {
+    query = query.eq('type', input.type);
+  }
+
+  const { data, error } = await query.limit(1);
+  // A failed read must not block creation: the server still refuses a real duplicate, and treating
+  // "could not check" as "is a duplicate" would lock someone out of a goal they are allowed to have.
+  if (error) return null;
+  return data?.[0] ?? null;
+}
+
+/** What to put in front of the user when findDuplicateActiveGoal (or 0148) says no. */
+export function duplicateGoalMessage(existing: Challenge): string {
+  const cadence = existing.period === 'day' ? 'daily' : existing.period === 'once' ? 'one-time' : 'weekly';
+  const name = existing.type === 'custom' ? (existing.label?.trim() || 'custom') : personalGoalMetricName(existing.type);
+  return `You already have a ${cadence} ${name} goal running. Two goals reading the same source would both fill from one effort — finish or delete that one first.`;
+}
+
+/** Plain-English metric names for the message above. Deliberately not the picker's labels: those
+ *  are written to be scanned in a list ("Run", "Sleep"), these have to read inside a sentence. */
+function personalGoalMetricName(type: ChallengeType): string {
+  switch (type) {
+    case 'steps':
+      return 'steps';
+    case 'study_hours':
+      return 'study time';
+    case 'gym_visits':
+      return 'gym visits';
+    case 'run_distance':
+      return 'running';
+    case 'ride_distance':
+      return 'riding';
+    case 'workout_minutes':
+      return 'workout minutes';
+    case 'strain':
+      return 'strain';
+    case 'sleep_hours':
+      return 'sleep';
+    default:
+      return 'custom';
+  }
 }
 
 export async function logChallengeProgress(

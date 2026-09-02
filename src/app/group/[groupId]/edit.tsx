@@ -3,15 +3,20 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { CampfireBannerArt } from '@/components/campfire-banner-art';
+import { CampfireBannerPicker } from '@/components/campfire-banner-picker';
+import { CampfireEmojiPicker } from '@/components/campfire/campfire-emoji-picker';
 import { PrivacySelector } from '@/components/privacy-selector';
+import { EmberFill } from '@/components/ui/ember-fill';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { DisciplineIcon, type DisciplineIconName } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGroup } from '@/hooks/use-group';
-import { updateCampfireHouseRules, updateCampfirePrivacy, updateGroup } from '@/lib/api/groups';
+import { setCampfireBanner, updateCampfireHouseRules, updateCampfirePrivacy, updateGroup } from '@/lib/api/groups';
+import { DEFAULT_LOADOUT, getItem } from '@/lib/economy/catalog';
 import { getErrorMessage } from '@/lib/errors';
-import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH } from '@/lib/goal-types';
 import { RANK_TIER_LABEL, RANK_TIER_METAL } from '@/lib/rank-tiers';
 import type { CampfirePrivacy, GoalType, RankTierName } from '@/types/database';
 
@@ -24,9 +29,20 @@ const THEME_OPTIONS: { value: GoalType; icon: DisciplineIconName }[] = [
   { value: 'run', icon: GOAL_TYPE_GLYPH.run },
 ];
 
-function themeEmoji(type: GoalType): string {
-  return type === 'custom' ? '🔥' : GOAL_TYPE_META[type].emoji;
-}
+// §1 · THE EMOJI AND THE BANNER ARE OWNER-EDITABLE. THIS REVERSES R1.
+//
+// Round 2's R1 made the emoji immutable after creation and this screen enforced it: the theme
+// tiles were deleted and handleSave echoed `group.emoji` straight back. R2 did the same for the
+// banner — the choice moved into the create flow and "Set banner" came out of the options sheet.
+//
+// Both are reversed here, on Noah's call, and the on-device run is why. Immutability assumed the
+// value was set well at creation. It is not: creation DERIVES the emoji from the goal type, so
+// every campfire is born wearing a generic flame, and the banner defaults to null. A campfire
+// called Goat showed up as "🔥 Goat" with no way to fix it — which is exactly the "header copy
+// is generic" report. An identity you cannot set is not an identity, it is a placeholder.
+//
+// So both fields live here now, and both SAVE WITH THE FORM rather than on tap — see the banner
+// picker's deferred mode for why that distinction matters.
 
 // The join gate's choices (design-mocks/94). Deliberately NOT the full ten-tier ladder — a gate is a
 // filter on strangers, and past Diamond there is nobody left to filter. Null is the first option
@@ -42,10 +58,14 @@ export default function EditGroupScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const { group, refetch } = useGroup(groupId);
   const [name, setName] = useState('');
+  // Display only now (the name field's glyph). Nothing on this screen writes it.
   const [goalType, setGoalType] = useState<GoalType>('custom');
   const [privacy, setPrivacy] = useState<CampfirePrivacy>('open');
   const [minJoinTier, setMinJoinTier] = useState<RankTierName | null>(null);
   const [houseRule, setHouseRule] = useState('');
+  const [emoji, setEmoji] = useState('🔥');
+  const [bannerId, setBannerId] = useState<string | null>(null);
+  const [bannerPickerOpen, setBannerPickerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +76,8 @@ export default function EditGroupScreen() {
     setPrivacy(group.privacy);
     setMinJoinTier(group.min_join_tier);
     setHouseRule(group.house_rule ?? '');
+    setEmoji(group.emoji || '🔥');
+    setBannerId(group.banner_item_id);
   }, [group]);
 
   async function handleSave() {
@@ -66,9 +88,18 @@ export default function EditGroupScreen() {
     setLoading(true);
     setError(null);
     try {
-      await updateGroup(groupId, { name: name.trim(), emoji: themeEmoji(goalType) });
+      // §1: the emoji is the picker's value now, not an echo of what was already there.
+      // update_campfire_details(p_name, p_emoji) already took both arguments, so this needs no
+      // migration — the second one was simply never being used for anything.
+      await updateGroup(groupId, { name: name.trim(), emoji });
       if (group && privacy !== group.privacy) {
         await updateCampfirePrivacy(groupId, privacy);
+      }
+      // Owner-only server-side (set_campfire_banner checks ownership), and written only when it
+      // actually moved — an unconditional call would fail for an ADMIN who is not the owner while
+      // they were legitimately editing the name.
+      if (group && bannerId !== group.banner_item_id) {
+        await setCampfireBanner(groupId, bannerId);
       }
       // Owner-only RPC — a member editing here would already have been stopped by the update above,
       // but the house rules carry their own check server-side either way.
@@ -105,20 +136,25 @@ export default function EditGroupScreen() {
             <TextInput style={styles.fieldInput} placeholder="e.g. Morning Lifters" value={name} onChangeText={setName} maxLength={40} />
           </View>
 
-          <View style={styles.emrow}>
-            {THEME_OPTIONS.map((option) => {
-              const on = goalType === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => setGoalType(option.value)}
-                  style={[styles.iconTile, on && styles.iconTileOn]}
-                  accessibilityLabel={GOAL_TYPE_META[option.value].label}>
-                  <DisciplineIcon name={option.icon} size={16} color={on ? Colors.amber : Colors.muted} />
-                </Pressable>
-              );
-            })}
-          </View>
+          <Text style={styles.lbl}>Emoji</Text>
+          <CampfireEmojiPicker value={emoji} onChange={setEmoji} />
+
+          {/* The banner opens the SAME picker the options sheet used to, in deferred mode so it
+              reports a choice instead of writing one. The swatch is a live preview of what is
+              selected — the real scene at tile size, not a colour chip, since the banners differ
+              by scene rather than by hue. */}
+          <Text style={styles.lbl}>Banner</Text>
+          <Pressable
+            style={styles.bannerRow}
+            onPress={() => setBannerPickerOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Choose this campfire's banner">
+            <View style={styles.bannerSwatch}>
+              <CampfireBannerArt itemKey={bannerId} fadeTo="#161022" />
+            </View>
+            <Text style={styles.bannerLabel}>{bannerName(bannerId)}</Text>
+            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+          </Pressable>
 
           <Text style={styles.lbl}>Who can join</Text>
           <PrivacySelector value={privacy} onChange={setPrivacy} />
@@ -161,13 +197,31 @@ export default function EditGroupScreen() {
           {error && <Text style={styles.error}>{error}</Text>}
         </ScrollView>
 
-        <Pressable style={styles.saveBtn} onPress={handleSave} disabled={loading}>
-          <Ionicons name="checkmark" size={17} color={Colors.onEmber} />
-          <Text style={styles.saveLabel}>{loading ? 'Saving…' : 'Save changes'}</Text>
+        <Pressable onPress={handleSave} disabled={loading} accessibilityRole="button">
+          <EmberFill style={[styles.saveBtn, loading && styles.saveBtnBusy]} radius={Radius.button} direction="diagonal">
+            <Ionicons name="checkmark" size={17} color={Colors.onEmber} />
+            <Text style={styles.saveLabel}>{loading ? 'Saving…' : 'Save changes'}</Text>
+          </EmberFill>
         </Pressable>
       </KeyboardAvoidingView>
+
+      <CampfireBannerPicker
+        visible={bannerPickerOpen}
+        onClose={() => setBannerPickerOpen(false)}
+        campfireName={name || group?.name || 'Your campfire'}
+        groupId={groupId}
+        currentBannerId={bannerId}
+        onChanged={refetch}
+        // Deferred — Save changes commits it, not the tap.
+        onSelect={setBannerId}
+      />
     </Screen>
   );
+}
+
+/** The banner's display name, or the base hearth's when nothing has been chosen. */
+function bannerName(itemKey: string | null): string {
+  return getItem(itemKey ?? DEFAULT_LOADOUT.banner ?? '')?.name ?? 'Hearthlight';
 }
 
 const styles = StyleSheet.create({
@@ -229,23 +283,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.ink,
   },
-  emrow: {
+  bannerRow: {
     flexDirection: 'row',
-    gap: 7,
-    marginTop: 8,
-  },
-  iconTile: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: Colors.card,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 11,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.card,
+    padding: 10,
   },
-  iconTileOn: {
-    backgroundColor: Colors.achieverBg,
-    borderWidth: 1.5,
-    borderColor: Colors.coral,
+  bannerSwatch: {
+    width: 76,
+    height: 42,
+    borderRadius: 9,
+    overflow: 'hidden',
+    backgroundColor: '#120C1A',
+  },
+  bannerLabel: {
+    flex: 1,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.ink,
   },
   gateRow: {
     flexDirection: 'row',
@@ -274,15 +333,22 @@ const styles = StyleSheet.create({
     color: Colors.coral,
     marginTop: 8,
   },
-  // Ember, near-black label — the §3 "this is the action" treatment, not the old flat coral.
+  // §3 · EMBER GRADIENT, NOT FLAT AMBER.
+  //
+  // This carried a comment claiming it was "the ember treatment" while painting
+  // `backgroundColor: Colors.amber` — one flat yellow. DESIGN_LANGUAGE_EMBER §3's primary is the
+  // amber→coral GRADIENT (what PrimaryButton and the FAB paint); a solid amber slab is the
+  // washed-out thing the rule exists to abolish, and it has now been reported three times. The
+  // fill is <EmberFill> now, so there is no colour here to drift back.
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.amber,
-    borderRadius: Radius.button,
     padding: 14,
+  },
+  saveBtnBusy: {
+    opacity: 0.6,
   },
   saveLabel: {
     fontFamily: Fonts.bodyBold,

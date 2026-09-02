@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 150" width="520" height="300">
+  <defs><linearGradient id="ember" x1="0" y1="1" x2="0" y2="0">
+    <stop offset="0" stop-color="#E0612C"/><stop offset=".5" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFD27A"/>
+  </linearGradient></defs>
+  <svg x="104" y="6" width="52" height="62" viewBox="0 0 24 24">
+    <g transform="translate(24,0) scale(-1,1)"><path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#ember)"/></g>
+  </svg>
+  <text x="130" y="120" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-weight="800" font-size="44" letter-spacing="-1" fill="#FFF6EC">Philoi</text>
+</svg>

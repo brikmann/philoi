@@ -10,6 +10,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { PostHogProvider } from 'posthog-react-native';
 
 import { ChallengeSettlementWatcher } from '@/components/challenge-settlement-watcher';
+import { GoalRevealWatcher } from '@/components/goal-reveal-watcher';
 import { RewardRevealHost } from '@/components/economy/reward-reveal';
 import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
 import { LoadoutSync } from '@/components/economy/loadout-sync';
@@ -260,7 +261,19 @@ function RootNavigator() {
         // it (punchlist 20.1). The HEADER stays cream — that's a real bar with its own surface,
         // not the page ground.
         contentStyle: headerlessContentStyle,
-        headerStyle: { backgroundColor: Colors.cream },
+        // 🐛 THE HEADER WAS A DIFFERENT PURPLE FROM THE PAGE UNDER IT (Noah, on Watch and the live
+        // challenge views — but it was every headered screen, those are just the two he was on).
+        //
+        // Colors.cream is #1B1726, twilight-800, and the comment above still called it "a real bar
+        // with its own surface". That was true when cream WAS the app background. It stopped being
+        // true at punchlist 20.1, when the ground became the ScreenBackground radial: the top of
+        // that radial is bgRadialFrom #2C1B36, so the bar sat as a flat, darker, cooler slab on a
+        // lighter warm-purple page with a visible seam where they met.
+        //
+        // Matched to the radial'''s TOP STOP rather than made transparent: headerTransparent lets
+        // the scene slide under the bar, and ~20 screens would each need to learn the offset. This
+        // is one token, and the header now reads as the top of the page instead of a lid on it.
+        headerStyle: { backgroundColor: Colors.bgRadialFrom },
         headerShadowVisible: false,
         headerTintColor: Colors.ink,
         headerTitleStyle: { fontFamily: Fonts.bodyBold },
@@ -424,6 +437,13 @@ function RootLayout() {
                 zIndex 100 and this is a Modal, and ordering them here is what keeps the two
                 celebrations from landing on the same frame. */}
             <ChallengeSettlementWatcher />
+            {/* And the third payout that could land while the user is looking at something else: a
+                personal goal the PHONE finished. Unlike the two above it was never asynchronous —
+                the sync that completes a 10k-step goal is the app's own — it was just only ever run
+                by the Challenges tab, on focus, so the celebration arrived whenever that tab was
+                next opened rather than on the walk. This looks for it from anywhere and draws it
+                from anywhere. Takes the same floor, at the lowest priority of the three. */}
+            <GoalRevealWatcher />
             {/* The shared reward reveal — one at a time, app-wide, ordered as a crescendo so the
                 rank-up lands last. Everything that pays out queues through showRewardReveal()
                 rather than presenting itself, which is what stops a session that is simultaneously

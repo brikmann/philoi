@@ -235,9 +235,46 @@ export function fireLightTap(): void {
   if (getRewardPreferencesSync().haptics) safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
 }
 
+/**
+ * The ember CLAIM, once, as the burst sets off (reward-claim.tsx).
+ *
+ * 🔊 WHAT THIS REPLACES. The claim step was firing `fireEmberLand` per landing ember — the old
+ * per-ember sparkle from mock 27's counter — so tapping Claim produced four staggered 'spark' ticks
+ * underneath the victory fanfare. Noah: "still fires the old sound effect… doesn't exactly work
+ * right." Two problems in one: it is the wrong sound for this moment, and a tick-storm under a
+ * fanfare is two things competing rather than one thing happening.
+ *
+ * A claim is ONE gesture — the embers lift off the flame and go to the balance — so it gets one
+ * sound, at the start, on the lift. 'whoosh' is 1.1s and already quiet (mean −19.7 dB), which puts
+ * it under the flight (1.5s) and under the fanfare rather than across them. Its own cue, so its own
+ * player: it cannot interrupt the victory cue however they overlap.
+ *
+ * Sound-only. The hands are handled per-ember by fireEmberSettle below, which is where a landing
+ * actually wants feedback.
+ */
+export function fireEmberClaimLift(): void {
+  if (!getRewardPreferencesSync().reward_sfx_enabled) return;
+  playRewardSound('whoosh', 0.5);
+}
+
+/**
+ * One ember arriving in the balance — HAPTIC ONLY.
+ *
+ * The counterpart to the lift above: the burst still wants to be felt landing, and the tick that
+ * used to sound with it is now the single whoosh at the other end of the arc. Same light tap
+ * `fireEmberLand` carried, same every-third-arrival throttling at the call site.
+ */
+export function fireEmberSettle(): void {
+  if (getRewardPreferencesSync().haptics) safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+}
+
 // Ember-collection landing tick (§22, design-mocks/27) — a subtle sparkle per ember as it lands
 // in the counter, staggered with the particles. Quiet (0.4) since up to 5 of these fire in a
 // single burst under 1s apart; a light tap reads as a "tick," not a repeated heavy thud.
+//
+// STILL THE RIGHT CUE FOR ITS TWO REMAINING CALLERS — the sell flow and the lock-in done screen,
+// where the ember counter IS the event and there is no fanfare over it. Only the reward-reveal
+// claim moved off it; see fireEmberClaimLift.
 export function fireEmberLand(): void {
   const prefs = getRewardPreferencesSync();
   if (prefs.reward_sfx_enabled) playRewardSound('spark', 0.4);

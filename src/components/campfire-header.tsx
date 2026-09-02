@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Polygon } from 'react-native-svg';
 
 import { CampfireBadge } from '@/components/campfire-badge';
-import { CampfireBannerArt, bannerColors } from '@/components/campfire-banner-art';
+import { CampfireBannerArt } from '@/components/campfire-banner-art';
 import { heatToState } from '@/components/heat-flame';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { EmberFill } from '@/components/ui/ember-fill';
@@ -74,6 +74,13 @@ type CampfireHeaderProps = {
   hasPendingRequests?: boolean;
   /** Disables the pill while a session is already running — one lock-in at a time, app-wide. */
   lockInDisabled?: boolean;
+  /**
+   * False when the SCREEN paints the banner instead (#146). The campfire detail now flies the
+   * banner across its whole surface, so the header drawing its own copy would stack a second veil
+   * over the first and re-create the visible band this was meant to remove. Every other caller
+   * leaves it on and gets the header strip as before.
+   */
+  showBanner?: boolean;
 };
 
 export function CampfireHeader({
@@ -90,6 +97,7 @@ export function CampfireHeader({
   stats,
   hasPendingRequests = false,
   lockInDisabled = false,
+  showBanner = true,
 }: CampfireHeaderProps) {
   // The banner belongs to the CAMPFIRE (0134), so it is read off the campfire's own column and
   // not off whatever its owner happens to have equipped.
@@ -102,7 +110,6 @@ export function CampfireHeader({
   //
   // Null = never chosen, and bannerColors already falls back to the base hearth for an unknown or
   // missing key.
-  const { from, to } = bannerColors(group?.banner_item_id);
 
   const full = variant === 'full';
   const state = heatToState(heat);
@@ -110,7 +117,7 @@ export function CampfireHeader({
 
   return (
     <View style={[styles.header, full ? styles.headerFull : styles.headerCollapsed]}>
-      <CampfireBannerArt from={from} to={to} />
+      {showBanner && <CampfireBannerArt itemKey={group?.banner_item_id} />}
 
       {/* ONE chrome row. Back · (name, collapsed only) · Lock in · options. */}
       <View style={styles.topbar}>
@@ -258,7 +265,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(20,14,26,0.6)',
+    backgroundColor: Colors.scrimDeep,
     borderWidth: 1,
     borderColor: Colors.line,
   },
@@ -316,7 +323,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
     letterSpacing: 0.9,
-    color: '#C98A4A',
+    color: Colors.heatLabel,
     marginTop: 4,
     textShadowColor: 'rgba(0,0,0,0.85)',
     textShadowRadius: 6,
@@ -338,14 +345,14 @@ const styles = StyleSheet.create({
   meta: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: '#C8BCDD',
+    color: Colors.onScrim,
   },
   gate: {
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(20,17,28,0.72)',
+    backgroundColor: Colors.scrim,
     borderWidth: 1,
     borderRadius: Radius.pill,
     paddingVertical: 3,
@@ -364,9 +371,9 @@ const styles = StyleSheet.create({
   },
   stat: {
     flex: 1,
-    backgroundColor: 'rgba(23,18,38,0.72)',
+    backgroundColor: Colors.scrim,
     borderWidth: 1,
-    borderColor: '#241C38',
+    borderColor: Colors.card,
     borderRadius: 12,
     paddingVertical: 9,
     paddingHorizontal: Spacing.one,
@@ -387,7 +394,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 8.5,
     letterSpacing: 0.3,
-    color: '#8F83A8',
+    color: Colors.onScrimFaint,
     marginTop: 2,
   },
   tabs: {
@@ -406,14 +413,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.one,
   },
   tabOff: {
-    backgroundColor: 'rgba(23,18,38,0.7)',
+    backgroundColor: Colors.scrimSoft,
     borderWidth: 1,
-    borderColor: '#241C38',
+    borderColor: Colors.card,
   },
   tabLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: '#C8BCDD',
+    color: Colors.onScrim,
   },
   tabLabelOn: {
     color: Colors.onEmber,

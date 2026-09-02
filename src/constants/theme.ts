@@ -69,6 +69,24 @@ export const Colors = {
   disabledBorder: '#2F2740',
   disabledText: '#6F6685',
 
+  // ── ON-BANNER SURFACES (#128/#133) ──
+  //
+  // The campfire flies its banner across the whole detail screen now (#146), which means every
+  // panel on it — stat tiles, tab chips, the chrome buttons, the house rule — is a TRANSLUCENT
+  // surface over that art, not an opaque card. These were eight separate literals spread across
+  // campfire-header.tsx and group/[groupId]/index.tsx (`rgba(23,18,38,.72)`, `rgba(23,18,38,.7)`,
+  // `rgba(20,14,26,.6)`, `#231A2E`, `#C8BCDD`, `#8F83A8`, `#C98A4A`), which is exactly how one
+  // section lands on a different purple from the next — Noah's "mangled background colours".
+  //
+  // Named for the JOB, not the screen, so the next surface that sits on banner art reaches for the
+  // same four values instead of inventing a ninth literal.
+  scrim: 'rgba(23,18,38,0.72)', // panel over banner art — stat tiles, cards, the house rule
+  scrimSoft: 'rgba(23,18,38,0.70)', // the same panel, unselected (tab chips) — a hair lighter
+  scrimDeep: 'rgba(20,14,26,0.60)', // circular chrome buttons, which need more hiding under them
+  onScrim: '#C8BCDD', // secondary label on a scrim panel — brighter than `muted`, which loses to banner art
+  onScrimFaint: '#8F83A8', // tertiary label on a scrim panel (stat captions)
+  heatLabel: '#C98A4A', // the ember-brown heat-state caption under a campfire's hearth
+
   // The forward/urgent accent (§7): today's fire zone on the home XP bar, and the `~time`
   // projection on the lock-in rank bar. Always this, never the tier colour — tier colour says
   // where you ARE, orange says what you're chasing.

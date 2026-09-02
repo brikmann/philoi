@@ -1,4 +1,4 @@
-import { awardGoalDay, logChallengeProgress, type GoalDayAward } from '@/lib/api/challenges';
+import { awardGoalDay, fetchMyChallenges, logChallengeProgress, type GoalDayAward } from '@/lib/api/challenges';
 import { getDeviceSleepHoursBetween, getDeviceStepsBetween, getPlatformFitnessSource } from '@/lib/fitness-sync';
 import { pushGoalReveal } from '@/lib/goal-reveal-queue';
 import { personalGoalTitle } from '@/lib/goal-types';
@@ -267,6 +267,42 @@ export async function syncChallengeFromDevice(challenge: Challenge): Promise<Cha
   // single point every sync passes through — the reveal survives either way.
   if (award) pushGoalReveal({ award, goalLabel: outcome.goalLabel });
   return { ...outcome, award };
+}
+
+/**
+ * Every metric a device or a connected service fills on its own.
+ *
+ * Lifted out of use-my-challenges.ts so the Challenges tab is no longer the only thing that knows
+ * the list — see syncAllDeviceChallenges below for why a second caller needed it.
+ */
+export const DEVICE_METRIC_TYPES: Challenge['type'][] = [
+  'steps',
+  'run_distance',
+  'ride_distance',
+  'workout_minutes',
+  'strain',
+  'sleep_hours',
+];
+
+/**
+ * Catch up every open device-metric goal this user has, and report how much moved.
+ *
+ * §A — WHY THIS IS NOT JUST useMyChallenges' JOB ANY MORE. Until now the only thing that ever
+ * noticed a goal being finished by the phone was the Challenges tab coming into focus. A 10k-step
+ * goal completed mid-walk banked its embers server-side the moment the sync ran — and that sync
+ * ran when, and only when, the user happened to open that one tab. The celebration arrived
+ * detached from the achievement, sometimes hours later, which is the whole thing Noah is asking to
+ * fix: the moment is worth the most at the moment.
+ *
+ * Anything queued here reaches the screen through pushGoalReveal (see syncChallengeFromDevice), so
+ * a caller does not have to be mounted, watching, or on any particular screen.
+ */
+export async function syncAllDeviceChallenges(userId: string): Promise<number> {
+  const all = await fetchMyChallenges(userId);
+  const open = all.filter((c) => DEVICE_METRIC_TYPES.includes(c.type) && !c.completed_at);
+  if (open.length === 0) return 0;
+  const outcomes = await Promise.all(open.map((c) => syncChallengeFromDevice(c).catch(() => null)));
+  return outcomes.reduce((total, o) => total + (o?.synced ?? 0), 0);
 }
 
 async function routeChallengeSync(challenge: Challenge): Promise<ChallengeSyncOutcome> {

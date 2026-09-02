@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Philoi · Every banner as the campfire-chat background</title>
+<style>
+  :root{--ink:#FFF6EC;--muted:#A99CBD;--tertiary:#7C7194;--ember:#FFD27A;--coral:#E0612C;--line:rgba(255,255,255,.09)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0c0a11;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;padding:44px 28px 70px}
+  h1{font-size:22px;font-weight:800;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:28px}
+  .grid{display:flex;flex-wrap:wrap;gap:26px;justify-content:center}
+  .card{width:216px}
+  .frame{width:216px;height:452px;border-radius:30px;position:relative;overflow:hidden;box-shadow:0 18px 44px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.05)}
+  .sky{position:absolute;inset:0;z-index:0}
+  .sky::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 26% at 50% 30%, rgba(255,190,110,.18), transparent 70%);animation:flick 3.4s ease-in-out infinite}
+  @keyframes flick{0%,100%{opacity:.45}50%{opacity:.85}}
+  .ridge{position:absolute;left:0;right:0;bottom:0;z-index:1}
+  .fx{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+  .em{position:absolute;bottom:-8px;width:4px;height:4px;border-radius:50%;opacity:0}
+  @keyframes rise{0%{opacity:0;transform:translateY(0) scale(.6)}15%{opacity:.9}100%{opacity:0;transform:translateY(-360px) translateX(var(--dx)) scale(1)}}
+  /* faint chat context so it reads as the chat-over-banner */
+  .topbar{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;align-items:center;gap:8px;padding:14px 12px 10px;background:linear-gradient(180deg,rgba(12,9,16,.55),transparent)}
+  .fe{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;background:rgba(255,210,122,.14);border:1px solid rgba(255,210,122,.3)}
+  .fn{font-size:13px;font-weight:800}
+  .bub{position:absolute;z-index:3;left:12px;bottom:58px;background:rgba(28,20,40,.7);border:1px solid var(--line);border-radius:3px 11px 11px 11px;padding:6px 10px;font-size:11px;color:#eadfff}
+  .me{position:absolute;z-index:3;right:12px;bottom:20px;background:linear-gradient(180deg,var(--coral),#b64e22);border-radius:11px 3px 11px 11px;padding:6px 10px;font-size:11px}
+  .meta{margin-top:11px;display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .nm{font-size:14px;font-weight:800}
+  .rar{font-size:9.5px;letter-spacing:1.3px;font-weight:800;padding:2px 7px;border-radius:7px}
+  .rar.common{color:#C9BDE6;background:rgba(120,110,150,.22)}
+  .rar.epic{color:#C79BE8;background:rgba(160,90,210,.2)}
+  .rar.legendary{color:#F5C542;background:rgba(245,197,66,.16)}
+  .rar.mythic{color:#FF7A9C;background:rgba(255,90,120,.16)}
+  .def{display:inline-block;margin-top:6px;font-size:10px;font-weight:800;letter-spacing:.6px;color:#3A1608;background:linear-gradient(180deg,#F2A33C,#E0612C);padding:3px 9px;border-radius:8px}
+  .cols{margin-top:6px;font-size:10px;color:var(--tertiary);font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+  <h1>Every banner, as the full-screen campfire-chat background</h1>
+  <div class="sub">Sky gradient (horizon = the accent colour, deepening to the base) · ridgeline · rising embers — animated, exactly how it'd back the chat. The <b style="color:var(--ember)">default</b> is Hearthlight.</div>
+  <div class="grid" id="grid"></div>
+
+<script>
+  // from src/lib/economy/catalog.ts — every BANNER's two art colours (from = base, to = accent)
+  const BANNERS = [
+    {name:'Hearthlight',       rar:'common',    from:'#2A1A12', to:'#C4701F', def:true},
+    {name:'Emberfall Night',   rar:'epic',      from:'#2a1533', to:'#E0612C'},
+    {name:'Ashfall Ridge',     rar:'epic',      from:'#20182f', to:'#A99CBD'},
+    {name:'Obsidian Colosseum',rar:'legendary', from:'#0F0D14', to:'#F5C542'},
+    {name:'The Great Forge',   rar:'legendary', from:'#5a3a12', to:'#FFB800'},
+    {name:'Emberfall Banner',  rar:'legendary', from:'#6a2a18', to:'#FFC24D'},
+    {name:'Ashfall',           rar:'legendary', from:'#2a2018', to:'#D9913C'},
+    {name:'Emberfall Standard',rar:'mythic',    from:'#4a1508', to:'#FFD24D'},
+    {name:'Emberfall Elite',   rar:'legendary', from:'#4a1508', to:'#FFC24D'},
+  ];
+  const grid = document.getElementById('grid');
+  BANNERS.forEach(b=>{
+    const card = document.createElement('div');
+    card.className='card';
+    // sky gradient matching the 'screen' variant stops: accent glow up top → base at bottom
+    const sky = `linear-gradient(180deg, ${b.to}A6 0%, ${b.to}52 28%, ${b.from}D9 62%, ${b.from} 100%)`;
+    card.innerHTML = `
+      <div class="frame">
+        <div class="sky" style="background:${sky}"></div>
+        <svg class="ridge" viewBox="0 0 300 220" preserveAspectRatio="none" style="height:150px">
+          <path d="M0 150 L70 90 L120 130 L180 70 L240 120 L300 80 L300 220 L0 220Z" fill="#241633" opacity="0.8"/>
+          <path d="M0 175 L60 130 L130 165 L200 120 L300 150 L300 220 L0 220Z" fill="#1A1226"/>
+        </svg>
+        <div class="fx"></div>
+        <div class="topbar"><div class="fe">🐐</div><div class="fn">Goat</div></div>
+        <div class="bub">yo who's running tn</div>
+        <div class="me">locked in 45m 💪</div>
+      </div>
+      <div class="meta"><div class="nm">${b.name}</div><div class="rar ${b.rar}">${b.rar.toUpperCase()}</div></div>
+      ${b.def?'<div class="def">DEFAULT · day one</div>':''}
+      <div class="cols">${b.from} → ${b.to}</div>`;
+    grid.appendChild(card);
+    // embers rise in the accent colour
+    const fx = card.querySelector('.fx');
+    for(let i=0;i<10;i++){
+      const e=document.createElement('div');e.className='em';
+      e.style.left=(8+Math.random()*84)+'%';
+      e.style.background=`radial-gradient(circle at 40% 35%, #FFE9C2, ${b.to})`;
+      e.style.boxShadow=`0 0 6px ${b.to}`;
+      e.style.setProperty('--dx',(Math.random()*30-15)+'px');
+      e.style.animation=`rise ${3.5+Math.random()*3}s linear ${Math.random()*4}s infinite`;
+      fx.appendChild(e);
+    }
+  });
+</script>
+</body>
+</html>

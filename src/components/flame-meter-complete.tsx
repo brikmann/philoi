@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
+import { EmberFlight, type FlightPoint } from '@/components/economy/ember-flight';
 import { RewardRays } from '@/components/economy/reward-reveal';
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { EmberIcon } from '@/components/economy/ember-icon';
@@ -85,48 +86,6 @@ function Spark({ delay, xOffset, reduceMotion }: { delay: number; xOffset: numbe
   return <Animated.View style={[styles.spark, style]} />;
 }
 
-type Point = { x: number; y: number };
-
-// One flying ember collection particle — arcs from the campfire to the ember counter via a
-// raised midpoint (same "control point" trick as the mock's Web Animations API keyframes),
-// landing calls onLand (bumps the counter + plays the tick).
-function EmberFly({ index, from, to, onLand }: { index: number; from: Point; to: Point; onLand: () => void }) {
-  const progress = useSharedValue(0);
-  const midX = (from.x + to.x) / 2 + (index - FLY_COUNT / 2) * 8;
-  const midY = Math.min(from.y, to.y) - 46;
-
-  useEffect(() => {
-    const delay = FLY_START_DELAY + index * FLY_STAGGER;
-    progress.value = withDelay(delay, withTiming(1, { duration: FLY_DURATION, easing: Easing.out(Easing.cubic) }));
-    const landTimer = setTimeout(onLand, delay + FLY_DURATION);
-    return () => clearTimeout(landTimer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot flight per mount
-  }, []);
-
-  const style = useAnimatedStyle(() => {
-    const t = progress.value;
-    // Quadratic bezier through (from, mid, to) — gives the arc the mock's midpoint gives it.
-    const x = (1 - t) * (1 - t) * from.x + 2 * (1 - t) * t * midX + t * t * to.x;
-    const y = (1 - t) * (1 - t) * from.y + 2 * (1 - t) * t * midY + t * t * to.y;
-    return {
-      opacity: interpolate(t, [0, 0.12, 0.85, 1], [0, 1, 1, 0]),
-      transform: [
-        { translateX: x - 4 },
-        { translateY: y - 4 },
-        { scale: interpolate(t, [0, 0.12, 1], [0.4, 1, 0.35]) },
-      ],
-    };
-  });
-
-  // The crisp ember token, not a plain amber dot — these are the currency landing in the
-  // balance, and §4 makes that token the only thing that ever depicts an ember.
-  return (
-    <Animated.View pointerEvents="none" style={[styles.flyEmber, style]}>
-      <EmberIcon size={11} />
-    </Animated.View>
-  );
-}
-
 // The once-a-day meter-fill celebration (PHILOI_UI_SPEC.md §13, design-mocks/27) — shown
 // instead of the plain LockInDoneScreen recap when the session that just ended crosses the
 // daily flame meter to 100%. See lock-in/index.tsx's handleStop for the crossing detection and
@@ -157,7 +116,7 @@ export function FlameMeterComplete({
   // Trim to the first token — display names are frequently "First Last", and the headline wants
   // the way you'd actually be spoken to. Falls back to the whole string if there's no space.
   const firstName = displayName.trim().split(/\s+/)[0] || displayName;
-  const [flightGeo, setFlightGeo] = useState<{ from: Point; to: Point } | null>(null);
+  const [flightGeo, setFlightGeo] = useState<{ from: FlightPoint; to: FlightPoint } | null>(null);
   const [displayXp, setDisplayXp] = useState(rankBefore?.xp_into_tier ?? 0);
   const [plusVisible, setPlusVisible] = useState(false);
 
@@ -407,7 +366,16 @@ export function FlameMeterComplete({
       {!reduceMotion &&
         flightGeo &&
         Array.from({ length: FLY_COUNT }, (_, i) => (
-          <EmberFly key={i} index={i} from={flightGeo.from} to={flightGeo.to} onLand={handleEmberLand} />
+          <EmberFlight
+            key={i}
+            index={i}
+            count={FLY_COUNT}
+            from={flightGeo.from}
+            to={flightGeo.to}
+            delay={FLY_START_DELAY + i * FLY_STAGGER}
+            duration={FLY_DURATION}
+            onLand={handleEmberLand}
+          />
         ))}
 
       {error && <Text style={styles.error}>{error}</Text>}
@@ -616,11 +584,6 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: Radius.pill,
     backgroundColor: Colors.amber,
-  },
-  flyEmber: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
   },
   error: {
     fontFamily: Fonts.body,

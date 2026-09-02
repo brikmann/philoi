@@ -1,5 +1,6 @@
 import type { RewardRevealKind } from '@/components/economy/reward-reveal';
 import { formatMetricValue } from '@/lib/challenge-metric';
+import { formatTimeLeft } from '@/lib/format';
 import type { ChallengeShape, SocialChallenge } from '@/types/database';
 
 /**
@@ -87,6 +88,43 @@ export function isSettled(status: string): boolean {
 
 export function isFinished(status: string): boolean {
   return status === 'completed' || status === 'expired';
+}
+
+/**
+ * THE CLOCK LINE, IN THE RIGHT TENSE — the one string every challenge surface puts where the
+ * countdown goes.
+ *
+ * 🔴 What this is for. Noah's device: a duel that had clearly ended — its own body reading "Final ·
+ * this challenge has ended" — still printed "Most lock-in time · ending soon" in the Watch header
+ * and "Duration 72h · ending soon" in the rules table. Every one of those surfaces was calling
+ * `formatTimeLeft(ends_at)` directly, and that function knows only about a clock. It cannot know
+ * that the race has a RESULT, so it kept describing a future that had already happened.
+ *
+ * The rule, and it is the same one duelOutcome() is built on: once a challenge is settled the
+ * STORED RESULT IS AUTHORITATIVE and the clock is irrelevant. So:
+ *
+ *   settled with a verdict   → "You won" / "You lost" / "It's a tie"   (the news)
+ *   settled with no verdict  → "Final"                                 (a group race, a spectator)
+ *   expired                  → "Ended"                                 (no result was recorded)
+ *   clock run out, unsettled → "ended"                                 (formatTimeLeft's own word)
+ *   still running            → "18h left"
+ *
+ * `verdict` is optional because only a duel has one. A group or placement race passes nothing and
+ * gets "Final", which is what its board already said.
+ */
+export function challengeClockText(
+  status: string,
+  endsAt: string | null,
+  verdict?: ChallengeVerdict
+): string {
+  if (status === 'expired') return 'Ended';
+  if (isSettled(status)) {
+    if (verdict === 'won') return 'You won';
+    if (verdict === 'lost') return 'You lost';
+    if (verdict === 'draw') return "It's a tie";
+    return 'Final';
+  }
+  return formatTimeLeft(endsAt);
 }
 
 export function duelOutcome(
