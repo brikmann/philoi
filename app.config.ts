@@ -290,10 +290,21 @@ const config: ExpoConfig = {
         icon: './assets/images/notification-icon.png',
         color: '#E0612C',
         // The branded ember notification chime. The plugin copies each file into
-        // android/app/src/main/res/raw at prebuild (name lowercased, dashes→underscores →
-        // `ember_spark`), and bundles it on iOS. NATIVE — only ships in a real build, never OTA.
-        // Referenced by the 'accountability' channel's `sound` in src/lib/notifications.ts.
-        sounds: ['./assets/sounds/ember-spark.mp3'],
+        // android/app/src/main/res/raw at prebuild and bundles it on iOS. NATIVE — only ships in a
+        // real build, never OTA. Referenced by the 'accountability' channel's `sound` in
+        // src/lib/notifications.ts.
+        //
+        // ⚠️ THE FILENAME IS THE ANDROID RESOURCE NAME, and it must already be a legal one. This
+        // was `ember-spark.mp3` and it failed the EAS Prebuild phase outright:
+        //
+        //   [expo-notifications] Resource name "ember-spark" is not valid. Android resource names
+        //   must start with a letter and contain only lowercase a-z, 0-9, or underscore characters.
+        //
+        // The plugin does NOT sanitise the name — writeNotificationSoundFile calls
+        // assertValidAndroidAssetName on the basename and throws. So a dash, a capital or a space
+        // here is a hard build failure at prebuild, long before any Java is compiled, and the
+        // remote error surfaces only as "Unknown error. See logs of the Prebuild build phase".
+        sounds: ['./assets/sounds/ember_spark.mp3'],
       },
     ],
     // Generates the iOS Widget Extension target that HOSTS the Live Activity (#87). Expo
