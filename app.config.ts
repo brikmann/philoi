@@ -289,6 +289,11 @@ const config: ExpoConfig = {
         // Activity module's smallIcon() looks up before falling back to applicationInfo.icon.
         icon: './assets/images/notification-icon.png',
         color: '#E0612C',
+        // The branded ember notification chime. The plugin copies each file into
+        // android/app/src/main/res/raw at prebuild (name lowercased, dashes→underscores →
+        // `ember_spark`), and bundles it on iOS. NATIVE — only ships in a real build, never OTA.
+        // Referenced by the 'accountability' channel's `sound` in src/lib/notifications.ts.
+        sounds: ['./assets/sounds/ember-spark.mp3'],
       },
     ],
     // Generates the iOS Widget Extension target that HOSTS the Live Activity (#87). Expo

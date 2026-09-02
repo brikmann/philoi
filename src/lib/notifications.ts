@@ -29,6 +29,13 @@ async function ensureNotificationChannels() {
     name: 'Accountability',
     description: 'Friend check-ins, reactions, and streak reminders.',
     importance: Notifications.AndroidImportance.HIGH,
+    // The branded ember chime — the file the expo-notifications plugin copied to res/raw as
+    // `ember_spark` (registered in app.config.ts `sounds`). NATIVE: only present in a real build.
+    // ⚠️ Android freezes a channel's sound at CREATE time. Fresh installs (the closed test) get the
+    // ember sound; devices that already created 'accountability' keep the default until the channel
+    // is recreated under a new id. If it needs to reach existing installs later, bump the id (e.g.
+    // 'accountability_v2') here AND in notify_push's p_channel_id server-side so pushes route to it.
+    sound: 'ember_spark',
   });
   await Notifications.setNotificationChannelAsync('messages', {
     name: 'Messages',
