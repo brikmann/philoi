@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { EquippedAvatarHalo, EquippedCardBackdrop } from '@/components/economy/applied-art';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useAuth } from '@/lib/auth/auth-context';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
 import { attachmentKey, attachmentView, itemAttachments } from '@/lib/agora-attachment';
 import type { AgoraAttachmentView } from '@/lib/agora-attachment';
@@ -50,6 +51,7 @@ type Props = {
 
 function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
   const router = useRouter();
+  const { session } = useAuth();
   const [photoFailed, setPhotoFailed] = useState(false);
 
   const attachments = itemAttachments(item);
@@ -57,7 +59,11 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
   const photo = photoFailed ? null : agoraPhotoUrl(item.photo_path);
 
   function openAuthor() {
-    router.push({ pathname: '/friend-profile', params: { userId: item.user_id } });
+    // Your own name on your own post goes to YOUR profile. `friend-profile` reads the relationship
+    // between you and the id it is handed, and there is no friendship row from you to yourself —
+    // so routing self there rendered a blank screen. Same split every other roster makes.
+    if (item.user_id === session?.user.id) router.push('/profile');
+    else router.push({ pathname: '/friend-profile', params: { userId: item.user_id } });
   }
 
   function openAttachment(view: AgoraAttachmentView) {

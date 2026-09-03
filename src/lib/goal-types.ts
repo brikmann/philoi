@@ -189,6 +189,10 @@ export function personalGoalTitle(challenge: Pick<Challenge, 'label' | 'type' | 
     case 'ride_distance':
       return `${challenge.target}km ride`;
     default:
-      return `${challenge.target} ${challenge.unit}`;
+      // Through `canonicalGoalUnit`, not the raw column. A goal whose unit drifted still reaches
+      // the reward screen and the share card that lands in the Agora feed, and "DAILY GOAL
+      // COMPLETE: 1 BATH" is the same §4a bug one surface further out — the goal card was fixed,
+      // its payout headline was not.
+      return `${challenge.target} ${canonicalGoalUnit(challenge.type, challenge.unit, challenge.label)}`;
   }
 }

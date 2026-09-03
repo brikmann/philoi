@@ -177,6 +177,7 @@ export default function AgoraScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.filterBar}
           contentContainerStyle={styles.filters}>
           {AGORA_SCOPES.map((s) => (
             <Pressable
@@ -185,7 +186,9 @@ export default function AgoraScreen() {
               style={[styles.filter, scope === s.key && styles.filterOn]}
               accessibilityRole="button"
               accessibilityState={{ selected: scope === s.key }}>
-              <Text style={[styles.filterText, scope === s.key && styles.filterTextOn]}>
+              <Text
+                style={[styles.filterText, scope === s.key && styles.filterTextOn]}
+                numberOfLines={1}>
                 {scopeLabel(s.key, s.label)}
               </Text>
             </Pressable>
@@ -325,15 +328,29 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     marginTop: 2,
   },
+  // The row SIZES TO ITS PILLS AND SCROLLS — it does not shrink to fit the screen. A horizontal
+  // ScrollView carries flexGrow/flexShrink 1 of its own, so left alone it both eats leftover
+  // vertical space in this column and lets the content container be measured at exactly the
+  // viewport width, which squeezed "Wilfrid Laurier" down to "Wilfrid Lauri". flexGrow:0 here,
+  // flexShrink:0 on every pill and label, and the labels come back whole.
+  filterBar: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   filters: {
     gap: 6,
-    paddingHorizontal: Spacing.three,
+    alignItems: 'center',
+    flexGrow: 0,
+    paddingLeft: Spacing.three,
+    // A little more on the trailing edge so the last pill clears the screen when scrolled to the end.
+    paddingRight: Spacing.three + 8,
     paddingVertical: Spacing.twelve,
   },
   filter: {
     borderRadius: Radius.pill,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    flexShrink: 0,
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.lineStrong,
@@ -345,6 +362,7 @@ const styles = StyleSheet.create({
   filterText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
+    flexShrink: 0,
     color: Colors.muted,
   },
   filterTextOn: {
