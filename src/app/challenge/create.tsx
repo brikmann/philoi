@@ -405,14 +405,33 @@ function SocialChallengeForm() {
   // H2H can't send without an opponent — show a clear instruction + disable, never a dangling
   // "Challenge …" (design-mocks/13's send relabels to the exact action once someone's picked).
   const noOpponent = shape === 'duel' && !effectiveOpponentId;
+
+  // 🔒 HOSTING FOR A WHOLE CAMPFIRE IS AN ADMIN ACTION, and it is enforced server-side —
+  // create_placement_challenge has raised "Only campfire admins can start a placement race" since
+  // 0126, and create_group_challenge joined it in 0162 (a collective goal names the fire, posts to
+  // its chat and pushes every member, so the authority to use it is the fire's own).
+  //
+  // This is NOT the enforcement; it is the courtesy. Until now MyGroup carried no role, so
+  // social-challenges.ts had a standing comment that "the client cannot grey the tile out; a
+  // non-admin gets the RPC's own refusal" — which meant the form cheerfully offered an action it
+  // knew nothing about and failed at the last tap. fetchMyGroups reads the membership row anyway,
+  // so the role is now on MyGroup for free and the form can say so up front.
+  //
+  // A DUEL IS UNAFFECTED. It is friend-to-friend and needs no campfire at all (§16), so this only
+  // ever gates the two campfire shapes.
+  const campfireAdmin = !circle || circle.role === 'owner' || circle.role === 'admin';
+  const notCampfireAdmin = mode === 'group' && !campfireAdmin;
+
   const sendLabel =
     shape === 'duel'
       ? noOpponent
         ? 'Pick someone to challenge'
         : `Challenge ${opponentName ?? 'them'}`
-      : shape === 'placement'
-        ? 'Start placement race'
-        : 'Start group challenge';
+      : notCampfireAdmin
+        ? `Only ${circle?.name ?? 'campfire'} admins can`
+        : shape === 'placement'
+          ? 'Start placement race'
+          : 'Start group challenge';
   return (
     <>
       <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.container}>
@@ -541,6 +560,19 @@ function SocialChallengeForm() {
                 the card, the watch screen and the share card all READ it and fell back to
                 describing the metric. One input, not one line of backend: create_group_challenge
                 has taken p_public_name since 0098 and nothing was ever passing it. */}
+            {notCampfireAdmin && (
+              // Says the rule and what to do about it, rather than just going grey. The person who
+              // can grant them the role is the owner, and naming that is the whole difference
+              // between a dead end and a next step.
+              <View style={styles.adminNotice}>
+                <Ionicons name="lock-closed" size={13} color={Colors.muted} />
+                <Text style={styles.adminNoticeText}>
+                  Only admins can set a challenge for {circle?.name ?? 'a campfire'}. Ask an owner to make you one —
+                  or challenge a friend to a duel instead.
+                </Text>
+              </View>
+            )}
+
             <PublicNameField value={publicName} onChange={setPublicName} />
           </>
         )}
@@ -666,7 +698,12 @@ function SocialChallengeForm() {
           PrimaryButton's `disabled`. */}
       <View style={styles.footer}>
         {error && <Text style={styles.error}>{error}</Text>}
-        <PrimaryButton label={sendLabel} onPress={handleCreate} loading={saving} disabled={noOpponent} />
+        <PrimaryButton
+          label={sendLabel}
+          onPress={handleCreate}
+          loading={saving}
+          disabled={noOpponent || notCampfireAdmin}
+        />
       </View>
 
       <ChallengeSentSheet
@@ -1412,6 +1449,19 @@ const styles = StyleSheet.create({
   typesRow: {
     flexDirection: 'row',
     gap: Spacing.two,
+  },
+  adminNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  adminNoticeText: {
+    flex: 1,
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: Colors.muted,
   },
   typeTile: {
     flex: 1,

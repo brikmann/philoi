@@ -7,6 +7,7 @@ import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } fr
 
 import { CampfireFab, type CampfireFabAction } from '@/components/campfire/campfire-fab';
 import { ChallengeAcceptRow } from '@/components/campfire/challenge-accept-row';
+import { ChallengeChatCard } from '@/components/campfire/challenge-chat-card';
 import { MentionAutocomplete } from '@/components/campfire/mention-autocomplete';
 import { PingMemberSheet } from '@/components/campfire/ping-member-sheet';
 import { ShareLockInSheet } from '@/components/campfire/share-lockin-sheet';
@@ -468,8 +469,20 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
                 <Text style={styles.attachLockInLabel}>Shared a lock-in</Text>
               </View>
             )}
+            {/* 0162 · §Distribution — a campfire-hosted challenge posts as a card in the chat with
+                an inline join CTA. The card OWNS the body text (it renders the host's line as its
+                headline), which is why the `body.length > 0` block below excludes this kind: the
+                alternative is the same sentence printed twice, once as a heading and once under
+                it. Same reason the photo branch does not repeat its caption inside the image. */}
+            {message.attach_kind === 'challenge' && message.attach_ref_id && (
+              <ChallengeChatCard
+                challengeId={message.attach_ref_id}
+                headline={message.body}
+                isOwn={isOwn}
+              />
+            )}
 
-            {body.length > 0 && (
+            {message.attach_kind !== 'challenge' && body.length > 0 && (
               <Text style={[styles.body, isOwn && styles.bodyOwn]}>
                 {pieces.map((piece, i) =>
                   piece.mention ? (

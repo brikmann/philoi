@@ -6,6 +6,8 @@ import type {
   ChallengeChangeRequestDetail,
   ChallengeResultRow,
   ChallengeReward,
+  DifficultyTier,
+  HostedCampfireChallenge,
   SocialChallenge,
   SocialChallengeRaceMetric,
   UnseenChallengeReward,
@@ -134,6 +136,73 @@ export async function createPlacementChallenge(
   if (error) throw error;
   track('challenge_created', { mode: 'placement', circle_id: input.circleId, custom_span: input.endsOn != null });
   return data;
+}
+
+/**
+ * Host a COUNTED challenge for a whole campfire — "1000 pushups for Goat" (migration 0162).
+ *
+ * The fourth create path, and the only one that is not just an insert. `host_campfire_challenge`
+ * does five things in one transaction because a half-hosted challenge is worse than a refused one:
+ * it checks the caller is an owner/admin of that campfire, creates the race, enrols and equips the
+ * host, stores the scoped tier, fires `challenge_hosted` at every member, and posts the card into
+ * the campfire chat.
+ *
+ * 🔒 ADMIN-GATED SERVER-SIDE, and that is the whole point of routing it through an RPC rather than
+ * assembling it here. Cindy proposes the campfire and the tier; the server re-reads the caller's
+ * role out of group_members and refuses if it does not like it, so a forged campfire id or a
+ * hallucinated role fails at the database. The refusal names the campfire ("You're not an admin of
+ * Goat…") because Cindy relays it verbatim.
+ *
+ * WHAT "COUNTED" MEANS: every participant gets `metric` added to their lock-in menu as a personal
+ * goal — the ⚡ challenge aura — and the race scores off that goal. So reps logged in the gym
+ * tracker count toward it through the feeder that already exists (0149), with nothing new to sync.
+ */
+export async function hostCampfireChallenge(input: {
+  circleId: string;
+  /** The plural noun being counted: "pushups". Becomes the unit AND the lock-in type's name. */
+  metric: string;
+  target: number;
+  label: string;
+  /** 'everyone_hits_target' (no single winner) or 'first_to'. A ranked race is a placement
+   *  challenge and a different RPC — the server refuses 'most_by_deadline' rather than quietly
+   *  reshaping it, because the two settle differently. */
+  shape?: 'everyone_hits_target' | 'first_to';
+  windowHours?: number;
+  /** Cindy's proposal. Validated and priced server-side; verifiability is derived, never sent. */
+  tier?: DifficultyTier | null;
+}): Promise<HostedCampfireChallenge> {
+  const { data, error } = await supabase.rpc('host_campfire_challenge', {
+    p_circle_id: input.circleId,
+    p_metric: input.metric,
+    p_target: input.target,
+    p_window_hours: input.windowHours ?? 168,
+    p_label: input.label,
+    p_shape: input.shape ?? 'everyone_hits_target',
+    p_tier: input.tier ?? null,
+  });
+  if (error) throw error;
+  track('challenge_created', { mode: 'campfire_hosted', circle_id: input.circleId, custom_span: false });
+  return data as HostedCampfireChallenge;
+}
+
+/**
+ * Opt into a campfire-hosted challenge from its chat card (migration 0162).
+ *
+ * Any MEMBER may join — hosting is the admin act, joining is not. That asymmetry is the §Opt-in
+ * model: an open challenge posts to the fire and people put themselves in it.
+ *
+ * Joining is also what adds the metric to your lock-in menu, adopting a goal you already have by
+ * that name rather than minting a second one 0148 would refuse.
+ */
+export async function joinCampfireChallenge(challengeId: string): Promise<{
+  challenge_id: string;
+  goal_id: string | null;
+  metric: string | null;
+  target: number | null;
+}> {
+  const { data, error } = await supabase.rpc('join_campfire_challenge', { p_challenge_id: challengeId });
+  if (error) throw error;
+  return data as { challenge_id: string; goal_id: string | null; metric: string | null; target: number | null };
 }
 
 export async function respondToH2HChallenge(challengeId: string, accept: boolean): Promise<SocialChallenge> {

@@ -763,11 +763,12 @@ export type Message = {
   // Three nullable columns rather than a child table: a chat message carries at most ONE thing,
   // unlike an Agora post which carries up to one of each kind. The legal combinations are enforced
   // by the messages_attachment_shape CHECK, not by this type.
-  /** 'photo' | 'lockin' | null. */
+  /** 'photo' | 'lockin' | 'challenge' | null. */
   attach_kind: string | null;
   /** Storage key in the campfire-photos bucket. Photo only; always starts with the author's id. */
   attach_path: string | null;
-  /** A check_ins.id being re-posted into the chat. Lock-in only. */
+  /** A check_ins.id being re-posted into the chat, or — on a 'challenge' card (0162) — the
+   *  social_challenges.id of a campfire-hosted challenge, which is what the Join CTA acts on. */
   attach_ref_id: string | null;
 };
 
@@ -800,6 +801,7 @@ export type AnalyticsEventName =
   | 'invite_accepted'
   | 'check_in_completed'
   | 'first_check_in'
+  | 'goal_scoped'
   | 'challenge_created'
   | 'challenge_completed'
   // 0145's grade races: who reports a mark, and who takes Cindy's door into the create screen
@@ -1159,11 +1161,67 @@ export type ChallengeVisibility = 'circle' | 'private';
  * 'manual' here — each has its own real source, or none at all. */
 export type ChallengeCountMode = 'manual' | 'lockin_time';
 
+/** The six difficulty tiers Cindy scopes a described feat into (DIFFICULTY_SCOPING.md's grid). */
+export type DifficultyTier = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+
+/**
+ * How the app learns the feat was done. DERIVED SERVER-SIDE and never sent by the client — `auto`
+ * is the only path to the top three boxes, so letting a client claim it would be the mint hole the
+ * whole scoping design exists to keep shut (migration 0160).
+ */
+export type GoalVerifiability = 'auto' | 'honor';
+
+/** What preview_challenge_reward / set_goal_scope hand back — the SERVER's figure, not Cindy's. */
+export type ScopedRewardPreview = {
+  tier: DifficultyTier;
+  /** The band the feat is worth. */
+  achievement_band: string;
+  /** The band it will actually pay, after the verifiability discount. */
+  paid_band: string | null;
+  discounted: boolean;
+  /** The box key it pays, or null for a tier that pays embers only. */
+  box: string | null;
+  embers: number;
+  drip: number;
+  significance: number;
+  verifiability: GoalVerifiability;
+};
+
+/** What host_campfire_challenge hands back (0162) — the receipt for one transaction that created
+ *  the race, enrolled the host, scoped it, notified the fire and posted the chat card. */
+export type HostedCampfireChallenge = {
+  challenge_id: string;
+  circle_id: string;
+  circle_name: string;
+  name: string;
+  /** The plural noun being counted — "pushups". */
+  metric: string;
+  target: number;
+  /** The chat card's message id. */
+  message_id: string;
+  /** How many campfire members the bell/push went to. */
+  notified: number;
+  /** Null when Cindy proposed no tier — the challenge is created, just unscoped. */
+  preview: ScopedRewardPreview | null;
+};
+
 export type Challenge = {
   id: string;
   user_id: string;
   type: ChallengeType;
   count_mode: ChallengeCountMode;
+  /** Null on every goal created before scoping existed — which keeps its legacy payout (0159). */
+  difficulty_tier?: DifficultyTier | null;
+  verifiability?: GoalVerifiability | null;
+  /**
+   * Set when this goal was MINTED for a campfire challenge — the ⚡ "created for a challenge" aura
+   * (0162). Null on a goal the user already had and a challenge adopted, which is the honest
+   * distinction: a goal you already kept was not created for anything.
+   *
+   * It also silences the goal's own completion box (economy_on_challenge_completed), so one set of
+   * reps pays once — through the challenge, not twice.
+   */
+  challenge_source_id?: string | null;
   label: string | null;
   target: number;
   unit: string;
@@ -1214,7 +1272,11 @@ export type ChallengeShape = 'duel' | 'collective' | 'placement';
 /** 'grade' (0145) is the odd one out and the type cannot say so: the other four accumulate and are
  *  observed, a grade is a single absolute mark the racer reports once. Anything that formats or
  *  settles a metric has to branch on it — see challenge-metric.ts and challenge_racer_score(). */
-export type SocialChallengeRaceMetric = 'lockin_time' | 'volume' | 'distance' | 'ai' | 'xp' | 'grade';
+/** 'count' (0162) is the second odd one out. Like 'grade' it is not read from a source the app
+ *  keeps centrally — each racer's number lives in their OWN personal goal (the mirror goal a
+ *  campfire challenge adds to their lock-in menu), and challenge_racer_score reads it through
+ *  campfire_challenge_goals. `count_unit` names what is being counted. */
+export type SocialChallengeRaceMetric = 'lockin_time' | 'volume' | 'distance' | 'ai' | 'xp' | 'grade' | 'count';
 
 export type ChallengeParticipantState = 'invited' | 'accepted' | 'declined';
 
@@ -1276,6 +1338,17 @@ export type SocialChallenge = {
   grade_target: number | null;
   /** "KP451". Free text, and what makes the target mean anything. */
   course_code: string | null;
+  /**
+   * What a counted race counts — "pushups" (0162). Non-null exactly when race_metric is 'count'.
+   *
+   * ⚠️ OPTIONAL BECAUSE get_my_social_challenges DOES NOT SELECT IT YET. Widening that RPC means
+   * restating a 4.8KB body AND changing its RETURNS TABLE shape, which under MIGRATIONS.md's
+   * signature rule is a drop-and-recreate touching every reader — its own migration, not a rider
+   * on this one. Nothing on the tab needs it meanwhile: host_campfire_challenge always writes a
+   * public_name ("1000 pushups"), and challengeTitle prefers that over any derived label. The
+   * count helpers in challenge-metric.ts are ready for it when the column arrives.
+   */
+  count_unit?: string | null;
   /** What THIS viewer has reported so far on a grade race. Null is "not in yet", which is a
    *  different thing from a reported 0 and has to render differently. */
   my_reported_value: number | null;
@@ -1996,6 +2069,14 @@ export type Database = {
         Returns: { id: string; goal_type: GoalType; goal_detail: string | null; duration_seconds: number | null; photo_url: string | null }[];
       };
       get_my_social_challenges: { Args: Record<string, never>; Returns: SocialChallenge[] };
+      // ─── difficulty scoping (0159-0160) ───
+      // No p_verifiability on either: the server derives it. That absence is the firewall.
+      set_goal_scope: { Args: { p_goal_id: string; p_tier: DifficultyTier }; Returns: ScopedRewardPreview };
+      set_challenge_scope: { Args: { p_challenge_id: string; p_tier: DifficultyTier }; Returns: ScopedRewardPreview };
+      preview_challenge_reward: {
+        Args: { p_tier: DifficultyTier; p_verifiability?: string; p_duration_days?: number; p_scope?: number };
+        Returns: ScopedRewardPreview;
+      };
       // p_public_name landed in 0098 and the client has been sending it since; the entry here
       // still described the pre-v2 signature.
       // ─── Agent 2 / challenge v2 (0124-0127) ───
@@ -2049,6 +2130,29 @@ export type Database = {
           p_course_code?: string | null;
         };
         Returns: SocialChallenge;
+      };
+      /** 0162 · the fourth create path, and the only admin-gated one Cindy can reach. The server
+       *  re-reads the caller's campfire role before it writes anything — no p_role, and p_tier is
+       *  validated and priced there, so neither can be forged. */
+      host_campfire_challenge: {
+        Args: {
+          p_circle_id: string;
+          /** The plural noun counted: "pushups". Becomes the unit and the lock-in type's name. */
+          p_metric: string;
+          p_target: number;
+          p_window_hours?: number;
+          p_label?: string | null;
+          /** 'most_by_deadline' is refused — that is a placement race, which settles differently. */
+          p_shape?: 'everyone_hits_target' | 'first_to';
+          p_tier?: DifficultyTier | null;
+          p_payout_xp?: number;
+        };
+        Returns: HostedCampfireChallenge;
+      };
+      /** Opt in from the chat card. Any campfire member; hosting is the admin act, joining is not. */
+      join_campfire_challenge: {
+        Args: { p_challenge_id: string };
+        Returns: { challenge_id: string; goal_id: string | null; metric: string | null; target: number | null };
       };
       respond_to_h2h_challenge: { Args: { p_challenge_id: string; p_accept: boolean }; Returns: SocialChallenge };
       /** Self-report your mark on a grade race (0145). Returns the value the SERVER stored — it

@@ -102,6 +102,115 @@ const ECONOMY_RULES = `
   something, point them at the shop and let them do it themselves.
 `.trim();
 
+// ── Scoping how hard a described goal is ─────────────────────────────────────────────────────
+//
+// DIFFICULTY_SCOPING.md, condensed to the parts the model has to act on. The calibration table in
+// that doc is the single source of truth; the anchors below are lifted from it, one per tier plus
+// the two Noah named, because a few-shot set that drifts from the doc is worse than none.
+//
+// WHY THIS SITS IN THE CACHEABLE PREFIX: it is identical for every user and every call. The moment
+// a goal's own text got interpolated in here the whole prompt would stop being one cacheable block
+// (see buildSystemPrompt's note) — so the goal arrives in the messages array, and only the rubric
+// lives here.
+//
+// The firewall it must not cross is stated twice on purpose: she proposes a tier, the server prices
+// it, and she never says a number. ECONOMY_RULES above already forbids promising XP; this forbids
+// the subtler version, which is quoting an ember figure for a box she has correctly scoped.
+const SCOPING_RULES = `
+## Scoping how hard a goal is
+
+When you create a challenge you also judge how hard the described feat actually is, and pass it as
+\`difficulty_tier\`. You are scoring the FEAT, not the person: assume a **median 18-20 year old,
+Gen Z, average starting fitness, training about three times a week**.
+
+Score it on two axes and read the tier off them:
+
+- **T — time to first achieve it** from a standing start.
+- **A — of the people who genuinely try, what share ever get there.**
+
+| Tier | T | A | Anchors |
+|---|---|---|---|
+| common | same day, no training | ~everyone | 10-minute walk · read 15 pages · make your bed |
+| uncommon | a day to a week | most | 10k steps in a day · 3 focused study hours · a 7-day streak |
+| rare | 2-6 weeks consistent | more than half who try | couch-to-5k · first strict pull-up · 2-minute plank · one song on guitar |
+| epic | 2-4 months, real barrier | a minority ever land it | **learn a backflip** · freestanding handstand · 10 consecutive pull-ups · half marathon · muscle-up |
+| legendary | 5-12 months sustained | a rare few | **run a full marathon** · muscle-up from scratch · squat 2x bodyweight · a language to conversational |
+| mythic | a year+, elite | a tiny % of the population | sub-3-hour marathon · one-arm pull-up · standing double backflip · 500lb deadlift |
+
+Add **one sub-step, never a full tier**, when the wall is fear, pain or a hard technical gate
+rather than plain repetition — the backflip is the classic case: the limiter is flipping backward,
+not strength.
+
+**Unfamiliar feat → go LOWER.** If you are not confident where something sits, resolve to the
+lower plausible tier. A scary-sounding goal you have never heard of is not evidence of difficulty.
+
+**Vague goals are not scored.** "Get shredded", "be good at guitar", "get fit" have no checkable
+target, so there is nothing to scope. Omit \`difficulty_tier\` entirely and ask ONE question that
+makes it specific — "Landing a specific song start to finish? I can scope that." Scope the
+sharpened target, never the vibe. Nothing gets above uncommon without a specific, checkable target.
+
+**What you never do:** you do not state, estimate or hint at what a tier pays. Not embers, not XP,
+not which box. You propose the tier and the rationale; the server prices it and the app shows the
+number. Saying "that's worth a Vessel of Hestia" is the same mistake as promising XP — you would be
+speaking for an economy you do not control, and you will be wrong the moment it is retuned.
+
+Say the tier in plain words when you create something: "That's an epic one — standing backflips
+take a median beginner 3-9 months and the wall is the fear of flipping backward." Then let the
+confirm screen show what it is worth.
+`.trim();
+
+// ── Hosting a challenge in a campfire ────────────────────────────────────────────────────────
+//
+// CHALLENGE_CINDY_SCOPING.md §Roles + §Distribution. Three separate rules that a model will
+// otherwise collapse into one, and each is here because collapsing it causes a specific harm:
+//
+//   1. A NAMED CAMPFIRE MEANS THE CAMPFIRE TOOL. "Set a 1000 pushup challenge for Goat" through
+//      create_challenge makes a private goal nobody else can see, which looks like it worked and
+//      is not what was asked for.
+//   2. RESOLVE THE ID FROM THE CONTEXT, OR ASK. The context's `campfires` array is the caller's
+//      OWN memberships and nothing else, so an id from it is structurally an id they belong to.
+//      A guessed id is either a 404 or somebody else's campfire.
+//   3. SHE DOES NOT ADJUDICATE THE PERMISSION. The `role` field is in her context and it would be
+//      natural for her to check it and refuse first — which is exactly the failure mode: a model
+//      that decides permissions is a model whose mistakes ARE the permission system. The server
+//      re-reads the role from group_members and refuses; her job is to relay the sentence it gave
+//      her, which already names the campfire.
+//
+// She may still READ the role to decide what to SAY (offering to make it a personal goal instead
+// is friendlier than a bare refusal). The rule is that she never lets it stop her proposing.
+const CAMPFIRE_HOSTING_RULES = `
+## Hosting a challenge for a campfire
+
+When someone names a campfire — "set a 1000 pushup challenge for Goat", "give the gym group a
+step target" — that is a **campfire challenge**, not a personal goal. Use
+\`host_campfire_challenge\`, never \`create_challenge\`: a personal goal is private, and they asked
+for something the whole fire can see.
+
+- **Find the campfire in their context.** The \`campfires\` array lists the ones they are actually
+  in, with an \`id\`, a \`name\` and their \`role\`. Match what they said against those names —
+  loosely is fine, "Goat" matches "Goat 🐐" — and pass that exact \`id\`.
+- **Ambiguous or no match? Ask.** If two of their campfires could be the one, ask which. If none
+  matches, say you cannot find that campfire rather than picking the nearest. Never invent an id,
+  and never use one that is not in their own list — you cannot see anyone else's campfires and you
+  must not act as if you can.
+- **Pick the metric as a plural noun** — "pushups", "plunges", "pages" — because it becomes both
+  the target's unit and the name of the lock-in type every participant gets. Everyone who joins
+  gets that type added to their lock-in menu automatically, so the reps they log count. Say that;
+  it is the good part.
+- **Shape:** "everyone_hits_target" unless they clearly want a winner, in which case "first_to".
+  If they ask for "most by the deadline", that is a ranked race — tell them to set it from the
+  campfire's own Set-a-race screen, because it works differently.
+- **Scope it** with \`difficulty_tier\` exactly as you would a personal goal, judging the whole ask
+  ("1000 pushups in a week"), not one rep.
+
+**You do not decide who is allowed.** Hosting for a whole campfire is an owner/admin action, and
+the SERVER checks that — it re-reads their role at the moment of the write, so a challenge only
+lands if they really are an admin of that fire. Propose the action; if it comes back refused,
+relay that plainly ("you're not an admin of Goat, so I can't post a challenge there") and offer
+what you CAN do instead — the same goal as a personal one, or a duel with a friend. Do not argue
+the rule, do not apologise for it at length, and never suggest a way around it.
+`.trim();
+
 // ── Answering precisely off the context document ─────────────────────────────────────────────
 const DATA_RULES = `
 ## Answering with real numbers
@@ -267,6 +376,14 @@ exactly the same rules as if they had tapped it themselves.
  */
 export function buildSystemPrompt(surface: CoachSurface): string {
   const blocks = [PERSONA, SAFETY_CORE, ECONOMY_RULES, DATA_RULES, UNLOCK_CONDITIONS, ROUTING[surface]];
-  if (surface === 'chat') blocks.push(ACTION_RULES);
+  // Chat only, and only alongside ACTION_RULES: scoping is a property of CREATING something, and
+  // create_challenge is a chat-surface tool. The home and intercept surfaces have no tool that
+  // could carry a tier, so adding it there would be prompt weight that can never be used — and
+  // this block sits inside the cacheable prefix, so weight is not free.
+  // Chat only, and for the same reason as SCOPING_RULES: host_campfire_challenge is a chat-surface
+  // tool, and a block describing a tool that is not offered is prompt weight inside the cacheable
+  // prefix that can never be used. It sits AFTER the scoping rules because it refers to them
+  // ("scope it exactly as you would a personal goal") and a forward reference reads worse.
+  if (surface === 'chat') blocks.push(SCOPING_RULES, CAMPFIRE_HOSTING_RULES, ACTION_RULES);
   return blocks.join('\n\n---\n\n');
 }

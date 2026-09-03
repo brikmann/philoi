@@ -13,16 +13,29 @@
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 import { track } from '@/lib/analytics';
-import { createChallenge } from '@/lib/api/challenges';
+import { createChallenge, setGoalScope } from '@/lib/api/challenges';
+
 import { stopLockInSession } from '@/lib/api/lock-ins';
 import { createMilestone } from '@/lib/api/milestones';
 import { markNotificationsRead } from '@/lib/api/notifications';
+import { hostCampfireChallenge } from '@/lib/api/social-challenges';
 import { equipCosmetic } from '@/lib/api/inventory';
 import { getItem } from '@/lib/economy/catalog';
 import { supabase } from '@/lib/supabase';
-import type { ChallengePeriod, ChallengeType, GoalType, MilestoneKind, MilestoneVisibility } from '@/types/database';
+import type {
+  ChallengePeriod,
+  ChallengeType,
+  DifficultyTier,
+  GoalType,
+  MilestoneKind,
+  MilestoneVisibility,
+} from '@/types/database';
 
 /** How the app should treat a proposed action — see supabase/functions/_shared/coach/tools.ts. */
+/** The six names set_goal_scope will accept. A model that invents a seventh is ignored
+ *  rather than passed on to be rejected by the RPC. */
+const SCOPED_TIERS: DifficultyTier[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+
 export type CoachActionEffect = 'auto' | 'confirm';
 
 export type CoachAction = {
@@ -406,7 +419,7 @@ export async function performCoachAction(action: CoachAction, ctx: ActionContext
 
       case 'create_challenge': {
         const label = typeof action.input.label === 'string' ? action.input.label : null;
-        await createChallenge({
+        const created = await createChallenge({
           userId: ctx.userId,
           type: (action.input.type as ChallengeType) ?? 'custom',
           label,
@@ -421,7 +434,60 @@ export async function performCoachAction(action: CoachAction, ctx: ActionContext
           period: (action.input.period as ChallengePeriod) ?? 'week',
           countMode: action.input.count_mode === 'lockin_time' ? 'lockin_time' : 'manual',
         });
+
+        // ── the scope, second and separately ──
+        //
+        // Not a column on the insert: `difficulty_tier` is written by set_goal_scope (0160), which
+        // is where the tier gets validated and — the part that matters — where the verifiability
+        // is DERIVED rather than accepted. Routing it through the RPC instead of the insert is what
+        // makes "the client cannot claim to be Strava-tracked" true by construction.
+        //
+        // Swallowed on failure, deliberately. An unscoped goal falls back to exactly the payout it
+        // had before scoping existed, so the cost of this call failing is a smaller reward — never
+        // a wrong one, and never a lost goal. Failing the whole create because a tier did not stick
+        // would be the worse trade.
+        const tier = action.input.difficulty_tier;
+        if (created?.id && typeof tier === 'string' && SCOPED_TIERS.includes(tier as DifficultyTier)) {
+          await setGoalScope(created.id, tier as DifficultyTier).catch(() => {});
+        }
         return { status: 'done' };
+      }
+
+      case 'host_campfire_challenge': {
+        // 🔒 ONE RPC, AND DELIBERATELY NOT ASSEMBLED HERE. Every other case in this switch calls
+        // the same client function a tap would; this one calls a single server function instead,
+        // because the thing that must be atomic is not a write but a DECISION — the caller's
+        // campfire role, re-read from group_members at the moment of the insert.
+        //
+        // Doing it client-side (read my role, then create, then notify, then post the card) would
+        // put the permission check on the wrong side of the firewall: a patched client could skip
+        // it, and a failure between steps would leave a challenge nobody was told about. So the
+        // whole act is one transaction the server owns, and this file's job is to hand it the
+        // model's proposal and relay whatever comes back.
+        //
+        // NOTHING IS TRUSTED FROM `action.input` beyond shape. The tier is filtered to the six
+        // names for the same reason set_goal_scope validates it again server-side — a model that
+        // invents a seventh should be ignored here rather than produce a failed round trip.
+        const tier = action.input.difficulty_tier;
+        const shape = action.input.shape === 'first_to' ? 'first_to' : 'everyone_hits_target';
+        const hosted = await hostCampfireChallenge({
+          circleId: String(action.input.circle_id ?? ''),
+          metric: String(action.input.metric ?? ''),
+          target: Number(action.input.target ?? 0),
+          label: String(action.input.label ?? '').slice(0, 60),
+          shape,
+          windowHours:
+            typeof action.input.window_hours === 'number' && action.input.window_hours > 0
+              ? Math.round(action.input.window_hours)
+              : 168,
+          tier:
+            typeof tier === 'string' && SCOPED_TIERS.includes(tier as DifficultyTier)
+              ? (tier as DifficultyTier)
+              : null,
+        });
+        // Straight to the challenge, not to the campfire chat. The card is already in the chat and
+        // will still be there; what the host wants to see now is the thing they just made.
+        return { status: 'done', route: `/challenge-info/${hosted.challenge_id}` };
       }
 
       case 'equip_cosmetic': {

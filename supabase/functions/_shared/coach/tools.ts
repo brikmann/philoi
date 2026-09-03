@@ -171,8 +171,110 @@ export const COACH_TOOLS: CoachToolSpec[] = [
             'Use "lockin_time" on a custom challenge to accrue minutes automatically from lock-ins ' +
             'whose detail matches the label — that is what auto-ties sessions to it. Otherwise "manual".',
         },
+        // 🐛 THESE TWO WERE OUTSIDE `properties`. The brace that now closes the object sat here,
+        // above `difficulty_tier`, so both fields were keys of `input_schema` itself rather than
+        // declared properties. With `strict: true` and `additionalProperties: false` the model
+        // could not emit either one — so every scoped tier was silently unreachable, the executor's
+        // `typeof tier === 'string'` check never passed, set_goal_scope was never called, and the
+        // create chip's reward tease never rendered. The whole of 0159-0161 was inert from the
+        // client side. One brace.
+        difficulty_tier: {
+          type: 'string',
+          enum: ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'],
+          // 🔒 A PROPOSAL, NOT A GRANT. The client hands this to set_goal_scope (migration 0160),
+          // which validates it is one of these six and — the part that matters — DERIVES the
+          // verifiability itself from the goal's own metric. `auto` is the only route to the top
+          // three boxes, and no value here can claim it. So the worst a wrong tier does on a
+          // hand-counted goal is land on the same Furnace an honest Epic lands on.
+          description:
+            'How hard the described feat is for a median 18-20 year old with average starting ' +
+            'fitness — see the scoping rules in your instructions. Omit it if the goal is vague or ' +
+            'unmeasurable; ask a clarifying question instead. Never state what it pays.',
+        },
+        scope_rationale: {
+          type: 'string',
+          description:
+            'One sentence grounding the tier in the effort estimate — how long it takes and how ' +
+            'many people ever get there — like "Standing backflips take a median beginner 3-9 ' +
+            'months and the wall is the fear of flipping backward." Shown to the user verbatim.',
+        },
       },
       required: ['type', 'label', 'target', 'unit', 'period'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'host_campfire_challenge',
+    // 🔒 Confirmed, and it is the most confirm-worthy action on this list: it pushes a
+    // notification to every member of a campfire and posts a card into their chat. A misheard
+    // voice turn that did that silently would be a message sent in the user's name to forty
+    // people.
+    effect: 'confirm',
+    description:
+      'Host a counted challenge for a WHOLE CAMPFIRE — "set a 1000 pushup challenge for Goat". Use ' +
+      'this instead of create_challenge whenever they name a campfire; create_challenge makes a ' +
+      'private goal only they can see. Pass the campfire id from the `campfires` list in their ' +
+      "context — match the name they said against it. If two campfires could match, or none does, " +
+      'ASK which one; never guess, and never use an id that is not in their own list. Hosting is ' +
+      'admin-only and the server checks that itself: if they are not an owner or admin of that ' +
+      'campfire the action is refused, and you relay the refusal plainly without apologising for ' +
+      'the rule or offering a way around it.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        circle_id: {
+          type: 'string',
+          description:
+            "The campfire's id, copied exactly from the `campfires` array in their context " +
+            'document. Never a name, never an id you did not read there.',
+        },
+        metric: {
+          type: 'string',
+          // Same rule, same reason, as create_challenge's `unit` — it is rendered straight into
+          // "<progress> / <target> <metric>" on every participant's goal, and it becomes the name
+          // of the lock-in type that gets added to their menu.
+          description:
+            'The plural noun being counted, and nothing else: "pushups", "plunges", "pages". It ' +
+            'is rendered as "0 / <target> <metric>" and becomes the name of the lock-in type each ' +
+            'participant gets, so it must read correctly as both.',
+        },
+        target: { type: 'number', description: 'How many. "1000 pushups" is 1000.' },
+        label: {
+          type: 'string',
+          description: 'What the challenge is called, e.g. "1000 pushups". Under 60 characters.',
+        },
+        shape: {
+          type: 'string',
+          // 'most_by_deadline' is deliberately absent: a ranked race carries no target, so it is
+          // not a counted challenge and the RPC refuses it. Leaving it out of the enum means the
+          // model cannot propose an action that can only fail.
+          enum: ['everyone_hits_target', 'first_to'],
+          description:
+            'How it is won. "everyone_hits_target" — everyone who reaches the number succeeds, no ' +
+            'single winner. "first_to" — first person there wins. Default to everyone_hits_target.',
+        },
+        window_hours: {
+          type: 'number',
+          description: 'How long they get, in hours. A week is 168, a day is 24. Default 168.',
+        },
+        difficulty_tier: {
+          type: 'string',
+          enum: ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'],
+          // Same firewall as create_challenge's: a proposal the server validates, and whose
+          // verifiability it derives rather than accepts. A hand-counted campfire challenge is
+          // 'honor' by derivation and capped at The Furnace however high this claims to be.
+          description:
+            'How hard the described feat is — see the scoping rules in your instructions. Scope ' +
+            'the whole ask ("1000 pushups in a week"), not one rep. Never state what it pays.',
+        },
+        scope_rationale: {
+          type: 'string',
+          description:
+            'One sentence grounding the tier in the effort estimate — how long it takes and how ' +
+            'many people ever get there. Shown to the user verbatim.',
+        },
+      },
+      required: ['circle_id', 'metric', 'target', 'label'],
       additionalProperties: false,
     },
   },
@@ -247,6 +349,11 @@ export function summarizeAction(tool: string, input: Record<string, unknown>): s
       return `Post “${String(input.headline ?? 'milestone')}”`;
     case 'create_challenge':
       return `${String(input.label ?? 'Challenge')} · ${input.target} ${input.unit} a ${input.period}`;
+    case 'host_campfire_challenge':
+      // No campfire NAME here on purpose: the server has the ids, this file has only what the
+      // model passed, and a name the model wrote is exactly the thing that could be wrong. The
+      // client fills the campfire in from its own context — see summarizeHostedChallenge.
+      return `${String(input.label ?? 'Challenge')} · ${input.target} ${String(input.metric ?? '')}`;
     case 'equip_cosmetic':
       return `Equip ${String(input.cosmetic_key ?? '')}`;
     case 'mark_notifications_read':

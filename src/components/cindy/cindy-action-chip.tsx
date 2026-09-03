@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ScopedRewardTease } from '@/components/cindy/scoped-reward-tease';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import type { DifficultyTier } from '@/types/database';
 import type { CoachAction } from '@/lib/api/coach';
 
 // The action chip (mock 115 frames 2 + 5: "▶ BU111 · Work · started", "🏆 Milestone posted").
@@ -22,6 +24,7 @@ const ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   stop_session: 'stop',
   add_milestone: 'trophy',
   create_challenge: 'flag',
+  host_campfire_challenge: 'bonfire',
   equip_cosmetic: 'color-palette',
   mark_notifications_read: 'notifications-off',
   open_support: 'heart',
@@ -68,12 +71,30 @@ export function CindyActionChip({
     );
   }
 
+  // §3 — what the server says it is worth, shown BEFORE the confirm. Only on a create that Cindy
+  // actually scoped: an unscoped goal has no tier to price, and a tease with nothing behind it
+  // would be worse than none.
+  // Both create paths, because both carry a tier and both price it the same way. Hosting one for
+  // a campfire is the case where the tease matters MOST: the confirm sends a push to every member
+  // of the fire, so what it is worth should be on screen before the tap, not after it.
+  const scopedTier =
+    (action.tool === 'create_challenge' || action.tool === 'host_campfire_challenge') &&
+    typeof action.input?.difficulty_tier === 'string'
+      ? (action.input.difficulty_tier as DifficultyTier)
+      : null;
+
   return (
     <View style={styles.pending}>
       <View style={styles.pendingHead}>
         <Ionicons name={icon} size={14} color={Colors.ember} />
         <Text style={styles.label}>{action.summary}</Text>
       </View>
+      {scopedTier ? (
+        <ScopedRewardTease
+          tier={scopedTier}
+          rationale={typeof action.input?.scope_rationale === 'string' ? action.input.scope_rationale : null}
+        />
+      ) : null}
       <View style={styles.buttons}>
         <Pressable
           onPress={onConfirm}
@@ -108,6 +129,10 @@ function confirmVerb(tool: string): string {
       return 'End it';
     case 'create_challenge':
       return 'Create it';
+    case 'host_campfire_challenge':
+      // Not "Create it". This posts to a whole campfire — the verb should say where it lands, so
+      // nobody taps a generic confirm and is surprised by forty people getting a push.
+      return 'Post it to the campfire';
     default:
       return 'Do it';
   }
@@ -122,6 +147,10 @@ function receiptFor(action: CoachAction): string {
       // milestone pays nothing by design (PROFILE_SPEC §G), and the one place a user is most
       // likely to assume otherwise is the moment it posts.
       return `${action.summary} · posted · no XP`;
+    case 'host_campfire_challenge':
+      // Says where it went. The receipt for a campfire post should name the outcome the user
+      // cannot see from this screen — the card is in a chat they may not be looking at.
+      return `${action.summary} · posted to the campfire`;
     default:
       return action.summary;
   }

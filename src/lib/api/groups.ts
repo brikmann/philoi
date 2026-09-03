@@ -20,6 +20,16 @@ import type {
 } from '@/types/database';
 
 export type MyGroup = Group & {
+  /**
+   * This viewer's role in this campfire — 'owner' | 'admin' | 'member' (0094).
+   *
+   * Free: fetchMyGroups already reads the membership row, so this is one more column on a query
+   * that was happening anyway, not a second round trip. It exists because campfire-wide challenge
+   * creation is admin-only server-side (0126 for the ranked shape, 0162 for the collective one),
+   * and until now "MyGroup carries no role, so the client cannot grey the tile out" was a real
+   * comment in social-challenges.ts — the create form offered an action it could not perform.
+   */
+  role: MemberRole;
   chat_muted: boolean;
   // Per-user-per-campfire consent to auto-post a synced workout (migration 0038, §17b) —
   // publishing on the user's behalf, so opt-in, default off, never a fire that hasn't agreed.
@@ -65,7 +75,7 @@ export async function leaveGroup(groupId: string, userId: string): Promise<void>
 export async function fetchMyGroups(userId: string): Promise<MyGroup[]> {
   const { data: memberships, error } = await supabase
     .from('group_members')
-    .select('chat_muted, auto_post_synced, groups(*)')
+    .select('role, chat_muted, auto_post_synced, groups(*)')
     .eq('user_id', userId);
   if (error) throw error;
 
@@ -73,6 +83,9 @@ export async function fetchMyGroups(userId: string): Promise<MyGroup[]> {
     .filter((m) => m.groups)
     .map((m) => ({
       ...(m.groups as unknown as Group),
+      // A pre-0094 row could still be null on paper; treat an absent role as the least privileged
+      // one, so a missing value hides an admin action rather than offering one.
+      role: (m.role as MemberRole) ?? 'member',
       chat_muted: m.chat_muted,
       auto_post_synced: m.auto_post_synced,
     }));

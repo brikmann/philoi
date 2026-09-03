@@ -73,6 +73,16 @@ const METRICS: Record<SocialChallengeRaceMetric, MetricSpec> = {
     // measurement taken by an instrument rather than a mark somebody was given.
     format: (v) => `${Number(v.toFixed(1))}%`,
   },
+  count: {
+    // 0162 — a counted campfire challenge ("1000 pushups"). The unit is NOT here on purpose: it is
+    // per-challenge (`count_unit`), not per-metric, so this spec cannot know it. Every surface that
+    // has the challenge row should call countChallengeLabel/formatCount below and get "1,000
+    // pushups"; this bare label is the fallback for a caller holding only the metric name, and it
+    // is deliberately generic rather than guessing a noun.
+    label: 'Counted target',
+    noun: 'reps',
+    format: (v) => Math.round(v).toLocaleString('en-US'),
+  },
 };
 
 /**
@@ -124,6 +134,11 @@ export function challengeTitle(challenge: {
 }): string {
   const named = challenge.public_name?.trim();
   if (named) return named;
+  // 0162 — a counted race is named by its count, and it must be tested BEFORE the collective
+  // branch below: a count challenge IS a collective one (shape 'collective', a real target_count),
+  // so falling through would title "1000 pushups" as "Everyone locks in 1000×" — a target it does
+  // not have, in a unit it does not use. Same class of bug as the grade and placement guards.
+  if (challenge.race_metric === 'count') return countChallengeLabel(challenge);
   // A grade race is named by its BAR, whatever shape it is. Falling through to the collective
   // branch would title "everyone in KP451 hits 70" as "Everyone locks in null×" — its target_count
   // is null by constraint (0145), the same way a placement race's is.
@@ -135,6 +150,34 @@ export function challengeTitle(challenge: {
     return `Everyone locks in ${challenge.target_count ?? 1}×`;
   }
   return metricLabel(challenge.race_metric);
+}
+
+/**
+ * "1,000 pushups" — a counted campfire challenge, named by what it counts (0162).
+ *
+ * The unit lives on the CHALLENGE (`count_unit`), not on the metric, because "pushups" and
+ * "plunges" are the same metric measured in different things. That is why this takes the row
+ * rather than being a `format` on the metric spec: a spec keyed by metric name structurally
+ * cannot know it, and guessing "reps" is how "0 / 1 bath" happened to a real user (0157).
+ */
+export function countChallengeLabel(challenge: {
+  count_unit?: string | null;
+  target_count?: number | null;
+}): string {
+  const n = (challenge.target_count ?? 0).toLocaleString('en-US');
+  const unit = challenge.count_unit?.trim();
+  return unit ? `${n} ${unit}` : n;
+}
+
+/** A racer's progress on a counted race, in that race's own unit: "412 / 1,000 pushups". */
+export function formatCountProgress(
+  challenge: { count_unit?: string | null; target_count?: number | null },
+  value: number,
+): string {
+  const unit = challenge.count_unit?.trim();
+  const done = Math.round(value).toLocaleString('en-US');
+  const target = (challenge.target_count ?? 0).toLocaleString('en-US');
+  return unit ? `${done} / ${target} ${unit}` : `${done} / ${target}`;
 }
 
 /** A grade race scores a self-reported mark rather than anything the app can observe (0145). */
