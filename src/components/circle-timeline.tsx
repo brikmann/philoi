@@ -510,6 +510,28 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
     // (PHILOI_UI_SPEC.md §4b). Two nested KeyboardAvoidingViews fight each other's padding math,
     // which was the actual cause of "nothing moves" here.
     <View style={styles.container}>
+      {/* §2 · THE AMBIENT GROUND (mock 174's `.body` + `.stars`).
+          Behind the list and non-interactive, so it is depth rather than a layer the chat has to
+          fight. Two deliberate choices:
+            · POSITIONED DOTS, not the SVG polyline the first pass used and that vanished on
+              device. A <View> with a background colour is the one thing guaranteed to paint.
+            · A FIXED constellation, not Math.random(). A random field reshuffles on every render —
+              stars would twinkle by accident on each keystroke in the composer, which is both
+              noisy and the opposite of the "keep the starfield static" reduce-motion rule.
+          Kept dim and cool so it reads as sky and never competes with a message. */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        {STARS.map((st, i) => (
+          <View
+            key={i}
+            style={[
+              styles.star,
+              { left: `${st.x}%`, top: `${st.y}%` },
+              st.lg && styles.starLarge,
+            ]}
+          />
+        ))}
+      </View>
+
       {timeline.error && <Text style={styles.error}>{timeline.error}</Text>}
 
       <FlatList
@@ -605,6 +627,20 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
   );
 }
 
+// mock 174's `.stars` — nine dots, transcribed rather than generated. See the render for why this
+// is a constant and not a random field.
+const STARS: { x: number; y: number; lg?: boolean }[] = [
+  { x: 12, y: 8 },
+  { x: 70, y: 6, lg: true },
+  { x: 40, y: 20 },
+  { x: 86, y: 24 },
+  { x: 22, y: 40 },
+  { x: 60, y: 52, lg: true },
+  { x: 82, y: 64 },
+  { x: 16, y: 74 },
+  { x: 48, y: 82 },
+];
+
 /** The mock's `.embed` frame: a left accent stripe over the chat's ground, so every rich thing in
  *  the chain reads as the same kind of attachment. */
 function Embed({ accent, children }: { accent: string; children: React.ReactNode }) {
@@ -636,18 +672,34 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 8,
   },
+  star: {
+    position: 'absolute',
+    width: 2,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#5A4F74',
+  },
+  starLarge: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+  },
   dayWrap: {
     alignItems: 'center',
-    paddingVertical: 2,
+    paddingVertical: 4,
   },
+  // `.day` — a proper pill with its own edge, rather than text on a smear of black. The border is
+  // what stops it dissolving into a dark patch of banner.
   dayLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    color: '#9A8FB8',
+    backgroundColor: '#1A1226',
+    borderWidth: 1,
+    borderColor: '#2A1F3A',
     paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderRadius: 11,
     overflow: 'hidden',
   },
   sysRow: {
@@ -673,16 +725,25 @@ const styles = StyleSheet.create({
   // `width` instead of `maxWidth` is the whole fix — it gives the flex children something to
   // divide up. alignSelf stays flex-start so embeds still hang on the left like the mock's, and
   // `flexShrink: 0` stops the FlatList's own cross-axis sizing undoing it again.
+  // §3 · THE TROPHY CARD (mock 174 `.embed`). Same bones as before — the left accent rail was
+  // already right — with the three things that make it read as a framed award rather than a
+  // bordered div: a deeper radius, a real drop shadow so it sits ABOVE the ground rather than in
+  // it, and a slightly more opaque body so the starfield does not show through the content.
   embed: {
     alignSelf: 'flex-start',
     width: '92%',
     flexShrink: 0,
-    backgroundColor: 'rgba(20,14,24,0.82)',
+    backgroundColor: 'rgba(22,15,30,0.93)',
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: '#322648',
     borderLeftWidth: 3,
-    borderRadius: 10,
+    borderRadius: 16,
     padding: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 5,
   },
   msgRow: {
     flexDirection: 'row',
@@ -739,10 +800,21 @@ const styles = StyleSheet.create({
     // before it can paint, and a transparent bubble for that frame would flash.
     backgroundColor: Colors.coral,
     overflow: 'hidden',
-    borderTopLeftRadius: Radius.card,
-    borderTopRightRadius: 4,
-    borderBottomLeftRadius: Radius.card,
-    borderBottomRightRadius: Radius.card,
+    // mock 174 `.mine`: 16 16 5 16, which moves the tail corner from the top-right to the
+    // BOTTOM-right. Not a correction — mock 101 deliberately pointed it up, and bubbleOther below
+    // still follows that. 174 tucks the tail toward the composer instead, which is what every
+    // messaging app the user already has does. Others' bubbles keep 101's shape on purpose: the
+    // asymmetry is how you tell the two sides apart at a glance.
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 5,
+    // `box-shadow:0 6px 18px rgba(224,97,44,.32)` — the lit bubble casts its own ember light.
+    shadowColor: Colors.coral,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 6,
   },
   ownFill: {
     flex: 1,

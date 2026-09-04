@@ -1,24 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { LeaderboardPanel } from '@/components/campfire/leaderboard-panel';
 import { CampfireBannerArt } from '@/components/campfire-banner-art';
 import { CampfireOptionsSheet } from '@/components/campfire-options-sheet';
 import { CircleTimeline } from '@/components/circle-timeline';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { heatToState } from '@/components/heat-flame';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { useCampfireHeat } from '@/hooks/use-campfire-heat';
 import { useCampfireStats } from '@/hooks/use-campfire-stats';
 import { useGroup } from '@/hooks/use-group';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { track } from '@/lib/analytics';
 import { fetchCampfireMembers } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useFlameRamp } from '@/lib/economy/flame-ramp';
 import type { CampfireMember } from '@/types/database';
 
 // THE CAMPFIRE, AS A FULL-SCREEN CHAT (design-mocks/101-campfire-chat.html).
@@ -55,11 +55,33 @@ import type { CampfireMember } from '@/types/database';
 // transparent.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-const HEAT_WORD: Record<ReturnType<typeof heatToState>, string> = {
-  roaring: 'roaring',
-  simmering: 'embers',
-  cold: 'burnt out',
-};
+// ── the ring-lit glow behind the flame tile (mock 174's `.tile::after`) ───────────────────────
+//
+// `radial-gradient(circle, rgba(242,163,60,.5), transparent 70%)` has no React Native equivalent —
+// there are no gradient backgrounds and expo-linear-gradient is not installed — so this is the same
+// measure-and-paint-an-SVG-underneath trick EmberFill documents, with a RadialGradient instead of a
+// linear one. Fixed size rather than measured: the tile is a known 44px box, so there is nothing to
+// wait a layout pass for and the halo is never absent for a frame.
+//
+// 🔴 `useId` IS LOAD-BEARING, not tidiness. react-native-svg gradient ids are GLOBAL — ember-fill.tsx
+// found this the hard way — and a shared literal blanks every instance after the first on Android.
+const HALO = 62;
+
+function TileHalo({ colour }: { colour: string }) {
+  const gradId = `tile-halo-${useId()}`;
+  return (
+    <Svg width={HALO} height={HALO} style={styles.halo} pointerEvents="none">
+      <Defs>
+        <RadialGradient id={gradId} cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor={colour} stopOpacity={0.5} />
+          <Stop offset="0.62" stopColor={colour} stopOpacity={0.14} />
+          <Stop offset="1" stopColor={colour} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect x={0} y={0} width={HALO} height={HALO} fill={`url(#${gradId})`} />
+    </Svg>
+  );
+}
 
 export default function GroupScreen() {
   const router = useRouter();
@@ -68,8 +90,9 @@ export default function GroupScreen() {
   const { session } = useAuth();
   const { group, refetch: refetchGroup } = useGroup(groupId);
   const { groups: myGroups } = useMyGroups();
-  const heatByGroupId = useCampfireHeat();
   const { stats } = useCampfireStats(groupId);
+  // The tile glows the campfire's equipped-flame colour, so two fires never look like one.
+  const ramp = useFlameRamp();
 
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [leaderboardVisible, setLeaderboardVisible] = useState(false);
@@ -92,8 +115,13 @@ export default function GroupScreen() {
       });
   }, [groupId]);
 
-  const heat = heatByGroupId[groupId] ?? 0;
   const memberCount = stats?.member_count ?? members.length;
+  // §1 — STATUS, NOT PLUMBING. This line used to end in the heat word, which rendered as
+  // "· embers" — Noah: "means nothing." A streak is a thing you can lose, so it is the half of the
+  // line worth reading. Hidden entirely at 0 rather than shown as "0-day streak", which reads as an
+  // accusation on a campfire that simply started today.
+  const streakDays = Math.round(stats?.avg_streak ?? 0);
+  const isOwner = myGroups.find((g) => g.id === groupId)?.role === 'owner';
 
   // Mock 101's top bar is 52px of status bar plus ~66px of bar. The leaderboard panel opens
   // BELOW it (frame 3), so it needs to be told where that line falls.
@@ -116,24 +144,32 @@ export default function GroupScreen() {
         </ErrorBoundary>
       </View>
 
-      {/* ── the top bar (mock 101 frame 1) ──────────────────────────────────────────────────────
-          Emoji + name + one member/heat line on the left; two round buttons on the right. It sits
-          on its own soft gradient rather than a solid bar so the banner reads behind it. */}
+      {/* ── the top bar (mock 101 frame 1, restyled to mock 174's cover header) ────────────────
+          Ring-lit flame tile + name + one members/streak line on the left; a gold trophy and a
+          quiet kebab on the right. It sits on its own soft gradient rather than a solid bar so the
+          banner reads behind it as an immersive background rather than as art in a slot.
+          The BAR stays compact rather than growing into 174's 172px cover: topBarHeight below is
+          what the leaderboard panel opens beneath, so its height is load-bearing beyond the look. */}
       <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
         <Pressable
           style={styles.fireId}
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Back to your campfires">
-          <View style={styles.fireEmoji}>
-            <Text style={styles.fireEmojiGlyph}>{group?.emoji ?? '🔥'}</Text>
+          <View style={styles.fireTile}>
+            <TileHalo colour={ramp.mid} />
+            <View style={[styles.fireEmoji, { borderColor: ramp.mid }]}>
+              <Text style={styles.fireEmojiGlyph}>{group?.emoji ?? '🔥'}</Text>
+            </View>
           </View>
           <View style={styles.fireText}>
             <Text style={styles.fireName} numberOfLines={1}>
               {group?.name ?? '…'}
+              {isOwner ? <Text style={styles.crown}> 👑</Text> : null}
             </Text>
             <Text style={styles.fireSub} numberOfLines={1}>
-              🔥 {memberCount} {memberCount === 1 ? 'member' : 'members'} · {HEAT_WORD[heatToState(heat)]}
+              🔥 {memberCount} {memberCount === 1 ? 'member' : 'members'}
+              {streakDays > 0 ? ` · ${streakDays}-day streak` : ''}
             </Text>
           </View>
         </Pressable>
@@ -205,18 +241,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  fireEmoji: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+  // The tile and its halo share a box so the glow stays centred on the tile rather than on the
+  // row, which is what makes it read as light coming OFF the flame.
+  fireTile: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.selectedBg,
-    borderWidth: 1,
-    borderColor: Colors.amber,
+  },
+  halo: {
+    position: 'absolute',
+    // (44 - 62) / 2 — centres the oversized glow on the tile.
+    left: -9,
+    top: -9,
+  },
+  fireEmoji: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1B1210',
+    // 2px, not 1: mock 174's tile is ring-LIT, and a hairline reads as a border rather than as a
+    // rim catching the fire's own light. borderColor is set per-campfire from the flame ramp.
+    borderWidth: 2,
   },
   fireEmojiGlyph: {
-    fontSize: 20,
+    fontSize: 22,
     // No lineHeight multiplier: an emoji in a fixed-height box gets clipped on Android.
   },
   fireText: {
@@ -224,32 +275,43 @@ const styles = StyleSheet.create({
   },
   fireName: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 18,
+    fontSize: 19,
+    letterSpacing: -0.3,
     color: Colors.ink,
   },
+  crown: {
+    fontSize: 13,
+  },
+  // Was Colors.heatLabel — the ember-brown that belonged to the heat word this line no longer
+  // carries. A members/streak line is status, so it takes the ordinary secondary text colour and
+  // stops competing with the name above it.
   fireSub: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.heatLabel,
-    marginTop: 3,
+    fontSize: 11.5,
+    color: Colors.muted,
+    marginTop: 4,
   },
   topActions: {
     flexDirection: 'row',
     gap: 8,
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    // mock 174's `.hbtn`: a dark translucent chip that lets the banner read through it rather than
+    // a light scrim that flattens into the art.
+    backgroundColor: 'rgba(25,16,34,0.8)',
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: 'rgba(255,255,255,0.13)',
   },
+  // `.hbtn.trophy` — the one gold affordance in the bar. The kebab beside it stays quiet on
+  // purpose: two lit buttons is two calls to action, and only one of them is the prize.
   iconBtnLead: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.amber,
+    backgroundColor: 'rgba(42,31,18,0.8)',
+    borderColor: 'rgba(255,201,77,0.4)',
   },
   trophy: {
     fontSize: 16,

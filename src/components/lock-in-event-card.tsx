@@ -37,7 +37,7 @@ const MAX_LIFTS_SHOWN = 4;
 
 // The campfire chain's core content — proof of showing up (PHILOI_UI_SPEC.md §12,
 // design-mocks/06's `.lock`): thin coral left-edge, goal icon tile, "{Name} locked in" +
-// "{duration} · {goal}" + "+{xp} XP · fed the fire", an optional photo thumb on the right,
+// "{duration} · {goal}" + "+{xp} XP", an optional photo thumb on the right,
 // and a compact reaction tally (the picker only appears on tap — see reaction-bar.tsx).
 export function LockInEventCard({ item, onReactionChanged }: LockInEventCardProps) {
   const router = useRouter();
@@ -127,7 +127,11 @@ export function LockInEventCard({ item, onReactionChanged }: LockInEventCardProp
 
         <View style={styles.xpRow}>
           <Ionicons name="flash" size={11} color={Colors.achieverText} />
-          <Text style={styles.xpLine}>+{Math.round(item.xp_earned)} XP · fed the fire</Text>
+          {/* §3 — "+140 XP", full stop. The "· fed the fire" tail was on every card in the chain,
+              which made it wallpaper rather than emphasis: a line that appears on all of them
+              distinguishes none of them. The XP number is the award; the fire is the whole screen
+              around it and does not need restating per row. */}
+          <Text style={styles.xpLine}>+{Math.round(item.xp_earned)} XP</Text>
         </View>
 
         {/* Gym lifts + PRs (PHILOI_UI_SPEC.md §23) — what actually makes a posted workout worth
