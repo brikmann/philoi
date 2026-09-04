@@ -770,6 +770,15 @@ export type Message = {
   /** A check_ins.id being re-posted into the chat, or — on a 'challenge' card (0162) — the
    *  social_challenges.id of a campfire-hosted challenge, which is what the Join CTA acts on. */
   attach_ref_id: string | null;
+  /**
+   * Which system event this row announces (0163). Non-null exactly when attach_kind is 'system',
+   * and the only value today is 'member_joined'.
+   *
+   * A system row carries no body ON PURPOSE: the sentence is the client's to write, so an old
+   * build renders nothing rather than something stale, and the wording can change without a
+   * migration. Anything the renderer doesn't recognise is skipped for the same reason.
+   */
+  system_event: string | null;
 };
 
 export type AnalyticsEventName =
@@ -1171,6 +1180,45 @@ export type DifficultyTier = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendar
  */
 export type GoalVerifiability = 'auto' | 'honor';
 
+/**
+ * How the app learned the feat was done, once a claim settles (0164).
+ *
+ * The spec's gradient is Auto > Vouched > Unvouched. 'vouched' pays the same BAND as 'auto' — the
+ * −10%/−20% currency trim that should separate them is still deferred (it needs a signature change
+ * to grant_reward; see 0159's header) — so today the gradient is expressed in boxes, which is the
+ * part that gates minting.
+ */
+export type GoalClaimLevel = 'auto' | 'honor' | 'vouched';
+
+/** What claim_goal_complete returns. `pending_vouch` is the only state that has not paid yet. */
+export type GoalClaimResult = {
+  state: 'resolved' | 'pending_vouch';
+  level: GoalClaimLevel;
+  /** How many friends were asked. 0 on both resolved paths. */
+  asked: number;
+  /** ISO. Only on pending_vouch. */
+  deadline?: string;
+};
+
+/** What the vouch prompt reads (get_vouch_request). */
+export type VouchRequest = {
+  goal_id: string;
+  label: string | null;
+  tier: DifficultyTier | null;
+  claimant: string;
+  claimant_avatar: string | null;
+  claimed_at: string;
+  deadline: string | null;
+  settled: boolean;
+  expired: boolean;
+  /** You cannot vouch for yourself — the screen shows a read-only state instead. */
+  is_mine: boolean;
+  /** Your own prior answer, or null if you have not answered. */
+  my_verdict: boolean | null;
+  /** Counting vouches so far, out of the two needed. */
+  vouches: number;
+};
+
 /** What preview_challenge_reward / set_goal_scope hand back — the SERVER's figure, not Cindy's. */
 export type ScopedRewardPreview = {
   tier: DifficultyTier;
@@ -1222,6 +1270,13 @@ export type Challenge = {
    * reps pays once — through the challenge, not twice.
    */
   challenge_source_id?: string | null;
+  /** 0164 — when the owner said they did it. NOT completion: a claim awaiting friends sits here
+   *  with completed_at still null, which is what keeps the payout to exactly one grant. */
+  claimed_at?: string | null;
+  /** 0164 — storage key of the proof photo, if one was attached. */
+  proof_path?: string | null;
+  /** 0164 — when the 48h vouch window closes. */
+  vouch_deadline?: string | null;
   label: string | null;
   target: number;
   unit: string;
@@ -1299,6 +1354,41 @@ export type ChallengeParticipant = {
 // get_my_social_challenges() row — the Challenges tab's feed (PHILOI_UI_SPEC.md,
 // design-mocks/12 & 13). my_score/opponent_score/member_count/completed_count are live-scored
 // off real check_ins data, not a stored/potentially-stale number.
+/**
+ * A campfire's LIVE challenge, read by circle rather than by roster (get_circle_active_challenges,
+ * migration 0163).
+ *
+ * WHY THIS EXISTS ALONGSIDE SocialChallenge. That type is what get_my_social_challenges returns,
+ * and that read is scoped to challenge_participants — "what am I rostered on". Under the opt-in
+ * model a live campfire challenge deliberately has members who are NOT on its roster yet, and they
+ * are precisely the people who need to see it: before 0163 the owner saw their own race and every
+ * member who joined the fire afterwards saw an empty room. This is the other question — "what is
+ * this fire running" — so it is a different row shape, with `i_am_in` as the whole point.
+ */
+export type CircleActiveChallenge = {
+  id: string;
+  circle_id: string;
+  created_by: string;
+  host_name: string;
+  mode: SocialChallengeMode;
+  shape: ChallengeShape | null;
+  /** Only ever 'draft' | 'pending' | 'active' — the server filters to what is joinable. */
+  status: SocialChallengeStatus;
+  race_metric: SocialChallengeRaceMetric | null;
+  count_unit: string | null;
+  target_count: number | null;
+  payout_xp: number;
+  public_name: string | null;
+  difficulty_tier: DifficultyTier | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  /** Accepted participants only — the number the strip means by "3 in". */
+  participant_count: number;
+  /** Am I on the roster? False is the interesting case: it is what puts a Join on the strip. */
+  i_am_in: boolean;
+};
+
 export type SocialChallenge = {
   id: string;
   // Nullable — an h2h challenge is friend-to-friend and doesn't require a shared campfire; null
@@ -2069,6 +2159,10 @@ export type Database = {
         Returns: { id: string; goal_type: GoalType; goal_detail: string | null; duration_seconds: number | null; photo_url: string | null }[];
       };
       get_my_social_challenges: { Args: Record<string, never>; Returns: SocialChallenge[] };
+      /** 0163 · the same question asked of the CIRCLE instead of the roster. Gated on
+       *  membership, so a member who joined after a challenge started still gets it back —
+       *  with i_am_in false, which is what puts the opt-in CTA on screen. */
+      get_circle_active_challenges: { Args: { p_circle_id: string }; Returns: CircleActiveChallenge[] };
       // ─── difficulty scoping (0159-0160) ───
       // No p_verifiability on either: the server derives it. That absence is the firewall.
       set_goal_scope: { Args: { p_goal_id: string; p_tier: DifficultyTier }; Returns: ScopedRewardPreview };
@@ -2154,6 +2248,18 @@ export type Database = {
         Args: { p_challenge_id: string };
         Returns: { challenge_id: string; goal_id: string | null; metric: string | null; target: number | null };
       };
+      // ─── the honour path (0164) ───
+      // No p_level on either: the server decides the verification level and completes the goal
+      // itself, so exactly one grant fires at exactly one band. That absence is the firewall.
+      claim_goal_complete: {
+        Args: { p_goal_id: string; p_proof_path?: string | null; p_voucher_ids?: string[] | null };
+        Returns: GoalClaimResult;
+      };
+      submit_vouch: {
+        Args: { p_goal_id: string; p_verdict: boolean };
+        Returns: { counted: boolean; vouches: number; resolved: boolean };
+      };
+      get_vouch_request: { Args: { p_goal_id: string }; Returns: VouchRequest };
       respond_to_h2h_challenge: { Args: { p_challenge_id: string; p_accept: boolean }; Returns: SocialChallenge };
       /** Self-report your mark on a grade race (0145). Returns the value the SERVER stored — it
        *  rounds to 2dp, and that copy is what settlement scores. */

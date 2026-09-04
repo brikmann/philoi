@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -10,7 +11,7 @@ import { logChallengeProgress, type GoalDayAward } from '@/lib/api/challenges';
 import { CHALLENGE_TYPE_GLYPH, canonicalGoalUnit, personalGoalTitle } from '@/lib/goal-types';
 import { getErrorMessage } from '@/lib/errors';
 import { AUTO_SOURCE_NAME, getRealFitnessSourceForChallengeType, sourceNeedsConnection } from '@/lib/fitness-sync';
-import type { Challenge, ChallengeType } from '@/types/database';
+import type { Challenge, ChallengeType, DifficultyTier } from '@/types/database';
 
 // Quick-add amounts only. The glyph moved to CHALLENGE_TYPE_GLYPH in lib/goal-types — these were
 // emoji, which draw differently on every OS and font version and cannot take the row's tint (§A3).
@@ -64,7 +65,18 @@ type ChallengeCardProps = {
   /** Carries the SERVER's payout up with the completion so the tab can show mock 103's reward
    * screen. Null when nothing was granted (already awarded today, or the RPC failed) — the caller
    * shows the plain burst in that case rather than an empty reward screen. */
-  onLogged: (justCompleted: boolean, award: GoalDayAward | null, goalLabel: string) => void;
+  /**
+   * `difficultyTier` is the scope Cindy priced this feat at (0159/0160), or null for an ordinary
+   * recurring target. Appended rather than folded into an object so every existing caller keeps
+   * working — it exists so the share card can tell a one-off FEAT from a habit, which are opposite
+   * flexes (see goal-streak-share-card).
+   */
+  onLogged: (
+    justCompleted: boolean,
+    award: GoalDayAward | null,
+    goalLabel: string,
+    difficultyTier: DifficultyTier | null
+  ) => void;
   onDeleted: () => void;
   /** Opens the Goal info screen (mock 102 v2), where the target, source, reset and reward rules
    * live now that the card itself stays minimal. */
@@ -76,6 +88,7 @@ type ChallengeCardProps = {
 // sub-line saying only how it's tracked, one bar, and ONE status. No campfire binding anywhere:
 // a goal is the user's own (migration 0059), and sharing the work is a per-lock-in choice.
 export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDeleted, onInfo }: ChallengeCardProps) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [amount, setAmount] = useState('');
   const [logging, setLogging] = useState(false);
@@ -102,7 +115,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
       const result = await logChallengeProgress(challenge.id, value);
       setAmount('');
       setExpanded(false);
-      onLogged(result.justCompleted, result.award, personalGoalTitle(challenge));
+      onLogged(result.justCompleted, result.award, personalGoalTitle(challenge), challenge.difficulty_tier ?? null);
     } catch (e) {
       setError(getErrorMessage(e, 'Could not log progress.'));
     } finally {
@@ -134,8 +147,42 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
    * An Alert rather than a bottom sheet: two options, one of them destructive, and Alert is the
    * one presentation that cannot be dismissed by accident on either platform.
    */
+  /**
+   * 0164 — "Mark complete" is the honour path's ONLY entry point, so which goals get it matters.
+   *
+   * Offered when the goal carries a scoped tier, is not auto-tracked, and has not already been
+   * claimed or finished. That set is exactly the described feat — "learn a backflip" — which
+   * nothing can auto-complete: an auto goal finishes itself through log_challenge_progress when
+   * its number lands, and offering a manual claim there would be a second way to complete a goal
+   * that already completes on its own.
+   */
+  const canClaim =
+    challenge.difficulty_tier != null &&
+    challenge.verifiability !== 'auto' &&
+    !challenge.completed_at &&
+    !challenge.claimed_at;
+
   function handleMenu() {
     Alert.alert(personalGoalTitle(challenge), undefined, [
+      ...(canClaim
+        ? [
+            {
+              text: 'Mark complete',
+              onPress: () =>
+                router.push({
+                  pathname: '/goal/claim',
+                  // The label and tier ride along so the claim screen can name the goal and price
+                  // it without a second round trip — it re-reads nothing the server will not
+                  // re-derive anyway when it settles.
+                  params: {
+                    goalId: challenge.id,
+                    label: challenge.label ?? '',
+                    tier: challenge.difficulty_tier ?? '',
+                  },
+                }),
+            },
+          ]
+        : []),
       ...(onInfo ? [{ text: 'Goal info', onPress: onInfo }] : []),
       { text: 'Delete goal', style: 'destructive' as const, onPress: handleDelete },
       { text: 'Cancel', style: 'cancel' as const },
