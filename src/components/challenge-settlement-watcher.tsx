@@ -5,9 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChallengeRewardScreen } from '@/components/economy/challenge-reward-screen';
 import { ChallengeWinShareCard } from '@/components/economy/challenge-win-share-card';
+import { prefetchAvatars } from '@/components/economy/king-statue';
 import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { challengeRewardResult } from '@/hooks/use-challenge-reward';
+import { useOpponentAvatar } from '@/hooks/use-duel-avatars';
 import { useShareRank } from '@/hooks/use-share-rank';
 import { track } from '@/lib/analytics';
 import { fetchUnseenChallengeRewards, markChallengeRewardSeen } from '@/lib/api/social-challenges';
@@ -123,6 +125,12 @@ export function ChallengeSettlementWatcher() {
   async function handleShare() {
     setSharing(true);
     try {
+      // ⚠️ PIXELS BEFORE CAPTURE. The duel card's hero is the sharer's own profile picture, and
+      // `captureRef` rasterises the frame it is handed — a remote image still in flight captures as
+      // an empty circle, so the one card whose whole point is "here is who I beat" would export
+      // with two blank holes in it. Warming the cache first is what makes the export match the
+      // screen. Costs nothing on the board variant, where both are undefined.
+      await prefetchAvatars(profile?.avatar_url, opponentAvatarUrl);
       await shareCardImage(cardRef, 'Share your result');
     } finally {
       setSharing(false);
@@ -141,6 +149,11 @@ export function ChallengeSettlementWatcher() {
   // challenge-info, which presents the SAME reveal through the other door and has to agree with
   // this about what kind it is — see challengeRevealKind.
   const revealKind = challengeRevealKind(current ?? {});
+  // Only ever fetched for a settled DUEL — a board race has a field, not a face. See the hook for
+  // why the avatar is a client read rather than a column on 0137's RPC.
+  const opponentAvatarUrl = useOpponentAvatar(
+    result?.context === 'duel' ? current?.opponent_id ?? null : null
+  );
   // Held, not dropped: `queue` keeps the settlement while another celebration has the floor, so a
   // rank-up landing in the same moment delays this reveal rather than swallowing it.
   const hasFloor = useRevealFloor(revealKind, Boolean(current && result));
@@ -161,6 +174,10 @@ export function ChallengeSettlementWatcher() {
             // The same kind this watcher took the floor with, so the rays are tinted by the row
             // that ordered the queue rather than by a second guess at the shape.
             revealKind={revealKind}
+            // §F.1 — the king's two faces. Already fetched for the share card below, so the
+            // reveal and the card it shares are drawn from one pair of avatars rather than two.
+            winnerAvatarUrl={profile?.avatar_url ?? null}
+            opponentAvatarUrl={opponentAvatarUrl}
             onShare={handleShare}
             sharing={sharing}
             onClose={() => dismiss(current.challenge_id)}
@@ -175,8 +192,20 @@ export function ChallengeSettlementWatcher() {
             <ChallengeWinShareCard
               ref={cardRef}
               tier={result.tier}
+              // Picks the hero: the crowned king for a duel, the crown + "1st of N" for a board
+              // race. The same `context` the reward screen branches its copy on, so the card and
+              // the screen cannot disagree about which kind of win this was.
+              context={result.context === 'duel' ? 'duel' : 'board'}
               contextLine={current.public_name?.trim() || metricLabel(current.race_metric)}
               metricLabel={metricLabel(current.race_metric)}
+              placement={result.placement}
+              fieldSize={result.fieldSize}
+              winnerName={profile?.display_name ?? 'You'}
+              winnerAvatarUrl={profile?.avatar_url ?? null}
+              opponentName={result.opponentName ?? null}
+              opponentAvatarUrl={opponentAvatarUrl}
+              // What the win granted, named rather than counted — see share-card-stamp.
+              boxKey={result.box?.key ?? null}
               handle={profile?.handle ?? null}
               rankTier={shareRank.tier}
               division={shareRank.division}

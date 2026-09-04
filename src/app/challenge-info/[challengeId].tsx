@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChallengeRewardScreen } from '@/components/economy/challenge-reward-screen';
 import { ChallengeWinShareCard } from '@/components/economy/challenge-win-share-card';
+import { prefetchAvatars } from '@/components/economy/king-statue';
 import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { Avatar } from '@/components/ui/avatar';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
@@ -15,6 +16,7 @@ import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useChallengeReward, challengeRewardResult } from '@/hooks/use-challenge-reward';
 import { useMyChallenges } from '@/hooks/use-my-challenges';
+import { useOpponentAvatar } from '@/hooks/use-duel-avatars';
 import { useShareRank } from '@/hooks/use-share-rank';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { track } from '@/lib/analytics';
@@ -301,9 +303,17 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
     [reward, c.id, session?.user.id]
   );
 
+  // Only for a settled duel — see the hook. Null on every board race, so this costs nothing there.
+  const opponentAvatarUrl = useOpponentAvatar(
+    result?.context === 'duel' ? c.opponent_id ?? null : null
+  );
+
   async function handleShare() {
     setSharing(true);
     try {
+      // Warm the avatar cache first: captureRef photographs the current frame, and an unloaded
+      // remote image exports as an empty circle. See the same note in the settlement watcher.
+      await prefetchAvatars(profile?.avatar_url, opponentAvatarUrl);
       await shareCardImage(cardRef, 'Share your result');
       track('challenge_result_shared', { challenge_id: c.id, placement: reward?.placement ?? null });
     } finally {
@@ -490,6 +500,9 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
                 // The same kind this screen already took the floor with, so the rays are tinted by
                 // the row that ordered the queue rather than by a second guess at the shape.
                 revealKind={challengeRevealKind(c)}
+                // §F.1 — the king's two faces, the same pair the share card below already uses.
+                winnerAvatarUrl={profile?.avatar_url ?? null}
+                opponentAvatarUrl={opponentAvatarUrl}
                 onShare={handleShare}
                 sharing={sharing}
                 onClose={dismiss}
@@ -508,8 +521,18 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
           <ChallengeWinShareCard
             ref={cardRef}
             tier={result.tier}
+            // The same branch the watcher makes, from the same field — this screen is the other
+            // door onto the identical reveal, and the two have to produce the same card.
+            context={result.context === 'duel' ? 'duel' : 'board'}
             contextLine={shareContextLine(c, result.opponentName ?? null)}
             metricLabel={metricLabel(c.race_metric)}
+            placement={result.placement}
+            fieldSize={result.fieldSize}
+            winnerName={profile?.display_name ?? 'You'}
+            winnerAvatarUrl={profile?.avatar_url ?? null}
+            opponentName={result.opponentName ?? null}
+            opponentAvatarUrl={opponentAvatarUrl}
+            boxKey={result.box?.key ?? null}
             handle={profile?.handle ?? null}
             rankTier={shareRank.tier}
             division={shareRank.division}
