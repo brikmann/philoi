@@ -6,6 +6,7 @@ import type {
   ChallengeChangeRequestDetail,
   ChallengeResultRow,
   ChallengeReward,
+  CircleActiveChallenge,
   DifficultyTier,
   HostedCampfireChallenge,
   SocialChallenge,
@@ -17,6 +18,25 @@ export async function fetchMySocialChallenges(): Promise<SocialChallenge[]> {
   const { data, error } = await supabase.rpc('get_my_social_challenges');
   if (error) throw error;
   return data ?? [];
+}
+
+/**
+ * What THIS CAMPFIRE is running — every live challenge in it, for any member of it (0163).
+ *
+ * NOT a filter over fetchMySocialChallenges, and that is the whole fix. get_my_social_challenges
+ * is scoped to challenge_participants, so it answers "what am I rostered on". A member who joined
+ * the fire after a challenge started is not on that roster and gets back nothing — the owner saw
+ * their run club's race and everyone they invited saw an empty campfire. This asks the other
+ * question, by circle, gated on membership rather than enrolment, and every row carries `i_am_in`
+ * so the opt-in CTA knows whether to offer itself.
+ *
+ * The server returns only draft/pending/active — exactly the statuses join_campfire_challenge
+ * admits — so nothing here can offer a Join the server will refuse.
+ */
+export async function fetchCircleActiveChallenges(circleId: string): Promise<CircleActiveChallenge[]> {
+  const { data, error } = await supabase.rpc('get_circle_active_challenges', { p_circle_id: circleId });
+  if (error) throw error;
+  return (data ?? []) as CircleActiveChallenge[];
 }
 
 /**

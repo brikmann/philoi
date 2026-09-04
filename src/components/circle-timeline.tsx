@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { ActiveChallengeStrip } from '@/components/campfire/active-challenge-strip';
 import { CampfireFab, type CampfireFabAction } from '@/components/campfire/campfire-fab';
 import { ChallengeAcceptRow } from '@/components/campfire/challenge-accept-row';
 import { ChallengeChatCard } from '@/components/campfire/challenge-chat-card';
@@ -408,6 +409,27 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
       );
     }
 
+    // ── a system line (0163) ──────────────────────────────────────────────────────────────────
+    //
+    // "{name} joined 🔥", centred and muted, not a chat bubble. It is a real `messages` row so that
+    // it rides the same pipeline everything else here does — realtime, ordering, the member-read
+    // policy — but it is an EVENT, not something anybody said, so giving it an avatar, a sender
+    // name and a speech bubble would be a lie about who wrote it.
+    //
+    // The row carries no body: the sentence is written HERE, from system_event and the joiner's
+    // profile, which is why an unrecognised event renders nothing at all rather than an empty
+    // bubble. A build older than the next system event stays silent instead of wrong.
+    if (row.data.attach_kind === 'system') {
+      if (row.data.system_event !== 'member_joined') return null;
+      return (
+        <View style={styles.systemRow}>
+          <Text style={styles.systemLine}>
+            <Text style={styles.systemName}>{row.data.profiles.display_name}</Text> joined 🔥
+          </Text>
+        </View>
+      );
+    }
+
     // ── a plain message ───────────────────────────────────────────────────────────────────────
     const message = row.data;
     const isOwn = message.user_id === myUserId;
@@ -533,6 +555,15 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
       </View>
 
       {timeline.error && <Text style={styles.error}>{timeline.error}</Text>}
+
+      {/* §1.2 · WHAT THIS FIRE IS RUNNING, pinned where it cannot be scrolled past.
+          The card in the chat is the durable record — a message, so history carries it to everyone
+          who ever joins — but a member who arrives into a week-old conversation would have to
+          scroll back through that week to discover a race is on. This reads by CIRCLE rather than
+          by roster (get_circle_active_challenges, 0163), which is the only reason a late joiner
+          sees anything here at all: they are deliberately not on the roster yet, and the Join on
+          this row is how they get on it. */}
+      <ActiveChallengeStrip groupId={groupId} onJoined={loadChallenges} />
 
       <FlatList
         ref={listRef}
@@ -744,6 +775,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 24,
     elevation: 5,
+  },
+  // 0163 · the system line. Centred, small and low-contrast on purpose: it is furniture, and a
+  // join in a busy fire should be legible when you look for it and invisible when you don't.
+  systemRow: {
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  systemLine: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+  },
+  systemName: {
+    fontFamily: Fonts.bodySemiBold,
+    color: Colors.muted,
   },
   msgRow: {
     flexDirection: 'row',
