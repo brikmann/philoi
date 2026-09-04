@@ -51,6 +51,34 @@ export async function uploadCampfirePhoto(userId: string, photoUri: string): Pro
 }
 
 /**
+ * Upload a short video to the same bucket (migration 0166 widened it to accept video/mp4).
+ *
+ * Same own-id prefix as the photo path above, because that prefix is what BOTH the bucket policy
+ * and claim_goal_complete check — one rule, one bucket, rather than a second bucket with a second
+ * policy to keep in step.
+ *
+ * Read as base64 rather than piped as a Blob: React Native's Blob is a thin handle over a native
+ * file and supabase-js has historically uploaded it as zero bytes, which fails silently — an empty
+ * object in the bucket and a claim pointing at nothing. The extra copy is worth a clip that is
+ * actually there. Callers should compress first; see captureAndUploadProof.
+ */
+export async function uploadCampfireClip(userId: string, videoUri: string): Promise<string> {
+  const path = `${userId}/${Crypto.randomUUID()}.mp4`;
+  const base64 = await new File(videoUri).base64();
+  const { error } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(path, decode(base64), { contentType: 'video/mp4', upsert: false });
+  if (error) throw error;
+  return path;
+}
+
+/** True when a stored attachment path is a clip rather than a still. The extension is written by
+ *  the two uploaders above, so it is ours to trust — nothing user-supplied reaches it. */
+export function isVideoPath(path: string): boolean {
+  return /\.(mp4|mov)$/i.test(path);
+}
+
+/**
  * What a message is carrying besides text (§7a/§7b).
  *
  * `photoUri` is a LOCAL file uri — sendMessage uploads it and stores the resulting path. `lockInId`

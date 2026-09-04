@@ -1,8 +1,8 @@
 import * as ImagePicker from 'expo-image-picker';
 
-import { uploadCampfirePhoto } from '@/lib/api/messages';
+import { uploadCampfireClip } from '@/lib/api/messages';
 import { supabase } from '@/lib/supabase';
-import type { GoalClaimResult, VouchRequest } from '@/types/database';
+import type { ClaimStatus, GoalClaimResult, VouchRequest } from '@/types/database';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // THE HONOR PATH — "I did it", and the friend who says whether you did (migration 0164).
@@ -11,12 +11,11 @@ import type { GoalClaimResult, VouchRequest } from '@/types/database';
 //
 // A described feat — "learn a backflip" — has nothing the app can measure, so it completes by
 // somebody SAYING it happened. That is the whole reason the verifiability discount exists: an
-// unproven claim pays a band down and can never reach a top box. This file is the surface where a
-// claimer escapes that discount, and it can do so in exactly two ways:
+// unproven claim pays a band down and can never reach a top box.
 //
-//   · ATTACH PROOF — a photo or clip. Nothing reads it, server-side or otherwise; what it buys is
-//     that the claim is now attached to something a human can look at and report.
-//   · ASK FRIENDS — two distinct people say yes inside 48 hours.
+// THERE IS EXACTLY ONE WAY OUT OF THE DISCOUNT: two friends. A clip does not buy it (0165) — the
+// clip is a social signal shown to those friends so their yes means something, per mock 176. We
+// cannot verify media and do not try to; the human who knows you is the check.
 //
 // 🔒 NEITHER PATH GRANTS ANYTHING. The client cannot say what a claim is worth, cannot set the
 // verification level, and cannot complete the goal: claim_goal_complete and submit_vouch decide,
@@ -31,10 +30,14 @@ import type { GoalClaimResult, VouchRequest } from '@/types/database';
  * path that is not under the caller's own id, the same rule the bucket policy enforces, because a
  * security-definer function cannot see the bucket's policy.
  *
- * Three outcomes, and the caller should render all three:
- *   · proof given            → resolved at 'vouched' immediately. Full band.
- *   · friends asked          → 'pending_vouch' with a deadline. Nothing is paid yet.
- *   · nothing given          → resolved at 'honor' now. One band down, and a legitimate choice.
+ * TWO outcomes, not three (migration 0165):
+ *   · friends asked → 'pending_vouch' with a deadline. Nothing is paid yet, and the clip (if any)
+ *     goes to them.
+ *   · nobody asked  → resolved at 'honor' now, WITH OR WITHOUT a clip. One band down, and a
+ *     legitimate choice.
+ *
+ * Attaching media never settles anything by itself. 0164 let it, which meant any video at all
+ * bought a full box tier with no human in the loop; 0165 closed that.
  */
 export async function claimGoalComplete(input: {
   goalId: string;
@@ -51,20 +54,82 @@ export async function claimGoalComplete(input: {
 }
 
 /**
- * Pick and upload a proof image, returning the storage path to hand to claimGoalComplete.
+ * Capture proof with the CAMERA and upload it, returning the storage path.
  *
- * Reuses the campfire photo pipeline whole rather than standing up a "proof" bucket: it already
- * does the own-id path prefix the RPC checks for, already has its storage policy, and a second
- * bucket would be a second policy to keep in step with it. Returns null if the picker was
- * cancelled, which is not an error.
+ * 🔴 CAMERA ONLY — `launchCameraAsync`, never `launchImageLibraryAsync`. Mock 176 is explicit and
+ * the reasoning is the whole point of the feature:
+ *
+ *     "proof is recorded live in the app (no gallery uploads)... which kills the 'upload a random
+ *      backflip off YouTube' cheat"
+ *
+ * We cannot verify a video is authentic or of this person — media forensics and ID matching are a
+ * liability and impractical, and the spec refuses that path outright. What we CAN do is make the
+ * cheap cheat unavailable: a gallery picker accepts anything that ever landed on the device, a
+ * camera does not. Swapping this back to the library would silently reopen it.
+ *
+ * The clip is still only a SIGNAL. It does not settle anything on its own (migration 0165) — it
+ * goes to the friends being asked, so their yes is informed rather than blind.
+ *
+ * Reuses the campfire photo pipeline rather than standing up a "proof" bucket: it already writes
+ * under the own-id prefix the RPC checks for and already has its storage policy. Returns null on
+ * cancel, which is not an error.
  */
-export async function pickAndUploadProof(userId: string): Promise<string | null> {
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images'],
-    quality: 0.7,
+export async function captureAndUploadProof(userId: string): Promise<string | null> {
+  const perm = await ImagePicker.requestCameraPermissionsAsync();
+  if (!perm.granted) throw new Error('Philoi needs the camera to record proof.');
+
+  // `mediaTypes: ['videos']` — a CLIP, per §2 and mock 176 frame D, which draws a ▶ and a stamp.
+  // A still of a landed backflip is barely evidence of anything; the motion is the whole signal a
+  // friend is being asked to read. 15s is the mock's "short clip": long enough for a run-up and a
+  // landing, short enough to keep the upload inside the bucket's ceiling.
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ['videos'],
+    videoMaxDuration: PROOF_MAX_SECONDS,
+    videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium,
   });
   if (result.canceled || !result.assets[0]) return null;
-  return uploadCampfirePhoto(userId, result.assets[0].uri);
+
+  return uploadCampfireClip(userId, await compressForUpload(result.assets[0].uri));
+}
+
+/** The mock's "short clip". Also the number the copy quotes, so it lives in one place. */
+export const PROOF_MAX_SECONDS = 15;
+
+/**
+ * Shrink a capture before it goes up.
+ *
+ * A raw 15s camera capture can be tens of megabytes — well past the bucket's 25 MB ceiling, which
+ * would fail the upload and lose a claim the user just recorded. react-native-compressor is a
+ * native module, so it is required lazily at the call site rather than at module scope (the same
+ * reasoning gym-clip-recorder.tsx documents: an older binary that never compiled it in must
+ * degrade, not crash on bundle eval).
+ *
+ * On failure it returns the ORIGINAL uri rather than throwing. That is deliberate — the bucket also
+ * accepts video/quicktime, so an uncompressed short clip usually still fits, and a claim that
+ * uploads a big file beats a claim that cannot be made at all. If it is genuinely too large the
+ * storage error surfaces at upload with a message the screen already renders.
+ */
+async function compressForUpload(uri: string): Promise<string> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- deferred native import, see above
+    const { Video } = require('react-native-compressor') as typeof import('react-native-compressor');
+    return await Video.compress(uri, { compressionMethod: 'auto', maxSize: 720 });
+  } catch {
+    return uri;
+  }
+}
+
+/**
+ * The claimant's own view of a pending claim (mock 176 frame C) — who was asked, who has answered,
+ * how long is left.
+ *
+ * Owner-only server-side. getVouchRequest is the voucher's half and is deliberately open to anyone
+ * holding the notification link; this one names the roster, so it is not.
+ */
+export async function getClaimStatus(goalId: string): Promise<ClaimStatus> {
+  const { data, error } = await supabase.rpc('get_claim_status', { p_goal_id: goalId });
+  if (error) throw error;
+  return data as ClaimStatus;
 }
 
 /** What the vouch prompt renders. Readable by anyone holding the link — submit_vouch is where

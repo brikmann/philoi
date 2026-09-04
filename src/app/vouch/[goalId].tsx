@@ -8,6 +8,7 @@ import { Screen } from '@/components/ui/screen';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { getErrorMessage } from '@/lib/errors';
+import { ProofClip } from '@/components/economy/proof-clip';
 import { getVouchRequest, submitVouch } from '@/lib/api/vouch';
 import type { VouchRequest } from '@/types/database';
 
@@ -118,6 +119,15 @@ export default function VouchScreen() {
         <Text style={styles.question}>
           {req.claimant} says they {claim === 'that goal' ? 'did it' : `landed ${claim}`}.
         </Text>
+        {/* 0165 / mock 176 frame D — "you decide if it counts". A voucher asked to judge a claim
+            they cannot see is being asked to rubber-stamp it, so the clip sits above the buttons.
+            ProofClip plays it and draws the goal+date stamp over it FROM THE SERVER's label and
+            claimed_at, so what the footage is being passed off as comes from the database rather
+            than from pixels the claimant chose. Still not proof — see that component's header. */}
+        {req.proof_path ? (
+          <ProofClip path={req.proof_path} label={req.label} claimedAt={req.claimed_at} />
+        ) : null}
+
         <Text style={styles.sub}>Did they?</Text>
 
         {/* Progress toward the two the threshold needs — so a friend can see their tap matters. */}
@@ -144,6 +154,12 @@ export default function VouchScreen() {
         )}
 
         {closed && <PrimaryButton label="Done" variant="ghost" onPress={() => router.back()} />}
+
+        {/* Mock 176 frame D's footer. The per-giver cap is stated UP FRONT rather than discovered
+            as a "didn't count" after the fact, and "visible" is the honest part of the deal: a
+            vouch is attributable, which is most of what stops it being handed out freely. */}
+        <View style={styles.spacer} />
+        <Text style={styles.footNote}>Vouching is visible · you can vouch about 5 times a week</Text>
       </View>
     </Screen>
   );
@@ -200,4 +216,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
   },
   closedText: { flex: 1, fontFamily: Fonts.bodySemiBold, fontSize: 13, lineHeight: 19 },
+  spacer: { flex: 1, minHeight: Spacing.three },
+  footNote: {
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    marginBottom: Spacing.two,
+  },
 });

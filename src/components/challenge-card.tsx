@@ -105,7 +105,13 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
   // Lock-in-sourced metrics (study, gym) need no connection at all — the app already has the
   // check-ins — so they're auto from creation, unlike a steps goal that's waiting on a permission.
   const isAuto = realSource !== null && (!sourceNeedsConnection(realSource) || autoConnected);
-  const sourceLine = isAuto ? `⚡ Auto · ${AUTO_SOURCE_NAME[realSource]}` : '✏️ Logged by hand';
+  // A described feat is not "logged by hand" — there is no number to log. Mock 176 frame 0 says
+  // what it actually is, so the card explains the missing progress bar rather than looking broken.
+  const sourceLine = isAuto
+    ? `⚡ Auto · ${AUTO_SOURCE_NAME[realSource]}`
+    : challenge.difficulty_tier != null && challenge.verifiability !== 'auto'
+      ? "🏅 No auto-track — tap when you've done it"
+      : '✏️ Logged by hand';
 
   async function handleLog(value: number) {
     if (value <= 0) return;
@@ -161,6 +167,13 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
     challenge.verifiability !== 'auto' &&
     !challenge.completed_at &&
     !challenge.claimed_at;
+
+  /**
+   * Claimed, and waiting on friends. Mock 176 frame C is a real destination from the card, because
+   * a window nobody can reopen is a window nobody can check — and "did Maya ever answer" is the
+   * only question anyone has during those 48 hours.
+   */
+  const isPendingVouch = challenge.claimed_at != null && !challenge.completed_at;
 
   function handleMenu() {
     Alert.alert(personalGoalTitle(challenge), undefined, [
@@ -250,9 +263,53 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
         {isComplete ? ' · +XP banked' : ''}
       </Text>
 
+      {/* ── mock 176 frame 0 · the honour path's entry point ──
+          A described feat has no number to log and nothing that can finish it, so the card carries
+          the tap that opens the prove-or-vouch flow. An auto-tracked goal shows its progress bar
+          above and never gets this button: it cannot be self-claimed. */}
+      {canClaim && (
+        <Pressable
+          style={styles.claimCta}
+          onPress={() =>
+            router.push({
+              pathname: '/goal/claim',
+              // The label and tier ride along so the claim screen can name the goal and price it
+              // without a second round trip — it re-reads nothing the server will not re-derive
+              // anyway when it settles.
+              params: {
+                goalId: challenge.id,
+                label: challenge.label ?? '',
+                tier: challenge.difficulty_tier ?? '',
+              },
+            })
+          }
+          accessibilityRole="button"
+          accessibilityLabel={`Mark ${personalGoalTitle(challenge)} complete`}>
+          <Ionicons name="checkmark" size={15} color={Colors.onEmber} />
+          <Text style={styles.claimCtaLabel}>Mark complete</Text>
+        </Pressable>
+      )}
+
+      {isPendingVouch && (
+        <Pressable
+          style={styles.pendingRow}
+          onPress={() => router.push({ pathname: '/goal/pending/[goalId]', params: { goalId: challenge.id } })}
+          accessibilityRole="button"
+          accessibilityLabel={`See who has vouched for ${personalGoalTitle(challenge)}`}>
+          <Ionicons name="hourglass-outline" size={14} color={Colors.amber} />
+          <Text style={styles.pendingLabel}>Waiting on friends to vouch</Text>
+          <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
+        </Pressable>
+      )}
+
       {/* Only a hand-logged goal in progress needs controls — an auto-tracked one fills itself,
-          and offering quick-adds beside it invites double-counting the same steps. */}
-      {!isComplete && !isAuto && (
+          and offering quick-adds beside it invites double-counting the same steps.
+          🔴 AND NOT A CLAIMABLE FEAT. log_challenge_progress auto-completes a goal the moment
+          progress crosses target, so a "+1" on a described feat would complete it behind the
+          claim flow's back — settling at the unverified band with the clip and the vouch never
+          offered. The card must not present two ways to finish the same goal, and the one that
+          silently forfeits a box tier is the wrong one to leave lying around. */}
+      {!isComplete && !isAuto && !canClaim && !isPendingVouch && (
         <>
           {expanded ? (
             <View style={styles.logRow}>
@@ -298,6 +355,28 @@ const styles = StyleSheet.create({
   card: {
     gap: Spacing.two,
   },
+  claimCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: Colors.ember,
+  },
+  claimCtaLabel: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: Colors.onEmber },
+  pendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(242,163,60,0.35)',
+    backgroundColor: 'rgba(242,163,60,0.07)',
+  },
+  pendingLabel: { flex: 1, fontFamily: Fonts.bodySemiBold, fontSize: 12.5, color: Colors.amber },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

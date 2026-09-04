@@ -6,6 +6,9 @@ import { supabase } from '@/lib/supabase';
 import type {
   Challenge,
   ChallengeCountMode,
+  DifficultyTier,
+  GoalClaimLevel,
+  ScopedRewardPreview,
   ChallengeFeedEvent,
   ChallengePeriod,
   ChallengeType,
@@ -154,6 +157,47 @@ function personalGoalMetricName(type: ChallengeType): string {
     default:
       return 'custom';
   }
+}
+
+/**
+ * Store Cindy's scoped tier on a goal, and get back what the server says it is worth.
+ *
+ * 🔒 THE TIER IS A PROPOSAL. This sends a tier and NOTHING ELSE — no verifiability, no ember
+ * figure, no box. `set_goal_scope` (0160) validates the tier is one of six, derives the
+ * verifiability from the goal's own metric, and returns the preview it just committed to. That is
+ * why there is no `verifiability` parameter here to pass: the one field that decides whether a
+ * goal can reach a top box is not the client's to name.
+ *
+ * Best-effort by design at the call site: a goal that fails to scope is a goal that pays what it
+ * would have paid yesterday, which is a smaller reward and never a wrong one.
+ */
+export async function setGoalScope(goalId: string, tier: DifficultyTier): Promise<ScopedRewardPreview> {
+  const { data, error } = await supabase.rpc('set_goal_scope', { p_goal_id: goalId, p_tier: tier });
+  if (error) throw error;
+  track('goal_scoped', { tier });
+  return data as ScopedRewardPreview;
+}
+
+/**
+ * What a tier is worth, without creating anything — the honest tease on the create screen.
+ *
+ * Read-only on the server (preview_challenge_reward grants nothing). The point of asking rather
+ * than computing it here is the spec's firewall: Cindy proposes a tier and never states a number,
+ * and a client that derived the ember figure itself would be a second source of truth that drifts
+ * the first time economy_config is retuned.
+ */
+export async function previewScopedReward(
+  tier: DifficultyTier,
+  // 'vouched' joins the pair from 0164 — goal_paid_band has understood all three levels since then,
+  // and the claim screens price the gap between honour and vouched by asking for both.
+  verifiability: GoalClaimLevel = 'honor'
+): Promise<ScopedRewardPreview | null> {
+  const { data, error } = await supabase.rpc('preview_challenge_reward', {
+    p_tier: tier,
+    p_verifiability: verifiability,
+  });
+  if (error) return null;
+  return data as ScopedRewardPreview;
 }
 
 export async function logChallengeProgress(

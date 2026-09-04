@@ -1194,8 +1194,9 @@ export type GoalClaimLevel = 'auto' | 'honor' | 'vouched';
 export type GoalClaimResult = {
   state: 'resolved' | 'pending_vouch';
   level: GoalClaimLevel;
-  /** How many friends were asked. 0 on both resolved paths. */
+  /** How many friends were asked. 0 when nobody was, which is the only resolved path (0165). */
   asked: number;
+  has_proof?: boolean;
   /** ISO. Only on pending_vouch. */
   deadline?: string;
 };
@@ -1209,6 +1210,9 @@ export type VouchRequest = {
   claimant_avatar: string | null;
   claimed_at: string;
   deadline: string | null;
+  /** 0165 — the claimant's live-recorded clip, shown to the voucher. A social signal, not proof:
+   *  it never settles anything on its own, it just means the yes is informed. */
+  proof_path: string | null;
   settled: boolean;
   expired: boolean;
   /** You cannot vouch for yourself — the screen shows a read-only state instead. */
@@ -1217,6 +1221,40 @@ export type VouchRequest = {
   my_verdict: boolean | null;
   /** Counting vouches so far, out of the two needed. */
   vouches: number;
+};
+
+/** One person on a claim's roster (get_claim_status). `answered` is null while they have not
+ *  replied, which is what frame C's "· asked" chip renders. */
+export type ClaimVoucher = {
+  id: string;
+  name: string;
+  avatar: string | null;
+  /** null = asked, no answer yet. true = vouched. false = "Nah". */
+  answered: boolean | null;
+  /** Whether an anti-collusion rule let this one count toward the two. */
+  counted: boolean;
+};
+
+/**
+ * The claimant's own view of a pending claim (get_claim_status, 0165) — mock 176 frame C.
+ *
+ * The owner's half of the pair. get_vouch_request is deliberately open to anyone holding the link;
+ * this one names who was asked and how each answered, so it is owner-only.
+ */
+export type ClaimStatus = {
+  goal_id: string;
+  label: string | null;
+  tier: DifficultyTier | null;
+  claimed_at: string | null;
+  deadline: string | null;
+  proof_path: string | null;
+  settled: boolean;
+  /** Before settlement this is always the floor — a pending claim already holds the honour band
+   *  and can only go up. */
+  level: GoalClaimLevel | null;
+  vouches: number;
+  needed: number;
+  asked: ClaimVoucher[];
 };
 
 /** What preview_challenge_reward / set_goal_scope hand back — the SERVER's figure, not Cindy's. */
@@ -2260,6 +2298,8 @@ export type Database = {
         Returns: { counted: boolean; vouches: number; resolved: boolean };
       };
       get_vouch_request: { Args: { p_goal_id: string }; Returns: VouchRequest };
+      /** The claimant's mirror of get_vouch_request (0165). Owner-only — it names the roster. */
+      get_claim_status: { Args: { p_goal_id: string }; Returns: ClaimStatus };
       respond_to_h2h_challenge: { Args: { p_challenge_id: string; p_accept: boolean }; Returns: SocialChallenge };
       /** Self-report your mark on a grade race (0145). Returns the value the SERVER stored — it
        *  rounds to 2dp, and that copy is what settlement scores. */
