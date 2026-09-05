@@ -23,6 +23,63 @@ sibling worktrees have corrupted that ledger twice:
 - Before pushing, `supabase migration list --linked` must show `local == remote`
   with no phantom rows. If it doesn't, stop — reconcile before adding to the pile.
 
+## `supabase db push` and `git push` are one action
+
+The slot protocol above only works if the claim is visible to the other
+sessions. A migration file that exists on one disk claims nothing, and a
+migration applied to prod whose file is in no commit on no remote leaves prod
+carrying schema that has no source anywhere.
+
+They are two separate commands, and the window between them is where this repo
+loses migrations. Close it in one breath: **commit the migration, push it to
+prod, push the branch.** Not "commit later".
+
+On 2026-09-04 an audit found 31 migration files in no commit reachable from any
+remote ref, 30 of them already applied to prod — roughly a fifth of a 157-row
+`schema_migrations`, existing on one disk. `integration-wave1` had never been
+pushed; it had no upstream at all, and origin's newest wave ref was
+`integration-wave0` from six days earlier. The same night a sibling session
+deleted an untracked applied migration, which survived only because someone had
+happened to `cp` it first. After the branch was published and the count reached
+zero, it was back to one within minutes — the next migration went to prod and
+its commit stayed local. **The number is not stable while the two pushes are
+separate acts.**
+
+### The two exposed states are not equally bad
+
+| State | Cost | Urgency |
+|---|---|---|
+| **Untracked + applied** | A sibling session's `rm` destroys it and git has nothing — no blob, no reflog, nothing to recover from. Prod keeps the schema change with no source. | 🔴 Fix now. This is the state that costs hours. |
+| **Committed + unpushed + applied** | One disk failure from lost rather than one `rm`. The blob exists; the working tree and reflog can rebuild it. | Real, but not urgent. Can wait for whoever owns the commit. |
+
+Name the state you are in before deciding what to do about it. "The migration
+isn't pushed" describes both, and only one of them is an emergency.
+
+### Two checks that catch the whole class
+
+Both are cheap, and neither needs prod credentials beyond the ledger count:
+
+```bash
+# every applied migration has a committed file
+git ls-files supabase/migrations/ | wc -l
+# ...must equal: select count(*) from supabase_migrations.schema_migrations
+
+# is this specific file on any remote ref? empty output means no
+git log --remotes --oneline -1 -- supabase/migrations/NNNN_whatever.sql
+
+# "committed" is not durable when the branch has never left the machine
+git rev-parse --abbrev-ref '@{u}'
+```
+
+The per-file check matters: a branch-level check tells you the branch is
+published, not which files that publication actually exposed.
+
+🔴 **`supabase migration list --linked` will NOT catch any of this.** It compares
+local migration *files* to the ledger, and says nothing about whether those
+files are committed or on a remote ref — so it reports a clean
+`local == remote` in exactly the exposed state. The pre-push check above is the
+right tool for its own question and the wrong tool for this one.
+
 ## Appending a parameter is not a replacement
 
 `create or replace function` replaces a function only when the argument types
