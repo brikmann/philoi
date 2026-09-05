@@ -13,6 +13,7 @@ import { fetchProfileById } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
 import { TYPE_FILTERS, getItem, type CatalogItem, type ItemType } from '@/lib/economy/catalog';
 import { RARITY_COLOR, RARITY_LABEL, RARITY_ORDER, rarityGlow, type Rarity } from '@/lib/economy/rarity';
+import { ladderEarnMetric } from '@/lib/economy/relic-ladders';
 import type { CollectionItem, PublicCollection } from '@/types/database';
 
 // §7 — the RL-style closet (mock Frame 4).
@@ -111,6 +112,10 @@ export default function CollectionScreen() {
   function openItem(tile: Tile) {
     const lines = [RARITY_LABEL[tile.rarity], tile.item.lore];
     if (tile.season_stamp) lines.splice(1, 0, tile.season_stamp);
+    // A discipline relic's rarity IS its rung (§4a-2), so the closet can name what the rung cost
+    // without fetching relic_progress — see ladderEarnMetric. Null for everything else.
+    const earnedBy = ladderEarnMetric(tile.key, tile.rarity);
+    if (earnedBy) lines.push(earnedBy);
     if (collection?.is_owner) {
       Alert.alert(tile.item.name, lines.join('\n\n'), [
         { text: tile.hidden ? 'Show to visitors' : 'Hide from visitors', onPress: () => void toggleHidden(tile) },

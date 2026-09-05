@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { RelicLadderRow, isLadderHallRelic } from '@/components/profile/relic-ladder-row';
+import { DisciplineRelicShelf } from '@/components/profile/discipline-relic-shelf';
+import { isLadderHallRelic } from '@/components/profile/relic-ladder-row';
 import { TrophyTile } from '@/components/profile/trophy-tile';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { winRate } from '@/lib/api/trophy-hall';
@@ -31,16 +32,9 @@ export function TrophyHallSection({ hall, userId, isOwn }: { hall: TrophyHall; u
   const record = hall.record;
   const rate = record ? winRate(record.won, record.lost) : null;
 
-  // The discipline ladders (migration 0143), furthest along first, so the collapsed section leads
-  // with the climb the user is actually closest to finishing rather than whichever relic the server
-  // happened to touch last. Earned rungs outrank raw progress: a tier-1 relic at 12 h is a bigger
-  // claim than an unearned one at 9.9 h, even though the bar is fuller on the second.
-  const ladders = hall.relics
-    .filter(isLadderHallRelic)
-    .sort((a, b) => (b.tier ?? 0) - (a.tier ?? 0) || (b.value ?? 0) - (a.value ?? 0));
-  // Three is what fits under the featured strip without the section turning into a scroller of its
-  // own — "See all" carries the rest.
-  const topLadders = ladders.slice(0, 3);
+  // Only for the empty test below. The shelf draws the ladders itself, and draws the FULL set
+  // rather than whichever ones the server returned — see DisciplineRelicShelf.
+  const ladders = hall.relics.filter(isLadderHallRelic);
 
   // Nothing earned yet and it isn't yours: render nothing. An empty hall on a profile you are
   // visiting is a comment on that person, not a prompt you can act on.
@@ -107,18 +101,7 @@ export function TrophyHallSection({ hall, userId, isOwn }: { hall: TrophyHall; u
         </>
       ) : null}
 
-      {topLadders.length > 0 ? (
-        <>
-          <Text style={styles.autoLabel}>
-            DISCIPLINE RELICS{ladders.length > topLadders.length ? ` · ${topLadders.length} of ${ladders.length}` : ''}
-          </Text>
-          <View style={styles.ladders}>
-            {topLadders.map((r) => (
-              <RelicLadderRow key={r.key} relic={r} />
-            ))}
-          </View>
-        </>
-      ) : null}
+      <DisciplineRelicShelf relics={hall.relics} userId={userId} isOwn={isOwn} />
 
       {record ? (
         <View style={styles.record}>
@@ -233,9 +216,6 @@ const styles = StyleSheet.create({
   trophies: {
     flexDirection: 'row',
     gap: 9,
-  },
-  ladders: {
-    gap: 7,
   },
   trophySlot: {
     flex: 1,

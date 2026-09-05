@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { RelicDetailSheet } from '@/components/profile/relic-detail-sheet';
 import { RelicLadderRow, isLadderHallRelic } from '@/components/profile/relic-ladder-row';
 import { TrophyTile } from '@/components/profile/trophy-tile';
 import { seasonLabel } from '@/components/profile/trophy-hall-section';
@@ -16,6 +17,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { badgeLabel } from '@/lib/economy/badges';
 import { getItem } from '@/lib/economy/catalog';
 import { RARITY_COLOR } from '@/lib/economy/rarity';
+import { disciplineStandings, type DisciplineStanding } from '@/lib/economy/relic-ladders';
 import { extraGrantedBadges, formatPlacement, milestoneBadges, type BadgeState } from '@/lib/economy/milestone-badges';
 import type { HallSeason, TrophyHall } from '@/types/database';
 
@@ -37,6 +39,9 @@ export default function TrophyHallScreen() {
   const userId = userIdParam ?? myProfile?.id;
   const [hall, setHall] = useState<TrophyHall | null>(null);
   const [ownerName, setOwnerName] = useState<string | null>(null);
+  // The §4a-2 tap sheet — lore + the earn metric. One at a time, so tapping a second row swaps the
+  // contents rather than stacking modals.
+  const [openRelic, setOpenRelic] = useState<DisciplineStanding | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -113,10 +118,25 @@ export default function TrophyHallScreen() {
   // Deliberately NOT both: a granted ladder relic would otherwise appear twice on this screen, once
   // as a tile and once as a bar, and the two would disagree about what it is worth (the tile reads
   // the catalog's rung-one rarity, the bar reads the rung actually held).
-  const ladders = (hall?.relics ?? [])
-    .filter(isLadderHallRelic)
-    .sort((a, b) => (b.tier ?? 0) - (a.tier ?? 0) || (b.value ?? 0) - (a.value ?? 0));
+  //
+  // The rows are built from disciplineStandings() rather than straight off hall.relics, so the FULL
+  // §4a-2 set appears — a discipline the server returned nothing for is a row at 0%, not a gap.
+  // The capstone is dropped here on purpose: it rides no ladder, and it is already a trophy tile
+  // below.
+  //
+  // Furthest along first, so the hall leads with the climb closest to finishing. Earned rungs
+  // outrank raw progress: a tier-1 relic at 12 h is a bigger claim than an unearned one at 9.9 h,
+  // even though the bar is fuller on the second.
+  const ladders = disciplineStandings(hall?.relics ?? [])
+    .filter((l) => l.ladder !== null)
+    .sort((a, b) => b.tier - a.tier || b.pct - a.pct);
   const trophies = (hall?.relics ?? []).filter((r) => !isLadderHallRelic(r));
+
+  // `ladders` is now always the full set of five, so it can no longer stand in for "is there
+  // anything here". A stranger's hall must not open on five untouched bars — that is a comment on
+  // them, not a prompt anyone can act on — while your own hall shows the whole set precisely because
+  // the locked half is the thing to chase.
+  const showLadders = isOwner || ladders.some((l) => l.earned || l.value > 0);
 
   return (
     <ScreenBackground>
@@ -163,17 +183,17 @@ export default function TrophyHallScreen() {
             </View>
           ) : null}
 
-          {ladders.length > 0 ? (
+          {showLadders ? (
             <View style={styles.group}>
               <Text style={styles.groupLabel}>DISCIPLINE RELICS</Text>
               <View style={styles.ladders}>
                 {ladders.map((r) => (
-                  <RelicLadderRow key={r.key} relic={r} />
+                  <RelicLadderRow key={r.relicKey} standing={r} onPress={() => setOpenRelic(r)} />
                 ))}
               </View>
               {/* The one place on an earned-only surface where something UNEARNED is shown, so it
                   says why in words rather than leaving a greyed row to be read as a bug. */}
-              {ladders.some((r) => r.in_progress) ? (
+              {ladders.some((r) => !r.earned) ? (
                 <Text style={styles.ladderNote}>
                   Greyed relics haven&apos;t been earned yet — the bar is how far along that discipline is.
                 </Text>
@@ -249,6 +269,8 @@ export default function TrophyHallScreen() {
             </Text>
           ) : null}
         </ScrollView>
+
+        <RelicDetailSheet standing={openRelic} onClose={() => setOpenRelic(null)} />
       </SafeAreaView>
     </ScreenBackground>
   );

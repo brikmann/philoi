@@ -1,14 +1,13 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ItemArt } from '@/components/economy/item-art';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { getItem } from '@/lib/economy/catalog';
 import { RARITY_COLOR, rarityGlow } from '@/lib/economy/rarity';
-import { formatLadderValue, ladderForRelic, ladderRarity, rungGlyph } from '@/lib/economy/relic-ladders';
+import { formatLadderValue, rungGlyph, type DisciplineStanding } from '@/lib/economy/relic-ladders';
 import type { HallRelic } from '@/types/database';
 
-// ONE DISCIPLINE RELIC ON ITS LADDER (§4a-2), for the Trophy Hall — the surface that migration 0143
-// finally gave the numbers to draw.
+// ONE DISCIPLINE RELIC ON ITS LADDER (§4a-2), for the full Trophy Hall.
 //
 // This is the shape a ladder relic needs and a trophy tile cannot give it. A TrophyTile says "you
 // own this, and it is Epic"; a ladder relic's whole story is the part that has not happened yet —
@@ -23,79 +22,81 @@ import type { HallRelic } from '@/types/database';
 //
 // Colour is rarity, letter is rung, and the two are INDEPENDENT (0119): a maxed Movement relic
 // reads red + δ while a maxed Gym relic reads red + Ω. Never derive one from the other.
+//
+// TAKES A DisciplineStanding, NOT A HallRelic. The standing is derived from the full §4a-2 set
+// rather than from whatever get_trophy_hall happened to return, so a discipline nobody has touched
+// still gets a row — see disciplineStandings(). It is also the same value the profile shelf and the
+// tap sheet draw from, which is what stops the hall's bar and the shelf's "78%" from disagreeing.
 
-export function RelicLadderRow({ relic }: { relic: HallRelic }) {
-  const ladder = ladderForRelic(relic.key);
-  const item = getItem(relic.key);
+export function RelicLadderRow({
+  standing,
+  onPress,
+}: {
+  standing: DisciplineStanding;
+  onPress?: () => void;
+}) {
+  const item = getItem(standing.relicKey);
+  const ladder = standing.ladder;
   // Off-ladder, or a relic this build's catalog has never heard of. Both are the caller's mistake
-  // rather than a state to render — the Hall filters on `family` before it gets here.
+  // rather than a state to render — the capstone belongs in a trophy tile, not on a rung.
   if (!ladder || !item) return null;
 
-  const tier = relic.tier ?? 0;
-  const value = relic.value ?? 0;
-  const unit = relic.unit ?? ladder.unit;
-  const maxTier = relic.max_tier ?? ladder.thresholds.length;
-  // `in_progress` IS the earned/unearned line, and it is exact: get_trophy_hall only sets it false
-  // for rows that exist in cosmetics_owned, so !in_progress means the relic is genuinely owned.
-  // Deliberately not `tier >= 1` — that infers ownership from the ladder standing, and would draw an
-  // owned relic whose progress row went missing as something the user has not earned.
-  const earned = !relic.in_progress;
-
-  // The rung's rarity, not the catalog's — the catalog carries rung one's, and the server raises
-  // rarity_override on every rung after it. get_trophy_hall does not return the override, so this
-  // is resolved from the tier, which is exactly what ladderRarity() exists for.
-  const rarity = ladderRarity(relic.key, tier) ?? item.rarity;
-  const colour = earned ? RARITY_COLOR[rarity] : Colors.textTertiary;
-  const glyph = rungGlyph(tier);
-
-  // The bar measures the CURRENT rung, not the whole ladder: from the threshold already cleared to
-  // the one being chased. A bar against the top threshold would sit near zero for the entire first
-  // rung and read as "nothing is happening" during the part that needs the most encouragement.
-  const floor = tier >= 1 ? ladder.thresholds[tier - 1] : 0;
-  const ceiling = relic.next_threshold;
-  const atTop = ceiling === null;
-  const span = atTop ? 0 : (ceiling as number) - floor;
-  const pct = atTop ? 1 : span <= 0 ? 0 : Math.max(0, Math.min(1, (value - floor) / span));
+  const colour = standing.earned ? RARITY_COLOR[standing.rarity] : Colors.textTertiary;
+  const glyph = rungGlyph(standing.tier);
+  const atTop = standing.nextThreshold === null;
 
   return (
-    <View style={styles.row}>
-      <View style={[styles.art, { borderColor: colour + '55' }, !earned && styles.artDim]}>
-        {earned ? <View style={[styles.glow, { backgroundColor: rarityGlow(rarity, 0.16) }]} /> : null}
+    <Pressable
+      style={styles.row}
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}>
+      <View style={[styles.art, { borderColor: colour + '55' }, !standing.earned && styles.artDim]}>
+        {standing.earned ? (
+          <View style={[styles.glow, { backgroundColor: rarityGlow(standing.rarity, 0.16) }]} />
+        ) : null}
         <ItemArt item={item} size={26} />
       </View>
 
       <View style={styles.body}>
         <View style={styles.titleRow}>
-          <Text style={[styles.name, !earned && styles.nameDim]} numberOfLines={1}>
+          <Text style={[styles.name, !standing.earned && styles.nameDim]} numberOfLines={1}>
             {item.name}
           </Text>
           {/* The rung badge only exists once a rung has been reached — at tier 0 there is no glyph
               to draw, and inventing one would claim a rung the user has not earned. */}
-          {earned && glyph ? (
+          {standing.earned && glyph ? (
             <View style={[styles.rung, { borderColor: colour + '66' }]}>
               <Text style={[styles.rungText, { color: colour }]}>
-                {glyph} {tier}/{maxTier}
+                {glyph} {standing.tier}/{standing.maxTier}
               </Text>
             </View>
-          ) : earned ? null : (
+          ) : standing.earned ? null : (
             <Text style={styles.notYet}>NOT YET EARNED</Text>
           )}
         </View>
 
+        {/* The bar measures the CURRENT rung, not the whole ladder: from the threshold already
+            cleared to the one being chased. A bar against the top threshold would sit near zero for
+            the entire first rung and read as "nothing is happening" during the part that needs the
+            most encouragement. disciplineStandings() computes it, so the shelf agrees by
+            construction. */}
         <View style={styles.track}>
-          <View style={[styles.fill, { width: `${Math.round(pct * 100)}%`, backgroundColor: colour }]} />
+          <View
+            style={[styles.fill, { width: `${Math.round(standing.pct * 100)}%`, backgroundColor: colour }]}
+          />
         </View>
 
         <View style={styles.metaRow}>
           <Text style={styles.discipline}>{ladder.label.toUpperCase()}</Text>
           <Text style={[styles.progress, atTop && { color: colour }]}>
             {atTop
-              ? `${formatLadderValue(value, unit)} ${unit} · maxed`
-              : `${formatLadderValue(value, unit)} / ${formatLadderValue(ceiling as number, unit)} ${unit}`}
+              ? `${formatLadderValue(standing.value, standing.unit)} ${standing.unit} · maxed`
+              : `${formatLadderValue(standing.value, standing.unit)} / ${formatLadderValue(standing.nextThreshold as number, standing.unit)} ${standing.unit}`}
           </Text>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
