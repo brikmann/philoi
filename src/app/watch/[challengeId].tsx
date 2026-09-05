@@ -412,21 +412,41 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
   // members on the same count come back in whatever order the planner happened to produce, which
   // can differ between polls and make the list reshuffle while nothing has actually changed. Name
   // is the tiebreak because it is the one key that does not move mid-race.
+  // 0170 §3 · ANONYMOUS RACERS SINK TO THE BOTTOM, and they sort on nothing else — their figure
+  // is null precisely because where they stand is the thing being withheld. The rest of the order
+  // is unchanged: progress desc, then name as the tiebreak, because name is the one key that does
+  // not move mid-race.
   const sorted = [...rows].sort(
-    (a, b) => b.member_progress - a.member_progress || a.member_name.localeCompare(b.member_name),
+    (a, b) =>
+      Number(a.is_anonymous) - Number(b.is_anonymous) ||
+      (b.member_progress ?? 0) - (a.member_progress ?? 0) ||
+      a.member_name.localeCompare(b.member_name),
   );
+
+  // Everyone whose figure this viewer is allowed to read. The leader, the ranks and the share
+  // meters are all computed over THIS list rather than over `sorted`, so an anonymous racer never
+  // becomes the denominator of a bar nobody can see the numerator of.
+  const named = sorted.filter((r) => !r.is_anonymous);
 
   // Nobody leads a race nobody has started. Crowning row 0 while everyone sits at 0 invents a
   // leader the same way the phantom 0-0 duel did (0097) — the sort still has to put someone first,
   // but first-in-a-tie is not winning. When several genuinely share the top count they all wear
   // it; picking one of them would be the client deciding the result.
-  const top = sorted[0].member_progress;
-  const isLeading = (progress: number) => top > 0 && progress === top;
+  //
+  // 🔴 An anonymous racer may genuinely be ahead of everyone here. This crown means "leads the
+  // racers you can see", which is the honest claim and is the whole intrigue of §3 — the hidden
+  // runner could be anywhere, even about to win.
+  const top = named[0]?.member_progress ?? 0;
+  const isLeading = (progress: number | null) => progress !== null && top > 0 && progress === top;
 
   // Competition ranking (1, 1, 3) rather than row position. Numbering tied members 1, 2 down the
-  // column asserts a gap the scores do not contain.
-  const rankOf = (index: number) =>
-    sorted.findIndex((r) => r.member_progress === sorted[index].member_progress) + 1;
+  // column asserts a gap the scores do not contain. Null for an anonymous racer: they HAVE a
+  // position, and not showing it is the point.
+  const rankOf = (index: number): number | null => {
+    const row = sorted[index];
+    if (row.is_anonymous) return null;
+    return named.findIndex((r) => r.member_progress === row.member_progress) + 1;
+  };
 
   // Read-only once settled (CHALLENGE_UI_SPEC §58), and a racer can't cheer their own race. Both
   // are re-checked by cheer_challenge; this only stops the screen offering an action that cannot
@@ -472,14 +492,24 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
         keyExtractor={(item) => item.member_id}
         contentContainerStyle={styles.groupList}
         renderItem={({ item, index }) => {
-          const done = item.member_progress >= target;
+          // 0170 §3 · the anonymous row: a ghost, the word "Anonymous", no rank, no meter, no
+          // figure, no live status. Deliberately still IN the list — removing them would shrink
+          // the field and misrepresent the race.
+          const anon = item.is_anonymous;
+          const done = !anon && (item.member_progress ?? 0) >= target;
           const isMe = item.member_id === session?.user.id;
           const cheers = cheeredCount?.userId === item.member_id ? cheeredCount.count : item.member_cheers;
           const mine = item.cheered_by_me || cheeredCount?.userId === item.member_id;
           return (
             <View style={[styles.groupRow, isMe && styles.groupRowMe]}>
-              <Text style={styles.groupRank}>{rankOf(index)}</Text>
-              <Avatar label={item.member_name} size={30} />
+              <Text style={styles.groupRank}>{rankOf(index) ?? '–'}</Text>
+              {anon ? (
+                <View style={styles.anonAvatar}>
+                  <Ionicons name="person" size={15} color={Colors.textTertiary} />
+                </View>
+              ) : (
+                <Avatar label={item.member_name} size={30} />
+              )}
               <View style={styles.groupWho}>
                 <View style={styles.groupNameRow}>
                   <Text style={styles.groupName} numberOfLines={1}>
@@ -488,6 +518,7 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
                   {/* The vector Crown, not an emoji — same reason the podium stopped using one
                       (punchlist A2): an emoji redraws differently per OS and cannot take the gold. */}
                   {isLeading(item.member_progress) ? <Crown size={15} /> : null}
+                  {anon ? <Text style={styles.anonHint}>· hidden</Text> : null}
                 </View>
                 {/* The meter is the point of the redesign: a bare count says how far someone has
                     got, not how far they have left. ProgressBar clamps, so an overshoot past the
@@ -498,18 +529,32 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
                     ratio a ranked board actually has, and the one that answers "how far behind am
                     I". `top` is already computed above and is 0 before anyone has moved, so the
                     guard also keeps an all-zero board flat rather than NaN. */}
-                <ProgressBar
-                  ratio={placement ? (top > 0 ? item.member_progress / top : 0) : item.member_progress / target}
-                  height={5}
-                  fillColor={placement ? (isLeading(item.member_progress) ? Colors.ember : Colors.coral) : done ? Colors.ember : Colors.coral}
-                />
+                {anon ? (
+                  // No meter at all rather than an empty track: an empty track is a claim that
+                  // they have made no progress, which is a number, which is the thing being hidden.
+                  <Text style={styles.anonLine}>Racing privately</Text>
+                ) : (
+                  <ProgressBar
+                    ratio={
+                      placement
+                        ? top > 0
+                          ? (item.member_progress ?? 0) / top
+                          : 0
+                        : (item.member_progress ?? 0) / target
+                    }
+                    height={5}
+                    fillColor={placement ? (isLeading(item.member_progress) ? Colors.ember : Colors.coral) : done ? Colors.ember : Colors.coral}
+                  />
+                )}
                 {/* CHEER, UNDER EACH PERSON — CAMPFIRE_REDESIGN_SPEC's "cheer count under each
                     person". Cheering was duel-only until 0112 (cheer_challenge refused anyone who
                     wasn't created_by/opponent_id), so this row had a live status and nothing else.
                     A racer sees the count without a button: their own race is not theirs to back. */}
                 <View style={styles.groupUnder}>
                   <Text style={styles.groupStatus} numberOfLines={1}>
-                    {item.member_live_status}
+                    {/* Null for an anonymous racer - "locked in 20m ago" is activity, and activity
+                        is exactly what Private mode withholds. */}
+                    {item.member_live_status ?? ''}
                   </Text>
                   {isMe || cheerDisabled ? (
                     cheers > 0 || mine ? (
@@ -538,9 +583,11 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
               {/* "12h 30m", not "45000/1" — a placement race's figure is a metric in its own
                   units, and there is no denominator to print beside it. */}
               <Text style={[styles.groupProgress, (placement ? isLeading(item.member_progress) : done) && styles.groupProgressDone]}>
-                {placement
-                  ? formatMetricValue(head.race_metric, item.member_progress)
-                  : `${item.member_progress}/${target}`}
+                {anon
+                  ? '–'
+                  : placement
+                    ? formatMetricValue(head.race_metric, item.member_progress ?? 0)
+                    : `${item.member_progress ?? 0}/${target}`}
               </Text>
             </View>
           );
@@ -715,6 +762,30 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
     color: Colors.textTertiary,
+  },
+  // 0170 §3 · the anonymous racer's ghost, in place of their avatar. A generic glyph rather than
+  // a blurred/greyed real avatar: a blur still leaks the shape and colour of the photo.
+  anonAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.lineStrong,
+  },
+  anonHint: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    color: Colors.textTertiary,
+  },
+  anonLine: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
+    marginTop: 2,
   },
   groupWho: {
     flex: 1,

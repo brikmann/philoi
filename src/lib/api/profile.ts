@@ -32,20 +32,67 @@ export async function fetchUserLockInStats(userId: string): Promise<{ lockin_cou
   return data[0];
 }
 
-export type UserRank = {
-  score: number;
-  tier: RankTierName;
-  division: number;
-  xp_into_tier: number;
-  xp_for_next_tier: number;
-};
+/**
+ * Someone else's overall rank — or the fact that you are not allowed to see it.
+ *
+ * PRIVATE MODE (migration 0170) makes this a two-state answer. A user in Private mode is visible
+ * only to their friends; to anyone else, every competitive figure below is null and `muted` is
+ * true, and the profile renders "Rank muted" rather than a number.
+ *
+ * 🔴 `muted` IS NOT THE SAME AS `null` FROM fetchUserRank. Null means "no rank row came back at
+ * all"; muted means "there is a rank and you may not see it". Rendering a muted user as a blank
+ * hexagon would read as a bug in the app rather than as a boundary the other person set, which is
+ * exactly why the RPC returns a row instead of an empty set. Branch on `muted` before reading any
+ * other field — the rest are nullable precisely so a muted rank cannot be misread as a score of 0.
+ */
+// A DISCRIMINATED UNION rather than six nullable fields, so `if (rank.muted)` narrows and every
+// caller is forced by the compiler to render the muted state before it can touch a figure. Six
+// independently-nullable numbers would let a screen render `??  0` and quietly show a private user
+// as Bronze I with 0 XP — a spoofed rank, which is the one outcome §2 rules out.
+export type UserRank =
+  | {
+      muted: true;
+      score: null;
+      tier: null;
+      division: null;
+      xp_into_tier: null;
+      xp_for_next_tier: null;
+    }
+  | {
+      muted: false;
+      score: number;
+      tier: RankTierName;
+      division: number;
+      xp_into_tier: number;
+      xp_for_next_tier: number;
+    };
 
 // The profile screen's single overall rank hexagon for someone else — mirrors useMyRanks()'s
 // universal scope, which is what's shown on your own profile.
 export async function fetchUserRank(userId: string): Promise<UserRank | null> {
   const { data, error } = await supabase.rpc('get_user_rank', { p_user_id: userId });
   if (error) throw error;
-  return data[0] ?? null;
+  const row = data[0];
+  if (!row) return null;
+
+  // FORWARD-COMPATIBLE BY OMISSION. A build that ships before migration 0170 reaches prod talks to
+  // a get_user_rank with no `muted` column at all, and `undefined` is falsy — so it takes the
+  // visible branch and behaves exactly as it does today. That matters more than usual here:
+  // runtimeVersion is still sdkVersion-pinned, so OTA cannot reach older installs, and the client
+  // and the migration will not land on every device on the same day.
+  if (row.muted) {
+    return { muted: true, score: null, tier: null, division: null, xp_into_tier: null, xp_for_next_tier: null };
+  }
+  return {
+    muted: false,
+    // Non-null by construction: the RPC fills every figure on the not-muted branch, and nulls them
+    // together with muted = true on the other. The union above is what keeps the two in step.
+    score: row.score!,
+    tier: row.tier!,
+    division: row.division!,
+    xp_into_tier: row.xp_into_tier!,
+    xp_for_next_tier: row.xp_for_next_tier!,
+  };
 }
 
 // Any profile is readable ("profiles: read any" RLS) — used when viewing someone else's

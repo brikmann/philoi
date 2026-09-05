@@ -3,7 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useId, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { LeaderboardPanel } from '@/components/campfire/leaderboard-panel';
 import { CampfireBannerArt } from '@/components/campfire-banner-art';
@@ -83,6 +83,45 @@ function TileHalo({ colour }: { colour: string }) {
   );
 }
 
+// ── D1 · THE HEADER VEIL — WHY THE BANNER "DOESN'T STRETCH FULL" ──────────────────────────────
+//
+// Noah: "the banner doesn't stretch full like the flare background we made." The banner itself was
+// never the problem — it is already an absoluteFill sibling behind every layer on this screen, and
+// it always was. What made it READ as a contained band was this bar painting a FLAT
+// `rgba(20,14,22,0.55)` across the top of it.
+//
+// The style's own comment described the fix and the code did the opposite of it: "a flat
+// translucent bar would draw a visible bottom edge across the banner; this dissolves into it" sat
+// directly above a flat translucent bar. A constant alpha has a hard terminating edge at
+// paddingBottom, and that edge is the line you read as "where the banner stops" — the banner
+// continues behind it, but nothing tells your eye so.
+//
+// Mock 174's header is `linear-gradient(180deg, rgba(20,14,22,.72), transparent)`, which has no
+// bottom edge at all: it is opaque enough at the status bar to keep the name legible over any
+// banner art, and it is gone by the time it reaches the chat. That is the same trick the flare
+// perimeter aura uses to sit on the screen without framing it.
+//
+// An SVG rather than a background colour, because expo-linear-gradient is not installed — the same
+// measure-and-paint-underneath approach EmberFill and TileHalo above already document.
+//
+// 🔴 `useId` for the gradient id, for the reason TileHalo gives: react-native-svg gradient ids are
+// GLOBAL, and a shared literal blanks every instance after the first on Android.
+function HeaderVeil() {
+  const gradId = `header-veil-${useId()}`;
+  return (
+    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none" pointerEvents="none">
+      <Defs>
+        <LinearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#140E16" stopOpacity={0.72} />
+          <Stop offset="0.55" stopColor="#140E16" stopOpacity={0.42} />
+          <Stop offset="1" stopColor="#140E16" stopOpacity={0} />
+        </LinearGradient>
+      </Defs>
+      <Rect x={0} y={0} width="100%" height="100%" fill={`url(#${gradId})`} />
+    </Svg>
+  );
+}
+
 export default function GroupScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -123,9 +162,11 @@ export default function GroupScreen() {
   const streakDays = Math.round(stats?.avg_streak ?? 0);
   const isOwner = myGroups.find((g) => g.id === groupId)?.role === 'owner';
 
-  // Mock 101's top bar is 52px of status bar plus ~66px of bar. The leaderboard panel opens
+  // Mock 101's top bar is 52px of status bar plus the bar itself. The leaderboard panel opens
   // BELOW it (frame 3), so it needs to be told where that line falls.
-  const topBarHeight = insets.top + 66;
+  // 72, not 66: D1's veil needs a deeper paddingBottom (12 → 18) to fade out in. This constant is
+  // load-bearing beyond the look — it is where the panel's top edge lands — so it moves with it.
+  const topBarHeight = insets.top + 72;
 
   return (
     <Screen padded={false}>
@@ -151,6 +192,10 @@ export default function GroupScreen() {
           The BAR stays compact rather than growing into 174's 172px cover: topBarHeight below is
           what the leaderboard panel opens beneath, so its height is load-bearing beyond the look. */}
       <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
+        {/* D1 · the veil, under the bar's content and over the banner. It fills the bar including
+            its status-bar padding, so the banner runs edge-to-edge and under the clock with
+            nothing but a fade between it and the chat. */}
+        <HeaderVeil />
         <Pressable
           style={styles.fireId}
           onPress={() => router.back()}
@@ -230,10 +275,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.two,
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    // The mock's `linear-gradient(180deg, rgba(20,14,22,.72), transparent)`. A flat translucent
-    // bar would draw a visible bottom edge across the banner; this dissolves into it.
-    backgroundColor: 'rgba(20,14,22,0.55)',
+    // A little deeper than the old 12: the veil needs some run to fade out in, and the fade is
+    // what replaces the hard edge. See HeaderVeil.
+    paddingBottom: 18,
+    // NO backgroundColor. The mock's `linear-gradient(180deg, rgba(20,14,22,.72), transparent)` is
+    // painted by <HeaderVeil/> as the first child, because a flat fill here is exactly the visible
+    // bottom edge that made the banner look like a slot instead of the background (D1).
   },
   fireId: {
     flex: 1,

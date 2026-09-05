@@ -148,7 +148,16 @@ function Results({
           <Text style={[styles.resultPlace, r.is_winner && styles.resultPlaceWin]}>
             {r.place != null ? `#${r.place}` : '—'}
           </Text>
-          <Avatar label={r.member_name} size={28} lit={r.member_id === myUserId} />
+          {/* 0170 §3 · a still-private, non-winning racer keeps a row in the final standings — with
+              a ghost, no place, no figure and no payout. The WINNER is always named, even if
+              private: a result of "somebody anonymous won" is not a result. */}
+          {r.is_anonymous ? (
+            <View style={styles.anonAvatar}>
+              <Ionicons name="person" size={14} color={Colors.textTertiary} />
+            </View>
+          ) : (
+            <Avatar label={r.member_name} size={28} lit={r.member_id === myUserId} />
+          )}
           <View style={styles.resultWho}>
             <Text style={styles.resultName} numberOfLines={1}>
               {r.member_id === myUserId ? 'You' : r.member_name}
@@ -157,6 +166,7 @@ function Results({
               {r.percentile != null && rows.length > 2 ? (
               <Text style={styles.resultBand}>Top {Math.max(1, Math.round((1 - r.percentile) * 100))}%</Text>
             ) : null}
+            {r.is_anonymous ? <Text style={styles.resultBand}>Raced privately</Text> : null}
             {/* §3 — WHAT THIS RACER WAS ACTUALLY PAID, beside their rank rather than only inside a
                 reveal that fires once. The XP already had a column on the right; the embers, the
                 box and the badge had nowhere on this screen at all, which is why a settled race
@@ -183,13 +193,13 @@ function Results({
               <Text style={styles.resultValue}>
                 {r.score_value != null ? formatMetricValue(raceMetric, r.score_value) : '—'}
               </Text>
-              {r.awarded_xp > 0 ? (
-                <Text style={styles.resultXpUnder}>+{r.awarded_xp.toLocaleString('en-US')} XP</Text>
+              {(r.awarded_xp ?? 0) > 0 ? (
+                <Text style={styles.resultXpUnder}>+{r.awarded_xp!.toLocaleString('en-US')} XP</Text>
               ) : null}
             </View>
           ) : (
-            <Text style={[styles.resultXp, r.awarded_xp > 0 && styles.resultXpPaid]}>
-              {r.awarded_xp > 0 ? `+${r.awarded_xp.toLocaleString('en-US')} XP` : '—'}
+            <Text style={[styles.resultXp, (r.awarded_xp ?? 0) > 0 && styles.resultXpPaid]}>
+              {(r.awarded_xp ?? 0) > 0 ? `+${r.awarded_xp!.toLocaleString('en-US')} XP` : '—'}
             </Text>
           )}
         </View>
@@ -744,6 +754,18 @@ const styles = StyleSheet.create({
   },
   resultPlaceWin: {
     color: Colors.amber,
+  },
+  // 0170 §3 · the anonymous racer's ghost, in place of their avatar.
+  anonAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.lineStrong,
   },
   resultWho: {
     flex: 1,

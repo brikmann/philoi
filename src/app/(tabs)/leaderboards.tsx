@@ -103,6 +103,20 @@ function buildRankedBoard<T extends UniversityLeaderboardRow | GlobalLeaderboard
 export default function LeaderboardsScreen() {
   const router = useRouter();
   const { session, profile } = useAuth();
+
+  // PRIVATE MODE (0170 §4). The wall is symmetric: a private user's boards are filtered to their
+  // friends, so a private user with no friends yet sees an EMPTY board. "Nobody here yet" would be
+  // a flat lie — the board is full, they have opted out of seeing it — and the one thing worse than
+  // an empty screen is an empty screen that misexplains itself. The copy names the setting and says
+  // where to change it, and points out that their own rank is unaffected.
+  const isPrivate = profile?.leaderboard_private ?? false;
+  const privateEmptyTitle = "You're in Private mode";
+  const privateEmptyBody =
+    'Only friends show here. Turn it off in Settings to see the whole board — your own rank is unaffected either way.';
+  const uniEmptyTitle = isPrivate ? privateEmptyTitle : 'Nobody here yet';
+  const uniEmptyBody = isPrivate ? privateEmptyBody : 'Be the first from your school to start a streak.';
+  const globalEmptyTitle = isPrivate ? privateEmptyTitle : 'Nobody here yet';
+  const globalEmptyBody = isPrivate ? privateEmptyBody : 'Check back once more people join.';
   const [scope, setScope] = useState<Scope>('camp');
   const [metric, setMetric] = useState<Metric>('xp');
   const [vsMetric, setVsMetric] = useState<VsMetric>('total');
@@ -367,10 +381,10 @@ export default function LeaderboardsScreen() {
             ) : !campusVerified ? (
               <CampusLockedState />
             ) : (
-              renderPersonBoard(uniBoard, 'Nobody here yet', 'Be the first from your school to start a streak.', uniError)
+              renderPersonBoard(uniBoard, uniEmptyTitle, uniEmptyBody, uniError)
             ))}
 
-          {scope === 'global' && renderPersonBoard(globalBoard, 'Nobody here yet', 'Check back once more people join.', globalError)}
+          {scope === 'global' && renderPersonBoard(globalBoard, globalEmptyTitle, globalEmptyBody, globalError)}
 
           {scope === 'vs' && !campusVerified && <CampusLockedState />}
 

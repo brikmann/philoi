@@ -26,6 +26,7 @@ import { useMyRanks } from '@/hooks/use-my-ranks';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchMyRecentLockIns, fetchUserLockInPhotos, type MyRecentLockIn } from '@/lib/api/check-ins';
+import { RankMuted } from '@/components/rank-muted';
 import { fetchMyLockInStats, fetchProfileById, fetchUserLockInStats, fetchUserRank, type UserRank } from '@/lib/api/profile';
 import { formatSessionDuration, pluralize } from '@/lib/format';
 import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
@@ -196,7 +197,12 @@ export default function ProfileScreen() {
         </View>
         </EquippedCardBackdrop>
 
-        {universalRank && (
+        {/* 0170 · Private mode. Only reachable on SOMEONE ELSE's profile — `universalRank` is a
+            MyRank from useMyRanks when this is your own, and your own rank is never muted to you
+            (can_see_rank returns true for self before it looks at anything else). */}
+        {universalRank && 'muted' in universalRank && universalRank.muted && <RankMuted />}
+
+        {universalRank && !('muted' in universalRank && universalRank.muted) && (
           <View style={styles.rank}>
             <HexagonBadge tier={universalRank.tier} division={universalRank.division} size={40} />
             <View style={styles.rk}>

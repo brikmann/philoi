@@ -132,6 +132,16 @@ export type Profile = {
   embers: number;
   /** "Let friends watch my live challenges" (§16/§19) — default off; gates the profile-scoped Watch CTA. */
   watch_opt_in: boolean;
+  /**
+   * PRIVATE MODE (0170). Only accepted friends can see this user's competitive numbers: off every
+   * board and out of search for a non-friend, "Rank muted" on their profile, "Anonymous" at the
+   * bottom of a challenge's standings.
+   *
+   * Optional because a client can be newer than the database it is talking to — runtimeVersion is
+   * still sdkVersion-pinned, so OTA cannot reach older installs and the two do not land together.
+   * Absent reads as false, which is the pre-0170 behaviour.
+   */
+  leaderboard_private?: boolean;
   created_at: string;
 };
 
@@ -877,6 +887,7 @@ export type AnalyticsEventName =
   | 'leaderboard_search_used'
   | 'friend_profile_viewed'
   | 'watch_opt_in_changed'
+  | 'leaderboard_private_changed'
   | 'challenge_watch_opened'
   | 'challenge_watch_cheered'
   | 'challenge_cancelled'
@@ -1111,13 +1122,27 @@ export type GroupChallengeWatchRow = {
    *  goal, whose progress is a count of lock-ins and needs no unit. */
   race_metric: SocialChallengeRaceMetric | null;
   member_id: string;
+  /** 'Anonymous' when `is_anonymous` — the real display name is never sent (0170 §3). */
   member_name: string;
   /**
    * A count of qualifying lock-ins for a collective goal; the racer's metric score net of their
    * baseline for a placement race (0126). Two meanings behind one name because the screen renders
    * one list either way — `shape` is what says which.
+   *
+   * NULL for an anonymous racer (0170 §3): their position in the race is exactly the thing being
+   * withheld. Render them at the bottom with no figure, not as a 0 — a 0 is a claim about where
+   * they stand, and the whole point is that you do not know.
    */
-  member_progress: number;
+  member_progress: number | null;
+  /**
+   * PRIVATE MODE (0170 §3). This racer is in the field but hidden: Private mode is on and the
+   * viewer is not their friend. Their name reads "Anonymous", their progress and live status are
+   * null, and they sort to the bottom of the board.
+   *
+   * 🔴 A DISPLAY FLAG ONLY. Settlement ranks and pays on the real numbers — an anonymous racer can
+   * win, and does get paid. Never feed this into anything that scores.
+   */
+  is_anonymous: boolean;
   member_live_status: string;
   /** Cheers backing this racer — the count the spec wants under each meter. */
   member_cheers: number;
@@ -1528,12 +1553,19 @@ export type SocialChallenge = {
  * re-derived, so a result page cannot drift as later sessions land. */
 export type ChallengeResultRow = {
   member_id: string;
+  /** 'Anonymous' when `is_anonymous` (0170 §3). */
   member_name: string;
   score_value: number | null;
   place: number | null;
   percentile: number | null;
-  awarded_xp: number;
+  /** Null for an anonymous racer — another person's payout is not the reader's business. */
+  awarded_xp: number | null;
+  /** The winner is ALWAYS named, even if private: a result of "somebody anonymous won" is not a
+   *  result. Every other still-private racer stays anonymous (0170 §3). */
   is_winner: boolean;
+  /** 0170 §3 — a still-private, non-winning racer. Name reads "Anonymous"; place, figure and
+   *  payout are all withheld; sorted to the bottom by the RPC. */
+  is_anonymous: boolean;
   /** What this racer's settlement paid beyond the XP — embers, a box, a badge (0154). Null on a
    *  race that settled before the payload was captured, and on the completion band. */
   reward: ChallengeRewardPayload | null;

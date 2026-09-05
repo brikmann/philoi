@@ -23,6 +23,7 @@ import { setCoachConsent, setCoachPreference } from '@/lib/api/coach';
 import { setDailyGoalMode, setPublishFlameCompletion } from '@/lib/api/daily-fire';
 import { deleteMyAccount } from '@/lib/api/groups';
 import { setMyWatchOptIn } from '@/lib/api/leaderboard-social';
+import { setLeaderboardPrivate } from '@/lib/api/privacy';
 import { setMyPhotoVisibility } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
 import { restorePurchases } from '@/lib/billing';
@@ -118,7 +119,7 @@ function SettingsRow({
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, refreshProfile } = useAuth();
   const { groups } = useMyGroups();
   const { devOverride, setDevOverride } = useEntitlement();
   const { connected: deviceFitnessConnected } = useFitnessConnection();
@@ -145,6 +146,8 @@ export default function SettingsScreen() {
   const [manualTarget, setManualTarget] = useState(profile?.daily_goal_manual_target ?? 1);
   const [publishCompletion, setPublishCompletion] = useState(profile?.publish_flame_completion ?? false);
   const [watchOptIn, setWatchOptInState] = useState(profile?.watch_opt_in ?? false);
+  // 0170 · Private mode. Defaults false for a profile loaded by a build that predates the column.
+  const [leaderboardPrivate, setLeaderboardPrivateState] = useState(profile?.leaderboard_private ?? false);
   const cindy = useCindy();
   const [cindyBubbleOverride, setCindyBubbleOverride] = useState<boolean | null>(null);
   // Optimistic on top of the fetched value: the toggle has to move on tap, but the hook refetches
@@ -198,6 +201,16 @@ export default function SettingsScreen() {
   function handleToggleWatchOptIn(value: boolean) {
     setWatchOptInState(value);
     setMyWatchOptIn(value).catch(() => setWatchOptInState(!value));
+  }
+
+  // 0170 · optimistic, with a rollback on failure — the same shape every other toggle here uses.
+  // Rolling back matters more than usual for this one: a switch that stays on after the write
+  // failed tells someone they are hidden when they are still on every board in the app.
+  function handleTogglePrivate(value: boolean) {
+    setLeaderboardPrivateState(value);
+    setLeaderboardPrivate(value)
+      .then(() => refreshProfile?.())
+      .catch(() => setLeaderboardPrivateState(!value));
   }
 
   // The sense prefs write to AsyncStorage through an in-memory cache that updates synchronously,
@@ -421,6 +434,18 @@ export default function SettingsScreen() {
             label="Let friends watch my live challenges"
             value={watchOptIn}
             onValueChange={handleToggleWatchOptIn}
+          />
+          {/* PRIVATE MODE (CODE_PROMPT_leaderboard_private.md §4, migration 0170).
+              Requested repeatedly and unprompted. The copy is the spec's, and it is written to
+              answer the two questions someone asks before flipping it: who can still see me, and
+              does it cost me anything. It does not — XP, ranks and streaks all keep accruing, and
+              placement rewards are still paid on the real standings. Only the DISPLAY changes. */}
+          <SettingsToggleRow
+            icon="lock-closed"
+            label="Private mode"
+            description="Only your friends can see you. You won't appear on the leaderboard or in search, and non-friends see &ldquo;Rank muted&rdquo; on your profile. Climb at your own pace."
+            value={leaderboardPrivate}
+            onValueChange={handleTogglePrivate}
           />
         </View>
 

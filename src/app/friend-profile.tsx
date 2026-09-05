@@ -21,6 +21,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUserLockInPhotos, type MyRecentLockIn } from '@/lib/api/check-ins';
 import { respondFriendRequest, sendFriendRequest } from '@/lib/api/friend-requests';
 import { fetchActiveChallengeMarker, fetchProfileStats, fetchRelationshipWith, fetchUserBoardPosition } from '@/lib/api/leaderboard-social';
+import { RankMuted } from '@/components/rank-muted';
 import { fetchProfileById, fetchUserRank, type UserRank } from '@/lib/api/profile';
 import { formatSessionDuration } from '@/lib/format';
 import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
@@ -224,7 +225,11 @@ export default function FriendProfileScreen() {
           </Pressable>
         </View>
 
-        {rank && (
+        {/* 0170 · Private mode. A non-friend sees "Rank muted" where the hexagon, the XP bar and
+            the board position would be. The name, handle and avatar above are untouched. */}
+        {rank?.muted && <RankMuted />}
+
+        {rank && !rank.muted && (
           <View style={styles.rankCard}>
             <HexagonBadge tier={rank.tier} division={rank.division} size={52} />
             <View style={styles.rankInfo}>

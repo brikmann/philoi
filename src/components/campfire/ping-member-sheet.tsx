@@ -7,7 +7,7 @@ import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { pingCampfireMember } from '@/lib/api/campfire-ping';
 import { getErrorMessage } from '@/lib/errors';
-import type { CampfireMember } from '@/types/database';
+import type { CampfireMember, PingResult } from '@/types/database';
 
 // PING A MEMBER · SILENT NUDGE (mock 101 frame 2, fourth row).
 //
@@ -40,18 +40,24 @@ export function PingMemberSheet({
 }) {
   const insets = useSafeAreaInsets();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [sentIds, setSentIds] = useState<string[]>([]);
+  // 0172 · WHAT HAPPENED per member, not merely THAT something happened. This used to be a list of
+  // ids and every one of them rendered "nudged" — including the two cases where nothing reached
+  // anybody. See PingResult and migration 0172: the sender seeing a confirmation for a nudge that
+  // was silently swallowed is the whole of "the ping does fuck all".
+  const [results, setResults] = useState<Record<string, PingResult>>({});
   const [error, setError] = useState<string | null>(null);
 
   const others = members.filter((m) => m.user_id !== myUserId);
 
   async function ping(member: CampfireMember) {
-    if (busyId || sentIds.includes(member.user_id)) return;
+    // 'rate_limited' is deliberately NOT latched: the ten-minute window passes, and re-arming the
+    // row is what lets them try again once it has. Only a real send latches.
+    if (busyId || results[member.user_id] === 'sent' || results[member.user_id] === 'sent_no_push') return;
     setBusyId(member.user_id);
     setError(null);
     try {
-      await pingCampfireMember(groupId, member.user_id);
-      setSentIds((prev) => [...prev, member.user_id]);
+      const result = await pingCampfireMember(groupId, member.user_id);
+      setResults((prev) => ({ ...prev, [member.user_id]: result }));
     } catch (e) {
       setError(getErrorMessage(e, 'That nudge did not go out.'));
     } finally {
@@ -84,15 +90,18 @@ export function PingMemberSheet({
               <Text style={styles.empty}>Nobody else is in this campfire yet. Invite someone first.</Text>
             ) : (
               others.map((m) => {
-                const sent = sentIds.includes(m.user_id);
+                const result = results[m.user_id];
+                const latched = result === 'sent' || result === 'sent_no_push';
                 return (
                   <Pressable
                     key={m.user_id}
                     style={styles.row}
                     onPress={() => ping(m)}
-                    disabled={sent || busyId !== null}
+                    disabled={latched || busyId !== null}
                     accessibilityRole="button"
-                    accessibilityLabel={sent ? `${m.display_name} nudged` : `Nudge ${m.display_name}`}>
+                    accessibilityLabel={
+                      latched ? `${m.display_name} nudged` : `Nudge ${m.display_name}`
+                    }>
                     <View style={styles.avatar}>
                       {m.avatar_url ? (
                         <Image source={{ uri: m.avatar_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -104,10 +113,16 @@ export function PingMemberSheet({
                       <Text style={styles.name}>{m.display_name}</Text>
                       {m.handle ? <Text style={styles.handle}>@{m.handle}</Text> : null}
                     </View>
+                    {/* 0172 · three outcomes, three different things to say. "nudged" is now
+                        reserved for a push that actually went to a device. */}
                     {busyId === m.user_id ? (
                       <ActivityIndicator size="small" color={Colors.amber} />
-                    ) : sent ? (
+                    ) : result === 'sent' ? (
                       <Text style={styles.sentTag}>nudged</Text>
+                    ) : result === 'sent_no_push' ? (
+                      <Text style={styles.quietTag}>in their bell</Text>
+                    ) : result === 'rate_limited' ? (
+                      <Text style={styles.quietTag}>just nudged</Text>
                     ) : (
                       <View style={styles.nudge}>
                         <PhiloiIcon name="bell" size={16} color={Colors.ember} />
@@ -246,5 +261,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
     color: Colors.green,
+  },
+  // Not green and not red: nothing failed, but nothing buzzed either. "in their bell" (their phone
+  // is silent, the notification is waiting in-app) and "just nudged" (you did this a minute ago)
+  // are both honest half-successes, and calling either of them "nudged" is the bug 0172 fixes.
+  quietTag: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.textTertiary,
   },
 });

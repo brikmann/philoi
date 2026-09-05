@@ -41,6 +41,12 @@ const ITEMS: { key: CampfireFabAction; icon: PhiloiIconName; label: string; hint
 /** Mock 101 stacks the items upward from just above the composer. */
 const ROW_HEIGHT = 58;
 
+/** The + itself, so the menu can be told to start above it rather than on top of it. */
+const FAB_SIZE = 52;
+
+/** Where the action stack's bottom edge sits: clear of the composer, then clear of the +. */
+const MENU_LIFT = Spacing.two + FAB_SIZE + Spacing.twelve;
+
 export function CampfireFab({
   open,
   onToggle,
@@ -82,7 +88,7 @@ export function CampfireFab({
       )}
 
       {open && (
-        <View style={[styles.menu, { bottom: bottom + Spacing.two }]} pointerEvents="box-none">
+        <View style={[styles.menu, { bottom: bottom + MENU_LIFT }]} pointerEvents="box-none">
           {ITEMS.map((item, i) => (
             <FabRow
               key={item.key}
@@ -97,6 +103,7 @@ export function CampfireFab({
       )}
 
       <Pressable
+        style={[styles.fabPos, { bottom: bottom + Spacing.two }]}
         onPress={onToggle}
         accessibilityRole="button"
         accessibilityLabel={open ? 'Close the campfire menu' : 'Open the campfire menu'}
@@ -206,10 +213,26 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.selectedBg,
     borderColor: Colors.amber,
   },
+  // 🔴 D2 · THE + BELONGS BOTTOM-RIGHT, AND USED TO RENDER BOTTOM-LEFT.
+  //
+  // This file's own header has always said "one thumb-reach control at the bottom-right, exactly
+  // where a Discord composer puts it" — and it was the only element here with NO position at all.
+  // An unpositioned Pressable is an ordinary flex child of the timeline's column container, so it
+  // laid out in the flow between the FlatList and the composer, stretched to full width by the
+  // default `alignItems: 'stretch'`, and drew its 52px ember circle at the leading (left) edge.
+  // The `bottom` prop was already being passed and was read only by the menu, which is why the
+  // action stack was on the right while the button that opens it was on the left.
+  //
+  // Positioned absolutely against the same container the menu uses, so the two cannot drift apart
+  // again: both are anchored right: 16, and MENU_LIFT is defined in terms of FAB_SIZE.
+  fabPos: {
+    position: 'absolute',
+    right: 16,
+  },
   fab: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },

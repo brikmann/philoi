@@ -1,5 +1,6 @@
 import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
+import type { PingResult } from '@/types/database';
 
 /**
  * A silent nudge to one campfire member (mock 101 frame 2 · "Ping a member · silent nudge").
@@ -17,11 +18,19 @@ import { supabase } from '@/lib/supabase';
  *     Both are inside the RPC — you can only nudge someone you actually share the campfire with,
  *     and only so often. See migration 0152.
  */
-export async function pingCampfireMember(groupId: string, userId: string): Promise<void> {
-  const { error } = await supabase.rpc('ping_campfire_member', {
+export async function pingCampfireMember(groupId: string, userId: string): Promise<PingResult> {
+  const { data, error } = await supabase.rpc('ping_campfire_member', {
     p_group_id: groupId,
     p_user_id: userId,
   });
   if (error) throw error;
-  track('campfire_member_pinged', { group_id: groupId });
+
+  // 0172 · the RPC used to return void, so "no exception" was the only signal available and the
+  // sheet read it as "delivered". It was not: the ten-minute rate limit returned silently, and a
+  // recipient with no registered device was indistinguishable from a delivered push. A build
+  // talking to a pre-0172 database gets undefined here, which falls back to 'sent' — the same
+  // (optimistic) behaviour it has today, rather than a crash.
+  const result = (data as PingResult | null) ?? 'sent';
+  track('campfire_member_pinged', { group_id: groupId, result });
+  return result;
 }

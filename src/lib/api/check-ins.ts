@@ -48,6 +48,19 @@ export async function fetchFeed(groupId: string): Promise<FeedCheckIn[]> {
   if (error) throw error;
 
   const rows = ((data ?? []) as unknown as FeedCheckIn[]).filter((row) => !blockedIds.has(row.user_id));
+  return hydrateFeedRows(rows);
+}
+
+/**
+ * Everything a raw `check_ins` row needs before a card can draw it: the signed photo URLs (legacy
+ * column AND the check_in_photos gallery), the rolled-up gym sets, and the workout energy row.
+ *
+ * Extracted from fetchFeed rather than copied, because D4 needs the SAME shape for a single
+ * check-in shared into a campfire chat — and a second hand-rolled hydration would be a card that
+ * silently loses its photos or its lifts the first time this one changes. Batched throughout, so
+ * it costs the same three round-trips for one row as for thirty.
+ */
+async function hydrateFeedRows(rows: FeedCheckIn[]): Promise<FeedCheckIn[]> {
   if (rows.length === 0) return rows;
 
   // A lock-in session's gallery lives in check_in_photos (see migration 0008); check_ins.photo_url
@@ -120,6 +133,33 @@ export async function fetchFeed(groupId: string): Promise<FeedCheckIn[]> {
       workout: workoutByCheckIn.get(row.id) ?? null,
     };
   });
+}
+
+/**
+ * One check-in, in the full shape a feed card draws (D4).
+ *
+ * A lock-in shared into a campfire chat travels as `attach_ref_id` and nothing else — the message
+ * row carries an id, not a copy of the session — so the chat has to go and get the real thing
+ * before it can render the real card. Returns null when the row is gone or the viewer cannot read
+ * it, which is a normal answer here: a shared lock-in can be deleted after it was shared, and the
+ * chat should quietly degrade rather than throw inside a list renderer.
+ *
+ * RLS is the access check. This deliberately does NOT re-scope to the campfire the message is in:
+ * `check_ins` policy already decides who may read a session, and a second, different rule here
+ * would be one more place for the two to disagree.
+ */
+export async function fetchCheckInById(checkInId: string): Promise<FeedCheckIn | null> {
+  const { data, error } = await supabase
+    .from('check_ins')
+    .select('*, profiles(display_name, avatar_url, handle), reactions(*)')
+    .eq('id', checkInId)
+    .is('removed_at', null)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const [hydrated] = await hydrateFeedRows([data as unknown as FeedCheckIn]);
+  return hydrated ?? null;
 }
 
 export type MyRecentLockIn = {
