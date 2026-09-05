@@ -97,22 +97,97 @@ const RACE_METRIC_OPTIONS: {
 ];
 
 /**
- * A COLLECTIVE goal's bar, as a choice of two.
+ * The pill VALUES a collective goal can offer.
  *
- * 'lockin_time' here is a deliberate stand-in for "count of lock-ins", not a metric race: the
- * challenge is still created with race_metric null and a target_count, exactly as before. It is in
- * this list only so the pills have something to show as selected when the goal is the ordinary
- * kind — the alternative was a picker whose default state was nothing selected.
+ * 'custom' is not a metric and never reaches the server — see COLLECTIVE_METRIC_OPTIONS below.
  */
-const COLLECTIVE_METRIC_OPTIONS: typeof RACE_METRIC_OPTIONS = [
+type MetricChoice = SocialChallengeRaceMetric | 'custom';
+
+/**
+ * A COLLECTIVE goal's bar — the same set placement offers, plus Custom.
+ *
+ * Noah: "in collective we need races based on distance, volume, custom, etc, same as placement."
+ * The list was Lock-ins and Grade, and the asymmetry was real but not arbitrary: a placement race
+ * RANKS the field, so it needs only a metric, while a collective goal is the whole house clearing
+ * the SAME bar, so every metric it offers needs somewhere to put the number everyone reaches.
+ * Migration 0169 adds that column (social_challenges.target_value); these are the pills for it.
+ *
+ * Three shapes behind five pills, and which one you get is what the metric chooses:
+ *
+ *   Lock-ins          race_metric null + target_count — the ×N stepper. UNCHANGED, and deliberately
+ *                     so: every collective goal live on prod is this shape. 'lockin_time' is a
+ *                     stand-in value so the pills have something to show as selected, not a metric
+ *                     race; the challenge is still created with race_metric null exactly as before.
+ *   Volume/Distance   race_metric + target_value — "everyone lifts 10,000 lb". The numeric-target
+ *                     shape, not the count one.
+ *   Grade             race_metric 'grade' + grade_target — unchanged.
+ *
+ * Custom is the fourth thing and is not a bar at all: it is a metric nobody has written down yet,
+ * so it routes into Ask Cindy to be scoped rather than pretending to be a pill you can select.
+ */
+const COLLECTIVE_METRIC_OPTIONS: {
+  value: MetricChoice;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  source: string;
+}[] = [
   { value: 'lockin_time', label: 'Lock-ins', icon: 'time', source: 'Everyone logs the same number of qualifying lock-ins.' },
+  // The two measured bars. Their source lines are the ones RACE_METRIC_OPTIONS already carries,
+  // rewritten from "most" to "the same target" — the honesty is the point either way: Volume and
+  // Distance are only real if something is feeding them, and a collective goal on a source nobody
+  // in the campfire has connected is a bar the whole house fails at zero.
+  {
+    value: 'volume',
+    label: 'Volume',
+    icon: 'barbell',
+    source: 'Everyone lifts the same total weight, from their logged gym sets.',
+  },
+  {
+    value: 'distance',
+    label: 'Distance',
+    icon: 'walk',
+    source: 'Everyone covers the same distance, from a connected fitness source (Strava).',
+  },
   {
     value: 'grade',
     label: 'Grade',
     icon: 'school',
     source: 'Everyone in the course hits the same mark — honour-based, so it pays a little less.',
   },
+  {
+    value: 'custom',
+    label: 'Custom',
+    icon: 'sparkles',
+    source: 'Something these pills can\'t say. Describe it to Cindy and she\'ll scope it.',
+  },
 ];
+
+/** What a measured collective bar is collected in, and how it reaches the server's raw units. */
+const MEASURED_TARGET: Record<'volume' | 'distance', {
+  label: string;
+  unit: string;
+  placeholder: string;
+  hint: string;
+  /** The server stores each metric in what challenge_metric_value sums — pounds, and METRES. */
+  toRaw: (typed: number) => number;
+}> = {
+  volume: {
+    label: 'Everyone has to lift',
+    unit: 'lb',
+    placeholder: '10000',
+    hint: 'Total weight lifted over the window. Everyone is aiming at the same number.',
+    toRaw: (v) => v,
+  },
+  distance: {
+    label: 'Everyone has to cover',
+    unit: 'km',
+    placeholder: '20',
+    // COLLECTED IN KM, STORED IN METRES. challenge_metric_value sums check_ins.distance_m, so the
+    // raw column is metres; asking for "20000" here would be the form leaking the schema.
+    hint: 'Total distance over the window. Everyone is aiming at the same number.',
+    toRaw: (v) => v * 1000,
+  },
+};
 
 // The presets and the custom span both live in ChallengeSpanPicker — see its header for why the
 // date picker is hand-drawn rather than a native module.
@@ -257,8 +332,21 @@ function SocialChallengeForm() {
   // The grade race's two extra terms. Held as strings because they are text fields: an empty box
   // is "not set", which a number state cannot represent without conflating it with zero.
   const [gradeTarget, setGradeTarget] = useState('');
+  /** The measured collective bar, in the unit the form SHOWS (km for distance, not metres). */
+  const [measuredTarget, setMeasuredTarget] = useState('');
   const [courseCode, setCourseCode] = useState('');
   const grading = raceMetric === 'grade';
+  // 0169 — a COLLECTIVE goal whose bar is a measured number rather than a count of lock-ins:
+  // "everyone lifts 10,000 lb". Held as its own string rather than reusing gradeTarget, which is
+  // capped at 100 and would silently reject the first realistic volume anyone typed.
+  //
+  // Collective only, and that is not an oversight. A duel or a placement race on volume RANKS the
+  // field — it has no shared bar to clear, which is exactly why create_placement_challenge takes a
+  // metric and no target at all.
+  const measured = shape === 'collective' && (raceMetric === 'volume' || raceMetric === 'distance');
+  const measuredSpec = measured ? MEASURED_TARGET[raceMetric as 'volume' | 'distance'] : null;
+  const measuredNum = Number(measuredTarget.trim());
+  const measuredValid = measuredTarget.trim().length > 0 && Number.isFinite(measuredNum) && measuredNum > 0;
   const gradeTargetNum = Number(gradeTarget.trim());
   const gradeTargetValid = gradeTarget.trim().length > 0 && Number.isFinite(gradeTargetNum) && gradeTargetNum > 0 && gradeTargetNum <= 100;
   // The member ticker's selection. Held here rather than inside the ticker so it survives a
@@ -311,6 +399,12 @@ function SocialChallengeForm() {
     // too. A placement board ranks without one and is exempt.
     if (grading && shape !== 'placement' && !gradeTargetValid) {
       setError('Set the grade everyone is aiming for, between 1 and 100.');
+      return;
+    }
+    // Same argument one metric over: a measured collective goal IS its bar, and the server refuses
+    // a null one. Caught here so it reads as a form error rather than a failed round trip.
+    if (measured && !measuredValid) {
+      setError(`Set the ${measuredSpec?.unit ?? 'target'} everyone is aiming for.`);
       return;
     }
     setSaving(true);
@@ -366,10 +460,16 @@ function SocialChallengeForm() {
           return;
         }
         const created = await createGroupChallenge({
+          // Exactly ONE bar, matching the server's constraint (0169 widened it from two columns to
+          // three): a grade goal's is the mark, a measured goal's is the value, and only a lock-in
+          // goal sends a count. Sending more than one is refused.
+          ...(measured && measuredSpec
+            ? // The metric's RAW units — the form collects km and the column stores metres, which
+              // is what challenge_metric_value sums. See MEASURED_TARGET.
+              { raceMetric, targetValue: measuredSpec.toRaw(measuredNum) }
+            : {}),
           circleId: circle.id,
-          // Exactly one bar, matching the server's constraint: a grade goal's target is the mark,
-          // not a count of lock-ins, and sending both is refused.
-          targetCount: grading ? null : targetCount,
+          targetCount: grading || measured ? null : targetCount,
           windowHours,
           startsOn: customSpan?.startsOn.toISOString() ?? null,
           endsOn: customSpan?.endsOn.toISOString() ?? null,
@@ -422,6 +522,27 @@ function SocialChallengeForm() {
   const campfireAdmin = !circle || circle.role === 'owner' || circle.role === 'admin';
   const notCampfireAdmin = mode === 'group' && !campfireAdmin;
 
+  // ONE SEED, TWO DOORS. The "Ask Cindy" card at the top of the form and the Custom pill in the
+  // collective metric picker are the same request — "this is a goal the pills below cannot say" —
+  // so they hand Cindy the same sentence rather than two that drift.
+  //
+  // 🔒 THE CAMPFIRE IS ONLY NAMED AS A HOSTING TARGET FOR AN ADMIN. Saying "for Goat" is what
+  // steers Cindy to host_campfire_challenge, which posts a card into that campfire's chat and
+  // pushes every member. A non-admin gets the ordinary personal-goal sentence instead, so the flow
+  // they are offered is the one they can actually complete.
+  //
+  // This is a COURTESY, not the enforcement, and the distinction matters: create_group_challenge
+  // and host_campfire_challenge both re-read the caller's role out of group_members at the moment
+  // of the write (0162) and refuse regardless of what any sentence here said. Widening the prose
+  // could not widen the permission; it would only walk somebody into a refusal.
+  const cindySeed = cindyChallengeSeed({
+    shape,
+    opponentName,
+    circleName: mode === 'group' ? circle?.name : null,
+    canHostForCampfire: mode === 'group' && campfireAdmin && Boolean(circle),
+  });
+  const askCindy = () => router.push({ pathname: '/cindy', params: { ask: cindySeed } });
+
   const sendLabel =
     shape === 'duel'
       ? noOpponent
@@ -438,13 +559,7 @@ function SocialChallengeForm() {
         {/* Mock 143's other door, above the form rather than in front of it — see the component's
             header for why it is opt-in and what it deliberately does not promise. Seeded from
             whatever the form already knows, so a half-filled duel does not have to be retyped. */}
-        <CindyChallengeEntry
-          seed={cindyChallengeSeed({
-            shape,
-            opponentName,
-            circleName: mode === 'group' ? circle?.name : null,
-          })}
-        />
+        <CindyChallengeEntry seed={cindySeed} />
 
         <Text style={styles.label}>Challenge type</Text>
         <View style={styles.typesRow}>
@@ -617,7 +732,7 @@ function SocialChallengeForm() {
             {/* A collective goal's bar is normally a count of lock-ins. On a course it is a mark,
                 and the two are mutually exclusive — the metric picker is what chooses between
                 them, so the stepper is replaced rather than sitting there meaning nothing. */}
-            <RaceMetricPills value={raceMetric} onChange={setRaceMetric} collective />
+            <RaceMetricPills value={raceMetric} onChange={setRaceMetric} collective onCustom={askCindy} />
             {grading ? (
               <GradeTermsFields
                 target={gradeTarget}
@@ -626,6 +741,18 @@ function SocialChallengeForm() {
                 onCourse={setCourseCode}
                 showTarget
                 targetLabel="Everyone has to hit"
+              />
+            ) : measuredSpec ? (
+              /* 0169 — the measured bar. The same numeric-target control the grade goal uses, with
+                 the metric's unit beside it, in place of the ×N stepper: "everyone lifts 10,000 lb"
+                 is a number in a unit, not a count of sessions. */
+              <NumericTargetField
+                label={measuredSpec.label}
+                value={measuredTarget}
+                onChange={setMeasuredTarget}
+                placeholder={measuredSpec.placeholder}
+                hint={measuredSpec.hint}
+                unit={measuredSpec.unit}
               />
             ) : (
             <View style={styles.stepperRow}>
@@ -733,21 +860,34 @@ function RaceMetricPills({
    *  race_metric null on purpose (0098). The one exception is a grade goal, whose bar is a mark,
    *  so this variant offers exactly that choice and nothing else: "lock-ins" vs "a grade". */
   collective = false,
+  /**
+   * What the Custom pill does. Required in practice for the collective variant and unused by the
+   * race one, because Custom is only offered there.
+   *
+   * A HANDLER RATHER THAN A SELECTABLE VALUE, which is the whole reason `value` stays typed as a
+   * real metric. "Custom" is not a bar the form can collect — it is a metric that does not exist
+   * yet — so letting it become the selected state would mean every branch below (the stepper, the
+   * target field, the submit) needing a fourth arm meaning "nothing is chosen". Tapping it leaves.
+   */
+  onCustom,
 }: {
   value: SocialChallengeRaceMetric;
   onChange: (metric: SocialChallengeRaceMetric) => void;
   collective?: boolean;
+  onCustom?: () => void;
 }) {
-  const options = collective ? COLLECTIVE_METRIC_OPTIONS : RACE_METRIC_OPTIONS;
+  const options: { value: MetricChoice; label: string; icon: keyof typeof Ionicons.glyphMap; source: string }[] =
+    collective ? COLLECTIVE_METRIC_OPTIONS : RACE_METRIC_OPTIONS;
   return (
     <>
       <View style={styles.pillsRow}>
         {options.map((option) => {
+          // Never selected, by construction — `value` is a metric and this is not one.
           const selected = value === option.value;
           return (
             <Pressable
               key={option.value}
-              onPress={() => onChange(option.value)}
+              onPress={() => (option.value === 'custom' ? onCustom?.() : onChange(option.value))}
               style={[styles.pill, selected && styles.chipSelected]}>
               <Ionicons name={option.icon} size={13} color={selected ? Colors.ink : Colors.muted} />
               <Text style={[styles.pillText, selected && styles.chipTextSelected]}>{option.label}</Text>
@@ -759,6 +899,58 @@ function RaceMetricPills({
           something is feeding them — the same honesty the personal-goal picker already applies
           with its "needs WHOOP" tags. */}
       <Text style={styles.hint}>{options.find((o) => o.value === value)?.source}</Text>
+    </>
+  );
+}
+
+/**
+ * ONE numeric bar field, used by both metrics that have one.
+ *
+ * Extracted rather than copied when the collective goal grew a measured target (0169): the grade
+ * field and the volume/distance field are the same control down to the input sanitiser, and the
+ * sanitiser is the part that must not drift — `keyboardType` is a HINT the OS may ignore, and
+ * several Android locales still offer a comma on the decimal pad, so the filter below is what
+ * actually guarantees a parseable number rather than the keyboard.
+ *
+ * `unit` is the one thing they do not share: a grade is a bare percentage, while a measured target
+ * is 10,000 OF something and is unreadable without saying of what.
+ */
+function NumericTargetField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  hint,
+  unit,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  hint: string;
+  unit?: string;
+}) {
+  return (
+    <>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.numTargetRow}>
+        <View style={styles.numTargetInput}>
+          <TextInput
+            value={value}
+            // Digits and one decimal point — see this component's header for why the filter, and
+            // not the keyboard type, is what makes that true.
+            onChangeText={(t) => onChange(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
+            placeholder={placeholder}
+            keyboardType="decimal-pad"
+            inputMode="decimal"
+            // 6 was the grade cap and is far too short for a volume target — 100000 lb is a
+            // realistic term for a whole campfire over a week.
+            maxLength={9}
+          />
+        </View>
+        {unit ? <Text style={styles.numTargetUnit}>{unit}</Text> : null}
+      </View>
+      <Text style={styles.hint}>{hint}</Text>
     </>
   );
 }
@@ -788,20 +980,13 @@ function GradeTermsFields({
   return (
     <>
       {showTarget ? (
-        <>
-          <Text style={styles.label}>{targetLabel}</Text>
-          <TextInput
-            value={target}
-            // Digits and one decimal point: keyboardType is a hint the OS may ignore, and several
-            // Android locales still offer a comma on the decimal pad.
-            onChangeText={(t) => onTarget(t.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'))}
-            placeholder="70"
-            keyboardType="decimal-pad"
-            inputMode="decimal"
-            maxLength={6}
-          />
-          <Text style={styles.hint}>A percentage. Everyone in the challenge is aiming at the same one.</Text>
-        </>
+        <NumericTargetField
+          label={targetLabel}
+          value={target}
+          onChange={onTarget}
+          placeholder="70"
+          hint="A percentage. Everyone in the challenge is aiming at the same one."
+        />
       ) : null}
       <Text style={styles.label}>Course</Text>
       <TextInput value={course} onChangeText={onCourse} placeholder="KP451" maxLength={24} autoCapitalize="characters" />
@@ -1299,6 +1484,26 @@ const styles = StyleSheet.create({
   },
   scrollFlex: {
     flex: 1,
+  },
+  // NumericTargetField's row — the bar and its unit on one line. The input keeps the flex so a
+  // six-figure volume still has room; the unit is a fixed label beside it rather than placeholder
+  // text inside it, which would vanish the moment anybody typed.
+  //
+  // Deliberately NOT the personal form's targetRow/targetInput below. Those are a different
+  // control with a different flex, and sharing one style so a tweak to the personal goal silently
+  // reflows the challenge bar is the kind of coupling nobody finds until it breaks.
+  numTargetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  numTargetInput: {
+    flex: 1,
+  },
+  numTargetUnit: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.muted,
   },
   kindRow: {
     flexDirection: 'row',

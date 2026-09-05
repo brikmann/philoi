@@ -1477,6 +1477,16 @@ export type SocialChallenge = {
    * count helpers in challenge-metric.ts are ready for it when the column arrives.
    */
   count_unit?: string | null;
+  /**
+   * 0169 · the bar for a collective goal measured in a real metric, in that metric's RAW units:
+   * pounds for volume, METRES for distance. Non-null exactly when the bar is neither a lock-in
+   * count nor a grade.
+   *
+   * ⚠️ OPTIONAL FOR THE SAME REASON count_unit IS — get_my_social_challenges does not select it
+   * yet, and widening that RPC is a RETURNS TABLE change touching every reader. The tab does not
+   * need it: create writes a public_name and challengeTitle prefers that.
+   */
+  target_value?: number | null;
   /** What THIS viewer has reported so far on a grade race. Null is "not in yet", which is a
    *  different thing from a reported 0 and has to render differently. */
   my_reported_value: number | null;
@@ -2244,6 +2254,15 @@ export type Database = {
           /** 0145 · a grade race's two extra terms. Both null on every other metric. */
           p_grade_target?: number | null;
           p_course_code?: string | null;
+          /**
+           * 0169 · a collective goal measured in a real metric — "everyone lifts 10,000 lb".
+           *
+           * The third spelling of "the bar", alongside p_target_count and p_grade_target, and the
+           * server takes exactly one of the three. p_race_metric is only read when p_target_value
+           * is set, and only 'volume' and 'distance' are accepted there.
+           */
+          p_race_metric?: SocialChallengeRaceMetric | null;
+          p_target_value?: number | null;
         };
         Returns: SocialChallenge;
       };

@@ -36,6 +36,18 @@ export function EmberFill({ children, radius = Radius.pill, style, direction = '
 
   const onLayout = (e: LayoutChangeEvent) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
 
+  // 🐛 A PILL RADIUS PAINTED AN ELLIPSE. `Radius.pill` is 999 — the CSS idiom for "just round the
+  // ends", which works on a View because borderRadius clamps to the SHORT side. SVG does not: it
+  // clamps rx to width/2 and ry to height/2 INDEPENDENTLY, and a rect with rx=w/2 and ry=h/2 is
+  // not a stadium, it is an ellipse. On the ~170x38 kind tab that is exactly what got drawn: a
+  // gradient oval floating inside the pill, with the solid `base` under-colour left showing in
+  // all four corners — the "lopsided blob" in every create-screen screenshot.
+  //
+  // Clamping to the short side first is what makes rx === ry, which is what makes it a pill. The
+  // non-pill callers are unaffected: a radius of 10/11/14/20/26 is already below both halves, and
+  // the round send button is square, so w/2 === h/2 and it was drawing a circle either way.
+  const rr = Math.max(0, Math.min(radius, size.w / 2, size.h / 2));
+
   return (
     <View onLayout={onLayout} style={[styles.base, { borderRadius: radius }, style]}>
       {size.w > 0 && (
@@ -47,7 +59,9 @@ export function EmberFill({ children, radius = Radius.pill, style, direction = '
                 <Stop offset="1" stopColor={EMBER_GRADIENT[0]} />
               </LinearGradient>
             </Defs>
-            <Rect x="0" y="0" width={size.w} height={size.h} rx={radius} fill={`url(#${gradId})`} />
+            {/* Both axes, explicitly. Passing rx alone lets ry default to it and re-opens the
+                independent clamp described above. */}
+            <Rect x="0" y="0" width={size.w} height={size.h} rx={rr} ry={rr} fill={`url(#${gradId})`} />
           </Svg>
         </View>
       )}

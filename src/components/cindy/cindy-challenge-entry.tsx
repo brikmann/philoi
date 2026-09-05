@@ -76,6 +76,12 @@ export function cindyChallengeSeed(input: {
   shape: 'duel' | 'collective' | 'placement';
   opponentName?: string | null;
   circleName?: string | null;
+  /**
+   * Whether this person can actually host FOR that campfire — owner or admin of it.
+   *
+   * 🔒 Gates the wording, not the permission. See below.
+   */
+  canHostForCampfire?: boolean;
 }): string {
   if (input.shape === 'duel') {
     return input.opponentName
@@ -83,6 +89,24 @@ export function cindyChallengeSeed(input: {
       : 'Help me set up a challenge against a friend. I want ';
   }
   const where = input.circleName ? ` in ${input.circleName}` : '';
+
+  // 🔒 "FOR {campfire}" IS THE PHRASE THAT ROUTES HER, so an admin gets it and nobody else does.
+  //
+  // The coach's tool description is explicit that naming a campfire is what selects
+  // host_campfire_challenge over create_challenge — "use this instead of create_challenge whenever
+  // they name a campfire; create_challenge makes a private goal only they can see". Hosting posts
+  // a card into that campfire's chat and pushes every member, and it is admin-only.
+  //
+  // So the seed says "for Goat" only when this person can carry it through. A non-admin gets the
+  // plain group-challenge sentence, which lands them on the ordinary personal-goal path rather
+  // than walking them into a refusal at the end of a conversation.
+  //
+  // The server does not depend on any of this. create_group_challenge and host_campfire_challenge
+  // both re-read the caller's role from group_members at write time (0162) and refuse whatever the
+  // sentence claimed — this only decides which flow somebody is INVITED into.
+  if (input.shape === 'collective' && input.canHostForCampfire && input.circleName) {
+    return `Set a challenge for ${input.circleName} — everyone in the campfire. I want `;
+  }
   return input.shape === 'placement'
     ? `Help me set up a ranked race${where}. I want `
     : `Help me set up a group challenge${where}. I want `;

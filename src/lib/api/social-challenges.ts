@@ -99,11 +99,22 @@ export async function createH2HChallenge(
 export async function createGroupChallenge(
   input: {
     circleId: string;
-    /** Lock-ins each member must log. Null ONLY for a grade goal, whose bar is `gradeTarget`
-     *  instead — the server takes exactly one of the two and refuses both or neither. */
+    /** Lock-ins each member must log. Null unless the lock-in COUNT is the bar — a grade goal uses
+     *  `gradeTarget` and a measured goal uses `targetValue`, and the server takes exactly one of
+     *  the three, refusing none or more than one. */
     targetCount: number | null;
     windowHours: number;
     publicName?: string | null;
+    /**
+     * 0169 · "everyone lifts 10,000 lb" — the bar as a MEASURED target rather than a count.
+     *
+     * Sent together or not at all: `targetValue` is the number and `raceMetric` says what it
+     * measures, and the server only accepts 'volume' or 'distance' there. The value is in the
+     * metric's own raw units — pounds, and METRES for distance, matching what
+     * challenge_metric_value sums — so a screen collecting kilometres converts before it calls.
+     */
+    raceMetric?: SocialChallengeRaceMetric | null;
+    targetValue?: number | null;
   } & CustomSpan &
     GradeTerms
 ): Promise<SocialChallenge> {
@@ -116,6 +127,8 @@ export async function createGroupChallenge(
     p_ends_on: input.endsOn ?? null,
     p_grade_target: input.gradeTarget ?? null,
     p_course_code: input.courseCode ?? null,
+    p_race_metric: input.raceMetric ?? null,
+    p_target_value: input.targetValue ?? null,
   });
   if (error) throw error;
   track('challenge_created', { mode: 'group', circle_id: input.circleId, custom_span: input.endsOn != null });

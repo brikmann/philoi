@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CindyActionChip } from '@/components/cindy/cindy-action-chip';
+import { useMyGroups } from '@/hooks/use-my-groups';
 import { CindyConsent } from '@/components/cindy/cindy-consent';
 import { EquippedFlameSvg } from '@/components/flame-icon';
 import { Screen } from '@/components/ui/screen';
@@ -40,6 +41,8 @@ export default function CindyScreen() {
   const { session } = useAuth();
   const { consented, loading: settingsLoading, refetch: refetchSettings } = useCindy();
   const { session: activeSession, start, clear } = useActiveSession();
+  // Only for resolving a campfire id back to its name for the verdict CTA — see runAction.
+  const { groups } = useMyGroups();
 
   const [rows, setRows] = useState<Row[]>([]);
   // ?ask= prefills the composer. Used by the lock-in quick sheet, which hands off a question
@@ -123,6 +126,50 @@ export default function CindyScreen() {
    */
   async function runAction(rowId: string, action: CoachAction) {
     if (!session) return;
+
+    // ── HOSTING FOR A CAMPFIRE GETS THE VERDICT SCREEN, NOT AN INLINE WRITE ──────────────────
+    //
+    // Every other proposed action is small, private and reversible enough to confirm in the flow
+    // of the chat. This one posts a card into a whole campfire's chat and pushes every member, and
+    // it is the one action Cindy has already PRICED — she proposes a difficulty tier, and 0159-0161
+    // let the server say what that tier pays before anything is written.
+    //
+    // The inline chip could only ever show that as a two-line tease. Mock 173 is the screen the
+    // scoping engine was built for: the goal, the tier, Cindy's own rationale, and the crate it
+    // pays with its rays — then "Post to {campfire}". challenge/verdict.tsx has existed since
+    // c60cb8a and nothing in the app navigated to it; this is the door.
+    //
+    // 🔒 NOTHING IS WRITTEN HERE. The verdict screen's CTA calls hostCampfireChallenge, which is
+    // where the admin check, the insert, the enrolment, the push and the chat post all happen in
+    // one server transaction (0162), reaching every member including late joiners (0163). So the
+    // chip stays 'proposed' rather than 'done': at this point the user has been shown a price, not
+    // charged one, and marking it done would be a receipt for something that has not happened.
+    if (action.tool === 'host_campfire_challenge') {
+      const input = action.input ?? {};
+      const circleId = typeof input.circle_id === 'string' ? input.circle_id : null;
+      // No campfire id means Cindy did not resolve one against the user's own list, which the tool
+      // description tells her never to guess at. Falling through to the inline path would ask the
+      // server to host for a campfire nobody named; better to let it refuse with its own sentence.
+      if (circleId) {
+        router.push({
+          pathname: '/challenge/verdict',
+          params: {
+            branch: 'campfire',
+            circleId,
+            // The tool deliberately carries no campfire NAME — a name the model wrote is exactly
+            // the thing that could be wrong — so it is resolved here, from the user's own groups.
+            circleName: groups.find((g) => g.id === circleId)?.name ?? '',
+            label: String(input.label ?? 'Challenge'),
+            metric: String(input.metric ?? 'reps'),
+            target: String(input.target ?? 0),
+            tier: typeof input.difficulty_tier === 'string' ? input.difficulty_tier : 'uncommon',
+            rationale: typeof input.scope_rationale === 'string' ? input.scope_rationale : '',
+          },
+        });
+        return;
+      }
+    }
+
     setBusyAction(rowId);
     try {
       const outcome = await performCoachAction(action, {
