@@ -265,7 +265,15 @@ export async function syncChallengeFromDevice(challenge: Challenge): Promise<Cha
   // Challenges tab is mounted and watching, but challenge/create.tsx fires this and immediately
   // `router.back()`s, so its screen is gone before the promise settles. Queued here — once, at the
   // single point every sync passes through — the reveal survives either way.
-  if (award) pushGoalReveal({ award, goalLabel: outcome.goalLabel });
+  //
+  // ONE PAYOUT, ONE REVEAL (0167). A 'once' goal finishing pays through two doors —
+  // economy_award_goal_day banks this drip, and economy_on_challenge_completed mints the scoped
+  // crate — and the second half now has a watcher of its own (GoalCompletionWatcher) that draws the
+  // crate, the embers and the goal's own words. Queueing the drip as well would open two
+  // full-screen celebrations back to back for one walk. The drip gives way because its hero is the
+  // streak meter, and a one-time target has no streak. Recurring goals are untouched: that reveal
+  // stays entirely this queue's, and get_unseen_goal_rewards deliberately excludes them.
+  if (award && challenge.period !== 'once') pushGoalReveal({ award, goalLabel: outcome.goalLabel });
   return { ...outcome, award };
 }
 

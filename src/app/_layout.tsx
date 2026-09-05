@@ -10,6 +10,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { PostHogProvider } from 'posthog-react-native';
 
 import { ChallengeSettlementWatcher } from '@/components/challenge-settlement-watcher';
+import { GoalCompletionWatcher } from '@/components/goal-completion-watcher';
 import { GoalRevealWatcher } from '@/components/goal-reveal-watcher';
 import { RewardRevealHost } from '@/components/economy/reward-reveal';
 import { EntitlementReconciler } from '@/components/economy/entitlement-reconciler';
@@ -437,6 +438,17 @@ function RootLayout() {
                 zIndex 100 and this is a Modal, and ordering them here is what keeps the two
                 celebrations from landing on the same frame. */}
             <ChallengeSettlementWatcher />
+            {/* The same argument again, for a PERSONAL goal — the one payout that had no watcher at
+                all. A Cindy-scoped feat pays its box and embers through
+                economy_on_challenge_completed the instant `completed_at` is set, and two of the
+                three paths that set it resolve with the app shut: a second vouch landing, and
+                pg_cron's settle_expired_vouches closing a 48h window. Neither of the two watchers
+                above can see it — one reads the daily drip, the other reads `social_challenges` —
+                so until 0167 captured the receipt the grant was simply silent.
+
+                AFTER ChallengeSettlementWatcher, per the spec's ordering note: it draws a different
+                source table entirely, so the only thing order decides here is the reveal floor. */}
+            <GoalCompletionWatcher />
             {/* And the third payout that could land while the user is looking at something else: a
                 personal goal the PHONE finished. Unlike the two above it was never asynchronous —
                 the sync that completes a 10k-step goal is the app's own — it was just only ever run

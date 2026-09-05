@@ -12,6 +12,7 @@ import type {
   ChallengeFeedEvent,
   ChallengePeriod,
   ChallengeType,
+  UnseenGoalReward,
 } from '@/types/database';
 
 export async function fetchMyChallenges(userId: string): Promise<Challenge[]> {
@@ -342,4 +343,31 @@ export async function creditLockInTimeGoals(checkInId: string): Promise<number> 
   const { data, error } = await supabase.rpc('credit_lockin_time_goals', { p_check_in_id: checkInId });
   if (error) throw error;
   return data ?? 0;
+}
+
+// ───────────────────────── the goal-completion reveal's inbox (0167) ─────────────────────────
+//
+// The counterpart to fetchUnseenChallengeRewards, one table over. A personal goal pays its box and
+// embers through economy_on_challenge_completed the instant `completed_at` is set — and two of the
+// three paths that set it (a vouch landing, the 48h expiry sweep) run server-side while the app is
+// shut. So "what did I finish while I was away?" has to be a server read, not a client memory.
+
+/** Personal goals that finished and were never celebrated. Empty is the common answer. */
+export async function fetchUnseenGoalRewards(): Promise<UnseenGoalReward[]> {
+  const { data, error } = await supabase.rpc('get_unseen_goal_rewards');
+  if (error) throw error;
+  return (data ?? []) as UnseenGoalReward[];
+}
+
+/**
+ * Fire-once: stamps `reward_seen_at` so the reveal never plays twice.
+ *
+ * Server-side rather than an AsyncStorage set, for the three things a local flag cannot promise:
+ * it survives a reinstall, it cannot re-fire on a second device, and a second account signing in on
+ * this phone reads its own inbox (the RPC is scoped by auth.uid()) rather than inheriting a cache.
+ */
+export async function markGoalRewardSeen(goalId: string): Promise<void> {
+  const { error } = await supabase.rpc('mark_goal_reward_seen', { p_goal_id: goalId });
+  if (error) throw error;
+  track('goal_reward_seen', { goal_id: goalId });
 }

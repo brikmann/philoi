@@ -6,6 +6,14 @@ export type GoalType = 'gym' | 'run' | 'study' | 'social_media' | 'custom' | 'jo
 // question is `role !== 'member'` (or is_campfire_admin() server-side), never `=== 'owner'`. The
 // one thing still reserved to the owner alone is DELETE, plus handing out the role itself.
 export type MemberRole = 'owner' | 'admin' | 'member';
+// What a silent nudge actually did (migration 0172). Before it, ping_campfire_member returned
+// void and BOTH of its non-delivery paths were silent — the 10-minute rate limit returned having
+// done nothing, and a recipient with no registered device looked identical to a delivered push —
+// so the sheet showed "nudged" either way. That is the whole of "the ping does fuck all".
+//   'sent'         — bell row written and a push dispatched to a real device.
+//   'sent_no_push' — bell row written, nothing buzzed: no device, notifications off, quiet hours.
+//   'rate_limited' — already nudged this person in this campfire within ten minutes.
+export type PingResult = 'sent' | 'sent_no_push' | 'rate_limited';
 export type CheckInStatus = 'on_time' | 'late';
 // The 10-tier ladder (RANK_REWORK_SPEC.md, migration 0063, design-mocks/77): the mortal climb
 // bronze→diamond, then the realm of legend hero→immortal, all with I/II/III divisions — topped
@@ -896,6 +904,12 @@ export type AnalyticsEventName =
   // The third leg of that funnel: how many announced boxes were actually opened from the reveal.
   // Before 0125 this was unmeasurable because the CTA could not be rendered at all.
   | 'challenge_reward_box_opened'
+  // ─── the personal-goal completion reveal (0167) ───
+  // The pair that says whether the scoped-goal payout is actually being seen. Before 0167 the
+  // grant fired with no surface at all, so both of these were unmeasurable — and the first one is
+  // the number that says whether Cindy scoping and goal vouching feel like they pay.
+  | 'goal_reward_seen'
+  | 'goal_reward_box_opened'
   // Campus verification (UNI_VERIFICATION_SPEC.md). The gap between sent and verified is the
   // number that matters: it's how many students hit a school inbox they couldn't actually reach.
   | 'campus_code_sent'
@@ -1606,6 +1620,48 @@ export type UnseenChallengeReward = {
   payload: ChallengeRewardPayload | null;
 };
 
+/**
+ * grant_reward's receipt for a PERSONAL goal, captured by economy_on_challenge_completed (0167).
+ *
+ * The same shape as `ChallengeRewardPayload` — deliberately, so `buildRows` parses one format
+ * whether the payout came from a settled duel or from a Cindy-scoped feat — plus the two facts the
+ * trigger knows and grant_reward does not: which verification level the goal settled at, and the
+ * tier it was scoped to.
+ */
+export type GoalRewardPayload = ChallengeRewardPayload & {
+  /** The level the claim settled at, final by the time the grant fired (0164). */
+  verifiability: GoalClaimLevel | null;
+  tier: DifficultyTier | null;
+  /** The ceiling goal_paid_band handed grant_reward. Equal to `band` unless the curve came in low. */
+  max_band: string | null;
+};
+
+/**
+ * One row of get_unseen_goal_rewards() (0167) — a personal goal this user finished whose payout
+ * has never been shown.
+ *
+ * Only ONE-TIME and CLAIMED goals appear here; a recurring daily goal's payout belongs to the
+ * drip reveal (GoalRevealWatcher) and returning it in both would celebrate one walk twice. See the
+ * migration header for the split.
+ */
+export type UnseenGoalReward = {
+  goal_id: string;
+  /** The goal in the user's own words — "learn a standing backflip". */
+  goal_label: string | null;
+  goal_type: ChallengeType;
+  tier: DifficultyTier | null;
+  /** How the app learned it was done. 'honor' is the one that pays a tier down. */
+  verified_as: GoalClaimLevel | null;
+  /** The band actually PAID, off the stored receipt. */
+  band: string | null;
+  /** What the same tier pays at the full level, and the crate that band names — the honest line's
+   *  "a clip or a vouch unlocks the full Vessel of Hestia". Never granted, only named. */
+  full_band: string | null;
+  full_box: string | null;
+  settled_at: string;
+  payload: GoalRewardPayload | null;
+};
+
 // ───────────── challenge change/cancel consent (migration 0058, design-mocks/70 + 71) ─────────────
 
 export type ChallengeChangeKind = 'edit' | 'cancel';
@@ -2198,9 +2254,20 @@ export type Database = {
         Args: { p_user_id: string };
         Returns: { lockin_count: number; total_seconds: number }[];
       };
+      // 0170 · gained `muted`. When the viewer may not see this user's rank (Private mode, and
+      // they are not friends) the RPC returns ONE row with every figure null and muted = true —
+      // never zero rows, which would be indistinguishable from "no rank yet", and never a spoofed
+      // number. Every field is therefore nullable now; the client must branch on `muted`.
       get_user_rank: {
         Args: { p_user_id: string };
-        Returns: { score: number; tier: RankTierName; division: number; xp_into_tier: number; xp_for_next_tier: number }[];
+        Returns: {
+          score: number | null;
+          tier: RankTierName | null;
+          division: number | null;
+          xp_into_tier: number | null;
+          xp_for_next_tier: number | null;
+          muted: boolean;
+        }[];
       };
       get_user_lock_in_photos: {
         Args: { p_user_id: string; p_limit?: number };
@@ -2333,6 +2400,10 @@ export type Database = {
       get_my_last_rank_up_reward: { Args: Record<string, never>; Returns: RankUpReward[] };
       /** Stamps the fire-once flag so the reveal never plays twice (0116). */
       mark_challenge_reward_seen: { Args: { p_challenge_id: string }; Returns: undefined };
+      /** Personal goals that finished and were never celebrated (0167). Read-only; it cannot pay. */
+      get_unseen_goal_rewards: { Args: Record<string, never>; Returns: UnseenGoalReward[] };
+      /** The goal reveal's fire-once stamp — the only thing it can write is a timestamp (0167). */
+      mark_goal_reward_seen: { Args: { p_goal_id: string }; Returns: undefined };
       /** Pre-start or finished only; a live race is left to cancel/forfeit's consent path (0112). */
       delete_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       get_my_friends: {
@@ -2422,7 +2493,15 @@ export type Database = {
       /** The + menu's silent nudge (mock 101, migration 0152). Returns nothing and posts nothing —
        *  one notification to one member, with the copy fixed server-side so a ping can never
        *  carry a message. Not notify_event, which clients cannot call. */
-      ping_campfire_member: { Args: { p_group_id: string; p_user_id: string }; Returns: undefined };
+      // 0172 · was `Returns: undefined`. The RPC now reports what actually happened, because both
+      // of its non-delivery paths used to be silent: 'sent' | 'sent_no_push' | 'rate_limited'.
+      ping_campfire_member: { Args: { p_group_id: string; p_user_id: string }; Returns: PingResult };
+      // 0171 · set, swap or clear the caller's single reaction. Returns the emoji now held, or
+      // null when the reaction was cleared (which is what passing the held emoji again does).
+      set_message_reaction: { Args: { p_message_id: string; p_emoji: string }; Returns: string | null };
+      // 0170 · private mode. Writes only the caller's own row.
+      set_leaderboard_private: { Args: { p_on: boolean }; Returns: undefined };
+      can_see_rank: { Args: { p_viewer: string; p_target: string }; Returns: boolean };
       start_challenge: { Args: { p_challenge: string }; Returns: undefined };
       is_campfire_admin: { Args: { p_group_id: string; p_user_id?: string }; Returns: boolean };
       get_my_notifications: { Args: { p_limit?: number }; Returns: NotificationEvent[] };

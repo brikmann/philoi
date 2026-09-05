@@ -121,7 +121,18 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
       const result = await logChallengeProgress(challenge.id, value);
       setAmount('');
       setExpanded(false);
-      onLogged(result.justCompleted, result.award, personalGoalTitle(challenge), challenge.difficulty_tier ?? null);
+      // ONE PAYOUT, ONE REVEAL (0167). A 'once' goal that finishes here pays TWICE, through two
+      // different doors: economy_award_goal_day banks the drip (this `award`), and
+      // economy_on_challenge_completed mints the scoped crate. The second one now has its own
+      // watcher, which draws the crate, the embers AND names the goal — so handing the drip screen
+      // over as well would open two full-screen celebrations back to back for one tap.
+      //
+      // The drip screen is the one that gives way, because it is the smaller half and it has
+      // nothing to say a one-time goal cares about: its hero is the streak meter, and a target that
+      // never resets has no streak. A recurring daily/weekly goal is unaffected — that reveal is
+      // still entirely GoalRevealWatcher's, and get_unseen_goal_rewards deliberately excludes it.
+      const drip = challenge.period === 'once' ? null : result.award;
+      onLogged(result.justCompleted, drip, personalGoalTitle(challenge), challenge.difficulty_tier ?? null);
     } catch (e) {
       setError(getErrorMessage(e, 'Could not log progress.'));
     } finally {
