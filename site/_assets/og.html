@@ -6,34 +6,57 @@
 <title>Philoi OG</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
 <style>
   *{box-sizing:border-box;margin:0}
   html,body{width:1200px;height:630px;overflow:hidden}
   body{
+    position:relative;
     font-family:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;
     color:#FFF6EC;
     background:
-      radial-gradient(900px 520px at 22% 12%,rgba(224,97,44,.30),transparent 62%),
-      radial-gradient(700px 460px at 88% 88%,rgba(242,163,60,.16),transparent 62%),
-      radial-gradient(600px 400px at 76% 8%,rgba(58,46,92,.6),transparent 64%),
+      radial-gradient(900px 520px at 22% 10%,rgba(224,97,44,.32),transparent 62%),
+      radial-gradient(700px 460px at 88% 90%,rgba(242,163,60,.16),transparent 62%),
+      radial-gradient(600px 400px at 76% 6%,rgba(58,46,92,.6),transparent 64%),
       linear-gradient(150deg,#14111C,#1B1726 60%,#191428);
-    display:flex;align-items:center;gap:76px;padding:0 96px;
+    display:flex;align-items:center;gap:72px;padding:0 92px;
   }
-  .mark{filter:drop-shadow(0 24px 70px rgba(224,97,44,.65));flex:none}
-  h1{font-size:92px;font-weight:700;letter-spacing:-.035em;line-height:1.02}
-  .grad{background:linear-gradient(100deg,#E0612C,#F2A33C 48%,#FFD27A);-webkit-background-clip:text;color:transparent}
-  .word{
-    font-size:24px;font-weight:600;letter-spacing:.36em;text-transform:uppercase;
-    color:#FFD27A;margin-bottom:26px;
+  /* the lava pooling on the bottom edge — the `emberfall` flare */
+  .lava{
+    position:absolute;left:-8%;right:-8%;bottom:-120px;height:300px;
+    background:
+      radial-gradient(56% 100% at 50% 100%,rgba(245,64,28,.55),rgba(224,97,44,.2) 44%,transparent 72%),
+      radial-gradient(92% 100% at 50% 100%,rgba(242,163,60,.15),transparent 64%);
+    filter:blur(2px);
   }
-  p{font-size:30px;line-height:1.45;color:#A99CBD;margin-top:30px;max-width:22ch}
-  .rule{width:120px;height:4px;border-radius:4px;background:linear-gradient(90deg,#E0612C,#F2A33C);margin-top:36px}
+  .mark{position:relative;filter:drop-shadow(0 24px 70px rgba(224,97,44,.65));flex:none}
+  .col{position:relative}
+  .season{
+    display:inline-flex;align-items:center;gap:12px;
+    padding:8px 9px 8px 20px;border-radius:999px;
+    border:1px solid rgba(255,210,122,.3);background:rgba(58,42,34,.5);
+    font-size:19px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#FFD27A;
+    margin-bottom:34px;
+  }
+  .season .tag{
+    padding:5px 15px;border-radius:999px;letter-spacing:.14em;font-weight:800;
+    background:linear-gradient(135deg,#E0612C,#F2A33C,#FFD27A);color:#3A1608;
+  }
+  h1{font-size:80px;font-weight:900;letter-spacing:-.045em;line-height:.98}
+  .grad{background:linear-gradient(120deg,#E0612C,#F2A33C 46%,#FFD27A);-webkit-background-clip:text;color:transparent}
+  .word{font-size:34px;font-weight:800;letter-spacing:-.02em;color:#FFF6EC}
+  .slogan{
+    font-size:17px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;
+    color:#A99CBD;margin-top:8px;
+  }
+  .rule{width:110px;height:4px;border-radius:4px;background:linear-gradient(90deg,#E0612C,#F2A33C);margin:34px 0 26px}
+  .soon{font-size:23px;font-weight:600;color:#A99CBD}
 </style>
 </head>
 <body>
+  <div class="lava"></div>
   <div class="mark">
-    <svg width="260" height="325" viewBox="0 0 120 150">
+    <svg width="238" height="298" viewBox="0 0 120 150">
       <defs>
         <linearGradient id="o" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#F2A33C"/><stop offset="55%" stop-color="#E0612C"/><stop offset="100%" stop-color="#C24A1E"/>
@@ -43,23 +66,21 @@
         </linearGradient>
       </defs>
       <!-- Flipped horizontally: the one flame orientation, app-wide (CINDY_SPEC rendering
-           rule 1). Mirrored inside the 120-wide local box, so the mark stays centred and no
-           outer CSS transform (the roar/breathe keyframes) can multiply into it. -->
+           rule 1). Mirrored inside the 120-wide local box, so the mark stays centred. -->
       <g transform="translate(120,0) scale(-1,1)">
-      <rect x="30" y="112" width="60" height="9" rx="4" fill="#8A5A2B" transform="rotate(18 60 116)"/>
-      <rect x="30" y="112" width="60" height="9" rx="4" fill="#6E4423" transform="rotate(-18 60 116)"/>
-      <circle cx="60" cy="116" r="4" fill="#F2A33C"/>
       <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="url(#o)"/>
       <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="url(#m)"/>
       <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
       </g>
     </svg>
   </div>
-  <div>
+  <div class="col">
+    <div class="season">Season 1<span class="tag">Emberfall</span></div>
     <div class="word">Philoi</div>
-    <h1>Lock in.<br><span class="grad">Together.</span></h1>
-    <p>Social accountability for students.</p>
+    <div class="slogan">For the Best on Campus</div>
     <div class="rule"></div>
+    <h1>Turn Your Campus<br>Into Your <span class="grad">Leaderboard.</span></h1>
+    <div class="soon" style="margin-top:26px">Coming to iOS soon — Android next.</div>
   </div>
 </body>
 </html>
