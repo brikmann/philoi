@@ -287,7 +287,13 @@ body.past-hero .lava-pool{opacity:.55}
   box-shadow:0 4px 16px rgba(224,97,44,.45);transition:transform .18s ease,filter .18s ease;
 }
 .notify button:hover{transform:translateY(-1px);filter:brightness(1.06)}
+/* The honeypot. Off-screen rather than display:none — some bots skip hidden
+   fields but happily fill a positioned one. aria-hidden + tabindex keep it out
+   of the reading order and the tab order for everyone else. */
+.notify .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.notify button[disabled]{opacity:.6;cursor:progress}
 .notify-note{margin-top:12px;font-size:13px;color:var(--tertiary)}
+.notify-note.is-error{color:#E86A5A}
 .notify-note.is-done{color:var(--r-uncommon)}
 
 .scroll-cue{margin-top:clamp(24px,3.4vw,38px);font-size:11.5px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:var(--tertiary)}
@@ -935,21 +941,27 @@ body.past-hero .lava-pool{opacity:.55}
 <canvas id="emberfall" aria-hidden="true"></canvas>
 <div class="lava-pool" aria-hidden="true"></div>
 
-<!-- The flame glyph — the Philoi logo (DESIGN_LANGUAGE_EMBER §1). Flipped inside its own
-     viewBox so the mark keeps one orientation app-wide (CINDY_SPEC rendering rule 1). -->
+<!-- THE BRAND MARK. `FLAME_PATH` copied verbatim out of
+     src/components/ui/flame-logo.tsx — the "Cindy flame" (mock 115), which
+     CINDY_SPEC rendering rule 1 names as the single canonical mark on every
+     surface INCLUDING this website. What it replaces: the retired mock-92
+     three-layer flame, which the favicon was still drawing on top of the
+     crossed campfire logs that DESIGN_LANGUAGE_EMBER §1 retired as the logo.
+
+     THE ONE FLIP lives on the <g> below and nowhere else. Two mirrors cancel
+     and silently render the retired orientation, so nothing that <use>s this
+     symbol may apply its own scaleX(-1). -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <defs>
-    <linearGradient id="fl-o" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#F2A33C"/><stop offset="55%" stop-color="#E0612C"/><stop offset="100%" stop-color="#C24A1E"/>
+    <!-- Vertical, bottom→top: deep ember at the base rising to pale gold at the tip. -->
+    <linearGradient id="fl-grad" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#E0612C"/>
+      <stop offset="0.55" stop-color="#F2A33C"/>
+      <stop offset="1" stop-color="#FFD27A"/>
     </linearGradient>
-    <linearGradient id="fl-m" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FFD27A"/><stop offset="100%" stop-color="#F2A33C"/>
-    </linearGradient>
-    <symbol id="flame" viewBox="0 0 120 150">
-      <g transform="translate(120,0) scale(-1,1)">
-        <path d="M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z" fill="url(#fl-o)"/>
-        <path d="M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z" fill="url(#fl-m)"/>
-        <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
+    <symbol id="flame" viewBox="0 0 24 24">
+      <g transform="translate(24,0) scale(-1,1)">
+        <path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#fl-grad)"/>
       </g>
     </symbol>
     <!-- Greek key / meander, 6 tiles of 24. One unbroken stroke, so a single
@@ -963,7 +975,7 @@ body.past-hero .lava-pool{opacity:.55}
 <header class="site-header" id="siteHeader">
   <div class="shell">
     <a class="brand" href="/">
-      <svg width="21" height="26" aria-hidden="true" focusable="false"><use href="#flame"/></svg>
+      <svg width="23" height="23" aria-hidden="true" focusable="false"><use href="#flame"/></svg>
       Philoi
     </a>
     <nav class="nav" aria-label="Primary">
@@ -991,7 +1003,7 @@ body.past-hero .lava-pool{opacity:.55}
         <span class="tag">Emberfall</span>
       </p>
 
-      <svg class="hero-mark" width="52" height="65" aria-hidden="true" focusable="false"><use href="#flame"/></svg>
+      <svg class="hero-mark" width="58" height="58" aria-hidden="true" focusable="false"><use href="#flame"/></svg>
 
       <div class="hero-lockup">
         <p class="word">Philoi</p>
@@ -1026,6 +1038,7 @@ body.past-hero .lava-pool{opacity:.55}
       <form class="notify" id="notify" action="mailto:nb@philoi.app" method="post" enctype="text/plain">
         <label class="sr-only" for="notify-email">Your email</label>
         <input id="notify-email" type="email" name="email" placeholder="you@yourschool.edu" autocomplete="email" required>
+        <input class="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
         <button type="submit">Get notified</button>
       </form>
       <p class="notify-note" id="notifyNote">No spam. One email the day Emberfall opens on your campus.</p>
@@ -1111,7 +1124,7 @@ body.past-hero .lava-pool{opacity:.55}
             <circle class="friend" cx="57.4" cy="126.9" r="5"/>
             <circle class="friend" cx="29.3" cy="91.6" r="5"/>
             <circle class="friend" cx="39.4" cy="47.6" r="5"/>
-            <use href="#flame" x="65" y="61" width="30" height="38"/>
+            <use href="#flame" x="64" y="64" width="32" height="32"/>
           </svg>
           <figcaption class="ring-cap"><b>φίλος</b> is one friend. <b>φίλοι</b> is the plural — and there is no version of this app for the singular.</figcaption>
         </figure>
@@ -1316,7 +1329,7 @@ body.past-hero .lava-pool{opacity:.55}
         <div class="crate-stage reveal" id="crateStage" style="--rar:#F5C542">
           <div class="crate" id="crate">
             <span class="seam" aria-hidden="true"></span>
-            <svg class="lockglyph" viewBox="0 0 120 150" aria-hidden="true"><use href="#flame"/></svg>
+            <svg class="lockglyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#flame"/></svg>
           </div>
           <div class="reveal-item" id="revealItem" aria-live="polite">
             <div class="reveal-art" aria-hidden="true"></div>
@@ -1509,19 +1522,19 @@ body.past-hero .lava-pool{opacity:.55}
       <div class="b2b-grid">
         <ul class="b2b-list reveal">
           <li>
-            <span class="ic" aria-hidden="true"><svg width="16" height="20"><use href="#flame"/></svg></span>
+            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
             <div><b>A private campfire for the roster</b><p>Invite-only. Members see each other train in real time — nobody else does.</p></div>
           </li>
           <li>
-            <span class="ic" aria-hidden="true"><svg width="16" height="20"><use href="#flame"/></svg></span>
+            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
             <div><b>Season-long training challenges</b><p>Set a target for the term — sessions, hours, distance, volume — and let it score itself.</p></div>
           </li>
           <li>
-            <span class="ic" aria-hidden="true"><svg width="16" height="20"><use href="#flame"/></svg></span>
+            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
             <div><b>Team mode for game days</b><p>One scorekeeper reports the final. Both rosters get credited and rewarded off it — no spreadsheet.</p></div>
           </li>
           <li>
-            <span class="ic" aria-hidden="true"><svg width="16" height="20"><use href="#flame"/></svg></span>
+            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
             <div><b>A leaderboard people check</b><p>Ranks, streaks and standings your exec can point at in the group chat on a Sunday night.</p></div>
           </li>
         </ul>
@@ -1550,7 +1563,7 @@ body.past-hero .lava-pool{opacity:.55}
     <div class="foot-top">
       <div class="foot-brand">
         <span class="brand">
-          <svg width="22" height="27" aria-hidden="true" focusable="false"><use href="#flame"/></svg>
+          <svg width="25" height="25" aria-hidden="true" focusable="false"><use href="#flame"/></svg>
           Philoi
         </span>
         <p class="slogan">For the Best on Campus</p>
@@ -1652,21 +1665,64 @@ body.past-hero .lava-pool{opacity:.55}
     setInterval(tick, 1000);
   })();
 
-  /* ── Notify: no backend. Hands the address to the mail client. ───────── */
+  /* ── The waitlist ─────────────────────────────────────────────────────
+     Posts to the `waitlist` Supabase edge function, which records the address
+     as a Resend contact and mails a confirmation from noreply@philoi.app.
+     No key is sent: the function is deployed --no-verify-jwt precisely so a
+     static page with no Supabase session can reach it.
+
+     The form keeps its `action="mailto:"`, which is the no-JS path — without
+     this handler the browser submits it the old way rather than doing nothing. */
+  var WAITLIST = 'https://coaqgcquzywadrghzbfj.supabase.co/functions/v1/waitlist';
+
   (function notify() {
     var form = document.getElementById('notify');
     var note = document.getElementById('notifyNote');
-    if (!form) return;
+    if (!form || !window.fetch) return;
+
+    var input = form.querySelector('input[type=email]');
+    var hp = form.querySelector('input[name=company]');
+    var button = form.querySelector('button');
+    var sending = false;
+
+    function say(msg, kind) {
+      note.textContent = msg;
+      note.classList.toggle('is-done', kind === 'done');
+      note.classList.toggle('is-error', kind === 'error');
+    }
+
     form.addEventListener('submit', function (e) {
-      var email = form.querySelector('input').value.trim();
-      if (!email) return;
       e.preventDefault();
-      window.location.href =
-        'mailto:nb@philoi.app' +
-        '?subject=' + encodeURIComponent('Notify me — Season 1: Emberfall') +
-        '&body=' + encodeURIComponent('Add me to the launch list: ' + email);
-      note.textContent = 'Opening your mail app — send it and you are on the list.';
-      note.classList.add('is-done');
+      if (sending) return;
+      var email = input.value.trim();
+      if (!email) return;
+
+      sending = true;
+      button.disabled = true;
+      say('Adding you…');
+
+      fetch(WAITLIST, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          company: hp ? hp.value : '',
+          ref: document.referrer || location.href
+        })
+      })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (out) {
+          if (!out.ok) throw new Error(out.reason || 'failed');
+          form.reset();
+          say("You're on the list. Check your inbox — we'll email you once, the day Emberfall opens.", 'done');
+        })
+        .catch(function () {
+          // Never a dead end: the mailto still reaches a human, so a failed
+          // signup degrades to the path this field used to take.
+          say('That didn’t go through. Try again, or email nb@philoi.app.', 'error');
+          button.disabled = false;
+        })
+        .finally(function () { sending = false; });
     });
   })();
 

@@ -15,6 +15,14 @@ project_id = "coaqgcquzywadrghzbfj"
 [functions.revenuecat-webhook]
 verify_jwt = false
 
+# The marketing site's waitlist. Called by a STATIC PAGE from a browser, which has no Supabase
+# session and no anon key to present — with verification on, the gateway 401s the signup before
+# index.ts runs and the field silently does nothing. Unlike revenuecat-webhook this endpoint really
+# is public: there is no shared secret to check, so the function treats the body as hostile and
+# will only ever record one email address from it.
+[functions.waitlist]
+verify_jwt = false
+
 # NOTE: strava-webhook has the same requirement (Strava sends no JWT either) and is presumably
 # already deployed with the flag. It is deliberately NOT listed here — adding it would change how
 # an existing, working function redeploys, and that is a separate change to verify on its own.
