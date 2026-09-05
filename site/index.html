@@ -117,10 +117,39 @@ a:hover{text-decoration:underline}
 }
 .skip:focus{left:16px}
 
-/* The page ground: one deep-purple radial behind everything. */
+/* ══ The emberfall drop — the whole page sits inside it ══════════════════
+   Not a hero decoration. `emberfall` is an app-wide aura in catalog.ts (lava
+   pooling on the bottom edge WITH embers raining from the top), so both
+   layers are fixed to the viewport and every section scrolls through them.
+   Three fixed layers, back to front: ground → embers → lava. */
 .page-ground{
   position:fixed;inset:0;z-index:-3;pointer-events:none;
   background:radial-gradient(120% 62% at 50% 0%,var(--rad-from),var(--rad-mid) 42%,var(--rad-to) 78%);
+}
+#emberfall{
+  position:fixed;inset:0;width:100%;height:100%;z-index:-2;
+  pointer-events:none;opacity:0;transition:opacity 1.2s ease;
+}
+#emberfall.is-on{opacity:1}
+/* Past the hero the rain pulls back so body copy keeps its contrast — still
+   falling everywhere, just no longer competing with the paragraph it crosses. */
+body.past-hero #emberfall{opacity:.72}
+
+.lava-pool{
+  position:fixed;left:-10%;right:-10%;bottom:-96px;height:340px;z-index:-1;
+  pointer-events:none;
+  background:
+    radial-gradient(58% 100% at 50% 100%,rgba(245,64,28,.6),rgba(224,97,44,.24) 42%,transparent 72%),
+    radial-gradient(92% 100% at 50% 100%,rgba(242,163,60,.17),transparent 64%);
+  animation:lava 7s ease-in-out infinite;
+  transition:opacity .8s ease;
+}
+body.past-hero .lava-pool{opacity:.55}
+/* The pulse rides transform + brightness, never opacity: opacity is what the
+   .past-hero class dims, and an animation on it would win over the class. */
+@keyframes lava{
+  0%,100%{transform:translateY(7px) scaleY(1);filter:blur(2px) brightness(.86)}
+  50%{transform:translateY(0) scaleY(1.08);filter:blur(2px) brightness(1.1)}
 }
 
 /* ══ Header ══════════════════════════════════════════════════════════════ */
@@ -153,33 +182,16 @@ a:hover{text-decoration:underline}
 
 /* ══ 1 · HERO — SEASON 1: EMBERFALL ══════════════════════════════════════ */
 .hero{
-  position:relative;isolation:isolate;overflow:hidden;
+  position:relative;overflow:hidden;
   min-height:100vh;min-height:100svh;
   display:grid;align-items:center;
   padding:60px 0 104px;
 }
-#emberfall{position:absolute;inset:0;width:100%;height:100%;z-index:-1;opacity:0;transition:opacity 1.2s ease}
-#emberfall.is-on{opacity:1}
-/* Emberfall backdrop, static layer — the twilight sky the embers rain through. */
+/* The hero's own twilight glow. Translucent on purpose — the emberfall layer
+   below it must read THROUGH the hero, not start underneath it. */
 .hero::before{
-  content:"";position:absolute;inset:0;z-index:-2;
-  background:
-    radial-gradient(90% 55% at 50% -8%,rgba(58,46,92,.7),transparent 68%),
-    radial-gradient(120% 70% at 50% 4%,var(--rad-from),var(--rad-mid) 46%,var(--rad-to) 82%);
-}
-/* …and the lava pooling on the bottom edge — this IS the `emberfall` flare (catalog.ts). */
-.hero::after{
-  content:"";position:absolute;left:-10%;right:-10%;bottom:-96px;height:340px;z-index:-1;
-  pointer-events:none;
-  background:
-    radial-gradient(58% 100% at 50% 100%,rgba(245,64,28,.6),rgba(224,97,44,.24) 42%,transparent 72%),
-    radial-gradient(92% 100% at 50% 100%,rgba(242,163,60,.17),transparent 64%);
-  filter:blur(2px);
-  animation:lava 7s ease-in-out infinite;
-}
-@keyframes lava{
-  0%,100%{opacity:.8;transform:translateY(7px) scaleY(1)}
-  50%{opacity:1;transform:translateY(0) scaleY(1.08)}
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(90% 55% at 50% -8%,rgba(58,46,92,.5),transparent 68%);
 }
 .hero .shell{position:relative;text-align:center}
 
@@ -287,7 +299,7 @@ a:hover{text-decoration:underline}
   position:relative;
   padding:clamp(84px,12vw,164px) 0 clamp(72px,10vw,120px);
   border-top:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(20,17,28,.94),rgba(22,19,32,.45));
+  background:linear-gradient(180deg,rgba(20,17,28,.62),rgba(22,19,32,.2));
 }
 .core h2{font-size:clamp(37px,8.2vw,102px);font-weight:900;letter-spacing:-.045em;line-height:.94;max-width:15ch}
 .core h2 .hl{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -344,7 +356,7 @@ a:hover{text-decoration:underline}
 .reveal.in{opacity:1;transform:none}
 
 /* ══ 2 · THE CLIMB ═══════════════════════════════════════════════════════ */
-.climb{background:linear-gradient(180deg,transparent,rgba(23,19,31,.7) 34%,transparent)}
+.climb{background:linear-gradient(180deg,transparent,rgba(23,19,31,.42) 34%,transparent)}
 .ladder{
   margin-top:clamp(44px,6vw,70px);
   display:grid;grid-template-columns:repeat(10,minmax(0,1fr));
@@ -462,7 +474,7 @@ a:hover{text-decoration:underline}
 .secret-line b{color:var(--ember);font-weight:700}
 
 /* ══ 4 · COSMETICS ═══════════════════════════════════════════════════════ */
-.cosmetics{background:linear-gradient(180deg,transparent,rgba(23,19,31,.72) 40%,transparent)}
+.cosmetics{background:linear-gradient(180deg,transparent,rgba(23,19,31,.42) 40%,transparent)}
 .crate-grid{
   margin-top:clamp(44px,6vw,68px);
   display:grid;grid-template-columns:1.05fr 1fr;gap:clamp(18px,2.4vw,30px);align-items:stretch;
@@ -645,7 +657,7 @@ a:hover{text-decoration:underline}
 .prestige-strip p{font-size:13.5px;color:var(--muted);flex:1 1 260px}
 
 /* ══ 6 · CHALLENGES ══════════════════════════════════════════════════════ */
-.challenges{background:linear-gradient(180deg,transparent,rgba(23,19,31,.72) 40%,transparent)}
+.challenges{background:linear-gradient(180deg,transparent,rgba(23,19,31,.42) 40%,transparent)}
 .duel-grid{margin-top:clamp(44px,6vw,68px);display:grid;grid-template-columns:1.1fr 1fr;gap:clamp(16px,2.2vw,26px)}
 @media (max-width:900px){.duel-grid{grid-template-columns:1fr}}
 .panel{
@@ -706,7 +718,7 @@ a:hover{text-decoration:underline}
 /* ══ 7 · B2B ═════════════════════════════════════════════════════════════ */
 .b2b{
   border-top:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(20,17,28,.9),rgba(23,19,31,.96));
+  background:linear-gradient(180deg,rgba(20,17,28,.58),rgba(23,19,31,.74));
 }
 .b2b-grid{margin-top:clamp(38px,5vw,58px);display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,3vw,48px);align-items:start}
 @media (max-width:900px){.b2b-grid{grid-template-columns:1fr}}
@@ -732,7 +744,7 @@ a:hover{text-decoration:underline}
 /* ══ Footer ══════════════════════════════════════════════════════════════ */
 .site-footer{
   border-top:1px solid var(--line);
-  background:var(--t900);
+  background:rgba(20,17,28,.76);
   padding:clamp(46px,6vw,72px) 0 40px;
   position:relative;
 }
@@ -764,7 +776,10 @@ a:hover{text-decoration:underline}
   .ladder .rung .name{color:var(--tint)}
   .rays{opacity:.9}
   .relic .fill,.race-bar i,.duel-bar i,.rrow .fill{transition:none}
+  /* The canvas goes; the lava pool stays put as the static ember-glow the
+     page falls back to, so the page is still Emberfall-coated at rest. */
   #emberfall{display:none}
+  .lava-pool{filter:blur(2px);transform:none}
 }
 </style>
 </head>
@@ -772,6 +787,8 @@ a:hover{text-decoration:underline}
 
 <a class="skip" href="#main">Skip to content</a>
 <div class="page-ground" aria-hidden="true"></div>
+<canvas id="emberfall" aria-hidden="true"></canvas>
+<div class="lava-pool" aria-hidden="true"></div>
 
 <!-- The flame glyph — the Philoi logo (DESIGN_LANGUAGE_EMBER §1). Flipped inside its own
      viewBox so the mark keeps one orientation app-wide (CINDY_SPEC rendering rule 1). -->
@@ -815,7 +832,6 @@ a:hover{text-decoration:underline}
 
   <!-- ══ 1 · HERO — SEASON 1: EMBERFALL ═════════════════════════════════ -->
   <section class="hero" aria-labelledby="heroTitle">
-    <canvas id="emberfall" aria-hidden="true"></canvas>
     <div class="shell">
 
       <p class="season-pill">
@@ -1342,6 +1358,16 @@ a:hover{text-decoration:underline}
      step by hand (there is no API on this static page to read it from). */
   var SEASON_START = Date.UTC(2026, 9, 1, 0, 0, 0); // 2026-10-01T00:00:00Z
 
+  /* ── Past the hero, the drop pulls back a notch ──────────────────────── */
+  (function heroZone() {
+    var hero = document.querySelector('.hero');
+    if (!hero) return;
+    if (!('IntersectionObserver' in window)) return;
+    new IntersectionObserver(function (entries) {
+      document.body.classList.toggle('past-hero', !entries[0].isIntersecting);
+    }, { threshold: 0 }).observe(hero);
+  })();
+
   /* ── Header: solidify once you leave the hero ───────────────────────── */
   var header = document.getElementById('siteHeader');
   var onScroll = function () {
@@ -1528,29 +1554,30 @@ a:hover{text-decoration:underline}
     }
   })();
 
-  /* ── The Emberfall backdrop ───────────────────────────────────────────
+  /* ── The Emberfall drop ───────────────────────────────────────────────
      Embers RAINING down over the lava pooling on the bottom edge — the
      `emberfall` flare from catalog.ts, which is the season's own effect.
-     Reduced motion never starts it: the CSS gradient underneath is already
-     a finished static ember-glow sky. */
+     The canvas is FIXED to the viewport, not parked in the hero: the flare
+     is an app-wide aura, so the whole page scrolls through the rain.
+     Reduced motion never starts it — the fixed .lava-pool underneath is
+     already a finished static ember-glow on its own. */
   (function emberfall() {
     if (reduced) return;
     var canvas = document.getElementById('emberfall');
     if (!canvas || !canvas.getContext) return;
 
     var ctx = canvas.getContext('2d');
-    var hero = canvas.parentNode;
     var w = 0, h = 0, dpr = 1;
     var embers = [];
     var raf = null;
-    var visible = true;
 
     var COLORS = ['#E0612C', '#F2A33C', '#FFD27A', '#FF7A2F'];
 
     function size() {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
-      w = hero.clientWidth;
-      h = hero.clientHeight;
+      // Viewport, not a section: the canvas is fixed and covers the whole page.
+      w = document.documentElement.clientWidth;
+      h = window.innerHeight;
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1581,7 +1608,6 @@ a:hover{text-decoration:underline}
     var lastT = 0;
     function frame(t) {
       raf = requestAnimationFrame(frame);
-      if (!visible) return;
       var dt = lastT ? Math.min((t - lastT) / 1000, 0.05) : 0.016;
       lastT = t;
 
@@ -1636,17 +1662,12 @@ a:hover{text-decoration:underline}
       rt = setTimeout(size, 180);
     }, { passive: true });
 
+    // A backgrounded tab should not burn frames on 150 particles. Scroll
+    // position is NOT a reason to stop any more — the rain covers every
+    // section now, so there is no point at which it is off screen.
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) stop(); else start();
     });
-
-    // Scrolled past the hero: nothing to draw, so stop drawing it.
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver(function (entries) {
-        visible = entries[0].isIntersecting;
-        if (visible) start(); else stop();
-      }, { threshold: 0 }).observe(hero);
-    }
 
     // Someone flipping on reduced motion mid-visit should get the still page.
     if (still.addEventListener) {
