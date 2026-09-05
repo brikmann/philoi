@@ -351,6 +351,142 @@ body.past-hero .lava-pool{opacity:.55}
 .band .lede{margin-top:20px}
 .hr{border:0;border-top:1px solid var(--line);margin:0}
 
+/* The meander (Greek key) divider. Replaces the plain hairline everywhere —
+   the name is Greek, so the trim between sections is too. Draws itself. */
+.rule-greek{display:flex;align-items:center;justify-content:center;gap:18px;padding:0 22px}
+.rule-greek .rl-line{
+  flex:1;max-width:260px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--line-strong));
+  transform:scaleX(0);transform-origin:right;transition:transform .9s cubic-bezier(.2,.8,.3,1);
+}
+.rule-greek .rl-line+.rl-line,.rule-greek .rl-key+.rl-line{
+  background:linear-gradient(90deg,var(--line-strong),transparent);transform-origin:left;
+}
+.rule-greek .rl-key{
+  width:clamp(120px,20vw,176px);height:auto;flex:none;color:var(--ember);opacity:.75;
+  fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:square;stroke-linejoin:miter;
+  stroke-dasharray:600;stroke-dashoffset:600;
+  transition:stroke-dashoffset 1.7s cubic-bezier(.3,.7,.3,1) .12s;
+}
+.rule-greek.in .rl-line{transform:scaleX(1)}
+.rule-greek.in .rl-key{stroke-dashoffset:0}
+
+/* ══ THE NAME — where "Philoi" comes from ════════════════════════════════ */
+.origin{text-align:center}
+.origin .eyebrow{margin-bottom:8px}
+
+/* ΦΙΛΟΙ, one letter at a time — torches catching down a line. Each capital
+   carries its own transliteration, so the animation IS the etymology: the
+   Greek letterform resolving into the spelling on the app icon. */
+.gk-word{
+  display:flex;justify-content:center;align-items:flex-start;
+  gap:clamp(4px,1.5vw,20px);margin-top:clamp(18px,2.6vw,30px);
+}
+.gl{display:flex;flex-direction:column;align-items:center;gap:clamp(6px,1vw,12px)}
+.gl b{
+  font-size:clamp(54px,12.4vw,146px);font-weight:900;letter-spacing:-.015em;line-height:.88;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+  opacity:.12;filter:grayscale(.8) brightness(.5);transform:translateY(12px) scale(.96);
+  transition:opacity .6s ease,filter .6s ease,transform .6s cubic-bezier(.2,.9,.3,1.4);
+}
+.gl i{
+  font-style:normal;font-size:clamp(9px,1.05vw,12.5px);font-weight:700;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--tertiary);
+  opacity:0;transform:translateY(-6px);transition:opacity .5s ease,transform .5s ease;
+}
+.gk-word.in .gl b{opacity:1;filter:drop-shadow(0 8px 30px rgba(224,97,44,.4));transform:none}
+.gk-word.in .gl i{opacity:1;transform:none;color:var(--ember)}
+/* The flicker rides the wrapper, not the letter: the letter's own opacity is
+   mid-transition during ignition, and an animation on it would win outright. */
+.gk-word.in .gl{animation:gkFlicker 5.2s ease-in-out infinite}
+@keyframes gkFlicker{0%,100%{opacity:1}42%{opacity:.9}68%{opacity:.97}}
+.gl:nth-child(1) b,.gl:nth-child(1) i{transition-delay:0s}
+.gl:nth-child(2) b,.gl:nth-child(2) i{transition-delay:.13s}
+.gl:nth-child(3) b,.gl:nth-child(3) i{transition-delay:.26s}
+.gl:nth-child(4) b,.gl:nth-child(4) i{transition-delay:.39s}
+.gl:nth-child(5) b,.gl:nth-child(5) i{transition-delay:.52s}
+.gl:nth-child(1) i,.gl:nth-child(2) i,.gl:nth-child(3) i,
+.gl:nth-child(4) i,.gl:nth-child(5) i{transition-delay:.5s}
+.gk-word.in .gl:nth-child(1){animation-delay:1.1s}
+.gk-word.in .gl:nth-child(2){animation-delay:1.8s}
+.gk-word.in .gl:nth-child(3){animation-delay:2.4s}
+.gk-word.in .gl:nth-child(4){animation-delay:1.5s}
+.gk-word.in .gl:nth-child(5){animation-delay:2.9s}
+
+.gk-trans{
+  margin-top:clamp(22px,3vw,34px);font-size:clamp(15px,1.7vw,18px);color:var(--muted);
+}
+.gk-trans .gk{
+  font-size:clamp(19px,2.2vw,24px);font-weight:600;letter-spacing:.06em;color:var(--ember);
+}
+.gk-trans i{font-style:italic}
+.gk-def{
+  margin:16px auto 0;max-width:34ch;
+  font-size:clamp(17px,2.1vw,23px);font-style:italic;line-height:1.45;color:#CBBFE0;
+}
+.gk-tie{margin:clamp(24px,3vw,34px) auto 0;max-width:52ch;font-size:clamp(15px,1.6vw,17px);color:var(--tertiary)}
+.origin .rule-greek{margin:clamp(44px,6vw,72px) 0}
+
+.origin-grid{
+  display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);
+  gap:clamp(28px,4.5vw,66px);align-items:center;text-align:left;
+}
+@media (max-width:860px){
+  .origin-grid{grid-template-columns:1fr;justify-items:center}
+  /* The ring centres; the lexicon must NOT — its ember bar is a left edge,
+     and centred text beside a left rule reads as a mistake. */
+  .ring-wrap{text-align:center}
+  .lexicon{width:100%}
+}
+
+.ring-wrap{margin:0;display:flex;flex-direction:column;align-items:center;gap:20px}
+.ring{width:clamp(190px,26vw,260px);height:auto;overflow:visible}
+.ring .orbit{
+  fill:none;stroke:var(--plum);stroke-width:1.5;
+  stroke-dasharray:327;stroke-dashoffset:327;
+  transition:stroke-dashoffset 1.8s cubic-bezier(.3,.7,.3,1) .2s;
+}
+.ring .spoke{
+  stroke:rgba(255,210,122,.22);stroke-width:1;
+  opacity:0;transition:opacity .7s ease 1.1s;
+}
+.ring .friend{
+  fill:var(--amber);opacity:0;transform-box:fill-box;transform-origin:center;transform:scale(.2);
+  transition:opacity .5s ease,transform .5s cubic-bezier(.2,.9,.3,1.7);
+  filter:drop-shadow(0 0 7px rgba(242,163,60,.85));
+}
+.ring-wrap.in .orbit{stroke-dashoffset:0}
+.ring-wrap.in .spoke{opacity:1}
+.ring-wrap.in .friend{opacity:1;transform:none}
+.ring .friend:nth-of-type(1){transition-delay:.55s}
+.ring .friend:nth-of-type(2){transition-delay:.68s}
+.ring .friend:nth-of-type(3){transition-delay:.81s}
+.ring .friend:nth-of-type(4){transition-delay:.94s}
+.ring .friend:nth-of-type(5){transition-delay:1.07s}
+.ring .friend:nth-of-type(6){transition-delay:1.2s}
+.ring .friend:nth-of-type(7){transition-delay:1.33s}
+.ring-cap{font-size:14.5px;line-height:1.55;color:var(--muted);max-width:34ch}
+.ring-cap b{color:var(--ember);font-weight:600;font-style:normal}
+
+.lexicon{display:grid;gap:2px}
+.lex{
+  position:relative;padding:16px 0 16px 22px;
+  transition:background .25s ease;
+}
+.lex::before{
+  content:"";position:absolute;left:0;top:14px;bottom:14px;width:2px;border-radius:2px;
+  background:var(--grad);transform:scaleY(0);transform-origin:top;
+  transition:transform .6s cubic-bezier(.2,.8,.3,1);
+}
+.lex.in::before{transform:scaleY(1)}
+.lex:nth-child(2).in::before{transition-delay:.1s}
+.lex:nth-child(3).in::before{transition-delay:.2s}
+.lex:nth-child(4).in::before{transition-delay:.3s}
+.lex:nth-child(5).in::before{transition-delay:.4s}
+.lex-gk{font-size:clamp(17px,1.9vw,21px);font-weight:700;letter-spacing:.02em;color:var(--ink)}
+.lex-tr{margin-left:10px;font-size:13px;font-style:italic;color:var(--ember);letter-spacing:.04em}
+.lex p{margin-top:7px;font-size:14.5px;line-height:1.55;color:var(--muted);max-width:52ch}
+
 /* Scroll reveal */
 .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.3,1),transform .7s cubic-bezier(.2,.7,.3,1)}
 .reveal.in{opacity:1;transform:none}
@@ -780,6 +916,15 @@ body.past-hero .lava-pool{opacity:.55}
      page falls back to, so the page is still Emberfall-coated at rest. */
   #emberfall{display:none}
   .lava-pool{filter:blur(2px);transform:none}
+  /* Anything whose resting state is "not yet drawn" has to start drawn. */
+  .rule-greek .rl-line{transform:none}
+  .rule-greek .rl-key{stroke-dashoffset:0}
+  .gl b{opacity:1;filter:none;transform:none}
+  .gl i{opacity:1;transform:none;color:var(--ember)}
+  .ring .orbit{stroke-dashoffset:0}
+  .ring .spoke{opacity:1}
+  .ring .friend{opacity:1;transform:none}
+  .lex::before{transform:scaleY(1)}
 }
 </style>
 </head>
@@ -807,6 +952,11 @@ body.past-hero .lava-pool{opacity:.55}
         <path d="M60 66 C66 78 70 84 68 94 C67 101 64 105 60 105 C55 105 52 100 52 94 C52 88 55 84 60 66 Z" fill="#FFD27A"/>
       </g>
     </symbol>
+    <!-- Greek key / meander, 6 tiles of 24. One unbroken stroke, so a single
+         stroke-dashoffset draws the whole run. -->
+    <symbol id="meander" viewBox="-1 -1 146 18">
+      <path d="M0 16 L0 0 L20 0 L20 12 L8 12 L8 4 L16 4 L16 16 L24 16 L24 0 L44 0 L44 12 L32 12 L32 4 L40 4 L40 16 L48 16 L48 0 L68 0 L68 12 L56 12 L56 4 L64 4 L64 16 L72 16 L72 0 L92 0 L92 12 L80 12 L80 4 L88 4 L88 16 L96 16 L96 0 L116 0 L116 12 L104 12 L104 4 L112 4 L112 16 L120 16 L120 0 L140 0 L140 12 L128 12 L128 4 L136 4 L136 16 L144 16"/>
+    </symbol>
   </defs>
 </svg>
 
@@ -817,6 +967,7 @@ body.past-hero .lava-pool{opacity:.55}
       Philoi
     </a>
     <nav class="nav" aria-label="Primary">
+      <a href="#origin">Origin</a>
       <a href="#climb">The climb</a>
       <a href="#relics">Relics</a>
       <a href="#cosmetics">Cosmetics</a>
@@ -917,7 +1068,85 @@ body.past-hero .lava-pool{opacity:.55}
     </div>
   </section>
 
-  <hr class="hr">
+  <div class="rule-greek reveal" aria-hidden="true">
+    <span class="rl-line"></span>
+    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
+    <span class="rl-line"></span>
+  </div>
+
+  <!-- ══ THE NAME — φίλοι ═══════════════════════════════════════════════ -->
+  <section class="band origin" id="origin">
+    <div class="shell">
+      <p class="eyebrow reveal">The name</p>
+
+      <p class="gk-word reveal" role="img" aria-label="Philoi, in Greek capitals: phi, iota, lambda, omicron, iota">
+        <span class="gl"><b>Φ</b><i>ph</i></span>
+        <span class="gl"><b>Ι</b><i>i</i></span>
+        <span class="gl"><b>Λ</b><i>l</i></span>
+        <span class="gl"><b>Ο</b><i>o</i></span>
+        <span class="gl"><b>Ι</b><i>i</i></span>
+      </p>
+
+      <p class="gk-trans reveal"><span class="gk">φίλοι</span> · <i>fee-loy</i> · Ancient Greek</p>
+      <p class="gk-def reveal">&ldquo;close friends bound by trust, affection, and shared effort&rdquo;</p>
+      <p class="gk-tie reveal">Shared effort is the last third of that definition and the whole of the app. The name was the spec before there was a spec.</p>
+
+      <div class="rule-greek reveal" aria-hidden="true">
+        <span class="rl-line"></span>
+        <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
+        <span class="rl-line"></span>
+      </div>
+
+      <div class="origin-grid">
+        <figure class="ring-wrap reveal">
+          <svg class="ring" viewBox="0 0 160 160" role="img" aria-label="Seven friends ringed around one fire">
+            <circle class="orbit" cx="80" cy="80" r="52"/>
+            <g class="spoke" stroke="currentColor">
+              <path d="M80 28 L130.7 91.6 L57.4 126.9 L39.4 47.6 L120.7 47.6 L102.6 126.9 L29.3 91.6 Z" fill="none"/>
+            </g>
+            <circle class="friend" cx="80" cy="28" r="5"/>
+            <circle class="friend" cx="120.7" cy="47.6" r="5"/>
+            <circle class="friend" cx="130.7" cy="91.6" r="5"/>
+            <circle class="friend" cx="102.6" cy="126.9" r="5"/>
+            <circle class="friend" cx="57.4" cy="126.9" r="5"/>
+            <circle class="friend" cx="29.3" cy="91.6" r="5"/>
+            <circle class="friend" cx="39.4" cy="47.6" r="5"/>
+            <use href="#flame" x="65" y="61" width="30" height="38"/>
+          </svg>
+          <figcaption class="ring-cap"><b>φίλος</b> is one friend. <b>φίλοι</b> is the plural — and there is no version of this app for the singular.</figcaption>
+        </figure>
+
+        <ul class="lexicon">
+          <li class="lex reveal">
+            <span class="lex-gk">Αγορά</span><span class="lex-tr">agorá</span>
+            <p>The gathering place — marketplace, forum, cultural heart. In Philoi it is the feed, where a win gets an audience instead of a private notification to three people.</p>
+          </li>
+          <li class="lex reveal">
+            <span class="lex-gk">Φιλία</span><span class="lex-tr">philía</span>
+            <p>The root the name grows from: the bond between equals who make each other better. Not the friendship of convenience — the one with effort in it.</p>
+          </li>
+          <li class="lex reveal">
+            <span class="lex-gk">Ήρως · Τιτάν · Ολύμπιος</span><span class="lex-tr">hērōs · titán · olýmpios</span>
+            <p>Past Diamond the ladder leaves the mortal climb and enters the realm of legend. Hero, Titan, Olympian, Immortal — four tiers most people never see.</p>
+          </li>
+          <li class="lex reveal">
+            <span class="lex-gk">Πρωτόγονος</span><span class="lex-tr">prōtógonos</span>
+            <p>First-born — the beings that came before the gods. It is the apex tier, and the only one with no divisions to climb through. You are Primordial or you are not.</p>
+          </li>
+          <li class="lex reveal">
+            <span class="lex-gk">α β γ δ Ω</span><span class="lex-tr">alpha to omega</span>
+            <p>The five rungs stamped on every discipline relic. α is the day you started. Ω is the last one the ladder has.</p>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <div class="rule-greek reveal" aria-hidden="true">
+    <span class="rl-line"></span>
+    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
+    <span class="rl-line"></span>
+  </div>
 
   <!-- ══ 2 · THE CLIMB ══════════════════════════════════════════════════ -->
   <section class="band climb" id="climb">
@@ -981,7 +1210,11 @@ body.past-hero .lava-pool{opacity:.55}
     </div>
   </section>
 
-  <hr class="hr">
+  <div class="rule-greek reveal" aria-hidden="true">
+    <span class="rl-line"></span>
+    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
+    <span class="rl-line"></span>
+  </div>
 
   <!-- ══ 3 · RELICS ═════════════════════════════════════════════════════ -->
   <section class="band" id="relics">
@@ -1064,7 +1297,11 @@ body.past-hero .lava-pool{opacity:.55}
     </div>
   </section>
 
-  <hr class="hr">
+  <div class="rule-greek reveal" aria-hidden="true">
+    <span class="rl-line"></span>
+    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
+    <span class="rl-line"></span>
+  </div>
 
   <!-- ══ 4 · COSMETICS ══════════════════════════════════════════════════ -->
   <section class="band cosmetics" id="cosmetics">
@@ -1124,7 +1361,11 @@ body.past-hero .lava-pool{opacity:.55}
     </div>
   </section>
 
-  <hr class="hr">
+  <div class="rule-greek reveal" aria-hidden="true">
+    <span class="rl-line"></span>
+    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
+    <span class="rl-line"></span>
+  </div>
 
   <!-- ══ 5 · CAMPFIRES ══════════════════════════════════════════════════ -->
   <section class="band" id="campfires">
@@ -1186,7 +1427,11 @@ body.past-hero .lava-pool{opacity:.55}
     </div>
   </section>
 
-  <hr class="hr">
+  <div class="rule-greek reveal" aria-hidden="true">
+    <span class="rl-line"></span>
+    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
+    <span class="rl-line"></span>
+  </div>
 
   <!-- ══ 6 · CHALLENGES ═════════════════════════════════════════════════ -->
   <section class="band challenges" id="challenges">
@@ -1246,7 +1491,11 @@ body.past-hero .lava-pool{opacity:.55}
     </div>
   </section>
 
-  <hr class="hr">
+  <div class="rule-greek reveal" aria-hidden="true">
+    <span class="rl-line"></span>
+    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
+    <span class="rl-line"></span>
+  </div>
 
   <!-- ══ 7 · B2B — clubs & intramural teams ═════════════════════════════ -->
   <section class="band b2b" id="clubs">
@@ -1312,6 +1561,7 @@ body.past-hero .lava-pool{opacity:.55}
         <div class="foot-col">
           <h4>Season 1</h4>
           <ul>
+            <li><a href="#origin">The name</a></li>
             <li><a href="#climb">The climb</a></li>
             <li><a href="#relics">Relics</a></li>
             <li><a href="#cosmetics">Cosmetics</a></li>
