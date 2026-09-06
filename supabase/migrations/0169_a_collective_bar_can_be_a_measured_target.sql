@@ -215,10 +215,24 @@ begin
   end if;
 
   -- 2 · that one function really does carry the two new parameters.
+  --
+  -- 🔴 TESTED ON proargnames, NOT ON A RENDERED SIGNATURE STRING. This check was written as
+  --    `pg_get_function_identity_arguments(p.oid) like '%text, numeric'`, which never matches:
+  --    that function renders parameter NAMES beside their types, so the real string ends
+  --    "... p_course_code text, p_race_metric text, p_target_value numeric" and the trailing
+  --    literal "text, numeric" is simply not in it. Measured on prod before this edit — the
+  --    pattern returned false against the very function this file had just created correctly.
+  --
+  --    §1-§4 above were right; only this assertion was wrong. But it raises, so the whole file
+  --    rolled back and 0169 could not be applied AT ALL — the ledger sat at 0167 behind a
+  --    migration whose DDL was fine. Exactly the class MIGRATIONS.md records under "Assertions
+  --    must be reachable", where 0146's first push died inside its own assertion on this same
+  --    function's name-vs-type confusion. proargnames compares names directly and cannot be
+  --    broken by how a signature is rendered.
   select count(*) into v_n
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname = 'create_group_challenge'
-    and pg_get_function_identity_arguments(p.oid) like '%text, numeric';
+    and p.proargnames @> array['p_race_metric', 'p_target_value'];
   if v_n <> 1 then
     raise exception '0169: create_group_challenge does not carry p_race_metric/p_target_value';
   end if;
