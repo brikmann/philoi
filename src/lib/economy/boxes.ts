@@ -13,7 +13,7 @@
 // only visualizes a decided outcome. These numbers exist so the odds table can render without a
 // round-trip; economy_config in migration 0064 is what the roll actually reads.
 
-import type { Rarity } from '@/lib/economy/rarity';
+import { RARITY_COLOR, type Rarity } from '@/lib/economy/rarity';
 
 export const BOX_KEYS = ['kindling', 'ignition', 'furnace', 'hestia', 'hephaestus', 'promethean'] as const;
 export type BoxKey = (typeof BOX_KEYS)[number];
@@ -151,4 +151,24 @@ export function oddsRows(box: LootBox): { rarity: Rarity; pct: number }[] {
   return (Object.entries(box.odds) as [Rarity, number][])
     .filter(([, pct]) => pct > 0)
     .map(([rarity, pct]) => ({ rarity, pct }));
+}
+
+/**
+ * A box's own colour — its RARITY, not gold.
+ *
+ * 🔴 THE IGNITION-CRATE BUG, in one function. Every reward surface that drew a box row picked
+ * `Colors.amber` by hand: the challenge reveal's chip, the goal reveal's, the rank-up's, and the
+ * share-card stamp. So all six crates rendered identically gold, while the box art, the shop grid,
+ * the inventory and mock 170 all show Ignition as GREEN, Furnace as BLUE and Hestia as PURPLE.
+ *
+ * Rarity is semantic here — it is the first thing a player reads off a drop — so a gold Ignition
+ * Crate is not a small mismatch, it is the card claiming a rarity the box does not have. The rarity
+ * was on `BOXES[key].rarity` the whole time; nothing was reading it.
+ *
+ * Falls back to amber for a key this build does not know, which is the only case where a neutral
+ * warm tint is the honest answer.
+ */
+export function boxAccent(key: string | null | undefined): string {
+  const box = key ? BOXES[key as BoxKey] : null;
+  return box ? RARITY_COLOR[box.rarity] : '#F2A33C';
 }

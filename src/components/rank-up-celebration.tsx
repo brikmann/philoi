@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
@@ -16,9 +17,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { ClaimBalancePill, asBoxKey, useRewardClaim } from '@/components/economy/reward-claim';
+import { FullscreenRays } from '@/components/economy/reward-reveal';
+import { RewardRow, type RewardRowSpec } from '@/components/economy/reward-rows';
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { HexagonBadge } from '@/components/hexagon-badge';
+import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useInventory } from '@/hooks/use-inventory';
 import { divisionUpCopy, RANK_UP_COPY, rankUpCardTag } from '@/lib/rank-up-copy';
 import { formatRankTier, RANK_TIER_METAL, TIER_FLASH_KIND } from '@/lib/rank-tiers';
 import {
@@ -28,7 +34,7 @@ import {
   startAscensionAnthem,
   stopRankUpAudio,
 } from '@/lib/reward-feedback';
-import { BOXES, type BoxKey } from '@/lib/economy/boxes';
+import { BOXES, boxAccent } from '@/lib/economy/boxes';
 import type { RankTierName } from '@/types/database';
 
 // Warm flash color at the flare beat (design-mocks/85's `.white` / `#FFE9C2`) — a one-off,
@@ -85,6 +91,20 @@ type RankUpCelebrationProps = {
    * landed; this is a read of that, arriving well after the fact.
    */
   reward?: { embers: number; boxKey: string | null } | null;
+  /**
+   * Cosmetics this rank unlocked — §0b. Each becomes its own RewardRow with an **Equip** action
+   * rather than Claim: the grant already minted it, so the only thing left to do with a title or a
+   * skin is put it on.
+   *
+   * ⚠️ NOTHING FEEDS THIS YET, and that is a data fact rather than an omission. `rank_up_rewards`
+   * (0121) has exactly two payout columns — embers and box_key — and `get_my_last_rank_up_reward`
+   * (0142) returns `{kind, embers, box_key, to_tier, to_division, awarded_at}`. There is no title
+   * column anywhere in the rank-up path. Populating this from a hardcoded name would make the
+   * loudest celebration in the app claim a reward the ledger never granted, which is the one rule
+   * every reward surface here is written to. The prop exists so the day a rank-up DOES grant
+   * "Golden", the row is one argument away instead of a redesign.
+   */
+  cosmetics?: { key: string; name: string; accent?: string; onEquip: () => void }[] | null;
   onShare: () => void;
   sharing?: boolean;
 };
@@ -795,19 +815,22 @@ function BurningDivisionMark({
 
 // The stage the moment lives in, and the story card's own background once it settles
 // (design-mocks/85's `.stage`: radial-gradient(130% 58% at 50% 30%, #2a1f3a, #1a1326 60%, #120d1a)).
+/**
+ * 🔴 THE OLD PURPLE SCREEN. Noah: "Rank up screen is still on the old purple screen."
+ *
+ * This drew its own radial — #2a1f3a to #120d1a, lit at 30% and spent by two thirds of the way
+ * down — which is the exact flat-black-at-the-bottom failure ScreenBackground's own header note
+ * describes and fixes for every other screen in the app. So the loudest celebration was the one
+ * surface still painting the palette the rest of the product had moved off.
+ *
+ * It is the shared brand ground now. Not a copy of its stops — the component, so there is no
+ * second gradient to keep in sync. `Colors.forgeBg` is off the container too; a flat fill under a
+ * transparent radial would be the near-black showing through wherever the light did not reach.
+ */
 function StageBackdrop() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Svg width="100%" height="100%">
-        <Defs>
-          <RadialGradient id="stageBg" cx="50%" cy="30%" rx="130%" ry="58%">
-            <Stop offset="0" stopColor="#2a1f3a" />
-            <Stop offset="0.6" stopColor="#1a1326" />
-            <Stop offset="1" stopColor="#120d1a" />
-          </RadialGradient>
-        </Defs>
-        <Rect x={0} y={0} width="100%" height="100%" fill="url(#stageBg)" />
-      </Svg>
+      <ScreenBackground />
     </View>
   );
 }
@@ -850,6 +873,7 @@ export function RankUpCelebration({
   isBandCrossing = false,
   onContinue,
   reward,
+  cosmetics,
   onShare,
   sharing,
 }: RankUpCelebrationProps) {
@@ -1108,14 +1132,172 @@ export function RankUpCelebration({
   const footStyle = useRiseStyle(footReveal);
   const ctasStyle = useRiseStyle(ctasReveal);
 
+  const router = useRouter();
+
   function handleContinue() {
     stopRankUpAudio();
     onContinue();
   }
 
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // 🔴 THE REWARD WAS A SENTENCE. Noah: "the +reward at the bottom is again not in the claim
+  // style I want with the boxes."
+  //
+  // 0142 gave this screen its payout and 0121's trigger is what granted it — but it landed here as
+  // `+100 embers · Ignition Crate`, one line of tinted text in the card footer. Every other payout
+  // in the app is a manifest of RewardRows you claim, with the embers flying into a balance pill
+  // and the box drifting to the inventory corner. The biggest celebration had the smallest reward
+  // presentation.
+  //
+  // Same hook, same rows, same flights as the other three reveals now.
+  //
+  // 🔒 STILL DISPLAY ONLY. economy_track_rank_change moved the embers and minted the box when the
+  // rank landed, usually minutes ago; claiming animates toward a wallet that already holds them.
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  const { embers: walletEmbers, loading: walletLoading, boxStacks } = useInventory();
+  const rewardBoxKey = asBoxKey(reward?.boxKey);
+
+  const claim = useRewardClaim({
+    boxKey: rewardBoxKey,
+    boxName: rewardBoxKey ? BOXES[rewardBoxKey]?.name : null,
+    embers: reward?.embers ?? 0,
+    // NO XP ROW. A rank-up is what XP PAID FOR — the bar it would tick is the one that just
+    // emptied into this celebration. Granting it a row would be the screen paying you for arriving
+    // with the thing that got you here.
+    walletEmbers: walletLoading ? null : walletEmbers,
+    onDone: handleContinue,
+  });
+
+  // Destructured immediately: the hook returns its three measurement refs in the same object, so
+  // the React Compiler reads every `claim.x` in the JSX below as accessing a ref during render.
+  const {
+    rootRef: claimRootRef,
+    originRef: claimOriginRef,
+    pillRef: claimPillRef,
+    heroAnchor,
+    rootOffset,
+    claimed,
+    claimFor,
+    claim: claimOne,
+    busy: claimBusy,
+    allClaimed,
+    ctaLabel,
+    onCta,
+    displayBalance,
+    pillStyle: balancePillStyle,
+  } = claim;
+
+  /**
+   * Where the rank-up box actually is.
+   *
+   * get_my_last_rank_up_reward (0142) returns `box_key` and no row id — it reads the reward CONFIG
+   * that was paid, not the loot_boxes row that was minted — so unlike the challenge reveal there is
+   * no id to hand the crack screen. The inventory read this screen already runs for the balance
+   * knows: `boxStacks` groups every unopened box by key and keeps their ids, newest first. The
+   * newest of the matching key is the one this rank-up just minted.
+   *
+   * Undefined when the read has not landed or the box has already been opened elsewhere, which is
+   * what leaves Open off the row rather than routing at a box that cannot be found — the same
+   * posture the challenge screen takes when `box.id` is null on an older payload.
+   */
+  const rewardBoxId = useMemo(
+    () => (rewardBoxKey ? boxStacks.find((st) => st.boxKey === rewardBoxKey)?.ids[0] : undefined),
+    [rewardBoxKey, boxStacks]
+  );
+
+  const handleOpenBox = useCallback(() => {
+    if (!rewardBoxId || !rewardBoxKey) return;
+    claimOne('box');
+    // Tear the celebration down before navigating, the way the challenge watcher's own
+    // handleOpenBox does — pushing the crack screen out from under a full-screen modal that is
+    // still animating leaves the anthem playing behind it.
+    handleContinue();
+    router.push({ pathname: '/shop/open', params: { boxIds: rewardBoxId, boxKey: rewardBoxKey } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleContinue is a stable local fn
+  }, [rewardBoxId, rewardBoxKey, claim.claim, router]);
+
+  // Memoised on the claim fields a ROW can read, not on `claim` itself — the balance counter
+  // renders this tree ~16 times a second while embers are in the air. See the same note on the
+  // challenge screen.
+  const rewardRows = useMemo<RewardRowSpec[]>(() => {
+    const rows: RewardRowSpec[] = [];
+    // BOX FIRST, THEN EMBERS — the order "Claim all" runs, and the order every other manifest in
+    // the app reads in.
+    if (rewardBoxKey) {
+      rows.push({
+        kind: 'box',
+        title: BOXES[rewardBoxKey]?.name ?? 'Loot box',
+        detail: `${BOXES[rewardBoxKey]?.rarity ?? ''} box · rank-up reward`.trim(),
+        // 🔴 Mock 170 calls this one out by name: the rank-up's Ignition Crate is UNCOMMON and
+        // renders GREEN. It was gold here, like every other box row in the app was.
+        chip: { label: (BOXES[rewardBoxKey]?.rarity ?? 'earned').toUpperCase(), color: boxAccent(rewardBoxKey) },
+        accent: boxAccent(rewardBoxKey),
+        onOpen: rewardBoxId ? handleOpenBox : undefined,
+        openDisabled: claimBusy,
+        claim: rewardBoxId ? undefined : claimFor('box'),
+        claimed: Boolean(claimed.box),
+        destination: rewardBoxId ? undefined : '→ inventory',
+      });
+    }
+    // COSMETICS BEFORE CURRENCY. A permanent thing you wear outranks a balance, and the two-step
+    // reveal exists precisely so a rank-up that drops a title AND a crate AND embers still reads
+    // clean rather than as a scrolling pile.
+    for (const c of cosmetics ?? []) {
+      rows.push({
+        kind: 'cosmetic',
+        title: c.name,
+        detail: `${formatRankTier(tier, division)} exclusive`,
+        accent: c.accent,
+        equip: { onPress: c.onEquip, disabled: claimBusy },
+      });
+    }
+    if ((reward?.embers ?? 0) > 0) {
+      rows.push({
+        kind: 'embers',
+        title: 'Embers',
+        detail: 'Spend in the shop',
+        value: `+${(reward?.embers ?? 0).toLocaleString('en-US')}`,
+        claim: claimFor('embers'),
+        claimed: Boolean(claimed.embers),
+        destination: '→ wallet',
+      });
+    }
+    return rows;
+  }, [
+    rewardBoxKey,
+    rewardBoxId,
+    handleOpenBox,
+    reward?.embers,
+    cosmetics,
+    tier,
+    division,
+    claimed,
+    claimBusy,
+    claimFor,
+  ]);
+
   return (
     <Animated.View entering={FadeIn.duration(300)} style={[styles.container, shakeStyle]}>
       <StageBackdrop />
+
+      {/* The claim geometry's origin. An absolute fill rather than a ref on the Animated.View
+          above, because `rootRef` is typed for a plain View and the container is animated — this
+          shares the container's exact top-left, which is all measureInWindow is asked for here. */}
+      <View ref={claimRootRef} collapsable={false} pointerEvents="none" style={StyleSheet.absoluteFill} />
+
+      {/* THE BRAND REVEAL'S FAN, behind the hex badge and under everything else — the same
+          component the challenge and daily reveals use, anchored on the measured badge so the light
+          comes off the emblem rather than off the middle of the phone. This screen had the app's
+          biggest ray SCALE in REVEAL_TUNING and nothing drawing it. */}
+      <FullscreenRays kind="rank_up" anchor={heroAnchor} rootOffset={rootOffset} />
+
+      {/* The corner the embers fly into. The rank-up has no top bar to put it in, so it floats
+          over one — the card's brand mark is centred and never reaches this far right. */}
+      {(reward?.embers ?? 0) > 0 ? (
+        <Animated.View style={[styles.balancePill, balancePillStyle]}>
+          <ClaimBalancePill embers={displayBalance} innerRef={claimPillRef} lit={claimBusy} />
+        </Animated.View>
+      ) : null}
 
       {/* The two cinematic pre-beats — only ever mounted for the two band crossings, and only when
           motion is allowed (§7: reduce-motion cross-fades straight to the composed card). */}
@@ -1143,6 +1325,10 @@ export function RankUpCelebration({
 
       <View
         style={styles.badgeZone}
+        // Also the origin of the reward flights and the anchor for the full-screen fan: the embers
+        // lift off the emblem that earned them.
+        ref={claimOriginRef}
+        collapsable={false}
         pointerEvents="none"
         onLayout={(e) => {
           // Correct the seeded estimate with where the badge actually landed, so the void collapse
@@ -1220,23 +1406,31 @@ export function RankUpCelebration({
           <Text style={[styles.whoRank, { color: metal.inner }]}>{formatRankTier(tier, division)}</Text>
         </View>
         <Text style={styles.streakLine}>forged from a {streakDays}-day streak</Text>
-        {/* WHAT IT PAID. The rising embers elsewhere on this card are a per-tier visual signature —
-            particles, not the grant — so until now the loudest celebration in the app was the only
-            one that never told you what you got. */}
-        {reward && (reward.embers > 0 || reward.boxKey) && (
-          <View style={styles.rewardLine}>
-            {reward.embers > 0 && (
-              <Text style={[styles.rewardText, { color: metal.inner }]}>+{reward.embers.toLocaleString()} embers</Text>
-            )}
-            {reward.embers > 0 && reward.boxKey ? <Text style={styles.whoDot}>·</Text> : null}
-            {reward.boxKey ? (
-              <Text style={[styles.rewardText, { color: metal.inner }]}>
-                {BOXES[reward.boxKey as BoxKey]?.name ?? 'a box'}
-              </Text>
-            ) : null}
-          </View>
-        )}
       </Animated.View>
+
+      {/* WHAT IT PAID, as the manifest every other reveal uses. The rising embers elsewhere on this
+          card are a per-tier visual SIGNATURE — particles, not the grant — so a tinted string was
+          the only thing on screen that named the actual reward, and it named it in a typeface that
+          made it read as a caption on the celebration rather than as something you had won. Rides
+          the same `footStyle` reveal, so it composes with the card instead of appearing under it. */}
+      {rewardRows.length > 0 ? (
+        <Animated.View style={[styles.rewardRows, footStyle]}>
+          {rewardRows.map((row) => (
+            <RewardRow key={`${row.kind}-${row.title}`} spec={row} />
+          ))}
+          {/* "Claim all" while anything is left, "Done" once nothing is — the same footer contract
+              as the other three. Share and Continue keep their own block below. */}
+          {!allClaimed ? (
+            <Pressable
+              style={[styles.claimAll, claimBusy && styles.claimAllBusy]}
+              onPress={onCta}
+              disabled={claimBusy}
+              accessibilityRole="button">
+              <Text style={styles.claimAllLabel}>{ctaLabel}</Text>
+            </Pressable>
+          ) : null}
+        </Animated.View>
+      ) : null}
 
       <Animated.View style={[styles.ctas, ctasStyle]}>
         <Pressable style={styles.shareBtn} onPress={onShare} disabled={sharing}>
@@ -1264,7 +1458,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.five,
     paddingBottom: Spacing.five,
-    backgroundColor: Colors.forgeBg,
+    // No flat fill: StageBackdrop paints the shared brand radial behind everything, and a solid
+    // colour here would sit on top of it.
+    backgroundColor: 'transparent',
   },
   brand: {
     flexDirection: 'row',
@@ -1437,15 +1633,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  rewardLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
+  // Floats over the card's top-right. The brand mark is centred and the tag sits under it, so
+  // nothing else is competing for this corner.
+  balancePill: {
+    position: 'absolute',
+    top: Spacing.two,
+    right: Spacing.four,
+    zIndex: 6,
+  },
+  rewardRows: {
+    alignSelf: 'stretch',
+    gap: Spacing.two,
+    marginBottom: Spacing.three,
+  },
+  // A quiet outline rather than the ember PrimaryButton the other reveals use: on this card the
+  // filled ember gradient is the SHARE button, and two solid warm CTAs stacked would fight. The
+  // rows carry the ember styling here.
+  claimAll: {
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,210,122,0.4)',
+    borderRadius: Radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
     marginTop: 2,
   },
-  rewardText: {
-    fontFamily: Fonts.bodySemiBold,
+  claimAllBusy: {
+    opacity: 0.5,
+  },
+  claimAllLabel: {
+    fontFamily: Fonts.bodyBold,
     fontSize: 13,
+    color: Colors.ember,
   },
   who: {
     flexDirection: 'row',

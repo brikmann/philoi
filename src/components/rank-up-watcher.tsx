@@ -186,6 +186,10 @@ export function RankUpWatcher() {
             tier={pending.tier}
             division={pending.division}
             isDivisionBump={pending.isDivisionBump}
+            // The SAME read the celebration itself renders — 0142's get_my_last_rank_up_reward —
+            // so the card and the screen it was shared from name the same prize. Null until that
+            // read lands, which leaves the stamp off rather than guessing at one.
+            boxKey={reward?.box_key ?? null}
           />
         </View>
       </Screen>

@@ -22,7 +22,7 @@ import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { deleteChallenge, type GoalDayAward } from '@/lib/api/challenges';
 import { useNextGoalReveal } from '@/lib/goal-reveal-queue';
 import { shareCardImage } from '@/lib/share-card';
-import type { Challenge, SocialChallenge } from '@/types/database';
+import type { Challenge, DifficultyTier, SocialChallenge } from '@/types/database';
 
 /** Mock 102's `.tab` — a count badge only when there is something to count, so an empty side
  * reads as calm rather than as a zero someone has to interpret. */
@@ -144,7 +144,11 @@ export default function ChallengesScreen() {
   const [historyOpen, setHistoryOpen] = useState(false);
   // Mock 103's payout screen, held until dismissed. One nullable object rather than two parallel
   // states, so the screen can never render with an award but no label to describe it.
-  const [goalAward, setGoalAward] = useState<{ award: GoalDayAward; goalLabel: string } | null>(null);
+  const [goalAward, setGoalAward] = useState<{
+    award: GoalDayAward;
+    goalLabel: string;
+    difficultyTier: DifficultyTier | null;
+  } | null>(null);
   const goalCardRef = useRef<View>(null);
   const [sharingGoal, setSharingGoal] = useState(false);
   // Which half of the tab is showing (mock 102 v2). Defaults to Friends: an incoming duel is the
@@ -174,7 +178,12 @@ export default function ChallengesScreen() {
     setGoalAward(null);
   }
 
-  function handleLogged(justCompleted: boolean, award: GoalDayAward | null, goalLabel: string) {
+  function handleLogged(
+    justCompleted: boolean,
+    award: GoalDayAward | null,
+    goalLabel: string,
+    difficultyTier: DifficultyTier | null
+  ) {
     refetch();
     if (!justCompleted) return;
 
@@ -182,7 +191,7 @@ export default function ChallengesScreen() {
     // `already_awarded` means this local day was banked earlier — re-showing the payout would
     // announce embers that did not move a second time.
     if (award && !award.already_awarded) {
-      setGoalAward({ award, goalLabel });
+      setGoalAward({ award, goalLabel, difficultyTier });
       return;
     }
     setCelebrating(true);
@@ -308,6 +317,12 @@ export default function ChallengesScreen() {
                 ref={goalCardRef}
                 streakDays={activeAward.award.streak}
                 goalLabel={activeAward.goalLabel}
+                // Picks the hero: a scoped one-off feat brags about its DIFFICULTY, a recurring
+                // target brags about its streak. Null on every pre-scoping goal, which keeps the
+                // streak card exactly as it was.
+                difficultyTier={activeAward.difficultyTier}
+                // What the completion actually granted, named rather than counted.
+                boxKey={activeAward.award.box}
                 handle={profile?.handle ?? null}
               />
             </View>

@@ -16,7 +16,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 // server (grant_reward / economy_award_goal_day); a screen that computed its own reward list could
 // disagree with the ledger, and the ledger is what actually paid.
 
-export type RewardRowKind = 'xp' | 'embers' | 'box' | 'badge';
+export type RewardRowKind = 'xp' | 'embers' | 'box' | 'badge' | 'cosmetic';
 
 export type RewardRowSpec = {
   kind: RewardRowKind;
@@ -34,8 +34,32 @@ export type RewardRowSpec = {
   chip?: { label: string; color: string };
   /** Where it landed — mock 103's `.dest`, e.g. "→ wallet". */
   destination?: string;
+  /**
+   * The row's own colour — the box's RARITY, the cosmetic's rarity, the tier's accent.
+   *
+   * 🔴 THE FIX FOR "THE IGNITION CRATE IS AMBER". Every box row in the app hardcoded
+   * `Colors.amber` for its chip and its icon, so all six crates rendered the same gold regardless
+   * of what they actually are — while the box art, the shop, the inventory and mock 170 all agree
+   * that Ignition is GREEN (uncommon), Furnace BLUE (rare) and Hestia PURPLE (epic). Rarity is
+   * semantic in this app: it is the one thing a player reads before the name. Handing the row an
+   * accent, and deriving that accent from `BOXES[key].rarity` at the call sites, is what stops a
+   * seventh copy of the hardcode appearing on the next screen.
+   */
+  accent?: string;
   /** Renders the row as the openable box (mock 47's `.rw.box` with its Open button). */
   onOpen?: () => void;
+  /** A flight is in the air somewhere on the screen, so Open should not take a tap either. */
+  openDisabled?: boolean;
+  /**
+   * Already taken — the row dims and its control becomes a tick.
+   *
+   * THE STATE PER-ROW CLAIMING NEEDED AND SEQUENTIAL CLAIMING DID NOT. When one footer button
+   * walked the rewards in order, "claimed" was implicit in the index: everything above the current
+   * step was done. With every row carrying its own control there is no order left to infer it
+   * from, so each row has to say. It is also the only feedback that a claim which flew off-screen
+   * actually happened — the embers land in a pill in the corner, not in the row you pressed.
+   */
+  claimed?: boolean;
   /**
    * The claim, INSIDE the row, in the slot `destination` would have used.
    *
@@ -48,6 +72,15 @@ export type RewardRowSpec = {
    * right-hand side is the claim.
    */
   claim?: { label: string; onPress: () => void; disabled?: boolean };
+  /**
+   * A cosmetic's action. Equip, not Claim — §0b of the parity pass.
+   *
+   * A title or a skin the event granted is ALREADY OWNED by the time this screen renders (the
+   * grant minted it server-side, like everything else here). There is nothing to claim and nowhere
+   * to fly it to: the only thing left to do with it is put it on. So the row carries the same verb
+   * the unlock reveal uses, and `equipped` is its finished state rather than `claimed`.
+   */
+  equip?: { onPress: () => void; disabled?: boolean; equipped?: boolean };
 };
 
 const KIND_ICON: Record<RewardRowKind, { name: keyof typeof Ionicons.glyphMap; tint: string; bg: string }> = {
@@ -55,16 +88,21 @@ const KIND_ICON: Record<RewardRowKind, { name: keyof typeof Ionicons.glyphMap; t
   embers: { name: 'flame', tint: Colors.ember, bg: 'rgba(255,210,122,0.16)' },
   box: { name: 'cube', tint: '#FFD27A', bg: 'rgba(138,90,18,0.35)' },
   badge: { name: 'star', tint: Colors.green, bg: 'rgba(61,168,92,0.16)' },
+  cosmetic: { name: 'sparkles', tint: '#C99BF7', bg: 'rgba(168,85,247,0.16)' },
 };
 
 // Memoised: `rows` is already a stable useMemo for the length of a flight, so this stops the
 // balance counter re-rendering rows that cannot have changed.
 export const RewardRow = memo(function RewardRow({ spec }: { spec: RewardRowSpec }) {
-  const icon = KIND_ICON[spec.kind];
+  const base = KIND_ICON[spec.kind];
+  // The accent wins where it is given, so a row's icon, chip and action all carry one colour and
+  // that colour is the reward's own rarity rather than a per-screen guess.
+  const icon = spec.accent ? { ...base, tint: spec.accent, bg: withAlpha(spec.accent) } : base;
   const isBox = Boolean(spec.onOpen);
+  const done = spec.claimed || spec.equip?.equipped;
 
   return (
-    <View style={[styles.row, isBox && styles.rowBox]}>
+    <View style={[styles.row, isBox && styles.rowBox, done && styles.rowClaimed]}>
       <View style={[styles.iconTile, { backgroundColor: icon.bg }]}>
         <Ionicons name={icon.name} size={16} color={icon.tint} />
       </View>
@@ -87,8 +125,34 @@ export const RewardRow = memo(function RewardRow({ spec }: { spec: RewardRowSpec
         ) : null}
       </View>
 
-      {spec.onOpen ? (
-        <Pressable style={styles.openBtn} onPress={spec.onOpen} accessibilityRole="button">
+      {done ? (
+        // Taken. Not a disabled button — a disabled control still reads as something you failed to
+        // press, and this is the opposite: the one row on screen that is finished.
+        <View style={styles.takenSlot} accessibilityLabel="Claimed">
+          <Ionicons name="checkmark" size={15} color={Colors.green} />
+        </View>
+      ) : spec.equip ? (
+        // Mock 170's `.cbtn.equip` — gold, and deliberately not the ember PrimaryButton the Claim
+        // rows use. Equipping is not claiming, and giving the two the same button would say it is.
+        <Pressable
+          style={[styles.equipBtn, spec.equip.disabled && styles.openBtnDisabled]}
+          onPress={spec.equip.onPress}
+          disabled={spec.equip.disabled}
+          accessibilityRole="button">
+          <Text style={styles.equipBtnText}>Equip</Text>
+        </Pressable>
+      ) : spec.onOpen ? (
+        <Pressable
+          // Tinted by the box's rarity (mock 170's `.cbtn.open` / `.cbtn.open.green`), so the one
+          // control on the row agrees with the crate it opens.
+          style={[
+            styles.openBtn,
+            spec.accent ? { backgroundColor: spec.accent } : null,
+            spec.openDisabled && styles.openBtnDisabled,
+          ]}
+          onPress={spec.onOpen}
+          disabled={spec.openDisabled}
+          accessibilityRole="button">
           <Text style={styles.openBtnText}>Open</Text>
         </Pressable>
       ) : spec.claim ? (
@@ -206,5 +270,35 @@ const styles = StyleSheet.create({
   // long ("+1,000 Embers").
   claimSlot: {
     flexShrink: 0,
+  },
+  // Dimmed rather than hidden. The manifest is a receipt as much as a set of controls — a row that
+  // vanished on claim would leave the screen shrinking under the user's thumb and take the record
+  // of what they won with it.
+  rowClaimed: {
+    opacity: 0.55,
+  },
+  takenSlot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(61,168,92,0.16)',
+    flexShrink: 0,
+  },
+  openBtnDisabled: {
+    opacity: 0.45,
+  },
+  equipBtn: {
+    backgroundColor: Colors.amber,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    flexShrink: 0,
+  },
+  equipBtnText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: '#241207',
   },
 });

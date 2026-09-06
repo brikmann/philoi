@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BoxCrack } from '@/components/economy/box-crack';
@@ -13,12 +13,12 @@ import { Screen } from '@/components/ui/screen';
 import { useRevealPreview, useRevealSting } from '@/hooks/use-audio-preview';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
+import { useShareCardCapture } from '@/hooks/use-share-card-capture';
 import { useShareRank } from '@/hooks/use-share-rank';
 import { UnlockShareCard } from '@/components/economy/unlock-share-card';
 import { useAuth } from '@/lib/auth/auth-context';
 import { equipCosmetic, openBox, type OpenResult } from '@/lib/api/inventory';
 import { BOXES, type BoxKey } from '@/lib/economy/boxes';
-import { shareCardImage } from '@/lib/share-card';
 import { getItem } from '@/lib/economy/catalog';
 import { getErrorMessage } from '@/lib/errors';
 import { RARITY_COLOR, rarityGlow, type Rarity } from '@/lib/economy/rarity';
@@ -204,7 +204,9 @@ function SingleMenu({
 }) {
   const { profile } = useAuth();
   const shareRank = useShareRank();
-  const cardRef = useRef<View>(null);
+  // 🐛 MOUNTED ON THE TAP, not for the life of the screen — see useShareCardCapture. A full story
+  // card was being rendered off-screen behind every single reveal for a share most users never do.
+  const { cardRef, mounted: cardMounted, onCardLayout, capture } = useShareCardCapture();
   const item = result.item ?? getItem(result.cosmetic_key);
   // Auditions the pull the moment it's revealed, when an audio cosmetic is what dropped — hearing
   // it is the reveal for those items, the way the art is for every other type. Hook runs before the
@@ -219,7 +221,7 @@ function SingleMenu({
 
   async function onShare() {
     try {
-      await shareCardImage(cardRef, 'Share your unlock');
+      await capture('Share your unlock');
     } catch (e) {
       Alert.alert("Couldn't share that", getErrorMessage(e, 'Something went wrong.'));
     }
@@ -227,18 +229,20 @@ function SingleMenu({
 
   return (
     <Screen padded={false}>
-      {/* Off-screen render target for the capture. Positioned rather than conditionally mounted so
-          the ref is attached and laid out before the first tap on Share. */}
-      <View style={styles.offscreen} pointerEvents="none">
-        <UnlockShareCard
-          ref={cardRef}
-          item={item}
-          oddsPct={oddsPct}
-          handle={profile?.handle ?? null}
-          tier={shareRank.tier}
-          division={shareRank.division}
-        />
-      </View>
+      {/* Off-screen render target, mounted only while a capture is in flight. `onCardLayout` is
+          what replaces the old "render it up front and hope" — the capture waits for this. */}
+      {cardMounted ? (
+        <View style={styles.offscreen} pointerEvents="none" onLayout={onCardLayout}>
+          <UnlockShareCard
+            ref={cardRef}
+            item={item}
+            oddsPct={oddsPct}
+            handle={profile?.handle ?? null}
+            tier={shareRank.tier}
+            division={shareRank.division}
+          />
+        </View>
+      ) : null}
       <View style={styles.heroWrap}>
         <View style={[styles.heroGlow, { backgroundColor: rarityGlow(item.rarity, 0.45) }]} />
         <ItemArt item={item} size={140} />
@@ -307,7 +311,9 @@ function MultiMenu({
 }) {
   const { profile } = useAuth();
   const shareRank = useShareRank();
-  const cardRef = useRef<View>(null);
+  // The worst case for the old always-mounted pattern: a ×10 open rendered a complete 360×640 story
+  // card during the reveal animation, for a haul the user may never share.
+  const { cardRef, mounted: cardMounted, onCardLayout, capture } = useShareCardCapture();
   const best = bestOf(results);
   const dupeEmbers = results.reduce((sum, r) => sum + (r.dupe ? r.embers : 0), 0);
   const bestResult = results.find((r) => r.item?.rarity === best);
@@ -321,7 +327,7 @@ function MultiMenu({
 
   async function onShare() {
     try {
-      await shareCardImage(cardRef, 'Share your haul');
+      await capture('Share your haul');
     } catch (e) {
       Alert.alert("Couldn't share that", getErrorMessage(e, 'Something went wrong.'));
     }
@@ -331,8 +337,8 @@ function MultiMenu({
     <Screen padded={false}>
       {/* ×10 leads with the best pull; the rest of the haul rides as a rarity-bordered chip
           strip (§8.5 / mock 60). */}
-      {bestItem ? (
-        <View style={styles.offscreen} pointerEvents="none">
+      {bestItem && cardMounted ? (
+        <View style={styles.offscreen} pointerEvents="none" onLayout={onCardLayout}>
           <UnlockShareCard
             ref={cardRef}
             item={bestItem}

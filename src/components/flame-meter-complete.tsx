@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -12,28 +12,24 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
-import { EmberFlight, type FlightPoint } from '@/components/economy/ember-flight';
-import { RewardRays } from '@/components/economy/reward-reveal';
+import { FLAME_ASPECT_RATIO, EquippedFlameSvg } from '@/components/flame-icon';
+import { useRewardClaim } from '@/components/economy/reward-claim';
+import { RewardRevealFrame, type RowClaim } from '@/components/economy/reward-reveal-frame';
+import { type RewardRowSpec } from '@/components/economy/reward-rows';
 import { HexagonBadge } from '@/components/hexagon-badge';
-import { EmberIcon } from '@/components/economy/ember-icon';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useInventory } from '@/hooks/use-inventory';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
+import { useFlameRamp } from '@/lib/economy/flame-ramp';
 import { postCheckInToCircle } from '@/lib/api/lock-ins';
 import { getErrorMessage } from '@/lib/errors';
 import { formatDurationClock } from '@/lib/format';
 import { markFlameMeterCelebrated } from '@/lib/flame-meter-local';
 import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import { formatRankTier, xpProgressRatio } from '@/lib/rank-tiers';
-import { fireConfirm, fireEmberLand, fireFlameMeterComplete, fireXpTick } from '@/lib/reward-feedback';
+import { fireConfirm, fireFlameMeterComplete } from '@/lib/reward-feedback';
 import type { GoalType, MyRank } from '@/types/database';
-
-// Fly timings match design-mocks/27's JS choreography: 5 embers, 150ms apart, starting only
-// after the celebration's own rise-in beats have settled (1500ms).
-const FLY_COUNT = 5;
-const FLY_START_DELAY = 1500;
-const FLY_STAGGER = 150;
-const FLY_DURATION = 850;
 
 type FlameMeterCompleteProps = {
   displayName: string;
@@ -65,7 +61,18 @@ const SPARKS = [
   { delay: 1150, xOffset: 20 },
 ];
 
-function Spark({ delay, xOffset, reduceMotion }: { delay: number; xOffset: number; reduceMotion: boolean }) {
+function Spark({
+  delay,
+  xOffset,
+  reduceMotion,
+  colour,
+}: {
+  delay: number;
+  xOffset: number;
+  reduceMotion: boolean;
+  /** The equipped flame's outer stop — a spark is a piece of the fire that threw it. */
+  colour: string;
+}) {
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -83,13 +90,37 @@ function Spark({ delay, xOffset, reduceMotion }: { delay: number; xOffset: numbe
   }));
 
   if (reduceMotion) return null;
-  return <Animated.View style={[styles.spark, style]} />;
+  return <Animated.View style={[styles.spark, { backgroundColor: colour }, style]} />;
 }
 
 // The once-a-day meter-fill celebration (PHILOI_UI_SPEC.md §13, design-mocks/27) — shown
 // instead of the plain LockInDoneScreen recap when the session that just ended crosses the
 // daily flame meter to 100%. See lock-in/index.tsx's handleStop for the crossing detection and
 // the "rank-up wins" queueing rule (§11) that can delay this behind RankUpCelebration.
+//
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// 🔴 THE DAILY FIRE WAS THE ODD ONE OUT. Noah, from an on-device run: "Daily fire isn't full-screen
+// ray cover like the challenge screen, nor are the rewards positioned the same."
+//
+// Both halves were true, and both were this screen keeping the version of the reveal language it
+// was born with while the others moved on:
+//
+//   · THE LIGHT. It drew `RewardRays size={280}` — a bounded 280pt fan, which reads as a halo stuck
+//     to the flame rather than as light filling the screen. The challenge reveal had long since
+//     moved to `FullscreenRays`, which measures to the farthest corner and escapes the safe-area
+//     wrappers. It now gets that one, through the shared frame, so there is no size to keep in
+//     sync.
+//
+//   · THE REWARDS. They were two chips — `+250 XP` and `+40 fire bonus` — plus an ember counter in
+//     the corner that a spray of embers flew into on a 1500ms timer whether you asked or not. That
+//     is a payout that HAPPENS AT you. Everywhere else in the app the same four currencies are a
+//     manifest of RewardRows you claim. So the chips are rows now, each with its own Claim, and the
+//     embers fly when you press the ember row rather than when a timer says so.
+//
+// WHAT IS DELIBERATELY KEPT: the roaring flame and its sparks, "You're on fire, {name}!", the
+// DAILY FIRE COMPLETE pill, the rank bar, and Share / Post to the campfire / Done. This was a
+// reframing of a screen that worked, not a replacement for it.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
 export function FlameMeterComplete({
   displayName,
   goalType,
@@ -109,14 +140,15 @@ export function FlameMeterComplete({
   sharing,
   onDone,
 }: FlameMeterCompleteProps) {
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useReduceMotion();
+  // The ring and the sparks are this screen's hero glow — the light the roaring flame throws — so
+  // they follow the equipped flame for the same reason the ray fan behind them does.
+  const ramp = useFlameRamp();
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [embers, setEmbers] = useState(embersBefore);
   // Trim to the first token — display names are frequently "First Last", and the headline wants
   // the way you'd actually be spoken to. Falls back to the whole string if there's no space.
   const firstName = displayName.trim().split(/\s+/)[0] || displayName;
-  const [flightGeo, setFlightGeo] = useState<{ from: FlightPoint; to: FlightPoint } | null>(null);
   const [displayXp, setDisplayXp] = useState(rankBefore?.xp_into_tier ?? 0);
   const [plusVisible, setPlusVisible] = useState(false);
 
@@ -126,18 +158,15 @@ export function FlameMeterComplete({
   const burst = useSharedValue(0);
   const headReveal = useSharedValue(reduceMotion ? 1 : 0);
   const pillReveal = useSharedValue(reduceMotion ? 1 : 0);
-  const xplineReveal = useSharedValue(reduceMotion ? 1 : 0);
-  const bump = useSharedValue(0);
   const fillRatio = useSharedValue(rankBefore ? xpProgressRatio(rankBefore.xp_into_tier, rankBefore.xp_for_next_tier) : 0);
 
-  const overlayRef = useRef<View>(null);
-  const fireRef = useRef<View>(null);
-  const counterRef = useRef<View>(null);
-  const landedCount = useRef(0);
-
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
-  }, []);
+  // THE LEDGER'S OWN FIGURE, not `embersBefore + bonusEmbers`. The daily-fire bonus is granted
+  // server-side by the stop RPC before this screen mounts, so a live wallet read already includes
+  // it — and the hook derives the PRE-payout balance by subtracting what was paid. Deriving it the
+  // other way round is the bug the goal reveal's `newBalance` note describes: it is wrong the
+  // moment anything else moved the wallet in the same window. `embersBefore` stays a prop only
+  // because it is the fallback while the read is in flight.
+  const { embers: walletEmbers, loading: walletLoading } = useInventory();
 
   // The campfire-pop beat: fires the once-a-day cue immediately (this screen only mounts once,
   // right after the crossing stop) and marks the AsyncStorage flag so the home flame-meter
@@ -161,78 +190,62 @@ export function FlameMeterComplete({
 
     headReveal.value = withDelay(650, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
     pillReveal.value = withDelay(900, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
-    xplineReveal.value = withDelay(1100, withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire-once mount effect
   }, [reduceMotion]);
 
-  // Rank bar — same fill-from-before-to-after treatment as LockInDoneScreen, just started a
-  // little later so it reads as part of this screen's own reveal sequence, not competing with it.
-  useEffect(() => {
+  // 🔴 THE RANK BAR NOW BELONGS TO THE XP ROW'S CLAIM.
+  //
+  // It used to fill on a 1300ms timer — the screen paid you on a schedule, and by the time you had
+  // read the headline the bar had already moved. This is the same fill, the same count-up and the
+  // same `+N XP` plus-label, hung off `onXpClaimed` instead. XP has no flight of its own (see
+  // RewardClaimKind: there is nowhere for it to fly on the two reveals that have no bar), so on
+  // THIS screen the bar IS the flight, which is exactly what Noah asked the XP row to do.
+  // NOT a useCallback: this writes to `fillRatio`, a Reanimated shared value, and a shared value
+  // that is also a hook dependency is exactly what react-hooks/immutability rejects — the same
+  // reason useRewardClaim's own `handleEmberLand` is a plain function. The identity is free here:
+  // the hook stores this in a ref rather than depending on it.
+  function handleXpClaimed() {
     if (!rankBefore || !rankAfter) return;
     const start = rankBefore.xp_into_tier;
     const end = rankAfter.xp_into_tier;
-    const delay = reduceMotion ? 0 : 1300;
-    const timer = setTimeout(() => {
-      setPlusVisible(true);
-      fireXpTick();
-      fillRatio.value = reduceMotion
-        ? xpProgressRatio(end, rankAfter.xp_for_next_tier)
-        : withTiming(xpProgressRatio(end, rankAfter.xp_for_next_tier), {
-            duration: 1000,
-            easing: Easing.bezier(0.2, 0.7, 0.3, 1),
-          });
-      if (reduceMotion) {
-        setDisplayXp(end);
-        return;
-      }
-      const durationMs = 1000;
-      const t0 = Date.now();
-      let raf: ReturnType<typeof requestAnimationFrame>;
-      const step = () => {
-        const p = Math.min((Date.now() - t0) / durationMs, 1);
-        setDisplayXp(Math.round(start + (end - start) * p));
-        if (p < 1) raf = requestAnimationFrame(step);
-      };
-      raf = requestAnimationFrame(step);
-      return () => cancelAnimationFrame(raf);
-    }, delay);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount
-  }, []);
-
-  // Reduced motion: skip the flight entirely and land the final balance immediately (matches
-  // FlameMeter's own "static per tier" reduced-motion fallback). Depends on reduceMotion itself
-  // (not just mount) since AccessibilityInfo's check resolves asynchronously shortly after mount.
-  useEffect(() => {
-    if (reduceMotion) setEmbers(embersBefore + bonusEmbers);
-  }, [reduceMotion, embersBefore, bonusEmbers]);
-
-  // Measure the fire + ember-counter positions (in window coordinates) once laid out, so the
-  // flying embers can arc between two real on-screen points rather than guessed percentages —
-  // this screen's layout isn't fixed enough (recap pill width varies) to hardcode safely.
-  useEffect(() => {
-    if (reduceMotion) return;
-    const raf = requestAnimationFrame(() => {
-      overlayRef.current?.measureInWindow((ox, oy) => {
-        fireRef.current?.measureInWindow((fx, fy, fw, fh) => {
-          counterRef.current?.measureInWindow((cx, cy, cw, ch) => {
-            setFlightGeo({
-              from: { x: fx + fw / 2 - ox, y: fy + fh * 0.4 - oy },
-              to: { x: cx + cw * 0.25 - ox, y: cy + ch / 2 - oy },
-            });
-          });
+    setPlusVisible(true);
+    fillRatio.value = reduceMotion
+      ? xpProgressRatio(end, rankAfter.xp_for_next_tier)
+      : withTiming(xpProgressRatio(end, rankAfter.xp_for_next_tier), {
+          duration: 1000,
+          easing: Easing.bezier(0.2, 0.7, 0.3, 1),
         });
-      });
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [reduceMotion]);
-
-  function handleEmberLand() {
-    landedCount.current += 1;
-    bump.value = withSequence(withTiming(1, { duration: 90 }), withTiming(0, { duration: 260 }));
-    fireEmberLand();
-    setEmbers(landedCount.current >= FLY_COUNT ? embersBefore + bonusEmbers : (prev) => prev + 1);
+    if (reduceMotion) {
+      setDisplayXp(end);
+      return;
+    }
+    const durationMs = 1000;
+    const t0 = Date.now();
+    const step = () => {
+      const p = Math.min((Date.now() - t0) / durationMs, 1);
+      setDisplayXp(Math.round(start + (end - start) * p));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    // The tick sound is fired by the hook itself, for every screen, so it is not repeated here.
   }
+
+  // The session's XP and the daily-fire bonus are two separate grants — `postedCheckIn.xp_earned`
+  // and `dailyFire.bonus_xp` — so they are added here rather than assumed to overlap, and the
+  // split is named on the row's second line. One claimable XP row, because the rank bar it moves
+  // is one bar.
+  const totalXp = Math.round(xpEarned) + bonusXp;
+
+  const claim = useRewardClaim({
+    // The daily fire pays no box. The field is here so the shape matches the other three reveals
+    // and a future streak crate needs no new wiring.
+    boxKey: null,
+    embers: bonusEmbers,
+    xp: totalXp,
+    walletEmbers: walletLoading ? embersBefore + bonusEmbers : walletEmbers,
+    onXpClaimed: handleXpClaimed,
+    onDone,
+  });
 
   async function handlePost() {
     if (!circleId) {
@@ -271,192 +284,182 @@ export function FlameMeterComplete({
     opacity: pillReveal.value,
     transform: [{ translateY: interpolate(pillReveal.value, [0, 1], [12, 0]) }],
   }));
-  const xplineStyle = useAnimatedStyle(() => ({
-    opacity: xplineReveal.value,
-    transform: [{ translateY: interpolate(xplineReveal.value, [0, 1], [12, 0]) }],
-  }));
-  const counterBumpStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + bump.value * 0.35 }],
-  }));
   const barStyle = useAnimatedStyle(() => ({ width: `${fillRatio.value * 100}%` }));
   const plusStyle = useAnimatedStyle(() => ({ opacity: withDelay(300, withTiming(plusVisible ? 1 : 0, { duration: 400 })) }));
 
   const atMaxRank = rankAfter ? rankAfter.xp_for_next_tier <= 0 : false;
 
-  return (
-    <View style={styles.container} ref={overlayRef} collapsable={false}>
-      <View style={styles.topbar}>
-        <View style={styles.recap}>
-          <DisciplineIcon name={GOAL_TYPE_GLYPH[goalType]} size={12} color={Colors.amber} />
-          <Text style={styles.recapText} numberOfLines={1}>
-            {GOAL_TYPE_META[goalType].label}
-            {goalDetail ? ` · ${goalDetail}` : ''} · {formatDurationClock(durationSeconds)}
-          </Text>
-        </View>
-        <View ref={counterRef} collapsable={false} style={styles.emberCount}>
-          <View style={styles.emberAv}>
-            <EmberIcon size={11} />
-          </View>
-          <Animated.Text style={[styles.emberN, counterBumpStyle]}>{embers}</Animated.Text>
-        </View>
-      </View>
+  // Destructured immediately, for both reasons the challenge screen's own note gives: the hook's
+  // measurement refs taint `claim.x` reads during render, and the object is new every render.
+  const { claimed, claimFor } = claim;
+  const rows = useMemo<RewardRowSpec[]>(
+    () => buildRows(bonusEmbers, Math.round(xpEarned), bonusXp, totalXp, { claimed, claimFor }),
+    [bonusEmbers, xpEarned, bonusXp, totalXp, claimed, claimFor]
+  );
 
-      <View style={styles.celebrate}>
-        {/* The rays, from the shared reveal language. This screen already SHOWED its reward — the
-            fire-bonus chip and the ember counter flying up — and was the one payout with no rays at
-            all, which is the mirror image of the rank-up's problem. Tinted and sized from
-            REVEAL_TUNING.daily_fire, so it moves with the rest of the family. */}
-        <RewardRays kind="daily_fire" size={280} />
-        <Animated.View pointerEvents="none" style={[styles.burst, burstStyle]} />
-        <View ref={fireRef} collapsable={false} style={styles.fireZone}>
+  return (
+    <RewardRevealFrame
+      claim={claim}
+      // The row the goal reveal pulls too: this and the cleared-goal screen are the same beat, the
+      // day's small payout. Tint, wedge count and intensity all come from REVEAL_TUNING.
+      kind="daily_fire"
+      heroStyle={styles.fireZone}
+      hero={
+        <>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.burst, { borderColor: ramp.outer }, burstStyle]}
+          />
           <Animated.View style={fireStyle}>
-            {/* The roaring flame at mock 92's daily-fire size (punchlist 17 P3) — 78 was small enough
-                that the celebration's hero read as an icon rather than a roar. */}
-            <FlameSvg width={150 * FLAME_ASPECT_RATIO} height={150} />
+            {/* The roaring flame at mock 92's daily-fire size (punchlist 17 P3) — 78 was small
+                enough that the celebration's hero read as an icon rather than a roar. Equipped
+                rather than brand-orange, so the hero, the ring, the sparks and the ray fan behind
+                them are all one fire. */}
+            <EquippedFlameSvg width={150 * FLAME_ASPECT_RATIO} height={150} />
           </Animated.View>
           {SPARKS.map((s) => (
-            <Spark key={s.delay} delay={s.delay} xOffset={s.xOffset} reduceMotion={reduceMotion} />
+            <Spark
+              key={s.delay}
+              delay={s.delay}
+              xOffset={s.xOffset}
+              reduceMotion={reduceMotion}
+              colour={ramp.outer}
+            />
           ))}
-        </View>
-
-        {/* White with the name in ember, NOT a flat gold line (§2). The old all-#FFD27A headline
-            is the "no yellow" this fixes: gold on deep purple reads as a warning colour at 24px,
-            and it flattened the one word that should carry the warmth — theirs. First name only;
-            a full "Noah Brikman" in a celebration headline reads like a form field. */}
-        <Animated.Text style={[styles.headline, headStyle]}>
-          You&apos;re on fire, <Text style={styles.headlineName}>{firstName}</Text>!
-        </Animated.Text>
-        <Animated.View style={[styles.donePill, pillStyle]}>
-          <Text style={styles.donePillText}>DAILY FIRE COMPLETE</Text>
-        </Animated.View>
-
-        <Animated.View style={[styles.xpline, xplineStyle]}>
-          <View style={styles.xpchip}>
-            <Text style={styles.xpchipText}>+{Math.round(xpEarned)} XP</Text>
-          </View>
-          <View style={[styles.xpchip, styles.xpchipBonus]}>
-            <Text style={[styles.xpchipText, styles.xpchipBonusText]}>+{bonusXp} fire bonus</Text>
-          </View>
-        </Animated.View>
-
-        {rankBefore && rankAfter && (
-          <View style={styles.rankRow}>
-            <HexagonBadge tier={rankAfter.tier} division={rankAfter.division} size={40} />
-            <View style={styles.rankCol}>
-              <View style={styles.rankTop}>
-                <Text style={styles.rankTier} numberOfLines={1}>
-                  {formatRankTier(rankAfter.tier, rankAfter.division)}
-                </Text>
-                <View style={styles.rankTopRight}>
-                  <Animated.Text style={[styles.rankPlus, plusStyle]}>+{Math.round(xpEarned)} XP</Animated.Text>
-                  <Text style={styles.rankNum}>{displayXp.toLocaleString()}</Text>
-                  <Text style={styles.rankMax}>
-                    {atMaxRank ? ' max' : ` / ${Math.round(rankAfter.xp_for_next_tier).toLocaleString()}`}
+        </>
+      }
+      rows={rows}
+      below={
+        <>
+          {rankBefore && rankAfter && (
+            // BELOW THE ROWS, per the parity pass — the manifest sits in the same place on all four
+            // reveals and the context that explains it follows underneath.
+            <View style={styles.rankRow}>
+              <HexagonBadge tier={rankAfter.tier} division={rankAfter.division} size={40} />
+              <View style={styles.rankCol}>
+                <View style={styles.rankTop}>
+                  <Text style={styles.rankTier} numberOfLines={1}>
+                    {formatRankTier(rankAfter.tier, rankAfter.division)}
                   </Text>
+                  <View style={styles.rankTopRight}>
+                    <Animated.Text style={[styles.rankPlus, plusStyle]}>+{Math.round(xpEarned)} XP</Animated.Text>
+                    <Text style={styles.rankNum}>{displayXp.toLocaleString()}</Text>
+                    <Text style={styles.rankMax}>
+                      {atMaxRank ? ' max' : ` / ${Math.round(rankAfter.xp_for_next_tier).toLocaleString()}`}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.trk}>
+                  <Animated.View style={[styles.trkFill, barStyle]} />
                 </View>
               </View>
-              <View style={styles.trk}>
-                <Animated.View style={[styles.trkFill, barStyle]} />
-              </View>
             </View>
-          </View>
-        )}
-      </View>
-
-      {!reduceMotion &&
-        flightGeo &&
-        Array.from({ length: FLY_COUNT }, (_, i) => (
-          <EmberFlight
-            key={i}
-            index={i}
-            count={FLY_COUNT}
-            from={flightGeo.from}
-            to={flightGeo.to}
-            delay={FLY_START_DELAY + i * FLY_STAGGER}
-            duration={FLY_DURATION}
-            onLand={handleEmberLand}
-          />
-        ))}
-
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      <View style={styles.actions}>
-        <Pressable style={styles.shareBtn} onPress={onShare} disabled={sharing}>
-          {sharing ? (
-            <ActivityIndicator color={Colors.ink} />
-          ) : (
-            <>
-              <Ionicons name="share-social" size={16} color={Colors.ink} />
-              <Text style={styles.shareBtnLabel}>Share to your story</Text>
-            </>
           )}
-        </Pressable>
-        <View style={styles.subacts}>
-          <Pressable onPress={handlePost} disabled={posting}>
-            <Text style={styles.postLink}>{posting ? 'Posting…' : `Post to ${circleName ?? 'the campfire'}`}</Text>
+          {error && <Text style={styles.error}>{error}</Text>}
+        </>
+      }
+      footer={
+        <View style={styles.actions}>
+          <Pressable style={styles.shareBtn} onPress={onShare} disabled={sharing || claim.busy}>
+            {sharing ? (
+              <ActivityIndicator color={Colors.ink} />
+            ) : (
+              <>
+                <Ionicons name="share-social" size={16} color={Colors.ink} />
+                <Text style={styles.shareBtnLabel}>Share to your story</Text>
+              </>
+            )}
           </Pressable>
-          <Pressable onPress={onDone} disabled={posting}>
-            <Text style={styles.doneLink}>Done</Text>
-          </Pressable>
+          <View style={styles.subacts}>
+            <Pressable onPress={handlePost} disabled={posting}>
+              <Text style={styles.postLink}>{posting ? 'Posting…' : `Post to ${circleName ?? 'the campfire'}`}</Text>
+            </Pressable>
+            <Pressable onPress={onDone} disabled={posting}>
+              <Text style={styles.doneLink}>Done</Text>
+            </Pressable>
+          </View>
         </View>
+      }>
+      {/* White with the name in ember, NOT a flat gold line (§2). The old all-#FFD27A headline
+          is the "no yellow" this fixes: gold on deep purple reads as a warning colour at 24px,
+          and it flattened the one word that should carry the warmth — theirs. First name only;
+          a full "Noah Brikman" in a celebration headline reads like a form field. */}
+      <Animated.Text style={[styles.headline, headStyle]}>
+        You&apos;re on fire, <Text style={styles.headlineName}>{firstName}</Text>!
+      </Animated.Text>
+      <Animated.View style={[styles.donePill, pillStyle]}>
+        <Text style={styles.donePillText}>DAILY FIRE COMPLETE</Text>
+      </Animated.View>
+
+      {/* The session recap. It used to be a top-bar strip opposite the ember counter; the frame's
+          top bar is the close button and the balance pill now — the corner the embers fly to has to
+          hold the thing they land in — so the recap moves under the title, which is where the other
+          reveals put their "what this was" line anyway. */}
+      <View style={styles.recap}>
+        <DisciplineIcon name={GOAL_TYPE_GLYPH[goalType]} size={12} color={Colors.amber} />
+        <Text style={styles.recapText} numberOfLines={1}>
+          {GOAL_TYPE_META[goalType].label}
+          {goalDetail ? ` · ${goalDetail}` : ''} · {formatDurationClock(durationSeconds)}
+        </Text>
       </View>
-    </View>
+    </RewardRevealFrame>
   );
 }
 
+function buildRows(
+  bonusEmbers: number,
+  sessionXp: number,
+  bonusXp: number,
+  totalXp: number,
+  claim: RowClaim
+): RewardRowSpec[] {
+  const rows: RewardRowSpec[] = [];
+
+  // EMBERS FIRST, THEN XP — the order "Claim all" runs, and the same order the challenge reveal
+  // lists them in. These two were `xpchip` / `xpchipBonus`, a pair of pills with no controls.
+  if (bonusEmbers > 0) {
+    rows.push({
+      kind: 'embers',
+      title: 'Embers',
+      detail: 'Daily fire bonus',
+      value: `+${bonusEmbers.toLocaleString('en-US')}`,
+      claim: claim.claimFor('embers'),
+      claimed: Boolean(claim.claimed.embers),
+      destination: '→ wallet',
+    });
+  }
+  if (totalXp > 0) {
+    rows.push({
+      kind: 'xp',
+      title: 'XP earned',
+      // The split, stated. The two chips this replaces were the only place the fire bonus was named
+      // and it would be a real loss to fold it silently into one number — "+290 XP" with no
+      // explanation is the payout looking arbitrary, which is the thing the goal reveal's deleted
+      // breakdown line was originally defending against.
+      detail:
+        bonusXp > 0
+          ? `${sessionXp.toLocaleString('en-US')} for the session · ${bonusXp.toLocaleString('en-US')} daily fire bonus`
+          : 'This session',
+      value: `+${totalXp.toLocaleString('en-US')}`,
+      claim: claim.claimFor('xp'),
+      claimed: Boolean(claim.claimed.xp),
+    });
+  }
+  return rows;
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    width: '100%',
-    paddingTop: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingBottom: 14,
-  },
-  topbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
   recap: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
+    marginTop: Spacing.two,
   },
   recapText: {
-    flex: 1,
     fontFamily: Fonts.body,
     fontSize: 11.5,
     color: Colors.textTertiary,
-  },
-  emberCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.pill,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-  },
-  emberAv: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: Colors.achieverBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emberN: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.ember,
-  },
-  celebrate: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
   },
   burst: {
     position: 'absolute',
@@ -496,42 +499,19 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     paddingVertical: 6,
     paddingHorizontal: 14,
+    marginTop: Spacing.two,
   },
   donePillText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
     color: Colors.ember,
   },
-  xpline: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 2,
-  },
-  xpchip: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.pill,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  xpchipText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12.5,
-    color: Colors.ink,
-  },
-  xpchipBonus: {
-    backgroundColor: Colors.achieverBg,
-    borderWidth: 1,
-    borderColor: '#F2A33C66',
-  },
-  xpchipBonusText: {
-    color: Colors.amber,
-  },
   rankRow: {
     alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: Spacing.two,
+    marginTop: Spacing.three,
     backgroundColor: Colors.card,
     borderRadius: 14,
     padding: 12,

@@ -216,3 +216,18 @@ export const TIER_MEDAL: Record<PlacementTier, string> = {
   top50: 'TOP 50%',
   below50: 'BOTTOM 50%',
 };
+
+/**
+ * 1 -> "1st", 2 -> "2nd", 12 -> "12th", 23 -> "23rd".
+ *
+ * Hoisted out of challenge-reward-screen when the share card needed it too — "1st of 12" is the
+ * campfire-champion hero on mock 171, and the card and the screen it was shared from have to agree
+ * about how a placement is spelled.
+ */
+export function ordinal(n: number): string {
+  // 11/12/13 are the exception the mod-10 rule gets wrong — "11st", "12nd", "13rd".
+  const teen = n % 100;
+  if (teen >= 11 && teen <= 13) return `${n}th`;
+  const suffix = { 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th';
+  return `${n}${suffix}`;
+}

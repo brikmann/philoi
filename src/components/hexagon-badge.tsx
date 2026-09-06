@@ -29,8 +29,8 @@ const INNER_HEXAGON_POINTS = '50,9.4 85.15,29.69 85.15,70.31 50,90.6 14.85,70.31
 // The Primordial emblem — the brand flame vector, molten (design-mocks/05's `.crest` SVG, same
 // path data), NOT a numeral, NOT a crown. Simplified two-tone (outer/mid only, no innermost
 // ember path) since at badge scale the third tone reads as noise.
-const FLAME_CREST_OUTER = 'M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z';
-const FLAME_CREST_INNER = 'M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z';
+export const FLAME_CREST_OUTER = 'M60 20 C74 46 90 62 85 92 C82 108 72 116 60 116 C48 116 37 107 37 92 C37 82 42 76 47 72 C44 84 51 92 59 92 C68 92 72 82 67 72 C60 58 52 44 60 20 Z';
+export const FLAME_CREST_INNER = 'M60 44 C70 62 78 74 74 92 C72 104 67 110 60 110 C52 110 47 103 47 93 C47 86 50 82 54 80 C52 88 56 94 61 94 C67 94 70 87 67 80 C62 70 56 58 60 44 Z';
 
 type HexagonBadgeProps = {
   tier: RankTierName;

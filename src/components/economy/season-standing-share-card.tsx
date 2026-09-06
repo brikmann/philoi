@@ -106,7 +106,12 @@ export const SeasonPlacementShareCard = forwardRef<View, ScreenProps>(function S
     <ShareCardFrame
       ref={ref}
       kick={seasonKick(card)}
+      // THE ONE CARD THAT KEEPS THE MOLTEN FLOOR. Mock 171 is explicit that this is the single
+      // intentional variant of the ground — the lava IS the season's identity — while every other
+      // card went back to purple. The fan is pushed DOWN to sit over that floor rather than
+      // floating where the purple light used to be.
       ground="season"
+      rayCenterY={0.62}
       aura={<EmberfallAura />}
       handle={handle}
       tier={tier}
@@ -144,7 +149,12 @@ export const SeasonRewardsShareCard = forwardRef<View, ScreenProps>(function Sea
     <ShareCardFrame
       ref={ref}
       kick={seasonKick(card)}
+      // THE ONE CARD THAT KEEPS THE MOLTEN FLOOR. Mock 171 is explicit that this is the single
+      // intentional variant of the ground — the lava IS the season's identity — while every other
+      // card went back to purple. The fan is pushed DOWN to sit over that floor rather than
+      // floating where the purple light used to be.
       ground="season"
+      rayCenterY={0.62}
       aura={<EmberfallAura />}
       handle={handle}
       tier={tier}

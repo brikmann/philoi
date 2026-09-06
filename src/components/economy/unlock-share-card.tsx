@@ -2,7 +2,7 @@ import { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ItemArt } from '@/components/economy/item-art';
-import { ShareCardFrame } from '@/components/share-card-frame';
+import { ShareCardFrame, fitFontSize } from '@/components/share-card-frame';
 import { Colors, Fonts } from '@/constants/theme';
 import type { CatalogItem } from '@/lib/economy/catalog';
 import { RARITY_COLOR, RARITY_LABEL, formatOddsFlex, rarityGlow } from '@/lib/economy/rarity';
@@ -45,9 +45,17 @@ export const UnlockShareCard = forwardRef<View, Props>(function UnlockShareCard(
         <ItemArt item={item} size={172} />
       </View>
 
-      <Text style={[styles.name, { color: tint }]}>{item.name}</Text>
+      {/* Catalog names run long ("Vessel of Hestia", "Ashen Diadem of the First Flame") and this
+          was an unbounded 30pt line that simply overflowed the card's padding. */}
+      <Text
+        style={[styles.name, { color: tint, fontSize: fitFontSize(item.name, 30, 20, 16) }]}
+        numberOfLines={2}>
+        {item.name}
+      </Text>
       {/* The catalog's own lore line — the item describing itself. */}
-      <Text style={styles.lore}>{item.lore}</Text>
+      <Text style={styles.lore} numberOfLines={3}>
+        {item.lore}
+      </Text>
 
       <View style={[styles.oddsPill, { borderColor: tint }]}>
         <Text style={[styles.oddsText, { color: tint }]}>{formatOddsFlex(oddsPct)}</Text>
@@ -80,8 +88,8 @@ const styles = StyleSheet.create({
   },
   name: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 30,
     textAlign: 'center',
+    lineHeight: 36,
     marginTop: 18,
   },
   lore: {
