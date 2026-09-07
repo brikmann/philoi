@@ -1242,6 +1242,7 @@ do $assert$
 declare
   v_sports int;
   v_overloads int;
+  v_shape_checks int;
 begin
   -- 1 · the fourth shape is legal, and the three constraints that gate it exist.
   if not exists (select 1 from pg_constraint where conname = 'social_challenges_shape_check') then
@@ -1254,30 +1255,89 @@ begin
     raise exception '0173: challenge_participants_team_valid is missing.';
   end if;
 
-  -- 2 · 🔴 THE SWEEP GUARD. This is the one that matters most in this file: a team match whose
-  --     ends_at could be set while it is still running would be settled at 0-0 by
-  --     finalize_social_challenges against a metric it does not have. Proven by trying it.
-  begin
-    insert into social_challenges (
-      circle_id, created_by, mode, shape, sport_key, sport_label, sport_emoji,
-      team_a_name, team_b_name, ref_user_id, score_mode, match_state,
-      winner_reward_tier, loser_reward_tier, window_hours, payout_xp,
-      status, starts_at, ends_at
-    )
-    select g.id, g.owner_id, 'group', 'team_match', 'soccer', 'Soccer', '⚽',
-           'A', 'B', null, 'confirm', 'live',
-           'uncommon', 'common', 24, 200,
-           'active', now(), now() + interval '1 hour'
-      from groups g limit 1;
-    -- Only reachable if a groups row existed AND the constraint let it through.
-    if found then
-      raise exception '0173: a LIVE team match accepted an ends_at — finalize_social_challenges would settle it at 0-0.';
-    end if;
-  exception
-    when check_violation then null;  -- the guard held, which is the pass condition
-    when others then
-      if sqlerrm like '0173:%' then raise; end if;
-  end;
+  -- 2 · 🔴 THE TWO PROBES, AND WHY THERE HAVE TO BE TWO.
+  --
+  -- A NEGATIVE PROBE ALONE PROVES NOTHING HERE, and this is the trap MIGRATIONS.md's "assertions
+  -- must be reachable" section is about wearing a different face. 0096 declared the shape check
+  -- INLINE, so its name is whatever Postgres generated, and §1 drops it by matching its
+  -- definition. If those LIKE patterns ever miss, the three-value check survives alongside the new
+  -- four-value one and 'team_match' is rejected at every insert — the feature is dead on arrival.
+  --
+  -- A negative probe cannot see that. "Insert a bad match, expect check_violation" passes
+  -- identically whether the sweep guard caught it or a stale shape check did. The two failures are
+  -- indistinguishable from inside the exception handler, so the probe would go green on a database
+  -- where nothing works. It needs a positive control beside it.
+  select count(*) into v_shape_checks
+    from pg_constraint con
+    join pg_class rel on rel.oid = con.conrelid
+    join pg_namespace nsp on nsp.oid = rel.relnamespace
+   where nsp.nspname = 'public'
+     and rel.relname = 'social_challenges'
+     and con.contype = 'c'
+     and pg_get_constraintdef(con.oid) like '%collective%'
+     and pg_get_constraintdef(con.oid) like '%placement%';
+  if v_shape_checks <> 1 then
+    raise exception
+      '0173: expected exactly ONE shape CHECK on social_challenges, found % — 0096''s inline check was not dropped and will reject every team match.',
+      v_shape_checks;
+  end if;
+
+  -- Both probes need a campfire to hang off. On an empty database there is nothing to prove and
+  -- nothing that can break, so they are skipped rather than faked.
+  if exists (select 1 from groups) then
+    -- 2a · POSITIVE. A well-formed live match must be ACCEPTED. This is what proves the shape
+    --      vocabulary actually widened, rather than that something rejected a row for some reason.
+    begin
+      insert into social_challenges (
+        circle_id, created_by, mode, shape, sport_key, sport_label, sport_emoji,
+        team_a_name, team_b_name, ref_user_id, score_mode, match_state,
+        winner_reward_tier, loser_reward_tier, window_hours, payout_xp,
+        status, starts_at, ends_at
+      )
+      select g.id, g.owner_id, 'group', 'team_match', 'soccer', 'Soccer', '⚽',
+             'A', 'B', null, 'confirm', 'live',
+             'uncommon', 'common', 24, 200,
+             'active', now(), null
+        from groups g limit 1;
+
+      -- Undo the probe. Raising is what rolls the subtransaction back — including the DEFERRED
+      -- card trigger's queued event, which would otherwise post a chat card for a match that never
+      -- existed. A plain DELETE would leave that event armed until commit.
+      raise exception 'PROBE_OK_0173';
+    exception
+      when others then
+        if sqlerrm not like 'PROBE_OK_0173%' then
+          raise exception
+            '0173: a VALID team match was refused (%) — the shape widening did not take, and nothing could ever create a match.',
+            sqlerrm;
+        end if;
+    end;
+
+    -- 2b · NEGATIVE, THE SWEEP GUARD. The one that matters most in this file: a team match whose
+    --      ends_at could be set while it is still running would be settled at 0-0 by
+    --      finalize_social_challenges against a metric it does not have. Identical to the row
+    --      above in every field but `ends_at`, so the only thing that can separate the two
+    --      outcomes is the guard itself.
+    begin
+      insert into social_challenges (
+        circle_id, created_by, mode, shape, sport_key, sport_label, sport_emoji,
+        team_a_name, team_b_name, ref_user_id, score_mode, match_state,
+        winner_reward_tier, loser_reward_tier, window_hours, payout_xp,
+        status, starts_at, ends_at
+      )
+      select g.id, g.owner_id, 'group', 'team_match', 'soccer', 'Soccer', '⚽',
+             'A', 'B', null, 'confirm', 'live',
+             'uncommon', 'common', 24, 200,
+             'active', now(), now() + interval '1 hour'
+        from groups g limit 1;
+      raise exception
+        '0173: a LIVE team match accepted an ends_at — finalize_social_challenges would settle it at 0-0.';
+    exception
+      when check_violation then null;  -- the guard held, which is the pass condition
+      when others then
+        if sqlerrm like '0173:%' then raise; end if;
+    end;
+  end if;
 
   -- 3 · the catalog is seeded, and basketball still has its three steps (the one sport whose
   --     buttons are not "+1", and therefore the one that proves step_values is being read).
