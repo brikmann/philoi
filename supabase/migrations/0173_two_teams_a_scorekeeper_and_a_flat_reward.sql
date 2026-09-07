@@ -1258,6 +1258,19 @@ comment on function post_campfire_challenge_card() is
 -- 🔒 IF A SIBLING LANE REPLACED THIS FUNCTION BETWEEN THAT READ AND THIS PUSH, THIS RESTATEMENT
 -- WOULD REVERT THEM. That is the clobber this repo has been bitten by. Before applying, diff the
 -- live prosrc against this body and confirm the only difference is the team_match guard.
+--
+-- ⚠️ AND ONE OTHER MIGRATION NOW REPLACES THIS SAME FUNCTION. 0174 (the scoped tier reaching
+-- settlement) restates it too, and it sorts AFTER this file — so it applies second and its body,
+-- not this one, is what ends up live. It was rebased onto THIS body rather than onto prod's, so it
+-- carries the team_match guard forward; it also asserts at deploy that the deployed body still
+-- matches 'team_match' and still holds six grant_reward calls, which is what makes a future stale-
+-- base restatement fail loudly instead of silently deleting the guard and re-arming the double
+-- payout. 0175 does not touch this function.
+--
+-- WHICH MAKES THE ORDER LOAD-BEARING: 0173 then 0174, applied and verified ONE AT A TIME via
+-- `db query -f` + `migration repair`. Do not use `supabase db push` — it applies every pending
+-- migration in one shot, so a raised assertion rolls back the whole batch and nothing tells you
+-- which file failed.
 
 create or replace function economy_on_social_challenge_closed()
 returns trigger
