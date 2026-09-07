@@ -1663,9 +1663,18 @@ begin
       raise exception
         '0173: a LIVE team match accepted an ends_at — finalize_social_challenges would settle it at 0-0.';
     exception
-      when check_violation then null;  -- the guard held, which is the pass condition
-      when others then
-        if sqlerrm like '0173:%' then raise; end if;
+      -- The ONLY pass condition, and it is deliberately the narrow one: the row was refused by a
+      -- CHECK. Anything else propagates.
+      when check_violation then null;
+      -- 🔴 `when others then raise` RATHER THAN A FILTER ON sqlerrm. The previous version re-raised
+      -- only errors starting '0173:' and silently swallowed everything else — so a not-null or
+      -- foreign-key violation from a mistyped probe would have been recorded as "the guard held"
+      -- and this assertion would have gone green having tested nothing. A negative probe has to
+      -- confirm the row failed for the RIGHT reason, not merely that something failed; that is the
+      -- same discrimination the positive control above supplies, applied to the handler itself.
+      -- Re-raising unconditionally also lets the assertion's own exception out, which a bare
+      -- `when others` swallows — turning a red probe green.
+      when others then raise;
     end;
   end if;
 

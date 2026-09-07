@@ -39,9 +39,9 @@
 --
 --   PROBE 1  ok — created <uuid> in campfire <name>
 --   PROBE 1b ok — card posted: ⚽ Red Team vs Blue Team — pick a side.
---   PROBE 2  ok — non-admin refused
+--   PROBE 2  ok — non-admin refused by the admin gate: <message>
 --   PROBE 3  ok — two players on two sides
---   PROBE 4  ok — non-scorekeeper refused
+--   PROBE 4  ok — non-scorekeeper refused by the scorekeeper gate: <message>
 --   PROBE 5  ok — 2-1, undo and the zero floor all behave
 --   PROBE 6  ok — get_team_match agrees with the row
 --   PROBE 7  ok — 2 paid, ranks 1/2, tiers uncommon/common, N boxes minted
@@ -59,6 +59,14 @@
 --
 -- (verify_0173.sql carries no begin/rollback of its own for exactly that reason — the caller wraps
 -- it, the way MIGRATIONS.md wraps a dry-run from the shell.)
+--
+-- EVERY REFUSAL CHECK ASSERTS THE MESSAGE, NOT JUST THAT SOMETHING RAISED. `exception when
+-- others then v_refused := true` records a pass for ANY error — a mistyped argument, a campfire
+-- that does not exist, or a gate earlier in the function answering before the one under test ever
+-- runs. A green refusal is not evidence that the guard you meant to test is the guard that fired,
+-- so each one demands the message name its own rule ('not an admin', 'scorekeeper', 'other team').
+-- Credit to philoi-app-e8, who hit the same thing from the other side: a bare `when others` also
+-- swallows the probe's OWN assertion failure and turns a red probe green.
 --
 -- IT NEEDS A CAMPFIRE WITH 3+ MEMBERS, one of them role='member'. It raises rather than skipping
 -- if there isn't one: the first version of this probe picked "the first non-owner member" as its
@@ -101,6 +109,7 @@ declare
   v_xp int;
   v_card int;
   v_refused boolean;
+  v_msg text;
   v_match2 uuid;
   v_coll uuid;
   v_shape text;
@@ -163,16 +172,26 @@ begin
 
   -- ── 2 · a NON-ADMIN must be refused. v_p2 is role='member', checked above. ──
   perform set_config('request.jwt.claim.sub', v_p2::text, true);
+  --
+  -- 🔴 THE MESSAGE IS CHECKED, NOT JUST THE REFUSAL. `exception when others then v_refused := true`
+  -- records a pass for ANY error — a mistyped argument, a campfire that does not exist, a gate
+  -- earlier in the function answering before the one under test ever runs. A green refusal is not
+  -- evidence that the guard you meant to test is the guard that fired. So each refusal below
+  -- demands the message name its own rule.
   v_refused := false;
   begin
     perform create_team_match(v_g, 'soccer', 'X', 'Y', '#FF6B5C', '#6BB8FF', null, 'live', 'uncommon', 'common', null);
   exception when others then
     v_refused := true;
+    v_msg := sqlerrm;
   end;
   if not v_refused then
     raise exception 'PROBE: a non-admin created a team match — the admin gate is not holding.';
   end if;
-  raise notice 'PROBE 2 ok — non-admin refused';
+  if position('not an admin' in v_msg) = 0 then
+    raise exception 'PROBE: the non-admin create was refused for the WRONG reason — got: %', v_msg;
+  end if;
+  raise notice 'PROBE 2 ok — non-admin refused by the admin gate: %', v_msg;
 
   -- ── 3 · JOIN a side each ──
   perform set_config('request.jwt.claim.sub', v_p1::text, true);
@@ -187,11 +206,15 @@ begin
     perform ref_set_score(v_match, 'a', 1);
   exception when others then
     v_refused := true;
+    v_msg := sqlerrm;
   end;
   if not v_refused then
     raise exception 'PROBE: a non-scorekeeper moved the score — ref_set_score is not gated.';
   end if;
-  raise notice 'PROBE 4 ok — non-scorekeeper refused';
+  if position('scorekeeper' in v_msg) = 0 then
+    raise exception 'PROBE: the non-scorekeeper edit was refused for the WRONG reason — got: %', v_msg;
+  end if;
+  raise notice 'PROBE 4 ok — non-scorekeeper refused by the scorekeeper gate: %', v_msg;
 
   -- ── 5 · the scorekeeper makes it Red 2 - 1 Blue ──
   perform set_config('request.jwt.claim.sub', v_owner::text, true);
@@ -306,9 +329,14 @@ begin
     perform confirm_team_match_score(v_match2, true);
   exception when others then
     v_refused := true;
+    v_msg := sqlerrm;
   end;
   if not v_refused then
     raise exception 'PROBE: the reporting side confirmed its own score — dual confirmation is not enforced.';
+  end if;
+  -- Must be refused by the SIDE rule, not by "only someone who played can confirm" — v_p1 played.
+  if position('other team' in v_msg) = 0 then
+    raise exception 'PROBE: the own-side confirm was refused for the WRONG reason — got: %', v_msg;
   end if;
 
   -- The other side confirms, and that settles it.
