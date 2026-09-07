@@ -21,7 +21,16 @@
 --      SECOND reward at the collective band, and had its reward_payload overwritten with it.
 --      Caught here as "expected 2 ember rows, got 4". 0173 §9 is the fix.
 --
---   2. THE DEFERRED CARD. post_campfire_challenge_card is a DEFERRABLE INITIALLY DEFERRED
+--   2. THE ARM THE FIX LEFT ALONE. §9 restates a ~250-line trigger to insert one guard, and
+--      PROBES 1-9 only prove the thing that CHANGED. They say nothing about whether the
+--      restatement broke the collective arm — the very arm team matches had been falling into.
+--      A guard that excluded too much (`mode = 'group'` rather than `shape = 'team_match'`) would
+--      stop paying every campfire goal in the app while the deploy assertion's six-call count
+--      still read six. PROBE 10 settles a collective goal in both spellings — a lock-in count and
+--      0169's measured target_value bar — and demands each pays, exactly once per person, with a
+--      reward_payload for the reveal. Credit to philoi-app-6a for spotting that gap.
+--
+--   3. THE DEFERRED CARD. post_campfire_challenge_card is a DEFERRABLE INITIALLY DEFERRED
 --      constraint trigger, so it fires at COMMIT — and a probe that never commits would never see
 --      the card, and would report success on a feature whose first user-visible step did nothing.
 --      `set constraints all immediate` drains the deferred queue inside the transaction instead.
@@ -39,6 +48,8 @@
 --   PROBE 7b ok — full-time line posted
 --   PROBE 8  ok — settling twice pays once
 --   PROBE 9  ok — report + opposite-side confirm settles and pays; own side refused
+--   PROBE 10 ok — count collective goal still pays, N ledger rows, nobody twice
+--   PROBE 10 ok — measured collective goal still pays, N ledger rows, nobody twice
 --   ════ ALL PROBES PASSED ════
 --
 -- ⚠️ RUN IT AGAINST A DATABASE THAT ALREADY HAS 0173 APPLIED. Before 0173 is applied, prepend the
@@ -91,6 +102,8 @@ declare
   v_card int;
   v_refused boolean;
   v_match2 uuid;
+  v_coll uuid;
+  v_shape text;
 begin
   -- A campfire with at least three distinct people in it: the host/scorekeeper plus one player on
   -- each side. Owner included via campfire_has_member's own owner-or-member rule.
@@ -313,6 +326,59 @@ begin
     raise exception 'PROBE: the confirm-mode winner was not paid the winner tier.';
   end if;
   raise notice 'PROBE 9 ok — report + opposite-side confirm settles and pays; own side refused';
+
+  -- ── 10 · 🔴 THE RESTATEMENT DID NOT BREAK THE ARM IT LEFT ALONE ──
+  --
+  -- §9 restates economy_on_social_challenge_closed, ~250 lines with six grant_reward calls across
+  -- four arms, to insert ONE guard. Everything above proves a team match now pays once. NONE of it
+  -- proves a COLLECTIVE goal still pays at all — and that is the same hole as a negative probe
+  -- with no positive control, just one level up: I verified the thing I changed and not the thing
+  -- I might have broken while changing it.
+  --
+  -- It is the collective arm specifically because that is the one a team match was falling into.
+  -- A guard that excluded too much — `mode = 'group'`, say, instead of `shape = 'team_match'` —
+  -- would silently stop paying every campfire goal in the app, and the six-call count in the
+  -- deploy assertion would still be six. Migration 0169 made MEASURED collective bars real
+  -- (target_value), and they settle through this same arm, so both spellings are checked.
+  --
+  -- The trigger is driven DIRECTLY by an UPDATE of status rather than through a create RPC: the
+  -- object under test is the trigger, and going through create_group_challenge would couple this
+  -- probe to that function's signature, which a sibling lane is actively changing.
+  for v_shape in select unnest(array['count', 'measured']) loop
+    insert into social_challenges (
+      circle_id, created_by, mode, shape, race_metric,
+      target_count, target_value, window_hours, payout_xp,
+      status, starts_at, ends_at, public_name
+    )
+    values (
+      v_g, v_owner, 'group', 'collective',
+      case when v_shape = 'measured' then 'volume' else null end,
+      case when v_shape = 'measured' then null else 1 end,
+      case when v_shape = 'measured' then 10000 else null end,
+      24, 300, 'active', now() - interval '1 hour', now(), 'probe ' || v_shape
+    )
+    returning id into v_coll;
+
+    insert into challenge_participants (challenge_id, user_id, state, responded_at, baseline)
+    values (v_coll, v_p1, 'accepted', now(), 0), (v_coll, v_p2, 'accepted', now(), 0);
+
+    update social_challenges set status = 'completed' where id = v_coll;
+
+    select count(*) into v_embers from ember_ledger where ref_id = v_coll;
+    if v_embers = 0 then
+      raise exception 'PROBE: a % collective goal was paid NOTHING — the restatement broke the collective arm.', v_shape;
+    end if;
+    -- "Exactly once" per person, not a total: challenge_field's membership is its own business, so
+    -- the assertion that means something is that nobody appears twice.
+    if exists (select 1 from ember_ledger where ref_id = v_coll group by user_id having count(*) > 1) then
+      raise exception 'PROBE: a % collective goal paid somebody twice.', v_shape;
+    end if;
+    if not exists (select 1 from challenge_participants
+                    where challenge_id = v_coll and reward_payload is not null) then
+      raise exception 'PROBE: a % collective goal wrote no reward_payload — the reveal would be blank.', v_shape;
+    end if;
+    raise notice 'PROBE 10 ok — % collective goal still pays, % ledger rows, nobody twice', v_shape, v_embers;
+  end loop;
 
   raise notice '════ ALL PROBES PASSED — every 0173 body executed against real prod data ════';
 end
