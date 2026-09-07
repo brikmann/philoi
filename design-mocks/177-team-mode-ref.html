@@ -1,0 +1,191 @@
+<!doctype html><meta charset="utf-8"><title>Mock 177 — Campfire Team Mode + Ref view</title>
+<style>
+:root{--ink:#FFF6EC;--dim:#a99cc4;--amber:#F2A33C;--gold:#FFD27A;--red:#ff6b5c;--blue:#6bb8ff;--green:#63d68a}
+*{box-sizing:border-box}
+body{margin:0;background:#0f0d15;color:var(--ink);font-family:'Inter',system-ui,sans-serif;padding:26px 16px 60px}
+h1{font-size:20px;text-align:center;margin:0 0 4px}
+.sub{font-size:12.5px;color:#9f92b6;text-align:center;max-width:800px;margin:0 auto 22px;line-height:1.55}.sub b{color:#e7ddf5}
+.row{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;align-items:center;gap:9px}
+.cap{font-size:11.5px;font-weight:800;color:#8a7db0;text-align:center;max-width:290px;line-height:1.4}
+.arrow{align-self:center;font-size:22px;color:#F2A33C;margin-top:290px}
+.ph{width:296px;height:620px;border-radius:30px;overflow:hidden;position:relative;border:1px solid #241c38;background:radial-gradient(110% 60% at 50% 16%,#1c1230,#0c0812 78%);display:flex;flex-direction:column;padding:44px 16px 16px}
+.top{display:flex;align-items:center;gap:8px;margin-bottom:6px}.top .bk{color:#b9add6;font-size:18px}.top h2{font-size:14px;font-weight:800;margin:0;flex:1;color:#c9bfe0}
+.pill{font-size:8px;font-weight:800;letter-spacing:1px;color:#63d68a;background:#0f241a;border:1px solid #2f7a4e;border-radius:10px;padding:3px 8px}
+.spacer{flex:1}
+.lbl{font-size:9px;font-weight:800;letter-spacing:1.6px;color:#8a7db0;margin:16px 2px 8px}
+
+/* create: team toggle */
+.tmrow{display:flex;align-items:center;gap:11px;background:#17111f;border:1px solid #3a2f56;border-radius:14px;padding:12px 14px}
+.tmrow .m{flex:1}.tmrow .nm{font-size:14px;font-weight:800}.tmrow .ds{font-size:10px;color:#8a7db0;margin-top:2px}
+.toggle{width:42px;height:24px;border-radius:14px;background:linear-gradient(90deg,#F7B44C,#E0612C);position:relative;flex:none}
+.toggle::after{content:'';position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+/* sports grid */
+.sports{display:flex;flex-wrap:wrap;gap:7px}
+.sport{display:flex;flex-direction:column;align-items:center;gap:3px;width:60px;padding:9px 4px;border-radius:12px;background:#17111f;border:1px solid #2a2140}
+.sport.on{border-color:#F2A33C;background:#2a1c12}
+.sport .e{font-size:20px}.sport .n{font-size:8.5px;color:#c9bfe0;font-weight:700}
+.more{font-size:9.5px;color:#8a7db0;text-align:center;margin-top:8px}
+/* teams + ref */
+.tteam{display:flex;align-items:center;gap:10px;background:#17111f;border:1px solid #2a2140;border-radius:12px;padding:10px 12px;margin-top:8px}
+.dot{width:14px;height:14px;border-radius:50%;flex:none}
+.tteam input,.tteam .val{flex:1;background:none;border:none;color:#fff;font-size:14px;font-weight:700}
+.refrow{display:flex;align-items:center;gap:9px;background:#17111f;border:1px solid #2a2140;border-radius:12px;padding:10px 12px;margin-top:8px;font-size:13px}
+.refrow .av{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#F2A33C,#8A3410)}
+.rewardline{display:flex;gap:8px;justify-content:center;margin-top:14px;font-size:11px;font-weight:700}
+.rchip{display:flex;align-items:center;gap:5px;background:#160f22;border:1px solid #2a2140;border-radius:20px;padding:5px 11px}
+.cta{height:50px;border-radius:15px;display:grid;place-items:center;font-weight:800;font-size:15px;color:#241207;background:linear-gradient(100deg,#F7B44C,#E0612C);box-shadow:0 0 22px rgba(224,97,44,.42);margin-top:14px}
+
+/* campfire card */
+.chat{flex:1;display:flex;flex-direction:column;gap:11px;overflow:hidden}
+.matchcard{border-radius:16px;overflow:hidden;background:linear-gradient(#191122,#130d1c);border:1px solid #3a2f56}
+.mc-top{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:#0e0a16}
+.mc-sport{font-size:12px;font-weight:800;display:flex;align-items:center;gap:6px}
+.live{font-size:8.5px;font-weight:800;letter-spacing:1px;color:#ff6b5c;display:flex;align-items:center;gap:5px}
+.live .d{width:6px;height:6px;border-radius:50%;background:#ff6b5c}
+.mc-score{display:flex;align-items:center;justify-content:center;gap:14px;padding:16px 10px}
+.mc-team{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1}
+.mc-team .tn{font-size:12px;font-weight:800}
+.mc-num{font-size:38px;font-weight:900;line-height:1}
+.mc-vs{font-size:12px;font-weight:800;color:#6a5d80}
+.mc-foot{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;border-top:1px solid #2a2140;font-size:10.5px;color:#8a7db0}
+.mc-btn{font-size:11px;font-weight:800;color:#241207;background:linear-gradient(#FFE39A,#F2A33C);border-radius:9px;padding:6px 13px}
+.mine{align-self:flex-end;max-width:70%;background:linear-gradient(120deg,#F7B44C,#E0612C);color:#241207;font-weight:600;font-size:13px;padding:8px 12px;border-radius:15px 15px 5px 15px}
+.sysline{align-self:center;font-size:10px;color:#8a7db0;background:#160f22;border:1px solid #241a34;border-radius:11px;padding:3px 11px}
+
+/* REF VIEW */
+.refhdr{text-align:center;margin-top:2px}
+.refeyebrow{font-size:10px;font-weight:800;letter-spacing:2.5px;color:#ff6b5c}
+.refsport{font-size:15px;font-weight:800;margin-top:4px}
+.reftimer{font-size:13px;color:#FFD27A;font-variant-numeric:tabular-nums;margin-top:2px}
+.refteams{flex:1;display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.refteam{border-radius:16px;padding:14px;border:2px solid var(--tc);background:radial-gradient(120% 100% at 50% 0%,var(--tg),#140d1c 80%);text-align:center}
+.rt-name{font-size:13px;font-weight:800;color:var(--tc)}
+.rt-score{font-size:56px;font-weight:900;line-height:.95;margin:4px 0}
+.rt-btns{display:flex;gap:8px;justify-content:center}
+.rt-b{flex:1;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;font-weight:800;background:#0e0a16;border:1px solid var(--tc);color:var(--tc)}
+.rt-b.big{font-size:15px}
+.refctl{display:flex;gap:9px;margin-top:14px}
+.rc{flex:1;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:7px;font-weight:800;font-size:13.5px}
+.rc.end{background:linear-gradient(100deg,#ff8a6c,#E0612C);color:#241207}
+.rc.undo{background:#1c1430;border:1px solid #3a2f56;color:#b9add6}
+.refnote{text-align:center;font-size:10px;color:#6a5d80;margin-top:10px}
+
+/* result */
+.resulthero{text-align:center;margin-top:22px}
+.rwin{font-size:11px;font-weight:800;letter-spacing:2px;color:#63d68a}
+.rscore{font-size:34px;font-weight:900;margin-top:6px}
+.rsub{font-size:12px;color:var(--dim);margin-top:4px}
+.rteams{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.rteamcard{display:flex;align-items:center;gap:12px;background:#17111f;border:1px solid var(--tc,#2a2140);border-radius:14px;padding:12px}
+.rteamcard .ic{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:20px;flex:none;background:#1a1226}
+.rteamcard .m{flex:1}.rteamcard .tn{font-size:13.5px;font-weight:800}.rteamcard .rw{font-size:10px;color:#8a7db0;margin-top:2px}
+.rteamcard .tag{font-size:9px;font-weight:800;letter-spacing:.5px;padding:4px 9px;border-radius:10px}
+.tag.win{color:#0c2414;background:#63d68a}.tag.lose{color:#241207;background:#c9bfae}
+.everyone{text-align:center;font-size:11px;color:#c9a0f0;margin-top:14px}
+.note{max-width:820px;margin:26px auto 0;font-size:12px;color:#c9bfe0;line-height:1.7;background:#160f22;border:1px solid #2a2140;border-radius:12px;padding:14px 18px}.note b{color:#fff}.note h3{margin:0 0 8px;font-size:13px;color:#FFD27A}
+</style>
+
+<h1>Mock 177 — Campfire Team Mode + Ref view</h1>
+<p class="sub"><b>Team mode is campfire-only.</b> Create a match, pick the sport, name two teams, appoint a ref. The <b>ref tracks the score live</b>; there's <b>no individual tracking</b> — the whole winning team gets one reward, the whole losing team gets a smaller one. Everyone who played earns something. Built for intramurals.</p>
+
+<div class="row">
+
+  <!-- A: create -->
+  <div class="col"><div class="cap">A · Create → Team Mode</div>
+    <div class="ph">
+      <div class="top"><span class="bk">‹</span><h2>New challenge</h2><span class="pill">CAMPFIRE ONLY</span></div>
+      <div class="tmrow"><div class="m"><div class="nm">Team mode</div><div class="ds">Two teams · a ref keeps score</div></div><div class="toggle"></div></div>
+      <div class="lbl">PICK THE GAME</div>
+      <div class="sports">
+        <div class="sport on"><span class="e">⚽</span><span class="n">Soccer</span></div>
+        <div class="sport"><span class="e">🏀</span><span class="n">Basketball</span></div>
+        <div class="sport"><span class="e">🏐</span><span class="n">Volleyball</span></div>
+        <div class="sport"><span class="e">🏒</span><span class="n">Hockey</span></div>
+        <div class="sport"><span class="e">🏈</span><span class="n">Flag FB</span></div>
+        <div class="sport"><span class="e">🥏</span><span class="n">Ultimate</span></div>
+        <div class="sport"><span class="e">🎾</span><span class="n">Tennis</span></div>
+        <div class="sport"><span class="e">🏓</span><span class="n">Table T.</span></div>
+        <div class="sport"><span class="e">🥅</span><span class="n">Dodgeball</span></div>
+      </div>
+      <div class="more">+ badminton · cricket · softball · rugby · handball · spikeball · custom…</div>
+      <div class="lbl">THE TEAMS</div>
+      <div class="tteam"><span class="dot" style="background:#ff6b5c"></span><span class="val">Red Team</span></div>
+      <div class="tteam"><span class="dot" style="background:#6bb8ff"></span><span class="val">Blue Team</span></div>
+      <div class="refrow"><div class="av"></div>Ref: <b style="color:#fff">@brikmnn</b> <span style="color:#8a7db0">(you)</span></div>
+      <div class="rewardline"><div class="rchip" style="color:#63d68a">🏆 Winners: Uncommon</div><div class="rchip" style="color:#9ec6ff">Losers: Common</div></div>
+      <div class="cta">Post to campfire</div>
+    </div>
+  </div>
+
+  <div class="arrow">›</div>
+
+  <!-- B: campfire card -->
+  <div class="col"><div class="cap">B · On the campfire — live</div>
+    <div class="ph">
+      <div class="top"><span class="bk">‹</span><h2>🔥 Goat</h2></div>
+      <div class="chat">
+        <div class="sysline">Match started · reffed by @brikmnn 🔥</div>
+        <div class="matchcard">
+          <div class="mc-top"><div class="mc-sport">⚽ Soccer</div><div class="live"><span class="d"></span> LIVE</div></div>
+          <div class="mc-score">
+            <div class="mc-team"><span class="tn" style="color:#ff6b5c">Red</span><span class="mc-num" style="color:#ff6b5c">2</span></div>
+            <div class="mc-vs">–</div>
+            <div class="mc-team"><span class="tn" style="color:#6bb8ff">Blue</span><span class="mc-num" style="color:#6bb8ff">1</span></div>
+          </div>
+          <div class="mc-foot"><span>⏱ 62' · ref keeps score</span><span class="mc-btn">Open ref view</span></div>
+        </div>
+        <div class="mine">LETS GO RED 🔴</div>
+        <div class="sysline">Winners take Uncommon · everyone earns something</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">›</div>
+
+  <!-- C: REF VIEW -->
+  <div class="col"><div class="cap">C · Ref view (the important one)</div>
+    <div class="ph">
+      <div class="top"><span class="bk">‹</span><h2>Score</h2><span class="pill" style="color:#ff6b5c;background:#2a0f0f;border-color:#7a2f2f">REF</span></div>
+      <div class="refhdr"><div class="refeyebrow">⚽ REFEREE · SOCCER</div><div class="reftimer">⏱ 62:14 · running</div></div>
+      <div class="refteams">
+        <div class="refteam" style="--tc:#ff6b5c;--tg:#2a1416">
+          <div class="rt-name">RED TEAM</div>
+          <div class="rt-score" style="color:#ff6b5c">2</div>
+          <div class="rt-btns"><div class="rt-b">−</div><div class="rt-b big">+1 goal</div></div>
+        </div>
+        <div class="refteam" style="--tc:#6bb8ff;--tg:#141f2a">
+          <div class="rt-name">BLUE TEAM</div>
+          <div class="rt-score" style="color:#6bb8ff">1</div>
+          <div class="rt-btns"><div class="rt-b">−</div><div class="rt-b big">+1 goal</div></div>
+        </div>
+      </div>
+      <div class="refctl"><div class="rc undo">↶ Undo</div><div class="rc end">⏹ End match</div></div>
+      <div class="refnote">Only the ref can edit. Score updates live for the whole campfire.</div>
+    </div>
+  </div>
+
+  <div class="arrow">›</div>
+
+  <!-- D: result -->
+  <div class="col"><div class="cap">D · Full-time → both teams paid</div>
+    <div class="ph">
+      <div class="top"><span class="bk">✕</span><h2>Full time</h2></div>
+      <div class="resulthero"><div class="rwin">⚽ FULL TIME</div><div class="rscore"><span style="color:#ff6b5c">Red 2</span> – <span style="color:#6bb8ff">1 Blue</span></div><div class="rsub">Reffed by @brikmnn · Goat campfire</div></div>
+      <div class="rteams">
+        <div class="rteamcard" style="--tc:#63d68a"><div class="ic">🏆</div><div class="m"><div class="tn" style="color:#ff6b5c">Red Team</div><div class="rw">Winners · everyone gets an Ignition Crate</div></div><div class="tag win">UNCOMMON</div></div>
+        <div class="rteamcard" style="--tc:#3a2f56"><div class="ic">🤝</div><div class="m"><div class="tn" style="color:#6bb8ff">Blue Team</div><div class="rw">Good game · everyone gets a Common crate</div></div><div class="tag lose">COMMON</div></div>
+      </div>
+      <div class="everyone">Every player on both teams earns a reward — win or lose.</div>
+      <div class="spacer"></div>
+      <div class="cta" style="background:linear-gradient(100deg,#8ef0af,#3fbf6e);color:#0c2414">Claim your reward</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="note"><h3>How team mode works</h3>
+<b>Create (A):</b> team mode is a <b>campfire-only</b> challenge type. Pick a sport from a big grid, name two teams (colour-coded), appoint a <b>ref</b> (the creator or any member). Reward is set by tier — winners a rarity up from losers. <b>No individual metrics.</b><br>
+<b>Campfire (B):</b> the match posts as a <b>live card</b> in chat — sport, both teams' scores, a LIVE dot, who's reffing. Everyone watches it tick.<br>
+<b>Ref view (C):</b> a dedicated referee screen — big score per team, <b>+ / − controls</b> (labelled to the sport: "+1 goal", or +1/+2/+3 for basketball), a match clock, Undo, and End match. <b>Only the ref can edit;</b> every change pushes live to the campfire card. This is the exclusive team/ref lock-in type — you're editing points between two teams, not logging a personal session.<br>
+<b>Result (D):</b> on End match, the higher score wins → <b>the whole winning team</b> gets the winner tier, <b>the whole losing team</b> gets the loser tier. Everyone who played is rewarded for showing up.</div>
