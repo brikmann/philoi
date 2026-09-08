@@ -22,7 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const { readFlameSource, rasterize, encodePng, lerp } = require('./lib/flame-raster');
+const { readFlameSource, flatten, rasterize, encodePng, lerp } = require('./lib/flame-raster');
 
 // Colors.plum and the ember ramp, matching FlameSvg's gradient stops so the icon and the in-app
 // flame are the same object lit the same way.
@@ -125,6 +125,154 @@ for (const { file, dir, size, heightFrac, note, pixel } of TARGETS) {
   const out = dir ? path.join(root, dir, file) : path.join(outDir, file);
   fs.writeFileSync(out, png);
   console.log(`wrote ${path.relative(root, out)} (${size}x${size}, ${note})`);
+}
+
+
+// ── the Android overlay's flame ──────────────────────────────────────────────
+/**
+ * The Focus Nudge overlay (Android) draws the flame as a real Path, not a raster.
+ *
+ * WHY NOT A PNG, like the iOS shield's flame.png above: the overlay's Gradle module carries NO
+ * dependencies and NO resource merging on purpose (see modules/philoi-focus-nudge/android/
+ * build.gradle — an accessibility service that PLAY_ACCESSIBILITY_DECLARATION.md swears never
+ * talks to the network is easiest to keep honest when nothing can be linked into it). A drawable
+ * resource would be the first thing to breach that, and a bitmap could only be tinted flat where
+ * mock 182 wants the ember ramp running up the glyph.
+ *
+ * WHY GENERATED rather than a Path hand-written in Kotlin: that is precisely the second hand-copy
+ * of the flame this script exists to abolish (see the header). The geometry below comes from the
+ * same FLAME_PATH, through the same mirror, as every raster above — so the overlay cannot drift
+ * into showing a different flame from the app, and cannot silently unflip it.
+ */
+const DECIMATE_EPS = 0.0006; // of the glyph's own height — ~0.3px on a 480px-tall flame
+
+/** Ramer–Douglas–Peucker. 322 flattened curve points is far more than a ~150dp glyph can show. */
+function decimate(points, eps) {
+  if (points.length < 3) return points;
+  const keep = new Array(points.length).fill(false);
+  keep[0] = keep[points.length - 1] = true;
+  const stack = [[0, points.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    if (b - a < 2) continue;
+    const [ax, ay] = points[a];
+    const [bx, by] = points[b];
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len = Math.hypot(dx, dy);
+    let best = -1;
+    let bestAt = -1;
+    for (let i = a + 1; i < b; i += 1) {
+      const [px, py] = points[i];
+      const dist =
+        len === 0
+          ? Math.hypot(px - ax, py - ay)
+          : Math.abs(dy * px - dx * py + bx * ay - by * ax) / len;
+      if (dist > best) {
+        best = dist;
+        bestAt = i;
+      }
+    }
+    if (best > eps) {
+      keep[bestAt] = true;
+      stack.push([a, bestAt], [bestAt, b]);
+    }
+  }
+  return points.filter((_, i) => keep[i]);
+}
+
+{
+  const { d, viewBox } = flame;
+  const rings = flatten(d);
+  if (rings.length !== 1) {
+    // Two rings would mean the glyph grew a hole, and the single-Path emitter below would fill it
+    // in. Better to stop than to ship a flame with its tongue-lick notch quietly closed up.
+    throw new Error(`expected FLAME_PATH to flatten to 1 ring, got ${rings.length}`);
+  }
+
+  // THE flip (CINDY_SPEC rendering rule 1), x -> viewBox - x. Same line as rasterize()'s, and the
+  // only place it happens on this side — nothing downstream in Kotlin may mirror again.
+  let ring = rings[0].map(([x, y]) => [viewBox - x, y]);
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  if (Math.abs(first[0] - last[0]) < 1e-9 && Math.abs(first[1] - last[1]) < 1e-9) ring = ring.slice(0, -1);
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of ring) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  // Normalised to the INK box, not the viewBox — FLAME_PATH runs x 6..18, y 2..18.5 inside its
+  // 24x24, and the same off-centre bug the rasters had would put the overlay's flame right of the
+  // rays it is supposed to sit inside.
+  const w = maxX - minX;
+  const h = maxY - minY;
+  const norm = ring.map(([x, y]) => [(x - minX) / w, (y - minY) / h]);
+  const closed = decimate(norm.concat([norm[0]]), DECIMATE_EPS);
+
+  const nums = [];
+  for (const [x, y] of closed) nums.push(`${x.toFixed(5)}f, ${y.toFixed(5)}f`);
+  const rows = [];
+  for (let i = 0; i < nums.length; i += 4) rows.push(`    ${nums.slice(i, i + 4).join(', ')},`);
+
+  const kotlin = `package expo.modules.philoifocusnudge
+
+import android.graphics.Path
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// GENERATED FILE — DO NOT EDIT BY HAND.
+//
+//   node scripts/gen-flame-assets.js
+//
+// The Cindy flame, as geometry, for the Focus Nudge overlay (FocusNudgeShieldView). Written from
+// the ONE glyph in src/components/ui/flame-logo.tsx, already mirrored by
+// FLAME_MIRROR_TRANSFORM (CINDY_SPEC rendering rule 1) — so do NOT flip it again here or at the
+// call site. Two flips cancel and the overlay silently renders the retired orientation.
+//
+// Points are the outline decimated to ${DECIMATE_EPS} of the glyph's height and normalised to its
+// INK bounding box: x and y both run 0..1, with ASPECT carrying the real width:height so the
+// caller can size it without stretching.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+internal object FocusNudgeFlame {
+
+  /** width / height of the inked glyph. */
+  const val ASPECT = ${(w / h).toFixed(6)}f
+
+  /** Closed outline, x,y interleaved, both normalised 0..1 over the ink box. */
+  private val POINTS = floatArrayOf(
+${rows.join('\n')}
+  )
+
+  /** The flame as a Path filling [width] x [height], offset to ([left], [top]). */
+  fun path(left: Float, top: Float, width: Float, height: Float): Path {
+    val path = Path()
+    var i = 0
+    while (i < POINTS.size) {
+      val x = left + POINTS[i] * width
+      val y = top + POINTS[i + 1] * height
+      if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+      i += 2
+    }
+    path.close()
+    return path
+  }
+}
+`;
+
+  const kotlinOut = path.join(
+    root, 'modules', 'philoi-focus-nudge', 'android', 'src', 'main', 'java',
+    'expo', 'modules', 'philoifocusnudge', 'FocusNudgeFlame.kt',
+  );
+  fs.writeFileSync(kotlinOut, kotlin);
+  console.log(
+    `wrote ${path.relative(root, kotlinOut)} (${closed.length} points, aspect ${(w / h).toFixed(4)})`,
+  );
 }
 
 console.log('\nNative assets — only visible after the next `eas build` (delete + reinstall to');

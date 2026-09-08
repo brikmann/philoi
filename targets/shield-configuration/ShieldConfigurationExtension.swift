@@ -19,17 +19,31 @@ import UIKit
 /// separate Xcode target with no access to the JS bundle — so these are the mock-109/116 values
 /// written out, the same arrangement as `Palette` in the Live Activity widget.
 private enum ShieldPalette {
-  /// The warm ground (mock 109's ember radial, flattened — a shield takes one solid colour).
-  static let warmBackground = UIColor(red: 0.09, green: 0.06, blue: 0.13, alpha: 1)  // #171021
+  /// The warm ground — mock 182/183's #150F24, the same colour Android's overlay puts at the
+  /// centre of its ember radial. A shield takes one flat colour where Android takes the gradient;
+  /// this is the stop the gradient is built around, so the two platforms sit on the same ground.
+  ///
+  /// 0.86 alpha, per mock 183, because it is composited OVER the blur below. See the note there.
+  static let warmBackground = UIColor(red: 0.082, green: 0.059, blue: 0.141, alpha: 0.86)  // #150F24
   /// The cool ground for the wellbeing/support turn (mock 116 frame 2 — the flame cools).
-  static let careBackground = UIColor(red: 0.07, green: 0.09, blue: 0.16, alpha: 1)  // #12162A
+  static let careBackground = UIColor(red: 0.071, green: 0.086, blue: 0.165, alpha: 0.86)  // #12162A
 
   static let ink = UIColor(red: 1.0, green: 0.965, blue: 0.925, alpha: 1)  // #FFF6EC
   static let body = UIColor(red: 0.847, green: 0.800, blue: 0.922, alpha: 1)  // #D8CCEB
   static let secondary = UIColor(red: 0.561, green: 0.514, blue: 0.659, alpha: 1)  // #8F83A8
 
-  static let amber = UIColor(red: 0.949, green: 0.639, blue: 0.235, alpha: 1)  // #F2A33C
+  /// The primary button. Mock 182 draws this fill as a 135° ramp #FF8C42 -> #F5A623, and the
+  /// Android overlay does exactly that — but primaryButtonBackgroundColor is ONE UIColor, with no
+  /// gradient anywhere in the ShieldConfiguration API. So this is that ramp's midpoint: the
+  /// closest a flat fill gets to the button the other platform is drawing.
+  static let amber = UIColor(red: 0.980, green: 0.600, blue: 0.196, alpha: 1)  // #FA9932
   static let onEmber = UIColor(red: 0.165, green: 0.078, blue: 0.0, alpha: 1)  // #2A1400
+  /// The flame icon's tint, kept SEPARATE from the button fill above even though the two are
+  /// close. Android draws the glyph as the real ember ramp (#E0612C -> #FFD27A); a UIImage tint is
+  /// one flat colour, so this is that ramp's middle stop — the flame's own colour, not the
+  /// button's. Coupling them means a later button tweak silently repaints the mark.
+  static let emberIcon = UIColor(red: 0.949, green: 0.639, blue: 0.235, alpha: 1)  // #F2A33C
+
   static let careBlue = UIColor(red: 0.435, green: 0.608, blue: 1.0, alpha: 1)  // #6F9BFF
   static let onCare = UIColor(red: 0.039, green: 0.075, blue: 0.188, alpha: 1)  // #0A1330
 
@@ -44,7 +58,8 @@ private enum ShieldPalette {
 /// render half-drawn.
 private func shieldIcon(care: Bool) -> UIImage? {
   UIImage(named: "flame")?
-    .withTintColor(care ? ShieldPalette.careBlue : ShieldPalette.amber, renderingMode: .alwaysOriginal)
+    .withTintColor(
+      care ? ShieldPalette.careBlue : ShieldPalette.emberIcon, renderingMode: .alwaysOriginal)
 }
 
 private func buildShield() -> ShieldConfiguration {
@@ -59,9 +74,18 @@ private func buildShield() -> ShieldConfiguration {
   let care = ShieldPalette.isCare(card.intent)
 
   return ShieldConfiguration(
-    // No blur: the ground is our own colour, and a blur would let the app they opened bleed
-    // through it — the feed is the thing we are asking them to look away from.
-    backgroundBlurStyle: nil,
+    // Blurred, per mock 183 — the one bit of depth Apple's API actually grants, and what stops
+    // the shield reading as a flat system alert. The ground colour above is laid OVER this blur at
+    // 0.86, which is the mock's own composite.
+    //
+    // 🔴 THE TRADE, stated plainly because it was a deliberate reversal: a blur means the guarded
+    // app is faintly present behind the shield, and the feed is the thing we are asking them to
+    // look away from. At 0.86 over an ultra-thin dark material it is unrecognisable shape and
+    // motion rather than content — Apple's own shield treatment. If it reads as bleed-through on
+    // a real device, the fix is one line: nil here and alpha 1 on the two grounds above, which is
+    // what this file did before. Android does NOT face this choice — its overlay is opaque by
+    // construction, and mock 182 keeps it that way.
+    backgroundBlurStyle: .systemUltraThinMaterialDark,
     backgroundColor: care ? ShieldPalette.careBackground : ShieldPalette.warmBackground,
     icon: shieldIcon(care: care),
     title: .init(text: card.title, color: ShieldPalette.ink),

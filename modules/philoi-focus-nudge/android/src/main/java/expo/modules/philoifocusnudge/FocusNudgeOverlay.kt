@@ -3,23 +3,28 @@ package expo.modules.philoifocusnudge
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
-import android.widget.LinearLayout
-import android.widget.TextView
 
-// The nudge itself — Android's answer to the iOS ShieldConfiguration extension (design-mocks/109).
+// The nudge itself — Android's answer to the iOS ShieldConfiguration extension.
+//
+// THE WINDOW, not the picture. What this screen LOOKS like is FocusNudgeShieldView — the
+// full-bleed flame, rays and ember ground of design-mocks/182. This file owns attaching the
+// window, the back key, and what a tap means, and it is the half that must not change when the
+// design does.
+//
+// The two platforms diverge here, and honestly: iOS can only hand Apple a ShieldConfiguration
+// (a background, one icon, two labels, two buttons — the whole API) and let the system draw it,
+// so mock 182 is Android-only and mock 183 is the iOS ceiling. Same payload, same copy, same
+// escalation on both; only the render differs.
 //
 // A WindowManager overlay, NOT an Activity. That is the entire reason this feature is worth an
 // extended Play review: an Activity launch is a window transition with an animation, and the app
@@ -37,18 +42,6 @@ import android.widget.TextView
 internal object FocusNudgeOverlay {
 
   private const val TAG = "PhiloiFocusNudge"
-
-  // Twilight palette, from src/constants/theme.ts. Hardcoded rather than pulled from Android
-  // resources because this view is built in code (no layout XML for the config plugin to have to
-  // write), and because the nudge should look identical to the iOS shield, which reads the same
-  // constants from the same spec.
-  private const val BACKDROP = 0xFF1B1726.toInt() // Colors.cream — the app background
-  private const val CARD = 0xFF241C38.toInt() // Colors.card
-  private const val INK = 0xFFFFF6EC.toInt() // Colors.ink
-  private const val MUTED = 0xFFA99CBD.toInt() // Colors.muted
-  private const val CORAL = 0xFFE0612C.toInt() // Colors.coral — the primary fill
-  private const val ON_EMBER = 0xFF3A1608.toInt() // Colors.onEmber — text on an ember fill
-  private const val AMBER = 0xFFF2A33C.toInt() // Colors.amber — the wordmark
 
   /**
    * The attached view, or null. Single-threaded by construction: every path in and out of here
@@ -95,8 +88,10 @@ internal object FocusNudgeOverlay {
       PixelFormat.TRANSLUCENT,
     )
     params.gravity = Gravity.TOP or Gravity.START
-    // No enter animation. A fade-in would be a fade-in OF the feed showing through — the one thing
-    // the whole event-driven design exists to prevent.
+    // No enter animation, and this survives the mock-182 redesign unchanged. A fade-in would be a
+    // fade-in OF the feed showing through — the one thing the whole event-driven design exists to
+    // prevent. The flicker and the rays inside FocusNudgeShieldView start only AFTER the window is
+    // already opaque on screen, so nothing about the new look costs us the instant appearance.
     params.windowAnimations = 0
 
     try {
@@ -158,102 +153,35 @@ internal object FocusNudgeOverlay {
         return super.dispatchKeyEvent(event)
       }
     }
-    root.setBackgroundColor(BACKDROP)
     root.isClickable = true // swallow every stray tap rather than letting it reach the app below
     root.isFocusable = true
     root.isFocusableInTouchMode = true
 
-    val column = LinearLayout(context)
-    column.orientation = LinearLayout.VERTICAL
-    column.gravity = Gravity.CENTER_HORIZONTAL
-    column.setPadding(dp(context, 28), dp(context, 28), dp(context, 28), dp(context, 28))
-    column.background = GradientDrawable().apply {
-      cornerRadius = dp(context, 20).toFloat()
-      setColor(CARD)
-    }
-
-    val wordmark = TextView(context)
-    wordmark.text = "PHILOI"
-    wordmark.setTextColor(AMBER)
-    wordmark.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-    wordmark.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-    wordmark.letterSpacing = 0.28f
-    column.addView(wordmark)
-
-    val title = TextView(context)
-    title.text = card.title
-    title.setTextColor(INK)
-    title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-    title.typeface = Typeface.create("sans-serif", Typeface.BOLD)
-    title.gravity = Gravity.CENTER_HORIZONTAL
-    column.addView(title, marginTop(context, 16))
-
-    val body = TextView(context)
-    body.text = card.body
-    body.setTextColor(MUTED)
-    body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-    body.setLineSpacing(dp(context, 5).toFloat(), 1f)
-    body.gravity = Gravity.CENTER_HORIZONTAL
-    column.addView(body, marginTop(context, 12))
-
-    val primary = TextView(context)
-    primary.text = card.primaryLabel
-    primary.setTextColor(ON_EMBER)
-    primary.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-    primary.typeface = Typeface.create("sans-serif", Typeface.BOLD)
-    primary.gravity = Gravity.CENTER
-    primary.setPadding(dp(context, 20), dp(context, 15), dp(context, 20), dp(context, 15))
-    primary.background = GradientDrawable().apply {
-      cornerRadius = dp(context, 14).toFloat()
-      setColor(CORAL)
-    }
-    primary.isClickable = true
-    primary.contentDescription = card.primaryLabel
-    primary.setOnClickListener {
-      // philoi://lock-in on a reinforce card, philoi://support on wellbeing/support — the routing
-      // decision is made in JS (BUTTONS in src/lib/focus-nudge.ts) and travels in the payload, so
-      // it ships over OTA rather than needing a native build. This side just opens what it is given.
-      openLink(context, card.primaryUrl)
-      hide(context)
-    }
-    val primaryParams = LinearLayout.LayoutParams(
-      LinearLayout.LayoutParams.MATCH_PARENT,
-      LinearLayout.LayoutParams.WRAP_CONTENT,
+    // The look lives next door in FocusNudgeShieldView (mock 182) — the full-bleed flame, the
+    // rays, the ember ground. THIS file stays what it always was: the window, the key handling,
+    // and what a tap means. The split is deliberate; a redesign should never have to reason about
+    // WindowManager tokens, and the window should never have to reason about a shader.
+    FocusNudgeShieldView.build(
+      context = context,
+      card = card,
+      root = root,
+      onPrimary = {
+        // philoi://lock-in on a reinforce card, philoi://support on wellbeing/support — the
+        // routing decision is made in JS (BUTTONS in src/lib/focus-nudge.ts) and travels in the
+        // payload, so it ships over OTA rather than needing a native build. This side just opens
+        // what it is given.
+        openLink(context, card.primaryUrl)
+        hide(context)
+      },
+      onSecondary = {
+        // The pass-through, and it really does pass through: the overlay comes down onto the app
+        // they were already opening, so unlike iOS — where the shield's dismissal costs one extra
+        // tap because ShieldActionResponse has no "let them straight through" — Android continues
+        // in one. No penalty, no streak loss, nothing recorded.
+        FocusNudgeState.defer(context.applicationContext)
+        hide(context)
+      },
     )
-    primaryParams.topMargin = dp(context, 28)
-    column.addView(primary, primaryParams)
-
-    val secondary = TextView(context)
-    secondary.text = card.secondaryLabel
-    secondary.setTextColor(MUTED)
-    secondary.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-    secondary.gravity = Gravity.CENTER
-    secondary.setPadding(dp(context, 20), dp(context, 14), dp(context, 20), dp(context, 6))
-    secondary.isClickable = true
-    secondary.contentDescription = card.secondaryLabel
-    secondary.setOnClickListener {
-      // The pass-through, and it really does pass through: the overlay comes down onto the app they
-      // were already opening, so unlike iOS — where the shield's dismissal costs one extra tap
-      // because ShieldActionResponse has no "let them straight through" — Android continues in one.
-      // No penalty, no streak loss, nothing recorded.
-      FocusNudgeState.defer(context.applicationContext)
-      hide(context)
-    }
-    val secondaryParams = LinearLayout.LayoutParams(
-      LinearLayout.LayoutParams.MATCH_PARENT,
-      LinearLayout.LayoutParams.WRAP_CONTENT,
-    )
-    secondaryParams.topMargin = dp(context, 4)
-    column.addView(secondary, secondaryParams)
-
-    val columnParams = FrameLayout.LayoutParams(
-      FrameLayout.LayoutParams.MATCH_PARENT,
-      FrameLayout.LayoutParams.WRAP_CONTENT,
-    )
-    columnParams.gravity = Gravity.CENTER_VERTICAL
-    columnParams.leftMargin = dp(context, 20)
-    columnParams.rightMargin = dp(context, 20)
-    root.addView(column, columnParams)
 
     return root
   }
@@ -285,19 +213,5 @@ internal object FocusNudgeOverlay {
     } catch (e: Exception) {
       Log.w(TAG, "could not go home", e)
     }
-  }
-
-  // ───────────────────────────── plumbing ─────────────────────────────
-
-  private fun dp(context: Context, value: Int): Int =
-    (value * context.resources.displayMetrics.density).toInt()
-
-  private fun marginTop(context: Context, value: Int): LinearLayout.LayoutParams {
-    val params = LinearLayout.LayoutParams(
-      LinearLayout.LayoutParams.MATCH_PARENT,
-      LinearLayout.LayoutParams.WRAP_CONTENT,
-    )
-    params.topMargin = dp(context, value)
-    return params
   }
 }
