@@ -17,6 +17,18 @@ type Props = {
   division?: number;
   /** ×10: the rest of the haul as a rarity-bordered chip strip under the hero. */
   haul?: CatalogItem[];
+  /**
+   * What the pill says INSTEAD of the drop odds.
+   *
+   * For anything that was not pulled from a crate. A discipline relic (0176) is the case this
+   * exists for: it has no published probability, so `oddsPct` can only be 0, and formatOddsFlex(0)
+   * renders "a 0.0% pull" — which is both false and the least impressive way to describe ten hours
+   * of study. The relic's flex is the WORK ("10 hours of Study"), so the caller passes that.
+   *
+   * Optional, and the odds stay the default: for a box pull the probability IS the flex, and every
+   * existing call site means exactly that.
+   */
+  flex?: string | null;
 };
 
 // B4 — the rare-cosmetic flex (design-mocks/96, card 5). Fires from the unlock / box-open reveal.
@@ -27,7 +39,7 @@ type Props = {
 // item is re-themed. Rarity colour stays semantic (Mythic reads red, Legendary gold), which is why
 // the rarity tint is the only thing on this card that isn't ember.
 export const UnlockShareCard = forwardRef<View, Props>(function UnlockShareCard(
-  { item, oddsPct, handle, tier, division, haul },
+  { item, oddsPct, handle, tier, division, haul, flex },
   ref
 ) {
   const tint = RARITY_COLOR[item.rarity];
@@ -58,7 +70,7 @@ export const UnlockShareCard = forwardRef<View, Props>(function UnlockShareCard(
       </Text>
 
       <View style={[styles.oddsPill, { borderColor: tint }]}>
-        <Text style={[styles.oddsText, { color: tint }]}>{formatOddsFlex(oddsPct)}</Text>
+        <Text style={[styles.oddsText, { color: tint }]}>{flex?.trim() || formatOddsFlex(oddsPct)}</Text>
       </View>
 
       {haul && haul.length > 0 ? (

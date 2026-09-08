@@ -21,6 +21,7 @@ import { NavDrawerProvider } from '@/components/nav/app-drawer';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { OfflineBanner } from '@/components/offline-banner';
 import { RankUpWatcher } from '@/components/rank-up-watcher';
+import { RelicUnlockWatcher } from '@/components/relic-unlock-watcher';
 import { CindyHeaderFlame } from '@/components/cindy/cindy-header-flame';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useHasAnyCircle } from '@/hooks/use-has-any-circle';
@@ -428,6 +429,16 @@ function RootLayout() {
                 gets the forge no matter which screen the user is on — the done screen can only ever
                 celebrate a manual stop (punchlist 5.6). */}
             <RankUpWatcher />
+            {/* And for a DISCIPLINE RELIC (0176) — the payout Noah crossed and never saw. Relics
+                are granted by triggers on check_ins and lock_in_sessions, and the rows that fire
+                those triggers routinely arrive from somewhere the app is not: a Strava webhook, a
+                Health Connect backfill, a step sync landing after the phone went in a pocket. So
+                like the three below it, this is the only surface that can ever announce it.
+
+                AFTER RankUpWatcher and BEFORE the challenge one, which is where its reveal-floor
+                priority (70) puts it: a lock-in that crosses a relic threshold and a division at
+                once plays the relic, then the forge. */}
+            <RelicUnlockWatcher />
             {/* The same argument, for challenge payouts. Settlement is a pg_cron job, so a duel or
                 a placement race closes and pays while the app is shut — and until this was mounted
                 the only surface that could announce it was that one challenge's info screen, which

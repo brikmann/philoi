@@ -53,7 +53,8 @@ export type RewardRevealKind =
   | 'daily_fire'
   | 'challenge_solo'
   | 'challenge_team'
-  | 'challenge_placement';
+  | 'challenge_placement'
+  | 'relic_unlock';
 
 /** One "what you got" line. `icon` picks the glyph; `label` is already formatted for display. */
 export type RewardLine = {
@@ -138,6 +139,20 @@ export const REVEAL_TUNING: Record<
   challenge_solo: { tint: Colors.amber, rays: 13, scale: 0.96, intensity: 0.7, cue: 'victory', eyebrow: 'CHALLENGE WON', priority: 50 },
   challenge_team: { tint: Colors.sky, rays: 15, scale: 1.02, intensity: 0.74, cue: 'victory', eyebrow: 'TEAM CHALLENGE', priority: 55 },
   challenge_placement: { tint: Colors.ember, rays: 16, scale: 1.05, intensity: 0.78, cue: 'victory', eyebrow: 'PLACEMENT', priority: 58 },
+  // A DISCIPLINE RELIC (0176). Second only to a rank-up, and above the pass level, because it is the
+  // rarest thing in the app that is not a rank: ten hours of Study, fifty kilometres moved, and at
+  // the top of every ladder the Crown. It waits behind a rank-up and goes ahead of everything else.
+  //
+  // ⚠️ `cue` IS NOT WHAT PLAYS HERE. The relic screen calls useRevealSting(rarity) instead, so the
+  // sound is the six-step rarity ladder (#85) rather than one fixed fanfare — a Legendary Scroll and
+  // a Mythic Crown must not land on the same sting, and rarity is the app's existing language for
+  // "an item was revealed". This row keeps a cue anyway so no kind can be added to the table without
+  // one, and so a caller that reaches for useRevealCue gets something sane rather than undefined.
+  //
+  // Amber rather than the item's rarity colour: `tint` is static per kind, the hero is a relic in a
+  // GOLD aura in every mock, and gold is what "relic" reads as across the Trophy Hall. The rarity
+  // still shows — on the chip, the row accent and the aura behind the art.
+  relic_unlock: { tint: Colors.amber, rays: 16, scale: 1.08, intensity: 0.82, cue: 'victory', eyebrow: 'RELIC UNLOCKED', priority: 70 },
 };
 
 /** How long the rays take to bloom in, and how long one full rotation takes. */

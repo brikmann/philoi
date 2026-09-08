@@ -884,6 +884,8 @@ export type AnalyticsEventName =
   | 'lock_in_posted_to_circle'
   | 'first_lock_in_tutorial_shown'
   | 'first_lock_in_tutorial_completed'
+  | 'relic_unlock_revealed'
+  | 'relic_unlock_shared'
   | 'daily_fire_completed'
   | 'flame_completion_published'
   | 'friend_nudged'
@@ -1828,6 +1830,33 @@ export type UnseenGoalReward = {
   payload: GoalRewardPayload | null;
 };
 
+/**
+ * A relic the user owns and has never been shown — migration 0176's inbox.
+ *
+ * Column names carry the `out_` prefix the RPC returns them under, deliberately rather than as an
+ * accident of the SQL: `relic_key`, `family`, `tier`, `provenance` and `unit` are all real columns
+ * on `cosmetics_owned` / `relic_progress` / `relic_ladders`, and a RETURNS TABLE output that shares
+ * a name with a table column in its own body shadows it — silently returning nothing rather than
+ * erroring. The prefix is what makes that impossible, so it stays visible up here too.
+ */
+export type UnseenRelicUnlock = {
+  out_relic_key: string;
+  /** Resolved server-side by relic_display_name() — "Socrates' Scroll". */
+  out_name: string;
+  /** The sentence economy_evaluate_relics passed as `p_why`, e.g. "Tier I α — 10 h. The ladder has
+   *  begun." The ONLY copy the seven ancient relics have, since they ride no ladder. */
+  out_provenance: string | null;
+  out_earned_at: string;
+  /** Null for an ancient relic — see `out_provenance`. */
+  out_family: RelicFamilyKey | null;
+  /** The rung the ladder stands at NOW, not necessarily the one it stood at on grant. */
+  out_rung: number | null;
+  out_rung_threshold: number | null;
+  out_unit: string | null;
+  /** Crown of Olympus — every ladder maxed. Gets the bigger beat. */
+  out_is_capstone: boolean;
+};
+
 // ───────────── challenge change/cancel consent (migration 0058, design-mocks/70 + 71) ─────────────
 
 export type ChallengeChangeKind = 'edit' | 'cancel';
@@ -2668,6 +2697,10 @@ export type Database = {
       get_unseen_goal_rewards: { Args: Record<string, never>; Returns: UnseenGoalReward[] };
       /** The goal reveal's fire-once stamp — the only thing it can write is a timestamp (0167). */
       mark_goal_reward_seen: { Args: { p_goal_id: string }; Returns: undefined };
+      /** Relics this user owns and has never been shown (0176). Read-only; it cannot grant. */
+      get_unseen_relic_unlocks: { Args: Record<string, never>; Returns: UnseenRelicUnlock[] };
+      /** The relic reveal's fire-once stamp. Writes one timestamp, auth.uid()-scoped (0176). */
+      mark_relic_unlock_seen: { Args: { p_relic_key: string }; Returns: undefined };
       /** Pre-start or finished only; a live race is left to cancel/forfeit's consent path (0112). */
       delete_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       get_my_friends: {

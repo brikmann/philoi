@@ -6,7 +6,7 @@
 // count (only the device has it).
 
 import { supabase } from '@/lib/supabase';
-import type { RelicProgressRow, StepDayInput } from '@/types/database';
+import type { RelicProgressRow, StepDayInput, UnseenRelicUnlock } from '@/types/database';
 
 /**
  * Where every discipline relic stands, including the ones at zero.
@@ -49,4 +49,36 @@ export async function recordStepDays(days: StepDayInput[]): Promise<number> {
   const { data, error } = await supabase.rpc('record_step_days', { p_days: days });
   if (error) throw error;
   return (data as number) ?? 0;
+}
+
+// ─────────────────────────── The unlock inbox (migration 0176) ───────────────────────────
+//
+// 🔒 BOTH OF THESE ARE PRESENTATION PLUMBING. The read is a pure select over cosmetics_owned and the
+// write can only stamp a timestamp — neither can grant a relic. That matters more here than it looks:
+// the whole reason a relic unlock was silent is that the grant happens deep in a trigger with no
+// client present, and the temptation when wiring a reveal to a silent grant is to have the reveal
+// do the granting. It cannot, and it must not.
+
+/**
+ * Relics the user owns and has never been shown — oldest first.
+ *
+ * Almost always empty, which is the intended cost: this runs on every mount and foreground, and the
+ * usual answer is zero rows. The rows that do come back are ones the server decided were owed, so
+ * the client keeps no queue of its own and nothing needs clearing on sign-out.
+ */
+export async function fetchUnseenRelicUnlocks(): Promise<UnseenRelicUnlock[]> {
+  const { data, error } = await supabase.rpc('get_unseen_relic_unlocks');
+  if (error) throw error;
+  return (data ?? []) as UnseenRelicUnlock[];
+}
+
+/**
+ * Spend one relic's fire-once budget.
+ *
+ * Idempotent server-side (the update carries its own `reveal_seen_at is null` guard), so a double
+ * dismiss is free, and scoped to auth.uid(), so it can only ever spend the caller's own.
+ */
+export async function markRelicUnlockSeen(relicKey: string): Promise<void> {
+  const { error } = await supabase.rpc('mark_relic_unlock_seen', { p_relic_key: relicKey });
+  if (error) throw error;
 }
