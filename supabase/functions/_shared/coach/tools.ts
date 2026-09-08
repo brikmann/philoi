@@ -279,6 +279,103 @@ export const COACH_TOOLS: CoachToolSpec[] = [
     },
   },
   {
+    name: 'propose_social_challenge',
+    // 🔒 CONFIRM, AND MORE THAN THAT: THIS TOOL WRITES NOTHING EVEN WHEN CONFIRMED.
+    //
+    // Every other create tool here names the thing it makes. This one names a PROPOSAL. The client
+    // routes it to challenge/verdict.tsx — the tier, the rationale, and the crate the SERVER prices
+    // it at — and the create happens on that screen's CTA, or not at all. Same contract campfire
+    // hosting already has, extended to the three shapes that were reachable only through the form.
+    //
+    // WHY A PROPOSAL RATHER THAN A CREATE. A duel, a collective goal and a placement race are all
+    // things other people end up enrolled in, and all three are things Cindy has PRICED. An inline
+    // chip can show a two-line tease of that; it cannot show a judgement. Mock 173 is the screen
+    // the scoping engine was built for, and until this tool existed only two of the five paths
+    // could reach it.
+    effect: 'confirm',
+    description:
+      'Propose a challenge involving OTHER PEOPLE — a duel against one friend, a collective goal a ' +
+      'whole campfire clears together, or a ranked placement race. Use this when they describe ' +
+      'something competitive or shared that is not a private goal and not a campfire-wide hosted ' +
+      'challenge. Nothing is created when you call this: the user is shown your verdict — the tier, ' +
+      'your reasoning, and what it pays — and confirms it themselves. Prefer create_challenge for a ' +
+      'private goal only they can see, and host_campfire_challenge when they name a campfire and ' +
+      'want to set a target for everyone in it.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        shape: {
+          type: 'string',
+          enum: ['duel', 'collective', 'placement'],
+          description:
+            'Which shape. "duel" — one friend, head to head ("who can hold a plank longer this ' +
+            'week"). "collective" — everyone in a campfire clears the SAME bar, nobody wins ' +
+            '("we all read 200 pages"). "placement" — the whole campfire is ranked 1..N with no ' +
+            'shared target ("who studies the most this semester").',
+        },
+        label: {
+          type: 'string',
+          description: 'What it is called, e.g. "Longest plank". Under 60 characters.',
+        },
+        metric: {
+          type: 'string',
+          // 'count' is deliberately absent: a count race carries a target, and
+          // social_challenges_mode_target_check refuses a placement with one — so offering it here
+          // would let the model propose a shape the server cannot build. Same reasoning as
+          // host_campfire_challenge's missing 'most_by_deadline'.
+          enum: ['lockin_time', 'volume', 'distance', 'grade'],
+          description:
+            'What is measured. "lockin_time" — hours locked in, the one metric that works for ' +
+            'everyone with nothing connected. "volume" — total weight from logged gym sets. ' +
+            '"distance" — from a connected fitness source. "grade" — a mark in a course, which is ' +
+            'honour-based and pays a little less. If none of these measures what they described, ' +
+            'use "lockin_time" and say plainly in your reply that it will be scored on hours ' +
+            'rather than pretending the metric exists.',
+        },
+        circle_id: {
+          type: 'string',
+          description:
+            "REQUIRED for collective and placement, and forbidden for a duel. The campfire's id, " +
+            'copied exactly from the `campfires` array in their context — never a name, never an ' +
+            'id you did not read there. If two could match or none does, ASK instead of guessing.',
+        },
+        target: {
+          type: 'number',
+          description:
+            'Collective only — the bar EVERY member has to clear. A duel and a placement race ' +
+            'carry no target: a duel is won by whoever is ahead, and a placement race ranks the ' +
+            'field, so a target on either is refused by the server.',
+        },
+        window_hours: {
+          type: 'number',
+          description: 'How long they get, in hours. A week is 168, a day is 24. Default 168.',
+        },
+        difficulty_tier: {
+          type: 'string',
+          enum: ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'],
+          // 🔒 The same proposal-not-a-grant contract as the other two scoped tools. The tier is
+          // validated server-side and `verifiability` is DERIVED from the race metric by
+          // challenge_verifiability_for (0175), never accepted — so no value here can claim to be
+          // Strava-tracked, and an honour-scored race cannot mint the prestige badge grant_reward
+          // reserves for elite and above however high this says.
+          description:
+            'How hard the whole ask is for a median 18-20 year old — see the scoping rules in your ' +
+            'instructions. Scope the WHOLE challenge, not one unit of it. Omit it entirely if the ' +
+            'ask is too vague to judge, and ask a clarifying question instead. Never state what ' +
+            'it pays.',
+        },
+        scope_rationale: {
+          type: 'string',
+          description:
+            'One sentence grounding the tier in the effort estimate — how long it takes and how ' +
+            'many people ever get there. Shown to the user verbatim on the verdict screen.',
+        },
+      },
+      required: ['shape', 'label', 'metric'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'equip_cosmetic',
     // Auto: fully reversible, costs nothing, and it is literally changing how Cindy looks — the
     // most natural thing in the world for her to just do when asked.

@@ -17,6 +17,7 @@ import {
   clearCindyHistory,
   CoachError,
   fetchCindyHistory,
+  isScopedTier,
   isVoiceAvailable,
   performCoachAction,
   recordCoachAction,
@@ -164,6 +165,98 @@ export default function CindyScreen() {
             target: String(input.target ?? 0),
             tier: typeof input.difficulty_tier === 'string' ? input.difficulty_tier : 'uncommon',
             rationale: typeof input.scope_rationale === 'string' ? input.scope_rationale : '',
+          },
+        });
+        return;
+      }
+    }
+
+    // ── AND A SCOPED SOLO GOAL GETS THE SAME SCREEN ─────────────────────────────────────────
+    //
+    // The campfire branch above is the loud half of this; the quiet half was that a private goal
+    // Cindy had ALREADY JUDGED never showed the judgement. coach.ts created the goal and called
+    // set_goal_scope inline, so the tier, the rationale and the crate — the whole of 0159-0161 —
+    // resolved into a chip that said "Done". The one screen built to read a verdict was skipped by
+    // the one flow that produces one.
+    //
+    // ONLY WHEN THERE IS A TIER, which is the whole test. "10k steps a day" carries nothing to
+    // deliberate: no tier, no rationale, and a verdict screen in front of it is a door between
+    // someone and a habit they already decided on. Those still create inline, exactly as before.
+    //
+    // 🔒 NOTHING IS WRITTEN HERE. The CTA on that screen performs the create and then the scope,
+    // in that order, through the same two functions this file's executor calls — so set_goal_scope
+    // is still where verifiability is DERIVED, and the reward figure on screen is still the
+    // server's own preview rather than a number Cindy said. The chip stays 'proposed' for the same
+    // reason the campfire one does: the user has been shown a price, not charged one.
+    if (action.tool === 'create_challenge') {
+      const input = action.input;
+      const tier = input.difficulty_tier;
+      // An unscoped goal falls straight through to the executor below and is created inline, which
+      // is the behaviour every create had before this branch existed.
+      if (isScopedTier(tier)) {
+        router.push({
+          pathname: '/challenge/verdict',
+          params: {
+            branch: 'solo_goal',
+            label: String(input.label ?? 'Goal'),
+            tier,
+            rationale: typeof input.scope_rationale === 'string' ? input.scope_rationale : '',
+            // The goal's own shape, carried whole. Every one of these is an argument the CTA hands
+            // to createChallenge, so a field dropped here is a field silently changed on the way:
+            // a lockin_time goal arriving as 'manual' stops accruing from lock-ins AND stops being
+            // auto-verifiable, which is a tier band of reward lost to a missing param.
+            goalType: typeof input.type === 'string' ? input.type : 'custom',
+            target: String(input.target ?? 1),
+            unit: typeof input.unit === 'string' ? input.unit : '',
+            period: typeof input.period === 'string' ? input.period : 'week',
+            countMode: input.count_mode === 'lockin_time' ? 'lockin_time' : 'manual',
+          },
+        });
+        return;
+      }
+    }
+
+    // —— A DUEL, A COLLECTIVE GOAL OR A PLACEMENT RACE: THE SAME SCREEN AGAIN ——————
+    //
+    // The third door onto the verdict, and the one that finishes the set. Solo goals and campfire
+    // hosting already routed here; these three shapes could only be built from the form, so a feat
+    // Cindy had scoped for a whole campfire had nowhere to show the scope.
+    //
+    // 🔒 NOTHING IS WRITTEN HERE. The screen's CTA calls createGroupChallenge /
+    // createPlacementChallenge with the tier as a create argument (0175 — it cannot be a second
+    // call, because set_challenge_scope refuses a placement race that has already started), or
+    // hands a duel to the create form where the opponent picker lives. The chip stays 'proposed'
+    // for the same reason as the other two: a price has been shown, not charged.
+    if (action.tool === 'propose_social_challenge') {
+      const input = action.input;
+      const shape = String(input.shape ?? '');
+      const circleId = typeof input.circle_id === 'string' ? input.circle_id : '';
+      // A campfire shape needs its campfire. Falling through to the executor lets it answer with
+      // its own sentence rather than opening a screen that cannot complete.
+      const ok = shape === 'duel' || ((shape === 'collective' || shape === 'placement') && circleId);
+      if (ok) {
+        router.push({
+          pathname: '/challenge/verdict',
+          params: {
+            branch: shape,
+            label: String(input.label ?? 'Challenge').slice(0, 60),
+            tier: isScopedTier(input.difficulty_tier) ? input.difficulty_tier : 'uncommon',
+            rationale: typeof input.scope_rationale === 'string' ? input.scope_rationale : '',
+            metric: String(input.metric ?? 'lockin_time'),
+            target: String(input.target ?? 0),
+            windowHours: String(
+              typeof input.window_hours === 'number' && input.window_hours > 0
+                ? Math.round(input.window_hours)
+                : 168
+            ),
+            ...(circleId
+              ? {
+                  circleId,
+                  // Resolved from the user's own groups, never from a name the model wrote —
+                  // the same rule the campfire branch above follows, for the same reason.
+                  circleName: groups.find((g) => g.id === circleId)?.name ?? '',
+                }
+              : {}),
           },
         });
         return;

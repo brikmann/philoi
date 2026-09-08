@@ -36,6 +36,16 @@ import type {
  *  rather than passed on to be rejected by the RPC. */
 const SCOPED_TIERS: DifficultyTier[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 
+/**
+ * Exported because SCOPED-NESS is now a routing decision, not just a validation one: a proposed
+ * goal that carries a tier gets Cindy's verdict screen, and one that does not gets created inline
+ * (see runAction in cindy.tsx). Both sides have to agree on what "scoped" means, and a second copy
+ * of the list is a second thing to forget when a seventh tier is added.
+ */
+export function isScopedTier(tier: unknown): tier is DifficultyTier {
+  return typeof tier === 'string' && SCOPED_TIERS.includes(tier as DifficultyTier);
+}
+
 export type CoachActionEffect = 'auto' | 'confirm';
 
 export type CoachAction = {
@@ -437,6 +447,13 @@ export async function performCoachAction(action: CoachAction, ctx: ActionContext
 
         // ── the scope, second and separately ──
         //
+        // ⚠️ FOR A SCOPED GOAL THIS IS NOW THE FALLBACK, NOT THE MAIN ROAD. runAction in cindy.tsx
+        // intercepts a create_challenge that carries a tier and sends it to challenge/verdict.tsx
+        // instead, which performs these same two calls in this same order once the user has seen
+        // what Cindy judged. What still arrives here scoped is the voice flow, which has no verdict
+        // screen to route to — so the inline path stays, and stays identical to the one on that
+        // screen. If you change the order or the arguments in one, change both.
+        //
         // Not a column on the insert: `difficulty_tier` is written by set_goal_scope (0160), which
         // is where the tier gets validated and — the part that matters — where the verifiability
         // is DERIVED rather than accepted. Routing it through the RPC instead of the insert is what
@@ -447,8 +464,8 @@ export async function performCoachAction(action: CoachAction, ctx: ActionContext
         // a wrong one, and never a lost goal. Failing the whole create because a tier did not stick
         // would be the worse trade.
         const tier = action.input.difficulty_tier;
-        if (created?.id && typeof tier === 'string' && SCOPED_TIERS.includes(tier as DifficultyTier)) {
-          await setGoalScope(created.id, tier as DifficultyTier).catch(() => {});
+        if (created?.id && isScopedTier(tier)) {
+          await setGoalScope(created.id, tier).catch(() => {});
         }
         return { status: 'done' };
       }
@@ -480,14 +497,55 @@ export async function performCoachAction(action: CoachAction, ctx: ActionContext
             typeof action.input.window_hours === 'number' && action.input.window_hours > 0
               ? Math.round(action.input.window_hours)
               : 168,
-          tier:
-            typeof tier === 'string' && SCOPED_TIERS.includes(tier as DifficultyTier)
-              ? (tier as DifficultyTier)
-              : null,
+          tier: isScopedTier(tier) ? tier : null,
         });
         // Straight to the challenge, not to the campfire chat. The card is already in the chat and
         // will still be there; what the host wants to see now is the thing they just made.
         return { status: 'done', route: `/challenge-info/${hosted.challenge_id}` };
+      }
+
+      case 'propose_social_challenge': {
+        // 🔒 A PROPOSAL, AND THE ONLY CASE IN THIS SWITCH THAT WRITES NOTHING AT ALL.
+        //
+        // Every other arm here performs the thing. This one hands the user Cindy's verdict and
+        // lets them perform it: challenge/verdict.tsx shows the tier, her rationale and the crate
+        // the SERVER prices it at, and its CTA calls createGroupChallenge / createPlacementChallenge
+        // (or the duel form) with the scoped tier. Nothing is created on the way there.
+        //
+        // WHY IT IS A ROUTE RATHER THAN AN INTERCEPT. cindy.tsx catches this tool before the
+        // executor and navigates itself, exactly as it does for campfire hosting — but the VOICE
+        // surface calls performCoachAction directly and has no such interception. Returning the
+        // route here is what stops a voice-proposed duel from falling through to "Unknown action",
+        // and it means both surfaces land on the same screen without a second copy of the params.
+        const shape = String(action.input.shape ?? '');
+        if (!['duel', 'collective', 'placement'].includes(shape)) {
+          return { status: 'failed', error: "I couldn't tell what kind of challenge that was." };
+        }
+        const tier = action.input.difficulty_tier;
+        // A campfire shape with no id would ask the create screen to build for a campfire nobody
+        // named. Refused here with a sentence rather than sent on to fail at the last tap.
+        const circleId = typeof action.input.circle_id === 'string' ? action.input.circle_id : '';
+        if ((shape === 'collective' || shape === 'placement') && !circleId) {
+          return { status: 'failed', error: "I need to know which campfire that's for." };
+        }
+        const q = new URLSearchParams({
+          branch: shape,
+          label: String(action.input.label ?? 'Challenge').slice(0, 60),
+          tier: isScopedTier(tier) ? tier : 'uncommon',
+          rationale: typeof action.input.scope_rationale === 'string' ? action.input.scope_rationale : '',
+          metric: String(action.input.metric ?? 'lockin_time'),
+          target: String(action.input.target ?? 0),
+          windowHours: String(
+            typeof action.input.window_hours === 'number' && action.input.window_hours > 0
+              ? Math.round(action.input.window_hours)
+              : 168
+          ),
+          ...(circleId ? { circleId } : {}),
+        });
+        // Deliberately NOT 'done' in spirit — nothing happened. The status vocabulary has no
+        // 'proposed', and cindy.tsx never reaches this arm (it intercepts first), so this value is
+        // only ever seen by the voice surface, where the chip is not rendered anyway.
+        return { status: 'done', route: `/challenge/verdict?${q.toString()}` };
       }
 
       case 'equip_cosmetic': {

@@ -8,7 +8,7 @@ import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } fr
 import { ActiveChallengeStrip } from '@/components/campfire/active-challenge-strip';
 import { CampfireFab, type CampfireFabAction } from '@/components/campfire/campfire-fab';
 import { ChallengeAcceptRow } from '@/components/campfire/challenge-accept-row';
-import { ChallengeChatCard } from '@/components/campfire/challenge-chat-card';
+import { TeamMatchChatCard } from '@/components/campfire/team-match-chat-card';
 import { MentionAutocomplete } from '@/components/campfire/mention-autocomplete';
 import { PingMemberSheet } from '@/components/campfire/ping-member-sheet';
 import { ReactionTray, type TrayAnchor } from '@/components/campfire/reaction-tray';
@@ -624,8 +624,12 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
                 headline), which is why the `body.length > 0` block below excludes this kind: the
                 alternative is the same sentence printed twice, once as a heading and once under
                 it. Same reason the photo branch does not repeat its caption inside the image. */}
+            {/* 0173 · a team match is a `challenge` attachment too, and the message row carries
+                nothing that says which shape it is. TeamMatchChatCard asks that question once and
+                renders the ordinary card when the answer is "not a match", so this stays one
+                branch rather than a join on every message read. */}
             {message.attach_kind === 'challenge' && message.attach_ref_id && (
-              <ChallengeChatCard
+              <TeamMatchChatCard
                 challengeId={message.attach_ref_id}
                 headline={message.body}
                 isOwn={isOwn}

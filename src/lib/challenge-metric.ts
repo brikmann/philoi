@@ -146,9 +146,15 @@ export function challengeTitle(challenge: {
   // A placement race IS a metric race — it just has no opponent. Falling through to the collective
   // branch would title a semester-long ranked board "Everyone locks in 1×", which describes a
   // target it does not have (its target_count is null by constraint, 0126).
-  if (isCollective(challenge) && !isPlacement(challenge)) {
+  // 0173 — a team match is named by its two teams, and create_team_match always writes that name
+  // into public_name, so the `named` return above is the real path. This guard is the belt: a row
+  // whose name was somehow blank would otherwise reach the collective branch and be titled
+  // "Everyone locks in 1×", which is the fourth outing of the exact bug the three guards above
+  // exist for.
+  if (isCollective(challenge) && !isPlacement(challenge) && !isTeamMatch(challenge)) {
     return `Everyone locks in ${challenge.target_count ?? 1}×`;
   }
+  if (isTeamMatch(challenge)) return 'A team match';
   return metricLabel(challenge.race_metric);
 }
 
@@ -236,4 +242,23 @@ export function isCollective(challenge: { shape?: ChallengeShape | null; mode?: 
  */
 export function isPlacement(challenge: { shape?: ChallengeShape | null }): boolean {
   return challenge.shape === 'placement';
+}
+
+/**
+ * IS THIS A TWO-TEAM MATCH? (mock 177, created for the first time by 0173.)
+ *
+ * `shape` alone, for the same reason isPlacement takes only shape: a team match rides
+ * mode = 'group' exactly like a collective goal and a placement board do, so mode cannot tell the
+ * three apart, and nothing predating 0173 can be one.
+ *
+ * EVERY BRANCH THAT TESTS isCollective HAS TO TEST THIS FIRST. isCollective is defined as
+ * "not a duel", so a team match satisfies it — and every sentence the collective branch then says
+ * is false of a match: that it is all-or-nothing (there is no shared target), that everyone must
+ * lock in target_count× (null by constraint, so it renders "Everyone locks in null×"), and that
+ * N of M members are "done" (nothing is there to be done; the two scores belong to teams, and
+ * there is no per-player number in the feature at all). This is the same guard placement and
+ * grade already needed, for the third time — see challengeTitle.
+ */
+export function isTeamMatch(challenge: { shape?: ChallengeShape | null }): boolean {
+  return challenge.shape === 'team_match';
 }

@@ -211,6 +211,48 @@ what you CAN do instead — the same goal as a personal one, or a duel with a fr
 the rule, do not apologise for it at length, and never suggest a way around it.
 `.trim();
 
+const SOCIAL_CHALLENGE_RULES = `
+## Challenges that involve other people
+
+Three shapes reach \`propose_social_challenge\`, and they are told apart by who is competing:
+
+- **Duel** — one named friend, head to head. "Who can hold a plank longer this week."
+- **Collective** — everyone in a campfire clears the **same bar**, and nobody wins. "We all read
+  200 pages this month." This one takes a \`target\`.
+- **Placement** — the whole campfire is ranked 1..N with **no** shared target. "Who studies the
+  most this semester."
+
+**Nothing is created when you call this tool.** It shows them your verdict — the tier, your
+reasoning, and what the server says it pays — and they confirm it themselves on that screen. So
+propose it in the same breath you would say "here's what I'd make"; do not tell them it is done,
+and do not ask a second time for permission you are about to be given by the screen.
+
+- **A duel takes no \`circle_id\` and no opponent from you.** You cannot see their friends list —
+  it is not in your context — so never name who they should challenge or claim to have picked
+  someone. Propose the shape and the metric; they choose the person on the next screen. If they
+  named a friend, use that name in your sentence, not in the tool.
+- **Collective and placement need a \`circle_id\`** from the \`campfires\` array, resolved by the
+  same rules as hosting: match loosely on name, ask when two could match, refuse when none does,
+  and never invent one.
+- **Only a collective goal carries a \`target\`.** A duel is won by whoever is ahead and a
+  placement race ranks the field — the server refuses a target on either, so sending one turns a
+  good proposal into a failed one.
+- **Scope it** with \`difficulty_tier\` exactly as you would a personal goal, judging the whole
+  ask rather than one unit of it, and never say what it pays.
+
+**Which tool, when it is close.** A private goal only they can see is \`create_challenge\`. A
+target for a whole campfire they name, that posts a card into its chat, is
+\`host_campfire_challenge\`. This tool is for the shapes in between — one friend, or a campfire
+that is racing rather than being set a task. When it is genuinely ambiguous, ask one short
+question instead of guessing; picking wrong here makes something other people get enrolled in.
+
+**Custom means ask, not refuse.** If they picked "Custom" on a create screen, they have already
+told you the pills could not say it. Turn it into a real metric and a real target. If nothing
+measures it, say so plainly and propose it on \`lockin_time\` — an honour-scored challenge that
+pays a band less is a real outcome; "I can't score that" is not one, and there is always a valid
+priced shape to offer.
+`.trim();
+
 // ── Answering precisely off the context document ─────────────────────────────────────────────
 const DATA_RULES = `
 ## Answering with real numbers
@@ -384,6 +426,12 @@ export function buildSystemPrompt(surface: CoachSurface): string {
   // tool, and a block describing a tool that is not offered is prompt weight inside the cacheable
   // prefix that can never be used. It sits AFTER the scoping rules because it refers to them
   // ("scope it exactly as you would a personal goal") and a forward reference reads worse.
-  if (surface === 'chat') blocks.push(SCOPING_RULES, CAMPFIRE_HOSTING_RULES, ACTION_RULES);
+  // SOCIAL_CHALLENGE_RULES sits between the two for the same reason CAMPFIRE_HOSTING_RULES sits
+  // after SCOPING_RULES: it refers back to the scoping grid ("scope it exactly as you would a
+  // personal goal") and forward to nothing, and it ends by drawing the line between all three
+  // create tools — which only reads correctly once the other two have been described.
+  if (surface === 'chat') {
+    blocks.push(SCOPING_RULES, CAMPFIRE_HOSTING_RULES, SOCIAL_CHALLENGE_RULES, ACTION_RULES);
+  }
   return blocks.join('\n\n---\n\n');
 }

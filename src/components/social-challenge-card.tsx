@@ -17,6 +17,7 @@ import {
   gradeChallengeLabel,
   isGrade,
   isPlacement,
+  isTeamMatch,
   metricLabel,
 } from '@/lib/challenge-metric';
 import { challengeClockText, duelOutcome, isFinished, isSettled, type ChallengeVerdict } from '@/lib/challenge-outcome';
@@ -292,6 +293,64 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
         {manageSheet}
         {gradeSheet}
       </View>
+    );
+  }
+
+  // ── Team match: a scoreboard, not a completion bar (mock 177, 0173) ─────────
+  //
+  // FIRST, ahead of placement and of the collective block, for the third outing of the same
+  // reason: a team match is mode = 'group', so without this it falls into the collective branch
+  // and claims three things that are untrue of it — that it is "all or nothing", that everyone
+  // must lock in `target_count`× (null by constraint, so "Everyone locks in null×"), and that
+  // 0 of N members are "done". The segment strip would draw pips that can never fill, because
+  // there is nothing per-person to fill them with.
+  //
+  // DELIBERATELY THIN. The live score, the clock, the roster and every control live on the match
+  // screen, which subscribes to the row and updates as the scorekeeper taps. This card is a way
+  // back to that screen, so it shows the score it was last handed and does not pretend to be live
+  // — a second, un-subscribed copy of the scoreboard here would sit one goal behind the real one
+  // and there would be no way to tell which was right.
+  if (isTeamMatch(c)) {
+    return (
+      <Pressable
+        style={styles.card}
+        onPress={() => router.push({ pathname: '/challenge/match/[matchId]', params: { matchId: c.id } })}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${title}`}>
+        <View style={styles.labelRow}>
+          <View style={styles.labelLeft}>
+            <Ionicons name="football" size={12} color={Colors.achieverText} />
+            <Text style={styles.labelText}>Team match</Text>
+          </View>
+          <View style={styles.labelLeft}>
+            {c.status === 'active' && <View style={styles.livePulse} />}
+            <Text style={styles.clock}>{finished ? 'Full time' : 'In progress'}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.title}>{title}</Text>
+
+        <View style={styles.footRow}>
+          <Ionicons name="trophy" size={12} color={Colors.achieverText} />
+          <Text style={styles.footText}>
+            {finished
+              ? 'Both sides paid · win or lose'
+              : 'Everyone who plays earns something · winners earn more'}
+          </Text>
+        </View>
+
+        {/* The reveal already fired from ChallengeSettlementWatcher off the payload settlement
+            wrote; this is the receipt, the same one every other finished shape shows. */}
+        {finished && (
+          <ResultFooter
+            verdict="draw"
+            text="Full time"
+            actionLabel="See the result"
+            onAction={() => router.push({ pathname: '/challenge/match/[matchId]', params: { matchId: c.id } })}
+            rewards={rewards}
+          />
+        )}
+      </Pressable>
     );
   }
 
