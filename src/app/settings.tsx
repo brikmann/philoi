@@ -23,6 +23,7 @@ import { setCoachConsent, setCoachPreference } from '@/lib/api/coach';
 import { setDailyGoalMode, setPublishFlameCompletion } from '@/lib/api/daily-fire';
 import { deleteMyAccount } from '@/lib/api/groups';
 import { setMyWatchOptIn } from '@/lib/api/leaderboard-social';
+import { resetTutorial } from '@/lib/tutorial';
 import { setLeaderboardPrivate } from '@/lib/api/privacy';
 import { setMyPhotoVisibility } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -446,6 +447,19 @@ export default function SettingsScreen() {
             description="Only your friends can see you. You won't appear on the leaderboard or in search, and non-friends see &ldquo;Rank muted&rdquo; on your profile. Climb at your own pace."
             value={leaderboardPrivate}
             onValueChange={handleTogglePrivate}
+          />
+        </View>
+
+        {/* "Replay tutorial" (CODE_PROMPT_tutorial.md). Clears the flag and navigates; the root
+            layout re-reads it on every navigation, so the tour opens on the next frame rather than
+            needing its own route push here — one gate decides when the tutorial runs, not two. */}
+        <View style={styles.group}>
+          <SettingsRow
+            icon="school-outline"
+            label="Replay tutorial"
+            onPress={() => {
+              resetTutorial().then(() => router.replace('/'));
+            }}
           />
         </View>
 

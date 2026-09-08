@@ -29,7 +29,9 @@ import { ActiveSessionProvider } from '@/lib/active-session-context';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { fetchMyActiveLockInSession } from '@/lib/api/lock-ins';
 import { registerPushToken } from '@/lib/notifications';
+import { track } from '@/lib/analytics';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
+import { isTutorialDone } from '@/lib/tutorial';
 import { posthog } from '@/lib/posthog';
 import { loadRewardPreferences } from '@/lib/reward-settings';
 import { Sentry } from '@/lib/sentry';
@@ -43,6 +45,10 @@ function RootNavigator() {
   const { ready, error, session, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
   const { hasCircle, refetch: refetchHasCircle } = useHasAnyCircle();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+  // Null until the flag has been read. The gate below tests `=== false` for the same reason the
+  // onboarding one does: a nullish value must never be mistaken for "not done" and bounce someone
+  // into the tour on every launch while the read is still in flight.
+  const [tutorialDone, setTutorialDone] = useState<boolean | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const [interLoaded] = useInterFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold });
@@ -104,6 +110,10 @@ function RootNavigator() {
   useEffect(() => {
     refetchHasCircle();
     isOnboardingDone().then(setOnboardingDone);
+    // Re-read on navigation, like the onboarding flag and for the same reason: Settings' "Replay
+    // tutorial" clears it and then navigates, and a stale in-memory `true` would make the replay
+    // silently do nothing.
+    isTutorialDone().then(setTutorialDone);
   }, [pathname, refetchHasCircle]);
 
   useEffect(() => {
@@ -227,6 +237,33 @@ function RootNavigator() {
     }
   }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, hasCircle, onboardingDone, pathname, router]);
 
+  // 🔴 THE TUTORIAL GATE (CODE_PROMPT_tutorial.md). Fires the INSTANT onboarding completes — no
+  // home screen in between — so the first run reads as one continuous experience: username,
+  // university, consent, first campfire, then Cindy walks you through the whole app.
+  //
+  // DELIBERATELY AFTER the onboarding gate above and predicated on `onboardingDone === true`, so
+  // the two can never fight over the same frame. The tour comes AFTER the username/university/
+  // consent flow, never instead of it (ONBOARDING_FIXES.md).
+  //
+  // Both flags are read as `=== true` / `=== false` rather than truthily: each is null while its
+  // AsyncStorage read is in flight, and treating null as false here would bounce a returning user
+  // into the tour on every single cold start.
+  useEffect(() => {
+    if (
+      appReady &&
+      session &&
+      !needsHandle &&
+      !needsConsent &&
+      !needsAccountDisabled &&
+      onboardingDone === true &&
+      tutorialDone === false &&
+      pathname !== '/tutorial'
+    ) {
+      track('tutorial_started', {});
+      router.replace('/tutorial');
+    }
+  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, onboardingDone, tutorialDone, pathname, router]);
+
   if (!appReady) {
     if (!stuck) return null;
     return (
@@ -291,6 +328,9 @@ function RootNavigator() {
 
       <Stack.Protected guard={Boolean(session) && (needsHandle || needsConsent)}>
         <Stack.Screen name="setup-handle" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* No header and no back gesture: the tour owns the whole screen and has its own Skip.
+            A swipe-back out of a first-run gate would drop someone on an empty Home. */}
+        <Stack.Screen name="tutorial" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />
       </Stack.Protected>
 
       <Stack.Protected guard={Boolean(session) && !needsHandle && !needsConsent && needsAccountDisabled}>
