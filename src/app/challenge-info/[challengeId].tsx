@@ -5,6 +5,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChallengeRewardScreen } from '@/components/economy/challenge-reward-screen';
+import { IncomingChallengeSheet } from '@/components/incoming-challenge-sheet';
 import { ChallengeWinShareCard } from '@/components/economy/challenge-win-share-card';
 import { prefetchAvatars } from '@/components/economy/king-statue';
 import { useRevealFloor } from '@/components/economy/reward-reveal';
@@ -24,6 +25,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { challengeTitle, formatMetricValue, isDuel, isPlacement, metricLabel, metricNoun } from '@/lib/challenge-metric';
 import { challengeClockText, challengeRevealKind, duelOutcome, type ChallengeVerdict } from '@/lib/challenge-outcome';
 import { fetchChallengeResults } from '@/lib/api/social-challenges';
+import { answerChallengeInvite } from '@/lib/api/challenge-lifecycle';
 import { rewardChips } from '@/lib/challenge-reward-summary';
 import { getErrorMessage } from '@/lib/errors';
 import { CHALLENGE_TYPE_GLYPH, canonicalGoalUnit } from '@/lib/goal-types';
@@ -240,7 +242,7 @@ function durationValue(c: SocialChallenge, verdict?: ChallengeVerdict): string {
 }
 
 function SocialInfo({ challengeId }: { challengeId: string }) {
-  const { challenges, loading } = useSocialChallenges();
+  const { challenges, loading, refetch } = useSocialChallenges();
   const c = challenges.find((x) => x.id === challengeId);
 
   // 🔴 "That challenge isn't available any more." on a race that exists. The list starts EMPTY and
@@ -255,10 +257,10 @@ function SocialInfo({ challengeId }: { challengeId: string }) {
   // Split so the body can use hooks. The lookup above can miss (a deep link into a cache that
   // hasn't loaded, a stale back-stack entry), and an early return above a useEffect is the
   // hook-order bug that comes back the next time somebody adds one.
-  return <SocialInfoBody c={c} />;
+  return <SocialInfoBody c={c} refetch={refetch} />;
 }
 
-function SocialInfoBody({ c }: { c: SocialChallenge }) {
+function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Promise<void> }) {
   const router = useRouter();
   const { session, profile } = useAuth();
   const shareRank = useShareRank();
@@ -282,6 +284,48 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
   // placement race reads "Final" — so this is null for the other two shapes and the rows below
   // pass undefined.
   const outcome = duel ? duelOutcome(c, session?.user.id, otherName) : null;
+
+  // ── §4 · BEING CHALLENGED IS A MOMENT ────────────────────────────────────────────────────────
+  //
+  // WHY IT LIVES ON THIS SCREEN AND NOT A NEW ROUTE. `challenge_invite` has routed to
+  // '/challenge-info/[challengeId]' since 0088, and that mapping is baked into every invite push
+  // ALREADY SENT — including the four live rows in prod. A '/challenge-invite/...' route would
+  // need a migration to redirect them and would still leave the pushes in the wild pointing here.
+  // So the moment is presented ON TOP of the rules screen: the deep link keeps working untouched,
+  // and dismissing the sheet leaves the receiver exactly where the notification promised — the
+  // full terms of what they were just asked to do.
+  //
+  // OPENS ONCE PER VISIT, from the state at mount. `c` is re-fetched on a poll, so keying the
+  // sheet's visibility directly off `my_state` would slam it back open the instant a decline's
+  // refetch lost a race with the server — the modal equivalent of a redirect loop.
+  const [inviteOpen, setInviteOpen] = useState(c.my_state === 'invited');
+  const [answering, setAnswering] = useState(false);
+  const [answerError, setAnswerError] = useState<string | null>(null);
+
+  async function answerInvite(accept: boolean) {
+    setAnswering(true);
+    setAnswerError(null);
+    try {
+      // Through the shared dispatcher, so widening the gate below duels can never reintroduce
+      // the wrong-RPC fault.
+      await answerChallengeInvite(c, accept);
+      // Refetch BEFORE closing: the screen underneath is the rules for a race whose state just
+      // changed, and dropping the sheet onto a stale 'invited' body would show Accept again.
+      await refetch();
+      setInviteOpen(false);
+      // A decline has nothing left to look at — the terms of a race you are not in are not a
+      // destination. Accepting stays, because the rules are now yours to read.
+      if (!accept) router.back();
+    } catch (e) {
+      // 🔴 SURFACED, NOT SWALLOWED. respond_to_h2h_challenge raises real, actionable errors — "No
+      // open invite for you on that challenge." is the exact R5 fault ChallengeAcceptRow was built
+      // around — and a full-screen moment whose primary button silently does nothing is worse than
+      // the row it replaced.
+      setAnswerError(getErrorMessage(e, 'Could not answer that challenge.'));
+    } finally {
+      setAnswering(false);
+    }
+  }
 
   /**
    * THE REVEAL (ledger #3 / DECISION_reward_screen_and_goal_drip.md).
@@ -495,6 +539,23 @@ function SocialInfoBody({ c }: { c: SocialChallenge }) {
           </View>
         ) : null}
       </ScrollView>
+
+      {/* §4 — the arena, over the rules. Duels only: a collective or placement invite has no
+          opponent to stand opposite, and mock 175's card is a two-fighter composition. Those keep
+          ChallengeAcceptRow, which is shape-agnostic by design. */}
+      {inviteOpen && duel ? (
+        <IncomingChallengeSheet
+          challenge={c}
+          visible
+          busy={answering}
+          error={answerError}
+          myName={profile?.display_name ?? 'You'}
+          myAvatarUrl={profile?.avatar_url ?? null}
+          onAccept={() => answerInvite(true)}
+          onDecline={() => answerInvite(false)}
+          onClose={() => setInviteOpen(false)}
+        />
+      ) : null}
 
       {/* FIRE-ONCE, ON THE FIRST SETTLED VIEW. A modal rather than a route so there is exactly one
           entry point: the challenge_won / challenge_lost / campfire_settled deep-links all land on

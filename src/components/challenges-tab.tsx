@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TargetEmberHero } from '@/components/empty-states/target-ember-hero';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { inviteChallengeMembers, respondToChallengeInvite, startChallenge } from '@/lib/api/challenge-lifecycle';
+import { answerChallengeInvite, inviteChallengeMembers, startChallenge } from '@/lib/api/challenge-lifecycle';
 import { fetchMySocialChallenges } from '@/lib/api/social-challenges';
 import { getErrorMessage } from '@/lib/errors';
 import type { SocialChallenge } from '@/types/database';
@@ -192,7 +192,9 @@ export function ChallengesTab({
           <ChallengeAcceptRow
             challenge={item}
             busy={busyId === item.id}
-            onRespond={(accept) => act(item.id, () => respondToChallengeInvite(item.id, accept))}
+            // SHAPE-AWARE. A duel's accept IS its start, and this row used to answer one with the
+            // roster-only RPC — see answerChallengeInvite for the whole fault.
+            onRespond={(accept) => act(item.id, () => answerChallengeInvite(item, accept))}
           />
 
           {isAdmin && (item.status === 'pending' || item.status === 'draft') ? (

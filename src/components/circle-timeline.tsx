@@ -32,7 +32,7 @@ import { useCircleTimeline, type TimelineRow } from '@/hooks/use-circle-timeline
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchCheckInById, type FeedCheckIn } from '@/lib/api/check-ins';
 import { fetchFlameCompletionFeed, type FlameCompletionFeedItem } from '@/lib/api/daily-fire';
-import { respondToChallengeInvite } from '@/lib/api/challenge-lifecycle';
+import { answerChallengeInvite } from '@/lib/api/challenge-lifecycle';
 import type { ActiveCircleLockIn } from '@/lib/api/lock-ins';
 import { campfirePhotoUrl, deleteMyMessage, sendMessage, type ChatMessage } from '@/lib/api/messages';
 import {
@@ -288,10 +288,12 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
     }
   }
 
-  async function respondToChallenge(challengeId: string, accept: boolean) {
-    setBusyChallengeId(challengeId);
+  async function respondToChallenge(challenge: SocialChallenge, accept: boolean) {
+    setBusyChallengeId(challenge.id);
     try {
-      await respondToChallengeInvite(challengeId, accept);
+      // SHAPE-AWARE — a duel embedded in the feed starts on accept, and answering it with the
+      // roster-only RPC left it pending forever. See answerChallengeInvite.
+      await answerChallengeInvite(challenge, accept);
       loadChallenges();
     } catch (e) {
       Alert.alert('That did not work', e instanceof Error ? e.message : 'Try again.');
@@ -489,7 +491,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
           <ChallengeAcceptRow
             challenge={row.data}
             busy={busyChallengeId === row.data.id}
-            onRespond={(accept) => respondToChallenge(row.data.id, accept)}
+            onRespond={(accept) => respondToChallenge(row.data, accept)}
           />
         </Embed>
       );
