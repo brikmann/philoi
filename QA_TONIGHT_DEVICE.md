@@ -16,7 +16,9 @@ verified statically or against prod, so you are only checking the gap. Android b
 |---|---|---|
 | **`f134e915`** (finished, off `5964b07`) | Cindy's `propose_social_challenge` handler | **§3 only** — Cindy create paths |
 | ~~`9920bcf7`~~ **SUPERSEDED — do not install** | §1 · B · C, but with the tutorial/relic collision below | nothing; it burns §1's test |
-| **Next build** (off HEAD) | all of the above **+ §4 arena + duel-accept fix + Focus Nudge shield** | everything below |
+| 🔴 **`b767cf1f`** — **INSTALL THIS ONE** (finished, off `4d6e58a`) | all of the above **+ §4 arena + duel-accept fix + Focus Nudge shield** | everything below |
+
+**`b767cf1f` APK:** https://expo.dev/artifacts/eas/40okdqVa8pBtjot4fgvMkerBig4EcMhFWLgSrVzxAUQ.apk
 
 🔴 **`9920bcf7` must not be installed, and the reason is worth knowing because it nearly cost the
 §1 verification.** It shipped the new `tutorial_done` key alongside `RelicUnlockWatcher` with
@@ -197,11 +199,14 @@ deep-link into the new arena.
 
 ## ⚠️ Two risks in the next build specifically
 
-**1 · It is the first Gradle compile of the Focus Nudge shield.** `FocusNudgeShieldView.kt` and
-`FocusNudgeFlame.kt` were committed (e34a840) on your instruction, but neither Claude session wrote
-that Kotlin and it has never been through a build. If the Android build fails on it, **revert
-e34a840 and rebuild** — it is a standalone commit for exactly that reason and reverting it will not
-take §4 or anything else with it. A compile failure there costs a rebuild, not the work.
+**1 · ~~First Gradle compile of the Focus Nudge shield~~ — RESOLVED, it compiled.**
+`FocusNudgeShieldView.kt` and `FocusNudgeFlame.kt` (e34a840) had never been through a build; neither
+Claude session wrote that Kotlin. `b767cf1f` finished successfully, so it **compiles and links**.
+
+⚠️ Compiling is not working. Nothing about the shield's *behaviour* is verified — that it renders,
+that the overlay swaps to it, that it dismisses. It is in the build and it does not break the build;
+that is the entire claim. Shield behaviour is `CODE_PROMPT_focus_nudge_shield.md`'s own test pass,
+not part of tonight's three.
 
 **2 · §4 has a trap that makes a broken build look fixed.** Accepting a duel from
 `SocialChallengeCard` passes whether or not the fix is present, because that path always used the
