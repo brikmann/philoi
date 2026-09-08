@@ -37,11 +37,17 @@ import {
   spanWindowHours,
   type ChallengeSpan,
 } from '@/components/challenge-span-picker';
-import { createGroupChallenge, createH2HChallenge, createPlacementChallenge } from '@/lib/api/social-challenges';
+import {
+  createGroupChallenge,
+  createH2HChallenge,
+  createPlacementChallenge,
+  setChallengeScope,
+} from '@/lib/api/social-challenges';
 import type {
   ChallengePeriod,
   ChallengeShape,
   ChallengeType,
+  DifficultyTier,
   SocialChallengeMode,
   SocialChallengeRaceMetric,
 } from '@/types/database';
@@ -56,7 +62,7 @@ import type {
 // it rides — placement is a 'group' row, exactly as 0096 intended when it kept the two columns
 // separate rather than widening mode's check constraint.
 const SHAPE_OPTIONS: {
-  value: ChallengeShape;
+  value: FormShape;
   mode: SocialChallengeMode;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
@@ -65,6 +71,29 @@ const SHAPE_OPTIONS: {
   { value: 'collective', mode: 'group', label: 'Collective', icon: 'people' },
   { value: 'placement', mode: 'group', label: 'Placement', icon: 'trophy' },
 ];
+
+/**
+ * 0173's fourth shape, as a tile that LEAVES rather than as a fourth branch of this form.
+ *
+ * The three shapes above share a spine — a metric, a bar, a window, a payout line — and a team
+ * match has none of the four. It has a sport, two named teams, a scorekeeper and two reward tiers,
+ * and it settles when a score is agreed rather than when a clock runs out. Folding it in would
+ * have meant four `shape === 'team_match'` guards around fields it never shows, plus a submit path
+ * with nothing in common with the other three.
+ *
+ * So it stays ONE DOOR to creation — this row — that opens onto a different room.
+ */
+const TEAM_TILE = { label: 'Team', icon: 'football' as keyof typeof Ionicons.glyphMap };
+
+/**
+ * The shapes THIS FORM can hold, which is no longer every ChallengeShape.
+ *
+ * `shape` is state here, and 'team_match' can never be its value — the tile navigates instead of
+ * selecting. Naming that subset is what lets the compiler keep agreeing with the code: every
+ * `shape === ...` narrow below still exhausts, and cindyChallengeSeed keeps its three-shape
+ * signature rather than gaining a fourth arm for a shape it will never be handed.
+ */
+type FormShape = Exclude<ChallengeShape, 'team_match'>;
 
 /**
  * The v2 race metrics. XP is deliberately absent: it correlates with lock-in time, so offering both
@@ -125,6 +154,23 @@ type MetricChoice = SocialChallengeRaceMetric | 'custom';
  * Custom is the fourth thing and is not a bar at all: it is a metric nobody has written down yet,
  * so it routes into Ask Cindy to be scoped rather than pretending to be a pill you can select.
  */
+/**
+ * The Custom pill, hoisted so every picker can offer the same one (#200).
+ *
+ * It was inline in the collective list, which is exactly why the duel and placement pickers never
+ * had it: the escape hatch for "a metric nobody has written down yet" existed on one of the three
+ * doors. One constant now, appended by RaceMetricPills wherever a handler is passed.
+ */
+const CUSTOM_METRIC_OPTION = {
+  value: 'custom' as const,
+  label: 'Custom',
+  icon: 'sparkles' as keyof typeof Ionicons.glyphMap,
+  source: "Something these pills can't say. Describe it to Cindy and she'll scope it.",
+};
+
+/** The six names set_challenge_scope accepts. A route param outside them is ignored, not passed on. */
+const SCOPED_TIER_NAMES = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'] as const;
+
 const COLLECTIVE_METRIC_OPTIONS: {
   value: MetricChoice;
   label: string;
@@ -154,12 +200,7 @@ const COLLECTIVE_METRIC_OPTIONS: {
     icon: 'school',
     source: 'Everyone in the course hits the same mark — honour-based, so it pays a little less.',
   },
-  {
-    value: 'custom',
-    label: 'Custom',
-    icon: 'sparkles',
-    source: 'Something these pills can\'t say. Describe it to Cindy and she\'ll scope it.',
-  },
+  CUSTOM_METRIC_OPTION,
 ];
 
 /** What a measured collective bar is collected in, and how it reaches the server's raw units. */
@@ -192,7 +233,11 @@ const MEASURED_TARGET: Record<'volume' | 'distance', {
 // The presets and the custom span both live in ChallengeSpanPicker — see its header for why the
 // date picker is hand-drawn rather than a native module.
 
-const PAYOUT_XP: Record<ChallengeShape, number> = { duel: 200, collective: 300, placement: 300 };
+// 'team_match' is in the ChallengeShape union (0173) but never in `shape` on THIS screen — that
+// tile routes away to challenge/team-match.tsx, which sets its own payout from
+// economy_config.team_match. Keyed off FormShape rather than ChallengeShape so the type says which
+// shapes this form can actually be in, instead of carrying a number for one it can never reach.
+const PAYOUT_XP: Record<FormShape, number> = { duel: 200, collective: 300, placement: 300 };
 
 // Two genuinely different challenge kinds live behind this one route: a social challenge
 // (invite/accept, multi-party, scores itself off real check_ins — design-mocks/13) and the
@@ -278,9 +323,29 @@ function SocialChallengeForm() {
     opponentName?: string;
     circleId?: string;
     groupId?: string;
+    /**
+     * Cindy's verdict, handed back to the form (mock 173).
+     *
+     * The duel branch of challenge/verdict.tsx does not create anything itself — a duel needs an
+     * opponent, and the picker for that lives here. So it routes here carrying the tier it just
+     * showed a price for, and handleCreate applies it once the invite is out. Without this the
+     * tier was dropped between the screen that promised a reward and the row that would pay it.
+     */
+    tier?: string;
+    /** The metric she proposed, so the picker opens on it rather than on its default. */
+    raceMetric?: string;
+    /** Her name for it, prefilled into the title field. */
+    publicName?: string;
   }>();
   const prefillOpponentId = params.opponentId ?? null;
   const prefillOpponentName = params.opponentName ?? null;
+  // Narrowed against the six names rather than trusted: this arrives as a route string, and
+  // set_challenge_scope would reject a seventh anyway. Failing at the door beats failing at the
+  // end of a create the opponent has already been invited to.
+  const prefillTier: DifficultyTier | null =
+    params.tier && (SCOPED_TIER_NAMES as readonly string[]).includes(params.tier)
+      ? (params.tier as DifficultyTier)
+      : null;
   // 🐛 `groupId` IS ACCEPTED HERE BECAUSE THAT IS WHAT THE CAMPFIRE ACTUALLY SENDS (#128).
   //
   // Two callers deep-link into this screen from inside a campfire — challenges-tab.tsx's "Start a
@@ -296,7 +361,7 @@ function SocialChallengeForm() {
   // the placement tile, not have to find it. `mode` stays supported because the friend-ping sheet
   // and the rematch button still speak it, and it only distinguishes duel from campfire.
   const paramShape = params.shape;
-  const prefillShape: ChallengeShape =
+  const prefillShape: FormShape =
     paramShape === 'placement' || paramShape === 'collective' || paramShape === 'duel'
       ? paramShape
       : params.mode === 'group'
@@ -322,13 +387,17 @@ function SocialChallengeForm() {
 
   // `shape` is the control now; `mode` is derived from it, so nothing downstream has to learn a
   // second vocabulary and every existing `mode === 'h2h'` reader keeps meaning what it meant.
-  const [shape, setShape] = useState<ChallengeShape>(prefillShape);
+  const [shape, setShape] = useState<FormShape>(prefillShape);
   const mode: SocialChallengeMode = shape === 'duel' ? 'h2h' : 'group';
   const [opponentId, setOpponentId] = useState<string | null>(prefillOpponentId);
   // lockin_time, not xp: xp is retired from creation, and lock-in time is the one metric that
   // works for every user with no connected source.
-  const [raceMetric, setRaceMetric] = useState<SocialChallengeRaceMetric>('lockin_time');
-  const [publicName, setPublicName] = useState('');
+  const [raceMetric, setRaceMetric] = useState<SocialChallengeRaceMetric>(
+    (RACE_METRIC_OPTIONS.some((o) => o.value === params.raceMetric)
+      ? params.raceMetric
+      : 'lockin_time') as SocialChallengeRaceMetric
+  );
+  const [publicName, setPublicName] = useState(params.publicName ?? '');
   // The grade race's two extra terms. Held as strings because they are text fields: an empty box
   // is "not set", which a number state cannot represent without conflating it with zero.
   const [gradeTarget, setGradeTarget] = useState('');
@@ -420,7 +489,7 @@ function SocialChallengeForm() {
           setError('Pick a friend to challenge.');
           return;
         }
-        await createH2HChallenge({
+        const duel = await createH2HChallenge({
           opponentId: effectiveOpponentId,
           raceMetric,
           windowHours,
@@ -430,6 +499,17 @@ function SocialChallengeForm() {
           publicName,
           ...gradeTerms,
         });
+        // 🔒 THE SCOPE, SECOND AND SEPARATELY — the same two-step a personal goal uses.
+        //
+        // A duel is created 'pending' (it is an invite), and set_challenge_scope accepts
+        // draft/pending, so the after-the-fact call is the right one here. A collective goal and a
+        // placement race cannot use it, and take the tier as a create argument instead (0175).
+        //
+        // Swallowed on failure, deliberately: an unscoped duel pays exactly what it paid before
+        // scoping existed, which is a smaller reward, never a wrong one. Losing a challenge the
+        // opponent has already been invited to, because a tier did not stick, is the worse trade.
+        if (prefillTier && duel?.id) await setChallengeScope(duel.id, prefillTier).catch(() => {});
+
         // A visible confirmation, not a silent navigate-back (punchlist 2, §2: "no 'request
         // sent' state") — the opponent sees it as a real Accept/Decline invite on their own
         // Challenges tab as soon as they open it. Held open until they tap Done (mock 55a);
@@ -446,6 +526,9 @@ function SocialChallengeForm() {
         // so create enrols every member as accepted — which is also what makes challenge_field
         // return a real roster with real baselines instead of falling through to its legacy arm.
         await createPlacementChallenge({
+          // 0175 — in the create, not after it: this row is inserted 'active' for an immediate
+          // start, which is exactly what set_challenge_scope refuses.
+          tier: prefillTier,
           circleId: circle.id,
           raceMetric,
           windowHours,
@@ -460,6 +543,8 @@ function SocialChallengeForm() {
           return;
         }
         const created = await createGroupChallenge({
+          // Same argument, same transaction: no window where the row exists unscoped.
+          tier: prefillTier,
           // Exactly ONE bar, matching the server's constraint (0169 widened it from two columns to
           // three): a grade goal's is the mark, a measured goal's is the value, and only a lock-in
           // goal sends a count. Sending more than one is refused.
@@ -572,6 +657,22 @@ function SocialChallengeForm() {
               <Text style={[styles.typeLabel, shape === option.value && styles.chipTextSelected2]}>{option.label}</Text>
             </Pressable>
           ))}
+          {/* Never "selected": tapping it leaves for the team-match screen, which owns its own
+              form. Same treatment as the Custom pill in the collective metric picker, and for the
+              same reason — a tile that cannot be a state of THIS form must not look like one. */}
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/challenge/team-match',
+                params: circle ? { circleId: circle.id } : {},
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Team match — two teams, a scorekeeper"
+            style={styles.typeTile}>
+            <Ionicons name={TEAM_TILE.icon} size={16} color={Colors.muted} />
+            <Text style={styles.typeLabel}>{TEAM_TILE.label}</Text>
+          </Pressable>
         </View>
 
         {shape === 'duel' && (
@@ -609,7 +710,7 @@ function SocialChallengeForm() {
                 Existing XP races keep running (the column still accepts it); it is simply no
                 longer creatable. */}
             <Text style={styles.label}>The race</Text>
-            <RaceMetricPills value={raceMetric} onChange={setRaceMetric} />
+            <RaceMetricPills value={raceMetric} onChange={setRaceMetric} onCustom={askCindy} />
 
             {grading && (
               <GradeTermsFields
@@ -698,7 +799,7 @@ function SocialChallengeForm() {
                 collective goal, whose target is a count of lock-ins and which leaves race_metric
                 null on purpose. */}
             <Text style={styles.label}>The race</Text>
-            <RaceMetricPills value={raceMetric} onChange={setRaceMetric} />
+            <RaceMetricPills value={raceMetric} onChange={setRaceMetric} onCustom={askCindy} />
 
             {/* No target field here on purpose. A placement board ranks the field 1..N and the
                 ranking IS the result — a bar on top would be a second, redundant verdict, which
@@ -861,8 +962,8 @@ function RaceMetricPills({
    *  so this variant offers exactly that choice and nothing else: "lock-ins" vs "a grade". */
   collective = false,
   /**
-   * What the Custom pill does. Required in practice for the collective variant and unused by the
-   * race one, because Custom is only offered there.
+   * What the Custom pill does, and now also WHETHER THERE IS ONE: the race variant appends the
+   * pill only when this is passed (#200). Omitting it is how a caller says "no escape hatch here".
    *
    * A HANDLER RATHER THAN A SELECTABLE VALUE, which is the whole reason `value` stays typed as a
    * real metric. "Custom" is not a bar the form can collect — it is a metric that does not exist
@@ -876,8 +977,19 @@ function RaceMetricPills({
   collective?: boolean;
   onCustom?: () => void;
 }) {
+  //
+  // #200 — CUSTOM IS OFFERED WHEREVER THERE IS SOMEWHERE FOR IT TO GO. It used to be collective
+  // only, which made "a metric nobody has written down yet" something you could ask for when the
+  // whole campfire was clearing one bar, and not when two people were racing — the same escape
+  // hatch, missing from two of the three doors. The race variant grows the pill exactly when a
+  // handler is passed, so a caller with nowhere to route still gets the plain list rather than a
+  // pill that does nothing.
   const options: { value: MetricChoice; label: string; icon: keyof typeof Ionicons.glyphMap; source: string }[] =
-    collective ? COLLECTIVE_METRIC_OPTIONS : RACE_METRIC_OPTIONS;
+    collective
+      ? COLLECTIVE_METRIC_OPTIONS
+      : onCustom
+        ? [...RACE_METRIC_OPTIONS, CUSTOM_METRIC_OPTION]
+        : RACE_METRIC_OPTIONS;
   return (
     <>
       <View style={styles.pillsRow}>

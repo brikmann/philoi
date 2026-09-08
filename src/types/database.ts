@@ -829,11 +829,22 @@ export type AnalyticsEventName =
   | 'check_in_completed'
   | 'first_check_in'
   | 'goal_scoped'
+  /** 0175 - a duel scoped after the fact, the social twin of goal_scoped. */
+  | 'challenge_scoped'
   | 'challenge_created'
   | 'challenge_completed'
   // 0145's grade races: who reports a mark, and who takes Cindy's door into the create screen
   // rather than the form (mock 143's two paths — worth knowing which one people actually use).
   | 'challenge_grade_reported'
+  // 0173's team mode. The one question this feature can go wrong on is WHICH SCOREKEEPING MODE
+  // people actually use: the whole §1b argument is that intramural refs will not run a second live
+  // scoreboard, and `team_match_ended.via` ('scorekeeper' | 'host_resolve') plus the ratio of
+  // confirmed to disputed scores is what would prove or disprove that. No event carries a score.
+  | 'team_match_joined'
+  | 'team_match_score_reported'
+  | 'team_match_score_confirmed'
+  | 'team_match_score_disputed'
+  | 'team_match_ended'
   | 'cindy_challenge_entry_opened'
   | 'challenge_members_invited'
   | 'challenge_invite_answered'
@@ -1395,9 +1406,14 @@ export type SocialChallengeStatus =
   | 'declined'
   | 'expired';
 
-/** The three v2 shapes. A collective goal must never render as a 1v1 VS — which is why shape is
- * explicit rather than inferred from whether opponent_id happens to be set. */
-export type ChallengeShape = 'duel' | 'collective' | 'placement';
+/** The v2 shapes. A collective goal must never render as a 1v1 VS — which is why shape is
+ * explicit rather than inferred from whether opponent_id happens to be set.
+ *
+ * 'team_match' (0173) is the campfire-only fourth one, and it is the odd shape the way 'grade' is
+ * the odd metric: it has no race_metric, no bar and NO PER-PLAYER NUMBER AT ALL. Its two scores
+ * live on the challenge row and belong to teams; challenge_participants.team says which side you
+ * were on and nothing else. Anything that formats or settles a challenge has to branch on it. */
+export type ChallengeShape = 'duel' | 'collective' | 'placement' | 'team_match';
 
 /** v2 metric set. 'xp' is no longer OFFERED at creation (it correlates with lock-in time) but
  * stays in the union because in-flight races still carry it. */
@@ -1409,6 +1425,124 @@ export type ChallengeShape = 'duel' | 'collective' | 'placement';
  *  campfire challenge adds to their lock-in menu), and challenge_racer_score reads it through
  *  campfire_challenge_goals. `count_unit` names what is being counted. */
 export type SocialChallengeRaceMetric = 'lockin_time' | 'volume' | 'distance' | 'ai' | 'xp' | 'grade' | 'count';
+
+// ───────────────────────────── team mode (0173) ─────────────────────────────
+
+/** Which of the two sides. There are exactly two, always, and there is no third state for
+ *  "watching" — a spectator simply has no roster row. */
+export type TeamSide = 'a' | 'b';
+
+/** draft (posted, nobody has started it) → live (playing) → final (settled and paid).
+ *  DISTINCT FROM `status`, which stays the challenge lifecycle every pre-0173 reader matches on:
+ *  a live match is status 'active', a final one is status 'completed'. */
+export type TeamMatchState = 'draft' | 'live' | 'final';
+
+/**
+ * How the score gets decided, chosen once at creation.
+ *
+ * 'confirm' is the DEFAULT and the intramural path: nobody tracks anything live, one player
+ * reports the final score afterwards and a player on the OTHER side confirms it. Philoi is the
+ * rewards layer on top of the league's own scoreboard and never a second one to keep.
+ *
+ * 'live' is the +/- scorekeeper screen — pickup games with no official board, or hype.
+ */
+export type TeamMatchScoreMode = 'confirm' | 'live';
+
+/** One row of the sport catalog. `step_values` is what the scorekeeper's buttons offer: [1] is a
+ *  single "+1 goal", [1,2,3] is basketball's three. */
+export type MatchSport = {
+  key: string;
+  label: string;
+  emoji: string;
+  /** "+1 goal" — the singular step, for the big button. */
+  score_step_label: string;
+  step_values: number[];
+  sort_order: number;
+};
+
+/** One player on a match roster. Note what is NOT here: no score, no stat, no position. Team mode
+ *  records which side you played for and nothing else, which is the whole point of the shape. */
+export type TeamMatchPlayer = {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  team: TeamSide;
+};
+
+/**
+ * A whole match, from get_team_match — the ONE read behind all four of its surfaces (the chat
+ * card, the watch view, the scorekeeper view and the result screen), so they cannot disagree
+ * about the score.
+ *
+ * Null for a challenge that is not a team match, and for a viewer who is not in the campfire.
+ * That first null is load-bearing: the chat card asks this of every `challenge` attachment and
+ * uses the null to fall back to the ordinary campfire-challenge card.
+ */
+export type TeamMatch = {
+  id: string;
+  circle_id: string;
+  circle_name: string | null;
+  created_by: string;
+  public_name: string | null;
+  sport_key: string;
+  sport_label: string;
+  sport_emoji: string;
+  /** From the catalog, so a build that has never heard of a newly added sport still labels the
+   *  buttons correctly. */
+  score_step_label: string;
+  step_values: number[];
+  team_a_name: string;
+  team_b_name: string;
+  team_a_color: string | null;
+  team_b_color: string | null;
+  score_a: number;
+  score_b: number;
+  match_state: TeamMatchState;
+  score_mode: TeamMatchScoreMode;
+  status: SocialChallengeStatus;
+  ref_user_id: string | null;
+  ref_name: string | null;
+  winner_reward_tier: DifficultyTier;
+  loser_reward_tier: DifficultyTier;
+  /** Non-null exactly while the clock is running. Elapsed = clock_elapsed_s + (now − this). */
+  clock_started_at: string | null;
+  clock_elapsed_s: number;
+  reported_score_a: number | null;
+  reported_score_b: number | null;
+  reported_by: string | null;
+  reported_by_name: string | null;
+  /** Which side reported. The confirm button is offered to the OTHER one. */
+  reported_team: TeamSide | null;
+  reported_at: string | null;
+  score_disputed: boolean;
+  /** Server-decided, never inferred from ref_user_id on the client: it is what gates every edit. */
+  am_i_ref: boolean;
+  am_i_admin: boolean;
+  /** Null until the viewer picks a side. Null is what puts "Join Red / Join Blue" on screen. */
+  my_team: TeamSide | null;
+  roster: TeamMatchPlayer[];
+};
+
+/**
+ * What settle_team_match hands back through any of its three doors (End match, the second side's
+ * confirm, a host resolving a dispute).
+ *
+ * Everything past the score is OPTIONAL because settling is idempotent: two people can tap the
+ * last button at once and the second call returns `already_final` with the score and nothing else
+ * rather than raising. A caller that needs the roster figures has to check.
+ */
+export type TeamMatchSettlement = {
+  challenge_id: string;
+  score_a: number;
+  score_b: number;
+  /** Null on a draw, which by default pays BOTH sides the winner tier. */
+  winning_team?: TeamSide | null;
+  players_paid?: number;
+  roster_a?: number;
+  roster_b?: number;
+  /** True when this call found the match already settled and did nothing. */
+  already_final?: boolean;
+};
 
 export type ChallengeParticipantState = 'invited' | 'accepted' | 'declined';
 
@@ -1855,6 +1989,15 @@ export type CoachHomeBubbleRow = {
 export type Database = {
   public: {
     Tables: {
+      /** 0173 · the sport catalog behind team mode's picker. Read-only to clients (RLS allows
+       *  select to authenticated and nothing else), which is why there is no Insert/Update shape
+       *  worth writing here beyond what the type system needs. */
+      match_sports: {
+        Row: MatchSport;
+        Insert: MatchSport;
+        Update: Partial<MatchSport>;
+        Relationships: [];
+      };
       profiles: {
         Row: Profile;
         Insert: Partial<Profile> & { id: string };
@@ -2362,6 +2505,14 @@ export type Database = {
            */
           p_race_metric?: SocialChallengeRaceMetric | null;
           p_target_value?: number | null;
+          /**
+           * 0175 - Cindy's scoped tier, applied inside the create transaction.
+           *
+           * Not a second set_challenge_scope call: that RPC refuses a challenge past draft/pending,
+           * and a placement race with an immediate start is inserted 'active'. The server still
+           * DERIVES verifiability from the race metric rather than accepting it.
+           */
+          p_tier?: string | null;
         };
         Returns: SocialChallenge;
       };
@@ -2378,6 +2529,14 @@ export type Database = {
           /** 0145 · a grade race's two extra terms. Both null on every other metric. */
           p_grade_target?: number | null;
           p_course_code?: string | null;
+          /**
+           * 0175 - Cindy's scoped tier, applied inside the create transaction.
+           *
+           * Not a second set_challenge_scope call: that RPC refuses a challenge past draft/pending,
+           * and a placement race with an immediate start is inserted 'active'. The server still
+           * DERIVES verifiability from the race metric rather than accepting it.
+           */
+          p_tier?: string | null;
         };
         Returns: SocialChallenge;
       };
@@ -2403,6 +2562,79 @@ export type Database = {
       join_campfire_challenge: {
         Args: { p_challenge_id: string };
         Returns: { challenge_id: string; goal_id: string | null; metric: string | null; target: number | null };
+      };
+      // ─── team mode (0173) ───
+      // Every write is gated server-side on a DIFFERENT thing, and the differences are the
+      // feature: create is admin-only, join is any member, the score is the scorekeeper's alone,
+      // and settling needs BOTH sides (or a host). settle_team_match itself is not callable.
+      create_team_match: {
+        Args: {
+          p_circle_id: string;
+          p_sport_key: string;
+          p_team_a_name: string;
+          p_team_b_name: string;
+          p_team_a_color?: string;
+          p_team_b_color?: string;
+          /** Defaults to the caller. Must be in the campfire. */
+          p_ref_user_id?: string | null;
+          p_score_mode?: TeamMatchScoreMode;
+          p_winner_tier?: DifficultyTier | null;
+          p_loser_tier?: DifficultyTier | null;
+          /** Only read when p_sport_key is 'custom'. */
+          p_custom_sport_label?: string | null;
+        };
+        Returns: {
+          challenge_id: string;
+          circle_id: string;
+          circle_name: string;
+          name: string;
+          sport_key: string;
+          score_mode: TeamMatchScoreMode;
+          notified: number;
+        };
+      };
+      join_team_match: {
+        Args: { p_challenge_id: string; p_team: TeamSide };
+        Returns: { challenge_id: string; team: TeamSide; team_name: string };
+      };
+      get_team_match: { Args: { p_challenge_id: string }; Returns: TeamMatch | null };
+      /** Scorekeeper only. p_delta is signed — Undo is a negative one. */
+      ref_set_score: {
+        Args: { p_challenge_id: string; p_team: TeamSide; p_delta: number };
+        Returns: { challenge_id: string; score_a: number; score_b: number; match_state: TeamMatchState };
+      };
+      ref_set_clock: {
+        Args: { p_challenge_id: string; p_running: boolean };
+        Returns: {
+          challenge_id: string;
+          clock_started_at: string | null;
+          clock_elapsed_s: number;
+          match_state: TeamMatchState;
+        };
+      };
+      ref_end_match: { Args: { p_challenge_id: string }; Returns: TeamMatchSettlement };
+      report_team_match_score: {
+        Args: { p_challenge_id: string; p_score_a: number; p_score_b: number };
+        Returns: {
+          challenge_id: string;
+          reported_score_a: number;
+          reported_score_b: number;
+          reported_team: TeamSide;
+          awaiting: TeamSide;
+        };
+      };
+      /** Refuses anyone on the REPORTING side — that refusal is the anti-cheese. */
+      confirm_team_match_score: {
+        Args: { p_challenge_id: string; p_agree?: boolean };
+        Returns: TeamMatchSettlement | { challenge_id: string; disputed: true };
+      };
+      resolve_team_match: {
+        Args: { p_challenge_id: string; p_score_a: number; p_score_b: number };
+        Returns: TeamMatchSettlement;
+      };
+      reassign_team_match_ref: {
+        Args: { p_challenge_id: string; p_user_id: string };
+        Returns: { challenge_id: string; ref_user_id: string };
       };
       // ─── the honour path (0164) ───
       // No p_level on either: the server decides the verification level and completes the goal

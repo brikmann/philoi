@@ -8,6 +8,7 @@ import type {
   ChallengeReward,
   CircleActiveChallenge,
   DifficultyTier,
+  ScopedRewardPreview,
   HostedCampfireChallenge,
   SocialChallenge,
   SocialChallengeRaceMetric,
@@ -96,6 +97,30 @@ export async function createH2HChallenge(
   return data;
 }
 
+/**
+ * Scope an already-created social challenge (migration 0160).
+ *
+ * The AFTER-THE-FACT door, and it only fits shapes still waiting to start: the RPC refuses
+ * anything past draft/pending. A duel is created 'pending' - it is an invite - so this is the
+ * right call for one. A collective goal or a placement race take their tier as a CREATE argument
+ * instead (0175), because a placement race with an immediate start is already 'active' by the
+ * time any second call could land.
+ *
+ * 🔒 verifiability is DERIVED server-side from the race metric, never accepted from here.
+ */
+export async function setChallengeScope(
+  challengeId: string,
+  tier: DifficultyTier
+): Promise<ScopedRewardPreview> {
+  const { data, error } = await supabase.rpc('set_challenge_scope', {
+    p_challenge_id: challengeId,
+    p_tier: tier,
+  });
+  if (error) throw error;
+  track('challenge_scoped', { challenge_id: challengeId, tier });
+  return data as ScopedRewardPreview;
+}
+
 export async function createGroupChallenge(
   input: {
     circleId: string;
@@ -115,6 +140,20 @@ export async function createGroupChallenge(
      */
     raceMetric?: SocialChallengeRaceMetric | null;
     targetValue?: number | null;
+    /**
+     * Cindy's scoped tier (0175), applied INSIDE the create transaction rather than by a second
+     * set_challenge_scope call.
+     *
+     * That is not a convenience: create_placement_challenge inserts status 'active' for an
+     * immediate start, and set_challenge_scope refuses anything past draft/pending. A client
+     * doing create-then-scope would have the tier accepted for a collective goal and silently
+     * refused for a placement race — on the one path whose reward preview had already promised a
+     * number. One argument, one transaction, no window where the row exists unscoped.
+     *
+     * 🔒 The tier is a PROPOSAL. The server validates it against the six names and DERIVES
+     * `verifiability` from the race metric itself, so nothing here can claim to be auto-tracked.
+     */
+    tier?: DifficultyTier | null;
   } & CustomSpan &
     GradeTerms
 ): Promise<SocialChallenge> {
@@ -129,9 +168,15 @@ export async function createGroupChallenge(
     p_course_code: input.courseCode ?? null,
     p_race_metric: input.raceMetric ?? null,
     p_target_value: input.targetValue ?? null,
+    p_tier: input.tier ?? null,
   });
   if (error) throw error;
-  track('challenge_created', { mode: 'group', circle_id: input.circleId, custom_span: input.endsOn != null });
+  track('challenge_created', {
+    mode: 'group',
+    circle_id: input.circleId,
+    custom_span: input.endsOn != null,
+    tier: input.tier ?? null,
+  });
   return data;
 }
 
@@ -153,6 +198,20 @@ export async function createPlacementChallenge(
     raceMetric: SocialChallengeRaceMetric;
     windowHours: number;
     publicName?: string | null;
+    /**
+     * Cindy's scoped tier (0175), applied INSIDE the create transaction rather than by a second
+     * set_challenge_scope call.
+     *
+     * That is not a convenience: create_placement_challenge inserts status 'active' for an
+     * immediate start, and set_challenge_scope refuses anything past draft/pending. A client
+     * doing create-then-scope would have the tier accepted for a collective goal and silently
+     * refused for a placement race — on the one path whose reward preview had already promised a
+     * number. One argument, one transaction, no window where the row exists unscoped.
+     *
+     * 🔒 The tier is a PROPOSAL. The server validates it against the six names and DERIVES
+     * `verifiability` from the race metric itself, so nothing here can claim to be auto-tracked.
+     */
+    tier?: DifficultyTier | null;
   } & CustomSpan &
     GradeTerms
 ): Promise<SocialChallenge> {
@@ -165,9 +224,15 @@ export async function createPlacementChallenge(
     p_ends_on: input.endsOn ?? null,
     p_grade_target: input.gradeTarget ?? null,
     p_course_code: input.courseCode ?? null,
+    p_tier: input.tier ?? null,
   });
   if (error) throw error;
-  track('challenge_created', { mode: 'placement', circle_id: input.circleId, custom_span: input.endsOn != null });
+  track('challenge_created', {
+    mode: 'placement',
+    circle_id: input.circleId,
+    custom_span: input.endsOn != null,
+    tier: input.tier ?? null,
+  });
   return data;
 }
 
