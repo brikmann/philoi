@@ -15,7 +15,17 @@ verified statically or against prod, so you are only checking the gap. Android b
 | Build | Carries | Verifies |
 |---|---|---|
 | **`f134e915`** (finished, off `5964b07`) | Cindy's `propose_social_challenge` handler | **§3 only** — Cindy create paths |
-| **Next build** (not yet cut) | §1 relic reveal · unboxing · tutorial · §4 sheet | Everything else below |
+| ~~`9920bcf7`~~ **SUPERSEDED — do not install** | §1 · B · C, but with the tutorial/relic collision below | nothing; it burns §1's test |
+| **Next build** (off HEAD) | all of the above **+ §4 arena + duel-accept fix + Focus Nudge shield** | everything below |
+
+🔴 **`9920bcf7` must not be installed, and the reason is worth knowing because it nearly cost the
+§1 verification.** It shipped the new `tutorial_done` key alongside `RelicUnlockWatcher` with
+nothing arbitrating between them. On its first launch the tutorial gate does a
+`router.replace('/tutorial')` on the *same foreground* where the watcher raises a full-screen modal
+for the one relic 0176 deliberately left unseen — and `useRevealFloor` cannot help, because it
+orders reveals against other reveals and a route replace is not a reveal. Since dismissing stamps
+`mark_relic_unlock_seen` and there is no second Pheidippides, tapping through that clash would have
+spent §1's only non-repeatable test case. Caught before install; fixed by the seed described in §3.
 
 `f134e915` APK: https://expo.dev/artifacts/eas/rYKkTK_uhuRK15BZaU09W9EK69BxNF4YcuQBHIzml7s.apk
 
@@ -122,11 +132,22 @@ character. **Nothing to upload.** If a tier sounds wrong, it is an asset swap, n
 6. **Settings → Replay tutorial** → the tour opens again.
 7. Reduce-motion: the Cindy chat is already complete rather than typing; nothing else breaks.
 
-🔴 **BEHAVIOUR CHANGE, FLAGGING IT RATHER THAN LETTING IT SURPRISE YOU:** `tutorial_done` is a new
-AsyncStorage key, so on first launch of the next build **every existing pilot install** sees the
-tour once. I think that is right — it is skippable, and it is the only way you can verify the gate
-at all — but it is your call, and it is a one-line change to suppress it for accounts that predate
-the flag.
+🔴 **CHANGED SINCE THE FIRST DRAFT OF THIS FILE — existing installs no longer auto-open the tour.**
+`tutorial_done` is a new key, so every existing install would have read "not done" and been replaced
+into the tour on the first launch — on the *same frame* as §1's one-shot relic reveal. Two
+non-repeatable acceptance tests racing for one foreground loses at least one of them.
+
+So there is now a **one-time seed**: on the first ever boot of this build, if onboarding is already
+complete, the tour is marked as already offered. Note that it is a one-time seed and **not** a rule
+of the form "onboarding done ⇒ tutorial done" — that version would also suppress the tour for a
+brand-new user, because `markOnboardingDone` fires the moment they create their first campfire, and
+the launch gate would silently cease to exist while looking exactly like it worked. The signal that
+separates the two is *when the build first ran*, not what the flags say.
+
+**What this means for you, practically:** step 1 above (fresh install / new account) is the only way
+to test the automatic gate, and it is the one that matters for the App Store. On your existing
+install, use **Settings → Replay tutorial** — which is the better test anyway, because you can run
+it more than once.
 
 **Known gap:** contextual coach-marks on first visit to each real surface are **not** built. The
 prompt allows this ("if coach-marks are too much for v1, ship the card tour and add coach-marks in
@@ -171,6 +192,21 @@ leads with the **challenger's avatar** instead of the generic flame, and the tit
 Verified in prod with the control in the same transaction — the identical call one statement earlier
 produced `actor_id` null. Route deliberately unchanged, so invites already sitting in a tray still
 deep-link into the new arena.
+
+---
+
+## ⚠️ Two risks in the next build specifically
+
+**1 · It is the first Gradle compile of the Focus Nudge shield.** `FocusNudgeShieldView.kt` and
+`FocusNudgeFlame.kt` were committed (e34a840) on your instruction, but neither Claude session wrote
+that Kotlin and it has never been through a build. If the Android build fails on it, **revert
+e34a840 and rebuild** — it is a standalone commit for exactly that reason and reverting it will not
+take §4 or anything else with it. A compile failure there costs a rebuild, not the work.
+
+**2 · §4 has a trap that makes a broken build look fixed.** Accepting a duel from
+`SocialChallengeCard` passes whether or not the fix is present, because that path always used the
+correct RPC. **The row UNDER the feed embed is the one that was broken** — accept from there, and
+assert on the server, not the UI (SQL in §4 above and in `QA_PHASE1_S4_DEVICE.md`).
 
 ---
 
