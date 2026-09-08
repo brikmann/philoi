@@ -2,15 +2,15 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { BoxCrack } from '@/components/economy/box-crack';
-import { MultiDeal } from '@/components/economy/multi-deal';
+import { CrateOpen } from '@/components/economy/crate-open';
+import { FlipReveal, bestPullRarity } from '@/components/economy/flip-reveal';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { EmberAmount, RarityLabel, formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Screen } from '@/components/ui/screen';
-import { useRevealPreview, useRevealSting } from '@/hooks/use-audio-preview';
+import { useRevealPreview } from '@/hooks/use-audio-preview';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useShareCardCapture } from '@/hooks/use-share-card-capture';
@@ -30,7 +30,9 @@ import { RARITY_COLOR, rarityGlow, type Rarity } from '@/lib/economy/rarity';
 // finished results, and only then animates. The animation is a flourish over a decided outcome —
 // it can never change what you got, and a crash mid-animation cannot cost you the pull.
 
-type Phase = 'rolling' | 'animating' | 'menu';
+// 'flipping' is the ×5/×10 leg only. A single open goes animating -> menu exactly as before; a
+// batch stops at the shards in between, which is where the ten separate moments live.
+type Phase = 'rolling' | 'animating' | 'flipping' | 'menu';
 
 export default function BoxOpenScreen() {
   // The pull is BANKED before this screen renders a frame — the server granted it, salvaged the
@@ -134,25 +136,47 @@ function BoxOpenFlow() {
   }
 
   if (phase === 'animating') {
-    return isMulti ? (
-      <Screen>
-        <MultiDeal
-          boxKey={(boxKey as BoxKey) ?? 'kindling'}
-          results={results}
-          reduceMotion={reduceMotion}
-          onDone={onAnimationDone}
-        />
-      </Screen>
-    ) : (
+    // ONE CRATE, ONE BURST, whether this is a ×1 or a ×10 — mock 186. The batch open used to deal
+    // N crates in a cascade; ten serial crate sequences is up to sixteen seconds of animation and
+    // it collapses ten reveals into one long wait.
+    //
+    // 🔊 The burst's sting is the BEST PULL's rarity on a batch, and the item's own on a single.
+    // That is what makes one sting correct rather than a compromise: the loudest thing in the haul
+    // is what the crate should sound like opening.
+    const key = (boxKey as BoxKey) ?? 'kindling';
+    return (
       <Screen>
         <View style={styles.center}>
-          <BoxCrack
-            boxKey={(boxKey as BoxKey) ?? 'kindling'}
+          <CrateOpen
+            boxKey={key}
+            itemRarity={bestPullRarity(results)}
             reduceMotion={reduceMotion}
-            onDone={onAnimationDone}
+            label={`Opening ${isMulti ? `×${results.length} · ` : ''}${BOXES[key].name}`}
             size={220}
+            // A batch swaps to the shards ON the lid-off frame, so the ray field the crate threw is
+            // still up behind them (mock 186 keeps it as the backdrop rather than flashing it away).
+            // On a batch this fires first and unmounts the crate, so its own onDone never runs —
+            // which is the intent: the sequence is not finished, it has handed over.
+            onBurst={isMulti ? () => setPhase('flipping') : undefined}
+            onDone={onAnimationDone}
           />
         </View>
+      </Screen>
+    );
+  }
+
+  if (phase === 'flipping') {
+    return (
+      <Screen>
+        <FlipReveal
+          results={results}
+          boxName={BOXES[(boxKey as BoxKey) ?? 'kindling'].name}
+          reduceMotion={reduceMotion}
+          // "Add all to inventory" lands on the existing haul screen, which is mock 186's final
+          // beat: the rarity-sorted grid with tap-to-peek. The spotlight is the moment; that is
+          // the screen.
+          onDone={onAnimationDone}
+        />
       </Screen>
     );
   }
@@ -214,7 +238,10 @@ function SingleMenu({
   useRevealPreview(item?.id);
   // On a 1× the sting is simply that item's own tier (PUNCHLIST_14 §2). Above the null guard for
   // the same reason as useRevealPreview — hooks may not be called conditionally.
-  useRevealSting(item?.rarity, result.dupe);
+  // 🔇 NO STING HERE ANY MORE. CrateOpen fires the rarity ladder on the lid-off frame, which is
+  // where the spec puts it and where it actually lands with the picture. Leaving this call in
+  // would play the same cue a second time as this screen mounts — audibly a stutter, and on a
+  // Mythic two overlapping 5s tails.
   if (!item) return null;
 
   const oddsPct = BOXES[result.box_key as BoxKey]?.odds[item.rarity] ?? 0;
@@ -323,7 +350,8 @@ function MultiMenu({
   // The common→mythic sting, once for the haul's best pull (PUNCHLIST_14 §2). Muted when that pull
   // is a dupe — a dupe salvages to embers instead of granting the item, so the full war-horn would
   // be celebrating something the user didn't get.
-  useRevealSting(best, bestResult?.dupe ?? false);
+  // 🔇 Likewise: the batch's one sting already fired on the crate burst, keyed to this same best
+  // pull. See CrateOpen and the flip-reveal header.
 
   async function onShare() {
     try {

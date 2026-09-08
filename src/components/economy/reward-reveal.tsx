@@ -32,7 +32,7 @@ import { playRewardSound, type RewardCue } from '@/lib/sound';
 //
 // Six things can pay you: a rank-up, a pass level, the daily fire, and the three challenge
 // settlements. Before this, each one had drawn its own rays or none at all — `rank-up-celebration`,
-// `challenge-reward-screen`, `box-crack` and `forge-strike` each carry their own fan of wedges, and
+// `challenge-reward-screen`, `crate-open` and `forge-strike` each carry their own fan of wedges, and
 // pass-level claims paid silently with no reveal whatsoever. Four implementations of one idea drift
 // by definition; this is the one they can share.
 //
