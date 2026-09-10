@@ -125,6 +125,16 @@ export function isGoogleCalendarSupported(): boolean {
   return GOOGLE_CALENDAR_ENABLED && Boolean(GOOGLE_WEB_CLIENT_ID) && Boolean(SUPABASE_URL);
 }
 
+/** The little of `error.context` this needs. supabase-js leaves it untyped and its runtime shape
+ * is platform-dependent, so describeFunctionError probes for these members rather than casting to
+ * Response — see the note there. */
+type InvokeErrorContext = {
+  status?: number;
+  clone?: () => InvokeErrorContext;
+  text?: () => Promise<string>;
+  json?: () => Promise<unknown>;
+};
+
 /** Thrown with a message worth showing — the caller surfaces it verbatim. */
 export class GoogleCalendarConnectError extends Error {}
 
@@ -239,10 +249,79 @@ export async function completeGoogleCalendarAuth(code: string, state: string | u
   const { data, error } = await supabase.functions.invoke('gcal-oauth-exchange', {
     body: { code, codeVerifier: pending.codeVerifier },
   });
-  if (error) throw error;
+  if (error) throw await describeFunctionError(error);
 
   if (!data?.connected) throw new GoogleCalendarConnectError(reasonMessage(data?.reason));
   return { status: 'connected', accountEmail: typeof data.accountEmail === 'string' ? data.accountEmail : null };
+}
+
+/**
+ * Turns supabase-js's opaque invoke failure into something that names the actual problem.
+ *
+ * `functions.invoke` rejects with a FunctionsHttpError whose message is the useless
+ * "Edge Function returned a non-2xx status code" — the SERVER'S body, which says what actually
+ * went wrong, is hidden on `error.context` (the raw Response) and is thrown away by every caller
+ * that just rethrows. For this flow that is the difference between "something broke" and
+ * "Google said redirect_uri_mismatch", and the member is the one holding the phone.
+ *
+ * The reason strings are deliberately concrete rather than reassuring. A misconfigured OAuth
+ * client is not something a member can retry their way out of, and telling them to try again
+ * would be a lie that costs someone an afternoon.
+ */
+async function describeFunctionError(error: unknown): Promise<Error> {
+  const context = (error as { context?: InvokeErrorContext })?.context;
+
+  // ⚠️ DUCK-TYPED, NOT `instanceof Response`. React Native's fetch does not necessarily hand back
+  // an instance of the same global `Response` this module closes over, so an instanceof guard
+  // silently fails and throws the useless original error away — which is exactly what happened the
+  // first time this was written. Check for the shape we need instead of the identity we assume.
+  const canRead = context && (typeof context.text === 'function' || typeof context.json === 'function');
+  const status: number | null = typeof context?.status === 'number' ? context.status : null;
+
+  let body: { error?: unknown; detail?: unknown; reason?: unknown } = {};
+  let raw = '';
+  if (canRead) {
+    try {
+      // clone() when it exists, so a body already read elsewhere doesn't come back empty.
+      const source = typeof context.clone === 'function' ? context.clone() : context;
+      raw = typeof source.text === 'function' ? await source.text() : JSON.stringify(await source.json?.());
+      body = JSON.parse(raw);
+    } catch {
+      // Non-JSON body (a platform error page) — `raw` may still carry something readable.
+    }
+  }
+
+  // Google's own error code, forwarded by gcal-oauth-exchange's 502. This is the one that
+  // actually diagnoses a bad setup.
+  const googleError = typeof body.detail === 'string' ? body.detail : null;
+  if (googleError) {
+    return new GoogleCalendarConnectError(`Google refused the connection (${googleError}). ${googleAdvice(googleError)}`);
+  }
+
+  const serverError = typeof body.error === 'string' ? body.error : null;
+  if (serverError) return new GoogleCalendarConnectError(`Calendar connect failed [${status ?? '?'}]: ${serverError}`);
+
+  // Nothing parseable. Say so precisely rather than falling back to supabase-js's
+  // "non-2xx status code", which names neither the status nor the reason. The status alone
+  // separates auth (401) from a bad request (400) from a server fault (500) from Google (502).
+  const tail = raw ? ` ${raw.slice(0, 200)}` : '';
+  return new GoogleCalendarConnectError(`Calendar connect failed [${status ?? 'no status'}].${tail}`);
+}
+
+/** What each Google token-endpoint error actually means here, in one line. */
+function googleAdvice(googleError: string): string {
+  switch (googleError) {
+    case 'redirect_uri_mismatch':
+      return 'Philoi’s redirect URI isn’t registered on the Google OAuth client — this needs fixing in Google Cloud, not by retrying.';
+    case 'invalid_grant':
+      return 'That sign-in was already used or has expired. Try connecting again.';
+    case 'invalid_client':
+      return 'Philoi’s Google client credentials are wrong on the server — this needs fixing, not retrying.';
+    case 'invalid_request':
+      return 'The sign-in request was malformed. Try connecting again, and report it if it repeats.';
+    default:
+      return 'Try again, and report this if it repeats.';
+  }
 }
 
 function reasonMessage(reason: unknown): string {

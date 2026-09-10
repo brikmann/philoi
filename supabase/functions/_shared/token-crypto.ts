@@ -22,7 +22,7 @@ async function getKey(): Promise<CryptoKey> {
   if (!raw) {
     throw new Error(`${KEY_ENV} is not set — run: supabase secrets set ${KEY_ENV}="$(openssl rand -base64 32)"`);
   }
-  const bytes = decodeBase64(raw.trim());
+  const bytes = decodeBase64(raw.trim(), KEY_ENV);
   if (bytes.length !== 32) {
     throw new Error(`${KEY_ENV} must be 32 bytes of base64 (openssl rand -base64 32); got ${bytes.length}.`);
   }
@@ -46,8 +46,8 @@ export async function decryptSecret(payload: string): Promise<string> {
     throw new Error('Unrecognized ciphertext format.');
   }
   const key = await getKey();
-  const iv = decodeBase64(parts[1]);
-  const ciphertext = decodeBase64(parts[2]);
+  const iv = decodeBase64(parts[1], 'ciphertext IV');
+  const ciphertext = decodeBase64(parts[2], 'ciphertext body');
   const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
   return new TextDecoder().decode(plaintext);
 }
@@ -58,10 +58,27 @@ export async function decryptSecret(payload: string): Promise<string> {
 // name means Uint8Array<ArrayBufferLike>, which WebCrypto's BufferSource won't accept, while the
 // inferred type from `new Uint8Array(n)` is the Uint8Array<ArrayBuffer> it wants. Annotating it
 // breaks the crypto.subtle calls above on both Deno and tsc.
-function decodeBase64(value: string) {
+function decodeBase64(value: string, label: string) {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
   const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
-  const binary = atob(padded);
+
+  // `label` exists because atob's own failure is the bare, contextless "Failed to decode base64",
+  // and this function decodes three different things. On 2026-09-10 a GCAL_TOKEN_ENC_KEY that had
+  // been stored with shell quoting still in it surfaced to a member, through the connect flow, as
+  // exactly that string — naming neither the secret nor even that a secret was involved. An error
+  // that cannot tell you which value it choked on is barely an error message.
+  let binary: string;
+  try {
+    binary = atob(padded);
+  } catch {
+    throw new Error(
+      `${label} is not valid base64 (length ${value.length}). ` +
+        (label === KEY_ENV
+          ? 'Re-set it with a clean 32-byte key and no surrounding quotes: supabase secrets set ' +
+            `${KEY_ENV}="$(openssl rand -base64 32)" — check the stored value did not capture the quotes or an unexpanded command substitution.`
+          : 'The stored ciphertext is malformed.')
+    );
+  }
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
