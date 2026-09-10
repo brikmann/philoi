@@ -3,9 +3,23 @@
 Built against `GCAL_INTEGRATION_SPEC.md`. Consumed by `APP_BLOCKER_SPEC §C/§C2` (Focus Nudge +
 re-engagement) and `CINDY_SPEC.md §3` (data mastermind).
 
-**Status:** code complete, **not deployable yet** — it needs the Google-side setup in §4 and the
-Supabase secrets in §3. The feature flag ships `false` until then. Nothing here is committed:
-another Claude session held the git writer lease for the whole build (see §9).
+**Status:** code complete and committed. It needs the Google-side setup in §4 and the Supabase
+secrets in §3 before a real calendar can connect.
+
+> ### ⚠️ Updated 2026-09-09 — the connect flow was rebuilt. Three things in this doc changed.
+>
+> 1. **The OAuth flow is `expo-auth-session` PKCE in the system browser, not the native Google
+>    SDK.** The old flow called `GoogleSignin.addScopes()`, which widens whichever Google account
+>    the member signed into Philoi with and offers **no account chooser**. That silently assumed
+>    the Philoi login and the calendar account are the same Google account. They frequently are
+>    not — a personal Gmail login with classes on a school account is the common student case —
+>    and an email/password member had no session to widen at all. The flow now runs
+>    `prompt=select_account consent` every time and keys the grant to the Philoi `user_id`.
+> 2. **The scope is `calendar.events.readonly`, not `calendar.readonly`.** Narrower, and it comes
+>    with a hard constraint: see §4.2.
+> 3. **The consent dialog is a Philoi component, not `Alert.alert()`.**
+>
+> §2, §3, §4 and §7 below reflect the current build. The §1 contract is unchanged.
 
 ---
 
@@ -52,7 +66,7 @@ type CalendarWindow = {
     title: string;                // RAW Google title — you interpret it, we don't
     start: string; end: string;   // ISO 8601
     allDay: boolean;              // all-day = a DEADLINE, not an occupancy
-    calendar: string;             // source calendar name — often the course tie
+    calendar: string;             // source calendar name (primary only — see §4.2)
     busy: boolean;                // counts toward free/busy
   }[];
   busy: { start: string; end: string }[];   // merged, non-overlapping
@@ -118,35 +132,47 @@ yesterday"), it's a small change to `gcal.ts` — raise it rather than post-proc
 |---|---|
 | `_shared/gcal.ts` | The contract above. Token refresh, Google fetch, normalize, free/busy, cache, rate limit, prompt shaping. |
 | `_shared/token-crypto.ts` | AES-256-GCM with the key in an Edge Function secret, **not** in Postgres. |
-| `gcal-oauth-exchange` | `serverAuthCode` → refresh token. The only place the Google client secret is used. |
+| `gcal-oauth-exchange` | `code` + PKCE `codeVerifier` → refresh token. The only place the Google client secret is used. The redirect URI is derived server-side, never taken from the caller. |
+| `gcal-oauth-callback` | **Public** (`verify_jwt = false`). Google's Web client will not accept a `philoi://` redirect, so Google redirects the browser here and this 302s to `philoi://gcal-auth`. Holds no secret and reads nothing. |
 | `gcal-disconnect` | **Revokes at Google**, then deletes locally. Deletes either way. |
 | `gcal-window` | HTTP surface of the contract, for a coach that can't import the module. |
 
 **App**
 | File | What changed |
 |---|---|
-| `src/lib/google-calendar.ts` | new — drives the native Google consent sheet, hands the code to the server |
-| `src/hooks/use-google-calendar-connection.ts` | new — same shape as `use-whoop-connection` |
-| `src/app/connected-apps.tsx` | new "Your schedule" group + consent alert before Google's sheet |
-| `src/lib/auth/providers.ts` | `configureGoogleSignin()` extracted — `GoogleSignin.configure()` is process-global, so it now lives in exactly one place |
+| `src/lib/google-calendar.ts` | the PKCE handshake; parks `state`+`codeVerifier` in SecureStore, hands the code to the server |
+| `src/app/gcal-auth.tsx` | **new** — the `philoi://gcal-auth` return route. Not optional: see the two decisions below |
+| `src/components/calendar-consent-dialog.tsx` | **new** — the Philoi-branded consent modal that replaced `Alert.alert()` |
+| `src/hooks/use-google-calendar-connection.ts` | same shape as `use-whoop-connection`; `connect()` doubles as "switch account" |
+| `src/app/connected-apps.tsx` | "Your schedule" group, `Connected · <google account>`, Switch account, Disconnect via `<ConfirmDialog>` |
+| `src/lib/auth/providers.ts` | `configureGoogleSignin()` no longer takes a scope override — nothing widens the sign-in config any more |
 | `src/constants/feature-flags.ts` | `GOOGLE_CALENDAR_ENABLED` (false — see §4) |
 | `src/types/database.ts` | the two new RPCs |
 
-### Two decisions worth knowing about
+### Three decisions worth knowing about
 
-**It reuses the native Google sign-in sheet, not a browser redirect.** Strava and Whoop ride
-`expo-auth-session` through a system browser; this doesn't. The Google Sign-In SDK is already in
-the binary, so the spec's "reuse the app's existing Google sign-in consent flow where possible"
-is literal here: `addScopes()` widens the session a member already has (falling back to a full
-`signIn()` for email/password members), Google mints a `serverAuthCode` via `offlineAccess`, and
-that one-time code is all the app ever touches. **No new native module, no EAS rebuild.**
+**The browser, not the native sheet — because the calendar account is not the login account.**
+This is the whole argument for the rewrite and it is in the header above. The native SDK's
+`addScopes()` cannot offer an account chooser; `prompt=select_account` in a browser flow always
+can. The cost is a rebuild (the JS changed) and one extra Edge Function; the benefit is that
+connecting a *different* Google account than you log in with is a supported path rather than an
+impossible one.
+
+**`philoi://gcal-auth` is a REAL expo-router route, and that is load-bearing.** Google's **Web**
+OAuth client rejects custom-scheme redirect URIs outright, so the browser goes to the
+`gcal-oauth-callback` relay first and that 302s into the app. Then the same trap Strava hit: on
+Android, `WebBrowser`'s redirect detection races expo-router's Linking listener for the incoming
+URL, and if the router wins with no route defined, a successful consent lands on **"Unmatched
+Route"** and the grant is lost. So both paths are wired, they share one `completeGoogleCalendarAuth()`,
+and because a Google authorization code is **single-use** (unlike Strava's repeatable upsert) the
+loser of the race finds the code already consumed and no-ops instead of triggering `invalid_grant`.
+The PKCE verifier lives in SecureStore rather than a closure so it survives the OS killing the app
+while the browser is foregrounded.
 
 **The refresh token is encrypted; the fitness tokens aren't.** A calendar grant reads every
 commitment in someone's life, so a database dump alone must not yield a usable token. The key
 lives in `GCAL_TOKEN_ENC_KEY` (an Edge Function secret) — Postgres never sees it, which is the
 whole point and is why this isn't pgcrypto. Access tokens are minted per fetch and never stored.
-
----
 
 ## 3. Supabase secrets
 
@@ -159,19 +185,25 @@ supabase secrets set \
 
 - `GOOGLE_WEB_CLIENT_ID` / `GOOGLE_WEB_CLIENT_SECRET` are the **Web** OAuth client's — the same
   pair already in Supabase Auth → Providers → Google (`GOOGLE_SIGNIN_SETUP.md`). Not the Android
-  or iOS client: a `serverAuthCode` from the native SDK is minted **for the web client**.
+  or iOS client: the browser flow authorizes against the Web client, which is also the only
+  client type whose redirect URI can be the https relay.
+- `GCAL_OAUTH_REDIRECT_URI` is **optional**. Unset, the exchange derives
+  `${SUPABASE_URL}/functions/v1/gcal-oauth-callback`, which is what the app uses too. Set it only
+  if the relay ever moves.
 - `GCAL_TOKEN_ENC_KEY` must be 32 bytes of base64. **Losing or rotating it invalidates every
   stored refresh token** — members would have to reconnect. Back it up wherever the other project
   secrets live.
 
-Then:
+Then (the migration is already applied — see §2):
 
 ```bash
-supabase db push
-supabase functions deploy gcal-oauth-exchange gcal-disconnect gcal-window
+supabase functions deploy gcal-oauth-exchange gcal-oauth-callback gcal-disconnect gcal-window
+supabase functions deploy ai-coach ai-coach-voice   # they consume the window; deploy in lockstep
 ```
 
-All three keep the default `verify_jwt = true` — no `config.toml` change.
+`gcal-oauth-callback` is declared `verify_jwt = false` in `supabase/config.toml`; the rest keep
+the default. **Deploying the callback with the JWT gate on turns every successful consent into an
+opaque 401** — a browser following Google's redirect carries no Authorization header.
 
 ---
 
@@ -181,29 +213,58 @@ Everything happens in Google Cloud project **921536564136** (`GOOGLE_SIGNIN_SETU
 sign-in already uses. No new project, no new OAuth client.
 
 1. **APIs & Services → Library → enable the Google Calendar API.**
-2. **OAuth consent screen → Scopes → add `https://www.googleapis.com/auth/calendar.readonly`.**
-   Do **not** add `calendar.events.readonly` as well — `calendar.readonly` covers it, and asking
-   for two overlapping scopes just makes the consent sheet longer.
-3. **Submit for verification.** `calendar.readonly` is a **sensitive** scope. Until Google
-   verifies it, only accounts on the consent screen's **test users** list can grant it — everyone
-   else hits the unverified-app warning. Verification is measured in days. Google asks for a
-   justification and usually a demo video; the honest answer is the one in the spec: *read-only,
-   so an AI study coach can reason about the student's own deadlines and free time, shown only to
-   them, never stored or shared.*
-4. While waiting, add your own account as a test user and flip the flag locally to test end to end.
-5. **Then flip `GOOGLE_CALENDAR_ENABLED` to `true`** in `src/constants/feature-flags.ts`. One line,
-   no rebuild — the SDK is already in the binary.
 
----
+2. **OAuth consent screen → Scopes → add `https://www.googleapis.com/auth/calendar.events.readonly`.**
+
+   > ### ⚠️ 4.2 — what this narrower scope costs, and why it is not free
+   >
+   > `calendar.events.readonly` **cannot list the member's calendars.** `calendarList.list`
+   > accepts only `calendar.readonly` / `calendar` / `calendar.calendarlist*`; under an
+   > events-only grant it **403s**. So `gcal.ts` reads the **`primary` calendar by id and never
+   > enumerates** — the calendar's name and IANA zone come off the `events.list` response itself
+   > (`fields=summary,timeZone,items(...)`), which is what makes the narrow scope workable at all.
+   >
+   > **The cost:** a subscribed or secondary calendar is invisible. A student whose "BU111" course
+   > calendar is a separate subscription gets nothing from it, and `CalendarEvent.calendar`
+   > collapses to the one primary name — so the course tie now has to come from the event *title*,
+   > which is the model's job anyway. `gcal.test.ts` pins this so the trade stays visible.
+   >
+   > **What it does NOT buy:** any relief from verification. `calendar.events.readonly` is a
+   > **sensitive** scope exactly like `calendar.readonly`. Widening back is a one-line change to
+   > `GOOGLE_CALENDAR_SCOPE` plus restoring an enumeration step; `grantCoversCalendar()` already
+   > accepts the wider scopes, so existing grants would keep working across the change.
+
+3. **Credentials → the Web OAuth client → Authorized redirect URIs → add**
+   `https://<project-ref>.supabase.co/functions/v1/gcal-oauth-callback`.
+   This is new, and the flow cannot complete without it — Google fails the authorize step with
+   `redirect_uri_mismatch`. It must match byte-for-byte what the app sends and what
+   `gcal-oauth-exchange` derives.
+
+4. **Pick a verification path, and say which one out loud.** A sensitive scope means that until
+   Google verifies the app, **only accounts on the consent screen's test-user list can grant it**;
+   everyone else meets the unverified-app warning.
+   - **Pilot (current):** keep the app in **Testing** and add pilot users under
+     *OAuth consent screen → Audience → Test users*. Works immediately, no review.
+   - **Public launch:** submit for verification **before** the store clock matters. Google asks
+     for a justification and usually a demo video, and review is measured in **days to weeks** —
+     recording the demo needs the flow working on a real device, which is why the flag is on.
+     The honest justification is the spec's: *read-only, so an AI study coach can reason about the
+     student's own deadlines and free time, shown only to them, never stored or shared.*
+
+5. `GOOGLE_CALENDAR_ENABLED` in `src/constants/feature-flags.ts` is already `true`. Note this is
+   **not** an OTA-able change any more — the connect flow is new JS **and** a new route, and
+   `PHILOI_NO_OTA` policy applies regardless: it ships in a build.
 
 ## 5. Privacy properties, so a reviewer can check them fast
 
 | Spec requirement | How it's enforced |
 |---|---|
-| Read-only | Only `calendar.readonly` is ever requested; the exchange **verifies Google's own granted `scope`** before storing anything and refuses otherwise |
-| Opt-in | Feature flag + a consent alert spelling out the trade **before** Google's sheet opens |
+| Read-only | Only `calendar.events.readonly` (+ non-sensitive `openid email`, for the display address) is ever requested; the exchange **verifies Google's own granted `scope`** via `grantCoversCalendar()` before storing anything and refuses otherwise |
+| Opt-in | Feature flag + a Philoi-branded consent modal spelling out the trade **before** Google opens |
+| The member knows WHICH account | The chooser runs every time, and the row reads `Connected · <google account>` — the Google account is independent of the Philoi login, so "Connected" alone would not say what is attached |
 | Encrypted, server-side only | AES-256-GCM, key in an Edge Function secret; the app has no code path that could receive a token |
 | Don't warehouse | No events table. `fields=` masks on the Google calls mean descriptions, locations, attendee identities, conferencing links and event ids are never even fetched. 10-minute cache, swept |
+| No token ever reaches the app | The client holds only a one-time `code` and its PKCE verifier; redeeming needs the client secret, which exists only in the Edge Function |
 | Fetch at AI-call time | `getCalendarWindow()` is called by the coach, not by a sync job. There is no scheduled fetch anywhere |
 | Revocable | Disconnect **revokes at Google** first, then deletes. Local delete happens even if Google is unreachable |
 | Respects Google-side revocation | `invalid_grant` on refresh deletes the connection and returns `reason: 'revoked'`, so Connected Apps stops claiming a link that no longer exists |
@@ -241,8 +302,14 @@ It exists because it caught two real bugs during the build, both of the silent k
 
 Once §3 and §4 are done and the flag is on:
 
-1. Settings → Connected apps → **Your schedule** → Connect → consent alert → Google sheet.
-2. Row shows **Connected** with the Google account email.
+1. Settings → Connected apps → **Your schedule** → Connect → the Philoi consent modal →
+   **CONTINUE** → Google's **account chooser** → consent.
+2. Row shows **Connected · <the account you picked>**, with **Switch account** and **Disconnect**
+   underneath.
+2b. **The independence check — this is the one worth doing deliberately.** Pick a Google account
+   that is NOT your Philoi login. The row must show that address, and the coach must read that
+   calendar. If the chooser doesn't appear at all, the flow has regressed to the old
+   `addScopes()` behaviour.
 3. `select user_id, google_email, scopes, length(refresh_token_encrypted) from
    google_calendar_connections;` — the token column must be unreadable ciphertext starting `v1.`.
 4. Call the window (as yourself, from the app's session, or with the service role key):
@@ -257,7 +324,14 @@ Once §3 and §4 are done and the flag is on:
 6. **Cache check:** run it twice — the second returns `cached: true` and doesn't hit Google.
 7. **Revocation check:** remove Philoi at myaccount.google.com → third-party access, then run with
    `"force":true` → `connected: false, reason: "revoked"`, and the row is gone.
-8. Disconnect in-app → row gone, cache gone, and Philoi no longer listed in your Google account.
+8. Disconnect in-app → the Philoi confirm → row gone, cache gone, and Philoi no longer listed
+   under myaccount.google.com → third-party access. **Check Google's side, not just the row** —
+   "revokes at Google" is a promise printed on the consent modal.
+9. **Cancel paths, which must be silent:** back out of the account chooser; and press Cancel on
+   Google's consent screen. Both return to Connected apps with no error dialog.
+10. **Android specifically:** confirm the redirect does not land on "Unmatched Route". That is
+   the expo-router race described in §2 — it is the failure mode this flow is shaped around, and
+   it does not reproduce on iOS.
 
 ---
 
@@ -272,30 +346,37 @@ Once §3 and §4 are done and the flag is on:
 
 ---
 
-## 9. Git state
+## 9. Verification state
 
-Nothing was committed. `.git/claude-writer.lease` was held by another session (`dfe4cd94`) for the
-duration, and per `AGENTS.md` the lease is not to be cleared without asking. The working tree
-carries all the changes above; whoever owns the repo next should commit them — ideally on their
-own branch, since this build is independent of the campfire / challenge work in flight.
+**Committed** on `integration-wave1`. Migration `0105` was already applied to prod and the ledger
+reads `local == remote`; **this build added no migration** — the 0105 schema already covers the
+grant, the cache and the two owner-scoped RPCs, so inventing a second table would have been
+duplication. Prod held **zero** rows in `google_calendar_connections` at the time of the scope
+change, so nothing needed migrating off `calendar.readonly`.
 
 ### What was and wasn't verified
 
-Neither Deno nor the Supabase CLI is installed on this machine, so:
-
 - ✅ **App half** — `npx tsc --noEmit` clean; `npx expo lint` reports nothing in any touched file.
   (`tsconfig.json` excludes `supabase/functions`, so the Deno code never enters that run.)
-- ✅ **`_shared/gcal.ts` + `_shared/token-crypto.ts`** — compiled under `tsc --strict` and the
-  §6 suite run against the compiled output with Google and Supabase stubbed. All of it passes.
-  That is how both bugs in §6 were found.
-- ❌ **The three function `index.ts` files** (`gcal-oauth-exchange`, `gcal-disconnect`,
-  `gcal-window`) — reviewed but never compiled or executed.
+- ✅ **`deno check`** on `gcal-oauth-exchange`, `gcal-oauth-callback`, `gcal-disconnect`,
+  `gcal-window` and `_shared/coach/gcal.ts` — all clean. These were **never compiled** before this
+  pass; the previous handoff listed them as reviewed-but-unrun.
+- ✅ **`deno test --allow-env supabase/functions/_shared/gcal.test.ts`** — 9 steps, all passing,
+  rewritten for the primary-only fetch path. The `calendarList` stub now returns Google's real
+  **403** and a counter asserts it is called **zero** times, so a reintroduced enumeration fails
+  loudly in the suite instead of silently costing members their window in prod.
+- ❌ **`ai-coach` / `ai-coach-voice` full `deno check`** — blocked offline: `npm:@anthropic-ai/sdk`
+  is not in `node_modules` and could not be cached. The changed seam (5 lines in
+  `_shared/coach/index.ts`) is typed by `_shared/coach/gcal.ts`, which does check clean.
 - ❌ **Anything touching real Google** — no OAuth round trip, no real event fetch, no real
-  revocation. Blocked on §4.
+  revocation, no account-chooser run. Blocked on §4, and §7 is the script for it.
 
-Worth running wherever Deno lives:
+### The bug this pass found
 
-```bash
-deno check supabase/functions/**/*.ts
-deno test --allow-env supabase/functions/_shared/gcal.test.ts
-```
+`_shared/coach/gcal.ts` was a **second, rival implementation** of the integration, and it was
+broken. It selected `access_token, refresh_token, expires_at` from `google_calendar_connections`
+— columns that have never existed; 0105 stores `refresh_token_encrypted` and deliberately stores
+no access token. Every call errored, the `catch` turned that into `null`, and the coach was
+**permanently calendar-blind while logging nothing and failing nothing**. A member could connect,
+see "Connected", and never once be coached on a real deadline. It now delegates to `../gcal.ts`,
+and there is one implementation.

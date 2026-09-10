@@ -20,19 +20,19 @@ const BASE_GOOGLE_CONFIG = {
 };
 
 /**
- * GoogleSignin.configure() is process-global — the LAST call wins for every later signIn(),
- * addScopes() and getTokens() anywhere in the app. So it lives in exactly one place, here, and
- * anything that needs a wider grant (Google Calendar, src/lib/google-calendar.ts) layers its
- * extra options on top of the base config through this function and restores the base with a bare
- * call afterwards. Configuring the SDK directly from a feature module is how the auth flow ends
- * up silently asking for calendar scopes at sign-in.
+ * GoogleSignin.configure() is process-global — the LAST call wins for every later signIn() and
+ * getTokens() anywhere in the app. So it lives in exactly one place, here, and this is the only
+ * config the SDK ever sees: SIGN-IN SCOPES ONLY.
+ *
+ * It used to take an `extra` override so Google Calendar could layer `calendar.readonly` +
+ * offlineAccess on top and then restore the base afterwards. That flow is gone — the calendar now
+ * runs its own expo-auth-session handshake in the browser (src/lib/google-calendar.ts) precisely
+ * so that it can offer an account chooser, since the calendar account is independent of the
+ * Philoi login account. Nothing widens this config any more, and nothing should: a feature module
+ * reaching in here is how the auth flow ends up silently asking for calendar scopes at sign-in.
  */
-export function configureGoogleSignin(extra?: {
-  scopes?: string[];
-  offlineAccess?: boolean;
-  forceCodeForRefreshToken?: boolean;
-}) {
-  GoogleSignin.configure({ ...BASE_GOOGLE_CONFIG, ...extra });
+export function configureGoogleSignin() {
+  GoogleSignin.configure(BASE_GOOGLE_CONFIG);
 }
 
 let googleConfigured = false;

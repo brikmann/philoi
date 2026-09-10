@@ -26,8 +26,62 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import { decryptSecret } from './token-crypto.ts';
 
-/** Read-only, and the narrowest scope that returns event titles. */
-export const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
+/**
+ * Read-only, and the narrowest scope Google offers that returns event titles.
+ *
+ * ⚠️ THIS SCOPE CANNOT LIST THE MEMBER'S CALENDARS. `calendarList.list` accepts only
+ * `calendar.readonly` / `calendar` / `calendar.calendarlist*` — `calendar.events.readonly` is not
+ * on its authorization list, so enumerating calendars under this grant 403s. That is why
+ * fetchWindow() reads the `primary` calendar by id and never enumerates: an events-only grant can
+ * read a calendar it already knows the id of, and `primary` is the one id that always exists.
+ *
+ * The cost, stated plainly: a SUBSCRIBED or SECONDARY calendar is invisible. A student whose
+ * "BU111" course calendar is a separate subscription gets no events from it, and CalendarEvent's
+ * `calendar` field collapses to the one primary calendar's name. Widening to `calendar.readonly`
+ * is what buys those back; it is NOT cheaper on Google's side (both are "sensitive" and both need
+ * the same app verification), it is purely a privilege-vs-coverage trade.
+ */
+export const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events.readonly';
+
+/**
+ * Asked for alongside the calendar scope so the exchange can record WHICH Google account was
+ * chosen. Non-sensitive, adds no verification burden, and it is load-bearing for consent rather
+ * than decoration: the Google account is independent of the Philoi login, so "Connected" alone
+ * cannot tell a member whose calendar they just attached. Without an id_token there is no way to
+ * know — `calendars.get` needs the wider scope this module deliberately does not hold.
+ */
+export const GOOGLE_IDENTITY_SCOPES = ['openid', 'email'] as const;
+
+/** Exactly what the authorize URL asks for, in one place, so client and server cannot drift. */
+export const GOOGLE_OAUTH_SCOPES = [...GOOGLE_IDENTITY_SCOPES, GOOGLE_CALENDAR_SCOPE] as const;
+
+/**
+ * Every scope that is ENOUGH to read events, not just the one we ask for.
+ *
+ * The distinction matters because "did Google grant what we need?" and "did Google grant exactly
+ * what we asked for?" are different questions, and only the first one is the right gate. A member
+ * holding the wider `calendar.readonly` can serve every request this module makes; rejecting that
+ * grant as unusable would disconnect a working calendar and ask them to reconnect for nothing.
+ * It is also the shape a scope change leaves behind — widen or narrow GOOGLE_CALENDAR_SCOPE and
+ * existing grants keep working instead of silently going dark.
+ */
+const SUFFICIENT_CALENDAR_SCOPES: readonly string[] = [
+  GOOGLE_CALENDAR_SCOPE,
+  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/calendar',
+];
+
+/**
+ * Whether a granted scope string can read this member's events. Fails CLOSED on an empty string
+ * only when the caller asks it to — a blank `scopes` column predates the column being recorded,
+ * and treating that as "no access" would disconnect people over a missing audit field rather than
+ * a missing permission.
+ */
+export function grantCoversCalendar(grantedScopes: string | null | undefined): boolean {
+  if (!grantedScopes) return false;
+  const granted = new Set(grantedScopes.split(/\s+/).filter(Boolean));
+  return SUFFICIENT_CALENDAR_SCOPES.some((scope) => granted.has(scope));
+}
 
 /** Default lookahead. The spec asks for "next 2-4 weeks" — three weeks covers a midterm block
  * without dragging in a whole term of noise the model has to read past. */
@@ -41,10 +95,6 @@ const CACHE_TTL_MINUTES = 10;
 /** Hard ceiling per member per rolling hour, on top of the cache. The cache is the real rate
  * limiter; this is the backstop for a caller that passes force. */
 const MAX_FETCHES_PER_HOUR = 20;
-
-/** A student may subscribe to a dozen course calendars. Read the primary plus the most relevant
- * few rather than fanning out over all of them. */
-const MAX_CALENDARS = 5;
 
 /** Cap what reaches the prompt. Three weeks of a busy timetable can be hundreds of blocks; past
  * this the model gains nothing and the context bill grows. */
@@ -145,9 +195,10 @@ async function loadWindow(
 
   if (!connection) return emptyWindow(from, to, now, 'not_connected');
 
-  // A grant that predates a scope change (or was narrowed on Google's side) can't serve events —
-  // treat it as not connected rather than firing a request Google would 403.
-  if (connection.scopes && !connection.scopes.split(/\s+/).includes(GOOGLE_CALENDAR_SCOPE)) {
+  // A grant that was narrowed on Google's side can't serve events — treat it as not connected
+  // rather than firing a request Google would 403. A blank `scopes` is not evidence of a narrow
+  // grant (see grantCoversCalendar) so it is left alone and allowed to try.
+  if (connection.scopes && !grantCoversCalendar(connection.scopes)) {
     return emptyWindow(from, to, now, 'not_connected');
   }
 
@@ -245,61 +296,39 @@ type RawEvent = {
   attendees?: { self?: boolean; responseStatus?: string }[];
 };
 
+/**
+ * The member's PRIMARY calendar only — see GOOGLE_CALENDAR_SCOPE. There is deliberately no
+ * calendarList call here: under an events-only grant it would 403, and a 403 on the enumeration
+ * step would cost the member their whole window rather than one calendar.
+ *
+ * `events.list` carries the calendar's own `summary` and `timeZone` at the top of the response,
+ * which is the whole reason this works without the wider scope — the two things enumeration was
+ * being used for come back from the events call itself.
+ */
 async function fetchWindow(
   accessToken: string,
   from: Date,
   to: Date
 ): Promise<{ events: CalendarEvent[]; timeZone: string | null }> {
-  const calendars = await listCalendars(accessToken);
-  const timeZone = calendars.find((c) => c.primary)?.timeZone ?? calendars[0]?.timeZone ?? null;
+  const { events, name, timeZone } = await listPrimaryEvents(accessToken, from, to);
 
-  // allSettled, not all: a single subscribed calendar that 403s (a shared course calendar whose
-  // owner changed its sharing) must not cost the member their whole window.
-  const results = await Promise.allSettled(calendars.map((c) => listEvents(accessToken, c, from, to)));
-
-  const events = results
-    .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
-    .sort((a, b) => a.start.localeCompare(b.start))
-    .slice(0, MAX_EVENTS);
-
-  return { events, timeZone };
+  return {
+    events: events
+      .map((e) => ({ ...e, calendar: e.calendar || name }))
+      .sort((a, b) => a.start.localeCompare(b.start))
+      .slice(0, MAX_EVENTS),
+    timeZone,
+  };
 }
 
 type CalendarRef = { id: string; name: string; primary: boolean; timeZone: string | null };
 
-async function listCalendars(accessToken: string): Promise<CalendarRef[]> {
-  const url = new URL('https://www.googleapis.com/calendar/v3/users/me/calendarList');
-  url.searchParams.set('minAccessRole', 'reader');
-  url.searchParams.set('maxResults', '50');
-  url.searchParams.set('fields', 'items(id,summary,primary,selected,deleted,timeZone)');
-
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!res.ok) throw new Error(`Google calendarList failed (${res.status}).`);
-  const body = await res.json();
-
-  const items: {
-    id: string;
-    summary?: string;
-    primary?: boolean;
-    selected?: boolean;
-    deleted?: boolean;
-    timeZone?: string;
-  }[] = body.items ?? [];
-
-  const usable = items
-    .filter((i) => i.id && !i.deleted)
-    // `selected` is the member's own "show this calendar" toggle — an unticked calendar is one
-    // they have chosen not to look at, so we don't coach off it either. Absent means selected.
-    .filter((i) => i.selected !== false)
-    .map((i) => ({ id: i.id, name: i.summary ?? 'Calendar', primary: i.primary === true, timeZone: i.timeZone ?? null }));
-
-  // Primary first, so the MAX_CALENDARS cut never drops the calendar that matters most.
-  const primary = usable.filter((c) => c.primary);
-  const rest = usable.filter((c) => !c.primary);
-  return [...primary, ...rest].slice(0, MAX_CALENDARS);
-}
-
-async function listEvents(accessToken: string, calendar: CalendarRef, from: Date, to: Date): Promise<CalendarEvent[]> {
+async function listPrimaryEvents(
+  accessToken: string,
+  from: Date,
+  to: Date
+): Promise<{ events: CalendarEvent[]; name: string; timeZone: string | null }> {
+  const calendar: CalendarRef = { id: 'primary', name: 'Calendar', primary: true, timeZone: null };
   const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendar.id)}/events`);
   url.searchParams.set('timeMin', from.toISOString());
   url.searchParams.set('timeMax', to.toISOString());
@@ -310,13 +339,25 @@ async function listEvents(accessToken: string, calendar: CalendarRef, from: Date
   url.searchParams.set('maxResults', '100');
   // MINIMIZATION, enforced at the wire: this fields mask is why descriptions, locations,
   // attendee identities, conferencing links and event ids never even reach this process.
-  url.searchParams.set('fields', 'items(summary,status,transparency,start,end,attendees(self,responseStatus))');
+  //
+  // `summary` and `timeZone` are the CALENDAR's, not an event's — the two fields that replace the
+  // calendarList call. Adding them to the mask is what keeps this scope workable.
+  url.searchParams.set(
+    'fields',
+    'summary,timeZone,items(summary,status,transparency,start,end,attendees(self,responseStatus))'
+  );
 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!res.ok) throw new Error(`Google events failed for ${calendar.name} (${res.status}).`);
   const body = await res.json();
 
-  return ((body.items ?? []) as RawEvent[]).flatMap((raw) => normalizeEvent(raw, calendar) ?? []);
+  const name = typeof body.summary === 'string' && body.summary ? body.summary : calendar.name;
+  const timeZone = typeof body.timeZone === 'string' && body.timeZone ? body.timeZone : null;
+  const events = ((body.items ?? []) as RawEvent[]).flatMap(
+    (raw) => normalizeEvent(raw, { ...calendar, name, timeZone }) ?? []
+  );
+
+  return { events, name, timeZone };
 }
 
 function normalizeEvent(raw: RawEvent, calendar: CalendarRef): CalendarEvent | null {

@@ -58,10 +58,21 @@ export function useGoogleCalendarConnection() {
     };
   }, [supported]);
 
+  /** Also the "switch account" path — connectGoogleCalendar() always offers Google's account
+   * chooser, so re-running it on an already-connected row is how a member moves their grant to a
+   * different Google account. Returns false when they backed out, which the caller treats as a
+   * non-event rather than an error. */
   const connect = useCallback(async (): Promise<boolean> => {
-    const ok = await connectGoogleCalendar();
-    if (ok) await refresh();
-    return ok;
+    const result = await connectGoogleCalendar();
+    if (result.status !== 'connected') return false;
+    // Paint the new state from what the exchange just told us rather than waiting on a round
+    // trip. A member switching accounts would otherwise watch the row show the OLD address for as
+    // long as the status read takes, which reads as "the switch didn't work".
+    setConnected(true);
+    setAccountEmail(result.accountEmail);
+    // Then reconcile with the server, which is the authority on both fields.
+    await refresh();
+    return true;
   }, [refresh]);
 
   const disconnect = useCallback(async () => {

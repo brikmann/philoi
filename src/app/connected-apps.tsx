@@ -7,6 +7,8 @@ import { FITNESS_SYNC_SOURCES, type SyncSource } from '@/components/fitness-sync
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
+import { CalendarConsentDialog } from '@/components/calendar-consent-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useGoogleCalendarConnection } from '@/hooks/use-google-calendar-connection';
 import { useStravaConnection } from '@/hooks/use-strava-connection';
 import { useWhoopConnection } from '@/hooks/use-whoop-connection';
@@ -192,25 +194,27 @@ function StubRow({ source }: { source: SyncSource }) {
 // here connects a step counter; this one hands Philoi's server a read-only view of everything the
 // member has committed to, so the spec asks for the trade to be spelled out BEFORE the Google
 // sheet appears, not inferred from a chevron.
-const CALENDAR_CONSENT_COPY = [
-  'So Philoi can see your deadlines and free time and coach you around them — the exam on Friday, the two hours you’re free this afternoon.',
-  '• Read-only. Philoi can never add, move or delete anything.',
-  '• Only the next few weeks, read when your coach writes to you — never stored.',
-  '• Never shared with anyone. Not your campfire, not other members.',
-  'You can disconnect any time, and that revokes Philoi’s access at Google too.',
-].join('\n\n');
-
 function GoogleCalendarRow() {
   const { connected, accountEmail, loading, supported, connect, disconnect } = useGoogleCalendarConnection();
   const [busy, setBusy] = useState(false);
+  // `switching` distinguishes the two ways the consent dialog opens. Same promises either way —
+  // re-consenting is still consenting — but the title shouldn't say "connect" to someone who
+  // already is, and the disconnect confirm must never be what a "switch" tap lands on.
+  const [consent, setConsent] = useState<null | { switching: boolean }>(null);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   async function runConnect() {
     setBusy(true);
     try {
+      // Resolves false when they back out of Google's chooser or consent screen. That is a
+      // non-event, not a failure: close the dialog and leave the row exactly as it was, with no
+      // error toast for a decision they made on purpose.
       await connect();
+      setConsent(null);
     } catch (e) {
-      // connectGoogleCalendar throws with copy the member can act on (permission unticked on the
-      // Google sheet, no lasting access granted) — show it rather than a generic line.
+      setConsent(null);
+      // connectGoogleCalendar throws with copy the member can act on (calendar permission
+      // unticked on Google's screen, no lasting access granted) — show it, not a generic line.
       Alert.alert('Couldn’t connect your calendar', getErrorMessage(e, 'Something went wrong — try again in a moment.'));
     } finally {
       setBusy(false);
@@ -221,7 +225,9 @@ function GoogleCalendarRow() {
     setBusy(true);
     try {
       await disconnect();
+      setConfirmDisconnect(false);
     } catch (e) {
+      setConfirmDisconnect(false);
       Alert.alert('Couldn’t disconnect', getErrorMessage(e, 'Something went wrong — try again in a moment.'));
     } finally {
       setBusy(false);
@@ -236,50 +242,78 @@ function GoogleCalendarRow() {
       );
       return;
     }
-    if (connected) {
-      Alert.alert(
-        'Disconnect Google Calendar?',
-        'Philoi will forget your calendar and revoke its access at Google. Your coach keeps working — it just won’t know what’s due.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Disconnect', style: 'destructive', onPress: () => void runDisconnect() },
-        ]
-      );
-      return;
-    }
-    Alert.alert('Connect Google Calendar?', CALENDAR_CONSENT_COPY, [
-      { text: 'Not now', style: 'cancel' },
-      { text: 'Continue', onPress: () => void runConnect() },
-    ]);
+    // Tapping a connected row does nothing on its own — the two things you can do to a live
+    // connection are spelled out underneath it, so neither is a surprise.
+    if (connected) return;
+    setConsent({ switching: false });
   }
 
   const showConnected = supported && connected;
 
   return (
-    <Pressable style={styles.row} onPress={handlePress} disabled={loading || busy}>
-      <View style={[styles.icon, { backgroundColor: '#1b2436' }]}>
-        <Ionicons name="calendar" size={19} color="#5B93F5" />
-      </View>
-      <View style={styles.info}>
-        <Text style={styles.name}>Google Calendar</Text>
-        <Text style={styles.detail} numberOfLines={1}>
-          {showConnected ? (accountEmail ?? 'Connected') : 'Deadlines · exams · free time'}
-        </Text>
-      </View>
-      {busy || loading ? (
-        <ActivityIndicator size="small" color={Colors.achieverText} />
-      ) : showConnected ? (
-        <View style={styles.connectedPill}>
-          <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
-          <Text style={styles.connectedLabel}>Connected</Text>
+    <>
+      <Pressable style={styles.row} onPress={handlePress} disabled={loading || busy || showConnected}>
+        <View style={[styles.icon, { backgroundColor: '#1b2436' }]}>
+          <Ionicons name="calendar" size={19} color="#5B93F5" />
         </View>
-      ) : (
-        <>
-          <Text style={styles.connectLabel}>Connect</Text>
-          <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
-        </>
-      )}
-    </Pressable>
+        <View style={styles.info}>
+          <Text style={styles.name}>Google Calendar</Text>
+          {/* WHICH account, not just "Connected". The Google account is independent of the Philoi
+              login, so a member who picked a different one from the chooser has no other way to
+              know what is actually attached. */}
+          <Text style={styles.detail} numberOfLines={1}>
+            {showConnected
+              ? accountEmail
+                ? `Connected · ${accountEmail}`
+                : 'Connected'
+              : 'Deadlines · exams · free time'}
+          </Text>
+        </View>
+        {busy || loading ? (
+          <ActivityIndicator size="small" color={Colors.achieverText} />
+        ) : showConnected ? (
+          <View style={styles.connectedPill}>
+            <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
+            <Text style={styles.connectedLabel}>Connected</Text>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.connectLabel}>Connect</Text>
+            <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
+          </>
+        )}
+      </Pressable>
+
+      {showConnected ? (
+        <View style={styles.calendarActions}>
+          <Pressable onPress={() => setConsent({ switching: true })} disabled={busy} hitSlop={6} accessibilityRole="button">
+            <Text style={styles.calendarAction}>Switch account</Text>
+          </Pressable>
+          <Text style={styles.calendarActionDivider}>·</Text>
+          <Pressable onPress={() => setConfirmDisconnect(true)} disabled={busy} hitSlop={6} accessibilityRole="button">
+            <Text style={[styles.calendarAction, styles.calendarActionDanger]}>Disconnect</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      <CalendarConsentDialog
+        visible={consent !== null}
+        switching={consent?.switching ?? false}
+        busy={busy}
+        onCancel={() => setConsent(null)}
+        onContinue={() => void runConnect()}
+      />
+
+      <ConfirmDialog
+        visible={confirmDisconnect}
+        title="Disconnect Google Calendar?"
+        body="Philoi will forget your calendar and revoke its access at Google. Your coach keeps working — it just won’t know what’s due."
+        confirmLabel="Disconnect"
+        busy={busy}
+        onCancel={() => setConfirmDisconnect(false)}
+        onConfirm={() => void runDisconnect()}
+      />
+    </>
   );
 }
 
@@ -435,6 +469,30 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
     color: Colors.green,
+  },
+  // The two things you can do to a live calendar grant, under the row rather than behind it. A
+  // connected row that opens a menu hides "Disconnect" behind a tap that looks like it might
+  // reconnect instead — and "revoke my calendar access" should never be a guess.
+  calendarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.two,
+    marginTop: -Spacing.one,
+  },
+  calendarAction: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.muted,
+  },
+  calendarActionDanger: {
+    color: Colors.danger,
+  },
+  calendarActionDivider: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.textTertiary,
   },
   privacy: {
     flexDirection: 'row',

@@ -374,6 +374,9 @@ function RootNavigator() {
         <Stack.Screen name="campus" options={{ title: 'Campus' }} />
         <Stack.Screen name="health-connect-rationale" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="strava-auth" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* The Google Calendar OAuth return, same shape as strava-auth: a real route is what
+            stops the Android redirect landing on "Unmatched Route". See app/gcal-auth.tsx. */}
+        <Stack.Screen name="gcal-auth" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="university-leaderboard" options={{ title: '' }} />
         {/* Campfires is a hamburger destination now, not a tab (punchlist 16 §4). */}
         <Stack.Screen name="campfires" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />

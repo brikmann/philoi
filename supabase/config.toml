@@ -23,6 +23,15 @@ verify_jwt = false
 [functions.waitlist]
 verify_jwt = false
 
+# The Google Calendar OAuth redirect relay (GCAL_INTEGRATION_SPEC.md). Google redirects the SYSTEM
+# BROWSER here after consent, and a browser following a redirect carries no Authorization header —
+# with the default gate every successful consent would return an opaque 401 and the connect flow
+# would dead-end on the last hop. It holds no secret and reads nothing; the code it forwards cannot
+# be redeemed without the client secret and the PKCE verifier, neither of which it has. See the
+# function's own header for why that makes it safe to expose.
+[functions.gcal-oauth-callback]
+verify_jwt = false
+
 # NOTE: strava-webhook has the same requirement (Strava sends no JWT either) and is presumably
 # already deployed with the flag. It is deliberately NOT listed here — adding it would change how
 # an existing, working function redeploys, and that is a separate change to verify on its own.

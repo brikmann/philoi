@@ -52,7 +52,13 @@ function json(body: unknown, status = 200) {
   } as Any;
 }
 
-type Counters = { tokenRefreshes: number; eventFetches: number; refreshError: string | null };
+type Counters = {
+  tokenRefreshes: number;
+  eventFetches: number;
+  /** The control for the primary-only fetch path — see the calendarList branch in stubGoogle. */
+  calendarListCalls: number;
+  refreshError: string | null;
+};
 
 function stubGoogle(counters: Counters) {
   globalThis.fetch = ((input: Any) => {
@@ -64,34 +70,30 @@ function stubGoogle(counters: Counters) {
       return Promise.resolve(json({ access_token: 'at-1', expires_in: 3599 }));
     }
 
+    // WHAT GOOGLE ACTUALLY DOES under calendar.events.readonly: calendarList.list is not on that
+    // scope's authorization list, so it 403s. This branch reproduces that rather than serving a
+    // convenient list, because a stub that answers a call production cannot make would hide the
+    // exact bug this scope introduces — an enumeration step that throws and costs the member
+    // their whole window. The counter is asserted to be 0 below; the 403 is what makes a
+    // reintroduced enumeration fail loudly here instead of degrading quietly in prod.
     if (url.includes('/users/me/calendarList')) {
-      return Promise.resolve(
-        json({
-          items: [
-            { id: 'primary', summary: 'Noah', primary: true, timeZone: 'America/Toronto' },
-            { id: 'bu111@group', summary: 'BU111', selected: true, timeZone: 'America/Toronto' },
-            { id: 'muted@group', summary: 'Muted', selected: false },
-            { id: 'gone@group', summary: 'Deleted', deleted: true },
-          ],
-        })
-      );
+      counters.calendarListCalls++;
+      return Promise.resolve(json({ error: { code: 403, message: 'Insufficient Permission' } }, 403));
     }
 
     if (url.includes('/events')) {
       counters.eventFetches++;
-      if (url.includes('bu111%40group')) {
-        return Promise.resolve(
-          json({
-            items: [
-              // The midterm — an all-day DEADLINE, not an occupancy.
-              { summary: 'BU111 Midterm', status: 'confirmed', start: { date: '2026-08-28' }, end: { date: '2026-08-29' } },
-            ],
-          })
-        );
-      }
       return Promise.resolve(
         json({
+          // The CALENDAR's own name and zone, which events.list returns at the top of the
+          // response. These are the two things the calendarList call used to supply, and reading
+          // them from here is what makes the narrow scope workable at all.
+          summary: 'Noah',
+          timeZone: 'America/Toronto',
           items: [
+            // The midterm — an all-day DEADLINE, not an occupancy. It lives on the primary
+            // calendar now: under events.readonly a separate BU111 subscription is unreachable.
+            { summary: 'BU111 Midterm', status: 'confirmed', start: { date: '2026-08-28' }, end: { date: '2026-08-29' } },
             // Back-to-back, must merge into one 14:00-14:16 run.
             { summary: 'Lecture', start: { dateTime: '2026-08-22T14:00:00Z' }, end: { dateTime: '2026-08-22T14:12:00Z' } },
             { summary: 'Lab', start: { dateTime: '2026-08-22T14:12:00Z' }, end: { dateTime: '2026-08-22T14:16:00Z' } },
@@ -124,7 +126,7 @@ function stubGoogle(counters: Counters) {
 
 Deno.test('the calendar window the coach sees', async (t) => {
   const realFetch = globalThis.fetch;
-  const counters: Counters = { tokenRefreshes: 0, eventFetches: 0, refreshError: null };
+  const counters: Counters = { tokenRefreshes: 0, eventFetches: 0, calendarListCalls: 0, refreshError: null };
   const state: { connection: Any; cache: Any } = { connection: null, cache: null };
   const admin = makeAdmin(state);
   stubGoogle(counters);
@@ -150,7 +152,7 @@ Deno.test('the calendar window the coach sees', async (t) => {
   await t.step('a live fetch normalizes, drops and merges correctly', async () => {
     state.connection = {
       refresh_token_encrypted: cipher,
-      scopes: 'https://www.googleapis.com/auth/calendar.readonly openid email',
+      scopes: 'openid email https://www.googleapis.com/auth/calendar.events.readonly',
       fetch_count: 0,
       fetch_window_started_at: new Date(NOW.getTime() - 5 * 60 * 1000).toISOString(),
     };
@@ -159,19 +161,28 @@ Deno.test('the calendar window the coach sees', async (t) => {
 
     assertEquals(w.connected, true);
     assertEquals(w.reason, null);
-    assertEquals(w.timeZone, 'America/Toronto', "the primary calendar's zone wins");
-    assertEquals(counters.eventFetches, 2, 'unticked and deleted calendars are never fetched');
+    assertEquals(w.timeZone, 'America/Toronto', "the primary calendar's zone, read off events.list");
+    assertEquals(counters.eventFetches, 1, 'one calendar, one fetch');
+    assertEquals(
+      counters.calendarListCalls,
+      0,
+      'calendarList is never called — events.readonly cannot list calendars, and a 403 there would cost the whole window'
+    );
 
     assertEquals(
       w.events.map((e) => e.title),
       ['Lecture', 'Lab', 'Gym (free)', 'Seminar', 'BU111 Midterm'],
-      'declined and cancelled dropped; sorted by start; both calendars merged'
+      'declined and cancelled dropped; sorted by start, so the all-day deadline lands last'
     );
 
     const midterm = w.events.find((e) => e.title === 'BU111 Midterm')!;
     assertEquals(midterm.allDay, true);
     assertEquals(midterm.busy, false, 'an all-day deadline does not occupy the day');
-    assertEquals(midterm.calendar, 'BU111', 'the source calendar carries the course tie');
+    // Under the wider calendar.readonly this read 'BU111' — the subscribed course calendar was
+    // the course tie. events.readonly cannot see that calendar, so the tie now has to come from
+    // the event TITLE, which is the model's job anyway. Pinned so the coverage cost of the
+    // narrower scope is visible here rather than discovered in a coach message.
+    assertEquals(midterm.calendar, 'Noah', 'primary-only: every event carries the primary calendar name');
     assertEquals(w.events.find((e) => e.title === 'Gym (free)')!.busy, false, 'Google "Free" is honored');
 
     assertEquals(w.busyNow, true, 'now is inside the lecture — the do-not-nudge signal');
@@ -203,7 +214,7 @@ Deno.test('the calendar window the coach sees', async (t) => {
   await t.step('the prompt block renders dates the member would recognize', async () => {
     const prompt = formatCalendarWindowForPrompt(await getCalendarWindow(admin, 'u1', { now: NOW }));
     assertMatch(prompt, /America\/Toronto/);
-    assertMatch(prompt, /BU111 Midterm \[BU111\]/);
+    assertMatch(prompt, /BU111 Midterm \[Noah\]/);
     // The regression that matters: 2026-08-28 is a FRIDAY. Rendered in the member's own zone an
     // all-day date lands on Thursday for everyone west of UTC, and the coach would confidently
     // name the wrong day for the exam.

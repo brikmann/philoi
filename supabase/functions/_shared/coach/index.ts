@@ -19,7 +19,7 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.71.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
-import { fetchCalendarWindow } from './gcal.ts';
+import { calendarPromptBlock, fetchCalendarWindow } from './gcal.ts';
 import { buildSystemPrompt, type CoachSurface } from './prompt.ts';
 import { anthropicTools, effectFor, summarizeAction, type ToolEffect } from './tools.ts';
 
@@ -98,7 +98,9 @@ export async function runCoach(input: RunCoachInput): Promise<CoachResult> {
   const { data: context, error: contextError } = await userClient.rpc('get_coach_context');
   if (contextError) throw new Error(`Could not read coach context: ${contextError.message}`);
 
-  // Optional and best-effort — null when GCal is not connected or the integration is not built.
+  // Read at the moment we write to the member, exactly as the consent dialog promises — never on
+  // a sync job, never stored. Best-effort: a window with connected:false is the normal, expected
+  // shape for every failure, and the prompt block says so in words the model can act on.
   const calendar = await fetchCalendarWindow(admin, userId);
 
   const client = new Anthropic({ apiKey });
@@ -107,9 +109,7 @@ export async function runCoach(input: RunCoachInput): Promise<CoachResult> {
     '<user_context>',
     JSON.stringify(context),
     '</user_context>',
-    calendar
-      ? `<calendar note="Read-only upcoming window from their Google Calendar. Interpret the titles yourself — infer exams, deadlines, classes and free windows.">\n${JSON.stringify(calendar)}\n</calendar>`
-      : '<calendar connected="false">Not connected — reason without deadline data, and do not invent any.</calendar>',
+    calendarPromptBlock(calendar),
     situation ? `<situation>${JSON.stringify(situation)}</situation>` : '',
   ]
     .filter(Boolean)

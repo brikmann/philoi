@@ -1,11 +1,22 @@
-// Exchanges the one-time Google server auth code for a refresh token — the ONLY place the Google
+// Exchanges the one-time Google authorization code for a refresh token — the ONLY place the Google
 // web client secret is ever used, exactly as strava-oauth-exchange does for Strava
 // (GCAL_INTEGRATION_SPEC.md: "Store the refresh token encrypted, server-side only").
 //
-// The client (src/lib/google-calendar.ts) drives the native Google consent sheet itself via
-// @react-native-google-signin with offlineAccess, gets back a `serverAuthCode`, and hands it here
-// — nothing else. The app never sees a Google access or refresh token, and never could: this
-// function stores the refresh token AES-256-GCM-encrypted and hands back only a boolean.
+// The client (src/lib/google-calendar.ts) runs an expo-auth-session PKCE authorization-code flow in
+// the system browser and hands over the `code` plus its `codeVerifier` — nothing else. The app
+// never sees a Google access or refresh token, and never could: this function stores the refresh
+// token AES-256-GCM-encrypted and hands back only a boolean and a display email.
+//
+// WHY THE REDIRECT URI IS NOT A REQUEST PARAMETER. Google requires the token exchange's
+// redirect_uri to be byte-identical to the authorize call's. It would be natural to let the client
+// pass the value it used — and wrong: a redirect_uri the caller controls is a value the caller can
+// point somewhere else. The server derives it from its OWN environment instead (the same
+// gcal-oauth-callback relay Google is configured to redirect to), so a client that disagrees gets
+// a loud redirect_uri_mismatch from Google rather than a quiet substitution.
+//
+// The PKCE verifier is a different kind of value and IS passed: it is a one-time nonce the client
+// generated, it is worthless without this function's client secret, and Google's whole point in
+// asking for it is to prove the exchanging party is the one that started the flow.
 //
 // Requires these on the Supabase project (not in the app):
 //   supabase secrets set GOOGLE_WEB_CLIENT_ID=... GOOGLE_WEB_CLIENT_SECRET=... \
@@ -14,7 +25,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { corsHeaders } from '../_shared/cors.ts';
-import { GOOGLE_CALENDAR_SCOPE } from '../_shared/gcal.ts';
+import { grantCoversCalendar } from '../_shared/gcal.ts';
 import { encryptSecret } from '../_shared/token-crypto.ts';
 
 Deno.serve(async (req) => {
@@ -35,8 +46,9 @@ Deno.serve(async (req) => {
     } = await userClient.auth.getUser();
     if (userError || !user) return json({ error: 'Not authenticated.' }, 401);
 
-    const { serverAuthCode } = await req.json();
-    if (typeof serverAuthCode !== 'string' || !serverAuthCode) return json({ error: 'Missing serverAuthCode.' }, 400);
+    const { code, codeVerifier } = await req.json();
+    if (typeof code !== 'string' || !code) return json({ error: 'Missing code.' }, 400);
+    if (typeof codeVerifier !== 'string' || !codeVerifier) return json({ error: 'Missing codeVerifier.' }, 400);
 
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -44,14 +56,10 @@ Deno.serve(async (req) => {
       body: new URLSearchParams({
         client_id: requireEnv('GOOGLE_WEB_CLIENT_ID'),
         client_secret: requireEnv('GOOGLE_WEB_CLIENT_SECRET'),
-        code: serverAuthCode,
+        code,
+        code_verifier: codeVerifier,
         grant_type: 'authorization_code',
-        // Empty, and that is correct for a code minted by the native sign-in SDK rather than by a
-        // browser redirect — Google's own offline-access guide: "Specify the same redirect URI
-        // that you use with your web app. If you don't have a web version of your app, you can
-        // specify an empty string." (developer.android.com/identity/legacy/gsi/offline-access)
-        // The env override exists only for a deployment that mints codes some other way.
-        redirect_uri: Deno.env.get('GOOGLE_OAUTH_REDIRECT_URI') ?? '',
+        redirect_uri: relayRedirectUri(),
       }),
     });
 
@@ -60,13 +68,19 @@ Deno.serve(async (req) => {
       return json({ error: 'Google rejected the authorization code.', detail: tokenData?.error ?? null }, 502);
     }
 
-    // AUTHORITATIVE SCOPE CHECK. The client asks for calendar.readonly, but the consent sheet lets
-    // the member untick it — and what the SDK reports having asked for is not what Google granted.
-    // Google's own `scope` on the token response is, so that is what gets checked and stored.
+    // AUTHORITATIVE SCOPE CHECK. The client asks for calendar.events.readonly, but Google's consent
+    // screen lets the member untick it — and what the app reports having asked for is not what
+    // Google granted. Google's own `scope` on the token response is, so that is what gets checked.
     const grantedScopes: string = typeof tokenData.scope === 'string' ? tokenData.scope : '';
-    if (!grantedScopes.split(/\s+/).includes(GOOGLE_CALENDAR_SCOPE)) {
+    if (!grantCoversCalendar(grantedScopes)) {
       return json({ connected: false, reason: 'scope_not_granted' });
     }
+
+    // WHICH Google account this is. The member picks it from Google's account chooser and it is
+    // NOT necessarily their Philoi login — someone can sign up with one address and connect a
+    // different account's calendar — so Connected Apps has to be able to say which one is attached.
+    // This is why the authorize call asks for `openid email` alongside the calendar scope.
+    const email = emailFromIdToken(tokenData.id_token);
 
     const serviceClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
@@ -80,14 +94,19 @@ Deno.serve(async (req) => {
         .select('user_id')
         .eq('user_id', user.id)
         .maybeSingle();
-      if (existing) return json({ connected: true, reused: true });
+      if (existing) {
+        // Keep the row, but correct the display email — a member switching accounts without a new
+        // refresh token would otherwise keep seeing the account they just moved off.
+        if (email) await serviceClient.from('google_calendar_connections').update({ google_email: email }).eq('user_id', user.id);
+        return json({ connected: true, reused: true, accountEmail: email });
+      }
       return json({ connected: false, reason: 'no_refresh_token' });
     }
 
     const { error: upsertError } = await serviceClient.from('google_calendar_connections').upsert({
       user_id: user.id,
       refresh_token_encrypted: await encryptSecret(tokenData.refresh_token),
-      google_email: emailFromIdToken(tokenData.id_token),
+      google_email: email,
       scopes: grantedScopes,
       connected_at: new Date().toISOString(),
       // A reconnect starts the member's rate-limit hour over rather than inheriting a
@@ -100,7 +119,7 @@ Deno.serve(async (req) => {
     // Any window cached against the previous grant is now the wrong account's.
     await serviceClient.from('google_calendar_window_cache').delete().eq('user_id', user.id);
 
-    return json({ connected: true });
+    return json({ connected: true, accountEmail: email });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'Unknown error.' }, 500);
   }
@@ -123,6 +142,14 @@ function emailFromIdToken(idToken: unknown): string | null {
   } catch {
     return null;
   }
+}
+
+/** Where Google is configured to send the browser back to — see the header. Overridable only by
+ * project config, never by a caller. */
+function relayRedirectUri(): string {
+  const explicit = Deno.env.get('GCAL_OAUTH_REDIRECT_URI');
+  if (explicit) return explicit;
+  return `${requireEnv('SUPABASE_URL').replace(/\/$/, '')}/functions/v1/gcal-oauth-callback`;
 }
 
 function requireEnv(name: string): string {
