@@ -44,12 +44,16 @@ Deno.serve((req) => {
   }
 
   // A 302 with a custom-scheme Location is what closes ASWebAuthenticationSession (iOS) and the
-  // Chrome Custom Tab (Android) and delivers the URL to the app.
+  // Chrome Custom Tab (Android) and delivers the URL to the app. That header is the entire
+  // mechanism.
   //
-  // The HTML body is not decoration. If the scheme fails to resolve — the app was uninstalled
-  // mid-flow, or this URL was opened on a desktop browser — the 302 goes nowhere and the member is
-  // left on a blank page wondering whether it worked. The meta-refresh retries the hand-off, and
-  // the text says what happened if it still doesn't.
+  // The HTML body is a belt-and-braces fallback for a browser that lands here and does not follow
+  // the scheme (app uninstalled mid-flow, or this URL opened on a desktop). ⚠️ VERIFIED NOT TO
+  // RENDER IN PROD: the Edge runtime returns this response with Content-Length: 0, so the body is
+  // stripped on a 302 and a stranded browser gets a blank page, not the retry link. It is kept
+  // because it costs nothing and may survive on other clients — but do not count on it, and do
+  // not "fix" the blank page by downgrading this to a 200, which would break the redirect
+  // detection that actually closes the browser.
   return new Response(
     `<!doctype html><html><head><meta charset="utf-8">` +
       `<meta name="viewport" content="width=device-width,initial-scale=1">` +
