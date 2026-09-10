@@ -920,6 +920,13 @@ export type AnalyticsEventName =
   | 'coach_mark_shown'
   | 'coach_mark_dismissed'
   | 'coach_marks_reset'
+  // The guided first-run tour that drives those marks (CODE_PROMPT_tutorial_lands.md). The funnel
+  // worth watching is `started` vs `finished.how` vs `finished.shown`: how many begin it, how many
+  // reach the end, and — the number that would have caught the bug this feature was rebuilt to fix
+  // — how many of the seven surfaces a real device could actually find an anchor for.
+  | 'coach_tour_started'
+  | 'coach_tour_step_skipped'
+  | 'coach_tour_finished'
   | 'daily_fire_completed'
   | 'flame_completion_published'
   | 'friend_nudged'

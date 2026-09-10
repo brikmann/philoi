@@ -1,11 +1,16 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useRef, type RefObject } from 'react';
-import { Dimensions, type View } from 'react-native';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import { type View } from 'react-native';
 
-import { dismissCoachMark, presentCoachMark } from '@/components/coach-mark';
+import {
+  dismissCoachMark,
+  presentCoachMark,
+  registerCoachAnchor,
+  waitForCoachAnchor,
+} from '@/components/coach-mark';
 import { shouldShowCoachMark, type CoachMarkKey } from '@/lib/coach-marks';
 
-// THE ANCHOR HALF OF A COACH-MARK (CODE_PROMPT_coach_marks.md).
+// THE ANCHOR HALF OF A COACH-MARK (CODE_PROMPT_coach_marks.md, CODE_PROMPT_tutorial_lands.md).
 //
 // A screen attaches the returned ref to the control the tip points at, and gets nothing else to
 // think about: no visible state, no conditional render, nothing to clean up. Every rule the spec
@@ -14,7 +19,15 @@ import { shouldShowCoachMark, type CoachMarkKey } from '@/lib/coach-marks';
 //
 // ⚠️ IT RETURNS A BARE REF, not an object of ref + flags. A hook that hands back a ref alongside
 // render values makes every use of those values in JSX a React Compiler ref-taint error at the call
-// site, which is a trap for whoever wires up surface number eight.
+// site, which is a trap for whoever wires up surface number eight. That is also why the guided
+// tour's arrival did NOT change this signature: all seven call sites still just do `ref={theRef}`.
+//
+// ─────────────────────────── IT NOW DOES TWO JOBS ───────────────────────────
+//
+// 1. REGISTERS the anchor, so the guided tour (components/coach-tour.tsx) can find and measure a
+//    control on a screen it navigated to itself, without that screen knowing a tour exists.
+// 2. Offers the CONTEXTUAL tip on first visit — the original behaviour, demoted to the catch-up
+//    for surfaces the tour could not reach (see lib/coach-marks.ts).
 
 /**
  * How long after the screen is focused before the tip is offered.
@@ -28,6 +41,17 @@ import { shouldShowCoachMark, type CoachMarkKey } from '@/lib/coach-marks';
  * screen rather than sliding in with it.
  */
 const SETTLE_MS = 700;
+
+/**
+ * And how long it will KEEP looking after that.
+ *
+ * 🔴 THE OLD CODE MEASURED EXACTLY ONCE and dropped the tip if that one attempt came back empty —
+ * one of the two reasons nothing appeared on the last device build. A single sample at a fixed
+ * offset is a bet that the network beat a stopwatch. Retrying is the same bet made repeatedly, and
+ * it costs one `measureInWindow` every 120ms for at most a few seconds, on a screen the user is
+ * already looking at.
+ */
+const ANCHOR_WAIT_MS = 4_000;
 
 /**
  * Attach the returned ref to the control this surface's tip points at.
@@ -46,33 +70,35 @@ const SETTLE_MS = 700;
 export function useCoachMark(key: CoachMarkKey): RefObject<View | null> {
   const ref = useRef<View | null>(null);
 
+  // Deliberately UNGATED BY A DEP ARRAY: it re-runs after every render of the host screen, which is
+  // exactly what catches an anchor that only exists once its data arrived — the first inventory
+  // tile, the Forge CTA. Setting one map entry is cheaper than the render that preceded it.
+  useEffect(() => {
+    registerCoachAnchor(key, ref.current);
+  });
+
+  // Unregister on the way out, so the tour can never measure a control belonging to a screen that
+  // has been gone for two navigations. Separate effect because this one is genuinely keyed on the
+  // mark, and folding it into the cleanup above would deregister on every single render.
+  useEffect(() => () => registerCoachAnchor(key, null), [key]);
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
 
       const timer = setTimeout(() => {
         shouldShowCoachMark(key)
-          .then((show) => {
+          .then(async (show) => {
             if (cancelled || !show) return;
-            // Re-read after the await: the screen may have been left while the flags were being
-            // read, and a measure on an unmounted node returns nothing useful.
-            const node = ref.current;
-            if (!node) return;
-
-            node.measureInWindow((x, y, width, height) => {
-              if (cancelled) return;
-              // A zero-size or not-yet-laid-out anchor measures as 0/0/0/0 or NaN depending on
-              // platform. Either way there is nothing to point at.
-              if (!Number.isFinite(x) || !Number.isFinite(y) || width <= 0 || height <= 0) return;
-
-              // And an anchor scrolled off the screen would light a hole over the edge of the
-              // display. Read at fire time rather than module load so a rotation is accounted for.
-              const screen = Dimensions.get('window');
-              const onScreen = y + height > 0 && y < screen.height && x + width > 0 && x < screen.width;
-              if (!onScreen) return;
-
-              presentCoachMark({ key, rect: { x, y, width, height } });
-            });
+            // Keeps looking until the control is laid out, on screen and non-zero — or until it is
+            // clear it is not coming, which on this path simply means no tip and no seen-key, so
+            // the surface is still a first visit next time.
+            const rect = await waitForCoachAnchor(key, ANCHOR_WAIT_MS);
+            // Re-read after the awaits: the screen may have been left while the flags were being
+            // read or the anchor waited for, and a rectangle from a screen nobody is looking at is
+            // a spotlight over whatever replaced it.
+            if (cancelled || !rect) return;
+            presentCoachMark({ key, rect });
           })
           .catch(() => {});
       }, SETTLE_MS);

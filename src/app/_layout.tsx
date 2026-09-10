@@ -11,6 +11,7 @@ import { PostHogProvider } from 'posthog-react-native';
 
 import { ChallengeSettlementWatcher } from '@/components/challenge-settlement-watcher';
 import { CoachMarkHost } from '@/components/coach-mark';
+import { CoachTourDriver } from '@/components/coach-tour';
 import { GoalCompletionWatcher } from '@/components/goal-completion-watcher';
 import { GoalRevealWatcher } from '@/components/goal-reveal-watcher';
 import { RewardRevealHost } from '@/components/economy/reward-reveal';
@@ -551,6 +552,14 @@ function RootLayout() {
                 above takes the reveal floor: a tooltip is not something to make a rank-up wait
                 behind. */}
             <CoachMarkHost />
+            {/* And the thing that DRIVES those marks on a first run (CODE_PROMPT_tutorial_lands.md).
+                Renders nothing; it navigates. Mounted here rather than on Home because it walks the
+                user off Home on step two and has to outlive every screen it visits — a driver that
+                unmounted with the screen that started it would end its own tour.
+
+                AFTER CoachMarkHost, which is not load-bearing (it only calls into that module) but
+                keeps the pair readable as one feature: the overlay, then the thing that raises it. */}
+            <CoachTourDriver />
             <OfflineBanner />
           </NavDrawerProvider>
         </ScreenBackground>

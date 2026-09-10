@@ -98,9 +98,16 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       key: 'flame',
       title: 'Your flame',
       section: 'Core',
+      // 🔴 FOUR STEPS, NOT THREE, because the picker is now TWO TAPS
+      // (CODE_PROMPT_lockin_taxonomy_two_tap.md, mock 194). The old middle frame showed one flat
+      // list — Study / Gym / Run — and taught a screen that no longer exists: the top level is
+      // exactly Studying and Fitness, Deep Work and Meditate are gone entirely, and the thing that
+      // makes the new picker worth showing off is that the second tap is a COURSE. A tour whose
+      // whole promise is "here is what the app looks like" cannot be the one screenshot that lies.
       cindy: [
         'This is your flame — it *is* you. See the orange ⏱ Lock in button? Tap it.',
-        "Now pick what you're grinding on — tap 📚 Study.",
+        "Two taps, that's it. First: what are you doing? Tap 📚 Studying.",
+        'Then which one — your course, or Custom for anything else. (Fitness goes Cardio or Strength.)',
         "And you're locked in. Embers and XP are already stacking, and your streak is alive. 🔥",
       ],
       steps: [
@@ -114,12 +121,18 @@ export function tutorialCards(displayName: string | null, handle: string | null)
         </MiniScreen>,
         <MiniScreen key="f1">
           <MiniHeader glyph="🔥" title="Lock in for…" />
-          <MiniRow glyph="📚" title="Study" highlight />
-          <MiniRow glyph="🏋️" title="Gym" />
-          <MiniRow glyph="🏃" title="Run" />
+          {/* Bare labels, no subtitles — the mock is emphatic that the two cards say only this. */}
+          <MiniRow glyph="📚" title="Studying" highlight />
+          <MiniRow glyph="🏋️" title="Fitness" />
         </MiniScreen>,
-        <MiniScreen center key="f2">
-          <MiniMuted>📚 Study · locked in</MiniMuted>
+        <MiniScreen key="f2">
+          <MiniHeader glyph="📚" title="Studying" />
+          <MiniRow title="KP390" highlight />
+          <MiniRow title="EC120" />
+          <MiniRow glyph="＋" title="Custom" />
+        </MiniScreen>,
+        <MiniScreen center key="f3">
+          <MiniMuted>📚 KP390 · locked in</MiniMuted>
           <Text style={styles.bigFlame}>🔥</Text>
           <MiniMuted color={Colors.amber}>00:12</MiniMuted>
         </MiniScreen>,

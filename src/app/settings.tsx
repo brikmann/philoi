@@ -467,16 +467,26 @@ export default function SettingsScreen() {
             tutorial" next to a separate "Reset tips" would be asking the user to know that. It is
             also the demo button: Noah re-runs the whole first-run experience from here.
 
-            The coach-mark reset is fired alongside rather than awaited with the tour's — a failed
-            local write must not be what stands between somebody and replaying the tutorial. */}
+            🔴 BOTH RESETS ARE AWAITED BEFORE NAVIGATING, and that ordering is the whole reason
+            this control works (CODE_PROMPT_tutorial_lands.md). `resetCoachMarks` clears the guided
+            tour's done-flag and its in-memory "already ran this session" latch; navigate before
+            those have landed and the driver re-reads a stale `true` on arrival and does nothing —
+            a Replay button whose effect only appears after a cold start, which is exactly the
+            failure being fixed. Neither reset can reject; both swallow their own storage faults. */}
         <View style={styles.group}>
           <SettingsRow
             icon="school-outline"
             label="Replay tutorial & tips"
             onPress={() => {
               track('coach_marks_reset', {});
-              resetCoachMarks().catch(() => {});
-              resetTutorial().then(() => router.replace('/'));
+              void (async () => {
+                await resetCoachMarks();
+                await resetTutorial().catch(() => {});
+                // The root layout re-reads the tutorial flag on every navigation, so the card tour
+                // opens on the next frame and the guided tour follows it onto Home — one gate
+                // decides when the tutorial runs, not two.
+                router.replace('/');
+              })();
             }}
           />
         </View>
