@@ -334,6 +334,13 @@ const config: ExpoConfig = {
     // because this is the entry that turns Philoi into a sensitive-permission app in Play's eyes;
     // see the FOCUS_NUDGE_ANDROID note at the top of this file.
     ...(FOCUS_NUDGE_ANDROID ? ['./plugins/withFocusNudgeAndroid'] : []),
+    // Sentry: NPE in ReactActivityDelegate.onUserLeaveHint when the user presses Home during cold
+    // start. UNGATED and unconditional — it is a pure crash guard with no Play-review surface and
+    // no feature flag, unlike the Focus Nudge entry above. Nothing of ours rides this hook (the
+    // lock-in leave detection is JS AppState in focus-nudge-sync.tsx), so the guard cannot suppress
+    // the "still locked in" interstitial. The plugin header explains why the fix lives in the
+    // delegate rather than in MainActivity.onUserLeaveHint.
+    './plugins/withUserLeaveHintCrashGuard',
     // Native Google Sign-In (punchlist 2, §0) — replaces the Supabase-hosted OAuth redirect
     // page with the native account picker; supabase.auth.signInWithIdToken() still does the
     // actual auth exchange server-side, this just changes how the user gets the idToken.
