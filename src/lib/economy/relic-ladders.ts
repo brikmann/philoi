@@ -10,8 +10,15 @@
 
 import type { Rarity } from '@/lib/economy/rarity';
 
-/** The four families a relic can ride. Matches `relic_ladders.family` exactly. */
-export type RelicFamily = 'volume' | 'distance' | 'study' | 'deep_work' | 'meditate';
+/**
+ * The three families a relic can ride. Matches `relic_ladders.family` exactly.
+ *
+ * Was five. `deep_work` and `meditate` were retired in 0182 along with the flat goal types that
+ * fed them — under the two-tap taxonomy every lock-in is Studying or Fitness, and everything that
+ * used to be its own desk-work discipline is Studying → Custom. Their catalog rows are deleted,
+ * and no member ever held progress in either, so nothing was taken from anyone.
+ */
+export type RelicFamily = 'volume' | 'distance' | 'study';
 
 /**
  * §4a-2's rung glyph: α I · β II · γ III · δ IV · Ω V.
@@ -46,8 +53,11 @@ export const RELIC_LADDERS: RelicLadder[] = [
   {
     family: 'volume',
     relicKey: 'relic-hercules-might',
-    label: 'Gym / Lift',
-    short: 'Gym',
+    // "Strength", matching the second tap under Fitness. The ladder is unchanged — it is still
+    // scored on volume lifted — but the member picked a thing called Strength, so the shelf must
+    // not call the same thing Gym.
+    label: 'Strength',
+    short: 'Strength',
     unit: 'lb',
     thresholds: [10_000, 25_000, 50_000, 100_000, 250_000],
     rarities: ['uncommon', 'rare', 'epic', 'legendary', 'mythic'],
@@ -55,8 +65,12 @@ export const RELIC_LADDERS: RelicLadder[] = [
   {
     family: 'distance',
     relicKey: 'relic-pheidippides-sandals',
-    label: 'Movement',
-    short: 'Movement',
+    // "Cardio", matching the second tap under Fitness — and it keeps the property that made this
+    // ladder "Movement" rather than "Run" in §4a-2: it must stay BROAD. Total distance moved,
+    // walking counts, and Strava syncs rides and rows into it too. "Running" would tell every
+    // walker and cyclist the ladder is not for them, which is the exact mistake being avoided.
+    label: 'Cardio',
+    short: 'Cardio',
     unit: 'km',
     // 414 km is the Athens->Sparta round trip — the top rung is the lore, not a round number.
     thresholds: [50, 100, 250, 414],
@@ -67,24 +81,6 @@ export const RELIC_LADDERS: RelicLadder[] = [
     relicKey: 'relic-socrates-scroll',
     label: 'Study',
     short: 'Study',
-    unit: 'h',
-    thresholds: [10, 25, 50, 100],
-    rarities: ['uncommon', 'rare', 'epic', 'legendary'],
-  },
-  {
-    family: 'deep_work',
-    relicKey: 'relic-daedalus-blueprint',
-    label: 'Deep work',
-    short: 'Deep work',
-    unit: 'h',
-    thresholds: [10, 25, 50, 100],
-    rarities: ['uncommon', 'rare', 'epic', 'legendary'],
-  },
-  {
-    family: 'meditate',
-    relicKey: 'relic-oracles-stillness',
-    label: 'Meditate',
-    short: 'Meditate',
     unit: 'h',
     thresholds: [10, 25, 50, 100],
     rarities: ['uncommon', 'rare', 'epic', 'legendary'],

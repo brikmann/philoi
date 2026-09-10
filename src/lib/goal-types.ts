@@ -5,7 +5,11 @@ import type { Challenge, ChallengeType, GoalType } from '@/types/database';
 
 export const GOAL_TYPE_META: Record<GoalType, { label: string; emoji: string }> = {
   gym: { label: 'Gym', emoji: '🏋️' },
-  run: { label: 'Run', emoji: '🏃' },
+  // Displayed as "Cardio", not "Run" — the goal covers cycling, rowing and the rest, and a
+  // runner's label quietly tells everyone else this tile isn't for them. The GoalType VALUE stays
+  // 'run': it is written to check_ins.goal_type on every historical row, so renaming it would be a
+  // migration and a data rewrite to change one word on screen.
+  run: { label: 'Cardio', emoji: '🏃' },
   study: { label: 'Study', emoji: '📚' },
   job_applications: { label: 'Job apps', emoji: '📝' },
   read: { label: 'Read', emoji: '📖' },
@@ -14,8 +18,8 @@ export const GOAL_TYPE_META: Record<GoalType, { label: string; emoji: string }> 
 };
 
 // The lock-in goal picker's exact set + grid order (design-mocks/07-lockin-goal-picker.html:
-// Gym, Study, Run, Job apps, Read, Custom) — social_media stays a legal historical GoalType
-// (old rows) but isn't offered here.
+// Gym, Study, Cardio, Job apps, Read, Custom — the mock calls the third one "Run") —
+// social_media stays a legal historical GoalType (old rows) but isn't offered here.
 export const GOAL_TYPES: GoalType[] = ['gym', 'study', 'run', 'job_applications', 'read', 'custom'];
 
 // Vestigial now that goals aren't persisted per-user (no more cadence to hold a user to) —

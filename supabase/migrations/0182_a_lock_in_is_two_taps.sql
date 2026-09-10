@@ -187,3 +187,161 @@ $$;
 -- member's earned relic must never vanish because a category was reorganised.
 delete from relic_progress where family in ('deep_work', 'meditate');
 delete from relic_ladders where family in ('deep_work', 'meditate');
+
+-- ── Writing the new shape, without restating anybody's function ─────────────────────────────
+--
+-- The obvious move is to edit stop_lock_in_session to insert the three new columns. It is ~100
+-- lines covering the gym log, PR detection, photo fan-out and the workout roll-up, several
+-- branches are editing it right now, and re-issuing it from the copy I read a minute ago is
+-- precisely how a sibling's amendment gets silently reverted. So it is left completely alone.
+--
+-- Two triggers do the same job with no restatement, and they cover insert paths this prompt never
+-- mentions — the Strava sync and plain photo check-ins both write check_ins directly.
+
+-- 1 · Anything landing in check_ins gets its category derived, whatever wrote it.
+create or replace function check_in_fill_category()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.category is null and new.goal_type is not null then
+    new.category := case when new.goal_type in ('gym', 'run') then 'fitness' else 'study' end;
+    new.activity := case new.goal_type when 'gym' then 'strength' when 'run' then 'cardio' else null end;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists check_in_fill_category_trg on check_ins;
+create trigger check_in_fill_category_trg
+  before insert on check_ins
+  for each row execute function check_in_fill_category();
+
+-- 2 · When a session closes, its own two-tier choice wins over the derivation above — the session
+-- is where the member actually picked, and it is the only thing that knows WHICH COURSE.
+--
+-- Hung on the update that sets ended_check_in_id rather than on the insert, because at insert time
+-- the check-in does not yet know which session produced it; stop_lock_in_session sets that link
+-- immediately afterwards, in the same transaction.
+create or replace function lock_in_session_stamp_check_in()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.ended_check_in_id is not null and old.ended_check_in_id is distinct from new.ended_check_in_id then
+    update check_ins
+    set category = coalesce(new.category, category),
+        activity = case when new.category is not null then new.activity else activity end,
+        course_id = coalesce(new.course_id, course_id)
+    where id = new.ended_check_in_id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists lock_in_session_stamp_check_in_trg on lock_in_sessions;
+create trigger lock_in_session_stamp_check_in_trg
+  after update on lock_in_sessions
+  for each row execute function lock_in_session_stamp_check_in();
+
+-- ── Starting a session with the two-tier choice ─────────────────────────────────────────────
+--
+-- DROP first, not CREATE OR REPLACE. Postgres treats the parameter list as part of the identity,
+-- so replacing a function while appending parameters creates a SECOND overload and leaves the old
+-- one live — and then which one runs depends on how the caller happens to bind its arguments.
+--
+-- The new parameters are all optional and appended, so a currently-installed build calling
+-- (p_goal_type, p_goal_detail, p_circle_id) still resolves and still works. That matters more than
+-- usual here: those builds are in the pilot's hands and cannot be updated over the air.
+drop function if exists start_lock_in_session(text, text, uuid);
+drop function if exists start_lock_in_session(text, text, uuid, text, text, uuid);
+create function start_lock_in_session(
+  p_goal_type text default null,
+  p_goal_detail text default null,
+  p_circle_id uuid default null,
+  p_category text default null,
+  p_activity text default null,
+  p_course_id uuid default null
+)
+returns lock_in_sessions
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_session lock_in_sessions;
+  v_last_check_in timestamptz;
+  v_category text;
+  v_activity text;
+  v_goal_type text;
+  v_course_title text;
+begin
+  if p_circle_id is not null and not is_group_member(p_circle_id) then
+    raise exception 'Not a member of that campfire.';
+  end if;
+
+  if exists (select 1 from lock_in_sessions where user_id = auth.uid() and status = 'active') then
+    raise exception 'You''re already locked in — stop that session first.';
+  end if;
+
+  select max(created_at) into v_last_check_in
+  from check_ins
+  where user_id = auth.uid() and duration_seconds is not null and removed_at is null;
+
+  if v_last_check_in is not null and v_last_check_in > now() - interval '3 minutes' then
+    raise exception 'Take a short breather before your next lock-in.';
+  end if;
+
+  -- ONE source of truth, whichever half the caller speaks. A new build sends the two-tier choice
+  -- and the flat goal_type is derived for it; an old build sends goal_type and the two-tier shape
+  -- is derived instead. Deriving rather than trusting both is what stops a row existing that says
+  -- 'fitness'/'cardio' in one column and 'study' in another.
+  if p_category is not null then
+    v_category := p_category;
+    v_activity := case when p_category = 'fitness' then p_activity else null end;
+    v_goal_type := case
+      when p_category = 'fitness' and p_activity = 'strength' then 'gym'
+      when p_category = 'fitness' and p_activity = 'cardio' then 'run'
+      else 'study'
+    end;
+  else
+    v_goal_type := coalesce(p_goal_type, 'study');
+    v_category := case when v_goal_type in ('gym', 'run') then 'fitness' else 'study' end;
+    v_activity := case v_goal_type when 'gym' then 'strength' when 'run' then 'cardio' else null end;
+  end if;
+
+  if v_category = 'fitness' and v_activity is null then
+    raise exception 'Pick cardio or strength.';
+  end if;
+
+  -- A course id is only honoured if it is the caller's own and still live. Not a nicety: the id
+  -- comes off the wire, and without this a member could stamp their session with someone else's
+  -- course row and read its title straight back out of the response.
+  if p_course_id is not null then
+    select uc.title into v_course_title
+    from user_courses uc
+    where uc.id = p_course_id and uc.user_id = auth.uid() and uc.archived_at is null;
+
+    if v_course_title is null then
+      raise exception 'That course is not available.';
+    end if;
+  end if;
+
+  insert into lock_in_sessions (user_id, goal_type, goal_detail, circle_id, category, activity, course_id)
+  values (
+    auth.uid(),
+    v_goal_type,
+    -- The course title doubles as the detail so every existing reader — the timeline, the profile, the
+    -- activity screen, the time-goal matcher — keeps showing what the member picked without any
+    -- of them learning about courses.
+    coalesce(p_goal_detail, v_course_title),
+    p_circle_id,
+    v_category,
+    v_activity,
+    case when v_category = 'study' then p_course_id else null end
+  )
+  returning * into v_session;
+
+  return v_session;
+end;
+$$;

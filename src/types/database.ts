@@ -3272,7 +3272,9 @@ export type EconomyForgeResult = {
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 /** The four discipline-relic ladders (ITEM_CATALOG §4a-2). Matches `relic_ladders.family`. */
-export type RelicFamilyKey = 'volume' | 'distance' | 'study' | 'deep_work' | 'meditate';
+// Three, not five: deep_work and meditate were retired with the flat goal types in 0182. Keep in
+// step with RelicFamily in lib/economy/relic-ladders.ts and with relic_ladders.family in prod.
+export type RelicFamilyKey = 'volume' | 'distance' | 'study';
 
 /**
  * One row of get_my_relic_progress() — where a discipline relic stands and what the next rung
