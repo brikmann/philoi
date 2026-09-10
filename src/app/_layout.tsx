@@ -10,6 +10,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { PostHogProvider } from 'posthog-react-native';
 
 import { ChallengeSettlementWatcher } from '@/components/challenge-settlement-watcher';
+import { CoachMarkHost } from '@/components/coach-mark';
 import { GoalCompletionWatcher } from '@/components/goal-completion-watcher';
 import { GoalRevealWatcher } from '@/components/goal-reveal-watcher';
 import { RewardRevealHost } from '@/components/economy/reward-reveal';
@@ -536,6 +537,20 @@ function RootLayout() {
                 Renders nothing; mounted here because a missed entitlement has to be repaired
                 wherever the user happens to reopen the app. */}
             <EntitlementReconciler />
+            {/* The contextual coach-marks (CODE_PROMPT_coach_marks.md) — the card tour's second
+                half, shipped as a JS OTA. Renders nothing until a screen's anchor asks for it.
+
+                🔴 IT IS NOT A <Modal>, unlike every watcher above it, and that is why it must be
+                mounted HERE rather than inside a screen: it draws from `measureInWindow`
+                coordinates, so it has to live in the same window as the thing it points at while
+                still being able to cover the header and the nav.
+
+                AFTER the watchers, so it paints over the navigator, and BEFORE OfflineBanner, the
+                one piece of chrome that outranks it — "you are offline" has to stay readable
+                whatever else is on screen. It also yields the screen entirely whenever any watcher
+                above takes the reveal floor: a tooltip is not something to make a rank-up wait
+                behind. */}
+            <CoachMarkHost />
             <OfflineBanner />
           </NavDrawerProvider>
         </ScreenBackground>

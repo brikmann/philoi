@@ -33,6 +33,7 @@ import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useCindy } from '@/hooks/use-cindy';
+import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useCindyBubble } from '@/hooks/use-cindy-bubble';
 import { useDailyFire } from '@/hooks/use-daily-fire';
 import { useShareRank } from '@/hooks/use-share-rank';
@@ -85,6 +86,11 @@ function LockedInBodyDoublesLine({ circleId, excludeUserId }: { circleId: string
 }
 
 function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: () => void }) {
+  // First visit to Home: Cindy points at the button that actually starts a session
+  // (CODE_PROMPT_coach_marks.md). NOT at the flame above it — on this screen the flame IS Cindy and
+  // tapping it opens the chat, so a tip saying "tap your flame to lock in" would be the one thing on
+  // the page that misdescribes the page.
+  const lockInCoachRef = useCoachMark('home_lockin');
   const router = useRouter();
   const { session, profile } = useAuth();
   const { session: activeSession } = useActiveSession();
@@ -275,11 +281,17 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
 
       {/* Mock 92's `.cta` — its own padded block, not flush against the rank row above it. */}
       <View style={styles.ctaBlock}>
-        <PrimaryButton
-          label={activeSession ? 'Return to your lock-in' : 'Lock in'}
-          onPress={activeSession ? () => router.push('/lock-in') : onLockIn}
-          pulse={!activeSession}
-        />
+        {/* The wrapper is the coach-mark's anchor and nothing else: PrimaryButton does not forward a
+            ref, and measuring ctaBlock itself would light its 18px of padding rather than the
+            button. collapsable={false} because Android flattens a prop-less View out of the native
+            tree, and a flattened View cannot be measured. */}
+        <View ref={lockInCoachRef} collapsable={false}>
+          <PrimaryButton
+            label={activeSession ? 'Return to your lock-in' : 'Lock in'}
+            onPress={activeSession ? () => router.push('/lock-in') : onLockIn}
+            pulse={!activeSession}
+          />
+        </View>
       </View>
 
       {/* Open room below the CTA. The "Your recent lock-ins" journal used to fill this — lock-in

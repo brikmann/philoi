@@ -10,6 +10,7 @@ import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
+import { noteTourClosed } from '@/lib/coach-marks';
 import { markTutorialDone } from '@/lib/tutorial';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -63,6 +64,12 @@ export default function TutorialScreen() {
   const finish = useCallback(
     (how: 'completed' | 'skipped') => {
       track('tutorial_finished', { how, card: card.key, card_index: index });
+      // Starts the coach-marks' cooldown (CODE_PROMPT_coach_marks.md). The tour just walked through
+      // all seven of the surfaces they annotate, and landing on Home straight out of it only to be
+      // told what the Lock in button does is the app repeating itself. In-memory and one minute
+      // long: it suppresses the immediate echo and nothing else, so a surface reached later in the
+      // session — or in any session after this one — still gets its line.
+      noteTourClosed();
       // Not awaited: the flag is a local write and the user should not watch a spinner to leave a
       // tutorial. If it somehow fails they see the tour once more, which is survivable.
       markTutorialDone().catch(() => {});
@@ -81,6 +88,8 @@ export default function TutorialScreen() {
       // The Flame Pass card's primary sells; it does not advance. Marking the tour done first
       // means someone who buys and then backs out of the paywall is not dropped into card one.
       track('tutorial_pass_cta', { card_index: index });
+      // Leaving via the Flame Pass CTA ends the tour just as much as Skip or the last card does.
+      noteTourClosed();
       markTutorialDone().catch(() => {});
       router.replace('/forge-pass');
       return;

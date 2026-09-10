@@ -798,8 +798,14 @@ export type Message = {
   // by the messages_attachment_shape CHECK, not by this type.
   /** 'photo' | 'lockin' | 'challenge' | null. */
   attach_kind: string | null;
-  /** Storage key in the campfire-photos bucket. Photo only; always starts with the author's id. */
+  /** Storage key in the campfire-photos bucket. Photo only; always starts with the author's id.
+   *  Since 0180 this MIRRORS `attach_paths[0]` — it is kept only so builds that predate that
+   *  migration keep rendering the first photo of a multi-photo post. Read `messagePhotoPaths()`
+   *  rather than this column. */
   attach_path: string | null;
+  /** Every photo on the message, in post order (migration 0180). Empty for a non-photo message,
+   *  and empty on rows written before 0180 — `messagePhotoPaths()` folds both shapes into one. */
+  attach_paths: string[] | null;
   /** A check_ins.id being re-posted into the chat, or — on a 'challenge' card (0162) — the
    *  social_challenges.id of a campfire-hosted challenge, which is what the Join CTA acts on. */
   attach_ref_id: string | null;
@@ -905,6 +911,15 @@ export type AnalyticsEventName =
   | 'tutorial_card_advanced'
   | 'tutorial_pass_cta'
   | 'tutorial_finished'
+  // Contextual coach-marks (CODE_PROMPT_coach_marks.md) — the tour's second half. Both carry the
+  // surface `key`, which is the only thing worth measuring: which control people still needed
+  // pointing at, and whether the seven ever get seen at all by somebody who skipped the tour.
+  // Deliberately no `shown` without a matching `dismissed` being possible: a mark closed by
+  // navigation or by a reward taking the screen is NOT dismissed, it is put back, and the gap
+  // between the two counts is exactly that.
+  | 'coach_mark_shown'
+  | 'coach_mark_dismissed'
+  | 'coach_marks_reset'
   | 'daily_fire_completed'
   | 'flame_completion_published'
   | 'friend_nudged'
@@ -1876,6 +1891,24 @@ export type UnseenRelicUnlock = {
   out_is_capstone: boolean;
 };
 
+/**
+ * A ladder RUNG the user has climbed and never been shown — migration 0179's inbox.
+ *
+ * STRUCTURALLY 0176'S PAYLOAD PLUS `out_prev_rung`, and that is why it is declared as an extension
+ * rather than as its own shape: the two events differ in what they MEAN, not in what has to be
+ * drawn, so they share one queue and one screen. `out_provenance` is always null here (a rung 2+
+ * never goes through economy_grant_relic, which is the only thing that writes a `p_why`) and
+ * `out_is_capstone` always false (the Crown rides no ladder and has no progress row at all) — both
+ * are returned anyway so the payloads stay interchangeable.
+ */
+export type UnseenRelicRung = UnseenRelicUnlock & {
+  /**
+   * The rung the user is climbing FROM — `relic_progress.revealed_tier`, the highest rung already
+   * revealed. Always >= 1: rung one is the unlock reveal's (0176), never this inbox's.
+   */
+  out_prev_rung: number;
+};
+
 // ───────────── challenge change/cancel consent (migration 0058, design-mocks/70 + 71) ─────────────
 
 export type ChallengeChangeKind = 'edit' | 'cancel';
@@ -2718,8 +2751,14 @@ export type Database = {
       mark_goal_reward_seen: { Args: { p_goal_id: string }; Returns: undefined };
       /** Relics this user owns and has never been shown (0176). Read-only; it cannot grant. */
       get_unseen_relic_unlocks: { Args: Record<string, never>; Returns: UnseenRelicUnlock[] };
-      /** The relic reveal's fire-once stamp. Writes one timestamp, auth.uid()-scoped (0176). */
+      /** The relic reveal's fire-once stamp. Writes one timestamp, auth.uid()-scoped (0176). Since
+       *  0179 it also advances `revealed_tier`, because the unlock reveal names the CURRENT rung. */
       mark_relic_unlock_seen: { Args: { p_relic_key: string }; Returns: undefined };
+      /** Ladder rungs 2+ climbed and never shown (0179). Read-only; it cannot grant a rung. */
+      get_unseen_relic_rungs: { Args: Record<string, never>; Returns: UnseenRelicRung[] };
+      /** The rung reveal's fire-once stamp — raises `revealed_tier`, clamped to the rung actually
+       *  held so it can never skip a reveal forward (0179). */
+      mark_relic_rung_seen: { Args: { p_relic_key: string; p_rung: number }; Returns: undefined };
       /** Pre-start or finished only; a live race is left to cancel/forfeit's consent path (0112). */
       delete_social_challenge: { Args: { p_challenge_id: string }; Returns: undefined };
       get_my_friends: {

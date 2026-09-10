@@ -18,10 +18,26 @@ import type { PingResult } from '@/types/database';
  *     Both are inside the RPC — you can only nudge someone you actually share the campfire with,
  *     and only so often. See migration 0152.
  */
-export async function pingCampfireMember(groupId: string, userId: string): Promise<PingResult> {
+export async function pingCampfireMember(
+  groupId: string,
+  userId: string,
+  /**
+   * D5 · the sender's own line, or nothing. Carries into BOTH the push body and the in-app bell
+   * row — they are one notification_events row, so there is no way for the two to disagree.
+   * Trimming, the 140-cap and the fall back to the generic line all happen SERVER-side (0181):
+   * this string ends up on someone else's lock screen, so the client is the one place that cannot
+   * be the one enforcing it.
+   */
+  message?: string
+): Promise<PingResult> {
+  const note = message?.trim();
   const { data, error } = await supabase.rpc('ping_campfire_member', {
     p_group_id: groupId,
     p_user_id: userId,
+    // Omitted entirely when empty rather than sent as null, so this call still resolves against a
+    // pre-0181 database — where the function has two parameters and an unknown third would make
+    // the request fail outright rather than fall back.
+    ...(note ? { p_message: note } : {}),
   });
   if (error) throw error;
 
@@ -31,6 +47,6 @@ export async function pingCampfireMember(groupId: string, userId: string): Promi
   // talking to a pre-0172 database gets undefined here, which falls back to 'sent' — the same
   // (optimistic) behaviour it has today, rather than a crash.
   const result = (data as PingResult | null) ?? 'sent';
-  track('campfire_member_pinged', { group_id: groupId, result });
+  track('campfire_member_pinged', { group_id: groupId, result, custom: Boolean(note) });
   return result;
 }

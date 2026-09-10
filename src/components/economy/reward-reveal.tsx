@@ -629,6 +629,27 @@ export function useRevealFloor(kind: RewardRevealKind, wants: boolean): boolean 
   return granted;
 }
 
+/**
+ * Whether ANY presenter currently holds or wants the floor — i.e. whether a celebration is on
+ * screen or about to be.
+ *
+ * Exists for the coach-marks (CODE_PROMPT_coach_marks.md), which are NOT a reveal and must never
+ * take a turn in the crescendo: a one-line tooltip is not something to make a rank-up wait behind,
+ * and `useRevealFloor` has no way to express "yield to everyone, queue behind no one". So they read
+ * the floor instead of joining it, and simply decline to appear while it is occupied.
+ *
+ * A PLAIN FUNCTION, NOT A HOOK, deliberately. The one caller asks this once, in a timer callback,
+ * at the moment it is deciding whether to raise a tooltip — it has no use for a subscription, and a
+ * hook would have meant a `busy` state in the presenter and a setState-in-effect to act on it.
+ *
+ * `waiters.length > 0` rather than "someone is granted": a presenter that has asked but not yet been
+ * granted is one microtask away from covering the screen, and a tooltip that appears for a single
+ * frame under a forge animation is worse than one that waits for the next visit.
+ */
+export function revealFloorBusy(): boolean {
+  return waiters.length > 0;
+}
+
 // ─────────────────────────── the queue ───────────────────────────
 //
 // One reveal at a time, app-wide.

@@ -52,12 +52,18 @@ export function CampfireFab({
   onToggle,
   onAction,
   bottom,
+  anchorRef,
 }: {
   open: boolean;
   onToggle: () => void;
   onAction: (action: CampfireFabAction) => void;
   /** Where the composer's top edge is, so the stack starts above it rather than over it. */
   bottom: number;
+  /** The + itself, handed out so the first-visit coach-mark can measure and spotlight it
+   * (CODE_PROMPT_coach_marks.md). Passed down rather than wrapping this component in a measurable
+   * View at the call site: the + is absolutely positioned inside a fragment, so a wrapper there
+   * would measure the whole screen and light everything. */
+  anchorRef?: React.Ref<View>;
 }) {
   const reduceMotion = useReduceMotion();
   const t = useSharedValue(0);
@@ -103,6 +109,8 @@ export function CampfireFab({
       )}
 
       <Pressable
+        ref={anchorRef}
+        collapsable={false}
         style={[styles.fabPos, { bottom: bottom + Spacing.two }]}
         onPress={onToggle}
         accessibilityRole="button"

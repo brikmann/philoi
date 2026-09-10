@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { ActiveChallengeStrip } from '@/components/campfire/active-challenge-strip';
 import { CampfireFab, type CampfireFabAction } from '@/components/campfire/campfire-fab';
@@ -28,13 +28,21 @@ import { CHAT_ENABLED } from '@/constants/feature-flags';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
+import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useCircleTimeline, type TimelineRow } from '@/hooks/use-circle-timeline';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchCheckInById, type FeedCheckIn } from '@/lib/api/check-ins';
 import { fetchFlameCompletionFeed, type FlameCompletionFeedItem } from '@/lib/api/daily-fire';
 import { answerChallengeInvite } from '@/lib/api/challenge-lifecycle';
 import type { ActiveCircleLockIn } from '@/lib/api/lock-ins';
-import { campfirePhotoUrl, deleteMyMessage, sendMessage, type ChatMessage } from '@/lib/api/messages';
+import {
+  campfirePhotoUrl,
+  deleteMyMessage,
+  messagePhotoPaths,
+  sendMessage,
+  MAX_PHOTOS_PER_MESSAGE,
+  type ChatMessage,
+} from '@/lib/api/messages';
 import {
   fetchCampfireReactions,
   setMessageReaction,
@@ -80,9 +88,6 @@ type ActiveChallengeRow = { kind: 'active_challenge'; id: string; created_at: st
 type DayRow = { kind: 'day'; id: string; created_at: string; label: string };
 type Row = TimelineRow | StreakSystemRow | LiveSessionRow | FlameCompletionRow | ActiveChallengeRow | DayRow;
 
-/** D3 · a ceiling on one multi-select post, so a stray "select all" cannot flood a campfire. */
-const MAX_PHOTOS_PER_POST = 10;
-
 function formatRelativeTime(isoDate: string) {
   const diffMs = Date.now() - new Date(isoDate).getTime();
   const minutes = Math.round(diffMs / 60000);
@@ -126,6 +131,10 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
   const timeline = useCircleTimeline(groupId);
   const activeLockIns = useActiveCircleLockIns(groupId);
   const listRef = useRef<FlatList<Row>>(null);
+  // First visit to any campfire (CODE_PROMPT_coach_marks.md). Lives here rather than on the screen
+  // above because this is where the ＋ is; a mark whose anchor and whose owner are in different
+  // files is one refactor away from pointing at nothing.
+  const fabCoachRef = useCoachMark('campfire_fab');
 
   const [draft, setDraft] = useState('');
   const [caret, setCaret] = useState(0);
@@ -136,8 +145,21 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
   const [fabOpen, setFabOpen] = useState(false);
   const [pingOpen, setPingOpen] = useState(false);
   const [lockInPickerOpen, setLockInPickerOpen] = useState(false);
-  /** D3 · which chat photo is open full-screen, or null. */
-  const [photoViewerUri, setPhotoViewerUri] = useState<string | null>(null);
+  /** D3 · which post's photos are open full-screen and on which one, or null. A whole set rather
+   *  than one uri, so opening the third photo of a four-photo post can page to the other three. */
+  const [viewer, setViewer] = useState<{ uris: string[]; index: number } | null>(null);
+  /**
+   * D2 · PHOTOS STAGED IN THE COMPOSER, as local file uris, before anything is uploaded.
+   *
+   * This is the state that did not exist. Picking a photo used to upload and post it immediately
+   * from inside the picker callback, so there was no moment at which a picked photo was a thing
+   * you could SEE, caption or remove — and when the upload failed there was nothing on screen to
+   * fail, which is exactly the "it never shows in the compose box and can't be sent" dead tap.
+   * Now the picker only stages; the composer renders these as removable chips; Send uploads them.
+   */
+  const [pendingPhotos, setPendingPhotos] = useState<string[]>([]);
+  /** D2 · real progress across a multi-photo upload, so a slow send is visibly a slow send. */
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
 
   // ── D6 · reactions ───────────────────────────────────────────────────────────────────────────
   /** Every reaction in this campfire, grouped by message id. One row per person per message. */
@@ -271,19 +293,49 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
     listRef.current?.scrollToEnd({ animated: true });
   }, []);
 
+  /**
+   * D2/D3 · ONE SEND PATH FOR TEXT, PHOTOS, AND A CAPTIONED PHOTO POST.
+   *
+   * The composer used to have two unrelated ways to put something in the chat: this function for
+   * text, and the picker callback for photos, which posted on its own without ever touching the
+   * composer. That is why a picked photo could not be captioned, could not be removed, and — when
+   * its upload failed inside a callback nothing was awaiting — could not even be seen to fail.
+   *
+   * Now there is one: whatever is staged plus whatever is typed goes as ONE message (0180), and
+   * the draft and the staged photos are only cleared once the insert has actually returned.
+   */
   async function handleSend() {
     const body = draft.trim();
-    if (!body) return;
+    const photos = pendingPhotos;
+    if (!body && photos.length === 0) return;
+
     setSending(true);
-    setDraft('');
+    if (photos.length > 0) setUploadProgress({ done: 0, total: photos.length });
     try {
-      await sendMessage(groupId, myUserId, body);
+      await sendMessage(
+        groupId,
+        myUserId,
+        body,
+        photos.length > 0 ? { kind: 'photos', photoUris: photos } : undefined,
+        (done, total) => setUploadProgress({ done, total })
+      );
+      // Cleared AFTER the await, not before it. Optimistically emptying the composer is what makes
+      // a failed send look like a message that vanished — the draft and the photos have to survive
+      // long enough to be put back.
+      setDraft('');
+      setPendingPhotos([]);
       // Mentions notify from a trigger on the insert (migration 0152), not from here — so a
       // message and the notification it causes cannot come apart.
-    } catch {
-      setDraft(body);
-      Alert.alert('Could not send', 'Try again.');
+      timeline.chat.refetch();
+    } catch (e) {
+      // VISIBLE, always. A dead tap was the actual complaint; an upload that fails silently is the
+      // same bug wearing a different hat.
+      Alert.alert(
+        photos.length > 0 ? 'Could not post that' : 'Could not send',
+        getErrorMessage(e, 'Try again.')
+      );
     } finally {
+      setUploadProgress(null);
       setSending(false);
     }
   }
@@ -318,7 +370,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
       return;
     }
     if (action === 'photo') {
-      void postPhoto();
+      void pickPhotos();
       return;
     }
     if (action === 'lockin') {
@@ -327,61 +379,46 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
     }
   }
 
-  // §7a — pick, upload, post. The upload lives inside sendMessage so a failed insert can delete
-  // the file it just wrote rather than orphaning it in the bucket.
+  // §7a · D2/D3 — PICK, STAGE, PREVIEW. The picker no longer posts.
   //
-  // D3 · MULTI-SELECT, POSTED AS ONE MESSAGE PER PHOTO.
+  // WHAT WAS BROKEN. This function used to pick, upload and insert in one go, straight from the
+  // ＋ menu. Three separate reported failures all fall out of that one decision:
+  //   · the photo never appeared in the composer, because it was never IN the composer;
+  //   · it could not be sent, because there was no send step to reach — the only send happened
+  //     inside a callback nobody awaited, so a rejected upload surfaced nowhere;
+  //   · multiple photos "could not be sent", because the loop posted one message per asset and
+  //     0158's constraint had nowhere to put a second path anyway (see migration 0180).
   //
-  // The picker took one asset and posted one message, which is the whole of "let me send more than
-  // one photo". `allowsMultipleSelection` fixes the picking half; the posting half is a deliberate
-  // choice between two shapes the brief allows, and one of them is not actually available:
-  // migration 0158's `messages_attachment_shape` constraint pins a photo message to exactly one
-  // `attach_path`, so a single multi-photo message would need its own migration and a gallery
-  // table. Agora's multi-attachment model (0140) is not that either — it is "at most one of each
-  // KIND", one photo plus one video, not a photo gallery. So: one message per asset, in the order
-  // they were picked, which the existing schema, the existing renderer and the existing realtime
-  // subscription all already handle correctly.
+  // So picking now only STAGES. The composer owns the photos from here: it shows them as chips,
+  // lets you remove any of them, lets you type a caption, and Send is what uploads and posts.
   //
-  // SEQUENTIAL, not Promise.all. Each send uploads a file and inserts a row; firing ten at once
-  // races the uploads against each other for bandwidth and lands the messages in nondeterministic
-  // order, so the chat would show the photos shuffled. Awaiting in turn keeps chat order equal to
-  // selection order.
-  //
-  // A PARTIAL FAILURE STILL KEEPS WHAT LANDED. The loop stops at the first error and reports how
-  // many made it, rather than discarding the successful uploads or claiming they all failed.
-  async function postPhoto() {
+  // Appends rather than replaces, so tapping ＋ twice adds to the roll instead of discarding what
+  // was already picked — and the ceiling is applied here, before any bytes move, so a stray
+  // "select all" is refused rather than half-uploaded.
+  async function pickPhotos() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert('Photo access needed', 'Philoi needs photo access to post an image.');
       return;
     }
+    const room = MAX_PHOTOS_PER_MESSAGE - pendingPhotos.length;
+    if (room <= 0) {
+      Alert.alert(`That's ${MAX_PHOTOS_PER_MESSAGE} photos`, 'Send these first, then start another post.');
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      // A ceiling, not a limit anyone will hit deliberately — it stops a stray "select all" in a
-      // 3,000-photo camera roll from posting 3,000 messages into a campfire.
-      selectionLimit: MAX_PHOTOS_PER_POST,
+      selectionLimit: room,
       quality: 0.7,
     });
     if (result.canceled || result.assets.length === 0) return;
+    setPendingPhotos((current) => [...current, ...result.assets.map((a) => a.uri)].slice(0, MAX_PHOTOS_PER_MESSAGE));
+  }
 
-    const assets = result.assets.slice(0, MAX_PHOTOS_PER_POST);
-    setSending(true);
-    let posted = 0;
-    try {
-      for (const asset of assets) {
-        await sendMessage(groupId, myUserId, '', { kind: 'photo', photoUri: asset.uri });
-        posted += 1;
-      }
-    } catch (e) {
-      Alert.alert(
-        posted > 0 ? `Posted ${posted} of ${assets.length}` : 'Could not post that photo',
-        getErrorMessage(e, 'Try again.')
-      );
-    } finally {
-      timeline.chat.refetch();
-      setSending(false);
-    }
+  /** D2 · remove one staged photo before it is ever uploaded. */
+  function removePendingPhoto(uri: string) {
+    setPendingPhotos((current) => current.filter((u) => u !== uri));
   }
 
   // §7b — re-post one of your own lock-ins into the chat. The card it renders as is the same
@@ -499,10 +536,17 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
     if (row.kind === 'check_in') {
       return (
         <Embed accent={Colors.amber}>
+          {/* D6 · `hideReactions` — THE OLD BAR, GONE FROM THE CAMPFIRE.
+              The 🔥💪👏😂❤️ row Noah still sees is this card's own ReactionBar, not the chat's. The
+              campfire's reaction model is one-per-person on a MESSAGE (mock 178, migration 0171),
+              and a check-in embedded in the chain is not a message, so it cannot join that model —
+              what it can do is stop offering a second, contradictory one right next to it.
+              Scoped to the campfire: the feed, the Agora and the profile still show the bar, where
+              it is the only reaction affordance there is. */}
           {row.data.duration_seconds != null ? (
-            <LockInEventCard item={row.data} onReactionChanged={timeline.feed.refetch} />
+            <LockInEventCard item={row.data} onReactionChanged={timeline.feed.refetch} hideReactions />
           ) : (
-            <FeedItem item={row.data} onReactionChanged={timeline.feed.refetch} />
+            <FeedItem item={row.data} onReactionChanged={timeline.feed.refetch} hideReactions />
           )}
         </Embed>
       );
@@ -599,24 +643,19 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
             {/* §7a/§7b · the attachment, above the caption. A photo renders inline; a shared
                 lock-in renders as the same card the feed draws for a fresh one, so a re-post and
                 the original read identically. */}
-            {/* D3 · the inline photo is a THUMBNAIL, not the only view of it. `contentFit: cover`
-                crops to a 4:3 box, which is right for the chain and wrong as the only way to see
-                the picture — a portrait photo lost its top and bottom and there was nowhere to go
-                from there, because the tap went nowhere. Tapping opens the same PhotoViewer the
-                lock-in card and the activity screen use, which fits the whole image to the screen
-                and offers Save. */}
-            {message.attach_kind === 'photo' && message.attach_path && (
-              <Pressable
-                onPress={() => setPhotoViewerUri(campfirePhotoUrl(message.attach_path!))}
-                accessibilityRole="imagebutton"
-                accessibilityLabel="View this photo full screen">
-                <Image
-                  source={{ uri: campfirePhotoUrl(message.attach_path) }}
-                  style={styles.attachPhoto}
-                  contentFit="cover"
-                  transition={120}
-                />
-              </Pressable>
+            {/* D3 · THE PHOTO GRID. A message carries up to ten photos now (0180), so this is a
+                grid rather than one image — and the inline tile stays a THUMBNAIL either way,
+                cropped to fill, with the whole picture one tap away in the viewer. `contentFit:
+                cover` is right for the chain and wrong as the only view of a portrait shot, which
+                is what the tap fixes.
+
+                `messagePhotoPaths` folds the 0180 array and the 0158 single column into one list,
+                so a message written by any build renders here identically. */}
+            {message.attach_kind === 'photo' && (
+              <PhotoGrid
+                paths={messagePhotoPaths(message)}
+                onOpen={(uris, index) => setViewer({ uris, index })}
+              />
             )}
             {message.attach_kind === 'lockin' && message.attach_ref_id && (
               <SharedLockIn checkInId={message.attach_ref_id} onReactionChanged={timeline.feed.refetch} />
@@ -773,10 +812,56 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
         />
       )}
 
-      <CampfireFab open={fabOpen} onToggle={() => setFabOpen((v) => !v)} onAction={handleFabAction} bottom={composerHeight} />
+      {/* First visit to a campfire — the tour's own line for this screen was "See the ＋ in the
+          corner? Tap it", and this is that line on the real ＋. */}
+      <CampfireFab
+        open={fabOpen}
+        onToggle={() => setFabOpen((v) => !v)}
+        onAction={handleFabAction}
+        bottom={composerHeight}
+        anchorRef={fabCoachRef}
+      />
 
       {CHAT_ENABLED && (
-        <View style={[styles.inputRow, { paddingBottom: Spacing.two + bottomInset }]}>
+        <View style={[styles.composer, { paddingBottom: Spacing.two + bottomInset }]}>
+          {/* ── D2 · THE STAGED PHOTOS ────────────────────────────────────────────────────────
+              The missing half of "picking a photo does nothing". A picked photo now lives here,
+              visibly, until it is sent or removed — which is also what makes a caption possible
+              (type into the composer and it rides along as the post's body) and what gives a
+              failed upload somewhere to fail in front of you.
+
+              Each chip carries its own ✕. Removing is free before Send because nothing has been
+              uploaded yet: these are still local file uris. */}
+          {pendingPhotos.length > 0 && (
+            <View style={styles.chipRow}>
+              {pendingPhotos.map((uri, i) => (
+                <View key={uri} style={styles.chip}>
+                  <Image source={{ uri }} style={styles.chipImage} contentFit="cover" />
+                  <Pressable
+                    style={styles.chipRemove}
+                    onPress={() => removePendingPhoto(uri)}
+                    hitSlop={8}
+                    disabled={sending}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove photo ${i + 1}`}>
+                    <Ionicons name="close" size={12} color={Colors.ink} />
+                  </Pressable>
+                </View>
+              ))}
+              {/* Real progress, not a spinner — "3 of 7" is the difference between a slow upload
+                  and the dead tap this whole item is about. */}
+              {uploadProgress && (
+                <View style={styles.progress}>
+                  <ActivityIndicator size="small" color={Colors.amber} />
+                  <Text style={styles.progressText}>
+                    {uploadProgress.done} of {uploadProgress.total}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
             placeholder="Message the campfire…"
@@ -788,10 +873,13 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
           />
           <Pressable
             onPress={handleSend}
-            disabled={sending || !draft.trim()}
+            // D2 · a staged photo ARMS THE SEND BUTTON on its own. It used to require text, so a
+            // photo with no caption — the normal case — left Send greyed out with no way to post
+            // what had just been picked.
+            disabled={sending || (!draft.trim() && pendingPhotos.length === 0)}
             accessibilityRole="button"
-            accessibilityLabel="Send message">
-            {draft.trim() && !sending ? (
+            accessibilityLabel={pendingPhotos.length > 0 ? 'Post photos' : 'Send message'}>
+            {(draft.trim() || pendingPhotos.length > 0) && !sending ? (
               <EmberFill style={styles.sendButton} radius={20} direction="diagonal">
                 <Ionicons name="send" size={16} color={Colors.onEmber} style={styles.sendGlyph} />
               </EmberFill>
@@ -801,6 +889,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
               </View>
             )}
           </Pressable>
+          </View>
         </View>
       )}
 
@@ -820,8 +909,16 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
       />
 
       {/* D3 · one viewer for the whole chain rather than one per photo row — a FlatList of a
-          hundred messages would otherwise mount a hundred idle Modals. */}
-      <PhotoViewer visible={photoViewerUri !== null} uri={photoViewerUri} onClose={() => setPhotoViewerUri(null)} />
+          hundred messages would otherwise mount a hundred idle Modals. Keyed on what was opened so
+          it remounts per tap, which is what makes it start on the photo that was actually pressed
+          rather than wherever the previous open left the pager. */}
+      <PhotoViewer
+        key={viewer ? `${viewer.uris[0]}-${viewer.index}` : 'closed'}
+        visible={viewer !== null}
+        uris={viewer?.uris ?? []}
+        initialIndex={viewer?.index ?? 0}
+        onClose={() => setViewer(null)}
+      />
 
       {/* D6 · one tray for the whole chain, for the same reason, and because it has to float over
           the list rather than inside it. */}
@@ -885,6 +982,66 @@ function Embed({ accent, children }: { accent: string; children: React.ReactNode
 // A DELETED LOCK-IN IS A NORMAL OUTCOME, not an error: you can share a session and remove it
 // later. It degrades to a quiet line rather than throwing inside a FlatList renderer, which would
 // take the whole chat down with it.
+/**
+ * D3 · THE PHOTO GRID — a post's photos, inline, as thumbnails.
+ *
+ * Up to four tiles are drawn; a fifth and beyond collapse into a "+N" on the last one, which is
+ * what every chat app does and what keeps a ten-photo post from owning the whole screen. Tapping
+ * ANY tile opens the viewer on THAT photo with the whole set behind it, including the ones the
+ * grid never drew — the "+N" is a summary of the post, not a limit on what can be seen.
+ *
+ * Two columns, with an odd last tile spanning the full width, so three photos read as one wide and
+ * two halves rather than as two halves and an orphan.
+ */
+function PhotoGrid({ paths, onOpen }: { paths: string[]; onOpen: (uris: string[], index: number) => void }) {
+  // Computed once per render and shared by the tiles and the viewer, so the index a tile hands
+  // back always addresses the same list the viewer is given.
+  const uris = paths.map(campfirePhotoUrl);
+  if (uris.length === 0) return null;
+
+  const shown = uris.slice(0, 4);
+  const overflow = uris.length - shown.length;
+
+  if (uris.length === 1) {
+    return (
+      <Pressable
+        onPress={() => onOpen(uris, 0)}
+        accessibilityRole="imagebutton"
+        accessibilityLabel="View this photo full screen">
+        <Image source={{ uri: uris[0] }} style={styles.attachPhoto} contentFit="cover" transition={120} />
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={styles.grid}>
+      {shown.map((uri, i) => {
+        const isOddLast = shown.length % 2 === 1 && i === shown.length - 1;
+        const isOverflowTile = overflow > 0 && i === shown.length - 1;
+        return (
+          <Pressable
+            key={uri}
+            onPress={() => onOpen(uris, i)}
+            style={[styles.gridTile, isOddLast && styles.gridTileWide]}
+            accessibilityRole="imagebutton"
+            accessibilityLabel={
+              isOverflowTile
+                ? `View photo ${i + 1} of ${uris.length}, and ${overflow} more`
+                : `View photo ${i + 1} of ${uris.length} full screen`
+            }>
+            <Image source={{ uri }} style={styles.gridImage} contentFit="cover" transition={120} />
+            {isOverflowTile && (
+              <View style={styles.gridMore} pointerEvents="none">
+                <Text style={styles.gridMoreText}>+{overflow}</Text>
+              </View>
+            )}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 function SharedLockIn({ checkInId, onReactionChanged }: { checkInId: string; onReactionChanged: () => void }) {
   const router = useRouter();
   const [item, setItem] = useState<FeedCheckIn | null>(null);
@@ -935,11 +1092,18 @@ function SharedLockIn({ checkInId, onReactionChanged }: { checkInId: string; onR
       ? router.push({ pathname: '/activity/[checkInId]', params: { checkInId: item.id } })
       : router.push({ pathname: '/lock-in/[checkInId]', params: { checkInId: item.id } });
 
+  // D4 · THE DESTINATION GOES INTO THE CARD, NOT AROUND IT.
+  //
+  // This was a <Pressable> WRAPPING the card, with exactly this handler — which is why the fix
+  // looked already-done and the card was still dead on device. LockInEventCard's own root is a
+  // Pressable, and in React Native the innermost pressable wins the touch responder; it wins it
+  // even when its own onPress is undefined, because it still claims the gesture to drive its press
+  // states. So every tap was being swallowed by the child and the wrapper never fired.
+  //
+  // Passing `onPress` down means there is ONE pressable in the stack and nothing to swallow.
   return (
     <Embed accent={Colors.amber}>
-      <Pressable onPress={openLockIn} accessibilityRole="button" accessibilityLabel="Open this lock-in">
-        <LockInEventCard item={item} onReactionChanged={onReactionChanged} />
-      </Pressable>
+      <LockInEventCard item={item} onReactionChanged={onReactionChanged} onPress={openLockIn} hideReactions />
     </Embed>
   );
 }
@@ -1221,13 +1385,105 @@ const styles = StyleSheet.create({
   },
   // The composer sits on a gradient-ish translucent shelf so the banner continues behind it
   // rather than ending at an opaque bar.
+  // D2 · the composer is now a COLUMN — the staged-photo chips sit above the input row, on the
+  // same ground, so the scrim moved up here from inputRow and the bottom inset is applied here.
+  composer: {
+    backgroundColor: Colors.scrim,
+  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: Spacing.two,
     paddingHorizontal: 14,
     paddingTop: Spacing.two,
-    backgroundColor: Colors.scrim,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: 14,
+    paddingTop: Spacing.two,
+  },
+  chip: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+  },
+  chipImage: {
+    width: '100%',
+    height: '100%',
+  },
+  // Sits ON the thumbnail's corner rather than beside it, so a row of chips stays a row of photos
+  // and the remove target is unambiguously attached to the one it removes.
+  chipRemove: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(8,6,12,0.72)',
+  },
+  progress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  progressText: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.muted,
+  },
+  // D3 · the inline grid. Two columns via percentage widths and wrap rather than a nested
+  // FlatList: this lives inside a row of the outer FlatList, and a virtualised list inside a
+  // virtualised list of the same orientation is exactly what RN warns about.
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 3,
+    marginBottom: 4,
+  },
+  gridTile: {
+    width: '49%',
+    aspectRatio: 1,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  /** An odd last tile spans both columns, so three photos are one wide and two halves. */
+  gridTileWide: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  gridMore: {
+    // Written out rather than spread from StyleSheet.absoluteFill: that export is a REGISTERED
+    // style, not a plain object, so spreading it yields {} at runtime and the overlay would sit
+    // in the flow instead of over the tile. absoluteFillObject is the plain one, and it is absent
+    // from this RN version's types — so the four properties go here literally.
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(8,6,12,0.55)',
+  },
+  gridMoreText: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 22,
+    color: Colors.ink,
   },
   input: {
     flex: 1,

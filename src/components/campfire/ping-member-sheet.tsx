@@ -4,6 +4,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
+import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { pingCampfireMember } from '@/lib/api/campfire-ping';
 import { getErrorMessage } from '@/lib/errors';
@@ -46,6 +47,15 @@ export function PingMemberSheet({
   // was silently swallowed is the whole of "the ping does fuck all".
   const [results, setResults] = useState<Record<string, PingResult>>({});
   const [error, setError] = useState<string | null>(null);
+  /**
+   * D5 · THE SENDER'S OWN LINE. "X nudged you. Get back to Goat" is the fallback, not the product —
+   * Noah's ask was to be able to say "yo get back to locking in bro" and have that be what buzzes.
+   *
+   * One message for the sheet rather than one per member: this sheet is opened to nudge someone,
+   * and typing the line once then tapping whoever it is for is the order people actually do it in.
+   * Empty is the normal case and stays the generic line (the server decides that — see 0181).
+   */
+  const [note, setNote] = useState('');
 
   const others = members.filter((m) => m.user_id !== myUserId);
 
@@ -56,7 +66,7 @@ export function PingMemberSheet({
     setBusyId(member.user_id);
     setError(null);
     try {
-      const result = await pingCampfireMember(groupId, member.user_id);
+      const result = await pingCampfireMember(groupId, member.user_id, note);
       setResults((prev) => ({ ...prev, [member.user_id]: result }));
     } catch (e) {
       setError(getErrorMessage(e, 'That nudge did not go out.'));
@@ -83,6 +93,21 @@ export function PingMemberSheet({
             </View>
           </View>
 
+          {/* D5 · the custom nudge. Optional by design: the placeholder shows the generic line that
+              goes out when this is left empty, so it is obvious both that you CAN write something
+              and what happens if you don't. */}
+          <TextInput
+            style={styles.note}
+            placeholder="Say something… (optional)"
+            value={note}
+            onChangeText={setNote}
+            // Matches the server's cap (0181) so the count runs out here rather than the line being
+            // silently shortened after it has been sent.
+            maxLength={140}
+            multiline
+            editable={busyId === null}
+          />
+
           {error && <Text style={styles.error}>{error}</Text>}
 
           <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
@@ -100,7 +125,11 @@ export function PingMemberSheet({
                     disabled={latched || busyId !== null}
                     accessibilityRole="button"
                     accessibilityLabel={
-                      latched ? `${m.display_name} nudged` : `Nudge ${m.display_name}`
+                      latched
+                        ? `${m.display_name} nudged`
+                        : note.trim()
+                          ? `Nudge ${m.display_name} saying ${note.trim()}`
+                          : `Nudge ${m.display_name}`
                     }>
                     <View style={styles.avatar}>
                       {m.avatar_url ? (
@@ -140,6 +169,18 @@ export function PingMemberSheet({
 }
 
 const styles = StyleSheet.create({
+  note: {
+    marginHorizontal: Spacing.four,
+    marginBottom: Spacing.two,
+    maxHeight: 88,
+    backgroundColor: 'rgba(36,28,56,0.9)',
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    borderRadius: Radius.input,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    fontSize: 14,
+  },
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',

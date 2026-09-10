@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChallengeMemberTicker } from '@/components/challenge-member-ticker';
 import { CindyChallengeEntry, cindyChallengeSeed } from '@/components/cindy/cindy-challenge-entry';
+import { useCoachMark } from '@/hooks/use-coach-mark';
 import { ChallengeSentSheet } from '@/components/challenge-sent-sheet';
 import { FitnessSyncPrompt } from '@/components/fitness-sync-prompt';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
@@ -626,6 +627,7 @@ function SocialChallengeForm() {
     circleName: mode === 'group' ? circle?.name : null,
     canHostForCampfire: mode === 'group' && campfireAdmin && Boolean(circle),
   });
+  const challengeCoachRef = useCoachMark('challenge_create');
   const askCindy = () => router.push({ pathname: '/cindy', params: { ask: cindySeed } });
 
   const sendLabel =
@@ -644,7 +646,13 @@ function SocialChallengeForm() {
         {/* Mock 143's other door, above the form rather than in front of it — see the component's
             header for why it is opt-in and what it deliberately does not promise. Seeded from
             whatever the form already knows, so a half-filled duel does not have to be retyped. */}
-        <CindyChallengeEntry seed={cindySeed} />
+        {/* First visit to challenge-create (CODE_PROMPT_coach_marks.md): the tip points at the
+            Ask-Cindy door, not at the preset pills, because "describe any goal and I'll scope it"
+            is a promise only that door keeps. Wrapper View because the card does not forward a ref;
+            collapsable={false} so Android keeps it measurable. */}
+        <View ref={challengeCoachRef} collapsable={false}>
+          <CindyChallengeEntry seed={cindySeed} />
+        </View>
 
         <Text style={styles.label}>Challenge type</Text>
         <View style={styles.typesRow}>

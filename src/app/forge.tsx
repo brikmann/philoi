@@ -11,6 +11,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Screen } from '@/components/ui/screen';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useRevealPreview, useRevealSting } from '@/hooks/use-audio-preview';
 import { useInventory, type OwnedItem } from '@/hooks/use-inventory';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
@@ -64,6 +65,9 @@ export default function ForgeScreen() {
 type Phase = 'picking' | 'forging' | 'reveal';
 
 function ForgeFlow() {
+  // Declared HERE, in the component that renders the CTA — the screen wrapper above only mounts the
+  // error boundary, so a ref taken there could never be attached to anything.
+  const forgeCoachRef = useCoachMark('forge');
   const router = useRouter();
   const reduceMotion = useReduceMotion();
   const { embers, owned, ownedKeys, loading, error, refetch } = useInventory();
@@ -419,7 +423,13 @@ function ForgeFlow() {
       </ScrollView>
 
       <View style={styles.ctaBar}>
+        {/* First visit to the Forge (CODE_PROMPT_coach_marks.md). The ref goes on the button rather
+            than on this bar so the spotlight excludes the fine print under it. The Forge's two
+            other render branches — loading, and "nothing left to make" — never attach it, so on
+            those the tip stays silent and waits for a visit where the control exists. */}
         <Pressable
+          ref={forgeCoachRef}
+          collapsable={false}
           style={[styles.primaryBtn, (!ready || busy) && styles.primaryBtnOff]}
           onPress={onForge}
           disabled={!ready || busy}

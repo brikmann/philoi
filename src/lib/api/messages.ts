@@ -85,14 +85,28 @@ export function isVideoPath(path: string): boolean {
  * is a check_ins.id being re-posted into the chat.
  */
 export type MessageAttachment =
-  | { kind: 'photo'; photoUri: string }
+  /**
+   * D3 · ONE MESSAGE, SEVERAL PHOTOS. This was `{ kind: 'photo'; photoUri: string }` — one asset —
+   * and the composer's answer to a multi-select was to call sendMessage once per picked image, so
+   * four photos arrived as four bubbles. Migration 0180 gives a message an `attach_paths` array,
+   * so the plural is now the only shape: a single photo is a one-element post, which keeps one
+   * code path instead of a special case that would inevitably drift from it.
+   */
+  | { kind: 'photos'; photoUris: string[] }
   | { kind: 'lockin'; lockInId: string };
+
+/** How many photos one message may carry. Mirrored in the composer so the ＋ picker can refuse a
+ *  bigger selection before anything is uploaded rather than after. */
+export const MAX_PHOTOS_PER_MESSAGE = 10;
 
 export async function sendMessage(
   groupId: string,
   userId: string,
   body: string,
-  attachment?: MessageAttachment
+  attachment?: MessageAttachment,
+  /** D2 · called as each upload finishes, so the composer can show real progress instead of an
+   *  indeterminate spinner that looks identical to a dead tap. */
+  onProgress?: (uploaded: number, total: number) => void
 ): Promise<void> {
   const trimmed = body.trim();
   // A message with an attachment and no caption is the normal case for "post a photo", so the
@@ -102,10 +116,34 @@ export async function sendMessage(
   let attachKind: string | null = null;
   let attachPath: string | null = null;
   let attachRefId: string | null = null;
+  let attachPaths: string[] = [];
 
-  if (attachment?.kind === 'photo') {
+  if (attachment?.kind === 'photos') {
+    const uris = attachment.photoUris.slice(0, MAX_PHOTOS_PER_MESSAGE);
+    if (uris.length === 0) return;
     attachKind = 'photo';
-    attachPath = await uploadCampfirePhoto(userId, attachment.photoUri);
+
+    // SEQUENTIAL, not Promise.all. Each upload is a whole base64-encoded image; firing ten at once
+    // races them for bandwidth and — more importantly — lands them in nondeterministic order, and
+    // the ORDER IS THE POST: attach_paths[0] is the photo every pre-0180 build will render, and
+    // the grid draws in array order. Awaiting in turn keeps the post equal to the selection.
+    //
+    // A failure part-way through unwinds everything already uploaded (below) rather than posting a
+    // partial roll, because a message is now one atomic post — unlike the old one-message-per-photo
+    // loop, where keeping what landed was the right call.
+    try {
+      for (const uri of uris) {
+        attachPaths.push(await uploadCampfirePhoto(userId, uri));
+        onProgress?.(attachPaths.length, uris.length);
+      }
+    } catch (e) {
+      if (attachPaths.length > 0) await supabase.storage.from(PHOTO_BUCKET).remove(attachPaths);
+      throw e;
+    }
+    // 0180's constraint requires attach_paths[0] to equal attach_path — that mirroring is what
+    // keeps already-installed builds rendering the first photo instead of an empty bubble, and
+    // there is no OTA to those builds, so it is not optional.
+    attachPath = attachPaths[0];
   } else if (attachment?.kind === 'lockin') {
     attachKind = 'lockin';
     attachRefId = attachment.lockInId;
@@ -118,13 +156,27 @@ export async function sendMessage(
     attach_kind: attachKind,
     attach_path: attachPath,
     attach_ref_id: attachRefId,
+    attach_paths: attachPaths,
   });
   if (error) {
-    // The upload succeeded and the message did not — same cleanup createAgoraPost does, so a
-    // rejected send doesn't leave an orphan in the bucket that nothing will ever reference.
-    if (attachPath) await supabase.storage.from(PHOTO_BUCKET).remove([attachPath]);
+    // The uploads succeeded and the message did not — same cleanup createAgoraPost does, so a
+    // rejected send doesn't leave orphans in the bucket that nothing will ever reference.
+    if (attachPaths.length > 0) await supabase.storage.from(PHOTO_BUCKET).remove(attachPaths);
     throw error;
   }
+}
+
+/**
+ * Every photo on a message, in post order.
+ *
+ * Reads the 0180 array and falls back to the single 0158 column, so this is correct for a row
+ * written by any build: a pre-0180 row has an empty array and a populated `attach_path`, and a
+ * row written today has both. Callers should use this rather than either column directly.
+ */
+export function messagePhotoPaths(message: Pick<Message, 'attach_paths' | 'attach_path'>): string[] {
+  const paths = message.attach_paths;
+  if (Array.isArray(paths) && paths.length > 0) return paths.filter((p): p is string => typeof p === 'string');
+  return message.attach_path ? [message.attach_path] : [];
 }
 
 export async function deleteMyMessage(messageId: string): Promise<void> {

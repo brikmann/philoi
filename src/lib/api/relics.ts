@@ -9,7 +9,12 @@
 // ladder — it is the other half of the same onboarding step as height, and no relic reads it.
 
 import { supabase } from '@/lib/supabase';
-import type { RelicProgressRow, StepDayInput, UnseenRelicUnlock } from '@/types/database';
+import type {
+  RelicProgressRow,
+  StepDayInput,
+  UnseenRelicRung,
+  UnseenRelicUnlock,
+} from '@/types/database';
 
 /**
  * Where every discipline relic stands, including the ones at zero.
@@ -107,5 +112,50 @@ export async function fetchUnseenRelicUnlocks(): Promise<UnseenRelicUnlock[]> {
  */
 export async function markRelicUnlockSeen(relicKey: string): Promise<void> {
   const { error } = await supabase.rpc('mark_relic_unlock_seen', { p_relic_key: relicKey });
+  if (error) throw error;
+}
+
+// ─────────────────────────── The rung inbox (migration 0179) ───────────────────────────
+//
+// 🔒 PRESENTATION PLUMBING, for the same reasons as the pair above and one more of its own: the
+// read is a comparison of two integers already on the row, and the write can only RAISE one of them
+// toward a rung the server has already recorded as held. Neither can move a ladder.
+//
+// WHY THIS IS A SECOND PAIR AND NOT A WIDER get_unseen_relic_unlocks. A build carrying 0176's
+// watcher and not this release would receive rung rows from a widened inbox, draw them under the
+// "RELIC UNLOCKED" eyebrow, and dismiss them through a stamp that does not move the watermark — an
+// unbreakable reveal loop on a build no OTA can reach while runtimeVersion is pinned to sdkVersion.
+// A new RPC is invisible to every client that does not call it. See 0179's header.
+
+/**
+ * Ladder rungs (α → β → γ → δ → Ω) climbed and never celebrated — oldest first.
+ *
+ * ONE ROW PER RELIC, NAMING THE RUNG THE LADDER STANDS AT NOW. A user who crossed three rungs in one
+ * lock-in gets a single row for the top one, and that is a property of the server's shape rather
+ * than something this client collapses: the inbox is `tier > revealed_tier` over a `tier` that is
+ * overwritten in place, so the intermediate rungs are not representable.
+ *
+ * Rung ONE is deliberately absent — it is `fetchUnseenRelicUnlocks`'s, and 0176's reveal already
+ * names the current rung. Empty on almost every call, like the unlock inbox it runs beside.
+ */
+export async function fetchUnseenRelicRungs(): Promise<UnseenRelicRung[]> {
+  const { data, error } = await supabase.rpc('get_unseen_relic_rungs');
+  if (error) throw error;
+  return (data ?? []) as UnseenRelicRung[];
+}
+
+/**
+ * Spend one rung's fire-once budget.
+ *
+ * Takes the rung that was actually PLAYED rather than letting the server read the current tier: if
+ * a check-in raised the ladder again while the reveal was on screen, stamping "whatever the tier is
+ * now" would mark a rung seen that nobody has been shown. The server clamps to the rung genuinely
+ * held and only ever raises the watermark, so a double dismiss and a second device are both free.
+ */
+export async function markRelicRungSeen(relicKey: string, rung: number): Promise<void> {
+  const { error } = await supabase.rpc('mark_relic_rung_seen', {
+    p_relic_key: relicKey,
+    p_rung: rung,
+  });
   if (error) throw error;
 }

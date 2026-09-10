@@ -169,7 +169,26 @@ export default function GroupScreen() {
   const topBarHeight = insets.top + 72;
 
   return (
-    <Screen padded={false}>
+    // D1 · `edges={[]}` — THE BANNER'S FULL-BLEED DEPENDS ON IT.
+    //
+    // The banner below is an absoluteFill sibling behind every layer, and it always was; that is
+    // why the previous pass concluded the art was fine and went after the header veil instead. The
+    // veil was a real bug and fixing it was right, but it was never the reason the banner read as
+    // a letterboxed band.
+    //
+    // Screen wraps its children in a SafeAreaView, and SafeAreaView insets with REAL PADDING. An
+    // absoluteFill child fills its padded parent, not the window — so the banner was being clipped
+    // to start below the status bar and stop above the home indicator, which is exactly the
+    // inset/letterboxed band Noah photographed. ScreenBackground (the flare) sits OUTSIDE that
+    // SafeAreaView, which is why the flare reaches the edges and the banner could not: "the banner
+    // doesn't stretch full like the flare background we made" was a precise description of the
+    // difference between being inside that wrapper and being outside it.
+    //
+    // Opting out costs nothing here because this screen ALREADY insets its own chrome and always
+    // has — the top bar pads by `insets.top + 6` and the composer by `insets.bottom` — so the
+    // SafeAreaView was adding a second, duplicate inset on top of the one the layout applies
+    // itself. Removing it makes the banner full-bleed AND stops double-counting the status bar.
+    <Screen padded={false} edges={[]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Behind everything, above nothing: absolutely filled and non-interactive, so the top bar,

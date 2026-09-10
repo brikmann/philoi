@@ -12,6 +12,7 @@ import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useInventory, type BoxStack, type OwnedItem } from '@/hooks/use-inventory';
 import { BOXES, type BoxKey } from '@/lib/economy/boxes';
 import { TYPE_FILTERS, itemsOfType, type ItemType } from '@/lib/economy/catalog';
@@ -26,6 +27,7 @@ import { RARITY_COLOR, type Rarity } from '@/lib/economy/rarity';
 // ringed and ticked.
 
 export default function InventoryScreen() {
+  const inventoryCoachRef = useCoachMark('inventory');
   const router = useRouter();
   const { profile } = useAuth();
   const { embers, owned, equippedBySlot, boxStacks, badges, loading, error } = useInventory();
@@ -177,8 +179,16 @@ export default function InventoryScreen() {
           </View>
         ) : (
           <View style={styles.grid}>
-            {shown.map((item) => (
-              <ItemTile key={item.id} item={item} onPress={() => router.push({ pathname: '/inventory/[itemId]', params: { itemId: item.id } })} />
+            {shown.map((item, i) => (
+              <ItemTile
+                key={item.id}
+                item={item}
+                /* The mark has nothing to point at until the grid has items, and this is exactly
+                   how it stays silent until then: on an empty or still-loading inventory the ref is
+                   never attached, the measure finds no node, and the surface stays a first visit. */
+                anchorRef={i === 0 ? inventoryCoachRef : undefined}
+                onPress={() => router.push({ pathname: '/inventory/[itemId]', params: { itemId: item.id } })}
+              />
             ))}
           </View>
         )}
@@ -324,7 +334,18 @@ export default function InventoryScreen() {
   );
 }
 
-function ItemTile({ item, onPress }: { item: OwnedItem; onPress: () => void }) {
+function ItemTile({
+  item,
+  onPress,
+  anchorRef,
+}: {
+  item: OwnedItem;
+  onPress: () => void;
+  /** Set on the FIRST tile only, so the first-visit coach-mark spotlights one item rather than the
+   * whole grid (CODE_PROMPT_coach_marks.md). Lighting the grid would mean a hole taller than the
+   * screen on a full inventory, which is not a spotlight, it is just the screen. */
+  anchorRef?: React.Ref<View>;
+}) {
   // Which lock-in slots an SFX occupies (PUNCHLIST_13). ▶ start, ■ end, both lit when it's in both
   // — the tile's plain ✓ can only say "equipped somewhere", which for a two-slot item is the one
   // thing you don't need to know.
@@ -333,7 +354,7 @@ function ItemTile({ item, onPress }: { item: OwnedItem; onPress: () => void }) {
   const showSfxSlots = item.type === 'SFX' && (inStart || inStop);
 
   return (
-    <Pressable style={[styles.tile, item.equipped && styles.tileEquipped]} onPress={onPress}>
+    <Pressable ref={anchorRef} collapsable={false} style={[styles.tile, item.equipped && styles.tileEquipped]} onPress={onPress}>
       {item.equipped && !showSfxSlots ? (
         <View style={styles.equipBadge}>
           <Text style={styles.equipBadgeText}>✓</Text>

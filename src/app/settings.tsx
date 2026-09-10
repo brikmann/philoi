@@ -14,6 +14,7 @@ import { Toggle } from '@/components/ui/toggle';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCindy } from '@/hooks/use-cindy';
+import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useEntitlement } from '@/hooks/use-entitlement';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useMyGroups } from '@/hooks/use-my-groups';
@@ -23,6 +24,8 @@ import { setCoachConsent, setCoachPreference } from '@/lib/api/coach';
 import { setDailyGoalMode, setPublishFlameCompletion } from '@/lib/api/daily-fire';
 import { deleteMyAccount } from '@/lib/api/groups';
 import { setMyWatchOptIn } from '@/lib/api/leaderboard-social';
+import { track } from '@/lib/analytics';
+import { resetCoachMarks } from '@/lib/coach-marks';
 import { resetTutorial } from '@/lib/tutorial';
 import { setLeaderboardPrivate } from '@/lib/api/privacy';
 import { setMyPhotoVisibility } from '@/lib/api/profile';
@@ -119,6 +122,7 @@ function SettingsRow({
 }
 
 export default function SettingsScreen() {
+  const settingsCoachRef = useCoachMark('settings');
   const router = useRouter();
   const { profile, signOut, refreshProfile } = useAuth();
   const { groups } = useMyGroups();
@@ -312,7 +316,10 @@ export default function SettingsScreen() {
         </Pressable>
 
         <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
-        <View style={styles.group}>
+        {/* First visit to Settings (CODE_PROMPT_coach_marks.md). The tour's Settings card names two
+            must-dos — notifications on, apps connected — and this is the first of them; the ref sits
+            on the existing group View, so there is no extra layout node in the list. */}
+        <View ref={settingsCoachRef} collapsable={false} style={styles.group}>
           <SettingsRow
             icon="notifications"
             label="Notifications"
@@ -450,14 +457,25 @@ export default function SettingsScreen() {
           />
         </View>
 
-        {/* "Replay tutorial" (CODE_PROMPT_tutorial.md). Clears the flag and navigates; the root
-            layout re-reads it on every navigation, so the tour opens on the next frame rather than
-            needing its own route push here — one gate decides when the tutorial runs, not two. */}
+        {/* "Replay tutorial & tips" (CODE_PROMPT_tutorial.md + CODE_PROMPT_coach_marks.md). Clears
+            the flag and navigates; the root layout re-reads it on every navigation, so the tour
+            opens on the next frame rather than needing its own route push here — one gate decides
+            when the tutorial runs, not two.
+
+            🔴 ONE CONTROL RESETS BOTH HALVES OF THE TUTORIAL. The card tour and the seven coach-
+            marks are the same feature wearing two shapes, and a Settings screen with "Replay
+            tutorial" next to a separate "Reset tips" would be asking the user to know that. It is
+            also the demo button: Noah re-runs the whole first-run experience from here.
+
+            The coach-mark reset is fired alongside rather than awaited with the tour's — a failed
+            local write must not be what stands between somebody and replaying the tutorial. */}
         <View style={styles.group}>
           <SettingsRow
             icon="school-outline"
-            label="Replay tutorial"
+            label="Replay tutorial & tips"
             onPress={() => {
+              track('coach_marks_reset', {});
+              resetCoachMarks().catch(() => {});
               resetTutorial().then(() => router.replace('/'));
             }}
           />

@@ -29,6 +29,32 @@ const STRAVA_ORANGE = '#FC4C02';
 type LockInEventCardProps = {
   item: FeedCheckIn;
   onReactionChanged: () => void;
+  /**
+   * D4 · WHERE A TAP ON THIS CARD GOES, when the host wants it to go somewhere.
+   *
+   * This card's ROOT is a Pressable, so a caller that wrapped it in a Pressable of its own got a
+   * dead card: in React Native the innermost view wins the responder, and it wins it even when its
+   * own `onPress` is undefined — a Pressable still claims the touch to run its press states. That
+   * is why the shared lock-in in the campfire "renders but is not tappable" despite being wrapped
+   * in a Pressable with a working handler; the wrapper never saw the touch.
+   *
+   * So the destination is passed IN and handled by the root that already exists, rather than
+   * stacked on top of it. Strava keeps priority: a synced card still deep-links to the activity,
+   * because that data is theirs to serve (see the note at the root below).
+   */
+  onPress?: () => void;
+  /**
+   * D6 · HIDE THE OLD 5-EMOJI BAR.
+   *
+   * The campfire has its own reaction model now — one per person, an Instagram-style picker on
+   * long-press (mock 178, migration 0171) — and that model is keyed on a MESSAGE. This card is not
+   * a message, so it cannot join it; what it can do is stop showing the old per-emoji count bar
+   * next to it, which is the "old bar still there" Noah reported.
+   *
+   * Scoped to the caller rather than deleted, because this same card is the feed's, the Agora's
+   * and the profile's, where the old bar is still the only reaction affordance there is.
+   */
+  hideReactions?: boolean;
 };
 
 // A card in a scrolling chain, not a workout screen — enough lifts to read the session at a
@@ -39,7 +65,7 @@ const MAX_LIFTS_SHOWN = 4;
 // design-mocks/06's `.lock`): thin coral left-edge, goal icon tile, "{Name} locked in" +
 // "{duration} · {goal}" + "+{xp} XP", an optional photo thumb on the right,
 // and a compact reaction tally (the picker only appears on tap — see reaction-bar.tsx).
-export function LockInEventCard({ item, onReactionChanged }: LockInEventCardProps) {
+export function LockInEventCard({ item, onReactionChanged, onPress, hideReactions }: LockInEventCardProps) {
   const router = useRouter();
   const { session } = useAuth();
   const isOwnPost = item.user_id === session?.user.id;
@@ -92,7 +118,11 @@ export function LockInEventCard({ item, onReactionChanged }: LockInEventCardProp
     <Pressable
       style={[styles.card, isSynced && styles.cardSynced]}
       onLongPress={handleMore}
-      onPress={isStrava && item.external_id ? () => openStravaActivity(item.external_id!) : undefined}>
+      // D4 · Strava first (its own note above), then the host's destination if it gave one. A card
+      // with neither stays exactly as inert as it was.
+      onPress={
+        isStrava && item.external_id ? () => openStravaActivity(item.external_id!) : onPress
+      }>
       {/* The accent rail (mock 110's `.fcard::before`) — a thin INSET, rounded ember bar rather
           than the old full-bleed bold-orange border down the card's whole left edge. A synced
           card doesn't get one: its own orange frame is already the "a connected app did this"
@@ -190,7 +220,9 @@ export function LockInEventCard({ item, onReactionChanged }: LockInEventCardProp
           </Pressable>
         )}
 
-        <ReactionBar checkInId={item.id} reactions={item.reactions} onChanged={onReactionChanged} compact />
+        {!hideReactions && (
+          <ReactionBar checkInId={item.id} reactions={item.reactions} onChanged={onReactionChanged} compact />
+        )}
       </View>
 
       {photoUri && (

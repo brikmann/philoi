@@ -236,7 +236,7 @@ export function ClaimBalancePill({
   innerRef,
   lit,
 }: {
-  /** Null while the wallet read is still in flight — shown as a dash, never as a guess. */
+  /** Null while the wallet read is still in flight — a skeleton, never a dash and never a guess. */
   embers: number | null;
   innerRef?: React.RefObject<View | null>;
   lit?: boolean;
@@ -246,9 +246,20 @@ export function ClaimBalancePill({
       ref={innerRef}
       collapsable={false}
       style={[styles.pill, lit && styles.pillLit]}
-      accessibilityLabel={embers == null ? 'Your ember balance' : `${formatEmbers(embers)} embers`}>
+      accessibilityLabel={embers == null ? 'Loading your ember balance' : `${formatEmbers(embers)} embers`}>
       <EmberIcon size={15} />
-      <Text style={styles.pillText}>{embers == null ? '—' : formatEmbers(embers)}</Text>
+      {/* 🐛 WAS AN EM DASH, AND A DASH IS A STATEMENT. It reads as "you have no balance" rather
+          than "the balance has not arrived yet" — which is exactly how the relic reveal's pill
+          landed on device, since that screen never passed a wallet figure at all. A skeleton the
+          width of a four-digit balance says the same thing honestly and reserves the layout, so
+          the number does not shove the pill sideways when the read lands. It never renders once
+          `embers` is a number, and the pill is still MEASURABLE either way — it is the flights'
+          drift target, and a target that changed width mid-flight would aim them at nothing. */}
+      {embers == null ? (
+        <View style={styles.pillSkeleton} />
+      ) : (
+        <Text style={styles.pillText}>{formatEmbers(embers)}</Text>
+      )}
     </View>
   );
 }
@@ -723,5 +734,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.ember,
     fontVariant: ['tabular-nums'],
+  },
+  // Sized to the tabular width of "1,240" at 15pt so the pill does not jump when the read lands.
+  pillSkeleton: {
+    width: 42,
+    height: 13,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,210,122,0.22)',
   },
 });

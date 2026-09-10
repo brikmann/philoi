@@ -266,8 +266,15 @@ export function RewardRevealFrame({
 
           {/* STEP ONE. Stood down rather than unmounted once the rewards are up: the hero above it
               is the flights' measured origin and the rays' anchor, and remounting the column around
-              it would move both mid-animation. */}
-          {showRewards ? null : children}
+              it would move both mid-animation.
+
+              🐛 GATED ON `hasRewards`, NOT ON `showRewards` ALONE. `showRewards` starts TRUE for a
+              reveal that has no second face — `rows` empty, or `singleStep` — because there is no
+              step two to walk to. Reading it by itself therefore stood step one down before it had
+              ever been drawn, and the relic reveal (the only caller that passes `rows={[]}`) shipped
+              with no eyebrow, no name, no threshold and no lore: an icon and two buttons. Children
+              are only ever stood down for the face that REPLACES them, which is the row list. */}
+          {hasRewards && showRewards ? null : children}
 
           {/* The header announces a list; with no list it would be announcing nothing. */}
           {showRewards && rows.length > 0 ? (

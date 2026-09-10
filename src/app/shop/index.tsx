@@ -10,6 +10,7 @@ import { ItemArt } from '@/components/economy/item-art';
 import { PreviewBadgeCorner } from '@/components/economy/preview-button';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useInventory } from '@/hooks/use-inventory';
 import { BOX_LIST } from '@/lib/economy/boxes';
 import { boxPool, type CatalogItem } from '@/lib/economy/catalog';
@@ -70,6 +71,7 @@ function rotatesInLabel(now: number): string {
 // ember packs. Everything except the ember packs works today on EARNED embers.
 
 export default function ShopScreen() {
+  const shopCoachRef = useCoachMark('shop');
   const router = useRouter();
   const { embers, pass, ownedKeys, loading } = useInventory();
 
@@ -203,23 +205,29 @@ export default function ShopScreen() {
 
         {/* ── The six boxes ── */}
         <SectionLabel label="Loot boxes" action="Tap for odds" />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-          {BOX_LIST.map((box) => (
-            <Pressable
-              key={box.key}
-              style={styles.tile}
-              onPress={() => router.push({ pathname: '/shop/box/[boxKey]', params: { boxKey: box.key } })}>
-              <View style={[styles.tileArt, { backgroundColor: BOX_TINT[box.key] }]}>
-                <BoxArt boxKey={box.key} size={44} />
-              </View>
-              <Text style={styles.tileName} numberOfLines={1}>
-                {box.name}
-              </Text>
-              <RarityLabel rarity={box.rarity} />
-              <EmberAmount amount={box.price} containerStyle={styles.tilePrice} />
-            </Pressable>
-          ))}
-        </ScrollView>
+        {/* First visit to the Shop (CODE_PROMPT_coach_marks.md). Anchored on the crate row rather
+            than on an "Open ×N" button, because that button lives one screen deeper on
+            shop/box/[boxKey] — the tip has to point at a control that is actually on this screen,
+            and the row is the one that leads to the batch open. */}
+        <View ref={shopCoachRef} collapsable={false}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+            {BOX_LIST.map((box) => (
+              <Pressable
+                key={box.key}
+                style={styles.tile}
+                onPress={() => router.push({ pathname: '/shop/box/[boxKey]', params: { boxKey: box.key } })}>
+                <View style={[styles.tileArt, { backgroundColor: BOX_TINT[box.key] }]}>
+                  <BoxArt boxKey={box.key} size={44} />
+                </View>
+                <Text style={styles.tileName} numberOfLines={1}>
+                  {box.name}
+                </Text>
+                <RarityLabel rarity={box.rarity} />
+                <EmberAmount amount={box.price} containerStyle={styles.tilePrice} />
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
         <Text style={styles.note}>Published odds on every box. Every box can also be earned — none is purchase-only.</Text>
 
         {/* ── Ember packs — the only real-money surface, and it's deferred ── */}

@@ -1,5 +1,6 @@
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 
+import { RelicArt, hasRelicArt } from '@/components/economy/relic-art';
 import type { ArtKind, CatalogItem } from '@/lib/economy/catalog';
 
 // One vector family per item TYPE, recoloured by the item's own two-stop palette (21f, art from
@@ -11,6 +12,15 @@ type Props = { item: CatalogItem; size?: number };
 
 export function ItemArt({ item, size = 44 }: Props) {
   const { from, to } = tilePalette(item);
+
+  // RELICS ARE THE ONE TYPE WHERE THE SILHOUETTE IS THE ITEM, so they are drawn per KEY rather than
+  // per kind — see relic-art.tsx. Delegated here rather than at each call site so the reveal, the
+  // share card, the Trophy Hall shelf and the Collection can never disagree about what a scroll
+  // looks like. Still recoloured from `tilePalette`, so nothing about rarity or family changes.
+  if (hasRelicArt(item.id)) {
+    return <RelicArt relicKey={item.id} from={from} to={to} size={size} />;
+  }
+
   const h = Math.round(size * 1.07);
   return (
     <Svg width={size} height={h} viewBox="0 0 90 96">
@@ -157,7 +167,9 @@ function shapeFor(kind: ArtKind, from: string, to: string) {
         </>
       );
 
-    // Relic: a mythic artifact — a faceted gem on a plinth.
+    // Relic: a mythic artifact — a faceted gem on a plinth. THE FALLBACK ONLY since relic-art.tsx
+    // landed: every relic the catalog actually ships is drawn as itself, and this is what a key
+    // granted by a server ahead of this build gets.
     case 'relic':
       return (
         <>

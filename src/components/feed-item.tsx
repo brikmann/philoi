@@ -26,9 +26,13 @@ function formatRelativeTime(isoDate: string) {
 type FeedItemProps = {
   item: FeedCheckIn;
   onReactionChanged: () => void;
+  /** D6 · see LockInEventCard's note. The campfire reacts one-per-person on MESSAGES (0171); a
+   *  check-in embedded in the chain is not one, so it drops the old per-emoji bar rather than
+   *  showing a second, contradictory reaction model beside the new one. */
+  hideReactions?: boolean;
 };
 
-export function FeedItem({ item, onReactionChanged }: FeedItemProps) {
+export function FeedItem({ item, onReactionChanged, hideReactions }: FeedItemProps) {
   const router = useRouter();
   const { session } = useAuth();
   const isOwnPost = item.user_id === session?.user.id;
@@ -89,7 +93,7 @@ export function FeedItem({ item, onReactionChanged }: FeedItemProps) {
 
       {item.caption && <Text style={styles.caption}>{item.caption}</Text>}
 
-      <ReactionBar checkInId={item.id} reactions={item.reactions} onChanged={onReactionChanged} />
+      {!hideReactions && <ReactionBar checkInId={item.id} reactions={item.reactions} onChanged={onReactionChanged} />}
     </Card>
   );
 }
