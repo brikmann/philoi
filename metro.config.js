@@ -21,6 +21,27 @@ const config = getSentryExpoConfig(__dirname);
 // Scoped to `.claude` rather than `.claude/worktrees` so the agent scratch dirs beside it are
 // covered too. Nothing under here is ever imported by the app — it is sibling checkouts and tooling
 // state, not source — so excluding it changes no resolution the bundle actually depends on.
-config.resolver.blockList = [...config.resolver.blockList, /[\\/]\.claude[\\/]/];
+// `.deno-cache/` is the second offender, and it does something worse than waste CPU: it KILLS the
+// server. Deno (the Supabase edge-function toolchain) writes short-lived `.tmp` files under it, and
+// Metro's FallbackWatcher on Windows tries to `fs.watch` each new file it discovers. When the temp
+// file is gone by the time the watch attaches — which is the normal case for a download temp — the
+// ENOENT is thrown from a watcher callback with nothing to catch it, and the process exits:
+//
+//   Error: ENOENT: no such file or directory, watch
+//   '...\.deno-cache\npm\registry.npmjs.org\@supabase\realtime-js\2.116.2ccc36a9.tmp'
+//     at FSWatcher.<computed> (node:internal/fs/watchers)
+//     at #watchdir (@expo/metro-file-map/build/watchers/FallbackWatcher.js)
+//
+// This crashed the dev server repeatedly — exit codes 4, 7 and 127 on different runs, which looked
+// like three unrelated faults and was one. The directory is often absent by the time you go looking,
+// because Deno cleans up after itself, so the evidence only survives in the crash log.
+//
+// Nothing under either path is ever imported by the app — sibling checkouts, tooling state and a
+// package cache for a different runtime — so excluding them changes no resolution the bundle depends on.
+config.resolver.blockList = [
+  ...config.resolver.blockList,
+  /[\\/]\.claude[\\/]/,
+  /[\\/]\.deno-cache[\\/]/,
+];
 
 module.exports = config;
