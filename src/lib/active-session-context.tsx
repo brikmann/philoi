@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { fetchGroup } from '@/lib/api/groups';
 import { fetchMyActiveLockInSession, startLockInSession } from '@/lib/api/lock-ins';
 import { useAuth } from '@/lib/auth/auth-context';
-import type { GoalType } from '@/types/database';
+import type { FitnessActivity, GoalType, LockInCategory } from '@/types/database';
 
 // No dedicated gym-routine logger exists yet (the mini-map spec calls for tapping a gym
 // lock-in to open one) — 'mode' is tracked here so that routing hook is already in place;
@@ -26,7 +26,14 @@ type ActiveSessionContextValue = {
   /** True until the initial fetch-on-launch resolves — distinct from any single screen's own loading state. */
   loading: boolean;
   refresh: () => Promise<void>;
-  start: (goalType: GoalType, goalDetail?: string | null, circleId?: string | null) => Promise<ActiveSession>;
+  start: (
+    goalType: GoalType,
+    goalDetail?: string | null,
+    circleId?: string | null,
+    /** The two-tap choice (0182). Optional so nothing that already calls start() breaks; when
+     *  absent the server derives it from goalType, which is what installed builds rely on. */
+    two?: { category: LockInCategory; activity?: FitnessActivity | null; courseId?: string | null }
+  ) => Promise<ActiveSession>;
   /** Called right after a successful stop — the session is done server-side, so every
    * consumer (mini-map, home) should reflect "no active session" immediately rather than
    * waiting for the next refresh(). */
@@ -90,8 +97,14 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
-  const start = useCallback(async (goalType: GoalType, goalDetail?: string | null, circleId?: string | null) => {
-    const created = await startLockInSession(goalType, goalDetail, circleId);
+  const start = useCallback(
+    async (
+      goalType: GoalType,
+      goalDetail?: string | null,
+      circleId?: string | null,
+      two?: { category: LockInCategory; activity?: FitnessActivity | null; courseId?: string | null }
+    ) => {
+    const created = await startLockInSession(goalType, goalDetail, circleId, two);
     const circleName = await resolveCircleName(created.circle_id);
     const next: ActiveSession = {
       id: created.id,

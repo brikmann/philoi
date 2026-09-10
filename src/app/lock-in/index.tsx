@@ -75,7 +75,16 @@ import { fireIgnite } from '@/lib/reward-feedback';
 
 import { shareCardImage } from '@/lib/share-card';
 import { isFirstLockInTutorialDone, markFirstLockInTutorialDone } from '@/lib/tutorial';
-import type { CheckIn, GoalType, MyRank, RankTierName, WorkoutEnergy, WorkoutRecap } from '@/types/database';
+import type {
+  CheckIn,
+  FitnessActivity,
+  GoalType,
+  LockInCategory,
+  MyRank,
+  RankTierName,
+  WorkoutEnergy,
+  WorkoutRecap,
+} from '@/types/database';
 
 const PARTICIPANTS_POLL_MS = 20000;
 const STILL_HERE_THRESHOLD_MS = 55 * 60 * 1000; // matches the ~1hr server-side reminder, shown client-side too so it's not a surprise
@@ -151,12 +160,20 @@ function LockInScreen() {
     // the workout itself once the session exists. Absent for every other goal type.
     routineId: routineIdParam,
     energy: energyParam,
+    // The two-tap choice (0182). Absent when a session is started from somewhere that has not
+    // been moved onto the new picker yet, in which case the server derives it from `type`.
+    category: categoryParam,
+    activity: activityParam,
+    courseId: courseIdParam,
   } = useLocalSearchParams<{
     type?: string;
     detail?: string;
     circleId?: string;
     routineId?: string;
     energy?: string;
+    category?: string;
+    activity?: string;
+    courseId?: string;
   }>();
   const { session, profile, refreshProfile } = useAuth();
   const { session: activeSession, loading: activeLoading, start, clear, touchConfirmedAt } = useActiveSession();
@@ -298,7 +315,18 @@ function LockInScreen() {
 
         if (!activeSessionRef.current) {
           if (typeParam) {
-            await start(typeParam as GoalType, detailParam ?? null, circleIdParam ?? null);
+            await start(
+              typeParam as GoalType,
+              detailParam ?? null,
+              circleIdParam ?? null,
+              categoryParam
+                ? {
+                    category: categoryParam as LockInCategory,
+                    activity: (activityParam as FitnessActivity | undefined) ?? null,
+                    courseId: courseIdParam ?? null,
+                  }
+                : undefined
+            );
             if (!screenMountedRef.current) return;
             // "Ignite" (PHILOI_UI_SPEC.md §22) — only for a genuinely NEW session, never on
             // resuming an existing one (e.g. reopened from a "still here?" notification).
@@ -313,6 +341,10 @@ function LockInScreen() {
         if (screenMountedRef.current) setLoading(false);
       }
     })();
+    // categoryParam/activityParam/courseIdParam are read once at start, exactly like
+    // routineId/energy above: they are route params that outlive the start they configured, and
+    // re-running this when one changes would spawn a second session for the same screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
   }, [activeLoading, session, typeParam, detailParam, circleIdParam, start, posted, stopping]);
 
   const starting = loading || activeLoading || !activeSession;

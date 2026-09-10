@@ -1,6 +1,40 @@
 // social_media stays for historical rows' typing — the lock-in goal picker (PHILOI_UI_SPEC.md
 // §12) doesn't offer it, only gym/run/study/job_applications/read/custom.
 export type GoalType = 'gym' | 'run' | 'study' | 'social_media' | 'custom' | 'job_applications' | 'read';
+
+// ── The two-tap taxonomy (0182, design-mocks/194-lockin-two-tap.html) ───────────────────────
+//
+// A lock-in is TWO choices now, not one of six flat types:
+//
+//   Studying -> a course of yours, or Custom (reading, job apps, anything)
+//   Fitness  -> Cardio (distance ladder, Strava-auto) | Strength (volume ladder, log sets)
+//
+// GoalType above is NOT dead and must not be deleted yet. Installed pilot builds still read it
+// and OTA is closed, so the server keeps writing it: start_lock_in_session derives whichever half
+// its caller did not send, and check_ins carries both. Retiring GoalType is a later change, once
+// those builds are gone.
+export type LockInCategory = 'study' | 'fitness';
+
+/** Only meaningful when category is 'fitness'; null under 'study'. Each maps to one relic ladder:
+ *  cardio -> distance, strength -> volume. */
+export type FitnessActivity = 'cardio' | 'strength';
+
+/**
+ * One of the member's own courses — the second tap under Studying.
+ *
+ * Self-serve rather than a registrar catalog: there is nothing to enroll against, so a member adds
+ * their own. `code` is null for a "Custom" entry (reading, job apps, a side project), which the
+ * mock offers as a first-class choice and which must not be forced to invent a course code.
+ */
+export type UserCourse = {
+  id: string;
+  user_id: string;
+  code: string | null;
+  title: string;
+  created_at: string;
+  /** Soft-retired. A past lock-in still points here, so a finished course is hidden, never deleted. */
+  archived_at: string | null;
+};
 // Campfire membership roles (migration 0094, CAMPFIRE_REDESIGN_SPEC.md §Phase 2). 'admin' is
 // the CAPABILITY tier and 'owner' is a subset of it — every "may this person manage the campfire?"
 // question is `role !== 'member'` (or is_campfire_admin() server-side), never `=== 'owner'`. The
@@ -558,6 +592,12 @@ export type CheckIn = {
   goal_type: GoalType;
   goal_label: string | null;
   goal_detail: string | null;
+  /** The two-tap choice (0182). Null only on rows written before the backfill ran — every insert
+   * path fills it now, including the Strava sync and photo check-ins, via a trigger. */
+  category: LockInCategory | null;
+  activity: FitnessActivity | null;
+  /** Set only for a Studying lock-in that named one of the member's courses. */
+  course_id: string | null;
   removed_at: string | null;
   /** Set for a lock-in-session completion (stop_lock_in_session()); null for a photo check-in. */
   duration_seconds: number | null;
@@ -758,6 +798,10 @@ export type LockInSession = {
   goal_id: string | null;
   goal_type: GoalType;
   goal_detail: string | null;
+  /** The two-tap choice (0182) — see CheckIn. */
+  category: LockInCategory | null;
+  activity: FitnessActivity | null;
+  course_id: string | null;
   /** Null = solo lock-in (PHILOI_UI_SPEC.md §12's "solo campfire"); set = attached to that campfire. */
   circle_id: string | null;
   started_at: string;
@@ -853,6 +897,18 @@ export type AnalyticsEventName =
   /** 0175 - a duel scoped after the fact, the social twin of goal_scoped. */
   | 'challenge_scoped'
   | 'challenge_created'
+  // 0183's bulk create. `asked` vs `created` is the whole point of measuring it: the gap between
+  // them is how often "every class" collides with goals someone already had, which decides whether
+  // the dedupe receipt is a rare footnote or the normal experience of this feature.
+  | 'goals_bulk_created'
+  // 0183's edit path. `changed` says which of target/deadline/reward actually moved — if editing
+  // turns out to be almost entirely deadline pushes, the leap gate is guarding a door nobody uses.
+  | 'goal_edited'
+  | 'goal_deleted'
+  // 0183 · the PERSONAL grade goal settling, and the one number that says whether scoping is
+  // calibrated: what share of reported grades pass. All passes means the targets are too soft.
+  // Distinct from challenge_grade_reported, which is 0145's SOCIAL grade race.
+  | 'goal_grade_reported'
   | 'challenge_completed'
   // 0145's grade races: who reports a mark, and who takes Cindy's door into the create screen
   // rather than the form (mock 143's two paths — worth knowing which one people actually use).
@@ -1425,7 +1481,85 @@ export type Challenge = {
    * fetchMyChallenges filters these out; nothing else should have to think about them.
    */
   retired_at: string | null;
+  /**
+   * 0183 — the mark this goal is chasing, and THE FLAG that makes it a grade goal.
+   *
+   * Deliberately not a ninth `ChallengeType`: an installed build indexes TYPE_QUICK_ADDS and
+   * CHALLENGE_TYPE_GLYPH by `type` with no fallback, so a type it has never heard of is
+   * `undefined.map` on the Challenges tab — a crash on a screen OTA cannot reach. A build that
+   * predates this reads a grade goal as a one-time custom goal counted to 90 and renders it
+   * correctly, which is degraded rather than broken.
+   *
+   * Always equal to `target` (challenges_grade_target_is_the_target), so every surface that already
+   * reads target keeps working; this only says what that number MEANS.
+   */
+  grade_target?: number | null;
+  /** 0183 — the course (user_courses, 0182) this goal belongs to. */
+  course_id?: string | null;
+  /**
+   * 0183 — the reported mark came in under the bar. The honest fail state: `completed_at` says
+   * "you got there", this says "the answer arrived and it was no". A counted goal never has it —
+   * a step target you miss just keeps running — but a grade goal always eventually does, and
+   * without it a missed goal sits open forever.
+   */
+  missed_at?: string | null;
+  /** 0183 — the deadline the owner set. Advisory: nothing sweeps it and nothing settles on it. */
+  due_at?: string | null;
+  /** 0183 — archived out of History. A settled goal cannot be deleted (its reward_payload is the
+   *  receipt for embers that moved), so this is what the kebab offers instead. */
+  hidden_at?: string | null;
   created_at: string;
+};
+
+/** One line of what `create_scoped_goals` (0183) did — per goal, in the order they were asked for.
+ *
+ *  'existed' is NOT an error. Someone who already has a KP390 goal and asks for "90% in every
+ *  class" wants the other four made, so a clash is a receipt rather than a failed batch — which is
+ *  what lets Cindy say "made four, you already had KP390". */
+export type CreatedGoalReceipt = {
+  status: 'created' | 'existed';
+  id: string;
+  label: string | null;
+  /** Never null on a 'created' row: the server floors an unscoped ask to uncommon rather than
+   *  writing a goal whose price nobody can see. */
+  tier: DifficultyTier | null;
+  grade_target?: number | null;
+  course_id?: string | null;
+  /** The SERVER's figure, priced in the same transaction as the row. Null only on an 'existed' row
+   *  whose goal predates scoping. */
+  reward: ScopedRewardPreview | null;
+};
+
+/** What `update_goal` (0183) hands back — the goal as it now stands, and its RE-SCORED price. */
+export type UpdatedGoal = {
+  id: string;
+  label: string | null;
+  target: number;
+  due_at: string | null;
+  tier: DifficultyTier;
+  /** What it was scoped at before this edit, so the reply can say "Epic instead of Legendary". */
+  previous_tier: DifficultyTier | null;
+  /** Which of 'target' | 'deadline' | 'reward' actually moved. */
+  changed: string[];
+  reward: ScopedRewardPreview;
+};
+
+/** What `report_goal_grade` (0183) hands back — the verdict, in the same breath as the question.
+ *
+ *  A PASS also reveals through the ordinary door: setting completed_at fires challenges_economy,
+ *  which mints the crate, and GoalRevealWatcher picks it up. A MISS reveals nowhere but here —
+ *  teaching get_unseen_goal_rewards to emit payload-less rows would hand every installed build a
+ *  crate screen with a null crate. */
+export type GradeReport = {
+  id: string;
+  label: string | null;
+  grade: number;
+  grade_target: number;
+  passed: boolean;
+  tier: DifficultyTier | null;
+  /** What the pass was worth. Null on a miss — a figure beside "you missed it" reads as a payout
+   *  that never moved. */
+  reward: ScopedRewardPreview | null;
 };
 
 // Solo (announced) mode was removed — a solo goal the campfire can see is already covered by
@@ -2124,6 +2258,14 @@ export type Database = {
           },
         ];
       };
+      // The member's own courses (0182) — the second tap under Studying. Owner-scoped RLS, so the
+      // client reads and writes this table directly rather than through an RPC.
+      user_courses: {
+        Row: UserCourse;
+        Insert: { user_id: string; title: string; code?: string | null };
+        Update: Partial<Pick<UserCourse, 'code' | 'title' | 'archived_at'>>;
+        Relationships: [];
+      };
       check_ins: {
         Row: CheckIn;
         Insert: Partial<CheckIn> & { goal_id: string; user_id: string; photo_url: string };
@@ -2549,6 +2691,24 @@ export type Database = {
         Args: { p_tier: DifficultyTier; p_verifiability?: string; p_duration_days?: number; p_scope?: number };
         Returns: ScopedRewardPreview;
       };
+      // ─── bulk create · edit · grade settlement (0183) ───
+      // Same firewall as the two above and for the same reason: a tier is a PROPOSAL, and none of
+      // these takes a verifiability, a band, a box or an ember figure. The server derives the first
+      // and computes the rest.
+      create_scoped_goals: { Args: { p_goals: unknown }; Returns: { results: CreatedGoalReceipt[] } };
+      update_goal: {
+        Args: {
+          p_goal_id: string;
+          p_target?: number | null;
+          p_due_at?: string | null;
+          p_clear_due?: boolean;
+          p_tier?: DifficultyTier | null;
+        };
+        Returns: UpdatedGoal;
+      };
+      report_goal_grade: { Args: { p_goal_id: string; p_grade: number }; Returns: GradeReport };
+      delete_goal: { Args: { p_goal_id: string }; Returns: { deleted: boolean; id: string } };
+      hide_goal: { Args: { p_goal_id: string; p_hidden?: boolean }; Returns: { id: string; hidden: boolean } };
       // p_public_name landed in 0098 and the client has been sending it since; the entry here
       // still described the pre-v2 signature.
       // ─── Agent 2 / challenge v2 (0124-0127) ───
@@ -2919,7 +3079,16 @@ export type Database = {
       get_university_totals: { Args: { p_limit?: number }; Returns: UniversityTotal[] };
       get_my_ranks: { Args: Record<string, never>; Returns: MyRank[] };
       start_lock_in_session: {
-        Args: { p_goal_type: string; p_goal_detail?: string | null; p_circle_id?: string | null };
+        // Every argument optional and the new ones appended (0182), so an installed build calling
+        // the old three still resolves against the same function.
+        Args: {
+          p_goal_type?: string | null;
+          p_goal_detail?: string | null;
+          p_circle_id?: string | null;
+          p_category?: LockInCategory | null;
+          p_activity?: FitnessActivity | null;
+          p_course_id?: string | null;
+        };
         Returns: LockInSession;
       };
       confirm_lock_in_session: { Args: { p_session_id: string }; Returns: undefined };

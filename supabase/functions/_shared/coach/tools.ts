@@ -29,9 +29,19 @@ export type CoachToolSpec = {
   effect: ToolEffect;
 };
 
-// The lock-in goal types, straight from GoalType in src/types/database.ts. Kept as a literal
-// union in the schema so the model cannot invent a type the RPC would reject.
-const GOAL_TYPES = ['study', 'gym', 'run', 'read', 'job_applications', 'social_media', 'custom'];
+// The lock-in goal types the two-tap taxonomy can actually produce (0182).
+//
+// NARROWED, not extended -- and the direction matters. COACH_TOOLS reaches installed builds
+// ungated, so an enum value those builds do not handle becomes a hard "Unknown action." that no
+// OTA can fix. Every value left here is one they already understand; the four removed
+// ('read', 'job_applications', 'social_media', 'custom') are types the picker can no longer
+// start, so proposing them would offer the member a session they cannot have.
+//
+// These are the FLAT values, deliberately: the two-tap choice maps down to exactly these three
+// (Studying -> study, Fitness+Strength -> gym, Fitness+Cardio -> run), and start_lock_in_session
+// derives the category from them server-side. Teaching the model the new vocabulary while it
+// still emits the value installed clients expect is what keeps this safe to deploy.
+const GOAL_TYPES = ['study', 'gym', 'run'];
 
 // PROFILE_SPEC §G's milestone kinds — same check constraint as the milestones table.
 const MILESTONE_KINDS = ['grade', 'offer', 'certification', 'fitness_pr', 'project', 'custom'];
@@ -67,7 +77,15 @@ export const COACH_TOOLS: CoachToolSpec[] = [
     input_schema: {
       type: 'object',
       properties: {
-        goal_type: { type: 'string', enum: GOAL_TYPES, description: 'Which kind of lock-in this is.' },
+        goal_type: {
+          type: 'string',
+          enum: GOAL_TYPES,
+          description:
+            'Which kind of lock-in. There are three: "study" (Studying -- a course, reading, job ' +
+            'applications, any desk work), "gym" (Fitness -> Strength) and "run" (Fitness -> Cardio, ' +
+            'which covers running, cycling, rowing and walking). Deep work and meditation are not ' +
+            'lock-in types; anything of that shape is "study".',
+        },
         goal_detail: {
           type: 'string',
           description: 'What they are working on, e.g. "BU111" or "Chest day". Short — it is a label.',
@@ -203,6 +221,173 @@ export const COACH_TOOLS: CoachToolSpec[] = [
         },
       },
       required: ['type', 'label', 'target', 'unit', 'period'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'create_goals',
+    // 🔒 CONFIRM, and — like propose_social_challenge — the confirm is not a formality. This is the
+    // one tool that writes N rows, and a misheard turn that made five goals nobody asked for is a
+    // tab someone has to clean up by hand. The client routes it to challenge/verdict-batch, which
+    // shows every goal and the crate the SERVER prices it at before anything is written.
+    effect: 'confirm',
+    description:
+      'Create SEVERAL goals from ONE request — "a 90% in every class", "set me up for all my ' +
+      'courses", "give me a goal for each of my classes". Use this INSTEAD of calling ' +
+      'create_challenge repeatedly: you get one tool call per turn, so N separate goals through ' +
+      'create_challenge means N turns and the user is made to confirm each one. This makes them ' +
+      'all at once, in a single transaction, and you confirm ONCE with a summary of the whole set. ' +
+      'Resolve "every class" / "all my courses" from the `courses` list in their context — never ' +
+      'ask them to list courses you can already see. If a goal for a course already exists the ' +
+      'server SKIPS it and says so rather than making a second one, so it is safe to include ' +
+      'every course; tell the user which were created and which they already had. Use ' +
+      'create_challenge for a single goal, and this the moment there is more than one.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        headline: {
+          type: 'string',
+          description:
+            'The whole ask in the user\'s own terms, e.g. "90% in every class". Shown as the ' +
+            'title of the confirmation screen, so it should read as what they asked for rather ' +
+            'than as a count of goals.',
+        },
+        goals: {
+          type: 'array',
+          description:
+            'One entry per goal. Put what they SHARE (target, period, difficulty_tier, due_at) at ' +
+            'the top level and give each entry only what is genuinely its own — usually just the ' +
+            'label and the course. Restating the shared terms on every entry is how one of them ' +
+            'comes out different by accident.',
+          items: {
+            type: 'object',
+            properties: {
+              label: {
+                type: 'string',
+                description:
+                  'What this one is called — for a course goal, the course code and the target, ' +
+                  'e.g. "90% in KP390". Under 80 characters.',
+              },
+              course_id: {
+                type: 'string',
+                description:
+                  'The course\'s id, copied exactly from the `courses` array in their context. ' +
+                  'Never a code you typed, never an id you did not read there.',
+              },
+              grade_target: {
+                type: 'number',
+                description:
+                  'The MARK being chased, 1-100, when this goal is about a grade. Setting it makes ' +
+                  'this a grade goal: it is settled by the user reporting their actual mark, it ' +
+                  'never resets, and it is honour-scored because nothing in the app can observe a ' +
+                  'grade. Leave it out for a counted goal.',
+              },
+              target: {
+                type: 'number',
+                description: 'The numeric target for a counted goal. Ignored when grade_target is set.',
+              },
+              unit: {
+                type: 'string',
+                description:
+                  'The plural noun the target counts, same rule as create_challenge — it renders ' +
+                  'as "0 / <target> <unit>". Omit on a grade goal; that one counts percent.',
+              },
+              difficulty_tier: {
+                type: 'string',
+                enum: ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'],
+                description: 'Overrides the shared tier when THIS goal is harder or easier than the rest.',
+              },
+            },
+            required: ['label'],
+            additionalProperties: false,
+          },
+        },
+        target: { type: 'number', description: 'Shared numeric target, when every goal has the same one.' },
+        grade_target: {
+          type: 'number',
+          description:
+            'Shared mark, when every goal chases the same one — "90% in every class" is exactly ' +
+            'this: grade_target 90 here, and one entry per course above.',
+        },
+        unit: { type: 'string', description: 'Shared unit, when every goal counts the same thing.' },
+        period: {
+          type: 'string',
+          enum: ['day', 'week', 'once'],
+          description:
+            'Shared window. A grade goal is forced to "once" whatever this says — a mark does not ' +
+            'reset, and rolling one over at midnight would wipe it.',
+        },
+        due_at: {
+          type: 'string',
+          description: 'Shared deadline as an ISO timestamp, when they named one ("by December").',
+        },
+        difficulty_tier: {
+          type: 'string',
+          enum: ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'],
+          // 🔒 SAME PROPOSAL-NOT-A-GRANT CONTRACT as create_challenge's. create_scoped_goals
+          // validates it is one of the six and DERIVES verifiability from each goal's own shape —
+          // a grade goal is honour by derivation, capped at The Furnace, however high this claims.
+          //
+          // 🔴 AND UNLIKE create_challenge, OMITTING IT DOES NOT MEAN "unscoped". The server floors
+          // an absent tier to uncommon rather than writing a goal with no price, because a goal
+          // whose reward nobody can see is the bug this tool was added to fix. Judge it.
+          description:
+            'How hard the shared ask is for a median 18-20 year old — see the scoping rules in ' +
+            'your instructions. Scope the goal ONE PERSON has to hit, not the whole set: "90% in ' +
+            'five classes" is scored as "a 90% in a class", not as five times harder. ALWAYS send ' +
+            'one; there is no unscoped path here, and a goal you decline to judge is simply priced ' +
+            'at the floor. Never state what it pays.',
+        },
+        scope_rationale: {
+          type: 'string',
+          description:
+            'One sentence grounding the tier in the effort estimate, shown to the user verbatim.',
+        },
+      },
+      required: ['goals'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'update_challenge',
+    // 🔒 Confirmed. An edit re-prices a goal — the user agreed to chase one thing for one reward,
+    // and a misheard turn that quietly moved either is worse than one that creates something
+    // visible. The summary says what changed, so the confirm is an informed one.
+    effect: 'confirm',
+    description:
+      'Change a goal the user already has — its target ("make KP390 85 instead of 90") or its ' +
+      'deadline ("push it to December"). Pass the goal id from the `challenges` list in their ' +
+      'context; never an id you did not read there. THE REWARD FOLLOWS THE DIFFICULTY: re-judge ' +
+      'how hard the CHANGED goal is and send the new difficulty_tier, and the server re-prices it. ' +
+      'The user does not choose their own reward and you must not offer to change it for them. ' +
+      'The server enforces the rules and you relay its refusal plainly: a finished goal cannot be ' +
+      'edited (offer to set up a new one), a goal already claimed and awaiting a vouch is locked, ' +
+      'and a target at or below what they have already done — or a cut to a goal that is nearly ' +
+      'finished — is refused as cheesing it.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        goal_id: {
+          type: 'string',
+          description: 'The goal\'s id, copied exactly from the `challenges` array in their context.',
+        },
+        target: { type: 'number', description: 'The new target. Omit to leave it alone.' },
+        due_at: { type: 'string', description: 'The new deadline as an ISO timestamp. Omit to leave it alone.' },
+        clear_deadline: {
+          type: 'boolean',
+          description: 'True to REMOVE the deadline entirely — the one thing omitting due_at cannot express.',
+        },
+        difficulty_tier: {
+          type: 'string',
+          enum: ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'],
+          description:
+            'How hard the goal is AFTER the change — re-scored, not copied from before. Dropping a ' +
+            '90% to an 85% is an easier feat and should usually tier down; extending a deadline by ' +
+            'a month usually does too. Omit only when the change genuinely does not move the ' +
+            'difficulty. Never state what it pays.',
+        },
+      },
+      required: ['goal_id'],
       additionalProperties: false,
     },
   },
@@ -451,6 +636,23 @@ export function summarizeAction(tool: string, input: Record<string, unknown>): s
       return `Post “${String(input.headline ?? 'milestone')}”`;
     case 'create_challenge':
       return `${String(input.label ?? 'Challenge')} · ${input.target} ${input.unit} a ${input.period}`;
+    case 'create_goals': {
+      const n = Array.isArray(input.goals) ? input.goals.length : 0;
+      const headline = typeof input.headline === 'string' && input.headline.trim() ? input.headline.trim() : null;
+      // The user's own words when she captured them, because "90% in every class" is a far better
+      // receipt than "5 goals" — and the count as the honest fallback when she did not.
+      return headline ?? `${n} goal${n === 1 ? '' : 's'}`;
+    }
+    case 'update_challenge': {
+      const bits: string[] = [];
+      if (typeof input.target === 'number') bits.push(`target ${input.target}`);
+      if (typeof input.due_at === 'string') bits.push('new deadline');
+      if (input.clear_deadline === true) bits.push('no deadline');
+      // No goal LABEL here, for the same reason host_campfire_challenge carries no campfire name:
+      // this file has only what the model passed, and a name it wrote is exactly the thing that
+      // could be wrong. The client knows the goal by id and can say its real name.
+      return bits.length > 0 ? `Update goal · ${bits.join(', ')}` : 'Update goal';
+    }
     case 'host_campfire_challenge':
       // No campfire NAME here on purpose: the server has the ids, this file has only what the
       // model passed, and a name the model wrote is exactly the thing that could be wrong. The

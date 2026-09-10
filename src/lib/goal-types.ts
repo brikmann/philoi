@@ -1,7 +1,58 @@
 import type { Ionicons } from '@expo/vector-icons';
 
 import type { DisciplineIconName } from '@/components/ui/discipline-icon';
-import type { Challenge, ChallengeType, GoalType } from '@/types/database';
+import type { Challenge, ChallengeType, FitnessActivity, GoalType, LockInCategory } from '@/types/database';
+
+// ── The two-tap taxonomy (0182, design-mocks/194-lockin-two-tap.html) ──────────────────────
+//
+// Two top-level choices and one sub-choice, replacing six flat tiles. The labels are exactly
+// "Studying" and "Fitness", bare, with no subtitle -- that is the mock, and the whole point of the
+// redesign is that the first screen asks one question.
+export const LOCK_IN_CATEGORY_META: Record<LockInCategory, { label: string; glyph: DisciplineIconName }> = {
+  study: { label: 'Studying', glyph: 'study' },
+  fitness: { label: 'Fitness', glyph: 'gym' },
+};
+
+export const LOCK_IN_CATEGORIES: LockInCategory[] = ['study', 'fitness'];
+
+/**
+ * The second tap under Fitness. Each maps to exactly one relic ladder, which is why the subtitle
+ * names it -- the member is choosing which ladder this hour climbs, and saying so out loud is what
+ * makes the choice mean anything.
+ *
+ * "Cardio", never "Running": it covers everything Strava syncs (runs, rides, rows) and walking
+ * counts toward the same distance ladder. A runner's label would tell every walker and cyclist the
+ * ladder is not for them.
+ */
+export const FITNESS_ACTIVITY_META: Record<
+  FitnessActivity,
+  { label: string; sub: string; glyph: DisciplineIconName; autoStrava: boolean }
+> = {
+  cardio: { label: 'Cardio', sub: 'Distance ladder · km', glyph: 'run', autoStrava: true },
+  strength: { label: 'Strength', sub: 'Volume ladder · log your sets', glyph: 'gym', autoStrava: false },
+};
+
+export const FITNESS_ACTIVITIES: FitnessActivity[] = ['cardio', 'strength'];
+
+/**
+ * The flat GoalType a two-tap choice maps down to.
+ *
+ * MUST MATCH start_lock_in_session's own derivation in 0182. The server derives this itself and
+ * does not trust what the client sends, so a drift here shows up as the client displaying one
+ * thing and the row saying another -- not as an error. Installed builds still read goal_type,
+ * which is why it is still written at all.
+ */
+export function goalTypeForChoice(category: LockInCategory, activity?: FitnessActivity | null): GoalType {
+  if (category === 'fitness') return activity === 'cardio' ? 'run' : 'gym';
+  return 'study';
+}
+
+/** The reverse, for rendering a historical row that predates the two-tier columns. */
+export function categoryForGoalType(type: GoalType): { category: LockInCategory; activity: FitnessActivity | null } {
+  if (type === 'gym') return { category: 'fitness', activity: 'strength' };
+  if (type === 'run') return { category: 'fitness', activity: 'cardio' };
+  return { category: 'study', activity: null };
+}
 
 export const GOAL_TYPE_META: Record<GoalType, { label: string; emoji: string }> = {
   gym: { label: 'Gym', emoji: '🏋️' },

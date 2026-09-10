@@ -4,22 +4,46 @@ import { File } from 'expo-file-system';
 
 import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
-import type { CheckIn, GoalType, LockInSession, WorkoutSetEntry } from '@/types/database';
+import type {
+  CheckIn,
+  FitnessActivity,
+  GoalType,
+  LockInCategory,
+  LockInSession,
+  WorkoutSetEntry,
+} from '@/types/database';
 
 const PHOTO_BUCKET = 'check-in-photos';
 
+/**
+ * Starts a session from the two-tap choice (0182).
+ *
+ * `goalType` is still sent, and still required by callers, because check_ins.goal_type is what
+ * every installed pilot build reads and OTA is closed. The server does not trust the pair: given a
+ * category it DERIVES goal_type, and given only a goal_type it derives the category — so a row can
+ * never say fitness/cardio in one column and study in another, whichever half the caller speaks.
+ */
 export async function startLockInSession(
   goalType: GoalType,
   goalDetail?: string | null,
-  circleId?: string | null
+  circleId?: string | null,
+  two?: { category: LockInCategory; activity?: FitnessActivity | null; courseId?: string | null }
 ): Promise<LockInSession> {
   const { data, error } = await supabase.rpc('start_lock_in_session', {
     p_goal_type: goalType,
     p_goal_detail: goalDetail ?? null,
     p_circle_id: circleId ?? null,
+    p_category: two?.category ?? null,
+    p_activity: two?.activity ?? null,
+    p_course_id: two?.courseId ?? null,
   });
   if (error) throw error;
-  track('lock_in_started', { goal_type: goalType, circle_id: circleId ?? null });
+  track('lock_in_started', {
+    goal_type: goalType,
+    circle_id: circleId ?? null,
+    category: two?.category ?? null,
+    activity: two?.activity ?? null,
+  });
   return data;
 }
 

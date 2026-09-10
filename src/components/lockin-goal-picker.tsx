@@ -11,11 +11,27 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { fetchLockinTimeGoals } from '@/lib/api/challenges';
+import { addCourse, fetchMyCourses } from '@/lib/api/courses';
 import { fetchMyGoals } from '@/lib/api/goals';
 import { useAuth } from '@/lib/auth/auth-context';
 import { setSessionAudioChoice } from '@/lib/economy/equipped-audio';
-import { GOAL_TYPES, GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
-import type { Challenge, Goal, GoalType, WorkoutEnergy } from '@/types/database';
+import {
+  FITNESS_ACTIVITIES,
+  FITNESS_ACTIVITY_META,
+  GOAL_TYPE_GLYPH,
+  GOAL_TYPE_META,
+  LOCK_IN_CATEGORIES,
+  LOCK_IN_CATEGORY_META,
+  goalTypeForChoice,
+} from '@/lib/goal-types';
+import type {
+  Challenge,
+  FitnessActivity,
+  Goal,
+  LockInCategory,
+  UserCourse,
+  WorkoutEnergy,
+} from '@/types/database';
 
 type LockinGoalPickerProps = {
   visible: boolean;
@@ -42,7 +58,21 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { groups } = useMyGroups();
-  const [goalType, setGoalType] = useState<GoalType>('gym');
+  // ── The two taps (0182, design-mocks/194) ──
+  // `step` is which screen the sheet is showing. A null category means we are on tap 1.
+  const [step, setStep] = useState<'category' | 'second'>('category');
+  const [category, setCategory] = useState<LockInCategory | null>(null);
+  const [activity, setActivity] = useState<FitnessActivity | null>(null);
+  const [courseId, setCourseId] = useState<string | null>(null);
+  const [courses, setCourses] = useState<UserCourse[]>([]);
+  // The escape hatch for everything the two-tap mock has no room for: the campfire toggle, the
+  // gym routine + energy, session audio, and the detail field that credits time-counted goals.
+  // Closed by default, so the common path really is two taps; open, tap 2 selects instead of
+  // starting and the pinned Start button comes back.
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [addingCourse, setAddingCourse] = useState(false);
+  const [newCourseCode, setNewCourseCode] = useState('');
+  const [newCourseTitle, setNewCourseTitle] = useState('');
   const [detail, setDetail] = useState('');
   const [withCampfire, setWithCampfire] = useState(Boolean(lockedCircleId));
   const [circleId, setCircleId] = useState<string | null>(lockedCircleId ?? null);
@@ -53,7 +83,10 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
   // This session's ambient environment (COSMETIC_UI_FIXES §6.2). `undefined` means "whatever is
   // equipped", which is what every session did before the picker existed.
   const [audioChoice, setAudioChoice] = useState<string | undefined>(undefined);
-  const isGym = goalType === 'gym';
+  // Derived, never stored: one place decides what the flat type is, and it mirrors
+  // start_lock_in_session's own derivation (the server re-derives and does not trust us).
+  const goalType = category ? goalTypeForChoice(category, activity) : 'study';
+  const isGym = category === 'fitness' && activity === 'strength';
 
   // A time-counted custom goal is credited by matching the goal's own name against this
   // session's detail (0061/0113), which until now meant retyping it character-for-character with
@@ -116,6 +149,24 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
     if (visible) loadMyGoals();
   }, [visible, loadMyGoals]);
 
+  // The member's courses, for tap 2 under Studying. Silent on failure like the goal chips: the
+  // "Custom" row below the list still starts a study session, so an unreachable list degrades to
+  // the flow that existed before courses did.
+  const latestCoursesReq = useRef(0);
+  useEffect(() => {
+    if (!visible) return;
+    const req = latestCoursesReq.current + 1;
+    latestCoursesReq.current = req;
+    fetchMyCourses()
+      .then((rows) => {
+        if (latestCoursesReq.current === req) setCourses(rows);
+      })
+      .catch(() => {
+        if (latestCoursesReq.current === req) setCourses([]);
+      });
+  }, [visible]);
+
+
   useFocusEffect(
     useCallback(() => {
       if (visible) loadMyGoals();
@@ -139,30 +190,98 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
         ? 'join them'
         : 'pick a Campfire';
 
-  function handleStart() {
+  /**
+   * Starts the session. The choice is PASSED IN rather than read from state, because tap 2 both
+   * sets the choice and starts — and a setState is not visible to the same tick that scheduled
+   * it, so reading `category` here would start the previous choice (or none at all).
+   */
+  function handleStart(choice: { category: LockInCategory; activity?: FitnessActivity | null; courseId?: string | null }) {
     const trimmedDetail = detail.trim();
+    const type = goalTypeForChoice(choice.category, choice.activity ?? null);
     // Written on EVERY start, including when nothing was picked, so a choice can never survive into
     // a session the user did not make it for. LoadoutSync reads it the moment the session appears.
     setSessionAudioChoice(audioChoice);
-    onClose();
+    closeSheet();
     setDetail('');
     router.push({
       pathname: '/lock-in',
       params: {
-        type: goalType,
+        type,
+        category: choice.category,
+        ...(choice.activity ? { activity: choice.activity } : {}),
+        ...(choice.courseId ? { courseId: choice.courseId } : {}),
         ...(trimmedDetail ? { detail: trimmedDetail } : {}),
         ...(effectiveCircleId ? { circleId: effectiveCircleId } : {}),
         // The gym session screen turns these into the workout itself (start_workout) once the
         // lock-in session exists — nothing gym-specific is persisted before Start.
-        ...(isGym ? { energy, ...(routineId ? { routineId } : {}) } : {}),
+        ...(choice.activity === 'strength' ? { energy, ...(routineId ? { routineId } : {}) } : {}),
       },
     });
   }
 
+  /** Tap 2. Starts straight away unless Options is open, in which case it only selects and the
+   *  pinned Start button does the starting — otherwise opening Options to set a routine would be
+   *  impossible, since choosing the activity would already have launched. */
+  function chooseSecond(next: { activity?: FitnessActivity | null; courseId?: string | null }) {
+    if (!category) return;
+    setActivity(next.activity ?? null);
+    setCourseId(next.courseId ?? null);
+    if (!optionsOpen) handleStart({ category, activity: next.activity ?? null, courseId: next.courseId ?? null });
+  }
+
+  function chooseCategory(next: LockInCategory) {
+    setCategory(next);
+    setActivity(null);
+    setCourseId(null);
+    setStep('second');
+  }
+
+  /**
+   * Closes AND resets. A sheet that reopens still showing tap 2 of the choice someone made an
+   * hour ago is a sheet that starts the wrong session, so the reset has to happen -- but doing
+   * it in an effect keyed on `visible` means setState during an effect body, which is the
+   * cascading-render pattern this codebase lints against. Every path that closes this sheet
+   * comes through here instead.
+   */
+  function closeSheet() {
+    setStep('category');
+    setCategory(null);
+    setActivity(null);
+    setCourseId(null);
+    setOptionsOpen(false);
+    setAddingCourse(false);
+    onClose();
+  }
+
+  function goBack() {
+    setStep('category');
+    setCategory(null);
+    setActivity(null);
+    setCourseId(null);
+    setAddingCourse(false);
+  }
+
+  async function saveNewCourse() {
+    const title = newCourseTitle.trim() || newCourseCode.trim();
+    if (!session || !title) return;
+    try {
+      const created = await addCourse(session.user.id, title, newCourseCode.trim() || null);
+      setCourses((prev) => (prev.some((c) => c.id === created.id) ? prev : [...prev, created]));
+      setAddingCourse(false);
+      setNewCourseCode('');
+      setNewCourseTitle('');
+      chooseSecond({ courseId: created.id });
+    } catch {
+      // Silent, same as every other optional read in this sheet: the Custom row below still
+      // starts a study session, so a failed save costs the label, never the lock-in.
+      setAddingCourse(false);
+    }
+  }
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={closeSheet}>
       <View style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+        <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} accessibilityLabel="Close" />
 
         {lockedCircleId && (
           <View style={[styles.circleHeader, { top: insets.top + Spacing.three }]}>
@@ -176,35 +295,195 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
         <View style={[styles.sheet, { paddingBottom: Math.max(16, insets.bottom) }]}>
           <View style={styles.grab} />
 
-          <Text style={styles.title}>What are you locking in for?</Text>
+          {step === 'second' && (
+            <Pressable onPress={goBack} style={styles.back} accessibilityRole="button" hitSlop={8}>
+              <Ionicons name="chevron-back" size={15} color={Colors.muted} />
+              <Text style={styles.backLabel}>Back</Text>
+            </Pressable>
+          )}
 
-          {/* Everything above the CTA scrolls: picking Gym reveals the routine list + energy
-              chips (§23), which on a small screen is more than the sheet can show at once.
-              "Start lock-in" stays pinned below so it never scrolls out of reach. */}
+          <Text style={styles.title}>
+            {step === 'category' ? 'Lock in' : category === 'study' ? 'Which course?' : 'What kind?'}
+          </Text>
+          <Text style={styles.subtitle}>
+            {step === 'category'
+              ? "Pick what you're focusing on."
+              : category === 'study'
+                ? 'Your lock-in counts toward it.'
+                : 'Feeds your discipline relics.'}
+          </Text>
+
+          {/* Everything above the CTA scrolls: opening Options reveals the routine list + energy
+              chips (§23), which on a small screen is more than the sheet can show at once. */}
           <ScrollView
             style={styles.body}
             contentContainerStyle={styles.bodyContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
-          <View style={styles.grid}>
-            {GOAL_TYPES.map((type) => {
-              const selected = goalType === type;
-              return (
-                <Pressable
-                  key={type}
-                  onPress={() => setGoalType(type)}
-                  style={[styles.tile, selected && styles.tileSelected]}>
-                  <View style={styles.tileIcon}>
-                    <DisciplineIcon name={GOAL_TYPE_GLYPH[type]} size={16} color={Colors.amber} />
-                  </View>
-                  <Text style={[styles.tileLabel, selected && styles.tileLabelSelected]}>
-                    {GOAL_TYPE_META[type].label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
 
+          {/* ── TAP 1 ── Two cards, bare labels, no subtitles (mock 194). The first screen asks
+              exactly one question, which is the entire point of the redesign. */}
+          {step === 'category' && (
+            <View style={styles.bigCards}>
+              {LOCK_IN_CATEGORIES.map((cat) => (
+                <Pressable
+                  key={cat}
+                  onPress={() => chooseCategory(cat)}
+                  accessibilityRole="button"
+                  accessibilityLabel={LOCK_IN_CATEGORY_META[cat].label}
+                  style={styles.bigCard}>
+                  <View style={styles.bigCardIcon}>
+                    <DisciplineIcon name={LOCK_IN_CATEGORY_META[cat].glyph} size={26} color={Colors.amber} />
+                  </View>
+                  <Text style={styles.bigCardLabel}>{LOCK_IN_CATEGORY_META[cat].label}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* ── TAP 2A ── the member's own courses. */}
+          {step === 'second' && category === 'study' && (
+            <View style={styles.rows}>
+              {courses.map((course) => (
+                <Pressable
+                  key={course.id}
+                  onPress={() => chooseSecond({ courseId: course.id })}
+                  accessibilityRole="button"
+                  style={[styles.row, courseId === course.id && styles.rowSelected]}>
+                  <View style={styles.rowDot}>
+                    {/* The numeric tail of the code ("390"), as the mock draws it. Falls back to
+                        an initial for a course with no code — a Custom entry someone named. */}
+                    <Text style={styles.rowDotText}>
+                      {course.code?.replace(/^[A-Za-z]+/, '') || course.title.slice(0, 1).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={styles.rowLabel}>{course.code ?? course.title}</Text>
+                    {course.code ? <Text style={styles.rowSub}>{course.title}</Text> : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
+                </Pressable>
+              ))}
+
+              {/* "Custom" is a real destination, not a fallback: reading, job apps and side
+                  projects stopped being their own lock-in types and live here. */}
+              <Pressable
+                onPress={() => chooseSecond({ courseId: null })}
+                accessibilityRole="button"
+                style={[styles.row, styles.rowDashed]}>
+                <View style={[styles.rowDot, styles.rowDotDashed]}>
+                  <Ionicons name="ellipsis-horizontal" size={14} color={Colors.muted} />
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowLabel}>Custom</Text>
+                  <Text style={styles.rowSub}>Reading, job apps, side project…</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
+              </Pressable>
+
+              {addingCourse ? (
+                <View style={styles.addCourse}>
+                  <View style={styles.addCourseFields}>
+                    <TextInput
+                      style={[styles.detailInput, styles.addCourseCode]}
+                      value={newCourseCode}
+                      onChangeText={setNewCourseCode}
+                      placeholder="KP390"
+                      placeholderTextColor={Colors.textTertiary}
+                      autoCapitalize="characters"
+                      maxLength={10}
+                    />
+                    <TextInput
+                      style={styles.detailInput}
+                      value={newCourseTitle}
+                      onChangeText={setNewCourseTitle}
+                      placeholder="Data Analysis"
+                      placeholderTextColor={Colors.textTertiary}
+                      maxLength={80}
+                    />
+                  </View>
+                  <Pressable
+                    onPress={() => void saveNewCourse()}
+                    disabled={!newCourseCode.trim() && !newCourseTitle.trim()}
+                    accessibilityRole="button"
+                    style={[
+                      styles.addCourseSave,
+                      !newCourseCode.trim() && !newCourseTitle.trim() && styles.startDisabled,
+                    ]}>
+                    <Text style={styles.addCourseSaveLabel}>Add & start</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                // Without this the list can only ever hold what 0182 seeded from history, which
+                // for most members is nothing — the picker would be a Custom row and no courses.
+                <Pressable
+                  onPress={() => setAddingCourse(true)}
+                  accessibilityRole="button"
+                  style={[styles.row, styles.rowDashed]}>
+                  <View style={[styles.rowDot, styles.rowDotDashed]}>
+                    <Ionicons name="add" size={15} color={Colors.amber} />
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={styles.rowLabel}>Add a course</Text>
+                    <Text style={styles.rowSub}>Code and name — it stays in this list</Text>
+                  </View>
+                </Pressable>
+              )}
+            </View>
+          )}
+
+          {/* ── TAP 2B ── which ladder this hour climbs. */}
+          {step === 'second' && category === 'fitness' && (
+            <View style={styles.rows}>
+              {FITNESS_ACTIVITIES.map((act) => {
+                const meta = FITNESS_ACTIVITY_META[act];
+                return (
+                  <Pressable
+                    key={act}
+                    onPress={() => chooseSecond({ activity: act })}
+                    accessibilityRole="button"
+                    accessibilityLabel={meta.label}
+                    style={[styles.row, activity === act && styles.rowSelected]}>
+                    <View style={styles.rowDot}>
+                      <DisciplineIcon name={meta.glyph} size={16} color={Colors.ink} />
+                    </View>
+                    <View style={styles.rowText}>
+                      <View style={styles.rowLabelLine}>
+                        <Text style={styles.rowLabel}>{meta.label}</Text>
+                        {meta.autoStrava && (
+                          <View style={styles.autoPill}>
+                            <Text style={styles.autoPillLabel}>Auto · Strava</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.rowSub}>{meta.sub}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          {/* The escape hatch. Everything below here used to be the whole sheet; it is collapsed
+              so the common path is two taps, and reachable so nothing that worked stopped working
+              — in particular the detail field, which is how a time-counted goal gets credited. */}
+          {step === 'second' && (
+            <Pressable
+              onPress={() => setOptionsOpen((open) => !open)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: optionsOpen }}
+              style={styles.optionsToggle}>
+              <Ionicons name={optionsOpen ? 'chevron-up' : 'options-outline'} size={14} color={Colors.muted} />
+              <Text style={styles.optionsToggleLabel}>
+                {optionsOpen ? 'Hide options' : 'Options — campfire, detail, audio'}
+              </Text>
+            </Pressable>
+          )}
+
+          {step === 'second' && optionsOpen && (
+            <>
           <View style={styles.detailRow}>
             <Ionicons name="pricetag" size={14} color={Colors.textTertiary} />
             <TextInput
@@ -330,12 +609,22 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
               ))}
             </ScrollView>
           )}
+            </>
+          )}
           </ScrollView>
 
-          <Pressable style={[styles.start, !canStart && styles.startDisabled]} onPress={handleStart} disabled={!canStart}>
-            <Ionicons name="lock-closed" size={16} color={Colors.ink} />
-            <Text style={styles.startLabel}>Start lock-in</Text>
-          </Pressable>
+          {/* Only when Options is open. With it closed, tap 2 IS the start, and a Start button
+              sitting under a screen whose rows already start would be a second way to do the same
+              thing -- and an ambiguous one, since nothing is selected yet. */}
+          {step === 'second' && optionsOpen && (
+            <Pressable
+              style={[styles.start, !canStart && styles.startDisabled]}
+              onPress={() => category && handleStart({ category, activity, courseId })}
+              disabled={!canStart}>
+              <Ionicons name="lock-closed" size={16} color={Colors.ink} />
+              <Text style={styles.startLabel}>Start lock-in</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </Modal>
@@ -343,6 +632,171 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
 }
 
 const styles = StyleSheet.create({
+  // ── The two-tap flow (mock 194) ──
+  back: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
+    marginBottom: 2,
+  },
+  backLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.muted,
+  },
+  subtitle: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.muted,
+    marginTop: 2,
+    marginBottom: Spacing.three,
+  },
+  bigCards: {
+    gap: Spacing.two,
+  },
+  // Deliberately tall and bare. The mock gives tap 1 two cards and no subtitles, because the
+  // whole redesign is that the first screen asks exactly one question.
+  bigCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: 18,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.card,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    backgroundColor: Colors.selectedBg,
+  },
+  bigCardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.achieverBg,
+  },
+  bigCardLabel: {
+    flex: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 17,
+    color: Colors.ink,
+  },
+  rows: {
+    gap: Spacing.two,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: 12,
+    paddingHorizontal: 13,
+    borderRadius: Radius.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    backgroundColor: Colors.selectedBg,
+  },
+  // Only ever visible with Options open — with it closed a tap starts the session, so there is no
+  // moment at which a row sits selected on screen.
+  rowSelected: {
+    borderColor: Colors.amber,
+    backgroundColor: Colors.achieverBg,
+  },
+  rowDashed: {
+    borderStyle: 'dashed',
+    borderColor: Colors.lineStrong,
+    backgroundColor: 'transparent',
+  },
+  rowDot: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.disabled,
+  },
+  rowDotDashed: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.lineStrong,
+  },
+  rowDotText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.ink,
+  },
+  rowText: {
+    flex: 1,
+    gap: 1,
+  },
+  rowLabelLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  rowLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+  rowSub: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.muted,
+  },
+  autoPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.achieverBg,
+  },
+  autoPillLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 9.5,
+    color: Colors.achieverText,
+  },
+  addCourse: {
+    gap: Spacing.two,
+    padding: 13,
+    borderRadius: Radius.card,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.lineStrong,
+  },
+  addCourseFields: {
+    gap: Spacing.two,
+  },
+  addCourseCode: {
+    // Short field for a short value -- a code is six characters, not a sentence.
+    maxWidth: 130,
+  },
+  addCourseSave: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: Radius.button,
+    backgroundColor: Colors.achieverBg,
+  },
+  addCourseSaveLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.achieverText,
+  },
+  optionsToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: Spacing.three,
+    paddingVertical: 10,
+  },
+  optionsToggleLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12.5,
+    color: Colors.muted,
+  },
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
