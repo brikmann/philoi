@@ -188,8 +188,11 @@ export const COACH_TOOLS: CoachToolSpec[] = [
           // hand-counted goal is land on the same Furnace an honest Epic lands on.
           description:
             'How hard the described feat is for a median 18-20 year old with average starting ' +
-            'fitness — see the scoping rules in your instructions. Omit it if the goal is vague or ' +
-            'unmeasurable; ask a clarifying question instead. Never state what it pays.',
+            'fitness — see the scoping rules in your instructions. A STRENGTH OR LOAD goal is ' +
+            'scored as load ÷ the bodyweight in your context `body` block, and by the leap from ' +
+            'their current best rather than by the landmark — never by the raw pounds. Omit it if ' +
+            'the goal is vague or unmeasurable; ask a clarifying question instead. Never state ' +
+            'what it pays.',
         },
         scope_rationale: {
           type: 'string',
@@ -360,9 +363,11 @@ export const COACH_TOOLS: CoachToolSpec[] = [
           // reserves for elite and above however high this says.
           description:
             'How hard the whole ask is for a median 18-20 year old — see the scoping rules in your ' +
-            'instructions. Scope the WHOLE challenge, not one unit of it. Omit it entirely if the ' +
-            'ask is too vague to judge, and ask a clarifying question instead. Never state what ' +
-            'it pays.',
+            'instructions. Scope the WHOLE challenge, not one unit of it. A load-based race is ' +
+            'scored relative to bodyweight (context `body`), never on raw pounds — that is what ' +
+            'keeps a duel between two people of different sizes a fair one. Omit it entirely if ' +
+            'the ask is too vague to judge, and ask a clarifying question instead. Never state ' +
+            'what it pays.',
         },
         scope_rationale: {
           type: 'string',

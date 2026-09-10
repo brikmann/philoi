@@ -102,6 +102,21 @@ export type Profile = {
    * cost is precision on the steps→distance relic ladder. `numeric` server-side, so PostgREST can
    * hand it back as a string — coerce before doing arithmetic on it. */
   height_cm: number | null;
+  /** Kilograms, collected by onboarding's optional weight step (design-mocks/188) and written
+   * through `set_my_weight_kg` (migration 0178). The denominator behind DIFFICULTY_SCOPING.md's
+   * "fitness is IPSATIVE": Cindy reads a load goal as load ÷ bodyweight so a 300 lb squat is
+   * scored as ~1.9× a 160 lb lifter rather than as 300 raw pounds.
+   *
+   * 🔒 It pays nothing. A one-off PR still grants no box and no currency; weight moves the FLEX —
+   * share card, leaderboard order, effort inside a duel — and reaches no settlement path.
+   *
+   * Null is a supported state, not a gap to fill: the coach asks once or falls back to the
+   * demographic anchors. `numeric` server-side, so PostgREST can hand it back as a string —
+   * coerce before doing arithmetic on it. Never rendered on a profile surface. */
+  weight_kg: number | null;
+  /** Which unit to SAY the weight back in — a display preference, never a second quantity, since
+   * `weight_kg` is always kilograms. Null means the user has not chosen; the pickers open on lb. */
+  weight_unit: 'lb' | 'kg' | null;
   /** Has an active paid Philoi membership. Unused for gating during free early access — see use-entitlement.ts. */
   is_pro: boolean;
   pro_until: string | null;
@@ -3072,6 +3087,12 @@ export type Database = {
       };
       set_my_height_cm: {
         Args: { p_height_cm: number };
+        Returns: void;
+      };
+      /** Bodyweight, the denominator for ipsative load scoring (migration 0178). `p_weight_kg`
+       *  null clears it; `p_weight_unit` null keeps the stored display preference. */
+      set_my_weight_kg: {
+        Args: { p_weight_kg: number | null; p_weight_unit: 'lb' | 'kg' | null };
         Returns: void;
       };
       record_step_days: {

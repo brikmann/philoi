@@ -4,6 +4,9 @@
 // lock_in_sessions, so nothing here decides what anyone has earned. This is the read, plus the two
 // writes the server genuinely cannot do on its own: a height (only the user knows it) and a step
 // count (only the device has it).
+//
+// The bodyweight write (0178) is filed here too, for adjacency rather than because it belongs to a
+// ladder — it is the other half of the same onboarding step as height, and no relic reads it.
 
 import { supabase } from '@/lib/supabase';
 import type { RelicProgressRow, StepDayInput, UnseenRelicUnlock } from '@/types/database';
@@ -29,6 +32,30 @@ export async function fetchMyRelicProgress(): Promise<RelicProgressRow[]> {
  */
 export async function setMyHeightCm(heightCm: number): Promise<void> {
   const { error } = await supabase.rpc('set_my_height_cm', { p_height_cm: heightCm });
+  if (error) throw error;
+}
+
+/**
+ * Bodyweight, in kilograms — the DENOMINATOR Cindy scores a load goal against (migration 0178).
+ *
+ * Filed next to the height write because they are the same two rulers on the same two screens
+ * (onboarding step 3/4, and body-metrics.tsx), and separating them is what makes the pair hard to
+ * find. It is NOT a relic input: nothing on any ladder reads it.
+ *
+ * 🔒 IT PAYS NOTHING. DIFFICULTY_SCOPING.md's 🔴 decision is that a one-off strength PR grants no
+ * box and no currency — fitness loot comes from consistency goals and relic rungs. Weight makes a
+ * lift read fairly as a FLEX (share card, leaderboard order, effort inside a duel) and reaches
+ * nothing in the economy. 0178 asserts that the reward paths cannot see it.
+ *
+ * Pass `null` to clear a stored weight; `unit` is a display preference (which unit to say it back
+ * in) and is left alone when omitted. Optional everywhere — with no weight the coach asks once or
+ * falls back to the demographic anchors, so skipping costs fairness on load goals and nothing else.
+ */
+export async function setMyWeightKg(weightKg: number | null, unit?: 'lb' | 'kg'): Promise<void> {
+  const { error } = await supabase.rpc('set_my_weight_kg', {
+    p_weight_kg: weightKg,
+    p_weight_unit: unit ?? null,
+  });
   if (error) throw error;
 }
 

@@ -463,8 +463,19 @@ export default function SettingsScreen() {
           />
         </View>
 
+        {/* Height + weight (design-mocks/188). Filed under CONNECTIONS rather than PRIVACY because
+            it belongs with the other things that make tracking accurate — and because listing a
+            bodyweight under "Privacy" would frame it as something to be defended rather than
+            something the user is choosing to tell us. The row says what it is FOR: it is the only
+            honest answer to "why does a study app know my weight". */}
         <Text style={styles.sectionLabel}>CONNECTIONS</Text>
         <View style={styles.group}>
+          <SettingsRow
+            icon="body-outline"
+            label="Height & weight"
+            description="Turns steps into kilometres, and lets Cindy score a lift against your own bodyweight. Private, and never used to hand out rewards."
+            onPress={() => router.push('/body-metrics')}
+          />
           <SettingsRow icon="fitness" label="Connected apps" onPress={() => router.push('/connected-apps')} />
           {/* Campus verification state (UNI_VERIFICATION_SPEC.md §6) — the value column is the
               whole story: verified, or the reason it isn't. */}

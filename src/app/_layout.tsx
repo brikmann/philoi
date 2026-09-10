@@ -365,6 +365,7 @@ function RootNavigator() {
         <Stack.Screen name="support" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="settings-notifications" options={{ title: 'Notifications' }} />
+        <Stack.Screen name="body-metrics" options={{ title: 'Body' }} />
         {/* Focus Nudge setup — mock 109 frame 1. A real route, not just a settings sub-page: the
             shield's primary button deep-links into the app and the support surface next door is
             reached the same way. */}

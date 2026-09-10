@@ -5,6 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CampusVerification, CampusVerifiedPanel } from '@/components/campus-verification';
 import { DEFAULT_HEIGHT_CM, HeightRuler } from '@/components/onboarding/height-ruler';
+import { DEFAULT_WEIGHT_KG, WeightRuler, type WeightUnit } from '@/components/onboarding/weight-ruler';
 import { OnboardingProgress } from '@/components/ui/onboarding-progress';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
@@ -12,7 +13,7 @@ import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversities } from '@/lib/api/groups';
-import { setMyHeightCm } from '@/lib/api/relics';
+import { setMyHeightCm, setMyWeightKg } from '@/lib/api/relics';
 import { getErrorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 import {
@@ -50,15 +51,23 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 // didn't render" was simply a step that had never been built. Skippable by design, because the
 // fallback is a real answer and the distance relic must not be gated behind a measurement.
 //
-// Step 4 is the OPTIONAL campus verification (UNI_VERIFICATION_SPEC.md §5). It's skipped
+// Step 4 is the OPTIONAL weight estimate (design-mocks/188) — the other half of the same
+// question, and the one DIFFICULTY_SCOPING.md §"Fitness is IPSATIVE" has been waiting on. Height
+// feeds a stride; weight is the DENOMINATOR Cindy scores a load goal against, so "squat 300" is
+// read as ~1.9× a 160 lb lifter rather than as 300 raw pounds. Until this step existed the
+// tutorial's Personal-goals card promised per-bodyweight scoring the app could not compute.
+// Skippable for the same reason height is, though the fallback is worse: no weight means Cindy
+// asks once or scores off the demographic anchors.
+//
+// Step 5 is the OPTIONAL campus verification (UNI_VERIFICATION_SPEC.md §5). It's skipped
 // entirely — not shown, not counted — when the chosen school has no known email domain, since
 // there's nothing to send a code to. Never a blocker either way: skipping just leaves the two
 // campus boards locked.
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
 export default function SetupHandleScreen() {
   const { session, profile, refreshProfile } = useAuth();
-  const [step, setStep] = useState<Step>(profile?.handle ? 5 : 1);
+  const [step, setStep] = useState<Step>(profile?.handle ? 6 : 1);
 
   const [handle, setHandle] = useState(profile?.handle ?? '');
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
@@ -80,6 +89,17 @@ export default function SetupHandleScreen() {
     return Number.isFinite(saved) && saved > 0 ? Math.round(saved) : DEFAULT_HEIGHT_CM;
   });
   const [heightTouched, setHeightTouched] = useState(false);
+
+  // Same pre-fill rule as height, and the same `numeric`-through-PostgREST coercion. `weight_unit`
+  // is a display preference rather than a second quantity — the stored figure is always kilograms —
+  // so a returning user gets the ruler drawn in the unit they last chose, showing the value they
+  // last saved.
+  const [weightKg, setWeightKg] = useState<number>(() => {
+    const saved = Number(profile?.weight_kg);
+    return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_WEIGHT_KG;
+  });
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(profile?.weight_unit ?? 'lb');
+  const [weightTouched, setWeightTouched] = useState(false);
 
   const [ageChecked, setAgeChecked] = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
@@ -120,7 +140,8 @@ export default function SetupHandleScreen() {
   // table can still be saved as free text rather than blocking onboarding.
   const notListed = universityQuery.trim().length > 0 && !universities.some((u) => u.toLowerCase() === universityQuery.trim().toLowerCase());
   const canContinueStep2 = Boolean(university) || notListed;
-  const canContinueStep3 = ageChecked && termsChecked;
+  // The consent gate, on the last step — the two body-metric steps in between validate nothing.
+  const canFinish = ageChecked && termsChecked;
 
   // Strictly the live server flag (punchlist 6 §1) — there is no local "just verified" state to
   // go stale. The school has to match too: the flag on the profile belongs to the school stored
@@ -184,9 +205,9 @@ export default function SetupHandleScreen() {
     setStep(3);
   }
 
-  /** Where the height step leads. No domain → nothing to verify against, so don't show a step
-   * that can only dead-end. */
-  const afterHeight: Step = universityDomain ? 4 : 5;
+  /** Where the weight step leads. No domain → nothing to verify against, so don't show a step
+   * that can only dead-end. Height always leads to weight: the two are one question. */
+  const afterWeight: Step = universityDomain ? 5 : 6;
 
   /**
    * Save the height and move on.
@@ -212,11 +233,42 @@ export default function SetupHandleScreen() {
         setLoading(false);
       }
     }
-    setStep(afterHeight);
+    setStep(4);
+  }
+
+  /**
+   * Save the weight and move on.
+   *
+   * SAME SKIP CONTRACT AS HEIGHT, and it matters more here. `weightTouched` is set only by a
+   * SCROLL — WeightRuler reports a unit switch with source 'unit' precisely so that toggling
+   * lb⇄kg out of curiosity cannot turn the default 160 lb into a claim about this person's body.
+   * A skipped weight is a real, supported state: Cindy asks once or scopes off the demographic
+   * anchors (DIFFICULTY_SCOPING.md), which is worse than knowing but is never wrong.
+   *
+   * The unit IS written even on an untouched step, because a unit preference is a statement about
+   * how the user reads numbers rather than about their body — and it is what makes Settings open
+   * in kg for someone who never gave us a weight at all.
+   *
+   * A failed write is swallowed for the same reason height's is: this is the optional step, and
+   * blocking onboarding on it would make an estimate more load-bearing than the account.
+   */
+  async function handleContinueWeight(persist: boolean) {
+    if (persist && weightTouched) {
+      setLoading(true);
+      try {
+        await setMyWeightKg(weightKg, weightUnit);
+        await refreshProfile();
+      } catch (e) {
+        console.warn('[onboarding] could not save weight:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    setStep(afterWeight);
   }
 
   async function handleFinish() {
-    if (!canContinueStep3 || !session) return;
+    if (!canFinish || !session) return;
     setLoading(true);
     setError(null);
     try {
@@ -239,10 +291,10 @@ export default function SetupHandleScreen() {
 
   return (
     <Screen padded={false} style={styles.container}>
-      {/* Five segments only when verification is actually on this user's path — a school with no
-          domain never sees that step, so showing a fifth dot would promise one that never comes.
-          Height is on everyone's path, so it always counts. */}
-      <OnboardingProgress step={step} total={universityDomain ? 5 : 4} />
+      {/* Six segments only when verification is actually on this user's path — a school with no
+          domain never sees that step, so showing a sixth dot would promise one that never comes.
+          Both body-metric steps are on everyone's path, so they always count. */}
+      <OnboardingProgress step={step} total={universityDomain ? 6 : 5} />
 
       {step === 1 && (
         <View style={styles.step}>
@@ -367,17 +419,18 @@ export default function SetupHandleScreen() {
         </View>
       )}
 
-      {/* OPTIONAL height (design-mocks/128). Framed as what it actually does — it estimates a
-          stride so walking can be scored in kilometres — and never as a requirement, because the
-          server has a perfectly good default for anyone who walks past it. */}
+      {/* OPTIONAL height (design-mocks/128, recopied by 188). Framed as what it actually does —
+          it estimates a stride so walking can be scored in kilometres — and never as a
+          requirement, because the server has a perfectly good default for anyone who walks past
+          it. Mock 188 names the second use too, so the pair of steps reads as one question. */}
       {step === 3 && (
         <View style={styles.step}>
           <Text style={styles.h}>How tall are you?</Text>
           <Text style={styles.sub}>
-            Lets us turn your steps into kilometres, so walking counts towards rewards.
+            Turns your steps into kilometres — and helps Cindy scope your fitness goals fairly.
           </Text>
 
-          <View style={styles.heightPicker}>
+          <View style={styles.rulerPicker}>
             <HeightRuler
               value={heightCm}
               onChange={(cm) => {
@@ -391,19 +444,65 @@ export default function SetupHandleScreen() {
             onPress={() => handleContinueHeight(false)}
             accessibilityRole="button"
             hitSlop={8}
-            style={styles.skipHeight}>
-            <Text style={styles.skipHeightText}>Skip — we&apos;ll use an average</Text>
+            style={styles.skipStep}>
+            <Text style={styles.skipStepText}>Skip — we&apos;ll use an average</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* OPTIONAL weight (design-mocks/188) — the ipsative denominator.
+          The subtitle says what it BUYS the user ("a big lift means more, the lighter you are")
+          rather than what we do with it, because the honest objection to being asked your weight
+          is "why do you want it", and DIFFICULTY_SCOPING.md is explicit that this ethos has to be
+          said out loud everywhere goal-setting happens rather than buried in a privacy policy. */}
+      {step === 4 && (
+        <View style={styles.step}>
+          <Text style={styles.h}>And your weight?</Text>
+          <Text style={styles.sub}>
+            So Cindy scores your fitness goals fairly — a big lift means more, the lighter you are.
+          </Text>
+
+          <View style={styles.rulerPicker}>
+            <WeightRuler
+              value={weightKg}
+              unit={weightUnit}
+              onUnitChange={setWeightUnit}
+              onChange={(kg, source) => {
+                setWeightKg(kg);
+                // Only a scroll is a measurement. A unit switch moves the value to stay on a tick
+                // and must not count as one — see handleContinueWeight.
+                if (source === 'scroll') setWeightTouched(true);
+              }}
+            />
+          </View>
+
+          {/* The promise this screen has to make to earn the answer, and it is exactly the promise
+              the app keeps: no profile surface renders weight, and no reward path can read it. */}
+          <View style={styles.privacy}>
+            <Ionicons name="lock-closed" size={13} color={Colors.muted} />
+            <Text style={styles.privacyText}>
+              Private — only used to scope your goals. Never shown on your profile. Edit anytime in
+              Settings.
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={() => handleContinueWeight(false)}
+            accessibilityRole="button"
+            hitSlop={8}
+            style={styles.skipStep}>
+            <Text style={styles.skipStepText}>Skip for now</Text>
           </Pressable>
         </View>
       )}
 
       {/* OPTIONAL campus verification (§5). Only ever reached when the school has a domain. */}
-      {step === 4 && university && universityDomain && (
+      {step === 5 && university && universityDomain && (
         <View style={styles.step}>
           {campusVerified ? (
             <CampusVerifiedPanel
               university={shortSchoolName(university)}
-              onContinue={() => setStep(5)}
+              onContinue={() => setStep(6)}
               continueLabel="Continue"
             />
           ) : (
@@ -411,7 +510,7 @@ export default function SetupHandleScreen() {
               university={shortSchoolName(university)}
               domain={universityDomain}
               verifyCtaLabel="Verify & unlock My Uni"
-              onSkip={() => setStep(5)}
+              onSkip={() => setStep(6)}
               onVerified={async () => {
                 await refreshProfile();
               }}
@@ -420,7 +519,7 @@ export default function SetupHandleScreen() {
         </View>
       )}
 
-      {step === 5 && (
+      {step === 6 && (
         <View style={styles.step}>
           <Text style={styles.h}>One last thing</Text>
           <Text style={styles.sub}>Then you&apos;re in.</Text>
@@ -463,42 +562,45 @@ export default function SetupHandleScreen() {
 
       {error && <Text style={styles.error}>{error}</Text>}
 
-      {/* Step 4 carries its own CTAs (Send code / Verify / Skip), so the shared nav bar sits it
+      {/* Step 5 carries its own CTAs (Send code / Verify / Skip), so the shared nav bar sits it
           out entirely — two competing primary buttons on one screen is how someone taps
           "Continue" and skips verification without meaning to. Back still works.
-          Step 3's Skip is a plain text link, not a second button, so it keeps the shared CTA. */}
+          The two rulers' Skips are plain text links, not second buttons, so they keep the
+          shared CTA. */}
       <View style={styles.nav}>
         {step > 1 && (
           <Pressable
             style={styles.back}
             onPress={() =>
-              // Step 4 only exists for a school with a domain, so stepping back from consent has
+              // Step 5 only exists for a school with a domain, so stepping back from consent has
               // to skip over it when there isn't one — otherwise Back lands on a blank screen.
-              setStep((s) => (s === 5 && !universityDomain ? 3 : ((s - 1) as Step)))
+              setStep((s) => (s === 6 && !universityDomain ? 4 : ((s - 1) as Step)))
             }>
             <Text style={styles.backLabel}>Back</Text>
           </Pressable>
         )}
-        {step !== 4 && (
+        {step !== 5 && (
           <View style={styles.nextWrap}>
             <PrimaryButton
-              label={step === 5 ? 'Enter Philoi' : 'Continue'}
+              label={step === 6 ? 'Enter Philoi' : 'Continue'}
               loading={loading}
-              // Step 3 has nothing to validate — every position on the ruler is inside the column's
-              // range by construction, and the step is skippable anyway, so it is never disabled.
+              // Steps 3 and 4 have nothing to validate — every position on either ruler is inside
+              // its column's range by construction, and both are skippable, so neither is ever
+              // disabled.
               disabled={
                 step === 1
                   ? !canContinueStep1
                   : step === 2
                     ? !canContinueStep2
-                    : step === 3
+                    : step === 3 || step === 4
                       ? false
-                      : !canContinueStep3
+                      : !canFinish
               }
               onPress={() => {
                 if (step === 1) setStep(2);
                 else if (step === 2) handleContinueStep2();
                 else if (step === 3) handleContinueHeight(true);
+                else if (step === 4) handleContinueWeight(true);
                 else handleFinish();
               }}
             />
@@ -531,20 +633,43 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 16,
   },
-  // The ruler takes the whole middle of the step and centres itself in it (mock 128's `.picker`),
-  // so the readout sits at eye level rather than pinned under the question.
-  heightPicker: {
+  // Either ruler takes the whole middle of its step and centres itself in it (the `.picker` in
+  // mocks 128 and 188), so the readout sits at eye level rather than pinned under the question.
+  rulerPicker: {
     flex: 1,
     justifyContent: 'center',
   },
-  skipHeight: {
+  // Shared by both rulers — the height step and the weight step are the same layout with a
+  // different question, and mock 188 draws them as a pair.
+  skipStep: {
     alignSelf: 'center',
     paddingVertical: Spacing.twelve,
   },
-  skipHeightText: {
+  skipStepText: {
     fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.textTertiary,
+  },
+  // Mock 188's lock chip. Sits under the ruler and above the CTA, so the promise is on screen at
+  // the moment the answer is given rather than one tap earlier.
+  privacy: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.input,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+    marginTop: Spacing.four,
+  },
+  privacyText: {
+    flex: 1,
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    lineHeight: 14,
+    color: Colors.muted,
   },
   lbl: {
     fontFamily: Fonts.body,
