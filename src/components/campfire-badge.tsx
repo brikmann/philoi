@@ -1,8 +1,9 @@
 import { useEffect, useId } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
 // THE CAMPFIRE BADGE (mock 168) — one component for every place a campfire is drawn.
@@ -79,6 +80,9 @@ export function CampfireBadge({ emoji, heat, size = 44, style }: CampfireBadgePr
   // otherwise both answer to `#frame` and every row after the first would wear the first row's
   // heat. Same guard campfire-banner-art.tsx uses.
   const gradId = `campfireFrame-${useId()}`;
+  // Subscribed once here rather than inside `Aura`, so a Discover list of twenty badges takes one
+  // focus subscription rather than twenty.
+  const motionActive = useMotionActive();
 
   return (
     // overflow visible on purpose — a roaring aura is meant to spill past the frame, and clipping
@@ -103,7 +107,7 @@ export function CampfireBadge({ emoji, heat, size = 44, style }: CampfireBadgePr
         />
       </Svg>
 
-      {aura && <Aura size={size} spec={aura} />}
+      {aura && <Aura size={size} spec={aura} still={!motionActive} />}
 
       {/* A cold fire keeps its identity but loses its light — the badge still says WHICH campfire
           while reading unmistakably as unlit. RN has no grayscale filter, so opacity carries it. */}
@@ -112,8 +116,8 @@ export function CampfireBadge({ emoji, heat, size = 44, style }: CampfireBadgePr
   );
 }
 
-function Aura({ size, spec }: { size: number; spec: NonNullable<(typeof AURA)['roar']> }) {
-  const reduceMotion = useReduceMotion();
+function Aura({ size, spec, still }: { size: number; spec: NonNullable<(typeof AURA)['roar']>; still: boolean }) {
+  const reduceMotion = useReduceMotion() || still;
   const gradId = `campfireAura-${useId()}`;
   const t = useSharedValue(0);
   const box = size * (1 + spec.spread * 2);
@@ -126,6 +130,9 @@ function Aura({ size, spec }: { size: number; spec: NonNullable<(typeof AURA)['r
     }
     t.value = 0;
     t.value = withRepeat(withTiming(1, { duration: spec.ms / 2, easing: Easing.inOut(Easing.ease) }), -1, true);
+    // The early return above parks `t` by assignment, which cancels. This path has to cancel
+    // explicitly, because a still-running repeat would fight the next mount's seed.
+    return () => cancelAnimation(t);
   }, [reduceMotion, spec.ms, t]);
 
   // `aurapulse`: opacity .4 -> .92, scale .9 -> 1.1.

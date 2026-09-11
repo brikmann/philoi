@@ -3,6 +3,7 @@ import { StyleSheet, View, type DimensionValue } from 'react-native';
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 
 import { Colors } from '@/constants/theme';
+import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
 // Ambient embers drifting up the whole lock-in screen (PHILOI_UI_SPEC.md §13, design-mocks/51's
@@ -41,9 +42,14 @@ function Ember({ left, delay }: { left: DimensionValue; delay: number }) {
 
 export function DriftingEmbers() {
   const reduceMotion = useReduceMotion();
+  // Unmounting on blur, rather than freezing: the same argument as the reduce-motion branch just
+  // below, and it is strictly cheaper — five Animated.Views and their worklets go away entirely
+  // instead of sitting parked. Nothing is lost by restarting the drift on the way back, because
+  // these particles carry no state a user could be tracking.
+  const motionActive = useMotionActive();
   // Static means no embers at all rather than five dots frozen mid-air — a stalled particle
   // reads as a rendering bug, not as a calmer screen.
-  if (reduceMotion) return null;
+  if (reduceMotion || !motionActive) return null;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">

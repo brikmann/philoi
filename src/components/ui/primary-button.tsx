@@ -12,6 +12,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, w
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { Colors, EMBER_GRADIENT, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
 // THE primary button (DESIGN_LANGUAGE_EMBER §3). Ember-gradient fill, near-black bold label, soft
@@ -72,10 +73,12 @@ export function PrimaryButton({
   const isDisabled = disabled || loading;
   const isCold = variant === 'cold';
   const isGhost = variant === 'ghost';
-  const animate = pulse && !isDisabled && !reduceMotion && variant === 'primary';
+  const motionActive = useMotionActive();
+  const animate = pulse && !isDisabled && !reduceMotion && motionActive && variant === 'primary';
 
   useEffect(() => {
     if (!animate) {
+      // The assignment is the cancel — see the same pattern in notification-bell.
       glow.value = 1;
       return;
     }

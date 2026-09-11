@@ -6,6 +6,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { useNotifications } from '@/hooks/use-notifications';
+import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
 // The header bell — design-mocks/106.
@@ -30,8 +31,11 @@ export function NotificationBell({ size = 23 }: { size?: number }) {
 
   const hasUnread = unread > 0;
 
+  const motionActive = useMotionActive();
   useEffect(() => {
-    if (!hasUnread || reduceMotion) {
+    if (!hasUnread || reduceMotion || !motionActive) {
+      // A plain assignment to a shared value cancels whatever animation is running on it, so this
+      // is the stop as well as the reset — no `cancelAnimation` needed alongside it.
       tilt.value = 0;
       return;
     }

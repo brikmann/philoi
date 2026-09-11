@@ -1,9 +1,10 @@
 import { useEffect, useId, useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { Colors, EMBER_GRADIENT, Fonts, Radius } from '@/constants/theme';
+import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { RANK_TIER_METAL, formatRankTier, nextRank, xpProgressRatio } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
@@ -54,8 +55,9 @@ export function HomeXpBar({ tier, division, xpIntoTier, xpForNextTier, fireRemai
     atMax || fireRemainingXp <= 0 ? 0 : Math.min(fireRemainingXp / xpForNextTier, Math.max(0, 1 - ratio));
   const showFire = fireRatio > 0.001;
 
+  const motionActive = useMotionActive();
   useEffect(() => {
-    if (!showFire || reduceMotion) {
+    if (!showFire || reduceMotion || !motionActive) {
       pulse.value = 1;
       return;
     }
@@ -64,7 +66,11 @@ export function HomeXpBar({ tier, division, xpIntoTier, xpForNextTier, fireRemai
       -1,
       true
     );
-  }, [showFire, reduceMotion, pulse]);
+    return () => {
+      cancelAnimation(pulse);
+      pulse.value = 1;
+    };
+  }, [showFire, reduceMotion, motionActive, pulse]);
 
   const fireStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
 

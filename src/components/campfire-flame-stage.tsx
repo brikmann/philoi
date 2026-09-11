@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
+  cancelAnimation,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
@@ -13,6 +14,8 @@ import Animated, {
 
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { Colors } from '@/constants/theme';
+import { useMotionActive } from '@/hooks/use-motion-active';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
 export type CampfireFlameState = 'roar' | 'steady' | 'dead';
 
@@ -82,8 +85,17 @@ function Smoke({ delay, xOffset }: { delay: number; xOffset: number }) {
 // breathe, the default), dead (grayscale + dim + slow flick + smoke, "gone cold").
 export function CampfireFlameStage({ state, size = 150 }: CampfireFlameStageProps) {
   const breathe = useSharedValue(1);
+  // Two gates this component never had. Reduce-motion was a straight miss — this breathed through
+  // the preference — and the focus gate is the battery half: sparks are one looping view each.
+  const reduceMotion = useReduceMotion();
+  const motionActive = useMotionActive();
+  const still = reduceMotion || !motionActive;
 
   useEffect(() => {
+    if (still) {
+      breathe.value = 1;
+      return;
+    }
     if (state === 'roar') {
       breathe.value = withRepeat(
         withSequence(withTiming(1.13, { duration: 270 }), withTiming(1.06, { duration: 270 }), withTiming(1, { duration: 360 })),
@@ -95,7 +107,8 @@ export function CampfireFlameStage({ state, size = 150 }: CampfireFlameStageProp
     } else {
       breathe.value = withRepeat(withSequence(withTiming(1.05, { duration: 850 }), withTiming(1, { duration: 850 })), -1, true);
     }
-  }, [state, breathe]);
+    return () => cancelAnimation(breathe);
+  }, [state, still, breathe]);
 
   const flameStyle = useAnimatedStyle(() => ({
     opacity: state === 'dead' ? 0.5 : 1,
@@ -104,8 +117,10 @@ export function CampfireFlameStage({ state, size = 150 }: CampfireFlameStageProp
 
   return (
     <View style={[styles.container, { width: size, height: size * FLAME_ASPECT_RATIO_INVERSE }]}>
-      {state === 'roar' && SPARKS.map((s) => <Spark key={s.delay} delay={s.delay} xOffset={s.xOffset} />)}
-      {state === 'dead' && SMOKE.map((s) => <Smoke key={s.delay} delay={s.delay} xOffset={s.xOffset} />)}
+      {/* Dropped rather than parked while still, for the same reason DriftingEmbers unmounts:
+          a particle frozen mid-rise reads as a bug. */}
+      {!still && state === 'roar' && SPARKS.map((s) => <Spark key={s.delay} delay={s.delay} xOffset={s.xOffset} />)}
+      {!still && state === 'dead' && SMOKE.map((s) => <Smoke key={s.delay} delay={s.delay} xOffset={s.xOffset} />)}
       <Animated.View style={flameStyle}>
         <FlameSvg width={size} height={size * FLAME_ASPECT_RATIO_INVERSE} />
       </Animated.View>

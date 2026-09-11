@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
-import Animated, { useAnimatedProps, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { cancelAnimation, useAnimatedProps, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
+
+import { useMotionActive } from '@/hooks/use-motion-active';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -11,6 +13,7 @@ function Ember({ cx, cy, r, fill, delay, reduceMotion }: { cx: number; cy: numbe
   useEffect(() => {
     if (reduceMotion) return;
     pulse.value = withDelay(delay, withRepeat(withSequence(withTiming(0.85, { duration: 900 }), withTiming(0.25, { duration: 900 })), -1, true));
+    return () => cancelAnimation(pulse);
   }, [reduceMotion, delay, pulse]);
 
   const animatedProps = useAnimatedProps(() => ({ opacity: reduceMotion ? 0.5 : pulse.value }));
@@ -22,6 +25,9 @@ function Ember({ cx, cy, r, fill, delay, reduceMotion }: { cx: number; cy: numbe
 // embers hold a fixed mid-glow instead of pulsing.
 export function BurntOutCampfire({ size = 160 }: { size?: number }) {
   const [reduceMotion, setReduceMotion] = useState(false);
+  // Folded into the same flag the embers already honour — they hold a fixed mid-glow, which is
+  // exactly the right parked state for a blurred screen too.
+  const motionActive = useMotionActive();
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
@@ -36,9 +42,9 @@ export function BurntOutCampfire({ size = 160 }: { size?: number }) {
         <Path d="M58 146 h84 a7 7 0 0 1 7 7 v0 a7 7 0 0 1 -7 7 h-84 a7 7 0 0 1 -7 -7 v0 a7 7 0 0 1 7 -7 Z" fill="#2A1E18" transform="rotate(20 100 153)" />
         <Path d="M58 146 h84 a7 7 0 0 1 7 7 v0 a7 7 0 0 1 -7 7 h-84 a7 7 0 0 1 -7 -7 v0 a7 7 0 0 1 7 -7 Z" fill="#241A15" transform="rotate(-20 100 153)" />
       </G>
-      <Ember cx={92} cy={147} r={4} fill="#E0612C" delay={200} reduceMotion={reduceMotion} />
-      <Ember cx={108} cy={150} r={3} fill="#F2A33C" delay={900} reduceMotion={reduceMotion} />
-      <Ember cx={100} cy={143} r={2.6} fill="#FFD27A" delay={1500} reduceMotion={reduceMotion} />
+      <Ember cx={92} cy={147} r={4} fill="#E0612C" delay={200} reduceMotion={reduceMotion || !motionActive} />
+      <Ember cx={108} cy={150} r={3} fill="#F2A33C" delay={900} reduceMotion={reduceMotion || !motionActive} />
+      <Ember cx={100} cy={143} r={2.6} fill="#FFD27A" delay={1500} reduceMotion={reduceMotion || !motionActive} />
     </Svg>
   );
 }

@@ -1,8 +1,9 @@
 import { useEffect, useId } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
+import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
 // The ACTIVITY GAUGE (mock 93). One `heat` in [0,1] drives three states, and the same mapping
@@ -142,15 +143,18 @@ const TONGUE_STOPS: Record<TongueSpec['fill'], { offset: string; colour: string;
  * The fill resolved to nothing and the whole fire rendered as a bare coal bed. A <Defs> is only
  * ever visible to the <Svg> it lives in.
  */
-function Tongue({ spec, size, reduceMotion }: { spec: TongueSpec; size: number; reduceMotion: boolean }) {
+function Tongue({ spec, size, still }: { spec: TongueSpec; size: number; still: boolean }) {
   // Ids are global to react-native-svg even though lookups are not, so two instances sharing one
   // id blank each other on Android (the FlameLogo/EmberIcon bug). Per-mount id, per tongue.
   const gradId = `heatTongue-${useId()}`;
   const t = useSharedValue(0);
   useEffect(() => {
-    if (reduceMotion) return;
+    if (still) return;
     t.value = withDelay(spec.delay, withRepeat(withTiming(1, { duration: spec.ms, easing: Easing.inOut(Easing.quad) }), -1, true));
-  }, [t, spec.delay, spec.ms, reduceMotion]);
+    // Without this, blurring the screen re-runs the effect, hits the early return, and leaves the
+    // PREVIOUS loop running — the one thing this whole gate exists to stop.
+    return () => cancelAnimation(t);
+  }, [t, spec.delay, spec.ms, still]);
 
   const flick = spec.flick;
   const style = useAnimatedStyle(() => ({
@@ -195,7 +199,7 @@ function Rising({
   drift,
   peak,
   grow,
-  reduceMotion,
+  still,
 }: {
   colour: string;
   left: number;
@@ -207,13 +211,20 @@ function Rising({
   drift: number;
   peak: number;
   grow: number;
-  reduceMotion: boolean;
+  still: boolean;
 }) {
   const t = useSharedValue(0);
   useEffect(() => {
-    if (reduceMotion) return;
+    if (still) return;
     t.value = withDelay(delay, withRepeat(withTiming(1, { duration, easing: Easing.out(Easing.quad) }), -1, false));
-  }, [t, delay, duration, reduceMotion]);
+    return () => {
+      cancelAnimation(t);
+      // Parked at 0 rather than frozen mid-flight. This one does not ping-pong — it rises from
+      // nothing and fades out — so a cancel partway up would strand a spark hanging in the air at
+      // half opacity, which is what the screen would be showing on the way back.
+      t.value = 0;
+    };
+  }, [t, delay, duration, still]);
   const style = useAnimatedStyle(() => ({
     transform: [{ translateY: -t.value * travel }, { translateX: t.value * drift }, { scale: 1 + t.value * grow }],
     opacity: Math.sin(t.value * Math.PI) * peak,
@@ -229,6 +240,12 @@ function Rising({
 export function HeatFlame({ heat, size = 132 }: { heat: number; size?: number }) {
   const state = heatToState(heat);
   const reduceMotion = useReduceMotion();
+  // ONE focus subscription per flame, not one per tongue. A roaring flame is eleven looping
+  // children (7 tongues + 3 sparks + the coal bed) and the campfire valley renders a dozen
+  // flames, so a `useMotionActive()` inside `Tongue` would mean ~130 navigation subscriptions on
+  // a single screen — bookkeeping about whether to animate, costing more than the animation.
+  const motionActive = useMotionActive();
+  const still = reduceMotion || !motionActive;
   const uid = useId();
   const id = (name: string) => `heat-${name}-${uid}`;
   // Scene units -> pixels, for the sparks and puffs that live outside an <Svg>.
@@ -254,13 +271,19 @@ export function HeatFlame({ heat, size = 132 }: { heat: number; size?: number })
   // pulse, which is half of what sells "burnt out".
   const coalPulse = useSharedValue(1);
   useEffect(() => {
-    if (reduceMotion || state === 'cold') {
+    if (still || state === 'cold') {
       coalPulse.value = 1;
       return;
     }
     coalPulse.value = 0.85;
     coalPulse.value = withRepeat(withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.quad) }), -1, true);
-  }, [coalPulse, reduceMotion, state]);
+    return () => {
+      cancelAnimation(coalPulse);
+      // Full opacity while parked: the bed's resting state is lit, and the pulse only ever dips
+      // it. Leaving it frozen at 0.85 would dim every unfocused flame by a hair.
+      coalPulse.value = 1;
+    };
+  }, [coalPulse, still, state]);
   const coalStyle = useAnimatedStyle(() => ({ opacity: coalPulse.value }));
 
   return (
@@ -288,7 +311,7 @@ export function HeatFlame({ heat, size = 132 }: { heat: number; size?: number })
       ) : null}
 
       {tongues.map((spec) => (
-        <Tongue key={spec.d} spec={spec} size={size} reduceMotion={reduceMotion} />
+        <Tongue key={spec.d} spec={spec} size={size} still={still} />
       ))}
 
       {/* The coal bed, drawn OVER the tongues exactly as the mock stacks it — the licks rise out
@@ -348,7 +371,7 @@ export function HeatFlame({ heat, size = 132 }: { heat: number; size?: number })
               drift={0}
               peak={0.95}
               grow={0}
-              reduceMotion={reduceMotion}
+              still={still}
             />
           ))
         : null}
@@ -366,7 +389,7 @@ export function HeatFlame({ heat, size = 132 }: { heat: number; size?: number })
               drift={p.dx * k}
               peak={0.5}
               grow={0.9}
-              reduceMotion={reduceMotion}
+              still={still}
             />
           ))
         : null}

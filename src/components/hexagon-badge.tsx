@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  cancelAnimation,
   interpolateColor,
   useAnimatedProps,
   useAnimatedStyle,
@@ -13,6 +14,8 @@ import Animated, {
 import Svg, { Circle, Defs, G, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
 
 import { Colors, Fonts, Radius } from '@/constants/theme';
+import { useMotionActive } from '@/hooks/use-motion-active';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { DIVISION_NUMERAL, RANK_TIER_METAL } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
@@ -64,15 +67,24 @@ export function HexagonBadge({ tier, division, size = 40, progress, numeralOverr
   const aura1 = useSharedValue(0);
   const aura2 = useSharedValue(0);
 
+  // This badge had no reduce-motion gate at all, which was an accessibility miss as much as a
+  // battery one — Primordial shimmered through a "no motion" preference. Both gates land together.
+  const reduceMotion = useReduceMotion();
+  const motionActive = useMotionActive();
   useEffect(() => {
-    if (!isPrimordial) return;
+    if (!isPrimordial || reduceMotion || !motionActive) return;
     shimmer.value = withRepeat(withSequence(withTiming(1, { duration: 1100 }), withTiming(0, { duration: 1100 })), -1, true);
     aura1.value = withRepeat(withSequence(withTiming(1, { duration: 1400 }), withTiming(0, { duration: 1400 })), -1, true);
     aura2.value = withDelay(
       75,
       withRepeat(withSequence(withTiming(1, { duration: 1400 }), withTiming(0, { duration: 1400 })), -1, true)
     );
-  }, [isPrimordial, shimmer, aura1, aura2]);
+    return () => {
+      cancelAnimation(shimmer);
+      cancelAnimation(aura1);
+      cancelAnimation(aura2);
+    };
+  }, [isPrimordial, reduceMotion, motionActive, shimmer, aura1, aura2]);
 
   const innerAnimatedProps = useAnimatedProps(() => ({
     fill: isPrimordial ? interpolateColor(shimmer.value, [0, 1], [metal.inner, metal.shimmer ?? metal.inner]) : metal.inner,

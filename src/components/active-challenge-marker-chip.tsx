@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useMotionActive } from '@/hooks/use-motion-active';
 import { formatTimeLeft } from '@/lib/format';
 import type { ActiveChallengeMarker } from '@/types/database';
 
@@ -22,10 +23,17 @@ export function ActiveChallengeMarkerChip({ marker, onWatch, compact }: { marker
     return () => sub.remove();
   }, []);
 
+  const motionActive = useMotionActive();
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion || !motionActive) return;
     pulse.value = withRepeat(withSequence(withTiming(0.3, { duration: 700 }), withTiming(1, { duration: 700 })), -1, true);
-  }, [reduceMotion, pulse]);
+    return () => {
+      cancelAnimation(pulse);
+      // Parked lit. The dot's resting state is opacity 1 and the pulse only dims it, so freezing
+      // mid-cycle would leave a half-faded "live" marker on the way back.
+      pulse.value = 1;
+    };
+  }, [reduceMotion, motionActive, pulse]);
 
   const dotStyle = useAnimatedStyle(() => ({ opacity: reduceMotion ? 1 : pulse.value }));
 

@@ -1,10 +1,11 @@
 import { useEffect, useId } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
 import { EquippedFlameSvg } from '@/components/flame-icon';
 import { useFlameRamp } from '@/lib/economy/flame-ramp';
+import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
 // YOUR flame (mock 92's `.hero`) — the clean brand silhouette in the ramp you have equipped,
@@ -41,11 +42,19 @@ export function PersonalFlame({ size = 132, glowSize }: Props) {
   // as a flame sitting in its own light.
   const pulse = useSharedValue(0);
   const flick = useSharedValue(0);
+  const motionActive = useMotionActive();
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion || !motionActive) return;
     pulse.value = withRepeat(withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.quad) }), -1, true);
     flick.value = withRepeat(withTiming(1, { duration: 550, easing: Easing.inOut(Easing.quad) }), -1, true);
-  }, [pulse, flick, reduceMotion]);
+    // Frozen where they stand rather than reset to 0. Both loops ping-pong around a midpoint, so
+    // any point on the cycle is a legitimate resting pose for the flame — and holding it means
+    // coming back to this screen resumes the breath instead of snapping it to its smallest frame.
+    return () => {
+      cancelAnimation(pulse);
+      cancelAnimation(flick);
+    };
+  }, [pulse, flick, reduceMotion, motionActive]);
 
   // `.hglow`: opacity .5 -> .92, scale 1 -> 1.05.
   const glowStyle = useAnimatedStyle(() => ({

@@ -16,6 +16,7 @@ import Svg, {
 import { EASE_SINE, spread, usePhasedLoop } from '@/components/economy/flare-perimeter';
 import { FLAME_PATH, FLAME_VIEWBOX } from '@/components/ui/flame-logo';
 import { Colors } from '@/constants/theme';
+import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { DEFAULT_LOADOUT, getItem } from '@/lib/economy/catalog';
 
@@ -1349,7 +1350,11 @@ export function CampfireBannerArt({
 
   const { from, to } = bannerColors(itemKey);
   const Scene = SCENES[itemKey ?? ''] ?? HearthlightScene;
-  const live = animated && variant === 'screen' && !reduceMotion;
+  // `live` already means "is this scene actually playing" and every scene's particles are mounted
+  // behind it — so blur folds in here and the whole animated layer comes down with it, which is
+  // the pattern the ForgeStrike note above already argues for.
+  const motionActive = useMotionActive();
+  const live = animated && variant === 'screen' && !reduceMotion && motionActive;
 
   return (
     <View style={StyleSheet.absoluteFill} onLayout={onLayout} pointerEvents="none">

@@ -16,6 +16,7 @@ import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Rect,
 
 import * as Haptics from 'expo-haptics';
 
+import { useMotionActive } from '@/hooks/use-motion-active';
 import { useEquipped } from '@/lib/economy/loadout';
 import { getRewardPreferencesSync } from '@/lib/reward-settings';
 import { Colors, Fonts } from '@/constants/theme';
@@ -1906,7 +1907,19 @@ function Particles({ from, to, motion, w, h }: { from: string; to: string; motio
 export function EquippedFlameParticles({ dimmed = false }: { dimmed?: boolean }) {
   const item = useEquipped('particle');
   const motion = item ? PARTICLE_MOTION[item.id] : undefined;
-  if (!item || !motion) return null;
+  // ── THE WHOLE OVERLAY IS THE GATE ──
+  //
+  // Both flare surfaces are gated here, at the equipped-item wrapper, rather than by threading a
+  // `still` flag down through the field. Everything below this point is a leaf of one tree —
+  // dozens of per-particle `withRepeat` loops, the per-bolt `setInterval` re-rolls, the breath on
+  // the rim — so dropping the root stops all of it with one subscription and no plumbing, and it
+  // stops the timers too, which a Reanimated-only pause would not.
+  //
+  // Unmounting is safe here in a way it would not be for a progress bar: these overlays are
+  // ambient and stateless. The flare has no position to lose, so restarting it on the way back is
+  // indistinguishable from resuming it.
+  const motionActive = useMotionActive();
+  if (!item || !motion || !motionActive) return null;
   // `dimmed` follows SessionFlame's own prop for the gym branch, where the flame is a background
   // layer under a workout log. Particles at full strength behind readable text is the one place
   // this cosmetic could actively make the product worse.
@@ -1934,7 +1947,9 @@ export function useFlareEquipped(): boolean {
 
 export function EquippedFlarePerimeter({ tier = 3, dampen = 1 }: { tier?: FlareTier; dampen?: number }) {
   const flare = useEquipped('flare');
-  if (!flare?.flare) return null;
+  // Same gate, same reasoning as EquippedFlameParticles above.
+  const motionActive = useMotionActive();
+  if (!flare?.flare || !motionActive) return null;
   return (
     <FlarePerimeter colour={flare.flare.colour} effect={flare.flare.effect} tier={tier} dampen={dampen} />
   );

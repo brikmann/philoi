@@ -4,6 +4,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSeq
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
+import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useFlameRamp } from '@/lib/economy/flame-ramp';
 
@@ -50,8 +51,11 @@ export function SessionFlame({ height = 240, dimmed = false }: SessionFlameProps
   const width = height * FLAME_ASPECT_RATIO;
   const glowSize = height * GLOW_RATIO;
 
+  // A session keeps running while you read a campfire or answer a message, and this screen stays
+  // mounted underneath the one you pushed. The flame does not need to keep licking back there.
+  const motionActive = useMotionActive();
   useEffect(() => {
-    if (reduceMotion) {
+    if (reduceMotion || !motionActive) {
       // Park both drivers at their resting value rather than leaving a half-finished repeat
       // running — this also covers the user flipping the setting on mid-session.
       flick.value = 0;
@@ -68,7 +72,7 @@ export function SessionFlame({ height = 240, dimmed = false }: SessionFlameProps
       -1,
       false
     );
-  }, [reduceMotion, dimmed, flick, glowPulse]);
+  }, [reduceMotion, motionActive, dimmed, flick, glowPulse]);
 
   // scaleY 1 -> 1.05 / scaleX 1 -> 0.97, anchored at the base (transformOrigin below) so the
   // flame licks upward instead of growing symmetrically out of its middle.
