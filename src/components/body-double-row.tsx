@@ -1,10 +1,11 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { ActiveCircleLockIn } from '@/lib/api/lock-ins';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
+import { useGatedInterval } from '@/hooks/use-motion-active';
 
 function formatDuration(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
@@ -25,10 +26,7 @@ type BodyDoubleRowProps = {
 export function BodyDoubleRow({ activeLockIn }: BodyDoubleRowProps) {
   const [now, setNow] = useState(() => Date.now());
 
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+  useGatedInterval(() => setNow(Date.now()), 1000);
 
   const { session, display_name, avatar_url } = activeLockIn;
   const startedAt = new Date(session.started_at).getTime();

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BoxArt, BOX_TINT } from '@/components/economy/box-art';
@@ -11,6 +11,7 @@ import { PreviewBadgeCorner } from '@/components/economy/preview-button';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCoachMark } from '@/hooks/use-coach-mark';
+import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useInventory } from '@/hooks/use-inventory';
 import { BOX_LIST } from '@/lib/economy/boxes';
 import { boxPool, type CatalogItem } from '@/lib/economy/catalog';
@@ -86,10 +87,7 @@ export default function ShopScreen() {
   // Minute-granularity countdown to the next rotation. Ticked rather than computed once so a shop
   // left open doesn't sit there claiming the row rotates in a time that's already passed.
   const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(t);
-  }, []);
+  useGatedInterval(() => setNow(Date.now()), 30_000);
 
   // Real money now runs through RevenueCat (#71). usePurchase handles the not-configured case
   // itself, so there is no longer a hard-coded dead end here — a build without SDK keys explains

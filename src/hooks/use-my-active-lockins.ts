@@ -1,6 +1,6 @@
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
+import { useGatedInterval } from '@/hooks/use-motion-active';
 import { fetchMyVisibleActiveLockIns, type ActiveCircleLockIn } from '@/lib/api/lock-ins';
 import { useAuth } from '@/lib/auth/auth-context';
 
@@ -23,16 +23,10 @@ export function useMyActiveLockIns() {
     }
   }, [session]);
 
-  useFocusEffect(
-    useCallback(() => {
-      refetch();
-    }, [refetch])
-  );
-
-  useEffect(() => {
-    const interval = setInterval(refetch, POLL_MS);
-    return () => clearInterval(interval);
-  }, [refetch]);
+  // useGatedInterval fires a catch-up tick on every resume, which is what the separate
+  // useFocusEffect refetch was doing by hand — so the two collapse into one and the poll stops
+  // while blurred or backgrounded instead of running forever.
+  useGatedInterval(refetch, POLL_MS);
 
   return active;
 }

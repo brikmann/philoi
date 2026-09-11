@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { useIsFocused } from 'expo-router';
 
@@ -97,4 +97,39 @@ export function useMotionActive(): boolean {
   const focused = useIsFocused();
   const foreground = useAppActive();
   return focused && foreground;
+}
+
+/**
+ * `setInterval`, but only while this screen is focused and the app is in the foreground — and
+ * with an immediate catch-up tick whenever it resumes.
+ *
+ * The other half of the drain, and the half the animation gate above does NOT cover. Reanimated's
+ * loops run on the UI thread, whose vsync the OS stops when the activity does; a JS `setInterval`
+ * has no such mercy and keeps firing in the background until the OS freezes the whole app. For
+ * the once-a-second clocks that means a re-render of a screen nobody can see, and for the 20s
+ * presence polls it means waking the radio — which costs more than any number of frames.
+ *
+ * THE CATCH-UP TICK IS WHAT MAKES THIS SAFE. Every caller either recomputes from `Date.now()` or
+ * refetches from the server, so a paused interval loses nothing that resuming does not
+ * immediately restore: the first thing a resumed clock does is jump to the true current time, and
+ * the first thing a resumed poll does is ask the server. That is why pausing is invisible here
+ * and would not be for something accumulating its own count.
+ *
+ * `tick` is held in a ref, so a caller may pass an inline closure without restarting the timer on
+ * every render.
+ */
+export function useGatedInterval(tick: () => void, ms: number, enabled: boolean = true): void {
+  const active = useMotionActive();
+  const saved = useRef(tick);
+
+  useEffect(() => {
+    saved.current = tick;
+  });
+
+  useEffect(() => {
+    if (!enabled || !active) return;
+    saved.current();
+    const id = setInterval(() => saved.current(), ms);
+    return () => clearInterval(id);
+  }, [enabled, active, ms]);
 }

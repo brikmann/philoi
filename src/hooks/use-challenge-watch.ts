@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { useGatedInterval } from '@/hooks/use-motion-active';
 import { fetchChallengeWatch, fetchGroupChallengeWatch } from '@/lib/api/leaderboard-social';
 import { getErrorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
@@ -29,12 +30,10 @@ export function useChallengeWatch(challengeId: string) {
     }
   }, [challengeId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount, no caching layer to defer to
-    refetch();
-    const interval = setInterval(refetch, POLL_MS);
-    return () => clearInterval(interval);
-  }, [refetch]);
+  // The mount fetch and the poll are the same call, and useGatedInterval already leads with one —
+  // so this is still fetch-on-mount, and additionally fetch-on-return, with nothing polling while
+  // the spectator has the app in their pocket.
+  useGatedInterval(refetch, POLL_MS);
 
   useEffect(() => {
     const channel = supabase
@@ -67,12 +66,10 @@ export function useGroupChallengeWatch(challengeId: string) {
     }
   }, [challengeId]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount, no caching layer to defer to
-    refetch();
-    const interval = setInterval(refetch, POLL_MS);
-    return () => clearInterval(interval);
-  }, [refetch]);
+  // The mount fetch and the poll are the same call, and useGatedInterval already leads with one —
+  // so this is still fetch-on-mount, and additionally fetch-on-return, with nothing polling while
+  // the spectator has the app in their pocket.
+  useGatedInterval(refetch, POLL_MS);
 
   useEffect(() => {
     const channel = supabase

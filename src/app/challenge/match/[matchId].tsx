@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/ui/avatar';
@@ -9,6 +9,7 @@ import { Screen } from '@/components/ui/screen';
 import { SecondaryButton } from '@/components/ui/secondary-button';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useTeamMatch } from '@/hooks/use-team-match';
 import {
   confirmTeamMatchScore,
@@ -69,11 +70,7 @@ export default function TeamMatchScreen() {
   // refetch would be a request per second per viewer for a number the client can compute.
   const [now, setNow] = useState(() => Date.now());
   const running = Boolean(match?.clock_started_at) && match?.match_state !== 'final';
-  useEffect(() => {
-    if (!running) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [running]);
+  useGatedInterval(() => setNow(Date.now()), 1000, running);
 
   const elapsed = useMemo(() => {
     if (!match) return 0;

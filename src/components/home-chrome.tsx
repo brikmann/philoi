@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { SEASON, msUntilSeasonBoundary, seasonPhase } from '@/lib/economy/forge-pass';
+import { useGatedInterval } from '@/hooks/use-motion-active';
 
 // Home's top row (DESIGN_LANGUAGE_EMBER §5, mock 92): the season pill, centred, and nothing else
 // of its own. The hamburger and the bell are Home's, drawn beside it in (tabs)/index.tsx.
@@ -17,10 +18,7 @@ export function SeasonPill() {
 
   // Hour granularity is all the label shows, but ticking every minute keeps a screen left open
   // from sitting on a stale number for an hour.
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(t);
-  }, []);
+  useGatedInterval(() => setNow(Date.now()), 60_000);
 
   const phase = seasonPhase(now);
   const left = msUntilSeasonBoundary(now);

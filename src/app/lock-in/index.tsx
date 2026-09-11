@@ -3,8 +3,8 @@ import * as Crypto from 'expo-crypto';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -52,6 +52,7 @@ import { useActiveWorkout } from '@/hooks/use-active-workout';
 import { useCindy } from '@/hooks/use-cindy';
 import { useCindyLockInLine } from '@/hooks/use-cindy-lockin-line';
 import { useElapsedSeconds } from '@/hooks/use-elapsed-seconds';
+import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useInventory } from '@/hooks/use-inventory';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useActiveSession } from '@/lib/active-session-context';
@@ -360,25 +361,21 @@ function LockInScreen() {
   // "Locked in with you" (PHILOI_UI_SPEC.md §13) — scoped to this campfire only; a solo
   // session (circleId null) shows no body-doubles. Polling, not Realtime Presence (see the
   // lock-in build plan for why: no existing Presence usage in this codebase yet).
-  useEffect(() => {
-    if (!session || !activeSession?.circleId) return;
-    const circleId = activeSession.circleId;
-    let mounted = true;
-    async function poll() {
-      try {
-        const active = await fetchActiveCircleLockIns(circleId);
-        if (mounted) setActiveLockIns(active.filter((a) => a.session.user_id !== session!.user.id));
-      } catch {
-        // Ambient presence is a nice-to-have — a failed poll shouldn't surface an error to the user.
-      }
+  //
+  // Gated on focus/foreground: a session outlives this screen, so without that the app would keep
+  // asking the server who else is here every 20s for the entire length of a two-hour lock-in spent
+  // in another app. The gate refetches on return, which is the only moment the answer is read.
+  const circleId = activeSession?.circleId ?? null;
+  const pollParticipants = useCallback(async () => {
+    if (!session || !circleId) return;
+    try {
+      const active = await fetchActiveCircleLockIns(circleId);
+      setActiveLockIns(active.filter((a) => a.session.user_id !== session.user.id));
+    } catch {
+      // Ambient presence is a nice-to-have — a failed poll shouldn't surface an error to the user.
     }
-    poll();
-    const interval = setInterval(poll, PARTICIPANTS_POLL_MS);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [session, activeSession?.id, activeSession?.circleId]);
+  }, [session, circleId]);
+  useGatedInterval(pollParticipants, PARTICIPANTS_POLL_MS, Boolean(session && circleId));
 
   // The live workout log (PHILOI_UI_SPEC.md §23). `mode` on the active session already routes
   // gym here (see active-session-context.tsx) — this is the logger that hook was reserved for.
@@ -450,14 +447,25 @@ function LockInScreen() {
   // flagged here as not built, and now is (#147): shouldPlayInBackground in sound.ts plus
   // UIBackgroundModes:['audio'] and the Android media-playback service in app.config. It needed a
   // native rebuild, which is why it landed as its own bundle rather than with the wake lock.
+  //
+  // FOCUS IS THE THIRD CONDITION, and it was the missing one. Backgrounding needs no handling —
+  // this resolves to FLAG_KEEP_SCREEN_ON on Android and `isIdleTimerDisabled` on iOS, both of
+  // which the OS scopes to a foreground window on its own — but BLUR is not backgrounding. A
+  // session outlives this screen, so starting one and then walking into a campfire left the
+  // display pinned on for the rest of the session, for a timer that was no longer on it.
+  //
+  // Nothing above is given up by this. The argument for the wake lock is that a sleeping screen
+  // stops the flare, the flame and the ambient loop — and the first two are not being drawn when
+  // this screen is not the visible one, while the third plays in the background regardless (#147).
   const keepScreenAwake = useKeepScreenAwakePref();
+  const lockInFocused = useIsFocused();
   useEffect(() => {
-    if (!activeSession || !keepScreenAwake) return;
+    if (!activeSession || !keepScreenAwake || !lockInFocused) return;
     activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
     return () => {
       deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
     };
-  }, [activeSession, keepScreenAwake]);
+  }, [activeSession, keepScreenAwake, lockInFocused]);
 
   // The real spendable balance (ember_wallet via get_inventory) — see the note at the
   // embersBeforeSnapshot capture below.

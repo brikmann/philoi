@@ -1,10 +1,11 @@
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import { Colors, Radius } from '@/constants/theme';
 import { getItem } from '@/lib/economy/catalog';
 import type { CatalogItem } from '@/lib/economy/catalog';
+import { useGatedInterval } from '@/hooks/use-motion-active';
 
 // §2 — cosmetics rendered as ACTUAL ART, applied to the surface.
 //
@@ -97,12 +98,8 @@ export function useAuraTier(startedAt: Date | null | undefined): AuraTier {
   // cascades renders. A lazily-initialised `now` is neither, and the derivation below is pure.
   const [now, setNow] = useState(() => Date.now());
 
-  useEffect(() => {
-    if (!startedAt) return;
-    // setState inside the interval callback is asynchronous, which is the shape the rule wants.
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, [startedAt]);
+  // setState inside the interval callback is asynchronous, which is the shape the rule wants.
+  useGatedInterval(() => setNow(Date.now()), 60_000, Boolean(startedAt));
 
   if (!startedAt) return 0;
   // `now` can be up to a minute stale right after a session starts, which costs nothing: the first

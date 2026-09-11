@@ -15,6 +15,7 @@ import { RewardRays } from '@/components/economy/reward-reveal';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useOpponentAvatar } from '@/hooks/use-duel-avatars';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { challengeTitle, metricLabel } from '@/lib/challenge-metric';
@@ -154,12 +155,9 @@ export function IncomingChallengeSheet({
   // correct for free and keeps the effect purely a subscription, which is what an interval is.
   // Same shape as body-double-row.tsx's live elapsed timer.
   const [tick, setTick] = useState(0);
-  useEffect(() => {
-    // Cleared with the sheet: an invisible modal must not hold a 1Hz timer.
-    if (!live || !visible) return;
-    const timer = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => clearInterval(timer);
-  }, [live, visible]);
+  // Cleared with the sheet: an invisible modal must not hold a 1Hz timer. Blur and background are
+  // the same statement about visibility, so they go through the same gate.
+  useGatedInterval(() => setTick((t) => t + 1), 1000, live && visible);
   const clock = useMemo(
     () => (live ? formatTimeLeft(challenge.ends_at) : ''),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `tick` is the recompute trigger

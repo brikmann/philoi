@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+
+import { useGatedInterval } from '@/hooks/use-motion-active';
 
 import { fetchActiveCircleLockIns, type ActiveCircleLockIn } from '@/lib/api/lock-ins';
 
@@ -10,23 +12,18 @@ const POLL_MS = 20000;
 export function useActiveCircleLockIns(groupId: string) {
   const [activeLockIns, setActiveLockIns] = useState<ActiveCircleLockIn[]>([]);
 
-  useEffect(() => {
-    let mounted = true;
-    async function poll() {
-      try {
-        const active = await fetchActiveCircleLockIns(groupId);
-        if (mounted) setActiveLockIns(active);
-      } catch {
-        // Ambient presence is a nice-to-have — a failed poll shouldn't surface an error.
-      }
+  // Paused off-screen and in the background. "n locked in now" is a glanceable number on a screen
+  // you are looking at; polling it for a screen you are not is a radio wake-up every 20 seconds
+  // for a string nobody can read. The gate refetches the moment you come back, so the number is
+  // never stale at the only time it is visible.
+  const poll = useCallback(async () => {
+    try {
+      setActiveLockIns(await fetchActiveCircleLockIns(groupId));
+    } catch {
+      // Ambient presence is a nice-to-have — a failed poll shouldn't surface an error.
     }
-    poll();
-    const interval = setInterval(poll, POLL_MS);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
   }, [groupId]);
+  useGatedInterval(poll, POLL_MS);
 
   return activeLockIns;
 }

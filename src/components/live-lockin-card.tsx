@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
+import { useGatedInterval } from '@/hooks/use-motion-active';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { ActiveCircleLockIn } from '@/lib/api/lock-ins';
 import { formatDurationClock } from '@/lib/format';
@@ -25,10 +26,7 @@ export function LiveLockInCard({ activeLockIn }: LiveLockInCardProps) {
   const [now, setNow] = useState(() => Date.now());
   const pulse = useSharedValue(1);
 
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+  useGatedInterval(() => setNow(Date.now()), 1000);
 
   useEffect(() => {
     pulse.value = withRepeat(withSequence(withTiming(0.35, { duration: 700 }), withTiming(1, { duration: 700 })), -1, true);

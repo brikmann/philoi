@@ -1,10 +1,11 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { ActiveCircleLockIn } from '@/lib/api/lock-ins';
 import { formatDurationClock } from '@/lib/format';
+import { useGatedInterval } from '@/hooks/use-motion-active';
 
 // "Locked in with you" (PHILOI_UI_SPEC.md §13, design-mocks/51 + 52) — the Focusmate effect,
 // compact. Replaces the old stacked BodyDoubleRow list: the redesign gives the fire and timer the
@@ -14,11 +15,7 @@ import { formatDurationClock } from '@/lib/format';
 // the same `now`, so N participants still cost a single 1s re-render.
 function useTick(enabled: boolean): number {
   const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!enabled) return;
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, [enabled]);
+  useGatedInterval(() => setNow(Date.now()), 1000, enabled);
   return now;
 }
 

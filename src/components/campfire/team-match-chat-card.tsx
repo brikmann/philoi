@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useTeamMatch } from '@/hooks/use-team-match';
 import { joinTeamMatch } from '@/lib/api/team-match';
 import { getErrorMessage } from '@/lib/errors';
@@ -61,11 +62,7 @@ function MatchCard({ match, loading, onOpen }: { match: TeamMatch; loading: bool
   const final = match.match_state === 'final';
   const running = Boolean(match.clock_started_at) && !final;
 
-  useEffect(() => {
-    if (!running) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [running]);
+  useGatedInterval(() => setNow(Date.now()), 1000, running);
 
   const clock = useMemo(() => {
     if (!match.clock_started_at || final) return match.clock_elapsed_s;

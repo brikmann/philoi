@@ -16,6 +16,7 @@ import {
   MiniToggle,
 } from '@/components/tutorial/mini-ui';
 import { Colors, Fonts } from '@/constants/theme';
+import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { RELIC_LADDERS, RUNG_GLYPH } from '@/lib/economy/relic-ladders';
 import { RARITY_COLOR } from '@/lib/economy/rarity';
@@ -811,11 +812,8 @@ function CosmeticVisual({ render, tint }: { render: CosmeticSpec['render']; tint
 /** An equaliser / waveform. Static bars unless `animate`. */
 function Bars({ heights, color, animate }: { heights: number[]; color: string; animate: boolean }) {
   const [tick, setTick] = useState(0);
-  useEffect(() => {
-    if (!animate) return;
-    const id = setInterval(() => setTick((t) => t + 1), 160);
-    return () => clearInterval(id);
-  }, [animate]);
+  // 160ms is ~6 re-renders a second — the fastest JS-thread loop in the app.
+  useGatedInterval(() => setTick((t) => t + 1), 160, animate);
   return (
     <View style={styles.bars}>
       {heights.map((h, i) => {
