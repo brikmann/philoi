@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
-import { useGatedInterval } from '@/hooks/use-motion-active';
+import { useGatedInterval, useMotionActive } from '@/hooks/use-motion-active';
+import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { ActiveCircleLockIn } from '@/lib/api/lock-ins';
 import { formatDurationClock } from '@/lib/format';
@@ -28,9 +29,18 @@ export function LiveLockInCard({ activeLockIn }: LiveLockInCardProps) {
 
   useGatedInterval(() => setNow(Date.now()), 1000);
 
+  // One of these per live lock-in in the campfire chain, and it had no gate of either kind — not
+  // reduce-motion, not focus. The clock above is gated; the pulse beside it was not.
+  const reduceMotion = useReduceMotion();
+  const motionActive = useMotionActive();
   useEffect(() => {
+    if (reduceMotion || !motionActive) {
+      // Parked lit: full opacity is the "locked in" state, and the pulse only dims it.
+      pulse.value = 1;
+      return;
+    }
     pulse.value = withRepeat(withSequence(withTiming(0.35, { duration: 700 }), withTiming(1, { duration: 700 })), -1, true);
-  }, [pulse]);
+  }, [pulse, reduceMotion, motionActive]);
 
   const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
 

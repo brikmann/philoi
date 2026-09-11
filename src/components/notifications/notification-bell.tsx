@@ -56,7 +56,7 @@ export function NotificationBell({ size = 23 }: { size?: number }) {
       -1,
       false
     );
-  }, [hasUnread, reduceMotion, tilt]);
+  }, [hasUnread, reduceMotion, motionActive, tilt]);
 
   const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${tilt.value}deg` }] }));
 

@@ -90,8 +90,13 @@ export function useAppActive(): boolean {
  * does not want motion, ever"; this one means "nothing is looking right now". They compose, and
  * both have to be checked.
  *
- * MUST be called from inside a router screen — it reads navigation context, and a component
- * mounted as a sibling of the root `<Stack>` has none. Use `useAppActive` alone up there.
+ * Safe to call from outside a router screen, though it does less there. The watchers mounted as
+ * siblings of the root navigator — the rank-up forge, the goal reveal — render flames of their
+ * own, and a component cannot know which side of that line it is on. Checked rather than assumed:
+ * `useNavigation` falls back to the container ref when there is no screen context, and that ref
+ * answers `isFocused()` with a hardcoded `true`. So up there this collapses to `useAppActive` and
+ * the loops simply never pause on blur, which is both correct and unimportant — every one of those
+ * surfaces is a transient celebration that is unmounted seconds later.
  */
 export function useMotionActive(): boolean {
   const focused = useIsFocused();
