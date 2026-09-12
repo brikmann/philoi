@@ -39,6 +39,7 @@ import { FireShareCard } from '@/components/fire-share-card';
 import { LockInShareCard } from '@/components/lock-in-share-card';
 import { FlameMeterComplete } from '@/components/flame-meter-complete';
 import { LockInDoneScreen } from '@/components/lockin-done-screen';
+import { LockInPresencePill } from '@/components/lockin-presence-pill';
 import { RankUpCelebration } from '@/components/rank-up-celebration';
 import { RankUpShareCard } from '@/components/rank-up-share-card';
 import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
@@ -51,6 +52,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveWorkout } from '@/hooks/use-active-workout';
 import { useCindy } from '@/hooks/use-cindy';
 import { useCindyLockInLine } from '@/hooks/use-cindy-lockin-line';
+import { useLockInPresence } from '@/hooks/use-lockin-presence';
 import { useElapsedSeconds } from '@/hooks/use-elapsed-seconds';
 import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useInventory } from '@/hooks/use-inventory';
@@ -481,6 +483,13 @@ function LockInScreen() {
   // ── CINDY, mid-session (CINDY_SPEC "Entry points — Lock-in", mock 117 §C) ──
   // Consent gates both halves, the same way home does: no consent means no bubble, no fetch, and
   // a flame that behaves exactly as it did before she existed.
+  // ── "N studying right now" (CODE_PROMPT_live_presence_counter.md) ──
+  // Event-driven end to end: one 45s heartbeat, a broadcast subscription that is idle until the
+  // number moves, and nothing at all once this screen blurs. Passing null while stopping/posted
+  // sends the goodbye immediately rather than waiting for the server's reaper, so the people
+  // still locked in see the count tick down within one 30s tick of the Stop being tapped.
+  const presence = useLockInPresence(activeSession && !stopping && !posted ? activeSession.id : null);
+
   const { consented: cindyConsented, bubbleEnabled } = useCindy();
   const [cindySheetOpen, setCindySheetOpen] = useState(false);
   const { line: cindyLine, dismiss: dismissCindyLine, notePr } = useCindyLockInLine({
@@ -977,6 +986,11 @@ function LockInScreen() {
             </View>
           )}
 
+          {/* Same line, gym's chrome. It goes above the collapsed body-double strip because the
+              two answer the same question at different scales — "who of mine" and "how many of
+              everyone" — and the wide number is the one that carries at the gym. */}
+          <LockInPresencePill presence={presence} compact />
+
           <BodyDoubleStripCollapsed lockIns={activeLockIns} />
 
           {stillHereDue && (
@@ -1144,6 +1158,13 @@ function LockInScreen() {
         {/* "15m elapsed — flare up" and friends. Invisible except for a few seconds after a
             threshold crossing, so it never competes with the clock it sits under. */}
         <FlareTierCaption tier={flareTier} />
+        {/* "540 studying right now." Under the clock rather than over the flame: the flame and the
+            timer are the hero, and this is the thing you glance at once and feel accompanied by.
+            Renders nothing at all until the number is worth showing, so on a quiet night this
+            space simply does not exist. */}
+        <View style={styles.presenceSlot}>
+          <LockInPresencePill presence={presence} />
+        </View>
       </View>
 
       {/* BOTTOM — pinned, natural size. */}
@@ -1357,6 +1378,15 @@ const styles = StyleSheet.create({
   },
   // Mock 109's `.lkbadge` — a warm-outlined pill, not a chip with a fill. It is status, not an
   // action, and nothing on this screen should compete with the flame.
+  // A fixed slot, not a bare child. The pill appears and disappears on its own schedule (it is
+  // absent below the density floor and it fades in when a broadcast first lands), and without a
+  // reserved gap that arrival would shove the flame and the clock upward mid-session — on the one
+  // screen in the app where nothing is allowed to move but the timer.
+  presenceSlot: {
+    height: 34,
+    justifyContent: 'center',
+    marginTop: Spacing.twelve,
+  },
   focusNudgePill: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -812,6 +812,67 @@ export type LockInSession = {
   created_at: string;
 };
 
+// ── The live "locked in with you" count (migration 0184) ───────────────────────────────────
+//
+// Three display lines, and they OVERLAP on purpose: 'gym' is strength only, 'fitness' is cardio
+// and strength together. A member lifting sees the specific room ("N at the gym right now"); a
+// member on cardio sees the wider, denser one, because a cardio-only count cannot honestly be
+// made bigger than it is.
+export type LockInPresenceKey = 'study' | 'fitness' | 'gym';
+
+/** What a coalesced 30s broadcast carries. Aggregate only — never who. */
+export type LockInPresenceCounts = {
+  study: number;
+  cardio: number;
+  strength: number;
+  /** cardio + strength. Sent rather than summed here so the client and the server can never
+   *  disagree about what "Fitness" means. */
+  fitness: number;
+  total: number;
+  at: string;
+};
+
+/**
+ * `get_active_lockin_counts()`'s fully-resolved answer. The server picks the window, the scope
+ * and whether to show a number at all; the client renders this and decides nothing — see
+ * `src/lib/api/lockin-presence.ts` for why that separation is load-bearing.
+ */
+export type LockInPresence =
+  /** No active session, or the `force_off` kill switch. Draw nothing. */
+  | { display: 'hidden'; reason: 'no_active_session' | 'force_off'; key?: LockInPresenceKey }
+  /**
+   * Below the floor in every window and both scopes. Show the be-first line and NOT the small
+   * number that produced it — "3 studying right now" signals a dead app and does the exact
+   * opposite of what the pill is for. The count is deliberately absent from this branch.
+   */
+  | {
+      display: 'floor';
+      key: LockInPresenceKey;
+      campus: string | null;
+      /** True when nobody else is locked in on this line — the difference between "be the first"
+       *  and "you're not the only one". A boolean, never the suppressed count. */
+      alone: boolean;
+      threshold: number;
+      mode: 'auto' | 'force_on';
+    }
+  | {
+      display: 'count';
+      key: LockInPresenceKey;
+      count: number;
+      /** What was actually counted. The label on screen must always match this. */
+      window: 'now' | 'today' | 'week';
+      scope: 'campus' | 'global';
+      campus: string | null;
+      /** Always from the server; never constructed client-side, which is what lets the campus
+       *  topic be a hash of the university's name. */
+      topic: string;
+      /** True only for a 'now' window. A client holding a windowed count must IGNORE broadcasts
+       *  rather than swap a live number in under a "today" label. */
+      live: boolean;
+      threshold: number;
+      mode: 'auto' | 'force_on';
+    };
+
 export type Reaction = {
   id: string;
   check_in_id: string;
@@ -3102,6 +3163,12 @@ export type Database = {
         Returns: CheckIn;
       };
       post_check_in_to_circle: { Args: { p_check_in_id: string; p_circle_id: string }; Returns: undefined };
+      // The live presence count (0184). No arguments on purpose: the line is contextual to the
+      // session the caller is already in, and a client that could name its own category could ask
+      // for whichever of the three numbers happened to be biggest.
+      get_active_lockin_counts: { Args: Record<string, never>; Returns: LockInPresence };
+      beat_lockin_presence: { Args: { p_session_id: string }; Returns: undefined };
+      end_lockin_presence: { Args: { p_session_id?: string | null }; Returns: undefined };
       // Gym tracker (migration 0037, PHILOI_UI_SPEC.md §23).
       save_routine: { Args: { p_name: string; p_exercise_ids: string[]; p_routine_id?: string | null }; Returns: Routine };
       save_workout_as_routine: { Args: { p_workout_id: string; p_name: string }; Returns: Routine };
