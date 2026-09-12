@@ -24,6 +24,10 @@ const ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   stop_session: 'stop',
   add_milestone: 'trophy',
   create_challenge: 'flag',
+  // A batch of goals is still flags, plural — deliberately the same family as the single create so
+  // "Cindy made me goals" reads as one kind of thing whether it was one course or five.
+  create_goals: 'flag',
+  update_challenge: 'create',
   host_campfire_challenge: 'bonfire',
   equip_cosmetic: 'color-palette',
   mark_notifications_read: 'notifications-off',
@@ -105,7 +109,7 @@ export function CindyActionChip({
           {busy ? (
             <ActivityIndicator size="small" color={Colors.onEmber} />
           ) : (
-            <Text style={styles.confirmLabel}>{confirmVerb(action.tool)}</Text>
+            <Text style={styles.confirmLabel}>{confirmVerb(action)}</Text>
           )}
         </Pressable>
         <Pressable
@@ -121,7 +125,16 @@ export function CindyActionChip({
   );
 }
 
-function confirmVerb(tool: string): string {
+/** How many goals a bulk proposal carries, for the confirm verb. Reads the same `goals` array
+ *  parseProposedGoals reads, and returns '' rather than 0 when the payload is not what it expects —
+ *  a button that says "Set up 0 goals" is worse than one that says "Set up them". */
+function goalCount(action: CoachAction): string {
+  const n = Array.isArray(action.input?.goals) ? action.input.goals.length : 0;
+  return n > 0 ? `${n} goal${n === 1 ? '' : 's'}` : '';
+}
+
+function confirmVerb(action: CoachAction): string {
+  const tool = action.tool;
   switch (tool) {
     case 'add_milestone':
       return 'Post it';
@@ -129,6 +142,12 @@ function confirmVerb(tool: string): string {
       return 'End it';
     case 'create_challenge':
       return 'Create it';
+    case 'create_goals':
+      // Says HOW MANY before the tap. "Create it" over an action that makes five goals is the
+      // same understatement "Post it" would be over a campfire push.
+      return `Set up ${goalCount(action) || 'them'}`;
+    case 'update_challenge':
+      return 'Update it';
     case 'host_campfire_challenge':
       // Not "Create it". This posts to a whole campfire — the verb should say where it lands, so
       // nobody taps a generic confirm and is surprised by forty people getting a push.

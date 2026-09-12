@@ -13,7 +13,7 @@
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 import { track } from '@/lib/analytics';
-import { createChallenge, setGoalScope } from '@/lib/api/challenges';
+import { createChallenge, createScopedGoals, setGoalScope, updateGoal, type ScopedGoalInput } from '@/lib/api/challenges';
 
 import { stopLockInSession } from '@/lib/api/lock-ins';
 import { createMilestone } from '@/lib/api/milestones';
@@ -44,6 +44,68 @@ const SCOPED_TIERS: DifficultyTier[] = ['common', 'uncommon', 'rare', 'epic', 'l
  */
 export function isScopedTier(tier: unknown): tier is DifficultyTier {
   return typeof tier === 'string' && SCOPED_TIERS.includes(tier as DifficultyTier);
+}
+
+/**
+ * Flatten a `create_goals` proposal into the list `createScopedGoals` takes.
+ *
+ * ── WHY THERE ARE TOP-LEVEL DEFAULTS AT ALL ───────────────────────────────────────────────────
+ *
+ * "90% in every class" is five goals that differ in exactly one field — the course. Making the
+ * model restate the target, the period, the deadline and the tier five times is five chances for
+ * one of them to come out different, and a batch where KP390 quietly wants 85 is worse than a
+ * batch that fails. So the shared terms sit once at the top and each entry OVERRIDES what is
+ * genuinely its own.
+ *
+ * 🔒 NOTHING HERE IS TRUSTED BEYOND SHAPE. A tier that is not one of the six is dropped rather
+ * than passed on (the server would floor it to uncommon anyway, and dropping it here means the
+ * verdict screen shows the floor rather than a name that will not survive the write). Every other
+ * field is validated by create_scoped_goals, which is where a refusal belongs.
+ *
+ * Exported because cindy.tsx needs the same list to build the verdict screen's params, and two
+ * parsers reading one payload is two ways for the screen and the write to disagree about what was
+ * proposed.
+ */
+export function parseProposedGoals(input: Record<string, unknown>): ScopedGoalInput[] {
+  const raw = Array.isArray(input.goals) ? input.goals : [];
+  const sharedTier = isScopedTier(input.difficulty_tier) ? input.difficulty_tier : null;
+  const sharedTarget = typeof input.target === 'number' ? input.target : null;
+  const sharedGrade = typeof input.grade_target === 'number' ? input.grade_target : null;
+  const sharedPeriod = typeof input.period === 'string' ? (input.period as ChallengePeriod) : null;
+  const sharedDue = typeof input.due_at === 'string' && input.due_at ? input.due_at : null;
+  const sharedType = typeof input.type === 'string' ? (input.type as ChallengeType) : null;
+  const sharedUnit = typeof input.unit === 'string' ? input.unit : null;
+
+  return raw.flatMap((entry): ScopedGoalInput[] => {
+    if (typeof entry !== 'object' || entry === null) return [];
+    const g = entry as Record<string, unknown>;
+    const label = typeof g.label === 'string' ? g.label.trim().slice(0, 80) : '';
+    if (!label) return [];
+
+    const grade = typeof g.grade_target === 'number' ? g.grade_target : sharedGrade;
+    const target = typeof g.target === 'number' ? g.target : (grade ?? sharedTarget);
+    // A goal with no number is not a goal — it is a sentence the server would refuse and the
+    // verdict screen would render as "0". Dropped here so the rest of the batch still lands.
+    if (typeof target !== 'number' || !(target > 0)) return [];
+
+    const tier = isScopedTier(g.difficulty_tier) ? g.difficulty_tier : sharedTier;
+    return [
+      {
+        type: (typeof g.type === 'string' ? (g.type as ChallengeType) : sharedType) ?? 'custom',
+        label,
+        target,
+        unit: (typeof g.unit === 'string' ? g.unit : sharedUnit) ?? (grade != null ? '%' : ''),
+        // A grade goal is forced to 'once' server-side anyway (a mark does not reset); saying so
+        // here keeps the verdict screen's cadence line honest before the write happens.
+        period: grade != null ? 'once' : ((typeof g.period === 'string' ? (g.period as ChallengePeriod) : sharedPeriod) ?? 'once'),
+        countMode: g.count_mode === 'lockin_time' ? 'lockin_time' : 'manual',
+        tier,
+        gradeTarget: grade,
+        courseId: typeof g.course_id === 'string' && g.course_id ? g.course_id : null,
+        dueAt: (typeof g.due_at === 'string' && g.due_at ? g.due_at : null) ?? sharedDue,
+      },
+    ];
+  });
 }
 
 export type CoachActionEffect = 'auto' | 'confirm';
@@ -466,6 +528,64 @@ export async function performCoachAction(action: CoachAction, ctx: ActionContext
         const tier = action.input.difficulty_tier;
         if (created?.id && isScopedTier(tier)) {
           await setGoalScope(created.id, tier).catch(() => {});
+        }
+        return { status: 'done' };
+      }
+
+      case 'create_goals': {
+        // ── N GOALS, ONE ASK, ONE TRANSACTION (§A) ──────────────────────────────────────────
+        //
+        // "90% in every class" used to be N turns with a stop between each, because runCoach takes
+        // at most one tool_use per turn and create_challenge carries exactly one goal. The ceiling
+        // is deliberate and stays; what changed is that ONE action can now carry a list.
+        //
+        // 🔒 STILL THE CLIENT PERFORMING. create_scoped_goals is one RPC under the user's own JWT,
+        // not a service-role executor — the fan-out is server-side only in the sense that the loop
+        // runs inside a single transaction. Every tier is validated there and every verifiability
+        // is DERIVED there, exactly as set_goal_scope does for a single goal.
+        //
+        // ⚠️ THIS ARM IS THE FALLBACK, NOT THE MAIN ROAD, for the same reason create_challenge's is:
+        // runAction in cindy.tsx intercepts a bulk create and routes it to challenge/verdict.tsx,
+        // which shows every goal and its price BEFORE anything is written. What still arrives here
+        // is the voice surface, which has no verdict screen to route to.
+        const goals = parseProposedGoals(action.input);
+        if (goals.length === 0) {
+          return { status: 'failed', error: "I couldn't tell which goals you wanted." };
+        }
+        const receipts = await createScopedGoals(goals);
+        const made = receipts.filter((r) => r.status === 'created').length;
+        // Every goal already existing is not a success worth a silent "done" chip — the user asked
+        // for something and nothing happened, and the honest answer says so.
+        if (made === 0) {
+          return { status: 'failed', error: 'You already had every one of those running.' };
+        }
+        return { status: 'done', route: '/(tabs)/challenges' };
+      }
+
+      case 'update_challenge': {
+        // ── THE EDIT PATH (§B), AND THE SAME ONE THE KEBAB USES ─────────────────────────────
+        //
+        // 🔒 THE REWARD IS NOT AN ARGUMENT. Cindy passes a re-judged TIER and the server re-derives
+        // what that is worth; there is no band, box or ember figure she could name here even if the
+        // prompt let her. `set_goal_scope` stays one-shot — update_goal is the only thing in the
+        // schema allowed to re-price a goal, and it enforces the lifecycle and owner rules itself
+        // rather than trusting that this file checked them.
+        const goalId = typeof action.input.goal_id === 'string' ? action.input.goal_id : '';
+        if (!goalId) return { status: 'failed', error: "I couldn't tell which goal that was." };
+
+        const rawTarget = action.input.target;
+        const tier = action.input.difficulty_tier;
+        const updated = await updateGoal({
+          goalId,
+          target: typeof rawTarget === 'number' && rawTarget > 0 ? rawTarget : null,
+          dueAt: typeof action.input.due_at === 'string' && action.input.due_at ? action.input.due_at : null,
+          clearDue: action.input.clear_deadline === true,
+          tier: isScopedTier(tier) ? tier : null,
+        });
+        // Nothing actually moved. Reported rather than shown as a green "done", because a chip that
+        // says done over an unchanged goal is the same lie a dead tap is.
+        if (updated.changed.length === 0) {
+          return { status: 'failed', error: 'That goal is already set up exactly that way.' };
         }
         return { status: 'done' };
       }

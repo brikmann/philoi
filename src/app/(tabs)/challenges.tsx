@@ -19,7 +19,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useMyChallenges } from '@/hooks/use-my-challenges';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
-import { deleteChallenge, type GoalDayAward } from '@/lib/api/challenges';
+import { type GoalDayAward } from '@/lib/api/challenges';
 import { useNextGoalReveal } from '@/lib/goal-reveal-queue';
 import { shareCardImage } from '@/lib/share-card';
 import type { Challenge, DifficultyTier, SocialChallenge } from '@/types/database';
@@ -207,10 +207,10 @@ export default function ChallengesScreen() {
     }
   }
 
-  async function handleDelete(challengeId: string) {
-    await deleteChallenge(challengeId);
-    refetch();
-  }
+  // The delete moved INTO the card (0183 · §D), because deleting a goal is now a lifecycle decision
+  // — `delete_goal` refuses a settled row whose reward_payload is the receipt for embers that
+  // already moved, and offers Hide instead. The card is what knows which of the two applies. All
+  // that is left here is what the list has always actually needed: reload.
 
   function goWatch(challengeId: string, mode: 'h2h' | 'group') {
     router.push({ pathname: '/watch/[challengeId]', params: { challengeId, mode } });
@@ -260,7 +260,16 @@ export default function ChallengesScreen() {
             challenge={item}
             autoConnected={fitnessConnected}
             onLogged={handleLogged}
-            onDeleted={() => handleDelete(item.id)}
+            onChanged={refetch}
+            // §D — the History list passed no onInfo, so "Goal info" was missing from the kebab on
+            // exactly the goals a user is most likely to want the receipt for. Same route as the
+            // live list; there was never a reason for the two to differ.
+            onInfo={() =>
+              router.push({
+                pathname: '/challenge-info/[challengeId]',
+                params: { challengeId: item.id, kind: 'goal' },
+              })
+            }
           />
         ))}
       </ScrollView>
@@ -419,7 +428,7 @@ export default function ChallengesScreen() {
               challenge={item}
               autoConnected={fitnessConnected}
               onLogged={handleLogged}
-              onDeleted={() => handleDelete(item.id)}
+              onChanged={refetch}
               onInfo={() =>
                 router.push({ pathname: '/challenge-info/[challengeId]', params: { challengeId: item.id, kind: 'goal' } })
               }

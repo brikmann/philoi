@@ -1,17 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { logChallengeProgress, type GoalDayAward } from '@/lib/api/challenges';
+import { GoalEditSheet } from '@/components/goal-edit-sheet';
+import { GoalGradeSheet } from '@/components/goal-grade-sheet';
+import { GoalManageSheet } from '@/components/goal-manage-sheet';
+import {
+  deleteGoal,
+  hideGoal,
+  logChallengeProgress,
+  previewScopedReward,
+  type GoalDayAward,
+} from '@/lib/api/challenges';
+import { asBoxKey, TIER_COLOR } from '@/lib/challenge-tier';
+import { BOXES } from '@/lib/economy/boxes';
 import { CHALLENGE_TYPE_GLYPH, canonicalGoalUnit, personalGoalTitle } from '@/lib/goal-types';
 import { getErrorMessage } from '@/lib/errors';
 import { AUTO_SOURCE_NAME, getRealFitnessSourceForChallengeType, sourceNeedsConnection } from '@/lib/fitness-sync';
-import type { Challenge, ChallengeType, DifficultyTier } from '@/types/database';
+import type { Challenge, ChallengeType, DifficultyTier, ScopedRewardPreview } from '@/types/database';
 
 // Quick-add amounts only. The glyph moved to CHALLENGE_TYPE_GLYPH in lib/goal-types — these were
 // emoji, which draw differently on every OS and font version and cannot take the row's tint (§A3).
@@ -77,7 +88,17 @@ type ChallengeCardProps = {
     goalLabel: string,
     difficultyTier: DifficultyTier | null
   ) => void;
-  onDeleted: () => void;
+  /**
+   * "Something about this goal moved — reload the list."
+   *
+   * ⚠️ RENAMED FROM `onDeleted`, and the rename is load-bearing rather than cosmetic. It used to be
+   * the card's way of asking the LIST to perform the delete, so the tab's handler was
+   * `deleteChallenge(id); refetch()`. Three callers now report through this — a delete, an edit and
+   * a reported grade — and under the old name and the old handler two of them would have DELETED
+   * the goal they had just changed. The delete itself moved into the card (through the guarded
+   * `delete_goal` RPC), so what is left for the list to do is exactly one thing: refetch.
+   */
+  onChanged: () => void;
   /** Opens the Goal info screen (mock 102 v2), where the target, source, reset and reward rules
    * live now that the card itself stays minimal. */
   onInfo?: () => void;
@@ -87,16 +108,51 @@ type ChallengeCardProps = {
 // made you decode three glyphs; this reads straight left→right — icon, name, cadence — then one
 // sub-line saying only how it's tracked, one bar, and ONE status. No campfire binding anywhere:
 // a goal is the user's own (migration 0059), and sharing the work is a per-lock-in choice.
-export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDeleted, onInfo }: ChallengeCardProps) {
+export function ChallengeCard({ challenge, autoConnected = false, onLogged, onChanged, onInfo }: ChallengeCardProps) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [amount, setAmount] = useState('');
   const [logging, setLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const quickAdds = TYPE_QUICK_ADDS[challenge.type];
+  // §D — three sheets, one kebab. They are separate components rather than modes of one because
+  // they answer three different questions, and a single sheet with a `mode` prop would carry all
+  // three sets of state whichever one was open.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [gradeOpen, setGradeOpen] = useState(false);
+  // 🔴 §C — WHAT THEY ARE CHASING, ON THE CARD, FROM CREATION ONWARD. The scoped reward used to
+  // exist only on the verdict screen, which is shown once and never again — so a user who set a
+  // goal on Tuesday had no way to see what it was worth on Wednesday. Server's figure, same as
+  // everywhere: a local tier→crate table would be a second source of truth.
+  const [reward, setReward] = useState<ScopedRewardPreview | null>(null);
+
+  // ⚠️ `TYPE_QUICK_ADDS[challenge.type]` with no fallback is why a grade goal is `type = 'custom'`
+  // rather than a ninth ChallengeType — see migration 0183's header. Defended here as well, because
+  // a map lookup that can return undefined and is then `.map`ped is one economy_config change away
+  // from being a crash on the Challenges tab whatever this file believes about the union.
+  const quickAdds = TYPE_QUICK_ADDS[challenge.type] ?? [];
   const isComplete = challenge.completed_at !== null;
+  // A grade goal that came in under the bar. Settled, and NOT complete — the card has to say so
+  // rather than showing an 84/85 progress bar that reads as "nearly there" on a finished goal.
+  const isMissed = challenge.missed_at != null;
+  const isGrade = challenge.grade_target != null;
   const pct = Math.min(100, Math.round((challenge.progress / challenge.target) * 100));
+
+  const tier = challenge.difficulty_tier ?? null;
+  const claimLevel = challenge.verifiability ?? 'honor';
+  useEffect(() => {
+    // Only a SCOPED goal has a price to show. An unscoped legacy row pays what it always paid, and
+    // inventing a crate for it on the card would promise something settlement will not deliver.
+    if (!tier) return;
+    let alive = true;
+    previewScopedReward(tier, claimLevel).then((r) => {
+      if (alive) setReward(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [tier, claimLevel]);
 
   // "Auto" is a claim about what's actually happening, not about what's theoretically possible —
   // a steps goal on a phone that never granted Health Connect is logged by hand, and saying
@@ -140,29 +196,59 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
     }
   }
 
+  /**
+   * §D — "Delete this goal? This can't be undone", then the DELETE, then the list refresh.
+   *
+   * Routed through `delete_goal` (0183) rather than the raw table delete the long-press used to
+   * call. The difference matters exactly once and badly: a settled goal's `reward_payload` is the
+   * receipt for embers the ledger already moved, and destroying it leaves a payout with no source.
+   * The RPC refuses that case with a sentence, which is what the catch below shows — the kebab
+   * already offers Hide instead, so this is the belt to that braces.
+   */
   function handleDelete() {
-    Alert.alert('Delete goal?', "You'll lose your logged progress.", [
+    Alert.alert('Delete this goal?', "This can't be undone — you'll lose your logged progress.", [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: onDeleted },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteGoal(challenge.id);
+            onChanged();
+          } catch (e) {
+            Alert.alert('Not deleted', getErrorMessage(e, 'Could not delete that goal.'));
+          }
+        },
+      },
     ]);
   }
 
+  /** The offer a settled goal gets instead of Delete — it keeps the reward receipt and takes the
+   *  row out of History. Reversible server-side, which is why it does not ask for confirmation. */
+  async function handleHide() {
+    try {
+      await hideGoal(challenge.id);
+      onChanged();
+    } catch (e) {
+      Alert.alert('Not hidden', getErrorMessage(e, 'Could not hide that goal.'));
+    }
+  }
+
   /**
-   * 🔴 §4c — "you can't delete a challenge."
+   * 🔴 §4c — "you can't delete a challenge." The history of this menu, in two acts.
    *
-   * Everything behind this already worked: `deleteChallenge` is a plain RLS-guarded delete on
-   * `challenges` (the "challenges: delete own" policy is live on prod), and BOTH lists on the
-   * Challenges tab — active and History — have always passed `onDeleted`. The only way to reach it
-   * was a LONG-PRESS on the card header, with nothing on screen saying so. An affordance nobody can
-   * see is the same as no affordance, which is exactly how a user concludes the feature is missing.
-   *
-   * A visible ⋯ now sits beside the cadence chip, matching the one every social challenge card
-   * already carries (ManageKebab in social-challenge-card.tsx) so "⋯ means there are actions here"
-   * means the same thing on both kinds of card. The long-press is KEPT — it costs nothing and it is
+   * ACT ONE: everything behind delete already worked, and the only way to reach it was a LONG-PRESS
+   * on the card header with nothing on screen saying so. An affordance nobody can see is the same
+   * as no affordance, which is exactly how a user concludes the feature is missing. So a visible ⋯
+   * was added beside the cadence chip, matching the one every social challenge card already carries
+   * (ManageKebab in social-challenge-card.tsx). The long-press is KEPT — it costs nothing and it is
    * the gesture anyone who found it once will reach for again.
    *
-   * An Alert rather than a bottom sheet: two options, one of them destructive, and Alert is the
-   * one presentation that cannot be dismissed by accident on either platform.
+   * ACT TWO (§D, and the reason the ⋯ still read as broken): it opened an `Alert.alert` with FOUR
+   * buttons, and Android's dialog has three slots. See handleMenu below for the exact line in
+   * react-native that truncates them. The menu is a Modal now, and this paragraph used to end
+   * "an Alert rather than a bottom sheet … the one presentation that cannot be dismissed by
+   * accident" — which was true of the presentation and wrong about the platform.
    */
   /**
    * 0164 — "Mark complete" is the honour path's ONLY entry point, so which goals get it matters.
@@ -173,10 +259,17 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
    * its number lands, and offering a manual claim there would be a second way to complete a goal
    * that already completes on its own.
    */
+  //
+  // 🔴 A GRADE GOAL IS EXCLUDED even though it is also honour-scored. It has a REAL number to
+  // report, and report_goal_grade is how it settles; offering "Mark complete" beside "Report your
+  // grade" would be two ways to finish one goal that can disagree about whether it was met — and
+  // the claim path would settle it as a PASS without ever asking what the mark was.
   const canClaim =
+    !isGrade &&
     challenge.difficulty_tier != null &&
     challenge.verifiability !== 'auto' &&
     !challenge.completed_at &&
+    !challenge.missed_at &&
     !challenge.claimed_at;
 
   /**
@@ -186,32 +279,59 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
    */
   const isPendingVouch = challenge.claimed_at != null && !challenge.completed_at;
 
+  /**
+   * 🛑 §D — THE DEAD TAPS, AND WHERE THEY CAME FROM.
+   *
+   * This was `Alert.alert(title, undefined, [...])` with up to FOUR buttons. react-native's
+   * Alert.js line 100 does `buttons.slice(0, 3)` on Android — the platform dialog has exactly three
+   * slots — and then pop()s the survivors into neutral/negative/positive from the END. So on a
+   * scoped goal (Mark complete · Goal info · Delete goal · Cancel) Android silently dropped Cancel
+   * and re-seated the rest into slots the code never intended. A menu with no way out, whose items
+   * do not sit where they are written, is what "generic UI errors / dead-taps" looks like from the
+   * user's side.
+   *
+   * Trimming the list would not have fixed it, because §D ADDS Edit — five rows on a live grade
+   * goal. A Modal has no slots, so the ceiling is gone rather than lowered, and GoalManageSheet can
+   * render a row DISABLED WITH ITS REASON instead of hiding it or letting it fail at the RPC.
+   */
   function handleMenu() {
-    Alert.alert(personalGoalTitle(challenge), undefined, [
-      ...(canClaim
-        ? [
-            {
-              text: 'Mark complete',
-              onPress: () =>
-                router.push({
-                  pathname: '/goal/claim',
-                  // The label and tier ride along so the claim screen can name the goal and price
-                  // it without a second round trip — it re-reads nothing the server will not
-                  // re-derive anyway when it settles.
-                  params: {
-                    goalId: challenge.id,
-                    label: challenge.label ?? '',
-                    tier: challenge.difficulty_tier ?? '',
-                  },
-                }),
-            },
-          ]
-        : []),
-      ...(onInfo ? [{ text: 'Goal info', onPress: onInfo }] : []),
-      { text: 'Delete goal', style: 'destructive' as const, onPress: handleDelete },
-      { text: 'Cancel', style: 'cancel' as const },
-    ]);
+    setMenuOpen(true);
   }
+
+  /** The sheet's rows, and the one place each of them is decided. Kept next to handleMenu so a
+   *  reader can see the whole menu in one screenful rather than chasing five callbacks. */
+  const manageSheet = (
+    <GoalManageSheet
+      visible={menuOpen}
+      goal={challenge}
+      onClose={() => setMenuOpen(false)}
+      onReportGrade={() => setGradeOpen(true)}
+      onClaim={() =>
+        router.push({
+          pathname: '/goal/claim',
+          params: {
+            goalId: challenge.id,
+            label: challenge.label ?? '',
+            tier: challenge.difficulty_tier ?? '',
+          },
+        })
+      }
+      onEdit={() => setEditOpen(true)}
+      // §D — "Goal info … never a dead tap." It used to be conditional on an `onInfo` prop the
+      // History list never passed, so on a finished goal the row simply was not there. The route
+      // needs nothing but the id, so it is built here and the prop is only an override.
+      onInfo={() =>
+        onInfo
+          ? onInfo()
+          : router.push({
+              pathname: '/challenge-info/[challengeId]',
+              params: { challengeId: challenge.id, kind: 'goal' },
+            })
+      }
+      onDelete={handleDelete}
+      onHide={handleHide}
+    />
+  );
 
   return (
     <Card style={styles.card}>
@@ -274,6 +394,52 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
         {isComplete ? ' · +XP banked' : ''}
       </Text>
 
+      {/* 🔴 §C — "the challenge card shows the target reward from creation onward, so it's visible
+          the whole time, not just at the end." This is the line that was missing entirely: the
+          scoping engine priced every scoped goal and the only place that price was ever rendered
+          was the verdict screen, which a user sees once. Server's figure via
+          preview_challenge_reward — never a local table, or the first economy retune has the card
+          promise one crate and the reveal deliver another. */}
+      {tier && reward ? (
+        <View style={[styles.rewardRow, { borderColor: TIER_COLOR[tier] }]}>
+          <Ionicons name="cube-outline" size={13} color={TIER_COLOR[tier]} />
+          <Text style={styles.rewardText} numberOfLines={1}>
+            <Text style={[styles.rewardTier, { color: TIER_COLOR[tier] }]}>{tier.toUpperCase()}</Text>
+            {' · '}
+            {/* Past tense once it is settled: "Reward" over a finished goal reads as something
+                still owed. */}
+            {isComplete ? 'Paid ' : isMissed ? 'Was worth ' : 'Reward: '}
+            {asBoxKey(reward.box) ? BOXES[asBoxKey(reward.box)!].name : 'Embers only'}
+            {` · ${reward.embers.toLocaleString()} embers`}
+          </Text>
+        </View>
+      ) : null}
+
+      {/* ── §C · the grade goal's whole lifecycle, in one row ──
+          Live: the door to reporting the mark, which is the ONLY way this goal can settle.
+          Settled: the verdict, said plainly — including the miss, because a goal that quietly
+          stopped mattering teaches the user nothing about whether they hit it. */}
+      {isGrade && !isComplete && !isMissed ? (
+        <Pressable
+          style={styles.claimCta}
+          onPress={() => setGradeOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Report your grade for ${personalGoalTitle(challenge)}`}>
+          <Ionicons name="school-outline" size={15} color={Colors.onEmber} />
+          <Text style={styles.claimCtaLabel}>Report your grade</Text>
+        </Pressable>
+      ) : null}
+
+      {isMissed ? (
+        <View style={styles.missedRow}>
+          <Ionicons name="remove-circle-outline" size={14} color={Colors.textTertiary} />
+          <Text style={styles.missedLabel}>
+            Missed — you reported {challenge.progress.toLocaleString()}% against{' '}
+            {(challenge.grade_target ?? challenge.target).toLocaleString()}%. No reward.
+          </Text>
+        </View>
+      ) : null}
+
       {/* ── mock 176 frame 0 · the honour path's entry point ──
           A described feat has no number to log and nothing that can finish it, so the card carries
           the tap that opens the prove-or-vouch flow. An auto-tracked goal shows its progress bar
@@ -320,7 +486,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
           claim flow's back — settling at the unverified band with the clip and the vouch never
           offered. The card must not present two ways to finish the same goal, and the one that
           silently forfeits a box tier is the wrong one to leave lying around. */}
-      {!isComplete && !isAuto && !canClaim && !isPendingVouch && (
+      {!isComplete && !isMissed && !isGrade && !isAuto && !canClaim && !isPendingVouch && (
         <>
           {expanded ? (
             <View style={styles.logRow}>
@@ -358,6 +524,29 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onDe
           {error && <Text style={styles.error}>{error}</Text>}
         </>
       )}
+
+      {/* All three mounted inside the Card so they travel with the row they act on — a sheet held
+          by the LIST would need the selected goal in list state, which is one more thing that can
+          be stale by the time the RPC reads it. */}
+      {manageSheet}
+      <GoalEditSheet
+        visible={editOpen}
+        goal={challenge}
+        onClose={() => setEditOpen(false)}
+        // The list reloads rather than this card patching itself: update_goal can move the target,
+        // the tier AND the verifiability at once, and a card that repainted from a partial local
+        // copy would show a new target beside the old goal's price.
+        onSaved={() => onChanged()}
+      />
+      <GoalGradeSheet
+        visible={gradeOpen}
+        goal={challenge}
+        onClose={() => setGradeOpen(false)}
+        // Same reason, and one more: a PASS has already fired challenges_economy server-side, so the
+        // row now carries a reward_payload this card knows nothing about. Refetching is what lets
+        // GoalRevealWatcher and this card agree about what just happened.
+        onSettled={() => onChanged()}
+      />
     </Card>
   );
 }
@@ -366,6 +555,30 @@ const styles = StyleSheet.create({
   card: {
     gap: Spacing.two,
   },
+  rewardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 11,
+    borderWidth: 1,
+    backgroundColor: 'rgba(20,14,26,0.5)',
+  },
+  rewardTier: { fontFamily: Fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.7 },
+  rewardText: { flex: 1, fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },
+  missedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  missedLabel: { flex: 1, fontFamily: Fonts.body, fontSize: 12, color: Colors.textTertiary },
   claimCta: {
     flexDirection: 'row',
     alignItems: 'center',

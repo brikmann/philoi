@@ -16,7 +16,8 @@ import {
   createPlacementChallenge,
   hostCampfireChallenge,
 } from '@/lib/api/social-challenges';
-import { BOX_KEYS, BOXES, type BoxKey } from '@/lib/economy/boxes';
+import { BOXES } from '@/lib/economy/boxes';
+import { asBoxKey, TIER_COLOR, TIER_LINE } from '@/lib/challenge-tier';
 import { getErrorMessage } from '@/lib/errors';
 import type {
   ChallengeCountMode,
@@ -46,28 +47,6 @@ import type {
 // backflip takes most people 3-9 months, the wall is the fear" earns the EPIC above it in a way no
 // generic tier blurb can. It falls back to a per-tier line only when she did not supply one.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-
-const TIER_LINE: Record<DifficultyTier, string> = {
-  common: 'A daily habit.',
-  uncommon: 'A solid push this week.',
-  rare: 'A real training block.',
-  epic: 'Most people never do this.',
-  legendary: 'A genuine life feat.',
-  mythic: 'Bragging rights for life.',
-};
-
-const TIER_COLOR: Record<DifficultyTier, string> = {
-  common: Colors.muted,
-  uncommon: Colors.green,
-  rare: Colors.sky,
-  epic: '#A06CD5',
-  legendary: Colors.amber,
-  mythic: Colors.coral,
-};
-
-function asBoxKey(key: string | null | undefined): BoxKey | null {
-  return key != null && (BOX_KEYS as readonly string[]).includes(key) ? (key as BoxKey) : null;
-}
 
 type Branch = 'solo' | 'duel' | 'campfire' | 'collective' | 'placement';
 

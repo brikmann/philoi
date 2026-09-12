@@ -19,6 +19,7 @@ import {
   fetchCindyHistory,
   isScopedTier,
   isVoiceAvailable,
+  parseProposedGoals,
   performCoachAction,
   recordCoachAction,
   sendToCindy,
@@ -169,6 +170,40 @@ export default function CindyScreen() {
         });
         return;
       }
+    }
+
+    // ── A WHOLE ASK'S WORTH OF GOALS GETS THE BATCH VERDICT ─────────────────────────────────
+    //
+    // "Scope me a 90% in every class" is the ask this branch exists for. It used to be N turns:
+    // runCoach takes at most one tool_use per turn, so five courses meant five proposals with a
+    // stop between each, and — because create_challenge carries no reward until it reaches the
+    // verdict screen — five chips that said "Done" and named no price. The user never saw what any
+    // of them was worth.
+    //
+    // 🔒 NOTHING IS WRITTEN HERE, for the third time and the same reason. challenge/verdict-batch
+    // shows every goal with the crate the SERVER prices it at, and its CTA is what calls
+    // create_scoped_goals — one transaction, all five, each with its tier already on the row. The
+    // chip stays 'proposed' because a price has been shown, not charged.
+    //
+    // The parse is parseProposedGoals rather than a second reading of the payload here: the screen
+    // and the write have to agree about what was proposed, and two parsers over one payload is
+    // exactly how they stop agreeing.
+    if (action.tool === 'create_goals') {
+      const goals = parseProposedGoals(action.input);
+      if (goals.length > 0) {
+        router.push({
+          pathname: '/challenge/verdict-batch',
+          params: {
+            goals: JSON.stringify(goals),
+            // Cindy's own framing of the whole ask ("90% in every class"), so the screen has a
+            // headline that is the USER'S request rather than a count of rows.
+            headline: typeof action.input.headline === 'string' ? action.input.headline : '',
+          },
+        });
+        return;
+      }
+      // An empty or unparseable list falls through to the executor, which answers with its own
+      // sentence rather than opening a screen with nothing on it.
     }
 
     // ── AND A SCOPED SOLO GOAL GETS THE SAME SCREEN ─────────────────────────────────────────

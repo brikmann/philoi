@@ -6,13 +6,16 @@ import { supabase } from '@/lib/supabase';
 import type {
   Challenge,
   ChallengeCountMode,
+  CreatedGoalReceipt,
   DifficultyTier,
   GoalClaimLevel,
+  GradeReport,
   ScopedRewardPreview,
   ChallengeFeedEvent,
   ChallengePeriod,
   ChallengeType,
   UnseenGoalReward,
+  UpdatedGoal,
 } from '@/types/database';
 
 export async function fetchMyChallenges(userId: string): Promise<Challenge[]> {
@@ -27,7 +30,13 @@ export async function fetchMyChallenges(userId: string): Promise<Challenge[]> {
     .is('retired_at', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data ?? [];
+  // 0183's archive, applied HERE rather than as an `.is('hidden_at', null)` on the query above.
+  // A filter names the column in the request, so a build that reached a phone before the migration
+  // reached prod would get a 400 and an empty Challenges tab; reading a column that isn't there
+  // yet just yields undefined, and undefined is not a timestamp, so every goal stays visible. The
+  // ordering constraint between a migration and an APK is real (OTA is closed), and this is the
+  // side of it that fails soft.
+  return (data ?? []).filter((c) => !c.hidden_at);
 }
 
 /** A goal is the user's own — no campfire binding (migration 0059). Sharing the work behind it
@@ -310,9 +319,146 @@ export async function fetchLockinTimeGoals(userId: string): Promise<Challenge[]>
   return data ?? [];
 }
 
+/**
+ * ⚠️ THE RAW DELETE. Kept because the create-screen error paths and the tests call it, but the
+ * goal card must NOT: it will happily destroy a settled goal, and a settled goal's `reward_payload`
+ * is the receipt for embers the ledger already moved. `deleteGoal` below is the guarded door.
+ */
 export async function deleteChallenge(challengeId: string): Promise<void> {
   const { error } = await supabase.from('challenges').delete().eq('id', challengeId);
   if (error) throw error;
+}
+
+/**
+ * Delete a LIVE goal (0183). Refuses a settled one, with a sentence saying to hide it instead.
+ *
+ * The permission and the lifecycle rule both live server-side rather than in the menu that calls
+ * this, for the same reason set_goal_scope's ownership check does: `security definer` bypasses RLS,
+ * so a check the client skips is a check that did not happen.
+ */
+export async function deleteGoal(goalId: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_goal', { p_goal_id: goalId });
+  if (error) throw error;
+  track('goal_deleted', {});
+}
+
+/** Archive a finished goal out of History without destroying its reward receipt (0183). */
+export async function hideGoal(goalId: string, hidden = true): Promise<void> {
+  const { error } = await supabase.rpc('hide_goal', { p_goal_id: goalId, p_hidden: hidden });
+  if (error) throw error;
+}
+
+/**
+ * Create N goals from ONE ask, atomically, each already priced (0183).
+ *
+ * 🔒 STILL THE CLIENT PERFORMING, NOT THE SERVER ACTING. This is one RPC under the user's own JWT
+ * rather than a service-role executor — the fan-out is server-side so the batch is a single
+ * transaction, which is the only thing "server-side" means here. Cindy proposes the list; this
+ * sends it; the server validates every tier, DERIVES every verifiability, and prices each row in
+ * the same transaction that writes it.
+ *
+ * WHY NOT N calls to createChallenge + setGoalScope. Three reasons, in order of how much they hurt:
+ * a half-written batch (three goals made, then a duplicate raises) is a state nobody can reason
+ * about; set_goal_scope is a SECOND round trip that can fail on its own, leaving exactly the
+ * rewardless goal §C exists to prevent; and 2N round trips over a phone connection is a visible
+ * wait where one call is not.
+ */
+export async function createScopedGoals(goals: ScopedGoalInput[]): Promise<CreatedGoalReceipt[]> {
+  const { data, error } = await supabase.rpc('create_scoped_goals', {
+    // Sent as a jsonb array. Nulls are stripped rather than sent as null: the RPC reads every field
+    // with `->>` and coalesces, so an absent key and a null key mean the same thing to it, and
+    // omitting them keeps the payload readable in a log.
+    p_goals: goals.map((g) => ({
+      type: g.type ?? 'custom',
+      label: g.label,
+      target: g.target,
+      unit: g.unit ?? '',
+      period: g.period ?? 'once',
+      count_mode: g.countMode ?? 'manual',
+      ...(g.tier ? { difficulty_tier: g.tier } : {}),
+      ...(g.gradeTarget != null ? { grade_target: g.gradeTarget } : {}),
+      ...(g.courseId ? { course_id: g.courseId } : {}),
+      ...(g.dueAt ? { due_at: g.dueAt } : {}),
+    })),
+  });
+  if (error) throw error;
+  const results = (data as { results: CreatedGoalReceipt[] } | null)?.results ?? [];
+  track('goals_bulk_created', {
+    asked: goals.length,
+    created: results.filter((r) => r.status === 'created').length,
+  });
+  requestInventoryRefresh();
+  return results;
+}
+
+export type ScopedGoalInput = {
+  type?: ChallengeType;
+  label: string | null;
+  target: number;
+  unit?: string;
+  period?: ChallengePeriod;
+  countMode?: ChallengeCountMode;
+  /** Cindy's scoped tier. Omitted only when she genuinely could not judge it — the server floors it
+   *  to uncommon rather than writing a goal with no price. */
+  tier?: DifficultyTier | null;
+  /** Set to make this a grade goal. The server mirrors it onto `target` and forces period 'once'. */
+  gradeTarget?: number | null;
+  courseId?: string | null;
+  dueAt?: string | null;
+};
+
+/**
+ * Move a live goal's target or deadline, and get back its RE-SCORED reward (0183).
+ *
+ * 🔒 THE REWARD IS NOT A PARAMETER. There is no band, no box and no ember figure to pass — the
+ * user moves the TARGET and Cindy re-judges the DIFFICULTY, and the server re-derives what that is
+ * worth. That absence is the same firewall setGoalScope has, extended to the one function allowed
+ * to re-price a goal that was already priced.
+ *
+ * The lifecycle and ownership rules (settled/claimed/retired refused, owner only, the leap gate)
+ * are enforced in the RPC, not here — the sheet that calls this disables what it can, but a
+ * disabled button is a courtesy and the server is the rule.
+ */
+export async function updateGoal(input: {
+  goalId: string;
+  target?: number | null;
+  dueAt?: string | null;
+  /** True clears the deadline. Distinct from `dueAt: null`, which means "leave it alone" — one
+   *  parameter cannot mean both without making "remove the deadline" unexpressible. */
+  clearDue?: boolean;
+  tier?: DifficultyTier | null;
+}): Promise<UpdatedGoal> {
+  const { data, error } = await supabase.rpc('update_goal', {
+    p_goal_id: input.goalId,
+    p_target: input.target ?? null,
+    p_due_at: input.dueAt ?? null,
+    p_clear_due: input.clearDue ?? false,
+    p_tier: input.tier ?? null,
+  });
+  if (error) throw error;
+  const updated = data as UpdatedGoal;
+  track('goal_edited', { changed: updated.changed.join(','), tier: updated.tier });
+  return updated;
+}
+
+/**
+ * Report the mark, and settle the goal on it (0183).
+ *
+ * SETS progress rather than adding to it — that is the whole reason this exists instead of
+ * logChallengeProgress, which increments and stored 170 when a user reported 85 twice.
+ *
+ * A PASS needs nothing more from the client: completed_at fires challenges_economy, which mints the
+ * crate and writes reward_payload, and GoalRevealWatcher draws it on the next foreground through
+ * the same door every other one-time goal reveals through. A MISS is returned here and shown here,
+ * because it is the only place it can honestly be shown.
+ */
+export async function reportGoalGrade(goalId: string, grade: number): Promise<GradeReport> {
+  const { data, error } = await supabase.rpc('report_goal_grade', { p_goal_id: goalId, p_grade: grade });
+  if (error) throw error;
+  const report = data as GradeReport;
+  track('goal_grade_reported', { passed: report.passed });
+  if (report.passed) requestInventoryRefresh();
+  return report;
 }
 
 export type FeedChallengeEvent = ChallengeFeedEvent & {

@@ -24,13 +24,21 @@ import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { challengeTitle, formatMetricValue, isDuel, isPlacement, metricLabel, metricNoun } from '@/lib/challenge-metric';
 import { challengeClockText, challengeRevealKind, duelOutcome, type ChallengeVerdict } from '@/lib/challenge-outcome';
+import { previewScopedReward } from '@/lib/api/challenges';
+import { asBoxKey } from '@/lib/challenge-tier';
+import { BOXES } from '@/lib/economy/boxes';
 import { fetchChallengeResults } from '@/lib/api/social-challenges';
 import { answerChallengeInvite } from '@/lib/api/challenge-lifecycle';
 import { rewardChips } from '@/lib/challenge-reward-summary';
 import { getErrorMessage } from '@/lib/errors';
 import { CHALLENGE_TYPE_GLYPH, canonicalGoalUnit } from '@/lib/goal-types';
 import { shareCardImage } from '@/lib/share-card';
-import type { ChallengeResultRow, SocialChallenge, SocialChallengeRaceMetric } from '@/types/database';
+import type {
+  ChallengeResultRow,
+  ScopedRewardPreview,
+  SocialChallenge,
+  SocialChallengeRaceMetric,
+} from '@/types/database';
 
 // Challenge / Goal info — design-mocks/102 v2, the screen that makes the minimal card possible.
 //
@@ -629,6 +637,29 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
   const { challenges, loading } = useMyChallenges();
   const g = challenges.find((x) => x.id === challengeId);
 
+  // 🔴 §D — "Goal info … the read-only 'what am I chasing / how am I doing' view — never a dead
+  // tap." The reward row below used to read a hardcoded "Embers on completion" on every goal,
+  // scoped or not, which is the same failure as showing nothing: it is not what this goal pays, it
+  // is a sentence about goals in general. This asks the server, exactly as the card and the verdict
+  // screen do.
+  //
+  // 🔒 Hooks before the early return. `g` is undefined on the first frame (the list is still
+  // fetching) and returning above a hook would change the hook order between renders — so the
+  // effect below reads through optional chaining and simply does nothing until there is a goal.
+  const tier = g?.difficulty_tier ?? null;
+  const claimLevel = g?.verifiability ?? 'honor';
+  const [reward, setReward] = useState<ScopedRewardPreview | null>(null);
+  useEffect(() => {
+    if (!tier) return;
+    let alive = true;
+    previewScopedReward(tier, claimLevel).then((r) => {
+      if (alive) setReward(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [tier, claimLevel]);
+
   // Same first-frame miss as SocialInfo above — the list is empty until the fetch lands, and
   // "isn't available any more" is a lie about a goal that is sitting on the tab behind you.
   if (!g) return loading ? <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} /> : <Missing what="goal" />;
@@ -640,11 +671,41 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
   // falls back to its own name. Same helper the card reads, so the two cannot disagree.
   const unit = canonicalGoalUnit(g.type, g.unit, g.label);
   const oneTime = g.period === 'once';
+  const isGrade = g.grade_target != null;
+  const boxKey = asBoxKey(reward?.box);
+
+  /** What the reward row says. Three states, and the difference between them is the point of §C:
+   *  what you WILL get, what you DID get, and the honest nothing of a miss. */
+  const rewardLine = !tier
+    ? 'Embers on completion'
+    : reward
+      ? `${tier.toUpperCase()} · ${boxKey ? BOXES[boxKey].name : 'Embers only'} + ${reward.embers.toLocaleString('en-US')} embers`
+      : '…';
 
   const rows: Row[] = [
-    { k: 'Type', v: oneTime ? 'Personal goal · one-time' : 'Personal goal' },
-    { k: 'Target', v: `${g.target.toLocaleString('en-US')} ${unit}` },
-    { k: 'Source', v: isAuto ? 'Tracked automatically' : 'Logged by hand' },
+    { k: 'Type', v: isGrade ? 'Personal goal · grade' : oneTime ? 'Personal goal · one-time' : 'Personal goal' },
+    { k: 'Target', v: isGrade ? `${g.target.toLocaleString('en-US')}%` : `${g.target.toLocaleString('en-US')} ${unit}` },
+    // §D — "current progress ... and status". A goal that is over should SAY it is over here rather
+    // than leaving the reader to infer it from a full progress bar, and a miss has no bar to infer
+    // anything from at all.
+    {
+      k: 'Status',
+      v: g.completed_at
+        ? isGrade
+          ? `Hit it — you reported ${g.progress.toLocaleString('en-US')}%`
+          : 'Complete'
+        : g.missed_at
+          ? `Missed — you reported ${g.progress.toLocaleString('en-US')}% against ${(g.grade_target ?? g.target).toLocaleString('en-US')}%`
+          : g.claimed_at
+            ? 'Claimed — waiting on friends to vouch'
+            : isGrade
+              ? 'Live — report your grade when it lands'
+              : `Live · ${pct}% there`,
+    },
+    {
+      k: 'Source',
+      v: isGrade ? 'You report the mark' : isAuto ? 'Tracked automatically' : 'Logged by hand',
+    },
     // Plain "midnight" is now true — migration 0084 rolls each user at their OWN midnight rather
     // than a single 00:10 UTC sweep. Weekly is still the shared UTC boundary. §5 — a one-time goal
     // is not rolled by either arm of that sweep, so it has no reset to name.
@@ -652,7 +713,18 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
       k: 'Resets',
       v: oneTime ? 'Never — finish it once' : g.period === 'day' ? 'Every night at midnight' : 'Every Sunday (UTC)',
     },
-    { k: 'Reward', v: 'Embers on completion', highlight: true },
+    // A deadline the owner set (0183). Only shown when there IS one — an empty "Deadline: —" row is
+    // a question the screen raises and does not answer.
+    ...(g.due_at
+      ? [{ k: 'Deadline', v: new Date(g.due_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }]
+      : []),
+    // 🔴 The row this screen exists for. The server's figure, not a sentence about goals in general.
+    { k: g.completed_at ? 'Paid' : g.missed_at ? 'Was worth' : 'Reward', v: rewardLine, highlight: true },
+    // Honour is not a penalty and should not read as one, but it IS the reason the crate is capped
+    // — so it is stated where the crate is, rather than discovered at the reveal.
+    ...(g.verifiability === 'honor'
+      ? [{ k: 'Verified', v: isGrade ? 'Your word — honour rate' : 'Honour — proof or a vouch pays more' }]
+      : []),
     // A streak needs consecutive windows to be a streak, and a one-time goal has exactly one.
     ...(oneTime ? [] : [{ k: 'Goal streak', v: 'Milestones at 3 · 7 · 14 · 30 days' }]),
   ];
@@ -670,15 +742,30 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
           {g.label ?? `${g.target.toLocaleString('en-US')} ${unit}`}
         </Text>
         <Text style={styles.goalProgress}>
-          {g.progress.toLocaleString('en-US')} / {g.target.toLocaleString('en-US')}{' '}
-          {g.period === 'day' ? 'today' : oneTime ? 'total' : 'this week'} · {pct}%
+          {/* A grade goal has no running total — the number arrives once, at the end — so printing
+              "0 / 90 total · 0%" would read as no progress on something that has not been graded
+              yet. It says what is actually true instead. */}
+          {isGrade
+            ? g.completed_at || g.missed_at
+              ? `${g.progress.toLocaleString('en-US')}% · target ${g.target.toLocaleString('en-US')}%`
+              : `Target ${g.target.toLocaleString('en-US')}% · not reported yet`
+            : `${g.progress.toLocaleString('en-US')} / ${g.target.toLocaleString('en-US')} ${
+                g.period === 'day' ? 'today' : oneTime ? 'total' : 'this week'
+              } · ${pct}%`}
         </Text>
       </View>
 
       <Rules rows={rows} />
 
       <View style={styles.note}>
-        {oneTime ? (
+        {isGrade ? (
+          <Text style={styles.noteText}>
+            <Text style={styles.noteStrong}>You report this one.</Text> When the mark lands, tap
+            &ldquo;Report your grade&rdquo; on the card and tell us what you got. Hit the target and
+            the crate above is yours; miss it and nothing is paid and nothing is taken — you just
+            find out. Because nobody can check a transcript, grade goals pay the honour rate.
+          </Text>
+        ) : oneTime ? (
           <Text style={styles.noteText}>
             <Text style={styles.noteStrong}>One target, no reset.</Text> This counter keeps running
             until you hit {g.target.toLocaleString('en-US')} {unit} — midnight and Sunday do nothing
