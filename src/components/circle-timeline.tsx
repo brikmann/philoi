@@ -913,7 +913,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
           it remounts per tap, which is what makes it start on the photo that was actually pressed
           rather than wherever the previous open left the pager. */}
       <PhotoViewer
-        key={viewer ? `${viewer.uris[0]}-${viewer.index}` : 'closed'}
+        key={viewer ? `viewer:${viewer.uris[0]}-${viewer.index}` : 'viewer:closed'}
         visible={viewer !== null}
         uris={viewer?.uris ?? []}
         initialIndex={viewer?.index ?? 0}
@@ -926,7 +926,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
         // Remount per pressed message, so the tray's own state (an open ＋ picker, a half-typed
         // search) cannot leak from one message to the next. This is what lets ReactionTray reset
         // without a setState-in-effect, which the lint rules reject.
-        key={tray?.message.id ?? 'closed'}
+        key={tray ? `tray:${tray.message.id}` : 'tray:closed'}
         visible={tray !== null}
         anchor={tray?.anchor ?? null}
         current={

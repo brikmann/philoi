@@ -16,7 +16,14 @@ export type ChatMessage = Message & {
 export async function fetchMessages(groupId: string): Promise<ChatMessage[]> {
   const { data, error } = await supabase
     .from('messages')
-    .select('*, profiles(display_name, avatar_url, handle)')
+    // profiles!messages_user_id_fkey, not a bare profiles(...): 0171's message_reactions has
+    // PRIMARY KEY (message_id, user_id), which is exactly PostgREST's many-to-many junction
+    // signature, so messages<->profiles now has TWO relationships (the author FK and that
+    // m2m) and an un-hinted embed fails the whole select with "more than one relationship
+    // was found" — an empty campfire feed, not a partial one. Naming the constraint pins it
+    // to the author. The sibling embeds (check_ins, lock_in_sessions) stay un-hinted because
+    // their junctions all have surrogate id PKs and so are not detected as m2m.
+    .select('*, profiles!messages_user_id_fkey(display_name, avatar_url, handle)')
     .eq('group_id', groupId)
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
