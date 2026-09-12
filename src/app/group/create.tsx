@@ -16,7 +16,7 @@ import { useInventory } from '@/hooks/use-inventory';
 import { DEFAULT_LOADOUT, getItem, type CatalogItem } from '@/lib/economy/catalog';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
-import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META, categoryForGoalType, goalTypeForChoice } from '@/lib/goal-types';
 import { markOnboardingDone } from '@/lib/onboarding';
 import type { CampfirePrivacy, GoalType } from '@/types/database';
 
@@ -29,15 +29,44 @@ const DEFAULT_CADENCE = 'flexible';
 // the full personal GoalType set. "Custom" doubles as the general/default option (the flame
 // tile, matching design-mocks/10's default-selected icon) rather than reusing its lock-in-
 // picker icon ('add'), since here it represents "this campfire," not "something uncategorized."
+//
+// ── WHY THIS IS DERIVED AND NOT A LIST ──────────────────────────────────────────────────────
+//
+// Unlike goal/create.tsx this screen never COULD write a dead type — it has offered exactly
+// these four since it was written, and `job_applications`/`read` were never among them. What it
+// could do is drift: the next type retired from the two-tap taxonomy would leave a tile here
+// pointing at it, and nothing would say so. So the three real tiles are now DERIVED through
+// `goalTypeForChoice`, the same function the lock-in sheet and goal/create resolve with — the
+// list cannot name a family the taxonomy has dropped, because it does not name them at all.
+//
+// A campfire's theme is NOT stored as `category`/`activity`: 0182 put those columns on
+// `check_ins` and `lock_in_sessions`, and a group's discipline still rides in `groups.goal_type`
+// via `create_group_with_owner`, a seven-parameter prod RPC that the banner note below explains
+// at length why nothing should be appended to. The two-tap VALUES reach the session instead, at
+// the handoff in handleCreate.
 const THEME_OPTIONS: { value: GoalType; icon: DisciplineIconName }[] = [
   { value: 'custom', icon: 'flame' },
-  { value: 'study', icon: GOAL_TYPE_GLYPH.study },
-  { value: 'gym', icon: GOAL_TYPE_GLYPH.gym },
-  { value: 'run', icon: GOAL_TYPE_GLYPH.run },
+  { value: goalTypeForChoice('study'), icon: GOAL_TYPE_GLYPH.study },
+  { value: goalTypeForChoice('fitness', 'strength'), icon: GOAL_TYPE_GLYPH.gym },
+  { value: goalTypeForChoice('fitness', 'cardio'), icon: GOAL_TYPE_GLYPH.run },
 ];
 
 function themeEmoji(type: GoalType): string {
   return type === 'custom' ? '🔥' : GOAL_TYPE_META[type].emoji;
+}
+
+/**
+ * The 0182 half of the first lock-in's query string — "&category=fitness&activity=cardio", or ''.
+ *
+ * A FRAGMENT rather than the whole href, and interpolated at the call site, because expo-router's
+ * typed routes match `router.replace` against a union of literal route patterns: a helper that
+ * returns `string` widens past every one of them and does not type-check. The template literal has
+ * to stay where the navigation happens.
+ */
+function lockInTaxonomyQuery(type: GoalType): string {
+  if (type === 'custom') return '';
+  const { category, activity } = categoryForGoalType(type);
+  return `&category=${category}${activity ? `&activity=${activity}` : ''}`;
 }
 
 function ToggleRow({
@@ -186,8 +215,21 @@ export default function CreateGroupScreen() {
       }
 
       await markOnboardingDone();
+      // ── THE HANDOFF IS WHERE THE TWO-TAP VALUES GO ──
+      //
+      // A brand-new member's FIRST lock-in is started by this line, and it used to hand over
+      // `type` alone. /lock-in has taken `category`/`activity` since 0182 and writes them onto
+      // `lock_in_sessions`, so a session opened from here arrived with both columns null — the
+      // one session in a member's history guaranteed to be untyped under the new taxonomy, on
+      // the run where the relic ladders are least likely to be forgiven for missing an hour.
+      //
+      // 'custom' has no category and deliberately sends none: a general campfire has not said
+      // whether it is Studying or Fitness, and /lock-in asks. Guessing one here would file the
+      // hour on a ladder the member never chose.
       router.replace(
-        isOnboarding ? `/lock-in?type=${goalType}&circleId=${group.id}` : `/group/${group.id}/invite`
+        isOnboarding
+          ? `/lock-in?type=${goalType}&circleId=${group.id}${lockInTaxonomyQuery(goalType)}`
+          : `/group/${group.id}/invite`
       );
     } catch (e) {
       setError(getErrorMessage(e, 'Could not create your campfire.'));

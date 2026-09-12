@@ -25,6 +25,11 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // THE BIG ONE for freezeOnBlur (see enableFreeze() in ../_layout.tsx). All four tabs stay
+        // mounted for the life of the app — that is what makes a deep link to /(tabs)/challenges
+        // cheap and it is also why an idle Home kept reconciling behind whatever the user was
+        // actually doing. Blurred tabs now stop rendering entirely until they are looked at again.
+        freezeOnBlur: true,
         tabBarActiveTintColor: Colors.coral,
         tabBarInactiveTintColor: Colors.muted,
         // THE BOTTOM BAR IS RETIRED (mock 157 option B). One nav now — the side drawer in

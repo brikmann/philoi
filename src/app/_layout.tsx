@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { enableFreeze } from 'react-native-screens';
 import { PostHogProvider } from 'posthog-react-native';
 
 import { ChallengeSettlementWatcher } from '@/components/challenge-settlement-watcher';
@@ -41,6 +42,24 @@ import { preloadRewardSounds } from '@/lib/sound';
 import { checkForAppUpdate } from '@/lib/updates';
 
 SplashScreen.preventAutoHideAsync();
+
+// ── STOP RECONCILING SCREENS NOBODY IS LOOKING AT (CODE_PROMPT_freeze_on_blur.md) ────────────
+//
+// The other half of the perf pass. `useMotionActive`/`useGatedInterval` stopped the ANIMATION
+// loops and the polling clocks on a blurred screen; this stops the RENDERS. The four tabs are
+// one navigator and all four stay mounted, and every screen pushed over one leaves it mounted
+// underneath — so without this, a state change anywhere in a blurred tab still reconciles its
+// whole tree and commits it to views nobody can see.
+//
+// Imported from react-native-screens, NOT from `react-freeze` directly, even though the spec
+// names the latter: react-freeze is a TRANSITIVE dependency here (react-native-screens pulls it
+// in — it is not in package.json), so importing it by name would be an undeclared dependency
+// that a lockfile refresh is free to hoist somewhere else. react-native-screens re-exports the
+// same function and is a real, declared dependency.
+//
+// Module scope on purpose: this flips a module-level flag that Screen reads as it renders, so it
+// has to be set before the first navigator mounts rather than in an effect that runs after it.
+enableFreeze(true);
 
 
 function RootNavigator() {
@@ -293,6 +312,10 @@ function RootNavigator() {
   return (
     <Stack
       screenOptions={{
+        // See enableFreeze() at the top of this file. Set on BOTH navigators (the other is
+        // (tabs)/_layout.tsx): this one covers a pushed screen leaving the one beneath it
+        // mounted, that one covers the four tabs that never unmount at all.
+        freezeOnBlur: true,
         // No paddingTop here on purpose — see headerlessContentStyle above. A headered screen
         // can't take the offset in its content (that would push the body down while leaving the
         // header itself under the pill), so the PILL moves instead — see LiveSessionBar's
@@ -352,9 +375,28 @@ function RootNavigator() {
         <Stack.Screen name="group/[groupId]/invite" options={{ presentation: 'modal', title: '', headerShown: false }} />
         <Stack.Screen name="group/[groupId]/join-requests" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="group/[groupId]/leaderboard" options={{ title: '' }} />
+        {/* 🔴 THE ONE SCREEN THAT DOES NOT FREEZE.
+            
+            Freezing pauses renders, effects AND their cleanups' counterpart — React destroys a
+            hidden subtree's effects and re-runs them when it comes back. On every other screen
+            that is the entire point. Here it would fire two teardowns that mean something:
+
+              · use-lockin-presence's goodbye effect calls endLockInPresence() in its cleanup, so
+                walking from a running lock-in into a campfire would UNCOUNT the member from the
+                presence they are still part of — the exact number the pill exists to show.
+              · the keep-awake effect's cleanup releases the wake lock. That one happens already,
+                deliberately, via useIsFocused (the locked decision: keep-awake is scoped to a
+                FOCUSED lock-in) — but it would then be released twice through two different
+                mechanisms, and only one of them is the one anybody reasoned about.
+
+            The session itself is safe either way: it lives in ActiveSessionProvider above this
+            navigator, the timer recomputes from startedAt, and the Live Activity is driven by
+            LiveActivitySync at the root. It is the two screen-owned effects above that are not,
+            and opting one modal out costs nothing — the win this feature exists for is the four
+            always-mounted tabs, not a modal the user has navigated away from. */}
         <Stack.Screen
           name="lock-in/index"
-          options={{ presentation: 'modal', title: 'Lock in', headerShown: false }}
+          options={{ presentation: 'modal', title: 'Lock in', headerShown: false, freezeOnBlur: false }}
         />
         <Stack.Screen name="lock-in/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="goal/create" options={{ presentation: 'modal', title: 'New goal' }} />
