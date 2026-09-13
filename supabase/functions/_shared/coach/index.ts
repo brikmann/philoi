@@ -98,6 +98,30 @@ export async function runCoach(input: RunCoachInput): Promise<CoachResult> {
   const { data: context, error: contextError } = await userClient.rpc('get_coach_context');
   if (contextError) throw new Error(`Could not read coach context: ${contextError.message}`);
 
+  // ── THE MEMBER'S COURSES (0182's user_courses) ─────────────────────────────────────────────
+  //
+  // "Scope me a 90% in every class" is unanswerable without this list, and before it existed Cindy
+  // had to ask the user to name courses the database already knew — which is the difference between
+  // an assistant and a form.
+  //
+  // 🔒 READ WITH THE USER'S OWN CLIENT, so RLS ("own courses readable") is what scopes it. Same
+  // guarantee get_coach_context has: it is structurally impossible to read anyone else's rows here,
+  // rather than merely intended.
+  //
+  // ⚠️ A SEPARATE READ RATHER THAN A COLUMN ON get_coach_context, deliberately. That function is a
+  // 12KB jsonb_build_object with no addressable interior — adding a key means restating the WHOLE
+  // body in a migration, which is the exact operation that has silently reverted a sibling
+  // session's work in this repo before. A table read with its own RLS policy costs one round trip
+  // and cannot clobber anything.
+  //
+  // Best-effort: an error here means Cindy asks which courses they mean, which is how she behaved
+  // before this existed. It must never take the whole turn down.
+  const { data: courses } = await userClient
+    .from('user_courses')
+    .select('id, code, title')
+    .is('archived_at', null)
+    .order('code', { ascending: true });
+
   // Read at the moment we write to the member, exactly as the consent dialog promises — never on
   // a sync job, never stored. Best-effort: a window with connected:false is the normal, expected
   // shape for every failure, and the prompt block says so in words the model can act on.
@@ -107,7 +131,10 @@ export async function runCoach(input: RunCoachInput): Promise<CoachResult> {
 
   const contextBlock = [
     '<user_context>',
-    JSON.stringify(context),
+    // Merged into the one context document rather than shipped as a second block: every other fact
+    // about the user is in there, and a model that has to look in two places for "what do I know
+    // about them" will eventually look in one.
+    JSON.stringify({ ...(context ?? {}), courses: courses ?? [] }),
     '</user_context>',
     calendarPromptBlock(calendar),
     situation ? `<situation>${JSON.stringify(situation)}</situation>` : '',

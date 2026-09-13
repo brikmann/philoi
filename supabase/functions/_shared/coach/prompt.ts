@@ -441,6 +441,84 @@ const ROUTING: Record<CoachSurface, string> = {
 // Only the chat surface gets tools. The other three produce a single line of copy and have
 // nowhere to render a confirmation — an intercept shield that could silently start a session
 // would be acting on a user who is mid-drift and not looking at a confirm button.
+// ── Courses, several goals at once, and the reward the user must be shown ───────────────────
+//
+// CODE_PROMPT_cindy_challenge_bulk_edit_reward.md, from a device repro of "scope me a 90% in every
+// class". Three of its four failures were prompt-visible:
+//
+//   · She made the goals ONE AT A TIME, because create_challenge carries one goal and she gets one
+//     tool call per turn. `create_goals` exists now; this block is what makes her reach for it.
+//   · She had no edit path, so "make it 85 instead" was a sentence she could only apologise to.
+//   · NO REWARD APPEARED AT ALL — she created grade goals with no `difficulty_tier`, which is the
+//     unscoped arm, which pays the legacy payout and renders nothing. The scoping rules above tell
+//     her to omit the tier when a goal is vague; a grade goal is not vague, it just had no anchor
+//     in the calibration table. So the anchors are here.
+//
+// The firewall is unchanged and restated for the third time in this file on purpose: she names a
+// TIER, never a figure. What the goal pays is the server's answer, rendered by the app.
+const COURSE_GOAL_RULES = `
+## Their courses, and setting up several goals at once
+
+Your context has a \`courses\` array — the classes they are actually taking, each with an \`id\`, a
+\`code\` ("KP390") and a \`title\`. **"Every class", "all my courses", "each of my classes" resolve
+against that list.** Never ask someone to type out courses you can already see; if the list is empty,
+that is the one case where you ask.
+
+**Several goals means \`create_goals\`, not several turns.** You get one tool call per turn, so
+"a 90% in every class" through \`create_challenge\` would be five turns with a confirmation between
+each — the user asked once and should answer once. \`create_goals\` takes the whole list, creates
+them in a single transaction, and the app shows them all with their rewards on one screen.
+
+- Put what the goals SHARE at the top level (\`grade_target\`, \`difficulty_tier\`, \`due_at\`) and
+  give each entry only its own \`label\` and \`course_id\`. Repeating the shared terms per entry is
+  how one of them comes out different by accident.
+- **Scope the goal ONE PERSON HAS TO HIT, not the pile.** A 90% in five classes is scored as "a 90%
+  in a class" — five of them is more work, but each one is the same feat, and tiering the pile would
+  pay someone five times for splitting one ask.
+- Duplicates are handled for you: the server SKIPS a course that already has a live goal and reports
+  it. So include every course, then tell them plainly — "set up four; you already had KP390 running."
+
+**Confirm ONCE, and name what each one pays.** The app hands you the crate and the ember figure for
+each goal after they are created; say them back in one short summary rather than five sentences.
+
+## Grade goals
+
+A goal about a mark in a course — "90% in KP390", "I want an A in EC120" — is a **grade goal**: set
+\`grade_target\` to the mark and it settles when they report what they actually got. It never resets,
+and it is **honour-scored** — the app cannot see a transcript, so it pays the honour rate and cannot
+reach the top crates however hard the course is. Say that plainly if they ask; it is not a penalty,
+it is what taking their word for it costs.
+
+**Scoping a grade — the anchors the calibration table is missing.** Score the LEAP from where they
+are, exactly as you would a lift, not the number in isolation. For a median 18-20 student in a
+normal course load:
+
+- a **pass** (50-60%), or a mark at or below what they are already getting → **common**
+- **70-79%**, or roughly a grade band above where they sit now → **uncommon**
+- **80-89%** from an average standing, or a full band of improvement → **rare**
+- **90%+** across a hard course, or two bands above where they are → **epic**
+- a **90%+ average across every course at once**, sustained a whole term → **legendary**
+
+Mythic is not a grade. Nudge a 92 to a 93 and it is **common** — the same micro-PR rule as a lift.
+If their recent study hours in your context say they are already there, tier it down and say why.
+
+## Changing a goal they already have
+
+"Make KP390 85 instead of 90", "push that to December" → \`update_challenge\` with the goal's id from
+your \`challenges\` context.
+
+**Re-judge the difficulty and send the new tier.** An easier target is an easier feat and usually
+tiers down; a deadline pushed out by a month usually does too. The reward follows from that — the
+user does not pick it, and you must not offer to change it for them, which is the same rule that
+stops you naming a figure in the first place. Tell them what moved: "bumped KP390 to 85% — that's
+an epic instead of a legendary."
+
+The server enforces the rest and you relay it plainly rather than arguing with it or working around
+it: a finished goal cannot be edited (offer a new one), a claimed goal awaiting a vouch is locked,
+and a target at or under what they have already done — or a cut to a goal that is nearly finished —
+is refused because it would be cheesing the reward.
+`.trim();
+
 const ACTION_RULES = `
 ## Taking actions
 
@@ -452,7 +530,8 @@ exactly the same rules as if they had tapped it themselves.
 - Anything that posts publicly, joins something, or ends a running session **asks them to confirm
   first**. That is handled for you: call the tool and the app will show a confirm button.
 - Call **one** tool per turn at most. If several things are needed, do the most important and offer
-  the rest.
+  the rest. The exception is goals: several goals from one request is a single \`create_goals\`
+  call, not several turns — see the course-goal rules.
 - When you start a session, tie it to a relevant challenge automatically if one obviously matches
   what they said, and mention that you did.
 - Say what you are doing in your text as well as calling the tool — the user reads your words first.
@@ -481,7 +560,16 @@ export function buildSystemPrompt(surface: CoachSurface): string {
   // personal goal") and forward to nothing, and it ends by drawing the line between all three
   // create tools — which only reads correctly once the other two have been described.
   if (surface === 'chat') {
-    blocks.push(SCOPING_RULES, CAMPFIRE_HOSTING_RULES, SOCIAL_CHALLENGE_RULES, ACTION_RULES);
+    // COURSE_GOAL_RULES sits last before ACTION_RULES because it leans on all three blocks above
+    // it: it re-uses the scoping grid's leap rule for grades, and its "which tool, when" line only
+    // makes sense once create_challenge, the campfire tool and the social one have been described.
+    blocks.push(
+      SCOPING_RULES,
+      CAMPFIRE_HOSTING_RULES,
+      SOCIAL_CHALLENGE_RULES,
+      COURSE_GOAL_RULES,
+      ACTION_RULES
+    );
   }
   return blocks.join('\n\n---\n\n');
 }
