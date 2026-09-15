@@ -56,6 +56,11 @@ async function saveReminderMap(map: ReminderMap) {
 }
 
 export async function requestNotificationPermissions(): Promise<boolean> {
+  // Channels FIRST. The SDK 57 docs: on Android 13 the permission prompt "will not appear until at
+  // least one notification channel is created". This used to run only after a grant, so a fresh
+  // install could ask with no channel, get no prompt, read that as a decline, return early — and
+  // never create the channel or the token. Idempotent, so it costs nothing on every later call.
+  await ensureNotificationChannels();
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
   const requested = await Notifications.requestPermissionsAsync();
@@ -79,8 +84,6 @@ export async function registerPushToken(userId: string): Promise<void> {
   try {
     const granted = await requestNotificationPermissions();
     if (!granted) return;
-
-    await ensureNotificationChannels();
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });

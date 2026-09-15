@@ -3,7 +3,7 @@ import { Stack, usePathname, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -178,8 +178,25 @@ function RootNavigator() {
   // session belongs to (see lock_in_sessions_one_active_per_user) and routes there; the
   // screen resumes that session automatically and shows the "still here?" banner once the
   // elapsed time crosses the same threshold the server-side reminder used.
+  //
+  // 🔴 A TAP ON A FORCE-QUIT APP. That tap is what launches the process, and the SDK 57 docs route
+  // it through getLastNotificationResponse() rather than promising it to this listener. The listener
+  // also used to subscribe before auth resolved, so a launching tap that did reach it navigated
+  // before the gates below had decided where the user belongs, and was then overridden. So nothing
+  // subscribes until the account is usable; on that render the launching tap is read back and
+  // handled exactly like a live one. Keyed by the notification's identifier, because both paths can
+  // deliver the same tap.
+  const handledNotificationId = useRef<string | null>(null);
   useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
+    if (!appReady || !session || needsHandle || needsConsent || needsAccountDisabled) return;
+
+    async function openNotification(response: Notifications.NotificationResponse) {
+      const id = response.notification.request.identifier;
+      if (handledNotificationId.current === id) return;
+      handledNotificationId.current = id;
+      // Cleared so a JS reload inside the same process does not replay a tap already acted on.
+      Notifications.clearLastNotificationResponse();
+
       const data = response.notification.request.content.data;
 
       // THE ROUTE THE EVENT WAS WRITTEN WITH, first (0086's notify_event).
@@ -236,9 +253,14 @@ function RootNavigator() {
       ) {
         router.push('/(tabs)/challenges');
       }
-    });
+    }
+
+    const launching = Notifications.getLastNotificationResponse();
+    if (launching) openNotification(launching);
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(openNotification);
     return () => subscription.remove();
-  }, [router, session]);
+  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, router]);
 
   // First-run guided path: signed in, handle set, consent done, never had a circle,
   // hasn't finished/skipped onboarding yet — push to create-circle instead of empty Today.
