@@ -33,6 +33,8 @@ import type { LockInPresence, LockInPresenceKey } from '@/types/database';
 type Line = (n: string, campus: string | null) => string;
 
 const LINE: Record<LockInPresenceKey, Record<'now' | 'today' | 'week', Line>> = {
+  // The study room also counts Deep Work, on purpose (0186 folds deep_work into 'study' — see
+  // presenceCountFor). Deep Work is focus work too, and a separate room would thin the number.
   study: {
     now: (n, c) => (c ? `${n} studying at ${c} right now` : `${n} studying right now`),
     today: (n, c) => (c ? `${n} studied at ${c} today` : `${n} studied today`),

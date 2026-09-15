@@ -101,13 +101,14 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       section: 'Core',
       // 🔴 FOUR STEPS, NOT THREE, because the picker is now TWO TAPS
       // (CODE_PROMPT_lockin_taxonomy_two_tap.md, mock 194). The old middle frame showed one flat
-      // list — Study / Gym / Run — and taught a screen that no longer exists: the top level is
-      // exactly Studying and Fitness, Deep Work and Meditate are gone entirely, and the thing that
-      // makes the new picker worth showing off is that the second tap is a COURSE. A tour whose
-      // whole promise is "here is what the app looks like" cannot be the one screenshot that lies.
+      // list — Study / Gym / Run — and taught a screen that no longer exists. The top level is
+      // Studying · Deep Work · Fitness (Deep Work restored ON PURPOSE in 0186 — do not drop it from
+      // this frame; Meditate stays gone), and the thing that makes the picker worth showing off is
+      // that the second tap is a COURSE. A tour whose whole promise is "here is what the app looks
+      // like" cannot be the one screenshot that lies.
       cindy: [
         'This is your flame — it *is* you. See the orange ⏱ Lock in button? Tap it.',
-        "Two taps, that's it. First: what are you doing? Tap 📚 Studying.",
+        "Two taps, that's it. First: what are you doing? 📚 Studying is for a course, 📐 Deep Work is a project. Tap Studying.",
         'Then which one — your course, or Custom for anything else. (Fitness goes Cardio or Strength.)',
         "And you're locked in. Embers and XP are already stacking, and your streak is alive. 🔥",
       ],
@@ -122,8 +123,10 @@ export function tutorialCards(displayName: string | null, handle: string | null)
         </MiniScreen>,
         <MiniScreen key="f1">
           <MiniHeader glyph="🔥" title="Lock in for…" />
-          {/* Bare labels, no subtitles — the mock is emphatic that the two cards say only this. */}
+          {/* All three real cards, in the real order. Studying-for vs Deep-Work-on is the choice
+              people hesitate over, so the tour cannot show a two-card screen that no longer exists. */}
           <MiniRow glyph="📚" title="Studying" highlight />
+          <MiniRow glyph="📐" title="Deep Work" />
           <MiniRow glyph="🏋️" title="Fitness" />
         </MiniScreen>,
         <MiniScreen key="f2">

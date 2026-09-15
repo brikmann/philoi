@@ -29,6 +29,10 @@ export function getRealFitnessSourceForChallengeType(
   if (type === 'run_distance' || type === 'ride_distance') return 'strava';
   // study + gym credit from the user's OWN lock-ins — the app already records exactly the
   // check-ins that should count, so these were never really "no device metric", just unrouted.
+  //
+  // study_hours counts goal_type 'study' ONLY (sync_challenge_from_lock_ins, 0068). Deep Work
+  // lock-ins write 'custom' and do NOT fill a "10h study" goal. That is intentional (Noah, 0186):
+  // Studying and Deep Work are separate disciplines with separate ladders. Not a Deep Work bug.
   if (type === 'study_hours' || type === 'gym_visits') return 'lock_ins';
   // Sleep is health data FIRST. Every phone can measure it; Whoop is one optional source among
   // several, and making it the only one left sleep dead for everyone without a band.

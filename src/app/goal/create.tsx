@@ -22,14 +22,16 @@ import type { FitnessActivity, GoalType, LockInCategory } from '@/types/database
  * ── THIS SCREEN COULD WRITE A TYPE THE SCHEMA NO LONGER HAS ──────────────────────────────────
  *
  * It rendered the flat six-tile GOAL_TYPES grid, which still offers `job_applications` and
- * `read`. 0182 collapsed the taxonomy to two taps and three live relic families, and reading and
- * job apps became Custom COURSES under Studying rather than types of their own -- so every goal
+ * `read`. 0182 collapsed the taxonomy to two taps and three live relic families (0186 later restored
+ * Deep Work as a third category, on purpose), and reading and job apps stopped being types of their
+ * own -- so every goal
  * created from the old grid under one of those tiles landed on a type nothing aggregates. The
  * hours were real and reached no ladder, which is invisible rather than broken, and therefore
  * worse.
  *
  * Now it mounts the same <TaxonomyTwoTap> the lock-in sheet does. `goalTypeForChoice` is the only
- * thing that decides the stored type, and it can only answer 'study', 'run' or 'gym'.
+ * thing that decides the stored type, and it can only answer 'study', 'custom' (Deep Work, 0186),
+ * 'run' or 'gym'.
  *
  * WHAT IS NOT STORED, and why: 0182 added `category`/`activity`/`course_id` to `check_ins` and
  * `lock_in_sessions` only -- `goals` (0002) has no such columns, and adding them is a migration

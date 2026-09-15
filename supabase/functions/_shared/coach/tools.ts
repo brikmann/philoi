@@ -29,19 +29,20 @@ export type CoachToolSpec = {
   effect: ToolEffect;
 };
 
-// The lock-in goal types the two-tap taxonomy can actually produce (0182).
+// The lock-in goal types the taxonomy can actually produce: Studying · Deep Work · Fitness.
 //
-// NARROWED, not extended -- and the direction matters. COACH_TOOLS reaches installed builds
-// ungated, so an enum value those builds do not handle becomes a hard "Unknown action." that no
-// OTA can fix. Every value left here is one they already understand; the four removed
-// ('read', 'job_applications', 'social_media', 'custom') are types the picker can no longer
-// start, so proposing them would offer the member a session they cannot have.
+// COACH_TOOLS reaches installed builds ungated, so an enum value those builds do not handle becomes
+// a hard "Unknown action." that no OTA can fix. Every value here is one they already understand.
+// 0182 removed 'read', 'job_applications', 'social_media' and 'custom' because the picker could no
+// longer start them. 'custom' is BACK (0186): Deep Work was restored ON PURPOSE (Noah, 2026-09-14 —
+// do not remove it; see src/lib/goal-types.ts) and it writes goal_type 'custom' precisely because
+// every installed build already renders that type. performCoachAction passes goal_type straight
+// through with no category, and start_lock_in_session derives category 'deep_work' from 'custom'.
 //
-// These are the FLAT values, deliberately: the two-tap choice maps down to exactly these three
-// (Studying -> study, Fitness+Strength -> gym, Fitness+Cardio -> run), and start_lock_in_session
-// derives the category from them server-side. Teaching the model the new vocabulary while it
-// still emits the value installed clients expect is what keeps this safe to deploy.
-const GOAL_TYPES = ['study', 'gym', 'run'];
+// These are the FLAT values, deliberately: the choice maps down to exactly these four
+// (Studying -> study, Deep Work -> custom, Fitness+Strength -> gym, Fitness+Cardio -> run), and
+// start_lock_in_session derives the category from them server-side. Meditate stays gone.
+const GOAL_TYPES = ['study', 'custom', 'gym', 'run'];
 
 // PROFILE_SPEC §G's milestone kinds — same check constraint as the milestones table.
 const MILESTONE_KINDS = ['grade', 'offer', 'certification', 'fitness_pr', 'project', 'custom'];
@@ -81,10 +82,12 @@ export const COACH_TOOLS: CoachToolSpec[] = [
           type: 'string',
           enum: GOAL_TYPES,
           description:
-            'Which kind of lock-in. There are three: "study" (Studying -- a course, reading, job ' +
-            'applications, any desk work), "gym" (Fitness -> Strength) and "run" (Fitness -> Cardio, ' +
-            'which covers running, cycling, rowing and walking). Deep work and meditation are not ' +
-            'lock-in types; anything of that shape is "study".',
+            'Which kind of lock-in. There are four: "study" (Studying -- studying FOR a course: ' +
+            'material, readings, practice problems), "custom" (Deep Work -- working ON something: ' +
+            'a project, an assignment, an application, their own build), "gym" (Fitness -> ' +
+            'Strength) and "run" (Fitness -> Cardio, which covers running, cycling, rowing and ' +
+            'walking). A course project or assignment is Deep Work; reviewing for that course is ' +
+            'Studying. Meditation is not a lock-in type.',
         },
         goal_detail: {
           type: 'string',

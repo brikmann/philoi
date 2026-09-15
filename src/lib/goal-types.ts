@@ -3,19 +3,25 @@ import type { Ionicons } from '@expo/vector-icons';
 import type { DisciplineIconName } from '@/components/ui/discipline-icon';
 import type { Challenge, ChallengeType, FitnessActivity, GoalType, LockInCategory } from '@/types/database';
 
-// ── The two-tap taxonomy (0182, design-mocks/194-lockin-two-tap.html) ──────────────────────
+// ── The lock-in taxonomy: Studying · Deep Work · Fitness (0182 two taps, 0186 three cards) ─────
 //
-// Top-level choices and one sub-choice, replacing six flat tiles. Bare labels, no subtitle -- that
-// is the mock, and the whole point of the redesign is that the first screen asks one question.
+// 🔴 DEEP WORK IS HERE ON PURPOSE — DO NOT REMOVE IT. 0182 killed it along with Meditate
+// (CODE_PROMPT_lockin_taxonomy_two_tap.md); Noah reversed that for Deep Work on 2026-09-14 (0186,
+// #204) so Daedalus' Blueprint has a ladder to climb, and that doc now opens with a SUPERSEDED
+// banner. Meditate stays killed. A change working from the older decision should stop here.
 //
-// THREE since 0186 (Noah, 2026-09-14): Deep Work came back as its own category. Studying is
-// material and problem practice; Deep Work is projects and assignments, and it is the ladder
-// Daedalus' Blueprint climbs. Both share one course list (user_courses carries no category), so a
-// course added under either shows under the other.
-export const LOCK_IN_CATEGORY_META: Record<LockInCategory, { label: string; glyph: DisciplineIconName }> = {
-  study: { label: 'Studying', glyph: 'study' },
-  deep_work: { label: 'Deep Work', glyph: 'jobs' },
-  fitness: { label: 'Fitness', glyph: 'gym' },
+// The distinction every surface must keep obvious (tap-1 cards, tap-2 headers, tutorial, coach mark):
+//   Studying  = studying FOR a course — material and practice problems.
+//   Deep Work = working ON something — projects and assignments, for a course or your own.
+// Both share one course list on purpose (Noah, 2026-09-14; user_courses carries no category), so a
+// course added under either shows under the other. The category picks the ladder, not the course.
+//
+// `sub` is the tap-1 subtitle. Mock 194 drew bare labels, but with three cards and a shared course
+// list the difference has to be on the card, not discovered after the tap.
+export const LOCK_IN_CATEGORY_META: Record<LockInCategory, { label: string; sub: string; glyph: DisciplineIconName }> = {
+  study: { label: 'Studying', sub: 'For a course — material and practice problems', glyph: 'study' },
+  deep_work: { label: 'Deep Work', sub: 'On a project — assignments, builds, your own work', glyph: 'jobs' },
+  fitness: { label: 'Fitness', sub: 'Cardio or Strength', glyph: 'gym' },
 };
 
 export const LOCK_IN_CATEGORIES: LockInCategory[] = ['study', 'deep_work', 'fitness'];
@@ -42,7 +48,7 @@ export const FITNESS_ACTIVITIES: FitnessActivity[] = ['cardio', 'strength'];
 /**
  * The flat GoalType a two-tap choice maps down to.
  *
- * MUST MATCH start_lock_in_session's own derivation in 0182. The server derives this itself and
+ * MUST MATCH start_lock_in_session's own derivation (0182, amended by 0186 for deep_work). The server derives this itself and
  * does not trust what the client sends, so a drift here shows up as the client displaying one
  * thing and the row saying another -- not as an error. Installed builds still read goal_type,
  * which is why it is still written at all.
@@ -52,15 +58,25 @@ export function goalTypeForChoice(category: LockInCategory, activity?: FitnessAc
   // 0186: Deep Work writes the flat 'custom', never a new 'deep_work' GoalType. Installed builds
   // index GOAL_TYPE_META / GOAL_TYPE_GLYPH by goal_type with no fallback and cannot be updated over
   // the air, so a friend's deep-work lock-in in their campfire feed must carry a type they know.
-  // `category` is what says Deep Work, and it is what the relic evaluator reads.
+  // The relic evaluator routes on session_discipline(goal_type) — 'study' climbs Socrates, 'custom'
+  // climbs Daedalus — so old flat 'custom' rows (mostly "Philoi") counting as Deep Work is intended.
+  //
+  // A real 'deep_work' GoalType may replace 'custom' only once no pre-#204 build remains in the
+  // wild. Until then 'custom' IS the crash-safe spelling of Deep Work.
   if (category === 'deep_work') return 'custom';
   return 'study';
 }
 
-/** The reverse, for rendering a historical row that predates the two-tier columns. */
+/**
+ * The reverse, for rendering a historical row that predates the two-tier columns.
+ *
+ * 'custom' and 'job_applications' are Deep Work, exactly as 0186 backfilled those rows server-side
+ * ('read' stays Studying). Mapping them to study here would label the same row two ways.
+ */
 export function categoryForGoalType(type: GoalType): { category: LockInCategory; activity: FitnessActivity | null } {
   if (type === 'gym') return { category: 'fitness', activity: 'strength' };
   if (type === 'run') return { category: 'fitness', activity: 'cardio' };
+  if (type === 'custom' || type === 'job_applications') return { category: 'deep_work', activity: null };
   return { category: 'study', activity: null };
 }
 

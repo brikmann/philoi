@@ -67,13 +67,13 @@ type CoachMarkCopy = {
  *
  * ⚠️ AND IT NAMES THE TWO-TAP TAXONOMY (CODE_PROMPT_lockin_taxonomy_two_tap.md), because the line
  * that introduces the lock-in button is the one place in the app that sets the expectation for what
- * happens after it. The picker is now exactly two taps — Studying → a course, or Fitness → Cardio /
- * Strength — and Deep Work and Meditate are gone. A tip promising a longer list, or one of the dead
- * types, would be teaching a screen that no longer exists.
+ * happens after it. The picker is Studying · Deep Work · Fitness, then one more tap. Deep Work was
+ * restored ON PURPOSE in 0186 (see goal-types.ts) — do not drop it from this line; Meditate stays
+ * gone. A tip promising a different list would be teaching a screen that does not exist.
  */
 export const COACH_MARKS: Record<CoachMarkKey, CoachMarkCopy> = {
   home_lockin: {
-    line: 'This is your flame. Tap Lock in — Studying → your course, or Fitness → Cardio or Strength. 🔥',
+    line: 'This is your flame. Tap Lock in — Studying, Deep Work or Fitness, then one more tap. 🔥',
   },
   campfire_fab: { line: 'Tap ＋ to post, challenge, or ping your crew.', round: true },
   challenge_create: { line: "Describe any goal — I'll scope it and stake a fair reward." },

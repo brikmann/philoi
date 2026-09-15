@@ -88,6 +88,11 @@ export function subscribeToLockInPresence(
  * truthful way to make a cardio-only count bigger than it is). Must stay in step with
  * `lockin_key_matches` in 0184 — a drift here shows a member the wrong room's number rather than
  * an error.
+ *
+ * Deep Work has no key of its own, ON PURPOSE. 0186's `lockin_pair_of` folds deep_work into
+ * 'study' (and asserts it), so a Deep Work session counts someone as locked in in the study room.
+ * A fourth room would split the density number that makes the pill feel alive, and would need a
+ * broadcast field every installed build ignores. Not a missing case — do not add one.
  */
 export function presenceCountFor(key: LockInPresence['key'], counts: LockInPresenceCounts): number {
   if (key === 'study') return counts.study;

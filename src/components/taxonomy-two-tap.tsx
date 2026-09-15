@@ -18,8 +18,9 @@ import type { FitnessActivity, LockInCategory, UserCourse } from '@/types/databa
 //
 // This was the inside of lockin-goal-picker.tsx and nothing else could reach it, which is why
 // goal/create.tsx and group/create.tsx were still rendering the pre-0182 flat six-type list --
-// the two screens that could still write a `deep_work`/`meditate`/`read`/`job_applications` the
-// schema no longer has. Extracted rather than copied: a second picker is a second answer to
+// the two screens that could still write the flat `meditate`/`read`/`job_applications` types 0182
+// retired. (Deep Work is NOT one of those: 0186 restored it as a category on purpose — see the
+// header in goal-types.ts before removing anything.) Extracted rather than copied: a second picker is a second answer to
 // "what are the choices", and the first thing that drifts is the labels.
 //
 // CONTROLLED, not self-driving. The host owns `category`/`activity`/`courseId` because each host
@@ -47,8 +48,10 @@ export function taxonomyStepCopy(
   category: LockInCategory | null
 ): { title: string; subtitle: string } {
   if (step === 'category') return { title: 'Lock in', subtitle: "Pick what you're focusing on." };
-  if (category === 'study') return { title: 'Which course?', subtitle: 'Material and practice problems.' };
-  if (category === 'deep_work') return { title: 'Which course or project?', subtitle: "Projects and assignments — feeds Daedalus' Blueprint." };
+  // The same Studying-for vs Deep-Work-on split the tap-1 cards state (goal-types.ts), said again
+  // here because both headers sit above the SAME course list.
+  if (category === 'study') return { title: 'Which course?', subtitle: 'Studying for it — material and practice problems.' };
+  if (category === 'deep_work') return { title: 'Which course or project?', subtitle: "Working on it — projects and assignments. Feeds Daedalus' Blueprint." };
   return { title: 'What kind?', subtitle: 'Feeds your discipline relics.' };
 }
 
@@ -156,8 +159,10 @@ export function TaxonomyTwoTap({
 
   return (
     <>
-      {/* ── TAP 1 ── Two cards, bare labels, no subtitles (mock 194). The first screen asks
-          exactly one question, which is the entire point of the redesign. */}
+      {/* ── TAP 1 ── Three cards: Studying · Deep Work · Fitness. Still one question, but each card
+          carries one line saying what it is. Mock 194 drew bare labels for two cards; with Deep Work
+          back (0186, on purpose) and sharing Studying's course list, "which one do I pick" has to be
+          answered on the card, not after the tap. */}
       {step === 'category' && (
         <View style={styles.bigCards}>
           {LOCK_IN_CATEGORIES.map((cat) => (
@@ -165,12 +170,15 @@ export function TaxonomyTwoTap({
               key={cat}
               onPress={() => handleCategory(cat)}
               accessibilityRole="button"
-              accessibilityLabel={LOCK_IN_CATEGORY_META[cat].label}
+              accessibilityLabel={`${LOCK_IN_CATEGORY_META[cat].label}. ${LOCK_IN_CATEGORY_META[cat].sub}`}
               style={styles.bigCard}>
               <View style={styles.bigCardIcon}>
                 <DisciplineIcon name={LOCK_IN_CATEGORY_META[cat].glyph} size={26} color={Colors.amber} />
               </View>
-              <Text style={styles.bigCardLabel}>{LOCK_IN_CATEGORY_META[cat].label}</Text>
+              <View style={styles.bigCardText}>
+                <Text style={styles.bigCardLabel}>{LOCK_IN_CATEGORY_META[cat].label}</Text>
+                <Text style={styles.bigCardSub}>{LOCK_IN_CATEGORY_META[cat].sub}</Text>
+              </View>
               <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
             </Pressable>
           ))}
@@ -210,8 +218,9 @@ export function TaxonomyTwoTap({
             </Pressable>
           ))}
 
-          {/* "Custom" is a real destination, not a fallback: reading, job apps and side
-              projects stopped being their own lock-in types and live here. */}
+          {/* "Custom" is a real destination, not a fallback — a lock-in with no course. Under
+              Studying that is uncoursed study (reading, review); under Deep Work it is a project that
+              belongs to no course (side project, application, your own build). */}
           <Pressable
             onPress={() => onChooseSecond({ courseId: null })}
             accessibilityRole="button"
@@ -320,8 +329,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
 
-  // Deliberately tall and bare. The mock gives tap 1 two cards and no subtitles, because the
-  // whole redesign is that the first screen asks exactly one question.
+  // Deliberately tall. Tap 1 asks exactly one question; the one-line sub under each label is what
+  // keeps three cards answerable at a glance (see TAP 1).
   bigCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -343,11 +352,21 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.achieverBg,
   },
 
-  bigCardLabel: {
+  bigCardText: {
     flex: 1,
+    gap: 2,
+  },
+
+  bigCardLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 17,
     color: Colors.ink,
+  },
+
+  bigCardSub: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.muted,
   },
 
   rows: {

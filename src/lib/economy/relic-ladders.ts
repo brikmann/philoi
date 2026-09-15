@@ -13,9 +13,10 @@ import type { Rarity } from '@/lib/economy/rarity';
 /**
  * The four families a relic can ride. Matches `relic_ladders.family` exactly.
  *
- * Was five, then three. `deep_work` and `meditate` were retired in 0182 along with the flat goal
- * types that fed them. 0186 brought Deep Work back as a lock-in CATEGORY (projects, assignments)
- * and Daedalus' Blueprint rides it; Oracle's Stillness stays gone.
+ * Was five, then three, now four. `deep_work` and `meditate` were retired in 0182 along with the
+ * flat goal types that fed them. 0186 brought Deep Work back ON PURPOSE (Noah, 2026-09-14 — do not
+ * remove; see goal-types.ts) as a lock-in CATEGORY, and Daedalus' Blueprint rides it. Oracle's
+ * Stillness stays gone.
  */
 export type RelicFamily = 'volume' | 'distance' | 'study' | 'deep_work';
 
@@ -86,8 +87,9 @@ export const RELIC_LADDERS: RelicLadder[] = [
   },
   {
     // 0186. "Deep Work", matching the first tap the member actually picked — the same rule that
-    // made the fitness ladders Strength and Cardio. The server credits it from check_ins.category
-    // = 'deep_work', and from legacy flat types custom / job_applications (old builds).
+    // made the fitness ladders Strength and Cardio. The server routes it by
+    // session_discipline(goal_type): a Deep Work lock-in writes goal_type 'custom' (goal-types.ts),
+    // as did the legacy flat custom / job_applications rows from old builds.
     family: 'deep_work',
     relicKey: 'relic-daedalus-blueprint',
     label: 'Deep Work',
