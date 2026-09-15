@@ -16,6 +16,11 @@ design-mocks/
 # The separate admin dashboard and marketing site: their own apps, not part of this bundle.
 admin/
 site/
+# marketing/ is another one: launch-video/ is its own npm project, and with its node_modules it is
+# 732 MB, more than everything else in this archive combined. outreach-assets/ is social images and
+# a launch mp4. Nothing under src/, app.config.ts or plugins/ references either.
+marketing/
+outreach-assets/
 
 # Database migrations and edge functions ship via `supabase db push` / `functions deploy`,
 # never inside the app binary.
