@@ -31,20 +31,37 @@ import { useIsFocused } from 'expo-router';
 // pulled-down Control Center, an incoming call banner — during which the app's own pixels are
 // still on screen. Pausing there would freeze the flame in the one snapshot iOS shows the user of
 // this app, to save a few hundred milliseconds of frames.
-function isActive(state: AppStateStatus): boolean {
-  return state === 'active' || state === 'inactive';
+//
+// So does anything this hook cannot name (null, 'unknown'). FAIL OPEN: a clock that ticks when it
+// did not need to costs a little battery; a clock that stalls on a running lock-in is a P0.
+function isActive(state: AppStateStatus | null): boolean {
+  return state !== 'background' && state !== 'extension';
 }
 
-let appActive = isActive(AppState.currentState);
+// 🔴 NO CACHED COPY OF THE STATE. The snapshot reads `AppState.currentState` live, every time.
+//
+// This used to keep its own `appActive`, captured once at import and updated only by the listener
+// below — and that froze the lock-in timer and its flare until the app was backgrounded and
+// brought back. On Android, AppStateModule answers "background" for as long as the activity has
+// not reached RESUMED, and on a cold start the JS bundle usually loads before it has. RN then
+// corrects itself with ONE change event, and this module's listener is attached lazily, by the
+// first component to subscribe — which, behind the splash and the font load, is later. The event
+// went nowhere, the cached copy said "background" for the rest of the launch, and every
+// `useGatedInterval` and `useMotionActive` in the app sat dead until a real foreground transition
+// (the Focus Nudge return, in the report) re-armed it. Tearing the listener down at zero
+// subscribers had the same hole for any transition that happened while nobody was listening.
+//
+// RN's own AppState registers its listener in its constructor, so `currentState` is always right.
+// Reading it here, `useSyncExternalStore` re-checks the snapshot after subscribing, which closes
+// the gap between a component's first render and its subscription as well.
 const appStateListeners = new Set<() => void>();
 let appStateSub: { remove: () => void } | null = null;
 
 function subscribeAppActive(onChange: () => void): () => void {
   appStateListeners.add(onChange);
-  appStateSub ??= AppState.addEventListener('change', (state) => {
-    const next = isActive(state);
-    if (next === appActive) return;
-    appActive = next;
+  // No dedupe: useSyncExternalStore bails out on its own when the snapshot has not changed, and
+  // the events are rare.
+  appStateSub ??= AppState.addEventListener('change', () => {
     appStateListeners.forEach((listener) => listener());
   });
   return () => {
@@ -57,7 +74,7 @@ function subscribeAppActive(onChange: () => void): () => void {
 }
 
 function getAppActive(): boolean {
-  return appActive;
+  return isActive(AppState.currentState as AppStateStatus | null);
 }
 
 /**
