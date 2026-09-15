@@ -517,10 +517,9 @@ const DISCIPLINE_RELICS: CatalogItem[] = [
   item({ id: 'relic-daedalus-blueprint', name: "Daedalus' Blueprint", type: 'RELIC', rarity: 'uncommon', acquisition: 'earned',
     lore: "The labyrinth wasn't built in a day. Neither is whatever you're making.",
     art: { kind: 'relic', from: '#2E5E4E', to: '#7BE0FF' } }),
-  item({ id: 'relic-oracles-stillness', name: "Oracle's Stillness", type: 'RELIC', rarity: 'uncommon', acquisition: 'earned',
-    lore: 'The Oracle spoke only in the quiet. You have kept a great deal of it.',
-    art: { kind: 'relic', from: '#1F3A5F', to: '#C9B6FF' } }),
-  // The set-completion capstone: the top rung of all five ladders (§4a-2).
+  // Oracle's Stillness is gone (Noah, 2026-09-14). Meditate has no category to ride and nobody ever
+  // owned it (checked on prod), so the entry is deleted rather than left as an unearnable tile.
+  // The set-completion capstone: the top rung of every live ladder (§4a-2) — four since 0186.
   item({ id: 'relic-crown-of-olympus', name: 'Crown of Olympus', type: 'RELIC', rarity: 'mythic', acquisition: 'earned',
     lore: 'Master of no single art, but of the discipline beneath all of them. Olympus has a seat for that.',
     art: { kind: 'relic', from: '#F5C542', to: '#FF2A2A' } }),

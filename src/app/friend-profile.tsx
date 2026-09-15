@@ -10,6 +10,7 @@ import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-
 import { HexagonBadge } from '@/components/hexagon-badge';
 import { CollectionEntry } from '@/components/profile/collection-entry';
 import { CompareBanner } from '@/components/profile/compare-banner';
+import { DisciplineRelicTracker } from '@/components/profile/discipline-relic-tracker';
 import { TrophyHallSection } from '@/components/profile/trophy-hall-section';
 import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
@@ -246,6 +247,9 @@ export default function FriendProfileScreen() {
             </View>
           </View>
         )}
+
+        {/* #204 · their discipline relics, beside their rank — same tracker as your own profile. */}
+        {theirHall ? <DisciplineRelicTracker relics={theirHall.relics} userId={userId} isOwn={false} /> : null}
 
         {stats && (
           <View style={styles.stats}>

@@ -15,7 +15,7 @@ import { fetchLockinTimeGoals } from '@/lib/api/challenges';
 import { fetchMyGoals } from '@/lib/api/goals';
 import { useAuth } from '@/lib/auth/auth-context';
 import { setSessionAudioChoice } from '@/lib/economy/equipped-audio';
-import { GOAL_TYPE_GLYPH, GOAL_TYPE_META, goalTypeForChoice } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META, LOCK_IN_CATEGORY_META, goalTypeForChoice } from '@/lib/goal-types';
 import type { Challenge, FitnessActivity, Goal, LockInCategory, WorkoutEnergy } from '@/types/database';
 
 type LockinGoalPickerProps = {
@@ -309,7 +309,8 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
               separate mechanism, so the credit path (0061/0113 matches the session's detail against
               the goal's name) is the one that already works. */}
           <Text style={styles.goalHint}>
-            Under {GOAL_TYPE_META[goalType].label}
+            {/* The category's own word — Deep Work maps to the flat 'custom', which reads "Custom". */}
+            Under {category ? LOCK_IN_CATEGORY_META[category].label : GOAL_TYPE_META[goalType].label}
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.goalRow}>
             {categoryGoals.map((goal) => {

@@ -227,6 +227,8 @@ export default function CreateGoalScreen() {
 function seedFromParam(
   raw: string | undefined
 ): { category: LockInCategory; activity: FitnessActivity | null } | null {
+  // 0186: the lock-in sheet's "+ New" chip under Deep Work sends the flat type Deep Work maps to.
+  if (raw === 'custom') return { category: 'deep_work', activity: null };
   if (raw !== 'study' && raw !== 'run' && raw !== 'gym') return null;
   return categoryForGoalType(raw);
 }

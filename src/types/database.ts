@@ -13,7 +13,8 @@ export type GoalType = 'gym' | 'run' | 'study' | 'social_media' | 'custom' | 'jo
 // and OTA is closed, so the server keeps writing it: start_lock_in_session derives whichever half
 // its caller did not send, and check_ins carries both. Retiring GoalType is a later change, once
 // those builds are gone.
-export type LockInCategory = 'study' | 'fitness';
+// 'deep_work' since 0186 — projects and assignments, Daedalus' Blueprint. Writes goal_type 'custom'.
+export type LockInCategory = 'study' | 'deep_work' | 'fitness';
 
 /** Only meaningful when category is 'fitness'; null under 'study'. Each maps to one relic ladder:
  *  cardio -> distance, strength -> volume. */
@@ -3515,9 +3516,10 @@ export type EconomyForgeResult = {
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 /** The four discipline-relic ladders (ITEM_CATALOG §4a-2). Matches `relic_ladders.family`. */
-// Three, not five: deep_work and meditate were retired with the flat goal types in 0182. Keep in
-// step with RelicFamily in lib/economy/relic-ladders.ts and with relic_ladders.family in prod.
-export type RelicFamilyKey = 'volume' | 'distance' | 'study';
+// meditate was retired with the flat goal types in 0182; deep_work came back in 0186 as its own
+// lock-in category (Daedalus' Blueprint). Keep in step with RelicFamily in
+// lib/economy/relic-ladders.ts and with relic_ladders.family in prod.
+export type RelicFamilyKey = 'volume' | 'distance' | 'study' | 'deep_work';
 
 /**
  * One row of get_my_relic_progress() — where a discipline relic stands and what the next rung

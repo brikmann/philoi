@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { addCourse, fetchMyCourses } from '@/lib/api/courses';
+import { addCourse, archiveCourse, fetchMyCourses } from '@/lib/api/courses';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
   FITNESS_ACTIVITIES,
@@ -47,7 +47,8 @@ export function taxonomyStepCopy(
   category: LockInCategory | null
 ): { title: string; subtitle: string } {
   if (step === 'category') return { title: 'Lock in', subtitle: "Pick what you're focusing on." };
-  if (category === 'study') return { title: 'Which course?', subtitle: 'Your lock-in counts toward it.' };
+  if (category === 'study') return { title: 'Which course?', subtitle: 'Material and practice problems.' };
+  if (category === 'deep_work') return { title: 'Which course or project?', subtitle: "Projects and assignments — feeds Daedalus' Blueprint." };
   return { title: 'What kind?', subtitle: 'Feeds your discipline relics.' };
 }
 
@@ -110,6 +111,32 @@ export function TaxonomyTwoTap({
     onChooseCategory(next);
   }
 
+  /**
+   * Soft-delete a course (0182's `archived_at`). There was no way to remove one at all.
+   *
+   * Archive, never a row delete: past lock-ins point at the course, and the partial unique index
+   * only covers live rows, so the same code can be added again next term. One course list backs
+   * both Studying and Deep Work, so removing it here removes it from both — said in the prompt.
+   */
+  function confirmRemoveCourse(course: UserCourse) {
+    Alert.alert(
+      `Remove ${course.code ?? course.title}?`,
+      'It disappears from Studying and Deep Work. Past lock-ins keep their hours.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            archiveCourse(course.id)
+              .then(() => setCourses((prev) => prev.filter((c) => c.id !== course.id)))
+              .catch(() => Alert.alert("Couldn't remove that course", 'Try again in a moment.'));
+          },
+        },
+      ]
+    );
+  }
+
   async function saveNewCourse() {
     const title = newCourseTitle.trim() || newCourseCode.trim();
     if (!session || !title) return;
@@ -150,8 +177,10 @@ export function TaxonomyTwoTap({
         </View>
       )}
 
-      {/* ── TAP 2A ── the member's own courses. */}
-      {step === 'second' && category === 'study' && (
+      {/* ── TAP 2A ── the member's own courses, under Studying AND Deep Work. One list on purpose
+          (0186): EC120 added under either is there under the other, because user_courses has no
+          category — the lock-in's category is what decides the ladder, not the course. */}
+      {step === 'second' && (category === 'study' || category === 'deep_work') && (
         <View style={styles.rows}>
           {courses.map((course) => (
             <Pressable
@@ -170,7 +199,14 @@ export function TaxonomyTwoTap({
                 <Text style={styles.rowLabel}>{course.code ?? course.title}</Text>
                 {course.code ? <Text style={styles.rowSub}>{course.title}</Text> : null}
               </View>
-              <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
+              <Pressable
+                onPress={() => confirmRemoveCourse(course)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${course.code ?? course.title}`}
+                style={styles.rowRemove}>
+                <Ionicons name="trash-outline" size={15} color={Colors.textTertiary} />
+              </Pressable>
             </Pressable>
           ))}
 
@@ -185,7 +221,9 @@ export function TaxonomyTwoTap({
             </View>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>Custom</Text>
-              <Text style={styles.rowSub}>Reading, job apps, side project…</Text>
+              <Text style={styles.rowSub}>
+                {category === 'deep_work' ? 'Side project, application, anything you build…' : 'Reading, review, practice sets…'}
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
           </Pressable>
@@ -343,6 +381,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.disabled,
+  },
+
+  rowRemove: {
+    padding: 4,
   },
 
   rowDotText: {

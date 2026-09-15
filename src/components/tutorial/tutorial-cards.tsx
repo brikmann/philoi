@@ -631,10 +631,11 @@ const LADDER: { tier: RankTierName; label: string; divisions: string; here?: boo
   { tier: 'bronze', label: 'Bronze', divisions: 'III–I' },
 ];
 
-/** The five families, named and coloured from RELIC_LADDERS so the shelf matches the real one. */
+/** The live families, named and coloured from RELIC_LADDERS so the shelf matches the real one. */
 const RELIC_SHELF = RELIC_LADDERS.map((l, i) => ({
   short: l.short,
-  glyph: ['💪', '🏃', '📜', '🧠', '🧘'][i] ?? '🏅',
+  // Strength · Cardio · Study · Deep Work (Daedalus' Blueprint), in RELIC_LADDERS order.
+  glyph: ['💪', '🏃', '📜', '📐'][i] ?? '🏅',
   color: RARITY_COLOR[l.rarities[Math.min(i % l.rarities.length, l.rarities.length - 1)]],
   rung: RUNG_GLYPH[Math.min(i, RUNG_GLYPH.length - 1)],
 }));

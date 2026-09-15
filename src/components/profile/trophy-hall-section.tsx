@@ -2,8 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { DisciplineRelicShelf } from '@/components/profile/discipline-relic-shelf';
-import { isLadderHallRelic } from '@/components/profile/relic-ladder-row';
 import { TrophyTile } from '@/components/profile/trophy-tile';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { winRate } from '@/lib/api/trophy-hall';
@@ -21,6 +19,10 @@ import type { TrophyHall } from '@/types/database';
 // NO PEAK-RANK TILE. Rank is live and already leads the profile on the rank strip; a frozen copy
 // here would disagree with it the moment someone ranked up.
 //
+// NO DISCIPLINE RELICS either (#204). They moved up beside the rank strip as DisciplineRelicTracker,
+// so a ladder reads as progression rather than as one more trophy — drawing them here too would
+// put the same bars on the profile twice.
+//
 // The featured strip is AUTO-curated (rarest + newest) rather than hand-picked — see
 // featuredTrophies(). "See all" opens the full grouped hall.
 
@@ -32,17 +34,10 @@ export function TrophyHallSection({ hall, userId, isOwn }: { hall: TrophyHall; u
   const record = hall.record;
   const rate = record ? winRate(record.won, record.lost) : null;
 
-  // Only for the empty test below. The shelf draws the ladders itself, and draws the FULL set
-  // rather than whichever ones the server returned — see DisciplineRelicShelf.
-  const ladders = hall.relics.filter(isLadderHallRelic);
-
   // Nothing earned yet and it isn't yours: render nothing. An empty hall on a profile you are
-  // visiting is a comment on that person, not a prompt you can act on.
-  //
-  // A ladder in progress counts as something to show even though it is not yet EARNED — it is the
-  // one thing on this surface that can be true of someone who has never won anything, and it is the
-  // whole reason the hall stopped rendering blank for users with real hours behind them.
-  const isEmpty = !season && featured.length === 0 && !record && ladders.length === 0;
+  // visiting is a comment on that person, not a prompt you can act on. Ladders no longer count
+  // toward "something to show" here — they render in the tracker above, not in this section.
+  const isEmpty = !season && featured.length === 0 && !record;
   if (isEmpty && !isOwn) return null;
 
   return (
@@ -100,8 +95,6 @@ export function TrophyHallSection({ hall, userId, isOwn }: { hall: TrophyHall; u
           </View>
         </>
       ) : null}
-
-      <DisciplineRelicShelf relics={hall.relics} userId={userId} isOwn={isOwn} />
 
       {record ? (
         <View style={styles.record}>

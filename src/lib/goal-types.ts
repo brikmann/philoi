@@ -5,15 +5,20 @@ import type { Challenge, ChallengeType, FitnessActivity, GoalType, LockInCategor
 
 // ── The two-tap taxonomy (0182, design-mocks/194-lockin-two-tap.html) ──────────────────────
 //
-// Two top-level choices and one sub-choice, replacing six flat tiles. The labels are exactly
-// "Studying" and "Fitness", bare, with no subtitle -- that is the mock, and the whole point of the
-// redesign is that the first screen asks one question.
+// Top-level choices and one sub-choice, replacing six flat tiles. Bare labels, no subtitle -- that
+// is the mock, and the whole point of the redesign is that the first screen asks one question.
+//
+// THREE since 0186 (Noah, 2026-09-14): Deep Work came back as its own category. Studying is
+// material and problem practice; Deep Work is projects and assignments, and it is the ladder
+// Daedalus' Blueprint climbs. Both share one course list (user_courses carries no category), so a
+// course added under either shows under the other.
 export const LOCK_IN_CATEGORY_META: Record<LockInCategory, { label: string; glyph: DisciplineIconName }> = {
   study: { label: 'Studying', glyph: 'study' },
+  deep_work: { label: 'Deep Work', glyph: 'jobs' },
   fitness: { label: 'Fitness', glyph: 'gym' },
 };
 
-export const LOCK_IN_CATEGORIES: LockInCategory[] = ['study', 'fitness'];
+export const LOCK_IN_CATEGORIES: LockInCategory[] = ['study', 'deep_work', 'fitness'];
 
 /**
  * The second tap under Fitness. Each maps to exactly one relic ladder, which is why the subtitle
@@ -44,6 +49,11 @@ export const FITNESS_ACTIVITIES: FitnessActivity[] = ['cardio', 'strength'];
  */
 export function goalTypeForChoice(category: LockInCategory, activity?: FitnessActivity | null): GoalType {
   if (category === 'fitness') return activity === 'cardio' ? 'run' : 'gym';
+  // 0186: Deep Work writes the flat 'custom', never a new 'deep_work' GoalType. Installed builds
+  // index GOAL_TYPE_META / GOAL_TYPE_GLYPH by goal_type with no fallback and cannot be updated over
+  // the air, so a friend's deep-work lock-in in their campfire feed must carry a type they know.
+  // `category` is what says Deep Work, and it is what the relic evaluator reads.
+  if (category === 'deep_work') return 'custom';
   return 'study';
 }
 

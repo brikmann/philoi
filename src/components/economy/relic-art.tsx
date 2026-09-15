@@ -41,7 +41,6 @@ export const RELIC_ART_KEYS = [
   'relic-pheidippides-sandals',
   'relic-socrates-scroll',
   'relic-daedalus-blueprint',
-  'relic-oracles-stillness',
   'relic-crown-of-olympus',
   'relic-emberfall',
 ] as const;
@@ -239,18 +238,6 @@ function shapeFor(relicKey: string, from: string, to: string) {
             fill="none"
           />
           <Path d="M16.6 7.4v9.2" stroke={to} strokeWidth={1.1} opacity={0.6} strokeLinecap="round" fill="none" />
-        </>
-      );
-
-    // Oracle's Stillness — rings widening out of nothing. The one relic whose subject is an
-    // absence, drawn as one: the centre is empty and stays empty.
-    case 'relic-oracles-stillness':
-      return (
-        <>
-          <Circle cx="12" cy="12" r="9.4" fill="none" stroke={from} strokeWidth={1.3} opacity={0.45} />
-          <Circle cx="12" cy="12" r="6.2" fill="none" stroke={from} strokeWidth={1.5} opacity={0.75} />
-          <Circle cx="12" cy="12" r="3.2" fill="none" stroke={to} strokeWidth={1.6} />
-          <Circle cx="12" cy="12" r="1" fill={to} />
         </>
       );
 

@@ -11,14 +11,13 @@
 import type { Rarity } from '@/lib/economy/rarity';
 
 /**
- * The three families a relic can ride. Matches `relic_ladders.family` exactly.
+ * The four families a relic can ride. Matches `relic_ladders.family` exactly.
  *
- * Was five. `deep_work` and `meditate` were retired in 0182 along with the flat goal types that
- * fed them — under the two-tap taxonomy every lock-in is Studying or Fitness, and everything that
- * used to be its own desk-work discipline is Studying → Custom. Their catalog rows are deleted,
- * and no member ever held progress in either, so nothing was taken from anyone.
+ * Was five, then three. `deep_work` and `meditate` were retired in 0182 along with the flat goal
+ * types that fed them. 0186 brought Deep Work back as a lock-in CATEGORY (projects, assignments)
+ * and Daedalus' Blueprint rides it; Oracle's Stillness stays gone.
  */
-export type RelicFamily = 'volume' | 'distance' | 'study';
+export type RelicFamily = 'volume' | 'distance' | 'study' | 'deep_work';
 
 /**
  * §4a-2's rung glyph: α I · β II · γ III · δ IV · Ω V.
@@ -85,6 +84,18 @@ export const RELIC_LADDERS: RelicLadder[] = [
     thresholds: [10, 25, 50, 100],
     rarities: ['uncommon', 'rare', 'epic', 'legendary'],
   },
+  {
+    // 0186. "Deep Work", matching the first tap the member actually picked — the same rule that
+    // made the fitness ladders Strength and Cardio. The server credits it from check_ins.category
+    // = 'deep_work', and from legacy flat types custom / job_applications (old builds).
+    family: 'deep_work',
+    relicKey: 'relic-daedalus-blueprint',
+    label: 'Deep Work',
+    short: 'Deep Work',
+    unit: 'h',
+    thresholds: [10, 25, 50, 100],
+    rarities: ['uncommon', 'rare', 'epic', 'legendary'],
+  },
 ];
 
 const BY_KEY = new Map(RELIC_LADDERS.map((l) => [l.relicKey, l]));
@@ -134,7 +145,7 @@ export function formatLadderValue(value: number, unit: string): string {
 
 // ─────────────────────────── THE PROFILE SHELF (§4a-2 · mock 107) ───────────────────────────
 
-/** The Mythic set-completion capstone. Rides no ladder — its metric is the other five. */
+/** The Mythic set-completion capstone. Rides no ladder — its metric is every ladder above. */
 export const OLYMPUS_RELIC_KEY = 'relic-crown-of-olympus';
 
 /**

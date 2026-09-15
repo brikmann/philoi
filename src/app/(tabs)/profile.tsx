@@ -11,6 +11,7 @@ import { EquippedAvatarHalo, EquippedCardBackdrop, useAuraTier } from '@/compone
 import { EquippedTitle } from '@/components/economy/loadout-bits';
 import { BioEditor } from '@/components/profile/bio-editor';
 import { CollectionEntry } from '@/components/profile/collection-entry';
+import { DisciplineRelicTracker } from '@/components/profile/discipline-relic-tracker';
 import { JournalSection } from '@/components/profile/journal-section';
 import { TrophyHallSection } from '@/components/profile/trophy-hall-section';
 import { useTrophyHall } from '@/hooks/use-trophy-hall';
@@ -214,6 +215,14 @@ export default function ProfileScreen() {
             </View>
           </View>
         )}
+
+        {/* #204 · Discipline relics, as a PEER of rank: a rung, a bar and the number to the next
+            one, directly under the strip that does the same for XP. Outside the rank-muted gate on
+            purpose — private mode hides rank, and relic visibility is the Trophy Hall's own
+            per-item hide, which get_trophy_hall has already applied to `hall.relics`. */}
+        {hall && viewingUserId ? (
+          <DisciplineRelicTracker relics={hall.relics} userId={viewingUserId} isOwn={isOwn} />
+        ) : null}
 
         {/* §1: the streak / lock-ins / hours strip is GONE. All three already lead Home — the
             flame, the streak line and the XP bar — so repeating them here made the profile a
