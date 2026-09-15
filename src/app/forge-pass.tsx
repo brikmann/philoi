@@ -231,7 +231,7 @@ export default function ForgePassScreen() {
       Alert.alert(
         phase === 'upcoming' ? `${SEASON.name} hasn't started` : `${SEASON.name} has closed`,
         phase === 'upcoming'
-          ? 'The Flame Pass goes on sale when the season opens on September 10.'
+          ? 'The Flame Pass goes on sale when the season opens on October 1.'
           : 'This season is over. Season 2 opens with its own pass.'
       );
       return;
@@ -299,7 +299,7 @@ export default function ForgePassScreen() {
                 {phase === 'live'
                   ? 'Every level’s premium reward, all season — plus the Mythic flare on day one'
                   : phase === 'upcoming'
-                    ? 'On sale when Emberfall opens, September 10'
+                    ? 'On sale when Emberfall opens, October 1'
                     : 'This season has closed'}
               </Text>
             </View>

@@ -43,21 +43,6 @@ export async function claimPassLevel(level: number, lane: 'free' | 'premium', re
 }
 
 /**
- * Credit an achievement's Pass XP. The period key is what makes a daily achievement once-per-day —
- * the server has a unique index on (user, achievement, period), so calling twice in the same day
- * is a safe no-op rather than a double credit.
- */
-export async function creditPassXp(achievementKey: string, xp: number, periodKey: string): Promise<number> {
-  const { data, error } = await supabase.rpc('credit_pass_xp', {
-    p_achievement: achievementKey,
-    p_xp: xp,
-    p_period: periodKey,
-  });
-  if (error) throw error;
-  return data as number;
-}
-
-/**
  * Live counters for the progress-style achievements ("2 / 3", "6.5 / 10 h"). Separate from
  * get_inventory because it's a set of aggregate scans over lock_in_sessions — cheap, but not
  * something every shop screen should pay for just to show an ember balance.

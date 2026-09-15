@@ -27,9 +27,14 @@ export const SEASON = {
   id: 'S1',
   name: 'Emberfall',
   totalLevels: 100,
-  /** Laurier + Waterloo Fall term. */
-  startsAt: Date.UTC(2026, 8, 10),
-  endsAt: Date.UTC(2026, 11, 23),
+  /**
+   * Oct 1 → Dec 23, both at EASTERN local midnight (0187): Oct 1 is EDT (−4), Dec 23 is EST (−5). A
+   * UTC-midnight value would open the season at 8pm the evening before. Must match
+   * economy_config('season') to the second — this constant renders the countdown on installed
+   * builds, which OTA cannot reach.
+   */
+  startsAt: Date.UTC(2026, 9, 1, 4),
+  endsAt: Date.UTC(2026, 11, 23, 5),
   /**
    * After `endsAt` the track freezes but already-earned rewards stay claimable for a week. Without
    * it, anyone who finished the season on the last day and didn't open the app that evening would

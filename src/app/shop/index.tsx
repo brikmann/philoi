@@ -130,7 +130,7 @@ export default function ShopScreen() {
             {ownsPremium
               ? 'Your Premium track is live. Claim every level you climb — the Emberfall set and the Mythic capstone are waiting.'
               : phase === 'upcoming'
-                ? `${SEASON.name} opens September 10. The Mythic Emberfall Ascendant Flare lands the moment you unlock the Pass.`
+                ? `${SEASON.name} opens October 1. The Mythic Emberfall Ascendant Flare lands the moment you unlock the Pass.`
                 : 'Become the fire the whole arena gathers around — and claim the Mythic Emberfall Ascendant Flare to prove it.'}
           </Text>
           <View style={styles.forgeBtns}>
@@ -152,7 +152,7 @@ export default function ShopScreen() {
               // strip that states WHY beats a live button that fails on tap.
               <View style={[styles.forgeCta, styles.forgeCtaOff]}>
                 <Text style={styles.forgeCtaText}>
-                  {phase === 'upcoming' ? 'Opens Sept 10' : 'Season closed'}
+                  {phase === 'upcoming' ? 'Opens Oct 1' : 'Season closed'}
                 </Text>
               </View>
             )}
