@@ -31,11 +31,30 @@ import { runCoach } from '../_shared/coach/index.ts';
 /** Daily synthesis budget per user. ~25k characters is a lot of talking for one day. */
 const TTS_CHARS_PER_DAY = 25_000;
 
-/** Hard ceiling on one reply, so a runaway generation cannot drain the day's budget at once. */
-const MAX_REPLY_CHARS = 600;
+/**
+ * Hard ceiling on one SPOKEN reply.
+ *
+ * Was 600, which is the wrong axis to have tuned it on: 600 characters is not an expensive reply,
+ * it is a SLOW one. Every character is generated and then synthesised while the user waits in
+ * silence, so halving the reply halves both legs of the wait. The real shape comes from
+ * SPOKEN_BREVITY in the shared coach (one or two sentences); this is the runaway guard behind it,
+ * and it should almost never be the thing that fires.
+ */
+const MAX_REPLY_CHARS = 300;
 
-/** Expressive and realtime (~280ms) — the right trade for a companion rather than a reader. */
-const TTS_MODEL = Deno.env.get('ELEVENLABS_TTS_MODEL') ?? 'eleven_v3_conversational';
+/**
+ * 🔴 eleven_flash_v2_5 — the REALTIME model (~75ms to first byte), not the expressive one.
+ *
+ * The default here used to be `eleven_v3_conversational`, under a comment claiming ~280ms. That
+ * number belongs to Flash/Turbo; v3 is the high-latency expressive model, and on a reply of a few
+ * hundred characters it was costing SECONDS of the 15-20s turn Noah reported. Flash is the model
+ * built for exactly this shape of call — short, conversational, spoken back immediately.
+ *
+ * If Flash reads too flat for her persona, `eleven_turbo_v2_5` is the next step up and still far
+ * cheaper in latency than v3 — set ELEVENLABS_TTS_MODEL rather than editing this line, so the
+ * trade can be made without a redeploy.
+ */
+const TTS_MODEL = Deno.env.get('ELEVENLABS_TTS_MODEL') ?? 'eleven_flash_v2_5';
 /** mp3 44.1kHz/128kbps — expo-audio plays it directly, no transcoding on device. */
 const TTS_FORMAT = 'mp3_44100_128';
 
@@ -67,11 +86,26 @@ Deno.serve(async (req) => {
 
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-    const { data: settings } = await admin
+    // The consent row and the transcript window are independent reads against the same database,
+    // and awaiting them one after the other spent a whole round trip for nothing. Started together;
+    // the gate below is still checked before a single token is generated.
+    //
+    // Reading history for a request that turns out to be unconsented is a wasted query, not a leak:
+    // it is this user's own rows either way, and the reply is refused before anything is returned.
+    const settingsPromise = admin
       .from('coach_settings')
       .select('enabled, consented_at, voice_enabled')
       .eq('user_id', user.id)
       .maybeSingle();
+    const historyPromise = admin
+      .from('coach_messages')
+      .select('role, content')
+      .eq('user_id', user.id)
+      .eq('surface', 'chat')
+      .order('created_at', { ascending: false })
+      .limit(16);
+
+    const { data: settings } = await settingsPromise;
     if (!settings?.consented_at || !settings?.enabled) return json({ error: 'coach_not_consented' }, 403);
     if (settings.voice_enabled === false) return json({ error: 'voice_disabled' }, 403);
 
@@ -83,13 +117,7 @@ Deno.serve(async (req) => {
     if (transcript.length > 2000) return json({ error: 'That was too long.' }, 400);
 
     // ── The same brain as text ──
-    const { data: recent } = await admin
-      .from('coach_messages')
-      .select('role, content')
-      .eq('user_id', user.id)
-      .eq('surface', 'chat')
-      .order('created_at', { ascending: false })
-      .limit(16);
+    const { data: recent } = await historyPromise;
     const history = (recent ?? []).reverse().map((m: any) => ({ role: m.role, content: m.content }));
 
     const result = await runCoach({
@@ -99,29 +127,46 @@ Deno.serve(async (req) => {
       admin,
       message: transcript,
       history,
+      // Same surface, same transcript, shorter reply. See RunCoachInput.spoken — this is what keeps
+      // a voice turn to one or two sentences instead of a paragraph nobody wants read to them.
+      spoken: true,
     });
 
     // Voice turns land in the same transcript as typed ones — one conversation, two ways in, so
     // asking aloud and following up by text carries the thread.
-    await admin.from('coach_messages').insert([
-      { user_id: user.id, role: 'user', content: transcript, surface: 'chat', modality: 'voice' },
-      {
-        user_id: user.id,
-        role: 'assistant',
-        content: result.text,
-        surface: 'chat',
-        modality: 'voice',
-        action: result.action ? { ...result.action, status: 'proposed' } : null,
-      },
-    ]);
+    //
+    // NOT AWAITED BEFORE SYNTHESIS. Nothing in the speech step reads these rows, so awaiting the
+    // insert first simply parked the user in silence for a round trip. It is awaited before the
+    // response returns (below), so the transcript is still on file by the time the client could
+    // possibly ask for it — this reorders the wait, it does not drop the write.
+    //
+    // Promise.resolve() rather than the bare builder: a PostgREST builder is LAZY — it is a thenable
+    // that does not issue its request until something awaits it — so leaving it unawaited here would
+    // not have started the write at all, and an early return added between this line and the awaits
+    // below would silently drop it. Resolving it now fires it immediately and keeps it a real
+    // in-flight promise.
+    const transcriptWrite = Promise.resolve(
+      admin.from('coach_messages').insert([
+        { user_id: user.id, role: 'user', content: transcript, surface: 'chat', modality: 'voice' },
+        {
+          user_id: user.id,
+          role: 'assistant',
+          content: result.text,
+          surface: 'chat',
+          modality: 'voice',
+          action: result.action ? { ...result.action, status: 'proposed' } : null,
+        },
+      ])
+    );
 
     // ── Speech out — the only paid step ──
-    const spoken = result.text.slice(0, MAX_REPLY_CHARS);
+    const spoken = speakable(result.text);
     const spent = await bumpTts(admin, user.id, spoken.length);
 
     // Over budget still returns the TEXT. Losing her voice for the rest of the day should not
     // mean losing her answer — the reply just arrives silently and the screen shows it.
     if (spent > TTS_CHARS_PER_DAY) {
+      await transcriptWrite;
       return json({
         transcript,
         text: result.text,
@@ -131,7 +176,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const audio = await speak(elevenKey, voiceId, spoken);
+    // Synthesis and the transcript write overlap — the wait is whichever is slower, not their sum.
+    const [audio] = await Promise.all([speak(elevenKey, voiceId, spoken), transcriptWrite]);
 
     return json({
       transcript,
@@ -146,6 +192,28 @@ Deno.serve(async (req) => {
     return json({ error: e instanceof Error ? e.message : 'Voice failed.' }, 500);
   }
 });
+
+/**
+ * The part of a reply that actually gets spoken.
+ *
+ * A bare `.slice(MAX_REPLY_CHARS)` cuts mid-word, and at 300 characters that lands far more often
+ * than it did at 600 — the audio would simply stop in the middle of a syllable while the on-screen
+ * text carried on, which reads as the connection dropping. So the cut backs up to the last sentence
+ * end, and failing that the last space, before falling back to the hard slice.
+ *
+ * The full text is still returned and still shown; only the spoken half is trimmed.
+ */
+function speakable(text: string): string {
+  const full = text.trim();
+  if (full.length <= MAX_REPLY_CHARS) return full;
+  const cut = full.slice(0, MAX_REPLY_CHARS);
+  const sentence = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+  // Only honoured past the halfway mark: backing up to a full stop at character 20 would throw away
+  // most of the reply to save a clipped word.
+  if (sentence > MAX_REPLY_CHARS / 2) return cut.slice(0, sentence + 1);
+  const space = cut.lastIndexOf(' ');
+  return space > MAX_REPLY_CHARS / 2 ? cut.slice(0, space) : cut;
+}
 
 /** Text → base64 mp3 in Cindy's voice. */
 async function speak(apiKey: string, voiceId: string, text: string): Promise<string> {

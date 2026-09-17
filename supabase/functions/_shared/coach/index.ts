@@ -38,6 +38,28 @@ const MAX_TOKENS: Record<CoachSurface, number> = {
 };
 
 /**
+ * The ceiling for a SPOKEN turn, which is a different constraint than a typed one.
+ *
+ * Every token past this one is paid for TWICE — once generating it, once synthesising it — and the
+ * user sits in silence through both halves. 300 tokens is comfortably more than the one-or-two
+ * sentences SPOKEN_BREVITY asks for, so this is the runaway guard rather than the shape.
+ */
+const MAX_TOKENS_SPOKEN = 300;
+
+/**
+ * Appended to the VOLATILE tail of the user turn, never to the system prompt.
+ *
+ * buildSystemPrompt() is one cacheable prefix shared by every user on a surface, and voice runs on
+ * surface='chat' — the same prefix typed chat uses. Putting this in there would either split that
+ * cache in two or make every TYPED reply terse as well. Here it costs a few uncached tokens on
+ * voice turns only, and the typed path stays byte-identical.
+ */
+const SPOKEN_BREVITY =
+  'This reply will be READ ALOUD, not printed. Keep it to one or two short spoken sentences, under ' +
+  '300 characters. No lists, no headings, no markdown, no emoji — say it the way you would say it ' +
+  'out loud. Say the one thing that matters and stop.';
+
+/**
  * Reasoning effort. Chat runs higher because the rank math ("XP to Hero ÷ their XP/hour") is real
  * arithmetic over a ladder table, and that is exactly where a rushed answer invents a number.
  * The one-line surfaces are pure copywriting and run cheap.
@@ -80,6 +102,19 @@ export type RunCoachInput = {
   history?: CoachTurn[];
   /** Extra situational facts the DB does not know — e.g. which app triggered the intercept. */
   situation?: Record<string, unknown>;
+  /**
+   * This turn is going to be SPOKEN (ai-coach-voice), not printed.
+   *
+   * A flag on the call rather than a fifth CoachSurface, deliberately: voice and typed chat are the
+   * same surface and the same transcript on purpose — asking aloud and following up by text has to
+   * carry the thread — and a separate surface would fork the persona, the routing block and the
+   * tool set for what is only a difference in LENGTH.
+   *
+   * Both effects are latency. A spoken reply is generated and then synthesised, so every character
+   * is paid for twice with the user listening to nothing; the fastest fix available to the brain is
+   * to produce fewer of them.
+   */
+  spoken?: boolean;
 };
 
 /**
@@ -90,7 +125,7 @@ export type RunCoachInput = {
  * called with the wrong userId, the RPC would still return the JWT owner's rows.
  */
 export async function runCoach(input: RunCoachInput): Promise<CoachResult> {
-  const { surface, userId, userClient, admin, message, history = [], situation } = input;
+  const { surface, userId, userClient, admin, message, history = [], situation, spoken = false } = input;
 
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set on this project.');
@@ -150,13 +185,18 @@ export async function runCoach(input: RunCoachInput): Promise<CoachResult> {
     ...history.map((t) => ({ role: t.role, content: t.content }) as Anthropic.MessageParam),
     {
       role: 'user',
-      content: message ? `${contextBlock}\n\n${message}` : `${contextBlock}\n\n${generationRequest(surface)}`,
+      // The brevity note goes AFTER the user's own words — a trailing instruction is the one the
+      // model is still holding when it starts writing. The context block stays first because that
+      // is where every other fact about them already is.
+      content: [contextBlock, message || generationRequest(surface), ...(spoken ? [SPOKEN_BREVITY] : [])].join(
+        '\n\n'
+      ),
     },
   ];
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: MAX_TOKENS[surface],
+    max_tokens: spoken ? MAX_TOKENS_SPOKEN : MAX_TOKENS[surface],
     // Adaptive is the only on-mode on Sonnet 5 (budget_tokens is removed and returns a 400).
     thinking: { type: 'adaptive' },
     output_config: { effort: EFFORT[surface] },
