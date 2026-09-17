@@ -13,7 +13,9 @@
         "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvYXFnY3F1enl3YWRyZ2h6YmZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1OTE0NDUsImV4cCI6MjA5ODE2NzQ0NX0.CuJD8tYsF8eYm96TVEFXke2Tlnse_d67mvBNeKGj_Qs",
         "GOOGLE_WEB_CLIENT_ID": "921536564136-a1up91voavotk62kg5l24t1ja1uinbqc.apps.googleusercontent.com",
         "GOOGLE_IOS_CLIENT_ID": "921536564136-s18vdec893u1dlgvhs5aaep59fdetmi3.apps.googleusercontent.com",
-        "STRAVA_CLIENT_ID": "267324"
+        "STRAVA_CLIENT_ID": "267324",
+        "REVENUECAT_IOS_KEY": "appl_PEPUaAMnUXdwvXlxBqUhKYxdwmI",
+        "REVENUECAT_ANDROID_KEY": "goog_CYTmPnqpPEjJtufdLOlhWbBSGzB"
       },
       "android": {
         "buildType": "apk"
@@ -31,10 +33,23 @@
         "SENTRY_DSN": "https://1d9e6cd52b688abc9b138fc1314b69e1@o4511657755803648.ingest.us.sentry.io/4511657760129029",
         "STRAVA_CLIENT_ID": "267324",
         "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvYXFnY3F1enl3YWRyZ2h6YmZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1OTE0NDUsImV4cCI6MjA5ODE2NzQ0NX0.CuJD8tYsF8eYm96TVEFXke2Tlnse_d67mvBNeKGj_Qs",
-        "SUPABASE_URL": "https://coaqgcquzywadrghzbfj.supabase.co"
+        "SUPABASE_URL": "https://coaqgcquzywadrghzbfj.supabase.co",
+        "REVENUECAT_IOS_KEY": "appl_PEPUaAMnUXdwvXlxBqUhKYxdwmI",
+        "REVENUECAT_ANDROID_KEY": "goog_CYTmPnqpPEjJtufdLOlhWbBSGzB"
       },
       "android": {
         "buildType": "apk"
+      }
+    },
+    "play-internal": {
+      "extends": "preview",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "distribution": "store",
+      "autoIncrement": true,
+      "env": {
+        "FOCUS_NUDGE_ANDROID": "0"
       }
     },
     "production": {
