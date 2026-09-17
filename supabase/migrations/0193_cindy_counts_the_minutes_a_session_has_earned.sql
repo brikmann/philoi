@@ -45,7 +45,8 @@
 -- ── base check · restated from the LIVE body ──
 do $base$
 begin
-  if (select md5(p.prosrc) from pg_proc p
+  -- CR-stripped: a body applied from a CRLF checkout must not fail an otherwise identical pin.
+  if (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p
       where p.proname = 'get_coach_context' and p.pronamespace = 'public'::regnamespace)
      is distinct from '8426bd073cd7075f542cd594d74272da' then
     raise exception '0193: live get_coach_context changed since this file was drafted — rebase onto it';
@@ -354,7 +355,8 @@ begin
     raise exception '0193: get_coach_context overload count <> 1';
   end if;
   -- Pins the WHOLE body: the live base with exactly the one minutes_so_far line swapped.
-  if (select md5(p.prosrc) from pg_proc p
+  -- CR-stripped: a body applied from a CRLF checkout must not fail an otherwise identical pin.
+  if (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p
       where p.proname = 'get_coach_context' and p.pronamespace = 'public'::regnamespace)
      <> '191206d4a2e157f8b5e09e3d749c09e2' then
     raise exception '0193: get_coach_context body is not the expected one-line change';
