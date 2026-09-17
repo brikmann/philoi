@@ -23,6 +23,9 @@ import { calendarPromptBlock, fetchCalendarWindow } from './gcal.ts';
 import { buildSystemPrompt, type CoachSurface } from './prompt.ts';
 import { anthropicTools, effectFor, summarizeAction, type ToolEffect } from './tools.ts';
 
+// ai-coach imports the surface type from here, not from prompt.ts.
+export type { CoachSurface };
+
 const MODEL = 'claude-sonnet-5';
 
 /**
@@ -194,6 +197,9 @@ export async function runCoach(input: RunCoachInput): Promise<CoachResult> {
     },
   ];
 
+  // ⚠️ The cast at the end is TYPES ONLY. The pinned SDK (0.71.0) has no type for adaptive thinking,
+  // output_config or strict tools, and the API accepts all three. Bumping the SDK to get the types
+  // would change the shipped bundle to fix a type error.
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: spoken ? MAX_TOKENS_SPOKEN : MAX_TOKENS[surface],
@@ -214,7 +220,7 @@ export async function runCoach(input: RunCoachInput): Promise<CoachResult> {
     // notification has no UI to confirm against, so those surfaces are copy-only by construction.
     ...(surface === 'chat' ? { tools: anthropicTools() } : {}),
     messages,
-  });
+  } as unknown as Anthropic.MessageCreateParamsNonStreaming);
 
   // A safety classifier can decline with HTTP 200 — check before reading content, or the reply
   // silently comes back empty.
@@ -268,7 +274,10 @@ function generationRequest(surface: CoachSurface): string {
     case 'intercept':
       return (
         'They just opened a distracting app during their live session. Write the intercept message. ' +
-        'Start the line with one of [reinforce], [wellbeing] or [support] to tag the intent, then the message.'
+        'Start the line with one of [reinforce], [wellbeing] or [support] to tag the intent, then the message. ' +
+        // Last on purpose: the <situation> block just above carries minutesIntoSession, and the
+        // instruction the model reads last is the one that beats a number sitting in front of it.
+        'It is shown later, not now, so say no minutes-into-session figure and no countdown to an event.'
       );
     case 'reengagement':
       return (
