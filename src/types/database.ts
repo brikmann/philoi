@@ -163,6 +163,9 @@ export type Profile = {
   show_message_previews: boolean;
   /** Fake account created by scripts/seed-demo-circles.js — used by the dev-tools RPCs, never a real user. */
   is_demo: boolean;
+  /** Allowlisted developer (0195). Only lets this account buy the Pass outside the season window, for the
+   * IAP device test. Pinned by a trigger: no client can set it. */
+  is_dev: boolean;
   /** Set by admin_disable_account() after a confirmed moderation action (e.g. CSAE). Routes to account-disabled.tsx. */
   is_disabled: boolean;
   disabled_at: string | null;
@@ -3047,6 +3050,10 @@ export type Database = {
       dev_seed_my_demo_circle: { Args: Record<string, never>; Returns: Group };
       dev_simulate_friend_checkin: { Args: { p_group_id: string; p_fake_user_id: string }; Returns: undefined };
       dev_reset_my_checkins: { Args: { p_goal_type?: string | null }; Returns: undefined };
+      dev_revoke_forge_pass: {
+        Args: Record<string, never>;
+        Returns: { season_id: string; revoked_pass: boolean; cleared_level_zero: boolean };
+      };
       log_challenge_progress: {
         Args: { p_challenge_id: string; p_amount: number; p_note?: string | null };
         Returns: (Challenge & { just_completed: boolean })[];

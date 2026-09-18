@@ -38,3 +38,12 @@ export async function resetMyCheckIns(goalType?: GoalType): Promise<void> {
   const { error } = await supabase.rpc('dev_reset_my_checkins', { p_goal_type: goalType ?? null });
   if (error) throw error;
 }
+
+// Un-owns this season's Pass and clears its Level 0 claim, so the real purchase can be re-run from
+// a clean state and drop the stipend again. Takes away only — nothing here grants. Refuses unless
+// profiles.is_dev (0195).
+export async function devRevokeForgePass() {
+  const { data, error } = await supabase.rpc('dev_revoke_forge_pass', {});
+  if (error) throw error;
+  return data;
+}

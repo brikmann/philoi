@@ -7,6 +7,7 @@ import { SecondaryButton } from '@/components/ui/secondary-button';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import {
+  devRevokeForgePass,
   fetchOneDemoMember,
   resetMyCheckIns,
   seedMyDemoCircle,
@@ -15,6 +16,7 @@ import {
 } from '@/lib/api/dev-tools';
 import { getErrorMessage } from '@/lib/errors';
 import type { MyGroup } from '@/lib/api/groups';
+import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { formatRankTier, RANK_TIER_COLOR, RANK_TIER_ORDER } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
@@ -26,7 +28,8 @@ type DevToolsProps = {
 
 // Everything here is callable by any authenticated user at the DB layer (see the
 // "dev tools" section in schema.sql) — this component just keeps them out of the UI real
-// users see, which is the actual safety boundary the spec asks for.
+// users see, which is the actual safety boundary the spec asks for. The exception is "Revoke Flame
+// Pass", which refuses server-side unless profiles.is_dev (0195).
 export function DevTools({ devOverride, setDevOverride, groups }: DevToolsProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -70,6 +73,19 @@ export function DevTools({ devOverride, setDevOverride, groups }: DevToolsProps)
         <Text style={styles.label}>Simulate active membership</Text>
         <Toggle value={devOverride} onValueChange={setDevOverride} />
       </View>
+      {/* Reset only (CODE_PROMPT_android_iap_test §4b): the Pass is only ever granted by a real
+          purchase through the webhook. This returns the account to pre-purchase so that purchase
+          can be run again — without clearing the Level 0 claim the stipend would never re-drop. */}
+      <SecondaryButton
+        label={busy === 'Revoke Flame Pass' ? 'Revoking…' : 'Revoke Flame Pass'}
+        onPress={() =>
+          run('Revoke Flame Pass', async () => {
+            await devRevokeForgePass();
+            requestInventoryRefresh();
+          })
+        }
+        disabled={busy !== null}
+      />
 
       <SecondaryButton
         label={busy === 'Test notification' ? 'Sending…' : 'Send me a test notification'}

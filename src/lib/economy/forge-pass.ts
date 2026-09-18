@@ -66,6 +66,17 @@ export function seasonPhase(now: number = Date.now()): SeasonPhase {
   return 'closed';
 }
 
+/**
+ * Whether THIS account may buy the Pass right now: inside the window, or a dev (0195). The dev half is
+ * the device test's only accommodation — grant_forge_pass skips its own phase check for the buyer's
+ * is_dev, and this mirrors it so the buy button isn't the thing that stops the test. Non-devs always
+ * have is_dev false and see the real window. Copy that describes the SEASON (countdowns, "opens Oct
+ * 1") stays on seasonPhase(); only the buy affordances read this.
+ */
+export function passOnSale(phase: SeasonPhase, isDev: boolean | undefined): boolean {
+  return phase === 'live' || isDev === true;
+}
+
 /** Milliseconds until the season opens (upcoming) or closes (live). 0 once it has closed. */
 export function msUntilSeasonBoundary(now: number = Date.now()): number {
   const phase = seasonPhase(now);
