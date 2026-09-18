@@ -373,6 +373,12 @@ const config: ExpoConfig = {
     ],
     'expo-video',
     'react-native-compressor',
+    // NO ENTRY FOR react-native-purchases, deliberately. It is a plain autolinked React Native
+    // module — as of 10.9.1 it ships no app.plugin.js and declares no `expo` plugin entry, so
+    // adding 'react-native-purchases' to this array fails prebuild outright with "Failed to resolve
+    // plugin for module". It needs nothing here: autolinking picks up the native module, and the
+    // Play Billing permission merges in from its com.android.billingclient dependency's own
+    // manifest. It DOES still require a native build — it never arrives over OTA (#71).
   ],
   runtimeVersion: {
     // 'sdkVersion' for now — 'fingerprint' hashes differently on Windows (local) vs EAS's
@@ -402,7 +408,18 @@ const config: ExpoConfig = {
     focusNudgeAndroid: FOCUS_NUDGE_ANDROID,
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-    // TODO: RevenueCat — public SDK keys go here once billing is wired up.
+    // RevenueCat (#71) — PUBLIC SDK keys only, one per platform. Same trust level as
+    // stravaClientId above: these ship inside every install and are readable out of any binary, so
+    // they are safe client-side. The RevenueCat SECRET key and REVENUECAT_WEBHOOK_SECRET live only
+    // in Supabase's Edge Function secrets (supabase/functions/revenuecat-webhook), never here.
+    //
+    // Set per build profile in eas.json (`env.REVENUECAT_IOS_KEY` / `REVENUECAT_ANDROID_KEY`),
+    // because this file is evaluated at prebuild time on EAS, where the local .env does not exist.
+    //
+    // null is a SUPPORTED state, not a broken one: isBillingConfigured() goes false, every paywall
+    // shows "not available in this build yet" rather than a live button, and nothing throws. What it
+    // is not is a TESTABLE one — a null key means getOfferings() returns nothing and every price
+    // renders as "—". See diagnoseOffering() in src/lib/billing.ts, which names that on the console.
     revenueCatIosKey: process.env.REVENUECAT_IOS_KEY ?? null,
     revenueCatAndroidKey: process.env.REVENUECAT_ANDROID_KEY ?? null,
     posthogApiKey: process.env.POSTHOG_API_KEY ?? null,

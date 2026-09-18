@@ -493,6 +493,12 @@ function RootNavigator() {
             unlike shop/open, this screen is a place you browse before you commit, and the Inventory
             shortcut deep-links into it with a preselection that should be backable-out-of. */}
         <Stack.Screen name="forge" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* The Flame Pass paywall (mock 200). INSIDE the auth gate now, which is the change:
+            it used to sit with the public routes because it was a dormant "membership coming
+            later" preview that sold nothing. It is a purchase surface now, and a purchase needs an
+            account — RevenueCat's appUserID is the Supabase user id, which is what binds an
+            entitlement to a person rather than to a handset. Nothing deep-links to it. */}
+        <Stack.Screen name="paywall" options={{ headerShown: false, presentation: 'modal' }} />
         {/* Post-purchase (#71). Not swipe-dismissable: it's the only confirmation the user gets
             that a real charge produced something, and losing it to a stray gesture reads as a
             purchase that vanished. */}
@@ -510,9 +516,6 @@ function RootNavigator() {
 
       {/* Public — the Google OAuth redirect lands here mid-sign-in, before session exists. */}
       <Stack.Screen name="auth/callback" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
-
-      {/* Public, voluntary preview of Philoi membership — dormant until pricing ships. */}
-      <Stack.Screen name="paywall" options={{ headerShown: false, presentation: 'modal' }} />
     </Stack>
   );
 }

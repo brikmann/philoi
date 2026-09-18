@@ -33,6 +33,18 @@ export function useProductPrices(): Record<string, string> {
 }
 
 /**
+ * How the success screen replaces the surface that sold the thing.
+ *
+ * 'push' is right for a strip embedded in a screen you want back afterwards — the shop, the track —
+ * where backing out of the receipt should return you to where you were browsing.
+ *
+ * 'replace' is for the dedicated paywall, which is a modal whose entire job was to take the money.
+ * Pushing over it leaves it in the stack, so a back gesture off the receipt lands the user on a
+ * "buy the Flame Pass" page for a Flame Pass they just bought.
+ */
+type PurchaseNav = 'push' | 'replace';
+
+/**
  * One place every paywall goes through (#71), so the Forge Pass strip and the Buy-Embers row can't
  * drift on how they handle a cancel, a pending purchase, or a build with no keys.
  *
@@ -41,7 +53,7 @@ export function useProductPrices(): Record<string, string> {
  * On success we route to the success screen, which is honest about that timing rather than
  * asserting a balance it hasn't seen yet.
  */
-export function usePurchase() {
+export function usePurchase({ navigate = 'push' }: { navigate?: PurchaseNav } = {}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -60,7 +72,10 @@ export function usePurchase() {
         const outcome = await purchaseProduct(productId);
         switch (outcome.status) {
           case 'granted':
-            router.push({ pathname: '/purchase-success', params: { product: productId } });
+            router[navigate === 'replace' ? 'replace' : 'push']({
+              pathname: '/purchase-success',
+              params: { product: productId },
+            });
             return true;
           case 'cancelled':
             // Silent on purpose. The user chose to back out; an "are you sure?" popup after a
@@ -83,7 +98,7 @@ export function usePurchase() {
         setBusy(false);
       }
     },
-    [router]
+    [router, navigate]
   );
 
   return { buy, busy };

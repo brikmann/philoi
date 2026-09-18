@@ -6,10 +6,15 @@ import { useAuth } from '@/lib/auth/auth-context';
 const DEV_MEMBER_OVERRIDE_KEY = 'philoi_dev_member_override';
 
 /**
- * Thin stub: Philoi ships fully free during early access (no trial, no paywall)
- * while we collect traction data — see src/lib/analytics.ts — to decide pricing
- * later. isMember/devOverride stay wired so flipping on real billing afterward
- * doesn't require touching call sites. See MEMBERSHIP_PRICING in lib/billing.ts.
+ * Thin stub for the FEATURE-GATING membership that never shipped: Philoi's app features are free
+ * for everyone, so nothing here gates anything, and `is_pro` has no live writer.
+ *
+ * ⚠️ NOT the Flame Pass. The Pass is an entitlement (`forge_pass`) owned by RevenueCat and read
+ * from `pass.owns_premium` on the inventory — see hooks/use-inventory.ts. This hook answers a
+ * different question ("does this account hold a Philoi membership") that the product no longer
+ * asks, and the flat-membership pricing it used to point at has been deleted from lib/billing.ts.
+ * It survives only for the dev override in Settings; do not reach for it to decide whether someone
+ * bought the season.
  */
 export function useEntitlement() {
   const { profile } = useAuth();

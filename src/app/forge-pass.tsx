@@ -18,7 +18,7 @@ import { shareCardImage } from '@/lib/share-card';
 import type { SeasonCard } from '@/types/database';
 import { restorePurchases } from '@/lib/billing';
 import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
-import { useProductPrices, usePurchase } from '@/hooks/use-purchase';
+import { useProductPrices } from '@/hooks/use-purchase';
 import { BOXES } from '@/lib/economy/boxes';
 import { getItem, type CatalogItem } from '@/lib/economy/catalog';
 import {
@@ -32,6 +32,7 @@ import {
   levelCost,
   levelFromXp,
   msUntilSeasonBoundary,
+  passOnSale,
   seasonPhase,
   type AchievementCadence,
   type PassLevel,
@@ -98,7 +99,6 @@ export default function ForgePassScreen() {
   const rewardsCardRef = useRef<View>(null);
   const [standing, setStanding] = useState<SeasonCard | null>(null);
   const shareRank = useShareRank();
-  const { buy, busy: buying } = usePurchase();
   // Store-supplied localized prices. Empty until the offering loads, and empty forever in a build
   // with no SDK keys — every render site below degrades to omitting the price rather than quoting
   // a literal that could differ from the real charge.
@@ -108,6 +108,7 @@ export default function ForgePassScreen() {
   const ownsPremium = pass?.owns_premium ?? false;
   const { level, intoLevel, nextLevelCost } = levelFromXp(passXp);
   const phase = seasonPhase();
+  const onSale = passOnSale(phase, profile?.is_dev);
 
   const claimed = useMemo(() => {
     const set = new Set<string>();
@@ -227,7 +228,7 @@ export default function ForgePassScreen() {
   // refused server-side by grant_forge_pass anyway (0074), but letting the purchase sheet open and
   // then failing after payment would be the worst possible order to discover that in.
   function onUpgrade() {
-    if (phase !== 'live') {
+    if (!onSale) {
       Alert.alert(
         phase === 'upcoming' ? `${SEASON.name} hasn't started` : `${SEASON.name} has closed`,
         phase === 'upcoming'
@@ -236,7 +237,11 @@ export default function ForgePassScreen() {
       );
       return;
     }
-    void buy(FORGE_PASS_PRODUCT_ID);
+    // Hands off to the paywall (mock 200) rather than opening the store sheet from the strip. The
+    // strip states the price; the paywall makes the case — what unlocks, the locked premium lane,
+    // "you can't buy XP", Restore — and it is the one surface that has to stay in sync with what
+    // the purchase actually grants.
+    router.push('/paywall');
   }
 
   // Apple REQUIRES a reachable Restore control for any app selling a non-consumable. It lives here
@@ -292,11 +297,11 @@ export default function ForgePassScreen() {
       {/* ── The one gold upgrade strip, only while unowned ── */}
       {!ownsPremium ? (
         <>
-          <Pressable style={[styles.upgrade, buying && styles.claimBusy]} disabled={buying} onPress={onUpgrade}>
+          <Pressable style={styles.upgrade} onPress={onUpgrade}>
             <View style={styles.upgradeCol}>
               <Text style={styles.upgradeTitle}>Unlock the Flame Pass</Text>
               <Text style={styles.upgradeSub}>
-                {phase === 'live'
+                {onSale
                   ? 'Every level’s premium reward, all season — plus the Mythic flare on day one'
                   : phase === 'upcoming'
                     ? 'On sale when Emberfall opens, October 1'
@@ -306,7 +311,7 @@ export default function ForgePassScreen() {
               {/* The store's own localized price, never a literal — a hardcoded '$9.99' that
                 disagrees with App Store Connect is a price the user was quoted and not charged. */}
             <Text style={styles.upgradePrice}>
-              {phase === 'live' ? (prices[FORGE_PASS_PRODUCT_ID] ?? '—') : '—'}
+              {onSale ? (prices[FORGE_PASS_PRODUCT_ID] ?? '—') : '—'}
             </Text>
           </Pressable>
           <Pressable onPress={onRestore} hitSlop={8} accessibilityRole="button">

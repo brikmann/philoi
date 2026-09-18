@@ -15,9 +15,10 @@ import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useInventory } from '@/hooks/use-inventory';
 import { BOX_LIST } from '@/lib/economy/boxes';
 import { boxPool, type CatalogItem } from '@/lib/economy/catalog';
-import { EMBER_PACKS, PASS_FINE_PRINT, SEASON, levelFromXp, seasonPhase } from '@/lib/economy/forge-pass';
+import { EMBER_PACKS, PASS_FINE_PRINT, SEASON, levelFromXp, passOnSale, seasonPhase } from '@/lib/economy/forge-pass';
 import { DIRECT_BUY_PRICE } from '@/lib/economy/rarity';
 import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
+import { useAuth } from '@/lib/auth/auth-context';
 import { formatWeekCountdown, nextWeekReset, weekIndex } from '@/lib/time/week';
 import { isBillingConfigured } from '@/lib/billing';
 import { useProductPrices, usePurchase } from '@/hooks/use-purchase';
@@ -83,6 +84,8 @@ export default function ShopScreen() {
   // The pass is only purchasable inside the season window (§3). Outside it the hero still renders —
   // it's the season's shopfront — but the buy CTA is replaced rather than left live.
   const phase = seasonPhase();
+  const { profile } = useAuth();
+  const onSale = passOnSale(phase, profile?.is_dev);
 
   // Minute-granularity countdown to the next rotation. Ticked rather than computed once so a shop
   // left open doesn't sit there claiming the row rotates in a time that's already passed.
@@ -138,11 +141,11 @@ export default function ShopScreen() {
               <View style={styles.forgeCta}>
                 <Text style={styles.forgeCtaText}>View track</Text>
               </View>
-            ) : phase === 'live' ? (
-              <Pressable
-                style={[styles.forgeCta, busy && styles.forgeCtaBusy]}
-                disabled={busy}
-                onPress={() => buy(FORGE_PASS_PRODUCT_ID)}>
+            ) : onSale ? (
+              // Opens the paywall rather than the store sheet directly (mock 200). The strip is an
+              // ad; the case for the season — what unlocks, the track, the trust line, Restore —
+              // lives on one screen instead of being re-made everywhere the Pass is mentioned.
+              <Pressable style={styles.forgeCta} onPress={() => router.push('/paywall')}>
                 <Text style={styles.forgeCtaText}>
                   Get Pass{prices[FORGE_PASS_PRODUCT_ID] ? ` · ${prices[FORGE_PASS_PRODUCT_ID]}` : ''}
                 </Text>
@@ -354,9 +357,6 @@ const styles = StyleSheet.create({
   },
   forgeCtaOff: {
     backgroundColor: 'rgba(255,207,138,0.35)',
-  },
-  forgeCtaBusy: {
-    opacity: 0.6,
   },
   packBusy: {
     opacity: 0.6,

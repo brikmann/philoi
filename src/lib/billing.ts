@@ -18,7 +18,12 @@ import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-na
 import { Platform } from 'react-native';
 
 import { track } from '@/lib/analytics';
-import { FORGE_PASS_ENTITLEMENT, emberPackForProduct, isForgePassProduct } from '@/lib/economy/iap';
+import {
+  ALL_PRODUCT_IDS,
+  FORGE_PASS_ENTITLEMENT,
+  emberPackForProduct,
+  isForgePassProduct,
+} from '@/lib/economy/iap';
 
 const { revenueCatIosKey, revenueCatAndroidKey } = Constants.expoConfig?.extra ?? {};
 
@@ -55,27 +60,16 @@ function sdk(): PurchasesSdk | null {
   return sdkCache;
 }
 
-// ─────────────────────────── Membership · DORMANT, superseded ───────────────────────────
+// ─────────────────────────── Membership · DELETED, not dormant ──────────────────────────
 //
-// The flat-membership model from the 2026-06-28 decision log. Monetization went a different way —
-// the Flame Pass plus ember packs, both cosmetics-only — and this never shipped. Kept because
-// src/app/paywall.tsx still renders it as a dormant preview screen; deleting it is a separate call
-// than wiring RevenueCat, so it stays untouched here rather than being quietly removed.
-export const MEMBERSHIP_PRICING = {
-  monthly: { amount: 2.99, label: '$2.99/mo' },
-  yearly: { amount: 19.99, label: '$19.99/yr' },
-} as const;
-
-export const MEMBERSHIP_PITCH = [
-  'Unlimited Campfires, friends, and check-ins',
-  'Streaks, leaderboards, and the full feed',
-  'Reminders so you never break a streak by accident',
-  "You're in — no ads, no algorithm, just your people",
-] as const;
-
-export async function purchaseMembership(_plan: keyof typeof MEMBERSHIP_PRICING): Promise<{ success: boolean }> {
-  throw new Error('Membership isn’t the model — the Flame Pass and ember packs are what Philoi sells.');
-}
+// The flat-membership model from the 2026-06-28 decision log (MEMBERSHIP_PRICING / MEMBERSHIP_PITCH
+// / purchaseMembership) lived here long after monetization went a different way, kept alive only
+// because src/app/paywall.tsx rendered it as a "coming later" preview. That screen is the Flame
+// Pass paywall now (mock 200), nothing else imported these, and a price table for a product that
+// will never exist is exactly the kind of thing that gets quoted to a user by accident.
+//
+// What Philoi sells is below: the seasonal Flame Pass (`forge_pass` to the store) and consumable
+// ember packs. Nothing else.
 
 /** The public SDK key for this platform, or null when it hasn't been provisioned yet. */
 function apiKey(): string | null {
@@ -147,13 +141,76 @@ export type PurchaseOutcome =
   | { status: 'pending' }
   | { status: 'unavailable'; message: string };
 
+/**
+ * Say OUT LOUD why an offering came back unusable.
+ *
+ * Every store-configuration mistake reaches the user as the same thing: a price that renders as
+ * "—" (see paywall.tsx and shop/index.tsx, which are right to show a placeholder rather than invent
+ * a number). One symptom, four unrelated causes — no offering marked Current in the RevenueCat
+ * dashboard, a product created in RevenueCat but never added to the offering, a product still
+ * unapproved in the store, or an id spelled differently there than in iap.ts. Nothing on screen
+ * distinguishes them, which during sandbox bring-up is hours of guessing at a paywall that just
+ * "looks broken".
+ *
+ * ALL_PRODUCT_IDS is the expected set, and iap.ts has always documented it as existing for exactly
+ * this comparison — it just had no caller until now.
+ *
+ * Deduped on the message rather than latched to a single run: fetchOffering is called by both
+ * fetchProductPrices and findPackage, so warning per call would bury itself, but latching once
+ * would permanently pin a complaint from a call that raced app start. A changed diagnosis — the
+ * offering filling in a moment later — still gets said.
+ */
+let lastDiagnosis: string | null = null;
+
+function diagnoseOffering(offering: PurchasesOffering | null): void {
+  const problems: string[] = [];
+
+  if (!offering) {
+    problems.push(
+      'getOfferings() returned no CURRENT offering. In the RevenueCat dashboard, either no offering ' +
+        'is marked Current, or the one that is has no products the store will serve yet.'
+    );
+  } else {
+    const live = new Set(offering.availablePackages.map((pkg) => pkg.product.identifier));
+    const missing = ALL_PRODUCT_IDS.filter((id) => !live.has(id));
+    const unknown = [...live].filter((id) => !ALL_PRODUCT_IDS.includes(id));
+
+    if (missing.length > 0) {
+      problems.push(
+        `offering "${offering.identifier}" is missing ${missing.length} product(s) this app sells: ` +
+          `${missing.join(', ')}. Each renders with no price. It is absent from the offering, not yet ` +
+          'approved in the store, or spelled differently there than in iap.ts.'
+      );
+    }
+    if (unknown.length > 0) {
+      problems.push(
+        `offering "${offering.identifier}" carries product(s) this app has no id for: ${unknown.join(', ')}. ` +
+          'Almost always a typo: the store id and iap.ts disagree, so buying it would charge the card ' +
+          'and grant nothing — the webhook drops unrecognised product ids.'
+      );
+    }
+  }
+
+  const message =
+    problems.length > 0
+      ? `[billing] ${problems.join(' ')}`
+      : `[billing] offering "${offering?.identifier}" matches all ${ALL_PRODUCT_IDS.length} product ids`;
+
+  if (message === lastDiagnosis) return;
+  lastDiagnosis = message;
+  if (problems.length > 0) console.warn(message);
+  else console.log(message);
+}
+
 /** The current offering's packages, or null when billing isn't configured / nothing is published. */
 export async function fetchOffering(): Promise<PurchasesOffering | null> {
   const rc = sdk();
   if (!isBillingConfigured() || !rc) return null;
   try {
     const offerings = await rc.default.getOfferings();
-    return offerings.current ?? null;
+    const current = offerings.current ?? null;
+    diagnoseOffering(current);
+    return current;
   } catch (e) {
     console.warn('[billing] fetchOffering failed', e);
     return null;
