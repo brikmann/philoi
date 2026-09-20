@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BoxArt, BOX_TINT } from '@/components/economy/box-art';
+import { DropOddsLink, DropOddsSheet } from '@/components/economy/drop-odds';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { BoxStack } from '@/hooks/use-inventory';
 import { BOXES, OPEN_COUNTS, type BoxKey } from '@/lib/economy/boxes';
@@ -25,8 +27,16 @@ type Props = {
 
 export function BoxStackSheet({ stack, onOpen, onClose }: Props) {
   const box = stack ? BOXES[stack.boxKey as BoxKey] : undefined;
+  // This sheet is the commit point for a box you already own — its buttons spend the box without
+  // passing through the detail screen, so the drop rates have to be reachable from HERE, one tap
+  // and before the open, exactly as Play's disclosure rule requires.
+  const [oddsFor, setOddsFor] = useState<BoxKey | null>(null);
 
   return (
+    // Siblings, never nested: two RN Modals stacked inside one another render unreliably on
+    // Android (the inner Dialog can come up behind the outer one). As siblings the odds sheet is
+    // simply the more recently presented dialog, so it sits on top of this one.
+    <>
     <Modal visible={!!stack && !!box} animationType="fade" transparent onRequestClose={onClose}>
       {stack && box ? (
         <View style={styles.scrim}>
@@ -66,6 +76,8 @@ export function BoxStackSheet({ stack, onOpen, onClose }: Props) {
               ))}
             </View>
 
+            <DropOddsLink onPress={() => setOddsFor(box.key)} />
+
             <Pressable style={styles.plainBtn} onPress={onClose}>
               <Text style={styles.plainBtnText}>Not now</Text>
             </Pressable>
@@ -73,6 +85,8 @@ export function BoxStackSheet({ stack, onOpen, onClose }: Props) {
         </View>
       ) : null}
     </Modal>
+    <DropOddsSheet boxKey={oddsFor} onClose={() => setOddsFor(null)} />
+    </>
   );
 }
 

@@ -4,13 +4,15 @@ import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BoxArt } from '@/components/economy/box-art';
+import { OddsTable } from '@/components/economy/drop-odds';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { EmberAmount, EmberPill, SectionLabel } from '@/components/economy/economy-bits';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useBoxOdds } from '@/hooks/use-box-odds';
 import { useInventory } from '@/hooks/use-inventory';
 import { buyBox } from '@/lib/api/inventory';
-import { BOXES, OPEN_COUNTS, oddsAreRealLine, oddsRows, pityLine, type BoxKey, type OpenCount } from '@/lib/economy/boxes';
+import { BOXES, OPEN_COUNTS, oddsAreRealLine, pityLineFrom, type BoxKey, type OpenCount } from '@/lib/economy/boxes';
 import { getErrorMessage } from '@/lib/errors';
 import { RARITY_COLOR, RARITY_LABEL, SALVAGE_EMBERS, SALVAGE_PCT } from '@/lib/economy/rarity';
 
@@ -24,6 +26,9 @@ export default function BoxDetailScreen() {
   const { boxKey } = useLocalSearchParams<{ boxKey: string }>();
   const { embers, refetch } = useInventory();
   const [busy, setBusy] = useState(false);
+  // The LIVE weights economy_roll_rarity rolls on, not this build's copy of them. Called before
+  // the missing-box early return so the hook order is stable for an unknown key.
+  const { rows: oddsRows, pity } = useBoxOdds(boxKey as BoxKey);
 
   const box = BOXES[boxKey as BoxKey];
   if (!box) {
@@ -76,18 +81,7 @@ export default function BoxDetailScreen() {
         </View>
 
         <SectionLabel label="Drop odds" />
-        <View style={styles.odds}>
-          {oddsRows(box).map(({ rarity, pct }) => (
-            <View key={rarity} style={styles.oddRow}>
-              <View style={[styles.dot, { backgroundColor: RARITY_COLOR[rarity] }]} />
-              <Text style={styles.oddName}>{RARITY_LABEL[rarity].charAt(0) + RARITY_LABEL[rarity].slice(1).toLowerCase()}</Text>
-              <View style={styles.oddBar}>
-                <View style={[styles.oddFill, { width: `${pct}%`, backgroundColor: RARITY_COLOR[rarity] }]} />
-              </View>
-              <Text style={styles.oddPct}>{pct.toFixed(1)}%</Text>
-            </View>
-          ))}
-        </View>
+        <OddsTable rows={oddsRows} />
 
         <Text style={styles.oddsReal}>{oddsAreRealLine(box)}</Text>
 
@@ -99,7 +93,7 @@ export default function BoxDetailScreen() {
         <View style={styles.guarantee}>
           <View style={styles.guaranteeRow}>
             <Ionicons name="shield-checkmark" size={13} color={Colors.amber} />
-            <Text style={styles.guaranteeText}>{pityLine(box)}</Text>
+            <Text style={styles.guaranteeText}>{pityLineFrom(pity)}</Text>
           </View>
           <Text style={styles.guaranteeSub}>
             This never lowers your chances — it only steps in if you go a long run without one.
@@ -206,46 +200,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.twelve,
     paddingHorizontal: Spacing.four,
-  },
-  odds: {
-    backgroundColor: Colors.cardDark,
-    borderRadius: 13,
-    padding: Spacing.twelve,
-    gap: Spacing.two,
-  },
-  oddRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  oddName: {
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.ink,
-    width: 74,
-  },
-  oddBar: {
-    flex: 1,
-    height: 5,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.disabled,
-    overflow: 'hidden',
-  },
-  oddFill: {
-    height: '100%',
-    borderRadius: Radius.pill,
-  },
-  oddPct: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11.5,
-    color: Colors.ink,
-    width: 48,
-    textAlign: 'right',
   },
   guarantee: {
     backgroundColor: Colors.cardDark,

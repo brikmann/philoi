@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CrateOpen } from '@/components/economy/crate-open';
+import { DropOddsLink, DropOddsSheet } from '@/components/economy/drop-odds';
 import { FlipReveal, bestPullRarity } from '@/components/economy/flip-reveal';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { EmberAmount, RarityLabel, formatEmbers } from '@/components/economy/economy-bits';
@@ -57,6 +58,11 @@ function BoxOpenFlow() {
   const [error, setError] = useState<string | null>(null);
   const [unopened, setUnopened] = useState(0);
   const [equipping, setEquipping] = useState(false);
+  // Play's loot-box rule wants the drop rates one obvious tap away in the flow that spends the
+  // box, not only on the detail screen that sold it. So the odds ride the pre-reveal beats here,
+  // while the crate is still shut — reachable, and gone by the time the item is on screen so it
+  // never reads as a pitch over the result.
+  const [oddsOpen, setOddsOpen] = useState(false);
 
   const ids = (boxIds ?? '').split(',').filter(Boolean);
   const isMulti = ids.length > 1;
@@ -125,11 +131,20 @@ function BoxOpenFlow() {
     );
   }
 
+  const key = (boxKey as BoxKey) ?? 'kindling';
+  const oddsFooter = (
+    <>
+      <DropOddsLink onPress={() => setOddsOpen(true)} label="Drop rates for this box" />
+      <DropOddsSheet boxKey={oddsOpen ? key : null} onClose={() => setOddsOpen(false)} />
+    </>
+  );
+
   if (phase === 'rolling' || results.length === 0) {
     return (
       <Screen>
         <View style={styles.center}>
           <Text style={styles.rolling}>Opening…</Text>
+          {oddsFooter}
         </View>
       </Screen>
     );
@@ -143,7 +158,6 @@ function BoxOpenFlow() {
     // 🔊 The burst's sting is the BEST PULL's rarity on a batch, and the item's own on a single.
     // That is what makes one sting correct rather than a compromise: the loudest thing in the haul
     // is what the crate should sound like opening.
-    const key = (boxKey as BoxKey) ?? 'kindling';
     return (
       <Screen>
         <View style={styles.center}>
@@ -160,6 +174,7 @@ function BoxOpenFlow() {
             onBurst={isMulti ? () => setPhase('flipping') : undefined}
             onDone={onAnimationDone}
           />
+          {oddsFooter}
         </View>
       </Screen>
     );

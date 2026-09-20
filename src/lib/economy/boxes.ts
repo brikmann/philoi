@@ -1,17 +1,23 @@
 // The six loot boxes (21g / REWARD_ECONOMY §8.2 + §8.5).
 //
-// Odds here are PUBLISHED — they render verbatim on the box-detail screen (mock 57). That is not a
-// nicety: the audience skews students and minors, Belgium/NL ban paid loot boxes outright, and
-// both app stores require disclosed drop rates.
+// ⚠️ `odds` BELOW IS A FALLBACK MIRROR, NOT THE SOURCE. economy_roll_rarity rolls on
+// economy_config('box_odds') (migration 0064) and nothing else. Screens must render the odds
+// through hooks/use-box-odds.ts, which reads that live row; the copy here exists only so the
+// disclosure paints before the round-trip lands and still paints offline. useBoxOdds reports to
+// Sentry if the two ever disagree — a hand-maintained second odds table that can silently drift
+// from the roll is precisely what the published-odds requirement exists to prevent.
 //
-// Those odds are also AUTHORITATIVE: economy_roll_rarity does a straight weighted roll over them
+// Publishing them is not a nicety: the audience skews students and minors, Belgium/NL ban paid
+// loot boxes outright, and both app stores require disclosed drop rates — Google Play requires
+// the odds to be visible BEFORE the purchase or open.
+//
+// The odds are also honest in the strong sense: economy_roll_rarity does a straight weighted roll
 // with no clamping, so the printed number is the real per-open probability. §8.2's per-box "floor"
 // is implemented as PITY instead (see `Pity` below) — a floor that clamped the roll would have
 // turned Hestia's printed 22% Epic into ~92% and made the published table a lie.
 //
 // The server rolls the result BEFORE any animation plays — §8.5 is explicit that the animation
-// only visualizes a decided outcome. These numbers exist so the odds table can render without a
-// round-trip; economy_config in migration 0064 is what the roll actually reads.
+// only visualizes a decided outcome.
 
 import { RARITY_COLOR, type Rarity } from '@/lib/economy/rarity';
 
@@ -40,7 +46,10 @@ export type LootBox = {
   price: number;
   /** The free path — every box is earnable, never purchase-only (21g). */
   earnedBy: string;
-  /** Published per-rarity drop rates, in percent. Must sum to 100, and every roll matches them. */
+  /**
+   * Fallback copy of economy_config('box_odds') — per-rarity drop rates in percent, summing to
+   * 100. Read through useBoxOdds, never directly: the live row is what the roll uses.
+   */
   odds: Record<Rarity, number>;
   pity: Pity;
   crack: CrackStyle;
@@ -136,21 +145,14 @@ export type OpenCount = (typeof OPEN_COUNTS)[number];
  * a student audience should be told what they actually get, not gambling jargon. Rendered as its
  * own block, clearly separate from the odds table, so neither reads as qualifying the other.
  */
-export function pityLine(box: LootBox): string {
-  const name = box.pity.rarity.charAt(0).toUpperCase() + box.pity.rarity.slice(1);
-  return `A guaranteed ${name} or better at least once every ${box.pity.every} boxes.`;
+export function pityLineFrom(pity: Pity): string {
+  const name = pity.rarity.charAt(0).toUpperCase() + pity.rarity.slice(1);
+  return `A guaranteed ${name} or better at least once every ${pity.every} boxes.`;
 }
 
 /** The companion line: says plainly that the odds above are the real per-open numbers. */
 export function oddsAreRealLine(box: LootBox): string {
   return `Every ${box.name} rolls on exactly the odds above — nothing is adjusted up or down for you.`;
-}
-
-/** Rarities with a non-zero chance — the odds table only lists what can actually drop. */
-export function oddsRows(box: LootBox): { rarity: Rarity; pct: number }[] {
-  return (Object.entries(box.odds) as [Rarity, number][])
-    .filter(([, pct]) => pct > 0)
-    .map(([rarity, pct]) => ({ rarity, pct }));
 }
 
 /**
