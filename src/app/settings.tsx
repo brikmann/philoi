@@ -290,7 +290,7 @@ export default function SettingsScreen() {
       setDeleteModalOpen(false);
       await signOut();
     } catch (e) {
-      Alert.alert('Could not delete account', getErrorMessage(e, 'Try again or contact nb@philoi.app.'));
+      Alert.alert('Could not delete account', getErrorMessage(e, 'Try again or contact support@philoi.app.'));
     } finally {
       setDeletingAccount(false);
     }

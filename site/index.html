@@ -1035,7 +1035,7 @@ body.past-hero .lava-pool{opacity:.55}
         </div>
       </div>
 
-      <form class="notify" id="notify" action="mailto:nb@philoi.app" method="post" enctype="text/plain">
+      <form class="notify" id="notify" action="mailto:support@philoi.app" method="post" enctype="text/plain">
         <label class="sr-only" for="notify-email">Your email</label>
         <input id="notify-email" type="email" name="email" placeholder="you@yourschool.edu" autocomplete="email" required>
         <input class="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -1721,7 +1721,7 @@ body.past-hero .lava-pool{opacity:.55}
         .catch(function () {
           // Never a dead end: the mailto still reaches a human, so a failed
           // signup degrades to the path this field used to take.
-          say('That didn’t go through. Try again, or email nb@philoi.app.', 'error');
+          say('That didn’t go through. Try again, or email support@philoi.app.', 'error');
           button.disabled = false;
         })
         .finally(function () { sending = false; });

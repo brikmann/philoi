@@ -7,11 +7,12 @@ import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 
-// nb@ rather than a support@ alias: nb@philoi.app is the address the site, the privacy
-// policy and the terms all publish, so it is known to be monitored. A support@philoi.app
-// alias may not exist yet, and a disabled user with no way to appeal is the worst possible
-// place to discover a dead inbox.
-const SUPPORT_EMAIL = 'nb@philoi.app';
+// support@philoi.app is the published general contact — the site footer, the privacy policy,
+// the terms, child-safety.html and delete-account.html all point at it, so it is known to be
+// monitored. That the inbox is live matters more here than anywhere else in the app: a disabled
+// user with no way to appeal is the worst possible place to discover a dead address. Move this
+// only together with those pages.
+const SUPPORT_EMAIL = 'support@philoi.app';
 
 // Reached via the Stack.Protected guard in _layout.tsx when profile.is_disabled is true — set
 // only by admin_disable_account() (schema.sql) after a confirmed moderation action. There's

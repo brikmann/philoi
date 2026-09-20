@@ -90,7 +90,7 @@ leak into the other states' windows.
 ## No waitlist
 
 There is deliberately no email capture on this site. The page closes with a plain
-contact band (`#contact`) pointing at `nb@philoi.app` — no forms, no inputs, no
+contact band (`#contact`) pointing at `support@philoi.app` — no forms, no inputs, no
 third-party form service, and no JS beyond the scroll-driven stage playback.
 
 If a signup flow is ever wanted, it needs to be added back from scratch rather
