@@ -250,12 +250,21 @@ const config: ExpoConfig = {
         // to manual entry — never a hard crash). These SDK levels are what its own setup docs
         // call for.
         android: {
-          // Bumped to 36: newer AndroidX libs (androidx.activity 1.11.0, androidx.core 1.18.0,
+          // compileSdk 36: newer AndroidX libs (androidx.activity 1.11.0, androidx.core 1.18.0,
           // pulled in transitively) require compiling against Android API 36+ (AAR metadata check).
-          // compileSdk (which APIs compile) is independent of targetSdk (runtime behavior opt-in),
-          // so target stays 35 — no new runtime behavior changes to re-test.
+          //
+          // targetSdk 36 as of 2026-09-20 (CODE_PROMPT_target_api36.md). Play rejected the
+          // play-internal AAB outright — "targets API level 35 and must target at least 36" — and
+          // the API-36 deadline (2026-08-31) applies to EVERY upload, internal testing included.
+          // This is not optional and there is no waiver track for it.
+          //
+          // targetSdk is the runtime-behavior opt-in, so raising it means Android 16 behavior now
+          // applies. The 35 → 36 delta is small HERE specifically because edge-to-edge was already
+          // enforced at 35 — 36 only removes the opt-out flag, which we never set. Insets are
+          // handled through react-native-safe-area-context, audited when this was raised. Verified
+          // on device after install, not just in config.
           compileSdkVersion: 36,
-          targetSdkVersion: 35,
+          targetSdkVersion: 36,
           minSdkVersion: 26,
         },
       },
