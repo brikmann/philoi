@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.philoi.app",
+      "sha256_cert_fingerprints": [
+        "14:C7:A6:A2:1A:55:36:C9:81:96:11:93:01:42:81:E8:43:D4:04:3F:85:CC:3F:17:AD:D1:F9:25:CC:09:01:19"
+      ]
+    }
+  }
+]
