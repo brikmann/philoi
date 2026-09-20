@@ -86,7 +86,8 @@
     "check:iap": "node ./scripts/check-iap-ids.js",
     "check:box-odds": "node ./scripts/check-box-odds.js",
     "check:live-activity": "node ./scripts/check-live-activity-attributes.js",
-    "check:focus-nudge": "node ./scripts/check-focus-nudge-shared.js"
+    "check:focus-nudge": "node ./scripts/check-focus-nudge-shared.js",
+    "check:google-services": "node ./scripts/check-google-services.js"
   },
   "private": true,
   "overrides": {
