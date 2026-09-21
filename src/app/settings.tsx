@@ -643,7 +643,12 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <DevTools devOverride={devOverride} setDevOverride={setDevOverride} groups={groups} />
+        <DevTools
+          devOverride={devOverride}
+          setDevOverride={setDevOverride}
+          groups={groups}
+          isDev={Boolean(profile?.is_dev)}
+        />
       </ScrollView>
 
       <FeedbackSheet visible={feedbackOpen} onClose={() => setFeedbackOpen(false)} />

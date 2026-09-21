@@ -24,13 +24,15 @@ type DevToolsProps = {
   devOverride: boolean;
   setDevOverride: (value: boolean) => void;
   groups: MyGroup[];
+  /** profiles.is_dev — shows the panel on a release build (internal testing) for dev accounts. */
+  isDev?: boolean;
 };
 
 // Everything here is callable by any authenticated user at the DB layer (see the
 // "dev tools" section in schema.sql) — this component just keeps them out of the UI real
 // users see, which is the actual safety boundary the spec asks for. The exception is "Revoke Flame
 // Pass", which refuses server-side unless profiles.is_dev (0195).
-export function DevTools({ devOverride, setDevOverride, groups }: DevToolsProps) {
+export function DevTools({ devOverride, setDevOverride, groups, isDev = false }: DevToolsProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   // Whether the tier buttons fire a within-tier bump instead of a crossing (RANKUP_SPEC §7b) —
@@ -38,7 +40,11 @@ export function DevTools({ devOverride, setDevOverride, groups }: DevToolsProps)
   // separate row of buttons.
   const [bumpOn, setBumpOn] = useState(false);
 
-  if (!__DEV__) return null;
+  // Dev builds, OR a dev account on a release build. Internal testing runs release binaries, where
+  // __DEV__ is false — gating on it alone hid "Revoke Flame Pass" from exactly the build the pass is
+  // re-tested on, and every re-test needed hand-run SQL. profiles.is_dev can't be self-granted
+  // (0196), and every action here only touches the caller's own data or refuses server-side.
+  if (!__DEV__ && !isDev) return null;
 
   async function run(label: string, fn: () => Promise<void>) {
     setBusy(label);
