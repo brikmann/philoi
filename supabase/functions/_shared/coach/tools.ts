@@ -610,10 +610,32 @@ export function anthropicTools() {
     name,
     description,
     input_schema,
-    // Guarantees `input` validates against the schema, so the client never has to defend against
-    // a missing `goal_type` on an action it is about to execute for real.
-    strict: true,
+    // `strict: true` REMOVED (2026-09-21). Strict/grammar-constrained tool use caps the TOTAL
+    // optional parameters across all tool schemas at 24; COACH_TOOLS sums to 33 (create_goals alone
+    // adds 13), so the API 400'd every Cindy turn: "too many optional parameters (33) ... limit: 24".
+    // Dropping strict lifts that cap with no change to what Cindy can do. The guarantee strict gave
+    // (input matches schema) is replaced by `autoInputIsValid` below, checked server-side before an
+    // action leaves this function — installed builds cast goal_type without checking it, so the
+    // guard cannot live in the client. Every non-auto tool is confirm-gated by the user.
   }));
+}
+
+/**
+ * Whether an `effect: 'auto'` action's input is safe to execute with no confirm. Stands in for the
+ * `strict` guarantee: without it the model can emit a goal_type outside the enum, and
+ * lock_in_sessions has no check constraint, so an unknown type would be written and then crash
+ * every installed build that renders it. Non-auto tools always pass — the user gates those.
+ */
+export function autoInputIsValid(tool: string, input: Record<string, unknown>): boolean {
+  if (effectFor(tool) !== 'auto') return true;
+  switch (tool) {
+    case 'start_session':
+      return typeof input.goal_type === 'string' && GOAL_TYPES.includes(input.goal_type);
+    case 'equip_cosmetic':
+      return typeof input.cosmetic_key === 'string' && input.cosmetic_key.trim() !== '';
+    default:
+      return true;
+  }
 }
 
 export function effectFor(toolName: string): ToolEffect {

@@ -21,7 +21,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 import { calendarPromptBlock, fetchCalendarWindow } from './gcal.ts';
 import { buildSystemPrompt, type CoachSurface } from './prompt.ts';
-import { anthropicTools, effectFor, summarizeAction, type ToolEffect } from './tools.ts';
+import { anthropicTools, autoInputIsValid, effectFor, summarizeAction, type ToolEffect } from './tools.ts';
 
 // ai-coach imports the surface type from here, not from prompt.ts.
 export type { CoachSurface };
@@ -235,6 +235,7 @@ export async function runCoach(input: RunCoachInput): Promise<CoachResult> {
 
   let text = '';
   let action: CoachAction | null = null;
+  let droppedAction = false;
 
   for (const block of response.content) {
     if (block.type === 'text') {
@@ -243,6 +244,13 @@ export async function runCoach(input: RunCoachInput): Promise<CoachResult> {
       // At most one action per turn — the prompt asks for one, and taking a second would mean
       // acting on something the user never saw a receipt for.
       const toolInput = block.input as Record<string, unknown>;
+      // Tools are not `strict` (see anthropicTools), so a malformed auto action is dropped here
+      // rather than executed on the device with no confirm.
+      if (!autoInputIsValid(block.name, toolInput)) {
+        console.warn('coach: dropped malformed auto action', block.name, JSON.stringify(toolInput));
+        droppedAction = true;
+        continue;
+      }
       action = {
         tool: block.name,
         input: toolInput,
@@ -253,7 +261,8 @@ export async function runCoach(input: RunCoachInput): Promise<CoachResult> {
   }
 
   return {
-    text: text.trim(),
+    // A turn that was only a (dropped) tool call would otherwise come back as an empty bubble.
+    text: text.trim() || (droppedAction && !action ? "I didn't quite catch that — can you say it another way?" : ''),
     action,
     intent: extractIntent(text, surface),
     usage: usageOf(response),
