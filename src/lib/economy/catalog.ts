@@ -540,8 +540,10 @@ const MEDALS: CatalogItem[] = [
 // ───────────────────────────── Forge Pass S1 · the Emberfall set ─────────────────────────────
 // Premium-track only, never in boxes, never re-issued (FORGE_PASS.md). Tagged `forge-pass-S1` so
 // §8.4's direct-buy filter excludes them automatically.
-
-const EMBERFALL_SET: CatalogItem[] = [
+//
+// Exported for the paywall's "N items to be unlocked" showcase (mock 200-v2), which renders this
+// array directly — so the count, the art and the grid can never drift from what the track grants.
+export const EMBERFALL_SET: CatalogItem[] = [
   item({ id: 'flame-emberfall', name: 'Emberfall Flame', type: 'FLAME', rarity: 'epic', acquisition: 'forge-pass-S1',
     lore: 'The season’s own colour. When it falls, it falls burning.',
     art: { kind: 'flame', from: '#8A2B00', to: '#FF9A3C' } }),
