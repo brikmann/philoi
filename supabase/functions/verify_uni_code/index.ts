@@ -5,6 +5,17 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { MAX_ATTEMPTS, hashCode, timingSafeEqual } from '../_shared/uni-code.ts';
 
+// DEV EXEMPTION (migration 0197) — the ONE pairing allowed to verify a campus email that another
+// account already holds, so Noah can re-verify a test account against his only real inbox. A
+// single object, not a list, on purpose: a second exemption is a second decision. Every field must
+// match (id, account email, campus email — case-insensitive) AND the caller must be is_dev. The
+// unique index carries the same id × address pair, so this cannot drift wider than the database.
+const DEV_UNI_EMAIL_EXEMPTION = {
+  userId: 'bebfadf0-a898-4724-991e-62506e451ec8',
+  account: 'spikeythedoge@gmail.com',
+  uni: 'brik8334@mylaurier.ca',
+} as const;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -72,7 +83,7 @@ Deno.serve(async (req) => {
     // campus from verifying them at the new one.
     const { data: profile } = await admin
       .from('profiles')
-      .select('university, university_domain')
+      .select('university, university_domain, is_dev')
       .eq('id', user.id)
       .maybeSingle();
     const expected = profile?.university_domain?.trim().toLowerCase() ?? '';
@@ -87,13 +98,23 @@ Deno.serve(async (req) => {
     // `ilike` rather than `eq`: `email` is already lowercased (line 25), but the column is plain
     // text and nothing forced older rows to be, so an exact match would miss a stored Brik8334@.
     // Same folding the unique index uses.
-    const { data: taken } = await admin
+    //
+    // The exempt pairing (0197) skips this check, and is also not counted as "taking" the address
+    // for anyone else — the unique index leaves that row out, so the pre-check must too or it would
+    // refuse what the database allows.
+    const isExempt =
+      user.id === DEV_UNI_EMAIL_EXEMPTION.userId &&
+      user.email?.trim().toLowerCase() === DEV_UNI_EMAIL_EXEMPTION.account &&
+      email === DEV_UNI_EMAIL_EXEMPTION.uni &&
+      profile?.is_dev === true;
+    let takenQuery = admin
       .from('profiles')
       .select('id')
       .eq('university_email_verified', true)
       .ilike('university_email', email)
-      .neq('id', user.id)
-      .maybeSingle();
+      .neq('id', user.id);
+    if (email === DEV_UNI_EMAIL_EXEMPTION.uni) takenQuery = takenQuery.neq('id', DEV_UNI_EMAIL_EXEMPTION.userId);
+    const { data: taken } = isExempt ? { data: null } : await takenQuery.maybeSingle();
     if (taken) {
       return json(
         { error: 'This school email is already linked to another Philoi account.', reason: 'email_taken' },
