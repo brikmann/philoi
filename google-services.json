@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "921536564136-80vof0106c78ve66gqi23cq0hcsa4iup.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.philoi.app",
+            "certificate_hash": "7dffea62fe8ea02af08385f115ba9bb4c2e47e03"
+          }
+        },
+        {
           "client_id": "921536564136-a1up91voavotk62kg5l24t1ja1uinbqc.apps.googleusercontent.com",
           "client_type": 3
         }
