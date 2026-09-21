@@ -24,7 +24,21 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 // ids or the amounts disagree. Run it before any store-facing release — a silent drift here is a
 // charged card and an empty account.
 const FORGE_PASS_PRODUCT_ID = 'app.philoi.forge_pass.season';
+//
+// Amounts are the TOTAL granted (base + bonus) — the Pouch sells as "500 +50 bonus" and credits 550.
 const EMBERS_BY_PRODUCT: Record<string, number> = {
+  'app.philoi.embers.remnant': 200,
+  'app.philoi.embers.pouch': 550,
+  'app.philoi.embers.chest': 1_200,
+  'app.philoi.embers.vault': 2_600,
+};
+
+// RETIRED ids, still honoured. The app no longer sells these, but a purchase can outlive the build
+// that started it — a PAYMENT_PENDING that clears days later, or someone on a build that predates the
+// re-cut — and an unknown id here means a charged card and an empty account. Each grants exactly
+// what it was sold as. Kept apart from EMBERS_BY_PRODUCT so `npm run check:iap` still pins the
+// sellable set to the app exactly; the check separately forbids an id from appearing in both.
+const LEGACY_EMBERS_BY_PRODUCT: Record<string, number> = {
   'app.philoi.embers.500': 500,
   'app.philoi.embers.1200': 1_200,
   'app.philoi.embers.2600': 2_600,
@@ -102,7 +116,7 @@ Deno.serve(async (req) => {
   }
 
   const isPass = productId === FORGE_PASS_PRODUCT_ID;
-  const embers = EMBERS_BY_PRODUCT[productId] ?? 0;
+  const embers = EMBERS_BY_PRODUCT[productId] ?? LEGACY_EMBERS_BY_PRODUCT[productId] ?? 0;
 
   if (!isPass && embers === 0) {
     // A product we don't recognise. Loud, because it almost certainly means a product id was

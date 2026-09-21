@@ -67,6 +67,15 @@ function parseWebhookPacks(src) {
   return out;
 }
 
+// ── webhook: LEGACY_EMBERS_BY_PRODUCT — retired ids the webhook still honours but nothing sells ──
+function parseWebhookLegacy(src) {
+  const block = src.match(/const LEGACY_EMBERS_BY_PRODUCT[^=]*=\s*\{([\s\S]*?)\};/);
+  const out = new Map();
+  if (!block) return out;
+  for (const m of block[1].matchAll(/'([^']+)'\s*:\s*([\d_]+)/g)) out.set(m[1], num(m[2]));
+  return out;
+}
+
 const grabConst = (src, name, file) => {
   const m = src.match(new RegExp(`${name}\\s*=\\s*'([^']+)'`));
   if (!m) throw new Error(`could not find ${name} in ${file}`);
@@ -82,6 +91,7 @@ const fail = (msg) => {
 const clientPacks = parseClientPacks(read(CLIENT));
 const webhookSrc = read(WEBHOOK);
 const webhookPacks = parseWebhookPacks(webhookSrc);
+const webhookLegacy = parseWebhookLegacy(webhookSrc);
 const clientPassId = grabConst(read(IAP), 'FORGE_PASS_PRODUCT_ID', 'iap.ts');
 const webhookPassId = grabConst(webhookSrc, 'FORGE_PASS_PRODUCT_ID', 'the webhook');
 
@@ -106,8 +116,16 @@ for (const id of webhookPacks.keys()) {
   if (!clientPacks.has(id)) fail(`"${id}" is in the webhook map but nothing in the app sells it`);
 }
 
+// Legacy ids are honoured, never sold. One in both maps would mean the webhook's lookup order
+// decides a price, and one the app still sells belongs in EMBERS_BY_PRODUCT, not here.
+for (const [id, embers] of webhookLegacy) {
+  if (webhookPacks.has(id)) fail(`"${id}" is in BOTH EMBERS_BY_PRODUCT and LEGACY_EMBERS_BY_PRODUCT`);
+  if (clientPacks.has(id)) fail(`"${id}" is marked legacy in the webhook but the app still sells it`);
+  if (!(embers > 0)) fail(`legacy "${id}" grants ${embers} — a retired id must still grant what it was sold as`);
+}
+
 // Prefix — catches the exact class of bug this script was written for (philoi.* vs app.philoi.*)
-for (const id of [...clientPacks.keys(), ...webhookPacks.keys(), clientPassId, webhookPassId]) {
+for (const id of [...clientPacks.keys(), ...webhookPacks.keys(), ...webhookLegacy.keys(), clientPassId, webhookPassId]) {
   if (!id.startsWith(REQUIRED_PREFIX)) fail(`"${id}" is missing the required "${REQUIRED_PREFIX}" prefix`);
 }
 

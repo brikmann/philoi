@@ -241,9 +241,10 @@ export default function ShopScreen() {
               disabled={busy}
               onPress={() => buy(pack.productId)}
               accessibilityRole="button"
+              // The TOTAL is what's read out and what lands — the base/bonus split is a visual.
               accessibilityLabel={`Buy ${pack.name}, ${formatEmbers(pack.embers)} embers${
-                prices[pack.productId] ? `, ${prices[pack.productId]}` : ''
-              }`}>
+                pack.bonus > 0 ? ` including a ${formatEmbers(pack.bonus)} bonus` : ''
+              }${prices[pack.productId] ? `, ${prices[pack.productId]}` : ''}`}>
               {pack.best ? (
                 <View style={styles.bestTag}>
                   <Text style={styles.bestTagText}>BEST</Text>
@@ -252,7 +253,12 @@ export default function ShopScreen() {
               <View style={styles.packLeft}>
                 <View style={styles.packAmtRow}>
                   <EmberIcon size={14} />
-                  <Text style={styles.packAmt}>{formatEmbers(pack.embers)}</Text>
+                  <Text style={styles.packAmt}>{formatEmbers(pack.base)}</Text>
+                  {pack.bonus > 0 ? (
+                    <View style={styles.bonusTag}>
+                      <Text style={styles.bonusTagText}>+{formatEmbers(pack.bonus)}</Text>
+                    </View>
+                  ) : null}
                 </View>
                 <Text style={styles.packSub}>{pack.name}</Text>
               </View>
@@ -478,6 +484,17 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.ember,
+  },
+  bonusTag: {
+    backgroundColor: Colors.achieverBg,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  bonusTagText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9,
+    color: Colors.achieverText,
   },
   packSub: {
     fontFamily: Fonts.body,

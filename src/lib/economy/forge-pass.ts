@@ -256,6 +256,22 @@ export const PASS_LEVELS: PassLevel[] = Array.from({ length: SEASON.totalLevels 
 });
 
 /**
+ * What the PREMIUM lane pays across the whole season, counted off the same tables the grant uses:
+ * Level 0's receipt plus every premium reward on levels 1–100. The paywall's earn summary renders
+ * this rather than a typed-in "2,000+", so a retune of PASS_LEVELS retunes the pitch with it.
+ * Prestige (post-100) is excluded — it's open-ended, and a total that depends on how long someone
+ * keeps playing isn't a number to advertise.
+ */
+export function premiumLaneTotals(): { embers: number; boxes: number; items: number } {
+  const rewards = [...LEVEL_ZERO_UNLOCK, ...PASS_LEVELS.flatMap((l) => l.premium)];
+  return {
+    embers: rewards.reduce((sum, r) => sum + (r.kind === 'embers' ? r.amount : 0), 0),
+    boxes: rewards.filter((r) => r.kind === 'box').length,
+    items: rewards.filter((r) => r.kind === 'item').length,
+  };
+}
+
+/**
  * Past 100 the track keeps paying every 5 levels (FORGE_PASS_SEASON1 §"Post-100 prestige loop") —
  * it keeps heavy users engaged through Dec 23 without needing a single new piece of art.
  *
@@ -344,9 +360,22 @@ export const CADENCE_RESET_HINT: Record<AchievementCadence, string> = {
 // offering's localized `priceString`, so a price set once in App Store Connect is correct in every
 // country with no code change — and, more importantly, the app can never display a price that
 // differs from what the card is actually charged.
+//
+// TIER-NAMED IDS (repack Part A). The id, the key and the display name all say the same tier, so a
+// product in the Play Console, a row in RevenueCat and a card in the shop can't be three different
+// words for one pack. The retired `.500/.1200/.2600/.7000` ids are gone from the app; the webhook
+// still HONOURS them (LEGACY_EMBERS_BY_PRODUCT) so a pending or stale-build purchase of one is never
+// "charged, granted nothing".
+export type EmberPackKey = 'remnant' | 'pouch' | 'chest' | 'vault';
+
 export type EmberPack = {
-  key: string;
+  key: EmberPackKey;
+  /** What the purchase GRANTS — base + bonus. This, not `base`, is what the webhook credits. */
   embers: number;
+  /** The headline amount before the bonus. Display only. */
+  base: number;
+  /** Extra embers on top of `base`, shown as a "+N bonus" tag. 0 = no tag. */
+  bonus: number;
   name: string;
   best?: boolean;
   /** App Store / Play product id. Must match RevenueCat + App Store Connect exactly. */
@@ -354,10 +383,10 @@ export type EmberPack = {
 };
 
 export const EMBER_PACKS: EmberPack[] = [
-  { key: 'remnant', embers: 500, name: 'Remnant', productId: 'app.philoi.embers.500' },
-  { key: 'pile', embers: 1_200, name: 'Pile', productId: 'app.philoi.embers.1200' },
-  { key: 'stack', embers: 2_600, name: 'Stack', best: true, productId: 'app.philoi.embers.2600' },
-  { key: 'hoard', embers: 7_000, name: 'Hoard', productId: 'app.philoi.embers.7000' },
+  { key: 'remnant', embers: 200, base: 200, bonus: 0, name: 'Remnant of Embers', productId: 'app.philoi.embers.remnant' },
+  { key: 'pouch', embers: 550, base: 500, bonus: 50, name: 'Pouch of Embers', productId: 'app.philoi.embers.pouch' },
+  { key: 'chest', embers: 1_200, base: 1_000, bonus: 200, name: 'Chest of Embers', productId: 'app.philoi.embers.chest' },
+  { key: 'vault', embers: 2_600, base: 2_000, bonus: 600, name: 'Vault of Embers', best: true, productId: 'app.philoi.embers.vault' },
 ];
 
 export const EMBER_PACK_BY_PRODUCT: Record<string, EmberPack> = Object.fromEntries(
