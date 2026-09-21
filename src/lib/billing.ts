@@ -90,49 +90,109 @@ export function isBillingConfigured(): boolean {
 
 let configured = false;
 
+// ─────────────────────────── Identity · the attribution guarantee ──────────────────────────
+//
+// Build 4's verified Pass purchase landed in RevenueCat under `$RCAnonymousID:…` and only reached
+// the right account because the dashboard's "Transfer to new App User ID" happened to alias it.
+// That is luck, not design: the webhook resolves the grant from `app_user_id`, and an anonymous id
+// resolves to NO profile — a charged card and nothing granted.
+//
+// The old shape made that window easy to hit. Identification was fire-and-forget from an effect, a
+// failed `logIn` was logged and never retried, and nothing made a purchase wait for it — so
+// sign-out's `logOut()` (which leaves the SDK anonymous), a slow network on session restore, or a
+// purchase tapped before `configure` resolved could all open the store sheet on an anonymous id.
+//
+// Now: every identity change runs on ONE serial chain (so a sign-out and the next sign-in can't
+// interleave), each step VERIFIES `getAppUserID()` afterwards rather than trusting the call, and the
+// purchase path calls ensureIdentified() and refuses to open the store sheet unless the SDK's user
+// IS the Supabase user. Attribution no longer depends on timing — an anonymous purchase can't start.
+
+/** The Supabase user RevenueCat SHOULD be identified as. null = signed out. */
+let desiredUserId: string | null = null;
+/** Serialises configure / logIn / logOut so they can never interleave. */
+let identityChain: Promise<unknown> = Promise.resolve();
+
+function enqueue<T>(step: () => Promise<T>): Promise<T> {
+  const run = identityChain.then(step, step);
+  // The chain must survive a failed step, or one network blip would wedge every later identity call.
+  identityChain = run.catch(() => undefined);
+  return run;
+}
+
 /**
- * Called once the user is known (see AuthProvider). The Supabase user id is passed as RevenueCat's
- * appUserID, which is what ties an entitlement to an ACCOUNT rather than to a device — without it,
- * reinstalling or switching phones would look like a different customer and the pass would appear
- * to vanish.
- *
- * Safe to call repeatedly: re-calling with the same id is a no-op, and a CHANGED id (a sign-out
- * then sign-in as someone else) logs the previous user out of RevenueCat first so entitlements
- * never bleed across accounts on a shared device.
+ * Make the SDK's appUserID equal `userId`, and say whether it actually is afterwards. Never throws:
+ * a billing failure must make purchases unavailable, not take the app down.
  */
-export async function configureBilling(userId: string | null): Promise<void> {
+async function identify(userId: string): Promise<boolean> {
   const key = apiKey();
   const rc = sdk();
-  if (!key || !userId || !rc) return;
+  if (!key || !rc) return false;
   const Purchases = rc.default;
-
   try {
-    if (configured) {
-      const current = await Purchases.getAppUserID();
-      if (current === userId) return;
+    if (!configured) {
+      if (__DEV__) await Purchases.setLogLevel(rc.LOG_LEVEL.DEBUG);
+      // appUserID at configure time means the SDK never mints an anonymous id for this session.
+      await Purchases.configure({ apiKey: key, appUserID: userId });
+      configured = true;
+    } else if ((await Purchases.getAppUserID()) !== userId) {
       await Purchases.logIn(userId);
-      return;
     }
-    if (__DEV__) await Purchases.setLogLevel(rc.LOG_LEVEL.DEBUG);
-    await Purchases.configure({ apiKey: key, appUserID: userId });
-    configured = true;
+    const current = await Purchases.getAppUserID();
+    if (current !== userId) {
+      console.warn(`[billing] identify: SDK is "${current}", not the Supabase user — purchases blocked`);
+      return false;
+    }
+    return true;
   } catch (e) {
-    // Billing failing to configure must never take the app down — it makes purchases unavailable,
-    // which every call site below already handles.
-    console.warn('[billing] configure failed', e);
+    console.warn('[billing] identify failed', e);
+    return false;
   }
+}
+
+/**
+ * Called once the user is known (see AuthProvider) — on sign-in AND on session restore, since both
+ * change the session's user id. The Supabase user id is RevenueCat's appUserID, which is what ties
+ * an entitlement to an ACCOUNT rather than a device: without it a reinstall or a new phone reads as
+ * a different customer and the Pass appears to vanish.
+ *
+ * Safe to call repeatedly; a CHANGED id (sign-out then sign-in as someone else) switches the SDK
+ * over, so entitlements never bleed across accounts on a shared device.
+ */
+export async function configureBilling(userId: string | null): Promise<void> {
+  if (!userId) return;
+  desiredUserId = userId;
+  await enqueue(() => identify(userId));
+}
+
+/**
+ * Resolve to true only when the SDK is identified as the signed-in Supabase user. Waits out any
+ * in-flight configure/logIn, and retries if the last attempt failed — the common failure is a
+ * `logIn` that died on a flaky connection at sign-in and was never tried again.
+ */
+export async function ensureIdentified(): Promise<boolean> {
+  const userId = desiredUserId;
+  if (!userId || !isBillingConfigured()) return false;
+  return enqueue(() => identify(userId));
 }
 
 /** Sign the user out of RevenueCat on app sign-out, so the next account starts clean. */
 export async function resetBilling(): Promise<void> {
+  desiredUserId = null;
   const rc = sdk();
-  if (!configured || !rc) return;
-  try {
-    await rc.default.logOut();
-  } catch {
-    // logOut throws for an anonymous user, which is a no-op condition, not an error.
-  }
+  if (!rc) return;
+  await enqueue(async () => {
+    if (!configured) return;
+    try {
+      await rc.default.logOut();
+    } catch {
+      // logOut throws for an already-anonymous user, which is a no-op condition, not an error.
+    }
+  });
 }
+
+/** Shown when a purchase is refused because the account link couldn't be confirmed. */
+const IDENTITY_MESSAGE =
+  'We couldn’t link this purchase to your account. Check your connection and try again — you haven’t been charged.';
 
 export type PurchaseOutcome =
   | { status: 'granted'; productId: string }
@@ -206,6 +266,12 @@ function diagnoseOffering(offering: PurchasesOffering | null): void {
 export async function fetchOffering(): Promise<PurchasesOffering | null> {
   const rc = sdk();
   if (!isBillingConfigured() || !rc) return null;
+  // Wait out configure before asking for offerings: on a cold start the paywall can mount before the
+  // auth effect's configure resolves, and getOfferings() on an unconfigured SDK throws — which used
+  // to surface as a paywall full of "—" prices. Not gated on the result: prices are safe to show
+  // unidentified; only the PURCHASE must be identified, and purchaseProduct checks that itself.
+  await ensureIdentified();
+  if (!configured) return null;
   try {
     const offerings = await rc.default.getOfferings();
     const current = offerings.current ?? null;
@@ -252,6 +318,13 @@ export async function findPackage(productId: string): Promise<PurchasesPackage |
 export async function purchaseProduct(productId: string): Promise<PurchaseOutcome> {
   if (!isBillingConfigured()) {
     return { status: 'unavailable', message: 'Purchases aren’t available in this build yet.' };
+  }
+
+  // THE ATTRIBUTION GATE. The store sheet only opens when RevenueCat is identified as this Supabase
+  // user — otherwise the purchase lands on an anonymous id the webhook can't resolve to anyone.
+  if (!(await ensureIdentified())) {
+    track('iap_purchase_blocked_unidentified', { product: productId });
+    return { status: 'unavailable', message: IDENTITY_MESSAGE };
   }
 
   const rc = sdk();
@@ -308,6 +381,11 @@ export async function restorePurchases(): Promise<{ restoredPass: boolean }> {
   if (!isBillingConfigured() || !rc) {
     throw new Error('Purchases aren’t available in this build yet.');
   }
+  // Same gate as a purchase: a restore run while anonymous would attach the Pass to the anonymous
+  // id, and "Transfer to new App User ID" is not something to lean on twice.
+  if (!(await ensureIdentified())) {
+    throw new Error('We couldn’t link to your account. Check your connection and try again.');
+  }
   const info = await rc.default.restorePurchases();
   const restoredPass = hasForgePass(info);
   track('iap_restore', { restored_pass: restoredPass });
@@ -322,6 +400,9 @@ export async function restorePurchases(): Promise<{ restoredPass: boolean }> {
 export async function storeSaysPassOwned(): Promise<boolean> {
   const rc = sdk();
   if (!isBillingConfigured() || !rc) return false;
+  // An anonymous SDK answers for the anonymous customer, not this account — asking it would either
+  // miss a Pass the account owns or report one it doesn't.
+  if (!(await ensureIdentified())) return false;
   try {
     return hasForgePass(await rc.default.getCustomerInfo());
   } catch {

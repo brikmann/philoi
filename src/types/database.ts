@@ -948,6 +948,7 @@ export type AnalyticsEventName =
   | 'iap_purchase_completed'
   | 'iap_purchase_cancelled'
   | 'iap_purchase_failed'
+  | 'iap_purchase_blocked_unidentified'
   | 'iap_restore'
   | 'iap_reconciled'
   | 'signed_up'
