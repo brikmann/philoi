@@ -205,7 +205,7 @@ export default function ShopScreen() {
         </Text>
 
         {/* ── The six boxes ── */}
-        <SectionLabel label="Loot boxes" action="Tap for odds" />
+        <SectionLabel label="Loot boxes" />
         {/* First visit to the Shop (CODE_PROMPT_coach_marks.md). Anchored on the crate row rather
             than on an "Open ×N" button, because that button lives one screen deeper on
             shop/box/[boxKey] — the tip has to point at a control that is actually on this screen,
