@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     // no separate ownership check needed beyond that.
     const { data: challenge, error: challengeError } = await userClient
       .from('challenges')
-      .select('id, type, period_start, completed_at')
+      .select('id, type, period_start, created_at, completed_at')
       .eq('id', challengeId)
       .single();
     if (challengeError || !challenge) return json({ error: 'Challenge not found.' }, 404);
@@ -81,7 +81,13 @@ Deno.serve(async (req) => {
 
     // Strava paginates at up to 200/page; two pages comfortably covers a day/week challenge
     // window without needing full pagination handling for this pass.
-    const after = Math.floor(new Date(challenge.period_start).getTime() / 1000);
+    // A goal counts from the moment it was set (Noah, 0199): the window opens at the LATER of the
+    // period start and the goal's creation, so a run logged on Monday cannot fill a goal made on
+    // Thursday. Both reads below use this one instant, so the delta stays like-for-like — and the
+    // already-synced sum is scoped to it too. It used to be all-time, which on a recurring goal let
+    // earlier periods' logs outweigh the new period's total and silently stopped the sync.
+    const windowStart = new Date(Math.max(new Date(challenge.period_start).getTime(), new Date(challenge.created_at).getTime()));
+    const after = Math.floor(windowStart.getTime() / 1000);
     const before = Math.floor(Date.now() / 1000);
     let totalMeters = 0;
     for (const page of [1, 2]) {
@@ -99,7 +105,7 @@ Deno.serve(async (req) => {
     }
     const totalKm = totalMeters / 1000;
 
-    const { data: logs } = await userClient.from('challenge_logs').select('amount').eq('challenge_id', challengeId).eq('note', SYNC_NOTE);
+    const { data: logs } = await userClient.from('challenge_logs').select('amount').eq('challenge_id', challengeId).eq('note', SYNC_NOTE).gte('created_at', windowStart.toISOString());
     const alreadySynced = (logs ?? []).reduce((sum: number, row: { amount: number }) => sum + Number(row.amount), 0);
     const delta = Math.round((totalKm - alreadySynced) * 100) / 100;
     if (delta <= 0) return json({ synced: 0 });

@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     // no separate ownership check needed beyond that.
     const { data: challenge, error: challengeError } = await userClient
       .from('challenges')
-      .select('id, type, period_start, completed_at')
+      .select('id, type, period_start, created_at, completed_at')
       .eq('id', challengeId)
       .single();
     if (challengeError || !challenge) return json({ error: 'Challenge not found.' }, 404);
@@ -166,7 +166,13 @@ Deno.serve(async (req) => {
         .eq('user_id', user.id);
     }
 
-    const start = new Date(challenge.period_start).toISOString();
+    // A goal counts from the moment it was set (Noah, 0199): the window opens at the LATER of the
+    // period start and the goal's creation, so a run logged on Monday cannot fill a goal made on
+    // Thursday. Both reads below use this one instant, so the delta stays like-for-like — and the
+    // already-synced sum is scoped to it too. It used to be all-time, which on a recurring goal let
+    // earlier periods' logs outweigh the new period's total and silently stopped the sync.
+    const windowStart = new Date(Math.max(new Date(challenge.period_start).getTime(), new Date(challenge.created_at).getTime()));
+    const start = windowStart.toISOString();
     const end = new Date().toISOString();
     let total = 0;
     let nextToken: string | null = null;
@@ -191,7 +197,7 @@ Deno.serve(async (req) => {
     // amount, so re-submitting the whole window's cumulative total every time would compound.
     // Read back what THIS mechanism already logged (tagged with its own note) and submit only the
     // difference — through the exact same RPC a manual log uses.
-    const { data: logs } = await userClient.from('challenge_logs').select('amount').eq('challenge_id', challengeId).eq('note', SYNC_NOTE);
+    const { data: logs } = await userClient.from('challenge_logs').select('amount').eq('challenge_id', challengeId).eq('note', SYNC_NOTE).gte('created_at', windowStart.toISOString());
     const alreadySynced = (logs ?? []).reduce((sum: number, row: { amount: number }) => sum + Number(row.amount), 0);
     const factor = 10 ** metric.precision;
     const delta = Math.round((total - alreadySynced) * factor) / factor;
