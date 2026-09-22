@@ -18,8 +18,19 @@ import { BOXES, type BoxKey } from '@/lib/economy/boxes';
 import { TYPE_FILTERS, itemsOfType, type ItemType } from '@/lib/economy/catalog';
 import { badgeLabel } from '@/lib/economy/badges';
 import { FORGE_LADDER, isForgeFuel } from '@/lib/economy/forge';
-import { SORT_LABEL, SORT_MODES, loadSortMode, saveSortMode, sortOwned, type SortMode } from '@/lib/economy/inventory-sort';
-import { RARITY_COLOR, type Rarity } from '@/lib/economy/rarity';
+import {
+  SORT_LABEL,
+  SORT_MODES,
+  isRaritySort,
+  loadSortMode,
+  rarityFilterLabel,
+  rarityFilterOf,
+  saveSortMode,
+  sortOwned,
+  withRarityFilter,
+  type SortMode,
+} from '@/lib/economy/inventory-sort';
+import { RARITIES, RARITY_COLOR, RARITY_LABEL, type Rarity } from '@/lib/economy/rarity';
 
 // Inventory + Equip (mock 67, 21a/21i). Opens on a live LOADOUT preview — the equipped card, halo,
 // flame and title composed the way other people actually see you — because that's what makes an
@@ -53,13 +64,27 @@ export default function InventoryScreen() {
     void saveSortMode(mode);
   }
 
-  const shown = useMemo(
-    () => sortOwned(filter === 'ALL' ? owned : owned.filter((i) => i.type === filter), sort),
-    [owned, filter, sort]
+  // Split in two because the tier row has to count against the type filter WITHOUT the rarity
+  // filter applied — counting against `shown` would leave every chip but the selected one reading
+  // zero, which is the one thing a count on a filter chip must never do.
+  const ofType = useMemo(
+    () => (filter === 'ALL' ? owned : owned.filter((i) => i.type === filter)),
+    [owned, filter]
   );
+  const shown = useMemo(() => sortOwned(ofType, sort), [ofType, sort]);
+
+  const pinnedRarity = rarityFilterOf(sort);
+  const rarityCounts = useMemo(() => {
+    const counts = new Map<Rarity, number>();
+    for (const item of ofType) counts.set(item.rarity, (counts.get(item.rarity) ?? 0) + 1);
+    return counts;
+  }, [ofType]);
 
   // "6 of 7 Flames owned" — the completion line under the grid. Only meaningful on a single type.
-  const ownedOfType = filter === 'ALL' ? null : `${shown.length} of ${itemsOfType(filter).length} ${filter.toLowerCase()}s owned`;
+  // `ofType`, not `shown`: with a tier pinned those differ, and "3 of 7 flames owned" while the
+  // grid is narrowed to Epics would be counting one thing and naming another.
+  const ownedOfType =
+    filter === 'ALL' ? null : `${ofType.length} of ${itemsOfType(filter).length} ${filter.toLowerCase()}s owned`;
 
   // What the Forge could take, and the best rung it could actually complete. Computed off `owned`
   // rather than `shown` on purpose: the Forge does not care which category chip is active, and a
@@ -146,12 +171,18 @@ export default function InventoryScreen() {
             <Text style={styles.sortLabel}>Sort</Text>
             <View style={styles.segment}>
               {SORT_MODES.map((mode) => {
-                const on = sort === mode;
+                // `rarity:epic` is still the Rarity position — the segment says which QUESTION is
+                // being asked, and the tier row below says how narrowly.
+                const on = mode === 'rarity' ? isRaritySort(sort) : sort === mode;
                 return (
                   <Pressable
                     key={mode}
                     style={[styles.segmentBtn, on && styles.segmentBtnOn]}
-                    onPress={() => chooseSort(mode)}
+                    // Guarded rather than unconditional so tapping the lit "Rarity" keeps whatever
+                    // tier is pinned instead of quietly resetting it to all.
+                    onPress={() => {
+                      if (!on) chooseSort(mode);
+                    }}
                     accessibilityRole="button"
                     accessibilityState={{ selected: on }}
                     accessibilityLabel={`Sort by ${SORT_LABEL[mode].toLowerCase()}`}>
@@ -163,16 +194,63 @@ export default function InventoryScreen() {
           </View>
         ) : null}
 
+        {/* ── The tier row ──
+            Only under the Rarity segment, which is what keeps it from being an eighth category
+            chip competing with the type strip: you ask for rarity first, then say how narrowly.
+            Mythic→down, matching the direction the unpinned sort already runs in, so the row reads
+            in the same order as the grid it filters.
+
+            Every tier is always listed, including ones you own nothing of, and each carries its
+            count. A row that hid empty tiers would reshuffle under your thumb every time the type
+            chip changed — and "Mythic · 0" is the answer to the question being asked, not a dead
+            control. Those dim, but stay tappable: the empty state below names the tier. */}
+        {owned.length > 1 && isRaritySort(sort) ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tierChips}>
+            <TierChip
+              label="All"
+              count={ofType.length}
+              color={Colors.muted}
+              on={pinnedRarity === null}
+              onPress={() => chooseSort(withRarityFilter(null))}
+            />
+            {[...RARITIES].reverse().map((r) => (
+              <TierChip
+                key={r}
+                label={RARITY_LABEL[r]}
+                count={rarityCounts.get(r) ?? 0}
+                color={RARITY_COLOR[r]}
+                on={pinnedRarity === r}
+                onPress={() => chooseSort(withRarityFilter(r))}
+              />
+            ))}
+          </ScrollView>
+        ) : null}
+
         {/* ── Owned grid ── */}
         {loading ? <Text style={styles.hint}>Loading…</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {!loading && shown.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Nothing here yet.</Text>
-            <Text style={styles.emptyBody}>
-              Win challenges, climb the Flame Pass, or open a box — everything you own lands here.
-            </Text>
+            {/* A pinned tier with nothing in it is not an empty inventory, and saying "nothing here
+                yet" to someone holding 40 items would read as a bug in the grid rather than as an
+                answer about Mythics. */}
+            {pinnedRarity ? (
+              <>
+                <Text style={styles.emptyTitle}>No {rarityFilterLabel(pinnedRarity)} yet.</Text>
+                <Text style={styles.emptyBody}>
+                  Nothing you own sits at this tier{filter === 'ALL' ? '' : ` under ${filter.toLowerCase()}s`} — pick
+                  another tier above, or forge your spares upward.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.emptyTitle}>Nothing here yet.</Text>
+                <Text style={styles.emptyBody}>
+                  Win challenges, climb the Flame Pass, or open a box — everything you own lands here.
+                </Text>
+              </>
+            )}
             <Pressable style={styles.emptyCta} onPress={() => router.push('/shop')}>
               <Text style={styles.emptyCtaText}>Open the Shop</Text>
             </Pressable>
@@ -392,6 +470,44 @@ function ItemTile({
   );
 }
 
+/**
+ * One tier in the rarity row, painted in that tier's own colour.
+ *
+ * The colour is the point: RARITY_COLOR is how every other surface in the economy says "epic", so
+ * a monochrome filter row would be the one place a user has to read the word instead of seeing it.
+ * A zero count dims the chip without disabling it — tapping through to "No mythics yet" is a real
+ * answer, and a control that refuses the tap leaves you guessing whether you missed.
+ */
+function TierChip({
+  label,
+  count,
+  color,
+  on,
+  onPress,
+}: {
+  label: string;
+  count: number;
+  color: string;
+  on: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[
+        styles.tierChip,
+        count === 0 && !on && styles.tierChipEmpty,
+        on && { borderColor: color, backgroundColor: Colors.selectedBg },
+      ]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: on }}
+      accessibilityLabel={`${label}, ${count} owned`}>
+      <Text style={[styles.tierChipText, { color: on ? color : Colors.muted }]}>{label}</Text>
+      <Text style={[styles.tierChipCount, on && { color }]}>{count}</Text>
+    </Pressable>
+  );
+}
+
 function stripQuotes(name: string): string {
   return name.replace(/^"|"$/g, '');
 }
@@ -505,6 +621,34 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
     color: Colors.muted,
+  },
+  tierChips: {
+    gap: 6,
+    paddingBottom: Spacing.two,
+  },
+  tierChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: Radius.pill,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    backgroundColor: Colors.cardDark,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+  },
+  tierChipEmpty: {
+    opacity: 0.4,
+  },
+  tierChipText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9.5,
+    letterSpacing: 0.5,
+  },
+  tierChipCount: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9.5,
+    color: Colors.textTertiary,
   },
   sortRow: {
     flexDirection: 'row',
