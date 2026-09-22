@@ -8,6 +8,7 @@ import { ForgeStrike, FORGE_STRIKE_BLOCK_H } from '@/components/economy/forge-st
 import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { EmberFill } from '@/components/ui/ember-fill';
 import { Screen } from '@/components/ui/screen';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -286,6 +287,17 @@ function ForgeFlow() {
                     ? `${stepRecipeLabel(s)}, closed — you own every ${s.into}`
                     : `${stepRecipeLabel(s)}, you have ${have}`
                 }>
+                {/* §3 · THE LIT RUNG IS THE EMBER GRADIENT, NOT FLAT ORANGE. It was an amber
+                    hairline around a warm tint — the same drift the campfire bubbles had, one flat
+                    `#F2A33C` standing in for a fill the design language paints in three stops.
+                    Painted UNDERNEATH via absoluteFill rather than as the Pressable's background
+                    because the tab keeps its own border and dead-rung dimming on top; `overflow`
+                    on `tab` is what clips the gradient to the card corner. */}
+                {on && (
+                  <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                    <EmberFill style={styles.fill} radius={Radius.card} direction="diagonal" />
+                  </View>
+                )}
                 <Text style={[styles.tabText, on && styles.tabTextOn]}>{stepTabLabel(s)}</Text>
               </Pressable>
             );
@@ -411,9 +423,9 @@ function ForgeFlow() {
                       Saying so on the tile is the only warning there is going to be. */}
                   {item.equipped ? <Text style={styles.cellWorn}>WORN</Text> : null}
                   {on ? (
-                    <View style={styles.cellTick}>
+                    <EmberFill style={styles.cellTick} radius={8}>
                       <Text style={styles.cellTickText}>✓</Text>
-                    </View>
+                    </EmberFill>
                   ) : null}
                 </Pressable>
               );
@@ -434,6 +446,16 @@ function ForgeFlow() {
           onPress={onForge}
           disabled={!ready || busy}
           accessibilityRole="button">
+          {/* §3 · the primary action is the gradient. This was a flat `Colors.coral` — which is
+              EMBER_GRADIENT's first stop standing in for all three — under a near-black label that
+              was already written for the lit treatment. Underlaid rather than swapped for
+              <PrimaryButton/> because this button carries the forge glyph and the coach-mark ref,
+              neither of which that component takes. */}
+          {ready && !busy && (
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <EmberFill style={styles.fill} radius={14} direction="diagonal" />
+            </View>
+          )}
           <PhiloiIcon name="forge" size={18} color={ready && !busy ? Colors.onEmber : Colors.textTertiary} />
           <Text style={[styles.primaryBtnText, (!ready || busy) && styles.primaryBtnTextOff]}>
             {busy
@@ -510,11 +532,11 @@ function ForgeReveal({
         <ItemArt item={item} size={140} />
       </View>
       <View style={styles.heroBody}>
-        <View style={styles.forgedTag}>
+        <EmberFill style={styles.forgedTag} radius={Radius.pill}>
           <Text style={styles.forgedTagText}>
             FORGED · {result.consumed} × {result.input_rarity.toUpperCase()}
           </Text>
-        </View>
+        </EmberFill>
         <Text style={styles.heroName}>{item.name}</Text>
         <RarityLabel rarity={item.rarity} type={item.type} size={10} />
         <View style={styles.previewRow}>
@@ -541,6 +563,9 @@ function ForgeReveal({
       <View style={styles.revealCtas}>
         {item.slot ? (
           <Pressable style={styles.primaryBtn} onPress={onEquip} disabled={equipping}>
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <EmberFill style={styles.fill} radius={14} direction="diagonal" />
+            </View>
             <Text style={styles.primaryBtnText}>
               {equipping ? 'Equipping…' : `Equip ${item.type.toLowerCase()}`}
             </Text>
@@ -598,10 +623,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardDark,
     borderWidth: 1,
     borderColor: Colors.line,
+    // Clips the lit rung's gradient underlay to the card corner.
+    overflow: 'hidden',
   },
   tabOn: {
-    borderColor: Colors.amber,
-    backgroundColor: Colors.achieverBg,
+    borderColor: Colors.ember,
   },
   // A rung with no way to fill it reads as dimmed rather than hidden — the ladder is the ladder,
   // and a missing tab would be a lie about the design.
@@ -613,8 +639,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Colors.textTertiary,
   },
+  // Near-black ON the gradient, the same pairing every lit ember surface uses — the old light
+  // `Colors.ember` label was readable over a tint and would vanish into the fill's top stop.
   tabTextOn: {
-    color: Colors.ember,
+    color: Colors.onEmber,
   },
   recipe: {
     backgroundColor: Colors.cardDark,
@@ -660,7 +688,7 @@ const styles = StyleSheet.create({
   arrow: {
     fontFamily: Fonts.bodyBold,
     fontSize: 16,
-    color: Colors.amber,
+    color: Colors.ember,
     marginHorizontal: 2,
   },
   out: {
@@ -679,11 +707,11 @@ const styles = StyleSheet.create({
   recipeHint: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
-    color: Colors.amber,
+    color: Colors.ember,
     marginTop: Spacing.twelve,
     textAlign: 'center',
   },
-  // A closed rung drops out of ember: the amber line is the call to action, and "you own every Epic"
+  // A closed rung drops out of ember: the lit line is the call to action, and "you own every Epic"
   // is not one. It is information, and it should read at the weight of information.
   recipeHintShut: {
     color: Colors.textTertiary,
@@ -735,7 +763,7 @@ const styles = StyleSheet.create({
     padding: Spacing.one,
   },
   cellOn: {
-    borderColor: Colors.amber,
+    borderColor: Colors.ember,
     backgroundColor: Colors.selectedBg,
   },
   // Not disabled — still tappable to no effect would be confusing, so it dims to say "the recipe is
@@ -753,7 +781,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 6.5,
     letterSpacing: 0.6,
-    color: Colors.amber,
+    color: Colors.ember,
   },
   cellTick: {
     position: 'absolute',
@@ -762,7 +790,6 @@ const styles = StyleSheet.create({
     width: 15,
     height: 15,
     borderRadius: 8,
-    backgroundColor: Colors.amber,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -844,9 +871,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.coral,
     borderRadius: 14,
     paddingVertical: 14,
+    // No backgroundColor: enabled, the gradient underlay is the fill (and paints its own solid
+    // mid-ember before the first layout pass, so there is never a transparent frame); disabled,
+    // primaryBtnOff supplies the flat grey.
+    overflow: 'hidden',
+  },
+  // The gradient underlay itself — absoluteFill positions it, this just makes it fill that box.
+  fill: {
+    flex: 1,
   },
   primaryBtnOff: {
     backgroundColor: Colors.disabled,
@@ -931,7 +965,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   forgedTag: {
-    backgroundColor: Colors.amber,
     borderRadius: Radius.pill,
     paddingHorizontal: 9,
     paddingVertical: 2,
