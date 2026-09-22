@@ -380,15 +380,32 @@ export type EmberPack = {
   best?: boolean;
   /** App Store / Play product id. Must match RevenueCat + App Store Connect exactly. */
   productId: string;
+  /**
+   * Play-only store id when it differs from `productId` (the App Store keeps `productId`).
+   *
+   * Vault's Play id had to become `.vault2` after the original `.vault` got stuck as a soft-deleted
+   * RevenueCat ghost that Import skips and "+ New" rejects; iOS still sells `.vault`. Resolve the id
+   * for the running store with `storeProductId()` in iap.ts — never read `productId` directly at a
+   * purchase or price call site, or Android asks the store for an id it does not sell.
+   */
+  productIdAndroid?: string;
 };
 
 export const EMBER_PACKS: EmberPack[] = [
   { key: 'remnant', embers: 200, base: 200, bonus: 0, name: 'Remnant of Embers', productId: 'app.philoi.embers.remnant' },
   { key: 'pouch', embers: 550, base: 500, bonus: 50, name: 'Pouch of Embers', productId: 'app.philoi.embers.pouch' },
   { key: 'chest', embers: 1_200, base: 1_000, bonus: 200, name: 'Chest of Embers', productId: 'app.philoi.embers.chest' },
-  { key: 'vault', embers: 2_600, base: 2_000, bonus: 600, name: 'Vault of Embers', best: true, productId: 'app.philoi.embers.vault' },
+  { key: 'vault', embers: 2_600, base: 2_000, bonus: 600, name: 'Vault of Embers', best: true, productId: 'app.philoi.embers.vault', productIdAndroid: 'app.philoi.embers.vault2' },
 ];
 
+/**
+ * Every store id the app might be handed back, mapped to its pack — BOTH platforms' ids, because
+ * this is the *reverse* direction. purchase-success reads whatever id the store just charged, and on
+ * Android that is `app.philoi.embers.vault2`; a map built from `productId` alone would show the
+ * success screen a pack it could not name.
+ */
 export const EMBER_PACK_BY_PRODUCT: Record<string, EmberPack> = Object.fromEntries(
-  EMBER_PACKS.map((p) => [p.productId, p])
+  EMBER_PACKS.flatMap((p) =>
+    (p.productIdAndroid ? [p.productId, p.productIdAndroid] : [p.productId]).map((id) => [id, p])
+  )
 );

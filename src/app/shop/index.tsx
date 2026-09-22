@@ -17,7 +17,7 @@ import { BOX_LIST } from '@/lib/economy/boxes';
 import { boxPool, type CatalogItem } from '@/lib/economy/catalog';
 import { EMBER_PACKS, PASS_FINE_PRINT, SEASON, levelFromXp, passOnSale, seasonPhase } from '@/lib/economy/forge-pass';
 import { DIRECT_BUY_PRICE } from '@/lib/economy/rarity';
-import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
+import { FORGE_PASS_PRODUCT_ID, storeProductId } from '@/lib/economy/iap';
 import { useAuth } from '@/lib/auth/auth-context';
 import { formatWeekCountdown, nextWeekReset, weekIndex } from '@/lib/time/week';
 import { isBillingConfigured } from '@/lib/billing';
@@ -239,12 +239,14 @@ export default function ShopScreen() {
               key={pack.key}
               style={[styles.pack, pack.best && styles.packBest, busy && styles.packBusy, !billingLive && styles.packOff]}
               disabled={busy}
-              onPress={() => buy(pack.productId)}
+              // storeProductId, not pack.productId: vault's Play id is `.vault2`, and asking the
+              // store for the iOS id on Android finds no package and refuses the sale.
+              onPress={() => buy(storeProductId(pack))}
               accessibilityRole="button"
               // The TOTAL is what's read out and what lands — the base/bonus split is a visual.
               accessibilityLabel={`Buy ${pack.name}, ${formatEmbers(pack.embers)} embers${
                 pack.bonus > 0 ? ` including a ${formatEmbers(pack.bonus)} bonus` : ''
-              }${prices[pack.productId] ? `, ${prices[pack.productId]}` : ''}`}>
+              }${prices[storeProductId(pack)] ? `, ${prices[storeProductId(pack)]}` : ''}`}>
               {pack.best ? (
                 <View style={styles.bestTag}>
                   <Text style={styles.bestTagText}>BEST</Text>
@@ -265,7 +267,7 @@ export default function ShopScreen() {
               <View style={styles.packPrice}>
                 {/* An em-dash until the store answers. Deliberately NOT a hardcoded fallback: a
                     literal that disagrees with the real charge is worse than a blank. */}
-                <Text style={styles.packPriceText}>{prices[pack.productId] ?? '—'}</Text>
+                <Text style={styles.packPriceText}>{prices[storeProductId(pack)] ?? '—'}</Text>
               </View>
             </Pressable>
           ))}

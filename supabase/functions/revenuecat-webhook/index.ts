@@ -30,7 +30,12 @@ const EMBERS_BY_PRODUCT: Record<string, number> = {
   'app.philoi.embers.remnant': 200,
   'app.philoi.embers.pouch': 550,
   'app.philoi.embers.chest': 1_200,
-  'app.philoi.embers.vault': 2_600,
+  // Vault sells under two ids. The App Store keeps the original; Play had to be re-cut as `.vault2`
+  // because `.vault` is stuck as a soft-deleted RevenueCat ghost on the Play app that Import skips
+  // and "+ New" rejects. Both are LIVE and sellable — this is not a legacy id, which is why they
+  // sit here and not in LEGACY_EMBERS_BY_PRODUCT.
+  'app.philoi.embers.vault': 2_600,   // iOS / App Store
+  'app.philoi.embers.vault2': 2_600,  // Android / Play
 };
 
 // RETIRED ids, still honoured. The app no longer sells these, but a purchase can outlive the build

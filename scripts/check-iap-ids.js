@@ -53,7 +53,15 @@ function parseClientPacks(src) {
     if (!row.includes('productId')) continue;
     const embers = row.match(/embers:\s*([\d_]+)/);
     const id = row.match(/productId:\s*'([^']+)'/);
-    if (embers && id) out.set(id[1], num(embers[1]));
+    // A pack may sell under a second, Play-only id (`productIdAndroid`) when the two stores can't
+    // agree on one — vault is `.vault` on iOS and `.vault2` on Play. Both are real ids a real
+    // purchase can arrive under, so both must be in the webhook map for the same amount, and the
+    // bidirectional check below is what enforces that.
+    const idAndroid = row.match(/productIdAndroid:\s*'([^']+)'/);
+    if (embers && id) {
+      out.set(id[1], num(embers[1]));
+      if (idAndroid) out.set(idAndroid[1], num(embers[1]));
+    }
   }
   return out;
 }
