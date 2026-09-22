@@ -18,7 +18,7 @@ import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { useActiveSession } from '@/lib/active-session-context';
 import { useEquipped } from '@/lib/economy/loadout';
-import { HexagonBadge } from '@/components/hexagon-badge';
+import { RankBadge } from '@/components/rank-badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { TabHeader } from '@/components/ui/tab-header';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
@@ -34,9 +34,11 @@ import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import { formatRankTier, formatXpProgress, xpProgressRatio } from '@/lib/rank-tiers';
 import type { MyRank, Profile } from '@/types/database';
 
-// The halo ring sits OUTSIDE the 60px avatar, so its box is the avatar plus room for the ring.
-// Kept next to the avatar style it has to agree with.
-const AVATAR_HALO_SIZE = 72;
+// The avatar's own diameter — which is exactly what EquippedAvatarHalo's `size` means. It adds
+// the ring's reach on top itself, so passing the padded box here made the halo hug a phantom
+// 72px face and inflate its box to ~102px, bleeding past the identity block. One constant now
+// feeds both the halo and the image style, so the two cannot drift apart again.
+const AVATAR_SIZE = 60;
 
 // design-mocks/15 (PHILOI_UI_SPEC.md §18). Doubles as the "Profile" tab (own profile, no
 // params) and a pushed view of someone else's profile (?userId=...) — no other screen
@@ -157,7 +159,7 @@ export default function ProfileScreen() {
             never a bare surface even for someone who has never opened the shop. */}
         <EquippedCardBackdrop cardId={cardId} auraTier={auraTier}>
         <View style={styles.id}>
-          <EquippedAvatarHalo haloId={haloId} size={AVATAR_HALO_SIZE} auraTier={auraTier}>
+          <EquippedAvatarHalo haloId={haloId} size={AVATAR_SIZE} auraTier={auraTier}>
             {profile.avatar_url ? (
               <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
             ) : (
@@ -205,7 +207,7 @@ export default function ProfileScreen() {
 
         {universalRank && !('muted' in universalRank && universalRank.muted) && (
           <View style={styles.rank}>
-            <HexagonBadge tier={universalRank.tier} division={universalRank.division} size={40} />
+            <RankBadge tier={universalRank.tier} division={universalRank.division} size={40} />
             <View style={styles.rk}>
               <View style={styles.rkTop}>
                 <Text style={styles.rkTier}>{formatRankTier(universalRank.tier, universalRank.division)}</Text>
@@ -390,20 +392,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
   },
+  // Padded INSIDE the equipped card rather than nudged down by a top margin: the card clips to
+  // its own bounds, so a margin only pushed the row off-centre and left the name flush against
+  // the border. The gap is 12 rather than 16 because the halo already carries its own ring reach
+  // as whitespace — 16 on top of that read as a hole between the face and the name.
   id: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    marginTop: 6,
+    gap: Spacing.twelve,
+    padding: Spacing.twelve,
   },
   idInfo: {
     flex: 1,
     gap: 1,
   },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
   },
   avatarFallback: {
     backgroundColor: Colors.achieverBg,
