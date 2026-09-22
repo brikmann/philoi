@@ -126,3 +126,22 @@ export function startEquippedAmbient(): void {
 export function stopEquippedAmbient(): void {
   stopAmbientLoop();
 }
+
+/**
+ * Switch what this session is playing, right now — the in-session music sheet's one entry point.
+ *
+ * Setting the choice alone would not be heard: nothing re-reads `sessionAudioChoice`, because it is
+ * module state and not a React value. LoadoutSync's effect covers the two transitions it CAN see
+ * (the session starting/ending, and the equipped item changing); a mid-session pick is neither, so
+ * it applies itself here.
+ *
+ * The stop branch is not an optimisation — `startEquippedAmbient` RETURNS EARLY on a null id rather
+ * than stopping, which is right for its own callers (an equipped-but-unmixed item must leave the
+ * current loop alone instead of cutting to silence) and wrong for an explicit "None — my own
+ * music". Choosing silence has to actually silence it.
+ */
+export function applySessionAudioChoice(choice: string | undefined): void {
+  setSessionAudioChoice(choice);
+  if (sessionAmbientId() === null) stopEquippedAmbient();
+  else startEquippedAmbient();
+}

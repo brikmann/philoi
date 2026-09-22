@@ -73,6 +73,7 @@ import { shareFireCompleteStory } from '@/lib/fire-share-card';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
 import { deriveRankUpLevel } from '@/lib/rank-watch';
 import { isRankUp } from '@/lib/rank-tiers';
+import { SessionAudioSheet } from '@/components/economy/session-audio-sheet';
 import { clearSessionAudioChoice, playEquippedSfx, stopEquippedAmbient } from '@/lib/economy/equipped-audio';
 import { fireIgnite } from '@/lib/reward-feedback';
 
@@ -193,6 +194,10 @@ function LockInScreen() {
   const [startStalled, setStartStalled] = useState(false);
   const [photos, setPhotos] = useState<{ id: string; uri: string }[]>([]);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  // The in-session music swap (CODE_PROMPT_lockin_audio_midsession_switch.md §C). Mounted only
+  // while open: the sheet reads the inventory to list the environments you own, and a live session
+  // should not be paying for that fetch on a screen you might never touch.
+  const [audioSheetOpen, setAudioSheetOpen] = useState(false);
   // The finished gym workout (exercises, top sets, PRs), read back once the check-in exists so
   // the done screen can offer it as part of the lock-in data — private or posted (§23).
   const [workoutRecap, setWorkoutRecap] = useState<WorkoutRecap | null>(null);
@@ -1034,6 +1039,15 @@ function LockInScreen() {
                 </View>
               )}
             </Pressable>
+            {/* The gym branch gets it too, and arguably needs it most: "6am study vs mid-workout"
+                is the case the whole switcher exists for, and this is the mid-workout half. */}
+            <Pressable
+              onPress={() => setAudioSheetOpen(true)}
+              style={styles.cameraButton}
+              accessibilityLabel="Change this session's audio"
+              accessibilityRole="button">
+              <Ionicons name="musical-notes" size={20} color={Colors.ink} />
+            </Pressable>
             {photos.length > 0 && (
               <Pressable
                 onPress={() => setGalleryOpen(true)}
@@ -1070,6 +1084,8 @@ function LockInScreen() {
           onRemove={removePhoto}
           onClose={() => setGalleryOpen(false)}
         />
+
+        {audioSheetOpen && <SessionAudioSheet visible onClose={() => setAudioSheetOpen(false)} />}
 
         {/* The equipped flare's perimeter aura (FLARES_SPEC.md, punchlist 15.2). LOCK-IN ONLY, and
             only for as long as the session runs — it used to be mounted at the root and painted
@@ -1216,6 +1232,16 @@ function LockInScreen() {
               </View>
             )}
           </Pressable>
+          {/* The music swap. Beside the camera rather than as a chip under the timer because it is
+              a session CONTROL and this row is where the session's controls live — and because the
+              area under the clock is the one piece of this screen the §13 redesign kept empty. */}
+          <Pressable
+            onPress={() => setAudioSheetOpen(true)}
+            style={styles.cameraButton}
+            accessibilityLabel="Change this session's audio"
+            accessibilityRole="button">
+            <Ionicons name="musical-notes" size={18} color={Colors.ink} />
+          </Pressable>
           {/* Only once there's something to show — an empty gallery arrow is a dead control. */}
           {photos.length > 0 && (
             <Pressable
@@ -1252,6 +1278,8 @@ function LockInScreen() {
         onRemove={removePhoto}
         onClose={() => setGalleryOpen(false)}
       />
+
+      {audioSheetOpen && <SessionAudioSheet visible onClose={() => setAudioSheetOpen(false)} />}
 
       {/* The equipped flare's perimeter aura (FLARES_SPEC.md, punchlist 15.2). LOCK-IN ONLY, and
           only for as long as the session runs — it used to be mounted at the root and painted
