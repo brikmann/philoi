@@ -949,6 +949,7 @@ export type AnalyticsEventName =
   | 'iap_purchase_cancelled'
   | 'iap_purchase_failed'
   | 'iap_purchase_blocked_unidentified'
+  | 'push_token_registration'
   | 'iap_restore'
   | 'iap_reconciled'
   | 'signed_up'
@@ -1511,6 +1512,12 @@ export type Challenge = {
   user_id: string;
   type: ChallengeType;
   count_mode: ChallengeCountMode;
+  /**
+   * The owner's "Track it" choice (0198). false = logged by hand only — every auto sync skips the
+   * goal. Defaults true server-side, so a goal minted by a campfire challenge (or by a build older
+   * than 0198) keeps auto-syncing exactly as before.
+   */
+  auto_track: boolean;
   /** Null on every goal created before scoping existed — which keeps its legacy payout (0159). */
   difficulty_tier?: DifficultyTier | null;
   verifiability?: GoalVerifiability | null;
@@ -2043,15 +2050,19 @@ export type GoalRewardPayload = ChallengeRewardPayload & {
   tier: DifficultyTier | null;
   /** The ceiling goal_paid_band handed grant_reward. Equal to `band` unless the curve came in low. */
   max_band: string | null;
+  /** The goal's cadence when it settled (0200). Absent on receipts written before 0200. */
+  period?: ChallengePeriod;
+  /** When this receipt was written (0200) — outlives the rollover that clears completed_at. */
+  settled_at?: string;
 };
 
 /**
  * One row of get_unseen_goal_rewards() (0167) — a personal goal this user finished whose payout
  * has never been shown.
  *
- * Only ONE-TIME and CLAIMED goals appear here; a recurring daily goal's payout belongs to the
- * drip reveal (GoalRevealWatcher) and returning it in both would celebrate one walk twice. See the
- * migration header for the split.
+ * 0200: RECURRING goals appear here too. Noah's call is that a recurring completion surfaces BOTH
+ * of its grants — the drip (GoalRevealWatcher) and this grant_reward crate — so the two reveals
+ * chain rather than one hiding the other. The reveal floor orders them drip-first.
  */
 export type UnseenGoalReward = {
   goal_id: string;

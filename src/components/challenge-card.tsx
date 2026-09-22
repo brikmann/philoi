@@ -154,17 +154,25 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
     };
   }, [tier, claimLevel]);
 
-  // "Auto" is a claim about what's actually happening, not about what's theoretically possible —
-  // a steps goal on a phone that never granted Health Connect is logged by hand, and saying
-  // otherwise would leave someone waiting for numbers that never arrive.
+  // 🐛 0198 — "Auto" is the owner's SAVED choice, not a guess. This line used to be rebuilt from the
+  // phone's live connection flag on every render, so a goal set to "Automatically" read "Logged by
+  // hand" whenever that flag happened to be false — which looked exactly like the choice had been
+  // lost. `!== false` so a row from a server older than 0198 (no flag) reads as it always did.
   const realSource = getRealFitnessSourceForChallengeType(challenge.type);
+  const chosenAuto = challenge.auto_track !== false && realSource !== null;
   // Lock-in-sourced metrics (study, gym) need no connection at all — the app already has the
-  // check-ins — so they're auto from creation, unlike a steps goal that's waiting on a permission.
-  const isAuto = realSource !== null && (!sourceNeedsConnection(realSource) || autoConnected);
+  // check-ins — so a chosen-auto one is live from creation. A device/Strava/Whoop one needs its
+  // grant; when that has dropped, the card says so rather than pretending the choice was manual.
+  const needsReconnect = chosenAuto && sourceNeedsConnection(realSource) && !autoConnected;
+  // Auto AND actually filling itself. The quick-add controls hide only for this — a chosen-auto goal
+  // whose connection dropped keeps them, so it can still be logged by hand until it's reconnected.
+  const isAuto = chosenAuto && !needsReconnect;
   // A described feat is not "logged by hand" — there is no number to log. Mock 176 frame 0 says
   // what it actually is, so the card explains the missing progress bar rather than looking broken.
-  const sourceLine = isAuto
-    ? `⚡ Auto · ${AUTO_SOURCE_NAME[realSource]}`
+  const sourceLine = chosenAuto
+    ? needsReconnect
+      ? `⚡ Auto · ${AUTO_SOURCE_NAME[realSource]} (reconnect)`
+      : `⚡ Auto · ${AUTO_SOURCE_NAME[realSource]}`
     : challenge.difficulty_tier != null && challenge.verifiability !== 'auto'
       ? "🏅 No auto-track — tap when you've done it"
       : '✏️ Logged by hand';
@@ -187,7 +195,11 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
       // nothing to say a one-time goal cares about: its hero is the streak meter, and a target that
       // never resets has no streak. A recurring daily/weekly goal is unaffected — that reveal is
       // still entirely GoalRevealWatcher's, and get_unseen_goal_rewards deliberately excludes it.
-      const drip = challenge.period === 'once' ? null : result.award;
+      // The server names the period from 0200 on; the goal row covers an older server.
+      const drip =
+        challenge.period === 'once' || !result.award
+          ? null
+          : { ...result.award, period: result.award.period ?? challenge.period };
       onLogged(result.justCompleted, drip, personalGoalTitle(challenge), challenge.difficulty_tier ?? null);
     } catch (e) {
       setError(getErrorMessage(e, 'Could not log progress.'));

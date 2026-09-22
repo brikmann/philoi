@@ -1,5 +1,6 @@
 import { track } from '@/lib/analytics';
 import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
+import { requestGoalRewardCheck } from '@/lib/goal-reward-check';
 import { canonicalGoalUnit } from '@/lib/goal-types';
 import { formatLocalDate } from '@/lib/local-day';
 import { supabase } from '@/lib/supabase';
@@ -52,6 +53,11 @@ export async function createChallenge(input: {
    * `label`, which is what makes that name behave like its own lock-in type. Minutes until 0113;
    * the target has always been in hours, so the credit was 60x too generous. */
   countMode?: ChallengeCountMode;
+  /**
+   * The "Track it" choice (0198). Written explicitly either way, so the server default (true — kept
+   * for server-minted goals and older builds) only ever applies to rows this function doesn't write.
+   */
+  autoTrack?: boolean;
 }): Promise<Challenge> {
   const { data, error } = await supabase
     .from('challenges')
@@ -72,6 +78,7 @@ export async function createChallenge(input: {
       unit: canonicalGoalUnit(input.type, input.unit, input.label),
       period: input.period,
       count_mode: input.countMode ?? 'manual',
+      auto_track: input.autoTrack ?? true,
     })
     .select('*')
     .single();
@@ -242,6 +249,15 @@ export type GoalDayAward = {
   /** True when the weekly ceiling clipped the payout, so the UI can say so rather than silently
    * showing a smaller number than the goal advertises. */
   capped: boolean;
+  /** The goal's cadence (0200) — the headline says DAILY / WEEKLY / GOAL off this. Optional because
+   * a server older than 0200 doesn't send it. */
+  period?: ChallengePeriod;
+  goal_id?: string;
+  /** ember_wallet.balance right after this drip was paid (0200). */
+  balance?: number;
+  /** This goal's grant_reward embers whose crate reveal hasn't played yet (0200). The drip reveal
+   * counts up to `balance - pending_reward_embers`; the crate reveal counts the rest. */
+  pending_reward_embers?: number;
 };
 
 /**
@@ -290,6 +306,9 @@ export async function awardGoalDay(challengeId: string): Promise<GoalDayAward | 
       // watching. Without it the ember pill keeps its pre-payout figure until something remounts
       // it (see lib/economy/wallet-refresh.ts).
       requestInventoryRefresh();
+      // The goal completed, so its grant_reward crate's receipt exists now too (0167/0200). Ask the
+      // crate watcher to look while the moment is still on screen, instead of on the next foreground.
+      requestGoalRewardCheck();
     }
     return award;
   } catch (e) {

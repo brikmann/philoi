@@ -80,7 +80,19 @@ export function GoalStreakRewardScreen({ award, goalLabel, onShare, onClose, sha
   // where it lands now; the wallet figure no longer appears as a string on the ember row, because
   // printing the answer above a counter that is about to count to it is what makes the counter
   // pointless.
-  const wallet = walletLoading ? null : walletEmbers;
+  const liveWallet = walletLoading ? null : walletEmbers;
+  // 0200 — WHERE THIS SCREEN'S COUNT-UP ENDS. The pill counts up to `wallet` from `wallet - total`,
+  // which is only true if nothing else moved the wallet. For a recurring goal something always did:
+  // its grant_reward crate banked in the same second (in the repro, +20 before this +12), and the
+  // crate's own reveal plays AFTER this one. Counting up to the live wallet would put the crate's
+  // embers inside this screen's number, and the crate screen would then count them a second time.
+  //
+  // So when the server says so, this screen stops short of the crate: it ends at the balance the
+  // drip landed on minus the crate embers still to be revealed, and GoalCompleteRewardScreen counts
+  // the rest up to the live wallet. Across the two the user watches exactly the ledger's delta. An
+  // older server sends neither field and this falls back to the live wallet, as before.
+  const wallet =
+    typeof award.balance === 'number' ? award.balance - (award.pending_reward_embers ?? 0) : liveWallet;
 
   // NO XP ROW HERE, and that is the payload's doing rather than a choice: economy_award_goal_day
   // (0085) pays embers, a milestone bonus and sometimes a box — GoalDayAward has no xp field at
@@ -188,11 +200,22 @@ export function GoalStreakRewardScreen({ award, goalLabel, onShare, onClose, sha
           variant keeps the streak in the same slot rather than adding a second line, which is
           where the badge that used to sit on the flame went. */}
       <Text style={styles.title}>
-        {isMilestone ? `${award.streak}-DAY GOAL STREAK` : 'DAILY GOAL COMPLETE'}:{' '}
+        {isMilestone ? `${award.streak}-DAY GOAL STREAK` : completeHeadline(award.period)}:{' '}
         {goalLabel.toUpperCase()}
       </Text>
     </RewardRevealFrame>
   );
+}
+
+/**
+ * The headline names the goal's own cadence. It was hardcoded "DAILY GOAL COMPLETE", so a WEEKLY
+ * goal finishing announced itself as a daily one. A server older than 0200 sends no period, which
+ * keeps the old word rather than guessing.
+ */
+function completeHeadline(period: GoalDayAward['period']): string {
+  if (period === 'week') return 'WEEKLY GOAL COMPLETE';
+  if (period === 'once') return 'GOAL COMPLETE';
+  return 'DAILY GOAL COMPLETE';
 }
 
 function buildRows(award: GoalDayAward, total: number, claim: RowClaim): RewardRowSpec[] {

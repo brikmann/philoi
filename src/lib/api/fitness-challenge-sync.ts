@@ -72,6 +72,21 @@ const SLEEP_NOTE_BY_SOURCE: Record<string, string> = {
  * value, so they stay the same window whichever branch is taken.
  */
 function periodStartInstant(challenge: Challenge): Date {
+  const periodStart = periodOpenedAt(challenge);
+  // 🔴 A GOAL COUNTS FROM WHEN IT WAS SET (Noah, 2026-09-21 — same rule as migration 0199 and the
+  // Strava/Whoop syncs). The window opens at the LATER of the period start and the goal's creation.
+  //
+  // The repro: a weekly 10,000-step goal created at 00:31:36.028 was complete at 00:31:36.329, off
+  // one log of 19,779 steps — the whole week so far, because this window used to open at Sunday
+  // 00:00 regardless of when the goal was made. The celebration fired over a card reading 0/10,000.
+  //
+  // In the period the goal was created in, it counts from creation; in every later period,
+  // period_start is the later of the two and the full period counts exactly as before.
+  const created = new Date(challenge.created_at);
+  return Number.isNaN(created.getTime()) || created <= periodStart ? periodStart : created;
+}
+
+function periodOpenedAt(challenge: Challenge): Date {
   if (challenge.period !== 'day') return new Date(challenge.period_start);
   // Local midnight of that calendar date. Split rather than `new Date(str)` because the
   // date-only form is the one the spec pins to UTC; a y/m/d constructor is the local one.
@@ -81,6 +96,19 @@ function periodStartInstant(challenge: Challenge): Date {
   if (!y || !m || !d) return new Date(challenge.period_start);
   return new Date(y, m - 1, d);
 }
+
+/**
+ * Belt-and-braces for "no celebration at creation". With the baseline above a new goal starts at
+ * its true zero, so it cannot be complete the moment it exists — but a server route with its own
+ * window, or a tiny target, still could. A completion inside this window after creation banks as
+ * normal and is recorded in the bell; it just doesn't throw a full-screen reveal over the form the
+ * user is still closing.
+ *
+ * Deliberately NOT "the goal's first observed sync": with the baseline, someone who sets a 10k goal
+ * and walks it before the app next syncs completes it ON that first sync, hours later, and that is
+ * exactly the moment worth celebrating.
+ */
+const CREATION_QUIET_MS = 2 * 60 * 1000;
 
 // A device-fitness sync never gates participation (§17/18) — it's purely additive on top of the
 // existing manual-log flow, which always keeps working regardless of connection state.
@@ -271,9 +299,16 @@ export async function syncChallengeFromDevice(challenge: Challenge): Promise<Cha
   // crate — and the second half now has a watcher of its own (GoalCompletionWatcher) that draws the
   // crate, the embers and the goal's own words. Queueing the drip as well would open two
   // full-screen celebrations back to back for one walk. The drip gives way because its hero is the
-  // streak meter, and a one-time target has no streak. Recurring goals are untouched: that reveal
-  // stays entirely this queue's, and get_unseen_goal_rewards deliberately excludes them.
-  if (award && challenge.period !== 'once') pushGoalReveal({ award, goalLabel: outcome.goalLabel });
+  // streak meter, and a one-time target has no streak.
+  //
+  // 0200 — a recurring goal's CRATE is now revealed as well (Noah: both grants surface). This queue
+  // still carries only the drip; the crate comes through GoalCompletionWatcher, which awardGoalDay
+  // prompts to check immediately (requestGoalRewardCheck). The reveal floor plays the drip first.
+  const justCreated = Date.now() - new Date(challenge.created_at).getTime() < CREATION_QUIET_MS;
+  if (award && challenge.period !== 'once' && !justCreated) {
+    // The server names the period from 0200 on; the goal row covers an older server.
+    pushGoalReveal({ award: { ...award, period: award.period ?? challenge.period }, goalLabel: outcome.goalLabel });
+  }
   return { ...outcome, award };
 }
 
@@ -315,6 +350,11 @@ export async function syncAllDeviceChallenges(userId: string): Promise<number> {
 
 async function routeChallengeSync(challenge: Challenge): Promise<ChallengeSyncOutcome> {
   if (challenge.completed_at) return nothing(challenge);
+  // 0198 — "Log it myself" means it. Every auto route (device, Strava, Whoop, lock-ins) passes
+  // through here, so this one check is what stops Health Connect stacking steps on top of a
+  // hand-logged goal. `=== false`, not falsy: a row from a server older than 0198 carries no flag
+  // and keeps syncing exactly as it always did.
+  if (challenge.auto_track === false) return nothing(challenge);
   if (challenge.type === 'steps') return syncStepsFromDevice(challenge);
   if (challenge.type === 'run_distance' || challenge.type === 'ride_distance') return syncRunOrRideFromStrava(challenge);
   if (challenge.type === 'study_hours' || challenge.type === 'gym_visits') return syncFromLockIns(challenge);

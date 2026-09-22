@@ -19,6 +19,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFriends } from '@/hooks/use-friends';
 
 import { useMyGroups } from '@/hooks/use-my-groups';
+import { useSourceConnections } from '@/hooks/use-source-connections';
 import { useAuth } from '@/lib/auth/auth-context';
 import { createChallenge, duplicateGoalMessage, findDuplicateActiveGoal } from '@/lib/api/challenges';
 import { inviteChallengeMembers } from '@/lib/api/challenge-lifecycle';
@@ -1249,6 +1250,9 @@ function PersonalChallengeForm() {
   // instead of a Connect row that goes nowhere.
   const canAutoTrack = canAutoTrackChallengeType(type);
   const autoOn = canAutoTrack && trackAuto;
+  // Per SOURCE — the pedometer, Strava and Whoop each have their own grant (use-source-connections).
+  const { isConnectedFor } = useSourceConnections();
+  const sourceConnected = isConnectedFor(type);
 
   function handlePickType(option: (typeof PERSONAL_TYPE_OPTIONS)[number]) {
     setType(option.value);
@@ -1290,7 +1294,12 @@ function PersonalChallengeForm() {
     // The sync sheet is offered only when the user actually asked to auto-track AND something
     // can measure this metric — picking "Log it myself" shouldn't then be interrupted by a
     // Connect prompt (design-mocks/14).
-    if (autoOn) {
+    //
+    // 🐛 AND ONLY WHEN THAT SOURCE ISN'T CONNECTED YET. This used to open on every auto goal, so a
+    // Health Connect grant Settings showed as live got re-asked for — and tapping its Connect
+    // "succeeded" instantly, which set justConnectedDeviceFitness and fired the creation sync that
+    // back-credited the whole week (the 0.3-second "goal complete" in the repro).
+    if (autoOn && !sourceConnected) {
       setShowSyncPrompt(true);
       return;
     }
@@ -1329,10 +1338,14 @@ function PersonalChallengeForm() {
         // (credit_lockin_time_goals, migration 0061) — which is also what makes that name behave
         // like a lock-in goal type of its own.
         countMode: isCustom ? customCountMode : 'manual',
+        // 0198 — the choice is STORED now, so the card and every sync honour it rather than guessing
+        // from the phone's connection state.
+        autoTrack: autoOn,
       });
-      // First sync right away if they just connected on this exact screen — no reason to make
-      // them wait for the next Challenges-tab focus to see it start counting.
-      if (justConnectedDeviceFitness) {
+      // First sync right away for an auto goal whose source is live — it now counts only from this
+      // moment (0199 / fitness-challenge-sync), so it starts at its true zero instead of waiting for
+      // the next Challenges-tab focus. A hand-logged goal is never synced.
+      if (autoOn && (justConnectedDeviceFitness || sourceConnected)) {
         syncChallengeFromDevice(created).catch(() => {});
       }
       router.back();
@@ -1483,6 +1496,9 @@ function PersonalChallengeForm() {
         challengeType={type}
         challengeTitle={`${target || '0'} ${unit} ${period === 'day' ? 'today' : period === 'once' ? 'total' : 'this week'}`}
         challengeSubtitle="Just for you"
+        contextChipLabel="Personal goal"
+        contextChipIcon="person"
+        sourceConnected={sourceConnected}
       />
     </>
   );

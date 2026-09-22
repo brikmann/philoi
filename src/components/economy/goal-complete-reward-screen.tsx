@@ -98,7 +98,10 @@ export function GoalCompleteRewardScreen({ goal, onClose, onOpenBox }: Props) {
       }
       rows={rows}>
       <RevealHeadline
-        eyebrow="GOAL COMPLETE"
+        // 0200 — a recurring goal's crate plays right after its drip reveal, which already said
+        // "WEEKLY GOAL COMPLETE". Naming this one for what it is keeps the pair from reading as the
+        // same screen twice.
+        eyebrow={payload?.period === 'day' || payload?.period === 'week' ? 'GOAL CRATE' : 'GOAL COMPLETE'}
         eyebrowColor={boxKey ? boxAccent(boxKey) : undefined}
         // THE GOAL IN ITS OWN WORDS. "Learn a standing backflip" is what makes this feel like the
         // app noticed the specific thing the user set out to do, rather than a generic payout —

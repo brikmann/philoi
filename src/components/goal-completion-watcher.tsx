@@ -8,6 +8,7 @@ import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { track } from '@/lib/analytics';
 import { fetchUnseenGoalRewards, markGoalRewardSeen } from '@/lib/api/challenges';
+import { subscribeToGoalRewardCheck } from '@/lib/goal-reward-check';
 import { useAuth } from '@/lib/auth/auth-context';
 import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import type { UnseenGoalReward } from '@/types/database';
@@ -99,6 +100,11 @@ export function GoalCompletionWatcher() {
     });
     return () => sub.remove();
   }, [check]);
+
+  // 0200 — and the moment a goal completes with the app OPEN. awardGoalDay asks for this, because
+  // that is the commonest case and the foreground trigger above never fires for it: the crate sat
+  // unrevealed until the next time the user left and came back.
+  useEffect(() => subscribeToGoalRewardCheck(() => void check()), [check]);
 
   // 🔒 SIGNED OUT, OR SIGNED IN AS SOMEBODY ELSE, SHOWS NOTHING. The rows are already scoped by
   // auth.uid() server-side, so a second account on this device cannot READ the first's unseen

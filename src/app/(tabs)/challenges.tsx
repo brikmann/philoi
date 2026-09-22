@@ -5,6 +5,7 @@ import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View
 
 import { ChallengeCard } from '@/components/challenge-card';
 import { GoalStreakRewardScreen } from '@/components/economy/goal-streak-reward-screen';
+import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { GoalStreakShareCard } from '@/components/economy/goal-streak-share-card';
 import { TargetEmberHero } from '@/components/empty-states/target-ember-hero';
 import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
@@ -17,7 +18,7 @@ import { TabHeader } from '@/components/ui/tab-header';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useMyChallenges } from '@/hooks/use-my-challenges';
-import { useFitnessConnection } from '@/hooks/use-fitness-connection';
+import { useSourceConnections } from '@/hooks/use-source-connections';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { type GoalDayAward } from '@/lib/api/challenges';
 import { useNextGoalReveal } from '@/lib/goal-reveal-queue';
@@ -105,7 +106,9 @@ export default function ChallengesScreen() {
   // — its own manual-log reveal must not open underneath the global one.
   const queuedElsewhere = useNextGoalReveal() !== null;
   const { challenges: socialChallenges, loading: socialLoading, refetch: refetchSocial } = useSocialChallenges();
-  const { connected: fitnessConnected } = useFitnessConnection();
+  // Per goal, per SOURCE (use-source-connections) — the card's "Auto" line used to read one device
+  // flag for every goal, so a Strava or Whoop goal was judged by the phone's Health Connect grant.
+  const { isConnectedFor } = useSourceConnections();
   const [celebrating, setCelebrating] = useState(false);
   const [fireToken, setFireToken] = useState(0);
   const rewardBurstRef = useRef<RewardBurstHandle>(null);
@@ -172,7 +175,13 @@ export default function ChallengesScreen() {
   // as a queued one does not open a second screen under the first. The card's own callback is
   // synchronous with the tap, so this is a narrow window — but it is exactly the window a user who
   // taps Log while a sync is resolving lands in.
-  const activeAward = queuedElsewhere ? null : goalAward;
+  //
+  // 0200 — AND IT TAKES THE REVEAL FLOOR. A recurring goal's crate is now revealed too, by
+  // GoalCompletionWatcher, which holds the floor. This screen didn't, because until now nothing
+  // else could be showing for the same tap — so the crate would have opened its modal straight over
+  // the drip. On the floor as `daily_fire` (the drip's own row), it plays first and the crate waits.
+  const tabRevealHasFloor = useRevealFloor('daily_fire', goalAward !== null && !queuedElsewhere);
+  const activeAward = queuedElsewhere || !tabRevealHasFloor ? null : goalAward;
   /** Close the reveal. Only the manual path reaches this now; the queue is retired by the watcher. */
   function dismissAward() {
     setGoalAward(null);
@@ -258,7 +267,7 @@ export default function ChallengesScreen() {
           <ChallengeCard
             key={item.id}
             challenge={item}
-            autoConnected={fitnessConnected}
+            autoConnected={isConnectedFor(item.type)}
             onLogged={handleLogged}
             onChanged={refetch}
             // §D — the History list passed no onInfo, so "Goal info" was missing from the kebab on
@@ -426,7 +435,7 @@ export default function ChallengesScreen() {
           renderItem={({ item }) => (
             <ChallengeCard
               challenge={item}
-              autoConnected={fitnessConnected}
+              autoConnected={isConnectedFor(item.type)}
               onLogged={handleLogged}
               onChanged={refetch}
               onInfo={() =>

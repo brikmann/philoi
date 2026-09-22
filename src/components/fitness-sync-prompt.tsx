@@ -50,6 +50,16 @@ type FitnessSyncPromptProps = {
   challengeType: ChallengeType;
   challengeTitle: string;
   challengeSubtitle: string;
+  /**
+   * The context chip over the title. REQUIRED, not defaulted: this sheet hardcoded "Group challenge"
+   * while its only caller was the personal-goal screen, so it announced "Group challenge" directly
+   * above "Just for you". A caller has to say what it is.
+   */
+  contextChipLabel: string;
+  contextChipIcon: keyof typeof Ionicons.glyphMap;
+  /** Whether this metric's real source is already connected. When true its row reads "✓ Connected"
+   * instead of offering a Connect that would only re-ask for a grant that already exists. */
+  sourceConnected?: boolean;
   /** Fires once the real source for this challenge type connects successfully, before onClose —
    * lets the caller know the challenge it's about to create (or already has) should get an
    * immediate sync. */
@@ -65,7 +75,17 @@ type FitnessSyncPromptProps = {
 // Whoop (src/lib/whoop.ts) — the last two cross-platform. A listed source that isn't the real one
 // stays an honest "coming soon," never faking a live connection. "I'll log it manually" is always
 // available and never blocked on any of this (§18's "never gate participation").
-export function FitnessSyncPrompt({ visible, onClose, challengeType, challengeTitle, challengeSubtitle, onSourceConnected }: FitnessSyncPromptProps) {
+export function FitnessSyncPrompt({
+  visible,
+  onClose,
+  challengeType,
+  challengeTitle,
+  challengeSubtitle,
+  contextChipLabel,
+  contextChipIcon,
+  sourceConnected = false,
+  onSourceConnected,
+}: FitnessSyncPromptProps) {
   const { connect: connectDeviceFitness } = useFitnessConnection();
   const [connecting, setConnecting] = useState<string | null>(null);
   const realSource = getRealFitnessSourceForChallengeType(challengeType);
@@ -109,8 +129,8 @@ export function FitnessSyncPrompt({ visible, onClose, challengeType, challengeTi
             so the sheet states its own context instead of ghosting it. */}
         <View style={styles.context}>
           <View style={styles.contextChip}>
-            <Ionicons name="people" size={11} color={Colors.amber} />
-            <Text style={styles.contextChipText}>Group challenge</Text>
+            <Ionicons name={contextChipIcon} size={11} color={Colors.amber} />
+            <Text style={styles.contextChipText}>{contextChipLabel}</Text>
           </View>
           <Text style={styles.contextTitle}>{challengeTitle}</Text>
           <Text style={styles.contextSubtitle}>{challengeSubtitle}</Text>
@@ -119,12 +139,17 @@ export function FitnessSyncPrompt({ visible, onClose, challengeType, challengeTi
         <Text style={styles.title}>Track this automatically?</Text>
         <Text style={styles.subtitle}>It can count on its own — or log it yourself.</Text>
 
-        {getOrderedFitnessSources(challengeType).map((source) => (
+        {getOrderedFitnessSources(challengeType).map((source) => {
+          // The real source, already granted: nothing to ask for. A Connect here re-requested a grant
+          // Settings → Connected apps was showing as live.
+          const alreadyConnected = sourceConnected && source.key === realSource;
+          return (
           <Pressable
             key={source.key}
             style={styles.sourceRow}
-            disabled={connecting !== null}
-            onPress={() => handleConnect(source)}>
+            disabled={connecting !== null || alreadyConnected}
+            onPress={() => handleConnect(source)}
+            accessibilityState={{ disabled: alreadyConnected }}>
             <View style={[styles.sourceIcon, { backgroundColor: source.iconBg }]}>
               <Ionicons name={source.icon} size={19} color={source.iconColor} />
             </View>
@@ -132,7 +157,12 @@ export function FitnessSyncPrompt({ visible, onClose, challengeType, challengeTi
               <Text style={styles.sourceName}>{source.name}</Text>
               <Text style={styles.sourceDetail}>{source.detail}</Text>
             </View>
-            {connecting === source.key ? (
+            {alreadyConnected ? (
+              <View style={styles.sourceGo}>
+                <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
+                <Text style={styles.connectedText}>Connected</Text>
+              </View>
+            ) : connecting === source.key ? (
               <ActivityIndicator size="small" color={Colors.achieverText} />
             ) : source.key === 'strava' && source.key === realSource ? (
               <Image source={STRAVA_CONNECT_BUTTON} style={styles.stravaConnectButton} resizeMode="contain" />
@@ -143,7 +173,8 @@ export function FitnessSyncPrompt({ visible, onClose, challengeType, challengeTi
               </View>
             )}
           </Pressable>
-        ))}
+          );
+        })}
 
         <Pressable style={styles.manual} onPress={onClose}>
           <Ionicons name="pencil" size={13} color={Colors.muted} />
@@ -267,6 +298,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
     color: Colors.achieverText,
+  },
+  connectedText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.green,
   },
   stravaConnectButton: {
     height: 22,
