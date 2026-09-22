@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { PushOffBanner } from '@/components/push-off-banner';
 import { Screen } from '@/components/ui/screen';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -61,6 +62,7 @@ export default function NotificationsSettingsScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.container}>
+        <PushOffBanner style={{ marginHorizontal: 0 }} />
         <Text style={styles.intro}>
           Choose what Philoi pings you about. Your device&apos;s system settings can turn everything off.
         </Text>

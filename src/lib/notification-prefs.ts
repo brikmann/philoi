@@ -100,8 +100,9 @@ export const NOTIFICATION_CATEGORIES: {
   {
     key: 'cat_challenges',
     label: 'Challenges',
-    description: 'Invites, results and goals at risk',
-    covers: ['Accepts, declines and challenges ending soon', 'A goal about to slip'],
+    description: 'Invites, results, goals you finish and goals at risk',
+    // 0201 · goal_complete is filed here, so this is the switch that mutes it.
+    covers: ['Accepts, declines and challenges ending soon', 'A goal you complete', 'A goal about to slip'],
   },
   {
     key: 'cat_campfires',
@@ -124,8 +125,14 @@ export const NOTIFICATION_CATEGORIES: {
   {
     key: 'cat_season_rank',
     label: 'Season & rank',
-    description: 'Season results and rewards to collect',
-    covers: ['Season ending and season results', 'Rank-ups', 'Rewards waiting to be collected'],
+    description: 'Season results, crates, badges and rewards to collect',
+    // 0201 · reward_ready (crates), badge_earned and pass_unlocked are all filed here.
+    covers: [
+      'Season ending and season results',
+      'Rank-ups',
+      'Crates and rewards waiting to be collected',
+      'New badges and your Flame Pass',
+    ],
   },
 ];
 

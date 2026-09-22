@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 
 // Without this, expo-notifications silently swallows the banner/sound for any push that
@@ -79,24 +80,73 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 // which meant notify_push_raw() had nobody to send to and skipped its net.http_post entirely, so
 // a solo user got the in-app feed and zero device banners. See the long note at the call site in
 // _layout.tsx; the ordering there is the contract this function relies on.
-export async function registerPushToken(userId: string): Promise<void> {
-  if (Platform.OS === 'web') return;
+export type PushRegistrationOutcome =
+  | 'ok'
+  | 'web'
+  | 'denied'
+  | 'no_project_id'
+  | 'no_token'
+  | 'token_error'
+  | 'upsert_error';
+
+// 🐛 MEASURABLE NOW. 7 of 18 prod profiles had no push_tokens row on 2026-09-22 — every one of them
+// past handle, consent and account-disabled, so this function DID run for each, and one of them was
+// active that week. Nothing said which step lost them: a declined OS prompt, a missing projectId, a
+// failed token fetch and a rejected upsert all ended the same way, in silence. Worse, the upsert
+// could not fail loudly at all — supabase-js RETURNS `{ error }` rather than throwing, so a row RLS
+// refused never reached the catch below. Every exit now reports its outcome, so coverage is a query
+// over `events` rather than a guess.
+export async function registerPushToken(userId: string): Promise<PushRegistrationOutcome> {
+  const outcome = await registerPushTokenOnce(userId);
+  // track() is fire-and-forget and never throws; the platform is what separates "Android 13 auto-deny"
+  // from "iOS declined once" when reading the numbers back.
+  void track('push_token_registration', { outcome, platform: Platform.OS });
+  return outcome;
+}
+
+async function registerPushTokenOnce(userId: string): Promise<PushRegistrationOutcome> {
+  if (Platform.OS === 'web') return 'web';
   try {
     const granted = await requestNotificationPermissions();
-    if (!granted) return;
+    if (!granted) return 'denied';
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-    const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-    if (!token) return;
+    if (!projectId) return 'no_project_id';
 
-    await supabase.from('push_tokens').upsert(
+    let token: string | undefined;
+    try {
+      token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    } catch (e) {
+      console.warn('[notifications] getExpoPushTokenAsync failed:', e);
+      return 'token_error';
+    }
+    if (!token) return 'no_token';
+
+    const { error } = await supabase.from('push_tokens').upsert(
       { user_id: userId, token },
       { onConflict: 'user_id,token' }
     );
+    if (error) {
+      console.warn('[notifications] push_tokens upsert failed:', error);
+      return 'upsert_error';
+    }
     await AsyncStorage.setItem(LAST_PUSH_TOKEN_KEY, token);
+    return 'ok';
   } catch (e) {
     console.warn('[notifications] failed to register push token:', e);
+    return 'token_error';
   }
+}
+
+/**
+ * Where the OS permission stands, without prompting. `canAskAgain` false means the system prompt
+ * will no longer appear (iOS after one decline, Android 13+ after two) and only the OS Settings
+ * page can turn push back on — which is why the nudge on the notifications screen deep-links there.
+ */
+export async function getPushPermission(): Promise<{ granted: boolean; canAskAgain: boolean }> {
+  if (Platform.OS === 'web') return { granted: false, canAskAgain: false };
+  const p = await Notifications.getPermissionsAsync();
+  return { granted: p.granted, canAskAgain: p.canAskAgain };
 }
 
 // Removes just this device's token, not every device the user's signed in on elsewhere.

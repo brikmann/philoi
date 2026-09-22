@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { PushOffBanner } from '@/components/push-off-banner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { Screen } from '@/components/ui/screen';
@@ -48,6 +49,9 @@ export default function NotificationsScreen() {
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {/* The feed fills either way; this is for the half of delivery the feed can't see. */}
+      <PushOffBanner />
 
       <FlatList
         data={items}
