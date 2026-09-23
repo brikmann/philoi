@@ -90,7 +90,7 @@ export function GoalCompleteRewardScreen({ goal, onClose, onOpenBox }: Props) {
         // is the same fallback the challenge screen uses for a win with no crate.
         boxKey ? (
           <View style={[styles.crate, { shadowColor: boxAccent(boxKey) }]}>
-            <BoxArt boxKey={boxKey} size={132} />
+            <BoxArt boxKey={boxKey} size={132} pedestal />
           </View>
         ) : (
           <EquippedFlameSvg width={72} height={72} />
@@ -166,6 +166,7 @@ function buildRows(
       kind: 'box',
       title: box.name,
       detail: 'Cosmetic loot box',
+      art: <BoxArt boxKey={boxKey} size={26} motion="off" />,
       chip: { label: box.rarity.toUpperCase(), color: boxAccent(boxKey) },
       accent: boxAccent(boxKey),
       // Open IS the box's claim — it marks the row taken so "Claim all" does not try to fly a crate

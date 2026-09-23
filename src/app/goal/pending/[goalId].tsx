@@ -129,7 +129,7 @@ export default function ClaimPendingScreen() {
       <Stack.Screen options={{ title: upgraded ? 'Confirmed' : 'Pending vouch', headerShown: true }} />
 
       <View style={styles.hero}>
-        {crates.fullKey ? <BoxArt boxKey={crates.fullKey} size={58} /> : <Ionicons name="cube" size={44} color={Colors.amber} />}
+        {crates.fullKey ? <BoxArt boxKey={crates.fullKey} size={58} pedestal /> : <Ionicons name="cube" size={44} color={Colors.amber} />}
       </View>
 
       <Text style={styles.count}>

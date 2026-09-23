@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -46,6 +46,19 @@ export type RewardRowSpec = {
    * seventh copy of the hardcode appearing on the next screen.
    */
   accent?: string;
+  /**
+   * THE REWARD'S OWN ART, drawn in the icon tile in place of the kind glyph (mock 216).
+   *
+   * A manifest that says "Ignition Crate" next to a grey outline cube is the flat-glyph problem
+   * the 2.5D pass exists to remove: the crate has a drawing, and this is the one screen where the
+   * user is being shown what they just won. Passed as a node rather than as an id because this
+   * row is deliberately dumb — it renders what it is handed, and teaching it to look items up in
+   * the catalog would be the first thing it knows about the economy.
+   *
+   * Call sites pass `motion="off"`: at 26px the float is below FLOAT_MIN_SIZE anyway, and a
+   * reveal is a screen that is sometimes captured.
+   */
+  art?: ReactNode;
   /** Renders the row as the openable box (mock 47's `.rw.box` with its Open button). */
   onOpen?: () => void;
   /** A flight is in the air somewhere on the screen, so Open should not take a tap either. */
@@ -104,7 +117,7 @@ export const RewardRow = memo(function RewardRow({ spec }: { spec: RewardRowSpec
   return (
     <View style={[styles.row, isBox && styles.rowBox, done && styles.rowClaimed]}>
       <View style={[styles.iconTile, { backgroundColor: icon.bg }]}>
-        <Ionicons name={icon.name} size={16} color={icon.tint} />
+        {spec.art ?? <Ionicons name={icon.name} size={16} color={icon.tint} />}
       </View>
 
       <View style={styles.labels}>

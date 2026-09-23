@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { BoxArt } from '@/components/economy/box-art';
 import { asBoxKey, useRewardClaim } from '@/components/economy/reward-claim';
 import { RewardRevealFrame, type RowClaim } from '@/components/economy/reward-reveal-frame';
 import { type RewardRowSpec } from '@/components/economy/reward-rows';
@@ -232,6 +233,7 @@ function buildRows(award: GoalDayAward, total: number, claim: RowClaim): RewardR
       kind: 'box',
       title: BOXES[award.box as BoxKey]?.name ?? 'Loot box',
       detail: `${award.streak}-day goal streak`,
+      art: BOXES[award.box as BoxKey] ? <BoxArt boxKey={award.box as BoxKey} size={26} motion="off" /> : undefined,
       // The crate's rarity, not a flat gold "EARNED" — the same fix as the challenge reveal.
       chip: {
         label: (BOXES[award.box as BoxKey]?.rarity ?? 'earned').toUpperCase(),

@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, G, Line, RadialGradient, Stop } from 'react-native-svg';
 
+import { BoxArt } from '@/components/economy/box-art';
 import { asBoxKey, useRewardClaim } from '@/components/economy/reward-claim';
 import { RewardRevealFrame, type RowClaim } from '@/components/economy/reward-reveal-frame';
 import { type RewardRowSpec } from '@/components/economy/reward-rows';
@@ -337,10 +338,16 @@ function buildRows(r: ChallengeRewardResult, claim: RowClaim, onOpenBox?: () => 
   // the order "Claim all" runs — see useRewardClaim — so the box is no longer buried under two
   // lines of numbers on the screen that grants it.
   if (r.box) {
+    // `r.box.key` is a plain string off the settlement payload, so the crate only draws itself for
+    // a key this build actually ships art for — a server naming a seventh box falls back to the
+    // kind glyph rather than crashing the manifest.
+    const drawableBox = asBoxKey(r.box.key);
     rows.push({
       kind: 'box',
       title: r.box.name,
       detail: 'Cosmetic loot box',
+      // The crate itself, not a grey cube (mock 216).
+      art: drawableBox ? <BoxArt boxKey={drawableBox} size={26} motion="off" /> : undefined,
       // 🔴 THE BOX'S OWN RARITY, not gold. This chip read `Colors.amber` for every crate, so an
       // Ignition Crate — an UNCOMMON, green everywhere else in the app — announced itself in the
       // same colour as a Promethean. See boxAccent.

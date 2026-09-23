@@ -72,7 +72,9 @@ export default function BoxDetailScreen() {
         </View>
 
         <View style={styles.hero}>
-          <BoxArt boxKey={box.key} size={130} />
+          {/* Pedestalled (mock 216): rarity glow, ground shadow and the slow float — this is
+              the crate as an object, which is what a hero is for. */}
+          <BoxArt boxKey={box.key} size={130} pedestal />
           <Text style={styles.heroName}>{box.name}</Text>
           <Text style={[styles.heroRarity, { color: RARITY_COLOR[box.rarity] }]}>{RARITY_LABEL[box.rarity]} BOX</Text>
           {/* Every box has a free path. That's a hard requirement (21g), so it sits in the hero

@@ -1,4 +1,4 @@
-import { memo, useEffect, useId, useState } from 'react';
+import { memo, useEffect, useId, useState, type ReactNode } from 'react';
 import {
   Dimensions,
   PixelRatio,
@@ -60,6 +60,15 @@ export type RewardRevealKind =
 export type RewardLine = {
   kind: 'embers' | 'box' | 'xp' | 'cosmetic' | 'rank';
   label: string;
+  /**
+   * The thing's own art, drawn in place of the kind glyph (mock 216).
+   *
+   * `cosmetic: '◆'` below is the flat generic glyph the 2.5D pass is removing: every cosmetic
+   * in the catalog has a drawing, and a reveal that names one while showing a black diamond is the
+   * one place the user is being told what they won. Optional, because not every line has an id
+   * behind it — an XP or ember line has no object to draw, and those keep their glyph.
+   */
+  art?: ReactNode;
 };
 
 export type RewardRevealEvent = {
@@ -529,7 +538,7 @@ function RevealCard({ event, onDismiss }: { event: RewardRevealEvent; onDismiss:
           <View style={styles.rewards}>
             {event.rewards.map((line, i) => (
               <View key={`${line.kind}-${i}`} style={styles.rewardRow}>
-                <Text style={styles.rewardGlyph}>{REWARD_GLYPH[line.kind]}</Text>
+                {line.art ?? <Text style={styles.rewardGlyph}>{REWARD_GLYPH[line.kind]}</Text>}
                 <Text style={styles.rewardLabel}>{line.label}</Text>
               </View>
             ))}

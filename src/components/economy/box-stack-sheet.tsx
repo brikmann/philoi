@@ -42,7 +42,7 @@ export function BoxStackSheet({ stack, onOpen, onClose }: Props) {
         <View style={styles.scrim}>
           <View style={styles.sheet}>
             <View style={[styles.art, { backgroundColor: BOX_TINT[box.key] }]}>
-              <BoxArt boxKey={box.key} size={54} />
+              <BoxArt boxKey={box.key} size={54} pedestal />
             </View>
             <Text style={styles.name}>
               {box.name} ×{stack.count}

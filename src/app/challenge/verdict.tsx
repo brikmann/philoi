@@ -300,7 +300,7 @@ export default function VerdictScreen() {
           {preview === null ? (
             <ActivityIndicator color={Colors.amber} />
           ) : boxKey ? (
-            <BoxArt boxKey={boxKey} size={104} />
+            <BoxArt boxKey={boxKey} size={104} pedestal />
           ) : (
             <EmberIcon size={54} />
           )}

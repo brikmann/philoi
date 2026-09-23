@@ -1,13 +1,28 @@
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 
-import type { BoxKey } from '@/lib/economy/boxes';
+import { ItemPedestal, type ArtMotion } from '@/components/economy/item-art';
+import { BOXES, type BoxKey } from '@/lib/economy/boxes';
 
 // The six box vectors, transcribed from mocks 56/58 so the shop, the box-detail hero, and the
 // open animation all draw the SAME silhouette at different sizes. Each box is a distinct object
 // (logs, crate, furnace, vessel, chest, vault) because the crack in §8.5 is per-box — you can't
 // chop a vault in half or spin a bundle of logs.
 
-type Props = { boxKey: BoxKey; size?: number };
+type Props = {
+  boxKey: BoxKey;
+  size?: number;
+  /**
+   * LOOT BOX is a row in mock 216 like every other cosmetic type, so a crate sitting in a grid
+   * gets the same rarity glow, ground shadow and float the items do — see ItemPedestal.
+   *
+   * OPT-IN RATHER THAN DEFAULT, because BoxArt has two other kinds of caller that must not get
+   * it: the crate-open animation, which positions the vector inside its own transform stack and
+   * would end up floating a box that is supposed to be cracking, and the share cards, which are
+   * captured to an image and would snapshot the crate at a random point in its cycle.
+   */
+  pedestal?: boolean;
+  motion?: ArtMotion;
+};
 
 /** The radial backdrop tint behind each box in the shop grid (mock 56's `.bx` backgrounds). */
 export const BOX_TINT: Record<BoxKey, string> = {
@@ -19,11 +34,17 @@ export const BOX_TINT: Record<BoxKey, string> = {
   promethean: '#8a2020',
 };
 
-export function BoxArt({ boxKey, size = 48 }: Props) {
-  return (
+export function BoxArt({ boxKey, size = 48, pedestal = false, motion = 'auto' }: Props) {
+  const art = (
     <Svg width={size} height={size} viewBox="0 0 48 48">
       {shapeFor(boxKey)}
     </Svg>
+  );
+  if (!pedestal) return art;
+  return (
+    <ItemPedestal size={size} rarity={BOXES[boxKey].rarity} motion={motion}>
+      {art}
+    </ItemPedestal>
   );
 }
 

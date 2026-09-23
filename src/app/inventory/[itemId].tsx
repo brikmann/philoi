@@ -19,7 +19,7 @@ import { forgeStepFor, isForgeFuel } from '@/lib/economy/forge';
 import { SFX_SLOTS, SLOT_LABEL, isDefaultItem, type SfxSlot } from '@/lib/economy/catalog';
 import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { getErrorMessage } from '@/lib/errors';
-import { SALVAGE_EMBERS, SALVAGE_PCT, rarityGlow } from '@/lib/economy/rarity';
+import { RARITY_COLOR, SALVAGE_EMBERS, SALVAGE_PCT, rarityGlow } from '@/lib/economy/rarity';
 
 // Equip detail (mock 67B, 21i). One-tap Equip that NAMES the swap, plus Sell.
 //
@@ -188,6 +188,9 @@ export default function ItemDetailScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <View style={[styles.glow, { backgroundColor: rarityGlow(item.rarity, 0.5) }]} />
+          {/* The same 3px rarity rule the grid tile carries (mock 216), so tapping a tile lands on
+              a screen wearing the tile's colour rather than on a neutral hero. */}
+          <View style={[styles.rarityBar, { backgroundColor: RARITY_COLOR[item.rarity] }]} />
           <Pressable style={styles.back} onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
             <Ionicons name="chevron-back" size={18} color="#fff" />
           </Pressable>
@@ -338,6 +341,14 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
+  },
+  rarityBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    opacity: 0.9,
   },
   back: {
     position: 'absolute',

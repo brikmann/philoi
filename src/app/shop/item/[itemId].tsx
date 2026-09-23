@@ -15,7 +15,7 @@ import { useInventory } from '@/hooks/use-inventory';
 import { buyCosmetic, equipCosmetic } from '@/lib/api/inventory';
 import { getItem, SLOT_LABEL } from '@/lib/economy/catalog';
 import { getErrorMessage } from '@/lib/errors';
-import { DIRECT_BUY_PRICE, SALVAGE_EMBERS, rarityGlow } from '@/lib/economy/rarity';
+import { DIRECT_BUY_PRICE, RARITY_COLOR, SALVAGE_EMBERS, rarityGlow } from '@/lib/economy/rarity';
 
 // Direct-buy detail (§8.4). The deterministic path: pay more than the box costs and skip the RNG.
 // The price is always above the item's own salvage value, so buy→sell can never be an arbitrage.
@@ -92,6 +92,8 @@ export default function ShopItemScreen() {
 
         <View style={styles.hero}>
           <View style={[styles.glow, { backgroundColor: rarityGlow(item.rarity, 0.5) }]} />
+          {/* The same 3px rarity rule the shop grid and the inventory wear (mock 216). */}
+          <View style={[styles.rarityBar, { backgroundColor: RARITY_COLOR[item.rarity] }]} />
           <ItemArt item={item} size={120} />
         </View>
 
@@ -179,6 +181,14 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
+  },
+  rarityBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    opacity: 0.9,
   },
   previewRow: {
     alignItems: 'center',

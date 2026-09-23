@@ -54,7 +54,10 @@ export const UnlockShareCard = forwardRef<View, Props>(function UnlockShareCard(
       division={division}>
       <View style={[styles.glow, { backgroundColor: rarityGlow(item.rarity, 0.4) }]} />
       <View style={styles.artWrap}>
-        <ItemArt item={item} size={172} />
+        {/* motion="off": this card is captured to a PNG. A hero mid-float would snapshot the item
+            at a random point in its cycle, so the same drop would share at a different height
+            every time. The gradient, the glow and the ground shadow are all still drawn. */}
+        <ItemArt item={item} size={172} motion="off" />
       </View>
 
       {/* Catalog names run long ("Vessel of Hestia", "Ashen Diadem of the First Flame") and this
@@ -77,7 +80,7 @@ export const UnlockShareCard = forwardRef<View, Props>(function UnlockShareCard(
         <View style={styles.haul}>
           {haul.slice(0, 9).map((h, i) => (
             <View key={`${h.id}-${i}`} style={[styles.chip, { borderColor: RARITY_COLOR[h.rarity] }]}>
-              <ItemArt item={h} size={22} />
+              <ItemArt item={h} size={22} motion="off" />
             </View>
           ))}
         </View>

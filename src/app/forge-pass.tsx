@@ -55,9 +55,17 @@ function passRewardLine(reward: PassReward): RewardLine {
     case 'embers':
       return { kind: 'embers', label: `${reward.amount.toLocaleString()} embers` };
     case 'box':
-      return { kind: 'box', label: BOXES[reward.box].name };
-    case 'item':
-      return { kind: 'cosmetic', label: getItem(reward.itemId)?.name ?? 'A new cosmetic' };
+      // The crate and the cosmetic both draw themselves here (mock 216) — the level-up card used
+      // 🎁 and ◆ for two things this app has real art for.
+      return { kind: 'box', label: BOXES[reward.box].name, art: <BoxArt boxKey={reward.box} size={24} motion="off" /> };
+    case 'item': {
+      const item = getItem(reward.itemId);
+      return {
+        kind: 'cosmetic',
+        label: item?.name ?? 'A new cosmetic',
+        art: item ? <ItemArt item={item} size={24} motion="off" /> : undefined,
+      };
+    }
     case 'badge':
       return { kind: 'rank', label: reward.label };
   }

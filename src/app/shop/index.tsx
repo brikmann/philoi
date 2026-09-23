@@ -16,7 +16,7 @@ import { useInventory } from '@/hooks/use-inventory';
 import { BOX_LIST } from '@/lib/economy/boxes';
 import { boxPool, type CatalogItem } from '@/lib/economy/catalog';
 import { EMBER_PACKS, PASS_FINE_PRINT, SEASON, levelFromXp, passOnSale, seasonPhase } from '@/lib/economy/forge-pass';
-import { DIRECT_BUY_PRICE } from '@/lib/economy/rarity';
+import { DIRECT_BUY_PRICE, RARITY_COLOR } from '@/lib/economy/rarity';
 import { FORGE_PASS_PRODUCT_ID, storeProductId } from '@/lib/economy/iap';
 import { useAuth } from '@/lib/auth/auth-context';
 import { formatWeekCountdown, nextWeekReset, weekIndex } from '@/lib/time/week';
@@ -176,6 +176,9 @@ export default function ShopScreen() {
                 key={item.id}
                 style={[styles.tile, owned && styles.tileOwned]}
                 onPress={() => router.push({ pathname: '/shop/item/[itemId]', params: { itemId: item.id } })}>
+                {/* The same 3px rarity rule the inventory grid wears (mock 216) — a featured pick
+                    and the copy of it you already own read as the same object. */}
+                <View style={[styles.rarityBar, { backgroundColor: RARITY_COLOR[item.rarity] }]} />
                 <View style={[styles.tileArt, { backgroundColor: Colors.cardDark }]}>
                   <ItemArt item={item} size={44} />
                   {/* Audition without leaving the row (PUNCHLIST_11) — a thumb can run down the
@@ -217,8 +220,9 @@ export default function ShopScreen() {
                 key={box.key}
                 style={styles.tile}
                 onPress={() => router.push({ pathname: '/shop/box/[boxKey]', params: { boxKey: box.key } })}>
+                <View style={[styles.rarityBar, { backgroundColor: RARITY_COLOR[box.rarity] }]} />
                 <View style={[styles.tileArt, { backgroundColor: BOX_TINT[box.key] }]}>
-                  <BoxArt boxKey={box.key} size={44} />
+                  <BoxArt boxKey={box.key} size={44} pedestal />
                 </View>
                 <Text style={styles.tileName} numberOfLines={1}>
                   {box.name}
@@ -401,12 +405,22 @@ const styles = StyleSheet.create({
     width: 96,
     backgroundColor: Colors.cardDark,
     borderRadius: 14,
+    // Clips the rarity bar to the tile's corners.
+    overflow: 'hidden',
     paddingTop: Spacing.twelve,
     paddingBottom: Spacing.two,
     paddingHorizontal: Spacing.two,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.line,
+  },
+  rarityBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    opacity: 0.9,
   },
   tileArt: {
     width: 54,

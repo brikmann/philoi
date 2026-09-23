@@ -325,7 +325,9 @@ export default function InventoryScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`${box.name}, ${stack.count} unopened`}>
                     <View style={[styles.boxArt, { backgroundColor: BOX_TINT[box.key] }]}>
-                      <BoxArt boxKey={box.key} size={38} />
+                      {/* A crate is a row in mock 216 like any other type, so it gets the same
+                          pedestal — its rarity glow and a ground shadow under it. */}
+                      <BoxArt boxKey={box.key} size={38} pedestal />
                       {/* One tile per TYPE now (punchlist 9 §4) — eleven Vessels were eleven
                           identical tiles, so the count carries what the repetition used to. */}
                       {stack.count > 1 ? (
@@ -433,6 +435,11 @@ function ItemTile({
 
   return (
     <Pressable ref={anchorRef} collapsable={false} style={[styles.tile, item.equipped && styles.tileEquipped]} onPress={onPress}>
+      {/* THE RARITY BAR (mock 216). Rarity is the first thing read on a tile and it was carried
+          only by six-point type at the bottom of it. A 3px bar across the top says it before the
+          eye reaches the name, and it is the tile half of the same signal ItemArt draws as the
+          glow behind the art — one colour, two places, both from RARITY_COLOR. */}
+      <View style={[styles.rarityBar, { backgroundColor: RARITY_COLOR[item.rarity] }]} />
       {item.equipped && !showSfxSlots ? (
         <View style={styles.equipBadge}>
           <Text style={styles.equipBadgeText}>✓</Text>
@@ -458,6 +465,10 @@ function ItemTile({
         <PreviewButton item={item} variant="badge" />
       </View>
       <View style={styles.tileArt}>
+        {/* Still at grid size by design — the glow, the gradient and the ground shadow are all
+            here, the float is not. See FLOAT_MIN_SIZE: this grid is un-virtualised, so every
+            item the user owns is mounted, and sixty simultaneous floats is the one part of the
+            2.5D treatment that does not come for free. */}
         <ItemArt item={item} size={40} />
       </View>
       <Text style={styles.tileName} numberOfLines={1}>
@@ -698,6 +709,9 @@ const styles = StyleSheet.create({
     width: '31.5%',
     backgroundColor: Colors.cream,
     borderRadius: 13,
+    // Clips the rarity bar to the tile's own corners — without it the bar draws as a square
+    // strip over a rounded card.
+    overflow: 'hidden',
     paddingTop: 9,
     paddingBottom: Spacing.two,
     paddingHorizontal: 6,
@@ -705,6 +719,14 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#2a2438',
     gap: 3,
+  },
+  rarityBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    opacity: 0.9,
   },
   // The equipped item per slot is ringed + ticked — the one piece of state the grid must carry.
   tileEquipped: {
@@ -752,7 +774,9 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   tileArt: {
-    height: 42,
+    // 44, not 42: the pedestal is 1.07× as tall as it is wide (the ground shadow needs the room),
+    // so a 40px item draws 43px tall and a 42px slot clipped it.
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

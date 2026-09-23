@@ -109,7 +109,7 @@ export function GoalGradeSheet({
                 ]}>
                 {report.passed ? (
                   boxKey ? (
-                    <BoxArt boxKey={boxKey} size={62} />
+                    <BoxArt boxKey={boxKey} size={62} pedestal />
                   ) : (
                     <EmberIcon size={38} />
                   )
