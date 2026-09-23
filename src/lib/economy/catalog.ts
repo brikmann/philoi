@@ -456,8 +456,11 @@ const SFX: CatalogItem[] = [
     lore: 'The floor falls out from under the moment. On purpose.', art: { kind: 'sfx', from: '#4FB0E5', to: '#7BE0FF' } }),
   item({ id: 'sfx-jet-engine-ignition', name: 'Jet Engine Ignition', type: 'SFX', rarity: 'epic', acquisition: 'box',
     lore: 'Zero to gone.', art: { kind: 'sfx', from: '#a06cd5', to: '#FF9A3C' } }),
-  item({ id: 'sfx-olympian-foghorn', name: 'Olympian Foghorn', type: 'SFX', rarity: 'legendary', acquisition: 'box',
-    lore: 'Echoes of this can be heard from Olympus. The gods are watching you.', art: { kind: 'sfx', from: '#F5C542', to: '#FFF0B8' } }),
+  // `id` is the ledger's (0090's drop pool, every inventory row already written) — only the NAME
+  // and lore are user-facing, and both moved off Olympus with the rank tier for the same
+  // trademark reason. Renaming the id would orphan every copy anyone already owns.
+  item({ id: 'sfx-olympian-foghorn', name: 'Divine Foghorn', type: 'SFX', rarity: 'legendary', acquisition: 'box',
+    lore: 'Echoes of this carry from somewhere above the clouds. Something up there is watching you.', art: { kind: 'sfx', from: '#F5C542', to: '#FFF0B8' } }),
 ];
 
 // ───────────────────────────── 4 · Collection badges & trophies ─────────────────────────────

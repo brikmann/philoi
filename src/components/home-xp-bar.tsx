@@ -80,7 +80,7 @@ export function HomeXpBar({ tier, division, xpIntoTier, xpForNextTier, fireRemai
 
   // The caption names the division you're climbing TOWARD — the NEXT rank, not the current one.
   // The props carry the current tier/division, so labelling `formatRankTier(tier, division)` read
-  // "86% to Gold III" while you were actually reaching Gold II. This is the SECOND home bar with
+  // "86% to Gold II" while you were actually reaching Gold III. This is the SECOND home bar with
   // that off-by-one (rank-projection-bar.tsx was the first); advance with nextRank(), same as the
   // done screen. At the apex there's no next — keep the current label (the caption shows "Max rank"
   // there anyway via atMax).

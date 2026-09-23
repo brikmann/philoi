@@ -256,14 +256,14 @@ export function useRevealCue(kind: RewardRevealKind): void {
  * meant to read as the fire's own glow thrown across the screen, which is the same argument
  * PersonalFlame's glow already makes for `ramp.outer`.
  *
- * It is wrong everywhere else, and forcing it would be a regression. The rank-up's hero is a
- * HEXAGON BADGE struck in the tier's metal, and Gold I under a violet fan reads as a rendering
- * fault rather than as a cosmetic; the duel king is bronze for the same reason. Those keep their
- * per-kind tint. `pass_level` stays out too — it is not in the scope Noah named and its hero is
- * not a flame.
+ * It is wrong everywhere else, and forcing it would be a regression. The rank-up's hero is a RANK
+ * BADGE struck in the tier's metal, and Gold under a violet fan reads as a rendering fault rather
+ * than as a cosmetic; the duel king is bronze for the same reason. `pass_level` stays out too — it
+ * is not in the scope Noah named and its hero is not a flame.
  *
- * So: the hue follows the flame on the four flame reveals, and REVEAL_TUNING keeps everything that
- * is not colour — ray count, scale, intensity, cue, eyebrow, priority — for all of them.
+ * So: the hue follows the flame on the four flame reveals, the rank-up passes its tier's metal
+ * explicitly (`tint`, below — one row cannot hold ten metals), and REVEAL_TUNING keeps everything
+ * that is not colour — ray count, scale, intensity, cue, eyebrow, priority — for all of them.
  */
 const FLAME_HERO_KINDS: ReadonlySet<RewardRevealKind> = new Set<RewardRevealKind>([
   // The daily fire and the cleared-goal reveal both pull this row, and both put a flame on screen.
@@ -294,6 +294,7 @@ export const RewardRays = memo(function RewardRays({
   size,
   style: positionStyle,
   intensity,
+  tint,
 }: {
   kind: RewardRevealKind;
   size: number;
@@ -309,6 +310,15 @@ export const RewardRays = memo(function RewardRays({
    * reveal CARD, where the fan IS the screen and the brighter value is still right.
    */
   intensity?: number;
+  /**
+   * The fan's colourway, overriding the row's flat `tint`.
+   *
+   * Exists for the rank-up, whose hero is struck in a different metal every time it fires. The
+   * row can only hold one colour, so the fan behind Titan and the fan behind Divine were the same
+   * ember gold — light that demonstrably did not come off the badge it was blooming from. A
+   * caller that knows the hero's colour passes it; everyone else keeps the row's.
+   */
+  tint?: { inner: string; outer: string } | null;
 }) {
   const id = `rays-${useId()}`;
   const tuning = REVEAL_TUNING[kind];
@@ -323,8 +333,10 @@ export const RewardRays = memo(function RewardRays({
   const flameLit = FLAME_HERO_KINDS.has(kind);
   // outer -> core, matching the flame's own body-to-heart direction: the fan is brightest where it
   // meets the flame and cools as it travels, which is what light actually does.
-  const rayInner = flameLit ? ramp.core : tuning.tint;
-  const rayOuter = flameLit ? ramp.outer : tuning.tint;
+  // An explicit tint wins over both: it is the caller saying "the hero is THIS colour today",
+  // which is strictly better information than either the row or the equipped flame.
+  const rayInner = tint?.inner ?? (flameLit ? ramp.core : tuning.tint);
+  const rayOuter = tint?.outer ?? (flameLit ? ramp.outer : tuning.tint);
   const reducedMotion = useReducedMotion();
   const bloom = useSharedValue(0);
   const spin = useSharedValue(0);
@@ -435,6 +447,7 @@ export const FullscreenRays = memo(function FullscreenRays({
   anchor,
   rootOffset,
   intensity,
+  tint,
 }: {
   kind: RewardRevealKind;
   /** The hero the light comes off, in the root's coordinate space. Null centres the fan. */
@@ -443,6 +456,8 @@ export const FullscreenRays = memo(function FullscreenRays({
   rootOffset?: { x: number; y: number } | null;
   /** Peak opacity override — see RewardRays. The reveal frame passes mock 170's .34. */
   intensity?: number;
+  /** Colourway override — see RewardRays. The rank-up passes the new tier's metal. */
+  tint?: { inner: string; outer: string } | null;
 }) {
   const screen = useDeviceScreen();
 
@@ -484,6 +499,7 @@ export const FullscreenRays = memo(function FullscreenRays({
         kind={kind}
         size={size}
         intensity={intensity}
+        tint={tint}
         // Absolute offsets override the backdrop's centring; without them the fan centres itself,
         // which is what the card reveal wants.
         style={bleed ? { left: cx - size / 2, top: cy - size / 2 } : null}

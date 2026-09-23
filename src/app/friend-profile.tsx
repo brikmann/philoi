@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
-import { HexagonBadge } from '@/components/hexagon-badge';
+import { RankBadge } from '@/components/rank-badge';
 import { CollectionEntry } from '@/components/profile/collection-entry';
 import { CompareBanner } from '@/components/profile/compare-banner';
 import { DisciplineRelicTracker } from '@/components/profile/discipline-relic-tracker';
@@ -232,7 +232,7 @@ export default function FriendProfileScreen() {
 
         {rank && !rank.muted && (
           <View style={styles.rankCard}>
-            <HexagonBadge tier={rank.tier} division={rank.division} size={52} />
+            <RankBadge tier={rank.tier} division={rank.division} size={52} />
             <View style={styles.rankInfo}>
               <View style={styles.rankTop}>
                 <Text style={styles.rankTier}>{formatRankTier(rank.tier, rank.division)}</Text>

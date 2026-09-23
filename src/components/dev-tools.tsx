@@ -17,7 +17,7 @@ import {
 import { getErrorMessage } from '@/lib/errors';
 import type { MyGroup } from '@/lib/api/groups';
 import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
-import { formatRankTier, RANK_TIER_COLOR, RANK_TIER_ORDER } from '@/lib/rank-tiers';
+import { DIVISION_NUMERAL, formatRankTier, RANK_TIER_COLOR, RANK_TIER_ORDER } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
 type DevToolsProps = {
@@ -39,6 +39,12 @@ export function DevTools({ devOverride, setDevOverride, groups, isDev = false }:
   // the difference is the whole point of the escalation model, so it's a toggle rather than a
   // separate row of buttons.
   const [bumpOn, setBumpOn] = useState(false);
+  // Which division the tier buttons land on, as the STORED number (3 = the tier's I, 1 = its III).
+  // The tester used to hardcode this — a crossing always landed on stored 3 and a bump always on
+  // stored 2 — which meant two of the three badges in every tier could not be reached on device at
+  // all. Since mock 213 the division is most of what the badge DRAWS (chevron count, shoulder
+  // studs, wing-ticks, crown spike), so "step through ranks and divisions" needs all three.
+  const [division, setDivision] = useState(3);
 
   // Dev builds, OR a dev account on a release build. Internal testing runs release binaries, where
   // __DEV__ is false — gating on it alone hid "Revoke Flame Pass" from exactly the build the pass is
@@ -129,6 +135,21 @@ export function DevTools({ devOverride, setDevOverride, groups, isDev = false }:
         <Text style={styles.toggleLabel}>Division bump (no copy, lighter flash)</Text>
       </Pressable>
 
+      {/* Which rung inside the tier — labelled by what the badge actually shows, so the row reads
+          I · II · III left to right the same way the ladder climbs. */}
+      <View style={styles.divisionRow}>
+        {[3, 2, 1].map((d) => (
+          <Pressable
+            key={d}
+            style={[styles.divisionPill, division === d && styles.divisionPillOn]}
+            onPress={() => setDivision(d)}>
+            <Text style={[styles.divisionPillText, division === d && styles.divisionPillTextOn]}>
+              {DIVISION_NUMERAL[d]}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       <View style={styles.rankGrid}>
         {RANK_TIER_ORDER.map((tier) => (
           <Pressable
@@ -137,21 +158,24 @@ export function DevTools({ devOverride, setDevOverride, groups, isDev = false }:
             onPress={() =>
               showRankUp({
                 tier,
-                division: bumpOn ? 2 : 3,
-                // A bump comes from the same tier one division lower; a crossing from the tier
-                // below, so the component's own fromTier !== tier check reads it as a crossing.
+                division,
+                // A bump comes from the same tier one division lower — one stored number HIGHER,
+                // since stored divisions count down as you climb. At the top of a tier (stored 1)
+                // there is no lower rung to bump from, so it falls back to stored 2. A crossing
+                // comes from the tier below, so the component's own fromTier !== tier check reads
+                // it as a crossing.
                 fromTier: bumpOn ? tier : previousTier(tier),
-                fromDivision: bumpOn ? 3 : 1,
+                fromDivision: bumpOn ? Math.min(3, division + 1) : 1,
                 isDivisionBump: bumpOn,
                 isBandCrossing: false,
               })
             }>
-            <Text style={styles.rankPillText}>{formatRankTier(tier, bumpOn ? 2 : 3)}</Text>
+            <Text style={styles.rankPillText}>{formatRankTier(tier, division)}</Text>
           </Pressable>
         ))}
       </View>
 
-      {/* The two ascension events, forced — you shouldn't have to climb to Diamond I to check
+      {/* The two ascension events, forced — you shouldn't have to climb to Diamond III to check
           that the Realm-of-Legend takeover reads right. */}
       <View style={styles.rankGrid}>
         <Pressable
@@ -222,6 +246,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
+  },
+  divisionRow: {
+    flexDirection: 'row',
+    gap: Spacing.one,
+  },
+  divisionPill: {
+    minWidth: 44,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    borderRadius: Radius.pill,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  divisionPillOn: {
+    backgroundColor: Colors.coral,
+    borderColor: Colors.coral,
+  },
+  divisionPillText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.muted,
+  },
+  divisionPillTextOn: {
+    color: Colors.ink,
   },
   toggleRow: {
     flexDirection: 'row',

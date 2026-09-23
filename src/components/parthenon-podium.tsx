@@ -3,7 +3,7 @@ import { useId } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
-import { HexagonBadge } from '@/components/hexagon-badge';
+import { RankBadge } from '@/components/rank-badge';
 import { Crown } from '@/components/ui/crown';
 import { Colors, Fonts } from '@/constants/theme';
 import { getUniversityCrest } from '@/lib/university-crests';
@@ -199,7 +199,7 @@ function PodiumColumn({ item, position, isFirst }: { item: PodiumItem; position:
         {item.isMe ? ' · you' : ''}
       </Text>
       <View style={styles.valueRow}>
-        {item.kind === 'person' && <HexagonBadge tier={item.tier} division={item.division} size={15} />}
+        {item.kind === 'person' && <RankBadge tier={item.tier} division={item.division} size={15} />}
         {/* Score in the POSITION's metal (mock 95) — the podium's own colour language, which is why
             it isn't the amber every other number on this screen uses. */}
         <Text style={[styles.value, { color: metal.mid }]}>{item.value}</Text>

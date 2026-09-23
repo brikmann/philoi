@@ -16,7 +16,7 @@ import { FLAME_ASPECT_RATIO, EquippedFlameSvg } from '@/components/flame-icon';
 import { useRewardClaim } from '@/components/economy/reward-claim';
 import { RewardRevealFrame, type RowClaim } from '@/components/economy/reward-reveal-frame';
 import { type RewardRowSpec } from '@/components/economy/reward-rows';
-import { HexagonBadge } from '@/components/hexagon-badge';
+import { RankBadge } from '@/components/rank-badge';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
@@ -335,7 +335,7 @@ export function FlameMeterComplete({
             // BELOW THE ROWS, per the parity pass — the manifest sits in the same place on all four
             // reveals and the context that explains it follows underneath.
             <View style={styles.rankRow}>
-              <HexagonBadge tier={rankAfter.tier} division={rankAfter.division} size={40} />
+              <RankBadge tier={rankAfter.tier} division={rankAfter.division} size={40} />
               <View style={styles.rankCol}>
                 <View style={styles.rankTop}>
                   <Text style={styles.rankTier} numberOfLines={1}>

@@ -87,8 +87,8 @@ export function RankProjectionBar({
 
   // The caption names the division you're climbing TOWARD, so it must be the NEXT rank, not the
   // current one — the props carry the user's current tier/division (home passes rank.tier/division).
-  // Labelling `formatRankTier(tier, division)` here read "86% to Gold III" while you were actually
-  // reaching Gold II; the done screen was right because it advances with nextRank() first. Mirror it.
+  // Labelling `formatRankTier(tier, division)` here read "86% to Gold II" while you were actually
+  // reaching Gold III; the done screen was right because it advances with nextRank() first. Mirror it.
   // `formatRankTier` already returns "Primordial" with no numeral for the apex and "Gold III"
   // otherwise, so the label needs no special-casing beyond the max-rank guard.
   const next = atMax ? null : nextRank(tier, division);

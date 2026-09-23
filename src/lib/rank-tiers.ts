@@ -2,9 +2,9 @@ import type { RankTierName } from '@/types/database';
 
 // Two-tone metal per tier (RANK_REWORK_SPEC.md §2, design-mocks/77) — outer is the border,
 // inner the fill, `numeral` the roman-numeral color chosen for contrast AGAINST inner, and
-// `text` the label color for use on the app's dark background. Primordial isn't metal — it's
-// molten, with a shimmer target and no numeral at all (a flame vector instead, see
-// hexagon-badge.tsx); it inherits the molten palette the apex has always used.
+// `text` the color the division chevrons and the tier label take on the app's dark background.
+// Primordial isn't metal — it's molten, with a shimmer target and no divisions at all (an ember
+// sun instead, see rank-badge.tsx); it inherits the molten palette the apex has always used.
 export const RANK_TIER_METAL: Record<
   RankTierName,
   { outer: string; inner: string; numeral: string; text: string; shimmer?: string }
@@ -41,17 +41,42 @@ export const RANK_TIER_LABEL: Record<RankTierName, string> = {
   diamond: 'Diamond',
   hero: 'Hero',
   titan: 'Titan',
-  olympian: 'Olympian',
+  // 🔴 ENUM KEY STAYS `olympian`, LABEL IS "Divine" (trademark). The USOPC holds "Olympian" in the
+  // US and the IOC holds the family internationally; a paid app with a rank tier called Olympian
+  // is the exact use they enforce against. The key is load-bearing — rank_thresholds rows, the
+  // last-seen-rank baselines already written to every installed device's SecureStore, the sound
+  // and lottie keys, `rankup-olympian.mp3` on disk — so renaming it would be a data migration
+  // plus an asset shuffle to fix a string only this table ever shows a human. Nothing but this
+  // line, and the emblem in rank-badge.tsx, is user-facing.
+  olympian: 'Divine',
   immortal: 'Immortal',
   primordial: 'Primordial',
 };
 
-// Division 1 is the top sub-tier within a tier (matches rank_tier_for_score in schema.sql).
-export const DIVISION_NUMERAL: Record<number, string> = { 1: 'I', 2: 'II', 3: 'III' };
+// 🔴 III IS THE TOP OF EACH TIER (Noah's call: "3 = top" is what people already recognise).
+//
+// The STORED division still runs the other way — `rank_thresholds` gives division 3 to the lowest
+// cumulative-XP row in a tier and 1 to the highest, and rank_tier_for_score, rankOrdinal and
+// nextRank all depend on that direction. Flipping the data would mean a migration, a re-derive of
+// every threshold row, and a stale baseline on every device that has one written (rank-watch.ts).
+//
+// So only the LABEL inverts, here, once: stored 3 reads "I", stored 1 reads "III". The XP required
+// for each rung is untouched, and so is rank-up detection — `rankOrdinal` never sees a numeral.
+// Everything that shows a numeral goes through this map or `divisionMarks`; nothing derives one.
+export const DIVISION_NUMERAL: Record<number, string> = { 3: 'I', 2: 'II', 1: 'III' };
+
+/**
+ * The displayed numeral as a COUNT — 1 for I, 3 for III — which is what the badge needs: chevrons
+ * match the numeral and the frame gains detail as it climbs (mock 213). Clamped to 1–3 so a
+ * malformed division can't ask for a fourth chevron the geometry has no room for.
+ */
+export function divisionMarks(division: number): number {
+  return Math.max(1, Math.min(3, 4 - division));
+}
 
 export function formatRankTier(tier: RankTierName, division: number): string {
-  // Primordial is singular, no divisions (PHILOI_UI_SPEC.md §11: "don't dilute it into III/II/I").
-  // The threshold row stores division 1 purely so ordinal arithmetic keeps it above Immortal I.
+  // Primordial is singular, no divisions (PHILOI_UI_SPEC.md §11: "don't dilute it into I/II/III").
+  // The threshold row stores division 1 purely so ordinal arithmetic keeps it above Immortal's top.
   if (tier === 'primordial') return RANK_TIER_LABEL.primordial;
   return `${RANK_TIER_LABEL[tier]} ${DIVISION_NUMERAL[division] ?? division}`;
 }
@@ -71,18 +96,21 @@ export const RANK_TIER_ORDER: RankTierName[] = [
   'primordial',
 ];
 
-// Higher return value = higher rank. Division 1 is the top sub-tier within a tier, so it
-// contributes more than division 3 (matches rank_tier_for_score's threshold direction).
+// Higher return value = higher rank. STORED division 1 is the top sub-tier within a tier (it is
+// displayed as "III" — see DIVISION_NUMERAL), so it contributes more than stored division 3.
+// Matches rank_tier_for_score's threshold direction, which the numeral flip deliberately left
+// alone: no numeral appears anywhere in this function, so rank-up detection is unaffected by it.
 export function rankOrdinal(tier: RankTierName, division: number): number {
   return RANK_TIER_ORDER.indexOf(tier) * 3 + (3 - division);
 }
 
 /**
- * The rung directly above this one, or null at max rank — "75% to **Diamond I**" (mock 92).
+ * The rung directly above this one, or null at max rank — "75% to **Diamond III**" (mock 92).
  *
- * Division 1 is the TOP sub-tier, so climbing counts DOWN (III -> II -> I) and then rolls over
- * into the next tier's III. Derived from RANK_TIER_ORDER rather than hardcoded per screen, since
- * every surface that names the next rung has to agree with rank_tier_for_score's direction.
+ * Stored division 1 is the TOP sub-tier, so climbing counts DOWN through the stored numbers
+ * (3 -> 2 -> 1, displayed as I -> II -> III) and then rolls over into the next tier's stored 3,
+ * which displays as that tier's I. Derived from RANK_TIER_ORDER rather than hardcoded per screen,
+ * since every surface that names the next rung has to agree with rank_tier_for_score's direction.
  */
 export function nextRank(tier: RankTierName, division: number): { tier: RankTierName; division: number } | null {
   if (division > 1) return { tier, division: division - 1 };
@@ -119,7 +147,7 @@ export function isRankUp(
 }
 
 // "Reserve the full forge for crossing a tier... so the big ones stay rare and special"
-// (PHILOI_UI_SPEC.md §21) — a same-tier division bump (e.g. Bronze III -> II) is still a rank
+// (PHILOI_UI_SPEC.md §21) — a same-tier division bump (e.g. Bronze I -> II) is still a rank
 // up (isRankUp above) but should NOT trigger the full-screen forge, only a quiet inline pulse.
 export function isTierCrossed(
   before: { tier: RankTierName },
@@ -127,6 +155,16 @@ export function isTierCrossed(
 ): boolean {
   return before.tier !== after.tier;
 }
+
+// The rank-up's ray fan, per design-mocks/213 — "a slow breathing bloom, not a floodlight". The
+// fan is tinted from the new tier's own RANK_TIER_METAL (one REVEAL_TUNING row cannot hold ten
+// metals) and runs at this opacity rather than that row's 0.9, which was set when the fan was the
+// whole screen and made it brighter than the badge it is supposed to be lighting.
+//
+// Lives here rather than in rank-up-celebration.tsx so the SHARE CARD can match it without
+// importing the entire celebration: the PNG that lands in someone's story has to be lit the same
+// way as the screen it was captured from.
+export const RANK_UP_RAY_INTENSITY = 0.16;
 
 // The full-screen tier-crossing flash effect keyed to the NEW tier (§11, design-mocks/31) — no
 // entry for bronze (you can't cross INTO bronze, it's the starting tier). Each flash is tinted

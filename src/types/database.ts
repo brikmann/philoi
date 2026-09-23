@@ -2271,7 +2271,7 @@ export type MyRank = {
   division: number;
   /** XP earned since entering this tier — score minus the current tier's threshold. */
   xp_into_tier: number;
-  /** XP needed to reach the next tier from this one; 0 at max rank (Diamond I). */
+  /** XP needed to reach the next tier from this one; 0 at max rank (Primordial). */
   xp_for_next_tier: number;
 };
 

@@ -2,11 +2,11 @@ import { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
-import { HexagonBadge } from '@/components/hexagon-badge';
+import { RankBadge } from '@/components/rank-badge';
 import { ShareCardStamp, boxStamp } from '@/components/economy/share-card-stamp';
 import { ShareCardFrame } from '@/components/share-card-frame';
 import { Fonts } from '@/constants/theme';
-import { formatRankTier, RANK_TIER_METAL } from '@/lib/rank-tiers';
+import { formatRankTier, RANK_TIER_METAL, RANK_UP_RAY_INTENSITY } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
 const BADGE_SIZE = 150;
@@ -54,6 +54,9 @@ export const RankUpShareCard = forwardRef<View, RankUpShareCardProps>(function R
       ref={ref}
       kick={isDivisionBump ? 'DIVISION UP' : 'RANKED UP'}
       kickColor={metal.inner}
+      // The fan is the tier's metal at the celebration's own intensity — the card is the still of
+      // the screen it was captured from, so it cannot be lit differently from it (mock 213).
+      rayOpacity={RANK_UP_RAY_INTENSITY}
       handle={handle}
       tier={tier}
       division={division}>
@@ -71,7 +74,7 @@ export const RankUpShareCard = forwardRef<View, RankUpShareCardProps>(function R
             <Circle cx="50" cy="50" r="50" fill="url(#rankCardAura)" />
           </Svg>
         </View>
-        <HexagonBadge tier={tier} division={division} size={BADGE_SIZE} />
+        <RankBadge tier={tier} division={division} size={BADGE_SIZE} />
       </View>
 
       <Text style={[styles.tierName, { color: metal.inner }]}>{formatRankTier(tier, division).toUpperCase()}</Text>

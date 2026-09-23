@@ -1,11 +1,10 @@
 import { forwardRef, useId, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Defs, G, Path, Polygon, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { Colors, Fonts } from '@/constants/theme';
 import { FlameLogo } from '@/components/ui/flame-logo';
-import { FLAME_CREST_INNER, FLAME_CREST_OUTER } from '@/components/hexagon-badge';
-import { DIVISION_NUMERAL, RANK_TIER_METAL } from '@/lib/rank-tiers';
+import { RankBadge, RANK_BADGE_ASPECT } from '@/components/rank-badge';
 import type { RankTierName } from '@/types/database';
 
 // THE SHARE-CARD FRAME (design-mocks/96 + 97, reworked to 171) — the shell every one of the story
@@ -177,6 +176,13 @@ type ShareCardFrameProps = {
   rayRamp?: { outer: string; core: string } | null;
   /** Where the fan's centre sits, as a fraction of card height. Default lands it on the hero. */
   rayCenterY?: number;
+  /**
+   * Peak opacity of the fan. Mock 171's 0.30 by default — bright enough to tie the card to the
+   * reveal, dim enough that the flex keeps supremacy. Overridden by the rank-up card alone, which
+   * matches whatever the celebration it was captured from is running, so the PNG in someone's
+   * story is the frame they watched rather than a brighter restaging of it.
+   */
+  rayOpacity?: number;
   /** Full-bleed animated layer behind the content — the season card's Emberfall aura. */
   aura?: ReactNode;
   handle: string | null;
@@ -197,6 +203,7 @@ export const ShareCardFrame = forwardRef<View, ShareCardFrameProps>(function Sha
     rayTint,
     rayRamp,
     rayCenterY = 0.42,
+    rayOpacity = 0.3,
     aura,
     handle,
     tier,
@@ -232,7 +239,7 @@ export const ShareCardFrame = forwardRef<View, ShareCardFrameProps>(function Sha
           rampCore={rayRamp?.core}
           size={SHARE_CARD_WIDTH * 1.9}
           centerY={rayCenterY}
-          opacity={0.3}
+          opacity={rayOpacity}
         />
       ) : null}
 
@@ -260,26 +267,17 @@ export function ShareCardFooter({
   tier?: RankTierName;
   division?: number;
 }) {
-  const metal = tier ? RANK_TIER_METAL[tier] : null;
   // 🐛 THE DIVISION NUMERAL DISAGREED WITH THE BADGE (mock 171 bug 6, the #166 family).
   //
-  // This read `DIVISION_NUMERAL[division ?? 1] ?? division`, which is wrong in two distinct ways
-  // that HexagonBadge — the thing this hex is supposed to be a miniature of — gets right:
+  // This footer used to redraw its own miniature hexagon and stamp `DIVISION_NUMERAL[division ?? 1]`
+  // inside it, which was wrong in two distinct ways the real badge got right: it put a roman
+  // numeral on Primordial, which has no divisions at all, and `?? 1` FABRICATED a division for a
+  // card with no rank data — landing on the best one in the tier.
   //
-  //   1. PRIMORDIAL HAS NO DIVISIONS. `formatRankTier` returns a bare "Primordial" and the badge
-  //      draws the flame crest instead of a numeral, precisely so the top rank is not "diluted into
-  //      III/II/I" (PHILOI_UI_SPEC §11). The footer stamped a roman numeral on it anyway. A
-  //      Primordial player's share card contradicted their own badge.
-  //   2. `division ?? 1` INVENTS A DIVISION. Where the badge renders nothing for an unknown
-  //      division, the footer defaulted to 1 — and division I is the TOP of a tier, so a card with
-  //      no division data claimed the best one. That is the off-by-one: not an index slip, a
-  //      fabricated default.
-  //
-  // Both now match the badge exactly: crest for Primordial, numeral only when there is a division
-  // to name, nothing at all otherwise.
-  const isPrimordial = tier === 'primordial';
-  const numeral = division != null ? DIVISION_NUMERAL[division] ?? String(division) : null;
-
+  // Both were fixed by making this hex match the badge's rules. It now IS the badge: one
+  // component, rendered small, so there is no second drawing left to drift. Passing `division`
+  // straight through (undefined and all) is safe — RankBadge draws the bare frame for an unknown
+  // division and no chevrons for Primordial, which is exactly what this footer needs.
   return (
     <View style={styles.foot}>
       <View style={styles.mark}>
@@ -288,25 +286,9 @@ export function ShareCardFooter({
         <Text style={styles.wordmark}>philoi</Text>
       </View>
       <View style={styles.idRow}>
-        {metal && (
+        {tier && (
           <View style={styles.hexWrap}>
-            <Svg width={17} height={19} viewBox="0 0 100 100">
-              <Polygon points="50,4 89.8,27 89.8,73 50,96 10.2,73 10.2,27" fill={metal.inner} />
-            </Svg>
-            {isPrimordial ? (
-              // The badge's own crest paths, imported rather than copied, so the two hexes cannot
-              // drift. Flipped for the same reason every flame in the app is (CINDY_SPEC rule 1).
-              <View style={styles.hexCrest} pointerEvents="none">
-                <Svg width={9} height={11} viewBox="0 0 120 150">
-                  <G transform="translate(120,0) scale(-1,1)">
-                    <Path d={FLAME_CREST_OUTER} fill={metal.outer} />
-                    <Path d={FLAME_CREST_INNER} fill={Colors.coral} />
-                  </G>
-                </Svg>
-              </View>
-            ) : numeral ? (
-              <Text style={[styles.hexNumeral, { color: metal.numeral }]}>{numeral}</Text>
-            ) : null}
+            <RankBadge tier={tier} division={division} size={17} />
           </View>
         )}
         <Text style={styles.idText} numberOfLines={1}>
@@ -389,17 +371,7 @@ const styles = StyleSheet.create({
   },
   hexWrap: {
     width: 17,
-    height: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hexNumeral: {
-    position: 'absolute',
-    fontFamily: Fonts.bodyBold,
-    fontSize: 9,
-  },
-  hexCrest: {
-    position: 'absolute',
+    height: 17 * RANK_BADGE_ASPECT,
     alignItems: 'center',
     justifyContent: 'center',
   },

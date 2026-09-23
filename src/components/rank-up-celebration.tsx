@@ -6,7 +6,6 @@ import Animated, {
   Easing,
   FadeIn,
   interpolate,
-  interpolateColor,
   type SharedValue,
   useAnimatedStyle,
   useSharedValue,
@@ -21,12 +20,12 @@ import { ClaimBalancePill, asBoxKey, useRewardClaim } from '@/components/economy
 import { FullscreenRays } from '@/components/economy/reward-reveal';
 import { RewardRow, type RewardRowSpec } from '@/components/economy/reward-rows';
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
-import { HexagonBadge } from '@/components/hexagon-badge';
+import { RankBadge } from '@/components/rank-badge';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
 import { divisionUpCopy, RANK_UP_COPY, rankUpCardTag } from '@/lib/rank-up-copy';
-import { formatRankTier, RANK_TIER_METAL, TIER_FLASH_KIND } from '@/lib/rank-tiers';
+import { formatRankTier, RANK_TIER_METAL, RANK_UP_RAY_INTENSITY, TIER_FLASH_KIND } from '@/lib/rank-tiers';
 import {
   fireIncinerationBurn,
   fireIncinerationFuse,
@@ -58,13 +57,18 @@ const HERO_CREST_MS = 1250; // shatter → whiteout → pillar → crest slam
 const PRIMORDIAL_CREST_MS = 1900; // void collapse → tear rips + seals → emblem coalesces
 const REDUCED_CARD_MS = 350; // reduce-motion: cross-fade straight to the composed card
 
-// The intra-division bump — "the incineration" (RANKUP_SPEC §9). Its own timeline, since nothing
-// about it is a scaled-down crossing: a white ray fuses the badge in, hellfire burns the top
-// numeral stroke off, the remaining marks recenter, and the tier's own hit lands as the new
-// division locks.
+// The intra-division bump (RANKUP_SPEC §9). Its own timeline, since nothing about it is a
+// scaled-down crossing: a white ray fuses the badge in, the chevron the new division just earned
+// strikes in white-hot and settles to the tier's metal, and the tier's own hit lands as it locks.
+//
+// It used to run the other way — "the incineration", hellfire eating the top stroke off a roman
+// numeral while the survivors recentred. That was the right move while the climb counted
+// III → II → I and a bump COST you a mark. Since the division flip (III is the top of each tier
+// now) a bump EARNS one, so burning a mark off would play the promotion backwards. Same beats,
+// same cues, same durations; the mark arrives instead of leaving, and the collapse beat — which
+// only ever existed to reclaim the burned stroke's width — is gone with it.
 const BUMP_BADGE_MS = 200;
 const BUMP_BURN_MS = 900;
-const BUMP_COLLAPSE_MS = 1420;
 const BUMP_HIT_MS = 1200;
 const BUMP_CARD_MS = 1950;
 
@@ -77,7 +81,7 @@ type RankUpCelebrationProps = {
   /** Shown on the card's `@handle · rank` footer (design-mocks/84). Falls back to the display name
    * upstream; null renders the footer as the rank alone rather than an empty "@". */
   handle?: string | null;
-  /** The two ascension moments (RANKUP_SPEC §1): Diamond I → Hero III, and anything → Primordial.
+  /** The two ascension moments (RANKUP_SPEC §1): Diamond III → Hero I, and anything → Primordial.
    * Gates the cinematic pre-beat, the full anthem, the hardest wash, and the heavy haptic
    * sequence. Normally derived by the caller from the rank delta (see deriveRankUpLevel), but
    * forced true by the dev-tools ascension buttons so both can be auditioned without climbing. */
@@ -747,72 +751,6 @@ function TierFlashOverlay({
   );
 }
 
-// ─────────────────────────── the incineration's numeral (§9's bump) ────────────────────────────
-//
-// Rendered INSIDE the hexagon in place of its roman numeral: one stroke per division mark, so the
-// top one can burn away on its own and the survivors can recenter. A single Text can't do either —
-// "III" burning to "II" has to be three independent glyphs, and the collapse has to remove the
-// burned stroke's WIDTH (not just hide it) for the row to recenter around what's left.
-function BurningDivisionMark({
-  strokes,
-  color,
-  fontSize,
-  burnAt,
-  collapseAt,
-  reduceMotion,
-}: {
-  strokes: number;
-  color: string;
-  fontSize: number;
-  burnAt: number;
-  collapseAt: number;
-  reduceMotion: boolean;
-}) {
-  const burn = useSharedValue(0);
-  const collapse = useSharedValue(1);
-  const strokeWidth = fontSize * 0.52;
-
-  useEffect(() => {
-    if (reduceMotion) {
-      // Straight to the settled state — the burned stroke is simply not there.
-      burn.value = 1;
-      collapse.value = 0;
-      return;
-    }
-    burn.value = withDelay(burnAt, withTiming(1, { duration: 800, easing: Easing.in(Easing.quad) }));
-    collapse.value = withDelay(collapseAt, withTiming(0, { duration: 450, easing: Easing.out(Easing.cubic) }));
-  }, [burnAt, collapseAt, reduceMotion, burn, collapse]);
-
-  // Hellfire eats the stroke: white → ember gold → coral as it lifts off and shrinks away.
-  const burnStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(burn.value, [0, 0.45, 1], [1, 1, 0]),
-    color: interpolateColor(burn.value, [0, 0.2, 0.45], ['#ffffff', '#FFD27A', Colors.coral]),
-    transform: [
-      { translateY: interpolate(burn.value, [0, 0.45, 1], [0, -3, -20]) },
-      { scale: interpolate(burn.value, [0, 0.45, 1], [1, 1.15, 0.3]) },
-    ],
-  }));
-  const collapseStyle = useAnimatedStyle(() => ({ width: strokeWidth * collapse.value }));
-
-  return (
-    <View style={styles.divisionMark}>
-      {Array.from({ length: strokes }, (_, i) =>
-        i === strokes - 1 ? (
-          // The top stroke — the one hellfire takes. Its wrapper's width collapsing is what makes
-          // the remaining marks recenter, since the row is center-aligned.
-          <Animated.View key={i} style={[styles.strokeSlot, collapseStyle]}>
-            <Animated.Text style={[styles.stroke, { fontSize, width: strokeWidth }, burnStyle]}>I</Animated.Text>
-          </Animated.View>
-        ) : (
-          <Text key={i} style={[styles.stroke, { fontSize, width: strokeWidth, color }]}>
-            I
-          </Text>
-        )
-      )}
-    </View>
-  );
-}
-
 // The stage the moment lives in, and the story card's own background once it settles
 // (design-mocks/85's `.stage`: radial-gradient(130% 58% at 50% 30%, #2a1f3a, #1a1326 60%, #120d1a)).
 /**
@@ -884,7 +822,7 @@ export function RankUpCelebration({
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
   }, []);
 
-  // Same tier in and out (e.g. Gold II→I) = a within-tier bump: the incineration, not a crossing.
+  // Same tier in and out (e.g. Gold II→III) = a within-tier bump, not a crossing.
   // (The dev-preview's Bronze "from = itself" also reads as a bump, which is right — there's no
   // lower rank to cross from.)
   const isDivisionBump = fromTier === tier;
@@ -1047,8 +985,8 @@ export function RankUpCelebration({
       composeCardChrome();
     }
 
-    // The incineration (§9): fuse-in → forge → hellfire takes the top stroke → the marks recenter
-    // → the tier's own hit lands as the new division locks → a lighter DIVISION UP card.
+    // The bump (§9): fuse-in → forge → the new chevron strikes in → the tier's own hit lands as
+    // the division locks → a lighter DIVISION UP card.
     function runIncineration() {
       fuse.value = withTiming(1, { duration: 1000, easing: Easing.out(Easing.cubic) });
       fireIncinerationFuse();
@@ -1285,11 +1223,24 @@ export function RankUpCelebration({
           shares the container's exact top-left, which is all measureInWindow is asked for here. */}
       <View ref={claimRootRef} collapsable={false} pointerEvents="none" style={StyleSheet.absoluteFill} />
 
-      {/* THE BRAND REVEAL'S FAN, behind the hex badge and under everything else — the same
-          component the challenge and daily reveals use, anchored on the measured badge so the light
-          comes off the emblem rather than off the middle of the phone. This screen had the app's
-          biggest ray SCALE in REVEAL_TUNING and nothing drawing it. */}
-      <FullscreenRays kind="rank_up" anchor={heroAnchor} rootOffset={rootOffset} />
+      {/* THE BRAND REVEAL'S FAN, behind the badge and under everything else — the same component
+          the challenge and daily reveals use, anchored on the measured badge so the light comes
+          off the emblem rather than off the middle of the phone. This screen had the app's biggest
+          ray SCALE in REVEAL_TUNING and nothing drawing it.
+
+          COLOURED TO THE TIER, AND TURNED WAY DOWN (mock 213). It inherited REVEAL_TUNING's flat
+          ember gold at 0.9 — a floodlight in one colour behind a badge struck in ten. Both halves
+          were wrong for the same reason: the fan is supposed to be light coming OFF the metal, and
+          at 0.9 it was brighter than the hero it was lighting. Tinted from the new tier's own
+          metal and dropped to RANK_UP_RAY_INTENSITY, it reads as a slow breathing bloom that the
+          badge sits inside of. */}
+      <FullscreenRays
+        kind="rank_up"
+        anchor={heroAnchor}
+        rootOffset={rootOffset}
+        tint={{ inner: metal.inner, outer: metal.outer }}
+        intensity={RANK_UP_RAY_INTENSITY}
+      />
 
       {/* The corner the embers fly into. The rank-up has no top bar to put it in, so it floats
           over one — the card's brand mark is centred and never reaches this far right. */}
@@ -1343,27 +1294,15 @@ export function RankUpCelebration({
         <Animated.View pointerEvents="none" style={[styles.shockRing, shockStyle]} />
         {entrance === 'coalesce' && <Animated.View pointerEvents="none" style={[styles.coalesceHalo, { backgroundColor: metal.inner }, coalesceStyle]} />}
         <Animated.View style={entranceStyle}>
-          <HexagonBadge
+          <RankBadge
             tier={badgeTier}
             division={badgeDivision}
             size={BADGE_SIZE}
-            // The incineration replaces the numeral with independently-animatable strokes so the
-            // top one can burn off and the rest recenter (§9).
-            numeralOverride={
-              isDivisionBump ? (
-                <BurningDivisionMark
-                  // Derived from the division REACHED, not from fromDivision: the mark that burns
-                  // is always the one the new division doesn't have, so a multi-step jump (III→I,
-                  // possible on a big XP drop-in) still lands on the correct final numeral.
-                  strokes={Math.min(3, division + 1)}
-                  color={metal.numeral}
-                  fontSize={BADGE_SIZE * 0.32}
-                  burnAt={BUMP_BURN_MS}
-                  collapseAt={BUMP_COLLAPSE_MS}
-                  reduceMotion={reduceMotion}
-                />
-              ) : undefined
-            }
+            // A bump lands its newest chevron as a strike rather than drawing it already settled
+            // (§9). Keyed off the division REACHED, which the badge derives the mark count from
+            // itself — so a multi-step jump (I→III, possible on a big XP drop-in) still lights the
+            // correct top mark rather than one counted from `fromDivision`.
+            igniteTopChevronAt={isDivisionBump ? BUMP_BURN_MS : null}
           />
           {/* "The hexagon burns" — Primordial's arrival only (§11's reconciliation); fades out on
               its own and never re-fires, leaving just the badge's normal resting aura. */}
@@ -1382,7 +1321,7 @@ export function RankUpCelebration({
       </Animated.Text>
 
       {/* The all-caps two-liner is the TIER-CROSSING payoff (§5). A bump gets the light
-          division-up line instead — spending "THE CROWN IS YOURS." on Gold III→II would flatten
+          division-up line instead — spending "THE CROWN IS YOURS." on Gold I→II would flatten
           the crossing it belongs to. */}
       <Animated.View style={[styles.copyBlock, copyStyle]}>
         <Text style={[styles.copyHead, { color: metal.inner }, isDivisionBump && styles.copyHeadBump]}>{copy.head}</Text>
@@ -1536,20 +1475,6 @@ const styles = StyleSheet.create({
     marginTop: -60,
     borderRadius: 4,
     backgroundColor: Colors.amber,
-  },
-  divisionMark: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  strokeSlot: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  stroke: {
-    fontFamily: Fonts.displayHeavy,
-    textAlign: 'center',
   },
   tierName: {
     fontFamily: Fonts.displayHeavy,

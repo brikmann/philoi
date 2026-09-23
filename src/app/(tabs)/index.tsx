@@ -19,7 +19,7 @@ import { EquippedFlameParticles } from '@/components/economy/flare-perimeter';
 import { PersonalFlame } from '@/components/personal-flame';
 import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
 import { FireShareCard } from '@/components/fire-share-card';
-import { HexagonBadge } from '@/components/hexagon-badge';
+import { RankBadge } from '@/components/rank-badge';
 import { SeasonPill } from '@/components/home-chrome';
 import { HeatFlame } from '@/components/heat-flame';
 import { DrawerButton } from '@/components/nav/app-drawer';
@@ -255,7 +255,7 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
           answering rank, progress, XP and today's goal at once — §5. */}
       {rank ? (
         <View style={styles.rankRow}>
-          <HexagonBadge tier={rank.tier} division={rank.division} size={HERO_BADGE_SIZE} />
+          <RankBadge tier={rank.tier} division={rank.division} size={HERO_BADGE_SIZE} />
           <HomeXpBar
             tier={rank.tier}
             division={rank.division}

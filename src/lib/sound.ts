@@ -39,8 +39,8 @@ export type RewardCue =
   // Immortal's "laughter of the damned" (RANKUP_SPEC §3/§9) — a second layer UNDER the tier hit,
   // not a replacement for it, so Immortal reads as haunted rather than just another chime.
   | 'rankup-immortal-souls'
-  // The two band crossings ONLY (RANKUP_SPEC §9) — the first transcension (Diamond I → Hero III)
-  // and the apex (Immortal I → Primordial). Each is a FULL anthem that plays once, uncut: it IS
+  // The two band crossings ONLY (RANKUP_SPEC §9) — the first transcension (Diamond III → Hero I)
+  // and the apex (Immortal III → Primordial). Each is a FULL anthem that plays once, uncut: it IS
   // the build, which is why there's no riser anywhere in the moment any more.
   | 'ascension-hero'
   | 'ascension-primordial'

@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { HexagonBadge } from '@/components/hexagon-badge';
+import { RankBadge } from '@/components/rank-badge';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { formatRankTier } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
@@ -52,7 +52,7 @@ export function LeaderboardPersonRow({
         </Text>
         <Text style={styles.sub}>{formatRankTier(tier, division)}</Text>
       </View>
-      <HexagonBadge tier={tier} division={division} size={24} />
+      <RankBadge tier={tier} division={division} size={24} />
       <View style={styles.valueColumn}>
         <Text style={styles.val}>{value}</Text>
         {secondaryValue ? <Text style={styles.valSub}>{secondaryValue}</Text> : null}

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { EquippedHexGlow, PublicHalo, PublicTitle } from '@/components/economy/loadout-bits';
-import { HexagonBadge } from '@/components/hexagon-badge';
+import { RankBadge } from '@/components/rank-badge';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -69,7 +69,7 @@ export function LeaderboardRow({ rank, row, isMe, groupId, onChanged }: Leaderbo
               rank, so a cosmetic can never repaint them into a higher tier. */}
           <View>
             <EquippedHexGlow size={32} loadout={loadout} />
-            <HexagonBadge tier={row.tier} division={row.division} size={32} />
+            <RankBadge tier={row.tier} division={row.division} size={32} />
           </View>
           <Text style={styles.tierText}>{formatRankTier(row.tier, row.division)}</Text>
           <Text style={styles.xpText}>{Math.round(row.score).toLocaleString()} XP</Text>

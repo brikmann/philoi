@@ -20,7 +20,7 @@ import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { RELIC_LADDERS, RUNG_GLYPH } from '@/lib/economy/relic-ladders';
 import { RARITY_COLOR } from '@/lib/economy/rarity';
-import { RANK_TIER_METAL } from '@/lib/rank-tiers';
+import { DIVISION_NUMERAL, RANK_TIER_LABEL, RANK_TIER_METAL } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -402,7 +402,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
         <MiniScreen key="ag">
           <MiniHeader glyph="🏛️" title="The Agora" />
           <View style={styles.post}>
-            <MiniRow glyph="A" title="Ava · ranked up 🔥" sub="Diamond → Platinum I · 2m" />
+            <MiniRow glyph="A" title="Ava · ranked up 🔥" sub="Platinum III → Diamond I · 2m" />
             <View style={styles.reacts}>
               <MiniChip label="🔥 24" color={Colors.amber} />
               <MiniChip label="👏 8" color={Colors.muted} />
@@ -429,7 +429,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen center key="s0">
-          <ShareCard big="RANK UP" sub="Diamond III → Diamond II" glyph="🔥" user={at} kicker="PHILOI" />
+          <ShareCard big="RANK UP" sub="Diamond II → Diamond III" glyph="🔥" user={at} kicker="PHILOI" />
           <MiniButton label="📤 Share this" style={styles.shareBtn} />
         </MiniScreen>,
         <MiniScreen key="s1">
@@ -620,18 +620,26 @@ export function tutorialCards(displayName: string | null, handle: string | null)
 //
 // Colours come from RANK_TIER_METAL rather than being transcribed out of the mock, so the tutorial
 // cannot show a Diamond that is a different blue from the one on the profile.
+//
+// The NAMES and the DIVISION RANGE are derived for the same reason, and both were transcribed
+// until the WS9 pass: this table said "Olympian" after the tier was renamed Divine, and it said
+// "III–I" nine times after the numerals flipped to climb I → II → III. Two copies of a fact the
+// app already holds, and the copy in the onboarding card is the one nobody rereads.
+
+const DIVISION_RANGE = `${DIVISION_NUMERAL[3]}–${DIVISION_NUMERAL[1]}`;
 
 const LADDER: { tier: RankTierName; label: string; divisions: string; here?: boolean }[] = [
-  { tier: 'primordial', label: 'Primordial', divisions: 'apex' },
-  { tier: 'immortal', label: 'Immortal', divisions: 'III–I' },
-  { tier: 'olympian', label: 'Olympian', divisions: 'III–I' },
-  { tier: 'titan', label: 'Titan', divisions: 'III–I' },
-  { tier: 'hero', label: 'Hero', divisions: 'III–I' },
-  { tier: 'diamond', label: 'Diamond', divisions: 'III–I', here: true },
-  { tier: 'platinum', label: 'Platinum', divisions: 'III–I' },
-  { tier: 'gold', label: 'Gold', divisions: 'III–I' },
-  { tier: 'silver', label: 'Silver', divisions: 'III–I' },
-  { tier: 'bronze', label: 'Bronze', divisions: 'III–I' },
+  ...(['primordial', 'immortal', 'olympian', 'titan', 'hero', 'diamond', 'platinum', 'gold', 'silver', 'bronze'] as const).map(
+    (tier) => ({
+      tier,
+      label: RANK_TIER_LABEL[tier],
+      // The apex has no divisions to name (PHILOI_UI_SPEC §11).
+      divisions: tier === 'primordial' ? 'apex' : DIVISION_RANGE,
+      // Diamond is where the card plants "you are here" — the last mortal tier, one step from the
+      // realm of legend, which is the whole point the card is making.
+      here: tier === 'diamond',
+    })
+  ),
 ];
 
 /** The live families, named and coloured from RELIC_LADDERS so the shelf matches the real one. */

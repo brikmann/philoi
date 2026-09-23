@@ -5,7 +5,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import Animated, { useAnimatedStyle, withDelay, withTiming } from 'react-native-reanimated';
 
 import { GymClipThumbnail } from '@/components/gym-clip-player';
-import { HexagonBadge } from '@/components/hexagon-badge';
+import { RankBadge } from '@/components/rank-badge';
 import { PersonalFlame } from '@/components/personal-flame';
 import { TextInput } from '@/components/ui/text-input';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
@@ -133,7 +133,7 @@ export function LockInDoneScreen({
 
   const plusStyle = useAnimatedStyle(() => ({ opacity: withDelay(300, withTiming(plusVisible ? 1 : 0, { duration: 400 })) }));
 
-  // "Diamond II · 75% to I" (mock 92's `.rankchip`). At max rank there is nothing above to chase,
+  // "Diamond II · 75% to III" (mock 92's `.rankchip`). At max rank there is nothing above to chase,
   // so the chip states the rank alone rather than inventing a target.
   const up = rankAfter ? nextRank(rankAfter.tier, rankAfter.division) : null;
   const rankProgressSuffix =
@@ -257,7 +257,7 @@ export function LockInDoneScreen({
 
         {rankBefore && rankAfter && (
           <View style={[styles.rankChip, { borderColor: `${RANK_TIER_METAL[rankAfter.tier].text}66` }]}>
-            <HexagonBadge tier={rankAfter.tier} division={rankAfter.division} size={18} />
+            <RankBadge tier={rankAfter.tier} division={rankAfter.division} size={18} />
             <Text style={[styles.rankChipText, { color: RANK_TIER_METAL[rankAfter.tier].text }]} numberOfLines={1}>
               {formatRankTier(rankAfter.tier, rankAfter.division)}
               {rankProgressSuffix}

@@ -146,7 +146,7 @@ export function stopRankUpAudio(): void {
 // under the settling share card. There is NO riser: the hit is the punch.
 //
 // isDivisionBump gets the SAME per-tier cue at near-full volume — the incineration's payoff beat is
-// "the tier's own rank-up hit lands as the new division locks" (§9), so a Gold II→I plays the Gold
+// "the tier's own rank-up hit lands as the new division locks" (§9), so a Gold II→III plays the Gold
 // hit, just a touch under a true crossing.
 export function fireRankUp(tier: RankTierName, isDivisionBump = false, isBandCrossing = false): void {
   const prefs = getRewardPreferencesSync();

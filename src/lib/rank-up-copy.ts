@@ -25,7 +25,10 @@ export const RANK_UP_COPY: Record<RankTierName, { head: string; sub: string }> =
   diamond: { head: 'FORGED UNDER PRESSURE.', sub: 'THE MORTAL PEAK — ONE STEP FROM LEGEND.' },
   hero: { head: 'MORTAL LIMITS BROKEN.', sub: 'WELCOME TO THE REALM OF LEGEND.' },
   titan: { head: 'THE EARTH TREMBLES.', sub: 'A TITAN WALKS AMONG THEM.' },
-  olympian: { head: 'YOU ENTER OLYMPUS.', sub: 'THE GODS MAKE ROOM.' },
+  // Divine (enum key `olympian`). Was 'YOU ENTER OLYMPUS.' / 'THE GODS MAKE ROOM.' — retired
+  // with the tier's name for the same trademark reason, since a line naming Olympus is the same
+  // claim the label was making.
+  olympian: { head: 'YOU ARE MADE DIVINE.', sub: 'MORTAL NO LONGER.' },
   immortal: { head: 'DEATH HAS NO CLAIM.', sub: 'YOU CANNOT FALL.' },
   primordial: { head: 'YOU ARE BEYOND TIME ITSELF.', sub: 'YOU ARE NOW PRIMORDIAL.' },
 };
@@ -42,7 +45,7 @@ export function rankUpCardTag(tier: RankTierName, isDivisionBump: boolean): stri
 
 // The DIVISION UP card's light two-liner (RANKUP_SPEC §9's intra-division bump) — deliberately NOT
 // from RANK_UP_COPY: the ten all-caps lines above are tier-crossing payoffs, each earned once, and
-// spending "THE CROWN IS YOURS." again on Gold III→II would flatten the crossing it belongs to.
+// spending "THE CROWN IS YOURS." again on Gold I→II would flatten the crossing it belongs to.
 // This is the small version — you moved, and the next tier is named so the bump points somewhere.
 export function divisionUpCopy(tier: RankTierName): { head: string; sub: string } {
   const next = RANK_TIER_ORDER[RANK_TIER_ORDER.indexOf(tier) + 1];

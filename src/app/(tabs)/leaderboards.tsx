@@ -11,7 +11,7 @@ import { Screen } from '@/components/ui/screen';
 import { TabHeader } from '@/components/ui/tab-header';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { HexagonBadge } from '@/components/hexagon-badge';
+import { RankBadge } from '@/components/rank-badge';
 import { useCrossCirclePeople } from '@/hooks/use-cross-circle-people';
 import { useGlobalLeaderboard } from '@/hooks/use-global-leaderboard';
 import { useUniversityLeaderboard } from '@/hooks/use-university-leaderboard';
@@ -329,7 +329,7 @@ export default function LeaderboardsScreen() {
                     {item.board}
                   </Text>
                 </View>
-                <HexagonBadge tier={item.tier} division={item.division} size={22} />
+                <RankBadge tier={item.tier} division={item.division} size={22} />
                 <View style={styles.searchRank}>
                   <Text style={styles.searchRankValue}>{item.board_rank ? `#${item.board_rank.toLocaleString()}` : '—'}</Text>
                   <Text style={styles.searchRankSub}>{Math.round(item.score).toLocaleString()} XP</Text>

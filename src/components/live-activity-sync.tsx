@@ -90,7 +90,7 @@ export function LiveActivitySync() {
       rankRatio: atMax ? 1 : xpProgressRatio(rank.xp_into_tier, rank.xp_for_next_tier),
       // Native renders this as "X% to {rankLabel}" (LockInLiveActivity.swift / the Android module),
       // so it must be the NEXT division, not the current one — same off-by-one the in-app bar had
-      // (it read "to Gold III" while you were reaching Gold II). Advance with nextRank(), matching
+      // (it read "to Gold II" while you were reaching Gold III). Advance with nextRank(), matching
       // rank-projection-bar.tsx. At the apex nextRank() is null; keep the CURRENT label (non-empty)
       // there so native's hasRank stays true and it still renders "Max rank" rather than hiding the
       // whole block.

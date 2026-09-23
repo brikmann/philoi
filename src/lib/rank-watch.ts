@@ -37,7 +37,7 @@ export async function readLastSeenRank(userId: string): Promise<SeenRank | null>
     // Guard the VALUE too, not just the type. This baseline outlives app updates on the device,
     // so it can name a tier that no longer exists — the pre-0063 apex, for anyone who reached it
     // before the rework renamed it. rankOrdinal() resolves an unknown tier through indexOf(),
-    // which returns -1, giving it an ordinal BELOW Bronze III — so a stale baseline like that
+    // which returns -1, giving it an ordinal BELOW the bottom rung — so a stale baseline like that
     // would make the very next check read as a huge promotion and fire a spurious full-screen
     // forge. Dropping it re-baselines silently on the next check instead, which is exactly how
     // the watcher already handles a downward move.
@@ -100,7 +100,7 @@ export type RankUpEvent = {
 };
 
 // The two ascension moments (§1): entering the Realm of Legend, and reaching the apex. Hero only
-// counts when arriving FROM the mortal band — Titan I → Hero (impossible today, but a future
+// counts when arriving FROM the mortal band — Titan III → Hero (impossible today, but a future
 // demotion/rework could) shouldn't replay the threshold.
 const MORTAL_TIERS: RankTierName[] = ['bronze', 'silver', 'gold', 'platinum', 'diamond'];
 
