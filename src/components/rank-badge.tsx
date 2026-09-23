@@ -19,7 +19,6 @@ import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { divisionMarks, RANK_TIER_METAL } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
-const AnimatedStop = Animated.createAnimatedComponent(Stop);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 // ─────────────────────────────── the frame (design-mocks/213) ───────────────────────────────
@@ -299,7 +298,6 @@ export function RankBadge({ tier, division, size = 40, progress, igniteTopChevro
   const sheenId = `rbS${uid}`;
   const auraId = `rbA${uid}`;
 
-  const shimmer = useSharedValue(0);
   const aura1 = useSharedValue(0);
   const aura2 = useSharedValue(0);
 
@@ -307,26 +305,16 @@ export function RankBadge({ tier, division, size = 40, progress, igniteTopChevro
   const motionActive = useMotionActive();
   useEffect(() => {
     if (!isPrimordial || reduceMotion || !motionActive) return;
-    shimmer.value = withRepeat(withSequence(withTiming(1, { duration: 1100 }), withTiming(0, { duration: 1100 })), -1, true);
     aura1.value = withRepeat(withSequence(withTiming(1, { duration: 1400 }), withTiming(0, { duration: 1400 })), -1, true);
     aura2.value = withDelay(
       75,
       withRepeat(withSequence(withTiming(1, { duration: 1400 }), withTiming(0, { duration: 1400 })), -1, true)
     );
     return () => {
-      cancelAnimation(shimmer);
       cancelAnimation(aura1);
       cancelAnimation(aura2);
     };
-  }, [isPrimordial, reduceMotion, motionActive, shimmer, aura1, aura2]);
-
-  // The shimmer rides the medallion gradient's bright stop rather than a flat fill, because the
-  // medallion IS a gradient now — same drift, applied where the light actually is.
-  const shimmerStopProps = useAnimatedProps(() => ({
-    stopColor: isPrimordial
-      ? interpolateColor(shimmer.value, [0, 1], [metal.inner, metal.shimmer ?? metal.inner])
-      : metal.inner,
-  }));
+  }, [isPrimordial, reduceMotion, motionActive, aura1, aura2]);
 
   const aura1Style = useAnimatedStyle(() => ({
     opacity: 0.09 + aura1.value * 0.11,
@@ -376,14 +364,12 @@ export function RankBadge({ tier, division, size = 40, progress, igniteTopChevro
         <Svg width={size} height={height} viewBox={VIEW_BOX}>
           <Defs>
             <LinearGradient id={metalId} x1="0" y1="0" x2="0.18" y2="1">
-              {/* `stopColor` is set STATICALLY as well as through animatedProps, and it is not
-                  redundant. Only Primordial's stop ever moves; for the other nine tiers the driver
-                  is parked at 0 and the animated value is just `metal.inner` forever. If a future
-                  react-native-svg stops honouring animated props on a <Stop> — a virtual node, and
-                  the least-exercised animation target in this app — the static prop means every
-                  badge still renders in its own metal and only the apex's shimmer goes quiet.
-                  Without it the same change would leave a gradient stop with no colour at all. */}
-              <AnimatedStop offset="0" stopColor={metal.inner} animatedProps={shimmerStopProps} />
+              {/* This stop was previously an Animated <Stop> so Primordial's bright stop could
+                  shimmer. On this Reanimated build, animating a <Stop> (a virtual SVG node with no
+                  host view) throws "Cannot find host instance" during layout-effect commit and
+                  crashed the app at boot on every surface that mounts a badge. The shimmer wasn't
+                  worth that; the medallion is a static two-stop gradient now. */}
+              <Stop offset="0" stopColor={metal.inner} />
               <Stop offset="1" stopColor={metal.outer} />
             </LinearGradient>
             {/* MOCK 213 LIT ITS METAL WITH feSpecularLighting. react-native-svg has no specular
