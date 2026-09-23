@@ -1226,6 +1226,15 @@ export type ActiveChallengeMarker = {
   opponent_name: string | null;
   race_metric: SocialChallengeRaceMetric;
   target_count: number | null;
+  /**
+   * Who is actually in the race (0204) — challenge_field's count, the same field settlement pays
+   * across. Null on a duel, which reads "vs <them>" and has no use for a number.
+   *
+   * NOT `target_count`, which is what the chip used to print as "Group · N×": that column is null
+   * by constraint on a placement race (0126) and on a measured collective goal (0169), so the pill
+   * on Your fire read the literal "Group · ?×" for both shapes.
+   */
+  participant_count: number | null;
   ends_at: string | null;
   can_watch: boolean;
 };
@@ -1931,6 +1940,24 @@ export type SocialChallenge = {
   /** grant_reward's own receipt, stored at settlement. Null while live, and on a challenge that
    *  settled before its payload could be captured. */
   my_reward_payload: ChallengeRewardPayload | null;
+  /**
+   * Cindy's scope (0204), null on any race created through the plain form.
+   *
+   * 0174 taught settlement to spend it and 0175 opened the create-time write path, so a scoped
+   * race has been paying by tier for a while — this is the first read that can SAY so. Without it
+   * the info screen had only the flat `payout_xp` default and told a mythic-scoped placement board
+   * that "everyone takes up to +300 XP". Null means unscoped, which is the floor, not an error.
+   */
+  difficulty_tier: DifficultyTier | null;
+  /**
+   * How the race is scored, DERIVED server-side from the metric and never sent by a client
+   * (0160's firewall, restated as challenge_verifiability_for in 0175).
+   *
+   * Read alongside the tier because preview_challenge_reward prices the two TOGETHER — the honour
+   * discount is what stops a self-reported race minting the top three boxes — so pricing off the
+   * tier alone would over-promise on every grade and count race.
+   */
+  verifiability: GoalVerifiability | null;
 };
 
 /** One row of get_challenge_results() (0111) — the settled standings, read rather than

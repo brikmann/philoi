@@ -21,6 +21,7 @@ import {
   metricLabel,
 } from '@/lib/challenge-metric';
 import { challengeClockText, duelOutcome, isFinished, isSettled, type ChallengeVerdict } from '@/lib/challenge-outcome';
+import { TIER_COLOR } from '@/lib/challenge-tier';
 import { rewardChips, type RewardChip } from '@/lib/challenge-reward-summary';
 import type { SocialChallenge } from '@/types/database';
 
@@ -196,6 +197,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
           <View style={styles.labelLeft}>
             <Ionicons name={grade ? 'school' : 'flash'} size={12} color={Colors.achieverText} />
             <Text style={styles.labelText} numberOfLines={1}>{raceLabel}</Text>
+            <TierPill tier={c.difficulty_tier} />
           </View>
           <View style={styles.labelLeft}>
             {c.status === 'active' && <View style={styles.livePulse} />}
@@ -369,6 +371,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
           <View style={styles.labelLeft}>
             <Ionicons name="trophy" size={12} color={Colors.achieverText} />
             <Text style={styles.labelText}>Placement · ranked</Text>
+            <TierPill tier={c.difficulty_tier} />
           </View>
           <View style={styles.labelLeft}>
             {c.status === 'active' && <View style={styles.livePulse} />}
@@ -438,6 +441,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
         <View style={styles.labelLeft}>
           <Ionicons name={grade ? 'school' : 'people'} size={12} color={Colors.achieverText} />
           <Text style={styles.labelText}>{grade ? 'Course · all or nothing' : 'Group · all or nothing'}</Text>
+          <TierPill tier={c.difficulty_tier} />
         </View>
         <View style={styles.labelLeft}>
           {c.status === 'active' && <View style={styles.livePulse} />}
@@ -717,6 +721,30 @@ function ManageKebab({ visible, onPress }: { visible: boolean; onPress: () => vo
   );
 }
 
+/**
+ * WHAT CINDY SCOPED THIS RACE AT (0204) — one pill, every shape.
+ *
+ * A scoped race has settled by its tier since 0174 and could not SAY so until the read widened:
+ * `difficulty_tier` reached the row through create_*_challenge(p_tier) (0175) and then went
+ * nowhere, so a mythic board and a common one drew the identical card.
+ *
+ * The NAME only, never a figure. Every ember and crate number on this screen comes from
+ * preview_challenge_reward, because a local tier -> payout table is a second source of truth that
+ * the first economy retune puts out of step (challenge-tier.ts's own rule). The card says how hard
+ * the race was judged to be; the info screen one tap away says what that is worth.
+ *
+ * Nothing is drawn unscoped — a race built through the plain form carries no tier and pays the
+ * floor, and a pill reading "COMMON" over it would invent a judgement nobody made.
+ */
+function TierPill({ tier }: { tier: SocialChallenge['difficulty_tier'] }) {
+  if (!tier) return null;
+  return (
+    <View style={[styles.tierPill, { borderColor: TIER_COLOR[tier] }]}>
+      <Text style={[styles.tierPillText, { color: TIER_COLOR[tier] }]}>{tier.toUpperCase()}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.card,
@@ -777,6 +805,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.achieverText,
     flexShrink: 1,
+  },
+  tierPill: {
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingVertical: 1,
+    paddingHorizontal: 6,
+  },
+  tierPillText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 9,
+    letterSpacing: 0.5,
   },
   clock: {
     fontFamily: Fonts.body,

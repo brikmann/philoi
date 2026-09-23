@@ -272,11 +272,27 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
 
       {/* Your own active-challenge marker (PHILOI_UI_SPEC.md §16, mock 37: "you see your own on
           Your fire") — no Watch CTA here, can_watch is always false for your own marker since
-          you can't spectate yourself. */}
+          you can't spectate yourself.
+
+          🔴 AND IT WAS A DEAD TAP. The chip announced a live race on the home screen and then went
+          nowhere: the only pressable thing the component renders is the Watch pill, which needs
+          both can_watch AND an onWatch — and a self-marker has neither by construction. So the one
+          surface telling you a race is running was the one surface you could not get to it from.
+
+          A Pressable at the CALL SITE rather than inside the chip, because the other two callers
+          (friend-profile, the campfire leaderboard) already own the Watch pill: wrapping the
+          component's own row would put a pressable around that button on those screens. Here there
+          is no Watch pill to nest, so the whole row is the target. */}
       {myMarker && (
-        <View style={styles.markerRow}>
+        <Pressable
+          style={styles.markerRow}
+          onPress={() =>
+            router.push({ pathname: '/challenge-info/[challengeId]', params: { challengeId: myMarker.challenge_id } })
+          }
+          accessibilityRole="button"
+          accessibilityLabel="Open your active challenge">
           <ActiveChallengeMarkerChip marker={myMarker} />
-        </View>
+        </Pressable>
       )}
 
       {/* Mock 92's `.cta` — its own padded block, not flush against the rank row above it. */}

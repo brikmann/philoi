@@ -37,7 +37,21 @@ export function ActiveChallengeMarkerChip({ marker, onWatch, compact }: { marker
 
   const dotStyle = useAnimatedStyle(() => ({ opacity: reduceMotion ? 1 : pulse.value }));
 
-  const label = marker.mode === 'h2h' ? `vs ${marker.opponent_name ?? 'them'}` : `Group · ${marker.target_count ?? '?'}×`;
+  // 🔴 WAS `Group · ${marker.target_count ?? '?'}×`, which rendered the literal "Group · ?×" on
+  // Your fire. target_count is null BY CONSTRAINT on a placement race (0126) and null on a
+  // measured collective goal (0169), so the two shapes most likely to be running were exactly the
+  // two the pill could not name — and the fallback advertised the app's own missing data.
+  //
+  // participant_count (0204) is who is actually in the race, from challenge_field — the same field
+  // settlement pays across. It is null only on a duel, which takes the other branch anyway; the
+  // fallback below is for a marker read by a build older than 0204's deploy, which reads "Group"
+  // and says nothing untrue rather than showing a question mark.
+  const label =
+    marker.mode === 'h2h'
+      ? `vs ${marker.opponent_name ?? 'them'}`
+      : marker.participant_count != null
+        ? `${marker.participant_count} in`
+        : 'Group';
   const timeLeft = formatTimeLeft(marker.ends_at);
 
   return (

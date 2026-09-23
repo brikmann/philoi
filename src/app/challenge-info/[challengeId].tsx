@@ -275,6 +275,38 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
   const cardRef = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
 
+  /**
+   * WHAT CINDY SCOPED THIS RACE AT (0204) — the other half of the arc that already works.
+   *
+   * The chain has been complete end to end for a while: the coach proposes a tier, the verdict
+   * screen shows what the SERVER prices it at, create_group_challenge / create_placement_challenge
+   * take p_tier (0175), and settlement spends it (0174). The one thing missing was a read — so
+   * this screen could only print the flat `payout_xp` default and told every racer on a scoped
+   * board "Everyone takes up to +300 XP", which is the promise the whole scoping design exists to
+   * stop the app making.
+   *
+   * Asked of the server, never computed here — the same firewall the personal-goal branch below
+   * is written under. A local tier→payout table would be a second source of truth, and the first
+   * economy retune would have this screen promise one thing and the reveal deliver another.
+   *
+   * Null tier = created through the plain form, which is unscoped and pays the floor. Nothing is
+   * drawn for it: inventing a crate for a race that will not mint one is the same lie in the other
+   * direction.
+   */
+  const tier = c.difficulty_tier;
+  const claimLevel = c.verifiability ?? 'honor';
+  const [scoped, setScoped] = useState<ScopedRewardPreview | null>(null);
+  useEffect(() => {
+    if (!tier) return;
+    let alive = true;
+    previewScopedReward(tier, claimLevel).then((r) => {
+      if (alive) setScoped(r);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [tier, claimLevel]);
+
   const isCreator = session?.user.id === c.created_by;
   // `shape` (0096), not `opponent_id != null`. A collective goal used to draw the duel arena
   // below — CAMPFIRE_REDESIGN_SPEC's 🔴 "a group goal renders as a 1v1 VS card" — and since a
@@ -400,6 +432,36 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
     router.push({ pathname: '/shop/open', params: { boxIds: boxId, boxKey } });
   }
 
+  /**
+   * The scoped crate, as ONE row shared by all three shapes.
+   *
+   * Beside the XP row rather than replacing it, because the two are different numbers and both are
+   * true: scope_challenge_at_create writes `difficulty_tier` and deliberately does NOT touch
+   * `payout_xp` (0175), so the pot really is what the XP row says. What the tier decides is the
+   * CRATE and the embers — which this screen had never mentioned at all. Replacing the XP line
+   * with this one would fix a half-truth by dropping a whole one.
+   *
+   * "at the top band" on anything that is not a duel: preview_challenge_reward prices the tier's
+   * best outcome, and on a placement board only the top band is paid it. A duel has one winner and
+   * needs no such caveat.
+   *
+   * 🔒 The honour discount is already IN this figure — previewScopedReward is asked with the
+   * server-derived `verifiability`, so a self-reported race prices as the lower band it will
+   * actually settle at rather than the one its tier would buy if the app could see the work.
+   */
+  const scopedBox = asBoxKey(scoped?.box);
+  const scopedRows: Row[] = tier
+    ? [
+        {
+          k: settled ? 'Was scoped at' : 'Scoped at',
+          v: scoped
+            ? `${tier.toUpperCase()} · ${scopedBox ? BOXES[scopedBox].name : 'Embers only'} + ${scoped.embers.toLocaleString('en-US')} embers${duel ? '' : ' at the top band'}`
+            : `${tier.toUpperCase()} · …`,
+          highlight: true,
+        },
+      ]
+    : [];
+
   const rows: Row[] = duel
     ? [
         { k: 'Type', v: 'Head-to-head' },
@@ -408,6 +470,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
         // Past tense once it is decided. "Winner takes +200 XP" over a finished race reads as an
         // offer that is still open.
         { k: settled ? 'Winner took' : 'Winner takes', v: `+${c.payout_xp} XP`, highlight: true },
+        ...scopedRows,
         // The tiebreak is the spec's resolution rule, stated here because it is precisely the
         // sort of thing nobody thinks about until it decides their challenge.
         { k: "If it's a tie", v: 'First to reach it' },
@@ -419,6 +482,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           { k: 'The race', v: metricLabel(c.race_metric) },
           { k: 'Duration', v: durationValue(c) },
           { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP by band`, highlight: true },
+          ...scopedRows,
           // The whole campfire is the field — nobody was invited and nobody had to answer, so the
           // collective row's "N yet to answer" would always read zero and imply a step that
           // doesn't exist here.
@@ -431,6 +495,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           { k: 'The goal', v: `Everyone locks in ${c.target_count ?? 1}×` },
           { k: 'Duration', v: durationValue(c) },
           { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP`, highlight: true },
+          ...scopedRows,
           // The racers, not the campfire — since 0096 this is an invited subset, and the count on
           // the card is the one settlement uses (0112).
           { k: 'Racing', v: `${c.accepted_count} in${c.invited_count > 0 ? ` · ${c.invited_count} yet to answer` : ''}` },
