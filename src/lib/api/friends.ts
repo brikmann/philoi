@@ -1,7 +1,7 @@
 import { track } from '@/lib/analytics';
 import { formatRankTier } from '@/lib/rank-tiers';
 import { supabase } from '@/lib/supabase';
-import type { RankTierName } from '@/types/database';
+import type { PingResult, RankTierName } from '@/types/database';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -42,10 +42,35 @@ export function friendStatusLine(friend: Friend, goalLabel: string | null): stri
   return `${rank} · getting started`;
 }
 
-// One-tap nudge — fires a push ("<you> pinged you to lock in 🔥"); tapping it opens the goal
-// picker (see _layout.tsx's 'lock_in_nudge' handler). Push-only: no in-app notification centre.
-export async function nudgeToLockIn(userId: string): Promise<void> {
-  const { error } = await supabase.rpc('nudge_to_lock_in', { p_user_id: userId });
+/** The two one-tap sends on the friend sheet. 'nudge' is "lock in?"; 'fire' is praise. */
+export type NudgeKind = 'nudge' | 'fire';
+
+/**
+ * One-tap nudge to a friend — now the same shape as the campfire ping (migration 0207).
+ *
+ * It lands in BOTH places: a bell row and a push. The bell row used to be written with no route,
+ * because notify_push infers the route by sniffing the payload and has no 'lock_in_nudge' branch —
+ * so the row rendered disabled and the one gesture meant to get you to the goal picker couldn't.
+ * 0207 states the route instead of hoping it is inferred.
+ *
+ * Returns what actually happened, rather than void. "No exception" was never the same as
+ * "delivered": only about 4 in 10 profiles have a registered device, and a repeat inside ten
+ * minutes is now refused. The sheet shows the difference instead of claiming a send either way —
+ * this is the same correction 0172 made to the campfire ping, for the same reason.
+ *
+ * A build talking to a pre-0207 database gets `undefined` back and falls through to 'sent', which
+ * is exactly the (optimistic) behaviour it has today rather than a crash.
+ */
+export async function nudgeToLockIn(userId: string, kind: NudgeKind = 'nudge'): Promise<PingResult> {
+  const { data, error } = await supabase.rpc('nudge_to_lock_in', {
+    p_user_id: userId,
+    // Omitted entirely when it's the default rather than sent explicitly, so this call still
+    // resolves against a pre-0207 database — where the function takes one parameter and an unknown
+    // second would fail the request outright instead of falling back.
+    ...(kind === 'nudge' ? {} : { p_kind: kind }),
+  });
   if (error) throw error;
-  track('friend_nudged', { friend_id: userId });
+  const result = (data as PingResult | null) ?? 'sent';
+  track('friend_nudged', { friend_id: userId, kind, result });
+  return result;
 }

@@ -4,6 +4,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar } from '@/components/ui/avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { friendStatusLine, type Friend } from '@/lib/api/friends';
+import type { PingResult } from '@/types/database';
 
 type FriendPingSheetProps = {
   visible: boolean;
@@ -13,12 +14,33 @@ type FriendPingSheetProps = {
   /** Present only while locked in — the goal they're locked into, for the status line. */
   goalLabel: string | null;
   onPrimary: () => void;
+  /** WS3 · "Send fire" — the praise ping (migration 0207's 'fire' kind). Its own row rather than a
+   *  mode of the primary, because the primary is state-dependent and praise is not. */
+  onSendFire: () => void;
+  /** What the last send on this sheet actually did, or null before anything has been sent. The
+   *  sheet SHOWS it — a nudge that was rate-limited or reached no device must not read the same as
+   *  one that buzzed a phone (0172/0207). */
+  lastPing: PingResult | null;
   /** An accepted/active H2H already exists with this friend (punchlist 2, §5) — the H2H row
    * becomes "View challenge" instead of offering to start a second one. */
   activeH2H: boolean;
   onChallengeH2H: () => void;
   onViewChallenge: () => void;
   onChallengeGroup: () => void;
+};
+
+/**
+ * What each send outcome says on the row (0207 returns PingResult instead of void).
+ *
+ * 'sent_no_push' is the one that matters: roughly 6 in 10 profiles have no registered device, so
+ * "nudged ✓" was routinely a claim about a banner that never appeared. The bell row IS there, and
+ * saying so is both true and more useful than a tick.
+ */
+const PING_RESULT_COPY: Record<string, string> = {
+  idle: 'Send a 🔥 “lock in?” right now',
+  sent: 'Nudged — it buzzed their phone ✓',
+  sent_no_push: "Nudged — it's in their bell, but nothing buzzed",
+  rate_limited: 'Already nudged them in the last 10 minutes',
 };
 
 // The friend ping sheet (design-mocks/21) — same branded bottom-sheet pattern as the campfire
@@ -32,6 +54,8 @@ export function FriendPingSheet({
   lockedIn,
   goalLabel,
   onPrimary,
+  onSendFire,
+  lastPing,
   activeH2H,
   onChallengeH2H,
   onViewChallenge,
@@ -63,9 +87,24 @@ export function FriendPingSheet({
             </View>
             <View style={styles.actText}>
               <Text style={styles.actTitle}>{lockedIn ? 'Lock in with them' : 'Nudge to lock in'}</Text>
-              <Text style={styles.actSub}>
-                {lockedIn ? `Join ${friend?.display_name ?? 'their'}'s session right now` : 'Send a 🔥 “lock in?” right now'}
+              <Text style={[styles.actSub, lastPing === 'rate_limited' && styles.actSubWarn]}>
+                {lockedIn
+                  ? `Join ${friend?.display_name ?? 'their'}'s session right now`
+                  : (PING_RESULT_COPY[lastPing ?? 'idle'] ?? 'Send a 🔥 “lock in?” right now')}
               </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+          </Pressable>
+
+          {/* WS3 · the second one-tap send. Praise, not pressure — the sheet had no way to say
+              "well done" at all, only "get back to work". */}
+          <Pressable style={styles.act} onPress={onSendFire}>
+            <View style={[styles.actIcon, styles.iFire]}>
+              <Ionicons name="flame-outline" size={19} color={Colors.amber} />
+            </View>
+            <View style={styles.actText}>
+              <Text style={styles.actTitle}>Send fire</Text>
+              <Text style={styles.actSub}>Tell them you saw the work</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
           </Pressable>
@@ -127,6 +166,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingBottom: 14,
   },
+  actSubWarn: {
+    color: Colors.amber,
+  },
   name: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 15,
@@ -160,6 +202,11 @@ const styles = StyleSheet.create({
   // Tile backgrounds per mock 21: lock=warm achiever, sword=selected purple, group=dark teal (one-off).
   iLock: {
     backgroundColor: Colors.achieverBg,
+  },
+  // WS3 · fire sits between the two: warmer than the sword tile, quieter than the lock's, so the
+  // primary action still reads as the primary one.
+  iFire: {
+    backgroundColor: 'rgba(255,176,46,0.14)',
   },
   iSword: {
     backgroundColor: Colors.selectedBg,
