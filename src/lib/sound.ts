@@ -185,28 +185,36 @@ let players: Partial<Record<RewardCue, AudioPlayer>> | null = null;
 // bootstrap. Reward sound is a nice-to-have; it must never take down app startup.
 export async function preloadRewardSounds(duckToMusic: boolean): Promise<void> {
   try {
-    const { createAudioPlayer } = require('expo-audio') as typeof import('expo-audio');
+    // Only prime the audio session here — do NOT create players. Each cue's player is built lazily on
+    // first play (ensureRewardPlayer). Creating all ~35 up front registered that many media3 sessions
+    // in one synchronous tick at launch; with shouldPlayInBackground on (#147) each is a background
+    // media session, and Android's MediaSessionService dies under the flood (BR_DEAD_REPLY), crashing
+    // the app on startup. Reward sound is a nice-to-have; it must never take down boot.
     await applyAudioInterruptionMode(duckToMusic);
-    if (players) return;
-    // Built by iterating SOURCES rather than listing each cue by hand — the old literal had to be
-    // edited in lockstep with SOURCES, and a cue added to one but not the other silently never
-    // played. Adding a file to SOURCES is now the only step.
-    players = {};
-    for (const [cue, source] of Object.entries(SOURCES)) {
-      players[cue as RewardCue] = createAudioPlayer(source as number);
-    }
-    // Any ascension mix that has actually been dropped in. Absent = that cue stays silent.
-    // loop is set explicitly rather than left to the default: these are the only multi-minute
-    // one-shots in the set, so a stray repeat would be a 3.5-minute one (RANKUP_SPEC §9's "plays
-    // entirely ONCE — never looped, never trimmed").
-    for (const [cue, source] of Object.entries(ASCENSION_SOURCES)) {
-      if (source === undefined) continue;
-      const player = createAudioPlayer(source);
-      player.loop = false;
-      players[cue as RewardCue] = player;
-    }
+    if (!players) players = {};
   } catch (e) {
     console.warn('[sound] expo-audio unavailable — reward sounds disabled this session:', e);
+  }
+}
+
+// Lazily create (and cache) the shared player for a cue on first use, so app launch never spawns a
+// burst of media sessions — at most a couple ever exist at once. Ascension mixes are long one-shots
+// and must never loop (RANKUP_SPEC §9).
+function ensureRewardPlayer(cue: RewardCue): AudioPlayer | null {
+  if (!players) players = {};
+  const existing = players[cue];
+  if (existing) return existing;
+  const source = (SOURCES as Record<string, number>)[cue] ?? ASCENSION_SOURCES[cue];
+  if (source === undefined) return null;
+  try {
+    const { createAudioPlayer } = require('expo-audio') as typeof import('expo-audio');
+    const player = createAudioPlayer(source);
+    if (ASCENSION_SOURCES[cue] !== undefined) player.loop = false;
+    players[cue] = player;
+    return player;
+  } catch (e) {
+    console.warn('[sound] reward player create failed:', e);
+    return null;
   }
 }
 
@@ -260,7 +268,8 @@ export async function applyAudioInterruptionMode(duckToMusic: boolean): Promise<
  * optional asset (the ascension mixes) hasn't been dropped in yet, instead of silently playing
  * nothing — see fireRankUp's anthem branch. */
 export function hasRewardSound(cue: RewardCue): boolean {
-  return Boolean(players?.[cue]);
+  // Availability = the asset exists, not whether a player has been lazily created yet.
+  return (SOURCES as Record<string, number>)[cue] !== undefined || ASCENSION_SOURCES[cue] !== undefined;
 }
 
 // ───────────────────────── looping ambient layer (Audio environments, 21f) ─────────────────────
@@ -334,7 +343,7 @@ export function startAmbientLoop(itemId: string, volume = 0.35): void {
 }
 
 export function playRewardSound(cue: RewardCue, volume = 1): void {
-  const player = players?.[cue];
+  const player = ensureRewardPlayer(cue);
   if (!player) return;
   player.volume = volume;
   player.seekTo(0).finally(() => player.play());
@@ -404,7 +413,7 @@ export function fadeOutRewardSound(cue: RewardCue, durationMs: number): void {
 /** Length of a preloaded cue in ms, or null while it's still loading (expo-audio reports 0 until
  * the asset's metadata is read). Used to time a fade against the clip it's fading. */
 export function getRewardSoundDurationMs(cue: RewardCue): number | null {
-  const seconds = players?.[cue]?.duration;
+  const seconds = ensureRewardPlayer(cue)?.duration;
   return seconds && seconds > 0 ? seconds * 1000 : null;
 }
 
