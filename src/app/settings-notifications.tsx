@@ -10,9 +10,11 @@ import { useAuth } from '@/lib/auth/auth-context';
 import {
   categoryPatch,
   CATEGORY_SUBTYPES,
+  CATEGORY_TYPE_KEYS,
   formatHour,
   isCategoryEnabled,
   isPrefKeyEnabled,
+  isTypeKeyEnabled,
   NOTIFICATION_CATEGORIES,
   resolveNotificationPrefs,
   setMyNotificationPrefs,
@@ -27,7 +29,9 @@ export default function NotificationsSettingsScreen() {
   const { profile } = useAuth();
   const [prefs, setPrefs] = useState(() => resolveNotificationPrefs(profile?.notification_prefs));
   const [showPreviews, setShowPreviews] = useState(profile?.show_message_previews ?? false);
-  const [hourPicker, setHourPicker] = useState<'quiet_start' | 'quiet_end' | 'reminder_hour' | null>(null);
+  const [hourPicker, setHourPicker] = useState<
+    'quiet_start' | 'quiet_end' | 'reminder_hour' | 'placement_hour' | null
+  >(null);
   // One category open at a time. An accordion rather than independent disclosures: with five
   // rows and four sub-toggles under the widest one, letting them all sit open turns a settings
   // list into a wall of switches you have to scroll to find the next category in.
@@ -95,6 +99,10 @@ export default function NotificationsSettingsScreen() {
             const on = isCategoryEnabled(prefsRecord, cat.key);
             const open = expanded === cat.key;
             const subtypes = CATEGORY_SUBTYPES[cat.key];
+            // 0205 · per-EVENT switches (`type_<event>`), rendered in the same list as the legacy
+            // per-type ones. They read identically to the user — one switch per subject — and the
+            // only difference is which server gate they write.
+            const typeItems = CATEGORY_TYPE_KEYS[cat.key];
             // A sub-toggle is only meaningful while its category is letting anything through.
             const subOff = masterOff || !on;
             return (
@@ -136,10 +144,23 @@ export default function NotificationsSettingsScreen() {
                         />
                       </View>
                     ))}
+                    {typeItems.map((item) => (
+                      <View key={item.key} style={[styles.subRow, subOff && styles.rowDisabled]}>
+                        <View style={styles.rowText}>
+                          <Text style={styles.subLabel}>{item.label}</Text>
+                          <Text style={styles.rowDescription}>{item.description}</Text>
+                        </View>
+                        <Toggle
+                          value={!subOff && isTypeKeyEnabled(prefsRecord, item.key)}
+                          disabled={subOff}
+                          onValueChange={(v) => update({ [item.key]: v })}
+                        />
+                      </View>
+                    ))}
                     {cat.covers.length > 0 && (
                       <>
                         <Text style={styles.coversLabel}>
-                          {subtypes.length > 0 ? 'ALSO INCLUDED' : 'INCLUDED'}
+                          {subtypes.length + typeItems.length > 0 ? 'ALSO INCLUDED' : 'INCLUDED'}
                         </Text>
                         {cat.covers.map((line) => (
                           <View key={line} style={styles.coverRow}>
@@ -148,7 +169,7 @@ export default function NotificationsSettingsScreen() {
                           </View>
                         ))}
                         <Text style={styles.coverNote}>
-                          {subtypes.length > 0
+                          {subtypes.length + typeItems.length > 0
                             ? 'These follow the category switch — they have no separate control.'
                             : 'These follow the category switch above.'}
                         </Text>
@@ -183,6 +204,33 @@ export default function NotificationsSettingsScreen() {
             <Pressable style={styles.row} onPress={() => setHourPicker('reminder_hour')}>
               <Text style={styles.rowLabel}>Time</Text>
               <Text style={styles.rowValue}>{formatHour(prefs.reminder_hour)}</Text>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+            </Pressable>
+          ) : null}
+        </View>
+
+        {/* 0205 · the nightly placement push. Default ON at 9 PM — the one push that reports where
+            the day actually left you on the board. send_daily_placement() reads these two keys and
+            compares the hour in this device's timezone, the same one quiet hours uses. */}
+        <Text style={styles.sectionLabel}>DAILY PLACEMENT</Text>
+        <View style={styles.group}>
+          <View style={[styles.row, masterOff && styles.rowDisabled]}>
+            <View style={styles.rowText}>
+              <Text style={styles.rowLabel}>Where you stand</Text>
+              <Text style={styles.rowDescription}>
+                Your place on the global board, once a day
+              </Text>
+            </View>
+            <Toggle
+              value={!masterOff && prefs.placement_enabled}
+              disabled={masterOff}
+              onValueChange={(v) => update({ placement_enabled: v })}
+            />
+          </View>
+          {prefs.placement_enabled && !masterOff ? (
+            <Pressable style={styles.row} onPress={() => setHourPicker('placement_hour')}>
+              <Text style={styles.rowLabel}>Time</Text>
+              <Text style={styles.rowValue}>{formatHour(prefs.placement_hour)}</Text>
               <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
             </Pressable>
           ) : null}
@@ -232,9 +280,11 @@ export default function NotificationsSettingsScreen() {
             <Text style={styles.sheetTitle}>
               {hourPicker === 'reminder_hour'
                 ? 'Daily reminder'
-                : hourPicker === 'quiet_end'
-                  ? 'Quiet hours end'
-                  : 'Quiet hours start'}
+                : hourPicker === 'placement_hour'
+                  ? 'Daily placement'
+                  : hourPicker === 'quiet_end'
+                    ? 'Quiet hours end'
+                    : 'Quiet hours start'}
             </Text>
             <ScrollView style={styles.hourList}>
               {HOURS.map((hour) => {

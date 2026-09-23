@@ -32,6 +32,9 @@ export type ResolvedNotificationPrefs = {
   /** The spec's user-set daily reminder. Hour-granular, like quiet hours. */
   reminder_enabled: boolean;
   reminder_hour: number;
+  /** 0205 · the nightly board-standing push. Hour-granular, resolved in the device timezone. */
+  placement_enabled: boolean;
+  placement_hour: number;
 };
 
 export const DEFAULT_NOTIFICATION_PREFS: ResolvedNotificationPrefs = {
@@ -50,6 +53,11 @@ export const DEFAULT_NOTIFICATION_PREFS: ResolvedNotificationPrefs = {
   // enough to still act on it.
   reminder_enabled: false,
   reminder_hour: 19,
+  // 0205 · default ON at 9 PM, unlike the daily reminder above. This one earns the interruption:
+  // it is the only push that tells you where the day actually left you on the board, and the
+  // server default matches it exactly so an untouched blob and this object agree.
+  placement_enabled: true,
+  placement_hour: 21,
 };
 
 // ── the five spec categories (NOTIFICATIONS_SPEC, §F) ──
@@ -132,6 +140,10 @@ export const NOTIFICATION_CATEGORIES: {
       'Rank-ups',
       'Crates and rewards waiting to be collected',
       'New badges and your Flame Pass',
+      // 0205 · daily_placement is filed under season_rank, so this switch mutes it even though it
+      // also has its own time below. Said out loud, because a toggle that reads "on" while a
+      // category above it silences the push is exactly the bug people cannot diagnose themselves.
+      'Your nightly placement — the time is set below, this switch still mutes it',
     ],
   },
 ];
@@ -174,6 +186,52 @@ export const CATEGORY_SUBTYPES: Record<NotificationCategoryKey, NotificationPref
       CATEGORY_LEGACY_KEYS[category].map((key) => ({ key, ...PREF_ITEM_COPY[key] })),
     ])
   ) as Record<NotificationCategoryKey, NotificationPrefItem[]>;
+
+// ── 0205 · per-EVENT switches ────────────────────────────────────────────────────────────────
+//
+// The comment above says friends/social "has no per-type gate to expose and deliberately shows
+// none". That was true of the SIX LEGACY KEYS, and it stopped being true in migration 0135, which
+// added a generic `type_<event>` gate to notify_event — absent means on, and nothing had ever
+// written one. These are the first two, and they exist because 0205 turned two quiet events into
+// pushing ones: a friend locking in, and a friend posting to the Agora.
+//
+// Why they need their own switches rather than riding the category: both are FAN-OUT events — one
+// person acts, every friend's phone lights up — and they sit in the same category as friend
+// requests, which nobody wants to miss. Without these, "my friend posts too much" is only fixable
+// by muting friend requests too, which is how a category gets turned off and stays off.
+export type NotificationTypeKey = 'type_friend_locked_in' | 'type_friend_agora_post';
+
+export type NotificationTypeItem = {
+  key: NotificationTypeKey;
+  label: string;
+  description: string;
+};
+
+/** Per-event switches shown under each category. Empty categories simply render none. */
+export const CATEGORY_TYPE_KEYS: Record<NotificationCategoryKey, NotificationTypeItem[]> = {
+  cat_friends_social: [
+    {
+      key: 'type_friend_locked_in',
+      label: 'A friend locks in',
+      description: 'At most one a friend, every four hours',
+    },
+    {
+      key: 'type_friend_agora_post',
+      label: 'A friend posts',
+      description: 'At most one a friend, every six hours',
+    },
+  ],
+  cat_challenges: [],
+  cat_campfires: [],
+  cat_streak_reminders: [],
+  cat_season_rank: [],
+};
+
+/** Whether a per-event switch reads as on. Missing = on, matching notify_event's coalesce. */
+export function isTypeKeyEnabled(prefs: Record<string, unknown>, key: NotificationTypeKey): boolean {
+  const v = prefs[key];
+  return typeof v === 'boolean' ? v : true;
+}
 
 /** Whether a legacy per-type key currently reads as on. Missing = on, matching the server's
  * coalesce in notify_push. */

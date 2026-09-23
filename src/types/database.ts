@@ -104,6 +104,23 @@ export type NotificationPrefs = {
   reminder_enabled?: boolean;
   reminder_hour?: number;
   // ── end Agent 6 block ─────────────────────────────────────────────────────────
+
+  // ── WS8 · migration 0205 ──────────────────────────────────────────────────────
+  /**
+   * The nightly "where you stand on the board" push. Absent means ON at 21:00 local —
+   * send_daily_placement() coalesces both, so every existing user is opted in without a backfill.
+   * The hour is compared in `timezone` above, the same field quiet hours reads.
+   */
+  placement_enabled?: boolean;
+  placement_hour?: number;
+  /**
+   * Per-EVENT switches (`type_<event>`), the gate migration 0135 built and nothing had ever
+   * written. Absent = on, checked by notify_event independently of the category above, so these
+   * mute one noisy event without muting everything filed beside it.
+   */
+  type_friend_locked_in?: boolean;
+  type_friend_agora_post?: boolean;
+  // ── end WS8 block ─────────────────────────────────────────────────────────────
 };
 
 export type Profile = {
