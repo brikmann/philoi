@@ -3635,6 +3635,31 @@ export type AgoraAttachment = AgoraAttachInput & {
   snapshot: AgoraAttachSnapshot;
 };
 
+/** One exercise's top set, frozen into a lockin snapshot (migration 0192). */
+export type AgoraLiftEntry = {
+  exercise: string;
+  sets: number;
+  reps: number;
+  /** Null for a bodyweight movement — which is why it contributes 0 to `total_volume`. */
+  weight: number | null;
+  is_pr: boolean;
+};
+
+/**
+ * One kept clip from the session, frozen by REFERENCE (migration 0192).
+ *
+ * The snapshot holds the `workout_set_id`, never the R2 video/thumb keys. Playback still goes
+ * through `gym-clip-playback-url`, which re-checks owner / circle-mate / friend on every request —
+ * so a clip referenced from a public post grants nobody something they could not already play.
+ */
+export type AgoraClipEntry = {
+  workout_set_id: string;
+  exercise: string;
+  set_index: number;
+  duration_s: number | null;
+  has_thumb: boolean;
+};
+
 /**
  * The frozen attachment, as `agora_attachment_snapshot` wrote it at post time.
  *
@@ -3662,6 +3687,20 @@ export type AgoraAttachSnapshot = {
   duration_seconds?: number | null;
   distance_m?: number | null;
   completed_at?: string;
+  // lockin · the strength half (migration 0192), present only when the session had lifts in it.
+  // Same rule as the rest of this type: FACTS, not display strings — `total_volume` is a number of
+  // pounds, never "12,400 lb", and `sets` carries exercise/sets/reps/weight rather than "3×8 @ 225".
+  //
+  // `sets` is capped at 12 rows and `clips` at 6 by the snapshot function, which is why the two
+  // count fields exist beside them: `exercise_count` and `clip_count` are the UNCAPPED totals, so a
+  // card can say "+4 more" instead of silently pretending the long session was the short one.
+  sets?: AgoraLiftEntry[];
+  exercise_count?: number;
+  total_sets?: number;
+  total_volume?: number;
+  has_pr?: boolean;
+  clips?: AgoraClipEntry[];
+  clip_count?: number;
   // rank
   rank_index?: number;
   tier?: string;

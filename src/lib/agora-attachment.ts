@@ -4,14 +4,16 @@ import { Colors } from '@/constants/theme';
 import { getItem } from '@/lib/economy/catalog';
 import { SEASON, levelFromXp } from '@/lib/economy/forge-pass';
 import { RARITY_COLOR, RARITY_LABEL, type Rarity } from '@/lib/economy/rarity';
-import { formatDistanceKm, formatSessionDuration } from '@/lib/format';
+import { formatDistanceKm, formatSessionDuration, pluralize } from '@/lib/format';
 import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
 import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
 import type {
   AgoraAttachKind,
   AgoraAttachSnapshot,
   AgoraAttachment,
+  AgoraClipEntry,
   AgoraItem,
+  AgoraLiftEntry,
   GoalType,
   RankTierName,
 } from '@/types/database';
@@ -38,7 +40,71 @@ export type AgoraAttachmentView = {
   tint: string;
   /** Where tapping the card should land (spec: "Feed item routes to the underlying thing"). */
   route: { pathname: string; params?: Record<string, string> } | null;
+  /**
+   * The lift, when the attachment is a gym session. Null for every other kind AND for a gym
+   * session posted before migration 0192 froze any of this — an old post keeps rendering as the
+   * bare title/subtitle row it has always been rather than growing an empty section.
+   */
+  lift: AgoraLiftView | null;
 };
+
+/**
+ * A posted workout, ready to draw.
+ *
+ * The Agora is a flex feed and a lift is the flex, so a gym post that says "38:04" and nothing
+ * else is the session with its content removed. 0192 started freezing the sets, the volume, the
+ * PRs and the kept clips into the snapshot; this is the shape that carries them from there to the
+ * card.
+ *
+ * Two counts per list, deliberately. `sets`/`clips` are what the snapshot kept (12 and 6), while
+ * `exerciseCount`/`clipCount` are what the session actually had — so "+4 more" is the truth about
+ * a long session rather than a cap pretending to be a total.
+ */
+export type AgoraLiftView = {
+  sets: AgoraLiftEntry[];
+  exerciseCount: number;
+  totalSets: number;
+  /** Pounds. 0 for a bodyweight-only session, which is why `hasVolume` exists beside it. */
+  totalVolume: number;
+  hasVolume: boolean;
+  hasPr: boolean;
+  clips: AgoraClipEntry[];
+  clipCount: number;
+};
+
+/** "12,400 lb" — the one number a lifter scans a card for. */
+export function formatVolume(pounds: number): string {
+  return `${Math.round(pounds).toLocaleString('en-US')} lb`;
+}
+
+/**
+ * The strength half of a lockin snapshot, or null when there isn't one.
+ *
+ * Every field is re-checked rather than trusted, because this snapshot is frozen jsonb of whatever
+ * shape the server wrote on the day of the post: a pre-0192 gym post has none of these keys, and a
+ * cardio post never will. Null here is what keeps both of those rendering exactly as before.
+ */
+function liftView(snap: AgoraAttachSnapshot): AgoraLiftView | null {
+  const sets = Array.isArray(snap.sets) ? snap.sets : [];
+  const clips = Array.isArray(snap.clips) ? snap.clips : [];
+  const totalSets = snap.total_sets ?? 0;
+  const exerciseCount = snap.exercise_count ?? sets.length;
+  if (sets.length === 0 && totalSets === 0 && clips.length === 0) return null;
+
+  const totalVolume = snap.total_volume ?? 0;
+  return {
+    sets,
+    exerciseCount,
+    totalSets,
+    totalVolume,
+    // A bodyweight session genuinely moved no bar, and "0 lb" reads as a bug rather than as
+    // dips-and-pull-ups. The set list still carries what was done.
+    hasVolume: totalVolume > 0,
+    hasPr: snap.has_pr === true,
+    clips,
+    clipCount: snap.clip_count ?? clips.length,
+  };
+}
 
 const KIND_LABEL: Record<string, string> = {
   grade: 'Grade',
@@ -80,15 +146,22 @@ export function attachmentView(
         route: snap.milestone_id
           ? { pathname: '/milestone/[id]', params: { id: snap.milestone_id } }
           : null,
+        lift: null,
       };
     }
 
     case 'lockin': {
       const goal = (snap.goal_type ?? 'custom') as GoalType;
       const meta = GOAL_TYPE_META[goal] ?? GOAL_TYPE_META.custom;
+      const lift = liftView(snap);
       const bits: string[] = [];
       if (snap.duration_seconds) bits.push(formatSessionDuration(snap.duration_seconds));
       if (snap.distance_m) bits.push(formatDistanceKm(snap.distance_m));
+      // THE HEADLINE OF A LIFT IS THE LOAD, NOT THE CLOCK. A gym post used to read "38:04" and
+      // stop, which is the one fact about a workout that says least about it. Volume goes on the
+      // summary line next to the duration; the per-exercise breakdown is the card's own section.
+      if (lift?.hasVolume) bits.push(formatVolume(lift.totalVolume));
+      if (lift && lift.totalSets > 0) bits.push(`${lift.totalSets} ${pluralize(lift.totalSets, 'set')}`);
       return {
         title: snap.goal_label?.trim() || meta.label,
         subtitle: bits.join(' · ') || null,
@@ -99,6 +172,7 @@ export function attachmentView(
         route: snap.check_in_id
           ? { pathname: '/activity/[checkInId]', params: { checkInId: snap.check_in_id } }
           : null,
+        lift,
       };
     }
 
@@ -113,6 +187,7 @@ export function attachmentView(
         icon: 'trophy-outline',
         tint: metal?.outer ?? Colors.plum,
         route: { pathname: '/(tabs)/leaderboards' },
+        lift: null,
       };
     }
 
@@ -127,6 +202,7 @@ export function attachmentView(
         icon: 'flame-outline',
         tint: Colors.achieverBg,
         route: null,
+        lift: null,
       };
     }
 
@@ -141,6 +217,7 @@ export function attachmentView(
         icon: 'shield-checkmark-outline',
         tint: Colors.plum,
         route: { pathname: '/forge-pass' },
+        lift: null,
       };
     }
 
@@ -159,6 +236,7 @@ export function attachmentView(
         route: snap.cosmetic_key
           ? { pathname: '/inventory/[itemId]', params: { itemId: snap.cosmetic_key } }
           : null,
+        lift: null,
       };
     }
 
@@ -173,6 +251,7 @@ export function attachmentView(
         icon: 'barbell-outline',
         tint: Colors.cardDark,
         route: null,
+        lift: null,
       };
     }
 

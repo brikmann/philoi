@@ -10,13 +10,24 @@ import { getErrorMessage } from '@/lib/errors';
 type GymClipThumbnailProps = {
   workoutSetId: string;
   size?: number;
+  /**
+   * Called once when this viewer may not play this clip (or it has gone), so a caller can drop the
+   * tile instead of leaving a dead one.
+   *
+   * The Agora is why this exists. `gym-clip-playback-url` re-checks owner / circle-mate / friend on
+   * every request, and a post can be scoped to a whole campus — so a stranger scrolling a global
+   * lift post is EXPECTED to be refused here. On the campfire chain and the done screen every
+   * viewer is already a circle-mate, which is why those callers pass nothing and keep the existing
+   * "plain video icon" fallback.
+   */
+  onUnavailable?: () => void;
 };
 
 // Tap-to-play surface for a set's clip (PHILOI_UI_SPEC.md §23) — drop this wherever a clip
 // should show: the done-screen recap, PR history, the posted campfire chat card. Fetches its own
 // signed thumbnail URL on mount (each instance is one workout_set, so this stays cheap even in a
 // list) and the signed video URL only once the viewer actually taps to play.
-export function GymClipThumbnail({ workoutSetId, size = 96 }: GymClipThumbnailProps) {
+export function GymClipThumbnail({ workoutSetId, size = 96, onUnavailable }: GymClipThumbnailProps) {
   const [playerOpen, setPlayerOpen] = useState(false);
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const [loadingThumb, setLoadingThumb] = useState(true);
@@ -28,7 +39,9 @@ export function GymClipThumbnail({ workoutSetId, size = 96 }: GymClipThumbnailPr
         if (!cancelled) setThumbUrl(urls.thumbUrl);
       })
       .catch(() => {
-        // A failed thumbnail fetch just falls back to the plain video icon below.
+        // A failed thumbnail fetch just falls back to the plain video icon below — unless the
+        // caller asked to be told, in which case the tile is its to remove.
+        if (!cancelled) onUnavailable?.();
       })
       .finally(() => {
         if (!cancelled) setLoadingThumb(false);
@@ -36,6 +49,9 @@ export function GymClipThumbnail({ workoutSetId, size = 96 }: GymClipThumbnailPr
     return () => {
       cancelled = true;
     };
+    // `onUnavailable` is deliberately NOT a dependency. Callers pass an inline arrow, so including
+    // it would re-run this effect — and re-request a signed URL — on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workoutSetId]);
 
   return (

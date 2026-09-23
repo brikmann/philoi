@@ -28,6 +28,13 @@ import type { AgoraItem } from '@/types/database';
 // the attachment is a LIST here, drawn in ATTACH_ORDER. Milestone rows arrive as a one-element
 // list, and a post written before 0140 is normalised into one by `itemAttachments` — there is no
 // second rendering path for the old shape to fall down.
+//
+// A POSTED LIFT CARRIES THE LIFT. A gym session used to reach the square as one line — "38:04" —
+// which is the single fact about a workout that says least about it. Migration 0192 started
+// freezing the sets, the volume, the PRs and the kept clips into the snapshot, and `LiftDetail`
+// below is the half that draws them. Everything it needs was frozen at post time, so a card costs
+// no extra round trip; only the clip THUMBNAILS are fetched, and only because their signed URLs
+// expire and their access is re-checked per viewer.
 
 /** "Hero II", tinted with its own metal. Null for anyone who hasn't ranked yet. */
 function rankLabel(item: AgoraItem): { label: string; color: string } | null {
@@ -163,9 +170,25 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
 
 /** One attachment tile. Stacked, one per row, in the order `itemAttachments` fixed. */
 function AttachmentRow({ view, onPress }: { view: AgoraAttachmentView; onPress: () => void }) {
+  // The lift sits OUTSIDE the Pressable, not inside it. A clip tile is its own tap target, and in
+  // React Native the innermost pressable takes the responder — nesting them would mean tapping a
+  // clip opened the session detail instead of playing the clip. Same lesson as D4 in the campfire
+  // chain, learned there the expensive way.
+  if (view.lift) {
+    return (
+      <View style={styles.attachGroup}>
+        <AttachmentHeadRow view={view} onPress={onPress} />
+        <LiftDetail lift={view.lift} />
+      </View>
+    );
+  }
+  return <AttachmentHeadRow view={view} onPress={onPress} />;
+}
+
+function AttachmentHeadRow({ view, onPress }: { view: AgoraAttachmentView; onPress: () => void }) {
   return (
     <Pressable
-      style={styles.attach}
+      style={[styles.attach, view.lift && styles.attachWithLift]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={[view.eyebrow, view.title, view.subtitle].filter(Boolean).join(' · ')}>
@@ -189,6 +212,103 @@ function AttachmentRow({ view, onPress }: { view: AgoraAttachmentView; onPress: 
         </View>
       </View>
     </Pressable>
+  );
+}
+
+/**
+ * The posted workout, under its summary row.
+ *
+ * WHAT IT SHOWS, in the order a lifter reads a session: the load moved, then what moved it, then
+ * the clips. `total_volume` and the set list are frozen facts from migration 0192 — the server
+ * recomputed them from `workout_sets` at post time, so nothing here can be talked up by a client.
+ *
+ * WHAT IT DOES NOT SHOW: the session's PHOTOS. A lock-in's photos live in `check_in_photos`, whose
+ * RLS scopes them to the poster's circle-mates, and there is no per-photo publish flag anywhere in
+ * the schema. An Agora post can be campus- or globally-scoped, so lifting those photos onto this
+ * card would publish, to strangers, media whose owner only ever cleared it for their campfires —
+ * a new disclosure they never granted. The clips below are different in exactly the way that
+ * matters: a clip is never auto-filmed (0054), `attach_workout_set_clip` is its only writer, and
+ * only a clip whose upload the member completed is frozen at all. Per-item opt-in, already given.
+ */
+function LiftDetail({ lift }: { lift: AgoraLiftView }) {
+  // Clips a stranger may not play. `gym-clip-playback-url` re-checks owner / circle-mate / friend
+  // on EVERY request, which is what keeps a frozen reference in a public post from granting
+  // anything — but it also means a global post's clips are legitimately refused for most of the
+  // square. Those tiles drop out rather than sitting there as dead play buttons.
+  const [blocked, setBlocked] = useState<string[]>([]);
+  const clips = GYM_VIDEO_CLIPS_ENABLED
+    ? lift.clips.filter((c) => !blocked.includes(c.workout_set_id))
+    : [];
+  // Trimmed against the VISIBLE tiles: if three of six clips were refused, "+2 more" would be
+  // counting clips this viewer was just told they cannot have.
+  const clipOverflow = clips.length === lift.clips.length ? lift.clipCount - lift.clips.length : 0;
+  const setOverflow = lift.exerciseCount - lift.sets.length;
+
+  return (
+    <View style={styles.lift}>
+      {/* `hasPr` earns this row on its own. A bodyweight session moves no bar, so it has no volume
+          to print — but it can absolutely have set a record, and `has_pr` covers tracked sets that
+          fall outside the 12 summary rows frozen below, so the badge is not always recoverable
+          from the visible list. Gating the whole row on volume dropped those PRs silently. */}
+      {lift.hasVolume || lift.hasPr ? (
+        <View style={styles.volumeRow}>
+          <Ionicons name="barbell" size={13} color={Colors.amber} />
+          {lift.hasVolume ? (
+            <>
+              <Text style={styles.volumeValue}>{formatVolume(lift.totalVolume)}</Text>
+              <Text style={styles.volumeLabel}>moved</Text>
+            </>
+          ) : (
+            <Text style={styles.volumeLabel}>Bodyweight</Text>
+          )}
+          {lift.hasPr ? (
+            <View style={styles.prTag}>
+              <Ionicons name="trophy" size={8} color={Colors.achieverText} />
+              <Text style={styles.prTagText}>PR</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {lift.sets.map((set, i) => (
+        <View key={`${set.exercise}:${i}`} style={styles.liftRow}>
+          <Text style={styles.liftText} numberOfLines={1}>
+            {set.exercise} · {set.sets}×{set.reps}
+            {set.weight ? ` @ ${Math.round(set.weight)} lb` : ''}
+          </Text>
+          {set.is_pr ? (
+            <View style={styles.prTag}>
+              <Ionicons name="trophy" size={8} color={Colors.achieverText} />
+              <Text style={styles.prTagText}>PR</Text>
+            </View>
+          ) : null}
+        </View>
+      ))}
+
+      {setOverflow > 0 ? (
+        <Text style={styles.liftMore}>
+          +{setOverflow} more {setOverflow === 1 ? 'exercise' : 'exercises'}
+        </Text>
+      ) : null}
+
+      {clips.length > 0 ? (
+        <View style={styles.clipsRow}>
+          {clips.map((c) => (
+            <GymClipThumbnail
+              key={c.workout_set_id}
+              workoutSetId={c.workout_set_id}
+              size={56}
+              onUnavailable={() =>
+                setBlocked((current) =>
+                  current.includes(c.workout_set_id) ? current : [...current, c.workout_set_id]
+                )
+              }
+            />
+          ))}
+          {clipOverflow > 0 ? <Text style={styles.liftMore}>+{clipOverflow}</Text> : null}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -304,6 +424,82 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.twilight900,
     borderRadius: Radius.card,
     padding: 10,
+  },
+  // A lift is ONE tile with two parts, not two stacked tiles. The head row gives up its bottom
+  // corners and its own margin so the detail below reads as the same object continuing.
+  attachGroup: {
+    marginTop: Spacing.twelve,
+  },
+  attachWithLift: {
+    marginTop: 0,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    paddingBottom: 8,
+  },
+  lift: {
+    backgroundColor: Colors.twilight900,
+    borderBottomLeftRadius: Radius.card,
+    borderBottomRightRadius: Radius.card,
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    gap: 3,
+  },
+  volumeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingBottom: 6,
+    marginBottom: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.line,
+  },
+  volumeValue: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+  volumeLabel: {
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    color: Colors.muted,
+  },
+  liftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  liftText: {
+    flexShrink: 1,
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.muted,
+  },
+  liftMore: {
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    color: Colors.textTertiary,
+  },
+  prTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    backgroundColor: Colors.achieverBg,
+  },
+  prTagText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 8,
+    letterSpacing: 0.4,
+    color: Colors.achieverText,
+  },
+  clipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
   },
   attachIcon: {
     width: 42,

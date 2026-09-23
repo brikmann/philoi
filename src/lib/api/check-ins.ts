@@ -140,13 +140,31 @@ async function hydrateFeedRows(rows: FeedCheckIn[]): Promise<FeedCheckIn[]> {
  *
  * A lock-in shared into a campfire chat travels as `attach_ref_id` and nothing else — the message
  * row carries an id, not a copy of the session — so the chat has to go and get the real thing
- * before it can render the real card. Returns null when the row is gone or the viewer cannot read
- * it, which is a normal answer here: a shared lock-in can be deleted after it was shared, and the
- * chat should quietly degrade rather than throw inside a list renderer.
+ * before it can render the real card. Returns null when the row is genuinely not there, which is a
+ * normal answer here: a shared lock-in can be deleted after it was shared.
  *
  * RLS is the access check. This deliberately does NOT re-scope to the campfire the message is in:
  * `check_ins` policy already decides who may read a session, and a second, different rule here
  * would be one more place for the two to disagree.
+ *
+ * ── AND THE POLICY ALREADY SAYS YES ──────────────────────────────────────────────────────────
+ * Worth writing down, because "a campfire member can't read a campfire-mate's check-in" is the
+ * obvious guess and it is wrong, and someone will guess it again. Two policies meet here:
+ *
+ *   messages   → `is_group_member(group_id) and not is_blocked_either_way(user_id)`
+ *   check_ins  → `user_id = auth.uid() or is_circle_mate_of(user_id) or is_admin()`
+ *
+ * and `is_circle_mate_of` is a shared-`group_members` existence check. So ANY viewer who can see
+ * the message is, by construction, in that group — and therefore a circle-mate of whoever posted
+ * the session the message points at. There is no viewer who can read the attachment and not its
+ * referent. (Checked against prod: every shared lock-in, crossed with every member of its
+ * campfire, reads back.) Widening the policy or adding a membership-scoped RPC here would grant
+ * nothing that isn't already granted.
+ *
+ * NULL MEANS GONE — IT DOES NOT MEAN "SOMETHING WENT WRONG". That distinction is the whole point:
+ * the caller renders "that lock-in isn't around any more" on null, which is a permanent claim
+ * about someone else's data. A dropped connection or an expiring token must NOT be able to make
+ * this function say it, so the only null it returns is the server answering with no row.
  */
 export async function fetchCheckInById(checkInId: string): Promise<FeedCheckIn | null> {
   const { data, error } = await supabase
@@ -158,8 +176,33 @@ export async function fetchCheckInById(checkInId: string): Promise<FeedCheckIn |
   if (error) throw error;
   if (!data) return null;
 
-  const [hydrated] = await hydrateFeedRows([data as unknown as FeedCheckIn]);
-  return hydrated ?? null;
+  const row = data as unknown as FeedCheckIn;
+  try {
+    const [hydrated] = await hydrateFeedRows([row]);
+    if (hydrated) return hydrated;
+  } catch {
+    // Hydration is DECORATION — signed photo URLs, the rolled-up lifts, the energy row — and it is
+    // three more round trips, any of which can fail on its own. Losing them must not lose the
+    // card: the session happened, and a lock-in card without its photos still says so. Falling
+    // through to the bare row is deliberately NOT what fetchFeed does, where a failure is the
+    // whole screen and should surface.
+  }
+  return bareFeedRow(row);
+}
+
+/**
+ * A raw `check_ins` row widened to `FeedCheckIn` with everything hydration would have added left
+ * empty. The empties are load-bearing, not tidiness: the card reads `item.workoutSets.length`
+ * directly, so an un-widened row renders as a crash rather than as a plainer card.
+ */
+function bareFeedRow(row: FeedCheckIn): FeedCheckIn {
+  return {
+    ...row,
+    signedPhotoUrl: null,
+    signedPhotoUrls: [],
+    workoutSets: [],
+    workout: null,
+  };
 }
 
 export type MyRecentLockIn = {

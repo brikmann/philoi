@@ -658,7 +658,13 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
               />
             )}
             {message.attach_kind === 'lockin' && message.attach_ref_id && (
-              <SharedLockIn checkInId={message.attach_ref_id} onReactionChanged={timeline.feed.refetch} />
+              <SharedLockIn
+                // Keyed on the id it fetches: if a row ever renders a different lock-in than it
+                // did last frame, the card starts over rather than showing the old one's verdict.
+                key={message.attach_ref_id}
+                checkInId={message.attach_ref_id}
+                onReactionChanged={timeline.feed.refetch}
+              />
             )}
             {/* 0162 · §Distribution — a campfire-hosted challenge posts as a card in the chat with
                 an inline join CTA. The card OWNS the body text (it renders the host's line as its
@@ -1042,31 +1048,62 @@ function PhotoGrid({ paths, onOpen }: { paths: string[]; onOpen: (uris: string[]
   );
 }
 
+/**
+ * "GONE" AND "COULDN'T LOAD" ARE DIFFERENT ANSWERS AND THIS CARD USED TO GIVE THE SAME ONE.
+ *
+ * Both the null branch and the catch set one `gone` flag, so a dropped connection, a token
+ * refreshing mid-scroll or a 5xx all rendered "That lock-in isn't around any more" — a flat,
+ * permanent, unretryable claim about someone else's session, made on the strength of one failed
+ * request. The session was still there; the chat just said it wasn't, and nothing short of
+ * leaving the campfire and coming back would take it back.
+ *
+ * Worth being precise about why that, and not RLS, is the bug: anyone who can read the MESSAGE is
+ * a member of its group, and `check_ins`' policy admits every circle-mate — so a viewer who can
+ * see the attachment can always read its referent. See fetchCheckInById's note.
+ *
+ * So: null (the server answered, there is no row) keeps the permanent wording. A throw becomes a
+ * retryable failure, because that is what it is.
+ */
+type SharedLockInState =
+  | { phase: 'loading' }
+  | { phase: 'loaded'; item: FeedCheckIn }
+  | { phase: 'gone' }
+  | { phase: 'failed' };
+
 function SharedLockIn({ checkInId, onReactionChanged }: { checkInId: string; onReactionChanged: () => void }) {
   const router = useRouter();
-  const [item, setItem] = useState<FeedCheckIn | null>(null);
-  const [gone, setGone] = useState(false);
+  const [state, setState] = useState<SharedLockInState>({ phase: 'loading' });
+  const [attempt, setAttempt] = useState(0);
+
+  // Resetting to 'loading' belongs HERE, in the event, not at the top of the effect — a
+  // synchronous setState in an effect body is a cascading render and the compiler rejects it.
+  // The effect below re-runs because `attempt` moved; its job is the fetch, not the reset.
+  function retry() {
+    setState({ phase: 'loading' });
+    setAttempt((n) => n + 1);
+  }
 
   useEffect(() => {
-    // `alive` guards a setState after unmount. The dependency is a single stable id, so the
-    // cleanup here runs on unmount only — unlike the gym lock-in freeze, where the flag was
-    // cancelling the effect's own re-runs on every dep change.
+    // `alive` guards a setState after unmount AND the re-run: on a retry the previous effect's
+    // cleanup runs first, so a slow response from the abandoned attempt can no longer land on top
+    // of the new one. (A change of `checkInId` is handled by the caller keying this component on
+    // that id — remounting is React's own answer to "reset all state when the subject changes",
+    // and it is the one that cannot leave a stale phase behind.)
     let alive = true;
     fetchCheckInById(checkInId)
       .then((row) => {
         if (!alive) return;
-        if (row) setItem(row);
-        else setGone(true);
+        setState(row ? { phase: 'loaded', item: row } : { phase: 'gone' });
       })
       .catch(() => {
-        if (alive) setGone(true);
+        if (alive) setState({ phase: 'failed' });
       });
     return () => {
       alive = false;
     };
-  }, [checkInId]);
+  }, [checkInId, attempt]);
 
-  if (gone) {
+  if (state.phase === 'gone') {
     return (
       <Embed accent={Colors.muted}>
         <Text style={styles.attachLockInGone}>That lock-in isn&apos;t around any more.</Text>
@@ -1074,7 +1111,22 @@ function SharedLockIn({ checkInId, onReactionChanged }: { checkInId: string; onR
     );
   }
 
-  if (!item) {
+  if (state.phase === 'failed') {
+    return (
+      <Embed accent={Colors.muted}>
+        <Pressable
+          onPress={retry}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading that lock-in"
+          style={styles.attachLockInRetry}>
+          <Text style={styles.attachLockInGone}>Couldn&apos;t load that lock-in.</Text>
+          <Text style={styles.attachLockInRetryText}>Tap to retry</Text>
+        </Pressable>
+      </Embed>
+    );
+  }
+
+  if (state.phase === 'loading') {
     // A placeholder the same shape as the frame it will become, so the row does not jump when the
     // card lands.
     return (
@@ -1083,6 +1135,8 @@ function SharedLockIn({ checkInId, onReactionChanged }: { checkInId: string; onR
       </Embed>
     );
   }
+
+  const item = state.item;
 
   // The same destination the profile grid and the history screen send a lock-in to: a Strava-synced
   // session has a route of its own with the map and the splits, everything else opens the ordinary
@@ -1364,6 +1418,18 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.muted,
+    padding: Spacing.two,
+  },
+  attachLockInRetry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  attachLockInRetryText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.amber,
     padding: Spacing.two,
   },
   mention: {
