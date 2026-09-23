@@ -946,6 +946,46 @@ export type Message = {
   system_event: string | null;
 };
 
+/**
+ * A 1:1 thread (migration 0206). The pair IS the identity, stored ordered — `user_a` is always the
+ * smaller uuid — so a thread has exactly one row however you arrive at it.
+ *
+ * Read state is a column per side rather than a join table, because a thread has exactly two
+ * members forever. Which column is yours depends on which end of the pair you are; nothing in the
+ * client works that out — `get_my_dm_threads` already resolves it into an unread count.
+ */
+export type DmThread = {
+  id: string;
+  user_a: string;
+  user_b: string;
+  created_at: string;
+  last_message_at: string;
+  a_last_read_at: string;
+  b_last_read_at: string;
+};
+
+export type DmMessage = {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  /** Null only on a non-text kind; a 'text' row is CHECK-constrained to say something. */
+  body: string | null;
+  /**
+   * 'text' today and nothing else is ever written. The other three values the column accepts are
+   * MESSAGING_DM_SPEC.md's inline challenge/invite/cheer sends, reserved so adding one is a client
+   * change rather than a migration against a live table.
+   *
+   * A renderer must SKIP a kind it doesn't recognise, the same way the campfire's system_event
+   * renderer does — OTA is closed while runtimeVersion is sdkVersion, so a shipped build that met
+   * an unknown kind could not be fixed after the fact.
+   */
+  kind: 'text' | 'challenge' | 'invite' | 'cheer';
+  /** What a non-text kind points at (a challenge, a session). Null for 'text'. */
+  ref_id: string | null;
+  created_at: string;
+  deleted_at: string | null;
+};
+
 export type AnalyticsEventName =
   // Reward economy (Step 21). Deliberately no event carries an ember BALANCE — only what was
   // done and to which item — so analytics can measure the economy without becoming a second,
@@ -1070,6 +1110,11 @@ export type AnalyticsEventName =
   | 'daily_fire_completed'
   | 'flame_completion_published'
   | 'friend_nudged'
+  // 1:1 DMs (WS3, migration 0206). `dm_thread_opened` counts the ENTRY POINTS — the Message button
+  // on a profile vs. the bubble on a friend row vs. a tapped notification — because the open
+  // question for this feature is not whether people reply, it's whether anyone finds it.
+  | 'dm_thread_opened'
+  | 'dm_sent'
   | 'friend_request_sent'
   | 'friend_request_accepted'
   | 'friend_request_declined'
@@ -2480,6 +2525,30 @@ export type Database = {
           },
         ];
       };
+      // 1:1 DMs (migration 0206). Insert is `never` for both: there is no INSERT policy on either
+      // table, deliberately — every write goes through dm_open_thread / dm_send so the friendship
+      // gate, the ordered pair and the rate limit each have exactly one enforcer. A direct
+      // `.insert()` here is a compile error rather than a runtime 42501.
+      dm_threads: {
+        Row: DmThread;
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      dm_messages: {
+        Row: DmMessage;
+        Insert: never;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: 'dm_messages_sender_id_fkey';
+            columns: ['sender_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       moderation_reports: {
         Row: {
           id: string;
@@ -3063,7 +3132,35 @@ export type Database = {
           shared_circle_name: string | null;
         }[];
       };
-      nudge_to_lock_in: { Args: { p_user_id: string }; Returns: undefined };
+      // 0207 · p_kind is OPTIONAL in the type as well as in SQL, because the client omits it for
+      // the default so the call still resolves against a pre-0207 database. Returns PingResult now,
+      // not void — "no exception" was never the same as "delivered".
+      nudge_to_lock_in: { Args: { p_user_id: string; p_kind?: 'nudge' | 'fire' }; Returns: PingResult };
+      // 1:1 DMs (migration 0206). dm_open_thread is idempotent — it resolves the pair's one thread,
+      // creating it on the first call — and throws for a non-friend or a blocked pair, which is the
+      // guardrail rather than an error state to swallow.
+      dm_open_thread: { Args: { p_friend_id: string }; Returns: string };
+      dm_send: { Args: { p_thread_id: string; p_body: string }; Returns: string };
+      dm_mark_read: { Args: { p_thread_id: string }; Returns: undefined };
+      dm_delete_my_message: { Args: { p_message_id: string }; Returns: undefined };
+      // The out_ prefixes are the function's real column names, not a convention of this file: a
+      // RETURNS TABLE output name shadows a same-named table column inside the body, so
+      // `out_thread_id` is what stops `user_a` in the WHERE clause resolving to a null variable and
+      // returning an empty inbox with no error. See 0206 §6.
+      get_my_dm_threads: {
+        Args: Record<string, never>;
+        Returns: {
+          out_thread_id: string;
+          out_friend_id: string;
+          out_display_name: string;
+          out_avatar_url: string | null;
+          out_handle: string | null;
+          out_last_message_at: string;
+          out_last_body: string | null;
+          out_last_sender_id: string | null;
+          out_unread: number;
+        }[];
+      };
       // The real friend graph (migration 0031_real_friend_graph.sql, PHILOI_UI_SPEC.md §4b/§16).
       search_people: {
         Args: { p_query: string; p_limit?: number };

@@ -455,6 +455,12 @@ function RootNavigator() {
         <Stack.Screen name="agora/compose" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="add-friend" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="friend-profile" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* WS3 · the 1:1 thread (MESSAGING_DM_SPEC.md, migration 0206). Keyed on the FRIEND, not on
+            the thread, because every way in — the Message button on a profile, the bubble on a
+            friend row, a tapped dm_received push — knows who it means and not what thread id that
+            resolves to. A pushed destination rather than a modal: you navigate to a conversation
+            and come back to it, you don't back out of one. */}
+        <Stack.Screen name="dm/[friendId]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="activity/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="lock-in-history" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* §4/§7 — the two profile showcase surfaces. Both draw their own back row and both take a
