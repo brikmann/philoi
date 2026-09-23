@@ -3,9 +3,12 @@ import { useId } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import { PublicTitle } from '@/components/economy/loadout-bits';
+import { FlareAura } from '@/components/economy/public-identity';
 import { RankBadge } from '@/components/rank-badge';
 import { Crown } from '@/components/ui/crown';
 import { Colors, Fonts } from '@/constants/theme';
+import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
 import { getUniversityCrest } from '@/lib/university-crests';
 import type { RankTierName } from '@/types/database';
 
@@ -152,7 +155,17 @@ function PositionMedal({ position }: { position: number }) {
   );
 }
 
-function PodiumColumn({ item, position, isFirst }: { item: PodiumItem; position: number; isFirst: boolean }) {
+function PodiumColumn({
+  item,
+  position,
+  isFirst,
+  loadout,
+}: {
+  item: PodiumItem;
+  position: number;
+  isFirst: boolean;
+  loadout: PublicLoadout;
+}) {
   const avatarSize = isFirst ? 64 : 56;
   const metal = PILLAR_METAL[position];
 
@@ -167,6 +180,9 @@ function PodiumColumn({ item, position, isFirst }: { item: PodiumItem; position:
             <Crown size={28} />
           </View>
         )}
+        {/* The flare glows BEHIND the metal rim. Three avatars only, and it's the top of the
+            board, so these animate at full motion rather than the list rows' static glow. */}
+        {item.kind === 'person' && <FlareAura loadout={loadout} size={avatarSize} motion="full" />}
         {item.kind === 'person' ? (
           <View
             style={[
@@ -198,6 +214,7 @@ function PodiumColumn({ item, position, isFirst }: { item: PodiumItem; position:
         {item.kind === 'person' ? podiumName(item.displayName) : item.name}
         {item.isMe ? ' · you' : ''}
       </Text>
+      {item.kind === 'person' ? <PublicTitle loadout={loadout} compact /> : null}
       <View style={styles.valueRow}>
         {item.kind === 'person' && <RankBadge tier={item.tier} division={item.division} size={15} />}
         {/* Score in the POSITION's metal (mock 95) — the podium's own colour language, which is why
@@ -218,9 +235,12 @@ type ParthenonPodiumProps = {
 };
 
 export function ParthenonPodium({ top, onPressItem }: ParthenonPodiumProps) {
+  // One call for all three, not one per column. A university item's `key` is a slug rather than a
+  // user id, so it simply resolves to an empty loadout and renders as it always has.
+  const loadouts = usePublicLoadouts(top.filter((t) => t.kind === 'person').map((t) => t.key));
   const count = Math.min(3, top.length);
+  const order = count === 0 ? [] : RENDER_ORDER[count - 1];
   if (count === 0) return null;
-  const order = RENDER_ORDER[count - 1];
 
   return (
     <View style={styles.podium}>
@@ -230,7 +250,7 @@ export function ParthenonPodium({ top, onPressItem }: ParthenonPodiumProps) {
           if (!item) return null;
           return (
             <Pressable key={item.key} onPress={() => onPressItem?.(item)} style={styles.colPress}>
-              <PodiumColumn item={item} position={position} isFirst={position === 0} />
+              <PodiumColumn item={item} position={position} isFirst={position === 0} loadout={loadouts[item.key] ?? {}} />
             </Pressable>
           );
         })}

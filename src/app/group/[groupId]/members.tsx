@@ -1,15 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { PublicTitle } from '@/components/economy/loadout-bits';
+import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TextInput } from '@/components/ui/text-input';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCampfireRole } from '@/hooks/use-campfire-role';
 import { useGroup } from '@/hooks/use-group';
+import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { fetchCampfireMembers, setCampfireMemberRole } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -90,6 +92,9 @@ export default function CampfireMembersScreen() {
     );
   }, [members, query]);
 
+  // One call for the whole roster — see the batching note in economy/public-identity.tsx.
+  const loadouts = usePublicLoadouts(visible.map((m) => m.user_id));
+
   return (
     <Screen padded={false} style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -146,17 +151,19 @@ export default function CampfireMembersScreen() {
               onPress={() => openProfile(m.user_id)}
               accessibilityRole="button"
               accessibilityLabel={`Open ${m.display_name}'s profile`}>
-              <View style={styles.avatar}>
-                {m.avatar_url ? (
-                  <Image source={{ uri: m.avatar_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                ) : (
-                  <Text style={styles.avatarInitial}>{m.display_name.charAt(0).toUpperCase()}</Text>
-                )}
-              </View>
+              <CosmeticAvatar
+                userId={m.user_id}
+                name={m.display_name}
+                avatarUrl={m.avatar_url}
+                size={36}
+                loadout={loadouts[m.user_id]}
+                motion="reduced"
+              />
               <View style={styles.who}>
                 <Text style={styles.name} numberOfLines={1}>
                   {m.display_name}
                 </Text>
+                <PublicTitle loadout={loadouts[m.user_id] ?? {}} compact />
                 {m.handle && <Text style={styles.handle}>@{m.handle}</Text>}
               </View>
 

@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 
 import { BurntOutCampfire } from '@/components/empty-states/burnt-out-campfire';
 import { LeaderboardGap, LeaderboardPersonRow } from '@/components/leaderboard-person-row';
+import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
 import { ParthenonPodium, type PodiumItem } from '@/components/parthenon-podium';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
@@ -47,6 +48,17 @@ type Board<T> = { top3: PodiumItem[]; listRows: ListRow<T>[]; pinned: ListRow<T>
 // score; only their "second metric" field differs (current_streak for the Campfires pool vs.
 // check_ins_this_week for My-uni/Global, which don't track a per-user streak directly).
 type PersonRow = CrossCirclePerson | UniversityLeaderboardRow | GlobalLeaderboardRow;
+
+/** Every user id a board will paint, so their equipped gear is fetched in ONE call rather than one
+ * per row — see the batching note in components/economy/public-identity.tsx. */
+function boardUserIds(board: Board<PersonRow> | null): string[] {
+  if (!board) return [];
+  return [
+    ...board.top3.filter((t) => t.kind === 'person').map((t) => t.key),
+    ...board.listRows.map((r) => r.row.user_id),
+    ...(board.pinned ? [board.pinned.row.user_id] : []),
+  ];
+}
 
 function personValue(row: PersonRow, metric: Metric): string {
   if (metric === 'xp') return `${Math.round(row.score).toLocaleString()} XP`;
@@ -198,6 +210,13 @@ export default function LeaderboardsScreen() {
   const uniBoard = buildRankedBoard(uniRows, metric);
   const globalBoard = buildRankedBoard(globalRows, metric);
 
+  // Only the scope actually on screen — all four boards are computed every render, but fetching
+  // gear for the three nobody is looking at would triple the request for nothing. The module cache
+  // behind the hook means switching scopes re-uses whatever already resolved.
+  const boardLoadouts = usePublicLoadouts(
+    boardUserIds(scope === 'camp' ? campBoard : scope === 'uni' ? uniBoard : scope === 'global' ? globalBoard : null)
+  );
+
   const sortedTotals = totals
     .map((t) => ({ ...t, perCapita: t.member_count > 0 ? t.total_xp / t.member_count : 0 }))
     .sort((a, b) => (vsMetric === 'total' ? b.total_xp - a.total_xp : b.perCapita - a.perCapita));
@@ -217,6 +236,7 @@ export default function LeaderboardsScreen() {
     errorMessage: string | null,
     useCampfireEmptyIllustration = false
   ) {
+    const gear = (userId: string): PublicLoadout | undefined => boardLoadouts[userId];
     const isEmpty = board.top3.length === 0 && board.listRows.length === 0 && !board.pinned;
     return (
       <FlatList
@@ -235,12 +255,14 @@ export default function LeaderboardsScreen() {
           <Pressable onPress={() => goToProfile(item.row.user_id)}>
             <LeaderboardPersonRow
               rank={item.rank}
+              userId={item.row.user_id}
               displayName={item.row.display_name}
               avatarUrl={item.row.avatar_url}
               tier={item.row.tier}
               division={item.row.division}
               value={personValue(item.row, metric)}
               isMe={item.row.user_id === session?.user.id}
+              loadout={gear(item.row.user_id)}
             />
           </Pressable>
         )}
@@ -252,12 +274,14 @@ export default function LeaderboardsScreen() {
               <Pressable onPress={() => goToProfile(board.pinned!.row.user_id)}>
                 <LeaderboardPersonRow
                   rank={board.pinned.rank}
+                  userId={board.pinned.row.user_id}
                   displayName={board.pinned.row.display_name}
                   avatarUrl={board.pinned.row.avatar_url}
                   tier={board.pinned.row.tier}
                   division={board.pinned.row.division}
                   value={personValue(board.pinned.row, metric)}
                   isMe
+                  loadout={gear(board.pinned.row.user_id)}
                 />
               </Pressable>
             </>

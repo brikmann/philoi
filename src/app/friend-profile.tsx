@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
+import { PublicTitle } from '@/components/economy/loadout-bits';
+import { CosmeticAvatar, publicBannerStyle } from '@/components/economy/public-identity';
 import { RankBadge } from '@/components/rank-badge';
 import { CollectionEntry } from '@/components/profile/collection-entry';
 import { CompareBanner } from '@/components/profile/compare-banner';
@@ -17,6 +19,7 @@ import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUserLockInPhotos, type MyRecentLockIn } from '@/lib/api/check-ins';
@@ -94,6 +97,8 @@ export default function FriendProfileScreen() {
   // §4 — the hall renders here too, and the compare banner needs BOTH halls: the claim "she's
   // ahead on trophies, your win rate's higher" is a comparison, so neither side can be assumed.
   const theirHall = useTrophyHall(userId);
+  // THEIR loadout, not yours — every cosmetic on this screen is driven by this one read.
+  const loadout = usePublicLoadout(userId);
   const myHall = useTrophyHall(myProfile?.id);
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -161,6 +166,13 @@ export default function FriendProfileScreen() {
     });
   }
 
+  // WS3 · the 1:1 thread (MESSAGING_DM_SPEC.md). Rendered only for an accepted friend, because
+  // friends-only is the server's rule too — dm_open_thread refuses a non-friend — and a button
+  // whose only outcome is "You can only message friends." is worse than no button.
+  function handleMessage() {
+    router.push({ pathname: '/dm/[friendId]', params: { friendId: userId } });
+  }
+
   function handleWatch() {
     if (!marker?.can_watch) return;
     router.push({ pathname: '/watch/[challengeId]', params: { challengeId: marker.challenge_id, mode: marker.mode } });
@@ -184,14 +196,19 @@ export default function FriendProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.hero}>
-          {profile.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarInitial}>{profile.display_name.charAt(0).toUpperCase()}</Text>
-            </View>
-          )}
+        {/* THE flex surface: this is the screen a leaderboard or a search result opens, so it is
+            where someone's whole loadout is meant to land at once — their Banner behind the hero,
+            their Halo around the avatar, their Flare glowing at full motion (one avatar, not a
+            list), and their Title under the name. It used to render a bare circle and a name. */}
+        <View style={[styles.hero, publicBannerStyle(loadout)]}>
+          <CosmeticAvatar
+            userId={userId}
+            name={profile.display_name}
+            avatarUrl={profile.avatar_url}
+            size={76}
+            loadout={loadout}
+            motion="full"
+          />
           <View style={styles.nameRow}>
             <Text style={styles.name}>{profile.display_name}</Text>
             {relationship === 'friends' && (
@@ -200,6 +217,7 @@ export default function FriendProfileScreen() {
               </View>
             )}
           </View>
+          <PublicTitle loadout={loadout} />
           <Text style={styles.handle}>
             @{profile.handle}
             {profile.university ? ` · ${profile.university}` : ''}
@@ -219,6 +237,14 @@ export default function FriendProfileScreen() {
             </>
           ) : (
             <FriendActionButton relationship={relationship} busy={relationshipBusy} onPress={handleAddFriend} />
+          )}
+          {/* WS3 · the entry point this row was missing entirely — you could add someone and race
+              them, and not say a word to them. Friends only, matching dm_open_thread's own gate. */}
+          {relationship === 'friends' && (
+            <Pressable style={styles.actMessage} onPress={handleMessage} accessibilityLabel={`Message ${profile.display_name}`}>
+              <Ionicons name="chatbubble-ellipses-outline" size={15} color={Colors.ink} style={{ marginRight: 4 }} />
+              <Text style={styles.actMessageText}>Message</Text>
+            </Pressable>
           )}
           <Pressable style={styles.actChallenge} onPress={handleChallenge}>
             <Ionicons name="flash" size={15} color={Colors.ink} style={{ marginRight: 4 }} />
@@ -364,6 +390,12 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
     marginTop: 8,
+    // Padding and a radius so an equipped Banner reads as a backdrop panel behind the hero rather
+    // than as a colour running edge-to-edge. With no banner these are invisible.
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.card,
+    overflow: 'hidden',
   },
   avatar: {
     width: 76,
@@ -460,6 +492,25 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.muted,
+  },
+  // WS3 · Message. A filled outline rather than a second coral fill: the row already has one
+  // primary (Challenge), and two competing fills side by side read as a choice you have to make
+  // rather than two things you can do.
+  actMessage: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    borderRadius: Radius.button,
+    paddingVertical: Spacing.two,
+  },
+  actMessageText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.ink,
   },
   actChallenge: {
     flex: 1,

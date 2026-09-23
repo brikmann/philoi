@@ -4,17 +4,20 @@ import { useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PublicTitle } from '@/components/economy/loadout-bits';
+import { CosmeticAvatar, useResolvedLoadout } from '@/components/economy/public-identity';
 import { FriendPingSheet } from '@/components/friend-ping-sheet';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
-import { Avatar } from '@/components/ui/avatar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFriends } from '@/hooks/use-friends';
+import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
 import { useMyActiveLockIns } from '@/hooks/use-my-active-lockins';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
-import { friendStatusLine, nudgeToLockIn, type Friend } from '@/lib/api/friends';
+import { friendStatusLine, nudgeToLockIn, type Friend, type NudgeKind } from '@/lib/api/friends';
 import { getErrorMessage } from '@/lib/errors';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
+import type { PingResult } from '@/types/database';
 
 // Friend ping — "Your people" (design-mocks/21, PHILOI_UI_SPEC.md §4b/§16). Person-first entry:
 // real (mutually-accepted) friends grouped by live state, each with a state-aware quick action
@@ -30,6 +33,9 @@ export default function PeopleScreen() {
   const [lockInWithCircle, setLockInWithCircle] = useState<{ id: string; name: string | null } | null>(null);
   // friend_ids currently showing the ✓ nudge confirmation (reverts to the 🔥 after ~1.4s).
   const [nudged, setNudged] = useState<Set<string>>(new Set());
+  // What the last send on the open sheet did — 'sent' / 'sent_no_push' / 'rate_limited' (0207).
+  // Cleared whenever a different friend's sheet opens, so it can never describe the wrong person.
+  const [lastPing, setLastPing] = useState<PingResult | null>(null);
   const nudgeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Live "locked in now" by user id → the goal label for their status line (design-mocks/06's
@@ -49,11 +55,14 @@ export default function PeopleScreen() {
   const lockedIn = filtered.filter((f) => goalByUser.has(f.friend_id));
   const rest = filtered.filter((f) => !goalByUser.has(f.friend_id));
 
+  // One call for the whole list — see the batching note in economy/public-identity.tsx.
+  const loadouts = usePublicLoadouts(filtered.map((f) => f.friend_id));
+
   function statusLine(f: Friend): string {
     return friendStatusLine(f, goalByUser.get(f.friend_id) ?? null);
   }
 
-  async function handleNudge(f: Friend) {
+  async function handleNudge(f: Friend, kind: NudgeKind = 'nudge') {
     // Optimistic ✓ confirmation (design-mocks/21's quickPing) — reverts after a moment.
     setNudged((prev) => new Set(prev).add(f.friend_id));
     clearTimeout(nudgeTimers.current[f.friend_id]);
@@ -65,8 +74,12 @@ export default function PeopleScreen() {
       });
     }, 1400);
     try {
-      await nudgeToLockIn(f.friend_id);
+      // 0207 · the RPC reports what it actually did. The ✓ above is still optimistic, because the
+      // row has one glyph and no room to explain — but the SHEET has room, so it shows the truth
+      // rather than a tick that means nothing.
+      setLastPing(await nudgeToLockIn(f.friend_id, kind));
     } catch (e) {
+      setLastPing(null);
       Alert.alert('Could not nudge', getErrorMessage(e, 'Try again in a moment.'));
     }
   }
@@ -87,14 +100,30 @@ export default function PeopleScreen() {
     setPickerVisible(true);
   }
 
+  // Opening a sheet forgets the previous friend's send result. Without this, nudging Maya and then
+  // opening Sam's sheet would show Sam "Already nudged them in the last 10 minutes".
+  function openSheet(f: Friend) {
+    setLastPing(null);
+    setSheetFriend(f);
+  }
+
+  // WS3 · the 1:1 thread. Takes the friend explicitly, like handleLockInWith, because both the row
+  // bubble and the sheet row call it and only one of those has sheetFriend set.
+  function handleMessage(f: Friend) {
+    setSheetFriend(null);
+    router.push({ pathname: '/dm/[friendId]', params: { friendId: f.friend_id } });
+  }
+
   // The sheet's primary action mirrors the row quick button: join if they're locked in, else nudge.
   function handleSheetPrimary() {
     if (!sheetFriend) return;
     if (sheetLockedIn) {
       handleLockInWith(sheetFriend);
     } else {
+      // Deliberately does NOT close. It used to dismiss on tap, which is what made "nudged ✓"
+      // unfalsifiable — the sheet was gone before there was anything to report. The result line
+      // needs the sheet to still be open.
       handleNudge(sheetFriend);
-      setSheetFriend(null);
     }
   }
 
@@ -169,11 +198,13 @@ export default function PeopleScreen() {
               <FriendRow
                 key={f.friend_id}
                 friend={f}
+                loadout={loadouts[f.friend_id]}
                 status={statusLine(f)}
                 lockedIn
                 nudged={false}
-                onOpen={() => setSheetFriend(f)}
+                onOpen={() => openSheet(f)}
                 onQuick={() => handleLockInWith(f)}
+                onMessage={() => handleMessage(f)}
               />
             ))}
           </>
@@ -186,11 +217,13 @@ export default function PeopleScreen() {
               <FriendRow
                 key={f.friend_id}
                 friend={f}
+                loadout={loadouts[f.friend_id]}
                 status={statusLine(f)}
                 lockedIn={false}
                 nudged={nudged.has(f.friend_id)}
-                onOpen={() => setSheetFriend(f)}
+                onOpen={() => openSheet(f)}
                 onQuick={() => handleNudge(f)}
+                onMessage={() => handleMessage(f)}
               />
             ))}
           </>
@@ -204,6 +237,8 @@ export default function PeopleScreen() {
         lockedIn={sheetLockedIn}
         goalLabel={sheetFriend ? (goalByUser.get(sheetFriend.friend_id) ?? null) : null}
         onPrimary={handleSheetPrimary}
+        onSendFire={() => sheetFriend && handleNudge(sheetFriend, 'fire')}
+        lastPing={lastPing}
         activeH2H={Boolean(sheetActiveH2H)}
         onChallengeH2H={() => sheetFriend && handleChallenge(sheetFriend, 'h2h')}
         onViewChallenge={handleViewChallenge}
@@ -221,34 +256,64 @@ export default function PeopleScreen() {
 }
 
 function FriendRow({
+  loadout,
   friend,
   status,
   lockedIn,
   nudged,
   onOpen,
   onQuick,
+  onMessage,
 }: {
   friend: Friend;
+  /** Batched by the list above — see economy/public-identity.tsx. */
+  loadout?: PublicLoadout;
   status: string;
   lockedIn: boolean;
   nudged: boolean;
   onOpen: () => void;
   onQuick: () => void;
+  /** WS3 · straight into the 1:1 thread, skipping the sheet. */
+  onMessage: () => void;
 }) {
+  const resolved = useResolvedLoadout(friend.friend_id, loadout);
+
   return (
     <Pressable style={styles.row} onPress={onOpen}>
       <View style={styles.avatarWrap}>
-        <Avatar label={friend.display_name} size={38} lit={lockedIn} />
+        {/* Their gear, not a bare circle — this list is where you look at your friends most, so it
+            was the loudest place a bought title rendered as nothing. Flares stay static: this is a
+            list, and the live dot is the one thing here that should pull the eye. */}
+        <CosmeticAvatar
+          userId={friend.friend_id}
+          name={friend.display_name}
+          avatarUrl={friend.avatar_url}
+          size={38}
+          loadout={resolved}
+          motion="reduced"
+          lit={lockedIn}
+        />
         {lockedIn && <View style={styles.liveDot} />}
       </View>
       <View style={styles.who}>
         <Text style={styles.name} numberOfLines={1}>
           {friend.display_name}
         </Text>
+        <PublicTitle loadout={resolved} compact />
         <Text style={[styles.status, lockedIn && styles.statusOn]} numberOfLines={1}>
           {status}
         </Text>
       </View>
+      {/* WS3 · the row's second quick action. The row itself still opens the profile and the flame
+          still nudges — this is only the shortcut that was missing, since "say something to them"
+          previously had no button anywhere in the app. */}
+      <Pressable
+        onPress={onMessage}
+        hitSlop={8}
+        accessibilityLabel={`Message ${friend.display_name}`}
+        style={[styles.quick, styles.quickMessage]}>
+        <Ionicons name="chatbubble-ellipses-outline" size={17} color={Colors.muted} />
+      </Pressable>
       <Pressable
         onPress={onQuick}
         hitSlop={8}
@@ -369,6 +434,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.disabled,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Quieter than the flame beside it: the nudge is the row's primary act and two equally loud
+  // buttons would make the row ask a question instead of offering a shortcut.
+  quickMessage: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.line,
   },
   quickJoin: {
     backgroundColor: Colors.coral,

@@ -3,13 +3,14 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Avatar } from '@/components/ui/avatar';
+import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { SecondaryButton } from '@/components/ui/secondary-button';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGatedInterval } from '@/hooks/use-motion-active';
+import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { useTeamMatch } from '@/hooks/use-team-match';
 import {
   confirmTeamMatchScore,
@@ -64,6 +65,8 @@ export default function TeamMatchScreen() {
   const router = useRouter();
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
   const { match, loading, error, refetch, setError } = useTeamMatch(matchId);
+  // One call for the roster — see the batching note in economy/public-identity.tsx.
+  const rosterLoadouts = usePublicLoadouts((match?.roster ?? []).map((p) => p.user_id));
   const [busy, setBusy] = useState(false);
 
   // The clock ticks locally off `clock_started_at`; only start/pause round-trip. A second-by-second
@@ -224,7 +227,7 @@ export default function TeamMatchScreen() {
           <View style={styles.rosterWrap}>
             {match.roster.map((p) => (
               <View key={p.user_id} style={styles.rosterRow}>
-                <Avatar label={p.display_name} size={26} />
+                <CosmeticAvatar userId={p.user_id} name={p.display_name} size={26} loadout={rosterLoadouts[p.user_id]} motion="reduced" />
                 <Text style={styles.rosterName} numberOfLines={1}>
                   {p.display_name}
                 </Text>

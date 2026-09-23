@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LeaderboardPersonRow } from '@/components/leaderboard-person-row';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { fetchWeeklyXpByUser } from '@/lib/api/weekly-xp';
 
 // THE LEADERBOARD, AS A VIEW INSIDE THE CAMPFIRE (mock 101 frame 3).
@@ -87,6 +88,9 @@ export function LeaderboardPanel({ visible, onClose, groupId, myUserId, topInset
     return copy;
   }, [rows, period, weeklyXp]);
 
+  // One call for the whole roster — see the batching note in economy/public-identity.tsx.
+  const loadouts = usePublicLoadouts(ordered.map((r) => r.user_id));
+
   // Swipe down to dismiss, per the mock's caption ("Swipe down returns to chat"). Built once with
   // useMemo and committed from onUpdate rather than onEnd — the same two lessons the campfire's
   // old feed swipe was fixed with: a gesture rebuilt every render loses the touch it was tracking,
@@ -144,6 +148,8 @@ export function LeaderboardPanel({ visible, onClose, groupId, myUserId, topInset
               renderItem={({ item, index }) => (
                 <LeaderboardPersonRow
                   rank={index + 1}
+                  userId={item.user_id}
+                  loadout={loadouts[item.user_id]}
                   displayName={item.display_name}
                   avatarUrl={item.avatar_url}
                   tier={item.tier}

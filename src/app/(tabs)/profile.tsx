@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '@/components/ui/screen-background';
 
 import { EquippedAvatarHalo, EquippedCardBackdrop, useAuraTier } from '@/components/economy/applied-art';
-import { EquippedTitle } from '@/components/economy/loadout-bits';
+import { EquippedTitle, PublicTitle } from '@/components/economy/loadout-bits';
 import { BioEditor } from '@/components/profile/bio-editor';
 import { CollectionEntry } from '@/components/profile/collection-entry';
 import { DisciplineRelicTracker } from '@/components/profile/discipline-relic-tracker';
@@ -171,7 +171,10 @@ export default function ProfileScreen() {
           <View style={styles.idInfo}>
             <Text style={styles.name}>{profile.display_name}</Text>
             <Text style={styles.handle}>@{profile.handle}</Text>
-            <EquippedTitle enabled={isOwn} />
+            {/* `EquippedTitle` reads the signed-in user's store, so `enabled={isOwn}` could only
+                ever show YOUR title or nothing — on someone else's profile it structurally rendered
+                blank. Their title comes off the public loadout this screen already fetched. */}
+            {isOwn ? <EquippedTitle /> : <PublicTitle loadout={theirs ?? {}} />}
             {profile.university && (
               <Pressable onPress={() => router.push('/university-leaderboard')}>
                 <View style={styles.uniRow}>

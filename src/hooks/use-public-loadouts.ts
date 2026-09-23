@@ -21,7 +21,11 @@ const cache = new Map<string, PublicLoadout>();
 export function usePublicLoadouts(userIds: (string | null | undefined)[]): Record<string, PublicLoadout> {
   // Stable key so the effect doesn't refire on a new array with identical contents.
   const key = useMemo(() => Array.from(new Set(userIds.filter(Boolean) as string[])).sort().join(','), [userIds]);
-  const [, bump] = useState(0);
+  // The VALUE, not just the setter. Depending on `bump` (a stable setState identity) meant the
+  // memo below never recomputed after a fetch landed, so every surface handed back the empty
+  // objects built on first render and cosmetics appeared only once the screen remounted — which
+  // is exactly the "titles only show after you visit another tab" report.
+  const [tick, bump] = useState(0);
 
   useEffect(() => {
     const ids = key ? key.split(',') : [];
@@ -60,9 +64,9 @@ export function usePublicLoadouts(userIds: (string | null | undefined)[]): Recor
     const out: Record<string, PublicLoadout> = {};
     for (const id of key ? key.split(',') : []) out[id] = cache.get(id) ?? {};
     return out;
-    // `cache` is mutable module state; `bump` is what re-runs this after a fetch lands.
+    // `cache` is mutable module state; `tick` is what re-runs this after a fetch lands.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, bump]);
+  }, [key, tick]);
 }
 
 /** Single-user convenience for headers (1v1, challenge, profile-of-someone-else). */

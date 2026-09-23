@@ -22,6 +22,9 @@ import { LockInEventCard } from '@/components/lock-in-event-card';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { SocialChallengeCard } from '@/components/social-challenge-card';
 import { EmberFill } from '@/components/ui/ember-fill';
+import { PublicTitle } from '@/components/economy/loadout-bits';
+import { CosmeticAvatar } from '@/components/economy/public-identity';
+import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TextInput } from '@/components/ui/text-input';
 import { CHAT_ENABLED } from '@/constants/feature-flags';
@@ -285,6 +288,11 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
       ? [...withDays, { kind: 'streak_system', id: 'streak-system', days: streakDays }]
       : withDays;
   }, [timeline.rows, activeLockIns, flameCompletions, challenges, streakDays]);
+
+  // Discord-style authorship: a chat is a list of PEOPLE talking, so the bubbles are one of the
+  // highest-traffic places a title or a halo can actually be seen. One call for every author on
+  // screen — see the batching note in economy/public-identity.tsx.
+  const authorLoadouts = usePublicLoadouts(timeline.rows.map((r) => (r.kind === 'message' ? r.data.user_id : null)));
 
   // Newest at the bottom, so the chain has to be pinned there. `onContentSizeChange` rather than a
   // rows-length effect: the list has to have LAID OUT before scrollToEnd means anything, and a
@@ -599,15 +607,23 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
       <View style={[styles.msgRow, isOwn && styles.msgRowOwn]}>
         {!isOwn && (
           <View style={styles.avatar}>
-            {message.profiles.avatar_url ? (
-              <Image source={{ uri: message.profiles.avatar_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
-            ) : (
-              <Text style={styles.avatarInitial}>{message.profiles.display_name.charAt(0).toUpperCase()}</Text>
-            )}
+            <CosmeticAvatar
+              userId={message.user_id}
+              name={message.profiles.display_name}
+              avatarUrl={message.profiles.avatar_url}
+              size={30}
+              loadout={authorLoadouts[message.user_id]}
+              motion="reduced"
+            />
           </View>
         )}
         <View style={styles.msgBody}>
-          {!isOwn && <Text style={styles.sender}>{message.profiles.display_name}</Text>}
+          {!isOwn && (
+            <View style={styles.senderLine}>
+              <Text style={styles.sender}>{message.profiles.display_name}</Text>
+              <PublicTitle loadout={authorLoadouts[message.user_id] ?? {}} compact />
+            </View>
+          )}
           <Pressable
             ref={(node) => {
               if (node) bubbleNodes.set(message.id, node as unknown as View);
@@ -1286,29 +1302,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
   },
   avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: Colors.plum,
+    // No fixed box, no clip: CosmeticAvatar draws its own circle and needs room OUTSIDE it for the
+    // halo ring and the flare, which an overflow:hidden 30x30 wrapper would have cut off.
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
     // Sits at the bottom of a multi-line bubble, as in the mock.
     alignSelf: 'flex-end',
   },
-  avatarInitial: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    color: Colors.ember,
-  },
   msgBody: {
     flexShrink: 1,
+  },
+  senderLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    marginBottom: 2,
   },
   sender: {
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
     color: Colors.muted,
-    marginBottom: 2,
   },
   bubble: {
     paddingVertical: Spacing.two,

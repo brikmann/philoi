@@ -4,12 +4,16 @@ import { useRouter } from 'expo-router';
 import { memo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { EquippedAvatarHalo, EquippedCardBackdrop } from '@/components/economy/applied-art';
+import { EquippedCardBackdrop } from '@/components/economy/applied-art';
+import { PublicTitle } from '@/components/economy/loadout-bits';
+import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
-import { attachmentKey, attachmentView, itemAttachments } from '@/lib/agora-attachment';
-import type { AgoraAttachmentView } from '@/lib/agora-attachment';
+import { GymClipThumbnail } from '@/components/gym-clip-player';
+import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
+import { attachmentKey, attachmentView, formatVolume, itemAttachments } from '@/lib/agora-attachment';
+import type { AgoraAttachmentView, AgoraLiftView } from '@/lib/agora-attachment';
 import { agoraPhotoUrl } from '@/lib/api/agora';
 import { formatRelativeTime } from '@/lib/format';
 import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
@@ -22,7 +26,8 @@ import type { AgoraItem } from '@/types/database';
 // AUTHOR COSMETICS. "Post authors render their equipped cosmetics — halo ring, flex background
 // card. Another reason to grind." That art is `applied-art.tsx` (Agent 4's surface); this file
 // only calls it, and passes the ids the batched `usePublicLoadouts` read already fetched for the
-// whole page.
+// whole page. The halo now comes via CosmeticAvatar so the FLARE and the TITLE travel with it —
+// the card had the loadout in hand all along and was spending it on the ring alone.
 //
 // MEDIA STACKS. A post can carry a photo and a lock-in and a reward at once (migration 0140), so
 // the attachment is a LIST here, drawn in ATTACH_ORDER. Milestone rows arrive as a one-element
@@ -86,15 +91,15 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
     <CardSurface cardId={loadout.card?.id}>
       <View style={styles.head}>
         <Pressable onPress={openAuthor} hitSlop={6} accessibilityRole="button">
-          <EquippedAvatarHalo haloId={loadout.halo?.id} size={AVATAR}>
-            {item.avatar_url ? (
-              <Image source={{ uri: item.avatar_url }} style={styles.avatar} contentFit="cover" />
-            ) : (
-              <View style={[styles.avatar, styles.avatarFallback]}>
-                <Text style={styles.avatarInitial}>{item.display_name.charAt(0).toUpperCase()}</Text>
-              </View>
-            )}
-          </EquippedAvatarHalo>
+          {/* A feed scrolls, so the aura holds still here — same rule as the leaderboard rows. */}
+          <CosmeticAvatar
+            userId={item.user_id}
+            name={item.display_name}
+            avatarUrl={item.avatar_url}
+            size={AVATAR}
+            loadout={loadout}
+            motion="reduced"
+          />
         </Pressable>
 
         <Pressable style={styles.headText} onPress={openAuthor} accessibilityRole="button">
@@ -102,6 +107,7 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
             {item.display_name}
             {item.handle ? <Text style={styles.handle}> @{item.handle}</Text> : null}
           </Text>
+          <PublicTitle loadout={loadout} compact />
           <View style={styles.metaRow}>
             <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>
             {rank ? <Text style={[styles.rank, { color: rank.color }]}>· {rank.label}</Text> : null}

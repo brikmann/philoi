@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -11,6 +11,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PublicTitle } from '@/components/economy/loadout-bits';
+import { CosmeticAvatar, useResolvedLoadout } from '@/components/economy/public-identity';
 import { RewardRays } from '@/components/economy/reward-reveal';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ScreenBackground } from '@/components/ui/screen-background';
@@ -76,40 +78,30 @@ function formatWindow(hours: number): string {
  * degrades to a letter; it never blanks the card.
  */
 function Fighter({
+  userId,
   name,
   avatarUrl,
   you,
   size = 84,
 }: {
+  userId: string | null | undefined;
   name: string;
   avatarUrl: string | null;
   you?: boolean;
   size?: number;
 }) {
+  const loadout = useResolvedLoadout(userId);
   return (
     <View style={styles.fighter}>
-      {avatarUrl ? (
-        <Image
-          source={{ uri: avatarUrl }}
-          style={[styles.face, { width: size, height: size, borderRadius: size / 2 }, you && styles.faceYou]}
-        />
-      ) : (
-        <View
-          style={[
-            styles.face,
-            styles.faceFallback,
-            { width: size, height: size, borderRadius: size / 2 },
-            you && styles.faceYou,
-          ]}
-        >
-          <Text style={[styles.faceInitial, { fontSize: size * 0.38 }]}>
-            {(name.trim().charAt(0) || '?').toUpperCase()}
-          </Text>
-        </View>
-      )}
+      {/* Two faces on a sheet, so both auras run at FULL motion — this is the one place a
+          challenger's flare is meant to be intimidating rather than incidental. */}
+      <View style={you && styles.faceYouWrap}>
+        <CosmeticAvatar userId={userId} name={name} avatarUrl={avatarUrl} size={size} loadout={loadout} motion="full" />
+      </View>
       <Text style={styles.fighterName} numberOfLines={1}>
         {name}
       </Text>
+      <PublicTitle loadout={loadout} compact />
     </View>
   );
 }
@@ -121,6 +113,7 @@ export function IncomingChallengeSheet({
   error,
   myName,
   myAvatarUrl,
+  myUserId,
   onAccept,
   onDecline,
   onClose,
@@ -132,6 +125,8 @@ export function IncomingChallengeSheet({
   error?: string | null;
   myName: string;
   myAvatarUrl: string | null;
+  /** Your own id, so your side of the card wears your gear too. */
+  myUserId?: string | null;
   onAccept: () => void;
   onDecline: () => void;
   onClose: () => void;
@@ -239,7 +234,7 @@ export function IncomingChallengeSheet({
 
             <View style={styles.arena}>
               <Animated.View style={leftStyle}>
-                <Fighter name={challengerName} avatarUrl={challengerAvatarUrl} />
+                <Fighter userId={challenge.created_by} name={challengerName} avatarUrl={challengerAvatarUrl} />
               </Animated.View>
 
               <Animated.View style={[styles.vsWrap, vsStyle]}>
@@ -247,7 +242,7 @@ export function IncomingChallengeSheet({
               </Animated.View>
 
               <Animated.View style={rightStyle}>
-                <Fighter name={myName} avatarUrl={myAvatarUrl} you />
+                <Fighter userId={myUserId} name={myName} avatarUrl={myAvatarUrl} you />
               </Animated.View>
             </View>
 
@@ -348,21 +343,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 104,
   },
-  face: {
+  // Which side is YOURS stays a coral ring, deliberately outside the cosmetic layer: it is
+  // orientation, not decoration, so an equipped halo must not be able to repaint or hide it.
+  faceYouWrap: {
     borderWidth: 2,
-    borderColor: Colors.twilight900,
-    backgroundColor: Colors.disabled,
-  },
-  faceYou: {
     borderColor: Colors.coral,
-  },
-  faceFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  faceInitial: {
-    fontFamily: Fonts.bodyBold,
-    color: Colors.ink,
+    borderRadius: Radius.pill,
   },
   fighterName: {
     fontFamily: Fonts.bodyBold,

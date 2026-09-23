@@ -624,6 +624,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           error={answerError}
           myName={profile?.display_name ?? 'You'}
           myAvatarUrl={profile?.avatar_url ?? null}
+          myUserId={profile?.id ?? null}
           onAccept={() => answerInvite(true)}
           onDecline={() => answerInvite(false)}
           onClose={() => setInviteOpen(false)}

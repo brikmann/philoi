@@ -10,6 +10,7 @@ import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGroup } from '@/hooks/use-group';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchActiveChallengeMarker } from '@/lib/api/leaderboard-social';
 import type { ActiveChallengeMarker, LeaderboardRow } from '@/types/database';
@@ -70,6 +71,9 @@ export default function GroupLeaderboardScreen() {
   const listRowRankOffset = usePodium ? 4 : 1;
   const myIndex = sorted.findIndex((r) => r.user_id === session?.user.id);
   const pinned = usePodium && myIndex >= VISIBLE_RANKS ? sorted[myIndex] : null;
+
+  // One call for the whole board — see the batching note in economy/public-identity.tsx.
+  const loadouts = usePublicLoadouts(sorted.map((r) => r.user_id));
   const isEmpty = sorted.length === 0;
 
   function goToProfile(userId: string) {
@@ -112,6 +116,8 @@ export default function GroupLeaderboardScreen() {
             <Pressable onPress={() => goToProfile(item.user_id)}>
               <LeaderboardPersonRow
                 rank={index + listRowRankOffset}
+                userId={item.user_id}
+                loadout={loadouts[item.user_id]}
                 displayName={item.display_name}
                 avatarUrl={item.avatar_url}
                 tier={item.tier}
@@ -135,6 +141,8 @@ export default function GroupLeaderboardScreen() {
               <Pressable onPress={() => goToProfile(pinned.user_id)}>
                 <LeaderboardPersonRow
                   rank={myIndex + 1}
+                  userId={pinned.user_id}
+                  loadout={loadouts[pinned.user_id]}
                   displayName={pinned.display_name}
                   avatarUrl={pinned.avatar_url}
                   tier={pinned.tier}
