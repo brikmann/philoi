@@ -4048,37 +4048,41 @@ create table if not exists rank_thresholds (
   cumulative_xp_required numeric not null
 );
 
+-- 0203 re-cut these to a ~5x curve: each division costs ~9.25% more than the one below it, and
+-- the apex sits far off that curve on purpose. At 250 XP/locked-in-hour the anchors are Diamond
+-- top 300 h, Immortal top 1,100 h, Primordial 2,500 h. The `division` numbering is unchanged and
+-- is WS9's to flip (III becomes the top of each tier there, labels only).
 insert into rank_thresholds (rank_index, tier, division, cumulative_xp_required) values
   (0,  'bronze',    3, 0),
-  (1,  'bronze',    2, 900),
-  (2,  'bronze',    1, 1800),
-  (3,  'silver',    3, 2700),
-  (4,  'silver',    2, 4200),
-  (5,  'silver',    1, 5700),
-  (6,  'gold',      3, 7200),
-  (7,  'gold',      2, 9400),
-  (8,  'gold',      1, 11600),
-  (9,  'platinum',  3, 13800),
-  (10, 'platinum',  2, 16700),
-  (11, 'platinum',  1, 19600),
-  (12, 'diamond',   3, 22500),
-  (13, 'diamond',   2, 26200),
-  (14, 'diamond',   1, 29900),
-  (15, 'hero',      3, 33600),
-  (16, 'hero',      2, 38400),
-  (17, 'hero',      1, 43200),
-  (18, 'titan',     3, 48000),
-  (19, 'titan',     2, 54200),
-  (20, 'titan',     1, 60400),
-  (21, 'olympian',  3, 66600),
-  (22, 'olympian',  2, 74800),
-  (23, 'olympian',  1, 83000),
-  (24, 'immortal',  3, 91200),
-  (25, 'immortal',  2, 102200),
-  (26, 'immortal',  1, 113200),
+  (1,  'bronze',    2, 2800),
+  (2,  'bronze',    1, 5900),
+  (3,  'silver',    3, 9300),
+  (4,  'silver',    2, 13000),
+  (5,  'silver',    1, 17000),
+  (6,  'gold',      3, 21400),
+  (7,  'gold',      2, 26200),
+  (8,  'gold',      1, 31500),
+  (9,  'platinum',  3, 37300),
+  (10, 'platinum',  2, 43500),
+  (11, 'platinum',  1, 50400),
+  (12, 'diamond',   3, 57900),
+  (13, 'diamond',   2, 66000),
+  (14, 'diamond',   1, 75000),
+  (15, 'hero',      3, 84800),
+  (16, 'hero',      2, 95400),
+  (17, 'hero',      1, 107100),
+  (18, 'titan',     3, 119800),
+  (19, 'titan',     2, 133800),
+  (20, 'titan',     1, 149000),
+  (21, 'olympian',  3, 165600),
+  (22, 'olympian',  2, 183700),
+  (23, 'olympian',  1, 203500),
+  (24, 'immortal',  3, 225200),
+  (25, 'immortal',  2, 248900),
+  (26, 'immortal',  1, 275000),
   -- Primordial: apex, singular/no divisions. division stored as 1 so ordinal arithmetic
   -- still orders it above Immortal I (same convention the old 'infernal' row used).
-  (27, 'primordial', 1, 124200)
+  (27, 'primordial', 1, 625000)
 on conflict (rank_index) do update set
   tier = excluded.tier, division = excluded.division, cumulative_xp_required = excluded.cumulative_xp_required;
 

@@ -6,7 +6,7 @@
 // returns the thresholds and rarities too — prefer those when you have them, and treat what is
 // here as the offline/initial-render copy. If the two ever disagree, the server is right.
 //
-// Keep in step with the `relic_ladders` insert in 0119.
+// Keep in step with the `relic_ladders` inserts in 0119, 0186 and 0203.
 
 import type { Rarity } from '@/lib/economy/rarity';
 
@@ -24,8 +24,8 @@ export type RelicFamily = 'volume' | 'distance' | 'study' | 'deep_work';
  * §4a-2's rung glyph: α I · β II · γ III · δ IV · Ω V.
  *
  * Colour and letter are INDEPENDENT signals — rarity is the tile's glow, the letter is which rung.
- * A maxed movement relic reads red + δ (its fourth rung is Mythic) and a maxed hours relic orange
- * + δ, which is only legible if the letter is never derived from the rarity.
+ * Cardio maxes at δ and Strength at Ω, and both are Mythic; before 0203 the hours ladders maxed
+ * orange + δ. Keep the letter derived from the rung and never from the rarity, or those collapse.
  */
 export const RUNG_GLYPH = ['α', 'β', 'γ', 'δ', 'Ω'] as const;
 
@@ -82,8 +82,11 @@ export const RELIC_LADDERS: RelicLadder[] = [
     label: 'Study',
     short: 'Study',
     unit: 'h',
-    thresholds: [10, 25, 50, 100],
-    rarities: ['uncommon', 'rare', 'epic', 'legendary'],
+    // 0203 (WS7). The four rungs below 600 are 0119's, unchanged, so an existing holder keeps the
+    // rung they earned; 600 h is a new FIFTH rung on top. It is the cap in every sense — reaching
+    // it is what "maxed" now means for this ladder, including for the Crown of Olympus capstone.
+    thresholds: [10, 25, 50, 100, 600],
+    rarities: ['uncommon', 'rare', 'epic', 'legendary', 'mythic'],
   },
   {
     // 0186. "Deep Work", matching the first tap the member actually picked — the same rule that
@@ -95,8 +98,10 @@ export const RELIC_LADDERS: RelicLadder[] = [
     label: 'Deep Work',
     short: 'Deep Work',
     unit: 'h',
-    thresholds: [10, 25, 50, 100],
-    rarities: ['uncommon', 'rare', 'epic', 'legendary'],
+    // 0203 (WS7). Same fifth rung as Socrates' Scroll above — 600 h / mythic, four rungs below
+    // it untouched.
+    thresholds: [10, 25, 50, 100, 600],
+    rarities: ['uncommon', 'rare', 'epic', 'legendary', 'mythic'],
   },
 ];
 
