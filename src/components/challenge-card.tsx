@@ -20,10 +20,33 @@ import {
 } from '@/lib/api/challenges';
 import { asBoxKey, TIER_COLOR } from '@/lib/challenge-tier';
 import { BOXES } from '@/lib/economy/boxes';
+import { RARITIES } from '@/lib/economy/rarity';
 import { CHALLENGE_TYPE_GLYPH, canonicalGoalUnit, personalGoalTitle } from '@/lib/goal-types';
 import { getErrorMessage } from '@/lib/errors';
 import { AUTO_SOURCE_NAME, getRealFitnessSourceForChallengeType, sourceNeedsConnection } from '@/lib/fitness-sync';
-import type { Challenge, ChallengeType, DifficultyTier, ScopedRewardPreview } from '@/types/database';
+import type { Challenge, ChallengeType, DifficultyTier, GradeDiscipline, ScopedRewardPreview } from '@/types/database';
+
+/**
+ * "90%+ → EPIC · pass → RARE · under 50% → nothing" — the grade ladder spelled out, from the goal's
+ * own numbers. The old "STEM · any pass pays at least RARE" left the reader to work out whether the
+ * floor and the badge were the same thing.
+ *
+ * Mirrors grade_band / grade_goal_tier (0210): the floor is rare for stem and uncommon for arts, and
+ * a pass under the target steps down from the scoped tier, never below the floor. The ladder is
+ * display only — report_goal_grade prices the real mark.
+ */
+function gradeLadderLine(tier: DifficultyTier, discipline: GradeDiscipline, target: number, passMark?: number | null) {
+  const floor: DifficultyTier = discipline === 'stem' ? 'rare' : 'uncommon';
+  const passLine = Math.min(passMark ?? 50, target);
+  const steps = RARITIES.indexOf(tier) - RARITIES.indexOf(floor);
+  const miss = `under ${passLine}% → nothing`;
+  // Target at the pass line, or a goal scoped at the floor: every pass pays the same tier.
+  if (steps <= 0 || passLine >= target) return `${passLine}%+ → ${tier.toUpperCase()} · ${miss}`;
+  // One step above the floor, any pass short of the target lands exactly on it; further up there
+  // are tiers in between, so the floor is where it bottoms out rather than what every pass pays.
+  const pass = steps === 1 ? `pass → ${floor.toUpperCase()}` : `lower pass → down to ${floor.toUpperCase()}`;
+  return `${target}%+ → ${tier.toUpperCase()} · ${pass} · ${miss}`;
+}
 
 // Quick-add amounts only. The glyph moved to CHALLENGE_TYPE_GLYPH in lib/goal-types — these were
 // emoji, which draw differently on every OS and font version and cannot take the row's tint (§A3).
@@ -176,7 +199,11 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
     ? needsReconnect
       ? `⚡ Auto · ${AUTO_SOURCE_NAME[realSource]} (reconnect)`
       : `⚡ Auto · ${AUTO_SOURCE_NAME[realSource]}`
-    : challenge.difficulty_tier != null && challenge.verifiability !== 'auto'
+    : isGrade
+      ? // A mark is reported once, not filled — so this names the button that settles it, and is
+        // allowed a second line rather than truncating to "tap when y…".
+        "🏅 No auto-track — tap 'Report your grade' when you have your mark"
+      : challenge.difficulty_tier != null && challenge.verifiability !== 'auto'
       ? "🏅 No auto-track — tap when you've done it"
       : '✏️ Logged by hand';
 
@@ -358,7 +385,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
           <Text style={styles.title} numberOfLines={1}>
             {personalGoalTitle(challenge)}
           </Text>
-          <Text style={styles.source} numberOfLines={1}>
+          <Text style={styles.source} numberOfLines={isGrade ? 2 : 1}>
             {sourceLine}
           </Text>
         </View>
@@ -377,12 +404,19 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
         </Pressable>
       </Pressable>
 
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${pct}%` }, isComplete && styles.progressFillDone]} />
-      </View>
+      {/* A grade is reported once, not accumulated — a fill bar and "0 / 90 %" read as something
+          you work up to. The Report button and the ladder line below carry a live grade goal. */}
+      {!isGrade && (
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${pct}%` }, isComplete && styles.progressFillDone]} />
+        </View>
+      )}
 
       {/* Numbers on the left, ONE status on the right — a percentage while it's live, the green
           "Smashed" once the target's beaten. Never both, and never a third badge elsewhere. */}
+      {/* Kept on a SETTLED grade goal: by then the number is the mark they reported, and "Smashed"
+          is the verdict. A missed one says so in its own row instead. */}
+      {(!isGrade || isComplete) && (
       <View style={styles.statusRow}>
         {/* 🔴 §4a — "Cold plunges · 0 / 1 bath". `unit` is a free text column and Cindy's
             create_challenge tool lets the model fill it with whatever noun it likes, so a goal
@@ -403,6 +437,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
           <Text style={styles.pct}>{pct}%</Text>
         )}
       </View>
+      )}
 
       <Text style={styles.reset}>
         {resetLabel(challenge.period)}
@@ -435,15 +470,18 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
       {/* ...and the way out of the cap, while there still is one. Nothing once settled: a goal paid
           at honour cannot be vouched after the fact (one grant, 0164). */}
       {!isComplete && !isMissed ? (
-        <VouchUnlockLine capped={reward} vouched={vouchedReward} lead="2 friends vouch →" style={styles.unlockLine} />
+        <VouchUnlockLine capped={reward} vouched={vouchedReward} lead="2 friends vouch → upgrades to" style={styles.unlockLine} />
       ) : null}
       {/* 0210 — the ladder, in one line: a live grade goal says a near-miss still pays, and a settled
           one that earned less than it aimed for says what it aimed for. */}
-      {isGrade && !isComplete && !isMissed && !isPendingVouch && challenge.grade_discipline ? (
+      {isGrade && !isComplete && !isMissed && !isPendingVouch && challenge.grade_discipline && tier ? (
         <Text style={styles.ladderLine}>
-          {challenge.grade_discipline === 'stem' ? 'STEM' : 'Arts'} · any pass pays at least{' '}
-          {challenge.grade_discipline === 'stem' ? 'RARE' : 'UNCOMMON'}; under{' '}
-          {Math.min(challenge.pass_mark ?? 50, challenge.grade_target ?? challenge.target)}% is a miss
+          {gradeLadderLine(
+            tier,
+            challenge.grade_discipline,
+            challenge.grade_target ?? challenge.target,
+            challenge.pass_mark
+          )}
         </Text>
       ) : null}
       {isGrade && isComplete && challenge.scoped_tier && challenge.scoped_tier !== challenge.difficulty_tier ? (

@@ -194,10 +194,11 @@ export default function VerdictBatchScreen() {
                 </Text>
                 <Text style={styles.rowTarget} numberOfLines={1}>
                   {g.gradeTarget != null
-                    ? // 0210 — the discipline and the box slot, named on the row they apply to.
+                    ? // 0210 — the box slot, named on the row it applies to. The stem/arts band is NOT
+                      // named: "Arts" on an economics course read as a faculty claim, and the band's
+                      // only effect (the floor) is spelled out on the goal card's ladder line.
                       [
                         `Target ${g.gradeTarget}%`,
-                        g.gradeDiscipline === 'stem' ? 'STEM' : g.gradeDiscipline === 'arts' ? 'Arts' : null,
                         g.priority ? '★ priority' : null,
                       ]
                         .filter(Boolean)

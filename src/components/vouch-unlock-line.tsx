@@ -55,12 +55,13 @@ export function isRealUpgrade(capped: ScopedRewardPreview | null, vouched: Scope
   return vouched.box !== capped.box || vouched.embers > capped.embers;
 }
 
-/** "Hephaestus' Chest · +75 embers" — the upgrade, as a delta over what it earns now. */
-export function upgradeLabel(capped: ScopedRewardPreview, vouched: ScopedRewardPreview) {
+/** "Vessel of Hestia · 90 embers" — what the vouched claim pays IN FULL, instead of the capped price.
+ *  Not a delta: "+45 embers" under "earns The Furnace · 45 embers" read as a bonus stacked on the
+ *  Furnace, when vouching replaces it. Totals on both lines make it a swap you can compare. */
+export function upgradeLabel(_capped: ScopedRewardPreview, vouched: ScopedRewardPreview) {
   const box = asBoxKey(vouched.box);
   const name = box ? BOXES[box].name : 'the full reward';
-  const delta = vouched.embers - capped.embers;
-  return delta > 0 ? `${name} · +${delta.toLocaleString('en-US')} embers` : name;
+  return `${name} · ${vouched.embers.toLocaleString('en-US')} embers`;
 }
 
 export function VouchUnlockLine({
@@ -71,7 +72,7 @@ export function VouchUnlockLine({
 }: {
   capped: ScopedRewardPreview | null;
   vouched: ScopedRewardPreview | null;
-  /** The verb, which depends on where the line sits — "2 friends vouch →" on a live card, "Vouch to
+  /** The verb, which depends on where the line sits — "2 friends vouch → upgrades to" on a live card, "Vouch to
    *  unlock" before a goal exists. */
   lead?: string;
   style?: StyleProp<ViewStyle>;
