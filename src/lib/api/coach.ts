@@ -27,6 +27,7 @@ import type {
   ChallengeType,
   DifficultyTier,
   GoalType,
+  GradeDiscipline,
   MilestoneKind,
   MilestoneVisibility,
 } from '@/types/database';
@@ -75,6 +76,11 @@ export function parseProposedGoals(input: Record<string, unknown>): ScopedGoalIn
   const sharedDue = typeof input.due_at === 'string' && input.due_at ? input.due_at : null;
   const sharedType = typeof input.type === 'string' ? (input.type as ChallengeType) : null;
   const sharedUnit = typeof input.unit === 'string' ? input.unit : null;
+  // 0210 — the ladder's inputs. An unrecognised discipline is dropped to untagged (the conservative
+  // band), never guessed; the server applies the same rule.
+  const asDiscipline = (v: unknown): GradeDiscipline | null => (v === 'stem' || v === 'arts' ? v : null);
+  const sharedDiscipline = asDiscipline(input.grade_discipline);
+  const sharedPassMark = typeof input.pass_mark === 'number' ? input.pass_mark : null;
 
   return raw.flatMap((entry): ScopedGoalInput[] => {
     if (typeof entry !== 'object' || entry === null) return [];
@@ -103,6 +109,10 @@ export function parseProposedGoals(input: Record<string, unknown>): ScopedGoalIn
         gradeTarget: grade,
         courseId: typeof g.course_id === 'string' && g.course_id ? g.course_id : null,
         dueAt: (typeof g.due_at === 'string' && g.due_at ? g.due_at : null) ?? sharedDue,
+        gradeDiscipline: grade != null ? (asDiscipline(g.grade_discipline) ?? sharedDiscipline) : null,
+        passMark: grade != null ? (typeof g.pass_mark === 'number' ? g.pass_mark : sharedPassMark) : null,
+        // Per-course by nature — "ace KP390" — so never shared across the batch.
+        priority: grade != null && g.priority === true,
       },
     ];
   });

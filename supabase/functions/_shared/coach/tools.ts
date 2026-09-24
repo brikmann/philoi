@@ -300,6 +300,29 @@ export const COACH_TOOLS: CoachToolSpec[] = [
                 enum: ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'],
                 description: 'Overrides the shared tier when THIS goal is harder or easier than the rest.',
               },
+              // 0210 — the ladder's band. A classification, not a price: the server turns it into a
+              // floor/ceiling/step and computes every reward itself.
+              grade_discipline: {
+                type: 'string',
+                enum: ['stem', 'arts'],
+                description:
+                  'REQUIRED on every grade goal: is this course STEM (sciences, maths, engineering, ' +
+                  'CS, economics/stats) or arts (humanities, languages, social sciences, design)? It ' +
+                  'sets how a pass below the target still pays. Overrides the shared one.',
+              },
+              pass_mark: {
+                type: 'number',
+                description:
+                  'The course\'s pass line, only if they told you one (e.g. 60). Below it the report ' +
+                  'is a miss; at or above it the goal completes. Omit to use 50.',
+              },
+              priority: {
+                type: 'boolean',
+                description:
+                  'True for a course they named as one to ACE or put real effort into this semester. ' +
+                  'Only these can hold a box slot, and there are TWO per season — the receipt says ' +
+                  '"full" if both are taken. Needs course_id.',
+              },
             },
             required: ['label'],
             additionalProperties: false,
@@ -313,6 +336,12 @@ export const COACH_TOOLS: CoachToolSpec[] = [
             'this: grade_target 90 here, and one entry per course above.',
         },
         unit: { type: 'string', description: 'Shared unit, when every goal counts the same thing.' },
+        grade_discipline: {
+          type: 'string',
+          enum: ['stem', 'arts'],
+          description: 'Shared stem/arts call, when every course in the ask is the same kind.',
+        },
+        pass_mark: { type: 'number', description: 'Shared pass line, when they gave one for all of them.' },
         period: {
           type: 'string',
           enum: ['day', 'week', 'once'],

@@ -1578,6 +1578,26 @@ export type HostedCampfireChallenge = {
   preview: ScopedRewardPreview | null;
 };
 
+/** 0210 — a grade goal's discipline: STEM passes pay rare..mythic, arts uncommon..mythic. */
+export type GradeDiscipline = 'stem' | 'arts';
+
+/** What preview_grade_reward (0210) says a reported mark would earn, before the one-way report. */
+export type GradeRewardPreview = {
+  passed: boolean;
+  pass_mark: number;
+  scoped_tier?: DifficultyTier | null;
+  earned_tier: DifficultyTier | null;
+  reward: ScopedRewardPreview | null;
+  reward_vouched: ScopedRewardPreview | null;
+};
+
+/** get_priority_courses (0210) — the season's box slots, at most `cap`. */
+export type PriorityCourses = {
+  season_id: string | null;
+  cap: number;
+  courses: { course_id: string; code: string | null; title: string }[];
+};
+
 export type Challenge = {
   id: string;
   user_id: string;
@@ -1640,6 +1660,12 @@ export type Challenge = {
   grade_target?: number | null;
   /** 0183 — the course (user_courses, 0182) this goal belongs to. */
   course_id?: string | null;
+  /** 0210 — stem | arts, tagged by Cindy. Sets the grade ladder's floor/ceiling/step. */
+  grade_discipline?: GradeDiscipline | null;
+  /** 0210 — under this a reported grade is a miss; at or over it the goal completes. Null = 50. */
+  pass_mark?: number | null;
+  /** 0210 — the tier Cindy scoped. Stamped at report, when difficulty_tier becomes the EARNED tier. */
+  scoped_tier?: DifficultyTier | null;
   /**
    * 0183 — the reported mark came in under the bar. The honest fail state: `completed_at` says
    * "you got there", this says "the answer arrived and it was no". A counted goal never has it —
@@ -1669,6 +1695,9 @@ export type CreatedGoalReceipt = {
   tier: DifficultyTier | null;
   grade_target?: number | null;
   course_id?: string | null;
+  /** 0210 — the box-slot nomination this goal asked for: 'full' means two courses already hold the
+   *  season's slots, and the goal was made without one. Null when no priority was asked. */
+  priority?: 'nominated' | 'already' | 'full' | 'no_season' | null;
   /** The SERVER's figure, priced in the same transaction as the row. Null only on an 'existed' row
    *  whose goal predates scoping. */
   reward: ScopedRewardPreview | null;
@@ -1712,6 +1741,11 @@ export type GradeReport = {
   state?: 'resolved' | 'pending_vouch' | 'missed';
   asked?: number;
   deadline?: string | null;
+  /** 0210 — the partial-credit ladder: what was aimed for, what the mark earned, and the line under
+   *  which it would have been a miss. Absent from a pre-0210 server. */
+  scoped_tier?: DifficultyTier | null;
+  earned_tier?: DifficultyTier | null;
+  pass_mark?: number;
 };
 
 // Solo (announced) mode was removed — a solo goal the campfire can see is already covered by
@@ -2904,6 +2938,15 @@ export type Database = {
         };
         Returns: UpdatedGoal;
       };
+      // ─── 0210 · the grade ladder and the season's box slots ───
+      preview_grade_reward: { Args: { p_goal_id: string; p_grade: number }; Returns: GradeRewardPreview };
+      grade_effective_tier: {
+        Args: { p_scoped: DifficultyTier; p_target: number; p_grade: number; p_discipline: GradeDiscipline | null };
+        Returns: DifficultyTier;
+      };
+      get_priority_courses: { Args: Record<string, never>; Returns: PriorityCourses };
+      nominate_priority_course: { Args: { p_course_id: string }; Returns: PriorityCourses & { status: string } };
+      release_priority_course: { Args: { p_course_id: string }; Returns: PriorityCourses };
       report_goal_grade: {
         Args: { p_goal_id: string; p_grade: number; p_proof_path?: string | null; p_voucher_ids?: string[] | null };
         Returns: GradeReport;

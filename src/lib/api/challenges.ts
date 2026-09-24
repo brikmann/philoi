@@ -10,7 +10,10 @@ import type {
   CreatedGoalReceipt,
   DifficultyTier,
   GoalClaimLevel,
+  GradeDiscipline,
   GradeReport,
+  GradeRewardPreview,
+  PriorityCourses,
   ScopedRewardPreview,
   ChallengeFeedEvent,
   ChallengePeriod,
@@ -398,6 +401,11 @@ export async function createScopedGoals(goals: ScopedGoalInput[]): Promise<Creat
       ...(g.gradeTarget != null ? { grade_target: g.gradeTarget } : {}),
       ...(g.courseId ? { course_id: g.courseId } : {}),
       ...(g.dueAt ? { due_at: g.dueAt } : {}),
+      // 0210 — the ladder's band, the course's pass line, and the ask for a box slot. The server
+      // clamps the tier into the band and holds the two-per-season cap itself.
+      ...(g.gradeDiscipline ? { grade_discipline: g.gradeDiscipline } : {}),
+      ...(g.passMark != null ? { pass_mark: g.passMark } : {}),
+      ...(g.priority ? { priority: true } : {}),
     })),
   });
   if (error) throw error;
@@ -424,6 +432,12 @@ export type ScopedGoalInput = {
   gradeTarget?: number | null;
   courseId?: string | null;
   dueAt?: string | null;
+  /** 0210 — Cindy's stem/arts call on the course. Omitted = untagged, the conservative band. */
+  gradeDiscipline?: GradeDiscipline | null;
+  /** 0210 — the course's pass line; under it a reported grade is a miss. Server default 50. */
+  passMark?: number | null;
+  /** 0210 — ask for one of the season's two box slots for this goal's course. */
+  priority?: boolean;
 };
 
 /**
@@ -476,6 +490,57 @@ export async function updateGoal(input: {
  * `proofPath` rides along to the vouchers and never settles anything by itself (0165). The server
  * ignores both on a miss.
  */
+/**
+ * What a mark WOULD earn on this goal (0210), before the one-way report: pass or miss against the
+ * pass mark, the laddered tier, and both prices. The ladder lives in grade_effective_tier on the
+ * server; re-deriving it here would be a second copy to drift.
+ */
+export async function previewGradeReward(goalId: string, grade: number): Promise<GradeRewardPreview | null> {
+  const { data, error } = await supabase.rpc('preview_grade_reward', { p_goal_id: goalId, p_grade: grade });
+  // Null on error, like previewScopedReward: a pre-0210 server has no ladder, and the sheet then
+  // falls back to the target as the pass line.
+  if (error) return null;
+  return data as GradeRewardPreview;
+}
+
+/**
+ * The tier a grade goal is WRITTEN at (0210): Cindy's tier clamped into the discipline's band. Asked
+ * of grade_effective_tier with the grade at the target — zero shortfall, so zero steps — which is
+ * exactly create_scoped_goals' clamp. Falls back to the raw tier on error (a pre-0210 server has no
+ * band, and wrote the raw tier).
+ */
+export async function bandedGradeTier(tier: DifficultyTier, discipline: GradeDiscipline | null): Promise<DifficultyTier> {
+  const { data, error } = await supabase.rpc('grade_effective_tier', {
+    p_scoped: tier,
+    p_target: 100,
+    p_grade: 100,
+    p_discipline: discipline,
+  });
+  if (error || typeof data !== 'string') return tier;
+  return data as DifficultyTier;
+}
+
+/** The season's two box slots (0210). */
+export async function getPriorityCourses(): Promise<PriorityCourses> {
+  const { data, error } = await supabase.rpc('get_priority_courses');
+  if (error) throw error;
+  return data as PriorityCourses;
+}
+
+/** Claim a box slot. Throws "You already have two…" when both are taken — swap one out first. */
+export async function nominatePriorityCourse(courseId: string): Promise<PriorityCourses> {
+  const { data, error } = await supabase.rpc('nominate_priority_course', { p_course_id: courseId });
+  if (error) throw error;
+  return data as PriorityCourses;
+}
+
+/** Give a slot back. Refused for a course whose grade goal already paid out this season. */
+export async function releasePriorityCourse(courseId: string): Promise<PriorityCourses> {
+  const { data, error } = await supabase.rpc('release_priority_course', { p_course_id: courseId });
+  if (error) throw error;
+  return data as PriorityCourses;
+}
+
 export async function reportGoalGrade(
   goalId: string,
   grade: number,

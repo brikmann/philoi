@@ -1,22 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BoxArt } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextInput } from '@/components/ui/text-input';
-import { isRealUpgrade, upgradeLabel, useVouchedReward } from '@/components/vouch-unlock-line';
+import { isRealUpgrade, upgradeLabel } from '@/components/vouch-unlock-line';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { previewScopedReward, reportGoalGrade } from '@/lib/api/challenges';
+import { previewGradeReward, reportGoalGrade } from '@/lib/api/challenges';
 import { captureAndUploadProof, PROOF_MAX_SECONDS } from '@/lib/api/vouch';
 import { useAuth } from '@/lib/auth/auth-context';
 import { asBoxKey, TIER_COLOR } from '@/lib/challenge-tier';
 import { BOXES } from '@/lib/economy/boxes';
 import { getErrorMessage } from '@/lib/errors';
 import { personalGoalTitle } from '@/lib/goal-types';
-import type { Challenge, GradeReport, ScopedRewardPreview } from '@/types/database';
+import type { Challenge, GradeReport, GradeRewardPreview } from '@/types/database';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // REPORT THE MARK, AND LEARN THE ANSWER (§C — "how the user learns whether the goal was achieved").
@@ -57,6 +57,9 @@ import type { Challenge, GradeReport, ScopedRewardPreview } from '@/types/databa
 // informed. The copy says so rather than implying a screenshot is a shortcut.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+const articleFor = (t: string) => (/^[aeiou]/i.test(t) ? 'an' : 'a');
+
 export function GoalGradeSheet({
   visible,
   goal,
@@ -82,37 +85,35 @@ export function GoalGradeSheet({
   const gradeNum = Number(grade.trim());
   const valid = grade.trim().length > 0 && Number.isFinite(gradeNum) && gradeNum >= 0 && gradeNum <= 100;
 
-  // The two prices the choice sits between, from the server. Fetched when the sheet opens so the
-  // choice screen names real crates rather than "the full crate".
+  // 0210 — what THIS mark earns, from the server's ladder: pass or miss against the pass mark, the
+  // laddered tier, and both prices. Asked once, on "Report it", so the choice names real crates.
   const goalTier = goal.difficulty_tier ?? null;
-  const [capped, setCapped] = useState<ScopedRewardPreview | null>(null);
-  useEffect(() => {
-    if (!visible || !goalTier) return;
-    let alive = true;
-    previewScopedReward(goalTier, 'honor').then((r) => {
-      if (alive) setCapped(r);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [visible, goalTier]);
-  const vouched = useVouchedReward(goalTier, capped);
+  const [preview, setPreview] = useState<GradeRewardPreview | null>(null);
+  const capped = preview?.reward ?? null;
+  const vouched = preview?.reward_vouched ?? null;
   const cappedKey = asBoxKey(capped?.box);
   const cappedName = cappedKey ? BOXES[cappedKey].name : 'the honour rate';
   const fullName = capped && vouched ? upgradeLabel(capped, vouched) : 'the full tier';
+  const earned = preview?.earned_tier ?? null;
+  const aimed = preview?.scoped_tier ?? goalTier;
 
-  // Offer the choice unless we KNOW vouching buys nothing (both prices in, no upgrade). Unknown —
-  // prices still loading — offers it: skipping it by a race would silently forfeit a tier.
-  const vouchable =
-    goalTier != null && goal.verifiability !== 'auto' && !(capped && vouched && !isRealUpgrade(capped, vouched));
-
-  function submit() {
+  async function submit() {
     if (!valid) {
       setError('A grade is a percentage between 0 and 100.');
       return;
     }
-    if (gradeNum >= target && vouchable) {
-      setError(null);
+    setError(null);
+    setSaving(true);
+    const p = await previewGradeReward(goal.id, gradeNum);
+    setSaving(false);
+    setPreview(p);
+    // No preview (a pre-0210 server) falls back to the target as the line — the old rule.
+    const passed = p ? p.passed : gradeNum >= target;
+    // Offer the choice unless we KNOW vouching buys nothing. Unknown offers it: skipping it by a
+    // missing price would silently forfeit a tier.
+    const vouchable =
+      goal.verifiability !== 'auto' && (!p || !p.reward || !p.reward_vouched || isRealUpgrade(p.reward, p.reward_vouched));
+    if (passed && vouchable) {
       setChoosing(gradeNum);
       return;
     }
@@ -129,7 +130,7 @@ export function GoalGradeSheet({
       params: {
         goalId: goal.id,
         label: goal.label ?? personalGoalTitle(goal),
-        tier: goalTier ?? '',
+        tier: earned ?? goalTier ?? '',
         grade: String(g),
         ...(proofPath ? { proofPath } : {}),
       },
@@ -172,6 +173,7 @@ export function GoalGradeSheet({
     setGrade('');
     setReport(null);
     setChoosing(null);
+    setPreview(null);
     setError(null);
     onClose();
   }
@@ -205,7 +207,13 @@ export function GoalGradeSheet({
               </View>
 
               <Text style={[styles.verdictTitle, report.passed && styles.verdictTitlePass]}>
-                {report.passed ? 'You hit it.' : 'Missed it.'}
+                {/* 0210 — any pass is a win. Under the target it is a win at a lower tier, and it
+                    says which, rather than "you hit it" over a mark that didn't. */}
+                {!report.passed
+                  ? 'Missed it.'
+                  : report.grade >= report.grade_target || !report.earned_tier
+                    ? 'You hit it.'
+                    : `You earned ${articleFor(report.earned_tier)} ${cap(report.earned_tier)}.`}
               </Text>
               <Text style={styles.verdictLine}>
                 {/* The two numbers, always both. "You got 84" without "you needed 85" is a fact
@@ -213,6 +221,12 @@ export function GoalGradeSheet({
                 {report.grade}% against a {report.grade_target}% target
                 {report.label ? ` · ${report.label}` : ''}
               </Text>
+              {report.passed && report.scoped_tier && report.earned_tier && report.scoped_tier !== report.earned_tier ? (
+                <Text style={styles.verdictLine}>
+                  You aimed for {report.scoped_tier.toUpperCase()} — passing still pays, a tier down per
+                  step short.
+                </Text>
+              ) : null}
 
               {report.passed && report.reward ? (
                 <View style={[styles.rewardRow, tier ? { borderColor: TIER_COLOR[tier] } : null]}>
@@ -226,8 +240,9 @@ export function GoalGradeSheet({
                 // drop)". Said plainly, with no crate art and no figure: showing an ember number
                 // beside a miss reads as a payout that never moved.
                 <Text style={styles.missNote}>
-                  No reward for this one — the bar was {report.grade_target}%. Nothing was paid, and
-                  nothing was taken. Set it again next term if you want another run at it.
+                  No reward for this one — the pass line was {report.pass_mark ?? report.grade_target}%.
+                  Nothing was paid, and nothing was taken. Set it again next term if you want another
+                  run at it.
                 </Text>
               )}
 
@@ -238,9 +253,13 @@ export function GoalGradeSheet({
           ) : choosing != null ? (
             // ── 0209 · THE PASS, BEFORE IT SETTLES ────────────────────────────────────────
             <View>
-              <Text style={[styles.title, styles.titlePass]}>You hit it.</Text>
+              <Text style={[styles.title, styles.titlePass]}>
+                {choosing >= target || !earned ? 'You hit it.' : `You passed — that's ${articleFor(earned)} ${cap(earned)}.`}
+              </Text>
               <Text style={styles.sub}>
-                {choosing}% against a {target}% target. How do you want to settle it?
+                {choosing}% against a {target}% target
+                {earned && aimed && earned !== aimed ? ` (you aimed for ${aimed.toUpperCase()})` : ''}. How do
+                you want to settle it?
               </Text>
 
               <View style={styles.options}>
@@ -337,8 +356,9 @@ export function GoalGradeSheet({
               <View style={styles.warnRow}>
                 <Ionicons name="lock-closed-outline" size={14} color={Colors.textTertiary} />
                 <Text style={styles.warn}>
-                  You only report it once. A miss settles now; a pass pays on your word, or the
-                  full tier if two friends vouch.
+                  You only report it once. Any pass pays — a tier down per step short of{' '}
+                  {target}% — and two friends vouching unlocks the full tier. Only failing the course
+                  (under {Math.min(goal.pass_mark ?? 50, target)}%) is a miss.
                 </Text>
               </View>
 

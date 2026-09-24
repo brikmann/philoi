@@ -437,6 +437,20 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
       {!isComplete && !isMissed ? (
         <VouchUnlockLine capped={reward} vouched={vouchedReward} lead="2 friends vouch →" style={styles.unlockLine} />
       ) : null}
+      {/* 0210 — the ladder, in one line: a live grade goal says a near-miss still pays, and a settled
+          one that earned less than it aimed for says what it aimed for. */}
+      {isGrade && !isComplete && !isMissed && !isPendingVouch && challenge.grade_discipline ? (
+        <Text style={styles.ladderLine}>
+          {challenge.grade_discipline === 'stem' ? 'STEM' : 'Arts'} · any pass pays at least{' '}
+          {challenge.grade_discipline === 'stem' ? 'RARE' : 'UNCOMMON'}; under{' '}
+          {Math.min(challenge.pass_mark ?? 50, challenge.grade_target ?? challenge.target)}% is a miss
+        </Text>
+      ) : null}
+      {isGrade && isComplete && challenge.scoped_tier && challenge.scoped_tier !== challenge.difficulty_tier ? (
+        <Text style={styles.ladderLine}>
+          Aimed for {challenge.scoped_tier.toUpperCase()} · you reported {challenge.progress.toLocaleString()}%
+        </Text>
+      ) : null}
 
       {/* ── §C · the grade goal's whole lifecycle, in one row ──
           Live: the door to reporting the mark, which is the ONLY way this goal can settle.
@@ -459,8 +473,10 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
         <View style={styles.missedRow}>
           <Ionicons name="remove-circle-outline" size={14} color={Colors.textTertiary} />
           <Text style={styles.missedLabel}>
-            Missed — you reported {challenge.progress.toLocaleString()}% against{' '}
-            {(challenge.grade_target ?? challenge.target).toLocaleString()}%. No reward.
+            {/* Worded to hold for both rules: before 0210 a miss was "under the target", since it is
+                "under the pass line" — so it names the mark and the target and claims neither. */}
+            Missed — you reported {challenge.progress.toLocaleString()}% (target{' '}
+            {(challenge.grade_target ?? challenge.target).toLocaleString()}%). No reward.
           </Text>
         </View>
       ) : null}
@@ -593,6 +609,7 @@ const styles = StyleSheet.create({
   rewardTier: { fontFamily: Fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.7 },
   rewardText: { flex: 1, fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },
   unlockLine: { paddingHorizontal: 10, marginTop: -2 },
+  ladderLine: { paddingHorizontal: 10, fontFamily: Fonts.body, fontSize: 10.5, lineHeight: 15, color: Colors.textTertiary },
   missedRow: {
     flexDirection: 'row',
     alignItems: 'center',

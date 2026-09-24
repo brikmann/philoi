@@ -9,7 +9,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { VouchUnlockLine } from '@/components/vouch-unlock-line';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { createScopedGoals, previewScopedReward, type ScopedGoalInput } from '@/lib/api/challenges';
+import { bandedGradeTier, createScopedGoals, previewScopedReward, type ScopedGoalInput } from '@/lib/api/challenges';
 import { asBoxKey, TIER_COLOR } from '@/lib/challenge-tier';
 import { BOXES } from '@/lib/economy/boxes';
 import { getErrorMessage } from '@/lib/errors';
@@ -66,26 +66,44 @@ export default function VerdictBatchScreen() {
   });
 
   const [prices, setPrices] = useState<Record<string, ScopedRewardPreview | null>>({});
+  // 0210 — the tier each goal will actually be WRITTEN at. create_scoped_goals clamps a grade goal's
+  // tier into its discipline band (a STEM "common" lands as rare), so pricing Cindy's raw tier would
+  // promise one crate and write another. Resolved by the server's own helper, never a local table.
+  const [tiers, setTiers] = useState<DifficultyTier[]>([]);
   const [busy, setBusy] = useState(false);
 
   // One fetch per distinct (tier, claim level). The key is the pair because that pair is exactly
   // what preview_challenge_reward's answer depends on — five courses at rare/honour share one price.
   useEffect(() => {
     let alive = true;
-    const wanted = new Map<string, { tier: DifficultyTier; level: 'auto' | 'honor' | 'vouched' }>();
-    for (const g of goals) {
-      const tier = (g.tier ?? 'uncommon') as DifficultyTier;
-      const level = claimLevelFor(g);
-      wanted.set(`${tier}:${level}`, { tier, level });
-      // 0209 — an honour goal also needs what two vouches would lift it to, so the row can name the
-      // way out of the cap. Still one fetch per distinct tier, not per goal.
-      if (level === 'honor') wanted.set(`${tier}:vouched`, { tier, level: 'vouched' });
-    }
-    Promise.all(
-      [...wanted.entries()].map(async ([key, { tier, level }]) => [key, await previewScopedReward(tier, level)] as const)
-    ).then((pairs) => {
-      if (alive) setPrices(Object.fromEntries(pairs));
-    });
+    (async () => {
+      const raw = goals.map((g) => (g.tier ?? 'uncommon') as DifficultyTier);
+      const bandKeys = new Map<string, Promise<DifficultyTier>>();
+      const resolved = await Promise.all(
+        goals.map((g, i) => {
+          if (g.gradeTarget == null) return raw[i];
+          const key = `${raw[i]}:${g.gradeDiscipline ?? ''}`;
+          if (!bandKeys.has(key)) bandKeys.set(key, bandedGradeTier(raw[i], g.gradeDiscipline ?? null));
+          return bandKeys.get(key)!;
+        })
+      );
+
+      const wanted = new Map<string, { tier: DifficultyTier; level: 'auto' | 'honor' | 'vouched' }>();
+      goals.forEach((g, i) => {
+        const tier = resolved[i];
+        const level = claimLevelFor(g);
+        wanted.set(`${tier}:${level}`, { tier, level });
+        // 0209 — an honour goal also needs what two vouches would lift it to, so the row can name
+        // the way out of the cap. Still one fetch per distinct tier, not per goal.
+        if (level === 'honor') wanted.set(`${tier}:vouched`, { tier, level: 'vouched' });
+      });
+      const pairs = await Promise.all(
+        [...wanted.entries()].map(async ([key, { tier, level }]) => [key, await previewScopedReward(tier, level)] as const)
+      );
+      if (!alive) return;
+      setTiers(resolved);
+      setPrices(Object.fromEntries(pairs));
+    })();
     return () => {
       alive = false;
     };
@@ -99,18 +117,32 @@ export default function VerdictBatchScreen() {
       const receipts = await createScopedGoals(goals);
       const made = receipts.filter((r) => r.status === 'created');
       const existed = receipts.filter((r) => r.status === 'existed');
+      // 0210 — a box slot asked for and refused because both of the season's two are taken. The
+      // goal still exists; it just is not a priority course. Said, never silently dropped.
+      const slotless = receipts.filter((r) => r.priority === 'full');
 
       // WHICH WERE MADE AND WHICH ALREADY EXISTED, said out loud (§A). A duplicate is not an error
       // — the server skips it and reports it so the other four still land — but it IS something the
       // user has to be told, or "start these five" quietly starts four and looks like a bug.
+      const lines: string[] = [];
       if (existed.length > 0) {
-        Alert.alert(
-          made.length > 0 ? `${made.length} set up` : 'Nothing new to add',
+        lines.push(
           `${existed.length === 1 ? 'You already had' : 'You already had these running:'} ${existed
             .map((r) => r.label ?? 'a goal')
-            .join(', ')}${existed.length === 1 ? ' running already.' : '.'}`,
-          [{ text: 'Got it', onPress: () => router.replace('/(tabs)/challenges') }]
+            .join(', ')}${existed.length === 1 ? ' running already.' : '.'}`
         );
+      }
+      if (slotless.length > 0) {
+        lines.push(
+          `Both priority slots this season are taken, so ${slotless
+            .map((r) => r.label ?? 'that goal')
+            .join(', ')} ${slotless.length === 1 ? 'is' : 'are'} set up without one. Ask Cindy to swap a course if you want it to be one of your two.`
+        );
+      }
+      if (lines.length > 0) {
+        Alert.alert(made.length > 0 ? `${made.length} set up` : 'Nothing new to add', lines.join('\n\n'), [
+          { text: 'Got it', onPress: () => router.replace('/(tabs)/challenges') },
+        ]);
         return;
       }
       router.replace('/(tabs)/challenges');
@@ -141,7 +173,7 @@ export default function VerdictBatchScreen() {
         </Text>
 
         {goals.map((g, i) => {
-          const tier = (g.tier ?? 'uncommon') as DifficultyTier;
+          const tier = tiers[i] ?? ((g.tier ?? 'uncommon') as DifficultyTier);
           const price = prices[`${tier}:${claimLevelFor(g)}`] ?? null;
           const vouchedPrice = prices[`${tier}:vouched`] ?? null;
           const boxKey = asBoxKey(price?.box);
@@ -162,7 +194,14 @@ export default function VerdictBatchScreen() {
                 </Text>
                 <Text style={styles.rowTarget} numberOfLines={1}>
                   {g.gradeTarget != null
-                    ? `Target ${g.gradeTarget}%`
+                    ? // 0210 — the discipline and the box slot, named on the row they apply to.
+                      [
+                        `Target ${g.gradeTarget}%`,
+                        g.gradeDiscipline === 'stem' ? 'STEM' : g.gradeDiscipline === 'arts' ? 'Arts' : null,
+                        g.priority ? '★ priority' : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')
                     : `${g.target.toLocaleString('en-US')} ${g.unit || ''}`.trim()}
                 </Text>
                 <View style={styles.rowRewardLine}>
