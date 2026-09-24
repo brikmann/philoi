@@ -10,6 +10,7 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { getErrorMessage } from '@/lib/errors';
 import { ProofClip } from '@/components/economy/proof-clip';
 import { getVouchRequest, submitVouch } from '@/lib/api/vouch';
+import { TIER_COLOR } from '@/lib/challenge-tier';
 import type { VouchRequest } from '@/types/database';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -40,6 +41,7 @@ export default function VouchScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<{ counted: boolean; resolved: boolean; verdict: boolean } | null>(null);
+  const [openedAt] = useState(() => Date.now());
 
   const load = useCallback(() => {
     getVouchRequest(goalId)
@@ -83,6 +85,8 @@ export default function VouchScreen() {
   }
 
   const claim = req.label?.trim() || 'that goal';
+  // Whole hours left in the 48h window, read against the clock at mount (render must stay pure).
+  const hoursLeft = req.deadline ? Math.max(0, Math.floor((Date.parse(req.deadline) - openedAt) / 3_600_000)) : null;
 
   // ── the states that are not a question ──
   const closed =
@@ -116,6 +120,11 @@ export default function VouchScreen() {
           )}
         </View>
 
+        {/* The tier is what a yes is worth to them — a friend deciding whether to vouch should know
+            it is a LEGENDARY claim, not a daily habit. */}
+        {req.tier ? (
+          <Text style={[styles.tierTag, { color: TIER_COLOR[req.tier] }]}>{req.tier.toUpperCase()} GOAL</Text>
+        ) : null}
         <Text style={styles.question}>
           {req.claimant} says they {claim === 'that goal' ? 'did it' : `landed ${claim}`}.
         </Text>
@@ -134,6 +143,7 @@ export default function VouchScreen() {
         {!closed && (
           <Text style={styles.count}>
             {req.vouches} of 2 vouches so far
+            {hoursLeft != null ? ` · closes in ${hoursLeft < 1 ? 'under an hour' : `${hoursLeft}h`}` : ''}
           </Text>
         )}
 
@@ -189,6 +199,7 @@ const styles = StyleSheet.create({
   },
   avatar: { width: '100%', height: '100%' },
   avatarInitial: { fontFamily: Fonts.bodyBold, fontSize: 28, color: Colors.ink },
+  tierTag: { fontFamily: Fonts.bodyBold, fontSize: 9.5, letterSpacing: 2, marginBottom: 4 },
   question: {
     fontFamily: Fonts.bodyBold,
     fontSize: 19,

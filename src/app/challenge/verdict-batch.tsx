@@ -7,6 +7,7 @@ import { BoxArt } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
+import { VouchUnlockLine } from '@/components/vouch-unlock-line';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { createScopedGoals, previewScopedReward, type ScopedGoalInput } from '@/lib/api/challenges';
 import { asBoxKey, TIER_COLOR } from '@/lib/challenge-tier';
@@ -71,11 +72,14 @@ export default function VerdictBatchScreen() {
   // what preview_challenge_reward's answer depends on — five courses at rare/honour share one price.
   useEffect(() => {
     let alive = true;
-    const wanted = new Map<string, { tier: DifficultyTier; level: 'auto' | 'honor' }>();
+    const wanted = new Map<string, { tier: DifficultyTier; level: 'auto' | 'honor' | 'vouched' }>();
     for (const g of goals) {
       const tier = (g.tier ?? 'uncommon') as DifficultyTier;
       const level = claimLevelFor(g);
       wanted.set(`${tier}:${level}`, { tier, level });
+      // 0209 — an honour goal also needs what two vouches would lift it to, so the row can name the
+      // way out of the cap. Still one fetch per distinct tier, not per goal.
+      if (level === 'honor') wanted.set(`${tier}:vouched`, { tier, level: 'vouched' });
     }
     Promise.all(
       [...wanted.entries()].map(async ([key, { tier, level }]) => [key, await previewScopedReward(tier, level)] as const)
@@ -139,6 +143,7 @@ export default function VerdictBatchScreen() {
         {goals.map((g, i) => {
           const tier = (g.tier ?? 'uncommon') as DifficultyTier;
           const price = prices[`${tier}:${claimLevelFor(g)}`] ?? null;
+          const vouchedPrice = prices[`${tier}:vouched`] ?? null;
           const boxKey = asBoxKey(price?.box);
           return (
             <View key={`${g.label}-${i}`} style={[styles.row, { borderColor: TIER_COLOR[tier] }]}>
@@ -161,11 +166,18 @@ export default function VerdictBatchScreen() {
                     : `${g.target.toLocaleString('en-US')} ${g.unit || ''}`.trim()}
                 </Text>
                 <View style={styles.rowRewardLine}>
-                  <Text style={[styles.rowTier, { color: TIER_COLOR[tier] }]}>{tier.toUpperCase()}</Text>
+                  {/* 0209 — "effort" when capped: the tier is Cindy's judgement, the crate is what
+                      your word pays. Side by side with nothing between, a LEGENDARY and an EPIC
+                      grade both reading "The Furnace" looked like a pricing bug. */}
+                  <Text style={[styles.rowTier, { color: TIER_COLOR[tier] }]}>
+                    {tier.toUpperCase()}
+                    {price?.discounted ? ' EFFORT' : ''}
+                  </Text>
                   {price ? (
                     <>
                       <Text style={styles.rowDot}>·</Text>
                       <Text style={styles.rowReward} numberOfLines={1}>
+                        {price.discounted ? 'earns ' : ''}
                         {boxKey ? BOXES[boxKey].name : 'Embers only'}
                       </Text>
                       <EmberIcon size={10} />
@@ -173,6 +185,7 @@ export default function VerdictBatchScreen() {
                     </>
                   ) : null}
                 </View>
+                <VouchUnlockLine capped={price} vouched={vouchedPrice} style={styles.rowUnlock} />
               </View>
             </View>
           );
@@ -187,7 +200,8 @@ export default function VerdictBatchScreen() {
             <Ionicons name="hand-left-outline" size={14} color={Colors.textTertiary} />
             <Text style={styles.caveat}>
               You report these yourself, so they pay the honour rate — a grade is your word, and the
-              app never sees it.
+              app never sees it. When you report a pass, ask two friends to vouch and it pays the full
+              tier instead.
             </Text>
           </View>
         ) : null}
@@ -243,6 +257,7 @@ const styles = StyleSheet.create({
   rowLabel: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.ink },
   rowTarget: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },
   rowRewardLine: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
+  rowUnlock: { marginTop: 3 },
   rowTier: { fontFamily: Fonts.bodyBold, fontSize: 10, letterSpacing: 1 },
   rowDot: { fontFamily: Fonts.body, fontSize: 11, color: Colors.textTertiary },
   rowReward: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },

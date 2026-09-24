@@ -470,13 +470,28 @@ export async function updateGoal(input: {
  * crate and writes reward_payload, and GoalRevealWatcher draws it on the next foreground through
  * the same door every other one-time goal reveals through. A MISS is returned here and shown here,
  * because it is the only place it can honestly be shown.
+ *
+ * 0209 — A PASS IS A CLAIM. With `voucherIds` the goal waits up to 48h for two friends and then pays
+ * its FULL band; without, it settles at honour now (The Furnace cap), exactly as before.
+ * `proofPath` rides along to the vouchers and never settles anything by itself (0165). The server
+ * ignores both on a miss.
  */
-export async function reportGoalGrade(goalId: string, grade: number): Promise<GradeReport> {
-  const { data, error } = await supabase.rpc('report_goal_grade', { p_goal_id: goalId, p_grade: grade });
+export async function reportGoalGrade(
+  goalId: string,
+  grade: number,
+  opts?: { proofPath?: string | null; voucherIds?: string[] | null }
+): Promise<GradeReport> {
+  const { data, error } = await supabase.rpc('report_goal_grade', {
+    p_goal_id: goalId,
+    p_grade: grade,
+    p_proof_path: opts?.proofPath ?? null,
+    p_voucher_ids: opts?.voucherIds?.length ? opts.voucherIds : null,
+  });
   if (error) throw error;
   const report = data as GradeReport;
-  track('goal_grade_reported', { passed: report.passed });
-  if (report.passed) requestInventoryRefresh();
+  track('goal_grade_reported', { passed: report.passed, state: report.state ?? 'resolved' });
+  // Only a SETTLED pass has minted anything. A pending one has paid nothing yet.
+  if (report.passed && report.state !== 'pending_vouch') requestInventoryRefresh();
   return report;
 }
 

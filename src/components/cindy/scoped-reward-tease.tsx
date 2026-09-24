@@ -89,7 +89,9 @@ export function ScopedRewardTease({ tier, rationale }: { tier: DifficultyTier; r
               upgrades the box is a user who takes the clip. */}
           {preview.discounted ? (
             <Text style={styles.caveat}>
-              Proof or a friend&apos;s vouch unlocks the full box — unverified pays one tier down.
+              {/* 0165 — a clip is shown to the vouchers and never settles on its own; only two
+                  friends lift the band. The old line promised proof alone would. */}
+              Two friends vouching unlocks the full box — unverified pays one tier down.
             </Text>
           ) : (
             <Text style={styles.caveat}>Tracked automatically, so it pays the full tier.</Text>

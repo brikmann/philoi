@@ -1702,8 +1702,16 @@ export type GradeReport = {
   passed: boolean;
   tier: DifficultyTier | null;
   /** What the pass was worth. Null on a miss — a figure beside "you missed it" reads as a payout
-   *  that never moved. */
+   *  that never moved. Since 0209 this is the price at the level the goal stands at NOW: honour,
+   *  whether it settled or is waiting on vouches. */
   reward: ScopedRewardPreview | null;
+  /** 0209 — what two counted vouches lift it to. Null on a miss. Absent from a pre-0209 server. */
+  reward_vouched?: ScopedRewardPreview | null;
+  /** 0209 — 'resolved' (settled now, at honour), 'pending_vouch' (friends asked, 48h window), or
+   *  'missed'. Absent from a pre-0209 server, where a pass always settled. */
+  state?: 'resolved' | 'pending_vouch' | 'missed';
+  asked?: number;
+  deadline?: string | null;
 };
 
 // Solo (announced) mode was removed — a solo goal the campfire can see is already covered by
@@ -2896,7 +2904,10 @@ export type Database = {
         };
         Returns: UpdatedGoal;
       };
-      report_goal_grade: { Args: { p_goal_id: string; p_grade: number }; Returns: GradeReport };
+      report_goal_grade: {
+        Args: { p_goal_id: string; p_grade: number; p_proof_path?: string | null; p_voucher_ids?: string[] | null };
+        Returns: GradeReport;
+      };
       delete_goal: { Args: { p_goal_id: string }; Returns: { deleted: boolean; id: string } };
       hide_goal: { Args: { p_goal_id: string; p_hidden?: boolean }; Returns: { id: string; hidden: boolean } };
       // p_public_name landed in 0098 and the client has been sending it since; the entry here

@@ -11,6 +11,7 @@ import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { getErrorMessage } from '@/lib/errors';
 import { fetchMyFriends, type Friend } from '@/lib/api/friends';
+import { reportGoalGrade } from '@/lib/api/challenges';
 import { claimGoalComplete } from '@/lib/api/vouch';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -35,10 +36,20 @@ const NEEDED = 2;
 
 export default function VouchAskScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ goalId: string; label?: string; tier?: string; proofPath?: string }>();
+  const params = useLocalSearchParams<{
+    goalId: string;
+    label?: string;
+    tier?: string;
+    proofPath?: string;
+    grade?: string;
+  }>();
   const goalId = params.goalId;
   const label = params.label?.trim() || 'your goal';
   const proofPath = params.proofPath || null;
+  // 0209 — set when a passing GRADE arrives from the grade sheet. The grade has not been sent yet:
+  // this screen's one call reports it and asks in the same transaction (report_goal_grade), so
+  // backing out of the picker leaves the goal exactly as it was.
+  const grade = params.grade != null && params.grade !== '' ? Number(params.grade) : null;
 
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
@@ -58,7 +69,10 @@ export default function VouchAskScreen() {
   const send = async () => {
     setBusy(true);
     try {
-      const res = await claimGoalComplete({ goalId, proofPath, voucherIds: picked });
+      const res =
+        grade != null
+          ? await reportGoalGrade(goalId, grade, { proofPath, voucherIds: picked })
+          : await claimGoalComplete({ goalId, proofPath, voucherIds: picked });
       if (res.state === 'pending_vouch') {
         // Straight to frame C, and REPLACE rather than push: the picker is spent — a back-swipe
         // onto it would offer to send an ask that claim_goal_complete would now refuse.
@@ -90,10 +104,16 @@ export default function VouchAskScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.head}>
-            <Text style={styles.title}>Who saw you do it?</Text>
+            <Text style={styles.title}>{grade != null ? 'Who can vouch for your grade?' : 'Who saw you do it?'}</Text>
             <Text style={styles.sub}>
               {/* Entities do not decode inside a template literal, so the curly quotes are literal. */}
-              Pick {NEEDED} — they&apos;ll confirm you {label === 'your goal' ? 'did it' : `did “${label}”`}.
+              Pick {NEEDED} — they&apos;ll confirm you{' '}
+              {grade != null
+                ? `got ${grade}%${label === 'your goal' ? '' : ` for “${label}”`}`
+                : label === 'your goal'
+                  ? 'did it'
+                  : `did “${label}”`}
+              .
             </Text>
             {proofPath ? (
               <ProofClip path={proofPath} label={params.label ?? null} claimedAt={new Date().toISOString()} showCaption={false} />

@@ -10,6 +10,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { GoalEditSheet } from '@/components/goal-edit-sheet';
 import { GoalGradeSheet } from '@/components/goal-grade-sheet';
 import { GoalManageSheet } from '@/components/goal-manage-sheet';
+import { useVouchedReward, VouchUnlockLine } from '@/components/vouch-unlock-line';
 import {
   deleteGoal,
   hideGoal,
@@ -153,6 +154,8 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
       alive = false;
     };
   }, [tier, claimLevel]);
+  // What two vouches would lift it to — fetched only while the price above is honour-capped.
+  const vouchedReward = useVouchedReward(tier, reward);
 
   // 🐛 0198 — "Auto" is the owner's SAVED choice, not a guess. This line used to be rebuilt from the
   // phone's live connection flag on every render, so a goal set to "Automatically" read "Logged by
@@ -417,21 +420,31 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
           <Ionicons name="cube-outline" size={13} color={TIER_COLOR[tier]} />
           <Text style={styles.rewardText} numberOfLines={1}>
             <Text style={[styles.rewardTier, { color: TIER_COLOR[tier] }]}>{tier.toUpperCase()}</Text>
-            {' · '}
+            {/* 0209 — "effort" when the payout is capped, because the tier is what Cindy judged and
+                the crate is what an unvouched claim pays, and printing them side by side with no
+                word between read as a pricing bug ("LEGENDARY · The Furnace"). */}
+            {!isComplete && !isMissed && reward.discounted ? ' effort · ' : ' · '}
             {/* Past tense once it is settled: "Reward" over a finished goal reads as something
                 still owed. */}
-            {isComplete ? 'Paid ' : isMissed ? 'Was worth ' : 'Reward: '}
+            {isComplete ? 'Paid ' : isMissed ? 'Was worth ' : reward.discounted ? 'earns ' : 'Reward: '}
             {asBoxKey(reward.box) ? BOXES[asBoxKey(reward.box)!].name : 'Embers only'}
             {` · ${reward.embers.toLocaleString()} embers`}
           </Text>
         </View>
+      ) : null}
+      {/* ...and the way out of the cap, while there still is one. Nothing once settled: a goal paid
+          at honour cannot be vouched after the fact (one grant, 0164). */}
+      {!isComplete && !isMissed ? (
+        <VouchUnlockLine capped={reward} vouched={vouchedReward} lead="2 friends vouch →" style={styles.unlockLine} />
       ) : null}
 
       {/* ── §C · the grade goal's whole lifecycle, in one row ──
           Live: the door to reporting the mark, which is the ONLY way this goal can settle.
           Settled: the verdict, said plainly — including the miss, because a goal that quietly
           stopped mattering teaches the user nothing about whether they hit it. */}
-      {isGrade && !isComplete && !isMissed ? (
+      {/* 0209 — and not once reported: a passing grade that asked friends is claimed, not complete,
+          and report_goal_grade refuses a second report. The pending row below takes over. */}
+      {isGrade && !isComplete && !isMissed && !isPendingVouch ? (
         <Pressable
           style={styles.claimCta}
           onPress={() => setGradeOpen(true)}
@@ -579,6 +592,7 @@ const styles = StyleSheet.create({
   },
   rewardTier: { fontFamily: Fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.7 },
   rewardText: { flex: 1, fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },
+  unlockLine: { paddingHorizontal: 10, marginTop: -2 },
   missedRow: {
     flexDirection: 'row',
     alignItems: 'center',
