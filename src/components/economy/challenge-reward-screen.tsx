@@ -19,6 +19,7 @@ import { EquippedFlameSvg } from '@/components/flame-icon';
 import { DefeatedStrip, KingStatue } from '@/components/economy/king-statue';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
+import { campfireFinisherKey, titleLabel } from '@/lib/economy/catalog';
 import { useFlameRamp } from '@/lib/economy/flame-ramp';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import {
@@ -103,6 +104,13 @@ type Props = {
    * for a caller that has not been updated.
    */
   revealKind?: RewardRevealKind;
+  /**
+   * The settled challenge, so the manifest can name the finisher title 0212 printed for it ("You
+   * earned: Goat 2nd Place Finisher"). Read off the inventory this screen already loads rather than
+   * the settlement payload: the title is minted at commit, after grant_reward wrote that payload,
+   * and installed builds must never see a payload key they do not know.
+   */
+  challengeId?: string;
 };
 
 export function ChallengeRewardScreen({
@@ -116,6 +124,7 @@ export function ChallengeRewardScreen({
   winnerAvatarUrl,
   opponentAvatarUrl,
   revealKind,
+  challengeId,
 }: Props) {
   const reduceMotion = useReduceMotion();
   const intensity = TIER_INTENSITY[result.tier];
@@ -123,7 +132,10 @@ export function ChallengeRewardScreen({
   // A settlement's embers landed server-side, so this read already includes them — the pill counts
   // up TO it, from `wallet - paid`. Costs one get_inventory on a screen that only ever mounts on a
   // real payout, which is the same trade the goal reveal's own note argues for.
-  const { embers: walletEmbers, loading: walletLoading } = useInventory();
+  const { embers: walletEmbers, loading: walletLoading, owned } = useInventory();
+  const finisherKey = challengeId ? campfireFinisherKey(challengeId) : null;
+  const finisherOwned = finisherKey ? owned.find((o) => o.id === finisherKey) : undefined;
+  const finisherTitle = finisherOwned ? titleLabel(finisherOwned).name : null;
   // THE LIGHT FOLLOWS THE FLAME; THE SEMANTICS DO NOT.
   //
   // This screen's hero is a flame, so everything that reads as light coming OFF that flame — the
@@ -195,8 +207,8 @@ export function ChallengeRewardScreen({
   // defeat RewardRow's memo. These four are the only inputs a row's appearance actually has.
   const { claimed, busy, claimFor, claim: claimOne } = claim;
   const rows = useMemo(
-    () => buildRows(result, { claimed, busy, claimFor, claimOne }, onOpenBox),
-    [result, onOpenBox, claimed, busy, claimFor, claimOne]
+    () => buildRows(result, { claimed, busy, claimFor, claimOne }, onOpenBox, finisherTitle),
+    [result, onOpenBox, claimed, busy, claimFor, claimOne, finisherTitle]
   );
 
   return (
@@ -331,7 +343,12 @@ function subline(r: ChallengeRewardResult): string {
     .join(' · ');
 }
 
-function buildRows(r: ChallengeRewardResult, claim: RowClaim, onOpenBox?: () => void): RewardRowSpec[] {
+function buildRows(
+  r: ChallengeRewardResult,
+  claim: RowClaim,
+  onOpenBox?: () => void,
+  finisherTitle?: string | null
+): RewardRowSpec[] {
   const rows: RewardRowSpec[] = [];
 
   // BOX FIRST, THEN EMBERS, THEN XP, then the badge nothing is claimed from. The manifest reads in
@@ -400,6 +417,17 @@ function buildRows(r: ChallengeRewardResult, claim: RowClaim, onOpenBox?: () => 
       // settlement and has no wallet, no inventory corner and no bar to travel to — a Claim on it
       // would be a button that dims itself and does nothing else.
       destination: '→ earned',
+    });
+  }
+  // Every campfire racer gets one, win or not (0212) — so it sits last, under what the placing paid.
+  // Same non-claimable shape as the badge: it is already on the profile, there is nothing to fly.
+  if (finisherTitle) {
+    rows.push({
+      kind: 'badge',
+      title: `"${finisherTitle}"`,
+      detail: "Title for every finisher · can't be sold",
+      chip: { label: 'EARNED', color: Colors.green },
+      destination: '→ titles',
     });
   }
   return rows;

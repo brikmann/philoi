@@ -462,6 +462,12 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
       ]
     : [];
 
+  // 0212 / mock 217 — every racer in a campfire race leaves with a permanent placement title
+  // ("Goat 2nd Place Finisher"), win or not. Not on a duel: it has an opponent, not a campfire field.
+  const finisherRows: Row[] = c.circle_id
+    ? [{ k: settled ? 'Every finisher earned' : 'Every finisher earns', v: `A permanent ${c.circle_name ?? 'campfire'} title` }]
+    : [];
+
   const rows: Row[] = duel
     ? [
         { k: 'Type', v: 'Head-to-head' },
@@ -483,6 +489,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           { k: 'Duration', v: durationValue(c) },
           { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP by band`, highlight: true },
           ...scopedRows,
+          ...finisherRows,
           // The whole campfire is the field — nobody was invited and nobody had to answer, so the
           // collective row's "N yet to answer" would always read zero and imply a step that
           // doesn't exist here.
@@ -496,6 +503,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           { k: 'Duration', v: durationValue(c) },
           { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP`, highlight: true },
           ...scopedRows,
+          ...finisherRows,
           // The racers, not the campfire — since 0096 this is an invited subset, and the count on
           // the card is the one settlement uses (0112).
           { k: 'Racing', v: `${c.accepted_count} in${c.invited_count > 0 ? ` · ${c.invited_count} yet to answer` : ''}` },
@@ -645,6 +653,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
                 // The same kind this screen already took the floor with, so the rays are tinted by
                 // the row that ordered the queue rather than by a second guess at the shape.
                 revealKind={challengeRevealKind(c)}
+                challengeId={c.id}
                 // §F.1 — the king's two faces, the same pair the share card below already uses.
                 winnerAvatarUrl={profile?.avatar_url ?? null}
                 opponentAvatarUrl={opponentAvatarUrl}

@@ -174,6 +174,7 @@ export function ChallengeSettlementWatcher() {
             // The same kind this watcher took the floor with, so the rays are tinted by the row
             // that ordered the queue rather than by a second guess at the shape.
             revealKind={revealKind}
+            challengeId={current.challenge_id}
             // §F.1 — the king's two faces. Already fetched for the share card below, so the
             // reveal and the card it shares are drawn from one pair of avatars rather than two.
             winnerAvatarUrl={profile?.avatar_url ?? null}

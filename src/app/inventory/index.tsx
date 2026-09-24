@@ -15,7 +15,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useInventory, type BoxStack, type OwnedItem } from '@/hooks/use-inventory';
 import { BOXES, type BoxKey } from '@/lib/economy/boxes';
-import { TYPE_FILTERS, itemsOfType, type ItemType } from '@/lib/economy/catalog';
+import { TYPE_FILTERS, itemsOfType, titleLabel, type ItemType } from '@/lib/economy/catalog';
 import { badgeLabel } from '@/lib/economy/badges';
 import { FORGE_LADDER, isForgeFuel } from '@/lib/economy/forge';
 import {
@@ -472,7 +472,8 @@ function ItemTile({
         <ItemArt item={item} size={40} />
       </View>
       <Text style={styles.tileName} numberOfLines={1}>
-        {item.name}
+        {/* A campfire finisher's grant label, so a shelf of them isn't N identical tiles (0212). */}
+        {item.labelIsStamp ? titleLabel(item).name : item.name}
       </Text>
       <RarityLabel rarity={item.rarity} size={7} />
       {/* Earned vs bought has to be unambiguous everywhere it renders (§6). */}

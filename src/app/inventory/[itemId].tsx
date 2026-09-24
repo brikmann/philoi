@@ -16,7 +16,7 @@ import { useAudioPreview, useStopPreviewOnLeave } from '@/hooks/use-audio-previe
 import { useInventory } from '@/hooks/use-inventory';
 import { equipCosmetic, salvageCosmetic, unequipCosmetic, type Inventory } from '@/lib/api/inventory';
 import { forgeStepFor, isForgeFuel } from '@/lib/economy/forge';
-import { SFX_SLOTS, SLOT_LABEL, isDefaultItem, type SfxSlot } from '@/lib/economy/catalog';
+import { SFX_SLOTS, SLOT_LABEL, isCampfireFinisherKey, isDefaultItem, titleLabel, type SfxSlot } from '@/lib/economy/catalog';
 import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { getErrorMessage } from '@/lib/errors';
 import { RARITY_COLOR, SALVAGE_EMBERS, SALVAGE_PCT, rarityGlow } from '@/lib/economy/rarity';
@@ -205,7 +205,8 @@ export default function ItemDetailScreen() {
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.name}>{item.name}</Text>
+          {/* A campfire finisher's name is its grant label ("Goat 2nd Place Finisher"), not the template's. */}
+          <Text style={styles.name}>{item.labelIsStamp ? `"${titleLabel(item).name}"` : item.name}</Text>
           <RarityLabel rarity={item.rarity} type={item.type} size={10} />
           <Text style={styles.lore}>{item.lore}</Text>
 
@@ -213,7 +214,7 @@ export default function ItemDetailScreen() {
             <SourceTag source={item.source} />
             {/* The real stamp from the grant ("🌍 GLOBAL #1 · S1") when there is one; the catalog's
                 generic flag only as a fallback for season items granted without a scope. */}
-            {item.seasonStamp ? (
+            {item.seasonStamp && !item.labelIsStamp ? (
               <View style={styles.stamp}>
                 <Text style={styles.stampText}>{item.seasonStamp}</Text>
               </View>
@@ -268,6 +269,9 @@ export default function ItemDetailScreen() {
               regardless, and a button that always errors is worse than no button. */}
           {isDefaultItem(item.id) ? (
             <Text style={styles.sellNote}>Part of your starter set · permanent, can&apos;t be sold</Text>
+          ) : isCampfireFinisherKey(item.id) ? (
+            // 0212 — the record of a race you ran. salvage_cosmetic refuses it, so no button.
+            <Text style={styles.sellNote}>Earned with your campfire · permanent, can&apos;t be sold</Text>
           ) : (
             <>
               {/* The Forge shortcut (mock 156 frame 2), sitting where it belongs: next to Sell, on

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
+import { titleLabel } from '@/lib/economy/catalog';
 import { useEquipped } from '@/lib/economy/loadout';
 import { RARITY_COLOR } from '@/lib/economy/rarity';
 
@@ -54,7 +55,7 @@ export function EquippedTitle({ style, enabled = true }: { style?: ViewStyle; en
   return (
     <View style={style}>
       <Text style={[styles.title, { color: RARITY_COLOR[title.rarity] }]} numberOfLines={1}>
-        ✦ {title.name.replace(/^"|"$/g, '')}
+        ✦ {titleLabel(title).name}
       </Text>
     </View>
   );
@@ -128,10 +129,12 @@ export function PublicHalo({ loadout, size, children }: { loadout: PublicLoadout
 export function PublicTitle({ loadout, compact = false }: { loadout: PublicLoadout; compact?: boolean }) {
   const title = loadout.title;
   if (!title) return null;
+  // titleLabel, not name + stamp: a campfire finisher's stamp IS its name ("Goat Champion").
+  const { name, stamp } = titleLabel(title);
   return (
     <Text style={[styles.title, compact && styles.titleCompact, { color: RARITY_COLOR[title.rarity] }]} numberOfLines={1}>
-      ✦ {title.name.replace(/^"|"$/g, '')}
-      {title.seasonStamp ? <Text style={styles.stamp}> {title.seasonStamp}</Text> : null}
+      ✦ {name}
+      {stamp ? <Text style={styles.stamp}> {stamp}</Text> : null}
     </Text>
   );
 }

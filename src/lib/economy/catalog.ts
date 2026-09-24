@@ -83,6 +83,9 @@ export const SLOT_FOR_TYPE: Record<ItemType, EquipSlot | null> = {
  */
 export type Acquisition = 'box' | 'earned' | 'forge-pass-S1' | 'default';
 
+/** Template id for the per-challenge campfire finisher titles (0212). Owned keys are `<this>:<challenge_id>`. */
+export const CAMPFIRE_FINISHER_TITLE = 'title-campfire-finisher';
+
 /** Which vector family draws this item — see components/economy/item-art.tsx. */
 export type ArtKind = 'flame' | 'particle' | 'flare' | 'card' | 'halo' | 'title' | 'banner' | 'audio' | 'sfx' | 'relic' | 'medal';
 
@@ -130,6 +133,11 @@ export type CatalogItem = {
   flare?: { colour: string; effect: FlareEffect };
   /** Season-stamped earn-only titles render as `Last Flame Standing · S1` (ITEM_CATALOG §2c). */
   seasonStamped?: boolean;
+  /**
+   * The owned row's season_stamp IS this title's name ("Goat 2nd Place Finisher"), and `name` is
+   * only the fallback. Render through titleLabel() rather than reading `name` directly.
+   */
+  labelIsStamp?: boolean;
   /** Global #1's "Ascended · Global" — the only animated title, one person per season (21j). */
   oneOfOne?: boolean;
   /** Shown instead of an Equip button on showcase-only items. */
@@ -368,6 +376,13 @@ const TITLES_EARNED: CatalogItem[] = [
     lore: 'A titan at the gates of Olympus, one single breath from godhood.', art: { kind: 'title', from: '#F5C542', to: '#FFF0B8' } }),
   item({ id: 'title-demigod', name: '"Demigod"', type: 'TITLE', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
     lore: 'Half-mortal, half-myth. The podium bows all the same.', art: { kind: 'title', from: '#F5C542', to: '#e7ddf5' } }),
+  // Printed for EVERY racer when a campfire challenge settles (0212, mock 217) — "Goat Champion",
+  // "Goat 2nd Place Finisher". A template, not an item: the server grants it under a per-challenge
+  // key (`title-campfire-finisher:<challenge_id>`, because cosmetics_owned is one row per key) and
+  // getItem() resolves every such key back here. The real words ride in season_stamp, frozen at
+  // grant time — see titleLabel(). Never sold, never forged (salvage_cosmetic refuses the key).
+  item({ id: CAMPFIRE_FINISHER_TITLE, name: '"Campfire Finisher"', type: 'TITLE', rarity: 'rare', acquisition: 'earned', labelIsStamp: true,
+    lore: 'You ran the race with your campfire and saw it through. This is where you finished.', art: { kind: 'title', from: '#E0612C', to: '#FFD27A' } }),
   item({ id: 'title-campfire-champion', name: '"Campfire Champion"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
     lore: 'Your fire, your crown. Everyone here knows who kept it burning hottest.', art: { kind: 'title', from: '#E0612C', to: '#FFD24D' } }),
   item({ id: 'title-the-untouchable', name: '"The Untouchable"', type: 'TITLE', rarity: 'epic', acquisition: 'earned', seasonStamped: true,
@@ -791,7 +806,37 @@ const RENAMED_IDS: Record<string, string> = {
 };
 
 export function getItem(id: string): CatalogItem | undefined {
+  // A per-challenge finisher key resolves to its template, keeping the FULL key as the id — equip,
+  // sell and the item route all act on the owned row, and that row's key is the long one.
+  if (isCampfireFinisherKey(id)) {
+    const template = BY_ID.get(CAMPFIRE_FINISHER_TITLE);
+    return template ? { ...template, id } : undefined;
+  }
   return BY_ID.get(id) ?? BY_ID.get(RENAMED_IDS[id] ?? '');
+}
+
+export function isCampfireFinisherKey(id: string): boolean {
+  return id.startsWith(`${CAMPFIRE_FINISHER_TITLE}:`);
+}
+
+/** The owned-row key 0212 grants a racer for one settled campfire challenge. */
+export function campfireFinisherKey(challengeId: string): string {
+  return `${CAMPFIRE_FINISHER_TITLE}:${challengeId}`;
+}
+
+/**
+ * The words a title is worn as, and the stamp shown beside them. For almost every title that is the
+ * catalog name plus the season stamp ("Emberfall Champion" · "🌍 GLOBAL #1 · S1"). For a title
+ * whose label IS the stamp, the stamp becomes the name and nothing is shown beside it — otherwise
+ * it would read "Campfire Finisher Goat 2nd Place Finisher".
+ */
+export function titleLabel(item: Pick<CatalogItem, 'name' | 'labelIsStamp'> & { seasonStamp?: string | null }): {
+  name: string;
+  stamp: string | null;
+} {
+  const bare = item.name.replace(/^"|"$/g, '');
+  if (item.labelIsStamp) return { name: item.seasonStamp?.trim() || bare, stamp: null };
+  return { name: bare, stamp: item.seasonStamp ?? null };
 }
 
 export function itemsOfType(type: ItemType): CatalogItem[] {
