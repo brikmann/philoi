@@ -7,6 +7,7 @@ import type {
   GlobalLeaderboardRow,
   GroupChallengeWatchRow,
   LeaderboardSearchResult,
+  MyPlacement,
   ProfileRelationship,
   ProfileStats,
 } from '@/types/database';
@@ -18,6 +19,14 @@ import type {
 // true-rank-pinning shape as fetchUniversityLeaderboard (see lib/api/groups.ts).
 export async function fetchGlobalLeaderboard(limit = 50): Promise<GlobalLeaderboardRow[]> {
   const { data, error } = await supabase.rpc('get_global_leaderboard', { p_limit: limit });
+  if (error) throw error;
+  return data ?? [];
+}
+
+// The done screen's placement beat (mock 204, migration 0214) — rank and board size on Friends,
+// the caller's uni and Global in one call. Missing scopes are simply absent from the array.
+export async function fetchMyPlacements(): Promise<MyPlacement[]> {
+  const { data, error } = await supabase.rpc('get_my_placements');
   if (error) throw error;
   return data ?? [];
 }

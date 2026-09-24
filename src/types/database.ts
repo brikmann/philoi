@@ -1254,6 +1254,11 @@ export type GlobalLeaderboardRow = {
   is_me: boolean;
 };
 
+/** get_my_placements() (0214) — the caller's rank and board size per scope, for the done
+ * screen's placement beat (mock 204). A scope the caller isn't on has no row at all. */
+export type PlacementScope = 'friends' | 'uni' | 'global';
+export type MyPlacement = { scope: PlacementScope; rank: number; total: number };
+
 /** search_leaderboard() — the Leaderboard tab's magnifier search (§15). */
 export type LeaderboardSearchResult = {
   user_id: string;
@@ -2856,6 +2861,7 @@ export type Database = {
         Returns: UniversityLeaderboardRow[];
       };
       get_global_leaderboard: { Args: { p_limit?: number }; Returns: GlobalLeaderboardRow[] };
+      get_my_placements: { Args: Record<string, never>; Returns: MyPlacement[] };
       search_leaderboard: { Args: { p_query: string; p_limit?: number }; Returns: LeaderboardSearchResult[] };
       get_relationship_with: { Args: { p_user_id: string }; Returns: ProfileRelationship };
       get_profile_stats: { Args: { p_user_id: string }; Returns: ProfileStats[] };

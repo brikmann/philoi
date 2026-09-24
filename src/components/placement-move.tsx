@@ -1,45 +1,55 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
-import { fetchGlobalLeaderboard } from '@/lib/api/leaderboard-social';
+import { fetchMyPlacements } from '@/lib/api/leaderboard-social';
 import { useAuth } from '@/lib/auth/auth-context';
-import { getSeenPlacement, setSeenPlacement } from '@/lib/placement-watch';
+import { getSeenPlacements, setSeenPlacements } from '@/lib/placement-watch';
+import type { PlacementScope } from '@/types/database';
 
-type Move = { current: number; seen: number | null };
+type Row = { scope: PlacementScope; current: number; total: number; seen: number | null };
 
-// Mock 204's placement beat, Global scope only for v1: where you stand on the season board after
-// this session, and how that moved since the last time we showed you. Distinct from the tier-rank
-// chip above it — tier is the Primordial ladder, this is your row on get_global_leaderboard.
+// Mock 204's order: the people you know first, then your school, then everyone.
+const SCOPE_ORDER: PlacementScope[] = ['friends', 'uni', 'global'];
+const SCOPE_GLYPH: Record<PlacementScope, string> = { friends: '👥', uni: '🎓', global: '🌎' };
+
+// Mock 204's placement beat: where you stand on Friends, your uni and Global after this session,
+// and how each moved since the last time we showed you. Distinct from the tier-rank chip above it
+// — tier is the Primordial ladder, this is your row on each board (get_my_placements, 0214).
 //
 // Self-contained on purpose: it fetches, reads the baseline, and writes the new one itself, so any
 // post-session screen can drop it in (the plain done screen and the daily-fire payout both do).
 // When the full-screen rank-up forge takes the stop instead, nothing mounts this and the baseline
 // is left alone — the climb isn't lost, it folds into the next done screen's "up N".
 export function PlacementMove({ style }: { style?: StyleProp<ViewStyle> }) {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const userId = session?.user.id ?? null;
-  const [move, setMove] = useState<Move | null>(null);
+  const [rows, setRows] = useState<Row[] | null>(null);
 
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
     (async () => {
       try {
-        // p_limit 1: the RPC always appends the caller's own row wherever they stand, so this is
-        // the #1 row plus ours rather than 50 rows for one number. A dedicated get_my_placement()
-        // returning {rank, total} would be leaner still (and would give us "of N") — not needed yet.
-        const [rows, seen] = await Promise.all([fetchGlobalLeaderboard(1), getSeenPlacement(userId)]);
-        const me = rows.find((r) => r.is_me);
-        // Not on the board (0208: no score yet) → render nothing rather than "#null".
-        if (cancelled || !me) return;
-        setMove({ current: me.rank, seen });
+        const [placements, seen] = await Promise.all([fetchMyPlacements(), getSeenPlacements(userId)]);
+        // A board of one is just you — "#1 of 1" isn't a standing, so that row is left out. A
+        // scope you're not on (no score yet, unverified uni, no friends) has no row to begin with.
+        const shown = SCOPE_ORDER.flatMap((scope) => {
+          const p = placements.find((x) => x.scope === scope);
+          return p && p.total > 1 ? [{ scope, current: p.rank, total: p.total, seen: seen[scope] ?? null }] : [];
+        });
+        if (cancelled || shown.length === 0) return;
+        setRows(shown);
         // Written only once shown, and skipped for a cancelled run — StrictMode's double-mount
-        // would otherwise read back its own write and turn every climb into "Holding".
-        await setSeenPlacement(userId, me.rank);
+        // would otherwise read back its own write and turn every climb into "Holding". Scopes not
+        // shown this time keep their older baseline.
+        await setSeenPlacements(userId, {
+          ...seen,
+          ...Object.fromEntries(shown.map((r) => [r.scope, r.current])),
+        });
       } catch {
         // A bonus beat, not core data — a failed fetch just hides the card.
       }
@@ -49,11 +59,50 @@ export function PlacementMove({ style }: { style?: StyleProp<ViewStyle> }) {
     };
   }, [userId]);
 
-  if (!move) return null;
-  return <PlacementCard current={move.current} seen={move.seen} style={style} />;
+  if (!rows) return null;
+  const anyClimb = rows.some((r) => r.seen !== null && r.current < r.seen);
+  const allHeld = rows.every((r) => r.seen !== null && r.current === r.seen);
+  const kick = anyClimb ? '🔥 You climbed' : allHeld ? 'Holding your spot' : 'Where you stand';
+  const uniLabel = profile?.university ?? 'Your uni';
+
+  return (
+    <PlacementCard kick={kick} climbed={anyClimb} style={style}>
+      {rows.map((r, i) => (
+        <PlacementRow
+          key={r.scope}
+          row={r}
+          label={r.scope === 'friends' ? 'Friends' : r.scope === 'uni' ? uniLabel : 'Global'}
+          index={i}
+        />
+      ))}
+    </PlacementCard>
+  );
 }
 
-function PlacementCard({ current, seen, style }: Move & { style?: StyleProp<ViewStyle> }) {
+function PlacementCard({
+  kick,
+  climbed,
+  style,
+  children,
+}: {
+  kick: string;
+  climbed: boolean;
+  style?: StyleProp<ViewStyle>;
+  children: ReactNode;
+}) {
+  const reduceMotion = useReduceMotion();
+  return (
+    <Animated.View
+      entering={reduceMotion ? undefined : FadeIn.delay(350).duration(400)}
+      style={[styles.card, climbed && styles.cardClimbed, style]}>
+      <Text style={[styles.kick, climbed && styles.kickClimbed]}>{kick}</Text>
+      {children}
+    </Animated.View>
+  );
+}
+
+function PlacementRow({ row, label, index }: { row: Row; label: string; index: number }) {
+  const { current, total, seen } = row;
   const reduceMotion = useReduceMotion();
   const climbed = seen !== null && current < seen;
   const held = seen !== null && current === seen;
@@ -85,46 +134,47 @@ function PlacementCard({ current, seen, style }: Move & { style?: StyleProp<View
     };
   }, [climbed, reduceMotion, seen, current]);
 
-  const kick = climbed ? '🔥 You climbed' : held ? 'Holding your spot' : 'Season standing';
   // Never a red "you dropped": a slip here is other people's sessions, not this one's failure.
-  const caption = climbed
+  const status = climbed
     ? `up from #${seen!.toLocaleString()}`
     : held
       ? 'defend it'
       : slipped
         ? 'others have been busy'
-        : "you're on the board";
+        : null;
+  const caption = status ? `of ${total.toLocaleString()} · ${status}` : `of ${total.toLocaleString()}`;
 
   return (
-    <Animated.View
-      entering={reduceMotion ? undefined : FadeIn.delay(350).duration(400)}
-      style={[styles.card, climbed && styles.cardClimbed, style]}
+    <View
+      style={[styles.row, index > 0 && styles.rowDivider]}
       accessible
       accessibilityLabel={
         climbed
-          ? `You climbed to number ${current.toLocaleString()} on the global board, up ${(seen! - current).toLocaleString()} from ${seen!.toLocaleString()}`
-          : `Number ${current.toLocaleString()} on the global board, ${caption}`
+          ? `${label}: you climbed to number ${current.toLocaleString()} of ${total.toLocaleString()}, up ${(seen! - current).toLocaleString()} from ${seen!.toLocaleString()}`
+          : `${label}: number ${current.toLocaleString()} ${caption}`
       }>
-      <Text style={[styles.kick, climbed && styles.kickClimbed]}>{kick}</Text>
-      <View style={styles.row}>
-        <View style={styles.icon}>
-          <Text style={styles.iconGlyph}>🌎</Text>
-        </View>
-        <View style={styles.mid}>
-          <Text style={styles.label}>Global</Text>
-          <Text style={[styles.pos, climbed && styles.posClimbed]}>#{shown.toLocaleString()}</Text>
-          <Text style={styles.caption} numberOfLines={1}>
-            {caption}
-          </Text>
-        </View>
-        {climbed && (
-          <Animated.View entering={reduceMotion ? undefined : ZoomIn.delay(900).springify()} style={styles.delta}>
-            <Ionicons name="arrow-up" size={12} color={Colors.ember} />
-            <Text style={styles.deltaText}>up {(seen! - current).toLocaleString()}</Text>
-          </Animated.View>
-        )}
+      <View style={styles.icon}>
+        <Text style={styles.iconGlyph}>{SCOPE_GLYPH[row.scope]}</Text>
       </View>
-    </Animated.View>
+      <View style={styles.mid}>
+        <Text style={styles.label} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={[styles.pos, climbed && styles.posClimbed]}>#{shown.toLocaleString()}</Text>
+        <Text style={styles.caption} numberOfLines={1}>
+          {caption}
+        </Text>
+      </View>
+      {climbed && (
+        // Staggered like the mock (.7s / 1.0s / 1.3s) so the pills land one board at a time.
+        <Animated.View
+          entering={reduceMotion ? undefined : ZoomIn.delay(700 + index * 300).springify()}
+          style={styles.delta}>
+          <Ionicons name="arrow-up" size={12} color={Colors.ember} />
+          <Text style={styles.deltaText}>up {(seen! - current).toLocaleString()}</Text>
+        </Animated.View>
+      )}
+    </View>
   );
 }
 
@@ -137,7 +187,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.line,
     borderRadius: 18,
     paddingTop: 12,
-    paddingBottom: 10,
+    paddingBottom: 4,
     paddingHorizontal: 14,
   },
   // The glow is the climb's alone — hold and slip sit on the plain card.
@@ -156,7 +206,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: Colors.muted,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   kickClimbed: {
     color: Colors.amber,
@@ -165,6 +215,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 11,
+    paddingVertical: 8,
+  },
+  rowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.line,
   },
   icon: {
     width: 30,
