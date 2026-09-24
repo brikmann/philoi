@@ -46,3 +46,54 @@ example
 # FCM/Firebase service account keys - private keys, never commit
 *firebase-adminsdk*.json
 service-account*.json
+
+.vercel
+.env*
+
+# ── Private working files: kept on disk, never on this PUBLIC repo (2026-09-24) ──
+# Other people's contact details
+philoi-internal-testers.csv
+/PHILOI_*.md
+supabase/grant_reviewer_access.sql
+*.xlsx
+.~lock.*#
+# Coursework
+*_calendar/
+*_calendar.zip
+/ziG1w0PX
+/KP[0-9][0-9][0-9]_*.md
+/EC[0-9][0-9][0-9]_*.md
+# Internal briefs, prompts and plans — some describe exploits before they are fixed on prod.
+# Tracked ones stay tracked; `git add -f` to publish a new one deliberately.
+/CODE_PROMPT_*.md
+/AGENT_*.md
+/IDEA_*.md
+/QA_*.md
+/PLAY_*.md
+/MARKETING_*.md
+/LAUNCH_*.md
+/COMMIT_*.md
+/VERIFY_*.md
+/TONIGHT_*.md
+/STEP_*.md
+/SB_*.md
+/REVENUECAT_*.md
+/RESEARCH_*.md
+/PUNCHLIST_*.md
+/PRELAUNCH_*.md
+/PASS_*.md
+/NEXT_*.md
+/MASTER_*.md
+/DEVICE_*.md
+/DEPLOY_*.md
+/COSMETIC_*.md
+/COSMETICS_*.md
+/CLOSEOUT_*.md
+/BUILD_*.md
+# Marketing, outreach, brand exports and design scratch
+/marketing/
+/outreach-assets/
+/brand/
+/design-mocks/
+/_tmpframes/
+*.bak
