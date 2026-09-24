@@ -25,6 +25,20 @@ export type BoxConfig = {
   pity: Record<string, ServerPity>;
 };
 
+/** One row of 0090's `box_droppable_items` — the server's list of what a box may ever produce. */
+export type DroppableItem = { item_key: string; rarity: Rarity };
+
+/**
+ * The drop pool, as the SERVER holds it. open_loot_box only grants an id that is in this table at
+ * the rarity it rolled (0090), so this — not the bundled catalog — is the list a "what's in the box"
+ * surface may promise. Same read-only-to-authenticated shape as economy_config above.
+ */
+export async function fetchDroppableItems(): Promise<DroppableItem[]> {
+  const { data, error } = await supabase.from('box_droppable_items').select('item_key, rarity');
+  if (error) throw error;
+  return (data ?? []) as DroppableItem[];
+}
+
 export async function fetchBoxConfig(): Promise<BoxConfig> {
   const { data, error } = await supabase
     .from('economy_config')

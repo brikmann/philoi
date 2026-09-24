@@ -231,3 +231,14 @@ export function ordinal(n: number): string {
   const suffix = { 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th';
   return `${n}${suffix}`;
 }
+
+/**
+ * "Goat Champion" for 1st, "Goat 2nd Place Finisher" for everyone else — 0212's
+ * campfire_finisher_label, spelled the same way. Only for PREVIEWING a title before it exists: a
+ * minted title's label is the frozen season_stamp on the owned row, and that is what every owned
+ * surface prints. Pass an empty campfire for the bare "2nd Place Finisher" ladder rung.
+ */
+export function campfireFinisherLabel(campfire: string, place: number): string {
+  const prefix = campfire ? `${campfire} ` : '';
+  return place === 1 ? `${prefix}Champion` : `${prefix}${ordinal(place)} Place Finisher`;
+}
