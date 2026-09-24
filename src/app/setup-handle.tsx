@@ -6,6 +6,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CampusVerification, CampusVerifiedPanel } from '@/components/campus-verification';
 import { DEFAULT_HEIGHT_CM, HeightRuler } from '@/components/onboarding/height-ruler';
 import { DEFAULT_WEIGHT_KG, WeightRuler, type WeightUnit } from '@/components/onboarding/weight-ruler';
+import { RankVisibilityPicker } from '@/components/rank-visibility-picker';
 import { OnboardingProgress } from '@/components/ui/onboarding-progress';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
@@ -13,6 +14,7 @@ import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversities } from '@/lib/api/groups';
+import { rankVisibilityOf, setRankVisibility } from '@/lib/api/privacy';
 import { setMyHeightCm, setMyWeightKg } from '@/lib/api/relics';
 import { getErrorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
@@ -23,6 +25,7 @@ import {
   sampleEmailFor,
   shortSchoolName,
 } from '@/lib/universities';
+import type { RankVisibility } from '@/types/database';
 
 const CONSENT_VERSION = '2026-06-30';
 const PRIVACY_URL = 'https://philoi.app/privacy.html';
@@ -37,8 +40,8 @@ function normalizeHandle(input: string) {
 
 type Availability = 'idle' | 'checking' | 'available' | 'taken';
 
-// design-mocks/17-onboarding.html — all the onboarding steps (username, school, height, campus,
-// consent) live on this one screen, gated while `needsHandle || needsConsent` is true (see
+// design-mocks/17-onboarding.html — all the onboarding steps (username, school, height, weight,
+// campus, rank visibility, consent) live on this one screen, gated while `needsHandle || needsConsent` is true (see
 // _layout.tsx). Keeping them in one component (rather than one route per step) is what lets
 // Back actually work: it's just local `step` state, not navigation across a gate boundary a
 // user shouldn't be able to re-enter once past it.
@@ -63,7 +66,14 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 // entirely — not shown, not counted — when the chosen school has no known email domain, since
 // there's nothing to send a code to. Never a blocker either way: skipping just leaves the two
 // campus boards locked.
-type Step = 1 | 2 | 3 | 4 | 5 | 6;
+//
+// Step 6 is the season rank dial (CODE_PROMPT_season_privacy.md, migration 0217): Public ·
+// Friends · Private, Public preselected. Asked here, deliberately, rather than discovered later in
+// Settings — it is the one choice on this screen about how the app FEELS to use, and someone who
+// wants the quiet version should never have to sit through a week of the loud one first. Continue
+// on the preselected default is the skip. It comes before consent because consent is what lets the
+// user out of this gate.
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export default function SetupHandleScreen() {
   const { session, profile, refreshProfile } = useAuth();
@@ -100,6 +110,8 @@ export default function SetupHandleScreen() {
   });
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(profile?.weight_unit ?? 'lb');
   const [weightTouched, setWeightTouched] = useState(false);
+
+  const [rankVisibility, setRankVisibilityChoice] = useState<RankVisibility>(rankVisibilityOf(profile));
 
   const [ageChecked, setAgeChecked] = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
@@ -267,6 +279,29 @@ export default function SetupHandleScreen() {
     setStep(afterWeight);
   }
 
+  /**
+   * Writes the dial only when it differs from what the profile already holds, so the default path
+   * (Public, untouched) costs no round trip. A FAILED write does not advance: silently landing
+   * someone who chose Private on the public board is the one outcome this step exists to prevent.
+   * Public never writes, so it can never be what blocks onboarding.
+   */
+  async function handleContinueRankVisibility(choice: RankVisibility) {
+    setError(null);
+    if (choice !== rankVisibilityOf(profile)) {
+      setLoading(true);
+      try {
+        await setRankVisibility(choice);
+        await refreshProfile();
+      } catch (e) {
+        setError(getErrorMessage(e, "Couldn't save that — try again, or continue with Public and change it in Settings."));
+        return;
+      } finally {
+        setLoading(false);
+      }
+    }
+    setStep(7);
+  }
+
   async function handleFinish() {
     if (!canFinish || !session) return;
     setLoading(true);
@@ -294,7 +329,7 @@ export default function SetupHandleScreen() {
       {/* Six segments only when verification is actually on this user's path — a school with no
           domain never sees that step, so showing a sixth dot would promise one that never comes.
           Both body-metric steps are on everyone's path, so they always count. */}
-      <OnboardingProgress step={step} total={universityDomain ? 6 : 5} />
+      <OnboardingProgress step={step} total={universityDomain ? 7 : 6} />
 
       {step === 1 && (
         <View style={styles.step}>
@@ -521,6 +556,17 @@ export default function SetupHandleScreen() {
 
       {step === 6 && (
         <View style={styles.step}>
+          <Text style={styles.h}>Who sees your climb?</Text>
+          <Text style={styles.sub}>Every season has a leaderboard. Choose how you want to be on it.</Text>
+
+          <RankVisibilityPicker value={rankVisibility} onChange={setRankVisibilityChoice} disabled={loading} />
+
+          <Text style={styles.note}>You can change this any time in Settings.</Text>
+        </View>
+      )}
+
+      {step === 7 && (
+        <View style={styles.step}>
           <Text style={styles.h}>One last thing</Text>
           <Text style={styles.sub}>Then you&apos;re in.</Text>
 
@@ -572,8 +618,8 @@ export default function SetupHandleScreen() {
           <Pressable
             style={styles.back}
             onPress={() =>
-              // Step 5 only exists for a school with a domain, so stepping back from consent has
-              // to skip over it when there isn't one — otherwise Back lands on a blank screen.
+              // Step 5 only exists for a school with a domain, so stepping back from the rank dial
+              // has to skip over it when there isn't one — otherwise Back lands on a blank screen.
               setStep((s) => (s === 6 && !universityDomain ? 4 : ((s - 1) as Step)))
             }>
             <Text style={styles.backLabel}>Back</Text>
@@ -582,17 +628,17 @@ export default function SetupHandleScreen() {
         {step !== 5 && (
           <View style={styles.nextWrap}>
             <PrimaryButton
-              label={step === 6 ? 'Enter Philoi' : 'Continue'}
+              label={step === 7 ? 'Enter Philoi' : 'Continue'}
               loading={loading}
-              // Steps 3 and 4 have nothing to validate — every position on either ruler is inside
-              // its column's range by construction, and both are skippable, so neither is ever
-              // disabled.
+              // Steps 3, 4 and 6 have nothing to validate — every position on either ruler is inside
+              // its column's range by construction, and the rank dial always holds one of its three
+              // values — so none of them is ever disabled.
               disabled={
                 step === 1
                   ? !canContinueStep1
                   : step === 2
                     ? !canContinueStep2
-                    : step === 3 || step === 4
+                    : step === 3 || step === 4 || step === 6
                       ? false
                       : !canFinish
               }
@@ -601,6 +647,7 @@ export default function SetupHandleScreen() {
                 else if (step === 2) handleContinueStep2();
                 else if (step === 3) handleContinueHeight(true);
                 else if (step === 4) handleContinueWeight(true);
+                else if (step === 6) handleContinueRankVisibility(rankVisibility);
                 else handleFinish();
               }}
             />

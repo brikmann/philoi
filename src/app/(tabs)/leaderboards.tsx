@@ -11,6 +11,7 @@ import {
   type PublicLoadout,
 } from '@/hooks/use-public-loadouts';
 import { ParthenonPodium, type PodiumItem } from '@/components/parthenon-podium';
+import { PrivateClimb } from '@/components/private-climb';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
 import { TabHeader } from '@/components/ui/tab-header';
@@ -25,6 +26,7 @@ import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversityShortNames } from '@/lib/api/groups';
 import { searchLeaderboard } from '@/lib/api/leaderboard-social';
+import { rankVisibilityOf } from '@/lib/api/privacy';
 import { getUniversityCrest } from '@/lib/university-crests';
 import type {
   CrossCirclePerson,
@@ -120,20 +122,27 @@ export default function LeaderboardsScreen() {
   const router = useRouter();
   const { session, profile } = useAuth();
 
-  // PRIVATE MODE (0170 §4). The wall is symmetric: a private user's boards are filtered to their
-  // friends, so a private user with no friends yet sees an EMPTY board. "Nobody here yet" would be
-  // a flat lie — the board is full, they have opted out of seeing it — and the one thing worse than
-  // an empty screen is an empty screen that misexplains itself. The copy names the setting and says
-  // where to change it, and points out that their own rank is unaffected.
-  const isPrivate = profile?.leaderboard_private ?? false;
-  const privateEmptyTitle = "You're in Private mode";
-  const privateEmptyBody =
-    'Only friends show here. Turn it off in Settings to see the whole board — your own rank is unaffected either way.';
-  const uniEmptyTitle = isPrivate ? privateEmptyTitle : 'Nobody here yet';
-  const uniEmptyBody = isPrivate ? privateEmptyBody : 'Be the first from your school to start a streak.';
-  const globalEmptyTitle = isPrivate ? privateEmptyTitle : 'Nobody here yet';
-  const globalEmptyBody = isPrivate ? privateEmptyBody : 'Check back once more people join.';
-  const [scope, setScope] = useState<Scope>('camp');
+  // SEASON RANK DIAL (0217, grown from 0170's Private mode). The wall is symmetric and server-side:
+  //   public  — the four boards as they have always been.
+  //   friends — every board comes back re-ranked over the viewer + their friends, so the Campfires,
+  //             uni and Global scopes would be one comparison under three labels. The tab collapses
+  //             to a single Friends board with "#N of M" above it.
+  //   private — every board comes back as just the viewer. There is no board to draw, so the tab
+  //             is their own climb (PrivateClimb) instead.
+  // Derived per render rather than seeded into state: the tab stays mounted, and changing the dial
+  // in Settings must reshape it on the way back.
+  const dial = rankVisibilityOf(profile);
+  const friendsEmptyTitle = 'No friends on the board yet';
+  const friendsEmptyBody =
+    'Your season rank is on Friends, so only friends show here. Add some to see how you stack up — your rewards are the same either way.';
+  const uniEmptyTitle = 'Nobody here yet';
+  const uniEmptyBody = 'Be the first from your school to start a streak.';
+  const globalEmptyTitle = dial === 'friends' ? friendsEmptyTitle : 'Nobody here yet';
+  const globalEmptyBody = dial === 'friends' ? friendsEmptyBody : 'Check back once more people join.';
+  const [pickedScope, setScope] = useState<Scope>('camp');
+  const scope: Scope = dial === 'friends' ? 'global' : pickedScope;
+  const scopes: Scope[] = dial === 'friends' ? ['global'] : SCOPES;
+  const scopeLabel = (s: Scope) => (dial === 'friends' && s === 'global' ? 'Friends' : SCOPE_LABEL[s]);
   const [metric, setMetric] = useState<Metric>('xp');
   const [vsMetric, setVsMetric] = useState<VsMetric>('total');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -312,6 +321,21 @@ export default function LeaderboardsScreen() {
     );
   }
 
+  // Private: no board, no search, no scope pills — just the viewer's own ladder.
+  if (dial === 'private') {
+    return (
+      <Screen padded={false}>
+        <TabHeader title="Leaderboard" />
+        <PrivateClimb />
+      </Screen>
+    );
+  }
+
+  // Friends: "#N of M" among friends. The server already ranked the board over the viewer and their
+  // friends, so this is the viewer's server-truth rank over the rows it returned (the RPC's 50-row
+  // window only undercounts M past 50 friends, and then the rank is still exact).
+  const myFriendsRow = dial === 'friends' ? globalRows.find((r) => r.is_me) : undefined;
+
   return (
     <Screen padded={false}>
       <TabHeader
@@ -379,9 +403,9 @@ export default function LeaderboardsScreen() {
         <>
           <View style={styles.header}>
             <View style={styles.pillRow}>
-              {SCOPES.map((s) => (
+              {scopes.map((s) => (
                 <Pressable key={s} style={[styles.pill, scope === s && styles.pillOn]} onPress={() => setScope(s)}>
-                  <Text style={[styles.pillLabel, scope === s && styles.pillLabelOn]}>{SCOPE_LABEL[s]}</Text>
+                  <Text style={[styles.pillLabel, scope === s && styles.pillLabelOn]}>{scopeLabel(s)}</Text>
                 </Pressable>
               ))}
             </View>
@@ -417,6 +441,13 @@ export default function LeaderboardsScreen() {
             ) : (
               renderPersonBoard(uniBoard, uniEmptyTitle, uniEmptyBody, uniError)
             ))}
+
+          {myFriendsRow && globalRows.length > 1 && (
+            <Text style={styles.friendsStanding}>
+              #{myFriendsRow.rank.toLocaleString()} of {Math.max(globalRows.length, myFriendsRow.rank).toLocaleString()} among
+              your friends
+            </Text>
+          )}
 
           {scope === 'global' && renderPersonBoard(globalBoard, globalEmptyTitle, globalEmptyBody, globalError)}
 
@@ -720,5 +751,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 10,
     color: Colors.muted,
+  },
+  friendsStanding: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.muted,
+    paddingHorizontal: Spacing.four,
+    paddingBottom: Spacing.two,
   },
 });

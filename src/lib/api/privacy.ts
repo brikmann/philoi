@@ -1,27 +1,35 @@
 import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
+import type { Profile, RankVisibility } from '@/types/database';
 
 /**
- * PRIVATE MODE — a visibility wall with a friends allowlist (migration 0170).
+ * SEASON RANK VISIBILITY — three dials (migration 0217, extending 0170's Private mode).
  *
- * When this is on, only accepted friends can see this user: they vanish from search and from every
- * leaderboard a non-friend reads, their profile rank block reads "Rank muted", and in a challenge's
- * standings they render as "Anonymous" at the bottom with no position.
+ *   public   (default) — anyone can see your rank; you see the open boards and get the placement push.
+ *   friends            — only accepted friends see you; your boards are you + your friends ("#1 of 6").
+ *   private            — nobody but you. No board, no position, no comparison — just your own climb.
  *
- * 🔴 WHAT IT IS NOT. It is not an account freeze and it is not a notification mute. The user keeps
- * earning XP, ranks and streaks; they still see their OWN real rank everywhere; and they are still
- * ranked and PAID on the real numbers at settlement — anonymity in a race is a display layer, never
- * a scoring one. An anonymous racer can win.
+ * The wall is symmetric and enforced server-side in can_see_rank: a friends-dial user's boards come
+ * back already re-ranked over their friends, and a private user's come back as just themselves. The
+ * client's job is to label that honestly, not to filter it.
  *
- * Symmetric by default: the wall faces both ways, so a private user's own boards show friends only.
- * That is the "I don't want to see everyone crushing it" half of the request, and it is one line in
- * can_see_rank if it ever needs to be split out.
+ * 🔴 WHAT IT IS NOT. It is not a reward setting. XP, ranks, streaks and every season reward are
+ * computed on the real numbers regardless of the dial — an anonymous racer can still win, a private
+ * climber is still paid their placement. Say so wherever the dial is shown.
  *
- * Writes only the caller's own row — the RPC is security definer and keys on auth.uid(), so there
- * is no user id to pass and no way to set someone else's.
+ * Writes only the caller's own row — the RPC is security definer and keys on auth.uid().
  */
-export async function setLeaderboardPrivate(on: boolean): Promise<void> {
-  const { error } = await supabase.rpc('set_leaderboard_private', { p_on: on });
+export async function setRankVisibility(scope: RankVisibility): Promise<void> {
+  const { error } = await supabase.rpc('set_rank_visibility', { p_scope: scope });
   if (error) throw error;
-  track('leaderboard_private_changed', { on });
+  track('rank_visibility_changed', { scope });
+}
+
+/**
+ * The caller's dial, read defensively. A profile fetched from a database that predates 0217 has no
+ * `rank_visibility`, only 0170's boolean — which meant "friends only", so that is what it maps to.
+ */
+export function rankVisibilityOf(profile: Pick<Profile, 'rank_visibility' | 'leaderboard_private'> | null | undefined): RankVisibility {
+  if (profile?.rank_visibility) return profile.rank_visibility;
+  return profile?.leaderboard_private ? 'friends' : 'public';
 }

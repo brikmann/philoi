@@ -6,6 +6,7 @@ import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { fetchMyPlacements } from '@/lib/api/leaderboard-social';
+import { rankVisibilityOf } from '@/lib/api/privacy';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getSeenPlacements, setSeenPlacements } from '@/lib/placement-watch';
 import type { PlacementScope } from '@/types/database';
@@ -24,20 +25,27 @@ const SCOPE_GLYPH: Record<PlacementScope, string> = { friends: '👥', uni: '�
 // post-session screen can drop it in (the plain done screen and the daily-fire payout both do).
 // When the full-screen rank-up forge takes the stop instead, nothing mounts this and the baseline
 // is left alone — the climb isn't lost, it folds into the next done screen's "up N".
+//
+// THE SEASON RANK DIAL DECIDES WHICH ROWS EXIST (0217). Public: all three. Friends: the Friends row
+// only — the server already re-ranks their uni and Global boards over their friends, so those rows
+// would just be the same comparison wearing three labels. Private: nothing at all, not even the
+// fetch. Their own tier ladder above this card is the whole story for them.
 export function PlacementMove({ style }: { style?: StyleProp<ViewStyle> }) {
   const { session, profile } = useAuth();
   const userId = session?.user.id ?? null;
+  const dial = rankVisibilityOf(profile);
   const [rows, setRows] = useState<Row[] | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || dial === 'private') return;
+    const scopes: PlacementScope[] = dial === 'friends' ? ['friends'] : SCOPE_ORDER;
     let cancelled = false;
     (async () => {
       try {
         const [placements, seen] = await Promise.all([fetchMyPlacements(), getSeenPlacements(userId)]);
         // A board of one is just you — "#1 of 1" isn't a standing, so that row is left out. A
         // scope you're not on (no score yet, unverified uni, no friends) has no row to begin with.
-        const shown = SCOPE_ORDER.flatMap((scope) => {
+        const shown = scopes.flatMap((scope) => {
           const p = placements.find((x) => x.scope === scope);
           return p && p.total > 1 ? [{ scope, current: p.rank, total: p.total, seen: seen[scope] ?? null }] : [];
         });
@@ -57,9 +65,9 @@ export function PlacementMove({ style }: { style?: StyleProp<ViewStyle> }) {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, dial]);
 
-  if (!rows) return null;
+  if (!rows || dial === 'private') return null;
   const anyClimb = rows.some((r) => r.seen !== null && r.current < r.seen);
   const allHeld = rows.every((r) => r.seen !== null && r.current === r.seen);
   const kick = anyClimb ? '🔥 You climbed' : allHeld ? 'Holding your spot' : 'Where you stand';

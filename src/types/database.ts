@@ -212,8 +212,18 @@ export type Profile = {
    * Absent reads as false, which is the pre-0170 behaviour.
    */
   leaderboard_private?: boolean;
+  /**
+   * SEASON RANK VISIBILITY (0217) — the three-way dial that replaced the boolean above, which the
+   * server now keeps equal to `rank_visibility !== 'public'` for older builds. Read it through
+   * rankVisibilityOf() in lib/api/privacy.ts, which falls back to the boolean when this is absent
+   * (a database that predates 0217).
+   */
+  rank_visibility?: RankVisibility;
   created_at: string;
 };
+
+/** Who can see your season rank (0217). Rewards are identical in all three. */
+export type RankVisibility = 'public' | 'friends' | 'private';
 
 /** The five Settings toggles from NOTIFICATIONS_SPEC. Stored in notification_prefs under a
  * `cat_` prefix so they sit alongside 0026's finer-grained legacy keys without colliding. */
@@ -1134,6 +1144,7 @@ export type AnalyticsEventName =
   | 'friend_profile_viewed'
   | 'watch_opt_in_changed'
   | 'leaderboard_private_changed'
+  | 'rank_visibility_changed'
   | 'challenge_watch_opened'
   | 'challenge_watch_cheered'
   | 'challenge_cancelled'
@@ -3191,8 +3202,9 @@ export type Database = {
           friend_id: string;
           display_name: string;
           avatar_url: string | null;
-          tier: RankTierName;
-          division: number;
+          // 0217 · null when that friend's season rank is on Private.
+          tier: RankTierName | null;
+          division: number | null;
           current_streak: number;
           last_lockin_at: string | null;
           shared_circle_id: string | null;
@@ -3312,6 +3324,8 @@ export type Database = {
       set_message_reaction: { Args: { p_message_id: string; p_emoji: string }; Returns: string | null };
       // 0170 · private mode. Writes only the caller's own row.
       set_leaderboard_private: { Args: { p_on: boolean }; Returns: undefined };
+      // 0217 · the three-way dial. Raises 22023 on anything but public | friends | private.
+      set_rank_visibility: { Args: { p_scope: RankVisibility }; Returns: undefined };
       can_see_rank: { Args: { p_viewer: string; p_target: string }; Returns: boolean };
       start_challenge: { Args: { p_challenge: string }; Returns: undefined };
       is_campfire_admin: { Args: { p_group_id: string; p_user_id?: string }; Returns: boolean };
