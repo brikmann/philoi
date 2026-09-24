@@ -2,6 +2,25 @@
 
 For Philoi's Focus Nudge on Android. This is the declaration you submit in Play Console → **App content → Sensitive app permissions / AccessibilityService**, filed **with a release build** that contains the service.
 
+---
+
+## ⚠️ "Focus Nudge is not in the build" on your device — read this first
+
+Focus Nudge **is** in the codebase and in the release build path. The feature is present: the native module (`modules/philoi-focus-nudge/`), the config plugin (`plugins/withFocusNudgeAndroid.js`), the JS bridge, and the setup screen all exist. What you're seeing is a **run-config flag**, not a missing feature.
+
+The gate is `FOCUS_NUDGE_ANDROID_ENABLED` = `Constants.expoConfig.extra.focusNudgeAndroid`, which `app.config.ts` sets from `process.env.FOCUS_NUDGE_ANDROID === '1'`. When that's false, focus-nudge.tsx shows **"Not available in this build."**
+
+- **On a dev-client running from Metro** (`npx expo start --dev-client`), `extra` is read from the Metro-served config **at `expo start` time**, not from the APK. If Metro was started without the env var, the JS gate reads false even though the APK's manifest has the `<service>` baked in. **Fix — start Metro with the flag:**
+  ```powershell
+  $env:FOCUS_NUDGE_ANDROID = "1"; npx expo start --dev-client
+  ```
+  (or `FOCUS_NUDGE_ANDROID=1 npx expo start --dev-client` on macOS/Linux). Reload the app → the Focus Nudge row appears and can be armed.
+- **On a standalone `preview` / `production` build**, `eas.json` sets `FOCUS_NUDGE_ANDROID=1`, so `extra` is baked true and the `<service>` is in the manifest — **this is the build you submit to Play**, and Play's scanner will see the AccessibilityService and require the declaration below. `development` leaves the flag off by design (no `<service>`, nothing for Play to review).
+
+So: nothing to build for Focus Nudge itself — set the env var to see it on your dev client, and use a `preview`/`production` build for the Play submission this doc is written for.
+
+---
+
 🔴 **The review clock starts on upload.** Have the demo video recorded and this form filled *before* the AAB goes up, not after — everything below is ready to paste, so the only thing on the critical path is the recording.
 
 **One thing to get right up front:** Focus Nudge is **not** an assistive tool for people with disabilities, so it does **NOT** qualify for `isAccessibilityTool`. Declare the non-assistive use honestly and lean on the "reads only the foreground package name, nothing leaves the device" framing — that's what carries it.

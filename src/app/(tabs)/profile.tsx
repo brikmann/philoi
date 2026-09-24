@@ -9,6 +9,7 @@ import { ScreenBackground } from '@/components/ui/screen-background';
 
 import { EquippedAvatarHalo, EquippedCardBackdrop, useAuraTier } from '@/components/economy/applied-art';
 import { EquippedTitle, PublicTitle } from '@/components/economy/loadout-bits';
+import { FlareAura, publicBannerStyle } from '@/components/economy/public-identity';
 import { BioEditor } from '@/components/profile/bio-editor';
 import { CollectionEntry } from '@/components/profile/collection-entry';
 import { DisciplineRelicTracker } from '@/components/profile/discipline-relic-tracker';
@@ -17,7 +18,7 @@ import { TrophyHallSection } from '@/components/profile/trophy-hall-section';
 import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { useActiveSession } from '@/lib/active-session-context';
-import { useEquipped } from '@/lib/economy/loadout';
+import { useEquipped, useLoadout } from '@/lib/economy/loadout';
 import { RankBadge } from '@/components/rank-badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { TabHeader } from '@/components/ui/tab-header';
@@ -63,6 +64,15 @@ export default function ProfileScreen() {
   const theirs = !isOwn && userIdParam ? publicLoadouts[userIdParam] : undefined;
   const cardId = isOwn ? myCard?.id : theirs?.card?.id;
   const haloId = isOwn ? myHalo?.id : theirs?.halo?.id;
+
+  // 🐛 TWO EQUIPPED SLOTS NEVER REACHED THIS HERO (device smoke 2026-09-23 — "background cosmetic
+  // didn't land, avatar rings didn't land"). The card and the halo above were wired; the BANNER and
+  // the FLARE were not, on either branch. friend-profile.tsx has drawn both since it shipped — so
+  // the one screen that never showed you your own banner or your own flare was your own profile,
+  // while every visitor to it saw them. Same resolved loadout for both branches, so the two screens
+  // cannot drift apart again.
+  const mine = useLoadout();
+  const heroLoadout = isOwn ? mine : (theirs ?? {});
 
   // The live 30/60/90 ramp, and only for your own card: the aura reports the session you are in
   // right now, and there is no live-session feed for anyone else. A visitor seeing someone's
@@ -157,17 +167,28 @@ export default function ProfileScreen() {
             the halo's real ring around the avatar, not the flat colours these used to be (§2).
             Both fall back to the starter items every account is seeded with at signup, so this is
             never a bare surface even for someone who has never opened the shop. */}
+        {/* The Banner is a MAT around the card rather than a layer under it: the card backdrop
+            paints its own texture edge to edge, so a banner behind it would be equipped and
+            invisible. Nothing renders when the slot is empty — publicBannerStyle returns undefined
+            and `styles.hero` is bare padding — so an account that has never opened the shop sees
+            the card exactly where it has always been. */}
+        <View style={[styles.hero, publicBannerStyle(heroLoadout)]}>
         <EquippedCardBackdrop cardId={cardId} auraTier={auraTier}>
         <View style={styles.id}>
-          <EquippedAvatarHalo haloId={haloId} size={AVATAR_SIZE} auraTier={auraTier}>
-            {profile.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarFallback]}>
-                <Text style={styles.avatarInitial}>{profile.display_name.charAt(0).toUpperCase()}</Text>
-              </View>
-            )}
-          </EquippedAvatarHalo>
+          <View style={styles.avatarStack}>
+            {/* Full motion, not `reduced`: this is one avatar on a screen that doesn't scroll
+                under it, which is the case FlareAura's animated branch exists for. */}
+            <FlareAura loadout={heroLoadout} size={AVATAR_SIZE} motion="full" />
+            <EquippedAvatarHalo haloId={haloId} size={AVATAR_SIZE} auraTier={auraTier}>
+              {profile.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarFallback]}>
+                  <Text style={styles.avatarInitial}>{profile.display_name.charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
+            </EquippedAvatarHalo>
+          </View>
           <View style={styles.idInfo}>
             <Text style={styles.name}>{profile.display_name}</Text>
             <Text style={styles.handle}>@{profile.handle}</Text>
@@ -202,6 +223,7 @@ export default function ProfileScreen() {
           </View>
         </View>
         </EquippedCardBackdrop>
+        </View>
 
         {/* 0170 · Private mode. Only reachable on SOMEONE ELSE's profile — `universalRank` is a
             MyRank from useMyRanks when this is your own, and your own rank is never muted to you
@@ -395,6 +417,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
   },
+  // The Banner's mat. Thin on purpose — the padding is the only place the banner's colour is
+  // visible, since the card fills everything inside it, and with no banner equipped this is an
+  // invisible 4px inset that leaves the card exactly where it has always sat.
+  hero: {
+    padding: 4,
+    borderRadius: Radius.card + 4,
+  },
   // Padded INSIDE the equipped card rather than nudged down by a top margin: the card clips to
   // its own bounds, so a margin only pushed the row off-centre and left the name flush against
   // the border. The gap is 12 rather than 16 because the halo already carries its own ring reach
@@ -404,6 +433,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.twelve,
     padding: Spacing.twelve,
+  },
+  // Centres the flare behind the halo, exactly as CosmeticAvatar stacks the same pair.
+  avatarStack: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   idInfo: {
     flex: 1,

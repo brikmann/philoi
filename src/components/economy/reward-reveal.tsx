@@ -63,8 +63,8 @@ export type RewardLine = {
   /**
    * The thing's own art, drawn in place of the kind glyph (mock 216).
    *
-   * `cosmetic: '◆'` below is the flat generic glyph the 2.5D pass is removing: every cosmetic
-   * in the catalog has a drawing, and a reveal that names one while showing a black diamond is the
+   * `cosmetic: '◆'` below is the flat generic glyph the 2.5D pass is removing: every cosmetic in
+   * the catalog has a drawing, and a reveal that names one while showing a black diamond is the
    * one place the user is being told what they won. Optional, because not every line has an id
    * behind it — an XP or ember line has no object to draw, and those keep their glyph.
    */

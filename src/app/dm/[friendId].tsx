@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,14 +12,17 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
+import { EmberFill } from '@/components/ui/ember-fill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useDmThread } from '@/hooks/use-dm-thread';
+import { usePublicLoadouts, useRefreshPublicLoadoutsOnFocus } from '@/hooks/use-public-loadouts';
 import { track } from '@/lib/analytics';
 import { deleteMyDm, sendDm, type DmThreadMessage } from '@/lib/api/dm';
 import { fetchProfileById } from '@/lib/api/profile';
@@ -47,9 +50,25 @@ function formatRelativeTime(isoDate: string) {
  * resolve. It is also why the `dm_received` push carries `/dm/[friendId]` with the sender's id: a
  * notification that had to carry a thread id would be one more thing to keep in step.
  *
- * The bubbles are chat-panel's, adapted off a groupId and with the sender name dropped — in a room
- * with exactly two people, labelling every bubble with whose it is just says what the alignment
- * already said. Authors carry their avatar instead.
+ * THE BUBBLES ARE THE CAMPFIRE'S (circle-timeline.tsx), not chat-panel's.
+ *
+ * They started as chat-panel's — flat coral for yours, a flat card for theirs, symmetric corners —
+ * and chat-panel is itself no longer on screen anywhere: the campfire chat moved to CircleTimeline
+ * and left it behind. So this screen was the last thing still wearing the pre-Ember look, and next
+ * to a campfire it read as a different app: a bare page with an orange slab on it.
+ *
+ * What it takes from circle-timeline, and why each piece:
+ *   · the ASYMMETRIC tail corner — the squared corner points at whoever's side the bubble came
+ *     from, which is what tells the two sides apart before you read a word of it.
+ *   · the EMBER GRADIENT on your own bubble (EmberFill under an `overflow: hidden` parent, so the
+ *     paint takes the real asymmetric shape) instead of one flat `Colors.coral`.
+ *   · `Colors.ink` on both sides. Legibility is the whole point of the complaint this fixes.
+ *   · the composer: a pill field on a translucent shelf, with the round EmberFill send button.
+ *
+ * The sender NAME still stays off the bubbles — in a room with exactly two people, labelling every
+ * bubble with whose it is only says what the alignment already said. What was missing is the rest
+ * of the identity: incoming bubbles now carry the sender's equipped avatar gear AND their Title,
+ * exactly as a campfire message does, so gear you paid for is worn in a DM too.
  */
 export default function DmThreadScreen() {
   const router = useRouter();
@@ -58,6 +77,10 @@ export default function DmThreadScreen() {
   const myUserId = myProfile?.id;
 
   const thread = useDmThread(friendId);
+  // The shelf runs to the bottom EDGE, with the inset as padding inside it — same as the
+  // campfire composer. `edges` above is top-only on purpose, so this is the one place that knows
+  // about the gesture bar.
+  const insets = useSafeAreaInsets();
   const [friend, setFriend] = useState<Profile | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -142,6 +165,17 @@ export default function DmThreadScreen() {
 
   const name = friend?.display_name ?? '…';
 
+  // Both participants in one call — see the batching note in economy/public-identity.tsx. A thread
+  // has exactly two authors, so resolving them here rather than per bubble means a hundred-message
+  // scroll fires no reads at all. Mine is fetched too so an own bubble can't fall back to
+  // `useResolvedLoadout`'s self-fetch on one row and the batch on the next.
+  const participants = useMemo(() => [friendId, myUserId], [friendId, myUserId]);
+  const loadouts = usePublicLoadouts(participants);
+  // A thread is a surface you leave (to their profile, to the shop) and come back to, so the gear
+  // on it re-reads on focus like the friends list's does.
+  useRefreshPublicLoadoutsOnFocus(participants);
+  const friendLoadout = friendId ? (loadouts[friendId] ?? {}) : {};
+
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -155,12 +189,24 @@ export default function DmThreadScreen() {
           style={styles.who}
           onPress={() => friendId && router.push({ pathname: '/friend-profile', params: { userId: friendId } })}
           accessibilityLabel={`Open ${name}'s profile`}>
-          <CosmeticAvatar userId={friendId} name={name} avatarUrl={friend?.avatar_url} size={32} motion="reduced" />
+          <CosmeticAvatar
+            userId={friendId}
+            name={name}
+            avatarUrl={friend?.avatar_url}
+            loadout={friendLoadout}
+            size={32}
+            motion="reduced"
+          />
           <View style={styles.whoText}>
             <Text style={styles.name} numberOfLines={1}>
               {name}
             </Text>
-            {friend?.handle ? (
+            {/* Their Title sits where the campfire's member/heat line sits — the one line under the
+                name that says who you are looking at. It falls back to the handle when nothing is
+                equipped, rather than leaving the row a name and a gap. */}
+            {friendLoadout.title ? (
+              <PublicTitle loadout={friendLoadout} compact />
+            ) : friend?.handle ? (
               <Text style={styles.handle} numberOfLines={1}>
                 @{friend.handle}
               </Text>
@@ -208,35 +254,63 @@ export default function DmThreadScreen() {
                   // shipped behaviour for an unknown kind has to be "render nothing", decided now.
                   if (item.kind !== 'text') return null;
                   const isOwn = item.sender_id === myUserId;
+                  // The joined author, with the header profile as the fallback: a row fetched
+                  // before `friend` landed still has its own `profiles`, and `friend` still covers
+                  // a row whose embed came back null.
+                  const senderName = item.profiles?.display_name ?? name;
                   return (
-                    <View style={[styles.bubbleRow, isOwn && styles.bubbleRowOwn]}>
+                    <View style={[styles.msgRow, isOwn && styles.msgRowOwn]}>
                       {/* WS1 · the author wears their gear here too. `motion="reduced"` for the
                           same reason the friends list uses it: a thread is a list, and thirty
                           breathing auras scrolling past is noise, not identity. */}
                       {!isOwn && (
-                        <CosmeticAvatar
-                          userId={item.sender_id}
-                          name={name}
-                          avatarUrl={friend?.avatar_url}
-                          size={26}
-                          motion="reduced"
-                        />
+                        <View style={styles.avatar}>
+                          <CosmeticAvatar
+                            userId={item.sender_id}
+                            name={senderName}
+                            avatarUrl={item.profiles?.avatar_url ?? friend?.avatar_url}
+                            loadout={loadouts[item.sender_id] ?? {}}
+                            size={30}
+                            motion="reduced"
+                          />
+                        </View>
                       )}
-                      <Pressable
-                        onLongPress={() => handleMore(item)}
-                        style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
-                        <Text style={styles.bubbleBody}>{item.body}</Text>
-                        <Text style={[styles.time, isOwn && styles.timeOwn]}>
-                          {formatRelativeTime(item.created_at)}
-                        </Text>
-                      </Pressable>
+                      <View style={styles.msgBody}>
+                        {/* The campfire's sender line, minus the name — see the note at the top of
+                            this file. The Title is the part a two-person room does NOT already
+                            say, so it is the part that stays. */}
+                        {!isOwn && loadouts[item.sender_id]?.title ? (
+                          <View style={styles.senderLine}>
+                            <PublicTitle loadout={loadouts[item.sender_id] ?? {}} compact />
+                          </View>
+                        ) : null}
+                        <Pressable
+                          onLongPress={() => handleMore(item)}
+                          style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
+                          {/* Painted UNDERNEATH via absoluteFill rather than as the Pressable's
+                              background, because the bubble's corners are ASYMMETRIC and EmberFill
+                              takes one radius. The parent clips with `overflow: 'hidden'`, so the
+                              gradient takes the bubble's real shape including the 5px tail. */}
+                          {isOwn && (
+                            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                              <EmberFill style={styles.ownFill} radius={0} direction="diagonal" />
+                            </View>
+                          )}
+                          <Text style={styles.bubbleBody}>{item.body}</Text>
+                          <Text style={[styles.time, isOwn && styles.timeOwn]}>
+                            {formatRelativeTime(item.created_at)}
+                          </Text>
+                        </Pressable>
+                      </View>
                     </View>
                   );
                 }}
               />
             )}
 
-            <View style={styles.inputRow}>
+            {/* The campfire composer: a pill field on a translucent shelf, and a send button that
+                is LIT only when there is something to send. */}
+            <View style={[styles.inputRow, { paddingBottom: Spacing.two + insets.bottom }]}>
               <TextInput
                 style={styles.input}
                 placeholder={`Message ${name}…`}
@@ -248,9 +322,17 @@ export default function DmThreadScreen() {
               <Pressable
                 onPress={handleSend}
                 disabled={sending || !draft.trim() || !thread.threadId}
-                style={[styles.send, (sending || !draft.trim() || !thread.threadId) && styles.sendOff]}
+                accessibilityRole="button"
                 accessibilityLabel="Send">
-                <Ionicons name="arrow-up" size={18} color={Colors.ink} />
+                {draft.trim() && thread.threadId && !sending ? (
+                  <EmberFill style={styles.send} radius={20} direction="diagonal">
+                    <Ionicons name="send" size={16} color={Colors.onEmber} style={styles.sendGlyph} />
+                  </EmberFill>
+                ) : (
+                  <View style={[styles.send, styles.sendOff]}>
+                    <Ionicons name="send" size={16} color={Colors.textTertiary} style={styles.sendGlyph} />
+                  </View>
+                )}
               </Pressable>
             </View>
           </>
@@ -333,32 +415,73 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     gap: Spacing.two,
   },
-  bubbleRow: {
+  // ── the bubbles, straight off circle-timeline.tsx ───────────────────────────────────
+  msgRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: Spacing.two,
+    gap: 9,
+    maxWidth: '86%',
   },
-  bubbleRowOwn: {
-    justifyContent: 'flex-end',
+  msgRowOwn: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row-reverse',
+  },
+  avatar: {
+    // No fixed box, no clip: CosmeticAvatar draws its own circle and needs room OUTSIDE it for the
+    // halo ring and the flare, which an overflow:hidden 30x30 wrapper would have cut off.
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Sits at the bottom of a multi-line bubble.
+    alignSelf: 'flex-end',
+  },
+  msgBody: {
+    flexShrink: 1,
+  },
+  senderLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    marginBottom: 2,
   },
   bubble: {
-    maxWidth: '78%',
-    borderRadius: Radius.card,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
     gap: 2,
   },
+  // Asymmetric "tail" corner — the squared corner points toward whoever's side the bubble came
+  // from, which is how you tell the two sides apart at a glance.
   bubbleOther: {
-    backgroundColor: Colors.card,
-    borderWidth: 2,
+    backgroundColor: 'rgba(36,28,56,0.86)',
+    borderWidth: 1,
     borderColor: Colors.line,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: Radius.card,
+    borderBottomLeftRadius: Radius.card,
+    borderBottomRightRadius: Radius.card,
   },
   bubbleOwn: {
+    // The solid coral stays as the UNDER-colour: EmberFill needs one layout pass to measure
+    // before it can paint, and a transparent bubble for that frame would flash.
     backgroundColor: Colors.coral,
+    overflow: 'hidden',
+    // The tail tucks toward the composer, bottom-right — mock 174's `.mine`.
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 5,
+    shadowColor: Colors.coral,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  ownFill: {
+    flex: 1,
   },
   bubbleBody: {
     fontFamily: Fonts.body,
     fontSize: 15,
+    // Both sides. The ember fill is dark enough at the coral end and the cream reads on it; a
+    // tinted body colour is what made this screen look like orange-on-orange.
     color: Colors.ink,
   },
   time: {
@@ -369,27 +492,43 @@ const styles = StyleSheet.create({
   timeOwn: {
     color: 'rgba(255,255,255,0.75)',
   },
+  // ── the composer, likewise ───────────────────────────────────────────────────
+  // A translucent shelf rather than a hairline over an opaque bar, so the page's radial carries on
+  // behind it the way the banner does behind a campfire's.
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: Spacing.two,
-    padding: Spacing.three,
-    borderTopWidth: 1,
-    borderTopColor: Colors.line,
+    paddingHorizontal: 14,
+    paddingTop: Spacing.two,
+    // paddingBottom is applied inline — it carries the safe-area inset.
+    backgroundColor: Colors.scrim,
   },
   input: {
     flex: 1,
     maxHeight: 100,
+    backgroundColor: 'rgba(36,28,56,0.9)',
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    borderRadius: Radius.pill,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    fontSize: 14,
   },
   send: {
-    backgroundColor: Colors.coral,
-    borderRadius: Radius.pill,
     width: 40,
     height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sendOff: {
-    opacity: 0.45,
+    backgroundColor: Colors.disabledSurface,
+    borderWidth: 1,
+    borderColor: Colors.disabledBorder,
+  },
+  sendGlyph: {
+    // Ionicons' paper plane sits visually low-left inside its box; nudge it back to centre.
+    marginLeft: 2,
   },
 });

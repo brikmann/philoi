@@ -139,3 +139,46 @@ export async function getSleepHoursBetween(startDate: Date, endDate: Date): Prom
   if (!match) return 0;
   return Number(match[1] ?? 0) + Number(match[2] ?? 0) / 60 + Number(match[3] ?? 0) / 3600;
 }
+
+/**
+ * Whether the OS currently grants Philoi read access to a record type — the TRUE state, asked of
+ * Health Connect itself rather than of Philoi's own record of having asked once.
+ *
+ * 🐛 THIS IS WHAT "RECONNECT DOES NOTHING" WAS MISSING. Philoi stored one local boolean
+ * ('philoi_fitness_connected', use-fitness-connection.ts) meaning "we ran the connect flow on this
+ * device", and every auto-track decision read THAT instead of the grant. The two drift constantly
+ * and in both directions:
+ *
+ *   · the user revokes steps in Health Connect's own settings → the flag still says connected, so
+ *     the app keeps claiming "⚡ Auto" over a goal nothing is filling;
+ *   · the grant is live but the flag is missing — a reinstall, a restore to a new device, cleared
+ *     app storage, or simply a second component that never re-read it — so the app demands a
+ *     "reconnect" for permission it already has, and the sync gate in use-my-challenges stays shut.
+ *
+ * Unlike HealthKit, Health Connect reports read grants honestly (see requestStepsAuthorization),
+ * so on Android there is no reason to guess. Returns false rather than throwing when Health
+ * Connect is missing or stale — a caller asking "is this on?" wants an answer, not an error.
+ */
+async function hasReadPermission(recordType: string): Promise<boolean> {
+  if (!isHealthConnectSupported()) return false;
+  try {
+    if ((await getHealthConnectAvailability()) !== 'available') return false;
+    const hc = healthConnect();
+    await ensureInitialized();
+    const granted = await hc.getGrantedPermissions();
+    return granted.some(
+      (p) => (p as { recordType?: string }).recordType === recordType && (p as { accessType?: string }).accessType === 'read'
+    );
+  } catch {
+    // Best-effort, like every other read in this file (§18 — a sync must never gate participation).
+    return false;
+  }
+}
+
+export function hasStepsPermission(): Promise<boolean> {
+  return hasReadPermission(STEPS);
+}
+
+export function hasSleepPermission(): Promise<boolean> {
+  return hasReadPermission(SLEEP_SESSION);
+}

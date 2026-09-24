@@ -11,10 +11,14 @@ import { LockinGoalPicker } from '@/components/lockin-goal-picker';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFriends } from '@/hooks/use-friends';
-import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
+import {
+  usePublicLoadouts,
+  useRefreshPublicLoadoutsOnFocus,
+  type PublicLoadout,
+} from '@/hooks/use-public-loadouts';
 import { useMyActiveLockIns } from '@/hooks/use-my-active-lockins';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
-import { friendStatusLine, nudgeToLockIn, type Friend, type NudgeKind } from '@/lib/api/friends';
+import { friendStatusLine, nudgeToLockIn, type Friend } from '@/lib/api/friends';
 import { getErrorMessage } from '@/lib/errors';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
 import type { PingResult } from '@/types/database';
@@ -56,13 +60,17 @@ export default function PeopleScreen() {
   const rest = filtered.filter((f) => !goalByUser.has(f.friend_id));
 
   // One call for the whole list — see the batching note in economy/public-identity.tsx.
-  const loadouts = usePublicLoadouts(filtered.map((f) => f.friend_id));
+  const friendIds = filtered.map((f) => f.friend_id);
+  const loadouts = usePublicLoadouts(friendIds);
+  // Re-read on focus: this list is where you look to see what your friends are wearing, and it
+  // outlives every equip they make while you have the app open.
+  useRefreshPublicLoadoutsOnFocus(friendIds);
 
   function statusLine(f: Friend): string {
     return friendStatusLine(f, goalByUser.get(f.friend_id) ?? null);
   }
 
-  async function handleNudge(f: Friend, kind: NudgeKind = 'nudge') {
+  async function handleNudge(f: Friend) {
     // Optimistic ✓ confirmation (design-mocks/21's quickPing) — reverts after a moment.
     setNudged((prev) => new Set(prev).add(f.friend_id));
     clearTimeout(nudgeTimers.current[f.friend_id]);
@@ -77,7 +85,7 @@ export default function PeopleScreen() {
       // 0207 · the RPC reports what it actually did. The ✓ above is still optimistic, because the
       // row has one glyph and no room to explain — but the SHEET has room, so it shows the truth
       // rather than a tick that means nothing.
-      setLastPing(await nudgeToLockIn(f.friend_id, kind));
+      setLastPing(await nudgeToLockIn(f.friend_id));
     } catch (e) {
       setLastPing(null);
       Alert.alert('Could not nudge', getErrorMessage(e, 'Try again in a moment.'));
@@ -237,7 +245,6 @@ export default function PeopleScreen() {
         lockedIn={sheetLockedIn}
         goalLabel={sheetFriend ? (goalByUser.get(sheetFriend.friend_id) ?? null) : null}
         onPrimary={handleSheetPrimary}
-        onSendFire={() => sheetFriend && handleNudge(sheetFriend, 'fire')}
         lastPing={lastPing}
         activeH2H={Boolean(sheetActiveH2H)}
         onChallengeH2H={() => sheetFriend && handleChallenge(sheetFriend, 'h2h')}

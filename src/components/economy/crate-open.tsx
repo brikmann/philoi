@@ -111,6 +111,24 @@ type Props = {
   /** The whole sequence is finished. */
   onDone: () => void;
   /**
+   * The burst is this component's LAST frame. The caller swaps to its own reveal there and owns
+   * everything after it, so `onDone` must NEVER fire and the rarity sting is not ours to play.
+   *
+   * 🔴 THIS IS A CORRECTNESS FLAG, NOT A TUNING ONE. Without it, a batch open was relying on a
+   * RACE: `burst` fires at buildup+LID_MS and `onDone` at buildup+HANDOFF_MS, which is a 140ms
+   * window for the caller's setState to re-render, unmount this crate and have the cleanup below
+   * cancel the core flare. Mounting ten flip shards with their art does not fit in 140ms on a
+   * mid-range Android, so `onDone` landed anyway and advanced the caller a second screen — the
+   * "×10 shows the cards then snaps back, you can't flip them" report, worst on the Promethean
+   * Vault because 56 particles and a 1600ms buildup make it the heaviest render of the six.
+   *
+   * The sting moves with the finish for the same reason it belongs to whoever owns the reveal: on
+   * a batch the loudest pull has not been SEEN yet at the burst, so playing its cue there both
+   * telegraphs the haul (the #84 rule this file is built on) and leaves a 5s Mythic tail lying
+   * under the first flips.
+   */
+  handsOff?: boolean;
+  /**
    * Wait for a tap instead of opening on mount.
    *
    * Off by default because most entry points arrive already committed — you pressed Open on the
@@ -128,6 +146,7 @@ export function CrateOpen({
   reduceMotion,
   onBurst,
   onDone,
+  handsOff = false,
   tapToOpen = false,
   label,
   size = 150,
@@ -154,17 +173,35 @@ export function CrateOpen({
   // sting is the loudest thing in the app to double up.
   const startedRef = useRef(false);
   const stungRef = useRef(false);
+  const doneRef = useRef(false);
+
+  /**
+   * The one way the sequence can report a finish. Fire-once, and closed permanently by a hand-off
+   * before the caller's re-render has even been scheduled — so the 140ms window described on
+   * `handsOff` stops mattering: whether or not the unmount wins, there is nothing left to fire.
+   */
+  const finish = useCallback(() => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onDone();
+  }, [onDone]);
 
   const burst = useCallback(() => {
     // 🔴 THE STING LANDS ON THE LID-OFF FRAME, not at the start and not at the end. It is the
     // rarity ladder (#85) — reveal-common through reveal-mythic — so a Mythic sounds like one, and
     // fireReveal carries the per-tier haptic with it. Respects the reward-SFX setting internally.
-    if (!stungRef.current) {
+    //
+    // ...on a ×1, where the lid-off frame IS the frame the item appears on. A hand-off has no item
+    // on screen yet, so the cue belongs to the caller's own reveal — see `handsOff`.
+    if (!handsOff && !stungRef.current) {
       stungRef.current = true;
       fireReveal(itemRarity);
     }
+    // Closed BEFORE onBurst, not after: onBurst is what triggers the caller's setState, and the
+    // flag has to already be down by the time anything downstream can run.
+    if (handsOff) doneRef.current = true;
     onBurst?.();
-  }, [itemRarity, onBurst]);
+  }, [handsOff, itemRarity, onBurst]);
 
   useEffect(() => {
     if (startedRef.current || tapToOpen) return;
@@ -183,7 +220,7 @@ export function CrateOpen({
       rays.value = withTiming(1, { duration: REDUCED_MS }, (finished) => {
         if (finished) {
           runOnJS(burst)();
-          runOnJS(onDone)();
+          runOnJS(finish)();
         }
       });
       return;
@@ -229,7 +266,7 @@ export function CrateOpen({
     core.value = withDelay(
       buildupMs,
       withTiming(1, { duration: HANDOFF_MS, easing: Easing.out(Easing.quad) }, (finished) => {
-        if (finished) runOnJS(onDone)();
+        if (finished) runOnJS(finish)();
       })
     );
     body.value = withDelay(buildupMs + 120, withTiming(0, { duration: BODY_FADE_MS, easing: Easing.out(Easing.quad) }));

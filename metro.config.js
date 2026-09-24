@@ -1,3 +1,4 @@
+const path = require('path');
 const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
 // getSentryExpoConfig wraps Expo's default Metro config (expo/metro-config) and additionally
@@ -38,10 +39,56 @@ const config = getSentryExpoConfig(__dirname);
 //
 // Nothing under either path is ever imported by the app — sibling checkouts, tooling state and a
 // package cache for a different runtime — so excluding them changes no resolution the bundle depends on.
+//
+// `.deno-cache` turned out to be one instance, not the bug. The next crash was the identical ENOENT on
+// `marketing\launch-video\node_modules\.ansi-styles-11NYDr31` — npm's rename-into-place temp dir,
+// from an `npm install` in a separate project that happens to live inside this root. The fault is
+// FallbackWatcher dying on ANY path that vanishes mid-crawl, so every independent npm project nested
+// here is a way to kill the dev server. There are two: `admin/` (a Next.js app with its own full
+// dependency tree) and `marketing/launch-video/`. Neither is imported by anything under src/, and
+// eslint.config.js already ignores `marketing/**` for the same reason.
+//
+// These two are ANCHORED to this project root, unlike the dot-dirs above. A bare /[\\/]admin[\\/]/
+// would also swallow any future `src/app/admin/` route or a package's internal `admin/` folder, and
+// Metro would report it as a missing module rather than as a block. Dot-prefixed names carry no such
+// risk, which is why those two stay unanchored.
+const escapeForRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// The drive letter is matched either case (`[cC]:`) because the same root shows up as both `c:\`
+// and `C:\` depending on how the process was launched. This must be done INSIDE the pattern, not
+// with an `i` flag: Expo composes every blockList entry into one RegExp and throws at startup —
+// "Cannot combine blockList patterns, because they have different flags" — if any entry's flags
+// differ from Metro's defaults. That took the server down once; composeMetroIgnorePatterns is the
+// thing to test against, not each pattern in isolation.
+const underRoot = (dir) => {
+  const escaped = escapeForRegExp(path.join(__dirname, dir));
+  const anyCaseDrive = escaped.replace(/^([A-Za-z]):/, (_, d) => `[${d.toLowerCase()}${d.toUpperCase()}]:`);
+  return new RegExp(`^${anyCaseDrive}[\\\\/]`);
+};
+
 config.resolver.blockList = [
   ...config.resolver.blockList,
   /[\\/]\.claude[\\/]/,
   /[\\/]\.deno-cache[\\/]/,
+  underRoot('admin'),
+  underRoot('marketing'),
 ];
+
+// USE WATCHMAN. Everything above treats symptoms of one choice this config never made explicitly.
+//
+// `resolver.useWatchman` comes through as null, and Expo's file map reads that as false
+// (createFileMap-fork: `config.resolver.useWatchman ?? false`). Its watcher order is
+// Watchman > NativeWatcher > FallbackWatcher, and NativeWatcher is macOS-only
+// (`platform() === 'darwin'`), so on Windows a null here means FallbackWatcher, always. That
+// watcher has now failed this project both ways it can:
+//   - it throws an uncaught ENOENT when any file vanishes mid-crawl (the three crashes above);
+//   - it walks the tree attaching an fs.watch per directory, and on this repo that no longer fits
+//     inside the 240s MAX_WAIT_TIME — "Failed to start watch mode." — so the server can't start.
+//
+// Watchman (installed via winget) walks and watches natively, and tolerates files disappearing
+// under it. It advertises all four capabilities the file map requires — field-content.sha1hex,
+// relative_root, suffix-set, wildmatch — plus watcher-win32. And this is fail-safe: the file map
+// runs that capability check at startup and falls back to FallbackWatcher if watchman is missing
+// or broken, so on a machine without watchman this line changes nothing.
+config.resolver.useWatchman = true;
 
 module.exports = config;

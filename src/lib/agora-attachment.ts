@@ -1,7 +1,7 @@
 import type { Ionicons } from '@expo/vector-icons';
 
 import { Colors } from '@/constants/theme';
-import { getItem } from '@/lib/economy/catalog';
+import { getItem, type CatalogItem } from '@/lib/economy/catalog';
 import { SEASON, levelFromXp } from '@/lib/economy/forge-pass';
 import { RARITY_COLOR, RARITY_LABEL, type Rarity } from '@/lib/economy/rarity';
 import { formatDistanceKm, formatSessionDuration, pluralize } from '@/lib/format';
@@ -36,6 +36,18 @@ export type AgoraAttachmentView = {
   eyebrow: string | null;
   eyebrowColor: string;
   icon: keyof typeof Ionicons.glyphMap;
+  /**
+   * The catalog entry this attachment IS, when it is one — non-null only for a `cosmetic`, and
+   * only while the key still resolves.
+   *
+   * A collectible has a DRAWING (item-art.tsx, mock 216): the gradient body, the rarity glow and
+   * the ground shadow the shop, the inventory and every reveal already render it with. The Agora
+   * was showing a generic `diamond-outline` for all ~60 of them, so the one surface whose entire
+   * job is showing off what you own was the one surface that didn't show it. Renderers draw this
+   * when it is here and fall back to `icon` when it is not, which is what keeps a retired or
+   * renamed key rendering as a row rather than as a hole.
+   */
+  art: CatalogItem | null;
   /** The tile behind the icon. Tuned per kind so a Mythic relic doesn't look like a lock-in. */
   tint: string;
   /** Where tapping the card should land (spec: "Feed item routes to the underlying thing"). */
@@ -142,6 +154,7 @@ export function attachmentView(
         eyebrow: label.toUpperCase(),
         eyebrowColor: Colors.ember,
         icon: 'school-outline',
+        art: null,
         tint: Colors.plum,
         route: snap.milestone_id
           ? { pathname: '/milestone/[id]', params: { id: snap.milestone_id } }
@@ -168,6 +181,7 @@ export function attachmentView(
         eyebrow: 'LOCK-IN',
         eyebrowColor: Colors.amber,
         icon: GOAL_TYPE_ICON[goal] ?? 'lock-closed-outline',
+        art: null,
         tint: Colors.cardDark,
         route: snap.check_in_id
           ? { pathname: '/activity/[checkInId]', params: { checkInId: snap.check_in_id } }
@@ -185,6 +199,7 @@ export function attachmentView(
         eyebrow: 'STANDING',
         eyebrowColor: metal?.text ?? Colors.muted,
         icon: 'trophy-outline',
+        art: null,
         tint: metal?.outer ?? Colors.plum,
         route: { pathname: '/(tabs)/leaderboards' },
         lift: null,
@@ -200,6 +215,7 @@ export function attachmentView(
         eyebrow: 'STANDING',
         eyebrowColor: Colors.amber,
         icon: 'flame-outline',
+        art: null,
         tint: Colors.achieverBg,
         route: null,
         lift: null,
@@ -215,6 +231,7 @@ export function attachmentView(
         eyebrow: 'STANDING',
         eyebrowColor: Colors.ember,
         icon: 'shield-checkmark-outline',
+        art: null,
         tint: Colors.plum,
         route: { pathname: '/forge-pass' },
         lift: null,
@@ -232,6 +249,7 @@ export function attachmentView(
         eyebrow: `${RARITY_LABEL[rarity] ?? rarity} ${item?.type ?? 'item'}`.toUpperCase(),
         eyebrowColor: RARITY_COLOR[rarity] ?? Colors.muted,
         icon: 'diamond-outline',
+        art: item ?? null,
         tint: item?.art.from ?? Colors.plum,
         route: snap.cosmetic_key
           ? { pathname: '/inventory/[itemId]', params: { itemId: snap.cosmetic_key } }
@@ -249,6 +267,7 @@ export function attachmentView(
         eyebrow: 'PERSONAL BEST',
         eyebrowColor: Colors.green,
         icon: 'barbell-outline',
+        art: null,
         tint: Colors.cardDark,
         route: null,
         lift: null,

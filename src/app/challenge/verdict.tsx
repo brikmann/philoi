@@ -12,6 +12,7 @@ import { isRealUpgrade, upgradeLabel, useVouchedReward } from '@/components/vouc
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { createChallenge, previewScopedReward, setGoalScope } from '@/lib/api/challenges';
+import { syncChallengeFromDevice } from '@/lib/api/fitness-challenge-sync';
 import {
   createGroupChallenge,
   createPlacementChallenge,
@@ -255,6 +256,15 @@ export default function VerdictScreen() {
       // unscoped goal pays what it would have before scoping existed, which is a smaller reward,
       // never a wrong one. Losing the goal over a tier that did not stick is the worse trade.
       if (created?.id) await setGoalScope(created.id, tier).catch(() => {});
+      // Third — the same first sync create.tsx does, for the same reason (0199): an auto-tracked
+      // goal counts from the moment it was set, so it should start at its true zero now rather
+      // than at whatever the next Challenges-tab focus happens to find. Without this a steps goal
+      // built through Cindy sat at 0/10,000 until the user went and opened that one tab.
+      //
+      // Fire-and-forget, and deliberately NOT awaited: this screen replaces itself on the next
+      // line, and routeChallengeSync no-ops for every type with no device source. A goal created
+      // inside the creation quiet window never throws a reveal over the screen being dismissed.
+      if (created) syncChallengeFromDevice(created).catch(() => {});
       router.replace('/(tabs)/challenges');
     } catch (e) {
       Alert.alert('That did not go through', getErrorMessage(e, 'Try again in a moment.'));

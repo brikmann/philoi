@@ -40,9 +40,25 @@ export function usePassMotion(): boolean {
  * Deterministic spread (golden-ratio offsets) rather than Math.random, so a re-render can't
  * reshuffle the field mid-scroll.
  */
-export function RisingEmbers({ count = 12, style }: { count?: number; style?: ViewStyle }) {
+export function RisingEmbers({
+  count = 12,
+  rise,
+  style,
+}: {
+  count?: number;
+  /**
+   * How far an ember travels before it has fully faded, in points. Defaults to the whole window,
+   * which is right for a full-screen ambient layer and WRONG inside a card: the fade curve is
+   * spread over the window's height, so every ember is still at ~60% opacity when the card's
+   * `overflow: 'hidden'` cuts it off, and the field reads as half-drawn rather than as embers
+   * rising out of a fire. A card passes its own height here.
+   */
+  rise?: number;
+  style?: ViewStyle;
+}) {
   const run = usePassMotion();
   const { height } = useWindowDimensions();
+  const travel = rise ?? height + 40;
   if (!run) return null;
   return (
     <View style={[StyleSheet.absoluteFill, style]} pointerEvents="none">
@@ -56,7 +72,7 @@ export function RisingEmbers({ count = 12, style }: { count?: number; style?: Vi
             drift={(g - 0.5) * 28}
             duration={5400 + g * 2600}
             delay={Math.round(((i * 0.37) % 1) * 5200)}
-            rise={height + 40}
+            rise={travel}
             size={3 + (i % 3)}
           />
         );
@@ -94,14 +110,25 @@ function RisingEmber({
     ],
   }));
 
+  // 🐛 THE EMBERS HAD NO GLOW ON ANDROID. The dot carried its halo as `shadowColor`/`shadowRadius`,
+  // which are iOS-only — Android draws shadows from `elevation`, and elevation on a 3pt circle is a
+  // grey drop shadow, not firelight. So on the device this app is actually tested on (Android), a
+  // "field of rising embers" was 14 flat 3-to-5-pixel dots, which is what a half-rendered layer
+  // looks like.
+  //
+  // Two concentric translucent rings approximate the falloff on BOTH platforms, and the iOS shadow
+  // stays on the core so it keeps the softer edge it already had. Three views per ember is cheap
+  // next to an SVG radial each.
+  const halo = size * 3.2;
+  const mid = size * 1.9;
+
   return (
     <Animated.View
-      style={[
-        styles.ember,
-        { left: left as `${number}%`, width: size, height: size, borderRadius: size / 2 },
-        style,
-      ]}
-    />
+      style={[styles.ember, { left: left as `${number}%`, width: halo, height: halo, marginLeft: -halo / 2, bottom: -halo / 2 }, style]}>
+      <View style={[styles.emberHalo, { width: halo, height: halo, borderRadius: halo / 2 }]} />
+      <View style={[styles.emberHaloMid, { width: mid, height: mid, borderRadius: mid / 2 }]} />
+      <View style={[styles.emberCore, { width: size, height: size, borderRadius: size / 2 }]} />
+    </Animated.View>
   );
 }
 
@@ -249,7 +276,20 @@ export function useBreath(period: number, rest = 0.5) {
 const styles = StyleSheet.create({
   ember: {
     position: 'absolute',
-    bottom: -8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emberHalo: {
+    position: 'absolute',
+    backgroundColor: Colors.amber,
+    opacity: 0.12,
+  },
+  emberHaloMid: {
+    position: 'absolute',
+    backgroundColor: Colors.amber,
+    opacity: 0.24,
+  },
+  emberCore: {
     backgroundColor: '#FFB03C',
     shadowColor: Colors.amber,
     shadowOffset: { width: 0, height: 0 },

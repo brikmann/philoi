@@ -71,7 +71,10 @@ export function LoadoutSync() {
     let cancelled = false;
     fetchInventory()
       .then((inv) => {
-        if (!cancelled) setLoadoutFromInventory(inv.loadout);
+        // The owned rows travel with the slot map so the store can carry each item's placement
+        // rarity and season stamp — that is what lets your own entry stand in for a public loadout
+        // on every list without dropping "🌍 GLOBAL #1 · S1" off your title.
+        if (!cancelled) setLoadoutFromInventory(inv.loadout, inv.cosmetics);
       })
       // Cosmetics are decoration. A failed read must leave the base look in place, never surface an
       // error or block a screen.

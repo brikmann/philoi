@@ -2,12 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BoxArt } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { EmberPill, SectionLabel, formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { SeasonPlacementShareCard, SeasonRewardsShareCard } from '@/components/economy/season-standing-share-card';
+import { EmberGround } from '@/components/pass/ember-ground';
+import { RisingEmbers } from '@/components/pass/pass-motion';
+import { EmberText } from '@/components/ui/ember-text';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
@@ -95,6 +99,9 @@ const rowHeight = (level: PassLevel) => (level.milestone ? MILESTONE_ROW_H : ROW
 
 export default function ForgePassScreen() {
   const router = useRouter();
+  // `edges={[]}` below makes this screen full-bleed so EmberGround reaches the status bar, which
+  // hands this screen the job of insetting its own chrome — see the note on Screen's `edges`.
+  const insets = useSafeAreaInsets();
   const { profile } = useAuth();
   const { embers, pass, refetch } = useInventory();
   const [tab, setTab] = useState<'track' | 'xp'>('track');
@@ -271,15 +278,23 @@ export default function ForgePassScreen() {
   }
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={[]}>
+      {/* The season's own ground, replacing the app-wide purple radial. Everything warm on this
+          screen — the wordmark, the level, the molten seam, the premium lane — was sitting on a
+          cold background, which is most of why the Pass read as cheap (mock 214). */}
+      <EmberGround />
+      {/* Behind the content and OUTSIDE the track's FlatList, so the field keeps rising past the
+          levels as they scroll rather than scrolling with them. */}
+      <RisingEmbers count={10} />
+
       {/* ── Header: identity, level, molten XP bar, countdown ── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.two }]}>
         <View style={styles.top}>
           <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
             <Ionicons name="chevron-back" size={22} color={Colors.ink} />
           </Pressable>
           <View style={styles.titleWrap}>
-            <Text style={styles.wordmark}>FLAME PASS</Text>
+            <EmberText style={styles.wordmark}>FLAME PASS</EmberText>
             <Text style={styles.season}>
               Season {SEASON.id.replace('S', '')} · {SEASON.name} — <Text style={styles.seasonHot}>{countdownLabel(phase)}</Text>
             </Text>
@@ -416,12 +431,16 @@ export default function ForgePassScreen() {
               ownsPremium ? null : <LevelZeroRow onPress={onUpgrade} />
             }
             ListFooterComponent={<Text style={styles.rule}>{PASS_FINE_PRINT}</Text>}
+            contentContainerStyle={{ paddingBottom: insets.bottom }}
             showsVerticalScrollIndicator={false}
           />
 
           {/* One Claim CTA for the whole screen (spec §5), not a button per tile. */}
           {pending.length > 0 ? (
-            <Pressable style={[styles.claim, busy && styles.claimBusy]} disabled={busy} onPress={() => (pending.length === 1 ? claim(pending[0]) : claimAll())}>
+            <Pressable
+              style={[styles.claim, { marginBottom: insets.bottom + Spacing.two }, busy && styles.claimBusy]}
+              disabled={busy}
+              onPress={() => (pending.length === 1 ? claim(pending[0]) : claimAll())}>
               <Text style={styles.claimText}>
                 {pending.length === 1 ? `Claim Level ${pending[0].level.level} reward` : `Claim all (${pending.length})`}
               </Text>
@@ -429,7 +448,9 @@ export default function ForgePassScreen() {
           ) : null}
         </>
       ) : (
-        <ScrollView contentContainerStyle={styles.xpContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.xpContent, { paddingBottom: insets.bottom + Spacing.six }]}
+          showsVerticalScrollIndicator={false}>
           <AchievementList earned={pass?.achievements ?? []} />
           <Text style={styles.rule}>
             Pass XP comes from achievements, never from rank XP — ranks stay their own long climb. Daily achievements are
@@ -764,6 +785,31 @@ function AchievementList({ earned }: { earned: { key: string; period_key: string
   );
 }
 
+// ── The screen's own surfaces ──
+//
+// Every panel on this screen used to be one of the app's twilight-purple tokens — Colors.cardDark
+// (#20182F) for the tiles, tabs and sheet, `#241c38` for the XP track and the cold half of the
+// seam. On the purple ground that was coherent. On the ember ground it is not: a lavender tile
+// floating on firelight is the single loudest "this was themed by accident" tell, and it is what
+// the level rows, the tab bar and the reward sheet all looked like.
+//
+// Warm equivalents at the same VALUES, so contrast ratios and the read of the states (cold rail vs
+// lit rail, unclaimed vs claimed) are unchanged — only the hue moves.
+//
+// The Mythic violet is deliberately NOT swapped. nodeMilestone and the Level 0 row are the only
+// non-ember colour on the rail by design, which is what makes the four milestones readable as
+// landmarks from a fast scroll; making them warm too would flatten the whole track to one hue.
+const PANEL = '#1A130C'; // tiles, tabs, the reward sheet — was Colors.cardDark
+const PANEL_DEEP = '#191309'; // a claimed node, a step down from PANEL
+const TRACK_COLD = '#2A1C10'; // the unfilled XP bar and the cold seam above your level
+const NODE_BG = '#1E1710';
+const WARM_LINE = '#3A2A18'; // the hairline on a warm panel
+// The secondary/tertiary text colour on this screen. Colors.textTertiary is #7C7194 — a lavender
+// grey tuned for the purple ground, and on firelight it reads as the one cold thing left in the
+// frame. This is mock 214's `--dim`, and it is also a contrast WIN: ~5.6:1 on the ember ground
+// against ~4.0:1 for the lavender it replaces.
+const MUTED = '#9A8F82';
+
 const SEAM_W = 4;
 const NODE = 44;
 const NODE_MILESTONE = 54;
@@ -784,18 +830,17 @@ const styles = StyleSheet.create({
   titleWrap: {
     flex: 1,
   },
-  // The molten wordmark. RN can't gradient-fill text without a mask, and a mask for two words is
-  // more machinery than it earns — the ember colour carries the same identity at this size.
+  // The molten wordmark — now actually molten. <EmberText> paints the full ramp over these
+  // metrics, so no `color` here: it would only ever be the pre-layout flat frame.
   wordmark: {
     fontFamily: Fonts.bodyBold,
     fontSize: 20,
     letterSpacing: 0.6,
-    color: '#FFD27A',
   },
   season: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: MUTED,
     marginTop: 2,
   },
   seasonHot: {
@@ -821,13 +866,13 @@ const styles = StyleSheet.create({
   xpCount: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: MUTED,
     marginBottom: 3,
   },
   xpTrack: {
     height: 9,
     borderRadius: Radius.pill,
-    backgroundColor: '#241c38',
+    backgroundColor: TRACK_COLD,
     marginTop: Spacing.one,
     overflow: 'hidden',
   },
@@ -883,15 +928,15 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 14,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: PANEL,
   },
   tabOn: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: '#3A2818',
   },
   tabText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: MUTED,
   },
   tabTextOn: {
     color: Colors.ink,
@@ -907,7 +952,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 9.5,
     letterSpacing: 0.7,
-    color: Colors.textTertiary,
+    color: MUTED,
   },
   laneLabelPremium: {
     color: '#FFD27A',
@@ -934,7 +979,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: SEAM_W,
     marginLeft: -SEAM_W / 2,
-    backgroundColor: '#241c38',
+    backgroundColor: TRACK_COLD,
   },
   seamLit: {
     backgroundColor: Colors.ember,
@@ -945,12 +990,12 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#241c38',
+    backgroundColor: NODE_BG,
     borderWidth: 1,
-    borderColor: '#33294a',
+    borderColor: WARM_LINE,
   },
   nodeDone: {
-    backgroundColor: '#20182f',
+    backgroundColor: PANEL_DEEP,
   },
   nodeCurrent: {
     backgroundColor: Colors.ember,
@@ -968,7 +1013,7 @@ const styles = StyleSheet.create({
   nodeText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.textTertiary,
+    color: MUTED,
   },
   nodeTextCurrent: {
     color: '#2a0f06',
@@ -980,7 +1025,7 @@ const styles = StyleSheet.create({
   tile: {
     flex: 1,
     minHeight: 56,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: PANEL,
     borderWidth: 1,
     borderColor: Colors.line,
     borderRadius: 13,
@@ -989,9 +1034,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  // Free vs premium used to be told apart by HUE — a purple tile beside a warm one. With the whole
+  // screen warm, that difference vanished (#1A130C vs #1C1710 is nothing), so the lane is told
+  // apart by VALUE instead: the paid tile is the lit one.
   tilePremium: {
     borderColor: '#4a3a1e',
-    backgroundColor: '#1c1710',
+    backgroundColor: '#2A1C10',
   },
   tileDim: {
     opacity: 0.48,
@@ -1015,7 +1063,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 8.5,
     letterSpacing: 0.4,
-    color: Colors.textTertiary,
+    color: MUTED,
     marginTop: 2,
   },
   tileCheck: {
@@ -1058,13 +1106,13 @@ const styles = StyleSheet.create({
   zeroName: {
     fontFamily: Fonts.body,
     fontSize: 9,
-    color: Colors.textTertiary,
+    color: MUTED,
     textAlign: 'center',
   },
   restore: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: MUTED,
     textAlign: 'center',
     paddingVertical: Spacing.one,
     marginTop: 6,
@@ -1093,7 +1141,7 @@ const styles = StyleSheet.create({
   standingOf: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: MUTED,
   },
   standingSub: {
     fontFamily: Fonts.body,
@@ -1150,7 +1198,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: Colors.cardDark,
+    backgroundColor: PANEL,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     padding: Spacing.three,
@@ -1178,7 +1226,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 14,
-    backgroundColor: Colors.forgeBg,
+    backgroundColor: NODE_BG,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1194,14 +1242,14 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 9.5,
     letterSpacing: 0.5,
-    color: Colors.textTertiary,
+    color: MUTED,
     marginTop: 2,
   },
   sheetLore: {
     fontFamily: Fonts.body,
     fontSize: 11,
     lineHeight: 16,
-    color: Colors.textTertiary,
+    color: MUTED,
     marginTop: 5,
   },
   sheetCta: {
@@ -1217,12 +1265,12 @@ const styles = StyleSheet.create({
     color: '#2a0f06',
   },
   sheetCtaOff: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: TRACK_COLD,
   },
   sheetCtaOffText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.textTertiary,
+    color: MUTED,
   },
   // ── Pass XP tab ──
   xpContent: {
@@ -1233,7 +1281,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 17,
-    color: Colors.textTertiary,
+    color: MUTED,
     marginBottom: Spacing.two,
   },
   introBold: {
@@ -1280,7 +1328,7 @@ const styles = StyleSheet.create({
   achProgress: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.textTertiary,
+    color: MUTED,
     marginTop: 2,
   },
   achXp: {
@@ -1292,7 +1340,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 10,
     lineHeight: 15,
-    color: Colors.textTertiary,
+    color: MUTED,
     textAlign: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,

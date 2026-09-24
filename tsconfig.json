@@ -20,6 +20,7 @@
   "exclude": [
     "node_modules",
     "admin",
+    "marketing",
     "supabase/functions"
   ]
 }

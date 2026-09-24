@@ -5,7 +5,11 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 
 import { BurntOutCampfire } from '@/components/empty-states/burnt-out-campfire';
 import { LeaderboardGap, LeaderboardPersonRow } from '@/components/leaderboard-person-row';
-import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
+import {
+  usePublicLoadouts,
+  useRefreshPublicLoadoutsOnFocus,
+  type PublicLoadout,
+} from '@/hooks/use-public-loadouts';
 import { ParthenonPodium, type PodiumItem } from '@/components/parthenon-podium';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
@@ -213,9 +217,15 @@ export default function LeaderboardsScreen() {
   // Only the scope actually on screen — all four boards are computed every render, but fetching
   // gear for the three nobody is looking at would triple the request for nothing. The module cache
   // behind the hook means switching scopes re-uses whatever already resolved.
-  const boardLoadouts = usePublicLoadouts(
-    boardUserIds(scope === 'camp' ? campBoard : scope === 'uni' ? uniBoard : scope === 'global' ? globalBoard : null)
+  const visibleUserIds = boardUserIds(
+    scope === 'camp' ? campBoard : scope === 'uni' ? uniBoard : scope === 'global' ? globalBoard : null
   );
+  const boardLoadouts = usePublicLoadouts(visibleUserIds);
+  // Somebody else's equip has to be able to reach this board. The cache behind the hook holds a
+  // row for the life of the process, so without this you'd see whatever they were wearing the
+  // first time they scrolled past — for the rest of the session. Your OWN row needs nothing here:
+  // usePublicLoadouts substitutes the live store for it.
+  useRefreshPublicLoadoutsOnFocus(visibleUserIds);
 
   const sortedTotals = totals
     .map((t) => ({ ...t, perCapita: t.member_count > 0 ? t.total_xp / t.member_count : 0 }))

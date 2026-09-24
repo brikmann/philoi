@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChallengeMemberTicker } from '@/components/challenge-member-ticker';
-import { CindyChallengeEntry, cindyChallengeSeed } from '@/components/cindy/cindy-challenge-entry';
+import { CindyChallengeEntry, cindyChallengeSeed, cindyPersonalGoalSeed } from '@/components/cindy/cindy-challenge-entry';
 import { useCoachMark } from '@/hooks/use-coach-mark';
 import { ChallengeSentSheet } from '@/components/challenge-sent-sheet';
 import { FitnessSyncPrompt } from '@/components/fitness-sync-prompt';
@@ -1362,6 +1362,18 @@ function PersonalChallengeForm() {
         {/* No campfire step anywhere in here (migration 0059): a goal is yours, and who sees the
             work behind it is picked per lock-in on the done screen, which can post to several
             campfires at once rather than the one this screen used to bind forever. */}
+        {/* Mock 143's second door, which this form never had — see cindyPersonalGoalSeed for what
+            was actually broken about "Cindy can't scope my step goal". Above the form rather than
+            in front of it: every control below works without ever touching this. */}
+        <CindyChallengeEntry
+          seed={cindyPersonalGoalSeed({
+            metricLabel: isCustom ? customLabel : (METRIC_OPTION_BY_TYPE.get(type)?.label ?? null),
+            target,
+            unit,
+            period,
+          })}
+          body="Not sure what this is worth, or want it shaped differently? Describe it and she’ll scope it — and set it up for you."
+        />
         <Text style={styles.label}>What are you tracking?</Text>
         {/* §F — one dropdown. See METRIC_SELECT_OPTIONS for what this replaces and why. The source
             sentence rides inside each row now (including the gym metric's photo/sets requirement,

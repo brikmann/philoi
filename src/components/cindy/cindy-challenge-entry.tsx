@@ -36,7 +36,16 @@ import { track } from '@/lib/analytics';
 // on the coach, and grant_reward has no "price this hypothetical" mode. So the copy here says she
 // will help you work it out, and stops short of promising she will build it and hand it back.
 // Claiming the mock-140 flow before it is built would be a worse outcome than not offering it.
-export function CindyChallengeEntry({ seed }: { seed: string }) {
+export function CindyChallengeEntry({
+  seed,
+  body,
+}: {
+  seed: string;
+  /** Override for the one line of copy. The default speaks about the SOCIAL form's pills; the
+   * personal-goal form sits above a different set of controls and has a different offer to make
+   * (scope what you just built, rather than say what the pills cannot), so it passes its own. */
+  body?: string;
+}) {
   const router = useRouter();
 
   return (
@@ -55,8 +64,8 @@ export function CindyChallengeEntry({ seed }: { seed: string }) {
         <Text style={styles.eyebrow}>CUSTOM</Text>
         <Text style={styles.title}>Ask Cindy</Text>
         <Text style={styles.body}>
-          Something the pills below can&apos;t say — a grade in one course, an odd metric, a target
-          only you two would get. Describe it and she&apos;ll help you shape it.
+          {body ??
+            'Something the pills below can’t say — a grade in one course, an odd metric, a target only you two would get. Describe it and she’ll help you shape it.'}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
@@ -110,6 +119,51 @@ export function cindyChallengeSeed(input: {
   return input.shape === 'placement'
     ? `Help me set up a ranked race${where}. I want `
     : `Help me set up a group challenge${where}. I want `;
+}
+
+/**
+ * The same door, for a PERSONAL goal — the form that makes "10,000 steps daily".
+ *
+ * 🐛 THIS FORM HAD NO DOOR AT ALL. CindyChallengeEntry was rendered on the social-challenge form
+ * only, so the entire Ask-Cindy path existed for duels, group challenges and placement races and
+ * not for the one shape most people actually create. "Cindy can't scope my step goal" was exactly
+ * that: not a scoping failure, an ABSENT ENTRY POINT. The coach has always been able to scope a
+ * steps goal — the difficulty grid in her prompt names "10k steps in a day" as its own worked
+ * example — there was simply nothing on this screen that would hand her one.
+ *
+ * ── WHY THIS SEED IS A FINISHED SENTENCE AND THE SOCIAL ONES ARE NOT ──
+ *
+ * The three above end on a dangling "I want " because a duel knows its opponent and nothing else;
+ * the user still has to say what the challenge IS. This form is the opposite — by the time this
+ * row is worth tapping, the metric, the number and the cadence are all on screen, so the sentence
+ * can be complete and the user can simply send it. That is the difference between "ask Cindy to
+ * help you write a goal" and "ask Cindy to price the goal you just built", and only the second one
+ * is what somebody staring at a filled-in form wants.
+ *
+ * Still PREFILL, NEVER SEND — the same contract the lock-in quick sheet set and the social seeds
+ * keep. A complete sentence is one tap from sent and still fully editable, which is the point: the
+ * cost of getting it slightly wrong is a backspace, not a conversation that has already spoken.
+ */
+export function cindyPersonalGoalSeed(input: {
+  /** The metric's own word — 'Steps', 'Sleep', or the custom goal's name once it has one. */
+  metricLabel: string | null;
+  /** Raw form text, so a half-typed or empty target is a real possibility and reads as one. */
+  target: string;
+  unit: string;
+  period: 'day' | 'week' | 'once';
+}): string {
+  const what = input.metricLabel?.trim();
+  const target = input.target.trim();
+  const unit = input.unit.trim();
+  // Nothing concrete to price yet — an unnamed custom goal, or a target the user has not typed.
+  // Falls back to the open-ended phrasing rather than sending her a sentence with a hole in it.
+  if (!what || !target || !unit) return 'Help me set up a goal and scope it. I want ';
+
+  const cadence = input.period === 'day' ? ' every day' : input.period === 'week' ? ' every week' : '';
+  // "10,000" rather than "10000" — this is read aloud in a chat bubble, not parsed.
+  const pretty = Number(target);
+  const figure = Number.isFinite(pretty) ? pretty.toLocaleString() : target;
+  return `I want to hit ${figure} ${unit}${cadence}. Can you scope this goal for me?`;
 }
 
 const styles = StyleSheet.create({

@@ -18,10 +18,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AgoraCard } from '@/components/agora/agora-card';
 import { AgoraCommentsSheet } from '@/components/agora/agora-comments-sheet';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAgoraFeed } from '@/hooks/use-agora-feed';
-import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
+import { usePublicLoadouts, useRefreshPublicLoadoutsOnFocus } from '@/hooks/use-public-loadouts';
 import { track } from '@/lib/analytics';
 import {
   AGORA_SCOPES,
@@ -55,11 +56,18 @@ export default function AgoraScreen() {
 
   const [commentsFor, setCommentsFor] = useState<AgoraItem | null>(null);
   const [moreFor, setMoreFor] = useState<AgoraItem | null>(null);
+  // The item the branded confirm is asking about, and whether its removal is in flight.
+  const [removeFor, setRemoveFor] = useState<AgoraItem | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   // One batched read for the whole page's authors — the halo and card every row wears. Per-row
   // fetching would be twenty round trips a page, which is the exact thing usePublicLoadouts exists
   // to avoid.
-  const loadouts = usePublicLoadouts(useMemo(() => items.map((i) => i.user_id), [items]));
+  const authorIds = useMemo(() => items.map((i) => i.user_id), [items]);
+  const loadouts = usePublicLoadouts(authorIds);
+  // And re-read them when you come back to the square, so an author who re-equipped since you last
+  // looked isn't frozen in the gear they wore when their post first loaded.
+  useRefreshPublicLoadoutsOnFocus(authorIds);
 
   useEffect(() => {
     track('agora_viewed', {});
@@ -92,39 +100,41 @@ export default function AgoraScreen() {
     (item: AgoraItem) => {
       // Your own post gets Delete; someone else's gets the report/block sheet. Offering "report"
       // on your own card is noise, and offering "delete" on someone else's is a lie.
+      //
+      // THE CONFIRM IS OURS, NOT THE OS'S. This used to be Alert.alert, which on Android draws a
+      // bare grey slab with system-blue text — the square is an ember product right up until the
+      // moment it asks whether you meant to delete something, and then it looks like a different
+      // app. Same ConfirmDialog the campfire's destructive actions already use.
       if (item.user_id === profile?.id) {
-        const isPost = item.item_type === 'post';
-        Alert.alert(
-          isPost ? 'Delete this post?' : 'Take this out of the Agora?',
-          isPost
-            ? 'It disappears from the Agora for everyone.'
-            : 'It stays on your Journal — it just stops showing in the square.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: isPost ? 'Delete' : 'Remove',
-              style: 'destructive',
-              onPress: async () => {
-                try {
-                  if (isPost) await deleteAgoraPost(item.id);
-                  // A milestone is not the Agora's to delete — it lives on the author's Journal and
-                  // in their friends' bells. Taking it out of the square is the narrower action,
-                  // and the one this control means.
-                  else await setMilestoneInAgora(item.id, false);
-                  removeItem(item.id);
-                } catch (e) {
-                  Alert.alert('Could not remove', getErrorMessage(e, 'Something went wrong.'));
-                }
-              },
-            },
-          ]
-        );
+        setRemoveFor(item);
         return;
       }
       setMoreFor(item);
     },
-    [profile?.id, removeItem]
+    [profile?.id]
   );
+
+  async function confirmRemove() {
+    if (!removeFor || removing) return;
+    const item = removeFor;
+    setRemoving(true);
+    try {
+      if (item.item_type === 'post') await deleteAgoraPost(item.id);
+      // A milestone is not the Agora's to delete — it lives on the author's Journal and in their
+      // friends' bells. Taking it out of the square is the narrower action, and the one this
+      // control means.
+      else await setMilestoneInAgora(item.id, false);
+      removeItem(item.id);
+      setRemoveFor(null);
+    } catch (e) {
+      // The dialog closes before the alert so the two are never stacked on each other, and the
+      // card stays in the feed — nothing was removed.
+      setRemoveFor(null);
+      Alert.alert('Could not remove', getErrorMessage(e, 'Something went wrong.'));
+    } finally {
+      setRemoving(false);
+    }
+  }
 
   async function handleBlock() {
     if (!moreFor || !profile) return;
@@ -267,6 +277,20 @@ export default function AgoraScreen() {
         onClose={() => setMoreFor(null)}
         onReport={handleReport}
         onBlock={handleBlock}
+      />
+
+      <ConfirmDialog
+        visible={removeFor !== null}
+        title={removeFor?.item_type === 'post' ? 'Delete this post?' : 'Take this out of the Agora?'}
+        body={
+          removeFor?.item_type === 'post'
+            ? 'It disappears from the Agora for everyone.'
+            : 'It stays on your Journal — it just stops showing in the square.'
+        }
+        confirmLabel={removeFor?.item_type === 'post' ? 'Delete' : 'Remove'}
+        busy={removing}
+        onCancel={() => setRemoveFor(null)}
+        onConfirm={() => void confirmRemove()}
       />
     </ScreenBackground>
   );

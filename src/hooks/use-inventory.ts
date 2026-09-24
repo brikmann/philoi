@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchInventory, type Inventory } from '@/lib/api/inventory';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getItem, type CatalogItem, type EquipSlot } from '@/lib/economy/catalog';
+import { setLoadoutFromInventory } from '@/lib/economy/loadout';
 import { subscribeToInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { getErrorMessage } from '@/lib/errors';
 
@@ -53,7 +54,19 @@ export function useInventory() {
     if (!session) return;
     try {
       setError(null);
-      setInventory(await fetchInventory());
+      const inv = await fetchInventory();
+      setInventory(inv);
+      // 🐛 EQUIPPING DIDN'T LAND ON THE PROFILE (device smoke 2026-09-23). This read is the one the
+      // equip itself awaits — `doEquip` calls equipCosmetic then refetch() — so it is the earliest
+      // moment the client knows what you are now wearing. It used to drop that on the floor and
+      // leave the store to <LoadoutSync/>, which only re-reads when the PATHNAME changes and
+      // swallows its own failures: one dropped request there and the profile card and halo kept the
+      // pre-equip look until the next cold start. Feeding the store from the same round trip makes
+      // the change immediate and removes the navigation dependency entirely.
+      //
+      // setLoadoutFromInventory bails when nothing actually changed, so the focus refetch this hook
+      // already does on every inventory visit costs zero renders in the common case.
+      setLoadoutFromInventory(inv.loadout, inv.cosmetics);
     } catch (e) {
       setError(getErrorMessage(e, 'Could not load your inventory.'));
     } finally {

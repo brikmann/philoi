@@ -8,6 +8,7 @@ import { BoxStackSheet } from '@/components/economy/box-stack-sheet';
 import { EmberPill, RarityLabel, SectionLabel, SourceTag } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
+import { EmberText } from '@/components/ui/ember-text';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -295,7 +296,7 @@ export default function InventoryScreen() {
               <PhiloiIcon name="forge" size={20} color={Colors.ember} />
             </View>
             <View style={styles.forgeText}>
-              <Text style={styles.forgeTitle}>The Forge</Text>
+              <EmberText style={styles.forgeTitle}>The Forge</EmberText>
               <Text style={styles.forgeSub}>
                 {forgeReady.best
                   ? `You have enough ${forgeReady.best}s to forge one of the next tier up.`
@@ -820,10 +821,10 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  // No `color` — <EmberText> fills this with the ramp; the token would only be the first frame.
   forgeTitle: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.ember,
   },
   forgeSub: {
     fontFamily: Fonts.body,

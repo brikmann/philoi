@@ -1,37 +1,51 @@
 // AES-256-GCM for secrets that have to sit in Postgres but must not be usable from a database
-// dump alone — currently the Google Calendar refresh token (GCAL_INTEGRATION_SPEC.md: "Store the
-// refresh token encrypted, server-side only").
+// dump alone — the Google Calendar refresh token (GCAL_INTEGRATION_SPEC.md: "Store the refresh
+// token encrypted, server-side only") and the Spotify refresh token (CODE_PROMPT_spotify_backend.md).
 //
 // The key lives in an Edge Function secret, NOT in the database:
 //   supabase secrets set GCAL_TOKEN_ENC_KEY="$(openssl rand -base64 32)"
+//   supabase secrets set SPOTIFY_TOKEN_ENC_KEY="$(openssl rand -base64 32)"
 // That separation is the entire security property. Encrypting inside Postgres with pgcrypto and a
 // key stored in the same Postgres would protect against nothing that matters here.
 //
+// ONE KEY PER INTEGRATION. `keyEnv` names which secret to use and defaults to the calendar's, so
+// every gcal call site is unchanged. A leaked Spotify key must not open calendar grants, and
+// rotating one must not strand the other's rows.
+//
 // Ciphertext format: "v1.<base64url iv>.<base64url ciphertext+tag>". The version prefix is what
 // makes a future key rotation possible without guessing at what a bare blob was encrypted with.
+// It does not record WHICH key — a ciphertext decrypted under the wrong integration's key fails
+// the GCM tag check and throws, it never yields garbage.
 
-const KEY_ENV = 'GCAL_TOKEN_ENC_KEY';
+export type TokenKeyEnv = 'GCAL_TOKEN_ENC_KEY' | 'SPOTIFY_TOKEN_ENC_KEY';
+
+const DEFAULT_KEY_ENV: TokenKeyEnv = 'GCAL_TOKEN_ENC_KEY';
 const VERSION = 'v1';
 const IV_BYTES = 12; // 96-bit nonce — the size AES-GCM is actually specified for.
 
-let cachedKey: CryptoKey | null = null;
+// Keyed by env name, NOT a single slot. With one slot, whichever integration ran first in a warm
+// isolate would have its key silently reused for the other — Spotify tokens encrypted under the
+// calendar key, undecryptable the moment either secret is rotated.
+const cachedKeys = new Map<TokenKeyEnv, CryptoKey>();
 
-async function getKey(): Promise<CryptoKey> {
-  if (cachedKey) return cachedKey;
-  const raw = Deno.env.get(KEY_ENV);
+async function getKey(keyEnv: TokenKeyEnv = DEFAULT_KEY_ENV): Promise<CryptoKey> {
+  const cached = cachedKeys.get(keyEnv);
+  if (cached) return cached;
+  const raw = Deno.env.get(keyEnv);
   if (!raw) {
-    throw new Error(`${KEY_ENV} is not set — run: supabase secrets set ${KEY_ENV}="$(openssl rand -base64 32)"`);
+    throw new Error(`${keyEnv} is not set — run: supabase secrets set ${keyEnv}="$(openssl rand -base64 32)"`);
   }
-  const bytes = decodeBase64(raw.trim(), KEY_ENV);
+  const bytes = decodeBase64(raw.trim(), keyEnv);
   if (bytes.length !== 32) {
-    throw new Error(`${KEY_ENV} must be 32 bytes of base64 (openssl rand -base64 32); got ${bytes.length}.`);
+    throw new Error(`${keyEnv} must be 32 bytes of base64 (openssl rand -base64 32); got ${bytes.length}.`);
   }
-  cachedKey = await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
-  return cachedKey;
+  const key = await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  cachedKeys.set(keyEnv, key);
+  return key;
 }
 
-export async function encryptSecret(plaintext: string): Promise<string> {
-  const key = await getKey();
+export async function encryptSecret(plaintext: string, keyEnv: TokenKeyEnv = DEFAULT_KEY_ENV): Promise<string> {
+  const key = await getKey(keyEnv);
   // A fresh random IV per encryption — reusing one under the same key breaks GCM outright.
   const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
   const ciphertext = new Uint8Array(
@@ -40,12 +54,12 @@ export async function encryptSecret(plaintext: string): Promise<string> {
   return `${VERSION}.${encodeBase64Url(iv)}.${encodeBase64Url(ciphertext)}`;
 }
 
-export async function decryptSecret(payload: string): Promise<string> {
+export async function decryptSecret(payload: string, keyEnv: TokenKeyEnv = DEFAULT_KEY_ENV): Promise<string> {
   const parts = payload.split('.');
   if (parts.length !== 3 || parts[0] !== VERSION) {
     throw new Error('Unrecognized ciphertext format.');
   }
-  const key = await getKey();
+  const key = await getKey(keyEnv);
   const iv = decodeBase64(parts[1], 'ciphertext IV');
   const ciphertext = decodeBase64(parts[2], 'ciphertext body');
   const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
@@ -73,9 +87,9 @@ function decodeBase64(value: string, label: string) {
   } catch {
     throw new Error(
       `${label} is not valid base64 (length ${value.length}). ` +
-        (label === KEY_ENV
+        (label.endsWith('_TOKEN_ENC_KEY')
           ? 'Re-set it with a clean 32-byte key and no surrounding quotes: supabase secrets set ' +
-            `${KEY_ENV}="$(openssl rand -base64 32)" — check the stored value did not capture the quotes or an unexpanded command substitution.`
+            `${label}="$(openssl rand -base64 32)" — check the stored value did not capture the quotes or an unexpanded command substitution.`
           : 'The stored ciphertext is malformed.')
     );
   }

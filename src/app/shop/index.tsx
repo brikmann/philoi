@@ -7,6 +7,7 @@ import { BoxArt, BOX_TINT } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { EmberAmount, EmberPill, RarityLabel, SectionLabel, formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
+import { FlamePassTile } from '@/components/pass/flame-pass-tile';
 import { PreviewBadgeCorner } from '@/components/economy/preview-button';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -15,7 +16,7 @@ import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useInventory } from '@/hooks/use-inventory';
 import { BOX_LIST } from '@/lib/economy/boxes';
 import { boxPool, type CatalogItem } from '@/lib/economy/catalog';
-import { EMBER_PACKS, PASS_FINE_PRINT, SEASON, levelFromXp, passOnSale, seasonPhase } from '@/lib/economy/forge-pass';
+import { EMBER_PACKS, levelFromXp, passOnSale, seasonPhase } from '@/lib/economy/forge-pass';
 import { DIRECT_BUY_PRICE, RARITY_COLOR } from '@/lib/economy/rarity';
 import { FORGE_PASS_PRODUCT_ID, storeProductId } from '@/lib/economy/iap';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -122,49 +123,20 @@ export default function ShopScreen() {
           <EmberPill embers={embers} />
         </View>
 
-        {/* ── Forge Pass hero ── */}
-        <Pressable style={styles.forge} onPress={() => router.push('/forge-pass')}>
-          <View style={styles.forgeGlow} pointerEvents="none" />
-          <Text style={styles.forgeBadge}>
-            SEASON {SEASON.id.replace('S', '')} FLAME PASS · {SEASON.name.toUpperCase()}
-          </Text>
-          <Text style={styles.forgeTitle}>{ownsPremium ? `Level ${level} / ${SEASON.totalLevels}` : 'Forged in flame'}</Text>
-          <Text style={styles.forgePerk}>
-            {ownsPremium
-              ? 'Your Premium track is live. Claim every level you climb — the Emberfall set and the Mythic capstone are waiting.'
-              : phase === 'upcoming'
-                ? `${SEASON.name} opens October 1. The Mythic Emberfall Ascendant Flare lands the moment you unlock the Pass.`
-                : 'Become the fire the whole arena gathers around — and claim the Mythic Emberfall Ascendant Flare to prove it.'}
-          </Text>
-          <View style={styles.forgeBtns}>
-            {ownsPremium ? (
-              <View style={styles.forgeCta}>
-                <Text style={styles.forgeCtaText}>View track</Text>
-              </View>
-            ) : onSale ? (
-              // Opens the paywall rather than the store sheet directly (mock 200). The strip is an
-              // ad; the case for the season — what unlocks, the track, the trust line, Restore —
-              // lives on one screen instead of being re-made everywhere the Pass is mentioned.
-              <Pressable style={styles.forgeCta} onPress={() => router.push('/paywall')}>
-                <Text style={styles.forgeCtaText}>
-                  Get Pass{prices[FORGE_PASS_PRODUCT_ID] ? ` · ${prices[FORGE_PASS_PRODUCT_ID]}` : ''}
-                </Text>
-              </Pressable>
-            ) : (
-              // Outside the window the Pass is not for sale at any price (§3). A disabled-looking
-              // strip that states WHY beats a live button that fails on tap.
-              <View style={[styles.forgeCta, styles.forgeCtaOff]}>
-                <Text style={styles.forgeCtaText}>
-                  {phase === 'upcoming' ? 'Opens Oct 1' : 'Season closed'}
-                </Text>
-              </View>
-            )}
-            <Pressable style={styles.forgeCta2} onPress={() => router.push('/forge-pass')}>
-              <Text style={styles.forgeCta2Text}>Preview</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.forgeFine}>{PASS_FINE_PRINT}</Text>
-        </Pressable>
+        {/* ── Flame Pass hero (mock 214) ──
+            The card owns its own copy, countdown, art and CTA now. What lived here was a flat plum
+            slab that named the season three times and never once showed it; the tile shows the
+            actual Emberfall set. The two destinations are unchanged: the body previews the track,
+            the CTA opens the paywall (mock 200) rather than the store sheet — the case for the
+            season lives on one screen instead of being re-made everywhere the Pass is mentioned. */}
+        <FlamePassTile
+          level={level}
+          ownsPremium={ownsPremium}
+          price={prices[FORGE_PASS_PRODUCT_ID] ?? null}
+          onSale={onSale}
+          onOpen={() => router.push('/forge-pass')}
+          onBuy={() => router.push('/paywall')}
+        />
 
         {/* ── Featured · direct buy (§8.4) ── */}
         <SectionLabel label="Featured · buy direct" action={rotatesInLabel(now)} />
@@ -311,65 +283,6 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     flex: 1,
   },
-  // The hero is the one place in the app that deliberately runs hot — it's the paid product.
-  forge: {
-    borderRadius: 18,
-    padding: Spacing.three,
-    overflow: 'hidden',
-    backgroundColor: '#2a1533',
-    borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.5)',
-    minHeight: 152,
-  },
-  forgeGlow: {
-    position: 'absolute',
-    right: -30,
-    top: -20,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(255,90,60,0.28)',
-  },
-  forgeBadge: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 8,
-    letterSpacing: 1.3,
-    color: '#FFCF8A',
-  },
-  forgeTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 23,
-    color: Colors.ink,
-    marginTop: Spacing.two,
-  },
-  forgePerk: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#e7ddf5',
-    marginTop: Spacing.two,
-    marginBottom: Spacing.twelve,
-    maxWidth: 210,
-  },
-  forgeBtns: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    alignItems: 'center',
-  },
-  forgeCta: {
-    backgroundColor: Colors.coral,
-    borderRadius: 11,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-  },
-  forgeCtaText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 13,
-    color: '#3a1608',
-  },
-  forgeCtaOff: {
-    backgroundColor: 'rgba(255,207,138,0.35)',
-  },
   packBusy: {
     opacity: 0.6,
   },
@@ -377,25 +290,6 @@ const styles = StyleSheet.create({
   // live. This used to be baked into `pack` itself, back when every one of them was a stub.
   packOff: {
     opacity: 0.55,
-  },
-  forgeCta2: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,207,138,0.5)',
-    borderRadius: 11,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-  },
-  forgeCta2Text: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12.5,
-    color: '#FFCF8A',
-  },
-  forgeFine: {
-    fontFamily: Fonts.body,
-    fontSize: 9,
-    color: '#a58fb0',
-    marginTop: Spacing.two,
   },
   row: {
     gap: Spacing.two,

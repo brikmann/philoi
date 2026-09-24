@@ -184,3 +184,22 @@ export async function getDeviceStepsBetween(startDate: Date, endDate: Date): Pro
   if (HealthConnect.isHealthConnectSupported()) return HealthConnect.getStepsBetween(startDate, endDate);
   return 0;
 }
+
+/**
+ * Does the OS actually grant device step access right now?
+ *
+ *   true  — granted, verified against the OS this instant.
+ *   false — genuinely not granted.
+ *   null  — UNKNOWABLE on this platform. HealthKit deliberately never tells a READ requester
+ *           whether it was granted (see healthkit.ts), so iOS can only ever fall back to Philoi's
+ *           own record of having run the flow. Android has a real answer and must use it.
+ *
+ * Three-valued on purpose. Collapsing `null` to `false` would make every iOS device read as
+ * disconnected; collapsing it to `true` would make Android's revocations invisible, which is half
+ * of the bug this exists to fix.
+ */
+export async function getDeviceFitnessGrant(): Promise<boolean | null> {
+  if (HealthConnect.isHealthConnectSupported()) return HealthConnect.hasStepsPermission();
+  if (HealthKit.isHealthKitSupported()) return null;
+  return false;
+}

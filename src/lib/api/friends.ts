@@ -42,9 +42,6 @@ export function friendStatusLine(friend: Friend, goalLabel: string | null): stri
   return `${rank} · getting started`;
 }
 
-/** The two one-tap sends on the friend sheet. 'nudge' is "lock in?"; 'fire' is praise. */
-export type NudgeKind = 'nudge' | 'fire';
-
 /**
  * One-tap nudge to a friend — now the same shape as the campfire ping (migration 0207).
  *
@@ -60,17 +57,21 @@ export type NudgeKind = 'nudge' | 'fire';
  *
  * A build talking to a pre-0207 database gets `undefined` back and falls through to 'sent', which
  * is exactly the (optimistic) behaviour it has today rather than a crash.
+ *
+ * ONE KIND, NOT TWO. This briefly took a `kind` so the sheet could also send 0207's 'fire' praise
+ * ping — but the two sat as separate rows that both read as "send them something", and the second
+ * was reported as a duplicate of the first. The nudge is the only send the friend sheet offers
+ * now, so `p_kind` is omitted entirely: that is also what keeps this call resolving against a
+ * pre-0207 database, where the function takes one parameter and an unknown second fails the
+ * request outright rather than falling back. The server still has the 'fire' branch if praise
+ * earns a surface of its own later.
  */
-export async function nudgeToLockIn(userId: string, kind: NudgeKind = 'nudge'): Promise<PingResult> {
-  const { data, error } = await supabase.rpc('nudge_to_lock_in', {
-    p_user_id: userId,
-    // Omitted entirely when it's the default rather than sent explicitly, so this call still
-    // resolves against a pre-0207 database — where the function takes one parameter and an unknown
-    // second would fail the request outright instead of falling back.
-    ...(kind === 'nudge' ? {} : { p_kind: kind }),
-  });
+export async function nudgeToLockIn(userId: string): Promise<PingResult> {
+  const { data, error } = await supabase.rpc('nudge_to_lock_in', { p_user_id: userId });
   if (error) throw error;
   const result = (data as PingResult | null) ?? 'sent';
-  track('friend_nudged', { friend_id: userId, kind, result });
+  // `kind` stays in the payload as a literal: the event's shape predates this change and the
+  // dashboards reading it should not have to learn about a field that went missing.
+  track('friend_nudged', { friend_id: userId, kind: 'nudge', result });
   return result;
 }

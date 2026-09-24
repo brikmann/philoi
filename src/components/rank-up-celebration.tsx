@@ -21,6 +21,7 @@ import { FullscreenRays } from '@/components/economy/reward-reveal';
 import { RewardRow, type RewardRowSpec } from '@/components/economy/reward-rows';
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { RankBadge } from '@/components/rank-badge';
+import { EmberText } from '@/components/ui/ember-text';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
@@ -1365,7 +1366,7 @@ export function RankUpCelebration({
               onPress={onCta}
               disabled={claimBusy}
               accessibilityRole="button">
-              <Text style={styles.claimAllLabel}>{ctaLabel}</Text>
+              <EmberText style={styles.claimAllLabel}>{ctaLabel}</EmberText>
             </Pressable>
           ) : null}
         </Animated.View>
@@ -1586,10 +1587,10 @@ const styles = StyleSheet.create({
   claimAllBusy: {
     opacity: 0.5,
   },
+  // No `color` — <EmberText> fills this with the ramp; the token would only be the first frame.
   claimAllLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.ember,
   },
   who: {
     flexDirection: 'row',

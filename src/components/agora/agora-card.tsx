@@ -5,6 +5,7 @@ import { memo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { EquippedCardBackdrop } from '@/components/economy/applied-art';
+import { ItemArt } from '@/components/economy/item-art';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -198,9 +199,22 @@ function AttachmentHeadRow({ view, onPress }: { view: AgoraAttachmentView; onPre
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={[view.eyebrow, view.title, view.subtitle].filter(Boolean).join(' · ')}>
-      <View style={[styles.attachIcon, { backgroundColor: view.tint }]}>
-        <Ionicons name={view.icon} size={20} color={Colors.ink} />
-      </View>
+      {/* A COLLECTIBLE DRAWS ITSELF (item-art.tsx). The square is the flex feed, so a posted relic
+          showing a generic diamond glyph was the one card that refused to show the thing it was
+          bragging about. `view.art` is the resolved catalog entry and is null for every other
+          kind — and for a key the catalog no longer has, which falls back to the glyph rather than
+          to a hole. Neutral tile under it: `view.tint` for a cosmetic IS the item's own first
+          gradient stop, so the art would be drawn in its colour on its colour. `motion="off"`
+          because a feed scrolls, same rule as the author's aura above. */}
+      {view.art ? (
+        <View style={[styles.attachIcon, styles.attachIconArt]}>
+          <ItemArt item={view.art} size={32} motion="off" />
+        </View>
+      ) : (
+        <View style={[styles.attachIcon, { backgroundColor: view.tint }]}>
+          <Ionicons name={view.icon} size={20} color={Colors.ink} />
+        </View>
+      )}
       <View style={styles.attachText}>
         <Text style={styles.attachTitle} numberOfLines={2}>
           {view.title}
@@ -340,6 +354,12 @@ function CardSurface({ cardId, children }: { cardId?: string; children: ReactNod
 //
 // Attachments are not compared: they are frozen at post time and a page's items are replaced
 // wholesale on refresh, so the only thing that moves under a stable id is the cheer/comment counts.
+//
+// 🐛 EVERY DRAWN SLOT HAS TO BE IN HERE. This compared the halo and the card only, while the card
+// also draws the TITLE and (through CosmeticAvatar) the FLARE — so equipping a new title left the
+// feed showing the old one even once a fresh loadout reached this prop. That is half of the "Agora
+// shows Ash Walker, not Ascended" report; the other half was the cache upstream. The rule the next
+// slot added to this card has to follow: if AgoraCardInner reads it, compare it here.
 export const AgoraCard = memo(
   AgoraCardInner,
   (a, b) =>
@@ -348,7 +368,13 @@ export const AgoraCard = memo(
     a.item.cheered === b.item.cheered &&
     a.item.comments === b.item.comments &&
     a.loadout.halo?.id === b.loadout.halo?.id &&
-    a.loadout.card?.id === b.loadout.card?.id
+    a.loadout.card?.id === b.loadout.card?.id &&
+    a.loadout.flare?.id === b.loadout.flare?.id &&
+    a.loadout.title?.id === b.loadout.title?.id &&
+    // A re-granted placement title keeps its key and changes only these two — see sameLoadout in
+    // lib/economy/loadout.ts, which learned the same lesson.
+    a.loadout.title?.rarity === b.loadout.title?.rarity &&
+    a.loadout.title?.seasonStamp === b.loadout.title?.seasonStamp
 );
 
 const styles = StyleSheet.create({
@@ -513,6 +539,12 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  attachIconArt: {
+    backgroundColor: Colors.cardDark,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    overflow: 'hidden',
   },
   attachText: {
     flex: 1,

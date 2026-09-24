@@ -14,9 +14,6 @@ type FriendPingSheetProps = {
   /** Present only while locked in — the goal they're locked into, for the status line. */
   goalLabel: string | null;
   onPrimary: () => void;
-  /** WS3 · "Send fire" — the praise ping (migration 0207's 'fire' kind). Its own row rather than a
-   *  mode of the primary, because the primary is state-dependent and praise is not. */
-  onSendFire: () => void;
   /** What the last send on this sheet actually did, or null before anything has been sent. The
    *  sheet SHOWS it — a nudge that was rate-limited or reached no device must not read the same as
    *  one that buzzed a phone (0172/0207). */
@@ -54,7 +51,6 @@ export function FriendPingSheet({
   lockedIn,
   goalLabel,
   onPrimary,
-  onSendFire,
   lastPing,
   activeH2H,
   onChallengeH2H,
@@ -92,19 +88,6 @@ export function FriendPingSheet({
                   ? `Join ${friend?.display_name ?? 'their'}'s session right now`
                   : (PING_RESULT_COPY[lastPing ?? 'idle'] ?? 'Send a 🔥 “lock in?” right now')}
               </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
-          </Pressable>
-
-          {/* WS3 · the second one-tap send. Praise, not pressure — the sheet had no way to say
-              "well done" at all, only "get back to work". */}
-          <Pressable style={styles.act} onPress={onSendFire}>
-            <View style={[styles.actIcon, styles.iFire]}>
-              <Ionicons name="flame-outline" size={19} color={Colors.amber} />
-            </View>
-            <View style={styles.actText}>
-              <Text style={styles.actTitle}>Send fire</Text>
-              <Text style={styles.actSub}>Tell them you saw the work</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
           </Pressable>
@@ -202,11 +185,6 @@ const styles = StyleSheet.create({
   // Tile backgrounds per mock 21: lock=warm achiever, sword=selected purple, group=dark teal (one-off).
   iLock: {
     backgroundColor: Colors.achieverBg,
-  },
-  // WS3 · fire sits between the two: warmer than the sword tile, quieter than the lock's, so the
-  // primary action still reads as the primary one.
-  iFire: {
-    backgroundColor: 'rgba(255,176,46,0.14)',
   },
   iSword: {
     backgroundColor: Colors.selectedBg,

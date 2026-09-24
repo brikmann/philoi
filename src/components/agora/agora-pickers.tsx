@@ -2,12 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ItemArt } from '@/components/economy/item-art';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import {
   ACHIEVEMENT_FILTERS,
   ACHIEVEMENT_SECTIONS,
   attachmentView,
 } from '@/lib/agora-attachment';
+import type { AgoraAttachmentView } from '@/lib/agora-attachment';
 import { fetchAgoraAchievements, fetchAgoraLockIns } from '@/lib/api/agora';
 import { formatDistanceKm, formatSessionDuration, formatRelativeTime } from '@/lib/format';
 import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
@@ -110,14 +112,20 @@ export function AgoraAchievementPicker({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.chipBar}
         contentContainerStyle={styles.chips}>
         {ACHIEVEMENT_FILTERS.map((f) => (
           <Pressable
             key={f.key}
             onPress={() => setFilter(f.key)}
             style={[styles.chip, filter === f.key && styles.chipOn]}
-            accessibilityRole="button">
-            <Text style={[styles.chipText, filter === f.key && styles.chipTextOn]}>{f.label}</Text>
+            accessibilityRole="button"
+            accessibilityState={{ selected: filter === f.key }}>
+            <Text
+              style={[styles.chipText, filter === f.key && styles.chipTextOn]}
+              numberOfLines={1}>
+              {f.label}
+            </Text>
           </Pressable>
         ))}
       </ScrollView>
@@ -149,9 +157,7 @@ export function AgoraAchievementPicker({
                         label: view.title,
                       })
                     }>
-                    <View style={[styles.rowIcon, { backgroundColor: view.tint }]}>
-                      <Ionicons name={view.icon} size={19} color={Colors.ink} />
-                    </View>
+                    <AchievementIcon view={view} />
                     <View style={styles.rowText}>
                       <Text style={styles.rowTitle} numberOfLines={1}>
                         {view.title}
@@ -171,6 +177,35 @@ export function AgoraAchievementPicker({
         </ScrollView>
       )}
     </PickerSheet>
+  );
+}
+
+/**
+ * The 40px tile at the head of a row.
+ *
+ * A COLLECTIBLE DRAWS ITSELF. `view.art` is the catalog entry, so a relic, a flame or a card gets
+ * the same 2.5D art the shop and the inventory render it with — which is the whole point of a
+ * sheet whose job is picking something to show off. Everything else (a rank, a streak, a
+ * milestone) has no drawing, and keeps the tinted glyph it has always had.
+ *
+ * The art sits on a NEUTRAL tile rather than on `view.tint`, because for a cosmetic that tint is
+ * the item's own first gradient stop — the item would be drawn in its own colour, on its own
+ * colour, and vanish.
+ */
+function AchievementIcon({ view }: { view: AgoraAttachmentView }) {
+  if (view.art) {
+    return (
+      <View style={[styles.rowIcon, styles.rowIconArt]}>
+        {/* `off`: this list scrolls and a row is 40px, well under FLOAT_MIN_SIZE anyway — stated
+            rather than inferred so the sheet can never start floating a screenful of icons. */}
+        <ItemArt item={view.art} size={30} motion="off" />
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.rowIcon, { backgroundColor: view.tint }]}>
+      <Ionicons name={view.icon} size={19} color={Colors.ink} />
+    </View>
   );
 }
 
@@ -308,8 +343,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     marginTop: 2,
   },
+  // THE ROW SIZES TO ITS PILLS AND SCROLLS — same fix, and same reason, as the Agora feed's own
+  // filter bar. A horizontal ScrollView carries flexGrow/flexShrink 1 of its own, so left alone it
+  // lets the content container be measured at exactly the viewport width; five pills do not fit,
+  // and the labels inside then re-measure against whatever width is left. That is what made a pill
+  // change size when you tapped one — nothing about the selected style is any bigger than the
+  // unselected one, the row was simply being re-squeezed on every re-render. flexGrow/flexShrink 0
+  // here, flexShrink 0 on every pill and label, and a pill holds its size for good.
+  chipBar: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   chips: {
     gap: 6,
+    alignItems: 'center',
+    flexGrow: 0,
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.twelve,
   },
@@ -317,6 +365,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     paddingHorizontal: 11,
     paddingVertical: 6,
+    flexShrink: 0,
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.lineStrong,
@@ -328,6 +377,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
+    flexShrink: 0,
     color: Colors.muted,
   },
   chipTextOn: {
@@ -376,6 +426,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.lineStrong,
+  },
+  // Neutral on purpose — see AchievementIcon. The item brings its own colour.
+  rowIconArt: {
+    backgroundColor: Colors.cardDark,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    overflow: 'hidden',
   },
   rowText: {
     flex: 1,

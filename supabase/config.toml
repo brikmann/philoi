@@ -32,6 +32,23 @@ verify_jwt = false
 [functions.gcal-oauth-callback]
 verify_jwt = false
 
+# The Spotify OAuth redirect relay (CODE_PROMPT_spotify_backend.md) — identical requirement and
+# identical reasoning to gcal-oauth-callback above: Spotify only accepts HTTPS redirect URIs, so the
+# browser comes back here with no Authorization header and is 302'd on to philoi://spotify-auth.
+[functions.spotify-oauth-callback]
+verify_jwt = false
+
+# The other Spotify functions are called by the signed-in app and verify the member's own JWT.
+# Pinned explicitly (it is the default) so that nobody copying the relay block above flips them.
+[functions.spotify-oauth-exchange]
+verify_jwt = true
+
+[functions.spotify-now-playing]
+verify_jwt = true
+
+[functions.spotify-disconnect]
+verify_jwt = true
+
 # NOTE: strava-webhook has the same requirement (Strava sends no JWT either) and is presumably
 # already deployed with the flag. It is deliberately NOT listed here — adding it would change how
 # an existing, working function redeploys, and that is a separate change to verify on its own.

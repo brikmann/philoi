@@ -100,6 +100,24 @@ Estimates are for a **median 18-20 Gen Z, average starting fitness, ~3 sessions/
 
 ---
 
+## 🔴 Fitness is IPSATIVE — score effort, not the raw number (core ethos)
+
+> **🔴 DECISION (Noah, supersedes any box-payout reading below): one-off fitness/strength PRs do NOT pay boxes or currency.** Goals vary too much per person to price a single lift as loot — accessory work is endless, many lifters (women especially) train physique/activity rather than big-three strength, and pricing PRs as boxes is an economy hole no matter how cleverly it's scoped. **Fitness loot comes from exactly two places: (1) consistency goals** (e.g. train 3×/week → Common/Uncommon/Rare box by streak length / field size) **and (2) discipline-relic rungs** (hitting a ladder rung grants its box — already built, migration 0119). **One-off PRs and personal fitness targets are for the FLEX**, not loot: the share card, the leaderboard, and — **down the road** — **discipline-adjacent cosmetics** (a strength *title*, a strength-tinted *flame*/*flare*, a discipline *campfire banner*): a free, earned flex for people deep in one thing, not currency. The bodyweight-relative / ipsative math below is **retained**, but its job is now (a) making a PR read fairly *as a flex* (share card, leaderboard order), (b) ranking effort inside a *consistency challenge or duel*, and (c) later, choosing which *discipline cosmetic* tier a milestone unlocks — **never minting a box from an individual lift.** We reward **consistency and effort**; the **social flex** (campfires, flexing on friends) is what carries Philoi — boxes exist to keep engagement, and consistency + relics feed them fairly for everybody.
+
+Philoi's whole point is behaviour change, and behaviour change is **self-referenced (ipsative), never absolute**. For fitness — strength especially — the raw number is meaningless without the body behind it. A **300 lb squat for a 160 lb lifter is ~1.9× bodyweight** → **Legendary**; the **same 300 for a 220 lb lifter is ~1.4×** → **Rare** — still strong, not the same feat. **Cindy must never reward the bigger number as if it were the bigger achievement.** (Keep examples realistic and attainable, not extreme — the point is fairness, not intimidation.) We chase effort, and effort for strength is cleanest and fairest as a **multiple of the person's own bodyweight**. This is not a nice-to-have; it is the ethos, and it must be repeated everywhere the user meets goal-setting (onboarding, Cindy's scoping copy, the tutorial's Personal-goals card).
+
+**The rule (strength / load goals):**
+- Score the ask as **load ÷ self-reported bodyweight**, then read the tier off the bodyweight-relative anchors we already use. Rough squat ladder: **~1.4× → Rare, ~1.7× → Epic, ~1.9–2× → Legendary** (bench runs lower per-× since bench numbers are smaller; deadlift a touch higher). The absolute pounds only matter *through* the ratio. Keep the everyday range in reach — most goals people set land Rare/Epic, and that's the point; Mythic is reserved for genuinely elite ratios, not the default fitness flex.
+- A beginner clearing a genuine first milestone (e.g. first-ever bodyweight squat, first 100 lb for a very light or deconditioned person) is a **real, celebrated win** — do not floor it to Common just because the plates are light.
+- **Context overrides the ratio when the user gives it.** "I'm coming back from ACL surgery and want to squat 135 again," "I have a disability," "I hadn't trained in 3 years" — Cindy takes the stated context and scopes to the *effort for that person*, not the population. When unsure, ask one clarifying question rather than lowballing.
+- Endurance/skill goals stay on the T×A grid above (they're already effort-based); bodyweight-relative scoring is specifically the strength lever.
+
+**Onboarding collects the inputs (🔴 build item — mock `design-mocks/188-body-metrics-onboarding.html`).** Add a **self-reported height + weight** step to onboarding, **explicitly labelled as "used to scope your fitness goals fairly"** (not vanity, not shared publicly by default). Height already feeds stride/distance; **weight is the denominator** for strength scoring. Store on the profile; Cindy reads it when scoping a load goal so "squat 300 at 160 lb → ~1.9× → Legendary" is computed, not guessed. Let the user edit it anytime (bodyweight changes), and let them override per-goal with context. Missing weight → Cindy asks or falls back to the demographic anchors, never to raw pounds.
+
+**Copy must say this out loud.** In the tutorial and in Cindy's scoping replies, state the principle in plain words — *"these are your goals; I reward effort, not the number,"* *"225 at your bodyweight is 2.25× you — that's the flex."* Repetition is intentional: it's how the ethos lands and how we differentiate from every leaderboard that just ranks the biggest number.
+
+---
+
 ## Anti-cheese — why scoping high doesn't let people mint Legendary crates
 
 Scoping "run a marathon" as Legendary would be reckless **if typing it granted a Legendary crate**. It doesn't. Two gates already in the app do the work — this doc just points the difficulty score *through* them instead of flooring it.
@@ -117,6 +135,14 @@ So a **claimed-but-unproven backflip** (Epic) pays **Unvouched = Rare (The Furna
 **2. The measurability gate.** A goal must be **specific and checkable** to score above Uncommon. Vague grandiosity ("get shredded", "be good at guitar") is **floored at Uncommon** and Cindy offers to sharpen it ("Landing a specific song start-to-finish? I can scope that."). Cindy scores the *sharpened* target, never the vibe. Unknown/unfamiliar feats resolve **conservatively** (toward the lower tier) so a scary-sounding made-up goal can't inflate the payout.
 
 **3. Weekly earned-ember ceiling still holds** (`CHALLENGE_REWARD_ALGO.md §Guardrails`, ~300/wk from goals). A big scoped box is prestige + a bounded currency bump, not an ember flood — it doesn't undercut the packs or the Flame Pass's exclusive cosmetics.
+
+**4. 🔴 The leap gate — tier is the DISTANCE from your baseline, paid ONCE per milestone.** The exploit ipsative scoring *would* open: set "squat 300," hit it, then "squat 302.5," "305," "307.5" — each a genuine, auto-tracked PR at a ~1.9× ratio. **The primary fix is the DECISION above — one-off PRs don't pay boxes at all**, so there's no box to farm. The leap gate is the *secondary* guard, and it still applies wherever a fitness feat *does* carry weight — the **flex/cosmetic tier** (so a micro-PR can't claim a "Legendary strength title") and the **difficulty of a consistency challenge or duel**. In all those cases **the tier is never the absolute ratio of the destination — it's the effort to get there from where the person actually is *now*.** Three rules enforce it:
+
+- **Score the leap, not the landmark.** Cindy tiers a load/PR goal off the **gap between the user's current established baseline and the target**, read as time-to-achieve *from here* (the same T-axis as everything else). Reaching 1.9× BW **from an untrained/known baseline is a months-long leap → Legendary**. Nudging 300 → 305 when you already pull ~1.9× is a **days-long micro-gap → Common/Uncommon**, no matter how gaudy the ratio looks in isolation. A goal you could plausibly hit **this week never tiers above Uncommon**, full stop.
+- **Establish the baseline, then require a meaningful delta.** When scoping a strength goal Cindy asks (or reads from logged gym lock-ins) the user's **current best**, and a goal must clear a **minimum real gap** (roughly a training-block's worth — think ≥ ~10% over current *or* a plausible ≥4-week horizon) to tier above Uncommon. Sub-threshold PRs floor to Common. No baseline available → conservative floor + ask, never a top tier on a bare number.
+- **Milestone bands pay once.** Bodyweight-relative strength is banded **per lift** (e.g. squat ~1.0 / 1.25 / 1.5 / 1.75 / 2.0× BW). The **first crossing** of a band pays its tier; further PRs **inside a band you've already claimed** pay only small embers (a "new PR" nod), and a band you've claimed can never be re-earned. So the ladder yields at most a handful of big rewards *over the whole climb* — exactly matching how a grade goal pays once per course, not once per problem set.
+
+**Where the 80%-STEM box comes from (and why the squat doesn't compete with it):** a **grade goal** is a checkable, months-long academic feat, so it pays a **box** (Legendary, via the honor/vouch gradient). A **one-off squat PR pays no box at all** — it's a flex (share card + leaderboard) and, later, a discipline cosmetic. So the two never sit in the same currency to be gamed against each other. Fitness *boxes* only ever come from **consistency** (train Nx/week) and **relic rungs**, both of which are effort-over-time by construction and already farm-resistant (a streak can't be faked forward; relic rungs pay once). Effort in, effort rewarded — never the same milestone twice, and never a box for a single lift.
 
 ---
 
@@ -138,6 +164,21 @@ place the goal on two axes for the MEDIAN 18-20 Gen Z training ~3x/week:
 Read the tier off the grid (Common / Uncommon / Rare / Epic / Legendary / Mythic).
 Add ONE sub-step for a fear/pain/hard-technical barrier (never a full tier).
 Unknown or unfamiliar feat → resolve to the LOWER plausible tier (conservative).
+  STRENGTH / LOAD GOALS ARE IPSATIVE: score by load ÷ the user's self-reported
+  bodyweight, NOT the absolute pounds. The bands below are for reaching a ratio FROM AN
+  UNTRAINED BASELINE: squat ~1.4× Rare / ~1.7× Epic / ~1.9-2× Legendary; keep it
+  realistic, Mythic is elite-only.
+  BUT TIER THE LEAP, NOT THE LANDMARK: score the gap between the user's CURRENT best
+  (ask it, or read logged lock-ins) and the target as time-to-achieve FROM HERE. A goal
+  reachable this week is Uncommon at most, whatever the ratio. Require a meaningful delta
+  (~>=10% over current or a >=4-week horizon) to exceed Uncommon; a micro-PR over an
+  already-high lift is Common. Milestone bands pay once — a band the user has already
+  crossed is not re-earnable. No baseline given -> ask, then floor conservatively.
+  A genuine beginner milestone is a real
+  win, not a Common floor. If the user gives context (injury/surgery recovery, disability,
+  long layoff), scope to the effort FOR THAT PERSON — ask one question if unsure. If
+  bodyweight is missing, ask for it or fall back to the demographic anchors — never to raw
+  pounds. Reward EFFORT, never the bigger number.
 
 STEP 3 — Verifiability. auto_trackable (steps, distance, workout volume, grade-via-honor)
 → "auto". Otherwise → "honor" (pays through the Vouched/Unvouched discount; a photo/clip

@@ -14,6 +14,7 @@
 
 import { track } from '@/lib/analytics';
 import { createChallenge, createScopedGoals, setGoalScope, updateGoal, type ScopedGoalInput } from '@/lib/api/challenges';
+import { syncChallengeFromDevice } from '@/lib/api/fitness-challenge-sync';
 
 import { stopLockInSession } from '@/lib/api/lock-ins';
 import { createMilestone } from '@/lib/api/milestones';
@@ -539,6 +540,15 @@ export async function performCoachAction(action: CoachAction, ctx: ActionContext
         if (created?.id && isScopedTier(tier)) {
           await setGoalScope(created.id, tier).catch(() => {});
         }
+        // ── and the first sync, exactly as create.tsx and challenge/verdict.tsx do ──
+        //
+        // A goal counts from when it was set (0199), so an auto-tracked one wants its baseline read
+        // NOW. This was the one create path that never did it: a "10k steps daily" goal asked for
+        // in chat was written and then left alone, so it read 0/10,000 until the user happened to
+        // open the Challenges tab, which is the only other thing that syncs. Fire-and-forget —
+        // routeChallengeSync no-ops for anything with no device source, and a failed sync must
+        // never fail the create (§18).
+        if (created) syncChallengeFromDevice(created).catch(() => {});
         return { status: 'done' };
       }
 
