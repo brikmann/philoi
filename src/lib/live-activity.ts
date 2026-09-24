@@ -27,8 +27,16 @@ import type { NativeLiveActivityState } from '../../modules/philoi-live-activity
 export type LiveActivityState = {
   /** The user's session label — "Study", "Gym", or their own goal detail. Empty string omits it. */
   sessionName: string;
-  /** Epoch ms. The OS counts up from this ITSELF — see invariant 2 above. */
+  /** Epoch ms of the real session start. Fixed for the session — iOS stamps it into the immutable
+   *  attributes, and the stale date is measured from it. NOT what the clock counts from. */
   startedAtMs: number;
+  /** Epoch ms the clock counts up from — the start pushed forward by every completed pause
+   *  (lib/lock-in-clock clockAnchorMs). The OS counts from this ITSELF — see invariant 2 above —
+   *  so a resume moves the anchor rather than sending elapsed time. */
+  clockStartMs: number;
+  /** Epoch ms the current pause began, or null while running. Freezes the clock where it stands
+   *  and swaps the surface to its paused state (0218). */
+  pausedAtMs: number | null;
   /** Drives the bar's fill colour: the CURRENT tier's metal, never a fixed gold. */
   tier: RankTierName;
   /** 0–1 progress through the current rank division. */
@@ -95,6 +103,8 @@ function toNative(state: LiveActivityState): NativeLiveActivityState {
   return {
     sessionName: state.sessionName,
     startedAtMs: state.startedAtMs,
+    clockStartMs: state.clockStartMs,
+    pausedAtMs: state.pausedAtMs,
     // Clamped here rather than trusted: a ratio outside 0–1 would render as a bar overflowing its
     // own track on iOS, and Android's setProgress would silently peg it.
     rankRatio: Math.max(0, Math.min(1, state.rankRatio)),
@@ -127,7 +137,7 @@ export async function startLiveActivity(state: LiveActivityState): Promise<void>
   }
 }
 
-/** Push a changed rank bar / projection. Rare by design — see invariant 2. */
+/** Push a changed rank bar / projection, or a pause / resume. Rare by design — see invariant 2. */
 export async function updateLiveActivity(state: LiveActivityState): Promise<void> {
   if (!liveActivityAvailable()) return;
   try {

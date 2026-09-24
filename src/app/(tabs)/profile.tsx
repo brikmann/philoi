@@ -78,7 +78,7 @@ export default function ProfileScreen() {
   // right now, and there is no live-session feed for anyone else. A visitor seeing someone's
   // cosmetic at rest is honest; inventing a tier for them would not be.
   const { session: activeSession } = useActiveSession();
-  const auraTier = useAuraTier(isOwn ? activeSession?.startedAt : null);
+  const auraTier = useAuraTier(isOwn ? activeSession : null);
 
   // §4 + §7. One read serves both: the hall's own contents AND the item count the Collection entry
   // advertises, so opening this tab costs one request rather than two.

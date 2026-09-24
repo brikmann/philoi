@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { ActiveCircleLockIn } from '@/lib/api/lock-ins';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
+import { clockFromRow, creditedSeconds } from '@/lib/lock-in-clock';
 import { useGatedInterval } from '@/hooks/use-motion-active';
 
 function formatDuration(totalSeconds: number): string {
@@ -29,8 +30,8 @@ export function BodyDoubleRow({ activeLockIn }: BodyDoubleRowProps) {
   useGatedInterval(() => setNow(Date.now()), 1000);
 
   const { session, display_name, avatar_url } = activeLockIn;
-  const startedAt = new Date(session.started_at).getTime();
-  const elapsedSeconds = Math.max(0, (now - startedAt) / 1000);
+  // Credited, not wall-clock (0218) — a friend on a break shows a frozen clock, not a climbing one.
+  const elapsedSeconds = creditedSeconds(clockFromRow(session), now);
   const goalLabel = GOAL_TYPE_META[session.goal_type]?.label ?? session.goal_type;
 
   return (
@@ -45,7 +46,9 @@ export function BodyDoubleRow({ activeLockIn }: BodyDoubleRowProps) {
       <Text style={styles.name} numberOfLines={1}>
         {display_name} <Text style={styles.goalSuffix}>· {goalLabel}</Text>
       </Text>
-      <Text style={styles.timer}>{formatDuration(elapsedSeconds)}</Text>
+      <Text style={[styles.timer, session.paused && styles.timerPaused]}>
+        {session.paused ? `Paused · ${formatDuration(elapsedSeconds)}` : formatDuration(elapsedSeconds)}
+      </Text>
     </View>
   );
 }
@@ -89,5 +92,8 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
     color: Colors.achieverText,
+  },
+  timerPaused: {
+    color: Colors.muted,
   },
 });

@@ -41,11 +41,18 @@ struct LockInActivityAttributes: ActivityAttributes {
     /// ContentState rather than in the attributes because the loadout can hydrate after the
     /// activity has already gone up, and attributes are immutable once requested.
     var flareHex: String?
+    /// What the clock counts up from: the session start pushed forward by every completed pause
+    /// (0218). Here rather than in the attributes because a resume MOVES it, and attributes are
+    /// immutable once requested. Still a fixed anchor between pauses — the OS does the counting.
+    var clockStart: Date
+    /// When the current pause began, or nil while running. `Text(timerInterval:pauseTime:)` freezes
+    /// on it, and the card swaps to its paused copy.
+    var pausedAt: Date?
   }
 
   /// "Study", "Gym", or the user's own goal detail. Empty string when unset; the UI omits it.
   var sessionName: String
-  /// Set ONCE when the session starts and never updated — this is the anchor the OS counts up
-  /// from on its own.
+  /// Set ONCE when the session starts and never updated. The stale date is measured from it; the
+  /// clock counts from `ContentState.clockStart`, which equals this until the first pause.
   var startedAt: Date
 }

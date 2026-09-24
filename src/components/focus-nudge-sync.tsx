@@ -15,6 +15,7 @@ import {
   refreshNudgeCopy,
 } from '@/lib/focus-nudge';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
+import { clockAnchorMs } from '@/lib/lock-in-clock';
 
 // Renders nothing. Arms the guard for the duration of a lock-in and takes it down when the session
 // ends (APP_BLOCKER_SPEC §B/§D) — the Focus Nudge counterpart to LiveActivitySync, and mounted in
@@ -36,7 +37,9 @@ export function FocusNudgeSync() {
   const { session, loading } = useActiveSession();
 
   const sessionId = session?.id ?? null;
-  const startedAtMs = session ? session.startedAt.getTime() : 0;
+  // The clock anchor, not the raw start (0218): it moves only on resume, so `Date.now() − anchor`
+  // below is credited minutes whenever the app comes forward on a running session.
+  const clockStartMs = session ? clockAnchorMs(session) : 0;
   // Same derivation as LiveActivitySync — the user's own words first, the goal label as a fallback.
   const sessionLabel = session
     ? session.goalDetail?.trim() || GOAL_TYPE_META[session.goalType]?.label || null
@@ -114,12 +117,12 @@ export function FocusNudgeSync() {
       writtenForRef.current = { sessionId, retreats };
       refreshNudgeCopy({
         sessionLabel,
-        minutesIntoSession: Math.max(0, Math.round((Date.now() - startedAtMs) / 60_000)),
+        minutesIntoSession: Math.max(0, Math.round((Date.now() - clockStartMs) / 60_000)),
       });
     });
 
     return () => subscription.remove();
-  }, [sessionId, sessionLabel, startedAtMs]);
+  }, [sessionId, sessionLabel, clockStartMs]);
 
   return null;
 }

@@ -17,6 +17,10 @@ struct LiveActivityStateRecord: Record {
   /// Foundation on the way in — passing ms to `timeIntervalSince1970` would put the session start
   /// roughly fifty thousand years in the future and the timer would render as a frozen 00:00.
   @Field var startedAtMs: Double = 0
+  /// The clock's anchor — start + completed pauses (0218). 0 falls back to startedAtMs.
+  @Field var clockStartMs: Double = 0
+  /// When the current pause began, or nil while running.
+  @Field var pausedAtMs: Double?
   @Field var rankRatio: Double = 0
   @Field var rankLabel: String = ""
   @Field var projection: String?
@@ -36,7 +40,9 @@ struct LiveActivityStateRecord: Record {
       projection: projection,
       tierOuterHex: tierOuterHex,
       tierInnerHex: tierInnerHex,
-      flareHex: flareHex
+      flareHex: flareHex,
+      clockStart: Date(timeIntervalSince1970: (clockStartMs > 0 ? clockStartMs : startedAtMs) / 1000),
+      pausedAt: pausedAtMs.map { Date(timeIntervalSince1970: $0 / 1000) }
     )
   }
 

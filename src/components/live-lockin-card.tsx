@@ -9,6 +9,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { ActiveCircleLockIn } from '@/lib/api/lock-ins';
 import { formatDurationClock } from '@/lib/format';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
+import { clockFromRow, creditedSeconds } from '@/lib/lock-in-clock';
 
 function formatStartedAgo(minutes: number): string {
   if (minutes < 1) return 'just now';
@@ -45,22 +46,24 @@ export function LiveLockInCard({ activeLockIn }: LiveLockInCardProps) {
   const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
 
   const { session, display_name } = activeLockIn;
-  const startedAt = new Date(session.started_at).getTime();
-  const elapsedSeconds = Math.max(0, (now - startedAt) / 1000);
+  // "started N min ago" is a fact about the START, so it stays wall-clock; the running clock is
+  // credited time (0218) and freezes while they're paused.
+  const minutesSinceStart = Math.max(0, Math.floor((now - new Date(session.started_at).getTime()) / 60_000));
+  const elapsedSeconds = creditedSeconds(clockFromRow(session), now);
   const goalLabel = GOAL_TYPE_META[session.goal_type]?.label ?? session.goal_type;
 
   return (
     <View style={styles.card}>
-      <Animated.View style={pulseStyle}>
-        <Ionicons name="lock-closed" size={17} color={Colors.amber} />
+      <Animated.View style={session.paused ? undefined : pulseStyle}>
+        <Ionicons name={session.paused ? 'pause' : 'lock-closed'} size={17} color={session.paused ? Colors.muted : Colors.amber} />
       </Animated.View>
       <View style={styles.textCol}>
-        <Text style={styles.name}>{display_name} is locked in</Text>
+        <Text style={styles.name}>{session.paused ? `${display_name} paused` : `${display_name} is locked in`}</Text>
         <Text style={styles.detail}>
-          {goalLabel} · {formatStartedAgo(Math.floor(elapsedSeconds / 60))}
+          {goalLabel} · {formatStartedAgo(minutesSinceStart)}
         </Text>
       </View>
-      <Text style={styles.timer}>{formatDurationClock(elapsedSeconds)}</Text>
+      <Text style={[styles.timer, session.paused && { color: Colors.muted }]}>{formatDurationClock(elapsedSeconds)}</Text>
     </View>
   );
 }

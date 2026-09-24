@@ -831,6 +831,11 @@ export type LockInSession = {
   status: 'active' | 'completed' | 'abandoned';
   ended_check_in_id: string | null;
   created_at: string;
+  /** Pause / resume (0218). `paused` ⇔ `paused_at` set — a check constraint pins the two. */
+  paused: boolean;
+  paused_at: string | null;
+  /** Seconds of COMPLETED pauses; the open one (paused_at → now) is folded in on resume/stop. */
+  accumulated_paused_seconds: number;
 };
 
 // ── The live "locked in with you" count (migration 0184) ───────────────────────────────────
@@ -1082,6 +1087,8 @@ export type AnalyticsEventName =
   | 'chat_opened'
   | 'lock_in_started'
   | 'lock_in_completed'
+  | 'lock_in_paused'
+  | 'lock_in_resumed'
   | 'lock_in_posted_to_circle'
   | 'first_lock_in_tutorial_shown'
   | 'first_lock_in_tutorial_completed'
@@ -3374,6 +3381,9 @@ export type Database = {
         Returns: LockInSession;
       };
       confirm_lock_in_session: { Args: { p_session_id: string }; Returns: undefined };
+      // 0218 — both idempotent, both return the row so the client adopts the server's clock.
+      pause_lock_in_session: { Args: { p_session_id: string }; Returns: LockInSession };
+      resume_lock_in_session: { Args: { p_session_id: string }; Returns: LockInSession };
       stop_lock_in_session: {
         Args: {
           p_session_id: string;

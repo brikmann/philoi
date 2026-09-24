@@ -66,6 +66,24 @@ export async function confirmLockInSession(sessionId: string): Promise<void> {
   if (error) throw error;
 }
 
+// Pause / resume (0218). Both are idempotent server-side and return the row, so the caller takes
+// paused_at and accumulated_paused_seconds from the SERVER clock — the same clock started_at is
+// on — rather than from its own. The credited duration at Stop is computed from those stored
+// columns, never from anything the client sends.
+export async function pauseLockInSession(sessionId: string): Promise<LockInSession> {
+  const { data, error } = await supabase.rpc('pause_lock_in_session', { p_session_id: sessionId });
+  if (error) throw error;
+  track('lock_in_paused', {});
+  return data;
+}
+
+export async function resumeLockInSession(sessionId: string): Promise<LockInSession> {
+  const { data, error } = await supabase.rpc('resume_lock_in_session', { p_session_id: sessionId });
+  if (error) throw error;
+  track('lock_in_resumed', {});
+  return data;
+}
+
 export async function stopLockInSession(input: {
   sessionId: string;
   userId: string;

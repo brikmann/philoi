@@ -35,6 +35,11 @@ private const val NOTIFICATION_ID = 8701
 class LiveActivityStateRecord : Record {
   @Field var sessionName: String = ""
   @Field var startedAtMs: Double = 0.0
+  /** What the chronometer counts from: the start pushed forward by completed pauses (0218). 0 from
+   *  a caller that predates pause, which falls back to startedAtMs. */
+  @Field var clockStartMs: Double = 0.0
+  /** When the current pause began, or null while running. */
+  @Field var pausedAtMs: Double? = null
   @Field var rankRatio: Double = 0.0
   @Field var rankLabel: String = ""
   @Field var projection: String? = null
@@ -95,7 +100,10 @@ class PhiloiLiveActivityModule : Module() {
   }
 
   private fun build(state: LiveActivityStateRecord): android.app.Notification {
-    val title = if (state.sessionName.isEmpty()) "PHILOI" else "PHILOI · ${state.sessionName}"
+    val pausedAt = state.pausedAtMs
+    val clockStart = if (state.clockStartMs > 0) state.clockStartMs else state.startedAtMs
+    val baseTitle = if (state.sessionName.isEmpty()) "PHILOI" else "PHILOI · ${state.sessionName}"
+    val title = if (pausedAt != null) "$baseTitle · Paused" else baseTitle
     val percent = (state.rankRatio.coerceIn(0.0, 1.0) * 100).toInt()
     // "~2h to Gold III" when there's a projection, else the plain percentage. Static text — no
     // pulse is possible in notification chrome, which is why the in-app bar owns the animation.
@@ -111,23 +119,34 @@ class PhiloiLiveActivityModule : Module() {
       .setOngoing(true)
       .setOnlyAlertOnce(true)
       .setSilent(true)
-      .setShowWhen(true)
-      // The three lines that make the timer free: anchor `when` to the session start, tell the OS
-      // to render it as a chronometer, and count up rather than down. Android advances it on its
-      // own from here — we never post an update just because a second passed.
-      .setWhen(state.startedAtMs.toLong())
-      .setUsesChronometer(true)
       // Visible on the lock screen. Without this the card is hidden behind "sensitive content"
       // on a locked device, which is exactly where it's meant to be glanceable.
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       .setCategory(NotificationCompat.CATEGORY_STOPWATCH)
       .setContentIntent(openAppIntent())
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-      builder.setChronometerCountDown(false)
+    if (pausedAt == null) {
+      // The three lines that make the timer free: anchor `when` to the clock start, tell the OS to
+      // render it as a chronometer, and count up rather than down. Android advances it on its own
+      // from here — we never post an update just because a second passed.
+      builder
+        .setShowWhen(true)
+        .setWhen(clockStart.toLong())
+        .setUsesChronometer(true)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        builder.setChronometerCountDown(false)
+      }
+      rankLine?.let { builder.setContentText(it) }
+    } else {
+      // PAUSED (0218). A chronometer cannot be frozen, only removed — so the clock becomes static
+      // text at the second the pause began, and tapping (the content intent below) opens the
+      // lock-in screen, where Resume is. Rank moves to the sub-line rather than disappearing.
+      builder
+        .setShowWhen(false)
+        .setUsesChronometer(false)
+        .setContentText("${formatClock(pausedAt - clockStart)} · paused — tap to resume")
+      rankLine?.let { builder.setSubText(it) }
     }
-
-    rankLine?.let { builder.setContentText(it) }
 
     // The flare accent. Deliberately NOT setColorized(true) — that repaints the whole notification
     // background, which needs a foreground service to be honoured (we run Path A, without one) and
@@ -151,6 +170,15 @@ class PhiloiLiveActivityModule : Module() {
     }
 
     return builder.build()
+  }
+
+  /** Elapsed ms as "42:17", or "1:02:05" past the hour — the in-app formatDurationClock's shape. */
+  private fun formatClock(elapsedMs: Double): String {
+    val total = (elapsedMs / 1000).toLong().coerceAtLeast(0)
+    val h = total / 3600
+    val m = (total % 3600) / 60
+    val s = total % 60
+    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
   }
 
   /**

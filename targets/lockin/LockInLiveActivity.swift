@@ -68,15 +68,35 @@ private extension Color {
 /// The range needs an end, and a lock-in has no scheduled one — so it's capped a day out. Beyond
 /// 24h the text would stop advancing, which is fine: a lock-in that long is already a bug or a
 /// forgotten session, and the app's own stale-session handling ends the activity well before then.
+///
+/// PAUSE (0218) costs no ticks either: `pauseTime` makes iOS render the interval frozen at that
+/// instant, and a resume is one update that moves `clockStart` forward by the pause and clears it.
 private struct SessionTimer: View {
-  let start: Date
+  let state: LockInActivityAttributes.ContentState
   var font: Font = .system(size: 34, weight: .semibold, design: .rounded)
 
   var body: some View {
-    Text(timerInterval: start ... start.addingTimeInterval(24 * 60 * 60), countsDown: false)
+    Text(
+      timerInterval: state.clockStart ... state.clockStart.addingTimeInterval(24 * 60 * 60),
+      pauseTime: state.pausedAt,
+      countsDown: false
+    )
       .font(font)
       .monospacedDigit()
-      .foregroundStyle(.white)
+      // Dimmed while paused, the same step-back as the in-app timer (mock 218).
+      .foregroundStyle(state.pausedAt == nil ? Color.white : Color.white.opacity(0.5))
+  }
+}
+
+/// "PAUSED · TAP TO RESUME" under the clock. The Live Activity has no buttons without App Intents,
+/// so the affordance is the tap itself — any presentation opens the app on the lock-in screen,
+/// where Resume is.
+private struct PausedLine: View {
+  var body: some View {
+    Text("PAUSED · TAP TO RESUME")
+      .font(.system(size: 10, weight: .bold))
+      .kerning(1.2)
+      .foregroundStyle(.white.opacity(0.6))
   }
 }
 
@@ -182,7 +202,8 @@ private struct LockScreenView: View {
   var body: some View {
     VStack(spacing: 8) {
       Wordmark(sessionName: context.attributes.sessionName)
-      SessionTimer(start: context.attributes.startedAt)
+      SessionTimer(state: context.state)
+      if context.state.pausedAt != nil { PausedLine() }
       RankBar(state: context.state)
     }
     .padding(.horizontal, 18)
@@ -219,7 +240,8 @@ struct LockInLiveActivity: Widget {
         DynamicIslandExpandedRegion(.center) {
           VStack(spacing: 4) {
             Wordmark(sessionName: context.attributes.sessionName, size: 12)
-            SessionTimer(start: context.attributes.startedAt, font: .system(size: 30, weight: .semibold, design: .rounded))
+            SessionTimer(state: context.state, font: .system(size: 30, weight: .semibold, design: .rounded))
+            if context.state.pausedAt != nil { PausedLine() }
             // The flare's accent in the island: a short rule under the clock rather than a border,
             // because the island's shape is the system's to draw and a stroke around this region
             // would sit inside it as a visible box.
@@ -231,18 +253,26 @@ struct LockInLiveActivity: Widget {
           }
         }
       } compactLeading: {
-        // Takes the flare colour when one is equipped, purple otherwise — the compact presentation
-        // is two glyphs wide, so the dot is the only thing here that can carry the cosmetic.
-        Circle()
-          .fill(
-            Color.philoiOptional(hex: context.state.flareHex).map { LinearGradient(colors: [$0, $0], startPoint: .top, endPoint: .bottom) }
-              ?? LinearGradient(colors: [Palette.purpleLight, Palette.purpleDark], startPoint: .top, endPoint: .bottom)
-          )
-          .frame(width: 8, height: 8)
+        if context.state.pausedAt != nil {
+          // Paused: the dot becomes the pause glyph — the compact island has no room for words.
+          Image(systemName: "pause.fill")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(.white.opacity(0.6))
+        } else {
+          // Takes the flare colour when one is equipped, purple otherwise — the compact
+          // presentation is two glyphs wide, so the dot is the only thing here that can carry the
+          // cosmetic.
+          Circle()
+            .fill(
+              Color.philoiOptional(hex: context.state.flareHex).map { LinearGradient(colors: [$0, $0], startPoint: .top, endPoint: .bottom) }
+                ?? LinearGradient(colors: [Palette.purpleLight, Palette.purpleDark], startPoint: .top, endPoint: .bottom)
+            )
+            .frame(width: 8, height: 8)
+        }
       } compactTrailing: {
-        SessionTimer(start: context.attributes.startedAt, font: .system(size: 13, weight: .semibold, design: .rounded))
+        SessionTimer(state: context.state, font: .system(size: 13, weight: .semibold, design: .rounded))
       } minimal: {
-        SessionTimer(start: context.attributes.startedAt, font: .system(size: 12, weight: .semibold, design: .rounded))
+        SessionTimer(state: context.state, font: .system(size: 12, weight: .semibold, design: .rounded))
       }
       // Tapping any presentation opens the app; the root layout routes an active session to the
       // lock-in screen, so no per-activity deep link is needed.

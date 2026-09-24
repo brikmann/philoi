@@ -6,6 +6,7 @@ import { useEquipped } from '@/lib/economy/loadout';
 import { formatProjection } from '@/lib/api/xp-rate';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
 import { endLiveActivity, startLiveActivity, updateLiveActivity } from '@/lib/live-activity';
+import { clockAnchorMs } from '@/lib/lock-in-clock';
 import { formatRankTier, nextRank, xpProgressRatio } from '@/lib/rank-tiers';
 
 // Renders nothing. Drives the out-of-app live surfaces (#87) — the iOS Live Activity and the
@@ -31,6 +32,10 @@ export function LiveActivitySync() {
   // on a lock screen than "Gym". Falls back to the label, then to nothing at all.
   const sessionName = session ? session.goalDetail?.trim() || GOAL_TYPE_META[session.goalType]?.label || '' : '';
   const startedAtMs = session ? session.startedAt.getTime() : 0;
+  // Pause (0218). The anchor moves on each resume; pausedAtMs freezes the clock where it stands.
+  // Both go through update(), never a restart — restarting would rebuild the card on every tap.
+  const clockStartMs = session ? clockAnchorMs(session) : 0;
+  const pausedAtMs = session?.pausedAt ? session.pausedAt.getTime() : null;
 
   // START / END. Keyed on the session's IDENTITY, not the session object — the context replaces that
   // object on every touchConfirmedAt() tick, and restarting the activity each time would reset the
@@ -56,6 +61,9 @@ export function LiveActivitySync() {
     startLiveActivity({
       sessionName,
       startedAtMs,
+      // A cold start into a PAUSED session puts the card up paused, on the right frozen time.
+      clockStartMs,
+      pausedAtMs,
       tier: rankProjection?.rank.tier ?? 'bronze',
       rankRatio: 0,
       rankLabel: '',
@@ -70,20 +78,40 @@ export function LiveActivitySync() {
     //
     // `flareHex` is deliberately NOT a dep: the loadout store hydrates a beat after launch, and
     // re-running this on it would restart the activity and reset the Lock Screen clock. The update
-    // effect below repaints the tint instead, which is what update() is for.
+    // effect below repaints the tint instead, which is what update() is for. Same for
+    // clockStartMs / pausedAtMs — a pause is an update, not a new card.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, sessionId, sessionName, startedAtMs]);
 
-  // UPDATE. The two things the OS can't derive by itself: the rank bar and the flare tint. One or
-  // two pushes per session in practice — when the rank read resolves, and when the loadout does.
+  // UPDATE. The three things the OS can't derive by itself: the rank bar, the flare tint, and
+  // pause. A few pushes per session in practice — when the rank read resolves, when the loadout
+  // does, and once per pause / resume.
   useEffect(() => {
-    if (!sessionId || !rankProjection) return;
+    if (!sessionId) return;
+    if (!rankProjection) {
+      // A pause can land before the rank read does. Push it anyway, on the same empty rank fields
+      // start() went up with — there is nothing here yet for them to overwrite.
+      updateLiveActivity({
+        sessionName,
+        startedAtMs,
+        clockStartMs,
+        pausedAtMs,
+        tier: 'bronze',
+        rankRatio: 0,
+        rankLabel: '',
+        projection: null,
+        flareHex,
+      });
+      return;
+    }
     const { rank, hoursToNext } = rankProjection;
     const atMax = rank.xp_for_next_tier <= 0;
 
     updateLiveActivity({
       sessionName,
       startedAtMs,
+      clockStartMs,
+      pausedAtMs,
       tier: rank.tier,
       // Pinned full at the apex, which has no next division — the raw ratio would be 0 there and
       // read as an empty bar, i.e. as a bug. Same rule as rank-projection-bar.tsx.
@@ -103,7 +131,7 @@ export function LiveActivitySync() {
       projection: atMax || hoursToNext === null ? null : formatProjection(hoursToNext),
       flareHex,
     });
-  }, [sessionId, sessionName, startedAtMs, rankProjection, flareHex]);
+  }, [sessionId, sessionName, startedAtMs, clockStartMs, pausedAtMs, rankProjection, flareHex]);
 
   return null;
 }

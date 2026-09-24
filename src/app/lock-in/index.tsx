@@ -109,6 +109,11 @@ type CindyStatusState =
 // "Immersive darker background, minimal chrome" (PHILOI_UI_SPEC.md §13, design-mocks/51) —
 // distinct from every other screen's Colors.cream, a one-off for this screen only.
 const IMMERSIVE_BG = '#17131f';
+// How far the equipped flare's perimeter calms while paused — a hold, not an off switch, so the
+// cosmetic is still visibly yours on a break.
+const PAUSED_FLARE_DAMPEN = 0.35;
+// The play glyph on the lit resume disc — mock 218's #160a02, dark enough to read on ember.
+const PAUSE_RESUME_INK = '#160a02';
 // The pre-workout energy state, shrunk to a single word for the gym header chip (design-mocks/52's
 // `.energy`, which reads "DIALED") — it's what nudged the suggested numbers on every row below,
 // so it stays visible while lifting, just no longer as a full sentence.
@@ -180,7 +185,20 @@ function LockInScreen() {
     courseId?: string;
   }>();
   const { session, profile, refreshProfile } = useAuth();
-  const { session: activeSession, loading: activeLoading, start, clear, touchConfirmedAt } = useActiveSession();
+  const {
+    session: activeSession,
+    loading: activeLoading,
+    start,
+    clear,
+    touchConfirmedAt,
+    pause: pauseSession,
+    resume: resumeSession,
+  } = useActiveSession();
+  // Pause (0218, mock 218). Paused time earns nothing server-side; everything below that reacts to
+  // it — the frozen clock, the dimmed flame, the released wake lock, the silenced "still here?" —
+  // is this screen agreeing with the server about what the session is doing.
+  const paused = Boolean(activeSession?.pausedAt);
+  const [pauseBusy, setPauseBusy] = useState(false);
   // Read-only. FocusNudgeSync in _layout owns arming and disarming — this screen only reports
   // whether it happened, because the shield has to survive navigating away from here.
   const focusNudgeOn = useFocusNudgeArmed();
@@ -249,13 +267,15 @@ function LockInScreen() {
   const reduceMotion = useReduceMotion();
   const timerPulse = useSharedValue(0);
   useEffect(() => {
-    if (reduceMotion) {
+    // Paused rests too: a pulsing clock that isn't moving reads as a live one. Assigning the value
+    // cancels the running repeat.
+    if (reduceMotion || paused) {
       // Rest at 0 = plain ink, the same color the pulse spends most of its cycle at.
       timerPulse.value = 0;
       return;
     }
     timerPulse.value = withRepeat(withSequence(withTiming(1, { duration: 1400 }), withTiming(0, { duration: 1400 })), -1, false);
-  }, [timerPulse, reduceMotion]);
+  }, [timerPulse, reduceMotion, paused]);
   const timerPulseStyle = useAnimatedStyle(() => ({
     color: interpolateColor(timerPulse.value, [0, 1], [Colors.ink, Colors.coral]),
   }));
@@ -427,7 +447,9 @@ function LockInScreen() {
     })();
   }, [activeSession, isGym, posted, stopping, routineIdParam, energyParam, refetchWorkout]);
 
-  const elapsedSeconds = useElapsedSeconds(activeSession?.startedAt ?? null);
+  // Credited seconds — paused time excluded, frozen while paused — so the flare tier below and
+  // Cindy's milestones can't advance on a break (0218).
+  const elapsedSeconds = useElapsedSeconds(activeSession ?? null);
   // How hard the equipped flare burns right now — it starts near-invisible and steps up at
   // 15/30/60 minutes of THIS session. Derived here rather than inside the renderer because this
   // screen already re-renders every second for the clock, so the ramp costs nothing extra, and
@@ -466,13 +488,16 @@ function LockInScreen() {
   // this screen is not the visible one, while the third plays in the background regardless (#147).
   const keepScreenAwake = useKeepScreenAwakePref();
   const lockInFocused = useIsFocused();
+  //
+  // PAUSE IS THE FOURTH. They've stepped away, so the screen is allowed to sleep; resume takes the
+  // lock back. The cleanup below is what releases it on the pause.
   useEffect(() => {
-    if (!activeSession || !keepScreenAwake || !lockInFocused) return;
+    if (!activeSession || !keepScreenAwake || !lockInFocused || paused) return;
     activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
     return () => {
       deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
     };
-  }, [activeSession, keepScreenAwake, lockInFocused]);
+  }, [activeSession, keepScreenAwake, lockInFocused, paused]);
 
   // The real spendable balance (ember_wallet via get_inventory) — see the note at the
   // embersBeforeSnapshot capture below.
@@ -483,7 +508,11 @@ function LockInScreen() {
   // instead of it staying stuck on for the rest of a long session. Recomputed inline (not
   // memoized) since useElapsedSeconds above already forces a re-render every second, which
   // this piggybacks on rather than running its own separate ticking interval.
-  const stillHereDue = activeSession ? Date.now() - activeSession.lastConfirmedAt.getTime() > STILL_HERE_THRESHOLD_MS : false;
+  //
+  // Never while paused — they paused on purpose, and the server sweep skips paused sessions too.
+  // Resume stamps last_confirmed_at, so the clock this reads restarts from the resume.
+  const stillHereDue =
+    activeSession && !paused ? Date.now() - activeSession.lastConfirmedAt.getTime() > STILL_HERE_THRESHOLD_MS : false;
 
   // ── CINDY, mid-session (CINDY_SPEC "Entry points — Lock-in", mock 117 §C) ──
   // Consent gates both halves, the same way home does: no consent means no bubble, no fetch, and
@@ -493,12 +522,14 @@ function LockInScreen() {
   // number moves, and nothing at all once this screen blurs. Passing null while stopping/posted
   // sends the goodbye immediately rather than waiting for the server's reaper, so the people
   // still locked in see the count tick down within one 30s tick of the Stop being tapped.
-  const presence = useLockInPresence(activeSession && !stopping && !posted ? activeSession.id : null);
+  // Paused counts as not-studying: null sends the same immediate goodbye a Stop does, and resume
+  // re-joins on the next beat.
+  const presence = useLockInPresence(activeSession && !stopping && !posted && !paused ? activeSession.id : null);
 
   const { consented: cindyConsented, bubbleEnabled } = useCindy();
   const [cindySheetOpen, setCindySheetOpen] = useState(false);
   const { line: cindyLine, dismiss: dismissCindyLine, notePr } = useCindyLockInLine({
-    enabled: cindyConsented && bubbleEnabled && !posted && !stopping,
+    enabled: cindyConsented && bubbleEnabled && !posted && !stopping && !paused,
     sessionId: activeSession?.id ?? null,
     elapsedSeconds,
   });
@@ -582,6 +613,19 @@ function LockInScreen() {
     const set = await logSet(workoutExerciseId, weight, reps);
     if (set.is_pr) notePr();
     return set;
+  }
+
+  async function handlePauseToggle() {
+    if (!activeSession || pauseBusy || stopping) return;
+    setPauseBusy(true);
+    setError(null);
+    try {
+      await (paused ? resumeSession() : pauseSession());
+    } catch (e) {
+      if (screenMountedRef.current) setError(getErrorMessage(e, paused ? 'Could not resume.' : 'Could not pause.'));
+    } finally {
+      if (screenMountedRef.current) setPauseBusy(false);
+    }
   }
 
   async function handleConfirmStillHere() {
@@ -963,7 +1007,9 @@ function LockInScreen() {
           )}
           <View style={styles.gymHeaderRight}>
             <View style={styles.timerPill}>
-              <Animated.Text style={[styles.timerPillValue, timerPulseStyle]}>{formatDurationClock(elapsedSeconds)}</Animated.Text>
+              <Animated.Text style={[styles.timerPillValue, paused ? styles.timerPaused : timerPulseStyle]}>
+                {paused ? `❚❚ ${formatDurationClock(elapsedSeconds)}` : formatDurationClock(elapsedSeconds)}
+              </Animated.Text>
             </View>
             <FlareTierCaption tier={flareTier} />
             {workout && (
@@ -1057,6 +1103,7 @@ function LockInScreen() {
                 <Ionicons name="chevron-up" size={14} color={Colors.muted} />
               </Pressable>
             )}
+            <PauseToggle paused={paused} busy={pauseBusy || stopping} onPress={handlePauseToggle} />
             {/* Solid coral, unlike the base screen's quiet Stop (mock 52) — finishing a logged
                 workout is a deliberate commit, not the same "let the session end" gesture. */}
             <Pressable
@@ -1096,7 +1143,7 @@ function LockInScreen() {
             GYM RUNS FAINTER (GYM_FLARE_DAMPEN). This screen is picked up between every set, so a
             full-strength perimeter is in the user's face in a way it never is for study — where the
             phone goes face-down. The ramp still happens here, it is just quieter throughout. */}
-        <EquippedFlarePerimeter tier={flareTier} dampen={GYM_FLARE_DAMPEN} />
+        <EquippedFlarePerimeter tier={flareTier} dampen={GYM_FLARE_DAMPEN * (paused ? PAUSED_FLARE_DAMPEN : 1)} />
       </Screen>
     );
   }
@@ -1160,8 +1207,8 @@ function LockInScreen() {
           <View style={styles.flameField}>
             {/* Particles sit BEHIND the flame in the same box, so they read as thrown off it
                 rather than as a layer over the top of it. */}
-            <EquippedFlameParticles />
-            <SessionFlame height={240} dimmed={flareEquipped} />
+            <EquippedFlameParticles dimmed={paused} />
+            <SessionFlame height={240} dimmed={flareEquipped || paused} />
           </View>
         </CindyFlamePress>
         <TutorialTooltip
@@ -1169,11 +1216,20 @@ function LockInScreen() {
           text="This is your flame — it burns for as long as you stay locked in."
           onDismiss={() => setTutorialStep(2)}
         />
-        <Text style={styles.lockedLabel}>Locked in</Text>
-        <Animated.Text style={[styles.timer, timerPulseStyle]}>{formatDurationClock(elapsedSeconds)}</Animated.Text>
-        {/* "15m elapsed — flare up" and friends. Invisible except for a few seconds after a
-            threshold crossing, so it never competes with the clock it sits under. */}
-        <FlareTierCaption tier={flareTier} />
+        <Text style={[styles.lockedLabel, paused && styles.pausedLabel]}>{paused ? 'Paused' : 'Locked in'}</Text>
+        <Animated.Text style={[styles.timer, paused ? styles.timerPaused : timerPulseStyle]}>
+          {formatDurationClock(elapsedSeconds)}
+        </Animated.Text>
+        {/* Mock 218's reminder, and the reason pausing isn't a loophole. */}
+        {paused ? (
+          <Text style={styles.pausedNote}>
+            The clock&apos;s stopped. Paused time doesn&apos;t count toward your credit — resume when you&apos;re back.
+          </Text>
+        ) : (
+          /* "15m elapsed — flare up" and friends. Invisible except for a few seconds after a
+             threshold crossing, so it never competes with the clock it sits under. */
+          <FlareTierCaption tier={flareTier} />
+        )}
         {/* "540 studying right now." Under the clock rather than over the flame: the flame and the
             timer are the hero, and this is the thing you glance at once and feel accompanied by.
             Renders nothing at all until the number is worth showing, so on a quiet night this
@@ -1252,6 +1308,8 @@ function LockInScreen() {
               <Ionicons name="chevron-up" size={14} color={Colors.muted} />
             </Pressable>
           )}
+          {/* Directly LEFT of Stop (mock 218), so the one destructive control keeps the edge. */}
+          <PauseToggle paused={paused} busy={pauseBusy || stopping} onPress={handlePauseToggle} />
           {/* Quiet, not alarm-red (§13) — closing a good session should feel satisfying. */}
           <Pressable
             onPress={handleStop}
@@ -1286,8 +1344,25 @@ function LockInScreen() {
           every screen in the app, which read as a permanent full-screen wash rather than a
           cosmetic. Renders nothing when the slot is empty (most users — there is no free flare),
           and is pointer-transparent end to end. */}
-      <EquippedFlarePerimeter tier={flareTier} />
+      {/* Paused: the tier holds where it was (credited time is frozen) and the surge calms. */}
+      <EquippedFlarePerimeter tier={flareTier} dampen={paused ? PAUSED_FLARE_DAMPEN : 1} />
     </Screen>
+  );
+}
+
+// Pause / Resume (mock 218). The same 42px round control as the camera beside it, so it reads as a
+// session control rather than a second primary action: an amber-rimmed pause while running, a lit
+// ember disc to resume — the one thing on a paused screen that should pull the eye.
+function PauseToggle({ paused, busy, onPress }: { paused: boolean; busy: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={busy}
+      style={[styles.pauseButton, paused && styles.resumeButton, busy && styles.cameraButtonDisabled]}
+      accessibilityLabel={paused ? 'Resume lock-in' : 'Pause lock-in'}
+      accessibilityRole="button">
+      <Ionicons name={paused ? 'play' : 'pause'} size={18} color={paused ? PAUSE_RESUME_INK : Colors.amber} />
+    </Pressable>
   );
 }
 
@@ -1491,6 +1566,38 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.13)',
     borderRadius: 13,
     paddingVertical: Spacing.twelve,
+  },
+  // Mock 218's `.disc.pause` / `.disc.resume`, at the row's 42px.
+  pauseButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,210,122,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resumeButton: {
+    backgroundColor: Colors.ember,
+    borderColor: Colors.ember,
+  },
+  // Mock 218: the clock and the label step back to the dim ink; the note sits under the clock.
+  timerPaused: {
+    color: Colors.muted,
+    textShadowRadius: 0,
+  },
+  pausedLabel: {
+    color: Colors.muted,
+  },
+  pausedNote: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: Colors.muted,
+    textAlign: 'center',
+    maxWidth: 240,
+    marginTop: 6,
   },
   stopLabel: {
     fontFamily: Fonts.bodySemiBold,

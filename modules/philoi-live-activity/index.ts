@@ -12,8 +12,13 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 /** Mirrors LiveActivityStateRecord in the iOS/Android modules. Keys must match those @Field names. */
 export type NativeLiveActivityState = {
   sessionName: string;
-  /** Epoch ms. The OS counts up from this itself — we never send elapsed time. */
+  /** Epoch ms of the real session start. iOS keeps it in the immutable attributes. */
   startedAtMs: number;
+  /** Epoch ms the clock counts up from (start + completed pauses). The OS counts up from this
+   *  itself — we never send elapsed time. */
+  clockStartMs: number;
+  /** Epoch ms the current pause began, or null while running — the clock freezes here. */
+  pausedAtMs: number | null;
   rankRatio: number;
   rankLabel: string;
   projection: string | null;

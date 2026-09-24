@@ -6,6 +6,7 @@ import { Colors, Radius } from '@/constants/theme';
 import { getItem } from '@/lib/economy/catalog';
 import type { CatalogItem } from '@/lib/economy/catalog';
 import { useGatedInterval } from '@/hooks/use-motion-active';
+import { creditedSeconds, type LockInClock } from '@/lib/lock-in-clock';
 
 // §2 — cosmetics rendered as ACTUAL ART, applied to the surface.
 //
@@ -91,7 +92,7 @@ export function auraTierForMinutes(minutes: number | null | undefined): AuraTier
  * Ticks once a minute. The thresholds are minutes apart, so anything finer would be re-rendering a
  * profile card sixty times for each change it can possibly produce.
  */
-export function useAuraTier(startedAt: Date | null | undefined): AuraTier {
+export function useAuraTier(clock: LockInClock | null | undefined): AuraTier {
   // A ticking TIMESTAMP in state, with the tier derived from it during render — rather than the
   // tier itself in state, set from inside the effect. Both lint rules point the same way here:
   // reading the clock during render is impure, and setting state synchronously in an effect body
@@ -99,12 +100,13 @@ export function useAuraTier(startedAt: Date | null | undefined): AuraTier {
   const [now, setNow] = useState(() => Date.now());
 
   // setState inside the interval callback is asynchronous, which is the shape the rule wants.
-  useGatedInterval(() => setNow(Date.now()), 60_000, Boolean(startedAt));
+  useGatedInterval(() => setNow(Date.now()), 60_000, Boolean(clock));
 
-  if (!startedAt) return 0;
+  if (!clock) return 0;
   // `now` can be up to a minute stale right after a session starts, which costs nothing: the first
   // threshold is 30 minutes away, so the tier is 0 either way until long after the first tick.
-  return auraTierForMinutes((now - startedAt.getTime()) / 60000);
+  // Credited minutes (0218): the aura holds while paused rather than ramping on break time.
+  return auraTierForMinutes(creditedSeconds(clock, now) / 60);
 }
 
 /** Extra opacity and spread the tier adds. Kept small — this sits behind a person's name. */
