@@ -7,6 +7,7 @@ import Animated, { useAnimatedStyle, withDelay, withTiming } from 'react-native-
 import { GymClipThumbnail } from '@/components/gym-clip-player';
 import { RankBadge } from '@/components/rank-badge';
 import { PersonalFlame } from '@/components/personal-flame';
+import { PlacementMove } from '@/components/placement-move';
 import { TextInput } from '@/components/ui/text-input';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -264,6 +265,10 @@ export function LockInDoneScreen({
             </Text>
           </View>
         )}
+
+        {/* Mock 204 — season placement and its move since you last saw it. Renders nothing for
+            someone not on the board yet. */}
+        <PlacementMove />
 
         {streakAfter > 0 && (
           <View style={styles.streak}>

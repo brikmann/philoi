@@ -16,6 +16,7 @@ import { FLAME_ASPECT_RATIO, EquippedFlameSvg } from '@/components/flame-icon';
 import { useRewardClaim } from '@/components/economy/reward-claim';
 import { RewardRevealFrame, type RowClaim } from '@/components/economy/reward-reveal-frame';
 import { type RewardRowSpec } from '@/components/economy/reward-rows';
+import { PlacementMove } from '@/components/placement-move';
 import { RankBadge } from '@/components/rank-badge';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -355,6 +356,9 @@ export function FlameMeterComplete({
               </View>
             </View>
           )}
+          {/* Mock 204's placement beat — this payout replaces the plain done screen on the stop that
+              completes the flame, so it carries the card too rather than skipping a session's move. */}
+          <PlacementMove />
           {error && <Text style={styles.error}>{error}</Text>}
         </>
       }
