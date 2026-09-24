@@ -269,9 +269,12 @@ export default function ItemDetailScreen() {
               regardless, and a button that always errors is worse than no button. */}
           {isDefaultItem(item.id) ? (
             <Text style={styles.sellNote}>Part of your starter set · permanent, can&apos;t be sold</Text>
-          ) : isCampfireFinisherKey(item.id) ? (
-            // 0212 — the record of a race you ran. salvage_cosmetic refuses it, so no button.
-            <Text style={styles.sellNote}>Earned with your campfire · permanent, can&apos;t be sold</Text>
+          ) : item.source === 'earned' ? (
+            // 0213 — earned prestige (season titles, relics, medals, campfire finisher titles) is
+            // never liquidatable. salvage_cosmetic refuses it, so there is no button to fail.
+            <Text style={styles.sellNote}>
+              {isCampfireFinisherKey(item.id) ? 'Earned with your campfire' : 'Earned'} · permanent, can&apos;t be sold
+            </Text>
           ) : (
             <>
               {/* The Forge shortcut (mock 156 frame 2), sitting where it belongs: next to Sell, on
