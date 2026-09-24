@@ -6,6 +6,7 @@ import { signOutGoogle } from '@/lib/auth/providers';
 import { configureBilling, resetBilling } from '@/lib/billing';
 import { getErrorMessage } from '@/lib/errors';
 import { unregisterPushToken } from '@/lib/notifications';
+import { clearSeenPlacement } from '@/lib/placement-watch';
 import { clearLastSeenRank } from '@/lib/rank-watch';
 import { clearGoalReveals } from '@/lib/goal-reveal-queue';
 import { clearStepLadderSyncState } from '@/lib/step-ladder-sync';
@@ -205,6 +206,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // provide (a rank earned by webhook while the app was closed has no done screen to fire
       // from). Sign-out is the one moment we can name a login unambiguously.
       if (userId) await clearLastSeenRank(userId);
+      // Same for the done screen's global-placement baseline (mock 204).
+      if (userId) await clearSeenPlacement(userId);
       // Same housekeeping for the step-ladder sync timestamp (migration 0119). The key is already
       // per user id so a stale one could never be read by the next account — this just stops the
       // device accumulating a key per person who ever signed in on it.
