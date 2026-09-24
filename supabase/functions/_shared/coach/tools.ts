@@ -306,8 +306,9 @@ export const COACH_TOOLS: CoachToolSpec[] = [
                 type: 'string',
                 enum: ['stem', 'arts'],
                 description:
-                  'REQUIRED on every grade goal: is this course STEM (sciences, maths, engineering, ' +
-                  'CS, economics/stats) or arts (humanities, languages, social sciences, design)? It ' +
+                  'REQUIRED on every grade goal: is this course STEM (natural sciences, maths, stats, ' +
+                  'CS, engineering) or arts (economics, business and every other social science, ' +
+                  'humanities, languages, law, design; borderline → arts)? It ' +
                   'sets how a pass below the target still pays. Overrides the shared one.',
               },
               pass_mark: {

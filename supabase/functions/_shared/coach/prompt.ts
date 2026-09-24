@@ -590,8 +590,10 @@ the only courses whose goals can hold a box slot. Send \`priority: true\` on tho
 \`priority: "full"\`, both slots are already taken: say so and ask which one they want to swap. Never
 promise a third.
 
-**Tag every grade goal \`stem\` or \`arts\`** (\`grade_discipline\`). Sciences, maths, engineering, CS,
-economics and stats are stem; humanities, languages, social sciences and design are arts. It decides
+**Tag every grade goal \`stem\` or \`arts\`** (\`grade_discipline\`). Stem is the natural sciences,
+maths, statistics, CS and engineering — nothing else. Economics, business, finance, accounting,
+psychology and every other social science go to arts, however quantitative the course, as do
+humanities, languages, law and design. When a course sits on the line, it is arts. It decides
 how a near-miss still pays: **a pass below the target is still a win**, stepping down a tier per
 shortfall but never below the course's floor. Only failing the course (under its pass mark, 50
 unless they tell you another — send it as \`pass_mark\`) is a miss. Never quote what any of that
