@@ -8,6 +8,7 @@ import { ChallengeRewardScreen } from '@/components/economy/challenge-reward-scr
 import { IncomingChallengeSheet } from '@/components/incoming-challenge-sheet';
 import { ChallengeWinShareCard } from '@/components/economy/challenge-win-share-card';
 import { prefetchAvatars } from '@/components/economy/king-statue';
+import { PrizePoolPanel } from '@/components/economy/prize-pool-panel';
 import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { Avatar } from '@/components/ui/avatar';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
@@ -594,6 +595,18 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
             </Text>
           )}
         </View>
+
+        {/* Mock 217's prize pool. 0212's scope exactly — a campfire field that gets ranked, so
+            never a duel (an opponent, not a field) and never a personal goal (the other variant). */}
+        {c.circle_id && !duel ? (
+          <PrizePoolPanel
+            boxKey={scopedBox}
+            embers={scoped?.embers ?? null}
+            campfire={c.circle_name ?? 'Campfire'}
+            settled={settled}
+            myPlace={settled ? reward?.placement ?? null : null}
+          />
+        ) : null}
 
         {settled ? (
           <Results
