@@ -6,10 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AgoraCard } from '@/components/agora/agora-card';
 import { AgoraCommentsSheet } from '@/components/agora/agora-comments-sheet';
+import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
-import { cheerAgoraItem, fetchAgoraItem } from '@/lib/api/agora';
+import { blockAgoraUser, cheerAgoraItem, fetchAgoraItem, reportAgora } from '@/lib/api/agora';
+import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import type { AgoraItem } from '@/types/database';
 
@@ -34,6 +36,8 @@ export default function AgoraPostScreen() {
   // Opened by default: the two notifications that land here are both about the conversation, so
   // arriving at a closed sheet would mean one extra tap to see the thing you were pinged about.
   const [sheetOpen, setSheetOpen] = useState(comments !== 'false');
+  const [moreOpen, setMoreOpen] = useState(false);
+  const { profile } = useAuth();
 
   const loadout = usePublicLoadout(item?.user_id);
 
@@ -64,6 +68,36 @@ export default function AgoraPostScreen() {
     }
   }, [item]);
 
+  // Report and block end by leaving: there is no list here to take the card off, so the screen
+  // itself goes — the same "you won't see this again" the feed gives by removing the card.
+  async function handleReport() {
+    if (!item || !profile) return;
+    try {
+      await reportAgora({
+        reporterId: profile.id,
+        reportedUserId: item.user_id,
+        reason: 'Reported from the Agora',
+        postId: item.item_type === 'post' ? item.id : null,
+      });
+      Alert.alert('Reported', 'Thanks — we’ll take a look. You won’t see this post again.');
+      router.back();
+    } catch (e) {
+      Alert.alert('Could not report', getErrorMessage(e, 'Something went wrong.'));
+    }
+  }
+
+  async function handleBlock() {
+    if (!item || !profile) return;
+    try {
+      await blockAgoraUser(profile.id, item.user_id);
+      router.back();
+    } catch (e) {
+      Alert.alert('Could not block', getErrorMessage(e, 'Something went wrong.'));
+    }
+  }
+
+  const isMine = item != null && item.user_id === profile?.id;
+
   return (
     <ScreenBackground>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -83,10 +117,9 @@ export default function AgoraPostScreen() {
               loadout={loadout}
               onCheer={cheer}
               onComment={() => setSheetOpen(true)}
-              // No moderation menu on the permalink: the sheet's actions (report, block, remove)
-              // all end by taking the card off a LIST, and there is no list here to take it off.
-              // The feed is where that belongs.
-              onMore={() => setSheetOpen(true)}
+              // Someone else's item gets report/block (Apple 1.2 — every surface that shows UGC
+              // needs both). Your own keeps opening the thread; removing it is the feed's job.
+              onMore={() => (isMine ? setSheetOpen(true) : setMoreOpen(true))}
             />
           </ScrollView>
         ) : (
@@ -98,6 +131,13 @@ export default function AgoraPostScreen() {
         item={sheetOpen ? item : null}
         onClose={() => setSheetOpen(false)}
         onCountChange={(_, count) => setItem((prev) => (prev ? { ...prev, comments: count } : prev))}
+      />
+
+      <ReportBlockSheet
+        visible={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        onReport={handleReport}
+        onBlock={handleBlock}
       />
     </ScreenBackground>
   );

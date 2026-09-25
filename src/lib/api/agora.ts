@@ -259,6 +259,57 @@ export async function blockAgoraUser(blockerId: string, blockedId: string): Prom
   if (error) throw error;
 }
 
+export type BlockedUser = {
+  id: string;
+  display_name: string;
+  handle: string | null;
+  blocked_at: string;
+};
+
+/**
+ * Everyone you've blocked, newest first — the Settings → Blocked users list.
+ *
+ * Two reads rather than an embedded select: blocked_users has no FK to profiles in the generated
+ * types (Relationships: []), so PostgREST can't embed it. Profiles are read-any, so a blocked
+ * person's name still resolves.
+ */
+export async function listBlockedUsers(blockerId: string): Promise<BlockedUser[]> {
+  const { data: rows, error } = await supabase
+    .from('blocked_users')
+    .select('blocked_id, created_at')
+    .eq('blocker_id', blockerId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  if (!rows?.length) return [];
+
+  const { data: people, error: peopleError } = await supabase
+    .from('profiles')
+    .select('id, display_name, handle')
+    .in(
+      'id',
+      rows.map((r) => r.blocked_id)
+    );
+  if (peopleError) throw peopleError;
+
+  const byId = new Map((people ?? []).map((p) => [p.id, p]));
+  return rows.map((r) => ({
+    id: r.blocked_id,
+    display_name: byId.get(r.blocked_id)?.display_name ?? 'Deleted account',
+    handle: byId.get(r.blocked_id)?.handle ?? null,
+    blocked_at: r.created_at,
+  }));
+}
+
+/** RLS ("blocked_users: manage own") already scopes this to your own rows; the eq is belt and braces. */
+export async function unblockUser(blockerId: string, blockedId: string): Promise<void> {
+  const { error } = await supabase
+    .from('blocked_users')
+    .delete()
+    .eq('blocker_id', blockerId)
+    .eq('blocked_id', blockedId);
+  if (error) throw error;
+}
+
 /** AGORA_SPEC "Privacy" — take one milestone out of the square without unpinning it. */
 export async function setMilestoneInAgora(id: string, inAgora: boolean): Promise<void> {
   const { error } = await supabase.rpc('set_milestone_in_agora', { p_id: id, p_in_agora: inAgora });

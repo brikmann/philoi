@@ -514,6 +514,7 @@ function RootNavigator() {
         />
         <Stack.Screen name="report" options={{ presentation: 'modal', title: 'Report' }} />
         <Stack.Screen name="legal" options={{ title: '' }} />
+        <Stack.Screen name="blocked-users" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
       </Stack.Protected>
 

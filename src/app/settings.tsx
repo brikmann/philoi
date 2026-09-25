@@ -445,6 +445,7 @@ export default function SettingsScreen() {
             value={watchOptIn}
             onValueChange={handleToggleWatchOptIn}
           />
+          <SettingsRow icon="ban" label="Blocked users" onPress={() => router.push('/blocked-users')} />
         </View>
 
         {/* SEASON RANK (CODE_PROMPT_season_privacy.md, migration 0217) — the three-way dial that
