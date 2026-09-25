@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -14,7 +15,7 @@ import Animated, {
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { signInWithGoogle } from '@/lib/auth/providers';
+import { isAppleSignInAvailable, signInWithApple, signInWithGoogle } from '@/lib/auth/providers';
 import { getErrorMessage } from '@/lib/errors';
 
 // design-mocks/01-splash.html's `@keyframes emb` — embers spawn full-size near the flame,
@@ -76,16 +77,20 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    isAppleSignInAvailable().then(setAppleAvailable);
   }, []);
 
-  async function handleGoogleSignIn() {
+  // One loading flag for both providers: two OS sheets racing each other is never what anyone meant.
+  async function run(signIn: () => Promise<void>) {
+    if (loading) return;
     setError(null);
     setLoading(true);
     try {
-      await signInWithGoogle();
+      await signIn();
     } catch (e) {
       setError(getErrorMessage(e, 'Something went wrong — try again.'));
     } finally {
@@ -110,7 +115,18 @@ export default function SignInScreen() {
 
       <View style={styles.spacer} />
 
-      <Pressable style={styles.googleBtn} onPress={handleGoogleSignIn} disabled={loading}>
+      {/* Sign in with Apple (Guideline 4.8): offered wherever Google is, at the same size and weight,
+          and drawn with Apple's own button — the HIG allows only that or a close copy of it. */}
+      {appleAvailable && (
+        <AppleAuthentication.AppleAuthenticationButton
+          buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+          cornerRadius={15}
+          style={styles.appleBtn}
+          onPress={() => void run(signInWithApple)}
+        />
+      )}
+      <Pressable style={styles.googleBtn} onPress={() => void run(signInWithGoogle)} disabled={loading}>
         <Ionicons name="logo-google" size={18} color={Colors.cream} />
         <Text style={styles.googleBtnLabel}>{loading ? 'Connecting…' : 'Continue with Google'}</Text>
       </Pressable>
@@ -174,6 +190,11 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 19.5,
     maxWidth: 230,
+  },
+  appleBtn: {
+    width: '100%',
+    height: 50,
+    marginBottom: Spacing.twelve,
   },
   googleBtn: {
     flexDirection: 'row',

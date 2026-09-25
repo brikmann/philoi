@@ -1,8 +1,9 @@
 import { GoogleSignin, isCancelledResponse, isErrorWithCode, isSuccessResponse, statusCodes } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
-import * as Linking from 'expo-linking';
-import * as QueryParams from 'expo-auth-session/build/QueryParams';
+import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 
@@ -97,41 +98,78 @@ export async function signInWithGoogle() {
   }
 }
 
-// Abstracted so a second provider (Apple) can be dropped in later without
-// touching the call sites in the sign-in screen.
-export type OAuthProviderId = 'google' | 'apple';
-
-async function signInWithOAuthProvider(provider: OAuthProviderId) {
-  const redirectTo = Linking.createURL('auth/callback');
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: { redirectTo, skipBrowserRedirect: true },
-  });
-  if (error) throw error;
-  if (!data.url) throw new Error('Supabase did not return an authorization URL.');
-
-  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-  if (result.type !== 'success' || !result.url) {
-    throw new Error('Sign-in was cancelled.');
+/**
+ * Sign in with Apple is iOS-only here, and only where the OS offers it (iOS 13+, not every
+ * simulator). The sign-in screen renders the button only when this resolves true — Apple's own
+ * button on a device that can't complete the flow is worse than no button.
+ */
+export async function isAppleSignInAvailable(): Promise<boolean> {
+  if (Platform.OS !== 'ios') return false;
+  try {
+    return await AppleAuthentication.isAvailableAsync();
+  } catch {
+    return false;
   }
-
-  const { params, errorCode } = QueryParams.getQueryParams(result.url);
-  if (errorCode) throw new Error(errorCode);
-
-  const { access_token, refresh_token } = params;
-  if (!access_token || !refresh_token) {
-    throw new Error('Sign-in did not return a session.');
-  }
-
-  const { error: sessionError } = await supabase.auth.setSession({
-    access_token,
-    refresh_token,
-  });
-  if (sessionError) throw sessionError;
 }
 
-// TODO: enable once Apple Developer sign-in capability is configured for iOS.
-export function signInWithApple() {
-  return signInWithOAuthProvider('apple');
+/**
+ * Native Sign in with Apple (Guideline 4.8), the same shape as the Google path above: the OS sheet
+ * hands back an identity token, and supabase.auth.signInWithIdToken() does the exchange.
+ *
+ * THE NONCE IS SENT TWICE, IN TWO FORMS, on purpose. Apple gets the SHA-256 of a random string and
+ * bakes that hash into the token's `nonce` claim; Supabase gets the raw string, hashes it itself,
+ * and refuses the token unless the two match. That binds this token to this one request — a
+ * token lifted from somewhere else can't be replayed here. Hashing on both sides, or neither,
+ * fails with "Nonces mismatch".
+ */
+export async function signInWithApple() {
+  const rawNonce = Crypto.randomUUID();
+  const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+
+  let credential: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+      nonce: hashedNonce,
+    });
+  } catch (e) {
+    if ((e as { code?: string })?.code === 'ERR_REQUEST_CANCELED') {
+      throw new Error('Sign-in was cancelled.');
+    }
+    throw e;
+  }
+  if (!credential.identityToken) {
+    throw new Error('Apple did not return a sign-in token.');
+  }
+
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: 'apple',
+    token: credential.identityToken,
+    nonce: rawNonce,
+  });
+  if (error) throw error;
+
+  // Apple gives the name ONCE — on the first authorization only, and never inside the token — so
+  // it has to be caught here or it's gone. Without it, ensureProfile (auth-context) names the new
+  // profile after the email's local part, which under "Hide My Email" is a random relay string.
+  // Best-effort on purpose: setup-handle asks for a display name anyway, this only makes its
+  // prefill right, and a failure here must never fail a sign-in that already succeeded.
+  const fullName = [credential.fullName?.givenName, credential.fullName?.familyName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const userId = data.user?.id;
+  if (fullName && userId) {
+    try {
+      await supabase.auth.updateUser({ data: { full_name: fullName } });
+      // `handle is null` = still in onboarding, so this can only ever touch a brand-new profile,
+      // never overwrite a name somebody chose (Apple re-sends the name after a revoke + re-auth).
+      await supabase.from('profiles').update({ display_name: fullName }).eq('id', userId).is('handle', null);
+    } catch {
+      // Name stays the fallback; setup-handle lets them type it.
+    }
+  }
 }

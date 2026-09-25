@@ -50,6 +50,10 @@ const config: ExpoConfig = {
     // philoi.app is the live invite domain (FEATURE_feedback_and_domain / CAMPFIRE_REDESIGN_SPEC);
     // getphiloi.com stays claimed so invite links shared before the switch still open the app.
     associatedDomains: ['applinks:philoi.app', 'applinks:getphiloi.com'],
+    // Sign in with Apple (Guideline 4.8 — required because Google is offered). Adds the
+    // com.apple.developer.applesignin entitlement; the App ID must have the capability enabled too
+    // or signing fails. See signInWithApple in src/lib/auth/providers.ts.
+    usesAppleSignIn: true,
     // NOTE: no `deploymentTarget` here on purpose. NATIVE_BUILD_CONFIG.md called for 16.1
     // (ActivityKit's floor, Dynamic Island 16.1+), but SDK 57's own minimum is iOS 16.4+ —
     // pinning 16.1 would LOWER the target below what the SDK supports, not raise it. The
@@ -350,6 +354,7 @@ const config: ExpoConfig = {
     // the "still locked in" interstitial. The plugin header explains why the fix lives in the
     // delegate rather than in MainActivity.onUserLeaveHint.
     './plugins/withUserLeaveHintCrashGuard',
+    'expo-apple-authentication',
     // Native Google Sign-In (punchlist 2, §0) — replaces the Supabase-hosted OAuth redirect
     // page with the native account picker; supabase.auth.signInWithIdToken() still does the
     // actual auth exchange server-side, this just changes how the user gets the idToken.
