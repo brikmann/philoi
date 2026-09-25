@@ -1,4 +1,5 @@
 import { GoogleSignin, isCancelledResponse, isErrorWithCode, isSuccessResponse, statusCodes } from '@react-native-google-signin/google-signin';
+import type { User } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
@@ -171,5 +172,36 @@ export async function signInWithApple() {
     } catch {
       // Name stays the fallback; setup-handle lets them type it.
     }
+  }
+}
+
+/**
+ * A FRESH Apple authorization code for this user, for revocation at account deletion. The code from
+ * sign-in expired minutes after it was issued, so this re-runs the Apple sheet (Face ID, no new
+ * consent). Null when there's nothing to revoke or no way to get the code: not an Apple account, or
+ * not on iOS (the native sheet is the only source).
+ */
+export async function getAppleRevocationCode(user: User | null | undefined): Promise<string | null> {
+  const isApple = user?.app_metadata?.provider === 'apple' || user?.identities?.some((i) => i.provider === 'apple');
+  if (!isApple || !(await isAppleSignInAvailable())) return null;
+  const credential = await AppleAuthentication.signInAsync({ requestedScopes: [] });
+  return credential.authorizationCode ?? null;
+}
+
+/**
+ * Guideline 5.1.1(v): deleting an account that signed in with Apple must revoke the Apple grant.
+ * Call BEFORE delete_my_account() — the apple-revoke function authenticates with this user's JWT.
+ *
+ * NEVER THROWS. An Apple outage, a cancelled sheet or a missing server secret must not trap someone
+ * in an account they asked to delete; the deletion goes ahead whatever happens here.
+ */
+export async function revokeAppleSignInBestEffort(user: User | null | undefined): Promise<void> {
+  try {
+    const code = await getAppleRevocationCode(user);
+    if (!code) return;
+    const { data, error } = await supabase.functions.invoke('apple-revoke', { body: { code } });
+    if (error || !data?.revoked) console.warn('[apple-revoke] not revoked:', error?.message ?? data?.reason);
+  } catch (e) {
+    console.warn('[apple-revoke] skipped:', e);
   }
 }

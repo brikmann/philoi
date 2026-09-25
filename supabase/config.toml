@@ -49,6 +49,11 @@ verify_jwt = true
 [functions.spotify-disconnect]
 verify_jwt = true
 
+# Sign in with Apple token revocation, called by the app during account deletion (5.1.1(v)). It
+# identifies the caller from their JWT so a user can only revoke their own Apple grant.
+[functions.apple-revoke]
+verify_jwt = true
+
 # NOTE: strava-webhook has the same requirement (Strava sends no JWT either) and is presumably
 # already deployed with the flag. It is deliberately NOT listed here — adding it would change how
 # an existing, working function redeploys, and that is a separate change to verify on its own.

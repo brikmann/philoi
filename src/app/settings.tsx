@@ -31,6 +31,7 @@ import { resetTutorial } from '@/lib/tutorial';
 import { rankVisibilityOf, setRankVisibility } from '@/lib/api/privacy';
 import { setMyPhotoVisibility } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
+import { revokeAppleSignInBestEffort } from '@/lib/auth/providers';
 import { restorePurchases } from '@/lib/billing';
 import { getErrorMessage } from '@/lib/errors';
 import {
@@ -125,7 +126,7 @@ function SettingsRow({
 export default function SettingsScreen() {
   const settingsCoachRef = useCoachMark('settings');
   const router = useRouter();
-  const { profile, signOut, refreshProfile } = useAuth();
+  const { session, profile, signOut, refreshProfile } = useAuth();
   const { groups } = useMyGroups();
   const { devOverride, setDevOverride } = useEntitlement();
   const { connected: deviceFitnessConnected } = useFitnessConnection();
@@ -288,6 +289,9 @@ export default function SettingsScreen() {
   async function handleConfirmDelete() {
     setDeletingAccount(true);
     try {
+      // Apple accounts only: revoke the Sign in with Apple grant first (5.1.1(v)), while this user
+      // still exists to authenticate the call. Never throws — a failure here can't block deletion.
+      await revokeAppleSignInBestEffort(session?.user);
       await deleteMyAccount();
       setDeleteModalOpen(false);
       await signOut();
