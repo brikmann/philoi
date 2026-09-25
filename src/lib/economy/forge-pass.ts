@@ -136,13 +136,14 @@ export type PassLevel = {
   level: number;
   /**
    * A lane is a LIST, not a single reward. Several levels hand over two things at once — L50's
-   * Mythic halo arrives with the Emberfall Strike sting, L100's crown with its title — and
+   * Crown Halo arrives with the Emberfall Strike sting, L100's crown with its title — and
    * modelling that as one reward would have meant either dropping half of each or inventing
    * fake intermediate levels to hold the remainder.
    */
   free: PassReward[];
   premium: PassReward[];
-  /** The four Mythic milestones (25/50/75/100) — the big violet anvil nodes on the track. */
+  /** The four milestones (25/50/75/100) — the big violet anvil nodes on the track. Landmarks, not a
+   *  rarity: since 0219 only L90 (relic) and L100 (crown medal) pay a Mythic. */
   milestone: boolean;
 };
 
@@ -162,8 +163,8 @@ const gear = (itemId: string): PassReward => ({ kind: 'item', itemId });
 
 /**
  * Bought the pass → these land immediately, before a single level is climbed
- * (FORGE_PASS_SEASON1 §"Level 0"). This is the purchase's receipt: the marquee Mythic flare is
- * here rather than at a milestone precisely so the $9.99 buys something the same second it clears.
+ * (FORGE_PASS_SEASON1 §"Level 0"). This is the purchase's receipt: the marquee flare (Legendary
+ * since 0219 — the pass's two Mythics are the L90 relic and L100 crown) is here rather than at a milestone precisely so the $9.99 buys something the same second it clears.
  */
 export const LEVEL_ZERO_UNLOCK: PassReward[] = [
   gear('flare-emberfall-ascendant'),
@@ -238,7 +239,7 @@ const NAMED_LEVELS: Record<number, { free: PassReward[]; premium: PassReward[] }
   },
 };
 
-/** The four Mythic milestones — the bigger violet anvil nodes on the track (code prompt §1). */
+/** The four milestones — the bigger violet anvil nodes on the track (code prompt §1). */
 const MILESTONES: ReadonlySet<number> = new Set([25, 50, 75, 100]);
 
 export const PASS_LEVELS: PassLevel[] = Array.from({ length: SEASON.totalLevels }, (_, i) => {
@@ -287,7 +288,7 @@ export function isPrestigeLevel(level: number): boolean {
   return level > SEASON.totalLevels && (level - SEASON.totalLevels) % PRESTIGE_INTERVAL === 0;
 }
 
-/** Level 100 premium also carries the completionist badge alongside the Mythic capstone. */
+/** Level 100 premium also carries the completionist badge alongside the Mythic crown medal. */
 export const CAPSTONE_BADGE: PassReward = { kind: 'badge', badgeKey: 's1-completionist', label: 'S1 Completionist' };
 
 // ───────────────────────────── Pass XP · the achievement system ─────────────────────────────

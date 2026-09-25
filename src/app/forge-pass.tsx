@@ -325,7 +325,7 @@ export default function ForgePassScreen() {
               <Text style={styles.upgradeTitle}>Unlock the Flame Pass</Text>
               <Text style={styles.upgradeSub}>
                 {onSale
-                  ? 'Every level’s premium reward, all season — plus the Mythic flare on day one'
+                  ? 'Every level’s premium reward, all season — plus the Emberfall flare on day one'
                   : phase === 'upcoming'
                     ? 'On sale when Emberfall opens, October 1'
                     : 'This season has closed'}
@@ -487,7 +487,7 @@ function countdownLabel(phase: ReturnType<typeof seasonPhase>): string {
 /**
  * The Level 0 unlock, pinned above Level 1 for anyone who hasn't bought in
  * (FORGE_PASS_SEASON1 §"Level 0"). It sits at the top of the track rather than in the upgrade strip
- * because the track is where rewards live, and seeing the Mythic flare sitting one row above your
+ * because the track is where rewards live, and seeing the Emberfall flare sitting one row above your
  * climb is a far stronger argument than a price tag.
  */
 function LevelZeroRow({ onPress }: { onPress: () => void }) {

@@ -105,9 +105,10 @@ export default function PurchaseSuccessScreen() {
   }, []);
 
   useEffect(() => {
-    // The Mythic sting for the flare — the Pass's headline unlock is a Mythic and deserves the same
-    // audio the box reveals give one. Ember packs get nothing: a currency top-up isn't a pull.
-    if (isPass) fireReveal('mythic', false);
+    // The Legendary sting for the flare — the Pass's day-one unlock gets the same audio a box reveal
+    // gives one. Not Mythic: since 0219 the pass's only mythics are its L90/L100 capstones, and the
+    // purchase shouldn't sound like one. Ember packs get nothing: a currency top-up isn't a pull.
+    if (isPass) fireReveal('legendary', false);
   }, [isPass]);
 
   // Watch for the webhook. It usually lands within a second or two, so a single immediate refetch
