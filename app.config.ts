@@ -235,14 +235,16 @@ const config: ExpoConfig = {
     [
       '@kingstinct/react-native-healthkit',
       {
-        // §17 — read-only, minimal scope. NSHealthUpdateUsageDescription: false opts OUT of the
-        // write/update capability description entirely (the plugin otherwise adds a generic one
-        // by default) since this app never calls a save*/write API. background: false skips the
-        // background-delivery entitlement too — foreground sync only for this pass; wiring true
-        // background delivery is left for later, not something to declare-and-not-use.
+        // §17 — read-only, minimal scope. The app never calls a save*/write API, but the
+        // @kingstinct/react-native-healthkit binary still references the write symbols, so Apple's
+        // static scanner (ASC error 90683) REQUIRES NSHealthUpdateUsageDescription even though it's
+        // unused — a missing/false key rejects the upload. Hence the string below. background: false
+        // skips the background-delivery entitlement too — foreground sync only for this pass; wiring
+        // true background delivery is left for later, not something to declare-and-not-use.
         NSHealthShareUsageDescription:
           'Philoi reads only the activity your challenge needs — e.g. steps — to verify it automatically. Your health data stays on your device.',
-        NSHealthUpdateUsageDescription: false,
+        NSHealthUpdateUsageDescription:
+          'Philoi can save your completed lock-in workouts to Apple Health when you choose to.',
         background: false,
       },
     ],
