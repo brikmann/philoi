@@ -7,10 +7,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AgoraCard } from '@/components/agora/agora-card';
 import { AgoraCommentsSheet } from '@/components/agora/agora-comments-sheet';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
-import { blockAgoraUser, cheerAgoraItem, fetchAgoraItem, reportAgora } from '@/lib/api/agora';
+import {
+  blockAgoraUser,
+  cheerAgoraItem,
+  deleteAgoraPost,
+  fetchAgoraItem,
+  reportAgora,
+  setMilestoneInAgora,
+} from '@/lib/api/agora';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import type { AgoraItem } from '@/types/database';
@@ -37,6 +45,8 @@ export default function AgoraPostScreen() {
   // arriving at a closed sheet would mean one extra tap to see the thing you were pinged about.
   const [sheetOpen, setSheetOpen] = useState(comments !== 'false');
   const [moreOpen, setMoreOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const { profile } = useAuth();
 
   const loadout = usePublicLoadout(item?.user_id);
@@ -96,6 +106,24 @@ export default function AgoraPostScreen() {
     }
   }
 
+  // Your own item: the feed's Delete, same dialog and same milestone rule (a milestone leaves the
+  // square, it isn't deleted — see confirmRemove in agora/index.tsx).
+  async function confirmRemove() {
+    if (!item || removing) return;
+    setRemoving(true);
+    try {
+      if (item.item_type === 'post') await deleteAgoraPost(item.id);
+      else await setMilestoneInAgora(item.id, false);
+      setRemoveOpen(false);
+      router.back();
+    } catch (e) {
+      setRemoveOpen(false);
+      Alert.alert('Could not remove', getErrorMessage(e, 'Something went wrong.'));
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   const isMine = item != null && item.user_id === profile?.id;
 
   return (
@@ -117,9 +145,9 @@ export default function AgoraPostScreen() {
               loadout={loadout}
               onCheer={cheer}
               onComment={() => setSheetOpen(true)}
-              // Someone else's item gets report/block (Apple 1.2 — every surface that shows UGC
-              // needs both). Your own keeps opening the thread; removing it is the feed's job.
-              onMore={() => (isMine ? setSheetOpen(true) : setMoreOpen(true))}
+              // Same split as the feed: your own item gets Delete, someone else's gets
+              // report/block (Apple 1.2 — every surface that shows UGC needs both).
+              onMore={() => (isMine ? setRemoveOpen(true) : setMoreOpen(true))}
             />
           </ScrollView>
         ) : (
@@ -138,6 +166,20 @@ export default function AgoraPostScreen() {
         onClose={() => setMoreOpen(false)}
         onReport={handleReport}
         onBlock={handleBlock}
+      />
+
+      <ConfirmDialog
+        visible={removeOpen}
+        title={item?.item_type === 'post' ? 'Delete this post?' : 'Take this out of the Agora?'}
+        body={
+          item?.item_type === 'post'
+            ? 'It disappears from the Agora for everyone.'
+            : 'It stays on your Journal — it just stops showing in the square.'
+        }
+        confirmLabel={item?.item_type === 'post' ? 'Delete' : 'Remove'}
+        busy={removing}
+        onCancel={() => setRemoveOpen(false)}
+        onConfirm={() => void confirmRemove()}
       />
     </ScreenBackground>
   );
