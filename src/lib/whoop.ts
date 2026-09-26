@@ -2,7 +2,7 @@ import * as AuthSession from 'expo-auth-session';
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 
-import { FITNESS_SYNC_ENABLED } from '@/constants/feature-flags';
+import { FITNESS_SYNC_ENABLED, WHOOP_ENABLED } from '@/constants/feature-flags';
 import { requestRankRecheck } from '@/lib/rank-watch';
 import { supabase } from '@/lib/supabase';
 import type { ChallengeType } from '@/types/database';
@@ -46,7 +46,7 @@ export const WHOOP_ALL_METRIC_SCOPES = Object.values(WHOOP_SCOPE_BY_CHALLENGE_TY
 // Whoop access or refresh token — sync results come back from whoop-sync as a single
 // already-logged number.
 export function isWhoopSupported(): boolean {
-  return FITNESS_SYNC_ENABLED && Boolean(WHOOP_CLIENT_ID);
+  return FITNESS_SYNC_ENABLED && WHOOP_ENABLED && Boolean(WHOOP_CLIENT_ID);
 }
 
 export async function connectWhoop(scopes: string[]): Promise<boolean> {

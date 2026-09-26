@@ -11,27 +11,25 @@ import { CalendarConsentDialog } from '@/components/calendar-consent-dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useGoogleCalendarConnection } from '@/hooks/use-google-calendar-connection';
 import { useStravaConnection } from '@/hooks/use-strava-connection';
-import { useWhoopConnection } from '@/hooks/use-whoop-connection';
 import { getErrorMessage } from '@/lib/errors';
 import { getPlatformFitnessSource, isDeviceFitnessSupported } from '@/lib/fitness-sync';
 import { isStravaSupported } from '@/lib/strava';
-import { isWhoopSupported, WHOOP_ALL_METRIC_SCOPES } from '@/lib/whoop';
 
 // Official Strava brand assets (developers.strava.com/guidelines — never redraw these).
 const STRAVA_CONNECT_BUTTON = require('../../assets/strava/connect-button/btn_strava_connect_with_orange_x2.png');
 const STRAVA_POWERED_BY = require('../../assets/strava/powered-by/api_logo_pwrdBy_strava_horiz_orange.png');
 
-// Settings → "Connected apps" (PHILOI_UI_SPEC.md §19, CODE_BUILD_PROMPTS.md's fitness-sync
-// note) — the persistent, discoverable home for connecting a device-metric source, so it isn't
-// only reachable by happening to create a steps/distance challenge (see fitness-sync-prompt.tsx
-// for that contextual entry point; both share the same source list). This platform's own real
-// pedometer source (Apple Health on iOS, Health Connect on Android), Strava (cross-platform, runs
-// + rides) and Whoop (cross-platform, strain/workouts/sleep) are all real, each gated behind
-// FITNESS_SYNC_ENABLED until their EAS rebuild ships — the other platform's pedometer stays the
-// honest "we're still building this" placeholder, since it's not wired up here.
+// Settings → "Integrations" (was "Connected apps"; PHILOI_UI_SPEC.md §19) — the persistent,
+// discoverable home for connecting a source, so it isn't only reachable by happening to create a
+// steps/distance challenge (fitness-sync-prompt.tsx is that contextual entry point; both share
+// FITNESS_SYNC_SOURCES). Two sections: Health & Fitness (this platform's own health store + Strava)
+// and Productivity (Google Calendar).
 //
-// Unlike the sync sheet, this screen lists every source regardless of metric fit: there's no
-// challenge in context to fit to, and connecting ahead of time is the whole point of the screen.
+// ONLY WHAT CAN ACTUALLY CONNECT IS LISTED (App Review, Guideline 2.1). This used to render Whoop
+// (not approved by Whoop beyond the dev account) and the other platform's pedometer as a "coming
+// soon" row. Whoop comes back with WHOOP_ENABLED; the code behind it was never removed.
+//
+// Each row is a name, its state, and at most one line of detail; each section has one privacy line.
 type ConnectionBundle = {
   connected: boolean;
   loading: boolean;
@@ -147,41 +145,6 @@ function StravaRow({ source }: { source: SyncSource }) {
       notSupportedMessage="This needs a newer build of Philoi. You can log progress manually for now."
       connectButtonAsset={STRAVA_CONNECT_BUTTON}
     />
-  );
-}
-
-// Connecting from here has no challenge to narrow the scopes to, so it asks for the three metrics
-// Philoi can actually use (workouts, strain, sleep) and no more — read:profile is never requested.
-// A connect made from a challenge's own sync sheet asks for just that challenge's one scope.
-function WhoopRow({ source }: { source: SyncSource }) {
-  const { connected, loading, connect, disconnect } = useWhoopConnection();
-  return (
-    <ConnectableRow
-      source={source}
-      supported={isWhoopSupported()}
-      bundle={{ connected, loading, connect: () => connect(WHOOP_ALL_METRIC_SCOPES), disconnect }}
-      notSupportedMessage="This needs a newer build of Philoi. You can log progress manually for now."
-    />
-  );
-}
-
-function StubRow({ source }: { source: SyncSource }) {
-  function handlePress() {
-    Alert.alert(`${source.name} — coming soon`, "We're still building this connection. You can log progress manually for now.");
-  }
-
-  return (
-    <Pressable style={styles.row} onPress={handlePress}>
-      <View style={[styles.icon, { backgroundColor: source.iconBg }]}>
-        <Ionicons name={source.icon} size={19} color={source.iconColor} />
-      </View>
-      <View style={styles.info}>
-        <Text style={styles.name}>{source.name}</Text>
-        <Text style={styles.detail}>{source.detail}</Text>
-      </View>
-      <Text style={styles.connectLabel}>Connect</Text>
-      <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
-    </Pressable>
   );
 }
 
@@ -327,29 +290,30 @@ export default function ConnectedAppsScreen() {
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <Ionicons name="chevron-back" size={22} color={Colors.ink} />
         </Pressable>
-        <Text style={styles.title}>Connected apps</Text>
+        <Text style={styles.title}>Integrations</Text>
         <View style={{ width: 22 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.subtitle}>
-          Connect a source once and any challenge that uses steps or distance can track itself automatically —
-          or keep logging it yourself, that always works too.
-        </Text>
+        <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Health & Fitness</Text>
+        <Text style={styles.subtitle}>Track step and distance challenges automatically. You can always log manually.</Text>
 
         <View style={styles.group}>
+          {/* Only the two that can connect on this device: this platform's own health store and
+              Strava. Nothing else in FITNESS_SYNC_SOURCES renders here (see the header note). */}
           {FITNESS_SYNC_SOURCES.map((source) => {
             if (source.key === platformSource) return <DeviceFitnessRow key={source.key} source={source} />;
             if (source.key === 'strava') return <StravaRow key={source.key} source={source} />;
-            if (source.key === 'whoop') return <WhoopRow key={source.key} source={source} />;
-            return <StubRow key={source.key} source={source} />;
+            return null;
           })}
         </View>
 
         <View style={styles.privacy}>
           <Ionicons name="lock-closed" size={13} color={Colors.green} />
           <Text style={styles.privacyText}>
-            We only read what a challenge needs — your campfire sees your progress, never your raw activity data.
+            {/* "Steps and distance" alone would under-state it: a Sleep goal reads sleep too. */}
+            Philoi never writes to your health data — it only reads steps, sleep and distance to verify a challenge.
+            Your campfire sees progress, never raw activity.
           </Text>
         </View>
 
@@ -359,11 +323,7 @@ export default function ConnectedAppsScreen() {
           </Pressable>
         )}
 
-        <Text style={styles.sectionTitle}>Your schedule</Text>
-        <Text style={styles.subtitle}>
-          Connect your calendar and Philoi coaches you around what’s actually coming — the exam on Friday, the
-          deadline tonight, the window you’re free this afternoon. Read-only, and it stays between you and Philoi.
-        </Text>
+        <Text style={styles.sectionTitle}>Productivity</Text>
 
         <View style={styles.group}>
           <GoogleCalendarRow />
@@ -371,10 +331,7 @@ export default function ConnectedAppsScreen() {
 
         <View style={styles.privacy}>
           <Ionicons name="lock-closed" size={13} color={Colors.green} />
-          <Text style={styles.privacyText}>
-            Philoi reads the next few weeks only, on the server, at the moment it writes to you — nothing is stored
-            and nothing is ever shown to another member.
-          </Text>
+          <Text style={styles.privacyText}>Read-only, server-side, at send time. Never stored, never shown to anyone.</Text>
         </View>
 
         {/* Official "Powered by Strava" lockup (developers.strava.com/guidelines) — required
@@ -419,6 +376,9 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     marginTop: Spacing.five,
     marginBottom: Spacing.two,
+  },
+  sectionTitleFirst: {
+    marginTop: 0,
   },
   group: {
     backgroundColor: Colors.card,

@@ -25,6 +25,14 @@ export const CHAT_ENABLED = true;
 // Whoop additionally needs Whoop's own app review before it works beyond the dev account.
 export const FITNESS_SYNC_ENABLED = true;
 
+// Whoop, OFF in every surface a member can reach (Integrations, the goal metric picker, the sync
+// sheet), for App Review: a submitted binary must not offer a connection that can't complete
+// (Guideline 2.1). Whoop still has no production app approval (see above), so its connect ends in
+// an error for everyone but the dev account. The integration itself — lib/whoop, the hooks, the
+// edge functions — stays in the repo; flipping this true brings every surface back at once. The
+// metrics that exist only because of Whoop (strain, workout minutes) leave the picker with it.
+export const WHOOP_ENABLED = false;
+
 // Gym tracker phase-2 — per-set video clips (PHILOI_UI_SPEC.md §23). expo-camera, expo-video,
 // expo-video-thumbnails, and react-native-compressor are all native modules, so this only holds
 // on a build that compiled them in — same reasoning as FITNESS_SYNC_ENABLED above. Both gates

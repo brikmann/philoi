@@ -42,7 +42,7 @@ export default function HealthConnectRationaleScreen() {
           challenge — e.g. &quot;8,200 / 10,000 steps.&quot; Nobody sees your Health Connect data itself.
         </Text>
         <Text style={styles.body}>
-          You can disconnect at any time from Settings → Connected apps, or manage Philoi&apos;s access directly
+          You can disconnect at any time from Settings → Integrations, or manage Philoi&apos;s access directly
           in Health Connect&apos;s own app settings. Logging progress manually always works, connected or not.
         </Text>
       </ScrollView>

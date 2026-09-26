@@ -20,7 +20,6 @@ import { useEntitlement } from '@/hooks/use-entitlement';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { useStravaConnection } from '@/hooks/use-strava-connection';
-import { useWhoopConnection } from '@/hooks/use-whoop-connection';
 import { setCoachConsent, setCoachPreference } from '@/lib/api/coach';
 import { setDailyGoalMode, setPublishFlameCompletion } from '@/lib/api/daily-fire';
 import { deleteMyAccount } from '@/lib/api/groups';
@@ -131,8 +130,7 @@ export default function SettingsScreen() {
   const { devOverride, setDevOverride } = useEntitlement();
   const { connected: deviceFitnessConnected } = useFitnessConnection();
   const { connected: stravaConnected } = useStravaConnection();
-  const { connected: whoopConnected } = useWhoopConnection();
-  const anyFitnessSourceConnected = deviceFitnessConnected || stravaConnected || whoopConnected;
+  const anyFitnessSourceConnected = deviceFitnessConnected || stravaConnected;
   const [photoVisibility, setPhotoVisibility] = useState<PhotoVisibility>(profile?.photo_visibility ?? 'campfires');
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -509,7 +507,7 @@ export default function SettingsScreen() {
             description="Turns steps into kilometres, and lets Cindy score a lift against your own bodyweight. Private, and never used to hand out rewards."
             onPress={() => router.push('/body-metrics')}
           />
-          <SettingsRow icon="fitness" label="Connected apps" onPress={() => router.push('/connected-apps')} />
+          <SettingsRow icon="fitness" label="Integrations" onPress={() => router.push('/connected-apps')} />
           {/* Campus verification state (UNI_VERIFICATION_SPEC.md §6) — the value column is the
               whole story: verified, or the reason it isn't. */}
           <SettingsRow

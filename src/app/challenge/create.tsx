@@ -15,6 +15,7 @@ import { Screen } from '@/components/ui/screen';
 import { SelectField, type SelectOption } from '@/components/ui/select-field';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
+import { WHOOP_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFriends } from '@/hooks/use-friends';
 
@@ -1152,9 +1153,16 @@ const PERSONAL_TYPE_OPTIONS: { value: ChallengeType; label: string; unit: string
 // them from setup would quietly make those integrations unreachable.
 const MORE_TYPE_OPTIONS: typeof PERSONAL_TYPE_OPTIONS = [
   { value: 'ride_distance', label: 'Riding', unit: 'km', defaultTarget: '20' },
-  // Whoop has no step count, so its three metrics live here and never on the steps option above.
-  { value: 'workout_minutes', label: 'Workout minutes', unit: 'minutes', defaultTarget: '150' },
-  { value: 'strain', label: 'Strain', unit: 'strain', defaultTarget: '70' },
+  // Whoop has no step count, so its metrics live here and never on the steps option above.
+  // Workout minutes and Strain exist only because of Whoop, so they leave with it while
+  // WHOOP_ENABLED is off — a goal whose only source can't connect is a dead end (App Review 2.1).
+  // Sleep stays: the phone's own health store measures it.
+  ...(WHOOP_ENABLED
+    ? [
+        { value: 'workout_minutes' as const, label: 'Workout minutes', unit: 'minutes', defaultTarget: '150' },
+        { value: 'strain' as const, label: 'Strain', unit: 'strain', defaultTarget: '70' },
+      ]
+    : []),
   { value: 'sleep_hours', label: 'Sleep', unit: 'hours', defaultTarget: '49' },
 ];
 

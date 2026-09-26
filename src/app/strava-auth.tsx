@@ -33,7 +33,7 @@ export default function StravaAuthScreen() {
         const connected = await completeStravaAuth(code, state);
         if (cancelled) return;
         setStatus('done');
-        if (!connected) setError('Strava connected, but the app couldn’t confirm it — check Connected apps.');
+        if (!connected) setError('Strava connected, but the app couldn’t confirm it — check Settings → Integrations.');
       } catch (e) {
         if (cancelled) return;
         setError(getErrorMessage(e, 'Could not finish connecting to Strava.'));

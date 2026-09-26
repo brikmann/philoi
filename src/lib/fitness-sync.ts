@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { WHOOP_ENABLED } from '@/constants/feature-flags';
 import * as HealthConnect from '@/lib/health-connect';
 import * as HealthKit from '@/lib/healthkit';
 import type { ChallengeType } from '@/types/database';
@@ -14,6 +15,11 @@ export function getPlatformFitnessSource(): FitnessSourceKey | null {
   if (Platform.OS === 'ios') return 'apple_health';
   if (Platform.OS === 'android') return 'health_connect';
   return null;
+}
+
+/** Health Connect on an iPhone, Apple Health on Android — a real product, but never connectable here. */
+export function isOtherPlatformPedometer(key: FitnessSourceKey, platform: FitnessSourceKey | null): boolean {
+  return (key === 'apple_health' || key === 'health_connect') && key !== platform;
 }
 
 // Which source is actually real for a given challenge type — steps reads the phone's own
@@ -36,10 +42,10 @@ export function getRealFitnessSourceForChallengeType(
   if (type === 'study_hours' || type === 'gym_visits') return 'lock_ins';
   // Sleep is health data FIRST. Every phone can measure it; Whoop is one optional source among
   // several, and making it the only one left sleep dead for everyone without a band.
-  if (type === 'sleep_hours') return opts?.whoopConnected ? 'whoop' : getPlatformFitnessSource();
+  if (type === 'sleep_hours') return WHOOP_ENABLED && opts?.whoopConnected ? 'whoop' : getPlatformFitnessSource();
   // Strain genuinely is a Whoop concept — there's no HealthKit/Health Connect equivalent — so it
-  // stays Whoop-only and the picker says so.
-  if (type === 'workout_minutes' || type === 'strain') return 'whoop';
+  // stays Whoop-only and the picker says so. With Whoop off (WHOOP_ENABLED) it has no source at all.
+  if (type === 'workout_minutes' || type === 'strain') return WHOOP_ENABLED ? 'whoop' : null;
   return null;
 }
 
@@ -63,7 +69,8 @@ const CANDIDATE_SOURCES_BY_CHALLENGE_TYPE: Partial<Record<ChallengeType, Fitness
 };
 
 export function fitnessSourcesForChallengeType(type: ChallengeType): FitnessSourceKey[] {
-  return CANDIDATE_SOURCES_BY_CHALLENGE_TYPE[type] ?? [];
+  const candidates = CANDIDATE_SOURCES_BY_CHALLENGE_TYPE[type] ?? [];
+  return WHOOP_ENABLED ? candidates : candidates.filter((s) => s !== 'whoop');
 }
 
 // Display names, kept here rather than in any one screen — the goal card, the setup flow and the
@@ -99,11 +106,11 @@ export function metricSourceLabel(type: ChallengeType): string | null {
     case 'gym_visits':
       return 'From your Gym lock-ins (needs a photo or logged sets)';
     case 'sleep_hours':
+      if (!WHOOP_ENABLED) return Platform.OS === 'ios' ? 'From Apple Health' : 'From Health Connect';
       return Platform.OS === 'ios' ? 'From Apple Health, or WHOOP if connected' : 'From Health Connect, or WHOOP if connected';
     case 'workout_minutes':
-      return 'WHOOP only';
     case 'strain':
-      return 'WHOOP only';
+      return WHOOP_ENABLED ? 'WHOOP only' : null;
     default:
       return null;
   }
@@ -139,10 +146,10 @@ export function metricSourceShort(type: ChallengeType): string | null {
     case 'gym_visits':
       return 'Lock-ins';
     case 'sleep_hours':
-      return 'Health / WHOOP';
+      return WHOOP_ENABLED ? 'Health / WHOOP' : 'Health';
     case 'workout_minutes':
     case 'strain':
-      return 'WHOOP only';
+      return WHOOP_ENABLED ? 'WHOOP only' : null;
     default:
       return null;
   }

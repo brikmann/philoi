@@ -3,9 +3,16 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { WHOOP_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
-import { fitnessSourcesForChallengeType, getRealFitnessSourceForChallengeType, type FitnessSourceKey } from '@/lib/fitness-sync';
+import {
+  fitnessSourcesForChallengeType,
+  getPlatformFitnessSource,
+  getRealFitnessSourceForChallengeType,
+  isOtherPlatformPedometer,
+  type FitnessSourceKey,
+} from '@/lib/fitness-sync';
 import { connectStrava } from '@/lib/strava';
 import { connectWhoop, WHOOP_SCOPE_BY_CHALLENGE_TYPE } from '@/lib/whoop';
 import type { ChallengeType } from '@/types/database';
@@ -28,8 +35,11 @@ const STRAVA_CONNECT_BUTTON = require('../../assets/strava/connect-button/btn_st
 export const FITNESS_SYNC_SOURCES: SyncSource[] = [
   { key: 'apple_health', name: 'Apple Health', detail: 'iPhone + Apple Watch', icon: 'logo-apple', iconBg: '#2a2b30', iconColor: Colors.ink },
   { key: 'health_connect', name: 'Health Connect', detail: 'Wear OS · Samsung · Android', icon: 'heart', iconBg: '#1e3329', iconColor: Colors.green },
-  { key: 'strava', name: 'Strava', detail: 'Runs + rides', icon: 'bicycle', iconBg: '#3a2118', iconColor: '#FC5200' },
-  { key: 'whoop', name: 'Whoop', detail: 'Strain · workouts · sleep', icon: 'pulse', iconBg: '#1d1d21', iconColor: '#E9E9EC' },
+  { key: 'strava', name: 'Strava', detail: 'Read-only · runs + rides for distance goals', icon: 'bicycle', iconBg: '#3a2118', iconColor: '#FC5200' },
+  // Hidden while WHOOP_ENABLED is off (App Review, Guideline 2.1) — see feature-flags.ts.
+  ...(WHOOP_ENABLED
+    ? [{ key: 'whoop', name: 'Whoop', detail: 'Strain · workouts · sleep', icon: 'pulse', iconBg: '#1d1d21', iconColor: '#E9E9EC' } as const]
+    : []),
 ];
 
 // The sources this challenge's metric can ACTUALLY be measured by (§17's metric-fit rule — a
@@ -38,7 +48,12 @@ export const FITNESS_SYNC_SOURCES: SyncSource[] = [
 export function getOrderedFitnessSources(challengeType: ChallengeType): SyncSource[] {
   const fits = fitnessSourcesForChallengeType(challengeType);
   const realSource = getRealFitnessSourceForChallengeType(challengeType);
-  const candidates = FITNESS_SYNC_SOURCES.filter((s) => fits.includes(s.key));
+  // The OTHER platform's pedometer is never shown: Health Connect can't be connected from an
+  // iPhone, and a row that only ever answers "coming soon" is an incomplete feature to App Review.
+  const platform = getPlatformFitnessSource();
+  const candidates = FITNESS_SYNC_SOURCES.filter(
+    (s) => fits.includes(s.key) && !isOtherPlatformPedometer(s.key, platform)
+  );
   const lead = candidates.find((s) => s.key === realSource);
   if (!lead) return candidates;
   return [lead, ...candidates.filter((s) => s.key !== realSource)];
