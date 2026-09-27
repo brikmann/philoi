@@ -162,7 +162,7 @@ function item(i: Omit<CatalogItem, 'slot' | 'showcaseOnly'>): CatalogItem {
 
 const FLAMES: CatalogItem[] = [
   item({ id: 'flame-molten-copper', name: 'Molten Copper', type: 'FLAME', rarity: 'rare', acquisition: 'box',
-    lore: 'The first colour ever pulled from the forge — warm, patient, unhurried.',
+    lore: 'An ember caught mid-choice — warm, patient, not yet decided what it will make of you.',
     art: { kind: 'flame', from: '#B8651F', to: '#F2A33C' } }),
   item({ id: 'flame-lime-volt', name: 'Lime Volt', type: 'FLAME', rarity: 'rare', acquisition: 'box',
     lore: 'A flame that hums. Stare too long and your teeth start to buzz.',
@@ -204,7 +204,7 @@ const PARTICLES: CatalogItem[] = [
     lore: 'The fire grew fingers of white electricity. They reach for the edges.',
     art: { kind: 'particle', from: '#7BE0FF', to: '#FFFFFF' } }),
   item({ id: 'particle-void-smoke', name: 'Void Smoke', type: 'PARTICLE', rarity: 'legendary', acquisition: 'box',
-    lore: 'A funeral veil of smoke coils upward, heavy with the silence of the tomb.',
+    lore: 'What’s left when an ember consumes instead of creates. Worn as a warning — or a boast.',
     art: { kind: 'particle', from: '#1a1626', to: '#6A2AB8' } }),
 ];
 
@@ -319,7 +319,7 @@ const HALOS: CatalogItem[] = [
 // Titles that drop from boxes (the wry/grounded set + the pop-culture set).
 const TITLES_BOX: CatalogItem[] = [
   item({ id: 'title-kindled', name: '"Kindled"', type: 'TITLE', rarity: 'common', acquisition: 'box',
-    lore: "The spark caught. That's all it takes to start.", art: { kind: 'title', from: '#8a7fa6', to: '#d8cae8' } }),
+    lore: "You caught your first ember and it didn't burn you.", art: { kind: 'title', from: '#8a7fa6', to: '#d8cae8' } }),
   item({ id: 'title-ember-stoker', name: '"Ember Stoker"', type: 'TITLE', rarity: 'common', acquisition: 'box',
     lore: "Keeps the small fire alive on the nights no one's looking.", art: { kind: 'title', from: '#8a7fa6', to: '#FFD27A' } }),
   item({ id: 'title-night-owl', name: '"Night Owl"', type: 'TITLE', rarity: 'common', acquisition: 'box',
@@ -583,7 +583,7 @@ export const EMBERFALL_SET: CatalogItem[] = [
   // Granted at Level 0, the instant the purchase clears (FORGE_PASS_SEASON1 §"Level 0"). It is NOT a milestone reward: a
   // marquee unlock 25 levels away is a promise, and this one has to be a receipt.
   item({ id: 'flare-emberfall-ascendant', name: 'Emberfall Ascendant', type: 'FLARE', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
-    lore: 'The capstone. The whole season, compressed into one unbearable light.',
+    lore: 'The one fire that defies the fall — where every ember drops, this aura climbs. It rings your whole profile, always rising.',
     // Hellfire body, ember tip — the same two stops the applied flare now renders its risers and
     // the session flame with, so the thumbnail and the live effect are the same fire.
     art: { kind: 'flare', from: '#F5401C', to: '#FFD27A' },
@@ -603,25 +603,28 @@ export const EMBERFALL_SET: CatalogItem[] = [
     art: { kind: 'banner', from: '#2a2018', to: '#D9913C' } }),
   // ── The milestone set: L25 · L50 · L75 · L90 · L100 ──
   // 0219 — only two of these are Mythic: the Emberfall Relic (L90, sits in the profile showcase)
-  // and the Emberfall Crown medal (L100, the small badge beside your name). The rest are Legendary.
+  // and the Emberfall Seal medal (L100, the small badge beside your name). The rest are Legendary.
   // Both Mythics are permanent: forge_pass rows cannot be salvaged.
   item({ id: 'banner-emberfall-mythic', name: 'Emberfall Standard', type: 'BANNER', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
-    lore: 'Carried at the front. Everyone behind it knows what season they are in.',
+    lore: 'Raised over a fire others gather around. You turned the fall into a forge.',
     art: { kind: 'banner', from: '#4a1508', to: '#FFD24D' } }),
   item({ id: 'halo-emberfall-mythic', name: 'Emberfall Crown Halo', type: 'HALO', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
-    lore: 'Falling embers that circle instead of landing. They have nowhere better to be.',
+    lore: 'The first ember that chose to warm rather than consume — it burns above the heads of those who rose.',
     art: { kind: 'halo', from: '#B01A0E', to: '#FFE0B0' } }),
   item({ id: 'sfx-emberfall-strike', name: 'Emberfall Strike', type: 'SFX', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
-    lore: 'Hammer on anvil, once, and the whole season rings with it.',
+    lore: 'The crack of an ember striking the seal, and holding.',
     art: { kind: 'sfx', from: '#B01A0E', to: '#FFC24D' } }),
   item({ id: 'card-emberfall-mythic', name: 'Emberfall Sovereign Card', type: 'CARD', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
-    lore: 'Black glass, one seam of living ember running through it.',
+    lore: 'The face you show the campus: one who commands the fall.',
     art: { kind: 'card', from: '#14090c', to: '#F5401C' } }),
   item({ id: 'relic-emberfall', name: 'Emberfall Relic', type: 'RELIC', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
     lore: 'A fragment of the first forge, still too hot to hold. Kept, not worn.',
     art: { kind: 'relic', from: '#3a1608', to: '#FF9A3C' } }),
-  item({ id: 'medal-emberfall-crown', name: 'Emberfall Crown', type: 'MEDAL', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
-    lore: 'One hundred levels. The season put everything it had in front of you and you took all of it.',
+  // DISPLAY NAME ONLY: "The Emberfall Seal" (LORE_EMBERFALL). The KEY stays `medal-emberfall-crown`
+  // — it is what cosmetics_owned, cosmetic_rarity, pass_track_rewards and every installed build
+  // carry, and renaming it would orphan the rows (see RENAMED_IDS).
+  item({ id: 'medal-emberfall-crown', name: 'The Emberfall Seal', type: 'MEDAL', rarity: 'mythic', acquisition: 'forge-pass-S1', seasonStamped: true,
+    lore: 'Forge it at level 100 and it burns beside your name forever — proof you gathered enough to shut the dark back out.',
     art: { kind: 'medal', from: '#8A4E18', to: '#FFE7A0' } }),
   // The two completion titles. Same level, different lanes — finishing the free track is its own
   // achievement and gets its own name rather than a dimmed version of the paid one.
@@ -633,7 +636,7 @@ export const EMBERFALL_SET: CatalogItem[] = [
     lore: 'One hundred levels without paying a cent. Nothing about that was convenient.',
     art: { kind: 'title', from: '#C4701F', to: '#FFD24D' } }),
   item({ id: 'title-forged-in-ember', name: '"Forged in Ember"', type: 'TITLE', rarity: 'legendary', acquisition: 'forge-pass-S1', seasonStamped: true,
-    lore: 'The full season, both lanes, all the way up. Gold, and earned in gold.',
+    lore: 'You walked into the Emberfall and came out shaped — not ashed.',
     art: { kind: 'title', from: '#FFB03C', to: '#FFF3C4' } }),
 ];
 
