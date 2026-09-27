@@ -1,66 +1,92 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BoxArt } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
-import { EmberPill, SectionLabel, formatEmbers } from '@/components/economy/economy-bits';
+import { formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
+import { showRewardReveal, type RewardLine } from '@/components/economy/reward-reveal';
 import { SeasonPlacementShareCard, SeasonRewardsShareCard } from '@/components/economy/season-standing-share-card';
-import { EmberGround } from '@/components/pass/ember-ground';
-import { RisingEmbers } from '@/components/pass/pass-motion';
-import { EmberText } from '@/components/ui/ember-text';
+import { BurningName } from '@/components/burning-name';
+import { CosmeticDetail, DetailSheet } from '@/components/pass/cosmetic-detail-sheet';
+import { EMBER, EmberfallSeal, EmberfallSky, FallingEmbers } from '@/components/pass/emberfall-art';
+import { useBreath } from '@/components/pass/pass-motion';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Fonts, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
-import { useShareRank } from '@/hooks/use-share-rank';
-import { useAuth } from '@/lib/auth/auth-context';
-import { claimPassLevel, fetchAchievementProgress, fetchMySeasonCard } from '@/lib/api/forge-pass';
-import { shareCardImage } from '@/lib/share-card';
-import type { SeasonCard } from '@/types/database';
-import { restorePurchases } from '@/lib/billing';
-import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
 import { useProductPrices } from '@/hooks/use-purchase';
+import { useShareRank } from '@/hooks/use-share-rank';
+import { claimPassLevel, fetchAchievementProgress, fetchMySeasonCard } from '@/lib/api/forge-pass';
+import { useAuth } from '@/lib/auth/auth-context';
+import { restorePurchases } from '@/lib/billing';
 import { BOXES } from '@/lib/economy/boxes';
-import { getItem, type CatalogItem } from '@/lib/economy/catalog';
+import { getItem } from '@/lib/economy/catalog';
 import {
   ACHIEVEMENTS,
   CADENCE_LABEL,
   CADENCE_RESET_HINT,
-  LEVEL_ZERO_UNLOCK,
   PASS_FINE_PRINT,
   PASS_LEVELS,
   SEASON,
-  levelCost,
   levelFromXp,
   msUntilSeasonBoundary,
-  passOnSale,
+  passUnlockLevel,
   seasonPhase,
   type AchievementCadence,
   type PassLevel,
   type PassReward,
 } from '@/lib/economy/forge-pass';
+import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
 import { RARITY_COLOR, RARITY_LABEL } from '@/lib/economy/rarity';
-import { showRewardReveal, type RewardLine } from '@/components/economy/reward-reveal';
+import { SEAL_COSMETIC_KEY } from '@/lib/economy/seal-owners';
 import { getErrorMessage } from '@/lib/errors';
+import { shareCardImage } from '@/lib/share-card';
+import type { SeasonCard } from '@/types/database';
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// THE FLAME PASS TRACK — "Your track" (design-mocks/228), on the paywall's Emberfall sky so the pitch
+// and the climb read as a pair.
+//
+// Top to bottom: a status card (level, your BURNING name, ember balance, the XP bar, how far the
+// Seal is), ONE "Claim rewards (N)" button, then the two-lane track — every level a node on a spine
+// with a Free chip and a 🔥 Flame Pass chip — ending on the Seal capstone at L100.
+//
+// ONE CLAIM ACTION. Chips carry a state (✓ claimed · ● ready · 🔒 ahead) but never a button of their
+// own; the top button settles everything reached. Tapping a chip opens that level's lane in full.
+//
+// THE FREE PATH IS THE SAME SCREEN. A non-owner climbs and claims the Free lane exactly as an owner
+// does; the whole Flame Pass lane shows 🔒 and a sticky "Unlock the Flame Pass" bar hands off to the
+// paywall, which is the one surface that makes the case and takes the money.
+//
+// 🔴 NOTHING ON THE TRACK IS TYPED IN. Every chip is read off PASS_LEVELS — the table
+// claim_pass_level pays against — and names/rarities off catalog.ts and boxes.ts. The price is the
+// store's own `priceString`.
+//
+// COPY RULE: this screen counts in LEVELS. "Tier" belongs to the rank ladder and never appears here.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+type Lane = 'free' | 'premium';
+type Target = { level: PassLevel; lane: Lane };
+
+/** Uniform, so the 100-row list can be virtualized and opened straight onto your level. */
+const ROW_H = 58;
+
+/** The Seal's level, off the track rather than a literal 100. */
+const SEAL_LEVEL = passUnlockLevel(SEAL_COSMETIC_KEY) ?? SEASON.totalLevels;
 
 /**
- * A pass reward as a line in the reveal.
- *
- * Reads the CLAIMED reward, not a guess at it: `rewards` here is the same array handed to
- * claim_pass_level, which is what the server pays against, so the reveal cannot congratulate you
- * for something you did not get. Names come from the catalog and the box table rather than being
- * re-typed, so a renamed item renames itself here too.
+ * A pass reward as a line in the reveal. Reads the CLAIMED reward — the same array handed to
+ * claim_pass_level — so the reveal cannot congratulate you for something you did not get.
  */
 function passRewardLine(reward: PassReward): RewardLine {
   switch (reward.kind) {
     case 'embers':
       return { kind: 'embers', label: `${reward.amount.toLocaleString()} embers` };
     case 'box':
-      // The crate and the cosmetic both draw themselves here (mock 216) — the level-up card used
-      // 🎁 and ◆ for two things this app has real art for.
       return { kind: 'box', label: BOXES[reward.box].name, art: <BoxArt boxKey={reward.box} size={24} motion="off" /> };
     case 'item': {
       const item = getItem(reward.itemId);
@@ -75,55 +101,29 @@ function passRewardLine(reward: PassReward): RewardLine {
   }
 }
 
-// The Flame Pass track (FORGE_PASS_DESLOP.md, mock 87).
-//
-// The old screen was a horizontally-scrolling grid of generic cells with emoji icons, which is
-// exactly what the de-slop spec diagnoses: no theme, no hierarchy, no sense of a track you are
-// climbing. This is the rebuild around one metaphor — a MOLTEN SEAM forged upward through the
-// levels, lit below where you've reached and cold iron above. The rail IS the progress bar, which
-// is why there's no second bar in the track itself.
-//
-// Two rules carry most of the visual weight:
-//   1. Real cosmetic art in every tile, pulled by catalog id — the same ItemArt/BoxArt the shop
-//      uses. Stock icons were the single biggest slop tell.
-//   2. States must be unmistakable: claimed (dimmed ✓) · current (pulsing node) · upcoming (cold) ·
-//      premium-locked (warm border + 🔒).
-//
-// COPY RULE: this screen counts in LEVELS. "Tier" belongs to the rank ladder and never appears here.
-
-/** Fixed row height so the 100-level list can be virtualized and jumped into. */
-const ROW_H = 74;
-const MILESTONE_ROW_H = 88;
-
-const rowHeight = (level: PassLevel) => (level.milestone ? MILESTONE_ROW_H : ROW_H);
-
 export default function ForgePassScreen() {
   const router = useRouter();
-  // `edges={[]}` below makes this screen full-bleed so EmberGround reaches the status bar, which
-  // hands this screen the job of insetting its own chrome — see the note on Screen's `edges`.
+  // Full-bleed (`edges={[]}`) so the sky reaches the status bar; this screen insets its own chrome.
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
   const { embers, pass, refetch } = useInventory();
+  const prices = useProductPrices();
   const [tab, setTab] = useState<'track' | 'xp'>('track');
   const [busy, setBusy] = useState(false);
-  const [detail, setDetail] = useState<{ level: PassLevel; lane: 'free' | 'premium' } | null>(null);
-  const listRef = useRef<FlatList<PassLevel>>(null);
+  const [detail, setDetail] = useState<Target | null>(null);
   // Mock 97 is a SPLIT card, so there are two capture targets: the placement flex and the reward
   // haul, each separately shareable.
   const placementCardRef = useRef<View>(null);
   const rewardsCardRef = useRef<View>(null);
   const [standing, setStanding] = useState<SeasonCard | null>(null);
   const shareRank = useShareRank();
-  // Store-supplied localized prices. Empty until the offering loads, and empty forever in a build
-  // with no SDK keys — every render site below degrades to omitting the price rather than quoting
-  // a literal that could differ from the real charge.
-  const prices = useProductPrices();
 
-  const passXp = pass?.pass_xp ?? 0;
   const ownsPremium = pass?.owns_premium ?? false;
-  const { level, intoLevel, nextLevelCost } = levelFromXp(passXp);
+  const { level, intoLevel, nextLevelCost } = levelFromXp(pass?.pass_xp ?? 0);
   const phase = seasonPhase();
-  const onSale = passOnSale(phase, profile?.is_dev);
+  const displayName = profile?.display_name?.trim() || 'You';
+  const firstName = displayName.split(/\s+/)[0];
+  const price = prices[FORGE_PASS_PRODUCT_ID];
 
   const claimed = useMemo(() => {
     const set = new Set<string>();
@@ -131,11 +131,10 @@ export default function ForgePassScreen() {
     return set;
   }, [pass]);
 
-  // Everything reached, unclaimed, and actually claimable by this user. Drives the single CTA at
-  // the bottom — the spec asks for ONE claim button, not one per tile, so it needs to know how many
-  // are pending to decide between "Claim Level 7" and "Claim all (4)".
+  // Everything reached, unclaimed, and claimable by this user — the N in "Claim rewards (N)". A
+  // non-owner's premium lane never counts: it is locked, not pending.
   const pending = useMemo(() => {
-    const out: { level: PassLevel; lane: 'free' | 'premium' }[] = [];
+    const out: Target[] = [];
     for (const l of PASS_LEVELS) {
       if (l.level > level) break;
       if (!claimed.has(`${l.level}:free`)) out.push({ level: l, lane: 'free' });
@@ -144,9 +143,8 @@ export default function ForgePassScreen() {
     return out;
   }, [level, claimed, ownsPremium]);
 
-  // Open on the level you're actually on rather than at Level 1 — with 100 rows, landing at the top
-  // means every visit starts with a scroll past everything already claimed.
-  const initialIndex = Math.max(0, Math.min(level - 1, PASS_LEVELS.length - 1));
+  // Open one row above your level, so the last thing you claimed frames the one you're on.
+  const initialIndex = Math.max(0, Math.min(level - 2, PASS_LEVELS.length - 1));
 
   // Final standings only exist once the close job has run (migration 0075), so this is skipped
   // entirely while the season is live rather than polling for a row that cannot be there yet.
@@ -174,208 +172,170 @@ export default function ForgePassScreen() {
     }
   }
 
-  async function claim(target: { level: PassLevel; lane: 'free' | 'premium' }) {
-    const rewards = target.lane === 'free' ? target.level.free : target.level.premium;
-    if (target.lane === 'premium' && !ownsPremium) {
-      const priced = prices[FORGE_PASS_PRODUCT_ID];
-      Alert.alert(
-        'Premium locked',
-        `This level is on the Premium track.${priced ? ` The Flame Pass is ${priced} for the season.` : ''}`
-      );
-      return;
-    }
-    setBusy(true);
-    try {
-      await claimPassLevel(target.level.level, target.lane, rewards);
-      await refetch();
-      setDetail(null);
-      // Claiming used to be silent — the embers landed, the box appeared in the inventory, and
-      // nothing on screen marked it. Queued rather than presented directly so it sequences behind
-      // anything else that paid out in the same moment.
-      showRewardReveal({
-        kind: 'pass_level',
-        title: `Level ${target.level.level} claimed`,
-        subtitle: target.lane === 'premium' ? 'Premium track' : 'Free track',
-        rewards: rewards.map(passRewardLine),
-      });
-    } catch (e) {
-      Alert.alert("Couldn't claim that", getErrorMessage(e, 'Something went wrong.'));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // "Claim all" is a sequential loop rather than one batched call: each level is its own claim row
+  // The one claim action. Sequential rather than batched: each level+lane is its own claim row
   // server-side, and stopping at the first failure leaves everything before it genuinely granted
   // instead of rolling back rewards the user already saw land.
   async function claimAll() {
+    if (busy || pending.length === 0) return;
     setBusy(true);
+    const paid: PassReward[] = [];
+    const levels = new Set<number>();
     try {
-      const claimed: PassReward[] = [];
-      let levels = 0;
       for (const target of pending) {
         const rewards = target.lane === 'free' ? target.level.free : target.level.premium;
         await claimPassLevel(target.level.level, target.lane, rewards);
         // Pushed only AFTER the await resolves, so a partial failure reveals exactly what was
-        // actually paid rather than what was attempted — the same reason this loop is sequential.
-        claimed.push(...rewards);
-        levels += 1;
+        // actually paid rather than what was attempted.
+        paid.push(...rewards);
+        levels.add(target.level.level);
       }
       await refetch();
-      if (levels > 0) {
-        // ONE reveal for the batch, not one per level. Claim-all can settle a dozen levels at once
-        // and a dozen modals to tap through is a chore, not a celebration.
-        showRewardReveal({
-          kind: 'pass_level',
-          title: levels === 1 ? '1 level claimed' : `${levels} levels claimed`,
-          rewards: claimed.map(passRewardLine),
-        });
-      }
     } catch (e) {
       await refetch();
       Alert.alert('Stopped partway', getErrorMessage(e, 'Some rewards were claimed before this failed.'));
     } finally {
       setBusy(false);
     }
+    if (paid.length > 0) {
+      // ONE reveal for the batch. Counted in distinct LEVELS — both lanes of Level 37 is one level.
+      const only = levels.size === 1 ? [...levels][0] : null;
+      showRewardReveal({
+        kind: 'pass_level',
+        title: only !== null ? `Level ${only} claimed` : `${levels.size} levels claimed`,
+        rewards: paid.map(passRewardLine),
+      });
+    }
   }
 
-  // The season gate comes FIRST, before the store is ever asked. Buying outside the window is
-  // refused server-side by grant_forge_pass anyway (0074), but letting the purchase sheet open and
-  // then failing after payment would be the worst possible order to discover that in.
-  function onUpgrade() {
-    if (!onSale) {
-      Alert.alert(
-        phase === 'upcoming' ? `${SEASON.name} hasn't started` : `${SEASON.name} has closed`,
-        phase === 'upcoming'
-          ? 'The Flame Pass goes on sale when the season opens on October 1.'
-          : 'This season is over. Season 2 opens with its own pass.'
-      );
-      return;
-    }
-    // Hands off to the paywall (mock 200) rather than opening the store sheet from the strip. The
-    // strip states the price; the paywall makes the case — what unlocks, the locked premium lane,
-    // "you can't buy XP", Restore — and it is the one surface that has to stay in sync with what
-    // the purchase actually grants.
+  // The paywall owns the season gate, the price and Restore, so the unlock bar only navigates.
+  function onUnlock() {
+    setDetail(null);
     router.push('/paywall');
   }
 
-  // Apple REQUIRES a reachable Restore control for any app selling a non-consumable. It lives here
-  // and in Settings. Ember packs are consumables and deliberately don't restore — they were spent
-  // into a balance on grant, and "restoring" them would mint them twice.
+  // Apple REQUIRES a reachable Restore control for any app selling a non-consumable. It lives on
+  // the paywall, in Settings, and here under the unlock bar.
   async function onRestore() {
     try {
       const { restoredPass } = await restorePurchases();
       await refetch();
       Alert.alert(
         restoredPass ? 'Restored' : 'Nothing to restore',
-        restoredPass
-          ? 'Your Flame Pass is back on this device.'
-          : 'No previous Flame Pass purchase was found for this account.'
+        restoredPass ? 'Your Flame Pass is back on this device.' : 'No previous Flame Pass purchase was found for this account.'
       );
     } catch (e) {
       Alert.alert('Couldn’t restore', getErrorMessage(e, 'Something went wrong.'));
     }
   }
 
-  return (
-    <Screen padded={false} edges={[]}>
-      {/* The season's own ground, replacing the app-wide purple radial. Everything warm on this
-          screen — the wordmark, the level, the molten seam, the premium lane — was sitting on a
-          cold background, which is most of why the Pass read as cheap (mock 214). */}
-      <EmberGround />
-      {/* Behind the content and OUTSIDE the track's FlatList, so the field keeps rising past the
-          levels as they scroll rather than scrolling with them. */}
-      <RisingEmbers count={10} />
+  const toSeal = Math.max(0, SEAL_LEVEL - level);
+  const barPct = nextLevelCost ? Math.min(100, (intoLevel / nextLevelCost) * 100) : 100;
+  const unlockBarH = ownsPremium ? 0 : UNLOCK_BAR_H;
 
-      {/* ── Header: identity, level, molten XP bar, countdown ── */}
+  return (
+    <Screen padded={false} backgroundColor="#040309" edges={[]}>
+      {/* Behind everything and OUTSIDE the list: the sky and the rain hold still while the track
+          scrolls over them — the paywall's ambient layer, so the two screens read as a pair. */}
+      <EmberfallSky kind="paywall" />
+      <FallingEmbers count={8} />
+
       <View style={[styles.header, { paddingTop: insets.top + Spacing.two }]}>
         <View style={styles.top}>
           <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={Colors.ink} />
+            <Ionicons name="chevron-back" size={22} color={EMBER.warm} />
           </Pressable>
-          <View style={styles.titleWrap}>
-            <EmberText style={styles.wordmark}>FLAME PASS</EmberText>
-            <Text style={styles.season}>
-              Season {SEASON.id.replace('S', '')} · {SEASON.name} — <Text style={styles.seasonHot}>{countdownLabel(phase)}</Text>
-            </Text>
-          </View>
-          <EmberPill embers={embers} />
-        </View>
-
-        <View style={styles.levelRow}>
-          <View>
-            <Text style={styles.levelKicker}>Level</Text>
-            <Text style={styles.levelBig}>{level}</Text>
-          </View>
-          <Text style={styles.xpCount}>
-            {formatEmbers(intoLevel)} / {formatEmbers(nextLevelCost || levelCost(SEASON.totalLevels))} XP
-            {level < SEASON.totalLevels ? ` to Level ${level + 1}` : ' · maxed'}
+          <Text style={styles.title}>Flame Pass</Text>
+          <Text style={styles.days}>
+            {SEASON.name} · {countdownLabel(phase)}
           </Text>
         </View>
-        <View style={styles.xpTrack}>
-          <View style={[styles.xpFill, { width: `${nextLevelCost ? (intoLevel / nextLevelCost) * 100 : 100}%` }]} />
-        </View>
-      </View>
 
-      {/* ── The one gold upgrade strip, only while unowned ── */}
-      {!ownsPremium ? (
-        <>
-          <Pressable style={styles.upgrade} onPress={onUpgrade}>
-            <View style={styles.upgradeCol}>
-              <Text style={styles.upgradeTitle}>Unlock the Flame Pass</Text>
-              <Text style={styles.upgradeSub}>
-                {onSale
-                  ? 'Every level’s premium reward, all season — plus the Emberfall flare on day one'
-                  : phase === 'upcoming'
-                    ? 'On sale when Emberfall opens, October 1'
-                    : 'This season has closed'}
-              </Text>
+        {/* ── status ── */}
+        <View style={styles.status}>
+          <View style={styles.srow}>
+            <View style={styles.lvlBig}>
+              <Text style={styles.lvlNum}>{level}</Text>
+              <Text style={styles.lvlKicker}>LEVEL</Text>
             </View>
-              {/* The store's own localized price, never a literal — a hardcoded '$9.99' that
-                disagrees with App Store Connect is a price the user was quoted and not charged. */}
-            <Text style={styles.upgradePrice}>
-              {onSale ? (prices[FORGE_PASS_PRODUCT_ID] ?? '—') : '—'}
-            </Text>
-          </Pressable>
-          <Pressable onPress={onRestore} hitSlop={8} accessibilityRole="button">
-            <Text style={styles.restore}>Restore purchases</Text>
-          </Pressable>
-        </>
-      ) : null}
-
-      <View style={styles.tabs}>
-        {(['track', 'xp'] as const).map((t) => (
-          <Pressable key={t} style={[styles.tab, tab === t && styles.tabOn]} onPress={() => setTab(t)}>
-            <Text style={[styles.tabText, tab === t && styles.tabTextOn]}>{t === 'track' ? 'Track' : 'Pass XP'}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {/* Season closed out — your final placing, and a card worth posting. Rendered above the
-          track because once the season is over the standing IS the headline, not the ladder. */}
-      {standing ? (
-        <View style={styles.standing}>
-          <View style={styles.standingCol}>
-            <Text style={styles.standingRank}>
-              #{standing.rank}
-              <Text style={styles.standingOf}> of {standing.board_size.toLocaleString('en-US')}</Text>
-            </Text>
-            <Text style={styles.standingSub}>
-              {standing.university} · finished Level {standing.pass_level} · top {standing.percentile}%
-            </Text>
-            {/* The permanent honour leads, not the loot — the whole argument of the title system. */}
-            {standing.title ? <Text style={styles.standingTitle}>“{standing.title.name}”</Text> : null}
+            <View style={styles.sname}>
+              <BurningName userId={profile?.id} owns={ownsPremium} style={styles.burn}>
+                {displayName}
+              </BurningName>
+              <View style={styles.bal}>
+                <EmberIcon size={13} />
+                <Text style={styles.balText}>{formatEmbers(embers)} embers</Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.standingActions}>
-            <Pressable onPress={() => shareStanding('placement')}>
-              <Text style={styles.standingShare}>Placement</Text>
-            </Pressable>
-            <Pressable onPress={() => shareStanding('rewards')}>
-              <Text style={styles.standingShare}>Rewards</Text>
-            </Pressable>
+          <View style={styles.bar}>
+            <View style={[styles.barFill, { width: `${barPct}%` }]} />
+          </View>
+          <View style={styles.barLabel}>
+            <Text style={styles.barText}>
+              {level < SEASON.totalLevels
+                ? `${formatEmbers(intoLevel)} / ${formatEmbers(nextLevelCost)} XP to Level ${level + 1}`
+                : `Level ${SEASON.totalLevels} · maxed`}
+            </Text>
+            <Text style={styles.barText}>
+              {toSeal > 0
+                ? `${toSeal} ${toSeal === 1 ? 'level' : 'levels'} to the Seal`
+                : ownsPremium
+                  ? 'The Seal is in reach'
+                  : 'The Seal is Flame Pass only'}
+            </Text>
           </View>
         </View>
-      ) : null}
+
+        {/* ── the one claim action ── */}
+        <Pressable
+          style={[styles.claim, (pending.length === 0 || busy) && styles.claimOff]}
+          disabled={pending.length === 0 || busy}
+          onPress={claimAll}
+          accessibilityRole="button">
+          <Text style={[styles.claimText, pending.length === 0 && styles.claimTextOff]}>
+            {busy
+              ? 'Claiming…'
+              : pending.length > 0
+                ? `Claim rewards (${pending.length}) 🔥`
+                : phase === 'upcoming'
+                  ? `The climb opens with ${SEASON.name}`
+                  : 'All caught up — keep climbing'}
+          </Text>
+        </Pressable>
+
+        <View style={styles.tabs}>
+          {(['track', 'xp'] as const).map((t) => (
+            <Pressable key={t} onPress={() => setTab(t)} hitSlop={6} accessibilityRole="tab" accessibilityState={{ selected: tab === t }}>
+              <Text style={[styles.tab, tab === t && styles.tabOn]}>{t === 'track' ? 'YOUR TRACK' : 'PASS XP'}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Season closed out — your final placing, and a card worth posting. Above the track because
+            once the season is over the standing IS the headline, not the ladder. */}
+        {standing ? (
+          <View style={styles.standing}>
+            <View style={styles.flex1}>
+              <Text style={styles.standingRank}>
+                #{standing.rank}
+                <Text style={styles.standingOf}> of {standing.board_size.toLocaleString('en-US')}</Text>
+              </Text>
+              <Text style={styles.standingSub}>
+                {standing.university} · finished Level {standing.pass_level} · top {standing.percentile}%
+              </Text>
+              {standing.title ? <Text style={styles.standingTitle}>“{standing.title.name}”</Text> : null}
+            </View>
+            <View style={styles.standingActions}>
+              <Pressable onPress={() => shareStanding('placement')}>
+                <Text style={styles.standingShare}>Placement</Text>
+              </Pressable>
+              <Pressable onPress={() => shareStanding('rewards')}>
+                <Text style={styles.standingShare}>Rewards</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+      </View>
 
       {/* Off-screen capture targets for the share sheet, same pipeline as every other card. */}
       {standing ? (
@@ -399,334 +359,355 @@ export default function ForgePassScreen() {
 
       {tab === 'track' ? (
         <>
-          <View style={styles.laneHeader}>
-            <Text style={styles.laneLabel}>FREE</Text>
-            <View style={styles.laneSpacer} />
-            <Text style={[styles.laneLabel, styles.laneLabelPremium]}>PREMIUM</Text>
+          <View style={styles.laneHdr}>
+            <View style={styles.nodeSpace} />
+            <View style={styles.pair}>
+              <Text style={[styles.laneLabel, styles.laneFree]}>FREE</Text>
+              <Text style={[styles.laneLabel, styles.lanePass]}>🔥 FLAME PASS</Text>
+            </View>
           </View>
-
           <FlatList
-            ref={listRef}
             data={PASS_LEVELS}
             keyExtractor={(l) => String(l.level)}
             initialScrollIndex={initialIndex}
-            // Rows are two fixed heights, so the offset is exact and the list can jump straight to
-            // the player's level without measuring 100 rows first.
-            getItemLayout={(data, index) => {
-              let offset = 0;
-              for (let i = 0; i < index; i += 1) offset += rowHeight((data as PassLevel[])[i]);
-              return { length: rowHeight((data as PassLevel[])[index]), offset, index };
-            }}
+            getItemLayout={(_, index) => ({ length: ROW_H, offset: ROW_H * index, index })}
             renderItem={({ item }) => (
               <LevelRow
                 level={item}
-                reached={item.level <= level}
-                isCurrent={item.level === level}
+                current={level}
                 ownsPremium={ownsPremium}
                 claimed={claimed}
                 onOpen={(lane) => setDetail({ level: item, lane })}
               />
             )}
-            ListHeaderComponent={
-              ownsPremium ? null : <LevelZeroRow onPress={onUpgrade} />
+            ListFooterComponent={
+              <>
+                <SealCapstone
+                  toSeal={toSeal}
+                  ownsPremium={ownsPremium}
+                  onPress={() => setDetail({ level: PASS_LEVELS[SEAL_LEVEL - 1], lane: 'premium' })}
+                />
+                <Text style={styles.rule}>{PASS_FINE_PRINT}</Text>
+              </>
             }
-            ListFooterComponent={<Text style={styles.rule}>{PASS_FINE_PRINT}</Text>}
-            contentContainerStyle={{ paddingBottom: insets.bottom }}
+            contentContainerStyle={[styles.track, { paddingBottom: insets.bottom + unlockBarH + Spacing.three }]}
             showsVerticalScrollIndicator={false}
           />
-
-          {/* One Claim CTA for the whole screen (spec §5), not a button per tile. */}
-          {pending.length > 0 ? (
-            <Pressable
-              style={[styles.claim, { marginBottom: insets.bottom + Spacing.two }, busy && styles.claimBusy]}
-              disabled={busy}
-              onPress={() => (pending.length === 1 ? claim(pending[0]) : claimAll())}>
-              <Text style={styles.claimText}>
-                {pending.length === 1 ? `Claim Level ${pending[0].level.level} reward` : `Claim all (${pending.length})`}
-              </Text>
-            </Pressable>
-          ) : null}
         </>
       ) : (
         <ScrollView
-          contentContainerStyle={[styles.xpContent, { paddingBottom: insets.bottom + Spacing.six }]}
+          contentContainerStyle={[styles.xpContent, { paddingBottom: insets.bottom + unlockBarH + Spacing.six }]}
           showsVerticalScrollIndicator={false}>
           <AchievementList earned={pass?.achievements ?? []} />
           <Text style={styles.rule}>
-            Pass XP comes from achievements, never from rank XP — ranks stay their own long climb. Daily achievements are
-            once per day, so the Pass rewards showing up, not marathoning.
+            Pass XP comes from achievements, never from rank XP — ranks stay their own long climb. Daily achievements are once
+            per day, so the Pass rewards showing up, not marathoning.
           </Text>
         </ScrollView>
       )}
 
-      <RewardDetailSheet
-        target={detail}
-        ownsPremium={ownsPremium}
-        claimed={claimed}
-        reached={detail ? detail.level.level <= level : false}
-        busy={busy}
-        passPrice={prices[FORGE_PASS_PRODUCT_ID]}
-        onClaim={claim}
-        onUpgrade={onUpgrade}
-        onClose={() => setDetail(null)}
-      />
+      {/* ── the free path: the Flame Pass lane is locked behind one bar ── */}
+      {!ownsPremium ? (
+        <View style={[styles.unlockWrap, { paddingBottom: insets.bottom + Spacing.two }]}>
+          <Pressable style={styles.unlock} onPress={onUnlock} accessibilityRole="button">
+            <Text style={styles.unlockLock}>🔒</Text>
+            <View style={styles.flex1}>
+              <Text style={styles.unlockTitle}>Unlock the Flame Pass</Text>
+              <Text style={styles.unlockSub}>Every 🔥 reward on this track, and your name burns</Text>
+            </View>
+            {price ? <Text style={styles.unlockPrice}>{price}</Text> : null}
+          </Pressable>
+          <Pressable onPress={onRestore} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.restore}>Restore purchase</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      <DetailSheet visible={detail !== null} onClose={() => setDetail(null)}>
+        {detail ? (
+          <LaneDetail
+            target={detail}
+            name={firstName}
+            current={level}
+            ownsPremium={ownsPremium}
+            claimed={claimed}
+            onUnlock={onUnlock}
+          />
+        ) : null}
+      </DetailSheet>
     </Screen>
   );
 }
 
-/** "23 days left" / "opens in 26 days" — the header's sense of urgency, straight off the phase. */
+/** "42 days left" / "opens in 4d" — the header pill, straight off the phase. */
 function countdownLabel(phase: ReturnType<typeof seasonPhase>): string {
-  const ms = msUntilSeasonBoundary();
-  const days = Math.ceil(ms / 86_400_000);
+  const days = Math.ceil(msUntilSeasonBoundary() / 86_400_000);
   if (phase === 'upcoming') return `opens in ${days}d`;
   if (phase === 'live') return `${days} days left`;
-  if (phase === 'claim-window') return `claim window · ${days}d left`;
-  return 'season closed';
+  if (phase === 'claim-window') return `claim window · ${days}d`;
+  return 'closed';
 }
 
-/**
- * The Level 0 unlock, pinned above Level 1 for anyone who hasn't bought in
- * (FORGE_PASS_SEASON1 §"Level 0"). It sits at the top of the track rather than in the upgrade strip
- * because the track is where rewards live, and seeing the Emberfall flare sitting one row above your
- * climb is a far stronger argument than a price tag.
- */
-function LevelZeroRow({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable style={styles.zeroRow} onPress={onPress}>
-      <Text style={styles.zeroKicker}>LEVEL 0 · THE INSTANT YOU UNLOCK</Text>
-      <View style={styles.zeroArt}>
-        {LEVEL_ZERO_UNLOCK.map((reward, i) => (
-          <View key={i} style={styles.zeroTile}>
-            <RewardArt reward={reward} size={30} />
-            <Text style={styles.zeroName} numberOfLines={1}>
-              {rewardName(reward)}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </Pressable>
-  );
+type ChipState = 'claimed' | 'ready' | 'locked';
+
+function chipState(level: PassLevel, lane: Lane, current: number, ownsPremium: boolean, claimed: Set<string>): ChipState {
+  if (claimed.has(`${level.level}:${lane}`)) return 'claimed';
+  if (lane === 'premium' && !ownsPremium) return 'locked';
+  return level.level <= current ? 'ready' : 'locked';
 }
 
 function LevelRow({
   level,
-  reached,
-  isCurrent,
+  current,
   ownsPremium,
   claimed,
   onOpen,
 }: {
   level: PassLevel;
-  reached: boolean;
-  isCurrent: boolean;
+  current: number;
   ownsPremium: boolean;
   claimed: Set<string>;
-  onOpen: (lane: 'free' | 'premium') => void;
+  onOpen: (lane: Lane) => void;
 }) {
+  const reached = level.level <= current;
+  const isNow = level.level === current;
   return (
-    <View style={[styles.row, level.milestone && styles.rowMilestone]}>
-      {/* The seam behind everything — lit up to your level, cold iron above. This IS the progress
-          bar; the track deliberately has no separate one. */}
-      <View style={[styles.seam, reached && styles.seamLit]} pointerEvents="none" />
+    <View style={styles.row}>
+      {/* The spine: lit through your level, cold above it. */}
+      <View style={[styles.spine, reached && styles.spineLit]} pointerEvents="none" />
+      <LevelNode level={level} reached={reached} isNow={isNow} />
+      <View style={styles.pair}>
+        <Chip
+          rewards={level.free}
+          state={chipState(level, 'free', current, ownsPremium, claimed)}
+          dim={!reached}
+          onPress={() => onOpen('free')}
+        />
+        <Chip
+          rewards={level.premium}
+          state={chipState(level, 'premium', current, ownsPremium, claimed)}
+          dim={!reached || !ownsPremium}
+          pass
+          onPress={() => onOpen('premium')}
+        />
+      </View>
+    </View>
+  );
+}
 
-      <RewardTile
-        rewards={level.free}
-        claimed={claimed.has(`${level.level}:free`)}
-        locked={!reached}
-        onPress={() => onOpen('free')}
-      />
-
+/** The level node. Your current level breathes; milestones keep the Mythic ring as landmarks. */
+function LevelNode({ level, reached, isNow }: { level: PassLevel; reached: boolean; isNow: boolean }) {
+  return (
+    <View style={styles.nodeSpace}>
+      {isNow ? <NowGlow /> : null}
       <View
         style={[
           styles.node,
-          reached && !isCurrent && styles.nodeDone,
-          isCurrent && styles.nodeCurrent,
-          level.milestone && styles.nodeMilestone,
+          reached && !isNow && styles.nodeDone,
+          isNow && styles.nodeNow,
+          level.milestone && !reached && styles.nodeMilestone,
         ]}>
-        <Text style={[styles.nodeText, isCurrent && styles.nodeTextCurrent, level.milestone && styles.nodeTextMilestone]}>
+        <Text style={[styles.nodeText, reached && !isNow && styles.nodeTextDone, isNow && styles.nodeTextNow]}>
           {level.level}
         </Text>
       </View>
+    </View>
+  );
+}
 
-      <RewardTile
-        rewards={level.premium}
-        claimed={claimed.has(`${level.level}:premium`)}
-        locked={!reached || !ownsPremium}
-        premiumLocked={!ownsPremium}
-        premium
-        onPress={() => onOpen('premium')}
-      />
+/** The mock's `@keyframes pulse` — a glow behind the current node, parked under Reduce Motion. */
+function NowGlow() {
+  const t = useBreath(2000, 0.6);
+  const style = useAnimatedStyle(() => ({
+    opacity: interpolate(t.value, [0, 1], [0.45, 1]),
+    transform: [{ scale: interpolate(t.value, [0, 1], [0.92, 1.08]) }],
+  }));
+  return (
+    <View style={styles.nowGlowWrap} pointerEvents="none">
+      <Animated.View style={[styles.nowGlow, style]} />
     </View>
   );
 }
 
 /**
- * One lane's tile for one level. Renders the lane's FIRST reward as the art plus a "+N" when the
- * level hands over more than one thing — L50 premium is a Mythic halo and a sting, and shrinking
- * both into a 36px swatch would make neither legible. The detail sheet lists the full bundle.
+ * One lane's chip for one level: the lead reward's art and label, "+N" when the lane carries more,
+ * and a state mark. No button — the top Claim settles every ready chip at once.
  */
-function RewardTile({
+function Chip({
   rewards,
-  claimed,
-  locked,
-  premium,
-  premiumLocked,
+  state,
+  dim,
+  pass,
   onPress,
 }: {
   rewards: PassReward[];
-  claimed: boolean;
-  locked: boolean;
-  premium?: boolean;
-  premiumLocked?: boolean;
+  state: ChipState;
+  dim: boolean;
+  pass?: boolean;
   onPress: () => void;
 }) {
-  if (rewards.length === 0) return <View style={[styles.tile, styles.tileEmpty]} />;
+  if (rewards.length === 0) {
+    return (
+      <View style={[styles.chip, styles.chipEmpty]}>
+        <Text style={styles.chipLabel}>—</Text>
+      </View>
+    );
+  }
   const [lead, ...rest] = rewards;
   const item = lead.kind === 'item' ? getItem(lead.itemId) : undefined;
-
   return (
     <Pressable
-      style={[styles.tile, premium && styles.tilePremium, (claimed || locked) && styles.tileDim]}
+      style={[styles.chip, pass && styles.chipPass, state === 'ready' && styles.chipReady, dim && styles.chipDim]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${premium ? 'Premium' : 'Free'} reward: ${rewards.map(rewardName).join(', ')}`}>
-      <RewardArt reward={lead} size={32} />
-      <View style={styles.tileCol}>
-        <Text style={styles.tileName} numberOfLines={1}>
-          {rewardName(lead)}
-          {rest.length > 0 ? <Text style={styles.tilePlus}> +{rest.length}</Text> : null}
-        </Text>
-        <Text style={[styles.tileMeta, item ? { color: RARITY_COLOR[item.rarity] } : null]} numberOfLines={1}>
-          {rewardMeta(lead)}
-        </Text>
+      accessibilityLabel={`${pass ? 'Flame Pass' : 'Free'} reward: ${rewards.map(rewardName).join(', ')}. ${STATE_LABEL[state]}`}>
+      <View style={styles.chipArt}>
+        <RewardArt reward={lead} size={20} />
       </View>
-      {claimed ? <Text style={styles.tileCheck}>✓</Text> : premiumLocked ? <Text style={styles.tileLock}>🔒</Text> : null}
+      <Text style={[styles.chipLabel, item ? { color: RARITY_COLOR[item.rarity] } : null]} numberOfLines={1}>
+        {chipLabel(lead)}
+        {rest.length > 0 ? <Text style={styles.chipPlus}> +{rest.length}</Text> : null}
+      </Text>
+      <Text style={[styles.chipState, state === 'ready' && styles.chipStateReady]}>{STATE_MARK[state]}</Text>
     </Pressable>
   );
 }
 
-/** Real cosmetic art by catalog id — never a stock icon (spec §"Reward tile"). */
+const STATE_MARK: Record<ChipState, string> = { claimed: '✓', ready: '●', locked: '🔒' };
+const STATE_LABEL: Record<ChipState, string> = { claimed: 'Claimed', ready: 'Ready to claim', locked: 'Locked' };
+
+/** Real art by catalog id / box key — never a stock icon. Motion off: a hundred rows of it scroll. */
 function RewardArt({ reward, size }: { reward: PassReward; size: number }) {
   switch (reward.kind) {
     case 'embers':
-      return <EmberIcon size={size * 0.8} />;
+      return <EmberIcon size={size * 0.75} />;
     case 'box':
-      return <BoxArt boxKey={reward.box} size={size} />;
+      return <BoxArt boxKey={reward.box} size={size} motion="off" />;
     case 'item': {
       const item = getItem(reward.itemId);
-      return item ? <ItemArt item={item} size={size} /> : <View style={{ width: size, height: size }} />;
+      return item ? <ItemArt item={item} size={size} motion="off" /> : null;
     }
     case 'badge':
-      return <View style={[styles.badgeArt, { width: size, height: size, borderRadius: size / 4 }]} />;
+      return <Text style={{ fontSize: size * 0.6 }}>🏅</Text>;
   }
+}
+
+/** The chip's short label: the ember amount alone, the box or cosmetic by name. */
+function chipLabel(reward: PassReward): string {
+  return reward.kind === 'embers' ? formatEmbers(reward.amount) : rewardName(reward);
 }
 
 function rewardName(reward: PassReward): string {
   switch (reward.kind) {
     case 'embers':
-      return `${formatEmbers(reward.amount)} Embers`;
+      return `${formatEmbers(reward.amount)} embers`;
     case 'box':
       return BOXES[reward.box].name;
     case 'item':
-      return getItem(reward.itemId)?.name ?? reward.itemId;
+      return getItem(reward.itemId)?.name ?? 'A new cosmetic';
     case 'badge':
       return reward.label;
   }
 }
 
-function rewardMeta(reward: PassReward): string {
-  switch (reward.kind) {
-    case 'embers':
-      return 'CURRENCY';
-    case 'box':
-      return 'LOOT BOX';
-    case 'item': {
-      const item = getItem(reward.itemId);
-      return item ? `${RARITY_LABEL[item.rarity].toUpperCase()} · ${item.type}` : 'COSMETIC';
-    }
-    case 'badge':
-      return 'BADGE';
-  }
+/**
+ * The capstone, pinned under Level 100: the Emberfall Seal, off the catalog (name, rarity) and the
+ * track (its level). Tapping it opens L100's Flame Pass lane in full.
+ */
+function SealCapstone({ toSeal, ownsPremium, onPress }: { toSeal: number; ownsPremium: boolean; onPress: () => void }) {
+  const seal = getItem(SEAL_COSMETIC_KEY);
+  if (!seal) return null;
+  return (
+    <Pressable style={styles.cap} onPress={onPress} accessibilityRole="button">
+      <View style={styles.capBadge}>
+        <Text style={styles.capBadgeText}>
+          {RARITY_LABEL[seal.rarity]} · L{SEAL_LEVEL}
+        </Text>
+      </View>
+      <View style={styles.capSeal}>
+        <EmberfallSeal size={44} />
+      </View>
+      <Text style={styles.capName}>{seal.name}</Text>
+      <Text style={styles.capSub}>
+        Forge it at level {SEAL_LEVEL} — it burns beside your name forever.
+        {ownsPremium ? '' : ' Flame Pass only.'}
+      </Text>
+      <Text style={styles.capLv}>{toSeal > 0 ? `${toSeal} ${toSeal === 1 ? 'LEVEL' : 'LEVELS'} AWAY` : 'LEVEL REACHED'}</Text>
+    </Pressable>
+  );
 }
 
-/** Tap any tile → big art, name, rarity, lore, Claim (spec §"States"). */
-function RewardDetailSheet({
+/**
+ * A tapped chip: that level's lane in full. Cosmetics get the full <CosmeticDetail> (render, lore,
+ * what it does); embers and crates get a line each. The state is stated, never actioned — except a
+ * locked Flame Pass lane, which offers the paywall.
+ */
+function LaneDetail({
   target,
+  name,
+  current,
   ownsPremium,
   claimed,
-  reached,
-  busy,
-  passPrice,
-  onClaim,
-  onUpgrade,
-  onClose,
+  onUnlock,
 }: {
-  target: { level: PassLevel; lane: 'free' | 'premium' } | null;
+  target: Target;
+  name: string;
+  current: number;
   ownsPremium: boolean;
   claimed: Set<string>;
-  reached: boolean;
-  busy: boolean;
-  /** The store's localized Pass price, or undefined until the offering loads. */
-  passPrice?: string;
-  onClaim: (t: { level: PassLevel; lane: 'free' | 'premium' }) => void;
-  onUpgrade: () => void;
-  onClose: () => void;
+  onUnlock: () => void;
 }) {
-  if (!target) return null;
-  const rewards = target.lane === 'free' ? target.level.free : target.level.premium;
-  const isClaimed = claimed.has(`${target.level.level}:${target.lane}`);
-  const needsPass = target.lane === 'premium' && !ownsPremium;
+  const { level, lane } = target;
+  const rewards = lane === 'free' ? level.free : level.premium;
+  const state = chipState(level, lane, current, ownsPremium, claimed);
+  const needsPass = lane === 'premium' && !ownsPremium;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.sheetGrip} />
-          <Text style={styles.sheetKicker}>
-            LEVEL {target.level.level} · {target.lane === 'free' ? 'FREE' : 'PREMIUM'}
-            {target.level.milestone ? ' · ★ MILESTONE' : ''}
-          </Text>
+    <View>
+      <Text style={styles.sheetKicker}>
+        LEVEL {level.level} · {lane === 'free' ? 'FREE' : '🔥 FLAME PASS'}
+        {level.milestone ? ' · ★ MILESTONE' : ''}
+      </Text>
+      <Text style={styles.sheetState}>
+        {state === 'claimed'
+          ? 'Claimed ✓'
+          : needsPass
+            ? 'Locked — Flame Pass only'
+            : state === 'ready'
+              ? 'Ready — tap “Claim rewards” to collect'
+              : `Reach Level ${level.level} to claim`}
+      </Text>
 
-          {rewards.map((reward, i) => {
-            const item: CatalogItem | undefined = reward.kind === 'item' ? getItem(reward.itemId) : undefined;
-            return (
-              <View key={i} style={styles.sheetReward}>
-                <View style={styles.sheetArt}>
-                  <RewardArt reward={reward} size={56} />
-                </View>
-                <View style={styles.sheetCol}>
-                  <Text style={styles.sheetName}>{rewardName(reward)}</Text>
-                  <Text style={[styles.sheetMeta, item ? { color: RARITY_COLOR[item.rarity] } : null]}>
-                    {rewardMeta(reward)}
-                  </Text>
-                  {item ? <Text style={styles.sheetLore}>{item.lore}</Text> : null}
-                </View>
-              </View>
-            );
-          })}
-
-          {isClaimed ? (
-            <View style={[styles.sheetCta, styles.sheetCtaOff]}>
-              <Text style={styles.sheetCtaOffText}>Claimed ✓</Text>
+      {rewards.map((reward, i) => {
+        const item = reward.kind === 'item' ? getItem(reward.itemId) : undefined;
+        if (item) {
+          return (
+            <View key={i} style={styles.sheetItem}>
+              <CosmeticDetail item={item} name={name} showLevel={false} />
             </View>
-          ) : needsPass ? (
-            <Pressable style={styles.sheetCta} onPress={onUpgrade}>
-              <Text style={styles.sheetCtaText}>
-                Unlock the Flame Pass{passPrice ? ` · ${passPrice}` : ''}
+          );
+        }
+        return (
+          <View key={i} style={styles.sheetLine}>
+            <View style={styles.sheetLineArt}>
+              <RewardArt reward={reward} size={34} />
+            </View>
+            <View style={styles.flex1}>
+              <Text style={styles.sheetLineName}>{rewardName(reward)}</Text>
+              <Text style={styles.sheetLineMeta}>
+                {reward.kind === 'embers' ? 'Spend them in the shop and the forge' : reward.kind === 'box' ? 'A loot crate — open it in the shop' : 'Badge'}
               </Text>
-            </Pressable>
-          ) : !reached ? (
-            <View style={[styles.sheetCta, styles.sheetCtaOff]}>
-              <Text style={styles.sheetCtaOffText}>Reach Level {target.level.level} to claim</Text>
             </View>
-          ) : (
-            <Pressable style={[styles.sheetCta, busy && styles.claimBusy]} disabled={busy} onPress={() => onClaim(target)}>
-              <Text style={styles.sheetCtaText}>Claim</Text>
-            </Pressable>
-          )}
+          </View>
+        );
+      })}
+
+      {needsPass ? (
+        <Pressable style={styles.sheetCta} onPress={onUnlock} accessibilityRole="button">
+          <Text style={styles.sheetCtaText}>Unlock the Flame Pass 🔥</Text>
         </Pressable>
-      </Pressable>
-    </Modal>
+      ) : null}
+    </View>
   );
 }
 
@@ -752,12 +733,15 @@ function AchievementList({ earned }: { earned: { key: string; period_key: string
   return (
     <View>
       <Text style={styles.intro}>
-        Climb the Pass by completing <Text style={styles.introBold}>achievements</Text> — not by grinding rank XP. Ranks
-        stay their own long climb; this rewards showing up.
+        Climb the Pass by completing <Text style={styles.introBold}>achievements</Text> — not by grinding rank XP. Ranks stay
+        their own long climb; this rewards showing up.
       </Text>
       {cadences.map((cadence) => (
-        <View key={cadence}>
-          <SectionLabel label={CADENCE_LABEL[cadence]} action={CADENCE_RESET_HINT[cadence]} />
+        <View key={cadence} style={styles.achGroup}>
+          <View style={styles.achHead}>
+            <Text style={styles.achHeadText}>{CADENCE_LABEL[cadence].toUpperCase()}</Text>
+            <Text style={styles.achHeadHint}>{CADENCE_RESET_HINT[cadence]}</Text>
+          </View>
           {ACHIEVEMENTS.filter((a) => a.cadence === cadence).map((a) => {
             const complete = done.has(a.key);
             const at = progress[a.key];
@@ -766,7 +750,7 @@ function AchievementList({ earned }: { earned: { key: string; period_key: string
                 <View style={[styles.check, complete && styles.checkOn]}>
                   {complete ? <Text style={styles.checkMark}>✓</Text> : null}
                 </View>
-                <View style={styles.achCol}>
+                <View style={styles.flex1}>
                   <Text style={styles.achLabel}>{a.label}</Text>
                   {!complete && a.target != null && at != null ? (
                     <Text style={styles.achProgress}>
@@ -785,374 +769,204 @@ function AchievementList({ earned }: { earned: { key: string; period_key: string
   );
 }
 
-// ── The screen's own surfaces ──
-//
-// Every panel on this screen used to be one of the app's twilight-purple tokens — Colors.cardDark
-// (#20182F) for the tiles, tabs and sheet, `#241c38` for the XP track and the cold half of the
-// seam. On the purple ground that was coherent. On the ember ground it is not: a lavender tile
-// floating on firelight is the single loudest "this was themed by accident" tell, and it is what
-// the level rows, the tab bar and the reward sheet all looked like.
-//
-// Warm equivalents at the same VALUES, so contrast ratios and the read of the states (cold rail vs
-// lit rail, unclaimed vs claimed) are unchanged — only the hue moves.
-//
-// The Mythic violet is deliberately NOT swapped. nodeMilestone and the Level 0 row are the only
-// non-ember colour on the rail by design, which is what makes the four milestones readable as
-// landmarks from a fast scroll; making them warm too would flatten the whole track to one hue.
-const PANEL = '#1A130C'; // tiles, tabs, the reward sheet — was Colors.cardDark
-const PANEL_DEEP = '#191309'; // a claimed node, a step down from PANEL
-const TRACK_COLD = '#2A1C10'; // the unfilled XP bar and the cold seam above your level
-const NODE_BG = '#1E1710';
-const WARM_LINE = '#3A2A18'; // the hairline on a warm panel
-// The secondary/tertiary text colour on this screen. Colors.textTertiary is #7C7194 — a lavender
-// grey tuned for the purple ground, and on firelight it reads as the one cold thing left in the
-// frame. This is mock 214's `--dim`, and it is also a contrast WIN: ~5.6:1 on the ember ground
-// against ~4.0:1 for the lavender it replaces.
-const MUTED = '#9A8F82';
-
-const SEAM_W = 4;
-const NODE = 44;
-const NODE_MILESTONE = 54;
+/** Room the sticky unlock bar takes, so Level 100 and the Seal scroll clear of it. */
+const UNLOCK_BAR_H = 96;
+const NODE = 40;
+const LINE = EMBER.line;
+const CARD = 'rgba(22,14,34,0.72)';
 
 const styles = StyleSheet.create({
+  flex1: {
+    flex: 1,
+  },
   header: {
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    paddingHorizontal: 16,
   },
   top: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: 10,
+    paddingBottom: 6,
   },
-  titleWrap: {
+  title: {
     flex: 1,
+    fontFamily: Fonts.black,
+    fontSize: 16,
+    color: EMBER.ink,
   },
-  // The molten wordmark — now actually molten. <EmberText> paints the full ramp over these
-  // metrics, so no `color` here: it would only ever be the pre-layout flat frame.
-  wordmark: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 20,
-    letterSpacing: 0.6,
-  },
-  season: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: MUTED,
-    marginTop: 2,
-  },
-  seasonHot: {
-    color: '#caa96f',
-  },
-  levelRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    marginTop: Spacing.two,
-  },
-  levelKicker: {
+  days: {
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
-    color: '#FFD27A',
-  },
-  levelBig: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 32,
-    lineHeight: 34,
-    color: Colors.ink,
-  },
-  xpCount: {
-    fontFamily: Fonts.body,
-    fontSize: 10.5,
-    color: MUTED,
-    marginBottom: 3,
-  },
-  xpTrack: {
-    height: 9,
-    borderRadius: Radius.pill,
-    backgroundColor: TRACK_COLD,
-    marginTop: Spacing.one,
-    overflow: 'hidden',
-  },
-  xpFill: {
-    height: '100%',
-    backgroundColor: Colors.ember,
-  },
-  upgrade: {
-    marginHorizontal: Spacing.three,
-    marginTop: Spacing.two,
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    backgroundColor: '#2a1c10',
+    color: EMBER.e2,
+    backgroundColor: 'rgba(20,10,8,0.4)',
     borderWidth: 1,
-    borderColor: '#6b4a1e',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  upgradeCol: {
-    flex: 1,
-  },
-  upgradeTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12.5,
-    color: '#FFD27A',
-  },
-  upgradeSub: {
-    fontFamily: Fonts.body,
-    fontSize: 10.5,
-    color: '#caa96f',
-    marginTop: 1,
-  },
-  upgradePrice: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    color: '#1a1206',
-    backgroundColor: '#FFD27A',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    borderColor: 'rgba(255,210,122,0.35)',
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
     overflow: 'hidden',
   },
-  tabs: {
-    flexDirection: 'row',
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.one,
+
+  // ── status ──
+  status: {
+    marginTop: 8,
+    backgroundColor: 'rgba(10,6,16,0.4)',
+    borderWidth: 1,
+    borderColor: LINE,
+    borderRadius: 18,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
   },
-  tab: {
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderRadius: Radius.pill,
-    backgroundColor: PANEL,
-  },
-  tabOn: {
-    backgroundColor: '#3A2818',
-  },
-  tabText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: MUTED,
-  },
-  tabTextOn: {
-    color: Colors.ink,
-  },
-  laneHeader: {
+  srow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.two,
-    paddingBottom: 2,
+    gap: 12,
   },
-  laneLabel: {
-    flex: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 9.5,
-    letterSpacing: 0.7,
-    color: MUTED,
-  },
-  laneLabelPremium: {
-    color: '#FFD27A',
-    textAlign: 'right',
-  },
-  laneSpacer: {
-    width: NODE,
-  },
-  // ── the rail ──
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.two,
-    height: ROW_H,
-  },
-  rowMilestone: {
-    height: MILESTONE_ROW_H,
-  },
-  seam: {
-    position: 'absolute',
-    left: '50%',
-    top: 0,
-    bottom: 0,
-    width: SEAM_W,
-    marginLeft: -SEAM_W / 2,
-    backgroundColor: TRACK_COLD,
-  },
-  seamLit: {
-    backgroundColor: Colors.ember,
-  },
-  node: {
-    width: NODE,
-    height: NODE,
-    borderRadius: 13,
+  lvlBig: {
+    width: 52,
+    height: 52,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: NODE_BG,
+    backgroundColor: 'rgba(224,97,44,0.18)',
     borderWidth: 1,
-    borderColor: WARM_LINE,
+    borderColor: 'rgba(255,210,122,0.4)',
   },
-  nodeDone: {
-    backgroundColor: PANEL_DEEP,
+  lvlNum: {
+    fontFamily: Fonts.black,
+    fontSize: 22,
+    lineHeight: 24,
+    color: EMBER.ink,
   },
-  nodeCurrent: {
-    backgroundColor: Colors.ember,
-    borderColor: '#FFE0A6',
-  },
-  // The four Mythic milestones get the violet anvil — bigger, and the only non-ember colour on the
-  // rail, so they read as landmarks from a fast scroll.
-  nodeMilestone: {
-    width: NODE_MILESTONE,
-    height: NODE_MILESTONE,
-    borderRadius: 16,
-    backgroundColor: '#2f1c4d',
-    borderColor: '#a06cd5',
-  },
-  nodeText: {
+  lvlKicker: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: MUTED,
+    fontSize: 7.5,
+    letterSpacing: 1,
+    color: EMBER.e2,
   },
-  nodeTextCurrent: {
-    color: '#2a0f06',
-  },
-  nodeTextMilestone: {
-    color: '#e7ddf5',
-    fontSize: 16,
-  },
-  tile: {
+  sname: {
     flex: 1,
-    minHeight: 56,
-    backgroundColor: PANEL,
-    borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: 13,
-    padding: 8,
+    minWidth: 0,
+  },
+  burn: {
+    fontFamily: Fonts.black,
+    fontSize: 18,
+    color: EMBER.ink,
+  },
+  bal: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  // Free vs premium used to be told apart by HUE — a purple tile beside a warm one. With the whole
-  // screen warm, that difference vanished (#1A130C vs #1C1710 is nothing), so the lane is told
-  // apart by VALUE instead: the paid tile is the lit one.
-  tilePremium: {
-    borderColor: '#4a3a1e',
-    backgroundColor: '#2A1C10',
-  },
-  tileDim: {
-    opacity: 0.48,
-  },
-  tileEmpty: {
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-  },
-  tileCol: {
-    flex: 1,
-  },
-  tileName: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: Colors.ink,
-  },
-  tilePlus: {
-    color: '#FFD27A',
-  },
-  tileMeta: {
-    fontFamily: Fonts.body,
-    fontSize: 8.5,
-    letterSpacing: 0.4,
-    color: MUTED,
-    marginTop: 2,
-  },
-  tileCheck: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: '#7CCB8E',
-  },
-  tileLock: {
-    fontSize: 11,
-  },
-  badgeArt: {
-    backgroundColor: '#8A4E18',
-  },
-  // ── Level 0 ──
-  zeroRow: {
-    marginHorizontal: Spacing.two,
-    marginBottom: Spacing.two,
-    padding: Spacing.two,
-    borderRadius: 14,
-    backgroundColor: '#221436',
-    borderWidth: 1,
-    borderColor: '#a06cd5',
-  },
-  zeroKicker: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 8.5,
-    letterSpacing: 0.8,
-    color: '#c9a9ff',
-    marginBottom: Spacing.one,
-  },
-  zeroArt: {
-    flexDirection: 'row',
-    gap: Spacing.one,
-  },
-  zeroTile: {
-    flex: 1,
     alignItems: 'center',
     gap: 4,
+    marginTop: 2,
   },
-  zeroName: {
-    fontFamily: Fonts.body,
-    fontSize: 9,
-    color: MUTED,
-    textAlign: 'center',
+  balText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: EMBER.e2,
   },
-  restore: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: MUTED,
-    textAlign: 'center',
-    paddingVertical: Spacing.one,
-    marginTop: 6,
+  bar: {
+    height: 8,
+    borderRadius: 99,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
+    marginTop: 12,
   },
+  barFill: {
+    height: '100%',
+    borderRadius: 99,
+    backgroundColor: EMBER.e1,
+  },
+  barLabel: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 5,
+  },
+  barText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    color: EMBER.warm2,
+  },
+
+  // ── claim ──
+  claim: {
+    marginTop: 10,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: EMBER.e2,
+    alignItems: 'center',
+    shadowColor: EMBER.e0,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  claimOff: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  claimText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: '#20100a',
+  },
+  claimTextOff: {
+    color: EMBER.warm2,
+  },
+
+  tabs: {
+    flexDirection: 'row',
+    gap: 18,
+    marginTop: 14,
+    marginBottom: 8,
+    marginHorizontal: 4,
+  },
+  tab: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 1.6,
+    color: 'rgba(255,243,214,0.45)',
+    paddingBottom: 3,
+  },
+  tabOn: {
+    color: EMBER.warm,
+    borderBottomWidth: 2,
+    borderBottomColor: EMBER.e1,
+  },
+
   // ── season standing ──
   standing: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    marginHorizontal: Spacing.two,
-    marginBottom: Spacing.one,
+    marginBottom: 8,
     padding: Spacing.two,
     borderRadius: 14,
-    backgroundColor: '#2a1c10',
+    backgroundColor: 'rgba(42,22,44,0.85)',
     borderWidth: 1,
-    borderColor: '#6b4a1e',
-  },
-  standingCol: {
-    flex: 1,
+    borderColor: 'rgba(255,180,90,0.4)',
   },
   standingRank: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 20,
-    color: '#FFD27A',
+    color: EMBER.e2,
   },
   standingOf: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: MUTED,
+    color: EMBER.warm2,
   },
   standingSub: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: '#caa96f',
+    color: EMBER.warm2,
     marginTop: 2,
   },
   standingTitle: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: '#FFD27A',
+    color: EMBER.e2,
     marginTop: 3,
   },
   standingActions: {
@@ -1162,8 +976,8 @@ const styles = StyleSheet.create({
   standingShare: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: '#1a1206',
-    backgroundColor: '#FFD27A',
+    color: '#20100a',
+    backgroundColor: EMBER.e2,
     paddingVertical: 7,
     paddingHorizontal: 13,
     borderRadius: 10,
@@ -1175,126 +989,380 @@ const styles = StyleSheet.create({
     left: -9999,
     top: 0,
   },
-  // ── claim ──
-  claim: {
-    margin: Spacing.two,
-    paddingVertical: 13,
-    borderRadius: 14,
-    backgroundColor: '#FFD27A',
-    alignItems: 'center',
-  },
-  claimBusy: {
-    opacity: 0.6,
-  },
-  claimText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: '#2a0f06',
-  },
-  // ── detail sheet ──
-  sheetBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: PANEL,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    padding: Spacing.three,
-    gap: Spacing.two,
-  },
-  sheetGrip: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.line,
-  },
-  sheetKicker: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 9.5,
-    letterSpacing: 0.8,
-    color: '#FFD27A',
-  },
-  sheetReward: {
+
+  // ── the track ──
+  laneHdr: {
     flexDirection: 'row',
-    gap: Spacing.two,
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    gap: 13,
+    paddingHorizontal: 16,
+    paddingBottom: 6,
   },
-  sheetArt: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
-    backgroundColor: NODE_BG,
+  laneLabel: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9,
+    letterSpacing: 1.1,
+  },
+  laneFree: {
+    color: EMBER.mut,
+  },
+  lanePass: {
+    color: EMBER.e2,
+  },
+  track: {
+    paddingHorizontal: 16,
+  },
+  row: {
+    height: ROW_H,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+  },
+  spine: {
+    position: 'absolute',
+    left: NODE / 2 - 1,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  spineLit: {
+    backgroundColor: EMBER.e0,
+  },
+  nodeSpace: {
+    width: NODE,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sheetCol: {
+  node: {
+    width: NODE,
+    height: NODE,
+    borderRadius: NODE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: LINE,
+    backgroundColor: '#1a1030',
+  },
+  nodeDone: {
+    backgroundColor: EMBER.e1,
+    borderColor: 'transparent',
+  },
+  nodeNow: {
+    borderColor: EMBER.e2,
+  },
+  // The four milestones keep the Mythic ring while they're still ahead — landmarks on a fast scroll.
+  nodeMilestone: {
+    borderColor: '#FF6BD0',
+  },
+  nodeText: {
+    fontFamily: Fonts.black,
+    fontSize: 13,
+    color: EMBER.mut,
+  },
+  nodeTextDone: {
+    color: '#20100a',
+  },
+  nodeTextNow: {
+    color: EMBER.e2,
+  },
+  nowGlowWrap: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nowGlow: {
+    width: NODE + 12,
+    height: NODE + 12,
+    borderRadius: (NODE + 12) / 2,
+    backgroundColor: 'rgba(255,180,80,0.35)',
+    shadowColor: '#FFB450',
+    shadowOpacity: 0.9,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  pair: {
     flex: 1,
+    flexDirection: 'row',
+    gap: 8,
   },
-  sheetName: {
+  chip: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 11,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: LINE,
+  },
+  chipPass: {
+    borderColor: 'rgba(255,180,90,0.4)',
+  },
+  chipReady: {
+    borderColor: 'rgba(255,210,122,0.8)',
+  },
+  chipDim: {
+    opacity: 0.6,
+  },
+  chipEmpty: {
+    justifyContent: 'center',
+    opacity: 0.4,
+  },
+  chipArt: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#20182f',
+    borderWidth: 1,
+    borderColor: LINE,
+  },
+  chipLabel: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.ink,
+    fontSize: 10.5,
+    color: EMBER.ink,
   },
-  sheetMeta: {
-    fontFamily: Fonts.body,
-    fontSize: 9.5,
-    letterSpacing: 0.5,
-    color: MUTED,
-    marginTop: 2,
+  chipPlus: {
+    color: EMBER.e2,
   },
-  sheetLore: {
+  chipState: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 8.5,
+    color: EMBER.mut,
+  },
+  chipStateReady: {
+    color: EMBER.e2,
+    textShadowColor: 'rgba(255,180,80,0.8)',
+    textShadowRadius: 6,
+  },
+
+  // ── the capstone ──
+  cap: {
+    marginTop: 14,
+    marginBottom: 4,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(34,18,38,0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,208,0.4)',
+  },
+  capBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#FF6BD0',
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+    borderBottomLeftRadius: 10,
+  },
+  capBadgeText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 8,
+    color: '#160a02',
+  },
+  capSeal: {
+    width: 44,
+    height: 44,
+    marginBottom: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  capName: {
+    fontFamily: Fonts.black,
+    fontSize: 14,
+    color: EMBER.ink,
+  },
+  capSub: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    lineHeight: 16,
-    color: MUTED,
-    marginTop: 5,
+    lineHeight: 15.5,
+    color: EMBER.dim,
+    textAlign: 'center',
+    marginTop: 3,
+  },
+  capLv: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9.5,
+    letterSpacing: 1,
+    color: EMBER.e2,
+    marginTop: 8,
+  },
+
+  // ── the unlock bar (non-owners) ──
+  unlockWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 10,
+    paddingHorizontal: 16,
+    gap: 6,
+    backgroundColor: 'rgba(20,8,4,0.88)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,180,90,0.3)',
+  },
+  unlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: EMBER.e2,
+  },
+  unlockLock: {
+    fontSize: 16,
+  },
+  unlockTitle: {
+    fontFamily: Fonts.black,
+    fontSize: 13.5,
+    color: '#20100a',
+  },
+  unlockSub: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 10.5,
+    color: 'rgba(32,16,10,0.75)',
+    marginTop: 1,
+  },
+  unlockPrice: {
+    fontFamily: Fonts.black,
+    fontSize: 13,
+    color: EMBER.e2,
+    backgroundColor: '#20100a',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 9,
+    overflow: 'hidden',
+  },
+  restore: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: EMBER.warm2,
+    textAlign: 'center',
+    paddingVertical: 2,
+  },
+
+  // ── lane sheet ──
+  sheetKicker: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    letterSpacing: 1,
+    color: EMBER.e2,
+    textAlign: 'center',
+  },
+  sheetState: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: EMBER.warm2,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  sheetItem: {
+    marginBottom: 16,
+  },
+  sheetLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderRadius: 14,
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: LINE,
+  },
+  sheetLineArt: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#20182f',
+  },
+  sheetLineName: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: EMBER.ink,
+  },
+  sheetLineMeta: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: EMBER.dim,
+    marginTop: 2,
   },
   sheetCta: {
-    marginTop: Spacing.one,
+    marginTop: 6,
     paddingVertical: 13,
     borderRadius: 13,
-    backgroundColor: '#FFD27A',
+    backgroundColor: EMBER.e2,
     alignItems: 'center',
   },
   sheetCtaText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13.5,
-    color: '#2a0f06',
+    color: '#20100a',
   },
-  sheetCtaOff: {
-    backgroundColor: TRACK_COLD,
-  },
-  sheetCtaOffText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: MUTED,
-  },
+
   // ── Pass XP tab ──
   xpContent: {
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.six,
+    paddingHorizontal: 16,
   },
   intro: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 17,
-    color: MUTED,
+    color: EMBER.warm2,
     marginBottom: Spacing.two,
   },
   introBold: {
     fontFamily: Fonts.bodyBold,
-    color: Colors.ink,
+    color: EMBER.ink,
+  },
+  achGroup: {
+    marginBottom: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(10,6,16,0.45)',
+    borderWidth: 1,
+    borderColor: LINE,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+  },
+  achHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  achHeadText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: EMBER.e2,
+  },
+  achHeadHint: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    color: EMBER.warm2,
   },
   ach: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(58,43,82,0.6)',
   },
   achDone: {
     opacity: 0.6,
@@ -1304,43 +1372,40 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: Colors.line,
+    borderColor: EMBER.line2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkOn: {
-    backgroundColor: Colors.ember,
-    borderColor: Colors.ember,
+    backgroundColor: EMBER.e1,
+    borderColor: EMBER.e1,
   },
   checkMark: {
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
-    color: '#2a0f06',
-  },
-  achCol: {
-    flex: 1,
+    color: '#20100a',
   },
   achLabel: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.ink,
+    color: EMBER.ink,
   },
   achProgress: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: MUTED,
+    color: EMBER.warm2,
     marginTop: 2,
   },
   achXp: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: '#FFD27A',
+    color: EMBER.e2,
   },
   rule: {
     fontFamily: Fonts.body,
     fontSize: 10,
     lineHeight: 15,
-    color: MUTED,
+    color: EMBER.warm2,
     textAlign: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
