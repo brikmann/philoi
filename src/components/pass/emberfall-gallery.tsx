@@ -1,5 +1,5 @@
 import { useEffect, useId } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -32,6 +32,10 @@ import { RARITY_COLOR, RARITY_LABEL } from '@/lib/economy/rarity';
 // the level comes from the pass track via passUnlockLevel(). The one editorial choice here is WHICH
 // items are the marquee — the list below. An id the track no longer grants drops out of the
 // gallery rather than advertising a level that does not exist.
+//
+// Every card is tappable: `onOpen` hands the item up, and the owner opens <CosmeticDetailSheet>
+// (the full render, the lore, and what the item DOES). The gallery holds no sheet state of its
+// own, so the paywall and the pass track share one sheet rather than each growing a copy.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The marquee, in the order ties at the same level should show. The Seal is always the finale. */
@@ -103,27 +107,50 @@ function withTypeWord(name: string, type: ItemType, sep: string, lower = false):
   return `${name}${sep}${lower ? word.toLowerCase() : word}`;
 }
 
-/** "Emberfall Ascendant · Flare" on a gallery card. */
-function cardTitle(item: CatalogItem): string {
+/** "Emberfall Ascendant · Flare" on a gallery card and its detail sheet. */
+export function cosmeticTitle(item: CatalogItem): string {
   const name = item.type === 'TITLE' ? `“${titleLabel(item).name}”` : item.name;
   return withTypeWord(name, item.type, ' · ');
 }
 
-export function EmberfallGallery({ name }: { name: string }) {
+export function EmberfallGallery({ name, onOpen }: { name: string; onOpen: (item: CatalogItem) => void }) {
   const rows = emberfallMarquee();
   return (
     <View style={styles.list}>
       {rows.map(({ item, level }) => (
-        <GalleryCard key={item.id} item={item} level={level} name={name} finale={item.id === FINALE_ID} />
+        <GalleryCard
+          key={item.id}
+          item={item}
+          level={level}
+          name={name}
+          finale={item.id === FINALE_ID}
+          onPress={() => onOpen(item)}
+        />
       ))}
     </View>
   );
 }
 
-function GalleryCard({ item, level, name, finale }: { item: CatalogItem; level: number; name: string; finale: boolean }) {
+function GalleryCard({
+  item,
+  level,
+  name,
+  finale,
+  onPress,
+}: {
+  item: CatalogItem;
+  level: number;
+  name: string;
+  finale: boolean;
+  onPress: () => void;
+}) {
   const rarity = RARITY_COLOR[item.rarity];
   return (
-    <View style={[styles.card, finale && styles.cardFinale]}>
+    <Pressable
+      style={({ pressed }) => [styles.card, finale && styles.cardFinale, pressed && styles.cardPressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${cosmeticTitle(item)}, ${RARITY_LABEL[item.rarity]}. Show details`}>
       <View style={[styles.unlock, level === 0 ? styles.unlockNow : styles.unlockLv]}>
         <Text style={[styles.unlockText, level === 0 && styles.unlockTextNow]}>{level === 0 ? '⚡ Instant' : `Lv ${level}`}</Text>
       </View>
@@ -138,18 +165,19 @@ function GalleryCard({ item, level, name, finale }: { item: CatalogItem; level: 
         <View style={styles.laurelR}>
           <Laurel height={86} flip />
         </View>
-        <Render item={item} name={name} />
+        <CosmeticRender item={item} name={name} />
       </View>
 
-      <Text style={styles.cname}>{cardTitle(item)}</Text>
+      <Text style={styles.cname}>{cosmeticTitle(item)}</Text>
       <Text style={styles.clore}>{item.lore}</Text>
-    </View>
+    </Pressable>
   );
 }
 
 // ─────────────────────────── the renders ───────────────────────────
 
-function Render({ item, name }: { item: CatalogItem; name: string }) {
+/** How the item looks ON the viewer — the card's stage, and (scaled up) the detail sheet's. */
+export function CosmeticRender({ item, name }: { item: CatalogItem; name: string }) {
   switch (item.type) {
     case 'FLARE':
       return <FlareRender item={item} name={name} />;
@@ -391,6 +419,9 @@ const styles = StyleSheet.create({
   cardFinale: {
     borderColor: 'rgba(255,180,90,0.5)',
     backgroundColor: 'rgba(42,22,44,0.96)',
+  },
+  cardPressed: {
+    opacity: 0.85,
   },
   unlock: {
     position: 'absolute',

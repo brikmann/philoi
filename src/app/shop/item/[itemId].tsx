@@ -14,6 +14,7 @@ import { useStopPreviewOnLeave } from '@/hooks/use-audio-preview';
 import { useInventory } from '@/hooks/use-inventory';
 import { buyCosmetic, equipCosmetic } from '@/lib/api/inventory';
 import { getItem, SLOT_LABEL } from '@/lib/economy/catalog';
+import { cosmeticEffect } from '@/lib/economy/cosmetic-effect';
 import { getErrorMessage } from '@/lib/errors';
 import { DIRECT_BUY_PRICE, RARITY_COLOR, SALVAGE_EMBERS, rarityGlow } from '@/lib/economy/rarity';
 
@@ -108,6 +109,8 @@ export default function ShopItemScreen() {
           <Text style={styles.name}>{item.name}</Text>
           <RarityLabel rarity={item.rarity} type={item.type} size={10} />
           <Text style={styles.lore}>{item.lore}</Text>
+          {/* What it DOES — the same type-derived line the Flame Pass detail sheet shows. */}
+          <Text style={styles.effect}>{cosmeticEffect(item)}</Text>
           {item.slot ? <Text style={styles.slot}>Equips to your {SLOT_LABEL[item.slot]} slot — one active at a time.</Text> : null}
         </View>
 
@@ -207,6 +210,13 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: '#b7a9cc',
     marginTop: Spacing.twelve,
+  },
+  effect: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: Colors.ink,
+    marginTop: Spacing.two,
   },
   slot: {
     fontFamily: Fonts.body,

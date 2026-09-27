@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useId } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { EMBER, EmberTag, EmberfallSky, FallingEmbers, FlashText, GreekKeyDivider, HadesConstellation } from '@/components/pass/emberfall-art';
+import { CosmeticDetailSheet } from '@/components/pass/cosmetic-detail-sheet';
 import { EmberfallGallery, trackHighlights } from '@/components/pass/emberfall-gallery';
 import { ShineSweep } from '@/components/pass/pass-motion';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -15,6 +16,7 @@ import { useInventory } from '@/hooks/use-inventory';
 import { useProductPrices, usePurchase } from '@/hooks/use-purchase';
 import { useAuth } from '@/lib/auth/auth-context';
 import { restorePurchases } from '@/lib/billing';
+import type { CatalogItem } from '@/lib/economy/catalog';
 import { SEASON, levelFromXp, passOnSale, seasonPhase } from '@/lib/economy/forge-pass';
 import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
 import { getErrorMessage } from '@/lib/errors';
@@ -25,7 +27,8 @@ import { getErrorMessage } from '@/lib/errors';
 // One gradient sky the full height of the screen (void → deep blue → purple → ember → orange), the
 // season's embers FALLING across all of it, Hades' constellation burning over the headline. Top to
 // bottom: the tag and "Own Emberfall", the constellation, the tale in two beats, the price, a
-// Greek-key divider, the season's cosmetics (laurel-framed, rendered on YOU), and a sticky CTA.
+// Greek-key divider, the season's cosmetics (laurel-framed, rendered on YOU, each tappable into a
+// detail sheet), and a sticky CTA.
 //
 // ONE PRICE LINE, ONE ACTION. The price leads at the top; the sticky bottom is a single "Purchase
 // Flame Pass · <price>" button with Restore under it. A second price row above the button repeated
@@ -60,6 +63,7 @@ export default function PaywallScreen() {
   // 'replace', not 'push': this modal's whole job was to take the money, and leaving it in the
   // stack means a back gesture off the receipt lands on "buy the Flame Pass" for a pass they own.
   const { buy, busy } = usePurchase({ navigate: 'replace' });
+  const [detail, setDetail] = useState<CatalogItem | null>(null);
 
   const phase = seasonPhase();
   const onSale = passOnSale(phase, profile?.is_dev);
@@ -166,8 +170,8 @@ export default function PaywallScreen() {
         <View style={styles.body}>
           <GreekKeyDivider />
           <Text style={styles.galleryHead}>THE SEASON&apos;S COSMETICS</Text>
-          <Text style={styles.seclead}>One lands the moment you buy — the rest you forge by climbing.</Text>
-          <EmberfallGallery name={firstName} />
+          <Text style={styles.seclead}>One lands the moment you buy — the rest you forge by climbing. Tap any to see what it does.</Text>
+          <EmberfallGallery name={firstName} onOpen={setDetail} />
 
           <Text style={styles.sec}>ACROSS THE {SEASON.totalLevels}-LEVEL TRACK</Text>
           <Text style={styles.seclead}>Every level drops something — more looks, and embers each rung. A few of what&apos;s waiting:</Text>
@@ -227,6 +231,8 @@ export default function PaywallScreen() {
           <Text style={styles.restore}>Restore purchase</Text>
         </Pressable>
       </View>
+
+      <CosmeticDetailSheet item={detail} name={firstName} onClose={() => setDetail(null)} />
 
       {/* Last in the tree so it sits over the sky and the rain without needing a zIndex. */}
       <Pressable style={[styles.close, { top: insets.top + Spacing.two }]} onPress={close} hitSlop={12} accessibilityLabel="Close">
