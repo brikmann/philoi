@@ -27,12 +27,16 @@ import { getErrorMessage } from '@/lib/errors';
 // bottom: the tag and "Own Emberfall", the constellation, the tale in two beats, the price, a
 // Greek-key divider, the season's cosmetics (laurel-framed, rendered on YOU), and a sticky CTA.
 //
+// ONE PRICE LINE, ONE ACTION. The price leads at the top; the sticky bottom is a single "Purchase
+// Flame Pass · <price>" button with Restore under it. A second price row above the button repeated
+// the headline and pushed the action down.
+//
 // 🔴 COPY SAYS "FLAME PASS", CODE SAYS `forge_pass`. Every id on this screen — the product id, the
 // entitlement, the route, the RPCs — is bound to the Play Console, App Store Connect and the
 // RevenueCat dashboard. Renaming any of them to match the user-facing name is not a rename, it is a
 // purchase that succeeds and grants nothing. See lib/economy/iap.ts.
 //
-// 🔴 NO HARDCODED PRICE. Both price lines are the store's own localized `priceString` (via
+// 🔴 NO HARDCODED PRICE. The lead price and the button label are the store's own localized `priceString` (via
 // useProductPrices), never a literal. An offering that hasn't loaded shows a dash — it does not
 // invent $8.99. The mock's "≈ $2.25/mo" is not reproduced: dividing a localized string is how an
 // app ends up quoting a per-month figure the store never charged.
@@ -152,8 +156,11 @@ export default function PaywallScreen() {
         {/* ── 4 · the price ── */}
         <View style={styles.priceLead}>
           <Text style={styles.priceBig}>{price ?? '—'}</Text>
-          <Text style={styles.priceSub}>{price ? '/ semester' : 'Pricing is loading from the store…'}</Text>
+          <Text style={styles.priceSub}>{price ? '/ semester · less than a cup of coffee' : 'Pricing is loading from the store…'}</Text>
         </View>
+        {/* NON-RENEWING, per the Phase 4 decision — FORGE_PASS_PRODUCT_ID is a non-renewing store
+            product, so nothing here may promise a renewal. */}
+        <Text style={styles.priceFine}>One-time · the whole semester · no subscription</Text>
 
         {/* ── 5 · the season's cosmetics ── */}
         <View style={styles.body}>
@@ -195,28 +202,26 @@ export default function PaywallScreen() {
             <PrimaryButton label="Open the track 🔥" onPress={() => router.replace('/forge-pass')} />
           </>
         ) : (
-          <>
-            <View style={styles.priceRow}>
-              <Text style={styles.ctaPrice}>{price ?? '—'}</Text>
-              {/* NON-RENEWING, per the Phase 4 decision — FORGE_PASS_PRODUCT_ID is a non-renewing
-                  store product, so nothing here may promise a renewal. */}
-              <Text style={styles.ctaPer}>· whole semester · one-time · no subscription</Text>
-            </View>
-            <View>
-              <PrimaryButton
-                label={onSale ? `Own ${SEASON.name} 🔥` : phase === 'upcoming' ? 'Opens October 1' : 'Season closed'}
-                onPress={onBuy}
-                disabled={!onSale}
-                loading={busy}
-                pulse
-              />
-              {onSale && !busy ? (
-                <View style={styles.ctaShine} pointerEvents="none">
-                  <ShineSweep period={3400} opacity={0.6} />
-                </View>
-              ) : null}
-            </View>
-          </>
+          <View>
+            <PrimaryButton
+              label={
+                onSale
+                  ? `Purchase Flame Pass${price ? ` · ${price}` : ''} 🔥`
+                  : phase === 'upcoming'
+                    ? 'Opens October 1'
+                    : 'Season closed'
+              }
+              onPress={onBuy}
+              disabled={!onSale}
+              loading={busy}
+              pulse
+            />
+            {onSale && !busy ? (
+              <View style={styles.ctaShine} pointerEvents="none">
+                <ShineSweep period={3400} opacity={0.6} />
+              </View>
+            ) : null}
+          </View>
         )}
         <Pressable onPress={onRestore} hitSlop={10} accessibilityRole="button">
           <Text style={styles.restore}>Restore purchase</Text>
@@ -253,7 +258,7 @@ function CtaScrim() {
 }
 
 /** Room the sticky CTA takes, so the last card scrolls clear of it. */
-const CTA_H = 170;
+const CTA_H = 130;
 
 const styles = StyleSheet.create({
   scroll: {
@@ -323,6 +328,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginTop: 12,
+    paddingHorizontal: 22,
   },
   priceBig: {
     fontFamily: Fonts.black,
@@ -330,9 +336,17 @@ const styles = StyleSheet.create({
     color: EMBER.e2,
   },
   priceSub: {
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
     color: EMBER.warm2,
+  },
+  priceFine: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 10.5,
+    color: EMBER.warm2,
+    textAlign: 'center',
+    marginTop: 2,
   },
 
   // ── gallery ──
@@ -407,23 +421,6 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingHorizontal: 18,
     gap: 10,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  ctaPrice: {
-    fontFamily: Fonts.black,
-    fontSize: 23,
-    color: '#FFFFFF',
-  },
-  ctaPer: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: EMBER.warm2,
   },
   ctaNote: {
     fontFamily: Fonts.body,
