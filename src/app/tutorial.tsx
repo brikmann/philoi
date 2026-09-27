@@ -91,7 +91,9 @@ export default function TutorialScreen() {
       // Leaving via the Flame Pass CTA ends the tour just as much as Skip or the last card does.
       noteTourClosed();
       markTutorialDone().catch(() => {});
-      router.replace('/forge-pass');
+      // Straight to the paywall (mock 226's "See the Flame Pass"). The tutorial is replaced, so the
+      // paywall's close falls back to Home when there is nothing underneath to go back to.
+      router.replace('/paywall');
       return;
     }
     if (isLast) {

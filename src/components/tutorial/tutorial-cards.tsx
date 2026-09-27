@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { BurningName } from '@/components/burning-name';
+import { EMBER, EmberfallSky, FallingEmbers } from '@/components/pass/emberfall-art';
 import {
   MiniBanner,
   MiniBar,
@@ -33,7 +35,7 @@ import type { RankTierName } from '@/types/database';
 //
 // 🔴 EVERY MAIN-MENU DESTINATION GETS A CARD. Home/flame, ranks, Emberfall, profile + relics,
 // campfires, campfire chat, challenges, personal goals, Cindy, leaderboard, the Agora, sharing,
-// cosmetics, the shop, opening crates, inventory, the Forge, the Flame Pass, settings. The three
+// cosmetics, the shop, opening crates, inventory, the Forge, settings, and the Flame Pass last. The three
 // that were missing from earlier drafts and are explicitly not to be dropped again are the Agora,
 // the Inventory and the Forge.
 //
@@ -52,7 +54,7 @@ import type { RankTierName } from '@/types/database';
 // ignore tap hints.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-export type TutorialSection = 'Core' | 'Social' | 'Cosmetic' | 'Setup';
+export type TutorialSection = 'Core' | 'Social' | 'Cosmetic' | 'Setup' | 'Flame Pass';
 
 export type TutorialCard = {
   key: string;
@@ -562,39 +564,15 @@ export function tutorialCards(displayName: string | null, handle: string | null)
         </MiniScreen>,
       ],
     },
-    {
-      key: 'pass',
-      title: 'The Flame Pass',
-      // 🔴 SELLS THE VALUE, NOT THE TRANSACTION. Cindy hypes what it unlocks and never says "grab
-      // it now" or "decide later" — the two buttons carry that, and putting the ask in her mouth
-      // as well is what makes a tour feel like an ad. The opt-out sits right there, always.
-      cindy: [
-        "The Flame Pass lights up Emberfall's premium track — exclusive flares, halos and banners you can't earn any other way, dropping all season. Let the whole board know you were here from day one. 🔥",
-      ],
-      next: 'Unlock the Flame Pass 🔥',
-      secondary: 'Maybe later',
-      buy: true,
-      steps: [
-        <MiniScreen center key="fp">
-          <Text style={styles.bigFlame}>🔥</Text>
-          <View style={styles.reacts}>
-            <MiniChip label="FLAME PASS" color={Colors.amber} />
-            <MiniChip label="Emberfall" color={Colors.ember} />
-          </View>
-        </MiniScreen>,
-      ],
-    },
-
     // ─────────────────────────── SETUP ───────────────────────────
     {
       key: 'settings',
       title: 'Set it up',
       section: 'Setup',
       cindy: [
-        'Last stop. Tap the toggles to flip them on — notifications, your apps, all of it.',
+        'Nearly there. Tap the toggles to flip them on — notifications, your apps, all of it.',
         "Perfect. Notifications on, apps connected, privacy your call. You're ready to light the fire. 🔥",
       ],
-      next: 'Light the fire 🔥',
       steps: [
         <MiniScreen key="st0">
           <MiniHeader glyph="⚙️" title="Settings" />
@@ -613,7 +591,64 @@ export function tutorialCards(displayName: string | null, handle: string | null)
         </MiniScreen>,
       ],
     },
+
+    // ─────────────────────────── THE FLAME PASS — the finale (mocks 226 / 227) ───────────────────────────
+    //
+    // LAST, after every free thing has been shown, and in the EMBER palette: a deliberate premium
+    // shift, so it reads as a special moment rather than one more info card. It teaches the one
+    // thing about the pass nobody would guess — a holder's NAME burns — with a board where one name
+    // is on fire. The example board is inert, like every preview here; the fire on it is forced,
+    // not read from anyone's entitlement.
+    {
+      key: 'pass',
+      title: 'The Flame Pass',
+      section: 'Flame Pass',
+      // 🔴 SELLS THE VALUE, NOT THE TRANSACTION. Cindy explains what the fire means and never says
+      // "grab it now" — the two buttons carry that, and the opt-out sits right there, always.
+      cindy: [
+        "See a name on fire? That's a Flame Pass holder. Their name burns everywhere the campus sees it — leaderboards, campfires, the Agora. Join the climb this semester and set yours alight. 🔥",
+      ],
+      next: 'See the Flame Pass 🔥',
+      secondary: 'Maybe later',
+      buy: true,
+      steps: [<FlamePassPreview key="fp" you={you} />],
+    },
   ];
+}
+
+/** Mock 226's board: three names, the middle one — yours — on fire. */
+function FlamePassPreview({ you }: { you: string }) {
+  const rows = [
+    { rank: 1, name: 'Maya', pts: '4,120' },
+    { rank: 2, name: you, pts: '3,880', fire: true },
+    { rank: 3, name: 'Priya', pts: '3,540' },
+  ];
+  return (
+    <MiniScreen center style={styles.fireScreen}>
+      <EmberfallSky kind="tutorial" />
+      <FallingEmbers count={5} fall={420} />
+      <View style={styles.fireBoard}>
+        {rows.map((r) => (
+          <View key={r.rank} style={[styles.fireRow, r.fire && styles.fireRowOn]}>
+            <Text style={[styles.fireRank, r.fire && { color: EMBER.e2 }]}>{r.rank}</Text>
+            <View style={[styles.fireAv, r.fire && styles.fireAvOn]} />
+            <View style={styles.fireName}>
+              <BurningName owns={Boolean(r.fire)} style={styles.fireNameText}>
+                {r.name}
+              </BurningName>
+            </View>
+            <Text style={styles.firePts}>{r.pts}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={styles.fireH1}>
+        See a name <Text style={styles.fireH1Hot}>on fire?</Text>
+      </Text>
+      <Text style={styles.fireP}>
+        That&apos;s a <Text style={styles.fireB}>Flame Pass</Text> holder. Set yours alight this semester.
+      </Text>
+    </MiniScreen>
+  );
 }
 
 // ─────────────────────────── the ladder, from the real metals ───────────────────────────
@@ -986,6 +1021,27 @@ function CindyDemoTyped() {
 }
 
 const styles = StyleSheet.create({
+  fireScreen: { borderColor: 'rgba(255,158,77,0.4)', gap: 10 },
+  fireBoard: {
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(10,6,16,0.4)',
+    borderWidth: 1,
+    borderColor: '#2C2140',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  fireRow: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 8, paddingHorizontal: 9 },
+  fireRowOn: { backgroundColor: 'rgba(224,97,44,0.16)' },
+  fireRank: { width: 10, fontFamily: Fonts.bodyBold, fontSize: 11, color: EMBER.mut },
+  fireAv: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#2f2447', borderWidth: 1, borderColor: '#2C2140' },
+  fireAvOn: { borderColor: EMBER.e1, borderWidth: 1.5 },
+  fireName: { flex: 1, minWidth: 0 },
+  fireNameText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: EMBER.ink },
+  firePts: { fontFamily: Fonts.bodyBold, fontSize: 10.5, color: EMBER.mut },
+  fireH1: { fontFamily: Fonts.black, fontSize: 17, color: EMBER.ink, textAlign: 'center', marginTop: 4 },
+  fireH1Hot: { color: EMBER.e2 },
+  fireP: { fontFamily: Fonts.body, fontSize: 11.5, lineHeight: 16, color: EMBER.dim, textAlign: 'center' },
+  fireB: { fontFamily: Fonts.bodyBold, color: EMBER.e2 },
   bigFlame: { fontSize: 54, textAlign: 'center' },
   flameWrap: { alignItems: 'center', gap: 2, marginTop: 6, flex: 1, justifyContent: 'center' },
   spacer: { flex: 1 },
