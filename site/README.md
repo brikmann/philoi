@@ -52,33 +52,52 @@ custom properties at the top of each HTML file's `<style>` block.
 | coral / amber / ember | `#E0612C` / `#F2A33C` / `#FFD27A` | firelight accents |
 | ink / muted | `#FFF6EC` / `#A99CBD` | text |
 
-## Layout — mobile-first (mock 229)
+## Layout — mock 233 (Emberfall), mobile-first
 
 Most visitors arrive from a QR code on a shirt or poster, so the **phone render
-is the source of truth**. Base styles target 360–430px in a single column;
-`@media (min-width:820px)` scales up to a centred shell with two-column splits.
-Structure, value before features:
+is the source of truth**. Base styles target 360–430px; `@media (min-width:820px)`
+scales up to a centred shell with two-column scenes.
+
+The whole page sits on one continuous Emberfall wash (black → blue → purple →
+orange), with slow embers (9–16s falls) drifting across it. In order:
 
 1. Sticky nav: flame mark + "Get the app"
-2. Hero: headline, Season 1 badge, falling embers, launch-state CTA
-3. **Compete**: campus board with burning names + the Emberfall Seal
-4. **Together**: duel + campfire tiles
-5. **Collect**: a swipeable reel of Emberfall cosmetics (names and rarities from
-   `catalog.ts`, colours from `rarity.ts`)
-6. **Your edge**: Cindy, last
-7. Final CTA, then the footer with the legal links Apple and Play require
+2. Hero: the φίλοι name gloss, Hades' constellation, the headline, the
+   launch-state CTA, and a phone showing Kai's burning name climbing 3rd → 1st
+3. **Lock in**: the lock-in screen wearing the Emberfall Ascendant flare
+4. **Campfires**: the group chat, with a challenge thrown inline
+5. **The Agora**: the campus feed
+6. **Cindy**: the coach reading the calendar
+7. **The Shop · Emberfall**: Flame Pass banner, crates, inventory, equipped profile
+8. Final CTA, then the footer with all five required links (incl. Support)
 
-Every section is a kicker, one headline, one line, and a visual. Tap targets are
-at least 44px, and nothing depends on hover.
+Two Greek-key dividers only: after the hero, and before the Shop.
+
+## Cosmetic art is the app's own renderers, ported
+
+Nothing cosmetic on the page is a stand-in. The inline script ports these
+react-native-svg components to web SVG with the same paths, stops and numbers:
+
+| On the page | Ported from |
+|---|---|
+| Inventory tiles, the profile avatar flame | `economy/item-art.tsx` (`ItemArt`, still path: rarity glow, ground shadow, per-type silhouette) |
+| Crates | `economy/box-art.tsx` on `ItemPedestal` |
+| The Emberfall Seal, Hades' constellation, Greek key, "Own Emberfall" flash | `pass/emberfall-art.tsx` |
+| Lock-in flame | `flame-icon.tsx` `FlameSvg`, recoloured by `flame-ramp.ts` for an equipped flare |
+| Flare aura + risers | `economy/flare-perimeter.tsx` (`FlarePerimeter` tier 3, `Ascendant`) |
+| Profile preview | `pass/profile-flex.tsx` (`WithCard`) |
+| Burning name | `burning-name.tsx` |
+
+Item names, rarities and palettes are copied from `catalog.ts` (`EMBERFALL_SET`),
+crate names and odds from `boxes.ts`. If the app's art or catalog changes,
+update the `ITEMS` / `BOX` tables and the matching functions in `index.html`.
 
 ## Motion
 
-- Only `transform` and `opacity` animate: the hero embers, the burning-name
-  glow, the Seal's spin, and a fade-up reveal on scroll.
-- Reveals only hide content when the `<head>` script has added `html.js`, so
-  with JS off everything is visible.
-- `prefers-reduced-motion: reduce` stops every animation and shows the finished
-  page.
+- Continuous motion is `transform` and `opacity`, with one exception: the
+  "Own Emberfall" sweep is the paywall's `background-position` animation.
+- Reveals only hide content once the `<head>` script has added `html.js`.
+- `prefers-reduced-motion: reduce` stops everything; the climb shows Kai at #1.
 
 ## The launch gate (pre-launch ↔ launched, no redeploy)
 
@@ -128,10 +147,20 @@ Chrome/Edge already installed on the machine — no npm install required.
 The site is fully static; `site/` is the publish directory. No framework is
 detected, so the output directory is `.` and the files here are served as-is.
 
-```bash
-npx vercel --cwd site           # preview
-npx vercel --cwd site --prod    # production
-```
+**Two ways it deploys, and neither is "any push":**
+
+- **Git:** the project is connected to the `philoi` repo with Root Directory
+  `site`, and its production branch is **`add-marketing-site`**. Pushes to any
+  other branch (e.g. `integration-wave1`) only build previews.
+- **CLI:** because Root Directory is `site`, `npx vercel --cwd site --prod` now
+  fails ("The specified Root Directory "site" does not exist" — it looks for
+  `site/site`). Deploy from a folder whose `site/` subfolder is the site, with
+  `.vercel/project.json` beside it, e.g. a clean copy of just the served files.
+  Running it from the repo root instead would upload the whole repo.
+
+Heads-up: a CLI deploy of the working tree puts production ahead of
+`add-marketing-site`, and the next push to that branch rebuilds production from
+it. Keep that branch in step with whatever was deployed.
 
 `.vercelignore` keeps `_assets/`, this README and any `.env*` out of the upload —
 without it `_assets/og.html` would be publicly reachable, and `vercel link`
