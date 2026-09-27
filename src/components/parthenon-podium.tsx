@@ -8,6 +8,7 @@ import { FlareAura } from '@/components/economy/public-identity';
 import { RankBadge } from '@/components/rank-badge';
 import { Crown } from '@/components/ui/crown';
 import { Colors, Fonts } from '@/constants/theme';
+import { BurningName } from '@/components/burning-name';
 import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
 import { getUniversityCrest } from '@/lib/university-crests';
 import type { RankTierName } from '@/types/database';
@@ -210,10 +211,20 @@ function PodiumColumn({
         <PositionMedal position={position} />
       </View>
 
-      <Text style={[styles.name, item.isMe && styles.nameMe]} numberOfLines={1}>
-        {item.kind === 'person' ? podiumName(item.displayName) : item.name}
-        {item.isMe ? ' · you' : ''}
-      </Text>
+      {item.kind === 'person' ? (
+        // The top three are the most-looked-at names in the app — the burning name has to be here.
+        <BurningName
+          userId={item.key}
+          style={[styles.name, item.isMe && styles.nameMe]}
+          numberOfLines={1}
+          suffix={item.isMe ? ' · you' : undefined}>
+          {podiumName(item.displayName)}
+        </BurningName>
+      ) : (
+        <Text style={[styles.name, item.isMe && styles.nameMe]} numberOfLines={1}>
+          {item.name}
+        </Text>
+      )}
       {item.kind === 'person' ? <PublicTitle loadout={loadout} compact /> : null}
       <View style={styles.valueRow}>
         {item.kind === 'person' && <RankBadge tier={item.tier} division={item.division} size={15} />}

@@ -6,6 +6,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { BurningName } from '@/components/burning-name';
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar, publicBannerStyle } from '@/components/economy/public-identity';
@@ -210,7 +211,9 @@ export default function FriendProfileScreen() {
             motion="full"
           />
           <View style={styles.nameRow}>
-            <Text style={styles.name}>{profile.display_name}</Text>
+            <BurningName userId={userId} style={styles.name} licks>
+              {profile.display_name}
+            </BurningName>
             {relationship === 'friends' && (
               <View style={styles.friendTag}>
                 <Text style={styles.friendTagText}>Friend</Text>

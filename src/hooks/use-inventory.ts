@@ -5,6 +5,7 @@ import { fetchInventory, type Inventory } from '@/lib/api/inventory';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getItem, type CatalogItem, type EquipSlot } from '@/lib/economy/catalog';
 import { setLoadoutFromInventory } from '@/lib/economy/loadout';
+import { setOwnPassHolder } from '@/lib/economy/pass-holders';
 import { subscribeToInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { getErrorMessage } from '@/lib/errors';
 
@@ -67,6 +68,9 @@ export function useInventory() {
       // setLoadoutFromInventory bails when nothing actually changed, so the focus refetch this hook
       // already does on every inventory visit costs zero renders in the common case.
       setLoadoutFromInventory(inv.loadout, inv.cosmetics);
+      // The buyer's own burning name keys off the same read that confirms the grant, so it catches
+      // the moment the webhook lands instead of waiting out the pass-holder cache.
+      setOwnPassHolder(session.user.id, inv.pass?.owns_premium ?? false);
     } catch (e) {
       setError(getErrorMessage(e, 'Could not load your inventory.'));
     } finally {

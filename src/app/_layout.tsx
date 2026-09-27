@@ -1,4 +1,4 @@
-import { useFonts as useInterFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { useFonts as useInterFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_900Black } from '@expo-google-fonts/inter';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
@@ -72,7 +72,7 @@ function RootNavigator() {
   const [tutorialDone, setTutorialDone] = useState<boolean | null>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const [interLoaded] = useInterFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold });
+  const [interLoaded] = useInterFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_900Black });
 
   // The floating live-session pill is RETIRED (Ember pass §3): a running session is now shown by
   // the Live Activity / ongoing notification out of app, and by the lock-in screen in app — not by

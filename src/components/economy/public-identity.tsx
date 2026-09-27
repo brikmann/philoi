@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
+import { BurningName } from '@/components/burning-name';
 import { EquippedAvatarHalo, type AuraTier } from '@/components/economy/applied-art';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -262,10 +263,11 @@ export function PublicIdentity({
         lit={lit}
       />
       <View style={column ? styles.whoColumn : styles.whoRow}>
-        <Text style={[styles.name, nameStyle]} numberOfLines={1}>
+        {/* A Flame Pass holder's name burns (0220). Every leaderboard row, the campfire board and
+            the group board come through here, so this one line is most of the campus's view of it. */}
+        <BurningName userId={userId} style={[styles.name, nameStyle]} numberOfLines={1} suffix={suffix}>
           {name}
-          {suffix}
-        </Text>
+        </BurningName>
         <PublicTitle loadout={resolved} compact={compactTitle} />
         {sub}
       </View>

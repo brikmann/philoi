@@ -117,6 +117,10 @@ export const Fonts = Platform.select({
     bodySemiBold: 'Inter_500Medium',
     bodyBold: 'Inter_600SemiBold',
     bodyExtraBold: 'Inter_600SemiBold',
+    // The one exception to the three-weight rule: the Flame Pass's burning name and its "Own
+    // Emberfall" headline (mocks 223-226) are weight 900 by design. A fire gradient on 600 reads
+    // as thin coloured text rather than as a name on fire.
+    black: 'Inter_900Black',
   },
 })!;
 

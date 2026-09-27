@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BurningName } from '@/components/burning-name';
 import { ScreenBackground } from '@/components/ui/screen-background';
 
 import { EquippedAvatarHalo, EquippedCardBackdrop, useAuraTier } from '@/components/economy/applied-art';
@@ -190,7 +191,9 @@ export default function ProfileScreen() {
             </EquippedAvatarHalo>
           </View>
           <View style={styles.idInfo}>
-            <Text style={styles.name}>{profile.display_name}</Text>
+            <BurningName userId={viewingUserId} style={styles.name} licks>
+              {profile.display_name}
+            </BurningName>
             <Text style={styles.handle}>@{profile.handle}</Text>
             {/* `EquippedTitle` reads the signed-in user's store, so `enabled={isOwn}` could only
                 ever show YOUR title or nothing — on someone else's profile it structurally rendered

@@ -6,6 +6,7 @@ import { fetchInventory } from '@/lib/api/inventory';
 import { useAuth } from '@/lib/auth/auth-context';
 import { setSessionAudioChoice, startEquippedAmbient, stopEquippedAmbient } from '@/lib/economy/equipped-audio';
 import { clearLoadout, setLoadoutFromInventory, useLoadout } from '@/lib/economy/loadout';
+import { clearPassHolders, setOwnPassHolder } from '@/lib/economy/pass-holders';
 
 // Renders nothing. Its whole job is to keep the module-level loadout store fed, so the live flame,
 // the profile card, and the sound layer can all read the equipped set without each of them opening
@@ -65,6 +66,8 @@ export function LoadoutSync() {
       // the next user's flame in the last user's colourway — the same class of bug as the stale
       // "verified at {school}" panel that survived sign-out.
       clearLoadout();
+      // Same rule for the burning name: the next account must not inherit this one's fire.
+      clearPassHolders();
       return;
     }
 
@@ -74,7 +77,9 @@ export function LoadoutSync() {
         // The owned rows travel with the slot map so the store can carry each item's placement
         // rarity and season stamp — that is what lets your own entry stand in for a public loadout
         // on every list without dropping "🌍 GLOBAL #1 · S1" off your title.
-        if (!cancelled) setLoadoutFromInventory(inv.loadout, inv.cosmetics);
+        if (cancelled) return;
+        setLoadoutFromInventory(inv.loadout, inv.cosmetics);
+        setOwnPassHolder(session.user.id, inv.pass?.owns_premium ?? false);
       })
       // Cosmetics are decoration. A failed read must leave the base look in place, never surface an
       // error or block a screen.

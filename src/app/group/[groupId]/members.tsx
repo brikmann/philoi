@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { BurningName } from '@/components/burning-name';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -160,9 +161,9 @@ export default function CampfireMembersScreen() {
                 motion="reduced"
               />
               <View style={styles.who}>
-                <Text style={styles.name} numberOfLines={1}>
+                <BurningName userId={m.user_id} style={styles.name} numberOfLines={1}>
                   {m.display_name}
-                </Text>
+                </BurningName>
                 <PublicTitle loadout={loadouts[m.user_id] ?? {}} compact />
                 {m.handle && <Text style={styles.handle}>@{m.handle}</Text>}
               </View>

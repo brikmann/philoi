@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { memo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { BurningName } from '@/components/burning-name';
 import { EquippedCardBackdrop } from '@/components/economy/applied-art';
 import { ItemArt } from '@/components/economy/item-art';
 import { PublicTitle } from '@/components/economy/loadout-bits';
@@ -104,10 +105,13 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
         </Pressable>
 
         <Pressable style={styles.headText} onPress={openAuthor} accessibilityRole="button">
-          <Text style={styles.name} numberOfLines={1}>
+          <BurningName
+            userId={item.user_id}
+            style={styles.name}
+            numberOfLines={1}
+            suffix={item.handle ? <Text style={styles.handle}> @{item.handle}</Text> : undefined}>
             {item.display_name}
-            {item.handle ? <Text style={styles.handle}> @{item.handle}</Text> : null}
-          </Text>
+          </BurningName>
           <PublicTitle loadout={loadout} compact />
           <View style={styles.metaRow}>
             <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>

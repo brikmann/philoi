@@ -3540,6 +3540,11 @@ export type Database = {
           season_stamp: string | null;
         }[];
       };
+      // 0220 — the ids among p_user_ids that own this season's Flame Pass (the burning name).
+      get_pass_holders: {
+        Args: { p_user_ids: string[] };
+        Returns: string[];
+      };
       claim_pass_tier: {
         Args: {
           p_tier: number;
