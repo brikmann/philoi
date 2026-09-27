@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { setSessionAudioChoice, startEquippedAmbient, stopEquippedAmbient } from '@/lib/economy/equipped-audio';
 import { clearLoadout, setLoadoutFromInventory, useLoadout } from '@/lib/economy/loadout';
 import { clearPassHolders, setOwnPassHolder } from '@/lib/economy/pass-holders';
+import { clearSealOwners, ownsSeal, setOwnSealOwner } from '@/lib/economy/seal-owners';
 
 // Renders nothing. Its whole job is to keep the module-level loadout store fed, so the live flame,
 // the profile card, and the sound layer can all read the equipped set without each of them opening
@@ -68,6 +69,7 @@ export function LoadoutSync() {
       clearLoadout();
       // Same rule for the burning name: the next account must not inherit this one's fire.
       clearPassHolders();
+      clearSealOwners();
       return;
     }
 
@@ -80,6 +82,7 @@ export function LoadoutSync() {
         if (cancelled) return;
         setLoadoutFromInventory(inv.loadout, inv.cosmetics);
         setOwnPassHolder(session.user.id, inv.pass?.owns_premium ?? false);
+        setOwnSealOwner(session.user.id, ownsSeal(inv.cosmetics));
       })
       // Cosmetics are decoration. A failed read must leave the base look in place, never surface an
       // error or block a screen.

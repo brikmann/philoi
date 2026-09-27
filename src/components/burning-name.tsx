@@ -20,8 +20,10 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { usePassMotion } from '@/components/pass/pass-motion';
+import { SealBadge } from '@/components/seal-badge';
 import { Fonts } from '@/constants/theme';
 import { usePassHolder } from '@/lib/economy/pass-holders';
+import { useSealOwner } from '@/lib/economy/seal-owners';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // THE BURNING NAME — a Flame Pass holder's display name, on fire (LORE_EMBERFALL, mocks 225/226).
@@ -112,12 +114,64 @@ type Props = {
   suffix?: ReactNode;
   /** Flame licks off the top of the glyphs. Hero sizes only; at list sizes they are noise. */
   licks?: boolean;
+  /**
+   * Pin the Emberfall Seal after the name when `userId` owns it (<SealBadge>). On by default so
+   * every surface that shows a name shows the Seal too; a name drawn from `owns` alone (the reveal,
+   * the tutorial board) has no one to ask about, so it never gets one.
+   */
+  seal?: boolean;
 };
 
-export function BurningName({ children, userId, owns, style, numberOfLines = 1, suffix, licks = false }: Props) {
+export function BurningName({ children, userId, owns, style, numberOfLines = 1, suffix, licks = false, seal = true }: Props) {
   const fetched = usePassHolder(owns === undefined ? userId : null);
   const burning = owns ?? fetched;
+  // Independent of `burning`: the Seal outlives the pass, so a lapsed finisher is a plain name + Seal.
+  const sealed = useSealOwner(seal ? userId : null);
 
+  if (!sealed) {
+    return (
+      <Name burning={burning} style={style} numberOfLines={numberOfLines} suffix={suffix} licks={licks}>
+        {children}
+      </Name>
+    );
+  }
+
+  // Name · Seal · suffix — the Seal belongs to the name, so " (you)" stays at the end of the line.
+  const { outer, text } = splitStyle(style);
+  const size = Math.round((text.fontSize ?? 15) * 0.9);
+  return (
+    <View style={[outer, styles.withSuffix]}>
+      <View style={styles.shrink}>
+        <Name burning={burning} style={text} numberOfLines={numberOfLines} licks={licks}>
+          {children}
+        </Name>
+      </View>
+      <SealBadge owns size={size} style={styles.seal} />
+      {suffix ? (
+        <Text style={[text, styles.suffix]} numberOfLines={1}>
+          {suffix}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+/** The name alone, burning or plain, with its suffix. */
+function Name({
+  children,
+  burning,
+  style,
+  numberOfLines,
+  suffix,
+  licks,
+}: {
+  children: string;
+  burning: boolean;
+  style?: StyleProp<TextStyle>;
+  numberOfLines: number;
+  suffix?: ReactNode;
+  licks: boolean;
+}) {
   if (!burning) {
     return (
       <Text style={style} numberOfLines={numberOfLines}>
@@ -316,5 +370,8 @@ const styles = StyleSheet.create({
   },
   suffix: {
     flexShrink: 0,
+  },
+  seal: {
+    marginLeft: 5,
   },
 });

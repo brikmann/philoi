@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { getItem, type CatalogItem, type EquipSlot } from '@/lib/economy/catalog';
 import { setLoadoutFromInventory } from '@/lib/economy/loadout';
 import { setOwnPassHolder } from '@/lib/economy/pass-holders';
+import { ownsSeal, setOwnSealOwner } from '@/lib/economy/seal-owners';
 import { subscribeToInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { getErrorMessage } from '@/lib/errors';
 
@@ -71,6 +72,8 @@ export function useInventory() {
       // The buyer's own burning name keys off the same read that confirms the grant, so it catches
       // the moment the webhook lands instead of waiting out the pass-holder cache.
       setOwnPassHolder(session.user.id, inv.pass?.owns_premium ?? false);
+      // And the Seal, off the same owned rows — it lands the moment L100 is claimed.
+      setOwnSealOwner(session.user.id, ownsSeal(inv.cosmetics));
     } catch (e) {
       setError(getErrorMessage(e, 'Could not load your inventory.'));
     } finally {
