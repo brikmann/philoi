@@ -1,18 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useId } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { interpolate, useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
-import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
-import { EarnSummary, PassLadder } from '@/components/pass/pass-ladder';
-import { RisingEmbers, ShineSweep, SpinRays, useBreath, usePassMotion } from '@/components/pass/pass-motion';
-import { ProfileFlex } from '@/components/pass/profile-flex';
-import { SetShowcase, useEmberfallSet } from '@/components/pass/set-showcase';
-import { FlameLogo } from '@/components/ui/flame-logo';
+import { EMBER, EmberTag, EmberfallSky, FallingEmbers, FlashText, GreekKeyDivider, HadesConstellation } from '@/components/pass/emberfall-art';
+import { EmberfallGallery, trackHighlights } from '@/components/pass/emberfall-gallery';
+import { ShineSweep } from '@/components/pass/pass-motion';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
 import { useProductPrices, usePurchase } from '@/hooks/use-purchase';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -22,24 +20,26 @@ import { FORGE_PASS_PRODUCT_ID } from '@/lib/economy/iap';
 import { getErrorMessage } from '@/lib/errors';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// THE FLAME PASS PAYWALL (design-mocks/200-flamepass-paywall-v2).
+// THE FLAME PASS PAYWALL — "Own Emberfall" (design-mocks/223, lore from LORE_EMBERFALL.md).
 //
-// A scroll over a full-screen rising-flares layer, in five beats: the hero ("Own {season}."), the
-// user's own profile WITHOUT vs WITH the pass, the Emberfall set, the two-lane season pass, and
-// the price. Sections live in components/pass/; this file owns the purchase wiring and the order.
+// One gradient sky the full height of the screen (void → deep blue → purple → ember → orange), the
+// season's embers FALLING across all of it, Hades' constellation burning over the headline. Top to
+// bottom: the tag and "Own Emberfall", the constellation, the tale in two beats, the price, a
+// Greek-key divider, the season's cosmetics (laurel-framed, rendered on YOU), and a sticky CTA.
 //
 // 🔴 COPY SAYS "FLAME PASS", CODE SAYS `forge_pass`. Every id on this screen — the product id, the
 // entitlement, the route, the RPCs — is bound to the Play Console, App Store Connect and the
 // RevenueCat dashboard. Renaming any of them to match the user-facing name is not a rename, it is a
 // purchase that succeeds and grants nothing. See lib/economy/iap.ts.
 //
-// 🔴 NO HARDCODED PRICE. The big number is the store's own localized `priceString` (via
-// useProductPrices), never a literal. An offering that hasn't loaded shows a dash and says the price
-// is coming — it does not invent $8.99.
+// 🔴 NO HARDCODED PRICE. Both price lines are the store's own localized `priceString` (via
+// useProductPrices), never a literal. An offering that hasn't loaded shows a dash — it does not
+// invent $8.99. The mock's "≈ $2.25/mo" is not reproduced: dividing a localized string is how an
+// app ends up quoting a per-month figure the store never charged.
 //
-// 🔴 NOTHING HERE IS HAND-LISTED. The set is EMBERFALL_SET, the ladder and the earn summary read
-// LEVEL_ZERO_UNLOCK / PASS_LEVELS, the season name is SEASON.name — so next season re-themes this
-// screen by changing data, and a retuned track can't leave the pitch advertising the old one.
+// 🔴 NOTHING HERE IS HAND-LISTED. The gallery reads names, lore and rarities from catalog.ts and
+// unlock levels from the pass track (emberfall-gallery.tsx); the chip row reads the premium lane;
+// the season name is SEASON.name.
 //
 // 🔴 THE CLIENT GRANTS NOTHING. `buy()` ends at "the store charged them"; the entitlement and the
 // embers are written by the RevenueCat webhook. That is why success routes to /purchase-success,
@@ -48,19 +48,22 @@ import { getErrorMessage } from '@/lib/errors';
 
 export default function PaywallScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { profile } = useAuth();
   const { pass, refetch } = useInventory();
   const prices = useProductPrices();
   // 'replace', not 'push': this modal's whole job was to take the money, and leaving it in the
   // stack means a back gesture off the receipt lands on "buy the Flame Pass" for a pass they own.
   const { buy, busy } = usePurchase({ navigate: 'replace' });
-  const set = useEmberfallSet();
 
   const phase = seasonPhase();
   const onSale = passOnSale(phase, profile?.is_dev);
   const ownsPremium = pass?.owns_premium ?? false;
   const { level } = levelFromXp(pass?.pass_xp ?? 0);
   const price = prices[FORGE_PASS_PRODUCT_ID];
+  const firstName = profile?.display_name?.trim().split(/\s+/)[0] || 'You';
+  const seasonNumber = SEASON.id.replace('S', '');
 
   // The store is the only thing that knows whether this account already paid, and it can know
   // before our own inventory row does (the webhook lands a beat after the charge). Refetching on
@@ -101,333 +104,348 @@ export default function PaywallScreen() {
     }
   }
 
+  // Reached from the tutorial by `replace`, there may be nothing underneath to go back to.
+  function close() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  }
+
+  const chips = trackHighlights();
+
   return (
-    <Screen padded={false}>
-      {/* Behind everything and OUTSIDE the scroll, so the flares keep rising past the content as it
-          scrolls — the mock's sticky ambient layer. */}
-      <RisingEmbers count={12} />
+    <Screen padded={false} backgroundColor="#040309" edges={[]}>
+      {/* Behind everything and OUTSIDE the scroll: the sky and the rain hold still while the pitch
+          scrolls over them, so the embers keep falling past the content — the mock's full-height
+          ambient layer. */}
+      <EmberfallSky kind="paywall" />
+      <FallingEmbers count={16} />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Hero />
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + Spacing.four, paddingBottom: CTA_H + insets.bottom + Spacing.four }]}
+        showsVerticalScrollIndicator={false}>
+        {/* ── 1 · the tag and the headline ── */}
+        <View style={styles.tophead}>
+          <EmberTag>
+            Flame Pass · Season {seasonNumber}
+          </EmberTag>
+          <View style={styles.ownRow}>
+            <Text style={styles.own}>Own </Text>
+            <FlashText style={styles.own}>{SEASON.name}</FlashText>
+          </View>
+        </View>
 
+        {/* ── 2 · Hades, in stars ── */}
+        <View style={styles.hero}>
+          <HadesConstellation width={width} height={(width * 212) / 394} />
+        </View>
+
+        {/* ── 3 · the tale, in two beats ── */}
+        <Text style={styles.hook}>
+          Hades escaped from the underworld and unleashed Hellfire onto Earth. This semester, every ember of that
+          fire can <Text style={styles.hi}>raise you or ruin you</Text>.
+        </Text>
+        <Text style={[styles.hook, styles.hookGap]}>
+          Harness the fire with your fellow students and earn shards of Hades&apos; power as{' '}
+          <Text style={styles.hi}>exclusive, permanent rewards</Text> — all for less than a cup of coffee. ☕
+        </Text>
+
+        {/* ── 4 · the price ── */}
+        <View style={styles.priceLead}>
+          <Text style={styles.priceBig}>{price ?? '—'}</Text>
+          <Text style={styles.priceSub}>{price ? '/ semester' : 'Pricing is loading from the store…'}</Text>
+        </View>
+
+        {/* ── 5 · the season's cosmetics ── */}
         <View style={styles.body}>
-          <SectionHeader title="Own your profile" sub="The status the whole campus sees" />
-          <ProfileFlex />
+          <GreekKeyDivider />
+          <Text style={styles.galleryHead}>THE SEASON&apos;S COSMETICS</Text>
+          <Text style={styles.seclead}>One lands the moment you buy — the rest you forge by climbing.</Text>
+          <EmberfallGallery name={firstName} />
 
-          <SectionHeader
-            title={`${set.length} items to be unlocked`}
-            sub="See how each one flexes your profile · never re-issued"
-          />
-          <SetShowcase items={set} />
-
-          <SectionHeader title="The season pass" sub={`Two lanes · ${SEASON.totalLevels} levels · all semester`} />
-          <PassLadder level={level} />
-          <EarnSummary />
-
-          {/* ── Price · one-time, non-renewing ── */}
-          <View style={styles.price}>
-            <Text style={styles.priceBig}>{price ?? '—'}</Text>
-            <Text style={styles.pricePer}>
-              {price
-                ? // NON-RENEWING, per the Phase 4 decision — FORGE_PASS_PRODUCT_ID is a non-renewing
-                  // store product, so nothing here may promise a renewal.
-                  '/ season · one-time, no subscription'
-                : 'Pricing is loading from the store…'}
-            </Text>
+          <Text style={styles.sec}>ACROSS THE {SEASON.totalLevels}-LEVEL TRACK</Text>
+          <Text style={styles.seclead}>Every level drops something — more looks, and embers each rung. A few of what&apos;s waiting:</Text>
+          <View style={styles.chips}>
+            {chips.map((c) => (
+              <Text key={c} style={styles.chip}>
+                ◆ {c}
+              </Text>
+            ))}
+            <Text style={styles.chip}>🔥 embers each level</Text>
+            <Text style={styles.chip}>+ more</Text>
           </View>
 
-          {ownsPremium ? (
-            // Already paid. Selling it again is the fastest way to make someone think the first
-            // purchase failed, so the CTA becomes the way into what they bought.
-            <>
-              <PrimaryButton label="Your Flame Pass is live — open the track" onPress={() => router.replace('/forge-pass')} />
-              <Text style={styles.trust}>
-                <Text style={styles.trustStrong}>You already own this season.</Text>
-                {'\n'}Every premium reward up to Level {level} is waiting to be claimed.
-              </Text>
-            </>
-          ) : (
-            <>
-              <View>
-                <PrimaryButton
-                  label={onSale ? 'Buy Flame Pass 🔥' : phase === 'upcoming' ? 'Opens October 1' : 'Season closed'}
-                  onPress={onBuy}
-                  disabled={!onSale}
-                  loading={busy}
-                  pulse
-                />
-                {onSale && !busy ? (
-                  <View style={styles.ctaShine} pointerEvents="none">
-                    <ShineSweep period={2000} opacity={0.55} />
-                  </View>
-                ) : null}
-              </View>
-              <Text style={styles.trust}>
-                <Text style={styles.trustStrong}>You can’t buy XP, rank, or streaks.</Text>
-                {'\n'}The Flame Pass unlocks looks and rewards — effort stays earned.
-              </Text>
-            </>
-          )}
-
-          <Pressable onPress={onRestore} hitSlop={10} accessibilityRole="button">
-            <Text style={styles.restore}>Restore purchases</Text>
-          </Pressable>
+          <Text style={styles.trust}>
+            <Text style={styles.trustStrong}>You can’t buy XP, rank, or streaks.</Text>
+            {'\n'}The Flame Pass unlocks looks and rewards — effort stays earned.
+          </Text>
         </View>
       </ScrollView>
 
-      {/* Last in the tree so it sits over the hero's ambient layer without needing a zIndex. */}
-      <Pressable style={styles.close} onPress={() => router.back()} hitSlop={12} accessibilityLabel="Close">
-        <Ionicons name="close" size={22} color={Colors.textTertiary} />
+      {/* ── 6 · the sticky CTA ── */}
+      <View style={[styles.cta, { paddingBottom: insets.bottom + Spacing.three }]}>
+        <CtaScrim />
+        {ownsPremium ? (
+          // Already paid. Selling it again is the fastest way to make someone think the first
+          // purchase failed, so the CTA becomes the way into what they bought.
+          <>
+            <Text style={styles.ctaNote}>
+              <Text style={styles.ctaNoteStrong}>You own {SEASON.name}.</Text> Every premium reward up to Level {level} is
+              waiting.
+            </Text>
+            <PrimaryButton label="Open the track 🔥" onPress={() => router.replace('/forge-pass')} />
+          </>
+        ) : (
+          <>
+            <View style={styles.priceRow}>
+              <Text style={styles.ctaPrice}>{price ?? '—'}</Text>
+              {/* NON-RENEWING, per the Phase 4 decision — FORGE_PASS_PRODUCT_ID is a non-renewing
+                  store product, so nothing here may promise a renewal. */}
+              <Text style={styles.ctaPer}>· whole semester · one-time · no subscription</Text>
+            </View>
+            <View>
+              <PrimaryButton
+                label={onSale ? `Own ${SEASON.name} 🔥` : phase === 'upcoming' ? 'Opens October 1' : 'Season closed'}
+                onPress={onBuy}
+                disabled={!onSale}
+                loading={busy}
+                pulse
+              />
+              {onSale && !busy ? (
+                <View style={styles.ctaShine} pointerEvents="none">
+                  <ShineSweep period={3400} opacity={0.6} />
+                </View>
+              ) : null}
+            </View>
+          </>
+        )}
+        <Pressable onPress={onRestore} hitSlop={10} accessibilityRole="button">
+          <Text style={styles.restore}>Restore purchase</Text>
+        </Pressable>
+      </View>
+
+      {/* Last in the tree so it sits over the sky and the rain without needing a zIndex. */}
+      <Pressable style={[styles.close, { top: insets.top + Spacing.two }]} onPress={close} hitSlop={12} accessibilityLabel="Close">
+        <Ionicons name="close" size={18} color={EMBER.warm} />
       </Pressable>
     </Screen>
   );
 }
 
-/** Centred orange section header with a small grey line under it (mock 200-v2's `.sect`). */
-function SectionHeader({ title, sub }: { title: string; sub: string }) {
+/** The mock's CTA fade: clear at the top, deep ember-brown at the foot, so the buttons read over
+ *  the brightest band of the sky. */
+function CtaScrim() {
+  // Gradient ids are GLOBAL in react-native-svg — every SVG primitive in this app carries a useId.
+  const grad = `paywallScrim-${useId()}`;
   return (
-    <View style={styles.sect}>
-      <Text style={styles.sectTitle}>{title.toUpperCase()}</Text>
-      <Text style={styles.sectSub}>{sub}</Text>
-    </View>
-  );
-}
-
-// ─────────────────────────────── the hero ───────────────────────────────
-
-function Hero() {
-  const seasonNumber = SEASON.id.replace('S', '');
-  return (
-    <View style={styles.hero}>
-      <View style={styles.crest}>
-        <Text style={styles.crestText}>
-          <Text style={styles.crestDiamond}>◆</Text> Season {seasonNumber} · {SEASON.name}{' '}
-          <Text style={styles.crestDiamond}>◆</Text>
-        </Text>
-        <ShineSweep period={2800} opacity={0.7} />
-      </View>
-
-      <View style={styles.heroFlame}>
-        <View style={styles.centred} pointerEvents="none">
-          <SpinRays size={210} period={14000} opacity={0.5} />
-        </View>
-        <HeroGlow />
-        <RoaringFlame />
-      </View>
-
-      {/* Two Texts rather than one with a gradient mask: the season name takes the ember ramp's
-          brightest stop (no masked-view in this app — see PrimaryButton on why gradients are SVG). */}
-      <Text style={styles.heroTitle}>
-        Own <Text style={styles.heroTitleFire}>{SEASON.name}.</Text>
-      </Text>
-      <Text style={styles.heroSub}>A look nobody else can earn — worn where the whole campus sees it.</Text>
-    </View>
-  );
-}
-
-/** The mock's `.glow` — a soft coral radial behind the flame, breathing. */
-function HeroGlow() {
-  // Gradient ids are GLOBAL in react-native-svg: a hardcoded one blanks every instance after the
-  // first on Android. Same reason FlameLogo, EmberIcon and Crown each carry a useId.
-  const grad = `paywallGlow-${useId()}`;
-  const breath = useBreath(1500, 0.6);
-  const style = useAnimatedStyle(() => ({
-    opacity: interpolate(breath.value, [0, 1], [0.65, 1]),
-    transform: [{ scale: interpolate(breath.value, [0, 1], [1, 1.16]) }],
-  }));
-  return (
-    <Animated.View style={[styles.centred, style]} pointerEvents="none">
-      <Svg width={170} height={130}>
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Svg width="100%" height="100%" preserveAspectRatio="none">
         <Defs>
-          <RadialGradient id={grad} cx="50%" cy="50%" rx="50%" ry="50%">
-            <Stop offset="0" stopColor={Colors.coral} stopOpacity="0.75" />
-            <Stop offset="0.66" stopColor={Colors.coral} stopOpacity="0" />
-          </RadialGradient>
+          <LinearGradient id={grad} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#140804" stopOpacity={0} />
+            <Stop offset="0.4" stopColor="#140804" stopOpacity={0.55} />
+            <Stop offset="1" stopColor="#140804" stopOpacity={0.85} />
+          </LinearGradient>
         </Defs>
-        <Ellipse cx={85} cy={72} rx={85} ry={58} fill={`url(#${grad})`} />
+        <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${grad})`} />
       </Svg>
-    </Animated.View>
+    </View>
   );
 }
 
-/** The mock's `flick` — a squash-and-stretch on the brand mark, anchored at its base. */
-function RoaringFlame() {
-  const run = usePassMotion();
-  const t = useSharedValue(0);
-
-  useEffect(() => {
-    if (!run) {
-      t.value = 0;
-      return;
-    }
-    t.value = withRepeat(withTiming(1, { duration: 1050, easing: Easing.inOut(Easing.quad) }), -1, true);
-  }, [run, t]);
-
-  const style = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(t.value, [0, 1], [0, -3]) },
-      { scaleY: interpolate(t.value, [0, 1], [1, 1.1]) },
-      { scaleX: interpolate(t.value, [0, 1], [1, 0.92]) },
-    ],
-  }));
-
-  return (
-    <Animated.View style={style}>
-      <FlameLogo size={84} />
-    </Animated.View>
-  );
-}
+/** Room the sticky CTA takes, so the last card scrolls clear of it. */
+const CTA_H = 170;
 
 const styles = StyleSheet.create({
   scroll: {
-    paddingBottom: Spacing.five,
-  },
-
-  // ── hero ──
-  hero: {
-    alignItems: 'center',
-    overflow: 'hidden',
-    paddingTop: Spacing.four,
-    paddingBottom: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    // A warm wash over the app's own purple ground, so the top reads as firelight without a second
-    // full-screen gradient fighting ScreenBackground.
-    backgroundColor: 'rgba(90,42,24,0.45)',
+    paddingHorizontal: 0,
   },
   close: {
     position: 'absolute',
-    top: Spacing.two,
-    right: Spacing.two,
-    width: 36,
-    height: 36,
+    right: 15,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0,0,0,0.28)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  crest: {
-    overflow: 'hidden',
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.5)',
-    backgroundColor: 'rgba(0,0,0,0.34)',
-    paddingVertical: 5,
-    paddingHorizontal: 13,
+
+  // ── headline ──
+  tophead: {
+    alignItems: 'center',
+    paddingHorizontal: 22,
   },
-  crestText: {
+  ownRow: {
+    flexDirection: 'row',
+    // Centre, not baseline: FlashText is a View, and a View has no baseline to align — the two
+    // halves share a font, size and line height, so centring lands them on the same line.
+    alignItems: 'center',
+    marginTop: 9,
+  },
+  own: {
+    fontFamily: Fonts.black,
+    fontSize: 35,
+    lineHeight: 40,
+    letterSpacing: -0.7,
+    color: EMBER.ink,
+    textShadowColor: 'rgba(0,0,0,0.65)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 24,
+  },
+  hero: {
+    marginTop: 4,
+    marginBottom: -4,
+  },
+
+  // ── the tale ──
+  hook: {
+    fontFamily: Fonts.body,
+    fontStyle: 'italic',
+    fontSize: 12.5,
+    lineHeight: 20,
+    color: EMBER.warm,
+    textAlign: 'center',
+    paddingHorizontal: 22,
+  },
+  hookGap: {
+    marginTop: 10,
+  },
+  hi: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 9,
-    letterSpacing: 2.4,
-    color: Colors.ember,
-    textTransform: 'uppercase',
+    fontStyle: 'italic',
+    color: EMBER.e2,
   },
-  crestDiamond: {
-    color: Colors.coral,
-  },
-  heroFlame: {
-    height: 118,
-    alignSelf: 'stretch',
-    alignItems: 'center',
+
+  // ── price ──
+  priceLead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
     justifyContent: 'center',
-    marginTop: Spacing.two,
+    gap: 8,
+    marginTop: 12,
   },
-  // A COMPLETE RECT, so centring inside it puts the rays' and the glow's centres on the flame's.
-  centred: {
+  priceBig: {
+    fontFamily: Fonts.black,
+    fontSize: 32,
+    color: EMBER.e2,
+  },
+  priceSub: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: EMBER.warm2,
+  },
+
+  // ── gallery ──
+  body: {
+    paddingHorizontal: 15,
+    marginTop: 20,
+  },
+  galleryHead: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 1.6,
+    color: EMBER.e2,
+    textAlign: 'center',
+    marginTop: 14,
+  },
+  sec: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 1.6,
+    color: EMBER.warm,
+    marginTop: 22,
+    marginHorizontal: 4,
+  },
+  seclead: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    lineHeight: 16.5,
+    color: EMBER.warm2,
+    marginTop: 6,
+    marginBottom: 14,
+    marginHorizontal: 4,
+    textAlign: 'center',
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginHorizontal: 4,
+    marginTop: -4,
+  },
+  chip: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    color: EMBER.warm,
+    backgroundColor: 'rgba(22,14,34,0.75)',
+    borderWidth: 1,
+    borderColor: EMBER.line,
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    overflow: 'hidden',
+  },
+  trust: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    lineHeight: 15,
+    color: EMBER.warm2,
+    textAlign: 'center',
+    marginTop: Spacing.four,
+  },
+  trustStrong: {
+    fontFamily: Fonts.bodyBold,
+    color: EMBER.warm,
+  },
+
+  // ── sticky CTA ──
+  cta: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingTop: 14,
+    paddingHorizontal: 18,
+    gap: 10,
   },
-  heroTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 36,
-    letterSpacing: -1.2,
-    lineHeight: 38,
-    color: Colors.ink,
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  heroTitleFire: {
-    color: Colors.amber,
-  },
-  heroSub: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#D6C8E8',
-    textAlign: 'center',
-    marginTop: Spacing.two,
-    maxWidth: 300,
-  },
-
-  // ── body ──
-  body: {
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    gap: Spacing.twelve,
-  },
-  sect: {
-    alignItems: 'center',
-    marginTop: Spacing.two,
-  },
-  sectTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 13,
-    letterSpacing: 0.5,
-    color: Colors.amber,
-    textAlign: 'center',
-  },
-  sectSub: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 9.5,
-    color: '#8a7fa6',
-    marginTop: 3,
-    textAlign: 'center',
-  },
-
-  // ── price + trust ──
-  price: {
+  priceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    gap: 7,
-    marginTop: Spacing.three,
+    gap: 8,
   },
-  priceBig: {
-    fontFamily: Fonts.displayHeavy,
-    fontSize: 30,
-    letterSpacing: -1,
-    color: Colors.ink,
+  ctaPrice: {
+    fontFamily: Fonts.black,
+    fontSize: 23,
+    color: '#FFFFFF',
   },
-  pricePer: {
+  ctaPer: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.muted,
+    fontSize: 12,
+    color: EMBER.warm2,
+  },
+  ctaNote: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: EMBER.warm2,
+    textAlign: 'center',
+  },
+  ctaNoteStrong: {
+    fontFamily: Fonts.bodyBold,
+    color: EMBER.e2,
   },
   ctaShine: {
     ...StyleSheet.absoluteFill,
     borderRadius: Radius.button,
     overflow: 'hidden',
   },
-  trust: {
-    fontFamily: Fonts.body,
-    fontSize: 9.5,
-    lineHeight: 15,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-  },
-  trustStrong: {
-    fontFamily: Fonts.bodyBold,
-    color: Colors.muted,
-  },
   restore: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.muted,
+    fontSize: 12,
+    color: EMBER.warm2,
     textAlign: 'center',
-    textDecorationLine: 'underline',
-    paddingVertical: Spacing.two,
+    paddingVertical: 2,
   },
 });

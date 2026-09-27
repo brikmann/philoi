@@ -257,6 +257,18 @@ export const PASS_LEVELS: PassLevel[] = Array.from({ length: SEASON.totalLevels 
 });
 
 /**
+ * The level a premium-lane item unlocks at: 0 for the purchase receipt (LEVEL_ZERO_UNLOCK), else the
+ * first level whose premium lane grants it, or null if the track never does. The paywall's "⚡
+ * Instant" / "Lv 50" tags read this rather than a typed-in number, so a retuned track re-tags the
+ * pitch with it.
+ */
+export function passUnlockLevel(itemId: string): number | null {
+  if (LEVEL_ZERO_UNLOCK.some((r) => r.kind === 'item' && r.itemId === itemId)) return 0;
+  const hit = PASS_LEVELS.find((l) => l.premium.some((r) => r.kind === 'item' && r.itemId === itemId));
+  return hit ? hit.level : null;
+}
+
+/**
  * What the PREMIUM lane pays across the whole season, counted off the same tables the grant uses:
  * Level 0's receipt plus every premium reward on levels 1–100. The paywall's earn summary renders
  * this rather than a typed-in "2,000+", so a retune of PASS_LEVELS retunes the pitch with it.
