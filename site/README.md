@@ -62,7 +62,7 @@ The whole page sits on one continuous Emberfall wash (black → blue → purple 
 orange), with slow embers (9–16s falls) drifting across it. In order:
 
 1. Sticky nav: flame mark + "Get the app"
-2. Hero: the φίλοι name gloss, Hades' constellation, the headline, the
+2. Hero: the φίλοι name gloss, the headline, the
    launch-state CTA, and a phone showing Kai's burning name climbing 3rd → 1st
 3. **Lock in**: the lock-in screen wearing the Emberfall Ascendant flare
 4. **Campfires**: the group chat, with a challenge thrown inline
@@ -82,7 +82,7 @@ react-native-svg components to web SVG with the same paths, stops and numbers:
 |---|---|
 | Inventory tiles, the profile avatar flame | `economy/item-art.tsx` (`ItemArt`, still path: rarity glow, ground shadow, per-type silhouette) |
 | Crates | `economy/box-art.tsx` on `ItemPedestal` |
-| The Emberfall Seal, Hades' constellation, Greek key, "Own Emberfall" flash | `pass/emberfall-art.tsx` |
+| The Emberfall Seal, Greek key, "Own Emberfall" flash | `pass/emberfall-art.tsx` |
 | Lock-in flame | `flame-icon.tsx` `FlameSvg`, recoloured by `flame-ramp.ts` for an equipped flare |
 | Flare aura + risers | `economy/flare-perimeter.tsx` (`FlarePerimeter` tier 3, `Ascendant`) |
 | Profile preview | `pass/profile-flex.tsx` (`WithCard`) |
