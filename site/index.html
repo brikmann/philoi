@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
 <!-- ══ THE LAUNCH GATE ════════════════════════════════════════════════════
      Both states live in the DOM; this toggles `html.launched` and the CSS does
      the rest. It runs in <head>, before any paint, so neither state flashes.
@@ -13,11 +14,11 @@
      The App Store link only resolves once the approved build is Released in
      App Store Connect; this flips the page, not the availability.
 
-     Preview either state: ?preview=launched  or  ?preview=pre              -->
+     Preview either state: ?preview=launched  or  ?preview=prelaunch (or =pre) -->
 <script>
   // EDT → Oct 1 2026 00:00 America/Toronto
   var LAUNCH = new Date('2026-10-01T00:00:00-04:00');
-  var PREVIEW = (/[?&]preview=(launched|pre)\b/.exec(location.search) || [])[1];
+  var PREVIEW = (/[?&]preview=(launched|prelaunch|pre)\b/.exec(location.search) || [])[1];
   function setLaunchState(){
     var on = PREVIEW ? PREVIEW === 'launched' : Date.now() >= LAUNCH.getTime();
     document.documentElement.classList.toggle('launched', on);
@@ -25,11 +26,13 @@
   setLaunchState();
   // flip live if someone's on the page at midnight
   var ms = LAUNCH.getTime() - Date.now(); if (ms > 0 && ms < 2147483647) setTimeout(setLaunchState, ms + 500);
+  // scroll reveals only hide content once we know JS is here to show it again
+  document.documentElement.classList.add('js');
 </script>
 
-<!-- Meta copy is true on both sides of Oct 1; the visible ribbon carries the date. -->
+<!-- Meta copy is true on both sides of Oct 1; the visible CTA carries the date. -->
 <title>Philoi — Season 1: Emberfall · The social accountability app for students</title>
-<meta name="description" content="Turn your campus into your leaderboard. Philoi is the social accountability app where students lock in, climb a Greek-mythology rank ladder, study around campfires with friends, and challenge each other. Season 1: Emberfall — iOS first, Android next.">
+<meta name="description" content="Turn your campus into your leaderboard. Philoi is the social accountability app for students: lock in, climb a live campus leaderboard, duel your friends and earn Season 1: Emberfall looks. iOS first, Android next.">
 <link rel="canonical" href="https://philoi.app/">
 <meta name="theme-color" content="#14111C">
 <meta name="color-scheme" content="dark">
@@ -60,1114 +63,341 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"MobileApplication","name":"Philoi","applicationCategory":"LifestyleApplication",
 "operatingSystem":"iOS","slogan":"For the Best on Campus","url":"https://philoi.app/",
-"description":"The social accountability app for students. Lock in, climb the rank ladder, challenge your friends. Season 1: Emberfall.",
+"description":"The social accountability app for students. Lock in, climb your campus leaderboard, duel your friends. Season 1: Emberfall.",
 "datePublished":"2026-10-01","installUrl":"https://apps.apple.com/app/id6790697786",
 "offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
 </script>
 
 <style>
 /* ══════════════════════════════════════════════════════════════════════════
-   Tokens — mirrored 1:1 from the app's src/constants/theme.ts. Nothing here
-   is invented: if a value looks arbitrary, it is arbitrary in the app too.
+   Tokens — mirrored 1:1 from the app's src/constants/theme.ts and
+   src/lib/economy/rarity.ts. Nothing here is invented.
    ══════════════════════════════════════════════════════════════════════════ */
 :root{
   /* Twilight base */
   --t900:#14111C;         /* Colors.twilight900 — deepest */
   --t800:#1B1726;         /* Colors.cream — the app background */
   --t700:#241C38;         /* Colors.card */
-  --t600:#2D2740;         /* Colors.disabled */
-  --forge:#17131F;        /* Colors.forgeBg — the rank-up stage floor */
   --plum:#3A2E5C;
-  --rad-from:#2C1B36;     /* the app-wide radial, three stops (DESIGN_LANGUAGE_EMBER §2) */
-  --rad-mid:#231830;
   --rad-to:#161320;
 
   /* Firelight */
   --coral:#E0612C;
   --amber:#F2A33C;
   --ember:#FFD27A;
-  --on-ember:#3A1608;     /* Colors.onEmber — near-black burnt into an ember fill */
+  --on-ember:#3A1608;     /* Colors.onEmber */
   --forward:#FF7A2F;      /* Colors.emberForward */
-  --lava:#F5401C;         /* flare-emberfall-ascendant's perimeter colour */
   --grad:linear-gradient(135deg,#E0612C,#F2A33C,#FFD27A);
 
   /* Text & lines */
   --ink:#FFF6EC;
+  --dim:#CDBFE6;
   --muted:#A99CBD;
   --tertiary:#7C7194;
-  --line:rgba(255,255,255,.08);
-  --line-strong:rgba(255,255,255,.14);
+  --line:rgba(255,255,255,.09);
+  --line-strong:rgba(255,255,255,.16);
 
   /* Rarity (src/lib/economy/rarity.ts) */
+  --r-common:#8a7fa6;
   --r-uncommon:#3DA85C;
   --r-rare:#4FB0E5;
   --r-epic:#a06cd5;
   --r-legendary:#F5C542;
   --r-mythic:#FF6B6B;
 
-  --radius:14px;
-  --radius-lg:22px;
-  --shell:1180px;
+  --surface:#160E22;      /* mock 229's card floor */
+  --radius:16px;
+  --radius-lg:20px;
+  --shell:1120px;
   --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
 
+/* ══ Base — written for a 360–430px phone. Desktop scales UP at 820px. ══ */
 *,*::before,*::after{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:72px}
 body{
-  margin:0;
-  font-family:var(--font);
-  font-size:17px;
-  line-height:1.6;
-  color:var(--ink);
-  background:var(--rad-to);
-  -webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
+  margin:0;font-family:var(--font);font-size:16px;line-height:1.5;
+  color:var(--ink);background:#0C0812;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
 }
-img,svg,canvas{max-width:100%;display:block}
-h1,h2,h3{margin:0;line-height:1.05;letter-spacing:-.03em;font-weight:800}
-p{margin:0}
-ul{margin:0;padding:0;list-style:none}
+img,svg{display:block;max-width:100%}
+h1,h2,h3,p{margin:0}
 a{color:var(--ember);text-decoration:none}
-a:hover{text-decoration:underline}
+button,input{font:inherit}
 :focus-visible{outline:2px solid var(--ember);outline-offset:3px;border-radius:8px}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skip{position:absolute;left:-9999px;top:10px;z-index:99;background:var(--ember);color:var(--on-ember);padding:12px 16px;border-radius:10px;font-weight:800}
+.skip:focus{left:12px}
+.shell{width:100%;max-width:var(--shell);margin-inline:auto;padding-inline:20px}
 
-.shell{width:100%;max-width:var(--shell);margin-inline:auto;padding-inline:22px}
-.eyebrow{
-  font-size:12px;font-weight:700;letter-spacing:.34em;text-transform:uppercase;
-  color:var(--ember);margin-bottom:16px;
-}
-.lede{color:var(--muted);font-size:clamp(16px,1.6vw,19px);max-width:62ch}
-.skip{
-  position:absolute;left:-9999px;top:12px;z-index:99;
-  background:var(--ember);color:var(--on-ember);padding:10px 16px;border-radius:10px;font-weight:700;
-}
-.skip:focus{left:16px}
-
-/* ══ The emberfall drop — the whole page sits inside it ══════════════════
-   Not a hero decoration. `emberfall` is an app-wide aura in catalog.ts (lava
-   pooling on the bottom edge WITH embers raining from the top), so both
-   layers are fixed to the viewport and every section scrolls through them.
-   Three fixed layers, back to front: ground → embers → lava. */
-.page-ground{
-  position:fixed;inset:0;z-index:-3;pointer-events:none;
-  background:radial-gradient(120% 62% at 50% 0%,var(--rad-from),var(--rad-mid) 42%,var(--rad-to) 78%);
-}
-#emberfall{
-  position:fixed;inset:0;width:100%;height:100%;z-index:-2;
-  pointer-events:none;opacity:0;transition:opacity 1.2s ease;
-}
-#emberfall.is-on{opacity:1}
-/* Past the hero the rain pulls back so body copy keeps its contrast — still
-   falling everywhere, just no longer competing with the paragraph it crosses. */
-body.past-hero #emberfall{opacity:.72}
-
-.lava-pool{
-  position:fixed;left:-10%;right:-10%;bottom:-96px;height:340px;z-index:-1;
-  pointer-events:none;
-  background:
-    radial-gradient(58% 100% at 50% 100%,rgba(245,64,28,.6),rgba(224,97,44,.24) 42%,transparent 72%),
-    radial-gradient(92% 100% at 50% 100%,rgba(242,163,60,.17),transparent 64%);
-  animation:lava 7s ease-in-out infinite;
-  transition:opacity .8s ease;
-}
-body.past-hero .lava-pool{opacity:.55}
-/* The pulse rides transform + brightness, never opacity: opacity is what the
-   .past-hero class dims, and an animation on it would win over the class. */
-@keyframes lava{
-  0%,100%{transform:translateY(7px) scaleY(1);filter:blur(2px) brightness(.86)}
-  50%{transform:translateY(0) scaleY(1.08);filter:blur(2px) brightness(1.1)}
-}
-
-/* ══ Header ══════════════════════════════════════════════════════════════ */
-.site-header{
-  position:sticky;top:0;z-index:40;
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-  background:rgba(20,17,28,.55);
-  border-bottom:1px solid transparent;
-  transition:background .3s ease,border-color .3s ease;
-}
-.site-header.is-stuck{background:rgba(20,17,28,.92);border-bottom-color:var(--line)}
-.site-header .shell{display:flex;align-items:center;gap:24px;height:64px}
-.brand{
-  display:inline-flex;align-items:center;gap:9px;
-  color:var(--ink);font-weight:800;font-size:19px;letter-spacing:-.02em;text-decoration:none;
-}
-.brand:hover{text-decoration:none}
-.nav{margin-left:auto;display:flex;gap:26px;align-items:center}
-.nav a{color:var(--muted);font-size:14px;font-weight:500;text-decoration:none;transition:color .2s}
-.nav a:hover{color:var(--ink)}
-.nav-cta{
-  display:inline-flex;align-items:center;
-  padding:9px 18px;border-radius:999px;
-  background:var(--grad);color:var(--on-ember);
-  font-size:14px;font-weight:800;letter-spacing:-.01em;text-decoration:none;
-  box-shadow:0 4px 16px rgba(224,97,44,.42);
-}
-.nav-cta:hover{text-decoration:none;filter:brightness(1.06)}
-@media (max-width:960px){.nav{display:none}.nav-cta{margin-left:auto}}
-
-/* ══ 1 · HERO — SEASON 1: EMBERFALL ══════════════════════════════════════ */
-.hero{
-  position:relative;overflow:hidden;
-  min-height:100vh;min-height:100svh;
-  display:grid;align-items:center;
-  padding:60px 0 104px;
-}
-/* The hero's own twilight glow. Translucent on purpose — the emberfall layer
-   below it must read THROUGH the hero, not start underneath it. */
-.hero::before{
-  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
-  background:radial-gradient(90% 55% at 50% -8%,rgba(58,46,92,.5),transparent 68%);
-}
-.hero .shell{position:relative;text-align:center}
-
-.season-pill{
-  display:inline-flex;align-items:center;gap:10px;
-  padding:6px 7px 6px 15px;border-radius:999px;
-  border:1px solid rgba(255,210,122,.28);
-  background:rgba(58,42,34,.5);
-  font-size:11.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ember);
-}
-.season-pill .dot{
-  width:8px;height:8px;border-radius:50%;background:var(--forward);
-  box-shadow:0 0 0 4px rgba(255,122,47,.16);
-  animation:coalPulse 2.4s ease-in-out infinite;
-}
-.season-pill .tag{
-  padding:4px 11px;border-radius:999px;background:var(--grad);color:var(--on-ember);
-  letter-spacing:.12em;font-weight:800;
-}
-@keyframes coalPulse{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1.12)}}
-
-.hero-mark{margin:18px auto 0;filter:drop-shadow(0 16px 46px rgba(224,97,44,.55));animation:breathe 4.2s ease-in-out infinite}
-@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
-
-.hero-lockup{margin-top:11px}
-.hero-lockup .word{font-size:clamp(21px,2.8vw,28px);font-weight:800;letter-spacing:-.02em;color:var(--ink)}
-.hero-lockup .slogan{
-  margin-top:6px;font-size:11.5px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);
-}
-
-.hero-display{margin-top:clamp(22px,4.4vw,44px)}
-.hero-display .s1{
-  font-size:clamp(12px,2.3vw,19px);font-weight:800;letter-spacing:.52em;text-transform:uppercase;
-  color:var(--ember);margin-left:.52em;
-}
-.hero-display h1{
-  margin-top:clamp(6px,1.4vw,14px);
-  font-size:clamp(50px,13.6vw,170px);
-  font-weight:900;letter-spacing:-.045em;line-height:.9;
-  background:linear-gradient(150deg,#E0612C 6%,#F2A33C 46%,#FFD27A 84%);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 10px 44px rgba(224,97,44,.4));
-}
-.hero-display .soon{
-  margin-top:clamp(12px,2vw,20px);
-  font-size:clamp(11px,1.6vw,15px);font-weight:700;letter-spacing:.46em;text-transform:uppercase;
-  color:var(--ink);opacity:.8;margin-left:.46em;
-}
-
-/* Countdown */
-.countdown{display:flex;justify-content:center;gap:clamp(8px,2.2vw,20px);margin-top:clamp(22px,3.2vw,32px);flex-wrap:wrap}
-.cd-cell{
-  min-width:clamp(64px,9.6vw,102px);
-  padding:11px 10px 9px;border-radius:16px;
-  background:rgba(36,28,56,.6);border:1px solid var(--line);
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-}
-.cd-num{
-  font-size:clamp(24px,4vw,38px);font-weight:800;letter-spacing:-.04em;line-height:1;
-  font-variant-numeric:tabular-nums;color:var(--ink);
-}
-.cd-lab{margin-top:7px;font-size:9.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--tertiary)}
-.cd-when{margin-top:13px;font-size:13px;color:var(--muted);letter-spacing:.04em}
-.cd-when strong{color:var(--ember);font-weight:700}
-
-/* Availability badges */
-.badges{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:clamp(22px,2.8vw,32px)}
-.badge{
-  display:flex;align-items:center;gap:11px;
-  padding:10px 20px 10px 16px;border-radius:14px;
-  border:1px solid var(--line-strong);background:rgba(27,23,38,.7);
-  text-align:left;
-}
-.badge svg{flex:none;fill:var(--ink);opacity:.9}
-.badge .top{font-size:9.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--tertiary);line-height:1.3}
-.badge .bot{font-size:14.5px;font-weight:700;letter-spacing:-.01em;color:var(--ink);line-height:1.35}
-.badge.is-next{opacity:.7}
-.badge.is-next .bot{color:var(--muted)}
-
-/* Notify */
-.notify{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:clamp(20px,2.6vw,28px) auto 0;max-width:480px}
-.notify input{
-  flex:1 1 240px;min-width:0;
-  padding:14px 16px;border-radius:var(--radius);
-  border:1px solid var(--line-strong);background:rgba(20,17,28,.7);
-  color:var(--ink);font:inherit;font-size:15px;
-}
-.notify input::placeholder{color:var(--tertiary)}
-.notify input:focus{border-color:rgba(255,210,122,.5);outline:none;box-shadow:0 0 0 3px rgba(255,210,122,.14)}
-.notify button{
-  padding:14px 24px;border-radius:var(--radius);border:0;cursor:pointer;
-  background:var(--grad);color:var(--on-ember);font:inherit;font-weight:800;font-size:15px;
-  box-shadow:0 4px 16px rgba(224,97,44,.45);transition:transform .18s ease,filter .18s ease;
-}
-.notify button:hover{transform:translateY(-1px);filter:brightness(1.06)}
-/* The honeypot. Off-screen rather than display:none — some bots skip hidden
-   fields but happily fill a positioned one. aria-hidden + tabindex keep it out
-   of the reading order and the tab order for everyone else. */
-.notify .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
-.notify button[disabled]{opacity:.6;cursor:progress}
-.notify-note{margin-top:12px;font-size:13px;color:var(--tertiary)}
-.notify-note.is-error{color:#E86A5A}
-.notify-note.is-done{color:var(--r-uncommon)}
-
-.scroll-cue{margin-top:clamp(24px,3.4vw,38px);font-size:11.5px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:var(--tertiary)}
-.scroll-cue span{display:inline-block;animation:nudge 2.6s ease-in-out infinite}
-@keyframes nudge{0%,100%{transform:translateY(0);opacity:.55}50%{transform:translateY(5px);opacity:1}}
-
-/* ══ 1.5 · THE CORE LINE ═════════════════════════════════════════════════ */
-.core{
-  position:relative;
-  padding:clamp(84px,12vw,164px) 0 clamp(72px,10vw,120px);
-  border-top:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(20,17,28,.62),rgba(22,19,32,.2));
-}
-.core h2{font-size:clamp(37px,8.2vw,102px);font-weight:900;letter-spacing:-.045em;line-height:.94;max-width:15ch}
-.core h2 .hl{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.core .sub{margin-top:26px;font-size:clamp(16px,1.8vw,21px);color:var(--muted);max-width:52ch}
-
-/* the campus-rivalry mini-board */
-.rivalry{
-  margin-top:clamp(38px,5.2vw,60px);
-  border:1px solid var(--line);border-radius:var(--radius-lg);
-  background:rgba(36,28,56,.46);
-  padding:clamp(16px,2.2vw,24px);
-  max-width:620px;
-}
-.rivalry-head{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--tertiary);
-  padding-bottom:13px;border-bottom:1px solid var(--line);
-}
-.rivalry-head .live{display:inline-flex;align-items:center;gap:7px;color:var(--forward)}
-.rivalry-head .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--forward);animation:coalPulse 2s ease-in-out infinite}
-.rrow{position:relative;display:flex;align-items:center;gap:13px;padding:15px 2px}
-.rrow+.rrow{border-top:1px solid rgba(255,255,255,.05)}
-.rrow .pos{
-  width:26px;height:26px;flex:none;border-radius:8px;display:grid;place-items:center;
-  font-size:12px;font-weight:800;color:var(--tertiary);background:rgba(255,255,255,.05);
-}
-.rrow.is-top .pos{background:var(--grad);color:var(--on-ember)}
-.rrow .school{font-weight:700;letter-spacing:-.01em;font-size:clamp(15px,1.8vw,18px)}
-.rrow .score{
-  margin-left:auto;display:inline-flex;align-items:center;gap:9px;
-  font-variant-numeric:tabular-nums;font-weight:800;font-size:clamp(15px,1.9vw,19px);letter-spacing:-.02em;
-}
-.rrow.is-top .score{color:var(--ember)}
-.rrow .fill{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--grad);transition:width 1.6s cubic-bezier(.2,.8,.3,1)}
-/* the ember token (DESIGN_LANGUAGE_EMBER §4 — never the 🔥 emoji) */
-.coal{
-  width:15px;height:15px;flex:none;border-radius:50%;
-  background:radial-gradient(circle at 38% 32%,#FFE7B0,#F2A33C 42%,#C24A1E 74%,#6E2C10);
-  box-shadow:0 0 10px rgba(242,163,60,.5);
-}
-.coal.sm{width:12px;height:12px}
-.rivalry-foot{margin-top:14px;font-size:12.5px;color:var(--tertiary)}
-
-/* ══ Section chrome ══════════════════════════════════════════════════════ */
-.band{padding:clamp(76px,10vw,130px) 0;position:relative}
-.band-head{max-width:780px}
-.band h2{font-size:clamp(31px,5.1vw,58px);font-weight:800;letter-spacing:-.035em;line-height:1.03}
-.band h2 .hl{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.band .lede{margin-top:20px}
-.hr{border:0;border-top:1px solid var(--line);margin:0}
-
-/* The meander (Greek key) divider. Replaces the plain hairline everywhere —
-   the name is Greek, so the trim between sections is too. Draws itself. */
-.rule-greek{display:flex;align-items:center;justify-content:center;gap:18px;padding:0 22px}
-.rule-greek .rl-line{
-  flex:1;max-width:260px;height:1px;
-  background:linear-gradient(90deg,transparent,var(--line-strong));
-  transform:scaleX(0);transform-origin:right;transition:transform .9s cubic-bezier(.2,.8,.3,1);
-}
-.rule-greek .rl-line+.rl-line,.rule-greek .rl-key+.rl-line{
-  background:linear-gradient(90deg,var(--line-strong),transparent);transform-origin:left;
-}
-.rule-greek .rl-key{
-  width:clamp(120px,20vw,176px);height:auto;flex:none;color:var(--ember);opacity:.75;
-  fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:square;stroke-linejoin:miter;
-  stroke-dasharray:600;stroke-dashoffset:600;
-  transition:stroke-dashoffset 1.7s cubic-bezier(.3,.7,.3,1) .12s;
-}
-.rule-greek.in .rl-line{transform:scaleX(1)}
-.rule-greek.in .rl-key{stroke-dashoffset:0}
-
-/* ══ THE NAME — where "Philoi" comes from ════════════════════════════════ */
-.origin{text-align:center}
-.origin .eyebrow{margin-bottom:8px}
-
-/* ΦΙΛΟΙ, one letter at a time — torches catching down a line. Each capital
-   carries its own transliteration, so the animation IS the etymology: the
-   Greek letterform resolving into the spelling on the app icon. */
-.gk-word{
-  display:flex;justify-content:center;align-items:flex-start;
-  gap:clamp(4px,1.5vw,20px);margin-top:clamp(18px,2.6vw,30px);
-}
-.gl{display:flex;flex-direction:column;align-items:center;gap:clamp(6px,1vw,12px)}
-.gl b{
-  font-size:clamp(54px,12.4vw,146px);font-weight:900;letter-spacing:-.015em;line-height:.88;
-  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
-  opacity:.12;filter:grayscale(.8) brightness(.5);transform:translateY(12px) scale(.96);
-  transition:opacity .6s ease,filter .6s ease,transform .6s cubic-bezier(.2,.9,.3,1.4);
-}
-.gl i{
-  font-style:normal;font-size:clamp(9px,1.05vw,12.5px);font-weight:700;letter-spacing:.28em;
-  text-transform:uppercase;color:var(--tertiary);
-  opacity:0;transform:translateY(-6px);transition:opacity .5s ease,transform .5s ease;
-}
-.gk-word.in .gl b{opacity:1;filter:drop-shadow(0 8px 30px rgba(224,97,44,.4));transform:none}
-.gk-word.in .gl i{opacity:1;transform:none;color:var(--ember)}
-/* The flicker rides the wrapper, not the letter: the letter's own opacity is
-   mid-transition during ignition, and an animation on it would win outright. */
-.gk-word.in .gl{animation:gkFlicker 5.2s ease-in-out infinite}
-@keyframes gkFlicker{0%,100%{opacity:1}42%{opacity:.9}68%{opacity:.97}}
-.gl:nth-child(1) b,.gl:nth-child(1) i{transition-delay:0s}
-.gl:nth-child(2) b,.gl:nth-child(2) i{transition-delay:.13s}
-.gl:nth-child(3) b,.gl:nth-child(3) i{transition-delay:.26s}
-.gl:nth-child(4) b,.gl:nth-child(4) i{transition-delay:.39s}
-.gl:nth-child(5) b,.gl:nth-child(5) i{transition-delay:.52s}
-.gl:nth-child(1) i,.gl:nth-child(2) i,.gl:nth-child(3) i,
-.gl:nth-child(4) i,.gl:nth-child(5) i{transition-delay:.5s}
-.gk-word.in .gl:nth-child(1){animation-delay:1.1s}
-.gk-word.in .gl:nth-child(2){animation-delay:1.8s}
-.gk-word.in .gl:nth-child(3){animation-delay:2.4s}
-.gk-word.in .gl:nth-child(4){animation-delay:1.5s}
-.gk-word.in .gl:nth-child(5){animation-delay:2.9s}
-
-.gk-trans{
-  margin-top:clamp(22px,3vw,34px);font-size:clamp(15px,1.7vw,18px);color:var(--muted);
-}
-.gk-trans .gk{
-  font-size:clamp(19px,2.2vw,24px);font-weight:600;letter-spacing:.06em;color:var(--ember);
-}
-.gk-trans i{font-style:italic}
-.gk-def{
-  margin:16px auto 0;max-width:34ch;
-  font-size:clamp(17px,2.1vw,23px);font-style:italic;line-height:1.45;color:#CBBFE0;
-}
-.gk-tie{margin:clamp(24px,3vw,34px) auto 0;max-width:52ch;font-size:clamp(15px,1.6vw,17px);color:var(--tertiary)}
-.origin .rule-greek{margin:clamp(44px,6vw,72px) 0}
-
-.origin-grid{
-  display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);
-  gap:clamp(28px,4.5vw,66px);align-items:center;text-align:left;
-}
-@media (max-width:860px){
-  .origin-grid{grid-template-columns:1fr;justify-items:center}
-  /* The ring centres; the lexicon must NOT — its ember bar is a left edge,
-     and centred text beside a left rule reads as a mistake. */
-  .ring-wrap{text-align:center}
-  .lexicon{width:100%}
-}
-
-.ring-wrap{margin:0;display:flex;flex-direction:column;align-items:center;gap:20px}
-.ring{width:clamp(190px,26vw,260px);height:auto;overflow:visible}
-.ring .orbit{
-  fill:none;stroke:var(--plum);stroke-width:1.5;
-  stroke-dasharray:327;stroke-dashoffset:327;
-  transition:stroke-dashoffset 1.8s cubic-bezier(.3,.7,.3,1) .2s;
-}
-.ring .spoke{
-  stroke:rgba(255,210,122,.22);stroke-width:1;
-  opacity:0;transition:opacity .7s ease 1.1s;
-}
-.ring .friend{
-  fill:var(--amber);opacity:0;transform-box:fill-box;transform-origin:center;transform:scale(.2);
-  transition:opacity .5s ease,transform .5s cubic-bezier(.2,.9,.3,1.7);
-  filter:drop-shadow(0 0 7px rgba(242,163,60,.85));
-}
-.ring-wrap.in .orbit{stroke-dashoffset:0}
-.ring-wrap.in .spoke{opacity:1}
-.ring-wrap.in .friend{opacity:1;transform:none}
-.ring .friend:nth-of-type(1){transition-delay:.55s}
-.ring .friend:nth-of-type(2){transition-delay:.68s}
-.ring .friend:nth-of-type(3){transition-delay:.81s}
-.ring .friend:nth-of-type(4){transition-delay:.94s}
-.ring .friend:nth-of-type(5){transition-delay:1.07s}
-.ring .friend:nth-of-type(6){transition-delay:1.2s}
-.ring .friend:nth-of-type(7){transition-delay:1.33s}
-.ring-cap{font-size:14.5px;line-height:1.55;color:var(--muted);max-width:34ch}
-.ring-cap b{color:var(--ember);font-weight:600;font-style:normal}
-
-.lexicon{display:grid;gap:2px}
-.lex{
-  position:relative;padding:16px 0 16px 22px;
-  transition:background .25s ease;
-}
-.lex::before{
-  content:"";position:absolute;left:0;top:14px;bottom:14px;width:2px;border-radius:2px;
-  background:var(--grad);transform:scaleY(0);transform-origin:top;
-  transition:transform .6s cubic-bezier(.2,.8,.3,1);
-}
-.lex.in::before{transform:scaleY(1)}
-.lex:nth-child(2).in::before{transition-delay:.1s}
-.lex:nth-child(3).in::before{transition-delay:.2s}
-.lex:nth-child(4).in::before{transition-delay:.3s}
-.lex:nth-child(5).in::before{transition-delay:.4s}
-.lex-gk{font-size:clamp(17px,1.9vw,21px);font-weight:700;letter-spacing:.02em;color:var(--ink)}
-.lex-tr{margin-left:10px;font-size:13px;font-style:italic;color:var(--ember);letter-spacing:.04em}
-.lex p{margin-top:7px;font-size:14.5px;line-height:1.55;color:var(--muted);max-width:52ch}
-
-/* Scroll reveal */
-.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.3,1),transform .7s cubic-bezier(.2,.7,.3,1)}
-.reveal.in{opacity:1;transform:none}
-
-/* ══ 2 · THE CLIMB ═══════════════════════════════════════════════════════ */
-.climb{background:linear-gradient(180deg,transparent,rgba(23,19,31,.42) 34%,transparent)}
-.ladder{
-  margin-top:clamp(44px,6vw,70px);
-  display:grid;grid-template-columns:repeat(10,minmax(0,1fr));
-  gap:clamp(6px,1.3vw,18px);align-items:end;
-}
-.rung{position:relative;text-align:center}
-.rung .hex{
-  position:relative;margin:0 auto;
-  width:100%;aspect-ratio:1/1.1;max-width:94px;
-  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
-  background:var(--outer);
-  display:grid;place-items:center;
-  opacity:.18;filter:saturate(.2) brightness(.55);
-  transform:translateY(10px) scale(.9);
-  transition:opacity .5s ease,filter .5s ease,transform .5s cubic-bezier(.2,.9,.3,1.3),box-shadow .5s ease;
-}
-.rung .hex::before{
-  content:"";position:absolute;inset:9%;
-  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
-  background:linear-gradient(160deg,var(--inner),var(--inner-dark));
-}
-.rung .num{position:relative;z-index:1;font-weight:900;font-size:clamp(11px,1.6vw,21px);color:var(--numeral);letter-spacing:-.02em}
-.rung .name{
-  margin-top:12px;font-size:clamp(8.5px,1.02vw,12px);font-weight:700;
-  letter-spacing:.07em;text-transform:uppercase;color:var(--tertiary);
-  transition:color .5s ease;overflow-wrap:anywhere;
-}
-.ladder.is-live .rung .hex{opacity:1;filter:none;transform:none}
-.ladder.is-live .rung .name{color:var(--tint)}
-.rung:nth-child(1) .hex,.rung:nth-child(1) .name{transition-delay:0s}
-.rung:nth-child(2) .hex,.rung:nth-child(2) .name{transition-delay:.09s}
-.rung:nth-child(3) .hex,.rung:nth-child(3) .name{transition-delay:.18s}
-.rung:nth-child(4) .hex,.rung:nth-child(4) .name{transition-delay:.27s}
-.rung:nth-child(5) .hex,.rung:nth-child(5) .name{transition-delay:.36s}
-.rung:nth-child(6) .hex,.rung:nth-child(6) .name{transition-delay:.45s}
-.rung:nth-child(7) .hex,.rung:nth-child(7) .name{transition-delay:.54s}
-.rung:nth-child(8) .hex,.rung:nth-child(8) .name{transition-delay:.63s}
-.rung:nth-child(9) .hex,.rung:nth-child(9) .name{transition-delay:.72s}
-.rung:nth-child(10) .hex,.rung:nth-child(10) .name{transition-delay:.81s}
-/* the mythic end of the ladder gets the reveal's sunburst rays (mock 179) */
-.rays{
-  position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);
-  width:250%;aspect-ratio:1;z-index:-1;pointer-events:none;
-  opacity:0;transition:opacity .9s ease .85s;
-  color:var(--outer);
-}
-.ladder.is-live .rays{opacity:.9;animation:spin 30s linear infinite}
-@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
-.rung.is-mythic .hex{box-shadow:0 0 0 rgba(0,0,0,0)}
-.ladder.is-live .rung.is-mythic .hex{box-shadow:0 0 34px var(--glow)}
-@media (max-width:820px){.ladder{grid-template-columns:repeat(5,minmax(0,1fr));row-gap:26px}}
-.climb-notes{margin-top:clamp(46px,6vw,72px);display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
-.note-card{padding:24px;border-radius:var(--radius-lg);border:1px solid var(--line);background:rgba(36,28,56,.42)}
-.note-card h3{font-size:17px;font-weight:700;letter-spacing:-.015em;margin-bottom:9px}
-.note-card p{font-size:15px;color:var(--muted);line-height:1.55}
-
-/* ══ 3 · RELICS ══════════════════════════════════════════════════════════ */
-.shelf{
-  margin-top:clamp(44px,6vw,68px);
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));
-  gap:clamp(12px,1.6vw,18px);
-}
-.relic{
-  position:relative;overflow:hidden;
-  padding:26px 22px 22px;border-radius:var(--radius-lg);
-  border:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(36,28,56,.66),rgba(27,23,38,.5));
-  transition:transform .3s cubic-bezier(.2,.8,.3,1),border-color .3s ease,box-shadow .3s ease;
-}
-.relic:hover{transform:translateY(-4px);border-color:var(--line-strong);box-shadow:0 18px 44px rgba(0,0,0,.4)}
-.relic::before{
-  content:"";position:absolute;left:50%;top:-30%;translate:-50% 0;
-  width:170px;height:170px;border-radius:50%;
-  background:radial-gradient(circle,var(--to),transparent 68%);
-  opacity:.2;filter:blur(18px);pointer-events:none;
-}
-.artifact{
-  width:64px;height:64px;margin-bottom:18px;
-  background:linear-gradient(158deg,var(--from),var(--to));
-  box-shadow:0 6px 26px color-mix(in srgb,var(--to) 34%,transparent);
-  position:relative;
-}
-.artifact::after{
-  content:"";position:absolute;inset:0;
-  background:linear-gradient(200deg,rgba(255,255,255,.42),transparent 46%);
-  clip-path:inherit;
-}
-.artifact.a-scroll{border-radius:999px;width:44px;height:64px}
-.artifact.a-gem{clip-path:polygon(50% 0,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%)}
-.artifact.a-wing{clip-path:polygon(50% 0,100% 42%,74% 100%,26% 100%,0 42%)}
-.artifact.a-plan{clip-path:polygon(0 0,78% 0,100% 22%,100% 100%,0 100%)}
-.artifact.a-orb{border-radius:50%}
-.artifact.a-crown{clip-path:polygon(0 100%,12% 30%,30% 58%,50% 6%,70% 58%,88% 30%,100% 100%)}
-.relic h3{font-size:17px;font-weight:700;letter-spacing:-.015em}
-.relic .disc{margin-top:5px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--tertiary)}
-.relic .lore{margin-top:12px;font-size:14px;line-height:1.5;color:var(--muted)}
-.relic .prog{margin-top:18px}
-.relic .track{height:6px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
-.relic .fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--from),var(--to));transition:width 1.3s cubic-bezier(.2,.8,.3,1)}
-.relic .meta{
-  margin-top:9px;display:flex;justify-content:space-between;align-items:center;
-  font-size:11.5px;font-weight:700;letter-spacing:.06em;color:var(--tertiary);font-variant-numeric:tabular-nums;
-}
-.relic .rung-glyph{color:var(--to);font-size:14px}
-.relic.is-secret{background:rgba(20,17,28,.55);border-style:dashed}
-.relic.is-secret .artifact{background:rgba(255,255,255,.06);box-shadow:none}
-.relic.is-secret .artifact::after{background:none}
-.relic.is-secret h3{color:var(--tertiary)}
-.relic.is-secret::before{display:none}
-.secret-line{
-  margin-top:clamp(30px,4vw,44px);display:inline-flex;align-items:center;gap:11px;
-  padding:11px 18px;border-radius:999px;border:1px dashed var(--line-strong);
-  font-size:13.5px;color:var(--muted);
-}
-.secret-line b{color:var(--ember);font-weight:700}
-
-/* ══ 4 · COSMETICS ═══════════════════════════════════════════════════════ */
-.cosmetics{background:linear-gradient(180deg,transparent,rgba(23,19,31,.42) 40%,transparent)}
-.crate-grid{
-  margin-top:clamp(44px,6vw,68px);
-  display:grid;grid-template-columns:1.05fr 1fr;gap:clamp(18px,2.4vw,30px);align-items:stretch;
-}
-@media (max-width:900px){.crate-grid{grid-template-columns:1fr}}
-.crate-stage{
-  position:relative;overflow:hidden;
-  border-radius:var(--radius-lg);border:1px solid var(--line);
-  background:radial-gradient(120% 78% at 50% 0%,#2C1B36,#17131F 74%);
-  padding:clamp(26px,3.4vw,40px);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  min-height:400px;text-align:center;
-}
-.crate-stage::after{
-  content:"";position:absolute;left:50%;top:44%;translate:-50% -50%;
-  width:340px;height:340px;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle,var(--rar,#F5C542),transparent 66%);
-  opacity:0;transition:opacity .5s ease;filter:blur(30px);
-}
-.crate-stage.is-open::after{opacity:.3}
-.crate{
-  width:132px;height:132px;position:relative;
-  border-radius:20px;
-  background:linear-gradient(155deg,#3A2E5C,#241C38 62%,#1B1726);
-  border:1px solid rgba(255,255,255,.1);
-  display:grid;place-items:center;
-  box-shadow:0 18px 50px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08);
-  transition:transform .45s cubic-bezier(.2,.9,.3,1.4),opacity .35s ease;
-}
-.crate .seam{
-  position:absolute;left:8%;right:8%;top:50%;height:3px;border-radius:3px;
-  background:var(--grad);box-shadow:0 0 18px rgba(242,163,60,.6);
-}
-.crate .lockglyph{width:44px;height:44px;opacity:.9}
-.crate-stage.is-open .crate{transform:scale(.7) translateY(-14px);opacity:0}
-.reveal-item{
-  position:absolute;left:50%;top:50%;translate:-50% -50%;
-  opacity:0;transform:scale(.7);pointer-events:none;
-  transition:opacity .5s ease .18s,transform .6s cubic-bezier(.2,.9,.3,1.5) .18s;
-  width:100%;
-}
-.crate-stage.is-open .reveal-item{opacity:1;transform:scale(1) translate(0,0);translate:-50% -50%}
-.reveal-art{
-  width:120px;height:120px;margin:0 auto 20px;border-radius:26px;
-  background:linear-gradient(155deg,var(--rar),color-mix(in srgb,var(--rar) 45%,#1B1726));
-  box-shadow:0 0 46px color-mix(in srgb,var(--rar) 55%,transparent),inset 0 1px 0 rgba(255,255,255,.28);
-  display:grid;place-items:center;
-}
-.rar-chip{
-  display:inline-block;padding:5px 14px;border-radius:999px;
-  font-size:10.5px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;
-  color:var(--rar);border:1px solid color-mix(in srgb,var(--rar) 45%,transparent);
-  background:color-mix(in srgb,var(--rar) 12%,transparent);
-}
-.reveal-item h3{margin-top:14px;font-size:clamp(22px,2.7vw,30px);font-weight:800;letter-spacing:-.03em}
-.reveal-item .kind{margin-top:7px;font-size:12.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tertiary)}
-.crate-btn{
-  position:relative;z-index:2;margin-top:auto;
-  padding:14px 30px;border-radius:var(--radius);border:0;cursor:pointer;
-  background:var(--grad);color:var(--on-ember);font:inherit;font-weight:800;font-size:15px;
-  box-shadow:0 4px 18px rgba(224,97,44,.45);transition:transform .18s ease,filter .18s ease;
-}
-.crate-btn:hover{transform:translateY(-1px);filter:brightness(1.06)}
-.crate-hint{position:relative;z-index:2;margin-top:12px;font-size:12px;color:var(--tertiary)}
-.spark{position:absolute;left:50%;top:44%;width:6px;height:6px;border-radius:50%;background:var(--rar);pointer-events:none;opacity:0}
-.crate-stage.is-open .spark{animation:burst .9s cubic-bezier(.15,.75,.35,1) forwards}
-@keyframes burst{
-  0%{opacity:1;transform:translate(0,0) scale(1)}
-  100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.2)}
-}
-
-.flex-panel{display:flex;flex-direction:column;gap:clamp(14px,1.8vw,18px)}
-.profile-card{
-  position:relative;overflow:hidden;flex:1;
-  border-radius:var(--radius-lg);border:1px solid var(--line);
-  background:linear-gradient(150deg,#3A1F4E,#7A2E1C 58%,#2C1B36);
-  padding:clamp(22px,2.6vw,30px);
-  min-height:250px;display:flex;flex-direction:column;justify-content:flex-end;
-}
-.profile-card::before{
-  content:"";position:absolute;inset:0;pointer-events:none;
-  background:
-    radial-gradient(70% 60% at 78% 12%,rgba(255,210,122,.3),transparent 62%),
-    linear-gradient(180deg,transparent 22%,rgba(20,14,26,.82));
-}
-.pc-inner{position:relative;display:flex;align-items:center;gap:16px}
-.pc-avatar{
-  width:62px;height:62px;flex:none;border-radius:50%;
-  background:linear-gradient(150deg,#F2A33C,#E0612C);
-  display:grid;place-items:center;font-weight:900;font-size:24px;color:var(--on-ember);
-  box-shadow:0 0 0 3px #17131F,0 0 0 6px var(--r-mythic),0 0 26px rgba(255,107,107,.6);
-}
-.pc-name{font-size:20px;font-weight:800;letter-spacing:-.02em}
-.pc-title{margin-top:3px;font-size:12.5px;font-weight:700;letter-spacing:.04em;color:var(--r-legendary)}
-.pc-rank{
-  margin-left:auto;text-align:right;font-size:11px;font-weight:700;
-  letter-spacing:.14em;text-transform:uppercase;color:#F7B85A;
-}
-.pc-rank .big{display:block;font-size:19px;letter-spacing:-.02em;text-transform:none;color:var(--ink);white-space:nowrap}
-.pc-tag{
-  position:absolute;top:16px;left:clamp(22px,2.6vw,30px);z-index:1;
-  font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;
-  padding:5px 11px;border-radius:999px;background:rgba(20,14,26,.6);color:var(--ember);
-  border:1px solid rgba(255,210,122,.28);
-}
-.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.slot{
-  padding:16px 14px;border-radius:16px;border:1px solid var(--line);
-  background:rgba(36,28,56,.44);text-align:center;
-  transition:transform .25s ease,border-color .25s ease;
-}
-.slot:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--c) 50%,transparent)}
-.slot .dotart{
-  width:30px;height:30px;margin:0 auto 10px;border-radius:9px;
-  background:linear-gradient(150deg,var(--c),color-mix(in srgb,var(--c) 40%,#1B1726));
-  box-shadow:0 0 18px color-mix(in srgb,var(--c) 40%,transparent);
-}
-.slot b{display:block;font-size:12.5px;font-weight:700;letter-spacing:-.01em}
-.slot span{display:block;margin-top:3px;font-size:10.5px;color:var(--tertiary);letter-spacing:.06em}
-.rarity-legend{
-  margin-top:clamp(30px,4vw,42px);display:flex;flex-wrap:wrap;gap:10px;
-}
-.rl{
-  display:inline-flex;align-items:center;gap:8px;padding:8px 15px;border-radius:999px;
-  border:1px solid color-mix(in srgb,var(--c) 34%,transparent);
-  background:color-mix(in srgb,var(--c) 9%,transparent);
-  font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--c);
-}
-.rl i{width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c)}
-
-/* ══ 5 · CAMPFIRES ═══════════════════════════════════════════════════════ */
-.fires{margin-top:clamp(44px,6vw,68px);display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:clamp(14px,1.8vw,20px)}
-.fire{
-  position:relative;overflow:hidden;border-radius:var(--radius-lg);
-  border:1px solid var(--line);background:var(--t800);
-  transition:transform .3s cubic-bezier(.2,.8,.3,1),box-shadow .3s ease;
-}
-.fire:hover{transform:translateY(-5px);box-shadow:0 20px 48px rgba(0,0,0,.42)}
-.fire-banner{
-  height:104px;position:relative;
-  background:linear-gradient(140deg,var(--b1),var(--b2));
-}
-.fire-banner::after{
-  content:"";position:absolute;inset:0;
-  background:linear-gradient(180deg,transparent 34%,rgba(23,18,38,.94));
-}
-.fire-banner .flick{
-  position:absolute;right:14px;top:14px;width:74px;height:74px;border-radius:50%;
-  background:radial-gradient(circle at 44% 38%,rgba(255,231,176,.8),rgba(242,163,60,.3) 44%,transparent 70%);
-  filter:blur(7px);animation:breathe 3.4s ease-in-out infinite;
-}
-.fire-body{position:relative;padding:0 20px 22px;margin-top:-30px}
-.fire-body h3{font-size:19px;font-weight:800;letter-spacing:-.02em}
-.fire-meta{margin-top:6px;display:flex;gap:14px;font-size:12px;color:var(--muted);letter-spacing:.02em}
-.fire-meta b{color:var(--ember);font-weight:700}
-.feed{margin-top:16px;border-top:1px solid var(--line);padding-top:14px;display:grid;gap:11px}
-.feed li{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--muted);line-height:1.4}
-.feed .av{
-  width:24px;height:24px;flex:none;border-radius:50%;display:grid;place-items:center;
-  font-size:10.5px;font-weight:800;color:var(--on-ember);background:linear-gradient(150deg,#F2A33C,#E0612C);
-}
-.feed strong{color:var(--ink);font-weight:600}
-.fire-tag{
-  position:absolute;top:14px;left:18px;z-index:1;
-  font-size:9.5px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;
-  padding:5px 11px;border-radius:999px;background:rgba(20,14,26,.55);color:#fff;
-  border:1px solid rgba(255,255,255,.18);
-}
-.prestige-strip{
-  margin-top:clamp(30px,4vw,44px);display:flex;flex-wrap:wrap;gap:12px;align-items:center;
-  padding:18px 22px;border-radius:var(--radius-lg);
-  border:1px solid var(--line);background:rgba(36,28,56,.4);
-}
-.prestige-strip .lab{font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--tertiary)}
-.pstar{
-  display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;
-  background:rgba(255,210,122,.1);border:1px solid rgba(255,210,122,.24);
-  font-size:12.5px;font-weight:700;color:var(--ember);
-}
-.prestige-strip p{font-size:13.5px;color:var(--muted);flex:1 1 260px}
-
-/* ══ 6 · CHALLENGES ══════════════════════════════════════════════════════ */
-.challenges{background:linear-gradient(180deg,transparent,rgba(23,19,31,.42) 40%,transparent)}
-.duel-grid{margin-top:clamp(44px,6vw,68px);display:grid;grid-template-columns:1.1fr 1fr;gap:clamp(16px,2.2vw,26px)}
-@media (max-width:900px){.duel-grid{grid-template-columns:1fr}}
-.panel{
-  padding:clamp(22px,2.6vw,30px);border-radius:var(--radius-lg);
-  border:1px solid var(--line);background:rgba(36,28,56,.44);
-}
-.panel-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px}
-.panel-head h3{font-size:20px;font-weight:800;letter-spacing:-.025em}
-.chip{
-  font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;
-  padding:5px 12px;border-radius:999px;border:1px solid var(--line-strong);color:var(--muted);
-}
-.chip.hot{color:var(--forward);border-color:rgba(255,122,47,.35);background:rgba(255,122,47,.09)}
-.duel{display:flex;align-items:center;gap:14px}
-.fighter{flex:1;text-align:center}
-.fighter .av{
-  width:58px;height:58px;margin:0 auto 11px;border-radius:50%;display:grid;place-items:center;
-  font-size:21px;font-weight:900;color:var(--on-ember);
-  background:linear-gradient(150deg,var(--c1),var(--c2));position:relative;
-}
-.fighter.is-lead .av{box-shadow:0 0 0 3px #241C38,0 0 0 5px var(--r-legendary),0 0 26px rgba(245,197,66,.5)}
-.fighter .crown{position:absolute;top:-17px;left:50%;translate:-50% 0;font-size:19px;line-height:1;filter:drop-shadow(0 2px 6px rgba(245,197,66,.6))}
-.fighter b{display:block;font-size:15px;font-weight:700;letter-spacing:-.01em}
-.fighter span{display:block;margin-top:3px;font-size:12px;color:var(--tertiary)}
-.vs{
-  font-size:12px;font-weight:900;letter-spacing:.14em;color:var(--tertiary);
-  padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);
-}
-.duel-bar{margin-top:24px;height:10px;border-radius:999px;background:rgba(79,176,229,.16);overflow:hidden;display:flex}
-.duel-bar i{display:block;height:100%;width:0;transition:width 1.5s cubic-bezier(.2,.8,.3,1)}
-.duel-bar .a{background:linear-gradient(90deg,#F5C542,#E0612C)}
-.duel-bar .b{background:linear-gradient(90deg,#3F5A80,#4FB0E5);margin-left:auto}
-.duel-nums{margin-top:11px;display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted)}
-.duel-nums .lead{color:var(--r-legendary)}
-.stake{
-  margin-top:22px;padding-top:18px;border-top:1px solid var(--line);
-  display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--muted);
-}
-.stake b{color:var(--ember);font-weight:700;display:inline-flex;align-items:center;gap:7px}
-
-.race-bar{height:12px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
-.race-bar i{display:block;height:100%;width:0;border-radius:999px;background:var(--grad);transition:width 1.6s cubic-bezier(.2,.8,.3,1)}
-.race-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:11px}
-.race-top .n{font-size:clamp(24px,3vw,32px);font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.race-top .g{font-size:13px;color:var(--tertiary);font-weight:600}
-.standings{margin-top:22px;display:grid;gap:2px}
-.standings li{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:11px;font-size:14px}
-.standings li:nth-child(odd){background:rgba(255,255,255,.03)}
-.standings .p{width:22px;font-weight:800;color:var(--tertiary);font-size:12px}
-.standings li.me{background:rgba(255,210,122,.09);border:1px solid rgba(255,210,122,.2)}
-.standings li.me .p{color:var(--ember)}
-.standings .v{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted)}
-.mode-row{margin-top:clamp(30px,4vw,44px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
-.mode{padding:20px;border-radius:16px;border:1px solid var(--line);background:rgba(27,23,38,.5)}
-.mode b{display:block;font-size:14.5px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
-.mode p{font-size:13.5px;color:var(--muted);line-height:1.5}
-
-/* ══ 7 · B2B ═════════════════════════════════════════════════════════════ */
-.b2b{
-  border-top:1px solid var(--line);
-  background:linear-gradient(180deg,rgba(20,17,28,.58),rgba(23,19,31,.74));
-}
-.b2b-grid{margin-top:clamp(38px,5vw,58px);display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,3vw,48px);align-items:start}
-@media (max-width:900px){.b2b-grid{grid-template-columns:1fr}}
-.b2b-list{display:grid;gap:16px}
-.b2b-list li{display:flex;gap:14px;align-items:flex-start}
-.b2b-list .ic{
-  width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;
-  background:rgba(255,210,122,.1);border:1px solid rgba(255,210,122,.22);
-}
-.b2b-list b{display:block;font-size:15.5px;font-weight:700;letter-spacing:-.01em;margin-bottom:4px}
-.b2b-list p{font-size:14.5px;color:var(--muted);line-height:1.55}
-.b2b-cta{
-  margin-top:clamp(28px,3.6vw,40px);
-  display:inline-flex;align-items:center;gap:9px;
-  padding:14px 26px;border-radius:var(--radius);
-  background:var(--grad);color:var(--on-ember);
-  font-weight:800;font-size:15.5px;text-decoration:none;
-  box-shadow:0 4px 18px rgba(224,97,44,.42);transition:transform .18s ease,filter .18s ease;
-}
-.b2b-cta:hover{text-decoration:none;transform:translateY(-1px);filter:brightness(1.06)}
-.b2b-note{margin-top:14px;font-size:13.5px;color:var(--tertiary)}
-
-/* ══ Launch gate — pure CSS, keyed off html.launched (set in <head>) ═══════
-   Each state HIDES the other rather than SHOWING itself, so every gated
-   element keeps its own natural display value. */
+/* Launch gate — each state HIDES the other, so every gated element keeps its
+   own natural display value. */
 html:not(.launched) .cta-live,
 html.launched .cta-pre{display:none!important}
 
-.ribbon{
-  display:inline-flex;align-items:center;gap:10px;margin-top:clamp(14px,2.2vw,22px);
-  padding:8px 18px;border-radius:999px;
-  border:1px solid rgba(255,210,122,.34);background:rgba(58,42,34,.55);
-  font-size:clamp(11px,1.5vw,13.5px);font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:var(--ink);
+/* ══ Nav ═════════════════════════════════════════════════════════════════ */
+.nav{
+  position:sticky;top:0;z-index:40;
+  background:rgba(12,8,18,.72);border-bottom:1px solid var(--line);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  padding-top:env(safe-area-inset-top);
 }
-.ribbon .dot{width:8px;height:8px;border-radius:50%;background:var(--forward);box-shadow:0 0 0 4px rgba(255,122,47,.16);animation:coalPulse 2.4s ease-in-out infinite}
-html.launched .ribbon{background:var(--grad);color:var(--on-ember);border-color:transparent;box-shadow:0 6px 26px rgba(224,97,44,.5)}
-html.launched .ribbon .dot{background:var(--on-ember);box-shadow:none}
+.nav .shell{display:flex;align-items:center;justify-content:space-between;height:60px}
+.logo{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-weight:900;font-size:17px;letter-spacing:-.02em;color:var(--ink)}
+.logo svg{width:22px;height:22px}
+.get{
+  display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:12px;
+  background:linear-gradient(92deg,#FFE8B0,#FFD27A,#F2A33C);color:#20100a;
+  font-size:14px;font-weight:800;letter-spacing:-.01em;
+}
 
-/* The App Store button — black, white type, Apple's own badge proportions. */
-.store-btn{
-  display:inline-flex;align-items:center;gap:11px;
-  padding:10px 22px 10px 17px;border-radius:14px;
-  background:#000;border:1px solid rgba(255,255,255,.4);color:#fff;
-  text-align:left;text-decoration:none;
-  box-shadow:0 10px 34px rgba(224,97,44,.35);
-  transition:transform .18s ease,box-shadow .18s ease;
+/* ══ Buttons ═════════════════════════════════════════════════════════════ */
+.store{
+  display:inline-flex;align-items:center;gap:10px;min-height:52px;
+  padding:8px 20px 8px 16px;border-radius:14px;
+  background:#000;border:1px solid rgba(255,255,255,.34);color:#fff;text-align:left;
+  box-shadow:0 10px 30px rgba(224,97,44,.35);
 }
-.store-btn:hover{text-decoration:none;transform:translateY(-2px);box-shadow:0 14px 40px rgba(224,97,44,.5)}
-.store-btn svg{flex:none;fill:#fff}
-.store-btn .top{font-size:10.5px;font-weight:600;letter-spacing:.02em;line-height:1.2;opacity:.9}
-.store-btn .bot{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
-.hero-live{margin-top:clamp(22px,2.8vw,32px)}
-.hero-live .note{margin-top:12px;font-size:13px;color:var(--tertiary)}
+.store svg{width:24px;height:24px;flex:none;fill:#fff}
+.store small{display:block;font-size:10px;font-weight:600;letter-spacing:.02em;opacity:.85;line-height:1.2}
+.store b{display:block;font-size:19px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.store.is-soon{box-shadow:none;border-color:var(--line-strong);cursor:default}
+.store.is-soon small{color:var(--ember);opacity:1;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
 
-/* ══ LOCK IN ═════════════════════════════════════════════════════════════ */
-.lockin-grid{
-  margin-top:clamp(40px,5.4vw,64px);
-  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,380px);gap:clamp(28px,4.4vw,64px);align-items:center;
+.notify{display:flex;flex-direction:column;gap:10px;width:100%;max-width:380px;margin:16px auto 0}
+.notify input{
+  width:100%;min-height:50px;padding:0 16px;border-radius:14px;
+  border:1px solid var(--line-strong);background:rgba(12,8,18,.72);color:var(--ink);font-size:16px;
 }
-@media (max-width:900px){.lockin-grid{grid-template-columns:1fr}}
-.lockscreen{
-  position:relative;overflow:hidden;width:100%;max-width:360px;margin-inline:auto;
-  padding:34px 16px 26px;border-radius:44px;border:1px solid var(--line-strong);
-  background:
-    radial-gradient(90% 60% at 50% 100%,rgba(224,97,44,.4),transparent 70%),
-    linear-gradient(180deg,#1a1430,#2C1B36 55%,#3a1a1c);
-  box-shadow:0 30px 80px rgba(0,0,0,.55),inset 0 0 0 6px rgba(0,0,0,.35);
+.notify input::placeholder{color:var(--tertiary)}
+.notify input:focus{outline:none;border-color:rgba(255,210,122,.55);box-shadow:0 0 0 3px rgba(255,210,122,.14)}
+.notify button{
+  min-height:50px;border:0;border-radius:14px;cursor:pointer;
+  background:var(--grad);color:var(--on-ember);font-size:16px;font-weight:800;
+  box-shadow:0 6px 20px rgba(224,97,44,.45);
 }
-.ls-date{text-align:center;font-size:14px;font-weight:600;color:rgba(255,246,236,.72)}
-.ls-time{text-align:center;font-size:clamp(58px,8vw,74px);font-weight:700;letter-spacing:-.04em;line-height:1.05;color:rgba(255,246,236,.94)}
-.live-act{
-  margin-top:clamp(70px,10vw,120px);padding:14px 16px 13px;border-radius:24px;
-  background:rgba(12,10,18,.86);border:1px solid rgba(255,255,255,.08);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-}
-.la-row{display:flex;align-items:center;gap:12px}
-.la-flame{width:38px;height:38px;flex:none;animation:breathe 1.8s ease-in-out infinite}
-.la-main b{display:block;font-size:14px;font-weight:700;letter-spacing:-.01em}
-.la-main span{display:block;font-size:12px;color:var(--muted)}
-.la-timer{margin-left:auto;font-size:26px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--ember)}
-.la-bar{margin-top:12px;height:5px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
-.la-bar i{display:block;height:100%;width:64%;border-radius:999px;background:var(--grad)}
-.la-foot{margin-top:9px;display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;color:var(--tertiary);font-variant-numeric:tabular-nums}
-.la-foot b{color:var(--ember);display:inline-flex;align-items:center;gap:6px}
-.ls-cap{margin-top:14px;text-align:center;font-size:12.5px;color:var(--tertiary)}
+.notify button[disabled]{opacity:.6;cursor:progress}
+/* Honeypot — off-screen, not display:none, which some bots skip. */
+.notify .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.note{margin-top:10px;font-size:12.5px;font-weight:700;color:var(--ember)}
+.note.is-muted{font-weight:500;color:var(--muted)}
+.note.is-done{color:var(--r-uncommon)}
+.note.is-error{color:#E86A5A}
 
-/* ══ SEASON 1 · EMBERFALL + THE FLAME PASS ═══════════════════════════════
-   The paywall's sky (mock 223): void → deep blue → purple → ember → orange,
-   embers falling through it, "Own Emberfall" flashing. */
-.pass-sky{
-  position:relative;overflow:hidden;isolation:isolate;
-  margin-top:clamp(40px,5.4vw,64px);
-  padding:clamp(40px,6vw,76px) clamp(20px,4vw,56px) clamp(34px,5vw,60px);
-  border-radius:clamp(24px,3vw,34px);border:1px solid rgba(255,210,122,.22);
-  background:linear-gradient(180deg,#07050d 0%,#101a3c 20%,#2e1846 46%,#6e2418 76%,#b8461a 100%);
-  box-shadow:0 30px 90px rgba(224,97,44,.25);
-  text-align:center;
+/* ══ 1 · Hero ════════════════════════════════════════════════════════════ */
+.hero{
+  position:relative;overflow:hidden;isolation:isolate;text-align:center;
+  padding:38px 0 40px;
+  background:linear-gradient(180deg,#040309,#0A1440 30%,#2C1548 60%,#7E2A18 88%,#C9481A);
 }
-.pass-sky::before{ /* the lava glow the sky ends in */
-  content:"";position:absolute;left:-10%;right:-10%;bottom:-40%;height:70%;z-index:-1;pointer-events:none;
-  background:radial-gradient(50% 60% at 50% 100%,rgba(255,150,60,.55),transparent 70%);
-}
-.pass-embers{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
-.pass-embers i{
+.embers{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.embers i{
   position:absolute;top:-10px;width:3px;height:3px;border-radius:50%;
-  background:#FFD27A;box-shadow:0 0 6px 1px rgba(255,160,70,.9);
+  background:var(--ember);box-shadow:0 0 6px 1px var(--amber);
   opacity:0;animation:fall linear infinite;
 }
-@keyframes fall{0%{transform:translateY(0);opacity:0}8%{opacity:1}88%{opacity:.85}100%{transform:translateY(var(--fall,900px));opacity:0}}
-.tagpill{
-  display:inline-block;padding:5px 14px;border-radius:999px;
-  border:1px solid rgba(255,210,122,.5);background:rgba(20,10,8,.35);
-  font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--ember);
+@keyframes fall{0%{transform:translateY(0);opacity:0}8%{opacity:1}100%{transform:translateY(var(--f,640px));opacity:0}}
+.season{
+  display:inline-flex;align-items:center;gap:8px;margin-bottom:16px;
+  padding:6px 14px;border-radius:999px;border:1px solid rgba(255,210,122,.42);background:rgba(20,10,8,.3);
+  font-size:10.5px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--ember);
 }
-.own{margin-top:14px;font-size:clamp(44px,9vw,104px);font-weight:900;letter-spacing:-.04em;line-height:.95;text-shadow:0 6px 30px rgba(0,0,0,.6)}
-/* The one continuous non-transform animation on the page: the mock's sweep of
-   white-hot light across "Emberfall". One heading, background-position only. */
-.own .g{
-  background:linear-gradient(100deg,#F2A33C 0%,#FFD27A 34%,#FFFEF7 50%,#FFD27A 66%,#F2A33C 100%);
-  background-size:230% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
-  animation:ownflash 3.2s linear infinite;
-}
-@keyframes ownflash{0%{background-position:185% 0}100%{background-position:-85% 0}}
-.tale{margin:clamp(18px,2.4vw,26px) auto 0;max-width:40ch;font-size:clamp(17px,2vw,22px);line-height:1.5;color:#F3E6DA}
-.tale em{font-style:italic;color:var(--ember)}
-.tale-2{margin:14px auto 0;max-width:52ch;font-size:clamp(14.5px,1.6vw,16.5px);color:rgba(255,236,214,.78)}
-.pass-price{margin-top:clamp(20px,2.6vw,28px);display:flex;align-items:baseline;justify-content:center;gap:9px}
-.pass-price .big{font-size:clamp(32px,4.4vw,44px);font-weight:900;letter-spacing:-.03em;background:linear-gradient(92deg,#FFF7E6,#FFD27A,#F2A33C);-webkit-background-clip:text;background-clip:text;color:transparent}
-.pass-price .per{font-size:14px;font-weight:700;color:rgba(255,236,214,.8)}
-.pass-coffee{margin-top:4px;font-size:13.5px;font-style:italic;color:var(--ember)}
+.season i{width:6px;height:6px;border-radius:1px;transform:rotate(45deg);background:var(--ember)}
+.hero h1{font-size:clamp(34px,10vw,44px);font-weight:900;letter-spacing:-.03em;line-height:1.04}
+.g{background:linear-gradient(100deg,#FFF7E6,#FFD27A,#F2A33C);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .lede{margin:12px auto 22px;max-width:30ch;font-size:15px;color:var(--dim)}
+.hero-cta{display:flex;flex-direction:column;align-items:center}
+.hero-mark{width:64px;height:64px;margin:0 auto 14px;filter:drop-shadow(0 12px 34px rgba(224,97,44,.6))}
 
-.pass-grid{
-  margin-top:clamp(34px,4.6vw,54px);text-align:left;
-  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:clamp(14px,2vw,22px);
+/* ══ Section shell — kicker + headline + one line + a visual ════════════ */
+.sec{padding:44px 0}
+.kicker{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ember);margin-bottom:8px}
+.st{font-size:clamp(26px,7.4vw,32px);font-weight:900;letter-spacing:-.02em;line-height:1.1}
+.sp{margin:10px 0 20px;font-size:15px;line-height:1.55;color:var(--dim);max-width:44ch}
+.cap{margin-top:10px;font-size:11.5px;color:var(--tertiary)}
+
+/* ══ 2 · Compete — the board, with names on fire ════════════════════════ */
+.board{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+.board-head{
+  display:flex;justify-content:space-between;align-items:center;padding:12px 16px;
+  border-bottom:1px solid var(--line);
+  font-size:10.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--tertiary);
 }
-@media (max-width:900px){.pass-grid{grid-template-columns:1fr}}
-.pass-card{
-  padding:clamp(18px,2.4vw,26px);border-radius:var(--radius-lg);
-  background:rgba(12,8,16,.62);border:1px solid rgba(255,210,122,.16);
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+.live{display:inline-flex;align-items:center;gap:6px;color:var(--forward)}
+.live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--forward);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.45;transform:scale(.9)}50%{opacity:1;transform:scale(1.15)}}
+.row{display:flex;align-items:center;gap:12px;min-height:56px;padding:0 16px;border-bottom:1px solid var(--line);font-size:15px}
+.row:last-child{border-bottom:0}
+.row.fire{background:linear-gradient(90deg,rgba(224,97,44,.18),transparent 80%)}
+.row.me{background:rgba(255,210,122,.07)}
+.rk{width:16px;font-weight:900;color:var(--muted);font-variant-numeric:tabular-nums}
+.row.fire .rk{color:var(--ember)}
+.av{
+  width:30px;height:30px;flex:none;border-radius:50%;display:grid;place-items:center;
+  font-size:12px;font-weight:800;color:var(--ink);
+  background:radial-gradient(circle at 40% 35%,#4a3a6d,#241a3a);
 }
-.pass-card h3{font-size:19px;font-weight:800;letter-spacing:-.02em}
-.pass-card .sub{margin-top:6px;font-size:14px;color:rgba(255,236,214,.72);line-height:1.5}
+.row.fire .av{background:linear-gradient(150deg,#F2A33C,#E0612C);color:var(--on-ember);box-shadow:0 0 0 2px #160E22,0 0 0 3.5px rgba(255,160,70,.7)}
+.nm{flex:1;min-width:0;display:flex;align-items:center;gap:7px;font-weight:700;isolation:isolate}
+.pts{font-size:13px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.row.fire .pts{color:var(--ink)}
 
 /* THE BURNING NAME — src/components/burning-name.tsx: the mock's
-   linear-gradient(0deg,#E0612C,#FFB347 42%,#FFF3D6), weight 900, a glow
+   linear-gradient(0deg,#E0612C,#FFB347 42%,#FFF3D6), weight 900, and a glow
    that flickers BEHIND the glyphs (opacity only). */
 .burn{
-  position:relative;display:inline-block;font-weight:900;
+  position:relative;font-weight:900;
   background:linear-gradient(0deg,#E0612C,#FFB347 42%,#FFF3D6);
   -webkit-background-clip:text;background-clip:text;color:transparent;
 }
 .burn::after{
   content:"";position:absolute;inset:-5px -8px;z-index:-1;border-radius:50%;
-  background:radial-gradient(closest-side,rgba(255,120,40,.5),transparent);
+  background:radial-gradient(closest-side,rgba(255,120,40,.55),transparent);
   animation:burnGlow 2.2s ease-in-out infinite;
 }
 @keyframes burnGlow{0%,100%{opacity:.45}40%{opacity:1}70%{opacity:.7}}
-.mini-board{margin-top:18px;display:grid;gap:2px}
-.mb-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;font-size:15px}
-.mb-row:nth-child(odd){background:rgba(255,255,255,.035)}
-.mb-row .p{width:20px;font-size:12px;font-weight:800;color:var(--tertiary)}
-.mb-row .nm{display:inline-flex;align-items:center;gap:8px;font-weight:600;isolation:isolate}
-.mb-row .v{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13.5px}
-.mb-row.is-holder{background:rgba(224,97,44,.12);border:1px solid rgba(255,160,70,.25)}
-.mb-row.is-holder .nm{font-size:16px}
-.mb-cap{margin-top:14px;font-size:13.5px;color:rgba(255,236,214,.78)}
-.mb-cap b{color:var(--ember)}
 
 /* The Emberfall Seal (mock 223's .seal) — the L100 sigil pinned to the name. */
 .seal{
-  width:var(--s,18px);height:var(--s,18px);flex:none;border-radius:50%;position:relative;
+  width:var(--s,16px);height:var(--s,16px);flex:none;border-radius:50%;position:relative;
   background:radial-gradient(circle at 50% 45%,#FFF3D6,#FFB347 40%,#7a1e0e 100%);
-  box-shadow:0 0 12px 2px rgba(255,140,60,.7),inset 0 0 5px rgba(120,20,10,.7);
+  box-shadow:0 0 10px 2px rgba(255,140,60,.7),inset 0 0 4px rgba(120,20,10,.7);
   animation:sealSpin 9s linear infinite;
 }
-@keyframes sealSpin{to{transform:rotate(360deg)}}
 .seal::before{content:"";position:absolute;inset:18%;border-radius:50%;border:1.5px solid rgba(20,8,4,.6)}
 .seal::after{content:"";position:absolute;inset:34%;border-radius:50%;background:#1a0a04;box-shadow:0 0 0 1.5px rgba(255,210,122,.5)}
-.seal-callout{display:flex;align-items:center;gap:16px;margin-top:20px;padding-top:18px;border-top:1px solid rgba(255,210,122,.14)}
-.seal-callout p{font-size:14px;line-height:1.5;color:rgba(255,236,214,.8)}
-.seal-callout b{color:var(--ink)}
+@keyframes sealSpin{to{transform:rotate(360deg)}}
 
-.unlocks{margin-top:16px;display:grid;gap:4px}
-.unlock{display:flex;align-items:baseline;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}
-.unlock:last-child{border-bottom:0}
-.unlock .lv{
-  flex:none;min-width:62px;padding:3px 9px;border-radius:999px;text-align:center;
-  font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--ember);border:1px solid rgba(255,210,122,.3);
+/* ══ 3 · Together — two tiles ═══════════════════════════════════════════ */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 12px 14px;text-align:center;display:flex;flex-direction:column;
 }
-.unlock .lv.now{background:var(--grad);color:var(--on-ember);border-color:transparent}
-.unlock b{font-size:14.5px;font-weight:700;letter-spacing:-.01em}
-.unlock .k{font-size:12px;color:var(--tertiary);margin-left:6px}
-.unlock .rar{margin-left:auto;font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--c)}
+.tile-art{height:92px;display:grid;place-items:center;margin-bottom:10px}
+.tile b{display:block;font-size:14.5px;font-weight:800;letter-spacing:-.01em}
+.tile small{display:block;margin-top:3px;font-size:12px;line-height:1.35;color:var(--muted)}
 
-.pass-cta{margin-top:clamp(28px,3.6vw,40px)}
-.pass-cta .note{margin-top:12px;font-size:13px;color:rgba(255,236,214,.7)}
-.ghost-btn{
-  display:inline-flex;align-items:center;gap:9px;padding:13px 24px;border-radius:var(--radius);
-  background:var(--grad);color:var(--on-ember);font-weight:800;font-size:15px;text-decoration:none;
-  box-shadow:0 4px 18px rgba(224,97,44,.45);transition:transform .18s ease,filter .18s ease;
-}
-.ghost-btn:hover{text-decoration:none;transform:translateY(-1px);filter:brightness(1.06)}
+.vs{display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.vs .av{width:38px;height:38px;font-size:15px}
+.vs .av.a{background:linear-gradient(150deg,#F2A33C,#E0612C);color:var(--on-ember);box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--r-legendary)}
+.vs .av.b{background:linear-gradient(150deg,#4FB0E5,#3A2E5C)}
+.vs em{font-style:normal;font-size:10px;font-weight:900;letter-spacing:.12em;color:var(--tertiary)}
+.duel-bar{display:flex;height:7px;margin-top:12px;border-radius:999px;overflow:hidden;background:rgba(79,176,229,.2)}
+.duel-bar .a{width:58%;background:linear-gradient(90deg,#F5C542,#E0612C)}
+.duel-bar .b{width:42%;margin-left:auto;background:linear-gradient(90deg,#3F5A80,#4FB0E5)}
+.duel-art{width:100%}
+.duel-nums{display:flex;justify-content:space-between;margin-top:6px;font-size:10.5px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.duel-nums .lead{color:var(--r-legendary)}
 
-/* ══ AROUND THE LOCK-IN — Cindy, the Agora, Focus Nudge, fitness sync ═══ */
-.feat-grid{margin-top:clamp(40px,5.4vw,64px);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(14px,1.8vw,20px)}
-.feat{
-  position:relative;padding:clamp(22px,2.6vw,28px);border-radius:var(--radius-lg);
-  border:1px solid var(--line);background:rgba(36,28,56,.46);
+.fire-ring{position:relative;width:92px;height:92px}
+.fire-ring svg.flame{position:absolute;left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%);filter:drop-shadow(0 0 14px rgba(242,163,60,.7));animation:breathe 2.4s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.08)}}
+.fire-ring .p{
+  position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;
+  display:grid;place-items:center;font-size:9px;font-weight:800;color:var(--on-ember);
+  background:linear-gradient(150deg,#F2A33C,#E0612C);box-shadow:0 0 0 2px var(--surface);
 }
-.feat .ic{
-  width:42px;height:42px;border-radius:13px;display:grid;place-items:center;margin-bottom:16px;
-  background:rgba(255,210,122,.1);border:1px solid rgba(255,210,122,.22);
-}
-.feat .ic svg{width:21px;height:21px;fill:none;stroke:var(--ember);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.feat h3{font-size:19px;font-weight:800;letter-spacing:-.02em}
-.feat p{margin-top:9px;font-size:15px;line-height:1.55;color:var(--muted)}
-.feat .demo{
-  margin-top:18px;padding:12px 14px;border-radius:14px;
-  background:rgba(20,17,28,.6);border:1px solid var(--line);
-  font-size:13.5px;line-height:1.5;color:var(--ink);
-}
-.feat .demo .who{display:block;margin-bottom:4px;font-size:10.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--ember)}
-.feat .demo .muted{color:var(--tertiary)}
-.feat .ic svg.solid{stroke:none;width:23px;height:23px}
-@media (max-width:760px){.feat-grid{grid-template-columns:1fr}}
-.src-row{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
-.src{padding:6px 12px;border-radius:999px;border:1px solid var(--line-strong);font-size:12px;font-weight:700;color:var(--muted)}
+.fire-ring .p.cold{background:#2D2740;color:var(--muted)}
 
-/* ══ Footer ══════════════════════════════════════════════════════════════ */
-.site-footer{
-  border-top:1px solid var(--line);
-  background:rgba(20,17,28,.76);
-  padding:clamp(46px,6vw,72px) 0 40px;
-  position:relative;
+/* ══ 4 · Collect — a momentum reel ══════════════════════════════════════ */
+.reel{
+  display:flex;gap:10px;overflow-x:auto;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
+  /* bleed to the screen edge so the next card peeks — the swipe affordance */
+  margin-inline:-20px;padding:4px 20px 12px;scroll-padding-inline:20px;
+  scrollbar-width:none;
 }
-.site-footer::before{
-  content:"";position:absolute;left:0;right:0;top:-1px;height:2px;
-  background:var(--grad);opacity:.5;
+.reel::-webkit-scrollbar{display:none}
+.cos{
+  flex:none;width:122px;scroll-snap-align:start;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 10px 12px;text-align:center;
+  border-top:2px solid color-mix(in srgb,var(--c) 70%,transparent);
 }
-.foot-top{display:flex;flex-wrap:wrap;gap:32px;justify-content:space-between;align-items:flex-start}
-.foot-brand .brand{font-size:22px}
-.foot-brand .slogan{margin-top:9px;font-size:11.5px;font-weight:600;letter-spacing:.28em;text-transform:uppercase;color:var(--muted)}
-.foot-brand .avail{margin-top:14px;font-size:13.5px;color:var(--tertiary)}
-.foot-cols{display:flex;flex-wrap:wrap;gap:clamp(30px,5vw,64px)}
-.foot-col h4{font-size:10.5px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--tertiary);margin:0 0 14px}
-.foot-col ul{display:grid;gap:10px}
-.foot-col li{font-size:14px;color:var(--tertiary)}
-.foot-col a{color:var(--muted);font-size:14px;text-decoration:none;transition:color .2s}
-.foot-col a:hover{color:var(--ember)}
-.foot-bottom{
-  margin-top:clamp(38px,5vw,56px);padding-top:24px;border-top:1px solid var(--line);
-  display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;
-  font-size:13px;color:var(--tertiary);
-}
+.art{position:relative;width:56px;height:56px;margin:2px auto 10px;display:grid;place-items:center}
+.cn{font-size:12.5px;font-weight:800;line-height:1.25;letter-spacing:-.01em}
+.ct{margin-top:2px;font-size:10.5px;color:var(--tertiary)}
+.cr{margin-top:6px;font-size:9.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--c)}
+.swipe{margin-top:4px;font-size:11.5px;color:var(--tertiary)}
 
-/* ══ Reduced motion — everything degrades to a finished still ════════════ */
+/* per-type art, all CSS */
+.art .glow{position:absolute;inset:-6px;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--c) 45%,transparent),transparent)}
+.a-halo{width:44px;height:44px;border-radius:50%;border:4px solid var(--c);box-shadow:0 0 14px var(--c),inset 0 0 10px color-mix(in srgb,var(--c) 60%,transparent)}
+.a-flare{width:48px;height:48px;border-radius:50%;background:conic-gradient(from 0deg,transparent,var(--c),transparent 25%,var(--c) 50%,transparent 62%,var(--c) 80%,transparent);-webkit-mask:radial-gradient(circle,transparent 28%,#000 30%);mask:radial-gradient(circle,transparent 28%,#000 30%);animation:sealSpin 6s linear infinite}
+.a-smoke{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 35% 40%,#2a2238 0 22%,transparent 23%),radial-gradient(circle at 62% 55%,#3a2f4f 0 26%,transparent 27%),radial-gradient(circle at 45% 70%,#1d1726 0 24%,transparent 25%),radial-gradient(circle,color-mix(in srgb,var(--c) 40%,transparent),transparent 70%)}
+.a-banner{width:36px;height:50px;background:linear-gradient(170deg,var(--c),#7E2A18);clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%)}
+.a-card{width:40px;height:52px;border-radius:7px;background:linear-gradient(150deg,#3A1F4E,#7A2E1C 58%,color-mix(in srgb,var(--c) 70%,#2C1B36));box-shadow:0 0 12px color-mix(in srgb,var(--c) 45%,transparent);border:1px solid color-mix(in srgb,var(--c) 60%,transparent)}
+.a-title{font-size:26px;font-weight:900;line-height:1;color:var(--c);text-shadow:0 0 12px color-mix(in srgb,var(--c) 70%,transparent)}
+.a-flame{width:40px;height:40px}
+
+/* ══ 5 · Cindy — last ═══════════════════════════════════════════════════ */
+.cindy{background:linear-gradient(180deg,var(--surface),#1a1030);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px}
+.cindy-tag{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.cindy-tag .cf{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,#3a2410,#1d1208);border:1px solid rgba(255,210,122,.3)}
+.cindy-tag .cf svg{width:20px;height:20px}
+.cindy-tag b{display:block;font-size:14px;font-weight:800}
+.cindy-tag small{display:block;font-size:11px;color:var(--tertiary)}
+.bub{
+  max-width:92%;padding:12px 14px;border-radius:16px;border-bottom-left-radius:4px;
+  background:rgba(255,210,122,.1);border:1px solid rgba(255,210,122,.25);
+  font-size:14px;line-height:1.5;color:#FFF3D6;
+}
+.bub b{color:var(--ember)}
+
+/* ══ 6 · Final CTA ══════════════════════════════════════════════════════ */
+.final{text-align:center;padding:52px 0 44px;background:linear-gradient(180deg,transparent,#2C1548)}
+.final h2{font-size:clamp(28px,8vw,40px);font-weight:900;letter-spacing:-.025em;line-height:1.08;margin-bottom:20px}
+.final .note{max-width:34ch;margin-inline:auto;line-height:1.5}
+
+/* ══ Footer — the legal links Apple and Play require ════════════════════ */
+.foot{border-top:1px solid var(--line);padding:26px 0 calc(28px + env(safe-area-inset-bottom));text-align:center;font-size:12.5px;color:var(--muted)}
+.foot .brand{display:inline-flex;align-items:center;gap:8px;font-weight:900;color:var(--ink);font-size:16px}
+.foot .brand svg{width:20px;height:20px}
+.foot .slogan{margin-top:4px;font-size:10.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--tertiary)}
+.links{display:flex;flex-wrap:wrap;justify-content:center;margin-top:12px}
+.links a{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;color:var(--muted)}
+.links.small a{font-size:12px;color:var(--tertiary)}
+.copy{margin-top:6px;font-size:11.5px;color:var(--tertiary)}
+
+/* ══ Reveal — only when JS is present to undo it ═══════════════════════ */
+.js .reveal{opacity:0;transform:translateY(16px);transition:opacity .6s cubic-bezier(.2,.7,.3,1),transform .6s cubic-bezier(.2,.7,.3,1)}
+.js .reveal.in{opacity:1;transform:none}
+
+/* ══ Desktop — scale UP; the phone render stays the source of truth ════ */
+@media (min-width:820px){
+  .shell{padding-inline:32px}
+  .nav .shell{height:68px}
+  .hero{padding:84px 0 92px}
+  .hero-mark{width:84px;height:84px}
+  .hero h1{font-size:clamp(52px,6.2vw,76px);max-width:14ch;margin-inline:auto}
+  .hero .lede{font-size:18px;margin-bottom:28px}
+  .notify{flex-direction:row;max-width:460px}
+  .notify input{flex:1}
+  .notify button{padding:0 24px}
+  .sec{padding:88px 0}
+  .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:64px;align-items:center}
+  .split.flip > :first-child{order:2}
+  .st{font-size:clamp(34px,3.8vw,44px)}
+  .sp{font-size:17px}
+  .duo{gap:16px}
+  .tile{padding:24px 16px 20px}
+  .tile-art{height:120px}
+  .reel{margin-inline:0;padding-inline:0;scroll-padding-inline:0;overflow:visible;flex-wrap:wrap}
+  .cos{width:calc((100% - 30px) / 4)}
+  .swipe{display:none}
+  .final{padding:100px 0 88px}
+  .foot .row-desk{display:flex;align-items:center;justify-content:space-between;text-align:left}
+  .foot .row-desk .links{justify-content:flex-end;margin-top:0}
+}
+@media (min-width:1080px){.cos{width:calc((100% - 50px) / 6)}}
+
+/* ══ Reduced motion — everything to a finished still ═══════════════════ */
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   *,*::before,*::after{animation:none!important;transition:none!important}
-  .reveal{opacity:1;transform:none}
-  .ladder .rung .hex{opacity:1;filter:none;transform:none}
-  .ladder .rung .name{color:var(--tint)}
-  .rays{opacity:.9}
-  .relic .fill,.race-bar i,.duel-bar i,.rrow .fill{transition:none}
-  /* The canvas goes; the lava pool stays put as the static ember-glow the
-     page falls back to, so the page is still Emberfall-coated at rest. */
-  #emberfall{display:none}
-  .lava-pool{filter:blur(2px);transform:none}
-  /* Anything whose resting state is "not yet drawn" has to start drawn. */
-  .rule-greek .rl-line{transform:none}
-  .rule-greek .rl-key{stroke-dashoffset:0}
-  .gl b{opacity:1;filter:none;transform:none}
-  .gl i{opacity:1;transform:none;color:var(--ember)}
-  .ring .orbit{stroke-dashoffset:0}
-  .ring .spoke{opacity:1}
-  .ring .friend{opacity:1;transform:none}
-  .lex::before{transform:scaleY(1)}
-  .pass-embers{display:none}
+  .embers{display:none}
+  .js .reveal{opacity:1;transform:none}
   .burn::after{opacity:.7}
 }
 </style>
@@ -1175,23 +405,14 @@ html.launched .ribbon .dot{background:var(--on-ember);box-shadow:none}
 <body>
 
 <a class="skip" href="#main">Skip to content</a>
-<div class="page-ground" aria-hidden="true"></div>
-<canvas id="emberfall" aria-hidden="true"></canvas>
-<div class="lava-pool" aria-hidden="true"></div>
 
 <!-- THE BRAND MARK. `FLAME_PATH` copied verbatim out of
-     src/components/ui/flame-logo.tsx — the "Cindy flame" (mock 115), which
-     CINDY_SPEC rendering rule 1 names as the single canonical mark on every
-     surface INCLUDING this website. What it replaces: the retired mock-92
-     three-layer flame, which the favicon was still drawing on top of the
-     crossed campfire logs that DESIGN_LANGUAGE_EMBER §1 retired as the logo.
-
-     THE ONE FLIP lives on the <g> below and nowhere else. Two mirrors cancel
-     and silently render the retired orientation, so nothing that <use>s this
-     symbol may apply its own scaleX(-1). -->
+     src/components/ui/flame-logo.tsx — the "Cindy flame", which CINDY_SPEC
+     rendering rule 1 names as the single canonical mark on every surface
+     INCLUDING this website. THE ONE FLIP lives on the <g> below and nowhere
+     else: two mirrors cancel and silently render the retired orientation. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <defs>
-    <!-- Vertical, bottom→top: deep ember at the base rising to pale gold at the tip. -->
     <linearGradient id="fl-grad" x1="0" y1="1" x2="0" y2="0">
       <stop offset="0" stop-color="#E0612C"/>
       <stop offset="0.55" stop-color="#F2A33C"/>
@@ -1202,967 +423,239 @@ html.launched .ribbon .dot{background:var(--on-ember);box-shadow:none}
         <path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#fl-grad)"/>
       </g>
     </symbol>
-    <!-- Store glyphs. No fill of their own: they take the parent <svg>'s. -->
     <symbol id="apple" viewBox="0 0 24 24">
       <path d="M16.4 12.7c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.3.8-.7 0-1.7-.8-2.8-.8-1.5 0-2.8.9-3.6 2.2-1.5 2.6-.4 6.5 1.1 8.7.7 1 1.6 2.2 2.7 2.2 1.1 0 1.5-.7 2.8-.7s1.6.7 2.8.7c1.1 0 1.9-1.1 2.6-2.1.8-1.2 1.1-2.4 1.2-2.4-.1 0-2.2-.9-2.2-3.5zM14.3 5.9c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.6-1 1.7-.9 2.6 1 .1 2-.5 2.6-1.2z"/>
-    </symbol>
-    <symbol id="gplay" viewBox="0 0 24 24">
-      <path d="M3.6 2.3c-.3.3-.5.8-.5 1.4v16.6c0 .6.2 1.1.5 1.4l.1.1 9.3-9.3v-.2L3.6 2.3zM16.2 15.6l-3.1-3.1v-.2l3.1-3.1.1.1 3.7 2.1c1 .6 1 1.6 0 2.2l-3.7 2.1-.1-.1zM15.2 16.6L12 13.4l-8.4 8.4c.3.3.9.4 1.5 0l10.1-5.2zM15.2 8.4L5.1 3.2c-.6-.4-1.2-.3-1.5 0L12 11.6l3.2-3.2z"/>
-    </symbol>
-    <!-- Greek key / meander, 6 tiles of 24. One unbroken stroke, so a single
-         stroke-dashoffset draws the whole run. -->
-    <symbol id="meander" viewBox="-1 -1 146 18">
-      <path d="M0 16 L0 0 L20 0 L20 12 L8 12 L8 4 L16 4 L16 16 L24 16 L24 0 L44 0 L44 12 L32 12 L32 4 L40 4 L40 16 L48 16 L48 0 L68 0 L68 12 L56 12 L56 4 L64 4 L64 16 L72 16 L72 0 L92 0 L92 12 L80 12 L80 4 L88 4 L88 16 L96 16 L96 0 L116 0 L116 12 L104 12 L104 4 L112 4 L112 16 L120 16 L120 0 L140 0 L140 12 L128 12 L128 4 L136 4 L136 16 L144 16"/>
     </symbol>
   </defs>
 </svg>
 
-<header class="site-header" id="siteHeader">
+<!-- ══ 1 · Nav ═══════════════════════════════════════════════════════════ -->
+<header class="nav">
   <div class="shell">
-    <a class="brand" href="/">
-      <svg width="23" height="23" aria-hidden="true" focusable="false"><use href="#flame"/></svg>
-      Philoi
-    </a>
-    <nav class="nav" aria-label="Primary">
-      <a href="#lockin">Lock in</a>
-      <a href="#season">Emberfall</a>
-      <a href="#climb">The climb</a>
-      <a href="#cosmetics">Cosmetics</a>
-      <a href="#campfires">Campfires</a>
-      <a href="#challenges">Challenges</a>
-      <a href="#clubs">For clubs</a>
-    </nav>
-    <a class="nav-cta cta-pre" href="#notify">Notify me</a>
-    <a class="nav-cta cta-live" href="https://apps.apple.com/app/id6790697786">Get the app</a>
+    <a class="logo" href="/"><svg aria-hidden="true" focusable="false"><use href="#flame"/></svg>Philoi</a>
+    <a class="get cta-pre" href="#join">Get the app</a>
+    <a class="get cta-live" href="https://apps.apple.com/app/id6790697786">Get the app</a>
   </div>
 </header>
 
 <main id="main">
 
-  <!-- ══ 1 · HERO — SEASON 1: EMBERFALL ═════════════════════════════════ -->
+  <!-- ══ 2 · Hero — brand + value first ════════════════════════════════ -->
   <section class="hero" aria-labelledby="heroTitle">
+    <div class="embers" id="embers" aria-hidden="true"></div>
     <div class="shell">
+      <p class="season"><i aria-hidden="true"></i>Season 1 · Emberfall<i aria-hidden="true"></i></p>
+      <svg class="hero-mark" aria-hidden="true" focusable="false"><use href="#flame"/></svg>
+      <h1 id="heroTitle">Turn your campus into your <span class="g">leaderboard</span>.</h1>
+      <p class="lede">Lock in, climb the ranks, and duel your friends.</p>
 
-      <p class="season-pill">
-        <span class="dot" aria-hidden="true"></span>
-        Season 1
-        <span class="tag">Emberfall</span>
-      </p>
+      <div class="hero-cta">
+        <!-- launched -->
+        <a class="store cta-live" href="https://apps.apple.com/app/id6790697786">
+          <svg aria-hidden="true"><use href="#apple"/></svg>
+          <span><small>Download on the</small><b>App Store</b></span>
+        </a>
+        <p class="note cta-live">Out now on iOS · Android next</p>
 
-      <svg class="hero-mark" width="58" height="58" aria-hidden="true" focusable="false"><use href="#flame"/></svg>
-
-      <div class="hero-lockup">
-        <p class="word">Philoi</p>
-        <p class="slogan">For the Best on Campus</p>
-      </div>
-
-      <div class="hero-display">
-        <p class="s1">Season 1</p>
-        <h1 id="heroTitle">Emberfall</h1>
-        <p class="ribbon">
-          <span class="dot" aria-hidden="true"></span>
-          <span class="cta-pre">Launches October 1 · iOS</span>
-          <span class="cta-live">Out now on iOS</span>
-        </p>
-      </div>
-
-      <!-- ── Pre-launch: countdown + waitlist ─────────────────────────── -->
-      <div class="cta-pre">
-        <div class="countdown" id="countdown" role="timer" aria-live="off" aria-label="Countdown to the Season 1 Emberfall launch">
-          <div class="cd-cell"><div class="cd-num" data-cd="d">—</div><div class="cd-lab">Days</div></div>
-          <div class="cd-cell"><div class="cd-num" data-cd="h">—</div><div class="cd-lab">Hours</div></div>
-          <div class="cd-cell"><div class="cd-num" data-cd="m">—</div><div class="cd-lab">Minutes</div></div>
-          <div class="cd-cell"><div class="cd-num" data-cd="s">—</div><div class="cd-lab">Seconds</div></div>
-        </div>
-        <p class="cd-when">Season 1 opens <strong>October 1, 2026</strong> · midnight Eastern</p>
-
-        <div class="badges">
-          <div class="badge">
-            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><use href="#apple"/></svg>
-            <div><div class="top">October 1 on</div><div class="bot">the App Store</div></div>
-          </div>
-          <div class="badge is-next">
-            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><use href="#gplay"/></svg>
-            <div><div class="top">Coming next</div><div class="bot">Google Play</div></div>
-          </div>
-        </div>
-
-        <form class="notify" id="notify" action="mailto:support@philoi.app" method="post" enctype="text/plain">
-          <label class="sr-only" for="notify-email">Your email</label>
-          <input id="notify-email" type="email" name="email" placeholder="you@yourschool.edu" autocomplete="email" required>
+        <!-- pre-launch -->
+        <span class="store is-soon cta-pre" role="img" aria-label="On the App Store October 1">
+          <svg aria-hidden="true"><use href="#apple"/></svg>
+          <span><small>October 1 on the</small><b>App Store</b></span>
+        </span>
+        <p class="note cta-pre">Launches October 1 · iOS</p>
+        <form class="notify cta-pre" action="mailto:support@philoi.app" method="post" enctype="text/plain" data-notify>
+          <label class="sr-only" for="notify-hero">Your email</label>
+          <input id="notify-hero" type="email" name="email" placeholder="you@yourschool.edu" autocomplete="email" required>
           <input class="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
           <button type="submit">Notify me</button>
         </form>
-        <p class="notify-note" id="notifyNote">No spam. One email, the day Emberfall opens.</p>
-      </div>
-
-      <!-- ── Launched: the App Store button ───────────────────────────── -->
-      <div class="cta-live hero-live">
-        <div class="badges">
-          <a class="store-btn" href="https://apps.apple.com/app/id6790697786">
-            <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><use href="#apple"/></svg>
-            <span><span class="top" style="display:block">Download on the</span><span class="bot" style="display:block">App Store</span></span>
-          </a>
-          <div class="badge is-next">
-            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><use href="#gplay"/></svg>
-            <div><div class="top">Coming next</div><div class="bot">Google Play</div></div>
-          </div>
-        </div>
-        <p class="note">Free on iPhone. The Flame Pass is optional.</p>
-      </div>
-
-      <p class="scroll-cue"><span>Scroll ↓</span></p>
-    </div>
-  </section>
-
-  <!-- ══ 1.5 · THE CORE LINE ════════════════════════════════════════════ -->
-  <section class="core">
-    <div class="shell">
-      <h2 class="reveal">Turn Your Campus<br>Into Your <span class="hl">Leaderboard.</span></h2>
-      <p class="sub reveal">Every hour you lock in — studying, lifting, running, building — is scored. Your rank is public to your friends, your campfire, and your school. So is theirs. The boards reset every week, and the season remembers where you finished.</p>
-
-      <div class="rivalry reveal" data-board>
-        <div class="rivalry-head">
-          <span>Campus standings · this week</span>
-          <span class="live">Live</span>
-        </div>
-        <div class="rrow is-top">
-          <span class="pos">1</span>
-          <span class="school">Laurier</span>
-          <span class="score"><span class="coal" aria-hidden="true"></span><span data-count="12480">0</span></span>
-          <i class="fill" data-fill="100" aria-hidden="true"></i>
-        </div>
-        <div class="rrow">
-          <span class="pos">2</span>
-          <span class="school">Waterloo</span>
-          <span class="score"><span class="coal sm" aria-hidden="true"></span><span data-count="11905">0</span></span>
-          <i class="fill" data-fill="95" aria-hidden="true"></i>
-        </div>
-        <div class="rrow">
-          <span class="pos">3</span>
-          <span class="school">Western</span>
-          <span class="score"><span class="coal sm" aria-hidden="true"></span><span data-count="10241">0</span></span>
-          <i class="fill" data-fill="82" aria-hidden="true"></i>
-        </div>
-        <p class="rivalry-foot"><span class="cta-pre">Illustrative standings — Season 1 opens October 1.</span><span class="cta-live">Illustrative standings — your campus&rsquo;s real board is in the app.</span></p>
+        <p class="note is-muted cta-pre" data-notify-note>One email, the day it opens. No spam.</p>
       </div>
     </div>
   </section>
 
-  <div class="rule-greek reveal" aria-hidden="true">
-    <span class="rl-line"></span>
-    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
-    <span class="rl-line"></span>
-  </div>
-
-  <!-- ══ LOCK IN — the core loop ════════════════════════════════════════ -->
-  <section class="band" id="lockin">
-    <div class="shell">
-      <div class="band-head">
-        <p class="eyebrow reveal">Lock in</p>
-        <h2 class="reveal">Start the timer. <span class="hl">Feed the fire.</span></h2>
-        <p class="lede reveal">A lock-in is a focus session: studying, the gym, a run, deep work. Start one and your flame lights up for your friends. Every minute earns embers and XP toward your rank.</p>
+  <!-- ══ 3 · Compete — show the flex, don't describe it ════════════════ -->
+  <section class="sec" id="compete">
+    <div class="shell split">
+      <div class="reveal">
+        <p class="kicker">Compete</p>
+        <h2 class="st">Every hour you study, you climb.</h2>
+        <p class="sp">A live weekly leaderboard for your whole campus. Flame Pass holders&rsquo; names burn at the top.</p>
       </div>
+      <div class="reveal">
+        <div class="board" role="img" aria-label="A campus leaderboard where the top two names are on fire">
+          <div class="board-head"><span>Your campus · this week</span><span class="live">Live</span></div>
+          <div class="row fire"><span class="rk">1</span><span class="av">M</span><span class="nm"><span class="burn">maya</span><span class="seal" aria-hidden="true"></span></span><span class="pts">14h 20m</span></div>
+          <div class="row fire"><span class="rk">2</span><span class="av">P</span><span class="nm"><span class="burn">priya</span></span><span class="pts">13h 05m</span></div>
+          <div class="row"><span class="rk">3</span><span class="av">D</span><span class="nm">dev</span><span class="pts">11h 48m</span></div>
+          <div class="row me"><span class="rk">4</span><span class="av">Y</span><span class="nm">you</span><span class="pts">10h 12m</span></div>
+          <div class="row"><span class="rk">5</span><span class="av">S</span><span class="nm">sam</span><span class="pts">9h 40m</span></div>
+        </div>
+        <p class="cap">Illustrative board. The seal beside maya is the Emberfall Seal, earned at pass level 100.</p>
+      </div>
+    </div>
+  </section>
 
-      <div class="lockin-grid">
-        <ul class="b2b-list reveal">
-          <li>
-            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
-            <div><b>Embers and XP for every minute</b><p>Embers are what you spend in the shop. XP moves you up the rank ladder and the Flame Pass.</p></div>
-          </li>
-          <li>
-            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
-            <div><b>On your lock screen</b><p>A Live Activity keeps the timer on your lock screen, so you can put the phone face-down and still see it running.</p></div>
-          </li>
-          <li>
-            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
-            <div><b>Pause, resume, stay awake</b><p>Take a break without losing the session. The screen stays awake while you&rsquo;re locked in.</p></div>
-          </li>
-          <li>
-            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
-            <div><b>Your friends see it happen</b><p>Your campfire watches your flame catch in real time. It&rsquo;s harder to quit when people can see you.</p></div>
-          </li>
-        </ul>
-
-        <figure class="reveal" style="margin:0">
-          <div class="lockscreen" aria-label="An iPhone lock screen showing a Philoi lock-in as a Live Activity" role="img">
-            <p class="ls-date">Thursday, October 1</p>
-            <p class="ls-time">9:41</p>
-            <div class="live-act">
-              <div class="la-row">
-                <svg class="la-flame" aria-hidden="true"><use href="#flame"/></svg>
-                <div class="la-main"><b>Locked in · Study</b><span>Orgo midterm review</span></div>
-                <span class="la-timer" id="laTimer">47:12</span>
-              </div>
-              <div class="la-bar"><i></i></div>
-              <div class="la-foot"><span>Goal · 75 min</span><b><span class="coal sm" aria-hidden="true"></span>+94 embers</b></div>
+  <!-- ══ 4 · Together — duels + campfires ═══════════════════════════════ -->
+  <section class="sec" id="together">
+    <div class="shell split flip">
+      <div class="reveal">
+        <p class="kicker">Together</p>
+        <h2 class="st">Duel a friend. Rally a campfire.</h2>
+        <p class="sp">Head-to-head challenges, group study fires, and grade goals you take on with your circle.</p>
+      </div>
+      <div class="duo reveal">
+        <div class="tile">
+          <div class="tile-art">
+            <div class="duel-art" aria-hidden="true">
+              <div class="vs"><span class="av a">N</span><em>VS</em><span class="av b">M</span></div>
+              <div class="duel-bar"><i class="a"></i><i class="b"></i></div>
+              <div class="duel-nums"><span class="lead">14h 20m</span><span>10h 25m</span></div>
             </div>
           </div>
-          <figcaption class="ls-cap">The Live Activity, on your lock screen</figcaption>
-        </figure>
-      </div>
-    </div>
-  </section>
-
-  <!-- ══ SEASON 1 · EMBERFALL + THE FLAME PASS ══════════════════════════ -->
-  <section class="band" id="season" aria-labelledby="passTitle">
-    <div class="shell">
-      <div class="band-head">
-        <p class="eyebrow reveal">Season 1 · Fall 2026</p>
-        <h2 class="reveal">This semester, <span class="hl">the sky is on fire.</span></h2>
-        <p class="lede reveal">Every season has its own story, rewards and board. Season 1 is Emberfall. It runs all fall semester, and anything it gives you is yours to keep.</p>
-      </div>
-
-      <div class="pass-sky reveal">
-        <div class="pass-embers" id="passEmbers" aria-hidden="true"></div>
-
-        <p class="tagpill">Flame Pass · Season 1</p>
-        <h3 class="own" id="passTitle">Own <span class="g">Emberfall</span></h3>
-        <p class="tale">Hades tore the underworld open and the sky rained fire. This semester, every ember can <em>raise you or ruin you</em>.</p>
-        <p class="tale-2">Harness the fire with your fellow students and earn shards of Hades&rsquo; power as exclusive, permanent rewards. Gather enough and you forge the seal that shuts the dark back out.</p>
-
-        <div class="pass-price"><span class="big">$8.99</span><span class="per">/ semester</span></div>
-        <p class="pass-coffee">All for less than a cup of coffee.</p>
-
-        <div class="pass-grid">
-          <div class="pass-card">
-            <h3>Your name, on fire</h3>
-            <p class="sub">Flame Pass holders get the burning name, on every leaderboard, every campfire, the Agora and their profile. You don&rsquo;t equip it. You just have it.</p>
-            <div class="mini-board" aria-label="A campus leaderboard with one Flame Pass holder">
-              <div class="mb-row"><span class="p">1</span><span class="nm">maya</span><span class="v">14h 20m</span></div>
-              <div class="mb-row is-holder"><span class="p">2</span><span class="nm"><span class="burn">noah</span><span class="seal" style="--s:16px" role="img" aria-label="The Emberfall Seal"></span></span><span class="v">13h 05m</span></div>
-              <div class="mb-row"><span class="p">3</span><span class="nm">dev</span><span class="v">11h 48m</span></div>
-              <div class="mb-row"><span class="p">4</span><span class="nm">riya</span><span class="v">10h 12m</span></div>
-            </div>
-            <p class="mb-cap">See a name on fire? <b>That&rsquo;s a Flame Pass holder.</b></p>
-            <div class="seal-callout">
-              <span class="seal" style="--s:40px" aria-hidden="true"></span>
-              <p><b>The Emberfall Seal.</b> Forge it at pass level 100 and it burns beside your name forever.</p>
+          <b>1v1 duels</b>
+          <small>Out-study a friend</small>
+        </div>
+        <div class="tile">
+          <div class="tile-art">
+            <div class="fire-ring" aria-hidden="true">
+              <svg class="flame"><use href="#flame"/></svg>
+              <span class="p" style="left:50%;top:6%">J</span>
+              <span class="p" style="left:92%;top:36%">A</span>
+              <span class="p" style="left:78%;top:88%">R</span>
+              <span class="p cold" style="left:22%;top:88%">K</span>
+              <span class="p" style="left:8%;top:36%">T</span>
             </div>
           </div>
-
-          <div class="pass-card">
-            <h3>The season&rsquo;s cosmetics</h3>
-            <p class="sub">One is yours the moment you buy. You earn the rest by locking in through the season.</p>
-            <ul class="unlocks">
-              <li class="unlock"><span class="lv now">Instant</span><span><b>Emberfall Ascendant</b><span class="k">Flare</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
-              <li class="unlock"><span class="lv">Lv 25</span><span><b>Emberfall Standard</b><span class="k">Banner</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
-              <li class="unlock"><span class="lv">Lv 40</span><span><b>Void Smoke</b><span class="k">Particle</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
-              <li class="unlock"><span class="lv">Lv 50</span><span><b>Crown Halo</b><span class="k">Halo</span></span><span class="rar" style="--c:var(--r-mythic)">Mythic</span></li>
-              <li class="unlock"><span class="lv">Lv 50</span><span><b>Emberfall Strike</b><span class="k">Lock-in sound</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
-              <li class="unlock"><span class="lv">Lv 75</span><span><b>Emberfall Sovereign</b><span class="k">Card</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
-              <li class="unlock"><span class="lv">Lv 100</span><span><b>The Emberfall Seal</b><span class="k">Nameplate</span></span><span class="rar" style="--c:var(--r-mythic)">Mythic</span></li>
-              <li class="unlock"><span class="lv">Lv 100</span><span><b>&ldquo;Forged in Ember&rdquo;</b><span class="k">Title</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="pass-cta">
-          <div class="cta-pre">
-            <a class="ghost-btn" href="#notify">Notify me when it opens</a>
-            <p class="note">The Flame Pass unlocks in the app when the season opens on October 1.</p>
-          </div>
-          <div class="cta-live">
-            <a class="store-btn" href="https://apps.apple.com/app/id6790697786">
-              <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><use href="#apple"/></svg>
-              <span><span class="top" style="display:block">Get the Flame Pass on the</span><span class="bot" style="display:block">App Store</span></span>
-            </a>
-            <p class="note">Buy it from the Shop in the app. The rest of Philoi is free.</p>
-          </div>
+          <b>Campfires</b>
+          <small>Study crews + group challenges</small>
         </div>
       </div>
     </div>
   </section>
 
-  <div class="rule-greek reveal" aria-hidden="true">
-    <span class="rl-line"></span>
-    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
-    <span class="rl-line"></span>
-  </div>
-
-  <!-- ══ THE NAME — φίλοι ═══════════════════════════════════════════════ -->
-  <section class="band origin" id="origin">
+  <!-- ══ 5 · Collect — the Emberfall reel ═══════════════════════════════
+       Names, types and rarities straight from src/lib/economy/catalog.ts;
+       colours from rarity.ts. -->
+  <section class="sec" id="collect">
     <div class="shell">
-      <p class="eyebrow reveal">The name</p>
-
-      <p class="gk-word reveal" role="img" aria-label="Philoi, in Greek capitals: phi, iota, lambda, omicron, iota">
-        <span class="gl"><b>Φ</b><i>ph</i></span>
-        <span class="gl"><b>Ι</b><i>i</i></span>
-        <span class="gl"><b>Λ</b><i>l</i></span>
-        <span class="gl"><b>Ο</b><i>o</i></span>
-        <span class="gl"><b>Ι</b><i>i</i></span>
-      </p>
-
-      <p class="gk-trans reveal"><span class="gk">φίλοι</span> · <i>fee-loy</i> · Ancient Greek</p>
-      <p class="gk-def reveal">&ldquo;close friends bound by trust, affection, and shared effort&rdquo;</p>
-      <p class="gk-tie reveal">Shared effort is the last third of that definition and the whole of the app. The name was the spec before there was a spec.</p>
-
-      <div class="rule-greek reveal" aria-hidden="true">
-        <span class="rl-line"></span>
-        <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
-        <span class="rl-line"></span>
+      <div class="reveal">
+        <p class="kicker">Collect</p>
+        <h2 class="st">Wear the season you earned.</h2>
+        <p class="sp">Flames, banners, halos and titles from Season 1: Emberfall. Earn them by showing up, and wear them where everyone sees.</p>
       </div>
+      <div class="reel reveal" role="list" aria-label="Season 1 Emberfall cosmetics">
+        <div class="cos" role="listitem" style="--c:var(--r-mythic)"><div class="art"><span class="glow"></span><span class="seal" style="--s:38px"></span></div><p class="cn">The Emberfall Seal</p><p class="ct">Medal</p><p class="cr">Mythic</p></div>
+        <div class="cos" role="listitem" style="--c:var(--r-mythic)"><div class="art"><span class="glow"></span><span class="a-card"></span></div><p class="cn">Emberfall Sovereign</p><p class="ct">Card</p><p class="cr">Mythic</p></div>
+        <div class="cos" role="listitem" style="--c:var(--r-legendary)"><div class="art"><span class="a-flare"></span></div><p class="cn">Emberfall Ascendant</p><p class="ct">Flare</p><p class="cr">Legendary</p></div>
+        <div class="cos" role="listitem" style="--c:var(--r-legendary)"><div class="art"><span class="a-halo"></span></div><p class="cn">Emberfall Crown Halo</p><p class="ct">Halo</p><p class="cr">Legendary</p></div>
+        <div class="cos" role="listitem" style="--c:var(--r-legendary)"><div class="art"><span class="a-smoke"></span></div><p class="cn">Void Smoke</p><p class="ct">Particle</p><p class="cr">Legendary</p></div>
+        <div class="cos" role="listitem" style="--c:var(--r-legendary)"><div class="art"><span class="a-title">&ldquo;&rdquo;</span></div><p class="cn">&ldquo;Forged in Ember&rdquo;</p><p class="ct">Title</p><p class="cr">Legendary</p></div>
+        <div class="cos" role="listitem" style="--c:var(--r-legendary)"><div class="art"><span class="glow"></span><span class="a-banner"></span></div><p class="cn">Ashfall</p><p class="ct">Banner</p><p class="cr">Legendary</p></div>
+        <div class="cos" role="listitem" style="--c:var(--r-epic)"><div class="art"><span class="glow"></span><svg class="a-flame" aria-hidden="true"><use href="#flame"/></svg></div><p class="cn">Emberfall Flame</p><p class="ct">Flame</p><p class="cr">Epic</p></div>
+        <div class="cos" role="listitem" style="--c:var(--r-epic)"><div class="art"><span class="glow"></span><span class="a-banner"></span></div><p class="cn">Emberfall Night</p><p class="ct">Banner</p><p class="cr">Epic</p></div>
+        <div class="cos" role="listitem" style="--c:var(--r-rare)"><div class="art"><span class="a-title">&ldquo;&rdquo;</span></div><p class="cn">&ldquo;Emberfall Contender&rdquo;</p><p class="ct">Title</p><p class="cr">Rare</p></div>
+        <div class="cos" role="listitem" style="--c:var(--r-uncommon)"><div class="art"><span class="a-title">&ldquo;&rdquo;</span></div><p class="cn">&ldquo;Emberfall Initiate&rdquo;</p><p class="ct">Title</p><p class="cr">Uncommon</p></div>
+        <div class="cos" role="listitem" style="--c:var(--r-common)"><div class="art"><span class="glow"></span><span class="seal" style="--s:30px;filter:grayscale(.7) brightness(.8)"></span></div><p class="cn">Emberfall Ashmark</p><p class="ct">Medal</p><p class="cr">Common</p></div>
+      </div>
+      <p class="swipe" aria-hidden="true">Swipe for more →</p>
+    </div>
+  </section>
 
-      <div class="origin-grid">
-        <figure class="ring-wrap reveal">
-          <svg class="ring" viewBox="0 0 160 160" role="img" aria-label="Seven friends ringed around one fire">
-            <circle class="orbit" cx="80" cy="80" r="52"/>
-            <g class="spoke" stroke="currentColor">
-              <path d="M80 28 L130.7 91.6 L57.4 126.9 L39.4 47.6 L120.7 47.6 L102.6 126.9 L29.3 91.6 Z" fill="none"/>
-            </g>
-            <circle class="friend" cx="80" cy="28" r="5"/>
-            <circle class="friend" cx="120.7" cy="47.6" r="5"/>
-            <circle class="friend" cx="130.7" cy="91.6" r="5"/>
-            <circle class="friend" cx="102.6" cy="126.9" r="5"/>
-            <circle class="friend" cx="57.4" cy="126.9" r="5"/>
-            <circle class="friend" cx="29.3" cy="91.6" r="5"/>
-            <circle class="friend" cx="39.4" cy="47.6" r="5"/>
-            <use href="#flame" x="64" y="64" width="32" height="32"/>
-          </svg>
-          <figcaption class="ring-cap"><b>φίλος</b> is one friend. <b>φίλοι</b> is the plural — and there is no version of this app for the singular.</figcaption>
-        </figure>
-
-        <ul class="lexicon">
-          <li class="lex reveal">
-            <span class="lex-gk">Αγορά</span><span class="lex-tr">agorá</span>
-            <p>The gathering place — marketplace, forum, cultural heart. In Philoi it is the feed, where a win gets an audience instead of a private notification to three people.</p>
-          </li>
-          <li class="lex reveal">
-            <span class="lex-gk">Φιλία</span><span class="lex-tr">philía</span>
-            <p>The root the name grows from: the bond between equals who make each other better. Not the friendship of convenience — the one with effort in it.</p>
-          </li>
-          <li class="lex reveal">
-            <span class="lex-gk">Ήρως · Τιτάν · Θεῖος</span><span class="lex-tr">hērōs · titán · theîos</span>
-            <p>Past Diamond the ladder leaves the mortal climb and enters the realm of legend. Hero, Titan, Divine, Immortal — four tiers most people never see.</p>
-          </li>
-          <li class="lex reveal">
-            <span class="lex-gk">Πρωτόγονος</span><span class="lex-tr">prōtógonos</span>
-            <p>First-born — the beings that came before the gods. It is the apex tier, and the only one with no divisions to climb through. You are Primordial or you are not.</p>
-          </li>
-          <li class="lex reveal">
-            <span class="lex-gk">α β γ δ Ω</span><span class="lex-tr">alpha to omega</span>
-            <p>The five rungs stamped on every discipline relic. α is the day you started. Ω is the last one the ladder has.</p>
-          </li>
-        </ul>
+  <!-- ══ 6 · Your edge — Cindy, LAST ════════════════════════════════════ -->
+  <section class="sec" id="cindy">
+    <div class="shell split">
+      <div class="reveal">
+        <p class="kicker">Your edge</p>
+        <h2 class="st">Cindy turns it all into a plan.</h2>
+        <p class="sp">Your AI Flame reads your calendar, then tells you what to lock in on and when.</p>
+      </div>
+      <div class="cindy reveal">
+        <div class="cindy-tag">
+          <span class="cf"><svg aria-hidden="true"><use href="#flame"/></svg></span>
+          <span><b>Cindy</b><small>your AI Flame</small></span>
+        </div>
+        <p class="bub">You&rsquo;ve got <b>KP390 on Friday</b>. Lock in 90 minutes tonight and an hour tomorrow and you&rsquo;ll walk in ready.</p>
       </div>
     </div>
   </section>
 
-  <div class="rule-greek reveal" aria-hidden="true">
-    <span class="rl-line"></span>
-    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
-    <span class="rl-line"></span>
-  </div>
-
-  <!-- ══ 2 · THE CLIMB ══════════════════════════════════════════════════ -->
-  <section class="band climb" id="climb">
+  <!-- ══ 7 · Final CTA ══════════════════════════════════════════════════ -->
+  <section class="final" id="join" aria-labelledby="joinTitle">
     <div class="shell">
-      <div class="band-head">
-        <p class="eyebrow reveal">The climb</p>
-        <h2 class="reveal">Rise through the <span class="hl">pantheon.</span></h2>
-        <p class="lede reveal">Ten tiers, thirty divisions. Everyone starts in Bronze. Every hour you lock in forges you up the ladder — and past Diamond you leave the mortal climb behind. Almost nobody reaches Primordial. That is the point.</p>
-      </div>
+      <h2 id="joinTitle">Join the climb <span class="g">this semester.</span></h2>
 
-      <div class="ladder" data-ladder aria-label="Rank ladder from Bronze to Primordial">
-        <div class="rung" style="--outer:#6E4423;--inner:#B87333;--inner-dark:#7d4d22;--numeral:#3A2410;--tint:#B87333">
-          <div class="hex"><span class="num">I</span></div><p class="name">Bronze</p>
-        </div>
-        <div class="rung" style="--outer:#6B7280;--inner:#C4CBD6;--inner-dark:#8b929c;--numeral:#2B3038;--tint:#C4CBD6">
-          <div class="hex"><span class="num">I</span></div><p class="name">Silver</p>
-        </div>
-        <div class="rung" style="--outer:#9A6A12;--inner:#F5C542;--inner-dark:#ab8a2e;--numeral:#4A3406;--tint:#F5C542">
-          <div class="hex"><span class="num">II</span></div><p class="name">Gold</p>
-        </div>
-        <div class="rung" style="--outer:#6E8B98;--inner:#A7C7D4;--inner-dark:#758c95;--numeral:#22333B;--tint:#C4DAE3">
-          <div class="hex"><span class="num">II</span></div><p class="name">Platinum</p>
-        </div>
-        <div class="rung" style="--outer:#2C6E76;--inner:#7FE0E8;--inner-dark:#59a0a6;--numeral:#06323A;--tint:#7FE0E8">
-          <div class="hex"><span class="num">II</span></div><p class="name">Diamond</p>
-        </div>
-        <div class="rung" style="--outer:#8F2E28;--inner:#E0574C;--inner-dark:#9d3d35;--numeral:#4A1310;--tint:#F0897E">
-          <div class="hex"><span class="num">III</span></div><p class="name">Hero</p>
-        </div>
-        <div class="rung" style="--outer:#1E5E4A;--inner:#4FA88C;--inner-dark:#377763;--numeral:#0C2E24;--tint:#7FD4B8">
-          <div class="hex"><span class="num">III</span></div><p class="name">Titan</p>
-        </div>
-        <div class="rung is-mythic" style="--outer:#C0A24E;--inner:#F7E9C0;--inner-dark:#b0a486;--numeral:#4A3A12;--tint:#FBF1D4;--glow:rgba(192,162,78,.55)">
-          <svg class="rays" viewBox="0 0 200 200" aria-hidden="true"><g fill="currentColor" opacity=".55"><path d="M100 0 106 78 94 78Z"/><path d="M100 200 106 122 94 122Z"/><path d="M0 100 78 94 78 106Z"/><path d="M200 100 122 94 122 106Z"/><path d="M29 29 88 82 82 88Z"/><path d="M171 171 112 118 118 112Z"/><path d="M171 29 118 88 112 82Z"/><path d="M29 171 82 112 88 118Z"/></g></svg>
-          <div class="hex"><span class="num">III</span></div><p class="name">Divine</p>
-        </div>
-        <div class="rung is-mythic" style="--outer:#8E6BC8;--inner:#EAE2FA;--inner-dark:#a79ec2;--numeral:#33245C;--tint:#E4D6FF;--glow:rgba(142,107,200,.55)">
-          <svg class="rays" viewBox="0 0 200 200" aria-hidden="true"><g fill="currentColor" opacity=".55"><path d="M100 0 106 78 94 78Z"/><path d="M100 200 106 122 94 122Z"/><path d="M0 100 78 94 78 106Z"/><path d="M200 100 122 94 122 106Z"/><path d="M29 29 88 82 82 88Z"/><path d="M171 171 112 118 118 112Z"/><path d="M171 29 118 88 112 82Z"/><path d="M29 171 82 112 88 118Z"/></g></svg>
-          <div class="hex"><span class="num">III</span></div><p class="name">Immortal</p>
-        </div>
-        <div class="rung is-mythic" style="--outer:#B0431E;--inner:#F2A33C;--inner-dark:#c07b2b;--numeral:#4A1B0C;--tint:#F7B85A;--glow:rgba(247,184,90,.6)">
-          <svg class="rays" viewBox="0 0 200 200" aria-hidden="true"><g fill="currentColor" opacity=".6"><path d="M100 0 106 78 94 78Z"/><path d="M100 200 106 122 94 122Z"/><path d="M0 100 78 94 78 106Z"/><path d="M200 100 122 94 122 106Z"/><path d="M29 29 88 82 82 88Z"/><path d="M171 171 112 118 118 112Z"/><path d="M171 29 118 88 112 82Z"/><path d="M29 171 82 112 88 118Z"/><path d="M100 8 104 60 96 60Z"/><path d="M150 14 128 62 120 58Z"/><path d="M50 14 72 62 80 58Z"/></g></svg>
-          <div class="hex"><svg width="46%" height="46%" aria-hidden="true"><use href="#flame"/></svg></div><p class="name">Primordial</p>
-        </div>
-      </div>
+      <a class="store cta-live" href="https://apps.apple.com/app/id6790697786">
+        <svg aria-hidden="true"><use href="#apple"/></svg>
+        <span><small>Download on the</small><b>App Store</b></span>
+      </a>
+      <p class="note cta-live">Out now on iOS · Android next · $8.99 season pass, less than a coffee</p>
 
-      <div class="climb-notes">
-        <div class="note-card reveal">
-          <h3>The bar fills in your tier</h3>
-          <p>Bronze fills bronze. Diamond fills teal. Your rank is not a number in a settings screen — it is the colour of every bar you look at all day.</p>
-        </div>
-        <div class="note-card reveal">
-          <h3>Divisions III → I</h3>
-          <p>Each tier splits three ways, so the climb always has a next step. Primordial has no divisions. You are either there or you are not.</p>
-        </div>
-        <div class="note-card reveal">
-          <h3>Rank up in public</h3>
-          <p>Promotions land as a full-screen forge reveal, then a share card your campfire actually sees. Getting there is half of it. Them seeing it is the other half.</p>
-        </div>
-        <div class="note-card reveal">
-          <h3>Weekly boards, season placement</h3>
-          <p>Your campus leaderboard is public and resets every week, so there&rsquo;s always a race you can still win. When the season ends, you get a placement based on where you finished.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <div class="rule-greek reveal" aria-hidden="true">
-    <span class="rl-line"></span>
-    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
-    <span class="rl-line"></span>
-  </div>
-
-  <!-- ══ 3 · RELICS ═════════════════════════════════════════════════════ -->
-  <section class="band" id="relics">
-    <div class="shell">
-      <div class="band-head">
-        <p class="eyebrow reveal">Relics</p>
-        <h2 class="reveal">Earn your <span class="hl">discipline.</span></h2>
-        <p class="lede reveal">One relic per discipline, and it upgrades as you do — α through Ω, uncommon up to mythic. Not a badge you collect. A record of what you actually did, sitting on your profile where everyone can read it.</p>
-      </div>
-
-      <div class="shelf" data-shelf>
-        <article class="relic reveal" style="--from:#6B5B95;--to:#FFD27A">
-          <div class="artifact a-scroll" aria-hidden="true"></div>
-          <h3>Socrates&rsquo; Scroll</h3>
-          <p class="disc">Study</p>
-          <p class="lore">The unexamined hour isn&rsquo;t worth logging. You examined a hundred.</p>
-          <div class="prog">
-            <div class="track"><i class="fill" data-fill="72" aria-hidden="true"></i></div>
-            <div class="meta"><span>144 / 200 h</span><span class="rung-glyph">γ III</span></div>
-          </div>
-        </article>
-
-        <article class="relic reveal" style="--from:#8B3A1F;--to:#FF9A3C">
-          <div class="artifact a-gem" aria-hidden="true"></div>
-          <h3>Hercules&rsquo; Might</h3>
-          <p class="disc">Gym / Lift</p>
-          <p class="lore">Twelve labours. You&rsquo;re somewhere past the seventh — and it shows.</p>
-          <div class="prog">
-            <div class="track"><i class="fill" data-fill="58" aria-hidden="true"></i></div>
-            <div class="meta"><span>58,200 / 100,000 lb</span><span class="rung-glyph">γ III</span></div>
-          </div>
-        </article>
-
-        <article class="relic reveal" style="--from:#4FB0E5;--to:#FFF0B8">
-          <div class="artifact a-wing" aria-hidden="true"></div>
-          <h3>Pheidippides&rsquo; Sandals</h3>
-          <p class="disc">Movement</p>
-          <p class="lore">He crossed 414 km on foot to call for help. You have matched every step.</p>
-          <div class="prog">
-            <div class="track"><i class="fill" data-fill="86" aria-hidden="true"></i></div>
-            <div class="meta"><span>357 / 414 km</span><span class="rung-glyph">δ IV</span></div>
-          </div>
-        </article>
-
-        <article class="relic reveal" style="--from:#2E5E4E;--to:#7BE0FF">
-          <div class="artifact a-plan" aria-hidden="true"></div>
-          <h3>Daedalus&rsquo; Blueprint</h3>
-          <p class="disc">Deep work</p>
-          <p class="lore">The labyrinth wasn&rsquo;t built in a day. Neither is whatever you&rsquo;re making.</p>
-          <div class="prog">
-            <div class="track"><i class="fill" data-fill="41" aria-hidden="true"></i></div>
-            <div class="meta"><span>41 / 100 h</span><span class="rung-glyph">β II</span></div>
-          </div>
-        </article>
-
-        <article class="relic reveal" style="--from:#1F3A5F;--to:#C9B6FF">
-          <div class="artifact a-orb" aria-hidden="true"></div>
-          <h3>Oracle&rsquo;s Stillness</h3>
-          <p class="disc">Meditate</p>
-          <p class="lore">The Oracle spoke only in the quiet. You have kept a great deal of it.</p>
-          <div class="prog">
-            <div class="track"><i class="fill" data-fill="23" aria-hidden="true"></i></div>
-            <div class="meta"><span>11 / 50 h</span><span class="rung-glyph">α I</span></div>
-          </div>
-        </article>
-
-        <article class="relic reveal" style="--from:#F5C542;--to:#FF2A2A">
-          <div class="artifact a-crown" aria-hidden="true"></div>
-          <h3>Crown of Olympus</h3>
-          <p class="disc">Mythic · all five, maxed</p>
-          <p class="lore">Master of no single art, but of the discipline beneath all of them. Olympus has a seat for that.</p>
-          <div class="prog">
-            <div class="track"><i class="fill" data-fill="8" aria-hidden="true"></i></div>
-            <div class="meta"><span>1 / 5 ladders at Ω</span><span class="rung-glyph">Ω V</span></div>
-          </div>
-        </article>
-      </div>
-
-      <p class="secret-line reveal">🔒 <span>And the ones nobody has a checklist for — <b>secret relics</b>, found, not given.</span></p>
-    </div>
-  </section>
-
-  <div class="rule-greek reveal" aria-hidden="true">
-    <span class="rl-line"></span>
-    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
-    <span class="rl-line"></span>
-  </div>
-
-  <!-- ══ 4 · COSMETICS ══════════════════════════════════════════════════ -->
-  <section class="band cosmetics" id="cosmetics">
-    <div class="shell">
-      <div class="band-head">
-        <p class="eyebrow reveal">Cosmetics</p>
-        <h2 class="reveal">Open crates. <span class="hl">Flex the profile.</span></h2>
-        <p class="lede reveal">Flames, flares, halos, banners, profile cards, titles and sound effects. You earn them on the climb, pull them from crates, or craft them in the Forge. Then you equip a loadout, and everybody who opens your profile sees it.</p>
-      </div>
-
-      <div class="crate-grid">
-        <div class="crate-stage reveal" id="crateStage" style="--rar:#F5C542">
-          <div class="crate" id="crate">
-            <span class="seam" aria-hidden="true"></span>
-            <svg class="lockglyph" viewBox="0 0 24 24" aria-hidden="true"><use href="#flame"/></svg>
-          </div>
-          <div class="reveal-item" id="revealItem" aria-live="polite">
-            <div class="reveal-art" aria-hidden="true"></div>
-            <span class="rar-chip" data-rar>Legendary</span>
-            <h3 data-name>Void Smoke</h3>
-            <p class="kind" data-kind>Flare · app-wide aura</p>
-          </div>
-          <button class="crate-btn" id="crateBtn" type="button">Open a crate</button>
-          <p class="crate-hint">Odds are shown in-app, before you spend anything.</p>
-        </div>
-
-        <div class="flex-panel">
-          <div class="profile-card reveal">
-            <span class="pc-tag">Profile</span>
-            <div class="pc-inner">
-              <div class="pc-avatar" aria-hidden="true">N</div>
-              <div>
-                <div class="pc-name">noah</div>
-                <div class="pc-title">&ldquo;Kindled by Emberfall&rdquo;</div>
-              </div>
-              <div class="pc-rank">Rank<span class="big">Divine III</span></div>
-            </div>
-          </div>
-          <div class="slots">
-            <div class="slot reveal" style="--c:#FF6B6B"><div class="dotart" aria-hidden="true"></div><b>Flare</b><span>Aura</span></div>
-            <div class="slot reveal" style="--c:#F5C542"><div class="dotart" aria-hidden="true"></div><b>Halo</b><span>Avatar ring</span></div>
-            <div class="slot reveal" style="--c:#a06cd5"><div class="dotart" aria-hidden="true"></div><b>Banner</b><span>Campfire</span></div>
-            <div class="slot reveal" style="--c:#4FB0E5"><div class="dotart" aria-hidden="true"></div><b>Card</b><span>Background</span></div>
-            <div class="slot reveal" style="--c:#3DA85C"><div class="dotart" aria-hidden="true"></div><b>SFX</b><span>Lock-in sound</span></div>
-            <div class="slot reveal" style="--c:#E0612C"><div class="dotart" aria-hidden="true"></div><b>Flame</b><span>Skin</span></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="rarity-legend reveal">
-        <span class="rl" style="--c:#3DA85C"><i aria-hidden="true"></i>Uncommon</span>
-        <span class="rl" style="--c:#4FB0E5"><i aria-hidden="true"></i>Rare</span>
-        <span class="rl" style="--c:#a06cd5"><i aria-hidden="true"></i>Epic</span>
-        <span class="rl" style="--c:#F5C542"><i aria-hidden="true"></i>Legendary</span>
-        <span class="rl" style="--c:#FF6B6B"><i aria-hidden="true"></i>Mythic</span>
-      </div>
-
-      <div class="prestige-strip reveal">
-        <span class="lab">The Forge</span>
-        <span class="pstar"><span class="coal sm" aria-hidden="true"></span>Craft</span>
-        <span class="pstar"><span class="coal sm" aria-hidden="true"></span>Equip</span>
-        <span class="pstar"><span class="coal sm" aria-hidden="true"></span>Show off</span>
-        <p>Got cosmetics you don&rsquo;t want? Take a few to the Forge and melt them into one of the next rarity up, all the way to Mythic. Then equip your loadout and wear it everywhere your name shows up.</p>
-      </div>
-    </div>
-  </section>
-
-  <div class="rule-greek reveal" aria-hidden="true">
-    <span class="rl-line"></span>
-    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
-    <span class="rl-line"></span>
-  </div>
-
-  <!-- ══ 5 · CAMPFIRES ══════════════════════════════════════════════════ -->
-  <section class="band" id="campfires">
-    <div class="shell">
-      <div class="band-head">
-        <p class="eyebrow reveal">Campfires</p>
-        <h2 class="reveal">Your circle, <span class="hl">around one fire.</span></h2>
-        <p class="lede reveal">A campfire is private — your people, no strangers, no algorithm. Everyone&rsquo;s fire lights up in real time when they lock in, and goes cold when they don&rsquo;t. It flies its own banner, keeps its own streak, and prestiges when the group holds the line together.</p>
-      </div>
-
-      <div class="fires">
-        <article class="fire reveal" style="--b1:#7A2E1C;--b2:#2C1B36">
-          <div class="fire-banner"><span class="fire-tag">Emberfall Night</span><span class="flick" aria-hidden="true"></span></div>
-          <div class="fire-body">
-            <h3>4am Club</h3>
-            <p class="fire-meta"><span><b>31</b>-day streak</span><span>6 members</span></p>
-            <ul class="feed">
-              <li><span class="av" aria-hidden="true">M</span><span><strong>maya</strong> locked in — 90m study</span></li>
-              <li><span class="av" aria-hidden="true">J</span><span><strong>jo</strong> hit Gold I</span></li>
-              <li><span class="av" aria-hidden="true">D</span><span><strong>dev</strong> kept the streak alive</span></li>
-            </ul>
-          </div>
-        </article>
-
-        <article class="fire reveal" style="--b1:#1E5E4A;--b2:#17131F">
-          <div class="fire-banner"><span class="fire-tag">Ashfall Ridge</span><span class="flick" aria-hidden="true"></span></div>
-          <div class="fire-body">
-            <h3>Engineering Grind</h3>
-            <p class="fire-meta"><span><b>12</b>-day streak</span><span>9 members</span></p>
-            <ul class="feed">
-              <li><span class="av" aria-hidden="true">A</span><span><strong>amir</strong> pulled a Mythic flare</span></li>
-              <li><span class="av" aria-hidden="true">S</span><span><strong>sam</strong> finished a 3h deep-work block</span></li>
-              <li><span class="av" aria-hidden="true">R</span><span><strong>riya</strong> claimed the daily fire</span></li>
-            </ul>
-          </div>
-        </article>
-
-        <article class="fire reveal" style="--b1:#3A2E5C;--b2:#161320">
-          <div class="fire-banner"><span class="fire-tag">Obsidian Colosseum</span><span class="flick" aria-hidden="true"></span></div>
-          <div class="fire-body">
-            <h3>Gym at 6</h3>
-            <p class="fire-meta"><span><b>58</b>-day streak</span><span>4 members</span></p>
-            <ul class="feed">
-              <li><span class="av" aria-hidden="true">T</span><span><strong>tomi</strong> logged 14,000 lb</span></li>
-              <li><span class="av" aria-hidden="true">K</span><span><strong>kai</strong> upgraded Hercules&rsquo; Might to δ</span></li>
-              <li><span class="av" aria-hidden="true">L</span><span><strong>len</strong> is locked in right now</span></li>
-            </ul>
-          </div>
-        </article>
-      </div>
-
-      <div class="prestige-strip reveal">
-        <span class="lab">Prestige</span>
-        <span class="pstar"><span class="coal sm" aria-hidden="true"></span>Ember I</span>
-        <span class="pstar"><span class="coal sm" aria-hidden="true"></span>Ember II</span>
-        <span class="pstar"><span class="coal sm" aria-hidden="true"></span>Ember III</span>
-        <p>Hold the campfire streak long enough and the whole fire prestiges — a permanent mark on the campfire, earned by the group, not by one person carrying it.</p>
-      </div>
-    </div>
-  </section>
-
-  <div class="rule-greek reveal" aria-hidden="true">
-    <span class="rl-line"></span>
-    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
-    <span class="rl-line"></span>
-  </div>
-
-  <!-- ══ 6 · CHALLENGES ═════════════════════════════════════════════════ -->
-  <section class="band challenges" id="challenges">
-    <div class="shell">
-      <div class="band-head">
-        <p class="eyebrow reveal">Challenges</p>
-        <h2 class="reveal">Duel a friend. Or <span class="hl">the whole campfire.</span></h2>
-        <p class="lede reveal">Put it on the line, solo or against friends. Pick a metric and a window, and the app scores it live. Fitness challenges verify themselves from your health data, and your friends vouch for everything else. The harder the challenge, the bigger the payout.</p>
-      </div>
-
-      <div class="duel-grid" data-bars>
-        <div class="panel reveal">
-          <div class="panel-head">
-            <h3>1v1 duel</h3>
-            <span class="chip hot">Live · 2d 4h left</span>
-          </div>
-          <div class="duel">
-            <div class="fighter is-lead" style="--c1:#F2A33C;--c2:#E0612C">
-              <div class="av"><span class="crown" aria-hidden="true">👑</span>N</div>
-              <b>noah</b><span>Divine III</span>
-            </div>
-            <span class="vs">VS</span>
-            <div class="fighter" style="--c1:#4FB0E5;--c2:#3A2E5C">
-              <div class="av">M</div>
-              <b>maya</b><span>Diamond II</span>
-            </div>
-          </div>
-          <div class="duel-bar"><i class="a" data-fill="58" aria-hidden="true"></i><i class="b" data-fill="42" aria-hidden="true"></i></div>
-          <div class="duel-nums"><span class="lead">14h 20m studied</span><span>10h 25m</span></div>
-          <p class="stake"><span>Winner takes</span> <b><span class="coal sm" aria-hidden="true"></span>900 embers</b> <span>+ the bragging rights, posted to the campfire.</span></p>
-        </div>
-
-        <div class="panel reveal">
-          <div class="panel-head">
-            <h3>Campfire race</h3>
-            <span class="chip">Collective · 4d left</span>
-          </div>
-          <div class="race-top">
-            <span class="n"><span data-count="184">0</span> <span class="g">/ 250 lock-ins</span></span>
-          </div>
-          <div class="race-bar"><i data-fill="74" aria-hidden="true"></i></div>
-          <ul class="standings">
-            <li><span class="p">1</span><span>amir</span><span class="v">41</span></li>
-            <li class="me"><span class="p">2</span><span>you</span><span class="v">38</span></li>
-            <li><span class="p">3</span><span>riya</span><span class="v">33</span></li>
-            <li><span class="p">4</span><span>sam</span><span class="v">29</span></li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="mode-row">
-        <div class="mode reveal"><b>Duel</b><p>Head to head on one metric. Hours, distance, volume, lock-ins — whatever you both agreed to.</p></div>
-        <div class="mode reveal"><b>Collective</b><p>The whole campfire chases one target together. Everyone who contributed gets paid.</p></div>
-        <div class="mode reveal"><b>Placement</b><p>Same window, individual standings. Top finishers take the bigger cut of the pot.</p></div>
-        <div class="mode reveal"><b>Team mode</b><p>Two sides, one scorekeeper reports the final, and both rosters get rewarded off the result.</p></div>
-        <div class="mode reveal"><b>Solo goals</b><p>Just you against a target: hours studied, gym visits, kilometres run. Hit it, get paid.</p></div>
-        <div class="mode reveal"><b>ACE this course</b><p>A grade goal. Set the mark you&rsquo;re going for, study toward it all term, and claim it when the grade comes back.</p></div>
-      </div>
-
-      <div class="prestige-strip reveal">
-        <span class="lab">Verified</span>
-        <span class="pstar">Auto · health data</span>
-        <span class="pstar">Vouched · two friends</span>
-        <span class="pstar">Honour</span>
-        <p>Runs, steps and gym sessions sync from Apple Health, Health Connect and Strava and check themselves. Anything a sensor can&rsquo;t see, two friends can vouch for, and vouched goals pay more than honour ones.</p>
-      </div>
-    </div>
-  </section>
-
-  <div class="rule-greek reveal" aria-hidden="true">
-    <span class="rl-line"></span>
-    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
-    <span class="rl-line"></span>
-  </div>
-
-  <!-- ══ AROUND THE LOCK-IN — Cindy, the Agora, Focus Nudge, fitness ═══ -->
-  <section class="band" id="more">
-    <div class="shell">
-      <div class="band-head">
-        <p class="eyebrow reveal">Around the lock-in</p>
-        <h2 class="reveal">Everything that gets you <span class="hl">back to work.</span></h2>
-        <p class="lede reveal">A coach who knows your week, a feed that cheers you on, a nudge when you drift, and workouts that log themselves.</p>
-      </div>
-
-      <div class="feat-grid">
-        <article class="feat reveal">
-          <span class="ic" aria-hidden="true"><svg class="solid" viewBox="0 0 24 24"><use href="#flame"/></svg></span>
-          <h3>Cindy, the AI Flame</h3>
-          <p>Your AI coach. Connect your calendar and Cindy plans around what&rsquo;s actually due, then nudges you before the week gets away from you.</p>
-          <div class="demo"><span class="who">Cindy</span>Orgo midterm is Thursday. Two 45-minute lock-ins tonight and tomorrow puts you on pace.</div>
-        </article>
-
-        <article class="feat reveal">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 21V9l9-6 9 6v12"/><path d="M8 21v-7h8v7"/><path d="M3 9h18"/></svg></span>
-          <h3>The Agora</h3>
-          <p>Your campus feed. Milestones, lock-ins, rank-ups and rewards from people at your school, so a win gets an audience. You can report or block anyone.</p>
-          <div class="demo"><span class="who">Agora · your campus</span><strong>jo</strong> hit Gold I <span class="muted">· 4m</span><br><strong>sam</strong> finished a 3h deep-work block <span class="muted">· 12m</span></div>
-        </article>
-
-        <article class="feat reveal">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 18h4"/><path d="M12 7v4"/><circle cx="12" cy="13.5" r=".6"/></svg></span>
-          <h3>Focus Nudge</h3>
-          <p>Pick the apps that pull you away. Open one while you should be working, and Philoi steps in with a gentle nudge back to your lock-in. It&rsquo;s a nudge, not a lock. You can always go through.</p>
-          <div class="demo"><span class="who">Focus Nudge</span>You&rsquo;re 32 minutes into a study lock-in. Back to it? <span class="muted">· Keep going / Open anyway</span></div>
-        </article>
-
-        <article class="feat reveal">
-          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg></span>
-          <h3>Fitness sync</h3>
-          <p>Connect Apple Health on iPhone, Health Connect on Android, or Strava. Your runs, steps and gym sessions count automatically, and fitness challenges verify themselves.</p>
-          <div class="src-row"><span class="src">Apple Health</span><span class="src">Health Connect</span><span class="src">Strava</span></div>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <div class="rule-greek reveal" aria-hidden="true">
-    <span class="rl-line"></span>
-    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
-    <span class="rl-line"></span>
-  </div>
-
-  <!-- ══ 7 · B2B — clubs & intramural teams ═════════════════════════════ -->
-  <section class="band b2b" id="clubs">
-    <div class="shell">
-      <div class="band-head">
-        <p class="eyebrow reveal">For clubs &amp; teams</p>
-        <h2 class="reveal">Run your club on Philoi.</h2>
-        <p class="lede reveal">Intramural teams, varsity clubs, study societies, fraternities and sororities — anywhere attendance is the whole problem. Philoi gives you a private space, a season-long structure, and a leaderboard your members actually open.</p>
-      </div>
-
-      <div class="b2b-grid">
-        <ul class="b2b-list reveal">
-          <li>
-            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
-            <div><b>A private campfire for the roster</b><p>Invite-only. Members see each other train in real time — nobody else does.</p></div>
-          </li>
-          <li>
-            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
-            <div><b>Season-long training challenges</b><p>Set a target for the term — sessions, hours, distance, volume — and let it score itself.</p></div>
-          </li>
-          <li>
-            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
-            <div><b>Team mode for game days</b><p>One scorekeeper reports the final. Both rosters get credited and rewarded off it — no spreadsheet.</p></div>
-          </li>
-          <li>
-            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
-            <div><b>A leaderboard people check</b><p>Ranks, streaks and standings your exec can point at in the group chat on a Sunday night.</p></div>
-          </li>
-        </ul>
-
-        <div>
-          <div class="panel reveal">
-            <div class="panel-head"><h3>What we need from you</h3><span class="chip">Pilot</span></div>
-            <ul class="feed" style="border-top:0;margin-top:0;padding-top:0">
-              <li><span class="av" aria-hidden="true">1</span><span>A roster — <strong>10 members or more</strong>.</span></li>
-              <li><span class="av" aria-hidden="true">2</span><span>One exec who&rsquo;ll run the campfire.</span></li>
-              <li><span class="av" aria-hidden="true">3</span><span>A term you want to structure. That&rsquo;s it.</span></li>
-            </ul>
-            <p class="stake" style="border-top:1px solid var(--line)">Pilots for Season 1 are set up by hand, free, one campus at a time.</p>
-          </div>
-          <a class="b2b-cta" href="mailto:inquiries@philoi.app?subject=Bring%20Philoi%20to%20our%20club">Bring Philoi to your club →</a>
-          <p class="b2b-note">Or just email <a href="mailto:inquiries@philoi.app">inquiries@philoi.app</a> — a real person reads it.</p>
-        </div>
-      </div>
+      <form class="notify cta-pre" action="mailto:support@philoi.app" method="post" enctype="text/plain" data-notify>
+        <label class="sr-only" for="notify-final">Your email</label>
+        <input id="notify-final" type="email" name="email" placeholder="you@yourschool.edu" autocomplete="email" required>
+        <input class="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <button type="submit">Notify me</button>
+      </form>
+      <p class="note cta-pre" data-notify-note>iOS Oct 1 · Android next · $8.99 season pass, less than a coffee</p>
     </div>
   </section>
 
 </main>
 
-<footer class="site-footer">
+<!-- ══ 8 · Footer — legal links required by Apple + Google Play ═════════ -->
+<footer class="foot">
   <div class="shell">
-    <div class="foot-top">
-      <div class="foot-brand">
-        <span class="brand">
-          <svg width="25" height="25" aria-hidden="true" focusable="false"><use href="#flame"/></svg>
-          Philoi
-        </span>
+    <div class="row-desk">
+      <div>
+        <span class="brand"><svg aria-hidden="true" focusable="false"><use href="#flame"/></svg>Philoi</span>
         <p class="slogan">For the Best on Campus</p>
-        <p class="avail"><span class="cta-pre">On iOS October 1 · Android next</span><span class="cta-live">Out now on <a href="https://apps.apple.com/app/id6790697786">iOS</a> · Android next</span></p>
       </div>
-
-      <div class="foot-cols">
-        <div class="foot-col">
-          <h4>Season 1</h4>
-          <ul>
-            <li><a href="#lockin">Lock in</a></li>
-            <li><a href="#season">Emberfall &amp; the Flame Pass</a></li>
-            <li><a href="#origin">The name</a></li>
-            <li><a href="#climb">The climb</a></li>
-            <li><a href="#relics">Relics</a></li>
-            <li><a href="#cosmetics">Cosmetics</a></li>
-            <li><a href="#campfires">Campfires</a></li>
-            <li><a href="#challenges">Challenges</a></li>
-            <li><a href="#more">Cindy, the Agora &amp; more</a></li>
-          </ul>
-        </div>
-        <div class="foot-col">
-          <h4>Legal</h4>
-          <ul>
-            <li><a href="/privacy.html">Privacy Policy</a></li>
-            <li><a href="/terms.html">Terms of Service</a></li>
-            <li><a href="/child-safety.html">Child Safety</a></li>
-            <li><a href="/delete-account.html">Delete your account</a></li>
-          </ul>
-        </div>
-        <div class="foot-col">
-          <h4>Contact</h4>
-          <ul>
-            <li><a href="mailto:support@philoi.app">support@philoi.app</a> — support</li>
-            <li><a href="mailto:inquiries@philoi.app">inquiries@philoi.app</a> — get involved</li>
-            <li><a href="#clubs">For clubs &amp; teams</a></li>
-            <li><a href="https://www.instagram.com/philoi.app" rel="me noopener">Instagram</a></li>
-            <li><a href="https://www.tiktok.com/@philoi.app" rel="me noopener">TikTok</a></li>
-          </ul>
-        </div>
-      </div>
+      <nav class="links" aria-label="Legal">
+        <a href="/privacy.html">Privacy</a>
+        <a href="/terms.html">Terms</a>
+        <a href="/child-safety.html">Child Safety</a>
+        <a href="/delete-account.html">Delete account</a>
+      </nav>
     </div>
-
-    <div class="foot-bottom">
-      <span>&copy; 2026 Philoi</span>
-      <span class="cta-pre">Season 1: Emberfall — opens October 1, 2026</span>
-      <span class="cta-live">Season 1: Emberfall — live now, Fall 2026</span>
-    </div>
+    <nav class="links small" aria-label="Contact">
+      <a href="mailto:support@philoi.app">support@philoi.app</a>
+      <a href="mailto:inquiries@philoi.app">inquiries@philoi.app</a>
+      <a href="https://www.instagram.com/philoi.app" rel="me noopener">Instagram</a>
+      <a href="https://www.tiktok.com/@philoi.app" rel="me noopener">TikTok</a>
+    </nav>
+    <p class="copy">&copy; 2026 Philoi · Season 1: Emberfall</p>
   </div>
 </footer>
 
 <script>
 (function () {
   'use strict';
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  var still = window.matchMedia('(prefers-reduced-motion: reduce)');
-  var reduced = still.matches;
+  /* ── Launch backstop. The <head> timeout can be missed by a laptop that
+     slept through midnight; re-check every 30s until the page is launched. */
+  if (!PREVIEW && !document.documentElement.classList.contains('launched')) {
+    var backstop = setInterval(function () {
+      setLaunchState();
+      if (document.documentElement.classList.contains('launched')) clearInterval(backstop);
+    }, 30000);
+  }
 
-  /* ── Season 1 opens: the LAUNCH constant in <head> is the only copy of the
-     date. This used to be a second one at UTC midnight — four hours before
-     the season's real starts_at — so the countdown and the flip disagreed. */
-  var SEASON_START = LAUNCH.getTime();
-
-  /* ── Past the hero, the drop pulls back a notch ──────────────────────── */
-  (function heroZone() {
-    var hero = document.querySelector('.hero');
-    if (!hero) return;
-    if (!('IntersectionObserver' in window)) return;
-    new IntersectionObserver(function (entries) {
-      document.body.classList.toggle('past-hero', !entries[0].isIntersecting);
-    }, { threshold: 0 }).observe(hero);
-  })();
-
-  /* ── Header: solidify once you leave the hero ───────────────────────── */
-  var header = document.getElementById('siteHeader');
-  var onScroll = function () {
-    header.classList.toggle('is-stuck', window.scrollY > 24);
-  };
-  onScroll();
-  window.addEventListener('scroll', onScroll, { passive: true });
-
-  /* ── Countdown ──────────────────────────────────────────────────────── */
-  (function countdown() {
-    var cells = {};
-    ['d', 'h', 'm', 's'].forEach(function (k) {
-      cells[k] = document.querySelector('[data-cd="' + k + '"]');
-    });
-    if (!cells.d) return;
-
-    function pad(n) { return (n < 10 ? '0' : '') + n; }
-
-    var timer = null;
-    function tick() {
-      var left = SEASON_START - Date.now();
-      if (left <= 0) {
-        cells.d.textContent = cells.h.textContent = cells.m.textContent = cells.s.textContent = '00';
-        // Belt and braces with the <head> timeout, which a sleeping laptop can
-        // miss: the moment the countdown runs out, the page is launched.
-        setLaunchState();
-        if (timer !== null) { clearInterval(timer); timer = null; }
-        return;
-      }
-      var s = Math.floor(left / 1000);
-      cells.d.textContent = pad(Math.floor(s / 86400));
-      cells.h.textContent = pad(Math.floor(s / 3600) % 24);
-      cells.m.textContent = pad(Math.floor(s / 60) % 60);
-      cells.s.textContent = pad(s % 60);
-    }
-    timer = setInterval(tick, 1000);
-    tick();
-  })();
-
-  /* ── The Live Activity mock: its timer counts up, like the real one ───── */
-  (function liveActivity() {
-    var el = document.getElementById('laTimer');
-    if (!el || reduced) return;
-    var secs = 47 * 60 + 12;
-    setInterval(function () {
-      if (document.hidden) return;
-      secs += 1;
-      var m = Math.floor(secs / 60), s = secs % 60;
-      el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-    }, 1000);
-  })();
-
-  /* ── Embers falling through the Flame Pass sky (mock 223's `fall`) ────── */
-  (function passEmbers() {
-    var box = document.getElementById('passEmbers');
+  /* ── Embers falling through the hero sky (mock 229 / 223's `fall`) ──── */
+  (function embers() {
+    var box = document.getElementById('embers');
     if (!box || reduced) return;
-    for (var i = 0; i < 34; i++) {
+    var fall = box.offsetHeight + 40;
+    var n = window.innerWidth < 820 ? 22 : 40;
+    for (var i = 0; i < n; i++) {
       var e = document.createElement('i');
-      var size = 1.5 + Math.random() * 2.5;
+      var size = 1.6 + Math.random() * 2.4;
       e.style.left = (Math.random() * 100).toFixed(2) + '%';
       e.style.width = e.style.height = size.toFixed(1) + 'px';
-      e.style.animationDuration = (6 + Math.random() * 7).toFixed(2) + 's';
-      e.style.animationDelay = (-Math.random() * 12).toFixed(2) + 's';
-      e.style.setProperty('--fall', (box.offsetHeight + 40) + 'px');
+      e.style.animationDuration = (5 + Math.random() * 6).toFixed(2) + 's';
+      e.style.animationDelay = (-Math.random() * 10).toFixed(2) + 's';
+      e.style.setProperty('--f', fall + 'px');
       box.appendChild(e);
     }
   })();
@@ -2170,27 +663,25 @@ html.launched .ribbon .dot{background:var(--on-ember);box-shadow:none}
   /* ── The waitlist ─────────────────────────────────────────────────────
      Posts to the `waitlist` Supabase edge function, which records the address
      as a Resend contact and mails a confirmation from noreply@philoi.app.
-     No key is sent: the function is deployed --no-verify-jwt precisely so a
-     static page with no Supabase session can reach it.
-
-     The form keeps its `action="mailto:"`, which is the no-JS path — without
-     this handler the browser submits it the old way rather than doing nothing. */
+     It is deployed --no-verify-jwt so a static page can reach it. Each form
+     keeps its `action="mailto:"` as the no-JS path. */
   var WAITLIST = 'https://coaqgcquzywadrghzbfj.supabase.co/functions/v1/waitlist';
 
-  (function notify() {
-    var form = document.getElementById('notify');
-    var note = document.getElementById('notifyNote');
-    if (!form || !window.fetch) return;
-
+  Array.prototype.forEach.call(document.querySelectorAll('[data-notify]'), function (form) {
+    if (!window.fetch) return;
+    var next = form.nextElementSibling;
+    var note = next && next.hasAttribute('data-notify-note') ? next : null;
     var input = form.querySelector('input[type=email]');
     var hp = form.querySelector('input[name=company]');
     var button = form.querySelector('button');
     var sending = false;
 
     function say(msg, kind) {
+      if (!note) return;
       note.textContent = msg;
       note.classList.toggle('is-done', kind === 'done');
       note.classList.toggle('is-error', kind === 'error');
+      note.classList.remove('is-muted');
     }
 
     form.addEventListener('submit', function (e) {
@@ -2198,292 +689,42 @@ html.launched .ribbon .dot{background:var(--on-ember);box-shadow:none}
       if (sending) return;
       var email = input.value.trim();
       if (!email) return;
-
       sending = true;
       button.disabled = true;
       say('Adding you…');
-
       fetch(WAITLIST, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email,
-          company: hp ? hp.value : '',
-          ref: document.referrer || location.href
-        })
+        body: JSON.stringify({ email: email, company: hp ? hp.value : '', ref: document.referrer || location.href })
       })
         .then(function (r) { return r.json().catch(function () { return {}; }); })
         .then(function (out) {
           if (!out.ok) throw new Error(out.reason || 'failed');
           form.reset();
-          say("You're on the list. Check your inbox — we'll email you once, the day Emberfall opens.", 'done');
+          say("You're on the list. We'll email you once, the day Philoi opens.", 'done');
         })
         .catch(function () {
-          // Never a dead end: the mailto still reaches a human, so a failed
-          // signup degrades to the path this field used to take.
           say('That didn’t go through. Try again, or email support@philoi.app.', 'error');
           button.disabled = false;
         })
         .finally(function () { sending = false; });
     });
-  })();
+  });
 
-  /* ── Scroll reveal + one-shot section animations ─────────────────────── */
-  (function reveals() {
-    if (!('IntersectionObserver' in window)) {
-      document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
-      runAllBars();
-      return;
-    }
-
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add('in');
-        io.unobserve(entry.target);
-      });
-    }, { threshold: 0.15, rootMargin: '0px 0px -8% 0px' });
-
-    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
-
-    // Bars, counters and the ladder light-up fire once, when their block lands.
-    var once = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (!entry.isIntersecting) return;
-        play(entry.target);
-        once.unobserve(entry.target);
-      });
-    }, { threshold: 0.25 });
-
-    document.querySelectorAll('[data-ladder],[data-shelf],[data-board],[data-bars]').forEach(function (el) {
-      once.observe(el);
-    });
-  })();
-
-  function play(root) {
-    if (root.hasAttribute('data-ladder')) root.classList.add('is-live');
-    root.querySelectorAll('[data-fill]').forEach(function (bar) {
-      bar.style.width = bar.getAttribute('data-fill') + '%';
-    });
-    root.querySelectorAll('[data-count]').forEach(countUp);
+  /* ── Scroll reveal ───────────────────────────────────────────────────── */
+  var items = document.querySelectorAll('.reveal');
+  if (reduced || !('IntersectionObserver' in window)) {
+    Array.prototype.forEach.call(items, function (el) { el.classList.add('in'); });
+    return;
   }
-
-  function runAllBars() {
-    document.querySelectorAll('[data-ladder]').forEach(function (l) { l.classList.add('is-live'); });
-    document.querySelectorAll('[data-fill]').forEach(function (bar) {
-      bar.style.width = bar.getAttribute('data-fill') + '%';
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('in');
+      io.unobserve(entry.target);
     });
-    document.querySelectorAll('[data-count]').forEach(function (el) {
-      el.textContent = Number(el.getAttribute('data-count')).toLocaleString('en-US');
-    });
-  }
-
-  function countUp(el) {
-    var target = Number(el.getAttribute('data-count'));
-    if (reduced) { el.textContent = target.toLocaleString('en-US'); return; }
-    var start = null, dur = 1400;
-    function step(ts) {
-      if (start === null) start = ts;
-      var t = Math.min((ts - start) / dur, 1);
-      var eased = 1 - Math.pow(1 - t, 3);
-      el.textContent = Math.round(target * eased).toLocaleString('en-US');
-      if (t < 1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-  }
-
-  if (reduced) runAllBars();
-
-  /* ── Crate open — a rarity reveal, re-rollable ───────────────────────── */
-  (function crate() {
-    var stage = document.getElementById('crateStage');
-    var btn = document.getElementById('crateBtn');
-    var item = document.getElementById('revealItem');
-    if (!stage || !btn) return;
-
-    // Straight from src/lib/economy/catalog.ts — real items, real rarities.
-    var POOL = [
-      { c: '#3DA85C', r: 'Uncommon',  n: 'Ember Halo',        k: 'Halo · avatar ring' },
-      { c: '#4FB0E5', r: 'Rare',      n: 'Electric Cyan',     k: 'Flame · skin' },
-      { c: '#4FB0E5', r: 'Rare',      n: 'Obsidian Mesh',     k: 'Card · profile background' },
-      { c: '#a06cd5', r: 'Epic',      n: 'Cracked Magma',     k: 'Card · profile background' },
-      { c: '#a06cd5', r: 'Epic',      n: 'Emberfall Night',   k: 'Banner · campfire' },
-      { c: '#F5C542', r: 'Legendary', n: 'Void Smoke',        k: 'Flare · app-wide aura' },
-      { c: '#F5C542', r: 'Legendary', n: 'The Great Forge',   k: 'Banner · campfire' },
-      { c: '#F5C542', r: 'Legendary', n: 'Divine Foghorn',  k: 'SFX · lock-in sound' },
-      { c: '#FF6B6B', r: 'Mythic',    n: "Zeus' Wrath",       k: 'Flare · app-wide aura' },
-      { c: '#FF6B6B', r: 'Mythic',    n: 'Hades Halo',        k: 'Halo · avatar ring' }
-    ];
-
-    // Sparks for the burst. Built once; the CSS animation replays on each open.
-    if (!reduced) {
-      for (var i = 0; i < 14; i++) {
-        var s = document.createElement('span');
-        var a = (Math.PI * 2 * i) / 14;
-        s.className = 'spark';
-        s.style.setProperty('--dx', Math.round(Math.cos(a) * 150) + 'px');
-        s.style.setProperty('--dy', Math.round(Math.sin(a) * 150) + 'px');
-        s.setAttribute('aria-hidden', 'true');
-        stage.appendChild(s);
-      }
-    }
-
-    var last = -1;
-    function open() {
-      var idx;
-      do { idx = Math.floor(Math.random() * POOL.length); } while (idx === last && POOL.length > 1);
-      last = idx;
-      var pick = POOL[idx];
-
-      stage.classList.remove('is-open');
-      // Force a reflow so the burst keyframes restart on a repeat open.
-      void stage.offsetWidth;
-
-      stage.style.setProperty('--rar', pick.c);
-      item.querySelector('[data-rar]').textContent = pick.r;
-      item.querySelector('[data-name]').textContent = pick.n;
-      item.querySelector('[data-kind]').textContent = pick.k;
-      stage.classList.add('is-open');
-      btn.textContent = 'Open another';
-    }
-
-    btn.addEventListener('click', open);
-
-    // Play it once, unprompted, when the section first lands.
-    if ('IntersectionObserver' in window) {
-      var io = new IntersectionObserver(function (entries) {
-        if (!entries[0].isIntersecting) return;
-        io.disconnect();
-        setTimeout(open, reduced ? 0 : 420);
-      }, { threshold: 0.4 });
-      io.observe(stage);
-    } else {
-      open();
-    }
-  })();
-
-  /* ── The Emberfall drop ───────────────────────────────────────────────
-     Embers RAINING down over the lava pooling on the bottom edge — the
-     `emberfall` flare from catalog.ts, which is the season's own effect.
-     The canvas is FIXED to the viewport, not parked in the hero: the flare
-     is an app-wide aura, so the whole page scrolls through the rain.
-     Reduced motion never starts it — the fixed .lava-pool underneath is
-     already a finished static ember-glow on its own. */
-  (function emberfall() {
-    if (reduced) return;
-    var canvas = document.getElementById('emberfall');
-    if (!canvas || !canvas.getContext) return;
-
-    var ctx = canvas.getContext('2d');
-    var w = 0, h = 0, dpr = 1;
-    var embers = [];
-    var raf = null;
-
-    var COLORS = ['#E0612C', '#F2A33C', '#FFD27A', '#FF7A2F'];
-
-    function size() {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-      // Viewport, not a section: the canvas is fixed and covers the whole page.
-      w = document.documentElement.clientWidth;
-      h = window.innerHeight;
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      seed();
-    }
-
-    function seed() {
-      // Density scales with area, capped — a phone should not run 200 particles.
-      var count = Math.round(Math.min(Math.max((w * h) / 13000, 40), 150));
-      embers = [];
-      for (var i = 0; i < count; i++) embers.push(make(true));
-    }
-
-    function make(anywhere) {
-      return {
-        x: Math.random() * w,
-        y: anywhere ? Math.random() * h : -12 - Math.random() * 60,
-        r: 0.7 + Math.random() * 1.9,
-        vy: 14 + Math.random() * 46,          // px per second, downward
-        drift: (Math.random() - 0.5) * 16,
-        phase: Math.random() * Math.PI * 2,
-        wob: 0.5 + Math.random() * 1.4,
-        alpha: 0.28 + Math.random() * 0.6,
-        color: COLORS[(Math.random() * COLORS.length) | 0]
-      };
-    }
-
-    var lastT = 0;
-    function frame(t) {
-      raf = requestAnimationFrame(frame);
-      var dt = lastT ? Math.min((t - lastT) / 1000, 0.05) : 0.016;
-      lastT = t;
-
-      ctx.clearRect(0, 0, w, h);
-      ctx.globalCompositeOperation = 'lighter';
-
-      for (var i = 0; i < embers.length; i++) {
-        var e = embers[i];
-        e.y += e.vy * dt;
-        e.phase += e.wob * dt;
-        e.x += (e.drift + Math.sin(e.phase) * 10) * dt;
-
-        // An ember brightens as it nears the lava pool it is falling into.
-        var depth = Math.min(Math.max(e.y / h, 0), 1);
-        var a = e.alpha * (0.55 + depth * 0.65);
-
-        ctx.globalAlpha = Math.min(a, 1);
-        ctx.fillStyle = e.color;
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
-        ctx.fill();
-
-        // A soft halo on the bigger ones only — the cheap way to get glow.
-        if (e.r > 1.6) {
-          ctx.globalAlpha = Math.min(a * 0.22, 0.35);
-          ctx.beginPath();
-          ctx.arc(e.x, e.y, e.r * 4.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        if (e.y > h + 14 || e.x < -30 || e.x > w + 30) embers[i] = make(false);
-      }
-
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = 'source-over';
-    }
-
-    function start() {
-      if (raf === null) { lastT = 0; raf = requestAnimationFrame(frame); }
-    }
-    function stop() {
-      if (raf !== null) { cancelAnimationFrame(raf); raf = null; }
-    }
-
-    size();
-    canvas.classList.add('is-on');
-    start();
-
-    var rt;
-    window.addEventListener('resize', function () {
-      clearTimeout(rt);
-      rt = setTimeout(size, 180);
-    }, { passive: true });
-
-    // A backgrounded tab should not burn frames on 150 particles. Scroll
-    // position is NOT a reason to stop any more — the rain covers every
-    // section now, so there is no point at which it is off screen.
-    document.addEventListener('visibilitychange', function () {
-      if (document.hidden) stop(); else start();
-    });
-
-    // Someone flipping on reduced motion mid-visit should get the still page.
-    if (still.addEventListener) {
-      still.addEventListener('change', function (e) {
-        if (e.matches) { stop(); canvas.classList.remove('is-on'); }
-      });
-    }
-  })();
+  }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+  Array.prototype.forEach.call(items, function (el) { io.observe(el); });
 })();
 </script>
 </body>

@@ -52,42 +52,33 @@ custom properties at the top of each HTML file's `<style>` block.
 | coral / amber / ember | `#E0612C` / `#F2A33C` / `#FFD27A` | firelight accents |
 | ink / muted | `#FFF6EC` / `#A99CBD` | text |
 
+## Layout — mobile-first (mock 229)
+
+Most visitors arrive from a QR code on a shirt or poster, so the **phone render
+is the source of truth**. Base styles target 360–430px in a single column;
+`@media (min-width:820px)` scales up to a centred shell with two-column splits.
+Structure, value before features:
+
+1. Sticky nav: flame mark + "Get the app"
+2. Hero: headline, Season 1 badge, falling embers, launch-state CTA
+3. **Compete**: campus board with burning names + the Emberfall Seal
+4. **Together**: duel + campfire tiles
+5. **Collect**: a swipeable reel of Emberfall cosmetics (names and rarities from
+   `catalog.ts`, colours from `rarity.ts`)
+6. **Your edge**: Cindy, last
+7. Final CTA, then the footer with the legal links Apple and Play require
+
+Every section is a kicker, one headline, one line, and a visual. Tap targets are
+at least 44px, and nothing depends on hover.
+
 ## Motion
 
-Each product section has a looping animation ported from the app's real
-Reanimated components — the durations, easings, offsets and colours are the
-same numbers, not lookalikes. Sources, if you change the app and want these to
-follow:
-
-| Section | Ported from |
-|---|---|
-| Hero campfire | `rank-up-celebration.tsx` — `CampfireFlame` roar (scaleY 1→1.13 / scaleX 1→0.94, 500 ms), `Ember`, `Smoke` |
-| Lock in | `lock-in-flame.tsx` — breathe 1→1.08 (900 ms), stage pop + shockwave (scale 1→2.4, 700 ms), glow intensity `0.35 + stage*0.11`; fuel objects from `GOAL_TYPE_FLAME_META` |
-| Campfires | `lock-in-flame.tsx` participants — `ZoomIn.springify()` arrivals over a growing flame |
-| Ranks | `rank-up-celebration.tsx` — 3900 ms rise on `bezier(.25,.55,.25,1)`, 1080° `rotateY`, `FLARE_DELAY_MS` 3700 flash `#FFE9C2`, coral ring, tier wash; metals from `rank-tiers.ts`, geometry from `hexagon-badge.tsx` |
-| Add a friend | `app/add-friend.tsx` — the Add / Requested / Accept / Friends pills, exact padding and colours |
-| Daily fire | `flame-meter.tsx` — 700 ms `bezier(.2,.7,.3,1)` fill, coral→amber at full, tier ember counts, `PerimeterRing` licks |
-
-Rules the implementation sticks to:
-
-- **Only `transform` and `opacity` animate continuously**, so everything stays
-  on the compositor. Two places swap colour (the lit fuel chip, the meter going
-  amber at full) — both are discrete steps at a beat, not tweens. The one
-  exception is "Own Emberfall" in the Flame Pass section, whose light sweep is
-  the paywall mock's `background-position` animation on a single heading.
-- **Each stage's base CSS is a finished static illustration.** The JS only adds
-  `.is-live` when the stage scrolls into view via IntersectionObserver, and
-  removes it on exit so re-entering replays the sequence. With JS off you get
-  the illustrations; nothing is invisible.
-- **`prefers-reduced-motion: reduce` kills every animation** and never adds
-  `.is-live`, falling back to those same illustrations.
-- Background tabs drop `.is-live` so six loops aren't burning frames unseen.
-
-One gotcha worth knowing if you edit the delay-tiled loops (the four rank tiers,
-the four friend states, the six fuel objects): a CSS animation shows the
-element's **base style during its `animation-delay`**, so whichever state is
-statically visible must be explicitly hidden under `.stage.is-live` or it will
-leak into the other states' windows.
+- Only `transform` and `opacity` animate: the hero embers, the burning-name
+  glow, the Seal's spin, and a fade-up reveal on scroll.
+- Reveals only hide content when the `<head>` script has added `html.js`, so
+  with JS off everything is visible.
+- `prefers-reduced-motion: reduce` stops every animation and shows the finished
+  page.
 
 ## The launch gate (pre-launch ↔ launched, no redeploy)
 
@@ -100,21 +91,20 @@ first paint. CSS does the rest:
 html:not(.launched) .cta-live, html.launched .cta-pre { display:none !important }
 ```
 
-- **`.cta-pre`**: "Launches October 1 · iOS" ribbon, countdown, waitlist form, "Notify me".
-- **`.cta-live`**: "Out now on iOS" ribbon, App Store button → `https://apps.apple.com/app/id6790697786`.
-- Google Play shows "Coming next" in both states.
+- **`.cta-pre`**: "October 1 on the App Store" badge, "Launches October 1 · iOS", and the waitlist "Notify me" forms (hero and final CTA).
+- **`.cta-live`**: App Store buttons → `https://apps.apple.com/app/id6790697786`, "Out now on iOS · Android next".
 
-A timeout flips the class for anyone on the page at midnight, and the countdown
-calls the same function when it reaches zero. `LAUNCH` is the only copy of the date.
+A timeout flips the class for anyone on the page at midnight, and a 30-second
+backstop catches a laptop that slept through it. `LAUNCH` is the only copy of the date.
 
-**Preview either state:** `?preview=launched` or `?preview=pre`.
+**Preview either state:** `?preview=launched` or `?preview=prelaunch` (`?preview=pre` also works).
 
 The page flips itself, but the App Store link only works once the approved build
 is **Released** in App Store Connect. That step is manual.
 
 ## Waitlist
 
-The hero's "Notify me" form (pre-launch only) posts to the `waitlist` Supabase
+The "Notify me" forms (pre-launch only) post to the `waitlist` Supabase
 edge function, which records the address as a Resend contact. With JS off it
 falls back to its `mailto:` action.
 
