@@ -7,6 +7,7 @@ import { BoxArt, BOX_TINT } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { EmberAmount, EmberPill, RarityLabel, SectionLabel, formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
+import { EmberfallBanner } from '@/components/pass/emberfall-banner';
 import { FlamePassTile } from '@/components/pass/flame-pass-tile';
 import { PreviewBadgeCorner } from '@/components/economy/preview-button';
 import { Screen } from '@/components/ui/screen';
@@ -129,6 +130,15 @@ export default function ShopScreen() {
             actual Emberfall set. The two destinations are unchanged: the body previews the track,
             the CTA opens the paywall (mock 200) rather than the store sheet — the case for the
             season lives on one screen instead of being re-made everywhere the Pass is mentioned. */}
+        {/* ── Emberfall banner (mock 224) — the shop's door into the paywall ──
+            Non-owners only. A holder has nothing left to buy here, and the tile below already
+            carries their owned state and their level. */}
+        {!ownsPremium ? (
+          <View style={styles.emberfall}>
+            <EmberfallBanner price={prices[FORGE_PASS_PRODUCT_ID] ?? null} onPress={() => router.push('/paywall')} />
+          </View>
+        ) : null}
+
         <FlamePassTile
           level={level}
           ownsPremium={ownsPremium}
@@ -276,6 +286,10 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.two,
+  },
+  emberfall: {
+    marginTop: Spacing.one,
+    marginBottom: Spacing.twelve,
   },
   title: {
     fontFamily: Fonts.bodyBold,
