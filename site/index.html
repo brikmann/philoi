@@ -3,24 +3,50 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Philoi — For the Best on Campus</title>
-<meta name="description" content="Turn your campus into your leaderboard. Philoi is the social accountability app where students lock in, climb a Greek-mythology rank ladder, and duel their friends. Season 1: Emberfall — coming to iOS soon, Android next.">
+<!-- ══ THE LAUNCH GATE ════════════════════════════════════════════════════
+     Both states live in the DOM; this toggles `html.launched` and the CSS does
+     the rest. It runs in <head>, before any paint, so neither state flashes.
+     A timer flips it live for anyone sitting on the page at midnight.
+
+     LAUNCH is the site's ONLY copy of the date. It is the same instant as
+     economy_config.season.starts_at (2026-10-01T04:00:00Z) — keep them in step.
+     The App Store link only resolves once the approved build is Released in
+     App Store Connect; this flips the page, not the availability.
+
+     Preview either state: ?preview=launched  or  ?preview=pre              -->
+<script>
+  // EDT → Oct 1 2026 00:00 America/Toronto
+  var LAUNCH = new Date('2026-10-01T00:00:00-04:00');
+  var PREVIEW = (/[?&]preview=(launched|pre)\b/.exec(location.search) || [])[1];
+  function setLaunchState(){
+    var on = PREVIEW ? PREVIEW === 'launched' : Date.now() >= LAUNCH.getTime();
+    document.documentElement.classList.toggle('launched', on);
+  }
+  setLaunchState();
+  // flip live if someone's on the page at midnight
+  var ms = LAUNCH.getTime() - Date.now(); if (ms > 0 && ms < 2147483647) setTimeout(setLaunchState, ms + 500);
+</script>
+
+<!-- Meta copy is true on both sides of Oct 1; the visible ribbon carries the date. -->
+<title>Philoi — Season 1: Emberfall · The social accountability app for students</title>
+<meta name="description" content="Turn your campus into your leaderboard. Philoi is the social accountability app where students lock in, climb a Greek-mythology rank ladder, study around campfires with friends, and challenge each other. Season 1: Emberfall — iOS first, Android next.">
 <link rel="canonical" href="https://philoi.app/">
 <meta name="theme-color" content="#14111C">
 <meta name="color-scheme" content="dark">
+<meta name="apple-itunes-app" content="app-id=6790697786">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Philoi">
 <meta property="og:url" content="https://philoi.app/">
-<meta property="og:title" content="Philoi — For the Best on Campus">
-<meta property="og:description" content="Turn Your Campus Into Your Leaderboard. Season 1: Emberfall — coming to iOS soon, Android next.">
+<meta property="og:title" content="Philoi — Season 1: Emberfall">
+<meta property="og:description" content="The social accountability app for students. Turn your campus into your leaderboard — iOS first, Android next.">
 <meta property="og:image" content="https://philoi.app/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Philoi — For the Best on Campus. Season 1: Emberfall.">
+<meta property="og:image:alt" content="Philoi — For the Best on Campus. Season 1: Emberfall, on iOS October 1.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Philoi — For the Best on Campus">
-<meta name="twitter:description" content="Turn Your Campus Into Your Leaderboard. Season 1: Emberfall — coming to iOS soon, Android next.">
+<meta name="twitter:title" content="Philoi — Season 1: Emberfall">
+<meta name="twitter:description" content="The social accountability app for students. Turn your campus into your leaderboard — iOS first, Android next.">
 <meta name="twitter:image" content="https://philoi.app/og.png">
 
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -34,7 +60,8 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"MobileApplication","name":"Philoi","applicationCategory":"LifestyleApplication",
 "operatingSystem":"iOS","slogan":"For the Best on Campus","url":"https://philoi.app/",
-"description":"Turn your campus into your leaderboard. Lock in, climb the rank ladder, duel your friends.",
+"description":"The social accountability app for students. Lock in, climb the rank ladder, challenge your friends. Season 1: Emberfall.",
+"datePublished":"2026-10-01","installUrl":"https://apps.apple.com/app/id6790697786",
 "offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
 </script>
 
@@ -852,7 +879,7 @@ body.past-hero .lava-pool{opacity:.55}
 .standings li.me{background:rgba(255,210,122,.09);border:1px solid rgba(255,210,122,.2)}
 .standings li.me .p{color:var(--ember)}
 .standings .v{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted)}
-.mode-row{margin-top:clamp(30px,4vw,44px);display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.mode-row{margin-top:clamp(30px,4vw,44px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
 .mode{padding:20px;border-radius:16px;border:1px solid var(--line);background:rgba(27,23,38,.5)}
 .mode b{display:block;font-size:14.5px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
 .mode p{font-size:13.5px;color:var(--muted);line-height:1.5}
@@ -883,6 +910,214 @@ body.past-hero .lava-pool{opacity:.55}
 .b2b-cta:hover{text-decoration:none;transform:translateY(-1px);filter:brightness(1.06)}
 .b2b-note{margin-top:14px;font-size:13.5px;color:var(--tertiary)}
 
+/* ══ Launch gate — pure CSS, keyed off html.launched (set in <head>) ═══════
+   Each state HIDES the other rather than SHOWING itself, so every gated
+   element keeps its own natural display value. */
+html:not(.launched) .cta-live,
+html.launched .cta-pre{display:none!important}
+
+.ribbon{
+  display:inline-flex;align-items:center;gap:10px;margin-top:clamp(14px,2.2vw,22px);
+  padding:8px 18px;border-radius:999px;
+  border:1px solid rgba(255,210,122,.34);background:rgba(58,42,34,.55);
+  font-size:clamp(11px,1.5vw,13.5px);font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:var(--ink);
+}
+.ribbon .dot{width:8px;height:8px;border-radius:50%;background:var(--forward);box-shadow:0 0 0 4px rgba(255,122,47,.16);animation:coalPulse 2.4s ease-in-out infinite}
+html.launched .ribbon{background:var(--grad);color:var(--on-ember);border-color:transparent;box-shadow:0 6px 26px rgba(224,97,44,.5)}
+html.launched .ribbon .dot{background:var(--on-ember);box-shadow:none}
+
+/* The App Store button — black, white type, Apple's own badge proportions. */
+.store-btn{
+  display:inline-flex;align-items:center;gap:11px;
+  padding:10px 22px 10px 17px;border-radius:14px;
+  background:#000;border:1px solid rgba(255,255,255,.4);color:#fff;
+  text-align:left;text-decoration:none;
+  box-shadow:0 10px 34px rgba(224,97,44,.35);
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.store-btn:hover{text-decoration:none;transform:translateY(-2px);box-shadow:0 14px 40px rgba(224,97,44,.5)}
+.store-btn svg{flex:none;fill:#fff}
+.store-btn .top{font-size:10.5px;font-weight:600;letter-spacing:.02em;line-height:1.2;opacity:.9}
+.store-btn .bot{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.hero-live{margin-top:clamp(22px,2.8vw,32px)}
+.hero-live .note{margin-top:12px;font-size:13px;color:var(--tertiary)}
+
+/* ══ LOCK IN ═════════════════════════════════════════════════════════════ */
+.lockin-grid{
+  margin-top:clamp(40px,5.4vw,64px);
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,380px);gap:clamp(28px,4.4vw,64px);align-items:center;
+}
+@media (max-width:900px){.lockin-grid{grid-template-columns:1fr}}
+.lockscreen{
+  position:relative;overflow:hidden;width:100%;max-width:360px;margin-inline:auto;
+  padding:34px 16px 26px;border-radius:44px;border:1px solid var(--line-strong);
+  background:
+    radial-gradient(90% 60% at 50% 100%,rgba(224,97,44,.4),transparent 70%),
+    linear-gradient(180deg,#1a1430,#2C1B36 55%,#3a1a1c);
+  box-shadow:0 30px 80px rgba(0,0,0,.55),inset 0 0 0 6px rgba(0,0,0,.35);
+}
+.ls-date{text-align:center;font-size:14px;font-weight:600;color:rgba(255,246,236,.72)}
+.ls-time{text-align:center;font-size:clamp(58px,8vw,74px);font-weight:700;letter-spacing:-.04em;line-height:1.05;color:rgba(255,246,236,.94)}
+.live-act{
+  margin-top:clamp(70px,10vw,120px);padding:14px 16px 13px;border-radius:24px;
+  background:rgba(12,10,18,.86);border:1px solid rgba(255,255,255,.08);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.la-row{display:flex;align-items:center;gap:12px}
+.la-flame{width:38px;height:38px;flex:none;animation:breathe 1.8s ease-in-out infinite}
+.la-main b{display:block;font-size:14px;font-weight:700;letter-spacing:-.01em}
+.la-main span{display:block;font-size:12px;color:var(--muted)}
+.la-timer{margin-left:auto;font-size:26px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--ember)}
+.la-bar{margin-top:12px;height:5px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+.la-bar i{display:block;height:100%;width:64%;border-radius:999px;background:var(--grad)}
+.la-foot{margin-top:9px;display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;color:var(--tertiary);font-variant-numeric:tabular-nums}
+.la-foot b{color:var(--ember);display:inline-flex;align-items:center;gap:6px}
+.ls-cap{margin-top:14px;text-align:center;font-size:12.5px;color:var(--tertiary)}
+
+/* ══ SEASON 1 · EMBERFALL + THE FLAME PASS ═══════════════════════════════
+   The paywall's sky (mock 223): void → deep blue → purple → ember → orange,
+   embers falling through it, "Own Emberfall" flashing. */
+.pass-sky{
+  position:relative;overflow:hidden;isolation:isolate;
+  margin-top:clamp(40px,5.4vw,64px);
+  padding:clamp(40px,6vw,76px) clamp(20px,4vw,56px) clamp(34px,5vw,60px);
+  border-radius:clamp(24px,3vw,34px);border:1px solid rgba(255,210,122,.22);
+  background:linear-gradient(180deg,#07050d 0%,#101a3c 20%,#2e1846 46%,#6e2418 76%,#b8461a 100%);
+  box-shadow:0 30px 90px rgba(224,97,44,.25);
+  text-align:center;
+}
+.pass-sky::before{ /* the lava glow the sky ends in */
+  content:"";position:absolute;left:-10%;right:-10%;bottom:-40%;height:70%;z-index:-1;pointer-events:none;
+  background:radial-gradient(50% 60% at 50% 100%,rgba(255,150,60,.55),transparent 70%);
+}
+.pass-embers{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.pass-embers i{
+  position:absolute;top:-10px;width:3px;height:3px;border-radius:50%;
+  background:#FFD27A;box-shadow:0 0 6px 1px rgba(255,160,70,.9);
+  opacity:0;animation:fall linear infinite;
+}
+@keyframes fall{0%{transform:translateY(0);opacity:0}8%{opacity:1}88%{opacity:.85}100%{transform:translateY(var(--fall,900px));opacity:0}}
+.tagpill{
+  display:inline-block;padding:5px 14px;border-radius:999px;
+  border:1px solid rgba(255,210,122,.5);background:rgba(20,10,8,.35);
+  font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--ember);
+}
+.own{margin-top:14px;font-size:clamp(44px,9vw,104px);font-weight:900;letter-spacing:-.04em;line-height:.95;text-shadow:0 6px 30px rgba(0,0,0,.6)}
+/* The one continuous non-transform animation on the page: the mock's sweep of
+   white-hot light across "Emberfall". One heading, background-position only. */
+.own .g{
+  background:linear-gradient(100deg,#F2A33C 0%,#FFD27A 34%,#FFFEF7 50%,#FFD27A 66%,#F2A33C 100%);
+  background-size:230% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:ownflash 3.2s linear infinite;
+}
+@keyframes ownflash{0%{background-position:185% 0}100%{background-position:-85% 0}}
+.tale{margin:clamp(18px,2.4vw,26px) auto 0;max-width:40ch;font-size:clamp(17px,2vw,22px);line-height:1.5;color:#F3E6DA}
+.tale em{font-style:italic;color:var(--ember)}
+.tale-2{margin:14px auto 0;max-width:52ch;font-size:clamp(14.5px,1.6vw,16.5px);color:rgba(255,236,214,.78)}
+.pass-price{margin-top:clamp(20px,2.6vw,28px);display:flex;align-items:baseline;justify-content:center;gap:9px}
+.pass-price .big{font-size:clamp(32px,4.4vw,44px);font-weight:900;letter-spacing:-.03em;background:linear-gradient(92deg,#FFF7E6,#FFD27A,#F2A33C);-webkit-background-clip:text;background-clip:text;color:transparent}
+.pass-price .per{font-size:14px;font-weight:700;color:rgba(255,236,214,.8)}
+.pass-coffee{margin-top:4px;font-size:13.5px;font-style:italic;color:var(--ember)}
+
+.pass-grid{
+  margin-top:clamp(34px,4.6vw,54px);text-align:left;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:clamp(14px,2vw,22px);
+}
+@media (max-width:900px){.pass-grid{grid-template-columns:1fr}}
+.pass-card{
+  padding:clamp(18px,2.4vw,26px);border-radius:var(--radius-lg);
+  background:rgba(12,8,16,.62);border:1px solid rgba(255,210,122,.16);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+.pass-card h3{font-size:19px;font-weight:800;letter-spacing:-.02em}
+.pass-card .sub{margin-top:6px;font-size:14px;color:rgba(255,236,214,.72);line-height:1.5}
+
+/* THE BURNING NAME — src/components/burning-name.tsx: the mock's
+   linear-gradient(0deg,#E0612C,#FFB347 42%,#FFF3D6), weight 900, a glow
+   that flickers BEHIND the glyphs (opacity only). */
+.burn{
+  position:relative;display:inline-block;font-weight:900;
+  background:linear-gradient(0deg,#E0612C,#FFB347 42%,#FFF3D6);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.burn::after{
+  content:"";position:absolute;inset:-5px -8px;z-index:-1;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,120,40,.5),transparent);
+  animation:burnGlow 2.2s ease-in-out infinite;
+}
+@keyframes burnGlow{0%,100%{opacity:.45}40%{opacity:1}70%{opacity:.7}}
+.mini-board{margin-top:18px;display:grid;gap:2px}
+.mb-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;font-size:15px}
+.mb-row:nth-child(odd){background:rgba(255,255,255,.035)}
+.mb-row .p{width:20px;font-size:12px;font-weight:800;color:var(--tertiary)}
+.mb-row .nm{display:inline-flex;align-items:center;gap:8px;font-weight:600;isolation:isolate}
+.mb-row .v{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13.5px}
+.mb-row.is-holder{background:rgba(224,97,44,.12);border:1px solid rgba(255,160,70,.25)}
+.mb-row.is-holder .nm{font-size:16px}
+.mb-cap{margin-top:14px;font-size:13.5px;color:rgba(255,236,214,.78)}
+.mb-cap b{color:var(--ember)}
+
+/* The Emberfall Seal (mock 223's .seal) — the L100 sigil pinned to the name. */
+.seal{
+  width:var(--s,18px);height:var(--s,18px);flex:none;border-radius:50%;position:relative;
+  background:radial-gradient(circle at 50% 45%,#FFF3D6,#FFB347 40%,#7a1e0e 100%);
+  box-shadow:0 0 12px 2px rgba(255,140,60,.7),inset 0 0 5px rgba(120,20,10,.7);
+  animation:sealSpin 9s linear infinite;
+}
+@keyframes sealSpin{to{transform:rotate(360deg)}}
+.seal::before{content:"";position:absolute;inset:18%;border-radius:50%;border:1.5px solid rgba(20,8,4,.6)}
+.seal::after{content:"";position:absolute;inset:34%;border-radius:50%;background:#1a0a04;box-shadow:0 0 0 1.5px rgba(255,210,122,.5)}
+.seal-callout{display:flex;align-items:center;gap:16px;margin-top:20px;padding-top:18px;border-top:1px solid rgba(255,210,122,.14)}
+.seal-callout p{font-size:14px;line-height:1.5;color:rgba(255,236,214,.8)}
+.seal-callout b{color:var(--ink)}
+
+.unlocks{margin-top:16px;display:grid;gap:4px}
+.unlock{display:flex;align-items:baseline;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.unlock:last-child{border-bottom:0}
+.unlock .lv{
+  flex:none;min-width:62px;padding:3px 9px;border-radius:999px;text-align:center;
+  font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ember);border:1px solid rgba(255,210,122,.3);
+}
+.unlock .lv.now{background:var(--grad);color:var(--on-ember);border-color:transparent}
+.unlock b{font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+.unlock .k{font-size:12px;color:var(--tertiary);margin-left:6px}
+.unlock .rar{margin-left:auto;font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--c)}
+
+.pass-cta{margin-top:clamp(28px,3.6vw,40px)}
+.pass-cta .note{margin-top:12px;font-size:13px;color:rgba(255,236,214,.7)}
+.ghost-btn{
+  display:inline-flex;align-items:center;gap:9px;padding:13px 24px;border-radius:var(--radius);
+  background:var(--grad);color:var(--on-ember);font-weight:800;font-size:15px;text-decoration:none;
+  box-shadow:0 4px 18px rgba(224,97,44,.45);transition:transform .18s ease,filter .18s ease;
+}
+.ghost-btn:hover{text-decoration:none;transform:translateY(-1px);filter:brightness(1.06)}
+
+/* ══ AROUND THE LOCK-IN — Cindy, the Agora, Focus Nudge, fitness sync ═══ */
+.feat-grid{margin-top:clamp(40px,5.4vw,64px);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(14px,1.8vw,20px)}
+.feat{
+  position:relative;padding:clamp(22px,2.6vw,28px);border-radius:var(--radius-lg);
+  border:1px solid var(--line);background:rgba(36,28,56,.46);
+}
+.feat .ic{
+  width:42px;height:42px;border-radius:13px;display:grid;place-items:center;margin-bottom:16px;
+  background:rgba(255,210,122,.1);border:1px solid rgba(255,210,122,.22);
+}
+.feat .ic svg{width:21px;height:21px;fill:none;stroke:var(--ember);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.feat h3{font-size:19px;font-weight:800;letter-spacing:-.02em}
+.feat p{margin-top:9px;font-size:15px;line-height:1.55;color:var(--muted)}
+.feat .demo{
+  margin-top:18px;padding:12px 14px;border-radius:14px;
+  background:rgba(20,17,28,.6);border:1px solid var(--line);
+  font-size:13.5px;line-height:1.5;color:var(--ink);
+}
+.feat .demo .who{display:block;margin-bottom:4px;font-size:10.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--ember)}
+.feat .demo .muted{color:var(--tertiary)}
+.feat .ic svg.solid{stroke:none;width:23px;height:23px}
+@media (max-width:760px){.feat-grid{grid-template-columns:1fr}}
+.src-row{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
+.src{padding:6px 12px;border-radius:999px;border:1px solid var(--line-strong);font-size:12px;font-weight:700;color:var(--muted)}
+
 /* ══ Footer ══════════════════════════════════════════════════════════════ */
 .site-footer{
   border-top:1px solid var(--line);
@@ -901,6 +1136,7 @@ body.past-hero .lava-pool{opacity:.55}
 .foot-cols{display:flex;flex-wrap:wrap;gap:clamp(30px,5vw,64px)}
 .foot-col h4{font-size:10.5px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--tertiary);margin:0 0 14px}
 .foot-col ul{display:grid;gap:10px}
+.foot-col li{font-size:14px;color:var(--tertiary)}
 .foot-col a{color:var(--muted);font-size:14px;text-decoration:none;transition:color .2s}
 .foot-col a:hover{color:var(--ember)}
 .foot-bottom{
@@ -931,6 +1167,8 @@ body.past-hero .lava-pool{opacity:.55}
   .ring .spoke{opacity:1}
   .ring .friend{opacity:1;transform:none}
   .lex::before{transform:scaleY(1)}
+  .pass-embers{display:none}
+  .burn::after{opacity:.7}
 }
 </style>
 </head>
@@ -964,6 +1202,13 @@ body.past-hero .lava-pool{opacity:.55}
         <path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#fl-grad)"/>
       </g>
     </symbol>
+    <!-- Store glyphs. No fill of their own: they take the parent <svg>'s. -->
+    <symbol id="apple" viewBox="0 0 24 24">
+      <path d="M16.4 12.7c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.3.8-.7 0-1.7-.8-2.8-.8-1.5 0-2.8.9-3.6 2.2-1.5 2.6-.4 6.5 1.1 8.7.7 1 1.6 2.2 2.7 2.2 1.1 0 1.5-.7 2.8-.7s1.6.7 2.8.7c1.1 0 1.9-1.1 2.6-2.1.8-1.2 1.1-2.4 1.2-2.4-.1 0-2.2-.9-2.2-3.5zM14.3 5.9c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.6-1 1.7-.9 2.6 1 .1 2-.5 2.6-1.2z"/>
+    </symbol>
+    <symbol id="gplay" viewBox="0 0 24 24">
+      <path d="M3.6 2.3c-.3.3-.5.8-.5 1.4v16.6c0 .6.2 1.1.5 1.4l.1.1 9.3-9.3v-.2L3.6 2.3zM16.2 15.6l-3.1-3.1v-.2l3.1-3.1.1.1 3.7 2.1c1 .6 1 1.6 0 2.2l-3.7 2.1-.1-.1zM15.2 16.6L12 13.4l-8.4 8.4c.3.3.9.4 1.5 0l10.1-5.2zM15.2 8.4L5.1 3.2c-.6-.4-1.2-.3-1.5 0L12 11.6l3.2-3.2z"/>
+    </symbol>
     <!-- Greek key / meander, 6 tiles of 24. One unbroken stroke, so a single
          stroke-dashoffset draws the whole run. -->
     <symbol id="meander" viewBox="-1 -1 146 18">
@@ -979,15 +1224,16 @@ body.past-hero .lava-pool{opacity:.55}
       Philoi
     </a>
     <nav class="nav" aria-label="Primary">
-      <a href="#origin">Origin</a>
+      <a href="#lockin">Lock in</a>
+      <a href="#season">Emberfall</a>
       <a href="#climb">The climb</a>
-      <a href="#relics">Relics</a>
       <a href="#cosmetics">Cosmetics</a>
       <a href="#campfires">Campfires</a>
       <a href="#challenges">Challenges</a>
       <a href="#clubs">For clubs</a>
     </nav>
-    <a class="nav-cta" href="#notify">Get notified</a>
+    <a class="nav-cta cta-pre" href="#notify">Notify me</a>
+    <a class="nav-cta cta-live" href="https://apps.apple.com/app/id6790697786">Get the app</a>
   </div>
 </header>
 
@@ -1013,35 +1259,57 @@ body.past-hero .lava-pool{opacity:.55}
       <div class="hero-display">
         <p class="s1">Season 1</p>
         <h1 id="heroTitle">Emberfall</h1>
-        <p class="soon">Coming soon</p>
+        <p class="ribbon">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="cta-pre">Launches October 1 · iOS</span>
+          <span class="cta-live">Out now on iOS</span>
+        </p>
       </div>
 
-      <div class="countdown" id="countdown" role="timer" aria-live="off" aria-label="Countdown to the Season 1 Emberfall launch">
-        <div class="cd-cell"><div class="cd-num" data-cd="d">—</div><div class="cd-lab">Days</div></div>
-        <div class="cd-cell"><div class="cd-num" data-cd="h">—</div><div class="cd-lab">Hours</div></div>
-        <div class="cd-cell"><div class="cd-num" data-cd="m">—</div><div class="cd-lab">Minutes</div></div>
-        <div class="cd-cell"><div class="cd-num" data-cd="s">—</div><div class="cd-lab">Seconds</div></div>
-      </div>
-      <p class="cd-when">Season 1 opens <strong>October 1, 2026</strong> · Fall 2026</p>
-
-      <div class="badges">
-        <div class="badge">
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.7c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.3.8-.7 0-1.7-.8-2.8-.8-1.5 0-2.8.9-3.6 2.2-1.5 2.6-.4 6.5 1.1 8.7.7 1 1.6 2.2 2.7 2.2 1.1 0 1.5-.7 2.8-.7s1.6.7 2.8.7c1.1 0 1.9-1.1 2.6-2.1.8-1.2 1.1-2.4 1.2-2.4-.1 0-2.2-.9-2.2-3.5zM14.3 5.9c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.6-1 1.7-.9 2.6 1 .1 2-.5 2.6-1.2z"/></svg>
-          <div><div class="top">Coming soon to</div><div class="bot">the App Store</div></div>
+      <!-- ── Pre-launch: countdown + waitlist ─────────────────────────── -->
+      <div class="cta-pre">
+        <div class="countdown" id="countdown" role="timer" aria-live="off" aria-label="Countdown to the Season 1 Emberfall launch">
+          <div class="cd-cell"><div class="cd-num" data-cd="d">—</div><div class="cd-lab">Days</div></div>
+          <div class="cd-cell"><div class="cd-num" data-cd="h">—</div><div class="cd-lab">Hours</div></div>
+          <div class="cd-cell"><div class="cd-num" data-cd="m">—</div><div class="cd-lab">Minutes</div></div>
+          <div class="cd-cell"><div class="cd-num" data-cd="s">—</div><div class="cd-lab">Seconds</div></div>
         </div>
-        <div class="badge is-next">
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.6 2.3c-.3.3-.5.8-.5 1.4v16.6c0 .6.2 1.1.5 1.4l.1.1 9.3-9.3v-.2L3.6 2.3zM16.2 15.6l-3.1-3.1v-.2l3.1-3.1.1.1 3.7 2.1c1 .6 1 1.6 0 2.2l-3.7 2.1-.1-.1zM15.2 16.6L12 13.4l-8.4 8.4c.3.3.9.4 1.5 0l10.1-5.2zM15.2 8.4L5.1 3.2c-.6-.4-1.2-.3-1.5 0L12 11.6l3.2-3.2z"/></svg>
-          <div><div class="top">Next</div><div class="bot">Google Play — follow for launch</div></div>
+        <p class="cd-when">Season 1 opens <strong>October 1, 2026</strong> · midnight Eastern</p>
+
+        <div class="badges">
+          <div class="badge">
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><use href="#apple"/></svg>
+            <div><div class="top">October 1 on</div><div class="bot">the App Store</div></div>
+          </div>
+          <div class="badge is-next">
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><use href="#gplay"/></svg>
+            <div><div class="top">Coming next</div><div class="bot">Google Play</div></div>
+          </div>
         </div>
+
+        <form class="notify" id="notify" action="mailto:support@philoi.app" method="post" enctype="text/plain">
+          <label class="sr-only" for="notify-email">Your email</label>
+          <input id="notify-email" type="email" name="email" placeholder="you@yourschool.edu" autocomplete="email" required>
+          <input class="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <button type="submit">Notify me</button>
+        </form>
+        <p class="notify-note" id="notifyNote">No spam. One email, the day Emberfall opens.</p>
       </div>
 
-      <form class="notify" id="notify" action="mailto:support@philoi.app" method="post" enctype="text/plain">
-        <label class="sr-only" for="notify-email">Your email</label>
-        <input id="notify-email" type="email" name="email" placeholder="you@yourschool.edu" autocomplete="email" required>
-        <input class="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <button type="submit">Get notified</button>
-      </form>
-      <p class="notify-note" id="notifyNote">No spam. One email the day Emberfall opens on your campus.</p>
+      <!-- ── Launched: the App Store button ───────────────────────────── -->
+      <div class="cta-live hero-live">
+        <div class="badges">
+          <a class="store-btn" href="https://apps.apple.com/app/id6790697786">
+            <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><use href="#apple"/></svg>
+            <span><span class="top" style="display:block">Download on the</span><span class="bot" style="display:block">App Store</span></span>
+          </a>
+          <div class="badge is-next">
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><use href="#gplay"/></svg>
+            <div><div class="top">Coming next</div><div class="bot">Google Play</div></div>
+          </div>
+        </div>
+        <p class="note">Free on iPhone. The Flame Pass is optional.</p>
+      </div>
 
       <p class="scroll-cue"><span>Scroll ↓</span></p>
     </div>
@@ -1051,7 +1319,7 @@ body.past-hero .lava-pool{opacity:.55}
   <section class="core">
     <div class="shell">
       <h2 class="reveal">Turn Your Campus<br>Into Your <span class="hl">Leaderboard.</span></h2>
-      <p class="sub reveal">Every hour you lock in — studying, lifting, running, building — is scored. Your rank is public to your friends, your campfire, and your school. So is theirs.</p>
+      <p class="sub reveal">Every hour you lock in — studying, lifting, running, building — is scored. Your rank is public to your friends, your campfire, and your school. So is theirs. The boards reset every week, and the season remembers where you finished.</p>
 
       <div class="rivalry reveal" data-board>
         <div class="rivalry-head">
@@ -1076,7 +1344,132 @@ body.past-hero .lava-pool{opacity:.55}
           <span class="score"><span class="coal sm" aria-hidden="true"></span><span data-count="10241">0</span></span>
           <i class="fill" data-fill="82" aria-hidden="true"></i>
         </div>
-        <p class="rivalry-foot">Illustrative standings — Season 1 has not started yet.</p>
+        <p class="rivalry-foot"><span class="cta-pre">Illustrative standings — Season 1 opens October 1.</span><span class="cta-live">Illustrative standings — your campus&rsquo;s real board is in the app.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="rule-greek reveal" aria-hidden="true">
+    <span class="rl-line"></span>
+    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
+    <span class="rl-line"></span>
+  </div>
+
+  <!-- ══ LOCK IN — the core loop ════════════════════════════════════════ -->
+  <section class="band" id="lockin">
+    <div class="shell">
+      <div class="band-head">
+        <p class="eyebrow reveal">Lock in</p>
+        <h2 class="reveal">Start the timer. <span class="hl">Feed the fire.</span></h2>
+        <p class="lede reveal">A lock-in is a focus session: studying, the gym, a run, deep work. Start one and your flame lights up for your friends. Every minute earns embers and XP toward your rank.</p>
+      </div>
+
+      <div class="lockin-grid">
+        <ul class="b2b-list reveal">
+          <li>
+            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
+            <div><b>Embers and XP for every minute</b><p>Embers are what you spend in the shop. XP moves you up the rank ladder and the Flame Pass.</p></div>
+          </li>
+          <li>
+            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
+            <div><b>On your lock screen</b><p>A Live Activity keeps the timer on your lock screen, so you can put the phone face-down and still see it running.</p></div>
+          </li>
+          <li>
+            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
+            <div><b>Pause, resume, stay awake</b><p>Take a break without losing the session. The screen stays awake while you&rsquo;re locked in.</p></div>
+          </li>
+          <li>
+            <span class="ic" aria-hidden="true"><svg width="17" height="17"><use href="#flame"/></svg></span>
+            <div><b>Your friends see it happen</b><p>Your campfire watches your flame catch in real time. It&rsquo;s harder to quit when people can see you.</p></div>
+          </li>
+        </ul>
+
+        <figure class="reveal" style="margin:0">
+          <div class="lockscreen" aria-label="An iPhone lock screen showing a Philoi lock-in as a Live Activity" role="img">
+            <p class="ls-date">Thursday, October 1</p>
+            <p class="ls-time">9:41</p>
+            <div class="live-act">
+              <div class="la-row">
+                <svg class="la-flame" aria-hidden="true"><use href="#flame"/></svg>
+                <div class="la-main"><b>Locked in · Study</b><span>Orgo midterm review</span></div>
+                <span class="la-timer" id="laTimer">47:12</span>
+              </div>
+              <div class="la-bar"><i></i></div>
+              <div class="la-foot"><span>Goal · 75 min</span><b><span class="coal sm" aria-hidden="true"></span>+94 embers</b></div>
+            </div>
+          </div>
+          <figcaption class="ls-cap">The Live Activity, on your lock screen</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SEASON 1 · EMBERFALL + THE FLAME PASS ══════════════════════════ -->
+  <section class="band" id="season" aria-labelledby="passTitle">
+    <div class="shell">
+      <div class="band-head">
+        <p class="eyebrow reveal">Season 1 · Fall 2026</p>
+        <h2 class="reveal">This semester, <span class="hl">the sky is on fire.</span></h2>
+        <p class="lede reveal">Every season has its own story, rewards and board. Season 1 is Emberfall. It runs all fall semester, and anything it gives you is yours to keep.</p>
+      </div>
+
+      <div class="pass-sky reveal">
+        <div class="pass-embers" id="passEmbers" aria-hidden="true"></div>
+
+        <p class="tagpill">Flame Pass · Season 1</p>
+        <h3 class="own" id="passTitle">Own <span class="g">Emberfall</span></h3>
+        <p class="tale">Hades tore the underworld open and the sky rained fire. This semester, every ember can <em>raise you or ruin you</em>.</p>
+        <p class="tale-2">Harness the fire with your fellow students and earn shards of Hades&rsquo; power as exclusive, permanent rewards. Gather enough and you forge the seal that shuts the dark back out.</p>
+
+        <div class="pass-price"><span class="big">$8.99</span><span class="per">/ semester</span></div>
+        <p class="pass-coffee">All for less than a cup of coffee.</p>
+
+        <div class="pass-grid">
+          <div class="pass-card">
+            <h3>Your name, on fire</h3>
+            <p class="sub">Flame Pass holders get the burning name, on every leaderboard, every campfire, the Agora and their profile. You don&rsquo;t equip it. You just have it.</p>
+            <div class="mini-board" aria-label="A campus leaderboard with one Flame Pass holder">
+              <div class="mb-row"><span class="p">1</span><span class="nm">maya</span><span class="v">14h 20m</span></div>
+              <div class="mb-row is-holder"><span class="p">2</span><span class="nm"><span class="burn">noah</span><span class="seal" style="--s:16px" role="img" aria-label="The Emberfall Seal"></span></span><span class="v">13h 05m</span></div>
+              <div class="mb-row"><span class="p">3</span><span class="nm">dev</span><span class="v">11h 48m</span></div>
+              <div class="mb-row"><span class="p">4</span><span class="nm">riya</span><span class="v">10h 12m</span></div>
+            </div>
+            <p class="mb-cap">See a name on fire? <b>That&rsquo;s a Flame Pass holder.</b></p>
+            <div class="seal-callout">
+              <span class="seal" style="--s:40px" aria-hidden="true"></span>
+              <p><b>The Emberfall Seal.</b> Forge it at pass level 100 and it burns beside your name forever.</p>
+            </div>
+          </div>
+
+          <div class="pass-card">
+            <h3>The season&rsquo;s cosmetics</h3>
+            <p class="sub">One is yours the moment you buy. You earn the rest by locking in through the season.</p>
+            <ul class="unlocks">
+              <li class="unlock"><span class="lv now">Instant</span><span><b>Emberfall Ascendant</b><span class="k">Flare</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
+              <li class="unlock"><span class="lv">Lv 25</span><span><b>Emberfall Standard</b><span class="k">Banner</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
+              <li class="unlock"><span class="lv">Lv 40</span><span><b>Void Smoke</b><span class="k">Particle</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
+              <li class="unlock"><span class="lv">Lv 50</span><span><b>Crown Halo</b><span class="k">Halo</span></span><span class="rar" style="--c:var(--r-mythic)">Mythic</span></li>
+              <li class="unlock"><span class="lv">Lv 50</span><span><b>Emberfall Strike</b><span class="k">Lock-in sound</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
+              <li class="unlock"><span class="lv">Lv 75</span><span><b>Emberfall Sovereign</b><span class="k">Card</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
+              <li class="unlock"><span class="lv">Lv 100</span><span><b>The Emberfall Seal</b><span class="k">Nameplate</span></span><span class="rar" style="--c:var(--r-mythic)">Mythic</span></li>
+              <li class="unlock"><span class="lv">Lv 100</span><span><b>&ldquo;Forged in Ember&rdquo;</b><span class="k">Title</span></span><span class="rar" style="--c:var(--r-legendary)">Legendary</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="pass-cta">
+          <div class="cta-pre">
+            <a class="ghost-btn" href="#notify">Notify me when it opens</a>
+            <p class="note">The Flame Pass unlocks in the app when the season opens on October 1.</p>
+          </div>
+          <div class="cta-live">
+            <a class="store-btn" href="https://apps.apple.com/app/id6790697786">
+              <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><use href="#apple"/></svg>
+              <span><span class="top" style="display:block">Get the Flame Pass on the</span><span class="bot" style="display:block">App Store</span></span>
+            </a>
+            <p class="note">Buy it from the Shop in the app. The rest of Philoi is free.</p>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -1219,6 +1612,10 @@ body.past-hero .lava-pool{opacity:.55}
           <h3>Rank up in public</h3>
           <p>Promotions land as a full-screen forge reveal, then a share card your campfire actually sees. Getting there is half of it. Them seeing it is the other half.</p>
         </div>
+        <div class="note-card reveal">
+          <h3>Weekly boards, season placement</h3>
+          <p>Your campus leaderboard is public and resets every week, so there&rsquo;s always a race you can still win. When the season ends, you get a placement based on where you finished.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -1322,7 +1719,7 @@ body.past-hero .lava-pool{opacity:.55}
       <div class="band-head">
         <p class="eyebrow reveal">Cosmetics</p>
         <h2 class="reveal">Open crates. <span class="hl">Flex the profile.</span></h2>
-        <p class="lede reveal">Flares that aura the whole app while you&rsquo;re locked in. Halos, banners, profile cards, flame skins, sound effects. Earned from the climb, pulled from crates, or forged out of duplicates — and every one of them is visible to everybody who opens your profile.</p>
+        <p class="lede reveal">Flames, flares, halos, banners, profile cards, titles and sound effects. You earn them on the climb, pull them from crates, or craft them in the Forge. Then you equip a loadout, and everybody who opens your profile sees it.</p>
       </div>
 
       <div class="crate-grid">
@@ -1370,6 +1767,14 @@ body.past-hero .lava-pool{opacity:.55}
         <span class="rl" style="--c:#a06cd5"><i aria-hidden="true"></i>Epic</span>
         <span class="rl" style="--c:#F5C542"><i aria-hidden="true"></i>Legendary</span>
         <span class="rl" style="--c:#FF6B6B"><i aria-hidden="true"></i>Mythic</span>
+      </div>
+
+      <div class="prestige-strip reveal">
+        <span class="lab">The Forge</span>
+        <span class="pstar"><span class="coal sm" aria-hidden="true"></span>Craft</span>
+        <span class="pstar"><span class="coal sm" aria-hidden="true"></span>Equip</span>
+        <span class="pstar"><span class="coal sm" aria-hidden="true"></span>Show off</span>
+        <p>Got cosmetics you don&rsquo;t want? Take a few to the Forge and melt them into one of the next rarity up, all the way to Mythic. Then equip your loadout and wear it everywhere your name shows up.</p>
       </div>
     </div>
   </section>
@@ -1452,7 +1857,7 @@ body.past-hero .lava-pool{opacity:.55}
       <div class="band-head">
         <p class="eyebrow reveal">Challenges</p>
         <h2 class="reveal">Duel a friend. Or <span class="hl">the whole campfire.</span></h2>
-        <p class="lede reveal">Put it on the line. Pick a metric, pick a window, and the app scores it live — no honour system, no arguing about it after. The harder the challenge, the bigger the payout.</p>
+        <p class="lede reveal">Put it on the line, solo or against friends. Pick a metric and a window, and the app scores it live. Fitness challenges verify themselves from your health data, and your friends vouch for everything else. The harder the challenge, the bigger the payout.</p>
       </div>
 
       <div class="duel-grid" data-bars>
@@ -1500,6 +1905,63 @@ body.past-hero .lava-pool{opacity:.55}
         <div class="mode reveal"><b>Collective</b><p>The whole campfire chases one target together. Everyone who contributed gets paid.</p></div>
         <div class="mode reveal"><b>Placement</b><p>Same window, individual standings. Top finishers take the bigger cut of the pot.</p></div>
         <div class="mode reveal"><b>Team mode</b><p>Two sides, one scorekeeper reports the final, and both rosters get rewarded off the result.</p></div>
+        <div class="mode reveal"><b>Solo goals</b><p>Just you against a target: hours studied, gym visits, kilometres run. Hit it, get paid.</p></div>
+        <div class="mode reveal"><b>ACE this course</b><p>A grade goal. Set the mark you&rsquo;re going for, study toward it all term, and claim it when the grade comes back.</p></div>
+      </div>
+
+      <div class="prestige-strip reveal">
+        <span class="lab">Verified</span>
+        <span class="pstar">Auto · health data</span>
+        <span class="pstar">Vouched · two friends</span>
+        <span class="pstar">Honour</span>
+        <p>Runs, steps and gym sessions sync from Apple Health, Health Connect and Strava and check themselves. Anything a sensor can&rsquo;t see, two friends can vouch for, and vouched goals pay more than honour ones.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="rule-greek reveal" aria-hidden="true">
+    <span class="rl-line"></span>
+    <svg class="rl-key" viewBox="-1 -1 146 18"><use href="#meander"/></svg>
+    <span class="rl-line"></span>
+  </div>
+
+  <!-- ══ AROUND THE LOCK-IN — Cindy, the Agora, Focus Nudge, fitness ═══ -->
+  <section class="band" id="more">
+    <div class="shell">
+      <div class="band-head">
+        <p class="eyebrow reveal">Around the lock-in</p>
+        <h2 class="reveal">Everything that gets you <span class="hl">back to work.</span></h2>
+        <p class="lede reveal">A coach who knows your week, a feed that cheers you on, a nudge when you drift, and workouts that log themselves.</p>
+      </div>
+
+      <div class="feat-grid">
+        <article class="feat reveal">
+          <span class="ic" aria-hidden="true"><svg class="solid" viewBox="0 0 24 24"><use href="#flame"/></svg></span>
+          <h3>Cindy, the AI Flame</h3>
+          <p>Your AI coach. Connect your calendar and Cindy plans around what&rsquo;s actually due, then nudges you before the week gets away from you.</p>
+          <div class="demo"><span class="who">Cindy</span>Orgo midterm is Thursday. Two 45-minute lock-ins tonight and tomorrow puts you on pace.</div>
+        </article>
+
+        <article class="feat reveal">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 21V9l9-6 9 6v12"/><path d="M8 21v-7h8v7"/><path d="M3 9h18"/></svg></span>
+          <h3>The Agora</h3>
+          <p>Your campus feed. Milestones, lock-ins, rank-ups and rewards from people at your school, so a win gets an audience. You can report or block anyone.</p>
+          <div class="demo"><span class="who">Agora · your campus</span><strong>jo</strong> hit Gold I <span class="muted">· 4m</span><br><strong>sam</strong> finished a 3h deep-work block <span class="muted">· 12m</span></div>
+        </article>
+
+        <article class="feat reveal">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 18h4"/><path d="M12 7v4"/><circle cx="12" cy="13.5" r=".6"/></svg></span>
+          <h3>Focus Nudge</h3>
+          <p>Pick the apps that pull you away. Open one while you should be working, and Philoi steps in with a gentle nudge back to your lock-in. It&rsquo;s a nudge, not a lock. You can always go through.</p>
+          <div class="demo"><span class="who">Focus Nudge</span>You&rsquo;re 32 minutes into a study lock-in. Back to it? <span class="muted">· Keep going / Open anyway</span></div>
+        </article>
+
+        <article class="feat reveal">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg></span>
+          <h3>Fitness sync</h3>
+          <p>Connect Apple Health on iPhone, Health Connect on Android, or Strava. Your runs, steps and gym sessions count automatically, and fitness challenges verify themselves.</p>
+          <div class="src-row"><span class="src">Apple Health</span><span class="src">Health Connect</span><span class="src">Strava</span></div>
+        </article>
       </div>
     </div>
   </section>
@@ -1567,19 +2029,22 @@ body.past-hero .lava-pool{opacity:.55}
           Philoi
         </span>
         <p class="slogan">For the Best on Campus</p>
-        <p class="avail">Coming to iOS soon · Android next</p>
+        <p class="avail"><span class="cta-pre">On iOS October 1 · Android next</span><span class="cta-live">Out now on <a href="https://apps.apple.com/app/id6790697786">iOS</a> · Android next</span></p>
       </div>
 
       <div class="foot-cols">
         <div class="foot-col">
           <h4>Season 1</h4>
           <ul>
+            <li><a href="#lockin">Lock in</a></li>
+            <li><a href="#season">Emberfall &amp; the Flame Pass</a></li>
             <li><a href="#origin">The name</a></li>
             <li><a href="#climb">The climb</a></li>
             <li><a href="#relics">Relics</a></li>
             <li><a href="#cosmetics">Cosmetics</a></li>
             <li><a href="#campfires">Campfires</a></li>
             <li><a href="#challenges">Challenges</a></li>
+            <li><a href="#more">Cindy, the Agora &amp; more</a></li>
           </ul>
         </div>
         <div class="foot-col">
@@ -1606,7 +2071,8 @@ body.past-hero .lava-pool{opacity:.55}
 
     <div class="foot-bottom">
       <span>&copy; 2026 Philoi</span>
-      <span>Season 1: Emberfall — opens October 1, 2026</span>
+      <span class="cta-pre">Season 1: Emberfall — opens October 1, 2026</span>
+      <span class="cta-live">Season 1: Emberfall — live now, Fall 2026</span>
     </div>
   </div>
 </footer>
@@ -1618,10 +2084,10 @@ body.past-hero .lava-pool{opacity:.55}
   var still = window.matchMedia('(prefers-reduced-motion: reduce)');
   var reduced = still.matches;
 
-  /* ── Season 1 opens. ONE constant — the site's only copy of the date. ──
-     The app's authority is economy_config.season.starts_at; keep the two in
-     step by hand (there is no API on this static page to read it from). */
-  var SEASON_START = Date.UTC(2026, 9, 1, 0, 0, 0); // 2026-10-01T00:00:00Z
+  /* ── Season 1 opens: the LAUNCH constant in <head> is the only copy of the
+     date. This used to be a second one at UTC midnight — four hours before
+     the season's real starts_at — so the countdown and the flip disagreed. */
+  var SEASON_START = LAUNCH.getTime();
 
   /* ── Past the hero, the drop pulls back a notch ──────────────────────── */
   (function heroZone() {
@@ -1651,10 +2117,15 @@ body.past-hero .lava-pool{opacity:.55}
 
     function pad(n) { return (n < 10 ? '0' : '') + n; }
 
+    var timer = null;
     function tick() {
       var left = SEASON_START - Date.now();
       if (left <= 0) {
         cells.d.textContent = cells.h.textContent = cells.m.textContent = cells.s.textContent = '00';
+        // Belt and braces with the <head> timeout, which a sleeping laptop can
+        // miss: the moment the countdown runs out, the page is launched.
+        setLaunchState();
+        if (timer !== null) { clearInterval(timer); timer = null; }
         return;
       }
       var s = Math.floor(left / 1000);
@@ -1663,8 +2134,37 @@ body.past-hero .lava-pool{opacity:.55}
       cells.m.textContent = pad(Math.floor(s / 60) % 60);
       cells.s.textContent = pad(s % 60);
     }
+    timer = setInterval(tick, 1000);
     tick();
-    setInterval(tick, 1000);
+  })();
+
+  /* ── The Live Activity mock: its timer counts up, like the real one ───── */
+  (function liveActivity() {
+    var el = document.getElementById('laTimer');
+    if (!el || reduced) return;
+    var secs = 47 * 60 + 12;
+    setInterval(function () {
+      if (document.hidden) return;
+      secs += 1;
+      var m = Math.floor(secs / 60), s = secs % 60;
+      el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+    }, 1000);
+  })();
+
+  /* ── Embers falling through the Flame Pass sky (mock 223's `fall`) ────── */
+  (function passEmbers() {
+    var box = document.getElementById('passEmbers');
+    if (!box || reduced) return;
+    for (var i = 0; i < 34; i++) {
+      var e = document.createElement('i');
+      var size = 1.5 + Math.random() * 2.5;
+      e.style.left = (Math.random() * 100).toFixed(2) + '%';
+      e.style.width = e.style.height = size.toFixed(1) + 'px';
+      e.style.animationDuration = (6 + Math.random() * 7).toFixed(2) + 's';
+      e.style.animationDelay = (-Math.random() * 12).toFixed(2) + 's';
+      e.style.setProperty('--fall', (box.offsetHeight + 40) + 'px');
+      box.appendChild(e);
+    }
   })();
 
   /* ── The waitlist ─────────────────────────────────────────────────────

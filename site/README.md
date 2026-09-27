@@ -72,7 +72,9 @@ Rules the implementation sticks to:
 
 - **Only `transform` and `opacity` animate continuously**, so everything stays
   on the compositor. Two places swap colour (the lit fuel chip, the meter going
-  amber at full) — both are discrete steps at a beat, not tweens.
+  amber at full) — both are discrete steps at a beat, not tweens. The one
+  exception is "Own Emberfall" in the Flame Pass section, whose light sweep is
+  the paywall mock's `background-position` animation on a single heading.
 - **Each stage's base CSS is a finished static illustration.** The JS only adds
   `.is-live` when the stage scrolls into view via IntersectionObserver, and
   removes it on exit so re-entering replays the sequence. With JS off you get
@@ -87,15 +89,34 @@ element's **base style during its `animation-delay`**, so whichever state is
 statically visible must be explicitly hidden under `.stage.is-live` or it will
 leak into the other states' windows.
 
-## No waitlist
+## The launch gate (pre-launch ↔ launched, no redeploy)
 
-There is deliberately no email capture on this site. The page closes with a plain
-contact band (`#contact`) pointing at `support@philoi.app` — no forms, no inputs, no
-third-party form service, and no JS beyond the scroll-driven stage playback.
+The page carries **both** states in the DOM. A tiny script at the top of `<head>`
+compares `Date.now()` with `LAUNCH` (`2026-10-01T00:00:00-04:00`, the same
+instant as `economy_config.season.starts_at`) and toggles `html.launched` before
+first paint. CSS does the rest:
 
-If a signup flow is ever wanted, it needs to be added back from scratch rather
-than re-enabled; the markup, the `.capture*` styles and the submit handler were
-all removed.
+```css
+html:not(.launched) .cta-live, html.launched .cta-pre { display:none !important }
+```
+
+- **`.cta-pre`**: "Launches October 1 · iOS" ribbon, countdown, waitlist form, "Notify me".
+- **`.cta-live`**: "Out now on iOS" ribbon, App Store button → `https://apps.apple.com/app/id6790697786`.
+- Google Play shows "Coming next" in both states.
+
+A timeout flips the class for anyone on the page at midnight, and the countdown
+calls the same function when it reaches zero. `LAUNCH` is the only copy of the date.
+
+**Preview either state:** `?preview=launched` or `?preview=pre`.
+
+The page flips itself, but the App Store link only works once the approved build
+is **Released** in App Store Connect. That step is manual.
+
+## Waitlist
+
+The hero's "Notify me" form (pre-launch only) posts to the `waitlist` Supabase
+edge function, which records the address as a Resend contact. With JS off it
+falls back to its `mailto:` action.
 
 ## Regenerating the images
 
