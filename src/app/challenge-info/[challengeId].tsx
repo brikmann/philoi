@@ -785,7 +785,7 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
         : g.missed_at
           ? `Missed — you reported ${g.progress.toLocaleString('en-US')}% against ${(g.grade_target ?? g.target).toLocaleString('en-US')}%`
           : g.claimed_at
-            ? 'Claimed — waiting on friends to vouch'
+            ? 'Claimed'
             : isGrade
               ? 'Live — report your grade when it lands'
               : `Live · ${pct}% there`,
@@ -811,7 +811,7 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
     // Honour is not a penalty and should not read as one, but it IS the reason the crate is capped
     // — so it is stated where the crate is, rather than discovered at the reveal.
     ...(g.verifiability === 'honor'
-      ? [{ k: 'Verified', v: isGrade ? 'Your word — honour rate' : 'Honour — proof or a vouch pays more' }]
+      ? [{ k: 'Verified', v: isGrade ? 'Your word — honour rate' : 'Honour rate — app-tracked pays the full tier' }]
       : []),
     // A streak needs consecutive windows to be a streak, and a one-time goal has exactly one.
     ...(oneTime ? [] : [{ k: 'Goal streak', v: 'Milestones at 3 · 7 · 14 · 30 days' }]),

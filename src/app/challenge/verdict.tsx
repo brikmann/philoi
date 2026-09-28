@@ -8,7 +8,6 @@ import { BoxArt } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
-import { isRealUpgrade, upgradeLabel, useVouchedReward } from '@/components/vouch-unlock-line';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { createChallenge, previewScopedReward, setGoalScope } from '@/lib/api/challenges';
@@ -167,7 +166,6 @@ export default function VerdictScreen() {
   }, [tier, claimLevel]);
 
   const boxKey = asBoxKey(preview?.box);
-  const vouchedPreview = useVouchedReward(tier, preview);
 
   const start = async () => {
     if (!session) return;
@@ -349,9 +347,7 @@ export default function VerdictScreen() {
             <Ionicons name="people-outline" size={14} color={Colors.textTertiary} />
             <Text style={styles.caveat}>
               {tier.toUpperCase()} effort · earns {boxKey ? BOXES[boxKey].name : 'this'} on your word.
-              {isRealUpgrade(preview, vouchedPreview) && vouchedPreview
-                ? ` Two friends vouch → ${upgradeLabel(preview, vouchedPreview)}.`
-                : ' Two friends vouching unlocks the full tier.'}
+              {' '}Self-reported goals pay a capped tier; app-tracked ones pay the full tier.
             </Text>
           </View>
         ) : preview ? (

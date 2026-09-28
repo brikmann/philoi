@@ -108,7 +108,7 @@ export function GoalManageSheet({
     disabledReason: settled
       ? "It's finished — set up a new one instead."
       : awaitingVouch
-        ? "You've claimed it, so the target is locked until friends answer."
+        ? "You've claimed it, so the target is locked."
         : goal.retired_at
           ? 'This was collapsed into another goal reading the same source.'
           : null,
