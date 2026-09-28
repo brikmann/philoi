@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   particleHug: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   nameRow: {
     flexDirection: 'row',
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   lockinParticles: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   lockinFlame: {
     alignItems: 'center',
