@@ -180,7 +180,9 @@ export function CampusVerification({
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>Enter the code</Text>
-      <Text style={styles.body}>Sent to {sentTo}. It expires in 10 minutes.</Text>
+      <Text style={styles.body}>
+        Sent to {sentTo}. It expires in 10 minutes. Not there in a minute? Check your junk/spam folder.
+      </Text>
 
       <TextInput
         style={styles.codeInput}

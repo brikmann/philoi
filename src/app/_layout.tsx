@@ -4,7 +4,7 @@ import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { enableFreeze } from 'react-native-screens';
@@ -61,6 +61,30 @@ SplashScreen.preventAutoHideAsync();
 // has to be set before the first navigator mounts rather than in an effect that runs after it.
 enableFreeze(true);
 
+
+// 🔴 SAFE-AREA TOP CROP FIX (DEVICE_TEST_TRIAGE_build9 §5). `initialWindowMetrics` is captured at
+// module load and is NULL on a TestFlight first launch (and on any cold start before the native
+// view has laid out once). Passing that null straight to SafeAreaProvider left the top band
+// resolving wrong — content pushed ~10% down with the top strip exposed on notch devices.
+//
+// So we fall back to a metrics object built from the live window instead of null: zero insets on
+// the very first frame (nothing is cropped — content simply sits flush for one frame), after which
+// the provider's own native onInsetsChange delivers the real insets and every `useSafeAreaInsets`
+// consumer updates to them. That is the "fall back to live insets" the triage asks for — the
+// provider always renders with a valid frame and then tracks the device's real insets, rather than
+// depending on a first-frame value that can be absent.
+//
+// (Verified the other half of §5: (tabs)/_layout.tsx's `topInset` is 0, so `paddingTop: topInset`
+// is not double-applying an inset on top of this.)
+const FALLBACK_METRICS = {
+  frame: {
+    x: 0,
+    y: 0,
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
+  },
+  insets: { top: 0, left: 0, right: 0, bottom: 0 },
+};
 
 function RootNavigator() {
   const { ready, error, session, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
@@ -262,8 +286,26 @@ function RootNavigator() {
     return () => subscription.remove();
   }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, router]);
 
-  // First-run guided path: signed in, handle set, consent done, never had a circle,
-  // hasn't finished/skipped onboarding yet — push to create-circle instead of empty Today.
+  // First-run: the INSTANT the account is fully usable (signed in, handle set, consent done,
+  // not disabled), mark onboarding complete and land the user on Today/home. We NO LONGER force
+  // new users into create-campfire.
+  //
+  // 🔴 THIS IS THE SOFTLOCK FIX (DEVICE_TEST_TRIAGE_build9 §1). The old effect here did
+  // `router.replace('/group/create?onboarding=true')` for anyone whose onboarding wasn't marked
+  // complete — but pressing "light the campfire" never wrote the onboarding-complete flag, so the
+  // guard re-fired and threw the user straight back into create: an infinite loop with no way to
+  // reach the app. Creating a campfire is now an OPTION surfaced on Home (the "+ Start a campfire"
+  // row) and in the tour, never a gate.
+  //
+  // Persisting the flag HERE — off the auth gates rather than off `hasCircle` — is also what lets
+  // the Cindy tutorial gate below fire for a brand-new account: that gate is predicated on
+  // `onboardingDone === true`, and before this fix the flag only ever flipped true AFTER a circle
+  // existed, which the softlock made unreachable. So a fresh account now reaches home (through the
+  // tutorial) without ever touching a campfire.
+  //
+  // `=== false` (not falsy) on purpose: `onboardingDone` is null while its AsyncStorage read is in
+  // flight, and writing on a null read would be a redundant write on every returning user's cold
+  // start.
   useEffect(() => {
     if (
       appReady &&
@@ -271,14 +313,11 @@ function RootNavigator() {
       !needsHandle &&
       !needsConsent &&
       !needsAccountDisabled &&
-      hasCircle === false &&
-      onboardingDone === false &&
-      pathname !== '/group/create' &&
-      pathname !== '/join'
+      onboardingDone === false
     ) {
-      router.replace('/group/create?onboarding=true');
+      markOnboardingDone().then(() => setOnboardingDone(true));
     }
-  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, hasCircle, onboardingDone, pathname, router]);
+  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, onboardingDone]);
 
   // 🔴 THE TUTORIAL GATE (CODE_PROMPT_tutorial.md). Fires the INSTANT onboarding completes — no
   // home screen in between — so the first run reads as one continuous experience: username,
@@ -665,7 +704,7 @@ function RootLayout() {
           fixed there, and verified on-device with this provider absent: a missing provider throws
           a catchable JS error and a red box, never a SIGABRT. Keeping this for correct insets,
           which it does give — but it is hygiene, not the fix. */}
-      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics ?? FALLBACK_METRICS}>
         <StatusBar style="light" />
         {/* No-op wrapper when POSTHOG_API_KEY isn't set — see src/lib/posthog.ts. */}
         {posthog ? <PostHogProvider client={posthog}>{content}</PostHogProvider> : content}
