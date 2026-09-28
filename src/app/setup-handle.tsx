@@ -334,7 +334,7 @@ export default function SetupHandleScreen() {
       {step === 1 && (
         <View style={styles.step}>
           <Text style={styles.h}>Pick a username</Text>
-          <Text style={styles.sub}>How your campfires know you.</Text>
+          <Text style={styles.sub}>How your friends find you and your campfires know you. You can change it later.</Text>
 
           <Text style={styles.lbl}>Username</Text>
           <View style={styles.field}>
