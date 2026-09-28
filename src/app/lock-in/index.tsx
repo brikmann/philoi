@@ -4,7 +4,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -98,6 +98,27 @@ const PARTICIPANTS_POLL_MS = 20000;
 // can't lock onto a fixed cadence. See STILL_HERE_JITTER_MS and the jittered threshold below.
 const STILL_HERE_BASE_MS = 10 * 60 * 1000;
 const STILL_HERE_JITTER_MS = 2 * 60 * 1000;
+
+/**
+ * The prompt's threshold for one confirmation cycle: somewhere in [8, 10] min, EARLIER-only.
+ *
+ * Earlier-only because the server nudges at a fixed 10 min and closes ~2 min later
+ * (notify_stale_lock_ins, 0221). A +jitter would land the in-app prompt after the push, and at
+ * the top of the range after the close itself — a present user losing a session they were never
+ * asked about. The server is the enforcement; this only has to ask first.
+ *
+ * Derived from the cycle's own timestamp (an integer hash), not Math.random(): the same cycle
+ * always gets the same threshold, so a re-render can't re-roll it and the React Compiler can
+ * cache it — Math.random() in render is impure, which is what lint rejected.
+ */
+function stillHereThreshold(lastConfirmedMs: number): number {
+  let h = Math.floor(lastConfirmedMs) | 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+  h ^= h >>> 16;
+  const unit = (h >>> 0) / 0xffffffff; // [0, 1]
+  return STILL_HERE_BASE_MS - Math.round(unit * STILL_HERE_JITTER_MS);
+}
 const MAX_PHOTOS = 6;
 // One tag for this screen's wake lock, so activate/deactivate always refer to the same lock.
 const KEEP_AWAKE_TAG = 'philoi-lock-in';
@@ -511,20 +532,19 @@ function LockInScreen() {
   const flareEquipped = useFlareEquipped();
   // Keyed off last confirmation, not session start — matches the server-side sweep
   // (notify_stale_lock_ins), so tapping "still here" actually dismisses this banner
-  // instead of it staying stuck on for the rest of a long session. Recomputed inline (not
-  // memoized) since useElapsedSeconds above already forces a re-render every second, which
-  // this piggybacks on rather than running its own separate ticking interval.
+  // instead of it staying stuck on for the rest of a long session. Recomputed inline off its own
+  // 1s `now` tick, gated off while paused or blurred like every other interval on this screen.
   //
   // Never while paused — they paused on purpose, and the server sweep skips paused sessions too.
   // Resume stamps last_confirmed_at, so the clock this reads restarts from the resume.
-  // A fresh random jitter each confirmation cycle (keyed on lastConfirmedAt): the threshold lands
-  // somewhere in [~8, ~12] min, so the prompt cannot be predicted and pre-armed against.
-  const stillHereThresholdMs = useMemo(
-    () => STILL_HERE_BASE_MS + Math.round((Math.random() * 2 - 1) * STILL_HERE_JITTER_MS),
-    [activeSession?.lastConfirmedAt?.getTime()],
-  );
+  // A fresh jitter each confirmation cycle (keyed on lastConfirmedAt) — see stillHereThreshold.
+  // `now` ticks on its own gated interval rather than reading Date.now() in render (impure).
+  const [now, setNow] = useState(() => Date.now());
+  useGatedInterval(() => setNow(Date.now()), 1000, activeSession != null && !paused);
   const stillHereDue =
-    activeSession && !paused ? Date.now() - activeSession.lastConfirmedAt.getTime() > stillHereThresholdMs : false;
+    activeSession && !paused
+      ? now - activeSession.lastConfirmedAt.getTime() > stillHereThreshold(activeSession.lastConfirmedAt.getTime())
+      : false;
 
   // ── CINDY, mid-session (CINDY_SPEC "Entry points — Lock-in", mock 117 §C) ──
   // Consent gates both halves, the same way home does: no consent means no bubble, no fetch, and
