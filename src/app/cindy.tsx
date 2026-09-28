@@ -38,6 +38,34 @@ import {
 /** Optimistic rows get a client id so the list has a key before the server replies. */
 type Row = CoachMessage & { pending?: boolean };
 
+
+/**
+ * Whether a proposed action, if run, would only NAVIGATE to a priced verdict screen and write
+ * nothing — the four shapes cindy.tsx intercepts before the executor (see runAction). Kept in exact
+ * lockstep with those guards: a mismatch here that returned true for a write-through case (an
+ * unscoped goal, a campfire host with no id) would auto-create without a confirm, which is the one
+ * outcome the verdict flow exists to prevent.
+ */
+function proposalOpensVerdict(action: CoachAction): boolean {
+  const input = action.input ?? {};
+  const circleId = typeof input.circle_id === 'string' && input.circle_id.length > 0;
+  switch (action.tool) {
+    case 'host_campfire_challenge':
+      return circleId;
+    case 'create_goals':
+      return parseProposedGoals(input).length > 0;
+    case 'create_challenge':
+      return isScopedTier(input.difficulty_tier);
+    case 'propose_social_challenge': {
+      const shape = String(input.shape ?? '');
+      if (!['duel', 'collective', 'placement'].includes(shape)) return false;
+      return shape === 'duel' || circleId;
+    }
+    default:
+      return false;
+  }
+}
+
 export default function CindyScreen() {
   const router = useRouter();
   const { session } = useAuth();
@@ -110,7 +138,18 @@ export default function CindyScreen() {
       // 'auto' actions run immediately — starting a session is safe and instant (CINDY_SPEC),
       // and making the user confirm the single most common request would feel bureaucratic.
       // 'confirm' actions do nothing until the chip is tapped.
-      if (reply.action?.effect === 'auto') await runAction(replyRow.id, reply.action);
+      //
+      // ONE CONFIRM, NOT TWO. A proposal that routes to the verdict screen (a scoped goal, a
+      // campfire host, a bulk ask, a social challenge) used to need the chip tapped FIRST — but the
+      // chip writes nothing for these; it only navigates to the verdict, which then shows the same
+      // priced reward and asks to confirm AGAIN. That is two confirmation surfaces for one decision.
+      // So when Cindy's proposal is one of those verdict-routing shapes, the verdict opens straight
+      // away and IS the single confirm; the chip stays 'proposed' in the transcript for re-entry if
+      // the user backs out. proposalOpensVerdict mirrors runAction's own navigation guards EXACTLY,
+      // so auto-running here can only ever open a screen — never perform a write.
+      if (reply.action && (reply.action.effect === 'auto' || proposalOpensVerdict(reply.action))) {
+        await runAction(replyRow.id, reply.action);
+      }
     } catch (e) {
       setDraft(message);
       setRows((prev) => prev.filter((r) => r.id !== optimistic.id));

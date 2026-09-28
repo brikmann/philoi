@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CindyHeaderFlame } from '@/components/cindy/cindy-header-flame';
 import { DrawerButton } from '@/components/nav/app-drawer';
@@ -33,6 +34,14 @@ type TabHeaderProps = {
    * owns that corner.
    */
   menu?: boolean;
+  /**
+   * A leading back chevron, off by default. These screens are top-level destinations reached from
+   * the drawer, so most never want one — but a tab can be PUSHED onto a stack (e.g. a notification
+   * tap routing to /(tabs)/challenges), and there the user expects a way back. Shown only when
+   * there is actually somewhere to go back to (router.canGoBack()), so it never renders a dead
+   * control on the drawer-root case, where the hamburger is the right affordance instead.
+   */
+  back?: boolean;
 };
 
 // One shared header for all four main tabs (Campfires/"Your fire", Leaderboard, Challenges,
@@ -40,10 +49,22 @@ type TabHeaderProps = {
 // jump the title. Each screen renders only this for its title row; any tab-specific content
 // (pill rows, buttons, stats) goes in its own container below, with no additional top padding
 // of its own (this component already accounts for it).
-export function TabHeader({ title, icon, right, cindy = true, menu = true }: TabHeaderProps) {
+export function TabHeader({ title, icon, right, cindy = true, menu = true, back = false }: TabHeaderProps) {
+  const router = useRouter();
+  const canGoBack = back && router.canGoBack();
   return (
     <View style={styles.header}>
       <View style={styles.left}>
+        {canGoBack && (
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            style={styles.back}>
+            <Ionicons name="chevron-back" size={22} color={Colors.ink} />
+          </Pressable>
+        )}
         {menu && <DrawerButton size={21} />}
         {icon && (
           <View style={styles.iconChip}>
@@ -79,6 +100,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
     flexShrink: 1,
+  },
+  back: {
+    marginRight: -Spacing.one,
   },
   iconChip: {
     width: 24,

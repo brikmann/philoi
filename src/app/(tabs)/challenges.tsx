@@ -295,7 +295,11 @@ export default function ChallengesScreen() {
 
   return (
     <Screen padded={false}>
-      {!showEmpty && <TabHeader title="Challenges" />}
+      {/* The header always renders — including in the empty state, which previously showed NO
+          chrome at all (no drawer, no back, no Cindy), leaving a user with no active challenges
+          stuck with only the CTA. `back` adds a chevron when this tab was pushed onto a stack
+          (e.g. from a notification), and is a no-op on the drawer-root case. */}
+      <TabHeader title="Challenges" back />
       {/* Hoisted above the branch on purpose: completing your last active goal flips this screen
           into the empty layout mid-animation, and a burst mounted inside either branch would be
           unmounted by that flip. Held at a stable child position so it survives the swap. */}
