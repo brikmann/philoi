@@ -12,7 +12,7 @@ import { bandedGradeTier, createScopedGoals, previewScopedReward, type ScopedGoa
 import { asBoxKey, TIER_COLOR } from '@/lib/challenge-tier';
 import { BOXES } from '@/lib/economy/boxes';
 import { getErrorMessage } from '@/lib/errors';
-import type { DifficultyTier, ScopedRewardPreview } from '@/types/database';
+import type { DifficultyTier, GoalClaimLevel, ScopedRewardPreview } from '@/types/database';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // CINDY'S VERDICT ON A WHOLE ASK — "90% in every class", priced course by course.
@@ -39,11 +39,14 @@ import type { DifficultyTier, ScopedRewardPreview } from '@/types/database';
  *
  * 🔒 A PREDICTION, NOT A CLAIM. create_scoped_goals derives the real verifiability from the row it
  * is about to write and ignores anything sent about it. This applies the same three-line rule to
- * the same three fields so the number on screen is the number that lands — a grade is somebody's
- * word (honour, capped at The Furnace), a built-in metric or a lock-in-time count is observed.
+ * the same three fields so the number on screen is the number that lands — a built-in metric or a
+ * lock-in-time count is observed, a typed feat is honour (capped at The Furnace).
+ *
+ * 0221 — a grade is priced at 'grade', not 'honor': the row still says honour, but a grade pays its
+ * band capped at Epic, and the trigger prices it the same way.
  */
-function claimLevelFor(g: ScopedGoalInput): 'auto' | 'honor' {
-  if (g.gradeTarget != null) return 'honor';
+function claimLevelFor(g: ScopedGoalInput): 'auto' | 'honor' | 'grade' {
+  if (g.gradeTarget != null) return 'grade';
   if ((g.type ?? 'custom') !== 'custom') return 'auto';
   return g.countMode === 'lockin_time' ? 'auto' : 'honor';
 }
@@ -87,7 +90,7 @@ export default function VerdictBatchScreen() {
         })
       );
 
-      const wanted = new Map<string, { tier: DifficultyTier; level: 'auto' | 'honor' | 'vouched' }>();
+      const wanted = new Map<string, { tier: DifficultyTier; level: GoalClaimLevel }>();
       goals.forEach((g, i) => {
         const tier = resolved[i];
         const level = claimLevelFor(g);
@@ -226,15 +229,23 @@ export default function VerdictBatchScreen() {
         })}
 
         {/* Said once for the batch rather than on every row: it is the same rule for all of them,
-            and repeating it five times turns a caveat into noise. A grade goal is always honour —
-            it is your word about a number the app cannot see — so this line is the honest half of
-            "here is what you are chasing". */}
+            and repeating it five times turns a caveat into noise. These lines are the honest half
+            of "here is what you are chasing" — mock 237's ceilings, stated before the goal is set. */}
+        {goals.some((g) => claimLevelFor(g) === 'grade') ? (
+          <View style={styles.caveatRow}>
+            <Ionicons name="school-outline" size={14} color={Colors.textTertiary} />
+            <Text style={styles.caveat}>
+              Grades are your word, so they top out at Epic — and only your first two each season
+              earn a crate. After that, a pass pays embers.
+            </Text>
+          </View>
+        ) : null}
         {goals.some((g) => claimLevelFor(g) === 'honor') ? (
           <View style={styles.caveatRow}>
             <Ionicons name="hand-left-outline" size={14} color={Colors.textTertiary} />
             <Text style={styles.caveat}>
-              You report these yourself, so they pay the honour rate — a grade is your word, and the
-              app never sees it. App-tracked goals pay the full tier automatically.
+              You report these yourself, so they pay the honour rate — capped at The Furnace.
+              App-tracked goals pay the full tier automatically.
             </Text>
           </View>
         ) : null}

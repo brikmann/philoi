@@ -23,7 +23,14 @@ import { RARITIES } from '@/lib/economy/rarity';
 import { CHALLENGE_TYPE_GLYPH, canonicalGoalUnit, personalGoalTitle } from '@/lib/goal-types';
 import { getErrorMessage } from '@/lib/errors';
 import { AUTO_SOURCE_NAME, getRealFitnessSourceForChallengeType, sourceNeedsConnection } from '@/lib/fitness-sync';
-import type { Challenge, ChallengeType, DifficultyTier, GradeDiscipline, ScopedRewardPreview } from '@/types/database';
+import type {
+  Challenge,
+  ChallengeType,
+  DifficultyTier,
+  GoalClaimLevel,
+  GradeDiscipline,
+  ScopedRewardPreview,
+} from '@/types/database';
 
 /**
  * "90%+ → EPIC · pass → RARE · under 50% → nothing" — the grade ladder spelled out, from the goal's
@@ -163,7 +170,8 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
   const pct = Math.min(100, Math.round((challenge.progress / challenge.target) * 100));
 
   const tier = challenge.difficulty_tier ?? null;
-  const claimLevel = challenge.verifiability ?? 'honor';
+  // 0221 — a grade is priced at 'grade' (its band, capped at Epic), not at the 'honor' its row holds.
+  const claimLevel: GoalClaimLevel = isGrade ? 'grade' : (challenge.verifiability ?? 'honor');
   useEffect(() => {
     // Only a SCOPED goal has a price to show. An unscoped legacy row pays what it always paid, and
     // inventing a crate for it on the card would promise something settlement will not deliver.

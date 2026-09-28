@@ -1491,14 +1491,14 @@ export type DifficultyTier = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendar
 export type GoalVerifiability = 'auto' | 'honor';
 
 /**
- * How the app learned the feat was done, once a claim settles (0164).
+ * How the app learned the feat was done, once a claim settles (0164) — and the level a price is
+ * asked at.
  *
- * The spec's gradient is Auto > Vouched > Unvouched. 'vouched' pays the same BAND as 'auto' — the
- * −10%/−20% currency trim that should separate them is still deferred (it needs a signature change
- * to grant_reward; see 0159's header) — so today the gradient is expressed in boxes, which is the
- * part that gates minting.
+ * 0221 — vouching is gone: 'vouched' survives only on old rows and now prices exactly like
+ * 'honor' (one band down, capped at The Furnace). 'grade' is a PRICING level, never stored: a grade
+ * goal's row says 'honor', but it is priced at its band capped at Epic (goal_paid_band).
  */
-export type GoalClaimLevel = 'auto' | 'honor' | 'vouched';
+export type GoalClaimLevel = 'auto' | 'honor' | 'vouched' | 'grade';
 
 /** What claim_goal_complete returns. `pending_vouch` is the only state that has not paid yet. */
 export type GoalClaimResult = {
@@ -1580,7 +1580,11 @@ export type ScopedRewardPreview = {
   embers: number;
   drip: number;
   significance: number;
-  verifiability: GoalVerifiability;
+  /** The level it was priced at — 'grade' for a grade goal (0221), never stored on a row. */
+  verifiability: GoalClaimLevel;
+  /** 0221 — true when the season's two grade boxes are already spent, so `box` is null and this
+   *  pays embers only. Only on grade previews/verdicts. */
+  box_rationed?: boolean;
 };
 
 /** What host_campfire_challenge hands back (0162) — the receipt for one transaction that created
@@ -1601,7 +1605,7 @@ export type HostedCampfireChallenge = {
   preview: ScopedRewardPreview | null;
 };
 
-/** 0210 — a grade goal's discipline: STEM passes pay rare..mythic, arts uncommon..mythic. */
+/** 0210 — a grade goal's discipline: STEM passes pay rare..epic, arts uncommon..epic (0221 cap). */
 export type GradeDiscipline = 'stem' | 'arts';
 
 /** What preview_grade_reward (0210) says a reported mark would earn, before the one-way report. */
@@ -1611,7 +1615,11 @@ export type GradeRewardPreview = {
   scoped_tier?: DifficultyTier | null;
   earned_tier: DifficultyTier | null;
   reward: ScopedRewardPreview | null;
+  /** 0221 — equals `reward`; there is no vouch upgrade any more. Kept for installed builds. */
   reward_vouched: ScopedRewardPreview | null;
+  /** 0221 — grade goals that already minted a box this season, of `grade_boxes_per_season` (2). */
+  grade_boxes_used?: number;
+  grade_boxes_per_season?: number;
 };
 
 /** get_priority_courses (0210) — the season's box slots, at most `cap`. */
@@ -2208,6 +2216,11 @@ export type GoalRewardPayload = ChallengeRewardPayload & {
   period?: ChallengePeriod;
   /** When this receipt was written (0200) — outlives the rollover that clears completed_at. */
   settled_at?: string;
+  /** 0211 — a grade goal that paid embers and no box. */
+  embers_only?: boolean;
+  /** 0221 — why: true when the season's two grade boxes were already spent (false = the course was
+   *  not a priority, 0211). */
+  box_rationed?: boolean;
 };
 
 /**

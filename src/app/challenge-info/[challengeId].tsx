@@ -36,6 +36,7 @@ import { CHALLENGE_TYPE_GLYPH, canonicalGoalUnit } from '@/lib/goal-types';
 import { shareCardImage } from '@/lib/share-card';
 import type {
   ChallengeResultRow,
+  GoalClaimLevel,
   ScopedRewardPreview,
   SocialChallenge,
   SocialChallengeRaceMetric,
@@ -735,7 +736,8 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
   // fetching) and returning above a hook would change the hook order between renders — so the
   // effect below reads through optional chaining and simply does nothing until there is a goal.
   const tier = g?.difficulty_tier ?? null;
-  const claimLevel = g?.verifiability ?? 'honor';
+  // 0221 — a grade is priced at 'grade' (its band, capped at Epic), not at the 'honor' its row holds.
+  const claimLevel: GoalClaimLevel = g?.grade_target != null ? 'grade' : (g?.verifiability ?? 'honor');
   const [reward, setReward] = useState<ScopedRewardPreview | null>(null);
   useEffect(() => {
     if (!tier) return;
@@ -811,7 +813,7 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
     // Honour is not a penalty and should not read as one, but it IS the reason the crate is capped
     // — so it is stated where the crate is, rather than discovered at the reveal.
     ...(g.verifiability === 'honor'
-      ? [{ k: 'Verified', v: isGrade ? 'Your word — honour rate' : 'Honour rate — app-tracked pays the full tier' }]
+      ? [{ k: 'Verified', v: isGrade ? 'Your word — caps at Epic, 2 crates a season' : 'Honour rate — app-tracked pays the full tier' }]
       : []),
     // A streak needs consecutive windows to be a streak, and a one-time goal has exactly one.
     ...(oneTime ? [] : [{ k: 'Goal streak', v: 'Milestones at 3 · 7 · 14 · 30 days' }]),
@@ -849,9 +851,10 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
         {isGrade ? (
           <Text style={styles.noteText}>
             <Text style={styles.noteStrong}>You report this one.</Text> When the mark lands, tap
-            &ldquo;Report your grade&rdquo; on the card and tell us what you got. Hit the target and
-            the crate above is yours; miss it and nothing is paid and nothing is taken — you just
-            find out. Because nobody can check a transcript, grade goals pay the honour rate.
+            &ldquo;Report your grade&rdquo; on the card and tell us what you got. Pass and the crate
+            above is yours; miss it and nothing is paid and nothing is taken — you just find out.
+            Because nobody can check a transcript, grades top out at Epic, and only your first two
+            each season earn a crate — after that a pass pays embers.
           </Text>
         ) : oneTime ? (
           <Text style={styles.noteText}>

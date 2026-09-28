@@ -134,12 +134,21 @@ export function GoalGradeSheet({
               ) : null}
 
               {report.passed && report.reward ? (
-                <View style={[styles.rewardRow, tier ? { borderColor: TIER_COLOR[tier] } : null]}>
-                  {boxKey ? <BoxArt boxKey={boxKey} size={30} /> : <EmberIcon size={20} />}
-                  <Text style={styles.rewardText}>
-                    {boxKey ? BOXES[boxKey].name : 'Embers'} + {report.reward.embers.toLocaleString('en-US')} embers
-                  </Text>
-                </View>
+                <>
+                  <View style={[styles.rewardRow, tier ? { borderColor: TIER_COLOR[tier] } : null]}>
+                    {boxKey ? <BoxArt boxKey={boxKey} size={30} /> : <EmberIcon size={20} />}
+                    <Text style={styles.rewardText}>
+                      {boxKey ? `${BOXES[boxKey].name} + ` : ''}
+                      {report.reward.embers.toLocaleString('en-US')} embers
+                    </Text>
+                  </View>
+                  {/* 0221 — only the first two grade goals a season mint a crate. */}
+                  {report.reward.box_rationed ? (
+                    <Text style={styles.verdictLine}>
+                      Your two grade crates this season are claimed, so this pass pays embers.
+                    </Text>
+                  ) : null}
+                </>
               ) : (
                 <Text style={styles.missNote}>
                   No reward for this one — the pass line was {report.pass_mark ?? report.grade_target}%.

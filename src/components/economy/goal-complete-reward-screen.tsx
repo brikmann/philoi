@@ -116,17 +116,23 @@ export function GoalCompleteRewardScreen({ goal, onClose, onOpenBox }: Props) {
 /**
  * The honest line — mock 176 §4.
  *
- * 🔴 IT NAMES WHAT WAS LOST, not just what was won. An unvouched claim pays one band down (0159,
- * capped at Furnace) and the reveal is the only place the user ever finds that out. Saying so, with
- * the crate they would have had, is what makes the vouch flow worth using next time; a reveal that
+ * 🔴 IT NAMES WHAT WAS LOST, not just what was won. An honour claim pays one band down (0159,
+ * capped at Furnace) and the reveal is the only place the user ever finds that out; a reveal that
  * quietly handed over the smaller box and said nothing would teach nothing.
  *
  * Nothing here recomputes a payout. `full_band`/`full_box` come off the RPC, which asks the same
- * `goal_paid_band` helper the trigger asked — and asks it about a grant that will never happen.
+ * `goal_paid_band` helper the trigger asked — and asks it about a grant that will never happen
+ * (0221: at 'auto', or at 'grade' for a grade goal, whose paid and full crates match).
  */
 function verificationLine(goal: UnseenGoalReward): { text: string; warn: boolean } | null {
   const fullBox = asBoxKey(goal.full_box);
   const paidBox = asBoxKey(goal.payload?.box);
+
+  // 0221 — a grade goal past the season's two crates paid embers only. Checked first: its missing
+  // box is the ration, not an honour discount, and must not read as "one tier down".
+  if (goal.payload?.box_rationed) {
+    return { text: 'Your two grade crates this season are claimed — this one paid embers.', warn: false };
+  }
 
   if (goal.verified_as === 'honor') {
     // Only when the discount actually COST something. A tier whose honour band and full band land
