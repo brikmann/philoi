@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -117,6 +118,14 @@ export function DevTools({ devOverride, setDevOverride, groups, isDev = false }:
       <SecondaryButton
         label={busy === 'Reset my data' ? 'Resetting…' : 'Reset my data'}
         onPress={() => run('Reset my data', () => resetMyCheckIns())}
+        disabled={busy !== null}
+      />
+
+      {/* The dev-only Cosmetic Preview Gallery (Agent 1 review harness). Every cosmetic rendered
+          with its real native renderer, on its real surface — the sign-off screen for the overhaul. */}
+      <SecondaryButton
+        label="Cosmetic Preview Gallery"
+        onPress={() => router.push('/cosmetic-gallery')}
         disabled={busy !== null}
       />
 

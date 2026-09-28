@@ -1345,7 +1345,7 @@ function Ascendant({ colour, width, height }: { colour: string; width: number; h
 
 /** How an equipped particle cosmetic moves. Keyed by id, like CARD_TEXTURE — the lore names a
  *  specific behaviour ("they rise", "the quiet snow", "it hunts"), and rarity cannot express it. */
-type ParticleMotion = 'rise' | 'fall' | 'swarm' | 'arc' | 'flicker' | 'coil';
+export type ParticleMotion = 'rise' | 'fall' | 'swarm' | 'arc' | 'flicker' | 'coil';
 
 const PARTICLE_MOTION: Record<string, ParticleMotion> = {
   'particle-base-spark': 'rise',
@@ -1357,6 +1357,17 @@ const PARTICLE_MOTION: Record<string, ParticleMotion> = {
   'particle-void-smoke': 'coil',
   'particle-emberfall-ascendant': 'rise',
 };
+
+/**
+ * The motion an equipped particle item plays. Exported so an explicit-item surface (the dev
+ * Cosmetic Preview Gallery) can drive `FlameParticleField` for any catalog item exactly as
+ * `EquippedFlameParticles` does for the equipped one, falling back to 'rise' for anything
+ * unmapped so a new particle still paints rather than blanking.
+ */
+export function particleMotionFor(id: string): ParticleMotion {
+  return PARTICLE_MOTION[id] ?? 'rise';
+}
+
 
 /**
  * Particle count per motion — mock 166's own numbers, exactly.
