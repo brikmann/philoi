@@ -7,7 +7,6 @@ import { BoxArt } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
-import { VouchUnlockLine } from '@/components/vouch-unlock-line';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { bandedGradeTier, createScopedGoals, previewScopedReward, type ScopedGoalInput } from '@/lib/api/challenges';
 import { asBoxKey, TIER_COLOR } from '@/lib/challenge-tier';
@@ -93,9 +92,6 @@ export default function VerdictBatchScreen() {
         const tier = resolved[i];
         const level = claimLevelFor(g);
         wanted.set(`${tier}:${level}`, { tier, level });
-        // 0209 — an honour goal also needs what two vouches would lift it to, so the row can name
-        // the way out of the cap. Still one fetch per distinct tier, not per goal.
-        if (level === 'honor') wanted.set(`${tier}:vouched`, { tier, level: 'vouched' });
       });
       const pairs = await Promise.all(
         [...wanted.entries()].map(async ([key, { tier, level }]) => [key, await previewScopedReward(tier, level)] as const)
@@ -175,7 +171,6 @@ export default function VerdictBatchScreen() {
         {goals.map((g, i) => {
           const tier = tiers[i] ?? ((g.tier ?? 'uncommon') as DifficultyTier);
           const price = prices[`${tier}:${claimLevelFor(g)}`] ?? null;
-          const vouchedPrice = prices[`${tier}:vouched`] ?? null;
           const boxKey = asBoxKey(price?.box);
           return (
             <View key={`${g.label}-${i}`} style={[styles.row, { borderColor: TIER_COLOR[tier] }]}>
@@ -225,7 +220,6 @@ export default function VerdictBatchScreen() {
                     </>
                   ) : null}
                 </View>
-                <VouchUnlockLine capped={price} vouched={vouchedPrice} style={styles.rowUnlock} />
               </View>
             </View>
           );
@@ -240,8 +234,7 @@ export default function VerdictBatchScreen() {
             <Ionicons name="hand-left-outline" size={14} color={Colors.textTertiary} />
             <Text style={styles.caveat}>
               You report these yourself, so they pay the honour rate — a grade is your word, and the
-              app never sees it. When you report a pass, ask two friends to vouch and it pays the full
-              tier instead.
+              app never sees it. App-tracked goals pay the full tier automatically.
             </Text>
           </View>
         ) : null}

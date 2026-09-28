@@ -134,7 +134,7 @@ function verificationLine(goal: UnseenGoalReward): { text: string; warn: boolean
     // inventing a loss.
     if (fullBox && fullBox !== paidBox) {
       return {
-        text: `Unverified — this paid one tier down. A clip, or two friends vouching, unlocks the full ${BOXES[fullBox].name}.`,
+        text: `Unverified — this paid one tier down. Only app-tracked goals reach the full ${BOXES[fullBox].name}.`,
         warn: true,
       };
     }

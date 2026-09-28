@@ -10,7 +10,6 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { GoalEditSheet } from '@/components/goal-edit-sheet';
 import { GoalGradeSheet } from '@/components/goal-grade-sheet';
 import { GoalManageSheet } from '@/components/goal-manage-sheet';
-import { useVouchedReward, VouchUnlockLine } from '@/components/vouch-unlock-line';
 import {
   deleteGoal,
   hideGoal,
@@ -177,8 +176,6 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
       alive = false;
     };
   }, [tier, claimLevel]);
-  // What two vouches would lift it to — fetched only while the price above is honour-capped.
-  const vouchedReward = useVouchedReward(tier, reward);
 
   // 🐛 0198 — "Auto" is the owner's SAVED choice, not a guess. This line used to be rebuilt from the
   // phone's live connection flag on every render, so a goal set to "Automatically" read "Logged by
@@ -467,11 +464,6 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
           </Text>
         </View>
       ) : null}
-      {/* ...and the way out of the cap, while there still is one. Nothing once settled: a goal paid
-          at honour cannot be vouched after the fact (one grant, 0164). */}
-      {!isComplete && !isMissed ? (
-        <VouchUnlockLine capped={reward} vouched={vouchedReward} lead="2 friends vouch → upgrades to" style={styles.unlockLine} />
-      ) : null}
       {/* 0210 — the ladder, in one line: a live grade goal says a near-miss still pays, and a settled
           one that earned less than it aimed for says what it aimed for. */}
       {isGrade && !isComplete && !isMissed && !isPendingVouch && challenge.grade_discipline && tier ? (
@@ -546,17 +538,6 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
         </Pressable>
       )}
 
-      {isPendingVouch && (
-        <Pressable
-          style={styles.pendingRow}
-          onPress={() => router.push({ pathname: '/goal/pending/[goalId]', params: { goalId: challenge.id } })}
-          accessibilityRole="button"
-          accessibilityLabel={`See who has vouched for ${personalGoalTitle(challenge)}`}>
-          <Ionicons name="hourglass-outline" size={14} color={Colors.amber} />
-          <Text style={styles.pendingLabel}>Waiting on friends to vouch</Text>
-          <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
-        </Pressable>
-      )}
 
       {/* Only a hand-logged goal in progress needs controls — an auto-tracked one fills itself,
           and offering quick-adds beside it invites double-counting the same steps.

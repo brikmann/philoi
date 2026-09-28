@@ -4,7 +4,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -91,7 +91,13 @@ import type {
 } from '@/types/database';
 
 const PARTICIPANTS_POLL_MS = 20000;
-const STILL_HERE_THRESHOLD_MS = 55 * 60 * 1000; // matches the ~1hr server-side reminder, shown client-side too so it's not a surprise
+// Anti-idle liveness (economy anti-cheat, build 10). The "still here? tap to confirm" prompt fires
+// ~10 min after the last confirmation, matching the shortened server-side stale sweep
+// (notify_stale_lock_ins nudges at 10 min and closes at ~12 min). A per-cycle random jitter of
+// +/-~2 min is applied so the interval is not perfectly predictable -- an alarmed/scripted auto-tap
+// can't lock onto a fixed cadence. See STILL_HERE_JITTER_MS and the jittered threshold below.
+const STILL_HERE_BASE_MS = 10 * 60 * 1000;
+const STILL_HERE_JITTER_MS = 2 * 60 * 1000;
 const MAX_PHOTOS = 6;
 // One tag for this screen's wake lock, so activate/deactivate always refer to the same lock.
 const KEEP_AWAKE_TAG = 'philoi-lock-in';
@@ -511,8 +517,14 @@ function LockInScreen() {
   //
   // Never while paused — they paused on purpose, and the server sweep skips paused sessions too.
   // Resume stamps last_confirmed_at, so the clock this reads restarts from the resume.
+  // A fresh random jitter each confirmation cycle (keyed on lastConfirmedAt): the threshold lands
+  // somewhere in [~8, ~12] min, so the prompt cannot be predicted and pre-armed against.
+  const stillHereThresholdMs = useMemo(
+    () => STILL_HERE_BASE_MS + Math.round((Math.random() * 2 - 1) * STILL_HERE_JITTER_MS),
+    [activeSession?.lastConfirmedAt?.getTime()],
+  );
   const stillHereDue =
-    activeSession && !paused ? Date.now() - activeSession.lastConfirmedAt.getTime() > STILL_HERE_THRESHOLD_MS : false;
+    activeSession && !paused ? Date.now() - activeSession.lastConfirmedAt.getTime() > stillHereThresholdMs : false;
 
   // ── CINDY, mid-session (CINDY_SPEC "Entry points — Lock-in", mock 117 §C) ──
   // Consent gates both halves, the same way home does: no consent means no bubble, no fetch, and
