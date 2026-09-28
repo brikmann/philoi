@@ -44,6 +44,24 @@ function ensureGoogleConfigured() {
   googleConfigured = true;
 }
 
+// Best-effort decode of a JWT payload's claims. Used only to inspect the Google ID token's
+// `nonce` claim before handing the token to Supabase — never for a trust decision (Supabase
+// verifies the signature server-side). Returns null on any malformed input or if the JS runtime
+// has no atob (guarded so a decode failure can never break sign-in).
+function decodeJwtClaims(idToken: string): Record<string, unknown> | null {
+  try {
+    const payload = idToken.split('.')[1];
+    if (!payload) return null;
+    let b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    b64 += '='.repeat((4 - (b64.length % 4)) % 4);
+    const atobFn = (globalThis as { atob?: (s: string) => string }).atob;
+    if (typeof atobFn !== 'function') return null;
+    return JSON.parse(atobFn(b64)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 // Signing out of the app clears the Supabase session but leaves the native Google SDK's
 // cached account behind, so the next signIn() resolves straight from cache with no picker
 // and the user is silently logged back into the same account. Call this on app sign-out.
@@ -81,9 +99,37 @@ async function signInWithGoogleNative() {
     throw new Error('Google did not return a sign-in token.');
   }
 
+  const idToken = response.data.idToken;
+
+  // NONCE — unlike the Apple path above, this Google flow sends NONE, on purpose.
+  //
+  // Supabase (GoTrue) rejects an id_token grant unless the `nonce` argument and the token's own
+  // `nonce` claim are either BOTH present or BOTH absent ("Passed nonce and nonce in id_token
+  // should either both exist or not."), and when both ARE present it requires
+  // sha256(argNonce) === token.nonce. The classic @react-native-google-signin SDK used here signs
+  // in through legacy GoogleSignInOptions and never calls setNonce, so the token it returns
+  // carries NO nonce claim — which makes "no nonce on either side" the one arrangement GoTrue
+  // accepts. (Passing a nonce anyway is exactly what produced the "should either both exist or
+  // not" error that blocked every Google sign-in.)
+  //
+  // Defensive: if a future SDK/config ever makes the token carry a nonce, we cannot reconstruct
+  // the raw pre-image GoTrue's sha256 check needs from this SDK, so the grant would fail its
+  // opaque server-side check. Detect that here and throw an actionable error naming the real fix
+  // (a controlled-nonce flow: hash into the Google request, send the raw nonce to Supabase)
+  // rather than surfacing the cryptic Supabase message.
+  const claims = decodeJwtClaims(idToken);
+  const tokenNonce = typeof claims?.nonce === 'string' && claims.nonce.length > 0 ? claims.nonce : null;
+  if (tokenNonce) {
+    throw new Error(
+      'Google returned a nonce-bound ID token this sign-in flow cannot verify. Google sign-in ' +
+        'needs a controlled-nonce flow (hash the nonce into the Google request, send the raw ' +
+        'nonce to Supabase) to support it.',
+    );
+  }
+
   const { error } = await supabase.auth.signInWithIdToken({
     provider: 'google',
-    token: response.data.idToken,
+    token: idToken,
   });
   if (error) throw error;
 }

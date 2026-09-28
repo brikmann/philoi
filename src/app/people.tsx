@@ -9,6 +9,7 @@ import { CosmeticAvatar, useResolvedLoadout } from '@/components/economy/public-
 import { FriendPingSheet } from '@/components/friend-ping-sheet';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFriends } from '@/hooks/use-friends';
 import {
@@ -26,7 +27,7 @@ import type { PingResult } from '@/types/database';
 // Friend ping — "Your people" (design-mocks/21, PHILOI_UI_SPEC.md §4b/§16). Person-first entry:
 // real (mutually-accepted) friends grouped by live state, each with a state-aware quick action
 // (join their session vs. nudge them) and a tap-to-open sheet with the challenge deep-links.
-export default function PeopleScreen() {
+function PeopleScreenContent() {
   const router = useRouter();
   const { friends, loading, error } = useFriends();
   const activeLockIns = useMyActiveLockIns();
@@ -53,7 +54,7 @@ export default function PeopleScreen() {
   }, [activeLockIns]);
 
   const filtered = useMemo(
-    () => friends.filter((f) => f.display_name.toLowerCase().includes(search.trim().toLowerCase())),
+    () => friends.filter((f) => (f.display_name ?? '').toLowerCase().includes(search.trim().toLowerCase())),
     [friends, search]
   );
   const lockedIn = filtered.filter((f) => goalByUser.has(f.friend_id));
@@ -259,6 +260,18 @@ export default function PeopleScreen() {
         lockedCircleName={lockInWithCircle?.name ?? undefined}
       />
     </SafeAreaView>
+  );
+}
+
+// The screen body is wrapped so a throw in any of its data hooks or rows (e.g. an unexpected
+// null in a friend record) degrades to a retry card instead of the blank white screen build 9
+// shipped (device triage P0 #4). The boundary must be a PARENT of the component that throws,
+// hence the thin default-export wrapper around the real content.
+export default function PeopleScreen() {
+  return (
+    <ErrorBoundary label="Friends">
+      <PeopleScreenContent />
+    </ErrorBoundary>
   );
 }
 
