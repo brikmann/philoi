@@ -44,7 +44,8 @@ import { markTutorialDone } from '@/lib/tutorial';
 
 export default function TutorialScreen() {
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
+  const userId = session?.user?.id ?? null;
 
   const cards = useMemo(
     () => tutorialCards(profile?.display_name ?? null, profile?.handle ?? null),
@@ -72,10 +73,10 @@ export default function TutorialScreen() {
       noteTourClosed();
       // Not awaited: the flag is a local write and the user should not watch a spinner to leave a
       // tutorial. If it somehow fails they see the tour once more, which is survivable.
-      markTutorialDone().catch(() => {});
+      markTutorialDone(userId).catch(() => {});
       router.replace('/');
     },
-    [card.key, index, router]
+    [card.key, index, router, userId]
   );
 
   const goTo = useCallback((i: number) => {
@@ -90,7 +91,7 @@ export default function TutorialScreen() {
       track('tutorial_pass_cta', { card_index: index });
       // Leaving via the Flame Pass CTA ends the tour just as much as Skip or the last card does.
       noteTourClosed();
-      markTutorialDone().catch(() => {});
+      markTutorialDone(userId).catch(() => {});
       // Straight to the paywall (mock 226's "See the Flame Pass"). The tutorial is replaced, so the
       // paywall's close falls back to Home when there is nothing underneath to go back to.
       router.replace('/paywall');
@@ -102,7 +103,7 @@ export default function TutorialScreen() {
     }
     track('tutorial_card_advanced', { card: card.key, card_index: index });
     goTo(index + 1);
-  }, [card.buy, card.key, finish, goTo, index, isLast, router]);
+  }, [card.buy, card.key, finish, goTo, index, isLast, router, userId]);
 
   const onPreviewTap = useCallback(() => {
     if (step < lastStep) setStep((s) => s + 1);

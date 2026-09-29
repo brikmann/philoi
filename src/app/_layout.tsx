@@ -158,7 +158,7 @@ function RootNavigator() {
     // Re-read on navigation, like the onboarding flag and for the same reason: Settings' "Replay
     // tutorial" clears it and then navigates, and a stale in-memory `true` would make the replay
     // silently do nothing.
-    isTutorialDone().then(setTutorialDone);
+    isTutorialDone(session?.user?.id ?? null).then(setTutorialDone);
   }, [pathname, refetchHasCircle]);
 
   useEffect(() => {

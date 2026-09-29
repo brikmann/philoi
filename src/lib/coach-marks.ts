@@ -255,10 +255,10 @@ export function hasCoachTourRunThisSession(): boolean {
  * catch-up for surfaces the driver could not reach, so an empty Forge on day one still gets its
  * line the week the user actually has two spares.
  */
-export async function shouldShowCoachMark(key: CoachMarkKey): Promise<boolean> {
+export async function shouldShowCoachMark(key: CoachMarkKey, userId: string | null | undefined): Promise<boolean> {
   if (tourActive) return false;
   if (Date.now() - tourClosedAtMs < TOUR_COOLDOWN_MS) return false;
-  if (!(await isTutorialDone())) return false;
+  if (!(await isTutorialDone(userId))) return false;
   if (!(await isCoachTourDone())) return false;
   return !(await isCoachMarkSeen(key));
 }

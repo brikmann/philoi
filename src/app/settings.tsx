@@ -484,7 +484,7 @@ export default function SettingsScreen() {
               track('coach_marks_reset', {});
               void (async () => {
                 await resetCoachMarks();
-                await resetTutorial().catch(() => {});
+                await resetTutorial(session?.user?.id ?? null).catch(() => {});
                 // The root layout re-reads the tutorial flag on every navigation, so the card tour
                 // opens on the next frame and the guided tour follows it onto Home — one gate
                 // decides when the tutorial runs, not two.

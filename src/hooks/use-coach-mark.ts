@@ -9,6 +9,7 @@ import {
   waitForCoachAnchor,
 } from '@/components/coach-mark';
 import { shouldShowCoachMark, type CoachMarkKey } from '@/lib/coach-marks';
+import { useAuth } from '@/lib/auth/auth-context';
 
 // THE ANCHOR HALF OF A COACH-MARK (CODE_PROMPT_coach_marks.md, CODE_PROMPT_tutorial_lands.md).
 //
@@ -69,6 +70,8 @@ const ANCHOR_WAIT_MS = 4_000;
  */
 export function useCoachMark(key: CoachMarkKey): RefObject<View | null> {
   const ref = useRef<View | null>(null);
+  const { session } = useAuth();
+  const userId = session?.user?.id ?? null;
 
   // Deliberately UNGATED BY A DEP ARRAY: it re-runs after every render of the host screen, which is
   // exactly what catches an anchor that only exists once its data arrived — the first inventory
@@ -87,7 +90,7 @@ export function useCoachMark(key: CoachMarkKey): RefObject<View | null> {
       let cancelled = false;
 
       const timer = setTimeout(() => {
-        shouldShowCoachMark(key)
+        shouldShowCoachMark(key, userId)
           .then(async (show) => {
             if (cancelled || !show) return;
             // Keeps looking until the control is laid out, on screen and non-zero — or until it is
@@ -111,7 +114,7 @@ export function useCoachMark(key: CoachMarkKey): RefObject<View | null> {
         // currently showing is this one.
         dismissCoachMark(key);
       };
-    }, [key]),
+    }, [key, userId]),
   );
 
   return ref;

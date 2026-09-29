@@ -214,7 +214,7 @@ export function CoachTourDriver() {
         if (cancelled) return;
         // Never during onboarding or the card tour. `isTutorialDone` is stamped on SKIP as well as
         // on finish, so somebody who skipped the cards still gets walked through the app.
-        if (!(await isTutorialDone())) return;
+        if (!(await isTutorialDone(userId))) return;
         if (await isCoachTourDone()) return;
         // Re-checked after the awaits: two Home focuses a frame apart must not launch two tours.
         if (cancelled || runningRef.current || hasCoachTourRunThisSession()) return;

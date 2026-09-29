@@ -1,8 +1,10 @@
-import { GoogleSignin, isCancelledResponse, isErrorWithCode, isSuccessResponse, statusCodes } from '@react-native-google-signin/google-signin';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import type { User } from '@supabase/supabase-js';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
+import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
@@ -13,9 +15,10 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_WEB_CLIENT_ID: string | null = Constants.expoConfig?.extra?.googleWebClientId ?? null;
 const GOOGLE_IOS_CLIENT_ID: string | null = Constants.expoConfig?.extra?.googleIosClientId ?? null;
 
-// webClientId MUST match the Client ID configured in Supabase's Google provider — that's
-// what makes signInWithIdToken() below accept the idToken this SDK returns (punchlist 2, §0:
-// "native Google Sign-In... user sees the native Google account picker, no Supabase redirect").
+// Sign-in no longer uses the native Google SDK (see signInWithGoogleOAuth below — the v16 SDK's
+// nonce-bound token can't be verified by Supabase). This config now exists ONLY so signOutGoogle()
+// can clear any Google account the SDK may have cached from a legacy build; webClientId/iosClientId
+// still come from the same Supabase-provider Client IDs.
 const BASE_GOOGLE_CONFIG = {
   webClientId: GOOGLE_WEB_CLIENT_ID ?? undefined,
   iosClientId: GOOGLE_IOS_CLIENT_ID ?? undefined,
@@ -44,24 +47,6 @@ function ensureGoogleConfigured() {
   googleConfigured = true;
 }
 
-// Best-effort decode of a JWT payload's claims. Used only to inspect the Google ID token's
-// `nonce` claim before handing the token to Supabase — never for a trust decision (Supabase
-// verifies the signature server-side). Returns null on any malformed input or if the JS runtime
-// has no atob (guarded so a decode failure can never break sign-in).
-function decodeJwtClaims(idToken: string): Record<string, unknown> | null {
-  try {
-    const payload = idToken.split('.')[1];
-    if (!payload) return null;
-    let b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    b64 += '='.repeat((4 - (b64.length % 4)) % 4);
-    const atobFn = (globalThis as { atob?: (s: string) => string }).atob;
-    if (typeof atobFn !== 'function') return null;
-    return JSON.parse(atobFn(b64)) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
 // Signing out of the app clears the Supabase session but leaves the native Google SDK's
 // cached account behind, so the next signIn() resolves straight from cache with no picker
 // and the user is silently logged back into the same account. Call this on app sign-out.
@@ -76,73 +61,76 @@ export async function signOutGoogle() {
   }
 }
 
-// The native Google account picker (replaces the old signInWithOAuth browser-redirect flow
-// below, which routed through a *.supabase.co page) — Supabase still does the actual auth
-// exchange server-side via signInWithIdToken(), only how the client obtains the idToken changed.
-async function signInWithGoogleNative() {
-  ensureGoogleConfigured();
-  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+// Google sign-in via the OAuth browser-redirect flow. Supabase builds the provider URL, we open
+// it in an in-app browser tab (expo-web-browser) and the provider returns to the app through the
+// philoi://auth/callback deep link, from which we lift the session.
+//
+// WHY NOT THE NATIVE PICKER. The classic @react-native-google-signin SDK (v16, the one installed)
+// exposes NO nonce parameter, yet Google returns a nonce-bound ID token, and Supabase's
+// signInWithIdToken() rejects an id_token grant whose `nonce` claim it cannot verify against a raw
+// pre-image it never received ("...nonce in id_token should either both exist or not"). That made
+// every native Google sign-in fail on device with "Google returned a nonce-bound ID token this
+// sign-in flow cannot verify." The browser-redirect flow sidesteps the native token entirely:
+// Supabase runs the OAuth handshake server-side and hands back a session, so there is no
+// client-side nonce to reconcile. Apple, whose SDK DOES expose the nonce, keeps its native flow.
+//
+// ⚠ REQUIRES the app deep link (philoi://auth/callback) to be listed under the Supabase
+// project's Auth → URL Configuration → Redirect URLs. Without it Supabase refuses the
+// redirectTo and the browser tab never returns a session.
+async function signInWithGoogleOAuth() {
+  const redirectTo = Linking.createURL('auth/callback');
 
-  // Drop any cached account first so the picker always shows and switching accounts works,
-  // even if the previous sign-out path (or a crash) left the SDK session behind.
-  try {
-    await GoogleSignin.signOut();
-  } catch {
-    // Nothing cached to clear.
-  }
-
-  const response = await GoogleSignin.signIn();
-  if (isCancelledResponse(response)) {
-    throw new Error('Sign-in was cancelled.');
-  }
-  if (!isSuccessResponse(response) || !response.data.idToken) {
-    throw new Error('Google did not return a sign-in token.');
-  }
-
-  const idToken = response.data.idToken;
-
-  // NONCE — unlike the Apple path above, this Google flow sends NONE, on purpose.
-  //
-  // Supabase (GoTrue) rejects an id_token grant unless the `nonce` argument and the token's own
-  // `nonce` claim are either BOTH present or BOTH absent ("Passed nonce and nonce in id_token
-  // should either both exist or not."), and when both ARE present it requires
-  // sha256(argNonce) === token.nonce. The classic @react-native-google-signin SDK used here signs
-  // in through legacy GoogleSignInOptions and never calls setNonce, so the token it returns
-  // carries NO nonce claim — which makes "no nonce on either side" the one arrangement GoTrue
-  // accepts. (Passing a nonce anyway is exactly what produced the "should either both exist or
-  // not" error that blocked every Google sign-in.)
-  //
-  // Defensive: if a future SDK/config ever makes the token carry a nonce, we cannot reconstruct
-  // the raw pre-image GoTrue's sha256 check needs from this SDK, so the grant would fail its
-  // opaque server-side check. Detect that here and throw an actionable error naming the real fix
-  // (a controlled-nonce flow: hash into the Google request, send the raw nonce to Supabase)
-  // rather than surfacing the cryptic Supabase message.
-  const claims = decodeJwtClaims(idToken);
-  const tokenNonce = typeof claims?.nonce === 'string' && claims.nonce.length > 0 ? claims.nonce : null;
-  if (tokenNonce) {
-    throw new Error(
-      'Google returned a nonce-bound ID token this sign-in flow cannot verify. Google sign-in ' +
-        'needs a controlled-nonce flow (hash the nonce into the Google request, send the raw ' +
-        'nonce to Supabase) to support it.',
-    );
-  }
-
-  const { error } = await supabase.auth.signInWithIdToken({
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    token: idToken,
+    options: {
+      redirectTo,
+      // We drive the browser ourselves (below) rather than letting supabase-js navigate the page.
+      skipBrowserRedirect: true,
+      // Always show the account chooser instead of silently resuming the last Google account —
+      // parity with the old native flow, which cleared the SDK's cached account before every
+      // sign-in so switching accounts worked.
+      queryParams: { prompt: 'select_account' },
+    },
   });
   if (error) throw error;
+  if (!data?.url) throw new Error('Supabase did not return an authorization URL.');
+
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+  if (result.type === 'cancel' || result.type === 'dismiss') {
+    throw new Error('Sign-in was cancelled.');
+  }
+  if (result.type !== 'success' || !result.url) {
+    throw new Error('Google sign-in did not complete.');
+  }
+
+  await completeOAuthSessionFromUrl(result.url);
+}
+
+// Turn the redirect URL into a Supabase session. Handles BOTH shapes the provider may return, so a
+// project-level flowType change can never silently break sign-in: PKCE (a `code` param exchanged
+// for a session — supabase-js's default) and implicit (access_token + refresh_token in the URL).
+async function completeOAuthSessionFromUrl(url: string) {
+  const { params, errorCode } = QueryParams.getQueryParams(url);
+  if (errorCode) throw new Error(errorCode);
+
+  if (params.code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+    if (error) throw error;
+    return;
+  }
+
+  const { access_token, refresh_token } = params;
+  if (access_token && refresh_token) {
+    const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+    if (error) throw error;
+    return;
+  }
+
+  throw new Error('Google sign-in did not return a session.');
 }
 
 export async function signInWithGoogle() {
-  try {
-    await signInWithGoogleNative();
-  } catch (e) {
-    if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) {
-      throw new Error('Sign-in was cancelled.');
-    }
-    throw e;
-  }
+  await signInWithGoogleOAuth();
 }
 
 /**
