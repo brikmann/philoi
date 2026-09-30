@@ -1,4 +1,4 @@
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, isCancelledResponse, isErrorWithCode, isSuccessResponse, statusCodes } from '@react-native-google-signin/google-signin';
 import type { User } from '@supabase/supabase-js';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -15,10 +15,9 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_WEB_CLIENT_ID: string | null = Constants.expoConfig?.extra?.googleWebClientId ?? null;
 const GOOGLE_IOS_CLIENT_ID: string | null = Constants.expoConfig?.extra?.googleIosClientId ?? null;
 
-// Sign-in no longer uses the native Google SDK (see signInWithGoogleOAuth below — the v16 SDK's
-// nonce-bound token can't be verified by Supabase). This config now exists ONLY so signOutGoogle()
-// can clear any Google account the SDK may have cached from a legacy build; webClientId/iosClientId
-// still come from the same Supabase-provider Client IDs.
+// iOS signs in through the browser (signInWithGoogleOAuth below — the v16 SDK's nonce-bound iOS
+// token can't be verified by Supabase); Android still uses the native SDK (signInWithGoogleNative).
+// webClientId MUST match the Client ID configured in Supabase's Google provider.
 const BASE_GOOGLE_CONFIG = {
   webClientId: GOOGLE_WEB_CLIENT_ID ?? undefined,
   iosClientId: GOOGLE_IOS_CLIENT_ID ?? undefined,
@@ -129,7 +128,69 @@ async function completeOAuthSessionFromUrl(url: string) {
   throw new Error('Google sign-in did not return a session.');
 }
 
+// ANDROID STAYS ON THE NATIVE PICKER. The nonce problem above is iOS's: the Android SDK signs in
+// through legacy GoogleSignInOptions and returns a token with NO nonce claim, which is the one shape
+// signInWithIdToken() accepts. It also needs nothing registered beyond the app's SHA-1, whereas the
+// browser flow needs the Supabase callback
+// (https://<project>.supabase.co/auth/v1/callback) listed as an Authorized redirect URI on the Google
+// web client — without it Google answers "Access blocked: Error 400: redirect_uri_mismatch".
+function decodeJwtClaims(idToken: string): Record<string, unknown> | null {
+  try {
+    const payload = idToken.split('.')[1];
+    if (!payload) return null;
+    let b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    b64 += '='.repeat((4 - (b64.length % 4)) % 4);
+    const atobFn = (globalThis as { atob?: (s: string) => string }).atob;
+    if (typeof atobFn !== 'function') return null;
+    return JSON.parse(atobFn(b64)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+async function signInWithGoogleNative() {
+  ensureGoogleConfigured();
+  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+  // Drop any cached account first so the picker always shows and switching accounts works.
+  try {
+    await GoogleSignin.signOut();
+  } catch {
+    // Nothing cached to clear.
+  }
+
+  const response = await GoogleSignin.signIn();
+  if (isCancelledResponse(response)) {
+    throw new Error('Sign-in was cancelled.');
+  }
+  if (!isSuccessResponse(response) || !response.data.idToken) {
+    throw new Error('Google did not return a sign-in token.');
+  }
+  const idToken = response.data.idToken;
+
+  // No nonce on either side is the only arrangement GoTrue accepts from this SDK. If a token ever
+  // does carry one, fail with the real cause rather than Supabase's opaque nonce error.
+  const claims = decodeJwtClaims(idToken);
+  if (typeof claims?.nonce === 'string' && claims.nonce.length > 0) {
+    throw new Error('Google returned a nonce-bound ID token this sign-in flow cannot verify.');
+  }
+
+  const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken });
+  if (error) throw error;
+}
+
 export async function signInWithGoogle() {
+  if (Platform.OS === 'android') {
+    try {
+      await signInWithGoogleNative();
+    } catch (e) {
+      if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) {
+        throw new Error('Sign-in was cancelled.');
+      }
+      throw e;
+    }
+    return;
+  }
   await signInWithGoogleOAuth();
 }
 
