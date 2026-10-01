@@ -382,6 +382,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.ink,
     paddingVertical: Spacing.three,
+    letterSpacing: 0,
   },
   domainSuffix: {
     fontFamily: Fonts.bodySemiBold,

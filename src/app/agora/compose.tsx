@@ -442,6 +442,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: Colors.ink,
     textAlignVertical: 'top',
+    letterSpacing: 0,
   },
   preview: {
     marginTop: Spacing.two,

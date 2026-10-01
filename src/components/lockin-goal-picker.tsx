@@ -592,6 +592,7 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: Colors.ink,
     padding: 0,
+    letterSpacing: 0,
   },
   goalHint: {
     fontFamily: Fonts.body,

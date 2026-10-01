@@ -405,6 +405,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.ink,
     paddingVertical: Spacing.two,
+    letterSpacing: 0,
   },
   send: {
     width: 30,

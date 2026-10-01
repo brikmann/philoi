@@ -895,6 +895,7 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     color: Colors.ink,
     textAlignVertical: 'top',
+    letterSpacing: 0,
   },
   noteCount: {
     alignSelf: 'flex-end',

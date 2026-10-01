@@ -595,6 +595,7 @@ const styles = StyleSheet.create({
     // Android's TextInput carries vertical padding of its own that would make these rows
     // taller than the banked ones sitting right above them.
     paddingVertical: 5,
+    letterSpacing: 0,
   },
   cellText: {
     fontFamily: Fonts.body,
@@ -685,6 +686,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.ink,
+    letterSpacing: 0,
   },
   routineSaveBtn: {
     width: 42,

@@ -34,6 +34,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 16,
     color: Colors.ink,
+    // Explicit, not default. iOS drew every PLACEHOLDER spread out ("S e a r c h") while typed
+    // text was fine. RN only puts a kern attribute on the input when letterSpacing is set, and
+    // the placeholder copies those attributes — so with no value iOS was free to track the
+    // placeholder itself. 0 pins it. The raw RN TextInputs elsewhere carry the same line.
+    letterSpacing: 0,
   },
   focused: {
     borderColor: Colors.coral,

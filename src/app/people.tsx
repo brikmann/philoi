@@ -389,6 +389,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12.5,
     color: Colors.ink,
+    letterSpacing: 0,
   },
   list: {
     paddingHorizontal: Spacing.three,
