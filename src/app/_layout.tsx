@@ -333,21 +333,42 @@ function RootNavigator() {
   // Both flags are read as `=== true` / `=== false` rather than truthily: each is null while its
   // AsyncStorage read is in flight, and treating null as false here would bounce a returning user
   // into the tour on every single cold start.
+  //
+  // 🔴 RE-CHECK BEFORE REDIRECTING. `tutorialDone` is a snapshot. The tour leaves by marking itself
+  // done and navigating in the same tick, and that navigation re-runs this effect while the snapshot
+  // still says `false` — so acting on it sent "See the Flame Pass" (and Skip / Done) straight back
+  // into card one. isTutorialDone() consults the in-memory record markTutorialDone sets
+  // synchronously, so this check is current. `cancelled` drops a check whose inputs moved on (the
+  // effect re-runs with fresh ones — that is the cleanup doing its job, not an unmount).
   useEffect(() => {
     if (
-      appReady &&
-      session &&
-      !needsHandle &&
-      !needsConsent &&
-      !needsAccountDisabled &&
-      onboardingDone === true &&
-      tutorialDone === false &&
-      pathname !== '/tutorial'
+      !(
+        appReady &&
+        session &&
+        !needsHandle &&
+        !needsConsent &&
+        !needsAccountDisabled &&
+        onboardingDone === true &&
+        tutorialDone === false &&
+        pathname !== '/tutorial'
+      )
     ) {
+      return;
+    }
+    let cancelled = false;
+    isTutorialDone(userId).then((done) => {
+      if (cancelled) return;
+      if (done) {
+        setTutorialDone(true);
+        return;
+      }
       track('tutorial_started', {});
       router.replace('/tutorial');
-    }
-  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, onboardingDone, tutorialDone, pathname, router]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, onboardingDone, tutorialDone, pathname, router, userId]);
 
   if (!appReady) {
     if (!stuck) return null;

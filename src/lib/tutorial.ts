@@ -57,18 +57,29 @@ function tutorialDoneKey(userId: string): string {
   return `${TUTORIAL_DONE_KEY_PREFIX}${userId}`;
 }
 
+// 🔴 IN-MEMORY FIRST. The tour leaves by navigating (to Home or the paywall) in the same tick it
+// marks itself done, and the root layout's gate re-evaluates on that navigation. If "done" only
+// existed in AsyncStorage, the gate would still be holding `false` and bounce the user straight back
+// into the tour ("See the Flame Pass" → card one again). markTutorialDone records the account here
+// SYNCHRONOUSLY, before its storage write, so any check made after it — including the gate's
+// re-check right before it redirects — already sees true.
+const doneThisSession = new Set<string>();
+
 export async function isTutorialDone(userId: string | null | undefined): Promise<boolean> {
   if (!userId) return true;
+  if (doneThisSession.has(userId)) return true;
   return (await AsyncStorage.getItem(tutorialDoneKey(userId))) === 'true';
 }
 
 export async function markTutorialDone(userId: string | null | undefined): Promise<void> {
   if (!userId) return;
+  doneThisSession.add(userId);
   await AsyncStorage.setItem(tutorialDoneKey(userId), 'true');
 }
 
 /** Settings' "Replay tutorial" — clears this account's flag so the tour can be entered again. */
 export async function resetTutorial(userId: string | null | undefined): Promise<void> {
   if (!userId) return;
+  doneThisSession.delete(userId);
   await AsyncStorage.removeItem(tutorialDoneKey(userId));
 }
