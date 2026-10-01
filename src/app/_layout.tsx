@@ -464,7 +464,7 @@ function RootNavigator() {
             No header and no back gesture: the tour owns the whole screen and has its own Skip. */}
         <Stack.Screen name="tutorial" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="group/[groupId]/index" options={{ title: '' }} />
-        <Stack.Screen name="group/[groupId]/edit" options={{ presentation: 'modal', title: 'Edit Campfire' }} />
+        <Stack.Screen name="group/[groupId]/edit" options={{ presentation: 'modal', headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="group/[groupId]/invite" options={{ presentation: 'modal', title: '', headerShown: false }} />
         <Stack.Screen name="group/[groupId]/join-requests" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="group/[groupId]/leaderboard" options={{ title: '' }} />
@@ -493,7 +493,12 @@ function RootNavigator() {
         />
         <Stack.Screen name="lock-in/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="goal/create" options={{ presentation: 'modal', title: 'New goal' }} />
-        <Stack.Screen name="group/create" options={{ presentation: 'modal', title: 'Start a Campfire' }} />
+        {/* Headerless HERE, not via an in-screen <Stack.Screen options={{ headerShown: false }}>. On
+            iOS a modal that mounts with a header and drops it after the first render is the prime
+            suspect for this form coming up garbled and taking no taps at all on iPhone (fresh
+            account, from the valley). Declared once, like challenge/create and milestone/new. Same
+            for edit above. */}
+        <Stack.Screen name="group/create" options={{ presentation: 'modal', headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* Cindy (CINDY_SPEC). Chat is a normal push — it is a conversation you come back to,
             not a modal task. Voice is a modal because it is a mode you enter and leave. */}
         <Stack.Screen name="cindy" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />

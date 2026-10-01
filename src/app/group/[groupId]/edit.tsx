@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CampfireBannerArt } from '@/components/campfire-banner-art';
 import { CampfireBannerPicker } from '@/components/campfire-banner-picker';
@@ -117,8 +117,6 @@ export default function EditGroupScreen() {
 
   return (
     <Screen padded={false} style={styles.container}>
-      <Stack.Screen options={{ headerShown: false }} />
-
       <View style={styles.header}>
         <Text style={styles.title}>Edit campfire</Text>
         <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Close">
@@ -126,7 +124,9 @@ export default function EditGroupScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* No KeyboardAvoidingView here: <Screen> already wraps the page in one, and a second 'padding'
+          one nested inside it double-counts the keyboard on iOS. */}
+      <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
           <Text style={styles.lbl}>Name</Text>
           <View style={styles.field}>
@@ -203,7 +203,7 @@ export default function EditGroupScreen() {
             <Text style={styles.saveLabel}>{loading ? 'Saving…' : 'Save changes'}</Text>
           </EmberFill>
         </Pressable>
-      </KeyboardAvoidingView>
+      </View>
 
       <CampfireBannerPicker
         visible={bannerPickerOpen}
