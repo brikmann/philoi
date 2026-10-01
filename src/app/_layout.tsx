@@ -1,5 +1,5 @@
 import { useFonts as useInterFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_900Black } from '@expo-google-fonts/inter';
-import { Stack, usePathname, useRouter } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider, usePathname, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -85,6 +85,10 @@ const FALLBACK_METRICS = {
   },
   insets: { top: 0, left: 0, right: 0, bottom: 0 },
 };
+
+// Transparent so the root <ScreenBackground> shows through the iOS stack container — see the
+// ThemeProvider in RootLayout.
+const navTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: 'transparent' } };
 
 function RootNavigator() {
   const { ready, error, session, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
@@ -610,7 +614,15 @@ function RootLayout() {
               it. The drawer renders inside a <Modal>, so its position in this tree decides only
               what it can READ (auth, active session), not what it can cover. */}
           <NavDrawerProvider>
-            <RootNavigator />
+            {/* iOS ONLY, and the reason every route above that relies on this radial showed WHITE
+                on iPhone: native-stack paints its UINavigationController container with the
+                navigation theme's colors.background (nativeContainerStyle in the vendored
+                NativeStackView), and with no ThemeProvider that is DefaultTheme's white. The
+                transparent contentStyle on each scene just reveals that white container instead
+                of this radial. Android ignores nativeContainerStyle, which is why it looked fine. */}
+            <ThemeProvider value={navTheme}>
+              <RootNavigator />
+            </ThemeProvider>
             {/* Renders nothing until a rank actually climbs. Mounted here, above the navigator, so
                 a rank earned from server-side XP (Strava/Whoop webhook, challenge payout) still
                 gets the forge no matter which screen the user is on — the done screen can only ever

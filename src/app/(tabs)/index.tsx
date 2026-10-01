@@ -628,7 +628,16 @@ export function ValleyPage({ myGroups, heatByGroupId }: { myGroups: MyGroup[]; h
     // (padding only affects normal-flow layout). 'position' shifts this whole wrapped view,
     // absolutely-positioned children included, so the search bar actually clears the keyboard
     // (PHILOI_UI_SPEC.md §4b — "no input should ever sit behind the keyboard").
-    <KeyboardAvoidingView style={styles.valley} behavior={Platform.OS === 'ios' ? 'position' : undefined}>
+    //
+    // contentContainerStyle IS LOAD-BEARING ON iOS. 'position' wraps the children in an inner View
+    // that only takes contentContainerStyle — `style` lands on the outer one. Without flex:1 that
+    // inner View is zero-height, so every absolute child is placed against a 0px box: the valley
+    // nodes pile up at the top and `disc` (bottom: 0) renders above the screen. Android passes
+    // behavior undefined, gets no inner View, and never showed it.
+    <KeyboardAvoidingView
+      style={styles.valley}
+      contentContainerStyle={styles.valley}
+      behavior={Platform.OS === 'ios' ? 'position' : undefined}>
       <View style={styles.stage2}>
         {filter === 'mine'
           ? laidOutMine.map(({ item: group, left, top }) => (
