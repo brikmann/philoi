@@ -94,6 +94,7 @@ function RootNavigator() {
   // onboarding one does: a nullish value must never be mistaken for "not done" and bounce someone
   // into the tour on every launch while the read is still in flight.
   const [tutorialDone, setTutorialDone] = useState<boolean | null>(null);
+  const userId = session?.user?.id ?? null;
   const router = useRouter();
   const pathname = usePathname();
   const [interLoaded] = useInterFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_900Black });
@@ -158,8 +159,10 @@ function RootNavigator() {
     // Re-read on navigation, like the onboarding flag and for the same reason: Settings' "Replay
     // tutorial" clears it and then navigates, and a stale in-memory `true` would make the replay
     // silently do nothing.
-    isTutorialDone(session?.user?.id ?? null).then(setTutorialDone);
-  }, [pathname, refetchHasCircle]);
+    isTutorialDone(userId).then(setTutorialDone);
+    // userId too, not just pathname: before sign-in there is no id and the flag reads "done", and
+    // a new account's session can arrive without a navigation — re-read the moment the user changes.
+  }, [pathname, refetchHasCircle, userId]);
 
   useEffect(() => {
     if (hasCircle) markOnboardingDone().then(() => setOnboardingDone(true));
@@ -414,9 +417,6 @@ function RootNavigator() {
 
       <Stack.Protected guard={Boolean(session) && (needsHandle || needsConsent)}>
         <Stack.Screen name="setup-handle" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
-        {/* No header and no back gesture: the tour owns the whole screen and has its own Skip.
-            A swipe-back out of a first-run gate would drop someone on an empty Home. */}
-        <Stack.Screen name="tutorial" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />
       </Stack.Protected>
 
       <Stack.Protected guard={Boolean(session) && !needsHandle && !needsConsent && needsAccountDisabled}>
@@ -431,6 +431,13 @@ function RootNavigator() {
             applying to the tabs route, stacking two full bar heights of padding and leaving the
             half-screen gap between the pill and each tab's title (punchlist 4D). */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false, contentStyle: { backgroundColor: 'transparent', paddingTop: 0 } }} />
+        {/* The first-run tour. It lives in THIS group — signed in, handle and consent done, not
+            disabled — because that is exactly when the tutorial gate below sends people here. It
+            used to sit in the setup-handle group (`needsHandle || needsConsent`), which Expo
+            Router has already locked by the time the gate fires, so `router.replace('/tutorial')`
+            hit a protected-out route and was silently dropped: no fresh account ever saw the tour.
+            No header and no back gesture: the tour owns the whole screen and has its own Skip. */}
+        <Stack.Screen name="tutorial" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="group/[groupId]/index" options={{ title: '' }} />
         <Stack.Screen name="group/[groupId]/edit" options={{ presentation: 'modal', title: 'Edit Campfire' }} />
         <Stack.Screen name="group/[groupId]/invite" options={{ presentation: 'modal', title: '', headerShown: false }} />
