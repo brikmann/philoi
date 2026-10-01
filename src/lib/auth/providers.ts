@@ -112,6 +112,15 @@ async function completeOAuthSessionFromUrl(url: string) {
   const { params, errorCode } = QueryParams.getQueryParams(url);
   if (errorCode) throw new Error(errorCode);
 
+  // Supabase reports a failed provider handshake as `error` + `error_description` on the redirect
+  // (query or fragment), NOT as `errorCode` — so without this its real reason ("Unable to exchange
+  // external code", a disallowed redirect, …) was swallowed into the generic message below.
+  if (params.error || params.error_description) {
+    const reason = params.error_description || params.error;
+    console.warn('[auth] Google OAuth redirect returned an error:', params.error, '-', params.error_description);
+    throw new Error(`Google sign-in failed: ${reason}`);
+  }
+
   if (params.code) {
     const { error } = await supabase.auth.exchangeCodeForSession(params.code);
     if (error) throw error;
@@ -125,6 +134,8 @@ async function completeOAuthSessionFromUrl(url: string) {
     return;
   }
 
+  // Keys only, never values: the redirect can carry tokens.
+  console.warn('[auth] Google OAuth redirect had no code or tokens; keys:', Object.keys(params).join(', ') || '(none)');
   throw new Error('Google sign-in did not return a session.');
 }
 
