@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ItemArt } from '@/components/economy/item-art';
 import { useRewardClaim } from '@/components/economy/reward-claim';
 import { RewardRevealFrame, RevealHeadline } from '@/components/economy/reward-reveal-frame';
+import { UnlockReveal } from '@/components/economy/unlock-reveal';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useRevealSting } from '@/hooks/use-audio-preview';
@@ -60,7 +61,59 @@ type Props = {
   sharing?: boolean;
 };
 
-export function RelicUnlockRewardScreen({ relic, onClose, rankUp, onShare, sharing }: Props) {
+/**
+ * THE UNIVERSAL UNLOCK REVEAL, for a relic (mocks 251/254/255): ① the artifact itself and its lore,
+ * ② in your profile showcase, ③ on display in your Trophy Hall. The same reveal a box, a pass level
+ * and a placement open — what is this payout's own (the rung's rarity, the capstone's words, the
+ * "what you did to earn it" line, Share) rides in through its props.
+ *
+ * A relic key this build has never heard of has no catalog item to draw, so it keeps the frame
+ * below, which can still announce it by name off the server row.
+ */
+export function RelicUnlockRewardScreen(props: Props) {
+  const item = getItem(props.relic.out_relic_key);
+  if (!item) return <RelicUnlockFallback {...props} />;
+  const { relic, onClose, rankUp, onShare, sharing } = props;
+  // The rung's rarity, not the catalog's — see the fallback's note on ladderRarity.
+  const rarity: Rarity = ladderRarity(relic.out_relic_key, relic.out_rung ?? 0) ?? item.rarity;
+  return (
+    <UnlockReveal
+      item={item}
+      rarity={rarity}
+      eyebrow={relicEyebrow(relic, rarity, rankUp)}
+      subline={relicEarnedLine(relic)}
+      closeLabel="Done"
+      onClose={onClose}
+      note={
+        <Text style={styles.rewardText}>
+          <Text style={[styles.rewardItem, { color: RARITY_COLOR[rarity] }]}>{relic.out_name}</Text>
+          {relicNote(relic, rankUp)}
+        </Text>
+      }
+      footer={
+        onShare ? (
+          <PrimaryButton label={sharing ? 'Preparing…' : 'Share'} onPress={onShare} disabled={sharing} variant="ghost" />
+        ) : null
+      }
+    />
+  );
+}
+
+/** The eyebrow, by event — the fallback below explains each word. */
+function relicEyebrow(relic: UnseenRelicUnlock, rarity: Rarity, rankUp?: boolean): string {
+  if (relic.out_is_capstone) return 'THE CROWN IS YOURS';
+  if (rankUp) return rarity === 'mythic' ? 'MYTHIC RUNG' : 'RELIC RANKED UP';
+  return rarity === 'mythic' ? 'MYTHIC RELIC' : 'RELIC UNLOCKED';
+}
+
+/** What moved and where it went — "added to your Trophy Hall", or the rung a rank-up reached. */
+function relicNote(relic: UnseenRelicUnlock, rankUp?: boolean): string {
+  if (!rankUp) return ' — added to your Trophy Hall';
+  const glyph = rungGlyph(relic.out_rung ?? 0);
+  return glyph ? ` — now rung ${glyph}, on your Trophy Hall` : ' — ranked up, on your Trophy Hall';
+}
+
+function RelicUnlockFallback({ relic, onClose, rankUp, onShare, sharing }: Props) {
   const item = getItem(relic.out_relic_key);
   // 🔴 THE RUNG'S RARITY, NOT THE CATALOG'S. A ladder relic has ONE catalog entry carrying its
   // FIRST rung's rarity — Hercules' Might is listed uncommon — and every rung after that raises

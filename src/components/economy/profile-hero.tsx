@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { BurningName } from '@/components/burning-name';
 import { EquippedAvatarHalo, EquippedCardBackdrop, type AuraTier } from '@/components/economy/applied-art';
 import { FlareBorder, type FlareBorderMotion } from '@/components/economy/flare-border';
+import type { FlareTier } from '@/components/economy/flare-perimeter';
 import { publicBannerStyle } from '@/components/economy/public-identity';
 import { SeasonChip } from '@/components/economy/season-chip';
 import { RankBadge } from '@/components/rank-badge';
@@ -53,6 +54,7 @@ export function ProfileHero({
   loadout,
   avatarSize = 64,
   auraTier = 0,
+  flareSurge = null,
   motion = 'full',
   title,
   nameSuffix,
@@ -70,6 +72,9 @@ export function ProfileHero({
   /** The avatar's own diameter — what EquippedAvatarHalo's `size` means (it adds the ring itself). */
   avatarSize?: number;
   auraTier?: AuraTier;
+  /** The flare's lock-in surge — the session tier while the card's owner is locked in right now
+   *  (useFlareSurge), null at rest. Only your own card can know it; visitors always see ambient. */
+  flareSurge?: FlareTier | null;
   motion?: FlareBorderMotion;
   /** The title line. A node rather than a flag because own vs. someone else's title come from two
    *  different reads (EquippedTitle / PublicTitle) and this component must not guess which. */
@@ -84,7 +89,7 @@ export function ProfileHero({
   children?: ReactNode;
 }) {
   return (
-    <FlareBorder flare={loadout.flare?.flare} radius={CARD_RADIUS + MAT} motion={motion}>
+    <FlareBorder flare={loadout.flare?.flare} radius={CARD_RADIUS + MAT} motion={motion} surge={flareSurge}>
       {/* The Banner is a MAT around the card rather than a layer under it: the card paints its own
           texture edge to edge, so a banner behind it would be equipped and invisible. Bare padding
           when the slot is empty, so the card sits exactly where it always has. */}
@@ -189,7 +194,12 @@ const styles = StyleSheet.create({
     gap: Spacing.twelve,
   },
   disc: {
-    ...StyleSheet.absoluteFillObject,
+    // Spelled out — RN 0.86's types no longer carry StyleSheet.absoluteFillObject.
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: Colors.achieverBg,
     alignItems: 'center',
     justifyContent: 'center',

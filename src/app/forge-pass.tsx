@@ -94,6 +94,9 @@ function passRewardLine(reward: PassReward): RewardLine {
         kind: 'cosmetic',
         label: item?.name ?? 'A new cosmetic',
         art: item ? <ItemArt item={item} size={24} motion="off" /> : undefined,
+        // The door into the universal unlock reveal: a claim that paid one cosmetic opens straight
+        // into it, several make each row a tap into its own (reward-reveal's RevealPresenter).
+        item,
       };
     }
     case 'badge':

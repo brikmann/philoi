@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { CosmeticContextPair } from '@/components/economy/cosmetic-in-context';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { RarityLabel, SourceTag, formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
@@ -214,6 +215,9 @@ export default function ItemDetailScreen() {
             {isSeasonItem(item) ? <SeasonChip size="sm" /> : null}
           </View>
           <Text style={styles.lore}>{item.lore}</Text>
+
+          {/* Mock 254's status + use beats — the same stages the unlock reveal shows. */}
+          <CosmeticContextPair item={item} />
 
           <View style={styles.tags}>
             <SourceTag source={item.source} />

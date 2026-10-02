@@ -16,12 +16,19 @@ import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Rect,
 
 import * as Haptics from 'expo-haptics';
 
+import {
+  ParticleArtField,
+  particleMotionForItem,
+  type ParticleMotion,
+} from '@/components/economy/particle-art';
 import { useMotionActive } from '@/hooks/use-motion-active';
 import { useEquipped } from '@/lib/economy/loadout';
 import { getRewardPreferencesSync } from '@/lib/reward-settings';
 import { Colors, Fonts } from '@/constants/theme';
 import { FLAME_PATH, FLAME_VIEWBOX } from '@/components/ui/flame-logo';
 import type { FlareEffect } from '@/lib/economy/catalog';
+import { tint } from '@/lib/economy/colour';
+import { flareDisplayColour } from '@/components/economy/flare-signature';
 
 // The lock-in perimeter aura (FLARES_SPEC.md, mock 88).
 //
@@ -247,8 +254,9 @@ export function FlarePerimeter({ bounds = 'window', ...props }: Props) {
   );
 }
 
+// The drawn colour, not the swatch — Inferno paints warm amber light (flareDisplayColour).
 function PerimeterOverlay({
-  colour,
+  colour: swatch,
   effect,
   tier = 3,
   dampen = 1,
@@ -256,6 +264,7 @@ function PerimeterOverlay({
   height,
   fullBleed,
 }: Omit<Props, 'bounds'> & { width: number; height: number; fullBleed: boolean }) {
+  const colour = flareDisplayColour(effect, swatch);
   const insets = useSafeAreaInsets();
   const uid = useId();
   const intensity = dampened(FLARE_INTENSITY[tier], dampen);
@@ -488,7 +497,7 @@ function SurgeBloom({
  * redrawn so the two can never diverge into "similar but not the same" embers.
  */
 export function FlareEffectLayer(props: { effect: FlareEffect; colour: string; width: number; height: number }) {
-  return <EffectLayer {...props} />;
+  return <EffectLayer {...props} colour={flareDisplayColour(props.effect, props.colour)} />;
 }
 
 function EffectLayer({ effect, colour, width, height }: { effect: FlareEffect; colour: string; width: number; height: number }) {
@@ -507,9 +516,9 @@ function EffectLayer({ effect, colour, width, height }: { effect: FlareEffect; c
     // across the whole width. `Falling` stays as the Ascendant's ember rain and nothing else.
     case 'falling':
       return <ToxicRain colour={colour} width={width} height={height} />;
-    // All four edges — mock 167's inferno is a full engulf, not a floor fire.
+    // Mock 243: faint warm light breathing INWARD from every edge — no tongues. See InwardHeat.
     case 'flames':
-      return <Flames colour={colour} width={width} height={height} edges={INFERNO_EDGES} />;
+      return <InwardHeat colour={colour} width={width} height={height} />;
     case 'plasma':
       return <Plasma colour={colour} width={width} height={height} />;
     // Emberfall Ascendant's bespoke layer (punchlist 15.3) — lava pooling along the bottom edge,
@@ -711,6 +720,12 @@ function Plasma({ colour, width, height }: { colour: string; width: number; heig
   const base = Math.min(width, height);
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {/* THE CRACKLE (mock 243 `.fx-plasmaarc`) — what makes Plasma not Smoke. Smoke is soft mass
+          drifting OFF the edges; plasma is charge held AT them: jagged filaments flickering in
+          place on a 1.4s beat, over a dimmer field of the mock-167 masses. */}
+      {PLASMA_ARCS.slice(0, dens(PLASMA_ARCS.length, density, 3)).map(([edge, at], i) => (
+        <PlasmaArc key={`arc-${i}`} colour={colour} edge={edge} at={at} width={width} height={height} index={i} />
+      ))}
       {SPOTS.map(([px, py], i) => {
         // Mock sizes are 42-78px against a 188px-wide tile; scaled to the real screen's short edge
         // so the masses stay the same fraction of the view rather than shrinking to dots.
@@ -726,7 +741,7 @@ function Plasma({ colour, width, height }: { colour: string; width: number; heig
             travelX={(spread(i, 0.77) * 26 - 13) * (base / MOCK_W) * 0.4}
             duration={4500 + spread(i, 0.4) * 3000}
             phase={spread(i, 0.13)}
-            peak={0.5}
+            peak={0.36}
             reverse
           />
         );
@@ -735,9 +750,98 @@ function Plasma({ colour, width, height }: { colour: string; width: number; heig
   );
 }
 
+/** Where plasma's filaments sit: (edge, fraction along it). Ordered so a density slice keeps them
+ *  spread round all four edges rather than bunched on the first one. */
+const PLASMA_ARCS: readonly ['top' | 'bottom' | 'left' | 'right', number][] = [
+  ['top', 0.18], ['right', 0.3], ['bottom', 0.72], ['left', 0.55],
+  ['top', 0.74], ['bottom', 0.24], ['right', 0.78], ['left', 0.2],
+  ['top', 0.46], ['bottom', 0.5],
+];
+
+/**
+ * One plasma filament: a short jagged arc lying ALONG its edge, flickering in place. Static SVG
+ * (shape from `spread`, never random), one UI-thread loop for opacity .15 -> 1 and a crackle
+ * stretch across the edge — mock 243's `arcflick`.
+ */
+function PlasmaArc({
+  colour,
+  edge,
+  at,
+  width,
+  height,
+  index,
+}: {
+  colour: string;
+  edge: 'top' | 'bottom' | 'left' | 'right';
+  at: number;
+  width: number;
+  height: number;
+  index: number;
+}) {
+  const { glow } = useIntensity();
+  const t = usePhasedLoop(spread(index, 0.41), 1400, EASE_SINE, true);
+  const horizontal = edge === 'top' || edge === 'bottom';
+  const s = Math.min(width, height) / MOCK_W;
+  const len = 26 * s;
+  const amp = 3.2 * s;
+  const pad = 6 * s;
+  const box = { w: horizontal ? len + pad * 2 : amp * 2 + pad * 2, h: horizontal ? amp * 2 + pad * 2 : len + pad * 2 };
+  const segs = 7;
+  const pts: string[] = [];
+  for (let k = 0; k <= segs; k++) {
+    const along = pad + (len * k) / segs;
+    const off = k === 0 || k === segs ? 0 : (k % 2 === 0 ? 1 : -1) * amp * (0.45 + 0.55 * spread(k, index * 0.29));
+    const across = amp + pad + off;
+    pts.push(horizontal ? `${along.toFixed(1)} ${across.toFixed(1)}` : `${across.toFixed(1)} ${along.toFixed(1)}`);
+  }
+  const d = `M ${pts.join(' L ')}`;
+  const inset = 5 * s;
+  const pos =
+    edge === 'top'
+      ? { left: at * width - box.w / 2, top: inset }
+      : edge === 'bottom'
+        ? { left: at * width - box.w / 2, top: height - inset - box.h }
+        : edge === 'left'
+          ? { left: inset, top: at * height - box.h / 2 }
+          : { left: width - inset - box.w, top: at * height - box.h / 2 };
+
+  const style = useAnimatedStyle(() =>
+    horizontal
+      ? { opacity: 0.15 + 0.85 * t.value, transform: [{ scaleX: 1 }, { scaleY: 0.7 + 0.4 * t.value }] }
+      : { opacity: 0.15 + 0.85 * t.value, transform: [{ scaleX: 0.7 + 0.4 * t.value }, { scaleY: 1 }] }
+  );
+
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: box.w, height: box.h, opacity: 0 }, pos, style]}>
+      <Svg width={box.w} height={box.h} pointerEvents="none">
+        <Path d={d} stroke={colour} strokeWidth={4.5 * s} fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={0.45 * glow} />
+        <Path d={d} stroke={tint(colour, 0.65)} strokeWidth={1.3 * s} fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={Math.min(1, 0.4 + glow)} />
+      </Svg>
+    </Animated.View>
+  );
+}
+
 /** Mock 167's tile is 188x308. Every size below is expressed as its fraction of that width, so the
  *  bolts scale to a real phone instead of rendering as hairlines. */
 const MOCK_W = 188;
+
+/**
+ * A deterministic 0..1 sequence for one bolt roll (xorshift32). Bolts re-roll their shape every
+ * flash, which is the mock's `animationiteration` behaviour and the reason lightning never repeats
+ * — but a roll is a pure function of (bolt, roll number), never Math.random(), so a given strike is
+ * reproducible and a captured frame is the same frame twice.
+ */
+function boltRng(seed: number): () => number {
+  let s = (Math.floor(seed * 7919 + 1) * 2654435761) >>> 0 || 1;
+  return () => {
+    s ^= s << 13;
+    s >>>= 0;
+    s ^= s >>> 17;
+    s ^= s << 5;
+    s >>>= 0;
+    return s / 4294967296;
+  };
+}
 
 /**
  * One jagged polyline. Ported from the mock's `jagged()` — same segment count, same lateral jitter
@@ -749,14 +853,15 @@ function jaggedPath(
   startY: number,
   startX: number,
   segs: number,
-  jitterFraction: number
+  jitterFraction: number,
+  rnd: () => number
 ): { d: string; endX: number; points: { x: number; y: number }[] } {
   let x = startX;
   const points = [{ x, y: startY }];
   const span = h - startY;
   for (let i = 1; i <= segs; i++) {
     const y = startY + (span * i) / segs;
-    x = Math.max(6, Math.min(w - 6, x + (Math.random() * 2 - 1) * w * jitterFraction));
+    x = Math.max(6, Math.min(w - 6, x + (rnd() * 2 - 1) * w * jitterFraction));
     points.push({ x, y });
   }
   const d = points.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`).join(' ');
@@ -770,19 +875,19 @@ function jaggedPath(
  * saying "lightning", and thickness is exactly what had to go. A fork is what replaces it: real
  * lightning branches, and a branch is unmistakable at any width.
  */
-function forkFrom(points: { x: number; y: number }[], w: number, h: number): string {
+function forkFrom(points: { x: number; y: number }[], w: number, h: number, rnd: () => number): string {
   if (points.length < 3) return '';
   // Split from somewhere in the middle third, never from the tip or the cloud.
-  const i = 1 + Math.floor(Math.random() * Math.max(1, points.length - 2));
+  const i = 1 + Math.floor(rnd() * Math.max(1, points.length - 2));
   const from = points[i];
-  const dir = Math.random() < 0.5 ? -1 : 1;
+  const dir = rnd() < 0.5 ? -1 : 1;
   let x = from.x;
   let y = from.y;
-  const segs = 2 + Math.floor(Math.random() * 2);
+  const segs = 2 + Math.floor(rnd() * 2);
   let d = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
   for (let k = 1; k <= segs; k++) {
-    x = Math.max(4, Math.min(w - 4, x + dir * (0.06 + Math.random() * 0.1) * w));
-    y = Math.min(h, y + (0.05 + Math.random() * 0.08) * h);
+    x = Math.max(4, Math.min(w - 4, x + dir * (0.06 + rnd() * 0.1) * w));
+    y = Math.min(h, y + (0.05 + rnd() * 0.08) * h);
     d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
   }
   return d;
@@ -814,31 +919,43 @@ function useFlash(period: number, phaseMs: number) {
   return flash;
 }
 
-type BoltGeo = { d: string; fork: string; sparks: string | null; endX: number };
+/** Where a strike lands and how big its star is. `light` = Zeus' small mark, `heavy` = Asgard's. */
+type BoltImpact = 'light' | 'heavy';
+
+type BoltGeo = { d: string; fork: string; endX: number };
 
 /**
  * Roll one bolt's geometry.
  *
- * A plain module function called ONLY from an effect, never during render. React Compiler is on for
- * this project and its purity rule is right to reject `Math.random()` inside a `useMemo`: a memo may
- * be re-evaluated whenever React likes, so a bolt shaped during render would silently re-roll on
- * unrelated re-renders. Generating in the effect makes the randomness an explicit event — one roll
- * per flash — which is also exactly what the mock's `animationiteration` listener does.
+ * A plain module function called ONLY from an effect, never during render — a memo may be
+ * re-evaluated whenever React likes, so a bolt shaped during render would silently re-roll on
+ * unrelated re-renders. Generating in the effect makes each roll an explicit event — one per flash
+ * — which is also exactly what the mock's `animationiteration` listener does.
  */
-function rollBolt(width: number, height: number, topDown: boolean, impact: boolean): BoltGeo {
+function rollBolt(width: number, height: number, topDown: boolean, seed: number): BoltGeo {
+  const rnd = boltRng(seed);
   const startY = topDown ? 0 : height * 0.09;
-  const startX = topDown ? width * (0.28 + Math.random() * 0.44) : 8 + Math.random() * (width - 16);
+  const startX = topDown ? width * (0.28 + rnd() * 0.44) : 8 + rnd() * (width - 16);
   // MORE SEGMENTS, MORE JITTER than the mock. Its bolts are thick enough to read as lightning with
   // 5-9 lazy segments; ours are now thin filaments, and a thin line with gentle bends reads as a
   // drawn stroke. The zigzag is doing the work the stroke width used to do.
-  const segs = (topDown ? 10 : 8) + Math.floor(Math.random() * 5);
-  const bolt = jaggedPath(width, height, startY, startX, segs, topDown ? 0.42 : 0.38);
-  return {
-    d: bolt.d,
-    fork: forkFrom(bolt.points, width, height),
-    sparks: impact ? sparkBurst(bolt.endX, height) : null,
-    endX: bolt.endX,
-  };
+  const segs = (topDown ? 10 : 8) + Math.floor(rnd() * 5);
+  const bolt = jaggedPath(width, height, startY, startX, segs, topDown ? 0.42 : 0.38, rnd);
+  return { d: bolt.d, fork: forkFrom(bolt.points, width, height, rnd), endX: bolt.endX };
+}
+
+/**
+ * A four-point star, long arms on the axes — mock 243's impact `.mark` (its clip-path is exactly
+ * this polygon). `pinch` is how far the waist sits off-centre as a fraction of the arm.
+ */
+export function starPath(cx: number, cy: number, arm: number, pinch = 0.2, rotate = 0): string {
+  const pts: string[] = [];
+  for (let k = 0; k < 8; k++) {
+    const a = rotate + (k * Math.PI) / 4 - Math.PI / 2;
+    const r = k % 2 === 0 ? arm : arm * pinch * Math.SQRT2;
+    pts.push(`${(cx + r * Math.cos(a)).toFixed(1)} ${(cy + r * Math.sin(a)).toFixed(1)}`);
+  }
+  return `M ${pts.join(' L ')} Z`;
 }
 
 function Bolt({
@@ -851,7 +968,8 @@ function Bolt({
   period,
   phaseMs,
   topDown,
-  impact = false,
+  impact,
+  seed,
 }: {
   width: number;
   height: number;
@@ -863,8 +981,10 @@ function Bolt({
   phaseMs: number;
   /** Asgard: full height, top to bottom. Zeus: starts just under the cloud bank. */
   topDown: boolean;
-  /** Asgard only — the ragged shrapnel burst where the hammer lands. */
-  impact?: boolean;
+  /** The star-spark where the strike lands (mock 243). Never a splash: a star reads as a HIT. */
+  impact: BoltImpact;
+  /** Which bolt this is — the roll sequence is a function of it, never of Math.random(). */
+  seed: number;
 }) {
   const { glow } = useIntensity();
   const flash = useFlash(period, phaseMs);
@@ -872,7 +992,11 @@ function Bolt({
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
-    const roll = () => setGeo(rollBolt(width, height, topDown, impact));
+    let n = 0;
+    const roll = () => {
+      setGeo(rollBolt(width, height, topDown, seed * 101 + n));
+      n += 1;
+    };
     roll();
     // Re-roll 45% into each cycle. The mock's zap keyframe is already dark by 30%, so the new shape
     // is always swapped in behind a black frame and never changes mid-strike.
@@ -887,24 +1011,20 @@ function Bolt({
       clearTimeout(kickoff);
       if (interval) clearInterval(interval);
     };
-  }, [width, height, topDown, impact, period, phaseMs]);
+  }, [width, height, topDown, seed, period, phaseMs]);
 
   const style = useAnimatedStyle(() => ({ opacity: flash.value }));
 
   if (!geo) return null;
 
+  // The star is sized off the GLOW width — thinning the strike must not thin the landing — and
+  // lifted so its lower arm stays on screen instead of being lost under the bottom edge.
+  const arm = glowWidth * (impact === 'heavy' ? 2.6 : 1.6);
+  const sy = height - arm * 0.9;
+
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 0 }, style]}>
       <Svg width={width} height={height} pointerEvents="none">
-        {/* The impact burst sits UNDER the bolt so the core reads as landing on top of it. */}
-        {geo.sparks && (
-          <>
-            {/* The impact is now carrying more of the "hit" than the bolt's width does, so it is
-                sized off the GLOW width and kept — thinning the strike must not thin the landing. */}
-            <Circle cx={geo.endX} cy={height} r={glowWidth * 1.6} fill={glowColour} opacity={0.42 * glow} />
-            <Path d={geo.sparks} stroke={glowColour} strokeWidth={glowWidth * 0.5} fill="none" strokeLinecap="round" opacity={0.5 * glow} />
-          </>
-        )}
         {/* THIN BRIGHT CORE OVER A SOFT WIDE GLOW. The impact comes from the contrast between the
             two and from the jag, never from the core's width — a wide core is a bar, and a bar is
             what got reported. */}
@@ -940,34 +1060,14 @@ function Bolt({
             opacity={0.8}
           />
         ) : null}
-        {geo.sparks && (
-          <Path d={geo.sparks} stroke={coreColour} strokeWidth={coreWidth * 0.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        )}
+        {/* The landing, ON TOP of the bolt: a glow-coloured four-point star, a smaller diagonal one
+            behind it for the twinkle, and a white-hot core star. */}
+        <Path d={starPath(geo.endX, sy, arm * 0.6, 0.22, Math.PI / 4)} fill={glowColour} opacity={0.55 * glow} />
+        <Path d={starPath(geo.endX, sy, arm, 0.2)} fill={glowColour} opacity={0.85 * Math.max(glow, 0.4)} />
+        <Path d={starPath(geo.endX, sy, arm * 0.55, 0.2)} fill={coreColour} />
       </Svg>
     </Animated.View>
   );
-}
-
-/**
- * Asgard's impact shrapnel — seven three-point splinters thrown up in a fan from the strike point.
- * Ported from the mock's `sparks()`: same fan across 0.1pi..0.9pi, same per-splinter angle jitter,
- * same mid-point kink that makes each one ragged rather than a clean ray.
- */
-function sparkBurst(cx: number, cy: number): string {
-  const n = 7;
-  const out: string[] = [];
-  for (let i = 0; i < n; i++) {
-    const a = Math.PI * (0.1 + (i / (n - 1)) * 0.8) + (Math.random() * 0.22 - 0.11);
-    const len = 14 + Math.random() * 22;
-    const mr = len * (0.42 + Math.random() * 0.22);
-    const j = Math.random() * 0.6 - 0.3;
-    const mx = cx + Math.cos(a + j) * mr;
-    const my = cy - Math.sin(a + j) * mr;
-    const ex = cx + Math.cos(a) * len;
-    const ey = cy - Math.sin(a) * len;
-    out.push(`M ${cx.toFixed(1)} ${cy.toFixed(1)} L ${mx.toFixed(1)} ${my.toFixed(1)} L ${ex.toFixed(1)} ${ey.toFixed(1)}`);
-  }
-  return out.join(' ');
 }
 
 /**
@@ -1031,6 +1131,8 @@ function Zeus({ width, height }: { width: number; height: number }) {
           period={1100 + spread(i, 0.4) * 1300}
           phaseMs={spread(i, 0.17) * 2200}
           topDown={false}
+          impact="light"
+          seed={i}
         />
       ))}
     </View>
@@ -1039,7 +1141,7 @@ function Zeus({ width, height }: { width: number; height: number }) {
 
 /**
  * ASGARDIAN VALOR — heavier and fewer than Zeus: bolts that fall the FULL height of the screen and
- * land with a ragged shrapnel burst. Thicker strokes, slower periods, no cloud bank (the hammer
+ * land with a big four-point star-spark. Thicker strokes, slower periods, no cloud bank (the hammer
  * comes from above the frame, not out of weather).
  */
 function Hammer({ width, height }: { width: number; height: number }) {
@@ -1056,14 +1158,15 @@ function Hammer({ width, height }: { width: number; height: number }) {
           coreColour="#EAF7FF"
           // 🔴 THE FLAGGED ONE. Mock: 12 / 3.6, which at phone scale is a ~8px core — a bar, not a
           // bolt. The core drops to well under half; what carries the strike instead is the
-          // near-white core against the dim wide glow, the extra jag and the fork, and the impact
-          // burst at the floor, which was widened to compensate.
+          // near-white core against the dim wide glow, the extra jag and the fork, and the star
+          // that lands at the floor (mock 243 — a star-spark, not the old shrapnel splash).
           glowWidth={6.5 * scale}
           coreWidth={1.5 * scale}
           period={1400 + spread(i, 0.62) * 1400}
           phaseMs={spread(i, 0.29) * 2600}
           topDown
-          impact
+          impact="heavy"
+          seed={10 + i}
         />
       ))}
     </View>
@@ -1071,127 +1174,87 @@ function Hammer({ width, height }: { width: number; height: number }) {
 }
 
 /**
- * ONE TONGUE OF FLAME, on any of the four edges.
- *
- * Was bottom-only, which is why Inferno licked up from the floor and nowhere else. Mock 167's
- * inferno is a full ENGULF: 22 tongues up from the bottom, 22 raining down from the top, and 20 on
- * each lateral edge. Its lore line is "the edges of your screen catch, and nothing puts them out",
- * and three of the four edges were not catching.
- *
- * Still a soft ellipse rather than the mock's clip-path tongue: the no-hard-edges rule from the
- * header still holds for ambient fire, since a hard lozenge pumping up the screen is exactly what
- * punchlist 20.2 rejected. The engulf comes from coverage and count, not from edge definition.
+ * Four soft edge bands of `depth` px, each ramping from `peak` at its edge to nothing inward — the
+ * rim's own construction (full-length bands overlapping in the corners, never mitred), at any depth.
+ * Static SVG: whoever wants it to move animates the View it sits in.
  */
-function Lick({
+function EdgeBands({
+  id,
+  width,
+  height,
+  depth,
   colour,
-  pos,
-  len,
-  thick,
-  phase,
-  peak = 0.7,
-  edge = 'bottom',
+  peak,
 }: {
+  id: string;
+  width: number;
+  height: number;
+  depth: number;
   colour: string;
-  /** Distance along the edge — acts as `left` on top/bottom, `top` on left/right. */
-  pos: number;
-  /** How far the tongue reaches INTO the screen. */
-  len: number;
-  /** Its width across the edge. */
-  thick: number;
-  phase: number;
-  peak?: number;
-  edge?: 'bottom' | 'top' | 'left' | 'right';
+  peak: number;
 }) {
-  const t = usePhasedLoop(phase, 2400, EASE_QUAD, true);
-  const vertical = edge === 'bottom' || edge === 'top';
-
-  const style = useAnimatedStyle(() =>
-    vertical
-      ? { transform: [{ scaleY: 0.72 + t.value * 0.42 }], opacity: 0.55 + t.value * 0.3 }
-      : { transform: [{ scaleX: 0.72 + t.value * 0.42 }], opacity: 0.55 + t.value * 0.3 }
-  );
-
-  // Anchored half off-screen on its own edge, so the ellipse's own fade does the shaping and no
-  // boundary is visible where it meets the screen edge — the same trick the bottom-only version used.
-  const anchor =
-    edge === 'bottom'
-      ? { left: pos, bottom: -len * 0.42, transformOrigin: '50% 100%' as const }
-      : edge === 'top'
-        ? { left: pos, top: -len * 0.42, transformOrigin: '50% 0%' as const }
-        : edge === 'left'
-          ? { top: pos, left: -len * 0.42, transformOrigin: '0% 50%' as const }
-          : { top: pos, right: -len * 0.42, transformOrigin: '100% 50%' as const };
-
   return (
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', opacity: 0 }, anchor, style]}>
-      {vertical ? (
-        <Glow size={thick} colour={colour} peak={peak} stretch={len / thick} />
-      ) : (
-        <Glow size={len} colour={colour} peak={peak} stretch={thick / len} />
-      )}
-    </Animated.View>
+    <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Defs>
+        {RIM_EDGES.map(({ dir, vertical, fromStart }) => (
+          <LinearGradient
+            key={dir}
+            id={`${id}-${dir}`}
+            x1={vertical ? '0' : fromStart ? '0' : '1'}
+            y1={vertical ? (fromStart ? '0' : '1') : '0'}
+            x2={vertical ? '0' : fromStart ? '1' : '0'}
+            y2={vertical ? (fromStart ? '1' : '0') : '0'}>
+            <Stop offset="0" stopColor={colour} stopOpacity={peak} />
+            <Stop offset="0.35" stopColor={colour} stopOpacity={peak * 0.38} />
+            <Stop offset="0.7" stopColor={colour} stopOpacity={peak * 0.1} />
+            <Stop offset="1" stopColor={colour} stopOpacity={0} />
+          </LinearGradient>
+        ))}
+      </Defs>
+      <Rect x={0} y={0} width={width} height={depth} fill={`url(#${id}-t)`} />
+      <Rect x={0} y={height - depth} width={width} height={depth} fill={`url(#${id}-b)`} />
+      <Rect x={0} y={0} width={depth} height={height} fill={`url(#${id}-l)`} />
+      <Rect x={width - depth} y={0} width={depth} height={height} fill={`url(#${id}-r)`} />
+    </Svg>
   );
 }
 
 /**
- * INFERNO FLARE — fire on every edge at once.
+ * INFERNO FLARE — faint warm light breathing INWARD from every edge (mock 243).
  *
- * `edges` defaults to the bottom alone because Emberfall Ascendant reuses this as its lava pool and
- * wants a floor, not an engulf. Inferno passes all four.
+ * 🔴 WHAT THIS REPLACES. Inferno was 84 soft "tongues" licking in off all four edges in the
+ * catalog's deep red — mock 167's engulf. Mock 243 retired that read on purpose: on the border and
+ * on the screen alike it is `inset 0 0 16px 3px -> inset 0 0 36px 13px`, opacity .45 -> .85 over
+ * 2.6s, in a WARM amber (flareDisplayColour), with no literal flame anywhere. The lore — "the edges
+ * of your screen catch" — is carried by heat arriving from the edges, not by drawn fire.
  *
- * COUNTS ARE THE MOCK'S, LITERALLY: 22 tongues on each of the top and bottom edges, 20 on each
- * lateral. That is 84 animated views for one flare, which is far past the "at most six" this file's
- * header budgets — and it is what mock 167 draws, so it is what ships. Each is a single
- * transform+opacity driven on the UI thread by Reanimated with no React render per frame, which is
- * the cheapest shape 84 of anything can take. If a device ever shows this costing frames, the fix
- * is these two numbers and nothing else.
+ * A box-shadow's spread cannot be animated on native without re-rendering, so the breath is two
+ * static band sets crossfaded on one UI-thread loop: a shallow band that is always there, and a
+ * deep one that swells in over it. Visually that IS the inset glow growing inward — and it is two
+ * animated views where the tongues were eighty-four.
  */
-/** Mock 167's own per-edge counts, before the tier's density dial is applied to them. */
-const MOCK_PER_EDGE_VERTICAL = 22;
-const MOCK_PER_EDGE_LATERAL = 20;
+function InwardHeat({ colour, width, height }: { colour: string; width: number; height: number }) {
+  const uid = useId();
+  const { glow } = useIntensity();
+  const t = usePhasedLoop(0.5, 2600, EASE_SINE, true);
+  const base = Math.min(width, height);
+  const peak = 0.9 * glow;
 
-function Flames({
-  colour,
-  width,
-  height,
-  tall = 230,
-  peak,
-  edges = ['bottom'],
-}: {
-  colour: string;
-  width: number;
-  height: number;
-  tall?: number;
-  peak?: number;
-  edges?: readonly ('bottom' | 'top' | 'left' | 'right')[];
-}) {
-  const { density } = useIntensity();
+  const shallow = useAnimatedStyle(() => ({ opacity: 0.55 + 0.3 * t.value }));
+  const deep = useAnimatedStyle(() => ({ opacity: t.value }));
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {edges.map((edge, e) => {
-        const vertical = edge === 'bottom' || edge === 'top';
-        const span = vertical ? width : height;
-        const perEdge = dens(vertical ? MOCK_PER_EDGE_VERTICAL : MOCK_PER_EDGE_LATERAL, density);
-        const lane = span / perEdge;
-        return Array.from({ length: perEdge }, (_, i) => (
-          <Lick
-            key={`${edge}-${i}`}
-            colour={colour}
-            edge={edge}
-            // Overlapping by half a lane each side, so the set never reads as N separate things.
-            pos={i * lane - lane * 0.5}
-            len={tall * (0.78 + spread(i, e * 0.17) * 0.44)}
-            thick={lane * 2}
-            phase={spread(i, 0.23 + e * 0.11)}
-            peak={peak}
-          />
-        ));
-      })}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 0 }, shallow]}>
+        <EdgeBands id={`heatS-${uid}`} width={width} height={height} depth={base * 0.08} colour={colour} peak={peak} />
+      </Animated.View>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 0 }, deep]}>
+        <EdgeBands id={`heatD-${uid}`} width={width} height={height} depth={base * 0.24} colour={colour} peak={peak * 0.75} />
+      </Animated.View>
     </View>
   );
 }
 
-const INFERNO_EDGES = ['bottom', 'top', 'left', 'right'] as const;
 
 /**
  * ONE ACID STREAK.
@@ -1376,90 +1439,23 @@ function Ascendant({ colour, width, height }: { colour: string; width: number; h
 // SCOPED TO THE FLAME, not to the screen. The flare owns the perimeter; particles own the ~1.8x
 // box around the flame itself, so the two can be equipped together without becoming one wash.
 
-/** How an equipped particle cosmetic moves. Keyed by id, like CARD_TEXTURE — the lore names a
- *  specific behaviour ("they rise", "the quiet snow", "it hunts"), and rarity cannot express it. */
-export type ParticleMotion = 'rise' | 'fall' | 'swarm' | 'arc' | 'flicker' | 'coil';
-
-const PARTICLE_MOTION: Record<string, ParticleMotion> = {
-  'particle-base-spark': 'rise',
-  'particle-floating-sparks': 'rise',
-  'particle-falling-ash': 'fall',
-  'particle-ember-swarm': 'swarm',
-  'particle-solar-flares': 'arc',
-  'particle-lightning-tendrils': 'flicker',
-  'particle-void-smoke': 'coil',
-  'particle-emberfall-ascendant': 'rise',
-};
-
-/**
- * The motion an equipped particle item plays. Exported so an explicit-item surface (the dev
- * Cosmetic Preview Gallery) can drive `FlameParticleField` for any catalog item exactly as
- * `EquippedFlameParticles` does for the equipped one, falling back to 'rise' for anything
- * unmapped so a new particle still paints rather than blanking.
- */
-export function particleMotionFor(id: string): ParticleMotion {
-  return PARTICLE_MOTION[id] ?? 'rise';
-}
-
-
-/**
- * Particle count per motion — mock 166's own numbers, exactly.
- *
- * These used to be `{rise:7, fall:8, swarm:8, arc:4, flicker:5, coil:4}`, "capped low and
- * deliberately". The cap is what made every set read as a handful of drifting dots rather than the
- * field the mock draws: Ember Swarm at 8 cannot look like a swarm, and Falling Ash at 8 cannot look
- * like snow. Each mote is one small Svg on a UI-thread transform, so 24 of them is still cheaper
- * than a single re-rendering React tree.
- */
-const PARTICLE_COUNT: Record<ParticleMotion, number> = {
-  rise: 16,
-  fall: 18,
-  swarm: 24,
-  arc: 10,
-  flicker: 8,
-  coil: 15,
-};
-
-/** Mock 166's stage is 190px tall. Every px distance below is scaled against it so the motion keeps
- *  its proportions on a box of any size. */
-const MOCK_STAGE_H = 190;
-/**
- * 🔴 1, not 2.2 — and the 2.2 is what turned every particle into a blob.
- *
- * The reasoning behind the multiplier was that our motes are radial gradients fading to nothing at
- * the rim, so only the core "reads", and the box therefore had to be bigger than the mock's stated
- * diameter. That is wrong, because the MOCK'S DOTS ARE THE SAME KIND OF OBJECT: every particle in
- * 166/167 is `radial-gradient(circle, HOT, BODY 70%, transparent)` sized to the element. Its 3-6px
- * ember is a 3-6px soft gradient, exactly like ours. Compensating for a softness the mock already
- * has just scaled everything up by 2.2 — Void Smoke's veils landed at 63-134px instead of 15-32px,
- * which is precisely the "renders as blobs" report.
- *
- * Kept as a named constant rather than deleted so the mistake stays legible.
- */
-const MOTE_BOX = 1;
-/** The emission point — the flame's own tip, as a fraction of the box height from the top. Mock 166
- *  puts every emitter at `bottom: 44%`. */
-const FLAME_Y = 0.56;
+// The motions themselves are mock 242's and live in particle-art.tsx, chosen by the item's
+// ARCHETYPE (id table second, 'rise' for anything unknown). Re-exported so existing importers of
+// this file keep working; `particleMotionFor(id)` resolves the catalog item so the archetype leads.
+export {
+  ParticleArchetypeShape,
+  particleMotionForId as particleMotionFor,
+  particleMotionForItem,
+  type ParticleMotion,
+} from '@/components/economy/particle-art';
 
 /**
  * The field itself, sized from its own layout so a caller only has to drop it behind a flame.
- *
- * `from` is the body colour and `to` the hot one; alternating between them across the particles is
- * what keeps a two-stop palette reading as two stops (Falling Ash is grey motes with pale white
- * ones through it, not a uniform grey) without paying for a gradient per particle.
+ * `from` is the body colour and `to` the hot one. Drawn by particle-art.tsx on the shared cosmetic
+ * clock; frozen on a still frame under Reduce Motion or off-screen.
  */
 export function FlameParticleField({ from, to, motion }: { from: string; to: string; motion: ParticleMotion }) {
-  const [box, setBox] = useState({ w: 0, h: 0 });
-  const onLayout = (e: LayoutChangeEvent) => {
-    const { width, height } = e.nativeEvent.layout;
-    setBox((prev) => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
-  };
-
-  return (
-    <View style={StyleSheet.absoluteFill} onLayout={onLayout} pointerEvents="none">
-      {box.w > 0 && box.h > 0 && <Particles from={from} to={to} motion={motion} w={box.w} h={box.h} />}
-    </View>
-  );
+  return <ParticleArtField from={from} to={to} motion={motion} />;
 }
 
 /**
@@ -1565,392 +1561,15 @@ function Travel({
 }
 
 /**
- * EMBER SWARM — a true orbit, which is the whole point of the set and the thing it did not do.
- *
- * Mock 166: `@keyframes swarm { rotate(0) translateY(-r) -> rotate(360deg) translateY(-r) }` — the
- * mote is pushed out to radius r and then carried all the way round. What was here instead was a
- * short ping-pong hop, so the "swarm that circulates the fire" hovered beside it and circled
- * nothing. Transform ORDER matters and matches the mock: rotate first, then translate in the
- * rotated frame.
- */
-function Orbit({
-  hot,
-  body,
-  size,
-  cx,
-  cy,
-  radius,
-  duration,
-  phase,
-}: {
-  hot: string;
-  body: string;
-  size: number;
-  cx: number;
-  cy: number;
-  radius: number;
-  duration: number;
-  phase: number;
-}) {
-  const t = usePhasedLoop(phase, duration, EASE_LINEAR, false);
-  const style = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${t.value * 360}deg` }, { translateY: -radius }],
-  }));
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[{ position: 'absolute', left: cx - size / 2, top: cy - size / 2 }, style]}>
-      <Mote size={size} hot={hot} body={body} />
-    </Animated.View>
-  );
-}
-
-/**
- * SOLAR FLARES — arcs that loop off the flame and snap back.
- *
- * Mock 166's `solar` keyframes hold a FIXED angle and animate distance: translateX 8 -> 64 -> 10,
- * scale .4 -> 1 -> .3. The outer view carries the static rotation and the inner one the travel,
- * which is the only way to get "out and back along a spoke" instead of a drift.
- */
-function SolarArc({
-  hot,
-  body,
-  size,
-  cx,
-  cy,
-  angle,
-  reach,
-  duration,
-  phase,
-}: {
-  hot: string;
-  body: string;
-  size: number;
-  cx: number;
-  cy: number;
-  angle: number;
-  reach: number;
-  duration: number;
-  phase: number;
-}) {
-  const t = usePhasedLoop(phase, duration, EASE_SINE, false);
-  const style = useAnimatedStyle(() => {
-    // 0 -> .55 travels out to `reach`; .55 -> 1 snaps back almost to the flame.
-    const out = t.value < 0.55;
-    const k = out ? t.value / 0.55 : (t.value - 0.55) / 0.45;
-    const x = out ? reach * (0.125 + 0.875 * k) : reach * (1 - 0.844 * k);
-    const sc = out ? 0.4 + 0.6 * k : 1 - 0.7 * k;
-    const o = t.value < 0.3 ? t.value / 0.3 : 1 - (t.value - 0.3) / 0.7;
-    return { transform: [{ translateX: x }, { scale: sc }], opacity: Math.max(0, o) };
-  });
-  return (
-    <View
-      pointerEvents="none"
-      // Centred exactly on the flame point so the rotation origin IS the emission point. With
-      // `left: cx` the view's own centre — and therefore the spoke's pivot — sat half a mote to
-      // the right, which fans the arcs off-centre once the motes are scaled up from the mock's 6px.
-      style={{ position: 'absolute', left: cx - size / 2, top: cy - size / 2, transform: [{ rotate: `${angle}deg` }] }}>
-      <Animated.View style={[{ opacity: 0 }, style]}>
-        <Mote size={size} hot={hot} body={body} />
-      </Animated.View>
-    </View>
-  );
-}
-
-/**
- * LIGHTNING TENDRILS — the mock's jagged glyph, not a ball of light.
- *
- * `.bolt` in mock 166 is a 2px-wide bar with a `clip-path` polygon cut into a fork, gradient-filled
- * cyan-to-white, rotated to a random angle about its BOTTOM edge so it reaches outward from the
- * flame. The path below is that clip-path, point for point.
- */
-function Tendril({
-  hot,
-  body,
-  cx,
-  cy,
-  angle,
-  len,
-  duration,
-  phase,
-}: {
-  hot: string;
-  body: string;
-  cx: number;
-  cy: number;
-  angle: number;
-  len: number;
-  duration: number;
-  phase: number;
-}) {
-  const id = `tendril-${useId()}`;
-  const w = Math.max(2, len * 0.075);
-  const flash = useSharedValue(0);
-  useEffect(() => {
-    // mock `@keyframes bolt`: 0 -> 8% on -> 16% .2 -> 24% .9 -> 40% out, then dark for the rest.
-    const d = duration;
-    flash.value = withDelay(
-      phase * d,
-      withRepeat(
-        withSequence(
-          withTiming(1, { duration: d * 0.08 }),
-          withTiming(0.2, { duration: d * 0.08 }),
-          withTiming(0.9, { duration: d * 0.08 }),
-          withTiming(0, { duration: d * 0.16 }),
-          withTiming(0, { duration: d * 0.6 })
-        ),
-        -1,
-        false
-      )
-    );
-  }, [flash, duration, phase]);
-  const style = useAnimatedStyle(() => ({ opacity: flash.value }));
-  // clip-path: polygon(40% 0, 60% 0, 45% 45%, 70% 45%, 30% 100%, 50% 55%, 30% 55%)
-  const d = `M ${0.4 * w} 0 L ${0.6 * w} 0 L ${0.45 * w} ${0.45 * len} L ${0.7 * w} ${0.45 * len} L ${0.3 * w} ${len} L ${0.5 * w} ${0.55 * len} L ${0.3 * w} ${0.55 * len} Z`;
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        {
-          position: 'absolute',
-          left: cx - w / 2,
-          top: cy - len,
-          transformOrigin: '50% 100%' as const,
-          transform: [{ rotate: `${angle}deg` }],
-          opacity: 0,
-        },
-        style,
-      ]}>
-      <Svg width={w} height={len} pointerEvents="none">
-        <Defs>
-          <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={hot} />
-            <Stop offset="1" stopColor={body} />
-          </LinearGradient>
-        </Defs>
-        <Path d={d} fill={`url(#${id})`} />
-      </Svg>
-    </Animated.View>
-  );
-}
-
-/**
- * VOID SMOKE — gothic, and serpentine rather than straight.
- *
- * Mock 166 coils it: at 50% the veil is at `(dx, -58)`, at 100% at `(-dx, -128)` — it sways one way
- * and then back as it climbs, which is what makes it a coil rather than a rising blob. It also
- * swells hard (scale .5 -> 1.4 -> 2.2) and stays heavy and dark. The old version rose in a straight
- * line at constant size, which is why "a funeral veil coiling upward" read as four grey circles.
- */
-function Veil({
-  hot,
-  body,
-  size,
-  left,
-  top,
-  dx,
-  rise,
-  duration,
-  phase,
-}: {
-  hot: string;
-  body: string;
-  size: number;
-  left: number;
-  top: number;
-  dx: number;
-  rise: number;
-  duration: number;
-  phase: number;
-}) {
-  const t = usePhasedLoop(phase, duration, EASE_SINE, false);
-  const style = useAnimatedStyle(() => {
-    // The coil: out to +dx by halfway, then back through zero to -dx at the top.
-    const x = t.value < 0.5 ? dx * (t.value / 0.5) : dx * (1 - 2 * ((t.value - 0.5) / 0.5));
-    const y = t.value < 0.5 ? rise * 0.45 * (t.value / 0.5) : rise * (0.45 + 0.55 * ((t.value - 0.5) / 0.5));
-    const sc = t.value < 0.5 ? 0.5 + 0.9 * (t.value / 0.5) : 1.4 + 0.8 * ((t.value - 0.5) / 0.5);
-    const o = t.value < 0.18 ? (t.value / 0.18) * 0.82 : 0.82 * (1 - (t.value - 0.18) / 0.82);
-    return { transform: [{ translateX: x }, { translateY: y }, { scale: sc }], opacity: Math.max(0, o) };
-  });
-  return (
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top, opacity: 0 }, style]}>
-      <Mote size={size} hot={hot} body={body} peak={0.9} />
-    </Animated.View>
-  );
-}
-
-function Particles({ from, to, motion, w, h }: { from: string; to: string; motion: ParticleMotion; w: number; h: number }) {
-  const n = PARTICLE_COUNT[motion];
-  // `to` is the hot colour and `from` the body. Mock 166 fills every mote
-  // `radial-gradient(circle, HOT, BODY 70%, transparent)`, and the catalog's two stops already ARE
-  // that pair for all six sets — checked one by one against the mock rather than assumed.
-  const hot = to;
-  const body = from;
-  const cx = w / 2;
-  // The emission point is the flame's own tip, not the middle of the box.
-  const fy = h * FLAME_Y;
-  const k = h / MOCK_STAGE_H;
-
-  switch (motion) {
-    // FLOATING SPARKS — off the flame's tip, climbing and spreading. Mock: left 44-56%, bottom 44%.
-    case 'rise':
-      return (
-        <>
-          {Array.from({ length: n }, (_, i) => {
-            const j = spread(i);
-            return (
-              <Travel
-                key={i}
-                hot={hot}
-                body={body}
-                size={(3 + j * 3) * k * MOTE_BOX}
-                left={w * (0.44 + spread(i, 0.31) * 0.12)}
-                top={fy}
-                dx={(spread(i, 0.63) * 36 - 18) * k}
-                dy={-140 * k}
-                duration={2000 + j * 1800}
-                phase={spread(i, 0.17)}
-                easing={EASE_QUAD}
-                fadeIn={0.18}
-                peak={1}
-                grow={[0.5, 1] as const}
-              />
-            );
-          })}
-        </>
-      );
-
-    // FALLING ASH — the quiet snow, falling across the WHOLE width from the very top. The old
-    // version put it in two lanes either side of centre, which is why it read as emitting from the
-    // flame rather than settling onto it.
-    case 'fall':
-      return (
-        <>
-          {Array.from({ length: n }, (_, i) => {
-            const j = spread(i);
-            return (
-              <Travel
-                key={i}
-                hot={hot}
-                body={body}
-                size={(2.5 + j * 2.5) * k * MOTE_BOX}
-                left={spread(i, 0.41) * w}
-                top={-10 * k}
-                dx={(spread(i, 0.77) * 30 - 15) * k}
-                dy={150 * k}
-                duration={3000 + j * 2500}
-                phase={spread(i, 0.29)}
-                easing={EASE_LINEAR}
-                fadeIn={0.15}
-                peak={0.9}
-              />
-            );
-          })}
-        </>
-      );
-
-    // EMBER SWARM — 24 motes circling the fire at 30-54px.
-    case 'swarm':
-      return (
-        <>
-          {Array.from({ length: n }, (_, i) => (
-            <Orbit
-              key={i}
-              hot={hot}
-              body={body}
-              size={(2.5 + spread(i, 0.19) * 3) * k * MOTE_BOX}
-              cx={cx}
-              cy={fy}
-              radius={(30 + spread(i, 0.53) * 24) * k}
-              duration={3600 + spread(i, 0.11) * 800}
-              // Evenly staggered round the ring, exactly as the mock's `-(i/N)*4s` delay does, so
-              // the band is continuous from the very first frame.
-              phase={i / n}
-            />
-          ))}
-        </>
-      );
-
-    // SOLAR FLARES — ten spokes, out and back.
-    case 'arc':
-      return (
-        <>
-          {Array.from({ length: n }, (_, i) => (
-            <SolarArc
-              key={i}
-              hot={hot}
-              body={body}
-              size={6 * k * MOTE_BOX}
-              cx={cx}
-              cy={fy}
-              angle={Math.round(spread(i, 0.37) * 360)}
-              reach={64 * k}
-              duration={1800 + spread(i, 0.71) * 1200}
-              phase={spread(i, 0.61)}
-            />
-          ))}
-        </>
-      );
-
-    // LIGHTNING TENDRILS — eight forked glyphs reaching out at random angles.
-    case 'flicker':
-      return (
-        <>
-          {Array.from({ length: n }, (_, i) => (
-            <Tendril
-              key={i}
-              hot={hot}
-              body={body}
-              cx={cx}
-              cy={fy}
-              angle={Math.round(spread(i, 0.23) * 360)}
-              len={(26 + spread(i, 0.59) * 26) * k}
-              duration={900 + spread(i, 0.43) * 1100}
-              phase={spread(i, 0.83)}
-            />
-          ))}
-        </>
-      );
-
-    // VOID SMOKE — fifteen heavy veils coiling up off the flame.
-    case 'coil':
-    default:
-      return (
-        <>
-          {Array.from({ length: n }, (_, i) => {
-            const j = spread(i);
-            const size = (15 + j * 17) * k * MOTE_BOX;
-            return (
-              <Veil
-                key={i}
-                hot={hot}
-                body={body}
-                size={size}
-                left={w * (0.4 + spread(i, 0.29) * 0.2) - size / 2}
-                top={h * 0.62}
-                dx={(spread(i, 0.67) * 44 - 22) * k}
-                rise={-128 * k}
-                duration={4200 + j * 2600}
-                phase={spread(i, 0.07)}
-              />
-            );
-          })}
-        </>
-      );
-  }
-}
-
-/**
  * The equipped particle field, ready to drop behind a flame.
  *
  * Mount it as an absolutely-positioned sibling of the flame inside a wrapper sized to the flame —
- * it fills its parent and works outward from there. Renders nothing when the slot is empty or when
- * the equipped item predates this build's motion table, which is the same newer-server-than-app
- * guard the rest of the economy already follows.
+ * it fills its parent and works outward from there. Renders nothing when the slot is empty; an
+ * equipped item this build has no motion for falls back to 'rise' rather than painting nothing.
  */
 export function EquippedFlameParticles({ dimmed = false }: { dimmed?: boolean }) {
   const item = useEquipped('particle');
-  const motion = item ? PARTICLE_MOTION[item.id] : undefined;
+  const motion = item ? particleMotionForItem(item) : undefined;
   // ── THE WHOLE OVERLAY IS THE GATE ──
   //
   // Both flare surfaces are gated here, at the equipped-item wrapper, rather than by threading a

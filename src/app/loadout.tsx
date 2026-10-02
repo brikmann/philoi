@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuraTier } from '@/components/economy/applied-art';
+import { CosmeticContextPair } from '@/components/economy/cosmetic-in-context';
 import { EmberPill, RarityLabel } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { EquippedTitle } from '@/components/economy/loadout-bits';
@@ -113,6 +114,8 @@ export default function LoadoutScreen() {
   }, [owned, tab]);
 
   const ownedCount = tiles.filter((t) => t.kind === 'owned').length;
+  // Owned tiles sort equipped-first, so this is the tab's equipped piece when there is one.
+  const equippedHere = tiles.find((t) => t.kind === 'owned' && t.item.equipped)?.item;
 
   async function equip(item: OwnedItem) {
     if (pending) return;
@@ -208,6 +211,9 @@ export default function LoadoutScreen() {
             <LoadoutTile key={`${t.kind}:${t.item.id}`} tile={t} pending={pending === t.item.id} onPress={() => onTile(t)} />
           ))}
         </View>
+
+        {/* Below the grid, so picking stays at the top: the equipped piece on its real surfaces. */}
+        {equippedHere ? <CosmeticContextPair item={equippedHere} /> : null}
 
         <Pressable style={styles.invLink} onPress={() => router.push('/inventory')} accessibilityRole="button">
           <Text style={styles.invLinkText}>Open full inventory</Text>

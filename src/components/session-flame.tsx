@@ -3,10 +3,12 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { useEquippedFlameArchetype } from '@/components/economy/flame-art';
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useFlameRamp, type FlameRamp } from '@/lib/economy/flame-ramp';
+import type { Rarity } from '@/lib/economy/rarity';
 
 // The running session's flame — the SAME brand silhouette home wears, recoloured by the equipped
 // ramp. What stays here is only the session behaviour: the glow, the flick, and `dimmed`.
@@ -38,15 +40,28 @@ type SessionFlameProps = {
    * a screen still never decides what colour your flame is.
    */
   ramp?: FlameRamp;
+  /**
+   * Draw THIS flame archetype's marks (mock 240) instead of the equipped one's — same preview-only
+   * rule as `ramp`. A preview that passes `ramp` without `archetype` gets the plain mark, never the
+   * equipped item's marks in someone else's colours.
+   */
+  archetype?: string;
+  rarity?: Rarity;
 };
 
-export function SessionFlame({ height = 240, dimmed = false, ramp: rampOverride }: SessionFlameProps) {
+export function SessionFlame({ height = 240, dimmed = false, ramp: rampOverride, archetype: archetypeOverride, rarity: rarityOverride }: SessionFlameProps) {
   const reduceMotion = useReduceMotion();
   // Colour ONLY. `dimmed`, the flick animation, and the glow opacity below are all untouched by
   // whatever is equipped — they're the activity signal, and a cosmetic must never move them.
   // Flare-aware — see useFlameRamp. A screen does not decide what colour your flame is.
   const equippedRamp = useFlameRamp();
   const ramp = rampOverride ?? equippedRamp;
+  // The archetype changes the DRAWING only (mock 240). Like the ramp, it never reaches `dimmed`, the
+  // flick or the glow — those stay the session's own signal.
+  const equippedStyle = useEquippedFlameArchetype();
+  const preview = rampOverride !== undefined || archetypeOverride !== undefined;
+  const archetype = preview ? archetypeOverride : equippedStyle.archetype;
+  const rarity = preview ? (rarityOverride ?? 'common') : equippedStyle.rarity;
   // Gradient ids are GLOBAL in react-native-svg: a hardcoded id makes every instance after the
   // first render blank on Android, and this component mounts twice on the lock-in screen. Same
   // bug FlameLogo and EmberIcon already carry a useId for.
@@ -116,7 +131,7 @@ export function SessionFlame({ height = 240, dimmed = false, ramp: rampOverride 
       <Animated.View style={[styles.flame, { opacity: dimmed ? 0.5 : 1 }, flameStyle]}>
         {/* Orientation is not this component's business any more: the one flip lives in
             flame-logo, so there is nothing to opt into here (CINDY_SPEC rendering rule 1). */}
-        <FlameSvg width={width} height={height} ramp={ramp} />
+        <FlameSvg width={width} height={height} ramp={ramp} archetype={archetype} rarity={rarity} />
       </Animated.View>
     </View>
   );

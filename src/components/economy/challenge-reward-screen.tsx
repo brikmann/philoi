@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -10,16 +10,18 @@ import Animated, {
 import Svg, { Circle, Defs, G, Line, RadialGradient, Stop } from 'react-native-svg';
 
 import { BoxArt } from '@/components/economy/box-art';
+import { ItemArt } from '@/components/economy/item-art';
 import { asBoxKey, useRewardClaim } from '@/components/economy/reward-claim';
 import { RewardRevealFrame, type RowClaim } from '@/components/economy/reward-reveal-frame';
 import { type RewardRowSpec } from '@/components/economy/reward-rows';
 import { boxAccent } from '@/lib/economy/boxes';
 import { useRevealCue, type RewardRevealKind } from '@/components/economy/reward-reveal';
+import { UnlockReveal } from '@/components/economy/unlock-reveal';
 import { EquippedFlameSvg } from '@/components/flame-icon';
 import { DefeatedStrip, KingStatue } from '@/components/economy/king-statue';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
-import { campfireFinisherKey, titleLabel } from '@/lib/economy/catalog';
+import { campfireFinisherKey, titleLabel, type CatalogItem } from '@/lib/economy/catalog';
 import { useFlameRamp } from '@/lib/economy/flame-ramp';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import {
@@ -136,6 +138,9 @@ export function ChallengeRewardScreen({
   const finisherKey = challengeId ? campfireFinisherKey(challengeId) : null;
   const finisherOwned = finisherKey ? owned.find((o) => o.id === finisherKey) : undefined;
   const finisherTitle = finisherOwned ? titleLabel(finisherOwned).name : null;
+  // The universal unlock reveal for the finisher title (mocks 251/254), opened from its row and
+  // drawn over this screen — back lands on the settlement with everything else it paid.
+  const [revealing, setRevealing] = useState<CatalogItem | null>(null);
   // THE LIGHT FOLLOWS THE FLAME; THE SEMANTICS DO NOT.
   //
   // This screen's hero is a flame, so everything that reads as light coming OFF that flame — the
@@ -207,13 +212,30 @@ export function ChallengeRewardScreen({
   // defeat RewardRow's memo. These four are the only inputs a row's appearance actually has.
   const { claimed, busy, claimFor, claim: claimOne } = claim;
   const rows = useMemo(
-    () => buildRows(result, { claimed, busy, claimFor, claimOne }, onOpenBox, finisherTitle),
-    [result, onOpenBox, claimed, busy, claimFor, claimOne, finisherTitle]
+    () =>
+      buildRows(
+        result,
+        { claimed, busy, claimFor, claimOne },
+        onOpenBox,
+        finisherOwned && finisherTitle ? { item: finisherOwned, title: finisherTitle, onSee: setRevealing } : null
+      ),
+    [result, onOpenBox, claimed, busy, claimFor, claimOne, finisherOwned, finisherTitle]
   );
 
   return (
     <RewardRevealFrame
       claim={claim}
+      overlay={
+        revealing ? (
+          <UnlockReveal
+            item={revealing}
+            eyebrow="TITLE EARNED"
+            onBack={() => setRevealing(null)}
+            onClose={() => setRevealing(null)}
+            closeLabel="Back"
+          />
+        ) : null
+      }
       kind={kind}
       // THE GATE STAYS. The spec is explicit that a weak result gets embers, not blaze, and a
       // full-screen ray blast behind "NEEDS IGNITION" would be the app cheering a loss. Mock 47's
@@ -347,7 +369,7 @@ function buildRows(
   r: ChallengeRewardResult,
   claim: RowClaim,
   onOpenBox?: () => void,
-  finisherTitle?: string | null
+  finisher?: { item: CatalogItem; title: string; onSee: (item: CatalogItem) => void } | null
 ): RewardRowSpec[] {
   const rows: RewardRowSpec[] = [];
 
@@ -421,13 +443,16 @@ function buildRows(
   }
   // Every campfire racer gets one, win or not (0212) — so it sits last, under what the placing paid.
   // Same non-claimable shape as the badge: it is already on the profile, there is nothing to fly.
-  if (finisherTitle) {
+  // A COSMETIC ROW NOW, not a badge: the title is a real item, so it shows its own art and its
+  // control opens the universal unlock reveal, where Equip lives beside the preview of what it does.
+  if (finisher) {
     rows.push({
-      kind: 'badge',
-      title: `"${finisherTitle}"`,
+      kind: 'cosmetic',
+      title: `"${finisher.title}"`,
       detail: "Title for every finisher · can't be sold",
       chip: { label: 'EARNED', color: Colors.green },
-      destination: '→ titles',
+      art: <ItemArt item={finisher.item} size={26} motion="off" />,
+      equip: { onPress: () => finisher.onSee(finisher.item) },
     });
   }
   return rows;

@@ -5,7 +5,7 @@ import Svg, { Circle, G, Path } from 'react-native-svg';
 import { flashCurve } from '@/components/economy/cosmetic-clock';
 import { Colors } from '@/constants/theme';
 import type { FlareEffect } from '@/lib/economy/catalog';
-import { tint } from '@/lib/economy/colour';
+import { mix, tint } from '@/lib/economy/colour';
 
 // ── A FLARE'S SIGNATURE, AT AVATAR SCALE ──
 //
@@ -62,7 +62,7 @@ export type SignatureFrame = {
  * interchangeable. (Zeus' gold rather than white is the catalog's own note: a white bolt on a dark
  * screen reads as a glitch.)
  */
-const LIGHTNING = {
+export const LIGHTNING = {
   zaps: { glow: '#FFE87A', core: '#FFF7D6' },
   hammer: { glow: '#8FD4FF', core: '#EAF7FF' },
 } as const;
@@ -83,6 +83,18 @@ export const SIGNATURE_CYCLE_MS: Record<FlareEffect, number> = {
   flames: 7_600,
   emberfall: 9_600,
 };
+
+/**
+ * The colour a flare is DRAWN in, which is not always its catalog swatch. Inferno's swatch is a deep
+ * red (#FF3D1F) — right for the tile and the Live Activity accent, wrong for the light itself: mock
+ * 243 draws Inferno as a FAINT WARM light breathing inward (#ff8a3c), and a red glow round an edge
+ * is exactly the "red tongues" read it replaced. So the fire family is pulled halfway to amber
+ * wherever it paints light. One function, used by the avatar signature, the profile border and the
+ * lock-in perimeter, so the three can never disagree about Inferno's colour.
+ */
+export function flareDisplayColour(effect: FlareEffect, colour: string): string {
+  return effect === 'flames' ? mix(colour, '#FFB45A', 0.5) : colour;
+}
 
 /** Golden-ratio spread, 0..1 — `spread()` in flare-perimeter.tsx, kept local so this file has no
  *  dependency on the full-screen renderer. */
@@ -158,19 +170,36 @@ function build(effect: FlareEffect, colour: string, f: SignatureFrame): Signatur
         stillAt: 0,
       }));
 
-    // INFERNO — tongues licking out of the ring's lower arc, the hot core inside each.
+    // INFERNO — faint warm light breathing INWARD onto the ring (mock 243), not tongues: the same
+    // read as the profile border and the lock-in perimeter. Two warm bands — a steady one hugging
+    // the face and a wider one that swells and contracts toward it on the `lick` pulse.
     case 'flames': {
-      const hot = tint(colour, 0.55);
-      const angles = [0.08, 0.92, 0.3, 0.7, -0.08, 1.08, 0.5].map((x) => x * Math.PI);
-      return angles.map((a, i) => ({
-        node: tongue(f, a, L * (0.95 - (i % 3) * 0.12), L * 0.46, colour, hot),
-        anim: 'lick' as const,
-        mult: 5 + (i % 3),
-        phase: jitter(i, 0.4),
+      const warm = flareDisplayColour('flames', colour);
+      const hot = tint(warm, 0.4);
+      const steady: SignatureMark = {
+        node: <Circle cx={f.cx} cy={f.cy} r={f.rIn + L * 0.14} fill="none" stroke={warm} strokeWidth={Math.max(L * 0.22, minGlow)} opacity={0.4} />,
+        anim: 'static',
+        mult: 1,
+        phase: 0,
         travel: 0,
-        still: 0.9,
+        still: 1,
+        stillAt: 0,
+      };
+      const swell = [0, 1].map((i) => ({
+        node: (
+          <G fill="none">
+            <Circle cx={f.cx} cy={f.cy} r={f.rIn + L * (0.42 + i * 0.2)} stroke={warm} strokeWidth={Math.max(L * 0.42, minGlow)} opacity={0.22} />
+            <Circle cx={f.cx} cy={f.cy} r={f.rIn + L * (0.3 + i * 0.16)} stroke={hot} strokeWidth={Math.max(L * 0.1, minCore)} opacity={0.35} />
+          </G>
+        ),
+        anim: 'lick' as const,
+        mult: [6, 5][i],
+        phase: [0, 0.5][i],
+        travel: 0,
+        still: i === 0 ? 0.9 : 0,
         stillAt: 0,
       }));
+      return [steady, ...swell];
     }
 
     // ACID RAIN — drops beading on the lower arc and falling off it.
@@ -331,36 +360,6 @@ function bolt(
       <Path d={fork} stroke={o.core} strokeWidth={o.coreW * 0.7} opacity={0.85} />
       {burst && <Path d={burst} stroke={o.core} strokeWidth={o.coreW * 0.75} opacity={0.9} />}
       <Circle cx={hit.x} cy={hit.y} r={o.coreW * 1.6} fill={o.core} />
-    </G>
-  );
-}
-
-function tongue(f: SignatureFrame, a: number, len: number, width: number, colour: string, hot: string) {
-  // Outward, bent upward: fire climbs, so a tongue on the side of the ring leans up rather than
-  // pointing straight out like a spoke.
-  const rx = Math.cos(a);
-  const ry = Math.sin(a) - 0.5;
-  const n = Math.hypot(rx, ry) || 1;
-  const dx = rx / n;
-  const dy = ry / n;
-  const base = polar(f, f.rIn * 0.98, a);
-  const shape = (l: number, w: number) => {
-    const px = -dy;
-    const py = dx;
-    const tip = { x: base.x + dx * l, y: base.y + dy * l };
-    const c1 = { x: base.x + dx * l * 0.42 - px * w * 0.62, y: base.y + dy * l * 0.42 - py * w * 0.62 };
-    const c2 = { x: base.x + dx * l * 0.5 + px * w * 0.7, y: base.y + dy * l * 0.5 + py * w * 0.7 };
-    return (
-      `M${fmt(base.x - (px * w) / 2)} ${fmt(base.y - (py * w) / 2)} ` +
-      `Q${fmt(c1.x)} ${fmt(c1.y)} ${fmt(tip.x)} ${fmt(tip.y)} ` +
-      `Q${fmt(c2.x)} ${fmt(c2.y)} ${fmt(base.x + (px * w) / 2)} ${fmt(base.y + (py * w) / 2)} Z`
-    );
-  };
-  return (
-    <G>
-      <Path d={shape(len * 1.12, width * 1.5)} fill={colour} opacity={0.22} />
-      <Path d={shape(len, width)} fill={colour} opacity={0.88} />
-      <Path d={shape(len * 0.58, width * 0.5)} fill={hot} opacity={0.9} />
     </G>
   );
 }

@@ -2,9 +2,11 @@ import { View } from 'react-native';
 import { useId } from 'react';
 import Svg, { Defs, G, LinearGradient, Path, Stop } from 'react-native-svg';
 
+import { FlameArchetypeDecor, MARKS_ON_BRAND, isFlameArchetype, useEquippedFlameArchetype } from '@/components/economy/flame-art';
 import { FLAME_MIRROR_TRANSFORM, FLAME_PATH, FLAME_VIEWBOX } from '@/components/ui/flame-logo';
 import { Colors } from '@/constants/theme';
 import { BASE_FLAME_RAMP, useFlameRamp, type FlameRamp } from '@/lib/economy/flame-ramp';
+import type { Rarity } from '@/lib/economy/rarity';
 
 type FlameIconProps = {
   /** Height of the flame mark (or the side length of the square backplate when `background` is set). */
@@ -28,9 +30,23 @@ type FlameSvgProps = {
    * vector are identical whatever is equipped, because those signal real activity.
    */
   ramp?: FlameRamp;
+  /**
+   * The flame item's archetype (mock 240) — its signature marks drawn round the brand silhouette.
+   * Omit (or pass one this build does not know) for the plain mark. Decoration only: the path, the
+   * box and every animation a caller runs on this vector are identical with or without it (§4).
+   */
+  archetype?: string;
+  /** The flame item's rarity — Legendary/Mythic add the rim light, Mythic the strike. */
+  rarity?: Rarity;
 };
 
-export function FlameSvg({ width, height, ramp = BASE_FLAME_RAMP }: FlameSvgProps) {
+/**
+ * Below this height the archetype marks are dropped: a 16px inline glyph next to a label cannot
+ * carry arcs or stars, only noise. The colour ramp still applies at every size.
+ */
+const ARCHETYPE_MIN_HEIGHT = 36;
+
+export function FlameSvg({ width, height, ramp = BASE_FLAME_RAMP, archetype, rarity = 'common' }: FlameSvgProps) {
   // ONE path, ONE smooth vertical gradient — not three stacked opaque layers.
   //
   // The stacked version was the bug (punchlist 17 P0): outer/mid/core painted as three solid fills
@@ -43,6 +59,8 @@ export function FlameSvg({ width, height, ramp = BASE_FLAME_RAMP }: FlameSvgProp
   // between the brand component and the cosmetic one again.
   const uid = useId();
   const grad = `flameRamp-${uid}`;
+  const decorated = isFlameArchetype(archetype) && height >= ARCHETYPE_MIN_HEIGHT;
+  const decor = { archetype, rarity, from: ramp.outer, to: ramp.core, uid, bodyPath: FLAME_PATH, rimWidth: 0.35, marksTransform: MARKS_ON_BRAND };
   return (
     <Svg width={width} height={height} viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} role="img" aria-label="Philoi">
       <Defs>
@@ -60,7 +78,11 @@ export function FlameSvg({ width, height, ramp = BASE_FLAME_RAMP }: FlameSvgProp
           SessionFlame and PersonalFlame animate scaleX for the flicker, and a mirror on the same
           wrapper would multiply into it — the flame would flip back and forth as it flickered. */}
       <G transform={FLAME_MIRROR_TRANSFORM}>
+        {/* The archetype's marks ride INSIDE the one flip, so they mirror with the mark rather than
+            sitting the wrong way round it. */}
+        {decorated ? <FlameArchetypeDecor which="back" {...decor} /> : null}
         <Path d={FLAME_PATH} fill={`url(#${grad})`} />
+        {decorated ? <FlameArchetypeDecor which="front" {...decor} /> : null}
       </G>
     </Svg>
   );
@@ -71,7 +93,9 @@ export function FlameSvg({ width, height, ramp = BASE_FLAME_RAMP }: FlameSvgProp
  * for fixed-brand marks (the app icon, the splash, anywhere the logo must not change per user).
  */
 export function EquippedFlameSvg({ width, height }: { width: number; height: number }) {
-  return <FlameSvg width={width} height={height} ramp={useFlameRamp()} />;
+  const ramp = useFlameRamp();
+  const { archetype, rarity } = useEquippedFlameArchetype();
+  return <FlameSvg width={width} height={height} ramp={ramp} archetype={archetype} rarity={rarity} />;
 }
 
 export function FlameIcon({ size = 32, background = Colors.plum }: FlameIconProps) {

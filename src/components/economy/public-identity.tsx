@@ -11,6 +11,7 @@ import {
   SIGNATURE_CYCLE_MS,
   SignatureLayers,
   SignatureStill,
+  flareDisplayColour,
   flareSignature,
   type SignatureMark,
 } from '@/components/economy/flare-signature';
@@ -120,6 +121,8 @@ export function FlareAura({ loadout, size, motion }: { loadout: PublicLoadout; s
   // tab, and a list of these is the case it was written for.
   const animate = motion === 'full' && !reduceMotion && active;
   const tuning = AURA[flare.effect];
+  // The DRAWN colour — Inferno's bed is warm amber light, not its deep-red swatch (mock 243).
+  const lit = flareDisplayColour(flare.effect, flare.colour);
   const box = size * tuning.reach;
   // The ring sits just outside the avatar (EquippedAvatarHalo draws it at 1.06x the radius), so the
   // marks start clear of it rather than under its stroke.
@@ -131,13 +134,13 @@ export function FlareAura({ loadout, size, motion }: { loadout: PublicLoadout; s
   );
 
   return animate ? (
-    <LiveAura colour={flare.colour} tuning={tuning} cycleMs={SIGNATURE_CYCLE_MS[flare.effect]} box={box} marks={marks} />
+    <LiveAura colour={lit} tuning={tuning} cycleMs={SIGNATURE_CYCLE_MS[flare.effect]} box={box} marks={marks} />
   ) : (
     // Parked mid-breath, not at the trough — a held-still flare should read as the same object
     // stopped, not as a dimmer one — and with its marks frozen on a representative frame.
     <View pointerEvents="none" style={[styles.aura, { width: box, height: box }]}>
       <View style={[StyleSheet.absoluteFill, { opacity: tuning.peak - tuning.swing * 0.5 }]}>
-        <AuraBed colour={flare.colour} box={box} reach={tuning.reach} />
+        <AuraBed colour={lit} box={box} reach={tuning.reach} />
       </View>
       {marks.length > 0 && (
         <Svg width={box} height={box} viewBox="0 0 100 100" style={StyleSheet.absoluteFill}>

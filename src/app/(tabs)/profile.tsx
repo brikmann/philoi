@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenBackground } from '@/components/ui/screen-background';
 
 import { useAuraTier } from '@/components/economy/applied-art';
+import { useFlareSurge } from '@/components/economy/flare-border';
 import { EquippedTitle, PublicTitle } from '@/components/economy/loadout-bits';
 import { HeroRankStrip, ProfileHero } from '@/components/economy/profile-hero';
 import { BioEditor } from '@/components/profile/bio-editor';
@@ -72,6 +73,9 @@ export default function ProfileScreen() {
   // cosmetic at rest is honest; inventing a tier for them would not be.
   const { session: activeSession } = useActiveSession();
   const auraTier = useAuraTier(isOwn ? activeSession : null);
+  // Same rule for the flare border (mock 252): ambient at rest, surging with the session's 15/30/60
+  // tier while YOU are locked in. Null for a visitor — there is no live feed for anyone else.
+  const flareSurge = useFlareSurge(isOwn ? activeSession : null);
 
   // §4 + §7. One read serves both: the hall's own contents AND the item count the Collection entry
   // advertises, so opening this tab costs one request rather than two.
@@ -181,6 +185,7 @@ export default function ProfileScreen() {
           loadout={heroLoadout}
           avatarSize={AVATAR_SIZE}
           auraTier={auraTier}
+          flareSurge={flareSurge}
           // `EquippedTitle` reads the signed-in user's store, so on someone else's profile it would
           // structurally render blank — their title comes off the public loadout fetched above.
           title={isOwn ? <EquippedTitle /> : <PublicTitle loadout={theirs ?? {}} />}

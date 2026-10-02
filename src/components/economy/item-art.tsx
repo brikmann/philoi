@@ -11,16 +11,20 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { CardScene, HaloRing, cardLookFor, haloStyleFor } from '@/components/economy/applied-art';
+import { CardScene, HaloRing, cardLookForItem, haloStyleForItem } from '@/components/economy/applied-art';
 import { useCosmeticClock } from '@/components/economy/cosmetic-clock';
 import {
   SIGNATURE_CYCLE_MS,
   SignatureLayers,
   SignatureStill,
+  flareDisplayColour,
   flareSignature,
   type SignatureMark,
 } from '@/components/economy/flare-signature';
-import { RelicArt, hasRelicArt } from '@/components/economy/relic-art';
+import { FlameArchetypeOverlay, FlameArchetypeShape, flameArchetypeAnimates } from '@/components/economy/flame-art';
+import { MedalGlossOverlay, MedalShape } from '@/components/economy/medal-art';
+import { ParticleArchetypeShape } from '@/components/economy/particle-art';
+import { RelicArtInline, hasRelicArt } from '@/components/economy/relic-art';
 import { useMotionActive } from '@/hooks/use-motion-active';
 import type { ArtKind, CatalogItem, FlareEffect } from '@/lib/economy/catalog';
 import { shade, tint } from '@/lib/economy/colour';
@@ -91,11 +95,54 @@ export function ItemArt({ item, size = 44, motion = 'auto' }: Props) {
   // share card, the Trophy Hall shelf and the Collection can never disagree about what a scroll
   // looks like. Still recoloured from `tilePalette`, and since mock 216 still pedestalled: the
   // drawing is the relic's own, the glow and the ground shadow under it are everyone's.
+  //
+  // Inline rather than as `children` (mock 255): the relic's drawing is plain SVG fitted to the
+  // pedestal's 0-100 box, so a still shelf is ONE native view per relic instead of four, and the
+  // pedestal's ground shadow is the plinth's cast shadow — the only one that tightens as it rises.
   if (hasRelicArt(item.id)) {
     return (
-      <ItemPedestal size={size} rarity={item.rarity} motion={motion}>
-        <RelicArt relicKey={item.id} from={from} to={to} size={size} />
-      </ItemPedestal>
+      <ItemPedestal
+        size={size}
+        rarity={item.rarity}
+        motion={motion}
+        inline={<RelicArtInline relicKey={item.id} from={from} to={to} size={size} />}
+      />
+    );
+  }
+
+  // MEDALS are struck per archetype (mock 246, medal-art.tsx) and bring their own gradients. The
+  // gloss sweep is the one moving part, and only where the pedestal floats; `liveGloss` drops the
+  // static band so the disc never carries two.
+  if (item.art.kind === 'medal') {
+    const liveGloss = floatsAt(size, motion) && !reducedMotion;
+    return (
+      <ItemPedestal
+        size={size}
+        rarity={item.rarity}
+        motion={motion}
+        overlay={liveGloss ? <MedalGlossOverlay size={size} /> : undefined}
+        inline={<MedalShape item={item} from={from} to={to} uid={uid} size={size} liveGloss={liveGloss} />}
+      />
+    );
+  }
+
+  // FLAMES get one silhouette per archetype (mock 240, flame-art.tsx), still recoloured from the
+  // item's own ramp. An unknown archetype draws the generic flame exactly. `flameLive` gates both
+  // halves together: the still shape leaves out whatever marks the overlay is animating.
+  if (item.art.kind === 'flame') {
+    const flameLive = floatsAt(size, motion) && !reducedMotion && flameArchetypeAnimates(item.archetype, item.rarity);
+    return (
+      <ItemPedestal
+        size={size}
+        rarity={item.rarity}
+        motion={motion}
+        overlay={
+          flameLive ? (
+            <FlameArchetypeOverlay archetype={item.archetype} rarity={item.rarity} from={from} to={to} size={size} live uid={uid} />
+          ) : undefined
+        }
+        inline={<FlameArchetypeShape archetype={item.archetype} rarity={item.rarity} from={from} to={to} uid={uid} live={flameLive} />}
+      />
     );
   }
 
@@ -131,11 +178,13 @@ export function ItemArt({ item, size = 44, motion = 'auto' }: Props) {
             </LinearGradient>
           </Defs>
           {item.art.kind === 'flare' ? (
-            <FlareTile colour={flare?.colour ?? from} to={to} body={`url(#${g.body})`} effect={flare?.effect ?? 'glow'} marks={liveMarks ? [] : marks} />
+            <FlareTile colour={flare ? flareDisplayColour(flare.effect, flare.colour) : from} to={to} body={`url(#${g.body})`} effect={flare?.effect ?? 'glow'} marks={liveMarks ? [] : marks} />
           ) : item.art.kind === 'card' ? (
             <CardTile item={item} from={from} to={to} />
           ) : item.art.kind === 'halo' ? (
             <HaloTile item={item} from={from} to={to} />
+          ) : item.art.kind === 'particle' ? (
+            <ParticleArchetypeShape archetype={item.archetype} from={from} to={to} uid={uid} />
           ) : (
             shapeFor(item.art.kind, from, to, g)
           )}
@@ -603,7 +652,7 @@ function CardTile({ item, from, to }: { item: CatalogItem; from: string; to: str
       <Rect x={x + 1.5} y={y + 2.5} width={w} height={h} rx={6} fill="#000000" opacity={0.35} />
       <G clipPath={`url(#${clipId})`}>
         <G transform={`translate(${x} ${y}) scale(${k})`}>
-          <CardScene look={cardLookFor(item.id)} from={from} to={to} w={w / k} uid={uid} hot />
+          <CardScene look={cardLookForItem(item)} from={from} to={to} w={w / k} uid={uid} hot />
         </G>
       </G>
       <Rect x={x} y={y} width={w} height={h} rx={6} fill="none" stroke={to} strokeWidth={1.2} />
@@ -621,7 +670,7 @@ function HaloTile({ item, from, to }: { item: CatalogItem; from: string; to: str
       <Circle cx={50} cy={50} r={rAvatar} fill="#140f1c" />
       <Circle cx={50} cy={45} r={7} fill="#ffffff" opacity={0.08} />
       <Path d={`M37 66 Q50 50 63 66 Z`} fill="#ffffff" opacity={0.08} />
-      <HaloRing style={haloStyleFor(item.id)} from={from} to={to} boost={0} spread={0} rAvatar={rAvatar} uid={uid} />
+      <HaloRing style={haloStyleForItem(item)} from={from} to={to} boost={0} spread={0} rAvatar={rAvatar} uid={uid} />
     </G>
   );
 }

@@ -4,13 +4,11 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CrateOpen } from '@/components/economy/crate-open';
 import { DropOddsLink, DropOddsSheet } from '@/components/economy/drop-odds';
-import { FlipReveal, bestPull, bestPullRarity } from '@/components/economy/flip-reveal';
-import { RarityLabel, formatEmbers } from '@/components/economy/economy-bits';
-import { ItemArt } from '@/components/economy/item-art';
-import { PreviewButton } from '@/components/economy/preview-button';
+import { bestPull, bestPullRarity } from '@/components/economy/flip-reveal';
+import { MultiItemReveal } from '@/components/economy/multi-item-reveal';
+import { UnlockReveal } from '@/components/economy/unlock-reveal';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Screen } from '@/components/ui/screen';
-import { useRevealPreview } from '@/hooks/use-audio-preview';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useShareCardCapture } from '@/hooks/use-share-card-capture';
@@ -19,10 +17,9 @@ import { UnlockShareCard } from '@/components/economy/unlock-share-card';
 import { useAuth } from '@/lib/auth/auth-context';
 import { equipCosmetic, openBox, type OpenResult } from '@/lib/api/inventory';
 import { BOXES, type BoxKey } from '@/lib/economy/boxes';
-import { getItem } from '@/lib/economy/catalog';
+import { getItem, type CatalogItem } from '@/lib/economy/catalog';
 import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { getErrorMessage } from '@/lib/errors';
-import { rarityGlow, type Rarity } from '@/lib/economy/rarity';
 
 // Box open (mocks 58/59, 21h). Three beats: crack → pulse → REWARD MENU.
 //
@@ -31,14 +28,14 @@ import { rarityGlow, type Rarity } from '@/lib/economy/rarity';
 // finished results, and only then animates. The animation is a flourish over a decided outcome —
 // it can never change what you got, and a crash mid-animation cannot cost you the pull.
 
-// 'flipping' is the ×5/×10 leg, and it is where a batch ENDS: the flip-reveal's own spotlight is
-// the last screen, and its "Collect all" leaves for the inventory. 'menu' is the single pull's hero
-// and nothing else reaches it.
+// 'flipping' is the ×5/×10 leg, and it is where a batch ENDS: the new-item grid (mock 256) is the
+// last screen, and its "Add all to inventory" leaves for the inventory. 'menu' is the single pull's
+// unlock reveal (mock 251) and nothing else reaches it.
 //
 // 🔴 THERE IS ONE REVEAL PATH PER COUNT, and that is the whole point of this shape. A batch used to
 // run the shards AND then a second grid (`MultiMenu`, deleted) that drew the same best pull and the
 // same tiles again, so finishing the flips looked like the reveal restarting. A ×1 runs the crate
-// and then its hero. Neither leg can fall through into the other's screen.
+// and then its reveal. Neither leg can fall through into the other's screen.
 type Phase = 'rolling' | 'animating' | 'flipping' | 'menu';
 
 export default function BoxOpenScreen() {
@@ -63,7 +60,6 @@ function BoxOpenFlow() {
   const [phase, setPhase] = useState<Phase>('rolling');
   const [error, setError] = useState<string | null>(null);
   const [unopened, setUnopened] = useState(0);
-  const [equipping, setEquipping] = useState(false);
   // Play's loot-box rule wants the drop rates one obvious tap away in the flow that spends the
   // box, not only on the detail screen that sold it. So the odds ride the pre-reveal beats here,
   // while the crate is still shut — reachable, and gone by the time the item is on screen so it
@@ -189,14 +185,14 @@ function BoxOpenFlow() {
             reduceMotion={reduceMotion}
             label={`Opening ${isMulti ? `×${results.length} · ` : ''}${BOXES[key].name}`}
             size={220}
-            // A batch swaps to the shards ON the lid-off frame, so the ray field the crate threw is
+            // A batch swaps to the grid ON the lid-off frame, so the ray field the crate threw is
             // still up behind them (mock 186 keeps it as the backdrop rather than flashing it away).
             //
             // `handsOff` is the load-bearing half of that. This used to rely on the swap unmounting
             // the crate before its own `onDone` fired 140ms later, which is a race the Promethean
             // Vault loses — see the flag's own docstring. The flag closes the finish on the burst
-            // frame instead, and hands the rarity sting to the flip-reveal, which is the only
-            // screen that knows when the best pull is actually on screen.
+            // frame instead, and hands the rarity sting to the grid, which plays the ladder as each
+            // new item lands and so is the only screen that knows when the best pull is on screen.
             handsOff={isMulti}
             onBurst={isMulti ? () => setPhase('flipping') : undefined}
             onDone={onAnimationDone}
@@ -207,72 +203,49 @@ function BoxOpenFlow() {
     );
   }
 
-  // Matched on isMulti rather than on 'flipping' so that a batch has no reachable screen past the
-  // spotlight at all — not even if some future edit lets the phase reach 'menu'.
-  if (isMulti) {
+  // Matched on the HAUL rather than on 'flipping' so that a batch has no reachable screen past the
+  // grid at all — not even if some future edit lets the phase reach 'menu'.
+  //
+  // ×1 → the full three-beat unlock reveal (mock 251), straight off the crate. Everything else goes
+  // to the grid (mock 256): a ×N, and also a ×1 that was a DUPLICATE — a dupe gets no reveal, it is
+  // embers, and the grid's salvage receipt is the one place that says so. A ×1 whose key this build
+  // cannot draw goes there too, for the grid's "update the app" line.
+  const single = results[0];
+  if (isMulti || single.dupe || !single.item) {
     return (
       <Screen>
         <MultiHaul
           results={results}
           boxKey={key}
           unopened={unopened}
-          reduceMotion={reduceMotion}
           onDone={leaveForInventory}
+          onOpenAnother={() => router.replace({ pathname: '/shop/box/[boxKey]', params: { boxKey: key } })}
         />
       </Screen>
     );
   }
 
   return (
-    <SingleMenu
-      result={results[0]}
-      equipping={equipping}
-      onEquip={async () => {
-        const item = results[0].item;
-        if (!item?.slot) return;
-        setEquipping(true);
-        try {
-          await equipCosmetic(item);
-          leaveForInventory();
-        } catch (e) {
-          Alert.alert("Couldn't equip that", getErrorMessage(e, 'Something went wrong.'));
-        } finally {
-          setEquipping(false);
-        }
-      }}
-      onCollect={leaveForInventory}
-    />
+    // Equip happens inside the reveal (the same equip_cosmetic the inventory makes); what it hands
+    // back here is only the exit, which is the box flow's own — the inventory, with the wallet
+    // refresh the open already earned.
+    <SingleReveal result={single} onLeave={leaveForInventory} />
   );
 }
 
-// ── Single: the hero screen (§8.5 stage 3) ──
-function SingleMenu({
-  result,
-  equipping,
-  onEquip,
-  onCollect,
-}: {
-  result: OpenResult;
-  equipping: boolean;
-  onEquip: () => void;
-  onCollect: () => void;
-}) {
+// ── Single: the unlock reveal (mock 251) ──
+//
+// The box open stays simple — shake, crack — and THIS is where the detail lands: the item as itself,
+// then on your profile, then in action. The reveal is the shared UnlockReveal every source uses;
+// what this wrapper owns is the share capture and the box flow's own exit (equip → inventory, with
+// the wallet refresh the open already earned).
+function SingleReveal({ result, onLeave }: { result: OpenResult; onLeave: () => void }) {
   const { profile } = useAuth();
   const shareRank = useShareRank();
   // 🐛 MOUNTED ON THE TAP, not for the life of the screen — see useShareCardCapture. A full story
   // card was being rendered off-screen behind every single reveal for a share most users never do.
   const { cardRef, mounted: cardMounted, onCardLayout, capture } = useShareCardCapture();
   const item = result.item ?? getItem(result.cosmetic_key);
-  // Auditions the pull the moment it's revealed, when an audio cosmetic is what dropped — hearing
-  // it is the reveal for those items, the way the art is for every other type. Hook runs before the
-  // null guard below so it isn't called conditionally.
-  useRevealPreview(item?.id);
-  // On a 1× the sting is simply that item's own tier (PUNCHLIST_14 §2). Above the null guard for
-  // the same reason as useRevealPreview — hooks may not be called conditionally.
-  // 🔇 NO STING HERE ANY MORE. CrateOpen fires the rarity ladder on the lid-off frame, which is
-  // where the spec puts it and where it actually lands with the picture. Leaving this call in
-  // would play the same cue a second time as this screen mounts — audibly a stutter, and on a
-  // Mythic two overlapping 5s tails.
   if (!item) return null;
 
   const oddsPct = BOXES[result.box_key as BoxKey]?.odds[item.rarity] ?? 0;
@@ -301,68 +274,29 @@ function SingleMenu({
           />
         </View>
       ) : null}
-      <View style={styles.heroWrap}>
-        <View style={[styles.heroGlow, { backgroundColor: rarityGlow(item.rarity, 0.45) }]} />
-        <ItemArt item={item} size={140} />
-      </View>
-      <View style={styles.heroBody}>
-        <View style={styles.newTag}>
-          <Text style={styles.newTagText}>{result.dupe ? 'DUPLICATE' : 'NEW'}</Text>
-        </View>
-        <Text style={styles.heroName}>{item.name}</Text>
-        <RarityLabel rarity={item.rarity} type={item.type} size={10} />
-        {/* The auto-play above fires once; this is the replay. */}
-        <View style={styles.previewRow}>
-          <PreviewButton item={item} />
-        </View>
-        <Text style={styles.heroLore}>{item.lore}</Text>
-
-        {result.dupe ? (
-          <View style={styles.dupeNote}>
-            <Text style={styles.dupeText}>
-              You already owned this, so it turned into <Text style={styles.dupeEmbers}>{formatEmbers(result.embers)} embers</Text>.
-              No duplicate sits dead in your inventory.
-            </Text>
-          </View>
-        ) : null}
-      </View>
-
-      <View style={styles.ctaBar}>
-        {!result.dupe && item.slot ? (
-          <Pressable style={styles.primaryBtn} onPress={onEquip} disabled={equipping}>
-            <Text style={styles.primaryBtnText}>{equipping ? 'Equipping…' : `Equip ${item.type.toLowerCase()}`}</Text>
+      <UnlockReveal
+        item={item}
+        onClose={onLeave}
+        onEquipped={onLeave}
+        // 🔇 CrateOpen fires the rarity ladder on the lid-off frame, which is where the spec puts it
+        // and where it lands with the picture. A second sting here would stutter — on a Mythic, two
+        // overlapping 5s tails.
+        sting={false}
+        footer={
+          <Pressable style={styles.plainBtn} onPress={onShare} accessibilityRole="button">
+            <Text style={styles.shareText}>Share</Text>
           </Pressable>
-        ) : null}
-        <Pressable style={styles.ghostBtn} onPress={onCollect}>
-          <Text style={styles.ghostBtnText}>Collect → Inventory</Text>
-        </Pressable>
-        <Pressable style={styles.ghostBtn} onPress={onShare}>
-          <Text style={styles.ghostBtnText}>Share</Text>
-        </Pressable>
-        <Text style={styles.oddsFlex}>
-          {result.dupe ? 'Salvaged automatically' : `${RARITY_LABEL_TEXT[item.rarity]} pull from a ${result.box_key} box`}
-        </Text>
-      </View>
+        }
+      />
     </Screen>
   );
 }
 
-const RARITY_LABEL_TEXT: Record<Rarity, string> = {
-  common: 'A Common',
-  uncommon: 'An Uncommon',
-  rare: 'A Rare',
-  epic: 'An Epic',
-  legendary: 'A Legendary',
-  mythic: 'A MYTHIC',
-};
-
-// ── ×10: the flip-reveal owns the whole batch (mock 185 + 186) ──
+// ── ×N: the new-item grid owns the whole batch (mock 256) ──
 //
-// 🔴 WHAT THIS REPLACES. `MultiMenu` was a second results screen that rendered AFTER the flips: its
-// own best-pull headline, its own rarity-bordered grid, its own "Collect all". Two screens saying
-// the same thing in a row is what "'Add all to inventory' reverts to the old animation" was — the
-// user finished the reveal and the reveal appeared to start over. `FlipReveal`'s spotlight is that
-// screen, so this is now a wrapper with no UI of its own.
+// New items rarest first, each a tap into its full unlock reveal; duplicates collapsed into one
+// salvage line with its receipt. It replaced the face-down shard flip, which put a tap between the
+// player and every item including the duplicates. This is a wrapper with no UI of its own.
 //
 // What it does own is the two things a presentational reveal component should not: the off-screen
 // share-card capture, and the equip round trip.
@@ -370,15 +304,16 @@ function MultiHaul({
   results,
   boxKey,
   unopened,
-  reduceMotion,
   onDone,
+  onOpenAnother,
 }: {
   results: OpenResult[];
   boxKey: BoxKey;
   /** Boxes in this batch that never opened — still unopened rows, not losses. */
   unopened: number;
-  reduceMotion: boolean;
   onDone: () => void;
+  /** The all-duplicates "open another?" — back to the box this came from. */
+  onOpenAnother: () => void;
 }) {
   const { profile } = useAuth();
   const shareRank = useShareRank();
@@ -390,9 +325,8 @@ function MultiHaul({
 
   const bestResult = results[bestPull(results)];
   const bestItem = bestResult?.item;
-  // 🔇 NO `useRevealPreview` HERE. This wrapper mounts with the face-down grid, so auditioning the
-  // best pull's audio from it would announce the haul before a single card turned. It belongs to
-  // the spotlight, which mounts at the crescendo — see BestPullSpotlight.
+  // 🔇 NO `useRevealPreview` HERE. Auditioning the best pull's audio over a grid of ten would be
+  // noise; an audio item plays when its own unlock reveal opens, on the tap.
 
   const onShare = useCallback(async () => {
     try {
@@ -403,10 +337,9 @@ function MultiHaul({
   }, [capture]);
 
   const onEquipBest = useCallback(
-    async (result: OpenResult) => {
-      // A dupe granted embers, not the item — there is nothing in the inventory to equip.
-      const item = result.dupe ? undefined : result.item;
-      if (!item?.slot) return;
+    async (item: CatalogItem) => {
+      // The grid only offers Equip on a NEW item — a dupe granted embers, not the item.
+      if (!item.slot) return;
       setEquipping(true);
       try {
         await equipCosmetic(item);
@@ -440,17 +373,21 @@ function MultiHaul({
           />
         </View>
       ) : null}
-      <FlipReveal
+      <MultiItemReveal
         results={results}
         boxName={BOXES[boxKey].name}
-        reduceMotion={reduceMotion}
         unopened={unopened}
         equipping={equipping}
-        // Only offered when the best pull is a NEW item with a slot. A dupe or a slotless SFX
-        // cosmetic would hand the user a button that silently does nothing.
-        onEquipBest={!bestResult?.dupe && bestItem?.slot ? onEquipBest : undefined}
-        onShare={bestItem ? onShare : undefined}
+        onEquip={onEquipBest}
         onDone={onDone}
+        onOpenAnother={onOpenAnother}
+        footer={
+          bestItem ? (
+            <Pressable style={styles.plainBtn} onPress={onShare} accessibilityRole="button">
+              <Text style={styles.shareText}>Share the haul</Text>
+            </Pressable>
+          ) : null
+        }
       />
     </>
   );
@@ -486,6 +423,12 @@ const styles = StyleSheet.create({
   },
   plainBtn: {
     paddingVertical: Spacing.two,
+  },
+  shareText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.muted,
+    textAlign: 'center',
   },
   plainBtnText: {
     fontFamily: Fonts.bodySemiBold,

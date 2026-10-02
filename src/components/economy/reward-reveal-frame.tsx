@@ -129,6 +129,12 @@ type Props = {
   cta?: boolean;
   /** Hide the top bar on a reveal that draws its own (the rank-up keeps its share header). */
   topBar?: boolean;
+  /**
+   * Drawn over the WHOLE frame, rays and footer included — the universal unlock reveal, opened from
+   * a cosmetic row. Over rather than instead of, so backing out lands on the payout exactly as left:
+   * claimed rows stay claimed and the flights' measured origin never remounts.
+   */
+  overlay?: ReactNode;
 };
 
 export function RewardRevealFrame({
@@ -144,6 +150,7 @@ export function RewardRevealFrame({
   cta = true,
   topBar = true,
   singleStep = false,
+  overlay,
 }: Props) {
   // DESTRUCTURED ONCE, at the top. `claim` carries the three measurement refs, and the React
   // Compiler's ref rule taints the whole object with them — every `claim.busy` scattered through
@@ -316,6 +323,8 @@ export function RewardRevealFrame({
       </View>
 
       {layer}
+
+      {overlay ? <View style={StyleSheet.absoluteFill}>{overlay}</View> : null}
     </View>
   );
 }
