@@ -26,10 +26,22 @@ import type { TrophyHall } from '@/types/database';
 // The featured strip is AUTO-curated (rarest + newest) rather than hand-picked — see
 // featuredTrophies(). "See all" opens the full grouped hall.
 
-export function TrophyHallSection({ hall, userId, isOwn }: { hall: TrophyHall; userId: string; isOwn: boolean }) {
+export function TrophyHallSection({
+  hall,
+  userId,
+  isOwn,
+  showFeatured = true,
+}: {
+  hall: TrophyHall;
+  userId: string;
+  isOwn: boolean;
+  /** False where the profile already draws these same trophies as its Showcase shelf (mock 248). */
+  showFeatured?: boolean;
+}) {
   const router = useRouter();
 
-  const featured = featuredTrophies(hall.relics);
+  const earned = featuredTrophies(hall.relics);
+  const featured = showFeatured ? earned : [];
   const season = hall.seasons[0];
   const record = hall.record;
   const rate = record ? winRate(record.won, record.lost) : null;
@@ -37,7 +49,9 @@ export function TrophyHallSection({ hall, userId, isOwn }: { hall: TrophyHall; u
   // Nothing earned yet and it isn't yours: render nothing. An empty hall on a profile you are
   // visiting is a comment on that person, not a prompt you can act on. Ladders no longer count
   // toward "something to show" here — they render in the tracker above, not in this section.
-  const isEmpty = !season && featured.length === 0 && !record;
+  // `earned`, not `featured`: trophies shown up in the Showcase are still trophies, and calling
+  // the hall empty under them would contradict the shelf directly above.
+  const isEmpty = !season && earned.length === 0 && !record;
   if (isEmpty && !isOwn) return null;
 
   return (

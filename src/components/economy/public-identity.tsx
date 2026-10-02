@@ -1,19 +1,19 @@
 import { Image } from 'expo-image';
-import { useEffect, useId, type ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
-import Animated, {
-  Easing,
-  cancelAnimation,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion } from 'react-native-reanimated';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
 import { BurningName } from '@/components/burning-name';
 import { EquippedAvatarHalo, type AuraTier } from '@/components/economy/applied-art';
+import { useCosmeticClock } from '@/components/economy/cosmetic-clock';
+import {
+  SIGNATURE_CYCLE_MS,
+  SignatureLayers,
+  SignatureStill,
+  flareSignature,
+  type SignatureMark,
+} from '@/components/economy/flare-signature';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useMotionActive } from '@/hooks/use-motion-active';
@@ -70,12 +70,10 @@ export function useResolvedLoadout(userId: string | null | undefined, provided?:
 // reuse is the flare's IDENTITY, `{ colour, effect }`, which is the part that says which item you
 // own.
 //
-// Cheap on purpose. A leaderboard can hold thirty of these, so an aura is ONE Reanimated value
-// driving ONE view's opacity and scale over a static SVG radial. Nothing re-renders React per
+// Cheap on purpose. A leaderboard can hold thirty of these, so an aura reads ONE shared clock per
+// effect (cosmetic-clock) for its breath and its few signature marks. Nothing re-renders React per
 // frame, and `reduced` drops the loop entirely rather than merely slowing it.
 type AuraMotion = {
-  /** Seconds for one breath. */
-  period: number;
   /** Opacity at the top of the breath; the trough is this minus `swing`. */
   peak: number;
   swing: number;
@@ -83,83 +81,132 @@ type AuraMotion = {
   reach: number;
 };
 
-// Per-effect tuning. The split follows the catalog's own reading of each flare: the two lightning
-// flares snap, the smoke and glow families breathe slowly, and emberfall — the Forge Pass capstone,
-// one item — is the only one allowed to sit at the top of the range.
+// Per-effect tuning. The split follows the catalog's own reading of each flare, and emberfall — the
+// Forge Pass capstone, one item — is the only one allowed to sit at the top of the range. Tempo
+// lives in flare-signature's SIGNATURE_CYCLE_MS (two breaths per cycle), shared with the shop tile.
 const AURA: Record<FlareEffect, AuraMotion> = {
-  glow: { period: 3.2, peak: 0.52, swing: 0.16, reach: 1.5 },
-  smoke: { period: 4.6, peak: 0.42, swing: 0.14, reach: 1.62 },
-  plasma: { period: 2.1, peak: 0.6, swing: 0.24, reach: 1.56 },
-  zaps: { period: 1.15, peak: 0.62, swing: 0.34, reach: 1.48 },
-  hammer: { period: 1.5, peak: 0.6, swing: 0.3, reach: 1.52 },
-  falling: { period: 2.6, peak: 0.5, swing: 0.2, reach: 1.55 },
-  flames: { period: 1.9, peak: 0.58, swing: 0.22, reach: 1.58 },
-  emberfall: { period: 2.4, peak: 0.68, swing: 0.24, reach: 1.7 },
+  glow: { peak: 0.52, swing: 0.16, reach: 1.5 },
+  smoke: { peak: 0.42, swing: 0.14, reach: 1.62 },
+  plasma: { peak: 0.6, swing: 0.24, reach: 1.56 },
+  zaps: { peak: 0.62, swing: 0.34, reach: 1.48 },
+  hammer: { peak: 0.6, swing: 0.3, reach: 1.52 },
+  falling: { peak: 0.5, swing: 0.2, reach: 1.55 },
+  flames: { peak: 0.58, swing: 0.22, reach: 1.58 },
+  emberfall: { peak: 0.68, swing: 0.24, reach: 1.7 },
 };
+
+/** Below this avatar diameter the signature keeps only its first three marks (flareSignature's
+ *  `compact`) — a 24px row has room for one bolt, not three, and the rest would only be mush. */
+const AURA_COMPACT_BELOW = 34;
 
 /**
  * The flare on its own, for surfaces that already have a ring they can't give up — the podium's
  * avatars are circled in the PLACE's metal (gold/silver/bronze), and stacking a cosmetic halo on
  * top of that would put two rings on one avatar and blur which of them was earned.
+ *
+ * TWO LAYERS. The soft radial bed (the old aura, unchanged) and on top of it the flare's SIGNATURE
+ * marks — the bolts, tongues, drips or wisps from flare-signature.tsx. Before the marks, every flare
+ * was the same coloured pulse and only its tempo differed, so a profile could not show WHICH flare
+ * someone owned. `glow` flares have no marks: their bloom is the signature, as at full screen.
  */
 export function FlareAura({ loadout, size, motion }: { loadout: PublicLoadout; size: number; motion: IdentityMotion }) {
-  const gradientId = useId();
   const reduceMotion = useReducedMotion();
   const active = useMotionActive();
   const flare = loadout.flare?.flare;
-  // Destructured to primitives so the effect below depends on the NUMBERS, not on the identity of
-  // a table row — and so the worklet closes over values rather than an object.
-  const { period, peak, swing, reach } = flare ? AURA[flare.effect] : AURA.glow;
+  if (!flare) return null;
 
   // Static whenever the OS asks for it, the caller asks for it, or the screen is not being looked
   // at — use-motion-active exists precisely so cosmetic loops do not burn frames behind a blurred
   // tab, and a list of these is the case it was written for.
   const animate = motion === 'full' && !reduceMotion && active;
+  const tuning = AURA[flare.effect];
+  const box = size * tuning.reach;
+  // The ring sits just outside the avatar (EquippedAvatarHalo draws it at 1.06x the radius), so the
+  // marks start clear of it rather than under its stroke.
+  const marks = flareSignature(
+    flare.effect,
+    flare.colour,
+    { cx: 50, cy: 50, rIn: (50 / tuning.reach) * 1.1, rOut: 50, px: box / 100 },
+    size < AURA_COMPACT_BELOW
+  );
 
-  const phase = useSharedValue(0);
+  return animate ? (
+    <LiveAura colour={flare.colour} tuning={tuning} cycleMs={SIGNATURE_CYCLE_MS[flare.effect]} box={box} marks={marks} />
+  ) : (
+    // Parked mid-breath, not at the trough — a held-still flare should read as the same object
+    // stopped, not as a dimmer one — and with its marks frozen on a representative frame.
+    <View pointerEvents="none" style={[styles.aura, { width: box, height: box }]}>
+      <View style={[StyleSheet.absoluteFill, { opacity: tuning.peak - tuning.swing * 0.5 }]}>
+        <AuraBed colour={flare.colour} box={box} reach={tuning.reach} />
+      </View>
+      {marks.length > 0 && (
+        <Svg width={box} height={box} viewBox="0 0 100 100" style={StyleSheet.absoluteFill}>
+          <SignatureStill marks={marks} />
+        </Svg>
+      )}
+    </View>
+  );
+}
 
-  // The loop is started from an EFFECT, never from the render body. Assigning to `phase.value`
-  // during render is the mistake flare-perimeter.tsx already avoids: Reanimated warns on it, and
-  // it restarts the animation on every unrelated re-render — which on a list row (a new reaction,
-  // a refreshed score) means the aura visibly snaps back to the start of its breath.
-  useEffect(() => {
-    if (animate) {
-      phase.value = withRepeat(withTiming(1, { duration: period * 1000, easing: Easing.inOut(Easing.sin) }), -1, true);
-    } else {
-      // Park it at the MIDDLE of the breath, not at the trough — a held-still flare should read as
-      // the same object stopped, not as a dimmer one.
-      cancelAnimation(phase);
-      phase.value = 0.5;
-    }
-  }, [animate, period, phase]);
+/**
+ * The animated aura, split out so a parked one never subscribes to a clock at all.
+ *
+ * The breath and every mark read ONE shared clock (cosmetic-clock) per effect — a leaderboard of
+ * thirty Infernos is one driver, not thirty, let alone thirty times seven. The cycle is four breaths
+ * long, so the breath (2 per cycle, ping-pong) and the marks (whole-number loops per cycle) all
+ * land back on their start together when the clock snaps to 0.
+ */
+function LiveAura({
+  colour,
+  tuning,
+  cycleMs,
+  box,
+  marks,
+}: {
+  colour: string;
+  tuning: AuraMotion;
+  cycleMs: number;
+  box: number;
+  marks: SignatureMark[];
+}) {
+  const { peak, swing, reach } = tuning;
+  const clock = useCosmeticClock(cycleMs, true);
 
-  const style = useAnimatedStyle(() => ({
-    opacity: peak - swing * (1 - phase.value),
-    transform: [{ scale: 0.97 + 0.03 * phase.value }],
-  }));
+  const style = useAnimatedStyle(() => {
+    // 0 -> 1 -> 0 twice per cycle, sine-eased: the old ping-pong withRepeat on a per-row driver.
+    const b = 0.5 - 0.5 * Math.cos(clock.value * Math.PI * 4);
+    return { opacity: peak - swing * (1 - b), transform: [{ scale: 0.97 + 0.03 * b }] };
+  });
 
-  if (!flare) return null;
-  const box = size * reach;
+  return (
+    <View pointerEvents="none" style={[styles.aura, { width: box, height: box }]}>
+      <Animated.View style={[StyleSheet.absoluteFill, style]}>
+        <AuraBed colour={colour} box={box} reach={reach} />
+      </Animated.View>
+      <SignatureLayers marks={marks} box={box} clock={clock} />
+    </View>
+  );
+}
+
+function AuraBed({ colour, box, reach }: { colour: string; box: number; reach: number }) {
+  const gradientId = useId();
   // Where the avatar's own edge falls inside the box, in the gradient's 0-100% space. The ramp is
   // pinned to THAT rather than to a constant, so the glow hugs the avatar at 24px and at 96px.
   const edge = 100 / reach;
-
   return (
-    <Animated.View pointerEvents="none" style={[styles.aura, { width: box, height: box }, style]}>
-      <Svg width={box} height={box} viewBox="0 0 100 100">
-        <Defs>
-          <RadialGradient id={gradientId} cx="50%" cy="50%" r="50%">
-            {/* Hollow in the middle — the avatar covers it, and a filled centre would only wash
-                the face out. The ramp fades to zero at its own boundary so the aura has no edge. */}
-            <Stop offset="0%" stopColor={flare.colour} stopOpacity={0} />
-            <Stop offset={`${edge * 0.92}%`} stopColor={flare.colour} stopOpacity={0.55} />
-            <Stop offset={`${edge}%`} stopColor={flare.colour} stopOpacity={0.95} />
-            <Stop offset="100%" stopColor={flare.colour} stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Circle cx="50" cy="50" r="50" fill={`url(#${gradientId})`} />
-      </Svg>
-    </Animated.View>
+    <Svg width={box} height={box} viewBox="0 0 100 100">
+      <Defs>
+        <RadialGradient id={gradientId} cx="50%" cy="50%" r="50%">
+          {/* Hollow in the middle — the avatar covers it, and a filled centre would only wash
+              the face out. The ramp fades to zero at its own boundary so the aura has no edge. */}
+          <Stop offset="0%" stopColor={colour} stopOpacity={0} />
+          <Stop offset={`${edge * 0.92}%`} stopColor={colour} stopOpacity={0.55} />
+          <Stop offset={`${edge}%`} stopColor={colour} stopOpacity={0.95} />
+          <Stop offset="100%" stopColor={colour} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Circle cx="50" cy="50" r="50" fill={`url(#${gradientId})`} />
+    </Svg>
   );
 }
 
@@ -197,7 +244,11 @@ export function CosmeticAvatar({
   return (
     <View style={styles.avatarStack}>
       <FlareAura loadout={resolved} size={size} motion={motion} />
-      <EquippedAvatarHalo haloId={resolved.halo?.id} size={size} auraTier={auraTier}>
+      <EquippedAvatarHalo
+        haloId={resolved.halo?.id}
+        size={size}
+        auraTier={auraTier}
+        motion={motion === 'full' ? 'full' : 'still'}>
         {avatarUrl ? (
           <Image source={{ uri: avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
         ) : (

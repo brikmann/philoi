@@ -6,18 +6,16 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { BurningName } from '@/components/burning-name';
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
 import { PublicTitle } from '@/components/economy/loadout-bits';
-import { CosmeticAvatar, publicBannerStyle } from '@/components/economy/public-identity';
-import { RankBadge } from '@/components/rank-badge';
+import { HeroRankStrip, ProfileHero } from '@/components/economy/profile-hero';
 import { CollectionEntry } from '@/components/profile/collection-entry';
 import { CompareBanner } from '@/components/profile/compare-banner';
 import { DisciplineRelicTracker } from '@/components/profile/discipline-relic-tracker';
+import { ProfileShowcase } from '@/components/profile/profile-showcase';
 import { TrophyHallSection } from '@/components/profile/trophy-hall-section';
 import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
-import { ProgressBar } from '@/components/ui/progress-bar';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
@@ -30,7 +28,6 @@ import { RankMuted } from '@/components/rank-muted';
 import { fetchProfileById, fetchUserRank, type UserRank } from '@/lib/api/profile';
 import { formatSessionDuration } from '@/lib/format';
 import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
-import { formatRankTier, formatXpProgress, xpProgressRatio } from '@/lib/rank-tiers';
 import { supabase } from '@/lib/supabase';
 import { getErrorMessage } from '@/lib/errors';
 import type { ActiveChallengeMarker, Profile, ProfileRelationship, ProfileStats } from '@/types/database';
@@ -198,34 +195,43 @@ export default function FriendProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.container}>
         {/* THE flex surface: this is the screen a leaderboard or a search result opens, so it is
-            where someone's whole loadout is meant to land at once — their Banner behind the hero,
-            their Halo around the avatar, their Flare glowing at full motion (one avatar, not a
-            list), and their Title under the name. It used to render a bare circle and a name. */}
-        <View style={[styles.hero, publicBannerStyle(loadout)]}>
-          <CosmeticAvatar
-            userId={userId}
-            name={profile.display_name}
-            avatarUrl={profile.avatar_url}
-            size={76}
-            loadout={loadout}
-            motion="full"
-          />
-          <View style={styles.nameRow}>
-            <BurningName userId={userId} style={styles.name} licks>
-              {profile.display_name}
-            </BurningName>
-            {relationship === 'friends' && (
-              <View style={styles.friendTag}>
-                <Text style={styles.friendTagText}>Friend</Text>
-              </View>
-            )}
-          </View>
-          <PublicTitle loadout={loadout} />
-          <Text style={styles.handle}>
-            @{profile.handle}
-            {profile.university ? ` · ${profile.university}` : ''}
-          </Text>
-        </View>
+            where someone's whole loadout lands at once — mock 248's composite, the SAME component
+            your own profile draws (ProfileHero): their Flare as the card's border, their Banner as
+            the mat, their Card behind it, THEM (photo or initial, never a flame) ringed by their
+            Halo, the burning name, their Title, and the rank strip with the season chip. One
+            component is what keeps the two profiles from drifting again — this screen once drew no
+            card at all, so a card was a flex only its owner could see. */}
+        <ProfileHero
+          userId={userId}
+          name={profile.display_name}
+          handle={profile.handle}
+          avatarUrl={profile.avatar_url}
+          loadout={loadout}
+          avatarSize={66}
+          title={<PublicTitle loadout={loadout} />}
+          footer={
+            rank && !rank.muted ? (
+              <HeroRankStrip
+                rank={rank}
+                sub={boardPosition ? `#${boardPosition.rank.toLocaleString()} on ${boardPosition.board}` : null}
+              />
+            ) : null
+          }>
+          {profile.university || relationship === 'friends' ? (
+            <View style={styles.metaRow}>
+              {relationship === 'friends' && (
+                <View style={styles.friendTag}>
+                  <Text style={styles.friendTagText}>Friend</Text>
+                </View>
+              )}
+              {profile.university ? (
+                <Text style={styles.uni} numberOfLines={1}>
+                  {profile.university}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+        </ProfileHero>
 
         <View style={styles.acts}>
           {relationship === 'incoming' ? (
@@ -259,23 +265,10 @@ export default function FriendProfileScreen() {
             the board position would be. The name, handle and avatar above are untouched. */}
         {rank?.muted && <RankMuted />}
 
-        {rank && !rank.muted && (
-          <View style={styles.rankCard}>
-            <RankBadge tier={rank.tier} division={rank.division} size={52} />
-            <View style={styles.rankInfo}>
-              <View style={styles.rankTop}>
-                <Text style={styles.rankTier}>{formatRankTier(rank.tier, rank.division)}</Text>
-                <Text style={styles.rankXp}>{formatXpProgress(rank.xp_into_tier, rank.xp_for_next_tier)}</Text>
-              </View>
-              <ProgressBar ratio={xpProgressRatio(rank.xp_into_tier, rank.xp_for_next_tier)} />
-              {boardPosition && (
-                <Text style={styles.boardPosition}>
-                  #{boardPosition.rank.toLocaleString()} on {boardPosition.board}
-                </Text>
-              )}
-            </View>
-          </View>
-        )}
+        {/* Their rank lives in the card's strip now (mock 248), with the board position as its sub-line. */}
+
+        {/* Mock 248's Showcase, directly under the card and the actions. */}
+        {theirHall ? <ProfileShowcase hall={theirHall} userId={userId} /> : null}
 
         {/* #204 · their discipline relics, beside their rank — same tracker as your own profile. */}
         {theirHall ? <DisciplineRelicTracker relics={theirHall.relics} userId={userId} isOwn={false} /> : null}
@@ -310,7 +303,7 @@ export default function FriendProfileScreen() {
           <CompareBanner mine={myHall} theirs={theirHall} name={profile.display_name} />
         ) : null}
 
-        {theirHall ? <TrophyHallSection hall={theirHall} userId={userId} isOwn={false} /> : null}
+        {theirHall ? <TrophyHallSection hall={theirHall} userId={userId} isOwn={false} showFeatured={false} /> : null}
 
         {/* §7 — their closet, read-only. */}
         {profile ? (
@@ -390,41 +383,18 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     paddingBottom: Spacing.six,
   },
-  hero: {
-    alignItems: 'center',
-    marginTop: 8,
-    // Padding and a radius so an equipped Banner reads as a backdrop panel behind the hero rather
-    // than as a colour running edge-to-edge. With no banner these are invisible.
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.card,
-    overflow: 'hidden',
-  },
-  avatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-  },
-  avatarFallback: {
-    backgroundColor: Colors.achieverBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontFamily: Fonts.display,
-    fontSize: 30,
-    color: Colors.ember,
-  },
-  nameRow: {
+  // Friend tag + university, one line under the title inside the card.
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    marginTop: 9,
+    gap: 6,
+    marginTop: 4,
   },
-  name: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 19,
-    color: Colors.ink,
+  uni: {
+    flexShrink: 1,
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.textTertiary,
   },
   friendTag: {
     backgroundColor: 'rgba(61,168,92,0.15)',
@@ -436,12 +406,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 9,
     color: Colors.green,
-  },
-  handle: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.muted,
-    marginTop: 2,
   },
   acts: {
     flexDirection: 'row',
@@ -528,40 +492,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ink,
-  },
-  rankCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: Colors.card,
-    borderRadius: 15,
-    padding: 14,
-    marginTop: 16,
-  },
-  rankInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  rankTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  rankTier: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
-    color: Colors.ink,
-  },
-  rankXp: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
-  },
-  boardPosition: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 10.5,
-    color: Colors.amber,
-    marginTop: 5,
   },
   stats: {
     flexDirection: 'row',

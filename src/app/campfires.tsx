@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 
 import { ValleyPage } from '@/app/(tabs)/index';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { ScreenBackground } from '@/components/ui/screen-background';
 import { useCampfireHeat } from '@/hooks/use-campfire-heat';
 import { useMyGroups } from '@/hooks/use-my-groups';
 
@@ -18,7 +19,15 @@ function CampfiresScreenContent() {
   // (device triage build 9, P0 #4). Coerce to a string here, where this screen owns the data,
   // rather than reaching into the shared Home file that hosts ValleyPage.
   const safeGroups = useMemo(() => groups.map((g) => ({ ...g, name: g.name ?? '' })), [groups]);
-  return <ValleyPage myGroups={safeGroups} heatByGroupId={heatByGroupId} />;
+  // ScreenBackground gives the route the deep-purple radial AND a flex:1 full-height parent.
+  // ValleyPage is intentionally transparent (see its def in (tabs)/index) so the radial shows
+  // through; without this wrapper the route had no background (white) and no height, so the
+  // absolutely-positioned fire nodes bunched at the top (device triage: "amalgamated near the top").
+  return (
+    <ScreenBackground>
+      <ValleyPage myGroups={safeGroups} heatByGroupId={heatByGroupId} />
+    </ScreenBackground>
+  );
 }
 
 // Wrapped so a throw anywhere in the valley's data or nodes degrades to a retry card instead of a

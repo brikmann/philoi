@@ -25,12 +25,45 @@ const storage =
     ? { getItem: async () => null, setItem: async () => {}, removeItem: async () => {} }
     : AsyncStorage;
 
+// iOS reuses a pooled HTTP/2 connection and, when the OS tears that connection down between
+// requests, the next fetch rejects with NSURLErrorNetworkConnectionLost (-1005) —
+// "The network connection was lost." It's a transport flake, not a real outage: the request
+// never completed, so a plain re-send succeeds. Left unhandled it surfaced as the Friends tab's
+// "fetch failed … network connection was lost" error card on first open (device triage).
+//
+// We only retry GETs. A failed GET (every PostgREST select — friends, loadouts, active lock-ins,
+// social challenges) is safe to repeat; retrying a POST/RPC could double-apply an economy mutation,
+// so those bubble the error up unchanged.
+const CONNECTION_LOST = /network connection was lost|connection was lost|-1005|Network request failed/i;
+
+const retryingFetch: typeof fetch = async (input, init) => {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const retriable = method === 'GET';
+  const maxAttempts = retriable ? 3 : 1;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fetch(input, init);
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt >= maxAttempts || !CONNECTION_LOST.test(msg)) break;
+      // Short backoff lets iOS stand up a fresh connection before the re-send: 150ms, then 400ms.
+      await new Promise((r) => setTimeout(r, attempt === 1 ? 150 : 400));
+    }
+  }
+  throw lastErr;
+};
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+  },
+  global: {
+    fetch: retryingFetch,
   },
 });
 

@@ -3,15 +3,20 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useAuraTier } from '@/components/economy/applied-art';
 import { BoxArt, BOX_TINT } from '@/components/economy/box-art';
 import { BoxStackSheet } from '@/components/economy/box-stack-sheet';
 import { EmberPill, RarityLabel, SectionLabel, SourceTag } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
+import { EquippedTitle } from '@/components/economy/loadout-bits';
 import { PreviewButton } from '@/components/economy/preview-button';
+import { ProfileHero } from '@/components/economy/profile-hero';
+import { SeasonChip, isSeasonItem } from '@/components/economy/season-chip';
 import { EmberText } from '@/components/ui/ember-text';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useActiveSession } from '@/lib/active-session-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useInventory, type BoxStack, type OwnedItem } from '@/hooks/use-inventory';
@@ -19,6 +24,7 @@ import { BOXES, type BoxKey } from '@/lib/economy/boxes';
 import { TYPE_FILTERS, itemsOfType, titleLabel, type ItemType } from '@/lib/economy/catalog';
 import { badgeLabel } from '@/lib/economy/badges';
 import { FORGE_LADDER, isForgeFuel } from '@/lib/economy/forge';
+import { useLoadout } from '@/lib/economy/loadout';
 import {
   SORT_LABEL,
   SORT_MODES,
@@ -35,8 +41,14 @@ import { RARITIES, RARITY_COLOR, RARITY_LABEL, type Rarity } from '@/lib/economy
 
 // Inventory + Equip (mock 67, 21a/21i). Opens on a live LOADOUT preview — the equipped card, halo,
 // flame and title composed the way other people actually see you — because that's what makes an
-// equip decision legible. Then a chip filter over the owned grid, with the equipped item per slot
+// equip decision legible. "The way they see you" is literal: the preview is the profile hero's own
+// composite (banner mat, card backdrop, flare + halo, burning name, title), not a lookalike, so it
+// can never drift from the profile and inherits every renderer upgrade for free. Then a chip filter over the owned grid, with the equipped item per slot
 // ringed and ticked.
+
+// The avatar's own diameter, which is what EquippedAvatarHalo's `size` means (it adds the ring's
+// reach itself). Smaller than the profile hero's 66 — this is a header, not the page.
+const PREVIEW_AVATAR = 52;
 
 export default function InventoryScreen() {
   const inventoryCoachRef = useCoachMark('inventory');
@@ -105,9 +117,15 @@ export default function InventoryScreen() {
   }, [owned]);
 
   const flame = equippedBySlot.flame;
-  const halo = equippedBySlot.halo;
-  const card = equippedBySlot.card;
-  const title = equippedBySlot.title;
+
+  // The SAME store the profile hero reads, not a server snapshot of it: useInventory pushes every
+  // get_inventory result into this store, so an equip below re-renders the preview on the refetch
+  // that follows it. useResolvedLoadout would be a fetched public copy — correct for someone else,
+  // stale for you until it refetched.
+  const loadout = useLoadout();
+  // The live 30/60/90 ramp, exactly as the profile hero shows it — it is your own card.
+  const { session: activeSession } = useActiveSession();
+  const auraTier = useAuraTier(activeSession);
 
   return (
     <Screen padded={false}>
@@ -120,32 +138,35 @@ export default function InventoryScreen() {
           <EmberPill embers={embers} />
         </View>
 
-        {/* ── Loadout preview — "how others see you" ── */}
-        <View style={[styles.loadout, card ? { backgroundColor: card.art.from } : null]}>
-          <View style={styles.loadoutRow}>
-            <View style={styles.avatarWrap}>
-              {halo ? <View style={[styles.halo, { borderColor: halo.art.from }]} /> : null}
-              <View style={styles.avatar}>
-                <Ionicons name="person" size={26} color="#6a6480" />
-              </View>
-            </View>
-            <View style={styles.who}>
-              <Text style={styles.handle}>@{profile?.handle ?? 'you'}</Text>
-              {title ? (
-                <Text style={[styles.loadoutTitle, { color: RARITY_COLOR[title.rarity] }]}>✦ {stripQuotes(title.name)}</Text>
-              ) : (
-                <Text style={styles.noTitle}>No title equipped</Text>
-              )}
-              <Text style={styles.rank}>{profile?.university ?? 'Philoi'}</Text>
-            </View>
-            {flame ? (
-              <View style={styles.loadoutFlame}>
-                <ItemArt item={flame} size={34} />
-              </View>
-            ) : null}
-          </View>
+        {/* ── Loadout preview — "how others see you" ──
+            ProfileHero, the profile's own composite (mock 248) — not a lookalike, so it can never
+            drift from the profile and inherits every renderer upgrade for free. The flame sits on
+            the right because the avatar is the person, never the flame. Tapping it opens the
+            loadout picker (mock 250), the hub this screen links into. */}
+        <Pressable
+          onPress={() => router.push('/loadout')}
+          accessibilityRole="button"
+          accessibilityLabel="Open your loadout"
+          style={styles.loadout}>
+          <ProfileHero
+            userId={profile?.id}
+            name={profile?.display_name ?? 'You'}
+            handle={profile?.handle ?? 'you'}
+            avatarUrl={profile?.avatar_url}
+            loadout={loadout}
+            avatarSize={PREVIEW_AVATAR}
+            auraTier={auraTier}
+            title={loadout.title ? <EquippedTitle /> : <Text style={styles.noTitle}>No title equipped</Text>}
+            trailing={flame ? <ItemArt item={flame} size={34} /> : null}
+          />
+        </Pressable>
+        <View style={styles.loadoutLabelRow}>
+          <Text style={styles.loadoutLabel}>Your loadout · how others see you</Text>
+          <Pressable onPress={() => router.push('/loadout')} hitSlop={8} accessibilityRole="button" style={styles.loadoutEdit}>
+            <Text style={styles.loadoutEditText}>Edit loadout</Text>
+            <Ionicons name="chevron-forward" size={12} color={Colors.achieverText} />
+          </Pressable>
         </View>
-        <Text style={styles.loadoutLabel}>Your loadout · how others see you</Text>
 
         {/* ── Category chips ── */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -477,6 +498,8 @@ function ItemTile({
         {item.labelIsStamp ? titleLabel(item).name : item.name}
       </Text>
       <RarityLabel rarity={item.rarity} size={7} />
+      {/* Mock 247: the Emberfall mark next to the rarity tag on every season item. */}
+      {isSeasonItem(item) ? <SeasonChip size="xs" /> : null}
       {/* Earned vs bought has to be unambiguous everywhere it renders (§6). */}
       {item.source === 'earned' ? <SourceTag source="earned" /> : null}
     </Pressable>
@@ -521,10 +544,6 @@ function TierChip({
   );
 }
 
-function stripQuotes(name: string): string {
-  return name.replace(/^"|"$/g, '');
-}
-
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.three,
@@ -544,54 +563,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   loadout: {
-    height: 126,
-    borderRadius: 16,
-    overflow: 'hidden',
     marginTop: Spacing.twelve,
-    borderWidth: 1,
-    borderColor: Colors.line,
-    backgroundColor: '#1a1010',
-    justifyContent: 'center',
   },
-  loadoutRow: {
+  loadoutLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.three,
+    justifyContent: 'space-between',
+    marginTop: Spacing.two,
   },
-  avatarWrap: {
-    width: 66,
-    height: 66,
+  loadoutEdit: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 2,
   },
-  halo: {
-    position: 'absolute',
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    borderWidth: 3,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.disabled,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  who: {
-    flex: 1,
-  },
-  handle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 16,
-    color: Colors.ink,
-  },
-  loadoutTitle: {
-    fontFamily: Fonts.bodyBold,
+  loadoutEditText: {
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
-    marginTop: 2,
+    color: Colors.achieverText,
   },
   noTitle: {
     fontFamily: Fonts.body,
@@ -599,23 +587,12 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     marginTop: 2,
   },
-  rank: {
-    fontFamily: Fonts.body,
-    fontSize: 10,
-    color: '#d8cae8',
-    marginTop: 6,
-  },
-  loadoutFlame: {
-    alignSelf: 'flex-start',
-    marginTop: Spacing.two,
-  },
   loadoutLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 9,
     letterSpacing: 1,
     color: Colors.textTertiary,
     textTransform: 'uppercase',
-    marginTop: Spacing.two,
   },
   chips: {
     gap: 7,

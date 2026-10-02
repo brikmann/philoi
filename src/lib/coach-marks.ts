@@ -65,15 +65,14 @@ type CoachMarkCopy = {
  * the control that actually starts a session is the orange CTA under it. A coach-mark whose whole
  * job is to point at the real control cannot be the one thing on screen that lies about it.
  *
- * ⚠️ AND IT NAMES THE TWO-TAP TAXONOMY (CODE_PROMPT_lockin_taxonomy_two_tap.md), because the line
- * that introduces the lock-in button is the one place in the app that sets the expectation for what
- * happens after it. The picker is Studying · Deep Work · Fitness, then one more tap. Deep Work was
- * restored ON PURPOSE in 0186 (see goal-types.ts) — do not drop it from this line; Meditate stays
- * gone. A tip promising a different list would be teaching a screen that does not exist.
+ * ⚠️ IT IS NOW THE "YOUR TURN" BEAT (mock 239's hand-off). The card tour has already taught the
+ * two-tap picker (Studying · Deep Work · Fitness, then one more tap) in its Flame card, so this line
+ * no longer re-explains it — it hands over the one action that starts the habit. Mock 239 words it
+ * "tap your real flame"; it says Lock in for the reason above: on Home the flame opens Cindy.
  */
 export const COACH_MARKS: Record<CoachMarkKey, CoachMarkCopy> = {
   home_lockin: {
-    line: 'This is your flame. Tap Lock in — Studying, Deep Work or Fitness, then one more tap. 🔥',
+    line: "Your turn. Tap Lock in to start your first lock-in — I'll be right here. 🔥",
   },
   campfire_fab: { line: 'Tap ＋ to post, challenge, or ping your crew.', round: true },
   challenge_create: { line: "Describe any goal — I'll scope it and stake a fair reward." },
@@ -102,15 +101,14 @@ export type CoachTourStep = {
   route: string | { dynamic: 'first_campfire' };
 };
 
-export const COACH_TOUR_STEPS: CoachTourStep[] = [
-  { key: 'home_lockin', route: '/' },
-  { key: 'campfire_fab', route: { dynamic: 'first_campfire' } },
-  { key: 'challenge_create', route: '/challenge/create' },
-  { key: 'shop', route: '/shop' },
-  { key: 'inventory', route: '/inventory' },
-  { key: 'forge', route: '/forge' },
-  { key: 'settings', route: '/settings' },
-];
+//
+// 🔴 ONE STEP NOW (mock 239, "the third tutorial, collapsed to one live 'you try'"). The card tour
+// grew to cover every one of these surfaces in real art, so walking the user through all seven
+// straight afterwards was the same lesson a third time. What survives is the single spotlight that
+// turns the tour into an action — Lock in, on Home — and the other six steps are retired from the
+// driver. They are NOT deleted: the copy, the anchors and the contextual catch-up path all stay, so
+// a surface reached weeks later can still get its line (see `shouldShowCoachMark`).
+export const COACH_TOUR_STEPS: CoachTourStep[] = [{ key: 'home_lockin', route: '/' }];
 
 /** `coachmark_<key>_seen` — the spec's key shape, kept literal so it is greppable from a bug report. */
 const seenStorageKey = (key: CoachMarkKey) => `coachmark_${key}_seen`;
@@ -210,9 +208,19 @@ let tourClosedAtMs = 0;
 
 const TOUR_COOLDOWN_MS = 60_000;
 
+/**
+ * 🔴 THE SESSION THE CARD TOUR CLOSED IN STAYS QUIET (mock 239). The one-step guided tour above —
+ * "tap Lock in" — is the only mark allowed through after the tour; every CONTEXTUAL tip is held for
+ * the rest of that session, not just the minute the cooldown covers, because the tour has just shown
+ * all of them. In memory on purpose, like the cooldown: tomorrow's session is where a surface first
+ * reached for real deserves its reminder.
+ */
+let tourClosedThisSession = false;
+
 /** Called by the tutorial screen on finish/skip — see tutorial.tsx. */
 export function noteTourClosed(): void {
   tourClosedAtMs = Date.now();
+  tourClosedThisSession = true;
 }
 
 // ─────────────────────────── is the driver on screen right now ───────────────────────────
@@ -257,6 +265,7 @@ export function hasCoachTourRunThisSession(): boolean {
  */
 export async function shouldShowCoachMark(key: CoachMarkKey, userId: string | null | undefined): Promise<boolean> {
   if (tourActive) return false;
+  if (tourClosedThisSession) return false;
   if (Date.now() - tourClosedAtMs < TOUR_COOLDOWN_MS) return false;
   if (!(await isTutorialDone(userId))) return false;
   if (!(await isCoachTourDone())) return false;

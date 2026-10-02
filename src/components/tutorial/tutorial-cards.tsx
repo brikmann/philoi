@@ -2,10 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { BurningName } from '@/components/burning-name';
-import { EMBER, EmberfallSky, FallingEmbers } from '@/components/pass/emberfall-art';
+import { EMBER, EmberfallSeal, EmberfallSky, FallingEmbers } from '@/components/pass/emberfall-art';
 import {
   MiniBanner,
-  MiniBar,
   MiniBubble,
   MiniButton,
   MiniChip,
@@ -14,16 +13,30 @@ import {
   MiniRow,
   MiniScreen,
   MiniTabs,
-  MiniTile,
   MiniToggle,
 } from '@/components/tutorial/mini-ui';
+import {
+  CosmeticHero,
+  CrateShelf,
+  FaceDownTile,
+  FlameGlyph,
+  ForgeAfter,
+  ForgeBefore,
+  HaulPreview,
+  ItemGrid,
+  ItemHero,
+  RankLadder,
+  RelicTile,
+  TourCrateOpen,
+  TourFlame,
+  cosmeticRarity,
+  type CosmeticKind,
+} from '@/components/tutorial/tour-art';
 import { Colors, Fonts } from '@/constants/theme';
-import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
+import { getItem } from '@/lib/economy/catalog';
 import { RELIC_LADDERS, RUNG_GLYPH } from '@/lib/economy/relic-ladders';
 import { RARITY_COLOR } from '@/lib/economy/rarity';
-import { DIVISION_NUMERAL, RANK_TIER_LABEL, RANK_TIER_METAL } from '@/lib/rank-tiers';
-import type { RankTierName } from '@/types/database';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // THE TOUR — design-mocks/187-tutorial.html, CODE_PROMPT_tutorial.md. THIS IS THE LAUNCH GATE.
@@ -45,6 +58,12 @@ import type { RankTierName } from '@/types/database';
 // user sees is the entire scope of the app — which is closure rather than anxiety. Dots say "there
 // are more of these and you don't know how many", which is the feeling the tutorial exists to fix.
 //
+// ─────────────────────────── REAL ART, NOT EMOJI (mock 239 v3) ───────────────────────────
+//
+// The miniatures are still the FRAME; the SUBJECT of each card — the flame, a ring, a crate cracking,
+// a fuse, a rank emblem — is the shipped renderer from tour-art.tsx. Emoji survive only as copy
+// (Cindy's bubbles) and as row icons, never as the thing a card is showing off.
+//
 // ─────────────────────────── PLAYABLE, NOT A SLIDESHOW ───────────────────────────
 //
 // A card with `steps.length > 1` advances when the preview is TAPPED, and says so with a pulsing
@@ -54,7 +73,7 @@ import type { RankTierName } from '@/types/database';
 // ignore tap hints.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-export type TutorialSection = 'Core' | 'Social' | 'Cosmetic' | 'Setup' | 'Flame Pass';
+export type TutorialSection = 'Core' | 'Social' | 'Cosmetic' | 'Setup' | 'Season' | 'Flame Pass';
 
 export type TutorialCard = {
   key: string;
@@ -88,10 +107,12 @@ export function tutorialCards(displayName: string | null, handle: string | null)
         `You're in, ${you}! I'm Cindy 🔥 — give me two minutes and you'll know every corner of this app. That list on the left is everything in it.`,
       ],
       next: "Let's go →",
+      // THE IGNITION (mock 239 "Bridge"): the first thing after the last setup step is the real
+      // flame lighting with their name under it — same background, same spine, one continuous run.
       steps: [
         <MiniScreen center key="w">
-          <Text style={styles.bigFlame}>🔥</Text>
-          <MiniMuted>Welcome, {you}</MiniMuted>
+          <TourFlame height={120} />
+          <Text style={styles.welcome}>Welcome, {you}</Text>
         </MiniScreen>,
       ],
     },
@@ -116,15 +137,15 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="f0">
-          <MiniHeader glyph="🔥" title="Home" right="🔥 1,240" />
+          <MiniHeader icon={<FlameGlyph />} title="Home" right="🔥 1,240" />
           <View style={styles.flameWrap}>
-            <Text style={styles.bigFlame}>🔥</Text>
+            <TourFlame height={96} />
             <MiniMuted>4-day streak</MiniMuted>
           </View>
           <MiniButton label="⏱ Lock in" />
         </MiniScreen>,
         <MiniScreen key="f1">
-          <MiniHeader glyph="🔥" title="Lock in for…" />
+          <MiniHeader icon={<FlameGlyph />} title="Lock in for…" />
           {/* All three real cards, in the real order. Studying-for vs Deep-Work-on is the choice
               people hesitate over, so the tour cannot show a two-card screen that no longer exists. */}
           <MiniRow glyph="📚" title="Studying" highlight />
@@ -139,7 +160,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
         </MiniScreen>,
         <MiniScreen center key="f3">
           <MiniMuted>📚 KP390 · locked in</MiniMuted>
-          <Text style={styles.bigFlame}>🔥</Text>
+          <TourFlame height={96} />
           <MiniMuted color={Colors.amber}>00:12</MiniMuted>
         </MiniScreen>,
       ],
@@ -147,40 +168,15 @@ export function tutorialCards(displayName: string | null, handle: string | null)
     {
       key: 'ranks',
       title: 'Climb the ranks',
+      // 🔴 COPY + EMBLEMS ONLY. The seasonal reset this card describes is approved but DEFERRED to its
+      // own task — no rank migration, rollover or placement logic rides on this card.
       cindy: [
-        'Philoi has 10 tiers — Bronze all the way up to Primordial — and 28 ranks in total. Every session climbs you, and each rank you cross drops rewards.',
+        'Each season resets you to Bronze. The mortal climb — up to Diamond — is for everyone; crossing into ascension (Hero → Primordial) is for the truly dedicated.',
       ],
       steps: [
         <MiniScreen key="r">
-          <MiniHeader glyph="🏆" title="The ranks" right="10 tiers · 28" />
-          <View style={styles.ladder}>
-            {LADDER.map((t) => (
-              <View key={t.tier} style={[styles.lrow, t.here && styles.lrowHere]}>
-                <View style={[styles.ldot, { backgroundColor: RANK_TIER_METAL[t.tier].inner }]} />
-                <Text style={styles.lname} numberOfLines={1}>
-                  {t.label}
-                </Text>
-                <Text style={[styles.ldiv, t.here && { color: Colors.amber }]}>
-                  {t.here ? "you're here" : t.divisions}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </MiniScreen>,
-      ],
-    },
-    {
-      key: 'emberfall',
-      title: 'Season 1: Emberfall',
-      cindy: [
-        'Emberfall is here. Lock in as much as you can, climb the ranks, and earn exclusive season rewards before it ends. This is the moment.',
-      ],
-      steps: [
-        <MiniScreen key="e">
-          <MiniHeader glyph="🍂" title="Season 1" right="Emberfall" />
-          <MiniBanner label="SEASON 1 · EMBERFALL" colors={['#3a2b5c', '#c94f7c']} height={78} />
-          <MiniMuted>Climb for exclusive season rewards</MiniMuted>
-          <MiniBar pct={34} />
+          <MiniHeader glyph="🏆" title="The ranks" right="10 tiers · per season" />
+          <RankLadder />
         </MiniScreen>,
       ],
     },
@@ -198,7 +194,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
             {RELIC_SHELF.map((r) => (
               <View key={r.short} style={styles.relic}>
                 <View style={[styles.relicTile, { borderColor: r.color }]}>
-                  <Text style={styles.relicGlyph}>{r.glyph}</Text>
+                  <RelicTile relicKey={r.relicKey} />
                   {r.rung ? <Text style={[styles.rung, { color: r.color }]}>{r.rung}</Text> : null}
                 </View>
                 <Text style={styles.relicCap} numberOfLines={1}>
@@ -338,7 +334,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
           <MiniButton label="🔥 Track consistency" />
         </MiniScreen>,
         <MiniScreen center key="g2">
-          <ShareCard big="300 SQUAT" sub="1.9× bodyweight 🔥" glyph="🏋️" user={at} />
+          <ShareCard big="300 SQUAT" sub="1.9× bodyweight 🔥" art={<RelicTile relicKey="relic-hercules-might" />} user={at} />
           <MiniChip label="Your flex · 1.9× your bodyweight" color={RARITY_COLOR.legendary} />
           <MiniMuted>A PR is a flex, not a payout → Agora · Campfire · Story</MiniMuted>
         </MiniScreen>,
@@ -353,11 +349,11 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen center key="ac0">
-          <Text style={styles.bigFlame}>🔥</Text>
+          <TourFlame height={96} />
           <MiniMuted color={Colors.amber}>Tap your flame to talk to me</MiniMuted>
         </MiniScreen>,
         <MiniScreen key="ac1">
-          <MiniHeader glyph="🔥" title="Ask Cindy" />
+          <MiniHeader icon={<FlameGlyph />} title="Ask Cindy" />
           <CindyDemo />
         </MiniScreen>,
       ],
@@ -431,7 +427,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen center key="s0">
-          <ShareCard big="RANK UP" sub="Diamond II → Diamond III" glyph="🔥" user={at} kicker="PHILOI" />
+          <ShareCard big="RANK UP" sub="Diamond II → Diamond III" art={<FlameGlyph size={36} />} user={at} kicker="PHILOI" />
           <MiniButton label="📤 Share this" style={styles.shareBtn} />
         </MiniScreen>,
         <MiniScreen key="s1">
@@ -450,9 +446,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       title: 'Cosmetics',
       section: 'Cosmetic',
       cindy: COSMETICS.map((c) => c.cindy),
-      steps: COSMETICS.map((c, i) => (
-        <CosmeticStep key={c.name} index={i + 1} total={COSMETICS.length} spec={c} />
-      )),
+      steps: COSMETICS.map((c) => <CosmeticStep key={c.name} spec={c} name={at} />),
     },
     {
       key: 'shop',
@@ -464,17 +458,14 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       steps: [
         <MiniScreen key="sh0">
           <MiniHeader glyph="📦" title="Shop" right="🔥 1,240" />
-          <View style={styles.tileRow}>
-            <MiniTile glyph="🔥" color={RARITY_COLOR.rare} size={40} />
-            <MiniTile glyph="⚱️" color={RARITY_COLOR.epic} size={40} />
-            <MiniTile glyph="🧰" color={RARITY_COLOR.legendary} size={40} />
-          </View>
+          <CrateShelf boxes={['furnace', 'hestia', 'hephaestus']} />
           <MiniMuted>The Furnace · 250 🔥</MiniMuted>
           <View style={styles.spacer} />
           <MiniButton label="Open ×10" />
         </MiniScreen>,
+        // The REAL crate-open — rattle, lid lift, burst — not a 📦.
         <MiniScreen center key="sh1">
-          <Text style={[styles.bigFlame, { color: RARITY_COLOR.rare }]}>📦</Text>
+          <TourCrateOpen />
           <MiniMuted color={RARITY_COLOR.rare}>Cracking them open…</MiniMuted>
         </MiniScreen>,
       ],
@@ -482,31 +473,25 @@ export function tutorialCards(displayName: string | null, handle: string | null)
     {
       key: 'crates',
       title: 'Open crates',
+      // 🔴 TEN, and no Crown of Olympus — that is not a crate drop, and the tour must not promise
+      // one. The haul is ordinary cosmetics at mixed rarities, and it is TAPPABLE: what you tap loads
+      // onto a profile chip live, which is the reason anyone opens a crate.
       cindy: [
         'Ten shards, face down. Tap to flip them over — no peeking, rarity is the surprise.',
-        'A Mythic! The rarest pull always gets the spotlight. 👑',
+        'These are yours to flex. Tap any one and watch it land on your profile, live. ✨',
       ],
       steps: [
         <MiniScreen key="cr0">
           <MiniHeader glyph="✨" title="Opening ×10" right="0 / 10" />
           <View style={styles.grid}>
-            {Array.from({ length: 8 }, (_, i) => (
-              <MiniTile key={i} glyph="🔥" color="#3a2c58" faceDown size={36} />
+            {Array.from({ length: 10 }, (_, i) => (
+              <FaceDownTile key={i} />
             ))}
           </View>
         </MiniScreen>,
         <MiniScreen key="cr1">
-          <MiniHeader glyph="✨" title="Your haul" right="10 / 10" />
-          <View style={styles.grid}>
-            <MiniTile glyph="👑" color={RARITY_COLOR.mythic} size={36} />
-            <MiniTile glyph="🌀" color={RARITY_COLOR.epic} size={36} />
-            <MiniTile glyph="❄️" color={RARITY_COLOR.rare} size={36} />
-            <MiniTile glyph="✨" color={RARITY_COLOR.uncommon} size={36} />
-            {Array.from({ length: 4 }, (_, i) => (
-              <MiniTile key={i} glyph="🔥" color={RARITY_COLOR.common} size={36} />
-            ))}
-          </View>
-          <MiniMuted color={RARITY_COLOR.mythic}>★ Crown of Olympus!</MiniMuted>
+          <MiniHeader glyph="✨" title="Your haul" right="10 pulls" />
+          <HaulPreview name={at} />
         </MiniScreen>,
       ],
     },
@@ -520,20 +505,11 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       steps: [
         <MiniScreen key="in0">
           <MiniHeader glyph="🎒" title="Inventory" />
-          <View style={styles.grid}>
-            <MiniTile glyph="🔥" color={RARITY_COLOR.legendary} size={36} />
-            <MiniTile glyph="🌀" color={RARITY_COLOR.epic} size={36} />
-            <MiniTile glyph="❄️" color={RARITY_COLOR.rare} size={36} />
-            <MiniTile glyph="✨" color={RARITY_COLOR.uncommon} size={36} />
-            <MiniTile glyph="🎏" color={RARITY_COLOR.epic} size={36} />
-            <MiniTile glyph="💠" color={RARITY_COLOR.rare} size={36} />
-            <MiniTile glyph="🔆" color={RARITY_COLOR.legendary} size={36} />
-            <MiniTile glyph="⚡" color={RARITY_COLOR.uncommon} size={36} />
-          </View>
+          <ItemGrid ids={INVENTORY_IDS} />
         </MiniScreen>,
         <MiniScreen center key="in1">
-          <MiniTile glyph="🔥" color={RARITY_COLOR.legendary} size={58} />
-          <MiniMuted color={Colors.ink}>Inferno Flare · Legendary</MiniMuted>
+          <ItemHero id={INVENTORY_IDS[0]} size={64} />
+          <MiniMuted color={Colors.ink}>{getItem(INVENTORY_IDS[0])?.name ?? 'Inferno Flare'} · Legendary</MiniMuted>
           <MiniButton label="Equipped ✓" style={styles.shareBtn} />
         </MiniScreen>,
       ],
@@ -541,26 +517,18 @@ export function tutorialCards(displayName: string | null, handle: string | null)
     {
       key: 'forge',
       title: 'The Forge',
+      // BEFORE → FORGE → AFTER (mock 239, 18/20), then the real strike.
       cindy: [
-        'Duplicates are never wasted — Forge them UP a rarity. Tap Forge to fuse these two.',
-        'Boom. Two Uncommons became a Rare. Keep climbing toward Mythic. 🔨',
+        'Duplicates are never wasted. Tap Forge and watch your two spares fuse into something a rarity up.',
+        'Boom. Two Epics became a Legendary. Keep climbing toward Mythic. 🔨',
       ],
       steps: [
         <MiniScreen key="fo0">
           <MiniHeader glyph="🔨" title="The Forge" />
-          <View style={styles.vs}>
-            <MiniTile glyph="✨" color={RARITY_COLOR.uncommon} size={38} />
-            <MiniTile glyph="✨" color={RARITY_COLOR.uncommon} size={38} />
-            <Text style={styles.vsText}>→</Text>
-            <MiniTile glyph="❄️" color={RARITY_COLOR.rare} size={38} />
-          </View>
-          <MiniMuted>2 spares → 1 rarer</MiniMuted>
-          <View style={styles.spacer} />
-          <MiniButton label="Forge" />
+          <ForgeBefore forgeButton={<MiniButton label="Forge" style={styles.forgeBtn} />} />
         </MiniScreen>,
         <MiniScreen center key="fo1">
-          <MiniTile glyph="❄️" color={RARITY_COLOR.rare} size={58} />
-          <MiniMuted color={RARITY_COLOR.rare}>Forged! Frost Halo · Rare</MiniMuted>
+          <ForgeAfter />
         </MiniScreen>,
       ],
     },
@@ -592,6 +560,21 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
     },
 
+    // ─────────────────────────── SEASON 1: EMBERFALL — saved for the finish (mock 239, 19/20) ───────────────────────────
+    //
+    // Late on purpose: after every free thing has been shown, so the season lands as the stakes rather
+    // than as card three of twenty. Big and bold — the real sky and the real falling embers fill the
+    // whole card.
+    {
+      key: 'emberfall',
+      title: 'Season 1: Emberfall',
+      section: 'Season',
+      cindy: [
+        `Every semester the sky rains fire — that's Emberfall. Catch an ember, keep it burning all season, and you ascend with it. Season 1 ends ${SEASON_ENDS}.`,
+      ],
+      steps: [<EmberfallHero key="e" />],
+    },
+
     // ─────────────────────────── THE FLAME PASS — the finale (mocks 226 / 227) ───────────────────────────
     //
     // LAST, after every free thing has been shown, and in the EMBER palette: a deliberate premium
@@ -606,7 +589,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       // 🔴 SELLS THE VALUE, NOT THE TRANSACTION. Cindy explains what the fire means and never says
       // "grab it now" — the two buttons carry that, and the opt-out sits right there, always.
       cindy: [
-        "See a name on fire? That's a Flame Pass holder. Their name burns everywhere the campus sees it — leaderboards, campfires, the Agora. Join the climb this semester and set yours alight. 🔥",
+        "The Flame Pass is your key to Emberfall's premium reward track — and it sets your name on fire everywhere the campus looks. 🔥",
       ],
       next: 'See the Flame Pass 🔥',
       secondary: 'Maybe later',
@@ -645,258 +628,190 @@ function FlamePassPreview({ you }: { you: string }) {
         See a name <Text style={styles.fireH1Hot}>on fire?</Text>
       </Text>
       <Text style={styles.fireP}>
-        That&apos;s a <Text style={styles.fireB}>Flame Pass</Text> holder. Set yours alight this semester.
+        That&apos;s a <Text style={styles.fireB}>Flame Pass</Text> holder.
       </Text>
+      {/* 🔴 THE CONNECTION, SPELLED OUT (mock 239, 20/20). The pass is two things and the second one
+          is the one nobody guesses: it is the key to the season's premium track, not only a name
+          effect. The card that sells it has to say both. */}
+      <View style={styles.unlocks}>
+        <Text style={styles.unlocksCap}>FLAME PASS UNLOCKS</Text>
+        <View style={styles.unlockRow}>
+          <FlameGlyph size={11} />
+          <Text style={styles.unlockText}>
+            Your name <Text style={styles.fireB}>on fire</Text> everywhere — boards, campfires, the Agora
+          </Text>
+        </View>
+        <View style={styles.unlockRow}>
+          <EmberfallSeal size={12} spin={false} />
+          <Text style={styles.unlockText}>
+            The <Text style={styles.unlockStrong}>Emberfall premium track</Text> — the season&apos;s exclusive rewards
+          </Text>
+        </View>
+      </View>
     </MiniScreen>
   );
 }
 
-// ─────────────────────────── the ladder, from the real metals ───────────────────────────
-//
-// Colours come from RANK_TIER_METAL rather than being transcribed out of the mock, so the tutorial
-// cannot show a Diamond that is a different blue from the one on the profile.
-//
-// The NAMES and the DIVISION RANGE are derived for the same reason, and both were transcribed
-// until the WS9 pass: this table said "Olympian" after the tier was renamed Divine, and it said
-// "III–I" nine times after the numerals flipped to climb I → II → III. Two copies of a fact the
-// app already holds, and the copy in the onboarding card is the one nobody rereads.
+// ─────────────────────────── Emberfall, big and bold ───────────────────────────
 
-const DIVISION_RANGE = `${DIVISION_NUMERAL[3]}–${DIVISION_NUMERAL[1]}`;
+/**
+ * When Season 1 closes, as the tour says it. The live window is economy_config.season (ends_at
+ * 2026-12-23T05:00Z — midnight Eastern), so the last full day is the 22nd. Hardcoded rather than
+ * read because the tour is inert and must run offline on a first cold launch; update it with the
+ * season row.
+ */
+const SEASON_ENDS = 'Dec 22';
 
-const LADDER: { tier: RankTierName; label: string; divisions: string; here?: boolean }[] = [
-  ...(['primordial', 'immortal', 'olympian', 'titan', 'hero', 'diamond', 'platinum', 'gold', 'silver', 'bronze'] as const).map(
-    (tier) => ({
-      tier,
-      label: RANK_TIER_LABEL[tier],
-      // The apex has no divisions to name (PHILOI_UI_SPEC §11).
-      divisions: tier === 'primordial' ? 'apex' : DIVISION_RANGE,
-      // Diamond is where the card plants "you are here" — the last mortal tier, one step from the
-      // realm of legend, which is the whole point the card is making.
-      here: tier === 'diamond',
-    })
-  ),
-];
+function EmberfallHero() {
+  const reduceMotion = useReduceMotion();
+  return (
+    <MiniScreen center style={styles.emberScreen}>
+      <EmberfallSky kind="paywall" />
+      <FallingEmbers count={12} fall={520} />
+      <EmberfallSeal size={58} spin={!reduceMotion} />
+      <Text style={styles.emberKicker}>SEASON 1</Text>
+      <Text style={styles.emberBig}>EMBERFALL</Text>
+      <Text style={styles.emberLore}>
+        &ldquo;When the fire fell from Olympus, only those who kept an ember lit rose with it.&rdquo;
+      </Text>
+      <Text style={styles.emberEnds}>Ends {SEASON_ENDS} · rewards that never return</Text>
+    </MiniScreen>
+  );
+}
 
 /** The live families, named and coloured from RELIC_LADDERS so the shelf matches the real one. */
 const RELIC_SHELF = RELIC_LADDERS.map((l, i) => ({
   short: l.short,
-  // Strength · Cardio · Study · Deep Work (Daedalus' Blueprint), in RELIC_LADDERS order.
-  glyph: ['💪', '🏃', '📜', '📐'][i] ?? '🏅',
+  // The real drawing for each family's relic (relic-art.tsx), not an emoji stand-in.
+  relicKey: l.relicKey,
   color: RARITY_COLOR[l.rarities[Math.min(i % l.rarities.length, l.rarities.length - 1)]],
   rung: RUNG_GLYPH[Math.min(i, RUNG_GLYPH.length - 1)],
 }));
 
+/** The inventory card's shelf. The FIRST is "the gold one in the corner" Cindy asks them to tap. */
+const INVENTORY_IDS = [
+  'halo-inferno-flare',
+  'particle-falling-ash',
+  'flame-electric-cyan',
+  'title-pacesetter',
+  'banner-ashfall-ridge',
+  'card-obsidian-mesh',
+  'flame-neutron-starfire',
+  'halo-copper-ring',
+];
+
 // ─────────────────────────── the nine cosmetic types ───────────────────────────
 //
 // 🔴 THE CONVERSION HOOK. Cosmetics are what people actually chase, so this card is nine taps, one
-// per type, each with its own live mini-render — not a list of names. The message the whole card
-// exists to deliver is at the end of it: EVERY part of your flame is customizable.
+// per type, each drawn with the SHIPPED renderer on the flame and on a profile chip — not a list of
+// names. The message the whole card exists to deliver is at the end of it: EVERY part of your flame
+// is customizable. The rarity chip is read off the real catalog item, so it cannot disagree with
+// the art (tour-art.tsx's COSMETIC_ITEM).
 
 type CosmeticSpec = {
   name: string;
-  rarity: keyof typeof RARITY_COLOR;
+  kind: CosmeticKind;
   blurb: string;
   cindy: string;
-  render: 'flame' | 'flare' | 'halo' | 'particles' | 'banner' | 'title' | 'sfx' | 'audio' | 'card';
 };
 
 const COSMETICS: CosmeticSpec[] = [
   {
     name: 'Flame skin',
-    rarity: 'epic',
-    render: 'flame',
-    blurb: 'Your core look. Swap the whole flame — Ember, Frost, Void and more.',
+    kind: 'flame',
+    blurb: 'Your core look. Swap the whole flame — and it follows your name everywhere.',
     cindy: 'Cosmetics are how you make your flame yours. Start with the flame skin — tap through every type.',
   },
   {
     name: 'Flare',
-    rarity: 'mythic',
-    render: 'flare',
-    blurb: 'A glowing aura around your whole screen while you are locked in — the biggest flex.',
-    cindy: 'This is a Flare 🔥 — a glowing aura around your *whole screen*. The ultimate flex.',
+    kind: 'flare',
+    blurb: 'A glowing aura around your whole screen while you are locked in — and around your profile.',
+    cindy: 'A Flare — a glowing aura around your *whole screen* and your profile. The ultimate flex.',
   },
   {
-    name: 'Halo',
-    rarity: 'legendary',
-    render: 'halo',
-    blurb: 'A ring that crowns your flame — gold, angelic, cursed…',
-    cindy: 'Halos crown your flame with a ring.',
+    name: 'Ring',
+    kind: 'ring',
+    blurb: 'Crowns your flame — and circles your profile icon everywhere you appear.',
+    cindy: 'Rings crown your flame — and circle your profile icon everywhere you appear.',
   },
   {
     name: 'Particles',
-    rarity: 'rare',
-    render: 'particles',
-    blurb: 'Little effects that drift around your flame — embers, sparks, petals.',
-    cindy: 'Particles drift around you — embers, sparks, petals.',
+    kind: 'particles',
+    blurb: 'Little effects that drift around your flame and your profile — embers, sparks, ash.',
+    cindy: 'Particles drift around your flame and your profile — embers, sparks, ash.',
   },
   {
     name: 'Banner',
-    rarity: 'epic',
-    render: 'banner',
-    blurb: 'The backdrop on your profile and campfire — it flies for your whole crew.',
+    kind: 'banner',
+    blurb: 'The scene behind your profile and your campfire — it flies for your whole crew.',
     cindy: 'Banners are the backdrop on your profile and campfire.',
   },
   {
     name: 'Title',
-    rarity: 'legendary',
-    render: 'title',
+    kind: 'title',
     blurb: 'A tag under your name everyone sees — flex your grind.',
     cindy: 'Titles sit under your name for everyone to see.',
   },
   {
     name: 'SFX',
-    rarity: 'rare',
-    render: 'sfx',
+    kind: 'sfx',
     blurb: 'The sound your lock-in starts and ends on — two stings, your call.',
     cindy: 'SFX — the sound your lock-in starts *and* ends on.',
   },
   {
     name: 'Audio',
-    rarity: 'epic',
-    render: 'audio',
+    kind: 'audio',
     blurb: 'A background track that plays while you grind — set the vibe.',
     cindy: 'Audio sets your background track while you grind.',
   },
   {
-    name: 'Share card',
-    rarity: 'uncommon',
-    render: 'card',
-    blurb: 'The card you post to your story — its frame and style are yours.',
-    cindy: 'And your share card. Every single thing is customizable — that is the flex. 🎨',
+    name: 'Card',
+    kind: 'card',
+    blurb: 'The surface your name sits on — on your profile and on your Agora posts.',
+    cindy: 'And your card — the surface your name sits on. Every single thing is customizable — that is the flex. 🎨',
   },
 ];
 
-function CosmeticStep({ index, total, spec }: { index: number; total: number; spec: CosmeticSpec }) {
-  const tint = RARITY_COLOR[spec.rarity];
+/**
+ * One cosmetic type. The `n / 9` lives in the frame's spine now (`TOUR 11 / 20 · COSMETICS 3 / 9`),
+ * so the miniature header no longer repeats it.
+ */
+function CosmeticStep({ spec, name }: { spec: CosmeticSpec; name: string }) {
+  const rarity = cosmeticRarity(spec.kind);
+  const tint = RARITY_COLOR[rarity];
   return (
     <MiniScreen>
-      <MiniHeader glyph="🎨" title="Cosmetics" right={`${index} / ${total}`} />
+      <MiniHeader glyph="🎨" title="Cosmetics" />
       <View style={styles.cosStage}>
-        <CosmeticVisual render={spec.render} tint={tint} />
+        <CosmeticHero kind={spec.kind} name={name} />
       </View>
       <View style={styles.reacts}>
-        <MiniChip label={`${spec.rarity.toUpperCase()} · ${spec.name}`} color={tint} />
+        <MiniChip label={`${rarity.toUpperCase()} · ${spec.name}`} color={tint} />
       </View>
       <Text style={styles.cosCap}>{spec.blurb}</Text>
     </MiniScreen>
   );
 }
 
-function CosmeticVisual({ render, tint }: { render: CosmeticSpec['render']; tint: string }) {
-  const reduceMotion = useReduceMotion();
-  switch (render) {
-    case 'flare':
-      return (
-        <View style={styles.cosCenter}>
-          <View style={[styles.flareAura, { borderColor: tint, shadowColor: tint }]} />
-          <Text style={styles.cosFlame}>🔥</Text>
-        </View>
-      );
-    case 'halo':
-      return (
-        <View style={styles.cosCenter}>
-          <View style={[styles.halo, { borderColor: tint, shadowColor: tint }]} />
-          <Text style={styles.cosFlame}>🔥</Text>
-        </View>
-      );
-    case 'particles':
-      return (
-        <View style={styles.cosCenter}>
-          <Text style={[styles.particle, { left: '24%', top: '18%' }]}>✦</Text>
-          <Text style={[styles.particle, { right: '22%', top: '12%' }]}>✧</Text>
-          <Text style={[styles.particle, { left: '40%', bottom: '10%' }]}>✦</Text>
-          <Text style={styles.cosFlame}>🔥</Text>
-        </View>
-      );
-    case 'banner':
-      return <MiniBanner label="🏕️ LRC · Emberfall" colors={['#7a3f8f', '#f0a04b']} height={54} />;
-    case 'title':
-      return (
-        <View style={styles.cosCenter}>
-          <Text style={styles.cosName}>@brikmn</Text>
-          <MiniChip label="The Relentless" color={tint} />
-        </View>
-      );
-    case 'sfx':
-      return (
-        <View style={styles.waveRow}>
-          <View style={styles.waveCol}>
-            <Bars heights={[6, 16, 10, 20, 8]} color={Colors.muted} animate={false} />
-            <MiniMuted>▶ Start</MiniMuted>
-          </View>
-          <View style={styles.waveCol}>
-            <Bars heights={[14, 8, 18, 6, 12]} color={Colors.muted} animate={false} />
-            <MiniMuted>▶ End</MiniMuted>
-          </View>
-        </View>
-      );
-    case 'audio':
-      return (
-        <View style={styles.cosCenter}>
-          <Bars heights={[8, 20, 12, 24, 10]} color={Colors.amber} animate={!reduceMotion} />
-          <MiniMuted>♪ Lo-fi Embers</MiniMuted>
-        </View>
-      );
-    case 'card':
-      return <ShareCard big="🔥 90m" sub="Diamond III" glyph="🔥" user="@brikmn" small />;
-    case 'flame':
-    default:
-      return (
-        <View style={styles.cosCenter}>
-          <Text style={styles.cosFlame}>🔥</Text>
-          <View style={styles.swatches}>
-            {[RARITY_COLOR.legendary, RARITY_COLOR.rare, RARITY_COLOR.epic].map((c) => (
-              <View key={c} style={[styles.swatch, { borderColor: c }]}>
-                <Text style={styles.swatchText}>🔥</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      );
-  }
-}
-
-/** An equaliser / waveform. Static bars unless `animate`. */
-function Bars({ heights, color, animate }: { heights: number[]; color: string; animate: boolean }) {
-  const [tick, setTick] = useState(0);
-  // 160ms is ~6 re-renders a second — the fastest JS-thread loop in the app.
-  useGatedInterval(() => setTick((t) => t + 1), 160, animate);
-  return (
-    <View style={styles.bars}>
-      {heights.map((h, i) => {
-        const wobble = animate ? 1 + 0.5 * Math.sin((tick + i) * 1.1) : 1;
-        return (
-          <View
-            key={i}
-            style={[styles.bar, { height: Math.max(4, Math.round(h * wobble)), backgroundColor: color }]}
-          />
-        );
-      })}
-    </View>
-  );
-}
-
-/** The story-format share card, as it appears in the tour. */
+/** The story-format share card, as it appears in the tour. `art` is real art, never an emoji. */
 function ShareCard({
   big,
   sub,
-  glyph,
+  art,
   user,
   kicker,
-  small,
 }: {
   big: string;
   sub: string;
-  glyph: string;
+  art: ReactNode;
   user: string;
   kicker?: string;
-  small?: boolean;
 }) {
   return (
-    <View style={[styles.shareCard, small && styles.shareCardSmall]}>
+    <View style={styles.shareCard}>
       {kicker ? <Text style={styles.scTop}>{kicker}</Text> : null}
-      <Text style={small ? styles.scFlameSmall : styles.scFlame}>{glyph}</Text>
-      <Text style={small ? styles.scBigSmall : styles.scBig} numberOfLines={1}>
+      {art}
+      <Text style={styles.scBig} numberOfLines={1}>
         {big}
       </Text>
       <Text style={styles.scSub} numberOfLines={1}>
@@ -1021,6 +936,35 @@ function CindyDemoTyped() {
 }
 
 const styles = StyleSheet.create({
+  welcome: { fontFamily: Fonts.black, fontSize: 17, color: Colors.ink, textAlign: 'center', marginTop: 4 },
+  forgeBtn: { alignSelf: 'stretch', marginVertical: 4 },
+  unlocks: {
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(29,20,48,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,157,46,0.35)',
+    borderRadius: 10,
+    padding: 8,
+    gap: 4,
+  },
+  unlocksCap: { fontFamily: Fonts.bodyBold, fontSize: 8, letterSpacing: 1, color: Colors.amber },
+  unlockRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  unlockText: { flex: 1, fontFamily: Fonts.body, fontSize: 9.5, lineHeight: 13, color: EMBER.ink },
+  unlockStrong: { fontFamily: Fonts.bodyBold, color: EMBER.ink },
+  emberScreen: { borderColor: 'rgba(255,122,24,0.45)', gap: 6 },
+  emberKicker: { fontFamily: Fonts.bodyBold, fontSize: 10, letterSpacing: 5, color: '#ffe3bd', marginTop: 4 },
+  emberBig: { fontFamily: Fonts.black, fontSize: 30, letterSpacing: 1, color: EMBER.ink, textAlign: 'center' },
+  emberLore: {
+    fontFamily: Fonts.body,
+    fontStyle: 'italic',
+    fontSize: 11,
+    lineHeight: 15.5,
+    color: '#ffe6c6',
+    textAlign: 'center',
+    paddingHorizontal: 6,
+    marginTop: 4,
+  },
+  emberEnds: { fontFamily: Fonts.bodyBold, fontSize: 10, color: '#ffd9a0', textAlign: 'center', marginTop: 4 },
   fireScreen: { borderColor: 'rgba(255,158,77,0.4)', gap: 10 },
   fireBoard: {
     alignSelf: 'stretch',
@@ -1042,23 +986,9 @@ const styles = StyleSheet.create({
   fireH1Hot: { color: EMBER.e2 },
   fireP: { fontFamily: Fonts.body, fontSize: 11.5, lineHeight: 16, color: EMBER.dim, textAlign: 'center' },
   fireB: { fontFamily: Fonts.bodyBold, color: EMBER.e2 },
-  bigFlame: { fontSize: 54, textAlign: 'center' },
   flameWrap: { alignItems: 'center', gap: 2, marginTop: 6, flex: 1, justifyContent: 'center' },
   spacer: { flex: 1 },
   sectionLabel: { fontFamily: Fonts.bodyBold, fontSize: 10, color: '#cbbfe6' },
-  ladder: { gap: 2, flex: 1 },
-  lrow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 2,
-    paddingHorizontal: 4,
-    borderRadius: 6,
-  },
-  lrowHere: { backgroundColor: '#2b2036' },
-  ldot: { width: 7, height: 7, borderRadius: 4 },
-  lname: { flex: 1, fontFamily: Fonts.bodyBold, fontSize: 9.5, color: Colors.ink },
-  ldiv: { fontFamily: Fonts.body, fontSize: 8.5, color: Colors.textTertiary },
   relics: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, justifyContent: 'center' },
   relic: { alignItems: 'center', width: 44, gap: 2 },
   relicTile: {
@@ -1101,7 +1031,6 @@ const styles = StyleSheet.create({
   ethosStrong: { color: Colors.ink, fontFamily: Fonts.bodyBold },
   post: { gap: 4, backgroundColor: '#1a1327', borderRadius: 10, padding: 6 },
   reacts: { flexDirection: 'row', gap: 4, justifyContent: 'center', flexWrap: 'wrap' },
-  tileRow: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, justifyContent: 'center', marginTop: 4 },
   shareBtn: { alignSelf: 'stretch', marginTop: 8 },
   shareCard: {
@@ -1116,12 +1045,8 @@ const styles = StyleSheet.create({
     gap: 3,
     overflow: 'hidden',
   },
-  shareCardSmall: { width: 94, height: 62, gap: 0 },
   scTop: { position: 'absolute', top: 8, fontSize: 7, letterSpacing: 2, color: '#ffe0b8', fontFamily: Fonts.bodyBold },
-  scFlame: { fontSize: 38 },
-  scFlameSmall: { fontSize: 16 },
   scBig: { fontSize: 15, fontFamily: Fonts.displayHeavy, color: '#fff', letterSpacing: 0.4 },
-  scBigSmall: { fontSize: 10, fontFamily: Fonts.displayHeavy, color: '#fff' },
   scSub: { fontSize: 8.5, color: '#ffe6cf', fontFamily: Fonts.bodyBold },
   scUser: { position: 'absolute', bottom: 8, fontSize: 8.5, color: '#fff', fontFamily: Fonts.bodyBold },
   cosStage: {
@@ -1133,50 +1058,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     overflow: 'hidden',
   },
-  cosCenter: { alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', height: '100%' },
-  cosFlame: { fontSize: 40 },
   cosCap: { fontFamily: Fonts.body, fontSize: 9.5, lineHeight: 13.5, color: Colors.muted, textAlign: 'center' },
-  cosName: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.ink },
-  flareAura: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
-    right: 6,
-    bottom: 6,
-    borderRadius: 14,
-    borderWidth: 3,
-    opacity: 0.8,
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  halo: {
-    position: 'absolute',
-    width: 62,
-    height: 24,
-    borderWidth: 3,
-    borderRadius: 31,
-    top: '22%',
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  particle: { position: 'absolute', fontSize: 12, color: Colors.ember },
-  swatches: { flexDirection: 'row', gap: 6 },
-  swatch: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    backgroundColor: '#171023',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  swatchText: { fontSize: 12 },
-  waveRow: { flexDirection: 'row', gap: 18 },
-  waveCol: { alignItems: 'center', gap: 4 },
-  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 26 },
-  bar: { width: 4, borderRadius: 2 },
   cindyStream: { flex: 1, gap: 5, justifyContent: 'flex-end' },
   cindyInput: {
     flexDirection: 'row',

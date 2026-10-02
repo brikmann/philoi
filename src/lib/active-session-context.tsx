@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AppState } from 'react-native';
 
 import { fetchGroup } from '@/lib/api/groups';
 import {
@@ -52,6 +53,13 @@ type ActiveSessionContextValue = {
    *  the tap, then settles on the server's row; a failed call puts the old state back and throws. */
   pause: () => Promise<void>;
   resume: () => Promise<void>;
+  /** Re-reads the row and settles on it. If the session this client was showing is no longer
+   *  active (the liveness sweep closed it while the app was away), it clears and records the id
+   *  in endedRemotelyId. Run on foreground and after any failed session RPC. */
+  reconcile: () => Promise<void>;
+  /** The id of a session the SERVER ended out from under this client (not via clear()), so the
+   *  lock-in screen can say so instead of sitting on "Starting your session…". Reset by start(). */
+  endedRemotelyId: string | null;
 };
 
 const ActiveSessionContext = createContext<ActiveSessionContextValue | null>(null);
@@ -100,6 +108,12 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
   const { session: authSession } = useAuth();
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [endedRemotelyId, setEndedRemotelyId] = useState<string | null>(null);
+  // For reconcile(), which runs from an AppState listener and must see the session as it is now.
+  const sessionRef = useRef(session);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   const refresh = useCallback(async () => {
     if (!authSession) {
@@ -137,6 +151,7 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
       two?: { category: LockInCategory; activity?: FitnessActivity | null; courseId?: string | null }
     ) => {
     const created = await startLockInSession(goalType, goalDetail, circleId, two);
+    setEndedRemotelyId(null);
     const circleName = await resolveCircleName(created.circle_id);
     const next = fromRow(created, circleName);
     setSession(next);
@@ -148,6 +163,35 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
   const touchConfirmedAt = useCallback(() => {
     setSession((prev) => (prev ? { ...prev, lastConfirmedAt: new Date() } : prev));
   }, []);
+
+  const reconcile = useCallback(async () => {
+    const current = sessionRef.current;
+    if (!authSession || !current) return;
+    let row: LockInSession | null;
+    try {
+      row = await fetchMyActiveLockInSession(authSession.user.id);
+    } catch {
+      return; // Offline: keep what we have; the next foreground or RPC failure tries again.
+    }
+    if (!row) {
+      setSession((prev) => (prev && prev.id === current.id ? null : prev));
+      setEndedRemotelyId(current.id);
+    } else if (row.id !== current.id) {
+      await refresh();
+    } else {
+      setSession((prev) => (prev && prev.id === row.id ? withPauseState(prev, row) : prev));
+    }
+  }, [authSession, refresh]);
+
+  // The 0221 sweep closes an unconfirmed session ~12 min after the last confirm, and a phone
+  // that's locked or in another app is exactly when that happens. Without this check on return,
+  // the client keeps a live-looking session the server has already ended.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void reconcile();
+    });
+    return () => sub.remove();
+  }, [reconcile]);
 
   // Optimistic on the way in: the tap has to freeze the clock on the second it lands, not ~200ms
   // later when the RPC answers. The server row then replaces the guess (its paused_at is on the
@@ -162,6 +206,10 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
           : {
               ...prev,
               pausedAt: null,
+              // resume_lock_in_session re-stamps last_confirmed_at. Mirror that in the guess too, or
+              // the screen sees an unpaused session that is still >11 min unconfirmed for the length
+              // of the round-trip, and its idle auto-pause fires straight back.
+              lastConfirmedAt: new Date(),
               accumulatedPausedSeconds:
                 prev.accumulatedPausedSeconds + Math.max(0, (Date.now() - (prev.pausedAt?.getTime() ?? Date.now())) / 1000),
             }
@@ -172,16 +220,20 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
       setSession((prev) => (prev && prev.id === row.id ? withPauseState(prev, row) : prev));
     } catch (e) {
       setSession((prev) => (prev && prev.id === current.id ? current : prev));
+      // Then ask the server what's actually true. Restoring `current` alone is how a session the
+      // sweep had closed kept looking live: every pause/resume after that failed with "Session not
+      // found or already stopped", got restored, and was retried — the screen flipped forever.
+      void reconcile();
       throw e;
     }
-  }, [session]);
+  }, [session, reconcile]);
 
   const pause = useCallback(() => setPaused(true), [setPaused]);
   const resume = useCallback(() => setPaused(false), [setPaused]);
 
   const value = useMemo(
-    () => ({ session, loading, refresh, start, clear, touchConfirmedAt, pause, resume }),
-    [session, loading, refresh, start, clear, touchConfirmedAt, pause, resume]
+    () => ({ session, loading, refresh, start, clear, touchConfirmedAt, pause, resume, reconcile, endedRemotelyId }),
+    [session, loading, refresh, start, clear, touchConfirmedAt, pause, resume, reconcile, endedRemotelyId]
   );
 
   return <ActiveSessionContext.Provider value={value}>{children}</ActiveSessionContext.Provider>;

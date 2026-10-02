@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
+import { GradientTitleText } from '@/components/economy/gradient-title';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
-import { titleLabel } from '@/lib/economy/catalog';
+import { titleLabel, type CatalogItem } from '@/lib/economy/catalog';
 import { useEquipped } from '@/lib/economy/loadout';
-import { RARITY_COLOR } from '@/lib/economy/rarity';
 
 // The equipped cosmetics as they appear on OTHER people's screens — profile, feed rows,
 // leaderboard rows, 1v1 headers (mock 64).
@@ -47,6 +47,37 @@ export function EquippedHalo({ size, children, enabled = true }: { size: number;
   );
 }
 
+/**
+ * The worn title line, in the title's OWN gradient (mock 249) — `art.from → art.to`, not one flat
+ * rarity colour. Rarity reads as glow (Legendary/Mythic) rather than hue. The ✦ takes the `from`
+ * stop so it leads into the ramp instead of sitting outside it.
+ */
+function TitleLine({
+  title,
+  name,
+  stamp,
+  compact,
+}: {
+  title: Pick<CatalogItem, 'art' | 'rarity'>;
+  name: string;
+  stamp?: string | null;
+  compact?: boolean;
+}) {
+  const text = [styles.title, compact && styles.titleCompact];
+  return (
+    <View style={styles.titleRow}>
+      <Text style={[text, { color: title.art.from }]}>✦ </Text>
+      <GradientTitleText text={name} from={title.art.from} to={title.art.to} rarity={title.rarity} style={text} />
+      {stamp ? (
+        <Text style={[text, styles.stamp]} numberOfLines={1}>
+          {' '}
+          {stamp}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 /** Tagline under a name on leaderboards / profile. Nothing renders without an equipped Title. */
 export function EquippedTitle({ style, enabled = true }: { style?: ViewStyle; enabled?: boolean }) {
   const equipped = useEquipped('title');
@@ -54,9 +85,7 @@ export function EquippedTitle({ style, enabled = true }: { style?: ViewStyle; en
   if (!title) return null;
   return (
     <View style={style}>
-      <Text style={[styles.title, { color: RARITY_COLOR[title.rarity] }]} numberOfLines={1}>
-        ✦ {titleLabel(title).name}
-      </Text>
+      <TitleLine title={title} name={titleLabel(title).name} />
     </View>
   );
 }
@@ -131,12 +160,7 @@ export function PublicTitle({ loadout, compact = false }: { loadout: PublicLoado
   if (!title) return null;
   // titleLabel, not name + stamp: a campfire finisher's stamp IS its name ("Goat Champion").
   const { name, stamp } = titleLabel(title);
-  return (
-    <Text style={[styles.title, compact && styles.titleCompact, { color: RARITY_COLOR[title.rarity] }]} numberOfLines={1}>
-      ✦ {name}
-      {stamp ? <Text style={styles.stamp}> {stamp}</Text> : null}
-    </Text>
-  );
+  return <TitleLine title={title} name={name} stamp={stamp} compact={compact} />;
 }
 
 /** Their equipped flame's colour, for the small flame tint on a row. Base coral when unequipped. */
@@ -161,6 +185,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     opacity: 0.8,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+  },
   title: {
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
@@ -173,6 +202,8 @@ const styles = StyleSheet.create({
   stamp: {
     fontFamily: Fonts.body,
     color: Colors.textTertiary,
+    // The words shrink (and ellipsize) first; the scope stamp keeps its size.
+    flexShrink: 0,
   },
   hexGlow: {
     position: 'absolute',

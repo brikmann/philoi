@@ -6,7 +6,7 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
-import { useFlameRamp } from '@/lib/economy/flame-ramp';
+import { useFlameRamp, type FlameRamp } from '@/lib/economy/flame-ramp';
 
 // The running session's flame — the SAME brand silhouette home wears, recoloured by the equipped
 // ramp. What stays here is only the session behaviour: the glow, the flick, and `dimmed`.
@@ -32,14 +32,21 @@ type SessionFlameProps = {
   /** Gym (mock 52): the flame drops to a dimmed background layer behind the workout log — lower
    * opacity and a softer glow. */
   dimmed?: boolean;
+  /**
+   * Draw THIS colourway instead of the equipped one. Only for previews of a cosmetic the user does
+   * not have on — the first-run tour's flame-skin and flare steps. Every live surface omits it, so
+   * a screen still never decides what colour your flame is.
+   */
+  ramp?: FlameRamp;
 };
 
-export function SessionFlame({ height = 240, dimmed = false }: SessionFlameProps) {
+export function SessionFlame({ height = 240, dimmed = false, ramp: rampOverride }: SessionFlameProps) {
   const reduceMotion = useReduceMotion();
   // Colour ONLY. `dimmed`, the flick animation, and the glow opacity below are all untouched by
   // whatever is equipped — they're the activity signal, and a cosmetic must never move them.
   // Flare-aware — see useFlameRamp. A screen does not decide what colour your flame is.
-  const ramp = useFlameRamp();
+  const equippedRamp = useFlameRamp();
+  const ramp = rampOverride ?? equippedRamp;
   // Gradient ids are GLOBAL in react-native-svg: a hardcoded id makes every instance after the
   // first render blank on Android, and this component mounts twice on the lock-in screen. Same
   // bug FlameLogo and EmberIcon already carry a useId for.

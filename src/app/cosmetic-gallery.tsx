@@ -4,6 +4,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CosmeticRender, COSMETIC_SURFACES, type CosmeticSurface } from '@/components/economy/cosmetic-render';
 import { ItemArt } from '@/components/economy/item-art';
+import { SeasonChip, isSeasonItem } from '@/components/economy/season-chip';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -75,21 +77,44 @@ export default function CosmeticGalleryScreen() {
             })}
           </View>
 
+          {/* Per-stage boundary, keyed on item+surface so switching selection clears a prior throw.
+              Without this, ONE cosmetic whose renderer throws on ONE surface blanks the whole dev
+              harness (there's no boundary above). The fallback NAMES the offender so a reviewer can
+              see exactly which cosmetic/surface is broken while the rest of the gallery stays usable. */}
           <View style={styles.stage}>
-            <CosmeticRender item={selected} surface={surface} />
+            <ErrorBoundary
+              key={`${selected.id}:${surface}`}
+              label={`Cosmetic stage · ${selected.id} · ${surface}`}
+              fallback={(_error, reset) => (
+                <View style={styles.stageError}>
+                  <Text style={styles.stageErrorTitle}>Couldn&apos;t render this one</Text>
+                  <Text style={styles.stageErrorBody} numberOfLines={2}>
+                    {displayName(selected)} · {surface} surface
+                  </Text>
+                  <Pressable onPress={reset} accessibilityRole="button" style={styles.stageErrorBtn}>
+                    <Text style={styles.stageErrorBtnText}>Retry</Text>
+                  </Pressable>
+                </View>
+              )}>
+              <CosmeticRender item={selected} surface={surface} />
+            </ErrorBoundary>
           </View>
 
           <Text style={styles.stageName} numberOfLines={1}>
             {displayName(selected)}
           </Text>
-          <Text style={[styles.stageMeta, { color: RARITY_COLOR[selected.rarity] }]}>
-            {RARITY_LABEL[selected.rarity]} · {TYPE_LABEL[selected.type]}
-          </Text>
+          <View style={styles.stageMetaRow}>
+            <Text style={[styles.stageMeta, { color: RARITY_COLOR[selected.rarity] }]}>
+              {RARITY_LABEL[selected.rarity]} · {TYPE_LABEL[selected.type]}
+            </Text>
+            {isSeasonItem(selected) ? <SeasonChip size="sm" /> : null}
+          </View>
           <Text style={styles.stageEffect} numberOfLines={2}>
             {cosmeticEffect(selected)}
           </Text>
         </View>
 
+        <ErrorBoundary label="Cosmetic grid">
         {sections.map(({ type, items }) => (
           <View key={type} style={styles.section}>
             <Text style={styles.sectionTitle}>
@@ -114,12 +139,14 @@ export default function CosmeticGalleryScreen() {
                     <Text style={[styles.tileRarity, { color: RARITY_COLOR[item.rarity] }]} numberOfLines={1}>
                       {RARITY_LABEL[item.rarity]}
                     </Text>
+                    {isSeasonItem(item) ? <SeasonChip size="xs" /> : null}
                   </Pressable>
                 );
               })}
             </View>
           </View>
         ))}
+        </ErrorBoundary>
       </ScrollView>
     </Screen>
   );
@@ -167,11 +194,47 @@ const styles = StyleSheet.create({
     minHeight: 200,
     justifyContent: 'center',
   },
+  stageError: {
+    minHeight: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+  },
+  stageErrorTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+  stageErrorBody: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.muted,
+    textAlign: 'center',
+  },
+  stageErrorBtn: {
+    marginTop: Spacing.two,
+    paddingVertical: 8,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.ember,
+  },
+  stageErrorBtnText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.ember,
+  },
   stageName: {
     fontFamily: Fonts.bodyBold,
     fontSize: 16,
     color: Colors.ink,
     marginTop: Spacing.two,
+  },
+  stageMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: 2,
   },
   stageMeta: {
     fontFamily: Fonts.bodySemiBold,

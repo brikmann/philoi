@@ -47,7 +47,7 @@ const MARQUEE_IDS = [
   'sfx-emberfall-strike',
   'card-emberfall-mythic',
   'relic-emberfall',
-  'title-forged-in-ember',
+  'title-infernal',
   'medal-emberfall-crown',
 ] as const;
 

@@ -219,10 +219,13 @@ const NAMED_LEVELS: Record<number, { free: PassReward[]; premium: PassReward[] }
   35: { free: [embers(75)], premium: [gear('card-emberfall'), embers(250)] },
   40: { free: [box('rare')], premium: [box('epic'), gear('particle-void-smoke')] },
   45: { free: [box('rare')], premium: [gear('halo-emberfall'), embers(500)] },
-  50: { free: [box('epic')], premium: [gear('halo-emberfall-mythic'), gear('sfx-emberfall-strike')] },
+  // 0222 — On Fire rides the FREE lane (mock 249): the climb mints it for everyone who gets here.
+  50: { free: [box('epic'), gear('title-on-fire')], premium: [gear('halo-emberfall-mythic'), gear('sfx-emberfall-strike')] },
   // ── Pantheon ──
   55: { free: [box('epic')], premium: [box('legendary'), embers(750)] },
-  60: { free: [box('rare')], premium: [gear('title-dialed-in')] },
+  // 0222 — was gear('title-dialed-in'); that title is now the box drop "Absolutely Dialed". The slot
+  // takes L55's premium reward shape, a Hephaestus chest.
+  60: { free: [box('rare')], premium: [box('legendary')] },
   65: { free: [embers(125)], premium: [gear('audio-deep-space-sub-bass')] },
   70: { free: [box('epic')], premium: [gear('banner-ashfall'), embers(1_000)] },
   75: { free: [box('epic')], premium: [gear('card-emberfall-mythic')] },
@@ -231,11 +234,12 @@ const NAMED_LEVELS: Record<number, { free: PassReward[]; premium: PassReward[] }
   85: { free: [box('epic')], premium: [gear('particle-falling-ash')] },
   90: { free: [embers(200)], premium: [gear('relic-emberfall')] },
   95: { free: [box('legendary')], premium: [box('mythic'), embers(2_000)] },
-  // The Apex. Both lanes carry a completion title — finishing the free track without paying a cent
-  // is its own achievement and gets its own name, not a dimmed version of the paid one.
+  // The Apex. Infernal (0222, mock 249) is on the FREE lane, so finishing the climb mints it with or
+  // without the pass; the premium lane's capstone is the Seal. It replaced the old pair — "The
+  // Relentless · S1" (free) and "Forged in Ember" (premium) — both retired with the title prune.
   100: {
-    free: [box('legendary'), gear('title-s1-the-relentless')],
-    premium: [gear('medal-emberfall-crown'), gear('title-forged-in-ember')],
+    free: [box('legendary'), gear('title-infernal')],
+    premium: [gear('medal-emberfall-crown')],
   },
 };
 

@@ -32,6 +32,10 @@ import { isTutorialDone } from '@/lib/tutorial';
 // So the tour stops waiting to be visited. This walks the seven surfaces itself: navigate, wait for
 // the target to actually exist, point at it, wait for the user, move on.
 //
+// ⚠️ SINCE MOCK 239 IT WALKS ONE: COACH_TOUR_STEPS is just Home's Lock in — the "your turn" beat
+// after the card tour, which now teaches every other surface itself. The loop is kept as-is so the
+// plan can grow again without rewriting the driver.
+//
 // ─────────────────────────── THE ONE RULE THAT SHAPES EVERYTHING ───────────────────────────
 //
 // 🔴 A MISSING TARGET SKIPS ONE STEP. IT NEVER ENDS THE TOUR. The surfaces most likely to have no
@@ -133,7 +137,7 @@ async function runTour(
       }
 
       await waitForClearScreen();
-      const action = await presentCoachTourStep(step.key, rect, { index: shown + 1, total, isLast });
+      const action = await presentCoachTourStep(step.key, rect, { index: shown, total, isLast });
       if (action === 'unavailable') {
         // Nothing was drawn, so nothing was taught. Leave every key as it was and stop.
         skipped += 1;

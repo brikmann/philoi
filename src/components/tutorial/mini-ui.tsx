@@ -46,13 +46,27 @@ export function MiniScreen({
   );
 }
 
-/** A miniature screen header — glyph, title, optional right-hand pill. */
-export function MiniHeader({ glyph, title, right }: { glyph: string; title: string; right?: string }) {
+/**
+ * A miniature screen header — glyph, title, optional right-hand pill.
+ *
+ * `icon` replaces the glyph with real art (tour-art.tsx's FlameGlyph). Use it wherever the glyph
+ * would be the SUBJECT of the card — the flame on Home, Cindy — rather than a section marker; a
+ * tour selling the real flame cannot head its own screen with an emoji one.
+ */
+export function MiniHeader({
+  glyph,
+  icon,
+  title,
+  right,
+}: {
+  glyph?: string;
+  icon?: React.ReactNode;
+  title: string;
+  right?: string;
+}) {
   return (
     <View style={styles.msHd}>
-      <View style={styles.sq}>
-        <Text style={styles.sqText}>{glyph}</Text>
-      </View>
+      <View style={styles.sq}>{icon ?? <Text style={styles.sqText}>{glyph}</Text>}</View>
       <Text style={styles.hdTitle} numberOfLines={1}>
         {title}
       </Text>

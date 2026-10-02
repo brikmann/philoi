@@ -14,7 +14,6 @@ import Svg, {
 } from 'react-native-svg';
 
 import { EASE_SINE, spread, usePhasedLoop } from '@/components/economy/flare-perimeter';
-import { FLAME_PATH, FLAME_VIEWBOX } from '@/components/ui/flame-logo';
 import { Colors } from '@/constants/theme';
 import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
@@ -1099,20 +1098,9 @@ function RoofFlicker({ left, top, w, h, phase }: { left: number; top: number; w:
 
 // ─────────────────────────── 7 · Emberfall Standard (mythic) ───────────────────────────
 //
-// "ONE giant pulsing Cindy flame; the screen borders flicker with its aura." The apex of the set,
-// and the only banner whose subject is the app's own mark rather than a place.
-//
-// The aura is the flare treatment, and that is the point of it — this is the mythic season banner,
-// so the screen edges breathe the way a Mythic flare's perimeter does. It is drawn as four
-// full-edge gradient bands that OVERLAP in the corners rather than four mitred bands that meet at
-// a diagonal, which is the whole lesson of flare-perimeter's rim: four bands cut to meet leave four
-// visible seams, four bands that overlap leave none and the corners simply land brightest, exactly
-// as an inset box-shadow does.
-//
-// ONE DRIVER again, shared by the flame and all four edges — a border that breathes out of step
-// with the flame it is supposed to be the aura OF is worse than no aura.
-const MYTHIC_CYCLE = 1900;
-
+// The season's apex banner. It USED to be one giant pulsing Cindy flame with a flickering
+// screen-border aura — Noah cut both ("it's too much" behind a live chat). What's left is the
+// scene's hero now: a steady fall of embers over a warm hearth glow, no flame, no aura.
 function EmberfallStandardScene({ w, h, from, to, animated, uid }: SceneProps) {
   const embers = useMemo(
     () =>
@@ -1127,9 +1115,6 @@ function EmberfallStandardScene({ w, h, from, to, animated, uid }: SceneProps) {
     [w, h]
   );
 
-  const flameW = w * 0.62;
-  const flameH = flameW * 1.28;
-
   return (
     <>
       <Svg width={w} height={h} style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox={`0 0 ${VB_W} ${VB_H}`}>
@@ -1139,8 +1124,10 @@ function EmberfallStandardScene({ w, h, from, to, animated, uid }: SceneProps) {
             <Stop offset="0.55" stopColor="#1a0703" />
             <Stop offset="1" stopColor="#0b0402" />
           </LinearGradient>
-          <RadialGradient id={`mythGlow-${uid}`} cx="50%" cy="38%" rx="70%" ry="42%">
-            <Stop offset="0" stopColor={to} stopOpacity={0.22} />
+          {/* The hearth glow that used to sit behind the giant flame — now the whole hero. Lifted a
+              little warmer/stronger than before so the scene still reads Mythic without a flame in it. */}
+          <RadialGradient id={`mythGlow-${uid}`} cx="50%" cy="46%" rx="78%" ry="48%">
+            <Stop offset="0" stopColor={to} stopOpacity={0.3} />
             <Stop offset="1" stopColor={to} stopOpacity={0} />
           </RadialGradient>
         </Defs>
@@ -1148,156 +1135,11 @@ function EmberfallStandardScene({ w, h, from, to, animated, uid }: SceneProps) {
         <Rect width={VB_W} height={VB_H} fill={`url(#mythGlow-${uid})`} />
       </Svg>
 
-      {/* The flame is painted either way, so reduce-motion and the picker tiles still show the
-          hero rather than an empty red field — only the pulse, the aura and the embers are the live
-          half, and they share ONE driver so the border can never breathe out of step with the flame
-          it is supposed to be the aura OF. Same conditional-mount reasoning as ForgeStrike. */}
-      {animated ? (
-        <MythicPulse w={w} h={h} flameW={flameW} flameH={flameH} colour={to} embers={embers} />
-      ) : (
-        <StaticFlame w={flameW} h={flameH} left={(w - flameW) / 2} top={h * 0.22} colour={to} />
-      )}
+      {/* No giant pulsing flame and no flickering border aura any more — Noah: "it's too much"
+          sitting behind a live chat. The falling embers over the hearth glow are the hero now; the
+          picker tiles and reduce-motion get the glow alone (embers are the only live half). */}
+      {animated ? embers.map((e, i) => <RisingEmber key={i} colour={to} {...e} />) : null}
     </>
-  );
-}
-
-function MythicPulse({
-  w,
-  h,
-  flameW,
-  flameH,
-  colour,
-  embers,
-}: {
-  w: number;
-  h: number;
-  flameW: number;
-  flameH: number;
-  colour: string;
-  embers: { left: number; size: number; travel: number; drift: number; duration: number; phase: number }[];
-}) {
-  const t = usePhasedLoop(0.25, MYTHIC_CYCLE, EASE_SINE, true);
-  return (
-    <>
-      <GiantFlame t={t} w={flameW} h={flameH} left={(w - flameW) / 2} top={h * 0.22} colour={colour} />
-      <AuraEdge t={t} colour={colour} edge="top" w={w} h={h} />
-      <AuraEdge t={t} colour={colour} edge="bottom" w={w} h={h} />
-      <AuraEdge t={t} colour={colour} edge="left" w={w} h={h} />
-      <AuraEdge t={t} colour={colour} edge="right" w={w} h={h} />
-      {embers.map((e, i) => (
-        <RisingEmber key={i} colour={colour} {...e} />
-      ))}
-    </>
-  );
-}
-
-/** The still version of the hero, for picker tiles and reduce-motion. No driver, no wrapper. */
-function StaticFlame({ w, h, left, top, colour }: { w: number; h: number; left: number; top: number; colour: string }) {
-  const uid = useGradientId();
-  return (
-    <View pointerEvents="none" style={{ position: 'absolute', left, top, width: w, height: h, opacity: 0.92 }}>
-      <Svg width={w} height={h} viewBox={`0 0 ${FLAME_VIEWBOX} ${FLAME_VIEWBOX}`} preserveAspectRatio="xMidYMid meet">
-        <Defs>
-          <LinearGradient id={`cindyStill-${uid}`} x1="0" y1="1" x2="0" y2="0">
-            <Stop offset="0" stopColor="#E0612C" />
-            <Stop offset="0.55" stopColor={colour} />
-            <Stop offset="1" stopColor="#FFF0C4" />
-          </LinearGradient>
-        </Defs>
-        <Path d={FLAME_PATH} fill={`url(#cindyStill-${uid})`} />
-      </Svg>
-    </View>
-  );
-}
-
-function GiantFlame({
-  t,
-  w,
-  h,
-  left,
-  top,
-  colour,
-}: {
-  t: SharedValue<number>;
-  w: number;
-  h: number;
-  left: number;
-  top: number;
-  colour: string;
-}) {
-  const uid = useGradientId();
-  const style = useAnimatedStyle(() => ({
-    transform: [{ scale: 0.9 + 0.24 * t.value }],
-    opacity: 0.85 + 0.15 * t.value,
-  }));
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[{ position: 'absolute', left, top, width: w, height: h, transformOrigin: 'center bottom' }, style]}>
-      <Svg width={w} height={h} viewBox={`0 0 ${FLAME_VIEWBOX} ${FLAME_VIEWBOX}`} preserveAspectRatio="xMidYMid meet">
-        <Defs>
-          <LinearGradient id={`cindy-${uid}`} x1="0" y1="1" x2="0" y2="0">
-            <Stop offset="0" stopColor="#E0612C" />
-            <Stop offset="0.55" stopColor={colour} />
-            <Stop offset="1" stopColor="#FFF0C4" />
-          </LinearGradient>
-        </Defs>
-        <Path d={FLAME_PATH} fill={`url(#cindy-${uid})`} />
-      </Svg>
-    </Animated.View>
-  );
-}
-
-/** One edge of the perimeter aura. Spans its FULL edge so the four overlap in the corners. */
-function AuraEdge({
-  t,
-  colour,
-  edge,
-  w,
-  h,
-}: {
-  t: SharedValue<number>;
-  colour: string;
-  edge: 'top' | 'bottom' | 'left' | 'right';
-  w: number;
-  h: number;
-}) {
-  // One px thickness for all four, so the rim reads identically on every edge rather than coming
-  // out twice as thick top-and-bottom the way a percentage radius would (flare-perimeter's §3).
-  const thickness = Math.round(Math.min(w, h) * 0.16);
-  const horizontal = edge === 'top' || edge === 'bottom';
-  const bw = horizontal ? w : thickness;
-  const bh = horizontal ? thickness : h;
-
-  const uid = useGradientId();
-  const style = useAnimatedStyle(() => ({ opacity: 0.3 + 0.6 * t.value }));
-
-  const pos =
-    edge === 'top'
-      ? { top: 0, left: 0 }
-      : edge === 'bottom'
-        ? { bottom: 0, left: 0 }
-        : edge === 'left'
-          ? { top: 0, left: 0 }
-          : { top: 0, right: 0 };
-
-  // Each band fades from the edge inward to nothing — no hard inner boundary, which is what stops
-  // an overlay reading as a BOX instead of as light.
-  const [x1, y1, x2, y2] =
-    edge === 'top' ? [0, 0, 0, 1] : edge === 'bottom' ? [0, 1, 0, 0] : edge === 'left' ? [0, 0, 1, 0] : [1, 0, 0, 0];
-
-  return (
-    <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: bw, height: bh, opacity: 0 }, pos, style]}>
-      <Svg width={bw} height={bh}>
-        <Defs>
-          <LinearGradient id={`aura-${edge}-${uid}`} x1={String(x1)} y1={String(y1)} x2={String(x2)} y2={String(y2)}>
-            <Stop offset="0" stopColor={colour} stopOpacity={0.55} />
-            <Stop offset="1" stopColor={colour} stopOpacity={0} />
-          </LinearGradient>
-        </Defs>
-        <Rect width={bw} height={bh} fill={`url(#aura-${edge}-${uid})`} />
-      </Svg>
-    </Animated.View>
   );
 }
 

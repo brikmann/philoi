@@ -506,6 +506,10 @@ function RootNavigator() {
         {/* The "talk to someone" surface APP_BLOCKER_SPEC §C-safety requires (mock 116 frame 3). */}
         <Stack.Screen name="support" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+        {/* The bell feed draws its own "Activity" header (notifications.tsx). Without this line the
+            route falls to the default Stack header, which stacks a lowercase "notifications" title
+            and a "(tabs)" liquid-glass back button ON TOP of that header — the double-header mess. */}
+        <Stack.Screen name="notifications" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="settings-notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="body-metrics" options={{ title: 'Body' }} />
         {/* Focus Nudge setup — mock 109 frame 1. A real route, not just a settings sub-page: the
@@ -569,6 +573,8 @@ function RootNavigator() {
         <Stack.Screen name="shop/open" options={{ headerShown: false, presentation: 'modal', gestureEnabled: false }} />
         <Stack.Screen name="inventory/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="inventory/[itemId]" options={{ headerShown: false, presentation: 'modal' }} />
+        {/* The loadout picker (mock 250) — draws its own top row like the rest of the Rewards surface. */}
+        <Stack.Screen name="loadout" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="forge-pass" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* The Forge (mocks 155/156). Headerless like the rest of the Rewards surface — it draws its
             own top row, and the reveal it hands off to is full-bleed. Deliberately NOT a modal:

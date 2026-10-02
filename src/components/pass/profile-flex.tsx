@@ -30,9 +30,10 @@ import { formatRankTier } from '@/lib/rank-tiers';
  * The title on the "with" card. Mock 200-v2 (and its brief) show "Locked In", but that's
  * `title-locked-in` — a Common BOX title anyone can pull from a Kindling, not something the pass
  * grants. Every other element of this card is a pass reward, so it's the pass's own L100 capstone
- * title here instead. One-line swap if that call goes the other way.
+ * title here instead — Infernal since 0222 retired Forged in Ember. One-line swap if that call goes
+ * the other way.
  */
-const FLEX_TITLE_ID = 'title-forged-in-ember';
+const FLEX_TITLE_ID = 'title-infernal';
 
 const WITH = {
   banner: 'banner-emberfall-mythic',

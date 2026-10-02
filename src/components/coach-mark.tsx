@@ -448,7 +448,9 @@ export function CoachMarkHost() {
               are, a way forward, and a way out. Skip sits on the LEFT and unstyled — leaving should
               be findable without competing with the button that keeps you moving. */}
           <View style={styles.foot}>
-            {tour ? (
+            {/* A one-step tour (the post-tour "your turn", coach-marks.ts) has nowhere to skip to and
+                no "1 of 1" worth saying — it reads as a plain tip with Got it. */}
+            {tour && tour.total > 1 ? (
               <>
                 <Pressable
                   onPress={skip}
@@ -465,8 +467,8 @@ export function CoachMarkHost() {
               hitSlop={10}
               style={styles.got}
               accessibilityRole="button"
-              accessibilityLabel={tour ? (isLastStep ? 'Finish the tour' : 'Next tip') : 'Got it'}>
-              <Text style={styles.gotText}>{tour ? (isLastStep ? 'Done' : 'Next') : 'Got it'}</Text>
+              accessibilityLabel={tour && tour.total > 1 ? (isLastStep ? 'Finish the tour' : 'Next tip') : 'Got it'}>
+              <Text style={styles.gotText}>{tour && tour.total > 1 ? (isLastStep ? 'Done' : 'Next') : 'Got it'}</Text>
             </Pressable>
           </View>
         </View>

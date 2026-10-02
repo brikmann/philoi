@@ -7,6 +7,7 @@ import { EmberIcon } from '@/components/economy/ember-icon';
 import { RarityLabel, SourceTag, formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
+import { SeasonChip, isSeasonItem } from '@/components/economy/season-chip';
 import { SellConfirmScreen, SellRewardScreen } from '@/components/economy/sell-flow';
 import { SfxSlotPicker, type SfxChoice } from '@/components/economy/sfx-slot-picker';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
@@ -207,20 +208,20 @@ export default function ItemDetailScreen() {
         <View style={styles.body}>
           {/* A campfire finisher's name is its grant label ("Goat 2nd Place Finisher"), not the template's. */}
           <Text style={styles.name}>{item.labelIsStamp ? `"${titleLabel(item).name}"` : item.name}</Text>
-          <RarityLabel rarity={item.rarity} type={item.type} size={10} />
+          <View style={styles.rarityRow}>
+            <RarityLabel rarity={item.rarity} type={item.type} size={10} />
+            {/* Mock 247: the Emberfall mark beside the rarity tag on every season item. */}
+            {isSeasonItem(item) ? <SeasonChip size="sm" /> : null}
+          </View>
           <Text style={styles.lore}>{item.lore}</Text>
 
           <View style={styles.tags}>
             <SourceTag source={item.source} />
-            {/* The real stamp from the grant ("🌍 GLOBAL #1 · S1") when there is one; the catalog's
-                generic flag only as a fallback for season items granted without a scope. */}
+            {/* The real stamp from the grant ("🌍 GLOBAL #1 · S1") when there is one. The generic
+                "season-stamped" fallback is the SeasonChip beside the rarity now (mock 247). */}
             {item.seasonStamp && !item.labelIsStamp ? (
               <View style={styles.stamp}>
                 <Text style={styles.stampText}>{item.seasonStamp}</Text>
-              </View>
-            ) : item.seasonStamped ? (
-              <View style={styles.stamp}>
-                <Text style={styles.stampText}>SEASON-STAMPED</Text>
               </View>
             ) : null}
           </View>
@@ -375,6 +376,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 22,
     color: Colors.ink,
+  },
+  rarityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: 2,
   },
   lore: {
     fontFamily: Fonts.body,

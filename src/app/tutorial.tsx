@@ -3,6 +3,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SessionFlame } from '@/components/session-flame';
+import { FirstRunSpine, SPINE_ROW_HEIGHT } from '@/components/tutorial/first-run-spine';
 import { TapHint } from '@/components/tutorial/mini-ui';
 import { tutorialCards, type TutorialCard } from '@/components/tutorial/tutorial-cards';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -37,6 +39,14 @@ import { markTutorialDone } from '@/lib/tutorial';
 //    someone who wants to know about the Forge should be able to get to the Forge — and letting
 //    them means the rail's "here is everything" promise is real rather than decorative.
 //
+// ─────────────────────────── ONE RIBBON WITH SETUP (mock 239) ───────────────────────────
+//
+// This screen is the second half of the first run, not a second tutorial. setup-handle.tsx draws
+// the same ScreenBackground and the same FirstRunSpine (`SETUP n / 5`); here the spine just reads
+// `TOUR n / 20`, so finishing setup does not cut to a differently-styled screen. A multi-step card
+// adds its own position to the spine (`· COSMETICS 3 / 9`) so a run of taps inside one card never
+// loses its place in the whole.
+//
 // 🔒 IT TOUCHES NOTHING. No grant, no write, no network beyond the completion flag. Every preview
 // is an inert miniature (see mini-ui.tsx), so a mis-tap during the tour cannot start a lock-in,
 // spend an ember or send a duel.
@@ -51,6 +61,15 @@ export default function TutorialScreen() {
     () => tutorialCards(profile?.display_name ?? null, profile?.handle ?? null),
     [profile?.display_name, profile?.handle]
   );
+
+  // The spine draws one segment per ACT (Welcome, then each rail section), as mock 239 does — twenty
+  // hairline segments next to a `TOUR n / 20 · COSMETICS n / 9` label would not fit beside Skip on a
+  // phone. The label carries the exact card count; the segments carry the shape of the whole.
+  const actOf = useMemo(() => {
+    let act = 0;
+    return cards.map((c, i) => (i > 0 && c.section ? ++act : act));
+  }, [cards]);
+  const actCount = (actOf[actOf.length - 1] ?? 0) + 1;
 
   const [index, setIndex] = useState(0);
   // The sub-step within the current card. Reset on every card change rather than remembered per
@@ -117,11 +136,16 @@ export default function TutorialScreen() {
       <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
       <ScreenBackground>
         <SafeAreaView style={styles.safe}>
-          {/* ── Skip, always available ── */}
+          {/* ── The spine, and Skip, always available ── */}
           <View style={styles.top}>
-            <Text style={styles.counter}>
-              {index + 1} / {cards.length}
-            </Text>
+            <View style={styles.grow}>
+              <FirstRunSpine
+                total={actCount}
+                filled={actOf[index] + 1}
+                label={`TOUR ${index + 1} / ${cards.length}`}
+                sub={card.steps.length > 1 ? `${card.title.toUpperCase()} ${Math.min(step, lastStep) + 1} / ${card.steps.length}` : undefined}
+              />
+            </View>
             <Pressable
               onPress={() => setConfirmSkip(true)}
               hitSlop={12}
@@ -180,8 +204,10 @@ export default function TutorialScreen() {
 
           {/* ── CINDY: one warm line per beat ── */}
           <View style={styles.guide}>
+            {/* The real flame, small — Cindy IS the flame (CINDY_SPEC), and an emoji stand-in here was
+                the one place in the first run she did not look like herself. */}
             <View style={styles.cindyAvatar}>
-              <Text style={styles.cindyFlame}>🔥</Text>
+              <SessionFlame height={20} />
             </View>
             <Text style={styles.bubble}>{cindyLine}</Text>
           </View>
@@ -234,10 +260,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: Spacing.three,
+    minHeight: SPINE_ROW_HEIGHT,
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.two,
   },
-  counter: { fontFamily: Fonts.body, fontSize: 12, color: Colors.textTertiary },
   skip: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.muted },
   main: { flex: 1, flexDirection: 'row', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingTop: Spacing.two, minHeight: 0 },
   rail: { width: 128, flexGrow: 0, flexShrink: 0 },
@@ -284,8 +311,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.amber,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  cindyFlame: { fontSize: 17 },
   bubble: {
     flex: 1,
     fontFamily: Fonts.body,

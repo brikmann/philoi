@@ -339,25 +339,37 @@ progress, milestones, notifications, and campfires. Use it.
 `.trim();
 
 // ── Unlock conditions ────────────────────────────────────────────────────────────────────────
-// Transcribed from economy_evaluate_relics() (migration 0090) — the SQL that actually grants
-// them — rather than from ITEM_CATALOG.md's prose, so what Cindy promises is what the database
-// will really honour. The live progress numbers pair with these from `unlock_progress`.
+// Transcribed from economy_evaluate_relics() (migration 0222) and the season closers — the SQL that
+// actually grants them — rather than from ITEM_CATALOG.md's prose, so what Cindy promises is what
+// the database will really honour. The live progress numbers pair with these from `unlock_progress`.
 //
 // This block is identical for every user, so it caches once and is served from cache for the
 // whole fleet.
 const UNLOCK_CONDITIONS = `
 ## Unlock conditions (earned items — these are the real rules the server enforces)
 
-- **Hestia's Hearthstone** (Relic, Epic) — reach a 30-day streak. Progress: \`longest_streak\`.
-- **Anvil of Hephaestus** (Relic, Legendary) — 500 hours locked in, summed from completed sessions.
-  Progress: \`completed_session_hours\`.
-- **Icarus' Feather** (Relic, Legendary) — reach Gold or above. Progress: \`peak_tier\`.
-- **Prometheus' Shard** (Relic, Mythic) — finish a season in the top 1%. Progress:
-  \`best_season_percentile\` (lower is better).
-- **Athena's Aegis** (Relic, Epic) — a full calendar month with no dead days (a completed session
-  every single day of the previous month).
-- **Emberfall Relic** and the Season-1 titles — earned through the Forge Pass and season placement,
-  not purchasable.
+- **Anvil of Hephaestus** (Relic, Legendary) — 500 hours locked in, in total.
+- **Icarus' Feather** (Relic, Legendary) — one single lock-in of 5 hours or more.
+- **Zeus' Bolt** (Relic, Mythic) — reach Divine. Progress: \`peak_tier\`.
+- **Prometheus' Shard** (Relic, Mythic) — reach Primordial AND bring a friend into Philoi. There
+  is no referral system in Season 1, so nobody can earn this yet — say so rather than promising it.
+- **Athena's Aegis** (Relic, Epic) — at least one completed lock-in every week, six weeks running.
+- **Atlas' Burden** (Relic, Mythic) — 1,000 lb across your best bench, squat and deadlift.
+- **Hestia's Hearthstone** (Relic, Epic) — hold a 30-day lock-in streak. Progress: \`longest_streak\`.
+- **Night Owl** / **Early Bird** (Titles, Rare) — 15 lock-ins of 10+ minutes that start between
+  midnight and 5 AM / between 5 AM and 9 AM, in your own time zone.
+- **On Fire** / **Infernal** (Titles) — reach Level 50 / Level 100 on the Emberfall Pass.
+- **Placement finishers** — when the season closes, your spot on the GLOBAL leaderboard mints one
+  title and one medal: Top 50% / 25% / 10% / 5% / 1%, or the podium (Helios 3rd, Agni 2nd,
+  Surtur 1st). Progress: \`best_season_percentile\` (lower is better) is your campus standing,
+  not the global one, so treat it as a rough guide only.
+- **Unbroken Season** (Medal) — a lock-in on every single day of the season, judged at season close.
+- **The Undefeated** (Title) — 3+ campfire races this season against at least one other racer,
+  and first in every one. Judged at season close.
+- **Campus Sovereign** (Medal) — finish the season #1 on your campus.
+- **The Vs-Unis board** ranks schools but pays no reward — that is deliberate.
+- **Emberfall Relic** and the other Season-1 pass items — earned through the Forge Pass, not
+  purchasable.
 - **Titles marked "earned"** — season placement and achievement titles. They are never in a box and
   never for sale.
 - **Box items** (flames, particles, flares, cards, halos, banners, audio, SFX) — from loot boxes or

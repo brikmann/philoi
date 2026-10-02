@@ -604,7 +604,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
     const isCardAttachment = message.attach_kind === 'lockin';
 
     return (
-      <View style={[styles.msgRow, isOwn && styles.msgRowOwn]}>
+      <View style={[styles.msgRow, isOwn && styles.msgRowOwn, isCardAttachment && styles.msgRowCard]}>
         {!isOwn && (
           <View style={styles.avatar}>
             <CosmeticAvatar
@@ -617,7 +617,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
             />
           </View>
         )}
-        <View style={styles.msgBody}>
+        <View style={[styles.msgBody, isCardAttachment && styles.msgBodyCard]}>
           {!isOwn && (
             <View style={styles.senderLine}>
               <Text style={styles.sender}>{message.profiles.display_name}</Text>
@@ -1300,6 +1300,22 @@ const styles = StyleSheet.create({
   msgRowOwn: {
     alignSelf: 'flex-end',
     flexDirection: 'row-reverse',
+  },
+  // 🐛 A SHARED LOCK-IN RENDERED AS A STUB — same root cause as the `embed` note (§4) above, on a
+  // path that never got the fix. A lockin attachment hosts LockInEventCard, whose root is a
+  // `flexDirection: 'row'` with `flex: 1` sections; a flex child has intrinsic width 0, so inside
+  // a shrink-to-fit bubble (msgBody is flexShrink:1 under msgRow's `maxWidth`, not a definite
+  // `width`) the whole card collapsed to min-content — a thin stub with the time tag clipped to the
+  // same width. A DEFINITE width is the fix: the row gets `width` (not maxWidth) and the body stops
+  // shrinking, giving the card's flex rows something real to divide. Scoped to lockin attachments
+  // so ordinary text/photo bubbles keep their shrink-to-fit sizing.
+  msgRowCard: {
+    width: '92%',
+    maxWidth: '92%',
+  },
+  msgBodyCard: {
+    flex: 1,
+    flexShrink: 0,
   },
   avatar: {
     // No fixed box, no clip: CosmeticAvatar draws its own circle and needs room OUTSIDE it for the

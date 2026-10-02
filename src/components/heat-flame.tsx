@@ -1,7 +1,7 @@
 import { useEffect, useId } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
@@ -12,12 +12,13 @@ import { useReduceMotion } from '@/hooks/use-reduce-motion';
 // This is deliberately NOT FlameLogo. The brand mark is one clean silhouette (and it is what Home
 // wears now — Home is *you*, and you don't go cold); a gauge has to read as a different *thing* at
 // each state, not the same glyph at three opacities. So every state here is its own composition
-// over a PERSISTENT COAL BED. The bed is what makes it a fire rather than an icon: it stays put
-// while what burns on top changes.
+// over a PERSISTENT LOG LAY (mock 257; it replaced the old coal bed, which at valley size read as
+// "a clutch of eggs"). The lay is what makes it a fire rather than an icon: it stays put while what
+// burns on top changes.
 //
-//   >= 0.6  roaring    — a staggered cluster of tongues off a bright bed, plus rising sparks
-//   0.15-0.6 simmering — a few low, slow licks off a glowing ember bed
-//   < 0.15  cold       — dead grey coals, no glow, drifting smoke puffs (the "relight" nudge)
+//   >= 0.6  roaring    — a staggered cluster of tongues off the logs, ember glow + rising sparks
+//   0.15-0.6 simmering — a few low, slow licks off the logs, a dim smoulder in the gaps
+//   < 0.15  cold       — bare logs, no glow, drifting smoke puffs (the "relight" nudge)
 //
 // GEOMETRY IS MOCK 93'S, LITERALLY. The first build drew each tongue as an Animated.View with a
 // borderRadius — a rounded rectangle, which renders as a yellow lozenge on a brown ellipse, not a
@@ -77,16 +78,29 @@ const SIMMERING_TONGUES: TongueSpec[] = [
   { d: 'M62 100 C63 90 65 85 67 76 C69 85 71 90 72 100 Z', fill: 'lick', flick: FLICK, ms: 1600, delay: 100 },
 ];
 
-/** The coal bed — five overlapping ellipses, identical in every state; only the fill changes. */
-const COALS = [
-  { cx: 46, cy: 103, rx: 12, ry: 7 },
-  { cx: 74, cy: 103, rx: 12, ry: 7 },
-  { cx: 60, cy: 106, rx: 15, ry: 8 },
-  { cx: 55, cy: 99, rx: 9, ry: 5.5 },
-  { cx: 68, cy: 99, rx: 9, ry: 5.5 },
+// The LOG LAY (mock 257) — a built campfire, four logs in two crossed pairs. This REPLACES the old
+// five-ellipse coal bed, which at valley size read as "a clutch of eggs" (device report): a cold
+// fire is one that is laid and waiting, not a spill of grey stones. Identical in every state — cold
+// shows the bare wood; lit states keep their tongues, which rise out from behind the logs exactly as
+// they rose from behind the coals. Coordinates are mock 257's, in the same 120-unit scene.
+//
+//   grad     'logBtm' = the darker back pair, 'logTop' = the lighter front pair (a little depth)
+//   endCx    which end shows its cut face (the end-grain rings), dropped below size 70
+//   pivot*   the rotate origin, so a log leans from its own centre
+type LogSpec = {
+  x: number; y: number; w: number; h: number; rot: number; pivotX: number; pivotY: number;
+  grad: 'logTop' | 'logBtm'; endCx: number;
+};
+const LOGS: LogSpec[] = [
+  // bottom crossed pair — darker, sits behind
+  { x: 26, y: 92, w: 68, h: 12, rot: 13, pivotX: 60, pivotY: 98, grad: 'logBtm', endCx: 26 },
+  { x: 26, y: 92, w: 68, h: 12, rot: -13, pivotX: 60, pivotY: 98, grad: 'logBtm', endCx: 94 },
+  // top crossed pair — lighter, sits in front
+  { x: 30, y: 84, w: 60, h: 11, rot: -22, pivotX: 60, pivotY: 89, grad: 'logTop', endCx: 30 },
+  { x: 30, y: 84, w: 60, h: 11, rot: 22, pivotX: 60, pivotY: 89, grad: 'logTop', endCx: 90 },
 ];
 
-/** Simmering and cold sit the bed one unit lower than roaring — the fire has burned down into it. */
+/** Simmering and cold sit the lay one unit lower than roaring — the fire has burned down into it. */
 const COOLED_BED_DROP = 1;
 
 const SPARKS = [
@@ -263,12 +277,12 @@ export function HeatFlame({ heat, size = 132 }: { heat: number; size?: number })
           : ROARING_TONGUES
         : SIMMERING_TONGUES;
 
-  const coalFill = `url(#${id(state === 'roaring' ? 'coalHot' : state === 'simmering' ? 'coalWarm' : 'coalDead')})`;
   const bedDrop = state === 'roaring' ? 0 : COOLED_BED_DROP;
   const ambColour = state === 'roaring' ? '#E0612C' : '#B33A15';
 
-  // The bed's slow pulse (the mock's `.coalpulse`, .85 -> 1). Cold coals are dead — they never
-  // pulse, which is half of what sells "burnt out".
+  // The ember glow's slow pulse (the mock's `.coalpulse`, .85 -> 1). Drives the smoulder in the log
+  // gaps, not the logs themselves — wood does not flicker. Cold has no glow at all, so it never
+  // pulses, which is half of what sells "burnt out".
   const coalPulse = useSharedValue(1);
   useEffect(() => {
     if (still || state === 'cold') {
@@ -314,47 +328,61 @@ export function HeatFlame({ heat, size = 132 }: { heat: number; size?: number })
         <Tongue key={spec.d} spec={spec} size={size} still={still} />
       ))}
 
-      {/* The coal bed, drawn OVER the tongues exactly as the mock stacks it — the licks rise out
-          from behind the coals, which is what roots them to the ground instead of floating. */}
-      <Animated.View style={[StyleSheet.absoluteFill, coalStyle]} pointerEvents="none">
+      {/* The log lay, drawn OVER the tongue bases exactly as the coal bed was — the licks rise out
+          from behind the wood, which roots them to the ground instead of floating. Static: wood
+          does not flicker (the smoulder below does). */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <Svg width={size} height={size} viewBox={`0 0 ${VB} ${VB}`}>
           <Defs>
-            <RadialGradient id={id('coalHot')} cx="50%" cy="35%" r="75%">
-              <Stop offset="0" stopColor="#FFD27A" />
-              <Stop offset="0.45" stopColor="#F2A33C" />
-              <Stop offset="1" stopColor="#6e2610" />
-            </RadialGradient>
-            <RadialGradient id={id('coalWarm')} cx="50%" cy="35%" r="80%">
-              <Stop offset="0" stopColor="#F2A33C" />
-              <Stop offset="0.4" stopColor="#B33A15" />
-              <Stop offset="1" stopColor="#3a1c10" />
-            </RadialGradient>
-            <RadialGradient id={id('coalDead')} cx="50%" cy="35%" r="80%">
-              <Stop offset="0" stopColor="#453f55" />
-              <Stop offset="1" stopColor="#211d2b" />
-            </RadialGradient>
+            <LinearGradient id={id('logTop')} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#6b5a46" />
+              <Stop offset="1" stopColor="#4a3c2e" />
+            </LinearGradient>
+            <LinearGradient id={id('logBtm')} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#5a4b3a" />
+              <Stop offset="1" stopColor="#3b2f24" />
+            </LinearGradient>
           </Defs>
-          <G>
-            {COALS.map((c) => (
-              <Ellipse key={`${c.cx}-${c.cy}`} cx={c.cx} cy={c.cy + bedDrop} rx={c.rx} ry={c.ry} fill={coalFill} />
-            ))}
-            {/* Live embers glinting in the bed (simmering) / ash flecks on dead coals (cold). */}
-            {state === 'simmering' ? (
-              <>
-                <Circle cx={50} cy={103} r={2.4} fill="#FFB84D" />
-                <Circle cx={70} cy={104} r={2} fill="#FF8A3D" />
-              </>
-            ) : null}
-            {state === 'cold' ? (
-              <>
-                <Circle cx={52} cy={101} r={1.3} fill="#6b6480" />
-                <Circle cx={66} cy={103} r={1.1} fill="#6b6480" />
-                <Circle cx={60} cy={99} r={1.2} fill="#5a5470" />
-              </>
-            ) : null}
-          </G>
+          {/* ground contact shadow */}
+          <Ellipse cx={60} cy={104 + bedDrop} rx={34} ry={7} fill="#000000" opacity={0.28} />
+          {LOGS.map((l) => (
+            <G key={`${l.grad}-${l.endCx}`} rotation={l.rot} origin={`${l.pivotX}, ${l.pivotY + bedDrop}`}>
+              <Rect x={l.x} y={l.y + bedDrop} width={l.w} height={l.h} rx={l.h / 2} fill={`url(#${id(l.grad)})`} />
+              {/* End-grain rings on the cut face. Fine detail — dropped below 70px, where the
+                  valley renders a dozen of these and the four logs carry the read on their own. */}
+              {size >= 70 ? (
+                <>
+                  <Ellipse cx={l.endCx} cy={l.y + l.h / 2 + bedDrop} rx={l.h * 0.34} ry={l.h / 2} fill="#8a7860" />
+                  <Ellipse cx={l.endCx} cy={l.y + l.h / 2 + bedDrop} rx={l.h * 0.17} ry={l.h / 4} fill="#53432f" />
+                </>
+              ) : null}
+            </G>
+          ))}
+          {/* Cold: a couple of ash flecks on the wood. */}
+          {state === 'cold' ? (
+            <>
+              <Circle cx={54} cy={97 + bedDrop} r={1.3} fill="#6b6480" />
+              <Circle cx={66} cy={99 + bedDrop} r={1.1} fill="#5a5470" />
+            </>
+          ) : null}
         </Svg>
-      </Animated.View>
+      </View>
+
+      {/* Lit: embers smouldering in the log gaps, pulsing (the old coal-bed glow, relocated). Cold
+          has none — that absence is the "burnt out" signal. */}
+      {state !== 'cold' ? (
+        <Animated.View style={[StyleSheet.absoluteFill, coalStyle]} pointerEvents="none">
+          <Svg width={size} height={size} viewBox={`0 0 ${VB} ${VB}`}>
+            <Defs>
+              <RadialGradient id={id('logGlow')} cx="50%" cy="50%" r="50%">
+                <Stop offset="0" stopColor={state === 'roaring' ? '#FFD27A' : '#F2A33C'} stopOpacity={state === 'roaring' ? 0.9 : 0.6} />
+                <Stop offset="1" stopColor="#F2A33C" stopOpacity={0} />
+              </RadialGradient>
+            </Defs>
+            <Ellipse cx={60} cy={95 + bedDrop} rx={18} ry={9} fill={`url(#${id('logGlow')})`} />
+          </Svg>
+        </Animated.View>
+      ) : null}
 
       {/* Roaring throws sparks; cold pushes smoke. Simmering does neither — it just glows. */}
       {state === 'roaring'

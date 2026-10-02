@@ -5,23 +5,21 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BurningName } from '@/components/burning-name';
 import { ScreenBackground } from '@/components/ui/screen-background';
 
-import { EquippedAvatarHalo, EquippedCardBackdrop, useAuraTier } from '@/components/economy/applied-art';
+import { useAuraTier } from '@/components/economy/applied-art';
 import { EquippedTitle, PublicTitle } from '@/components/economy/loadout-bits';
-import { FlareAura, publicBannerStyle } from '@/components/economy/public-identity';
+import { HeroRankStrip, ProfileHero } from '@/components/economy/profile-hero';
 import { BioEditor } from '@/components/profile/bio-editor';
 import { CollectionEntry } from '@/components/profile/collection-entry';
 import { DisciplineRelicTracker } from '@/components/profile/discipline-relic-tracker';
+import { ProfileShowcase } from '@/components/profile/profile-showcase';
 import { JournalSection } from '@/components/profile/journal-section';
 import { TrophyHallSection } from '@/components/profile/trophy-hall-section';
 import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { useActiveSession } from '@/lib/active-session-context';
-import { useEquipped, useLoadout } from '@/lib/economy/loadout';
-import { RankBadge } from '@/components/rank-badge';
-import { ProgressBar } from '@/components/ui/progress-bar';
+import { useLoadout } from '@/lib/economy/loadout';
 import { TabHeader } from '@/components/ui/tab-header';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -33,14 +31,12 @@ import { RankMuted } from '@/components/rank-muted';
 import { fetchMyLockInStats, fetchProfileById, fetchUserLockInStats, fetchUserRank, type UserRank } from '@/lib/api/profile';
 import { formatSessionDuration, pluralize } from '@/lib/format';
 import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
-import { formatRankTier, formatXpProgress, xpProgressRatio } from '@/lib/rank-tiers';
 import type { MyRank, Profile } from '@/types/database';
 
 // The avatar's own diameter — which is exactly what EquippedAvatarHalo's `size` means. It adds
-// the ring's reach on top itself, so passing the padded box here made the halo hug a phantom
-// 72px face and inflate its box to ~102px, bleeding past the identity block. One constant now
-// feeds both the halo and the image style, so the two cannot drift apart again.
-const AVATAR_SIZE = 60;
+// the ring's reach on top itself, so passing a padded box here makes the halo hug a phantom face
+// and bleed past the identity block. 66 is mock 248's face disc inside its 92px halo.
+const AVATAR_SIZE = 66;
 
 // design-mocks/15 (PHILOI_UI_SPEC.md §18). Doubles as the "Profile" tab (own profile, no
 // params) and a pushed view of someone else's profile (?userId=...) — no other screen
@@ -59,16 +55,12 @@ export default function ProfileScreen() {
   // cosmetics "need a public read that doesn't exist yet" — get_public_loadouts (migration 0065)
   // has existed since, so a visitor now sees exactly what that person equipped instead of a stock
   // card wearing nothing.
-  const myCard = useEquipped('card');
-  const myHalo = useEquipped('halo');
   const publicLoadouts = usePublicLoadouts([isOwn ? null : userIdParam]);
   const theirs = !isOwn && userIdParam ? publicLoadouts[userIdParam] : undefined;
-  const cardId = isOwn ? myCard?.id : theirs?.card?.id;
-  const haloId = isOwn ? myHalo?.id : theirs?.halo?.id;
 
   // 🐛 TWO EQUIPPED SLOTS NEVER REACHED THIS HERO (device smoke 2026-09-23 — "background cosmetic
-  // didn't land, avatar rings didn't land"). The card and the halo above were wired; the BANNER and
-  // the FLARE were not, on either branch. friend-profile.tsx has drawn both since it shipped — so
+  // didn't land, avatar rings didn't land"). The card and the halo were wired; the BANNER and the
+  // FLARE were not, on either branch. friend-profile.tsx has drawn both since it shipped — so
   // the one screen that never showed you your own banner or your own flare was your own profile,
   // while every visitor to it saw them. Same resolved loadout for both branches, so the two screens
   // cannot drift apart again.
@@ -129,6 +121,17 @@ export default function ProfileScreen() {
 
   if (!profile) return null;
 
+  // The rank the strip draws, or null when there is none to draw (not loaded, or muted to you).
+  const visibleRank =
+    universalRank && !('muted' in universalRank && universalRank.muted) && universalRank.tier !== null
+      ? {
+          tier: universalRank.tier,
+          division: universalRank.division ?? 0,
+          xp_into_tier: universalRank.xp_into_tier ?? 0,
+          xp_for_next_tier: universalRank.xp_for_next_tier ?? 0,
+        }
+      : null;
+
   // Recently-used goal types, most recent first, deduped — "recent goal types used" is real
   // and derivable from lock-in history now that goals aren't a persisted per-user list. For
   // someone else's restricted profile, recentLockIns comes back empty, so this — and the
@@ -164,87 +167,66 @@ export default function ProfileScreen() {
         </View>
       )}
       <ScrollView contentContainerStyle={styles.container}>
-        {/* The identity block wearing the equipped loadout — the card's real TEXTURE behind it and
-            the halo's real ring around the avatar, not the flat colours these used to be (§2).
-            Both fall back to the starter items every account is seeded with at signup, so this is
-            never a bare surface even for someone who has never opened the shop. */}
-        {/* The Banner is a MAT around the card rather than a layer under it: the card backdrop
-            paints its own texture edge to edge, so a banner behind it would be equipped and
-            invisible. Nothing renders when the slot is empty — publicBannerStyle returns undefined
-            and `styles.hero` is bare padding — so an account that has never opened the shop sees
-            the card exactly where it has always been. */}
-        <View style={[styles.hero, publicBannerStyle(heroLoadout)]}>
-        <EquippedCardBackdrop cardId={cardId} auraTier={auraTier}>
-        <View style={styles.id}>
-          <View style={styles.avatarStack}>
-            {/* Full motion, not `reduced`: this is one avatar on a screen that doesn't scroll
-                under it, which is the case FlareAura's animated branch exists for. */}
-            <FlareAura loadout={heroLoadout} size={AVATAR_SIZE} motion="full" />
-            <EquippedAvatarHalo haloId={haloId} size={AVATAR_SIZE} auraTier={auraTier}>
-              {profile.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.avatarInitial}>{profile.display_name.charAt(0).toUpperCase()}</Text>
-                </View>
-              )}
-            </EquippedAvatarHalo>
-          </View>
-          <View style={styles.idInfo}>
-            <BurningName userId={viewingUserId} style={styles.name} licks>
-              {profile.display_name}
-            </BurningName>
-            <Text style={styles.handle}>@{profile.handle}</Text>
-            {/* `EquippedTitle` reads the signed-in user's store, so `enabled={isOwn}` could only
-                ever show YOUR title or nothing — on someone else's profile it structurally rendered
-                blank. Their title comes off the public loadout this screen already fetched. */}
-            {isOwn ? <EquippedTitle /> : <PublicTitle loadout={theirs ?? {}} />}
-            {profile.university && (
-              <Pressable onPress={() => router.push('/university-leaderboard')}>
-                <View style={styles.uniRow}>
-                  <Ionicons name="location" size={11} color={Colors.textTertiary} />
-                  {/* "— N here" retired (§1): a dead photo-era metric. The count answered "how
-                      many classmates are on Philoi", which mattered when the campus feed was the
-                      product and means nothing beside a rank strip. */}
-                  <Text style={styles.uniText}>{profile.university}</Text>
-                </View>
-              </Pressable>
-            )}
-            {/* §3 — the bio. Editable in place on your own profile; on someone else's it renders
-                only when they wrote one, so an empty bio is absent rather than an empty slot. */}
-            {isOwn ? (
-              <Pressable onPress={() => setBioDraft(profile.bio ?? '')} hitSlop={6}>
-                <Text style={[styles.bio, !profile.bio && styles.bioEmpty]} numberOfLines={2}>
-                  {profile.bio || '＋ add a bio'}
-                </Text>
-              </Pressable>
-            ) : profile.bio ? (
-              <Text style={styles.bio} numberOfLines={2}>
-                {profile.bio}
+        {/* THE PROFILE COMPOSITE (mock 248) — flare border, banner mat, card, the PERSON ringed by
+            their halo, burning name, title, and the rank strip with the season chip, all inside one
+            card. ProfileHero is the same component the loadout preview and the inventory header
+            draw, so an equip there lands here identically: both read the one loadout store.
+            Everything falls back to the starter items every account is seeded with at signup, so
+            this is never a bare surface even for someone who has never opened the shop. */}
+        <ProfileHero
+          userId={viewingUserId}
+          name={profile.display_name}
+          handle={profile.handle}
+          avatarUrl={profile.avatar_url}
+          loadout={heroLoadout}
+          avatarSize={AVATAR_SIZE}
+          auraTier={auraTier}
+          // `EquippedTitle` reads the signed-in user's store, so on someone else's profile it would
+          // structurally render blank — their title comes off the public loadout fetched above.
+          title={isOwn ? <EquippedTitle /> : <PublicTitle loadout={theirs ?? {}} />}
+          // 0170 · Private mode. `universalRank` is a MyRank from useMyRanks on your own profile and
+          // your own rank is never muted to you; a muted one renders RankMuted under the card.
+          footer={visibleRank ? <HeroRankStrip rank={visibleRank} /> : null}>
+          {profile.university && (
+            <Pressable onPress={() => router.push('/university-leaderboard')}>
+              <View style={styles.uniRow}>
+                <Ionicons name="location" size={11} color={Colors.textTertiary} />
+                <Text style={styles.uniText}>{profile.university}</Text>
+              </View>
+            </Pressable>
+          )}
+          {/* §3 — the bio. Editable in place on your own profile; on someone else's it renders
+              only when they wrote one, so an empty bio is absent rather than an empty slot. */}
+          {isOwn ? (
+            <Pressable onPress={() => setBioDraft(profile.bio ?? '')} hitSlop={6}>
+              <Text style={[styles.bio, !profile.bio && styles.bioEmpty]} numberOfLines={2}>
+                {profile.bio || '＋ add a bio'}
               </Text>
-            ) : null}
-          </View>
-        </View>
-        </EquippedCardBackdrop>
-        </View>
+            </Pressable>
+          ) : profile.bio ? (
+            <Text style={styles.bio} numberOfLines={2}>
+              {profile.bio}
+            </Text>
+          ) : null}
+        </ProfileHero>
 
-        {/* 0170 · Private mode. Only reachable on SOMEONE ELSE's profile — `universalRank` is a
-            MyRank from useMyRanks when this is your own, and your own rank is never muted to you
-            (can_see_rank returns true for self before it looks at anything else). */}
+        {/* Own profile only: the door into the loadout picker (mock 250), right under the thing it
+            edits. */}
+        {isOwn ? (
+          <Pressable
+            style={styles.loadoutLink}
+            onPress={() => router.push('/loadout')}
+            accessibilityRole="button"
+            accessibilityLabel="Edit loadout">
+            <Ionicons name="color-wand-outline" size={13} color={Colors.achieverText} />
+            <Text style={styles.loadoutLinkText}>Edit loadout</Text>
+          </Pressable>
+        ) : null}
+
         {universalRank && 'muted' in universalRank && universalRank.muted && <RankMuted />}
 
-        {universalRank && !('muted' in universalRank && universalRank.muted) && (
-          <View style={styles.rank}>
-            <RankBadge tier={universalRank.tier} division={universalRank.division} size={40} />
-            <View style={styles.rk}>
-              <View style={styles.rkTop}>
-                <Text style={styles.rkTier}>{formatRankTier(universalRank.tier, universalRank.division)}</Text>
-                <Text style={styles.rkXp}>{formatXpProgress(universalRank.xp_into_tier, universalRank.xp_for_next_tier)}</Text>
-              </View>
-              <ProgressBar ratio={xpProgressRatio(universalRank.xp_into_tier, universalRank.xp_for_next_tier)} />
-            </View>
-          </View>
-        )}
+        {/* Mock 248's Showcase — chosen medals + relics on a shelf directly under the card. */}
+        {hall && viewingUserId ? <ProfileShowcase hall={hall} userId={viewingUserId} /> : null}
 
         {/* #204 · Discipline relics, as a PEER of rank: a rung, a bar and the number to the next
             one, directly under the strip that does the same for XP. Outside the rank-muted gate on
@@ -280,7 +262,7 @@ export default function ProfileScreen() {
         ) : null}
 
         {/* §4: earned proof of status. Below the Journal on purpose — the human layer leads. */}
-        {hall && viewingUserId ? <TrophyHallSection hall={hall} userId={viewingUserId} isOwn={isOwn} /> : null}
+        {hall && viewingUserId ? <TrophyHallSection hall={hall} userId={viewingUserId} isOwn={isOwn} showFeatured={false} /> : null}
 
         {recentGoalTypes.length > 0 && (
           <View style={styles.goals}>
@@ -387,6 +369,20 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Mock 250's entry point — quiet, right-aligned under the card it edits.
+  loadoutLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 4,
+    marginTop: Spacing.two,
+    paddingVertical: 2,
+  },
+  loadoutLinkText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.achieverText,
+  },
   bio: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
@@ -420,57 +416,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
   },
-  // The Banner's mat. Thin on purpose — the padding is the only place the banner's colour is
-  // visible, since the card fills everything inside it, and with no banner equipped this is an
-  // invisible 4px inset that leaves the card exactly where it has always sat.
-  hero: {
-    padding: 4,
-    borderRadius: Radius.card + 4,
-  },
-  // Padded INSIDE the equipped card rather than nudged down by a top margin: the card clips to
-  // its own bounds, so a margin only pushed the row off-centre and left the name flush against
-  // the border. The gap is 12 rather than 16 because the halo already carries its own ring reach
-  // as whitespace — 16 on top of that read as a hole between the face and the name.
-  id: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.twelve,
-    padding: Spacing.twelve,
-  },
-  // Centres the flare behind the halo, exactly as CosmeticAvatar stacks the same pair.
-  avatarStack: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  idInfo: {
-    flex: 1,
-    gap: 1,
-  },
-  avatar: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-  },
-  avatarFallback: {
-    backgroundColor: Colors.achieverBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontFamily: Fonts.display,
-    fontSize: 24,
-    color: Colors.ember,
-  },
-  name: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 18,
-    color: Colors.ink,
-  },
-  handle: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.muted,
-  },
   uniRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -481,39 +426,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     color: Colors.textTertiary,
-  },
-  editProfileLink: {
-    fontFamily: Fonts.bodyBold,
-    color: Colors.coral,
-    fontSize: 14,
-    marginTop: Spacing.two,
-  },
-  rank: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    marginTop: 14,
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 12,
-  },
-  rk: {
-    flex: 1,
-  },
-  rkTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  rkTier: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.ink,
-  },
-  rkXp: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
   },
   goals: {
     flexDirection: 'row',

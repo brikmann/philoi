@@ -6,17 +6,16 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CampusVerification, CampusVerifiedPanel } from '@/components/campus-verification';
 import { DEFAULT_HEIGHT_CM, HeightRuler } from '@/components/onboarding/height-ruler';
 import { DEFAULT_WEIGHT_KG, WeightRuler, type WeightUnit } from '@/components/onboarding/weight-ruler';
-import { RankVisibilityPicker } from '@/components/rank-visibility-picker';
-import { OnboardingProgress } from '@/components/ui/onboarding-progress';
+import { FirstRunSpine, SPINE_ROW_HEIGHT } from '@/components/tutorial/first-run-spine';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversities } from '@/lib/api/groups';
-import { rankVisibilityOf, setRankVisibility } from '@/lib/api/privacy';
 import { setMyHeightCm, setMyWeightKg } from '@/lib/api/relics';
 import { getErrorMessage } from '@/lib/errors';
+import { markOnboardingDone } from '@/lib/onboarding';
 import { supabase } from '@/lib/supabase';
 import {
   findCachedUniversity,
@@ -25,7 +24,6 @@ import {
   sampleEmailFor,
   shortSchoolName,
 } from '@/lib/universities';
-import type { RankVisibility } from '@/types/database';
 
 const CONSENT_VERSION = '2026-06-30';
 const PRIVACY_URL = 'https://philoi.app/privacy.html';
@@ -40,13 +38,32 @@ function normalizeHandle(input: string) {
 
 type Availability = 'idle' | 'checking' | 'available' | 'taken';
 
-// design-mocks/17-onboarding.html — all the onboarding steps (username, school, height, weight,
-// campus, rank visibility, consent) live on this one screen, gated while `needsHandle || needsConsent` is true (see
+// design-mocks/17-onboarding.html, reordered by design-mocks/239-tutorial-unified.html — all the
+// onboarding steps live on this one screen, gated while `needsHandle || needsConsent` is true (see
 // _layout.tsx). Keeping them in one component (rather than one route per step) is what lets
 // Back actually work: it's just local `step` state, not navigation across a gate boundary a
 // user shouldn't be able to re-enter once past it.
 //
-// Step 3 is the OPTIONAL height estimate (design-mocks/128). Migration 0119 shipped the whole
+// ─────────────────────────── THE ORDER (mock 239) ───────────────────────────
+//
+//   1 username + display name, with the 18+/Terms consent folded into the bottom
+//   2 height (optional)   3 weight (optional)   4 where you study   5 verify campus (optional)
+//
+// Verify is LAST so the heaviest step hands straight on into the tour, and setup is the first half
+// of one run: same ScreenBackground as tutorial.tsx, same FirstRunSpine reading `SETUP n / 5` where
+// the tour's reads `TOUR n / 20`.
+//
+// 🔴 CONSENT IS ASKED ON STEP 1 BUT WRITTEN LAST. `has_consented` is what releases this gate — the
+// moment it is true, _layout's Stack.Protected drops this screen and the tutorial gate takes over.
+// Writing it when step 1 is ticked would eject the user at the next profile refresh (step 1's own
+// handle write) with height, weight, school and campus never asked. So step 1 only REQUIRES the two
+// ticks; `enterPhiloi` writes them, from whichever step turns out to be the last one.
+//
+// The old standalone "Who sees your climb?" step is gone. `profiles.rank_visibility` defaults to
+// 'public' in the column itself (0217), so dropping the screen changes nothing for a new account;
+// the dial still lives in Settings, and the tour's Leaderboard card says so.
+//
+// Step 2 is the OPTIONAL height estimate (design-mocks/128). Migration 0119 shipped the whole
 // server half of this — the `height_cm` column, `stride_m_for` (height/100 × 0.42, falling back to
 // a 0.75 m adult average) and the `set_my_height_cm` RPC — and its own header says "until the
 // onboarding step collects one". Nothing ever did: `setMyHeightCm` in lib/api/relics.ts had zero
@@ -54,7 +71,7 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 // didn't render" was simply a step that had never been built. Skippable by design, because the
 // fallback is a real answer and the distance relic must not be gated behind a measurement.
 //
-// Step 4 is the OPTIONAL weight estimate (design-mocks/188) — the other half of the same
+// Step 3 is the OPTIONAL weight estimate (design-mocks/188) — the other half of the same
 // question, and the one DIFFICULTY_SCOPING.md §"Fitness is IPSATIVE" has been waiting on. Height
 // feeds a stride; weight is the DENOMINATOR Cindy scores a load goal against, so "squat 300" is
 // read as ~1.9× a 160 lb lifter rather than as 300 raw pounds. Until this step existed the
@@ -64,20 +81,19 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 //
 // Step 5 is the OPTIONAL campus verification (UNI_VERIFICATION_SPEC.md §5). It's skipped
 // entirely — not shown, not counted — when the chosen school has no known email domain, since
-// there's nothing to send a code to. Never a blocker either way: skipping just leaves the two
-// campus boards locked.
-//
-// Step 6 is the season rank dial (CODE_PROMPT_season_privacy.md, migration 0217): Public ·
-// Friends · Private, Public preselected. Asked here, deliberately, rather than discovered later in
-// Settings — it is the one choice on this screen about how the app FEELS to use, and someone who
-// wants the quiet version should never have to sit through a week of the loud one first. Continue
-// on the preselected default is the skip. It comes before consent because consent is what lets the
-// user out of this gate.
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+// there's nothing to send a code to; step 4's CTA then enters Philoi directly. Never a blocker
+// either way: skipping just leaves the two campus boards locked.
+type Step = 1 | 2 | 3 | 4 | 5;
+
+/** The full run. A school with no domain drops it to 4 the moment that is known (step 4). */
+const SETUP_STEPS = 5;
 
 export default function SetupHandleScreen() {
   const { session, profile, refreshProfile } = useAuth();
-  const [step, setStep] = useState<Step>(profile?.handle ? 6 : 1);
+  // Always step 1, even for a profile that already has a handle: the only account that reaches
+  // this screen with one is a half-finished setup, and step 1 is where its consent is asked now.
+  // The handle and name are pre-filled, so it costs one tap.
+  const [step, setStep] = useState<Step>(1);
 
   const [handle, setHandle] = useState(profile?.handle ?? '');
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
@@ -111,8 +127,6 @@ export default function SetupHandleScreen() {
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(profile?.weight_unit ?? 'lb');
   const [weightTouched, setWeightTouched] = useState(false);
 
-  const [rankVisibility, setRankVisibilityChoice] = useState<RankVisibility>(rankVisibilityOf(profile));
-
   const [ageChecked, setAgeChecked] = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
 
@@ -145,15 +159,22 @@ export default function SetupHandleScreen() {
   }, [handle, session]);
 
   const normalizedHandle = normalizeHandle(handle);
-  const canContinueStep1 = normalizedHandle.length >= 3 && availability !== 'taken' && displayName.trim().length > 0;
+  // The consent gate is ASKED here (step 1) and written at the end — see the header.
+  const consentChecked = ageChecked && termsChecked;
+  const canContinueStep1 =
+    normalizedHandle.length >= 3 && availability !== 'taken' && displayName.trim().length > 0 && consentChecked;
 
   const filteredUniversities = universities.filter((u) => u.toLowerCase().includes(universityQuery.toLowerCase()));
   // "not listed" fallback (PHILOI_UI_SPEC.md §21) — a school not yet seeded in the canonical
   // table can still be saved as free text rather than blocking onboarding.
   const notListed = universityQuery.trim().length > 0 && !universities.some((u) => u.toLowerCase() === universityQuery.trim().toLowerCase());
-  const canContinueStep2 = Boolean(university) || notListed;
-  // The consent gate, on the last step — the two body-metric steps in between validate nothing.
-  const canFinish = ageChecked && termsChecked;
+  // Not while the domain is still resolving: whether step 5 exists depends on the answer, and
+  // continuing early would skip verification for a school that has a domain.
+  const canContinueStudy = (Boolean(university) || notListed) && !resolvingDomain;
+  /** Step 4 is the last step when there is nothing to verify against. */
+  const studyIsLast = !(university && universityDomain);
+  // Only once a school is actually chosen on step 4 — before that, "no domain" just means "not asked yet".
+  const setupTotal = step === 4 && studyIsLast && (university || notListed) ? SETUP_STEPS - 1 : SETUP_STEPS;
 
   // Strictly the live server flag (punchlist 6 §1) — there is no local "just verified" state to
   // go stale. The school has to match too: the flag on the profile belongs to the school stored
@@ -188,21 +209,20 @@ export default function SetupHandleScreen() {
     }
   }
 
-  async function handleContinueStep2() {
+  /**
+   * Save the handle and name, then on to height.
+   *
+   * Written HERE rather than with the school (where it used to ride) so a handle taken in the
+   * meantime is reported on the step that owns the field, not three screens later. Safe to write
+   * this early: it clears `needsHandle`, but `needsConsent` still holds the gate shut until
+   * `enterPhiloi`.
+   */
+  async function handleContinueStep1() {
     setLoading(true);
     setError(null);
-    const resolvedUniversity = university ?? (universityQuery.trim() || null);
-    // A free-text "not listed" school has no canonical domain, so it saves as null — verifiable
-    // later only if it's added to the cache or Hipolabs knows it.
-    const domain = university ? universityDomain : null;
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({
-        handle: normalizedHandle,
-        display_name: displayName.trim(),
-        university: resolvedUniversity,
-        university_domain: domain,
-      })
+      .update({ handle: normalizedHandle, display_name: displayName.trim() })
       .eq('id', session!.user.id);
 
     if (updateError) {
@@ -213,13 +233,33 @@ export default function SetupHandleScreen() {
 
     await refreshProfile();
     setLoading(false);
-    // Height is next for everyone — it depends on nothing and gates nothing.
-    setStep(3);
+    setStep(2);
   }
 
-  /** Where the weight step leads. No domain → nothing to verify against, so don't show a step
-   * that can only dead-end. Height always leads to weight: the two are one question. */
-  const afterWeight: Step = universityDomain ? 5 : 6;
+  /** Save the school, then verify it — or, with no domain to verify against, enter Philoi. */
+  async function handleContinueStudy() {
+    setLoading(true);
+    setError(null);
+    const resolvedUniversity = university ?? (universityQuery.trim() || null);
+    // A free-text "not listed" school has no canonical domain, so it saves as null — verifiable
+    // later only if it's added to the cache or Hipolabs knows it.
+    const domain = university ? universityDomain : null;
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ university: resolvedUniversity, university_domain: domain })
+      .eq('id', session!.user.id);
+
+    if (updateError) {
+      setError(updateError.message);
+      setLoading(false);
+      return;
+    }
+
+    await refreshProfile();
+    setLoading(false);
+    if (studyIsLast) await enterPhiloi();
+    else setStep(5);
+  }
 
   /**
    * Save the height and move on.
@@ -245,7 +285,8 @@ export default function SetupHandleScreen() {
         setLoading(false);
       }
     }
-    setStep(4);
+    // Height always leads to weight: the two are one question.
+    setStep(3);
   }
 
   /**
@@ -276,34 +317,16 @@ export default function SetupHandleScreen() {
         setLoading(false);
       }
     }
-    setStep(afterWeight);
+    setStep(4);
   }
 
   /**
-   * Writes the dial only when it differs from what the profile already holds, so the default path
-   * (Public, untouched) costs no round trip. A FAILED write does not advance: silently landing
-   * someone who chose Private on the public board is the one outcome this step exists to prevent.
-   * Public never writes, so it can never be what blocks onboarding.
+   * THE LAST WRITE — the consent ticked on step 1. This is what releases the gate: once the refresh
+   * lands, _layout drops this screen and routes a fresh account into the tour, which wears the same
+   * background and the same spine, so the hand-off reads as one run (mock 239's "Bridge").
    */
-  async function handleContinueRankVisibility(choice: RankVisibility) {
-    setError(null);
-    if (choice !== rankVisibilityOf(profile)) {
-      setLoading(true);
-      try {
-        await setRankVisibility(choice);
-        await refreshProfile();
-      } catch (e) {
-        setError(getErrorMessage(e, "Couldn't save that — try again, or continue with Public and change it in Settings."));
-        return;
-      } finally {
-        setLoading(false);
-      }
-    }
-    setStep(7);
-  }
-
-  async function handleFinish() {
-    if (!canFinish || !session) return;
+  async function enterPhiloi() {
+    if (!consentChecked || !session) return;
     setLoading(true);
     setError(null);
     try {
@@ -316,6 +339,10 @@ export default function SetupHandleScreen() {
         })
         .eq('id', session.user.id);
       if (updateError) throw updateError;
+      // The flag _layout writes the instant this gate opens, written a beat early: its tutorial gate
+      // waits on it, so having it already set is one fewer async hop spent on Home between the last
+      // setup step and the first tour card.
+      await markOnboardingDone().catch(() => {});
       await refreshProfile();
     } catch (e) {
       setError(getErrorMessage(e, 'Could not save your consent — try again.'));
@@ -329,7 +356,11 @@ export default function SetupHandleScreen() {
       {/* Six segments only when verification is actually on this user's path — a school with no
           domain never sees that step, so showing a sixth dot would promise one that never comes.
           Both body-metric steps are on everyone's path, so they always count. */}
-      <OnboardingProgress step={step} total={universityDomain ? 7 : 6} />
+      {/* The same spine the tour draws (mock 239 "ONE SPINE"). Five until a school is picked that has
+          no domain — at which point the verify step is known not to exist and stops being promised. */}
+      <View style={styles.spineRow}>
+        <FirstRunSpine total={setupTotal} filled={step} label={`SETUP ${step} / ${setupTotal}`} />
+      </View>
 
       {step === 1 && (
         <View style={styles.step}>
@@ -369,10 +400,44 @@ export default function SetupHandleScreen() {
               maxLength={40}
             />
           </View>
+
+          {/* The consent gate, folded in (mock 239). Required to continue; WRITTEN at the end — see
+              the header for why it cannot be written here. */}
+          <View style={styles.consentBlock}>
+            <Pressable style={styles.agree} onPress={() => setAgeChecked((v) => !v)} accessibilityRole="checkbox" accessibilityState={{ checked: ageChecked }}>
+              <View style={[styles.box, ageChecked && styles.boxOn]}>
+                {ageChecked && <Text style={styles.check}>✓</Text>}
+              </View>
+              <Text style={styles.agreeLabel}>
+                I confirm I am <Text style={styles.bold}>18 years of age or older</Text>
+              </Text>
+            </Pressable>
+
+            <Pressable style={styles.agree} onPress={() => setTermsChecked((v) => !v)} accessibilityRole="checkbox" accessibilityState={{ checked: termsChecked }}>
+              <View style={[styles.box, termsChecked && styles.boxOn]}>
+                {termsChecked && <Text style={styles.check}>✓</Text>}
+              </View>
+              <Text style={styles.agreeLabel}>
+                I agree to the{' '}
+                <Text style={styles.link} onPress={() => Linking.openURL(TERMS_URL)}>
+                  Terms
+                </Text>{' '}
+                &amp;{' '}
+                <Text style={styles.link} onPress={() => Linking.openURL(PRIVACY_URL)}>
+                  Privacy Policy
+                </Text>
+              </Text>
+            </Pressable>
+
+            <Text style={styles.note}>
+              We store your lock-ins, streaks and photos to run your campfires — and never sell your data. Camera and
+              notifications are asked for later, in context.
+            </Text>
+          </View>
         </View>
       )}
 
-      {step === 2 && (
+      {step === 4 && (
         <View style={styles.step}>
           <Text style={styles.h}>Where do you study?</Text>
           <Text style={styles.sub}>So we can group your campus and classes.</Text>
@@ -458,7 +523,7 @@ export default function SetupHandleScreen() {
           it estimates a stride so walking can be scored in kilometres — and never as a
           requirement, because the server has a perfectly good default for anyone who walks past
           it. Mock 188 names the second use too, so the pair of steps reads as one question. */}
-      {step === 3 && (
+      {step === 2 && (
         <View style={styles.step}>
           <Text style={styles.h}>How tall are you?</Text>
           <Text style={styles.sub}>
@@ -490,7 +555,7 @@ export default function SetupHandleScreen() {
           rather than what we do with it, because the honest objection to being asked your weight
           is "why do you want it", and DIFFICULTY_SCOPING.md is explicit that this ethos has to be
           said out loud everywhere goal-setting happens rather than buried in a privacy policy. */}
-      {step === 4 && (
+      {step === 3 && (
         <View style={styles.step}>
           <Text style={styles.h}>And your weight?</Text>
           <Text style={styles.sub}>
@@ -531,78 +596,28 @@ export default function SetupHandleScreen() {
         </View>
       )}
 
-      {/* OPTIONAL campus verification (§5). Only ever reached when the school has a domain. */}
+      {/* OPTIONAL campus verification (§5) — the LAST step. Only ever reached when the school has a
+          domain; every way out of it (verified, already verified, skipped) enters Philoi. */}
       {step === 5 && university && universityDomain && (
         <View style={styles.step}>
           {campusVerified ? (
             <CampusVerifiedPanel
               university={shortSchoolName(university)}
-              onContinue={() => setStep(6)}
-              continueLabel="Continue"
+              onContinue={() => void enterPhiloi()}
+              continueLabel="Enter Philoi →"
             />
           ) : (
             <CampusVerification
               university={shortSchoolName(university)}
               domain={universityDomain}
-              verifyCtaLabel="Verify & unlock My Uni"
-              onSkip={() => setStep(6)}
+              verifyCtaLabel="Verify & enter Philoi →"
+              onSkip={() => void enterPhiloi()}
               onVerified={async () => {
                 await refreshProfile();
+                await enterPhiloi();
               }}
             />
           )}
-        </View>
-      )}
-
-      {step === 6 && (
-        <View style={styles.step}>
-          <Text style={styles.h}>Who sees your climb?</Text>
-          <Text style={styles.sub}>Every season has a leaderboard. Choose how you want to be on it.</Text>
-
-          <RankVisibilityPicker value={rankVisibility} onChange={setRankVisibilityChoice} disabled={loading} />
-
-          <Text style={styles.note}>You can change this any time in Settings.</Text>
-        </View>
-      )}
-
-      {step === 7 && (
-        <View style={styles.step}>
-          <Text style={styles.h}>One last thing</Text>
-          <Text style={styles.sub}>Then you&apos;re in.</Text>
-
-          <View style={styles.consent}>
-            <Text style={styles.consentText}>
-              Philoi stores your lock-ins, streaks, and photos to run your campfires with your friends. We never
-              sell your data.
-            </Text>
-          </View>
-
-          <Pressable style={styles.agree} onPress={() => setAgeChecked((v) => !v)}>
-            <View style={[styles.box, ageChecked && styles.boxOn]}>
-              {ageChecked && <Text style={styles.check}>✓</Text>}
-            </View>
-            <Text style={styles.agreeLabel}>
-              I confirm I am <Text style={styles.bold}>18 years of age or older</Text>
-            </Text>
-          </Pressable>
-
-          <Pressable style={styles.agree} onPress={() => setTermsChecked((v) => !v)}>
-            <View style={[styles.box, termsChecked && styles.boxOn]}>
-              {termsChecked && <Text style={styles.check}>✓</Text>}
-            </View>
-            <Text style={styles.agreeLabel}>
-              I agree to the{' '}
-              <Text style={styles.link} onPress={() => Linking.openURL(TERMS_URL)}>
-                Terms
-              </Text>{' '}
-              &amp;{' '}
-              <Text style={styles.link} onPress={() => Linking.openURL(PRIVACY_URL)}>
-                Privacy Policy
-              </Text>
-            </Text>
-          </Pressable>
-
-          <Text style={styles.note}>Camera and notifications are asked for later, in context — not now.</Text>
         </View>
       )}
 
@@ -615,40 +630,23 @@ export default function SetupHandleScreen() {
           shared CTA. */}
       <View style={styles.nav}>
         {step > 1 && (
-          <Pressable
-            style={styles.back}
-            onPress={() =>
-              // Step 5 only exists for a school with a domain, so stepping back from the rank dial
-              // has to skip over it when there isn't one — otherwise Back lands on a blank screen.
-              setStep((s) => (s === 6 && !universityDomain ? 4 : ((s - 1) as Step)))
-            }>
+          <Pressable style={styles.back} onPress={() => setStep((s) => (s - 1) as Step)}>
             <Text style={styles.backLabel}>Back</Text>
           </Pressable>
         )}
         {step !== 5 && (
           <View style={styles.nextWrap}>
             <PrimaryButton
-              label={step === 7 ? 'Enter Philoi' : 'Continue'}
+              label={step === 4 && studyIsLast ? 'Enter Philoi →' : 'Continue'}
               loading={loading}
-              // Steps 3, 4 and 6 have nothing to validate — every position on either ruler is inside
-              // its column's range by construction, and the rank dial always holds one of its three
-              // values — so none of them is ever disabled.
-              disabled={
-                step === 1
-                  ? !canContinueStep1
-                  : step === 2
-                    ? !canContinueStep2
-                    : step === 3 || step === 4 || step === 6
-                      ? false
-                      : !canFinish
-              }
+              // Steps 2 and 3 have nothing to validate — every position on either ruler is inside
+              // its column's range by construction — so neither is ever disabled.
+              disabled={step === 1 ? !canContinueStep1 : step === 4 ? !canContinueStudy : false}
               onPress={() => {
-                if (step === 1) setStep(2);
-                else if (step === 2) handleContinueStep2();
-                else if (step === 3) handleContinueHeight(true);
-                else if (step === 4) handleContinueWeight(true);
-                else if (step === 6) handleContinueRankVisibility(rankVisibility);
-                else handleFinish();
+                if (step === 1) handleContinueStep1();
+                else if (step === 2) handleContinueHeight(true);
+                else if (step === 3) handleContinueWeight(true);
+                else handleContinueStudy();
               }}
             />
           </View>
@@ -659,10 +657,21 @@ export default function SetupHandleScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Top and sides match tutorial.tsx's spine row exactly, so the spine does not move when the run
+  // hands over from SETUP to TOUR.
   container: {
-    paddingTop: 16,
-    paddingHorizontal: 15,
+    paddingTop: Spacing.two,
+    paddingHorizontal: Spacing.three,
     paddingBottom: 14,
+  },
+  spineRow: {
+    minHeight: SPINE_ROW_HEIGHT,
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  consentBlock: {
+    marginTop: 'auto',
+    paddingTop: Spacing.three,
   },
   step: {
     flex: 1,
@@ -845,18 +854,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.ink,
-  },
-  consent: {
-    backgroundColor: Colors.card,
-    borderRadius: 13,
-    padding: 13,
-    marginBottom: 14,
-  },
-  consentText: {
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.soloChipText,
-    lineHeight: 18.75,
   },
   agree: {
     flexDirection: 'row',

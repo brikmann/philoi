@@ -161,7 +161,7 @@ function LockInStage({ item }: { item: CatalogItem }) {
     <View style={styles.lockin}>
       {flare && (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <FlarePerimeter colour={flare.colour} effect={flare.effect} />
+          <FlarePerimeter colour={flare.colour} effect={flare.effect} bounds="container" />
         </View>
       )}
       <View style={styles.lockinParticles} pointerEvents="none">

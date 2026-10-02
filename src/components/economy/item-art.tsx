@@ -9,10 +9,21 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Ellipse, G, Line, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { CardScene, HaloRing, cardLookFor, haloStyleFor } from '@/components/economy/applied-art';
+import { useCosmeticClock } from '@/components/economy/cosmetic-clock';
+import {
+  SIGNATURE_CYCLE_MS,
+  SignatureLayers,
+  SignatureStill,
+  flareSignature,
+  type SignatureMark,
+} from '@/components/economy/flare-signature';
 import { RelicArt, hasRelicArt } from '@/components/economy/relic-art';
-import type { ArtKind, CatalogItem } from '@/lib/economy/catalog';
+import { useMotionActive } from '@/hooks/use-motion-active';
+import type { ArtKind, CatalogItem, FlareEffect } from '@/lib/economy/catalog';
+import { shade, tint } from '@/lib/economy/colour';
 import { RARITY_COLOR, type Rarity } from '@/lib/economy/rarity';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -73,6 +84,7 @@ export function ItemArt({ item, size = 44, motion = 'auto' }: Props) {
   const { from, to } = tilePalette(item);
   const uid = useId();
   const g = gradientIds(uid);
+  const reducedMotion = useReducedMotion();
 
   // RELICS ARE THE ONE TYPE WHERE THE SILHOUETTE IS THE ITEM, so they are drawn per KEY rather than
   // per kind — see relic-art.tsx. Delegated here rather than at each call site so the reveal, the
@@ -87,11 +99,20 @@ export function ItemArt({ item, size = 44, motion = 'auto' }: Props) {
     );
   }
 
+  // A FLARE tile draws its signature (flare-signature.tsx) — the same marks the flare puts round an
+  // avatar, so the tile is a picture of the profile rather than a generic starburst. The marks move
+  // only where the pedestal itself floats (a hero, a reveal), on the flare's own clock; in a grid,
+  // and in anything captured to an image, they hold their representative still frame.
+  const flare = item.art.kind === 'flare' ? item.flare : undefined;
+  const marks = flare ? flareSignature(flare.effect, flare.colour, { ...FLARE_TILE_FRAME, px: size / 100 }) : [];
+  const liveMarks = marks.length > 0 && floatsAt(size, motion) && !reducedMotion;
+
   return (
     <ItemPedestal
       size={size}
       rarity={item.rarity}
       motion={motion}
+      overlay={liveMarks && flare ? <LiveTileMarks marks={marks} size={size} effect={flare.effect} /> : undefined}
       inline={
         <>
           <Defs>
@@ -109,7 +130,15 @@ export function ItemArt({ item, size = 44, motion = 'auto' }: Props) {
               <Stop offset="1" stopColor={shade(to, 0.35)} />
             </LinearGradient>
           </Defs>
-          {shapeFor(item.art.kind, from, to, g)}
+          {item.art.kind === 'flare' ? (
+            <FlareTile colour={flare?.colour ?? from} to={to} body={`url(#${g.body})`} effect={flare?.effect ?? 'glow'} marks={liveMarks ? [] : marks} />
+          ) : item.art.kind === 'card' ? (
+            <CardTile item={item} from={from} to={to} />
+          ) : item.art.kind === 'halo' ? (
+            <HaloTile item={item} from={from} to={to} />
+          ) : (
+            shapeFor(item.art.kind, from, to, g)
+          )}
         </>
       }
     />
@@ -159,6 +188,7 @@ export function ItemPedestal({
   rarity,
   motion = 'auto',
   inline,
+  overlay,
   children,
 }: {
   size: number;
@@ -166,14 +196,18 @@ export function ItemPedestal({
   motion?: ArtMotion;
   /** SVG nodes, drawn into the pedestal's own <Svg>. */
   inline?: ReactNode;
+  /**
+   * Live layers over `inline` that float WITH it — a flare tile's moving marks. Floating path only;
+   * the still path never animates anything, so a caller only passes this when the pedestal floats.
+   */
+  overlay?: ReactNode;
   /** A whole component with its own <Svg>, layered over the pedestal. */
   children?: ReactNode;
 }) {
   const uid = useId();
   const glowId = `itemGlow-${uid}`;
   const reducedMotion = useReducedMotion();
-  const floats = motion === 'on' || (motion === 'auto' && size >= FLOAT_MIN_SIZE);
-  const active = floats && !reducedMotion;
+  const active = floatsAt(size, motion) && !reducedMotion;
   useFloatClock(active);
 
   const w = size;
@@ -244,12 +278,23 @@ export function ItemPedestal({
         ) : (
           children
         )}
+        {inline && overlay ? (
+          // The 0-100 box is drawn `meet` into a w x h frame, so it is a w x w square centred
+          // vertically — the overlay sits on exactly that square.
+          <View pointerEvents="none" style={[styles.layer, { top: (h - w) / 2, width: w, height: w }]}>
+            {overlay}
+          </View>
+        ) : null}
       </Animated.View>
     </View>
   );
 }
 
 const VIEW_BOX = '0 0 100 100';
+
+function floatsAt(size: number, motion: ArtMotion): boolean {
+  return motion === 'on' || (motion === 'auto' && size >= FLOAT_MIN_SIZE);
+}
 
 /**
  * ONE clock for every floating icon in the app, not one per icon.
@@ -294,30 +339,6 @@ function gradientIds(uid: string) {
 }
 
 type Gradients = ReturnType<typeof gradientIds>;
-
-function channels(hex: string): [number, number, number] {
-  const h = hex.replace('#', '');
-  const full = h.length === 3 ? h[0] + h[0] + h[1] + h[1] + h[2] + h[2] : h.padEnd(6, '0').slice(0, 6);
-  const n = parseInt(full, 16);
-  return Number.isFinite(n) ? [(n >> 16) & 255, (n >> 8) & 255, n & 255] : [136, 136, 136];
-}
-
-function toHex(r: number, g: number, b: number): string {
-  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
-  return `#${((1 << 24) | (clamp(r) << 16) | (clamp(g) << 8) | clamp(b)).toString(16).slice(1)}`;
-}
-
-/** Toward black — the base of the body ramp, which is what gives the silhouette its underside. */
-function shade(colour: string, amount: number): string {
-  const [r, g, b] = channels(colour);
-  return toHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
-}
-
-/** Toward white — hot cores and specular edges, kept on the item's own hue rather than flat #fff. */
-function tint(colour: string, amount: number): string {
-  const [r, g, b] = channels(colour);
-  return toHex(r + (255 - r) * amount, g + (255 - g) * amount, b + (255 - b) * amount);
-}
 
 // ─────────────────────────── the silhouettes, one per type ───────────────────────────
 
@@ -372,61 +393,8 @@ function shapeFor(kind: ArtKind, from: string, to: string, g: Gradients) {
         </>
       );
 
-    // FLARE — 216's starburst: sixteen rays, long/short alternating, over a lit core. The rays are
-    // the aura the perimeter overlay paints, read as a burst.
-    case 'flare': {
-      const rays = [];
-      for (let k = 0; k < 16; k += 1) {
-        const a = (k * 22.5 * Math.PI) / 180;
-        const long = k % 2 === 0;
-        const reach = long ? 40 : 32;
-        rays.push(
-          <Line
-            key={k}
-            x1={(50 + 18 * Math.cos(a)).toFixed(1)}
-            y1={(46 + 18 * Math.sin(a)).toFixed(1)}
-            x2={(50 + reach * Math.cos(a)).toFixed(1)}
-            y2={(46 + reach * Math.sin(a)).toFixed(1)}
-            stroke={from}
-            strokeWidth={long ? 4 : 2}
-            strokeLinecap="round"
-          />
-        );
-      }
-      return (
-        <>
-          <G opacity={0.9}>{rays}</G>
-          <Circle cx="50" cy="46" r="16" fill={body} />
-          <Circle cx="45" cy="41" r="5" fill="#ffffff" opacity={0.5} />
-        </>
-      );
-    }
-
-    // CARD — the profile-card backdrop, tilted off-square so it reads as a held plate: the face
-    // ramp across the corner, a specular wash down it, and the banded content ghosted on top.
-    case 'card':
-      return (
-        <G transform="rotate(-8 50 46)">
-          <Rect x="30" y="14" width="40" height="58" rx="6" fill={face} stroke={from} strokeWidth={1.5} />
-          <Rect x="30" y="14" width="40" height="58" rx="6" fill={body} opacity={0.25} />
-          <Path d="M34 60 L46 48 L54 56 L66 42" fill="none" stroke="#ffffff" strokeWidth={2} opacity={0.5} />
-          <Circle cx="44" cy="30" r="5" fill="#ffffff" opacity={0.6} />
-        </G>
-      );
-
-    // HALO — the avatar ring. 216 draws a torus (its RING row) and a tilted halo band; in this app
-    // they are ONE type, because a HALO here is the ring worn around an avatar. So it is drawn as
-    // the torus, with the halo row's back-band kept underneath it: that shaded lower arc is what
-    // sells the ring as a circle seen in perspective rather than as a drawn "O".
-    case 'halo':
-      return (
-        <>
-          <Ellipse cx="50" cy="52" rx="30" ry="26" fill="none" stroke={deep} strokeWidth={8} opacity={0.75} />
-          <Ellipse cx="50" cy="46" rx="30" ry="30" fill="none" stroke={body} strokeWidth={9} />
-          <Ellipse cx="50" cy="46" rx="30" ry="30" fill="none" stroke={from} strokeWidth={2} opacity={0.6} />
-          <Ellipse cx="50" cy="42" rx="24" ry="20" fill="none" stroke="#ffffff" strokeWidth={2} opacity={0.28} />
-        </>
-      );
+    // FLARE, CARD and HALO are drawn by FlareTile / CardTile / HaloTile below — the worn look in
+    // miniature rather than a separate silhouette — so they never reach this switch.
 
     // TITLE — it is text in the product, so the art is the nameplate it sits on. Sheared rather
     // than square (216's skewY): a flat rectangle is the one shape that cannot read as 2.5D.
@@ -528,6 +496,134 @@ function shapeFor(kind: ArtKind, from: string, to: string, g: Gradients) {
         </>
       );
   }
+}
+
+// ─────────────────────────── the worn looks, in miniature ───────────────────────────
+//
+// FLARE, CARD and HALO tiles used to be generic silhouettes: a 16-ray starburst for every flare, a
+// tilted plate for every card, a torus for every halo. A buyer could not tell Asgardian Valor from
+// Inferno, or Cracked Magma from Carbon Fiber, without reading the name. Each is now drawn with the
+// SAME renderer the applied cosmetic uses (flare-signature for the aura, applied-art's CardScene and
+// HaloRing), so the tile is a picture of the thing you will be wearing.
+
+/** The flare tile's geometry: an avatar stand-in centred where the other silhouettes sit (y = 46),
+ *  the ring at 19 and the marks reaching to 44 — inside the frame, above the ground shadow. */
+const FLARE_TILE_FRAME = { cx: 50, cy: 46, rIn: 19, rOut: 44 };
+
+function FlareTile({ colour, to, body, effect, marks }: { colour: string; to: string; body: string; effect: FlareEffect; marks: SignatureMark[] }) {
+  const { cx, cy } = FLARE_TILE_FRAME;
+  return (
+    <>
+      {/* The aura's bed: the flare's own colour blooming off the ring. */}
+      <Circle cx={cx} cy={cy} r={32} fill={colour} opacity={0.08} />
+      <Circle cx={cx} cy={cy} r={25} fill={colour} opacity={0.14} />
+      {/* A `glow` flare HAS no marks — its bloom is the signature (EffectLayer returns null for it at
+          full screen). The rays are that bloom drawn as light, so White Incandescence and Solar
+          Flare still read as a burst in their own colour, not as an empty ring. */}
+      {effect === 'glow' && <GlowRays colour={colour} />}
+      <SignatureStill marks={marks} />
+      {/* The avatar stand-in, ringed in the flare colour — what the marks are AROUND. */}
+      <Circle cx={cx} cy={cy} r={17} fill="#140f1c" />
+      <Circle cx={cx} cy={cy} r={17} fill={body} opacity={0.22} />
+      <Circle cx={cx} cy={cy} r={17.4} fill="none" stroke={colour} strokeWidth={2.2} />
+      <Circle cx={cx} cy={cy} r={15.6} fill="none" stroke={tint(to, 0.4)} strokeWidth={0.6} opacity={0.6} />
+      <Circle cx={cx - 5} cy={cy - 5} r={4} fill="#ffffff" opacity={0.18} />
+    </>
+  );
+}
+
+function GlowRays({ colour }: { colour: string }) {
+  const { cx, cy } = FLARE_TILE_FRAME;
+  const rays = [];
+  for (let k = 0; k < 16; k += 1) {
+    const a = (k * 22.5 * Math.PI) / 180;
+    const long = k % 2 === 0;
+    const reach = long ? 42 : 33;
+    rays.push(
+      <Line
+        key={k}
+        x1={(cx + 20 * Math.cos(a)).toFixed(1)}
+        y1={(cy + 20 * Math.sin(a)).toFixed(1)}
+        x2={(cx + reach * Math.cos(a)).toFixed(1)}
+        y2={(cy + reach * Math.sin(a)).toFixed(1)}
+        stroke={colour}
+        strokeWidth={long ? 3.4 : 1.8}
+        strokeLinecap="round"
+      />
+    );
+  }
+  return (
+    <>
+      <G opacity={0.3}>
+        <Circle cx={cx} cy={cy} r={30} fill={tint(colour, 0.5)} />
+      </G>
+      <G opacity={0.85}>{rays}</G>
+    </>
+  );
+}
+
+/** A floating flare tile's marks, moving. Parks on the still frame when the screen is not in view. */
+function LiveTileMarks({ marks, size, effect }: { marks: SignatureMark[]; size: number; effect: FlareEffect }) {
+  const active = useMotionActive();
+  if (!active) {
+    return (
+      <Svg width={size} height={size} viewBox={VIEW_BOX}>
+        <SignatureStill marks={marks} />
+      </Svg>
+    );
+  }
+  return <LiveTileLayers marks={marks} size={size} cycleMs={SIGNATURE_CYCLE_MS[effect]} />;
+}
+
+function LiveTileLayers({ marks, size, cycleMs }: { marks: SignatureMark[]; size: number; cycleMs: number }) {
+  const clock = useCosmeticClock(cycleMs, true);
+  return <SignatureLayers marks={marks} box={size} clock={clock} />;
+}
+
+/**
+ * The card's real backdrop on a held plate. Landscape, as the card is worn (it used to be drawn
+ * portrait), tilted off-square so it reads as an object, with the live layer folded in still.
+ */
+function CardTile({ item, from, to }: { item: CatalogItem; from: string; to: string }) {
+  const uid = useId();
+  const clipId = `cardTileClip-${uid}`;
+  const x = 12;
+  const y = 25;
+  const w = 76;
+  const h = 44;
+  // The scene is authored 100 units tall; scaling it to the plate's height keeps its proportions.
+  const k = h / 100;
+  return (
+    <G transform="rotate(-8 50 46)">
+      <Defs>
+        <ClipPath id={clipId}>
+          <Rect x={x} y={y} width={w} height={h} rx={6} />
+        </ClipPath>
+      </Defs>
+      <Rect x={x + 1.5} y={y + 2.5} width={w} height={h} rx={6} fill="#000000" opacity={0.35} />
+      <G clipPath={`url(#${clipId})`}>
+        <G transform={`translate(${x} ${y}) scale(${k})`}>
+          <CardScene look={cardLookFor(item.id)} from={from} to={to} w={w / k} uid={uid} hot />
+        </G>
+      </G>
+      <Rect x={x} y={y} width={w} height={h} rx={6} fill="none" stroke={to} strokeWidth={1.2} />
+      <Path d={`M${x + 4} ${y + 1.2} L${x + w - 4} ${y + 1.2}`} stroke="#ffffff" strokeWidth={0.8} opacity={0.3} strokeLinecap="round" />
+    </G>
+  );
+}
+
+/** The halo exactly as it is worn — HaloRing round an avatar stand-in, seen face on. */
+function HaloTile({ item, from, to }: { item: CatalogItem; from: string; to: string }) {
+  const uid = useId();
+  const rAvatar = 21;
+  return (
+    <G transform="translate(0 -4)">
+      <Circle cx={50} cy={50} r={rAvatar} fill="#140f1c" />
+      <Circle cx={50} cy={45} r={7} fill="#ffffff" opacity={0.08} />
+      <Path d={`M37 66 Q50 50 63 66 Z`} fill="#ffffff" opacity={0.08} />
+      <HaloRing style={haloStyleFor(item.id)} from={from} to={to} boost={0} spread={0} rAvatar={rAvatar} uid={uid} />
+    </G>
+  );
 }
 
 const styles = StyleSheet.create({

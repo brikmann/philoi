@@ -216,14 +216,46 @@ type Props = {
    * A mode multiplier applied on top of the tier — see GYM_FLARE_DAMPEN. 1 = study, full curve.
    */
   dampen?: number;
+  /**
+   * `window` (the default) is the lock-in screen: full-bleed, escaping the safe area. `container`
+   * fits the overlay to whatever box it is mounted in — the Cosmetic Gallery's lock-in stage, a
+   * preview sheet. Without it a flare in a 280px stage was drawn at WINDOW size and clipped, so the
+   * bottom/right rims and every effect that lands low (Hammer's floor strike, Inferno's edge fire,
+   * Emberfall's lava pool) fell off-stage — which is why the legendary/mythic flares never
+   * previewed properly.
+   */
+  bounds?: 'window' | 'container';
 };
 
 /**
  * The parameterized overlay. One component, driven entirely by the two fields on the catalog item —
  * adding a flare is a catalog entry, never a new component.
  */
-export function FlarePerimeter({ colour, effect, tier = 3, dampen = 1 }: Props) {
-  const { width, height } = useWindowDimensions();
+export function FlarePerimeter({ bounds = 'window', ...props }: Props) {
+  const win = useWindowDimensions();
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  if (bounds === 'window') return <PerimeterOverlay {...props} width={win.width} height={win.height} fullBleed />;
+
+  const onLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setBox((prev) => (prev.w === width && prev.h === height ? prev : { w: width, h: height }));
+  };
+  return (
+    <View style={StyleSheet.absoluteFill} onLayout={onLayout} pointerEvents="none">
+      {box.w > 0 && box.h > 0 && <PerimeterOverlay {...props} width={box.w} height={box.h} fullBleed={false} />}
+    </View>
+  );
+}
+
+function PerimeterOverlay({
+  colour,
+  effect,
+  tier = 3,
+  dampen = 1,
+  width,
+  height,
+  fullBleed,
+}: Omit<Props, 'bounds'> & { width: number; height: number; fullBleed: boolean }) {
   const insets = useSafeAreaInsets();
   const uid = useId();
   const intensity = dampened(FLARE_INTENSITY[tier], dampen);
@@ -237,10 +269,11 @@ export function FlarePerimeter({ colour, effect, tier = 3, dampen = 1 }: Props) 
   // than the screen's centre, tipping the rim into a lopsided arc. Offsetting by the negative insets
   // puts this layer back on the window box wherever it is mounted. Safe because SafeAreaView insets
   // with padding and RN Views do not clip — nothing above us needs overflow to be visible.
+  // A contained overlay has no safe area to escape: it sits exactly on the box it measured.
   const frame = {
     position: 'absolute' as const,
-    top: -insets.top,
-    left: -insets.left,
+    top: fullBleed ? -insets.top : 0,
+    left: fullBleed ? -insets.left : 0,
     width,
     height,
   };
