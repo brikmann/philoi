@@ -46,3 +46,10 @@ scripts/
 # leak the AccessibilityService into a build that was meant to ship without it.
 /android
 /ios
+
+# Stray local artifacts from parallel sessions (2026-10-02). .nm-b10-detached is a SYMLINK to
+# ../node_modules — followed, it would upload the whole dependency tree.
+.nm-*
+__*.tmp
+__*.log
+wt-*/

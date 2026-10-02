@@ -180,8 +180,22 @@ function NotificationLeadingArt({ n }: { n: NotificationEvent }) {
       }
       break; // unknown key → flame fallback
     }
-    case 'challenge_won':
     case 'campfire_settled':
+      // A team match tells BOTH sides "Full time" (0173) and the payload doesn't say who won, so a
+      // gold trophy would congratulate the losers. Placement / group settles pay everyone — gold.
+      if (n.payload?.shape === 'team_match') {
+        return (
+          <ArtSlot shape="rounded">
+            <ResultGlyph />
+          </ArtSlot>
+        );
+      }
+      return (
+        <ArtSlot shape="rounded">
+          <ResultGlyph won />
+        </ArtSlot>
+      );
+    case 'challenge_won':
       return (
         <ArtSlot shape="rounded">
           <ResultGlyph won />
