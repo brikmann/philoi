@@ -40,8 +40,10 @@ type Scope = 'camp' | 'uni' | 'vs' | 'global';
 type Metric = 'xp' | 'streak';
 type VsMetric = 'total' | 'avg';
 
-const SCOPE_LABEL: Record<Scope, string> = { camp: 'Campfires', uni: 'My uni', vs: 'Vs. unis', global: 'Global' };
-const SCOPES: Scope[] = ['camp', 'uni', 'vs', 'global'];
+const SCOPE_LABEL: Record<Scope, string> = { camp: 'Friends', uni: 'My uni', vs: 'Uni vs. Uni', global: 'Global' };
+// Order reads Friends · My uni · Global · Uni vs. Uni (Noah). The `camp` board pools your friends +
+// campfire-mates (get_my_cross_circle_people), so "Friends" is what it actually shows.
+const SCOPES: Scope[] = ['camp', 'uni', 'global', 'vs'];
 
 // The visible list caps at rank 10 below the podium (ranks 1-3) — your own row/pillar pins at
 // the bottom with your true rank whenever it falls outside that window (PHILOI_UI_SPEC.md §15).
@@ -509,7 +511,7 @@ function CampusLockedState() {
       <Text style={styles.lockedIcon}>🔒</Text>
       <Text style={styles.lockedTitle}>Verify to unlock</Text>
       <Text style={styles.lockedBody}>
-        Only students with a verified school email count on My Uni and Vs Unis — that&apos;s what keeps the campus
+        Only students with a verified school email count on My Uni and Uni vs. Uni — that&apos;s what keeps the campus
         rankings real. Takes about a minute.
       </Text>
       <Pressable style={styles.lockedCta} onPress={() => router.push('/campus')} accessibilityRole="button">
