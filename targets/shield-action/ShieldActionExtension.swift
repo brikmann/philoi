@@ -55,6 +55,9 @@ private func respond(
     // deferral already set and leaves them alone.
     FocusNudgeState.deferredUntilMs = focusNudgeNowMs() + payload.deferMs
     FocusNudgeShield.disarm()
+    // A fresh cooldown per tap: the monitor puts the shield back once deferMs of actual use has
+    // passed, and because every tap restarts it, the second continue-anyway re-shields too.
+    FocusNudgeMonitor.startCooldown(deferMs: payload.deferMs)
     completionHandler(.close)
 
   @unknown default:

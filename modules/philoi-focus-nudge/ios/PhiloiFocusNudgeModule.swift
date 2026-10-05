@@ -27,9 +27,10 @@ struct FocusNudgeArmOptions: Record {
   /// The failsafe ceiling (§D). The DeviceActivity schedule ends here no matter what, so a
   /// force-quit mid-session cannot leave someone shielded indefinitely.
   @Field var maxMinutes: Double = 720
-  /// How long a "continue anyway" holds the shield down before the monitor's usage-threshold event
-  /// puts it back. Kept in step with the payload's own `deferMs`.
-  @Field var deferMinutes: Double = 10
+  /// How long a "continue anyway" holds the shield down. Kept for the JS contract only: the cooldown
+  /// is started by the ShieldAction extension, which reads the payload's own `deferMs` (the same
+  /// DEFER_MS this is derived from).
+  @Field var deferMinutes: Double = 5
 }
 
 public class PhiloiFocusNudgeModule: Module {
@@ -157,45 +158,9 @@ public class PhiloiFocusNudgeModule: Module {
       FocusNudgeState.armedAtMs = focusNudgeNowMs()
       FocusNudgeShield.arm(force: true)
 
-      let center = DeviceActivityCenter()
-      center.stopMonitoring([.focusNudgeSession])
-
-      let calendar = Calendar.current
-      let now = Date()
-      // A MINUTE IN THE PAST, deliberately. A DeviceActivitySchedule is expressed as times of day,
-      // so a start set to exactly "now" is ambiguous about whether this instant is inside the
-      // window or a hair before it — and if the system resolves it as "starts later", the failsafe
-      // interval (and its intervalDidEnd) slides a whole day out. Backdating the start removes the
-      // question: we are unambiguously inside the window the moment monitoring begins.
-      let start = now.addingTimeInterval(-60)
-      let schedule = DeviceActivitySchedule(
-        intervalStart: calendar.dateComponents([.hour, .minute, .second], from: start),
-        intervalEnd: calendar.dateComponents(
-          [.hour, .minute, .second], from: start.addingTimeInterval(options.maxMinutes * 60)),
-        // Never repeats. This window belongs to ONE lock-in; a repeating schedule would shield the
-        // same hours tomorrow whether or not anyone was working.
-        repeats: false
-      )
-
-      // Usage threshold, not wall clock: this fires once the user has actually spent deferMinutes
-      // inside the guarded apps, which is the moment a "I really need a sec" has plainly turned
-      // into a scroll. The monitor re-arms then.
-      let deferLapsed = DeviceActivityEvent(
-        applications: selection.applicationTokens,
-        categories: selection.categoryTokens,
-        webDomains: selection.webDomainTokens,
-        threshold: DateComponents(minute: Int(options.deferMinutes))
-      )
-
-      do {
-        try center.startMonitoring(
-          .focusNudgeSession, during: schedule, events: [.focusNudgeDeferLapsed: deferLapsed])
-      } catch {
-        // The shield is already up — monitoring is the failsafe, not the mechanism. Losing it
-        // costs us the force-quit sweep and the re-arm, not the feature, so this is reported and
-        // swallowed rather than failing the arm and leaving the user unguarded.
-        NSLog("[PhiloiFocusNudge] startMonitoring failed: \(error.localizedDescription)")
-      }
+      // The failsafe window only. The re-arm after a "continue anyway" is a separate cooldown
+      // activity the ShieldAction extension starts per tap (FocusNudgeMonitor in the shared file).
+      FocusNudgeMonitor.startSession(maxMinutes: options.maxMinutes)
       return true
     }
 
@@ -205,7 +170,7 @@ public class PhiloiFocusNudgeModule: Module {
       FocusNudgeState.armedAtMs = 0
       FocusNudgeState.deferredUntilMs = 0
       FocusNudgeState.clearRetreats()
-      DeviceActivityCenter().stopMonitoring([.focusNudgeSession])
+      FocusNudgeMonitor.stopAll()
     }
 
     /// Put the shield back if a cooldown has lapsed while the app was away. Cheap enough to call on

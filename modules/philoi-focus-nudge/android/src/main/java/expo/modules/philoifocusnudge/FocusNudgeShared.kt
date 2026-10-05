@@ -157,7 +157,7 @@ internal data class FocusNudgePayload(
       ),
       escalateAfter = 3,
       escalateWindowMs = 60 * 60 * 1000.0,
-      deferMs = 10 * 60 * 1000.0,
+      deferMs = 5 * 60 * 1000.0,
     )
 
     fun load(context: Context): FocusNudgePayload {
@@ -208,7 +208,7 @@ internal object FocusNudgeState {
   }
 
   fun deferMs(context: Context): Long =
-    focusNudgePrefs(context).getLong(FocusNudgeKey.DEFER_MS, 10 * 60 * 1000L)
+    focusNudgePrefs(context).getLong(FocusNudgeKey.DEFER_MS, 5 * 60 * 1000L)
 
   fun isDeferred(context: Context): Boolean =
     System.currentTimeMillis() <

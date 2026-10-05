@@ -3,7 +3,7 @@
 // TWO PLATFORMS, ONE SEAM. The native side is modules/philoi-focus-nudge: on iOS the bridge plus
 // three Screen Time extension targets under targets/ (the monitor, the shield, its buttons); on
 // Android an AccessibilityService and a SYSTEM_ALERT_WINDOW overlay. They share this file, the
-// payload format, the 10-minute deferral, the two buttons and the escalation rule — everything
+// payload format, the 5-minute deferral, the two buttons and the escalation rule — everything
 // below is written once and runs on both.
 //
 // Both invariants from live-activity.ts hold here too, for the same reasons:
@@ -119,7 +119,7 @@ export const ESCALATE_AFTER = 3;
 export const ESCALATE_WINDOW_MS = 60 * 60 * 1000;
 
 /** How long "continue anyway" keeps the shield down. A tap on the shoulder, not nagging (§C). */
-export const DEFER_MS = 10 * 60 * 1000;
+export const DEFER_MS = 5 * 60 * 1000;
 
 /**
  * The failsafe ceiling on the DeviceActivity window (§D). Long enough that it never truncates a

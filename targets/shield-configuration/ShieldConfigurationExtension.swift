@@ -23,10 +23,11 @@ private enum ShieldPalette {
   /// centre of its ember radial. A shield takes one flat colour where Android takes the gradient;
   /// this is the stop the gradient is built around, so the two platforms sit on the same ground.
   ///
-  /// 0.86 alpha, per mock 183, because it is composited OVER the blur below. See the note there.
-  static let warmBackground = UIColor(red: 0.082, green: 0.059, blue: 0.141, alpha: 0.86)  // #150F24
+  /// Opaque. Mock 183 laid this at 0.86 over a dark blur, and on a real device that composite read
+  /// as grey rather than Philoi's purple — see the note at backgroundBlurStyle below.
+  static let warmBackground = UIColor(red: 0.082, green: 0.059, blue: 0.141, alpha: 1)  // #150F24
   /// The cool ground for the wellbeing/support turn (mock 116 frame 2 — the flame cools).
-  static let careBackground = UIColor(red: 0.071, green: 0.086, blue: 0.165, alpha: 0.86)  // #12162A
+  static let careBackground = UIColor(red: 0.071, green: 0.086, blue: 0.165, alpha: 1)  // #12162A
 
   static let ink = UIColor(red: 1.0, green: 0.965, blue: 0.925, alpha: 1)  // #FFF6EC
   static let body = UIColor(red: 0.847, green: 0.800, blue: 0.922, alpha: 1)  // #D8CCEB
@@ -74,18 +75,11 @@ private func buildShield() -> ShieldConfiguration {
   let care = ShieldPalette.isCare(card.intent)
 
   return ShieldConfiguration(
-    // Blurred, per mock 183 — the one bit of depth Apple's API actually grants, and what stops
-    // the shield reading as a flat system alert. The ground colour above is laid OVER this blur at
-    // 0.86, which is the mock's own composite.
-    //
-    // 🔴 THE TRADE, stated plainly because it was a deliberate reversal: a blur means the guarded
-    // app is faintly present behind the shield, and the feed is the thing we are asking them to
-    // look away from. At 0.86 over an ultra-thin dark material it is unrecognisable shape and
-    // motion rather than content — Apple's own shield treatment. If it reads as bleed-through on
-    // a real device, the fix is one line: nil here and alpha 1 on the two grounds above, which is
-    // what this file did before. Android does NOT face this choice — its overlay is opaque by
-    // construction, and mock 182 keeps it that way.
-    backgroundBlurStyle: .systemUltraThinMaterialDark,
+    // No blur, on purpose. Mock 183's ultra-thin dark material under a 0.86 ground read GREY on a
+    // real device — the material lifts the purple toward neutral — so the shield is now the solid
+    // Philoi ground, opaque like Android's overlay (mock 182). It also means the feed is no longer
+    // faintly present behind the thing asking them to look away from it.
+    backgroundBlurStyle: nil,
     backgroundColor: care ? ShieldPalette.careBackground : ShieldPalette.warmBackground,
     icon: shieldIcon(care: care),
     title: .init(text: card.title, color: ShieldPalette.ink),

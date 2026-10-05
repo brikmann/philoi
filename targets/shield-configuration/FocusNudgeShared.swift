@@ -36,14 +36,21 @@ extension ManagedSettingsStore.Name {
   public static let focusNudge = Self("philoi.focusNudge")
 }
 
-/// The DeviceActivity schedule that exists purely as the failsafe (§D): if the app is killed
-/// mid-session and never disarms, intervalDidEnd clears the shield for us.
 extension DeviceActivityName {
+  /// The DeviceActivity schedule that exists purely as the failsafe (§D): if the app is killed
+  /// mid-session and never disarms, intervalDidEnd clears the shield for us. It carries NO events —
+  /// see focusNudgeCooldown for why the re-arm lives on its own activity.
   public static let focusNudgeSession = Self("philoi.focusNudge.session")
+  /// One "continue anyway"'s cooldown. Its own activity, started fresh on every continue-anyway by
+  /// the ShieldAction extension, because a usage threshold counts from the moment monitoring began
+  /// and fires ONCE per interval: hung on the session it fired at most once a lock-in (counting
+  /// usage since the session armed), so the second continue-anyway was permanent. Restarting the
+  /// SESSION activity instead would risk its intervalDidEnd, which is the disarm-everything sweep.
+  public static let focusNudgeCooldown = Self("philoi.focusNudge.cooldown")
 }
 
-/// The usage-threshold event that re-arms the shield after a "continue anyway" (§C frequency
-/// guard). See FocusNudgeState.deferredUntilMs.
+/// The usage-threshold event on focusNudgeCooldown that re-arms the shield once a "continue anyway"
+/// has been spent (§C frequency guard). See FocusNudgeState.deferredUntilMs.
 extension DeviceActivityEvent.Name {
   public static let focusNudgeDeferLapsed = Self("philoi.focusNudge.deferLapsed")
 }
@@ -154,7 +161,7 @@ public struct FocusNudgePayload {
     ),
     escalateAfter: 3,
     escalateWindowMs: 60 * 60 * 1000,
-    deferMs: 10 * 60 * 1000
+    deferMs: 5 * 60 * 1000
   )
 
   public init(
@@ -314,5 +321,87 @@ public enum FocusNudgeShield {
   /// after its lock-in ended is the only genuinely harmful failure this feature has.
   public static func disarm() {
     ManagedSettingsStore(named: .focusNudge).clearAllSettings()
+  }
+}
+
+// MARK: - Monitoring
+
+/// Both DeviceActivity registrations, built in ONE place so the app's arm and the ShieldAction's
+/// cooldown cannot drift apart. Every call is reported with NSLog — a monitor that fails to start
+/// produces no other symptom than a shield that never comes back.
+public enum FocusNudgeMonitor {
+  /// How long a cooldown activity stays registered. Only an upper bound — the threshold normally
+  /// ends it within minutes — but DeviceActivitySchedule rejects anything under 15 minutes.
+  static let cooldownWindowMinutes: Double = 240
+
+  /// A schedule that is unambiguously running NOW, `minutes` long.
+  ///
+  /// The start is A MINUTE IN THE PAST, deliberately. A DeviceActivitySchedule is expressed as
+  /// times of day, so a start set to exactly "now" is ambiguous about whether this instant is inside
+  /// the window or a hair before it — and if the system resolves it as "starts later", the interval
+  /// (and its intervalDidEnd) slides a whole day out. Backdating removes the question.
+  ///
+  /// Never repeats: the window belongs to one lock-in (or one cooldown), and a repeating schedule
+  /// would fire the same hours tomorrow whether or not anyone was working.
+  static func scheduleFromNow(minutes: Double) -> DeviceActivitySchedule {
+    let calendar = Calendar.current
+    let start = Date().addingTimeInterval(-60)
+    return DeviceActivitySchedule(
+      intervalStart: calendar.dateComponents([.hour, .minute, .second], from: start),
+      intervalEnd: calendar.dateComponents(
+        [.hour, .minute, .second], from: start.addingTimeInterval(minutes * 60)),
+      repeats: false
+    )
+  }
+
+  /// The session's failsafe window (§D). No events: the re-arm is the cooldown's job.
+  public static func startSession(maxMinutes: Double) {
+    let center = DeviceActivityCenter()
+    center.stopMonitoring([.focusNudgeSession, .focusNudgeCooldown])
+    do {
+      try center.startMonitoring(.focusNudgeSession, during: scheduleFromNow(minutes: maxMinutes))
+      NSLog("[PhiloiFocusNudge] session monitoring started (\(Int(maxMinutes)) min)")
+    } catch {
+      // The shield is already up — monitoring is the failsafe, not the mechanism. Losing it costs
+      // the force-quit sweep, not the feature, so it is reported and swallowed.
+      NSLog("[PhiloiFocusNudge] session startMonitoring failed: \(error.localizedDescription)")
+    }
+  }
+
+  /// A fresh cooldown after a "continue anyway": fires once `deferMs` of ACTUAL guarded-app use has
+  /// passed (usage, not wall clock — "I really need a sec" turning into a scroll). Restarting resets
+  /// the usage counter, which is what gives every continue-anyway its own cooldown.
+  public static func startCooldown(deferMs: Double) {
+    guard let selection = FocusNudgeSelection.load() else {
+      NSLog("[PhiloiFocusNudge] cooldown not started: no selection in the App Group")
+      return
+    }
+    let minutes = max(1, Int((deferMs / 60_000).rounded()))
+    let lapsed = DeviceActivityEvent(
+      applications: selection.applicationTokens,
+      categories: selection.categoryTokens,
+      webDomains: selection.webDomainTokens,
+      threshold: DateComponents(minute: minutes)
+    )
+    let center = DeviceActivityCenter()
+    center.stopMonitoring([.focusNudgeCooldown])
+    do {
+      try center.startMonitoring(
+        .focusNudgeCooldown, during: scheduleFromNow(minutes: cooldownWindowMinutes),
+        events: [.focusNudgeDeferLapsed: lapsed])
+      NSLog("[PhiloiFocusNudge] cooldown started (\(minutes) min of use)")
+    } catch {
+      // The app's foreground reconcile still re-arms once the wall-clock deferral lapses, so this
+      // degrades to "comes back when you next open Philoi" rather than "never".
+      NSLog("[PhiloiFocusNudge] cooldown startMonitoring failed: \(error.localizedDescription)")
+    }
+  }
+
+  public static func stopCooldown() {
+    DeviceActivityCenter().stopMonitoring([.focusNudgeCooldown])
+  }
+
+  public static func stopAll() {
+    DeviceActivityCenter().stopMonitoring([.focusNudgeSession, .focusNudgeCooldown])
   }
 }
