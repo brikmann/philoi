@@ -1,14 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { BoxArt } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
+import { EMBERFALL_FROM, EMBERFALL_TO, EmberBands, SeasonChip } from '@/components/economy/season-chip';
 import { showRewardReveal, type RewardLine } from '@/components/economy/reward-reveal';
 import { SeasonPlacementShareCard, SeasonRewardsShareCard } from '@/components/economy/season-standing-share-card';
 import { BurningName } from '@/components/burning-name';
@@ -20,20 +22,22 @@ import { Fonts, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
 import { useProductPrices } from '@/hooks/use-purchase';
 import { useShareRank } from '@/hooks/use-share-rank';
-import { claimPassLevel, fetchAchievementProgress, fetchMySeasonCard } from '@/lib/api/forge-pass';
+import { claimPassLevel, claimPassPrestige, fetchAchievementProgress, fetchMySeasonCard, fetchPassPrestige } from '@/lib/api/forge-pass';
 import { useAuth } from '@/lib/auth/auth-context';
 import { restorePurchases } from '@/lib/billing';
-import { BOXES } from '@/lib/economy/boxes';
+import { BOXES, type BoxKey } from '@/lib/economy/boxes';
 import { getItem } from '@/lib/economy/catalog';
 import {
   ACHIEVEMENTS,
   CADENCE_LABEL,
   CADENCE_RESET_HINT,
+  LOCK_IN_PASS_XP_PER_HOUR,
   PASS_FINE_PRINT,
   PASS_LEVELS,
   SEASON,
   levelFromXp,
   msUntilSeasonBoundary,
+  passLevelLabel,
   passUnlockLevel,
   seasonPhase,
   type AchievementCadence,
@@ -45,11 +49,14 @@ import { RARITY_COLOR, RARITY_LABEL } from '@/lib/economy/rarity';
 import { SEAL_COSMETIC_KEY } from '@/lib/economy/seal-owners';
 import { getErrorMessage } from '@/lib/errors';
 import { shareCardImage } from '@/lib/share-card';
-import type { SeasonCard } from '@/types/database';
+import type { PassPrestige, PassPrestigeReward, SeasonCard } from '@/types/database';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// THE FLAME PASS TRACK — "Your track" (design-mocks/228), on the paywall's Emberfall sky so the pitch
-// and the climb read as a pair.
+// THE FLAME PASS TRACK — "Your track" (design-mocks/228), painted in the Emberfall identity: the
+// --ember ramp (#E0612C → #F5C542, mock 247) and the leaderboard splash's ember field (mock 259).
+// It used to sit on the paywall's void → blue → purple night sky, which made the Pass, the one
+// screen that IS the season, the one place the season's own colours never appeared. The paywall
+// keeps its sky; this screen does not borrow it.
 //
 // Top to bottom: a status card (level, your BURNING name, ember balance, the XP bar, how far the
 // Seal is), ONE "Claim rewards (N)" button, then the two-lane track — every level a node on a spine
@@ -104,6 +111,22 @@ function passRewardLine(reward: PassReward): RewardLine {
   }
 }
 
+/**
+ * A server-stated prestige reward (0232) in the track's own reward shape, so the chip, the detail
+ * sheet and the reveal draw it exactly as they draw a level's. The config is the server's and can
+ * move ahead of this build: an unknown box key or kind drops out rather than reaching BOXES[key].
+ * Exclusives lead, so a milestone's chip shows the cosmetic rather than the embers.
+ */
+function prestigeRewards(rewards: PassPrestigeReward[]): PassReward[] {
+  const out: PassReward[] = [];
+  for (const r of rewards) {
+    if (r.kind === 'embers') out.push({ kind: 'embers', amount: r.embers });
+    else if (r.kind === 'box' && r.box_key in BOXES) out.push({ kind: 'box', box: r.box_key as BoxKey });
+    else if (r.kind === 'item') out.unshift({ kind: 'item', itemId: r.item_key });
+  }
+  return out;
+}
+
 export default function ForgePassScreen() {
   const router = useRouter();
   // Full-bleed (`edges={[]}`) so the sky reaches the status bar; this screen insets its own chrome.
@@ -114,6 +137,8 @@ export default function ForgePassScreen() {
   const [tab, setTab] = useState<'track' | 'xp'>('track');
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<Target | null>(null);
+  const [prestigeDetail, setPrestigeDetail] = useState<number | null>(null);
+  const [prestigeTrack, setPrestigeTrack] = useState<PassPrestige | null>(null);
   // Mock 97 is a SPLIT card, so there are two capture targets: the placement flex and the reward
   // haul, each separately shareable.
   const placementCardRef = useRef<View>(null);
@@ -122,7 +147,10 @@ export default function ForgePassScreen() {
   const shareRank = useShareRank();
 
   const ownsPremium = pass?.owns_premium ?? false;
-  const { level, intoLevel, nextLevelCost } = levelFromXp(pass?.pass_xp ?? 0);
+  const passXp = pass?.pass_xp ?? 0;
+  // Past L100, `level` stays 100 and `prestige` counts the overflow (0232); intoLevel/nextLevelCost
+  // become the climb toward the next prestige, so the bar keeps moving instead of sitting maxed.
+  const { level, intoLevel, nextLevelCost, prestige } = levelFromXp(passXp);
   const phase = seasonPhase();
   const displayName = profile?.display_name?.trim() || 'You';
   const firstName = displayName.split(/\s+/)[0];
@@ -145,6 +173,29 @@ export default function ForgePassScreen() {
     }
     return out;
   }, [level, claimed, ownsPremium]);
+
+  // Prestige levels reached and unclaimed (0232). The server's count, not the client's: it is the
+  // one the claim checks against.
+  const pendingPrestige = useMemo(() => {
+    if (!prestigeTrack) return [];
+    const done = new Set(prestigeTrack.claimed);
+    return prestigeTrack.track.filter((t) => t.prestige <= prestigeTrack.prestige && !done.has(t.prestige));
+  }, [prestigeTrack]);
+  const pendingCount = pending.length + pendingPrestige.length;
+
+  // The prestige track — claims and what each level pays. Re-read whenever the XP moves, so a level
+  // crossed while this screen is open turns claimable. Silent on failure: the climb still renders.
+  useEffect(() => {
+    let cancelled = false;
+    fetchPassPrestige()
+      .then((p) => {
+        if (!cancelled) setPrestigeTrack(p);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [passXp]);
 
   // Open one row above your level, so the last thing you claimed frames the one you're on.
   const initialIndex = Math.max(0, Math.min(level - 2, PASS_LEVELS.length - 1));
@@ -179,10 +230,11 @@ export default function ForgePassScreen() {
   // server-side, and stopping at the first failure leaves everything before it genuinely granted
   // instead of rolling back rewards the user already saw land.
   async function claimAll() {
-    if (busy || pending.length === 0) return;
+    if (busy || pendingCount === 0) return;
     setBusy(true);
     const paid: PassReward[] = [];
     const levels = new Set<number>();
+    const prestiges: number[] = [];
     try {
       for (const target of pending) {
         const rewards = target.lane === 'free' ? target.level.free : target.level.premium;
@@ -192,19 +244,33 @@ export default function ForgePassScreen() {
         paid.push(...rewards);
         levels.add(target.level.level);
       }
+      // Prestige after the levels — the track first, then what overflowed it. Each is its own claim
+      // row server-side, and the server decides what it pays; the reveal shows what came back.
+      for (const p of pendingPrestige) {
+        paid.push(...prestigeRewards(await claimPassPrestige(p.prestige)));
+        prestiges.push(p.prestige);
+      }
       await refetch();
     } catch (e) {
       await refetch();
       Alert.alert('Stopped partway', getErrorMessage(e, 'Some rewards were claimed before this failed.'));
     } finally {
       setBusy(false);
+      if (prestiges.length > 0) fetchPassPrestige().then(setPrestigeTrack).catch(() => {});
     }
     if (paid.length > 0) {
       // ONE reveal for the batch. Counted in distinct LEVELS — both lanes of Level 37 is one level.
+      // A prestige in the batch makes the whole reveal the prestige one: it is the bigger moment.
       const only = levels.size === 1 ? [...levels][0] : null;
+      const top = prestiges.length > 0 ? Math.max(...prestiges) : null;
       showRewardReveal({
-        kind: 'pass_level',
-        title: only !== null ? `Level ${only} claimed` : `${levels.size} levels claimed`,
+        kind: top !== null ? 'pass_prestige' : 'pass_level',
+        title:
+          top !== null
+            ? `Prestige +${top} · Level ${SEASON.totalLevels + top}`
+            : only !== null
+              ? `Level ${only} claimed`
+              : `${levels.size} levels claimed`,
         rewards: paid.map(passRewardLine),
       });
     }
@@ -213,6 +279,7 @@ export default function ForgePassScreen() {
   // The paywall owns the season gate, the price and Restore, so the unlock bar only navigates.
   function onUnlock() {
     setDetail(null);
+    setPrestigeDetail(null);
     router.push('/paywall');
   }
 
@@ -236,10 +303,10 @@ export default function ForgePassScreen() {
   const unlockBarH = ownsPremium ? 0 : UNLOCK_BAR_H;
 
   return (
-    <Screen padded={false} backgroundColor="#040309" edges={[]}>
-      {/* Behind everything and OUTSIDE the list: the sky and the rain hold still while the track
-          scrolls over them — the paywall's ambient layer, so the two screens read as a pair. */}
-      <EmberfallSky kind="paywall" />
+    <Screen padded={false} backgroundColor={SKY_TOP} edges={[]}>
+      {/* Behind everything and OUTSIDE the list: the ember ground and the rain hold still while the
+          track scrolls over them. */}
+      <EmberfallSky kind="pass" />
       <FallingEmbers count={8} />
 
       <View style={[styles.header, { paddingTop: insets.top + Spacing.two }]}>
@@ -247,18 +314,20 @@ export default function ForgePassScreen() {
           <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
             <Ionicons name="chevron-back" size={22} color={EMBER.warm} />
           </Pressable>
-          <Text style={styles.title}>Flame Pass</Text>
-          <Text style={styles.days}>
-            {SEASON.name} · {countdownLabel(phase)}
+          <Text style={styles.title} numberOfLines={1}>
+            Flame Pass
           </Text>
+          {/* "EMBERFALL · S1" — mock 247's chip, the season's mark, where the season name used to be typed. */}
+          <SeasonChip />
+          <Text style={styles.days}>{countdownLabel(phase)}</Text>
         </View>
 
-        {/* ── status ── */}
-        <View style={styles.status}>
+        {/* ── status — on the season's ember field ── */}
+        <StatusField>
           <View style={styles.srow}>
             <View style={styles.lvlBig}>
-              <Text style={styles.lvlNum}>{level}</Text>
-              <Text style={styles.lvlKicker}>LEVEL</Text>
+              <Text style={styles.lvlNum}>{level + prestige}</Text>
+              <Text style={styles.lvlKicker}>{prestige > 0 ? `+${prestige} PRESTIGE` : 'LEVEL'}</Text>
             </View>
             <View style={styles.sname}>
               <BurningName userId={profile?.id} owns={ownsPremium} style={styles.burn}>
@@ -271,13 +340,15 @@ export default function ForgePassScreen() {
             </View>
           </View>
           <View style={styles.bar}>
-            <View style={[styles.barFill, { width: `${barPct}%` }]} />
+            <View style={[styles.barFill, { width: `${barPct}%` }]}>
+              <EmberBands />
+            </View>
           </View>
           <View style={styles.barLabel}>
             <Text style={styles.barText}>
               {level < SEASON.totalLevels
                 ? `${formatEmbers(intoLevel)} / ${formatEmbers(nextLevelCost)} XP to Level ${level + 1}`
-                : `Level ${SEASON.totalLevels} · maxed`}
+                : `${formatEmbers(intoLevel)} / ${formatEmbers(nextLevelCost)} XP to Prestige +${prestige + 1}`}
             </Text>
             <Text style={styles.barText}>
               {toSeal > 0
@@ -287,19 +358,20 @@ export default function ForgePassScreen() {
                   : 'The Seal is Flame Pass only'}
             </Text>
           </View>
-        </View>
+        </StatusField>
 
-        {/* ── the one claim action ── */}
+        {/* ── the one claim action — the --ember ramp while there is something to claim ── */}
         <Pressable
-          style={[styles.claim, (pending.length === 0 || busy) && styles.claimOff]}
-          disabled={pending.length === 0 || busy}
+          style={[styles.claim, (pendingCount === 0 || busy) && styles.claimOff]}
+          disabled={pendingCount === 0 || busy}
           onPress={claimAll}
           accessibilityRole="button">
-          <Text style={[styles.claimText, pending.length === 0 && styles.claimTextOff]}>
+          {pendingCount > 0 && !busy ? <EmberBands /> : null}
+          <Text style={[styles.claimText, pendingCount === 0 && styles.claimTextOff]}>
             {busy
               ? 'Claiming…'
-              : pending.length > 0
-                ? `Claim rewards (${pending.length}) 🔥`
+              : pendingCount > 0
+                ? `Claim rewards (${pendingCount}) 🔥`
                 : phase === 'upcoming'
                   ? `The climb opens with ${SEASON.name}`
                   : 'All caught up — keep climbing'}
@@ -324,7 +396,7 @@ export default function ForgePassScreen() {
                 <Text style={styles.standingOf}> of {standing.board_size.toLocaleString('en-US')}</Text>
               </Text>
               <Text style={styles.standingSub}>
-                {standing.university} · finished Level {standing.pass_level} · top {standing.percentile}%
+                {standing.university} · finished {passLevelLabel(standing.pass_xp)} · top {standing.percentile}%
               </Text>
               {standing.title ? <Text style={styles.standingTitle}>“{standing.title.name}”</Text> : null}
             </View>
@@ -390,6 +462,7 @@ export default function ForgePassScreen() {
                   ownsPremium={ownsPremium}
                   onPress={() => setDetail({ level: PASS_LEVELS[SEAL_LEVEL - 1], lane: 'premium' })}
                 />
+                <PrestigeTrack track={prestigeTrack} onOpen={setPrestigeDetail} />
                 <Text style={styles.rule}>{PASS_FINE_PRINT}</Text>
               </>
             }
@@ -403,8 +476,8 @@ export default function ForgePassScreen() {
           showsVerticalScrollIndicator={false}>
           <AchievementList earned={pass?.achievements ?? []} />
           <Text style={styles.rule}>
-            Pass XP comes from achievements, never from rank XP — ranks stay their own long climb. Daily achievements are once
-            per day, so the Pass rewards showing up, not marathoning.
+            Every lock-in pays {LOCK_IN_PASS_XP_PER_HOUR} Pass XP an hour; achievements stack on top. Rank XP is its own long
+            climb. Daily achievements are once per day, so the Pass rewards showing up, not marathoning.
           </Text>
         </ScrollView>
       )}
@@ -413,6 +486,7 @@ export default function ForgePassScreen() {
       {!ownsPremium ? (
         <View style={[styles.unlockWrap, { paddingBottom: insets.bottom + Spacing.two }]}>
           <Pressable style={styles.unlock} onPress={onUnlock} accessibilityRole="button">
+            <EmberBands />
             <Text style={styles.unlockLock}>🔒</Text>
             <View style={styles.flex1}>
               <Text style={styles.unlockTitle}>Unlock the Flame Pass</Text>
@@ -426,7 +500,12 @@ export default function ForgePassScreen() {
         </View>
       ) : null}
 
-      <DetailSheet visible={detail !== null} onClose={() => setDetail(null)}>
+      <DetailSheet
+        visible={detail !== null || prestigeDetail !== null}
+        onClose={() => {
+          setDetail(null);
+          setPrestigeDetail(null);
+        }}>
         {detail ? (
           <LaneDetail
             target={detail}
@@ -436,6 +515,8 @@ export default function ForgePassScreen() {
             claimed={claimed}
             onUnlock={onUnlock}
           />
+        ) : prestigeDetail !== null && prestigeTrack ? (
+          <PrestigeDetail track={prestigeTrack} prestige={prestigeDetail} name={firstName} />
         ) : null}
       </DetailSheet>
     </Screen>
@@ -681,6 +762,21 @@ function LaneDetail({
               : `Reach Level ${level.level} to claim`}
       </Text>
 
+      <RewardList rewards={rewards} name={name} />
+
+      {needsPass ? (
+        <Pressable style={styles.sheetCta} onPress={onUnlock} accessibilityRole="button">
+          <Text style={styles.sheetCtaText}>Unlock the Flame Pass 🔥</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** A lane's (or a prestige level's) rewards in full: cosmetics as themselves, the rest a line each. */
+function RewardList({ rewards, name }: { rewards: PassReward[]; name: string }) {
+  return (
+    <>
       {rewards.map((reward, i) => {
         const item = reward.kind === 'item' ? getItem(reward.itemId) : undefined;
         if (item) {
@@ -704,12 +800,81 @@ function LaneDetail({
           </View>
         );
       })}
+    </>
+  );
+}
 
-      {needsPass ? (
-        <Pressable style={styles.sheetCta} onPress={onUnlock} accessibilityRole="button">
-          <Text style={styles.sheetCtaText}>Unlock the Flame Pass 🔥</Text>
-        </Pressable>
-      ) : null}
+/**
+ * Past the Seal the track keeps going (0232): every `level_xp` past Level 100 is a prestige level,
+ * claimable once, each read off get_pass_prestige so a retuned payout reaches this build. Neither
+ * lane owns it — the overflow is effort, and the Pass never sells standing. Levels reached plus the
+ * next are listed, then the milestones ahead, with a gap mark where the run skips.
+ */
+function PrestigeTrack({ track, onOpen }: { track: PassPrestige | null; onOpen: (prestige: number) => void }) {
+  if (!track || track.track.length === 0) return null;
+  const done = new Set(track.claimed);
+  const exclusives = track.track.filter((t) => t.rewards.some((r) => r.kind === 'item')).map((t) => `+${t.prestige}`);
+  return (
+    <View style={styles.prestige}>
+      <Text style={styles.prestigeKicker}>PRESTIGE · PAST LEVEL {SEASON.totalLevels}</Text>
+      <Text style={styles.prestigeSub}>
+        Every {formatEmbers(track.level_xp)} Pass XP past Level {SEASON.totalLevels} is a prestige level, and every one pays out.
+        {exclusives.length > 0 ? ` Exclusives at ${exclusives.join(', ')} — never in a box.` : ''}
+      </Text>
+      {track.track.map((t, i) => {
+        const reached = t.prestige <= track.prestige;
+        const isNow = t.prestige === track.prestige;
+        const milestone = t.rewards.some((r) => r.kind === 'item');
+        const state: ChipState = done.has(t.prestige) ? 'claimed' : reached ? 'ready' : 'locked';
+        const gap = i > 0 && track.track[i - 1].prestige !== t.prestige - 1;
+        return (
+          <View key={t.prestige}>
+            {gap ? <Text style={styles.prestigeGap}>⋯</Text> : null}
+            <View style={styles.row}>
+              <View style={[styles.spine, reached && styles.spineLit]} pointerEvents="none" />
+              <View style={styles.nodeSpace}>
+                {isNow ? <NowGlow /> : null}
+                <View
+                  style={[
+                    styles.node,
+                    reached && !isNow && styles.nodeDone,
+                    isNow && styles.nodeNow,
+                    milestone && !reached && styles.nodeMilestone,
+                  ]}>
+                  <Text style={[styles.nodeText, reached && !isNow && styles.nodeTextDone, isNow && styles.nodeTextNow]}>
+                    +{t.prestige}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.pair}>
+                <Chip rewards={prestigeRewards(t.rewards)} state={state} dim={!reached} pass onPress={() => onOpen(t.prestige)} />
+              </View>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+/** A tapped prestige chip: what that level pays, in full, and how far off it is. */
+function PrestigeDetail({ track, prestige, name }: { track: PassPrestige; prestige: number; name: string }) {
+  const entry = track.track.find((t) => t.prestige === prestige);
+  if (!entry) return null;
+  const toGo = Math.max(0, track.base_xp + prestige * track.level_xp - track.pass_xp);
+  return (
+    <View>
+      <Text style={styles.sheetKicker}>
+        PRESTIGE +{prestige} · LEVEL {SEASON.totalLevels + prestige}
+      </Text>
+      <Text style={styles.sheetState}>
+        {track.claimed.includes(prestige)
+          ? 'Claimed ✓'
+          : prestige <= track.prestige
+            ? 'Ready — tap “Claim rewards” to collect'
+            : `${formatEmbers(toGo)} Pass XP to go`}
+      </Text>
+      <RewardList rewards={prestigeRewards(entry.rewards)} name={name} />
     </View>
   );
 }
@@ -736,8 +901,8 @@ function AchievementList({ earned }: { earned: { key: string; period_key: string
   return (
     <View>
       <Text style={styles.intro}>
-        Climb the Pass by completing <Text style={styles.introBold}>achievements</Text> — not by grinding rank XP. Ranks stay
-        their own long climb; this rewards showing up.
+        Every lock-in climbs the Pass — <Text style={styles.introBold}>{LOCK_IN_PASS_XP_PER_HOUR} XP an hour</Text>. These
+        achievements are the bonuses on top; they reward showing up.
       </Text>
       {cadences.map((cadence) => (
         <View key={cadence} style={styles.achGroup}>
@@ -772,11 +937,66 @@ function AchievementList({ earned }: { earned: { key: string; period_key: string
   );
 }
 
+/**
+ * The status card's ground — mock 259's ember field (the leaderboard splash): a ~115° burn from
+ * charcoal-ember to lit orange with a gold bloom top-right, and a faint gold hairline inside the
+ * radius. Measure-then-paint, as the splash does: an <Svg> sized by style alone measures zero on
+ * Android, so until the first layout lands the solid mid-ember shows instead of a hole.
+ */
+function StatusField({ children }: { children: ReactNode }) {
+  const ids = useId();
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const onLayout = (e: LayoutChangeEvent) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
+  // Gradient ids are global in react-native-svg — a shared literal blanks every instance after the first.
+  const fieldId = `pass-field-${ids}`;
+  const bloomId = `pass-bloom-${ids}`;
+  return (
+    // The shadow lives on an UNCLIPPED wrapper: iOS drops a shadow on a view with overflow hidden.
+    <View style={styles.statusShadow}>
+      <View style={styles.status} onLayout={onLayout}>
+        {size.w > 0 ? (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Svg width={size.w} height={size.h}>
+              <Defs>
+                <LinearGradient id={fieldId} x1="0" y1="0.2" x2="1" y2="0.8">
+                  <Stop offset="0" stopColor={FIELD[0]} />
+                  <Stop offset="0.45" stopColor={FIELD[1]} />
+                  <Stop offset="1" stopColor={FIELD[2]} />
+                </LinearGradient>
+                <RadialGradient id={bloomId} cx="85%" cy="-10%" rx="70%" ry="120%" fx="85%" fy="-10%">
+                  <Stop offset="0" stopColor={EMBERFALL_TO} stopOpacity={0.45} />
+                  <Stop offset="0.6" stopColor={EMBERFALL_TO} stopOpacity={0} />
+                </RadialGradient>
+              </Defs>
+              <Rect x="0" y="0" width={size.w} height={size.h} fill={`url(#${fieldId})`} />
+              <Rect x="0" y="0" width={size.w} height={size.h} fill={`url(#${bloomId})`} />
+            </Svg>
+          </View>
+        ) : null}
+        <View style={styles.statusHairline} pointerEvents="none" />
+        {children}
+      </View>
+    </View>
+  );
+}
+
 /** Room the sticky unlock bar takes, so Level 100 and the Seal scroll clear of it. */
 const UNLOCK_BAR_H = 96;
 const NODE = 40;
-const LINE = EMBER.line;
-const CARD = 'rgba(22,14,34,0.72)';
+
+// ── the ember palette ──
+// The track's own surfaces, warm-shifted off emberfall-art's plum card/line (which belong to the
+// paywall's night sky). Text keeps EMBER.ink/warm/e2; only the purples are replaced here.
+/** The pass sky's top stop — the Screen background under the status bar. */
+const SKY_TOP = '#0B0503';
+/** Mock 259's field, the same three stops as emberfall-splash.tsx. */
+const FIELD = ['#3a1402', '#7a2a08', '#b8541a'] as const;
+const LINE = '#4a2614';
+const LINE2 = '#6a3a20';
+const CARD = 'rgba(30,12,5,0.74)';
+const ART_WELL = '#2a1209';
+const MUTED = '#C9A48A';
+const DIM = '#E4C7AE';
 
 const styles = StyleSheet.create({
   flex1: {
@@ -811,14 +1031,33 @@ const styles = StyleSheet.create({
   },
 
   // ── status ──
-  status: {
+  statusShadow: {
     marginTop: 8,
-    backgroundColor: 'rgba(10,6,16,0.4)',
-    borderWidth: 1,
-    borderColor: LINE,
     borderRadius: 18,
+    // Android's elevation shadow needs an opaque background to cast from.
+    backgroundColor: FIELD[1],
+    shadowColor: EMBERFALL_FROM,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 6,
+  },
+  status: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: FIELD[1],
     paddingVertical: 15,
     paddingHorizontal: 16,
+  },
+  statusHairline: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(245,197,66,0.25)',
   },
   srow: {
     flexDirection: 'row',
@@ -831,9 +1070,9 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(224,97,44,0.18)',
+    backgroundColor: 'rgba(0,0,0,0.28)',
     borderWidth: 1,
-    borderColor: 'rgba(255,210,122,0.4)',
+    borderColor: 'rgba(255,227,160,0.35)',
   },
   lvlNum: {
     fontFamily: Fonts.black,
@@ -870,14 +1109,15 @@ const styles = StyleSheet.create({
   bar: {
     height: 8,
     borderRadius: 99,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.32)',
     overflow: 'hidden',
     marginTop: 12,
   },
   barFill: {
     height: '100%',
     borderRadius: 99,
-    backgroundColor: EMBER.e1,
+    overflow: 'hidden',
+    backgroundColor: EMBERFALL_FROM,
   },
   barLabel: {
     flexDirection: 'row',
@@ -896,9 +1136,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingVertical: 11,
     borderRadius: 12,
-    backgroundColor: EMBER.e2,
+    overflow: 'hidden',
+    backgroundColor: EMBERFALL_TO,
     alignItems: 'center',
-    shadowColor: EMBER.e0,
+    shadowColor: EMBERFALL_FROM,
     shadowOpacity: 0.5,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -912,7 +1153,8 @@ const styles = StyleSheet.create({
   claimText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: '#20100a',
+    // Mock 247's ink on the ember ramp.
+    color: '#1a1020',
   },
   claimTextOff: {
     color: EMBER.warm2,
@@ -935,7 +1177,7 @@ const styles = StyleSheet.create({
   tabOn: {
     color: EMBER.warm,
     borderBottomWidth: 2,
-    borderBottomColor: EMBER.e1,
+    borderBottomColor: EMBERFALL_TO,
   },
 
   // ── season standing ──
@@ -946,7 +1188,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     padding: Spacing.two,
     borderRadius: 14,
-    backgroundColor: 'rgba(42,22,44,0.85)',
+    backgroundColor: 'rgba(48,20,8,0.85)',
     borderWidth: 1,
     borderColor: 'rgba(255,180,90,0.4)',
   },
@@ -1009,7 +1251,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
   },
   laneFree: {
-    color: EMBER.mut,
+    color: MUTED,
   },
   lanePass: {
     color: EMBER.e2,
@@ -1032,7 +1274,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   spineLit: {
-    backgroundColor: EMBER.e0,
+    backgroundColor: EMBERFALL_FROM,
   },
   nodeSpace: {
     width: NODE,
@@ -1047,7 +1289,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: LINE,
-    backgroundColor: '#1a1030',
+    backgroundColor: '#1e0c06',
   },
   nodeDone: {
     backgroundColor: EMBER.e1,
@@ -1063,7 +1305,7 @@ const styles = StyleSheet.create({
   nodeText: {
     fontFamily: Fonts.black,
     fontSize: 13,
-    color: EMBER.mut,
+    color: MUTED,
   },
   nodeTextDone: {
     color: '#20100a',
@@ -1123,7 +1365,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#20182f',
+    backgroundColor: ART_WELL,
     borderWidth: 1,
     borderColor: LINE,
   },
@@ -1140,7 +1382,7 @@ const styles = StyleSheet.create({
   chipState: {
     fontFamily: Fonts.bodyBold,
     fontSize: 8.5,
-    color: EMBER.mut,
+    color: MUTED,
   },
   chipStateReady: {
     color: EMBER.e2,
@@ -1157,7 +1399,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     alignItems: 'center',
     overflow: 'hidden',
-    backgroundColor: 'rgba(34,18,38,0.92)',
+    backgroundColor: 'rgba(40,16,8,0.92)',
     borderWidth: 1,
     borderColor: 'rgba(255,107,208,0.4)',
   },
@@ -1191,7 +1433,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11,
     lineHeight: 15.5,
-    color: EMBER.dim,
+    color: DIM,
     textAlign: 'center',
     marginTop: 3,
   },
@@ -1201,6 +1443,35 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: EMBER.e2,
     marginTop: 8,
+  },
+
+  // ── prestige (0232) ──
+  prestige: {
+    marginTop: 18,
+  },
+  prestigeKicker: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: EMBER.e2,
+    textAlign: 'center',
+  },
+  prestigeSub: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    lineHeight: 15.5,
+    color: DIM,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 10,
+    paddingHorizontal: Spacing.two,
+  },
+  prestigeGap: {
+    width: NODE,
+    textAlign: 'center',
+    fontFamily: Fonts.black,
+    fontSize: 14,
+    color: MUTED,
   },
 
   // ── the unlock bar (non-owners) ──
@@ -1223,7 +1494,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 14,
-    backgroundColor: EMBER.e2,
+    overflow: 'hidden',
+    backgroundColor: EMBERFALL_TO,
   },
   unlockLock: {
     fontSize: 16,
@@ -1293,7 +1565,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#20182f',
+    backgroundColor: ART_WELL,
   },
   sheetLineName: {
     fontFamily: Fonts.bodyBold,
@@ -1303,7 +1575,7 @@ const styles = StyleSheet.create({
   sheetLineMeta: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: EMBER.dim,
+    color: DIM,
     marginTop: 2,
   },
   sheetCta: {
@@ -1337,7 +1609,7 @@ const styles = StyleSheet.create({
   achGroup: {
     marginBottom: 12,
     borderRadius: 16,
-    backgroundColor: 'rgba(10,6,16,0.45)',
+    backgroundColor: 'rgba(16,7,3,0.45)',
     borderWidth: 1,
     borderColor: LINE,
     paddingHorizontal: 12,
@@ -1375,7 +1647,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: EMBER.line2,
+    borderColor: LINE2,
     alignItems: 'center',
     justifyContent: 'center',
   },

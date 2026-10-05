@@ -7,7 +7,7 @@ import { getItem } from '@/lib/economy/catalog';
 import type { PassReward } from '@/lib/economy/forge-pass';
 import { supabase } from '@/lib/supabase';
 import { weekKey } from '@/lib/time/week';
-import type { SeasonCard } from '@/types/database';
+import type { PassPrestige, PassPrestigeReward, SeasonCard } from '@/types/database';
 
 /**
  * Claim one LEVEL's rewards for one lane.
@@ -43,6 +43,28 @@ export async function claimPassLevel(level: number, lane: 'free' | 'premium', re
 }
 
 /**
+ * The Pass past L100 (0232): how many prestige levels you've overflowed into, which are claimed, and
+ * what each pays. The rewards come from economy_config via the server — the client never types
+ * them in, so a retune reaches installed builds without an update.
+ */
+export async function fetchPassPrestige(): Promise<PassPrestige> {
+  const { data, error } = await supabase.rpc('get_pass_prestige');
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Claim one prestige level. No rewards are sent: the server pays from its own table (0221's rule),
+ * and the claim row on (user, season, prestige) is what makes it pay exactly once.
+ */
+export async function claimPassPrestige(prestige: number): Promise<PassPrestigeReward[]> {
+  const { data, error } = await supabase.rpc('claim_pass_prestige', { p_prestige: prestige });
+  if (error) throw error;
+  track('pass_prestige_claimed', { prestige });
+  return data.rewards;
+}
+
+/**
  * Live counters for the progress-style achievements ("2 / 3", "6.5 / 10 h"). Separate from
  * get_inventory because it's a set of aggregate scans over lock_in_sessions — cheap, but not
  * something every shop screen should pay for just to show an ember balance.
@@ -51,6 +73,28 @@ export async function fetchAchievementProgress(): Promise<Record<string, number>
   const { data, error } = await supabase.rpc('get_pass_achievement_progress');
   if (error) throw error;
   return data ?? {};
+}
+
+export type LockInPassCredit = {
+  /** This session's base-rate credit ('lock_in_time'). */
+  xp: number;
+  /** Everything else the same Stop credited — achievements it unlocked, a rank-up. */
+  bonus_xp: number;
+  season_id: string;
+  /** The season total AFTER all of it. */
+  pass_xp: number;
+};
+
+/**
+ * What one finished lock-in actually paid the Pass, read back from pass_xp_ledger (0227). The
+ * trigger that credits it runs inside stop_lock_in_session's transaction, so by the time the stop
+ * has returned a check-in id the row is there. Null = nothing credited (under 5 min, season not
+ * live), which is a real answer, not a failure.
+ */
+export async function fetchLockInPassCredit(checkInId: string): Promise<LockInPassCredit | null> {
+  const { data, error } = await supabase.rpc('get_lock_in_pass_credit', { p_check_in_id: checkInId });
+  if (error) throw error;
+  return data ?? null;
 }
 
 export type SeasonStanding = {

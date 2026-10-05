@@ -1,13 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Fragment, useMemo, useRef, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { PublicTitle } from '@/components/economy/loadout-bits';
+import { EquippedHexGlow, PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar, useResolvedLoadout } from '@/components/economy/public-identity';
 import { FriendPingSheet } from '@/components/friend-ping-sheet';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
+import { RankBadge } from '@/components/rank-badge';
+import { EmberSearchBar } from '@/components/ui/ember-search-bar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -179,16 +181,8 @@ function PeopleScreenContent() {
         </Pressable>
       </View>
 
-      <View style={styles.search}>
-        <Ionicons name="search" size={14} color={Colors.textTertiary} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search friends"
-          placeholderTextColor={Colors.textTertiary}
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
+      {/* Mock 259: the same ember-ring field as the Leaderboard search. */}
+      <EmberSearchBar value={search} onChangeText={setSearch} placeholder="Search friends" style={styles.search} />
 
       <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
         {!loading && friends.length === 0 && (
@@ -202,38 +196,44 @@ function PeopleScreenContent() {
 
         {lockedIn.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>Locked in now</Text>
-            {lockedIn.map((f) => (
-              <FriendRow
-                key={f.friend_id}
-                friend={f}
-                loadout={loadouts[f.friend_id]}
-                status={statusLine(f)}
-                lockedIn
-                nudged={false}
-                onOpen={() => openSheet(f)}
-                onQuick={() => handleLockInWith(f)}
-                onMessage={() => handleMessage(f)}
-              />
+            <Text style={styles.sectionLabel}>Locked in now · {lockedIn.length}</Text>
+            {lockedIn.map((f, i) => (
+              <Fragment key={f.friend_id}>
+                {i > 0 && <View style={styles.divider} />}
+                <FriendRow
+                  friend={f}
+                  loadout={loadouts[f.friend_id]}
+                  status={statusLine(f)}
+                  lockedIn
+                  nudged={false}
+                  onOpen={() => openSheet(f)}
+                  onQuick={() => handleLockInWith(f)}
+                  onMessage={() => handleMessage(f)}
+                />
+              </Fragment>
             ))}
           </>
         )}
 
         {rest.length > 0 && (
           <>
-            <Text style={[styles.sectionLabel, lockedIn.length > 0 && styles.sectionLabelSpaced]}>All friends</Text>
-            {rest.map((f) => (
-              <FriendRow
-                key={f.friend_id}
-                friend={f}
-                loadout={loadouts[f.friend_id]}
-                status={statusLine(f)}
-                lockedIn={false}
-                nudged={nudged.has(f.friend_id)}
-                onOpen={() => openSheet(f)}
-                onQuick={() => handleNudge(f)}
-                onMessage={() => handleMessage(f)}
-              />
+            <Text style={[styles.sectionLabel, lockedIn.length > 0 && styles.sectionLabelSpaced]}>
+              All friends · {rest.length}
+            </Text>
+            {rest.map((f, i) => (
+              <Fragment key={f.friend_id}>
+                {i > 0 && <View style={styles.divider} />}
+                <FriendRow
+                  friend={f}
+                  loadout={loadouts[f.friend_id]}
+                  status={statusLine(f)}
+                  lockedIn={false}
+                  nudged={nudged.has(f.friend_id)}
+                  onOpen={() => openSheet(f)}
+                  onQuick={() => handleNudge(f)}
+                  onMessage={() => handleMessage(f)}
+                />
+              </Fragment>
             ))}
           </>
         )}
@@ -324,6 +324,14 @@ function FriendRow({
           {status}
         </Text>
       </View>
+      {/* Their rank hex, as on every board row. Absent when their season rank is on Private (0217)
+          — the status line already drops the rank words in that case. */}
+      {friend.tier && friend.division !== null ? (
+        <View>
+          <EquippedHexGlow size={22} loadout={resolved} />
+          <RankBadge tier={friend.tier} division={friend.division} size={22} />
+        </View>
+      ) : null}
       {/* WS3 · the row's second quick action. The row itself still opens the profile and the flame
           still nudges — this is only the shortcut that was missing, since "say something to them"
           previously had no button anywhere in the app. */}
@@ -371,39 +379,26 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
   search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.card,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
     marginHorizontal: Spacing.three,
     marginBottom: Spacing.twelve,
-  },
-  searchInput: {
-    flex: 1,
-    padding: 0,
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.ink,
-    letterSpacing: 0,
   },
   list: {
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.six,
-    gap: 4,
   },
+  // Mock 259's gold accent — same value as the Leaderboard's RESULTS label.
   sectionLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 10.5,
-    letterSpacing: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    letterSpacing: 2,
     textTransform: 'uppercase',
-    color: Colors.textTertiary,
+    color: '#C9A24A',
     marginLeft: 2,
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.line,
   },
   sectionLabelSpaced: {
     marginTop: 14,
@@ -412,7 +407,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 6,
     borderRadius: Radius.card,
   },

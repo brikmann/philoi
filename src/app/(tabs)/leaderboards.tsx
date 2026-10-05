@@ -3,6 +3,9 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
+import { EmberfallSplash } from '@/components/economy/emberfall-splash';
+import { EquippedHexGlow, PublicTitle } from '@/components/economy/loadout-bits';
+import { CosmeticAvatar, useResolvedLoadout } from '@/components/economy/public-identity';
 import { BurntOutCampfire } from '@/components/empty-states/burnt-out-campfire';
 import { LeaderboardGap, LeaderboardPersonRow } from '@/components/leaderboard-person-row';
 import {
@@ -12,10 +15,11 @@ import {
 } from '@/hooks/use-public-loadouts';
 import { ParthenonPodium, type PodiumItem } from '@/components/parthenon-podium';
 import { PrivateClimb } from '@/components/private-climb';
+import { EmberFill } from '@/components/ui/ember-fill';
+import { EmberSearchBar } from '@/components/ui/ember-search-bar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
 import { TabHeader } from '@/components/ui/tab-header';
-import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { RankBadge } from '@/components/rank-badge';
 import { useCrossCirclePeople } from '@/hooks/use-cross-circle-people';
@@ -48,6 +52,9 @@ const SCOPES: Scope[] = ['camp', 'uni', 'global', 'vs'];
 // The visible list caps at rank 10 below the podium (ranks 1-3) — your own row/pillar pins at
 // the bottom with your true rank whenever it falls outside that window (PHILOI_UI_SPEC.md §15).
 const VISIBLE_RANKS = 10;
+
+/** Mock 259's gold accent for section labels (RESULTS) — people.tsx uses the same value. */
+const SECTION_GOLD = '#C9A24A';
 
 type ListRow<T> = { row: T; rank: number };
 type Board<T> = { top3: PodiumItem[]; listRows: ListRow<T>[]; pinned: ListRow<T> | null };
@@ -237,6 +244,9 @@ export default function LeaderboardsScreen() {
   // first time they scrolled past — for the rest of the session. Your OWN row needs nothing here:
   // usePublicLoadouts substitutes the live store for it.
   useRefreshPublicLoadoutsOnFocus(visibleUserIds);
+  // Search hits wear their gear too (mock 259) — batched over the whole result list, same as a board.
+  // get_public_loadouts already answers for any user id, so this needs nothing from search_leaderboard.
+  const searchLoadouts = usePublicLoadouts(searchOpen ? searchResults.map((r) => r.user_id) : []);
 
   const sortedTotals = totals
     .map((t) => ({ ...t, perCapita: t.member_count > 0 ? t.total_xp / t.member_count : 0 }))
@@ -351,51 +361,24 @@ export default function LeaderboardsScreen() {
 
       {searchOpen ? (
         <View style={styles.searchScreen}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={16} color={Colors.muted} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search by name or @username"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
-              autoCorrect={false}
-            />
-          </View>
+          <EmberSearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search by name or @username"
+            autoFocus
+            style={styles.searchBar}
+          />
           {searching && <ActivityIndicator color={Colors.coral} style={{ marginTop: Spacing.four }} />}
           <FlatList
             data={searchResults}
             keyExtractor={(item) => item.user_id}
-            contentContainerStyle={styles.listContent}
-            ListHeaderComponent={searchResults.length > 0 ? <Text style={styles.sectionLabel}>RESULTS</Text> : null}
+            contentContainerStyle={styles.searchListContent}
+            keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={searchResults.length > 0 ? <Text style={styles.sectionLabel}>Results</Text> : null}
             renderItem={({ item }) => (
-              <Pressable style={styles.searchRow} onPress={() => goToProfile(item.user_id)}>
-                <View style={styles.searchAvatar}>
-                  <Text style={styles.searchAvatarInitial}>{item.display_name.charAt(0).toUpperCase()}</Text>
-                </View>
-                <View style={styles.searchInfo}>
-                  <View style={styles.searchNameRow}>
-                    <Text style={styles.searchName} numberOfLines={1}>
-                      {item.display_name}
-                    </Text>
-                    {item.is_friend && (
-                      <View style={styles.friendTag}>
-                        <Text style={styles.friendTagText}>Friend</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.searchSub} numberOfLines={1}>
-                    {item.handle ? `@${item.handle} · ` : ''}
-                    {item.board}
-                  </Text>
-                </View>
-                <RankBadge tier={item.tier} division={item.division} size={22} />
-                <View style={styles.searchRank}>
-                  <Text style={styles.searchRankValue}>{item.board_rank ? `#${item.board_rank.toLocaleString()}` : '—'}</Text>
-                  <Text style={styles.searchRankSub}>{Math.round(item.score).toLocaleString()} XP</Text>
-                </View>
-              </Pressable>
+              <SearchResultRow item={item} loadout={searchLoadouts[item.user_id]} onPress={() => goToProfile(item.user_id)} />
             )}
+            ItemSeparatorComponent={() => <View style={styles.divider} />}
             ListEmptyComponent={
               !searching && searchQuery.trim() ? <EmptyState emoji="🔍" title="No one found" body="Try a different name or @username." /> : null
             }
@@ -404,12 +387,36 @@ export default function LeaderboardsScreen() {
       ) : (
         <>
           <View style={styles.header}>
+            {/* Pinned above the tabs rather than scrolled with a board: it belongs to the season, not
+                to any one scope. Renders nothing once the season has closed. */}
+            <EmberfallSplash />
             <View style={styles.pillRow}>
-              {scopes.map((s) => (
-                <Pressable key={s} style={[styles.pill, scope === s && styles.pillOn]} onPress={() => setScope(s)}>
-                  <Text style={[styles.pillLabel, scope === s && styles.pillLabelOn]}>{scopeLabel(s)}</Text>
-                </Pressable>
-              ))}
+              {scopes.map((s) => {
+                const on = scope === s;
+                return (
+                  <Pressable
+                    key={s}
+                    style={[styles.scopePress, on && styles.scopePressOn]}
+                    onPress={() => setScope(s)}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: on }}>
+                    {/* Mock 259: the active tab rides the ember gradient; idle tabs are dark pills. */}
+                    {on ? (
+                      <EmberFill radius={Radius.pill} style={styles.scopeTab}>
+                        <Text style={[styles.scopeLabel, styles.scopeLabelOn]} numberOfLines={1}>
+                          {scopeLabel(s)}
+                        </Text>
+                      </EmberFill>
+                    ) : (
+                      <View style={[styles.scopeTab, styles.scopeTabIdle]}>
+                        <Text style={styles.scopeLabel} numberOfLines={1}>
+                          {scopeLabel(s)}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
             </View>
             {scope !== 'vs' ? (
               <View style={styles.metricRow}>
@@ -501,6 +508,66 @@ export default function LeaderboardsScreen() {
   );
 }
 
+// One search hit (mock 259): the person as they appear everywhere else — cosmetic avatar, equipped
+// title under the name — rather than the bare initial it used to draw, plus where they sit (rank
+// badge, board rank, XP). The whole row is the tap target into their profile.
+function SearchResultRow({
+  item,
+  loadout,
+  onPress,
+}: {
+  item: LeaderboardSearchResult;
+  /** Batched over the result list — see the note in economy/public-identity.tsx. */
+  loadout?: PublicLoadout;
+  onPress: () => void;
+}) {
+  // Resolved once and shared: EquippedHexGlow and PublicTitle need the SAME object, and the hex glow
+  // falls back to YOUR halo when handed undefined.
+  const resolved = useResolvedLoadout(item.user_id, loadout);
+  return (
+    <Pressable
+      style={styles.searchRow}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${item.display_name}'s profile`}>
+      {/* Static flares: a result list re-renders on every keystroke. */}
+      <CosmeticAvatar
+        userId={item.user_id}
+        name={item.display_name}
+        avatarUrl={item.avatar_url}
+        size={36}
+        loadout={resolved}
+        motion="reduced"
+      />
+      <View style={styles.searchInfo}>
+        <View style={styles.searchNameRow}>
+          <Text style={styles.searchName} numberOfLines={1}>
+            {item.display_name}
+          </Text>
+          {item.is_friend && (
+            <View style={styles.friendTag}>
+              <Text style={styles.friendTagText}>Friend</Text>
+            </View>
+          )}
+        </View>
+        <PublicTitle loadout={resolved} compact />
+        <Text style={styles.searchSub} numberOfLines={1}>
+          {item.handle ? `@${item.handle} · ` : ''}
+          {item.board}
+        </Text>
+      </View>
+      <View>
+        <EquippedHexGlow size={22} loadout={resolved} />
+        <RankBadge tier={item.tier} division={item.division} size={22} />
+      </View>
+      <View style={styles.searchRank}>
+        <Text style={styles.searchRankValue}>{item.board_rank ? `#${item.board_rank.toLocaleString()}` : '—'}</Text>
+        <Text style={styles.searchRankSub}>{Math.round(item.score).toLocaleString()} XP</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 // The 🔒 state behind both campus boards (UNI_VERIFICATION_SPEC.md §4, mock 75D shows the pair
 // once unlocked). Deliberately explains WHY rather than just refusing: the restriction is the
 // feature — a campus ranking anyone could join wouldn't be worth topping.
@@ -566,14 +633,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.one,
   },
-  pill: {
+  scopePress: {
     flex: 1,
+  },
+  // iOS-only lift under the lit tab (mock 259's `0 4px 12px rgba(224,97,44,.35)`). No elevation:
+  // Android's would cast grey from a transparent Pressable, which is worse than none.
+  scopePressOn: {
+    shadowColor: Colors.coral,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+  },
+  scopeTab: {
     alignItems: 'center',
-    backgroundColor: Colors.card,
+    justifyContent: 'center',
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    paddingVertical: Spacing.two,
+    paddingVertical: 7,
+    paddingHorizontal: Spacing.one,
+  },
+  scopeTabIdle: {
+    backgroundColor: Colors.cardDark,
+  },
+  scopeLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.muted,
+  },
+  scopeLabelOn: {
+    color: Colors.onEmber,
   },
   metricRow: {
     flexDirection: 'row',
@@ -661,54 +748,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.coral,
-    borderRadius: Radius.input,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
     marginTop: Spacing.two,
   },
-  searchInput: {
-    flex: 1,
-    borderWidth: 0,
-    backgroundColor: 'transparent',
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-    fontSize: 14,
+  searchListContent: {
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.four,
   },
+  // Mock 259's gold section label — the one warm accent on an otherwise ink/muted list.
   sectionLabel: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 10,
-    color: Colors.textTertiary,
-    letterSpacing: 1,
+    color: SECTION_GOLD,
+    letterSpacing: 2,
     textTransform: 'uppercase',
-    marginTop: Spacing.four,
+    marginTop: Spacing.two,
     marginBottom: Spacing.one,
+    marginLeft: 2,
   },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 11,
-    paddingVertical: Spacing.two,
-    borderTopWidth: 1,
-    borderTopColor: Colors.card,
+    paddingVertical: 10,
   },
-  searchAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: Colors.achieverBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchAvatarInitial: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.achieverText,
+  divider: {
+    height: 1,
+    backgroundColor: Colors.line,
   },
   searchInfo: {
     flex: 1,
@@ -720,8 +785,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   searchName: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
     color: Colors.ink,
     flexShrink: 1,
   },

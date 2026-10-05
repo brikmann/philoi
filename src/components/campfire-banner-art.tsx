@@ -1174,6 +1174,12 @@ type CampfireBannerArtProps = {
   variant?: 'header' | 'screen';
   /** Motion. Ignored (forced off) for 'header' and whenever the OS asks for reduced motion. */
   animated?: boolean;
+  /**
+   * The legibility scrim. On by default — every surface that puts chat or a name over the banner
+   * needs it. Off only where the scene is the whole subject with nothing on top: the unlock
+   * reveal's "the item" beat, where an 80% scrim over the lower half hides the very thing unlocked.
+   */
+  scrim?: boolean;
 };
 
 export function CampfireBannerArt({
@@ -1181,6 +1187,7 @@ export function CampfireBannerArt({
   fadeTo = Colors.bgRadialTo,
   variant = 'header',
   animated = false,
+  scrim = true,
 }: CampfireBannerArtProps) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const reduceMotion = useReduceMotion();
@@ -1206,7 +1213,7 @@ export function CampfireBannerArt({
       {size.w > 0 && size.h > 0 && (
         <>
           <Scene w={size.w} h={size.h} from={from} to={to} animated={live} uid={uid} />
-          <LegibilityScrim w={size.w} h={size.h} fadeTo={fadeTo} uid={uid} />
+          {scrim && <LegibilityScrim w={size.w} h={size.h} fadeTo={fadeTo} uid={uid} />}
         </>
       )}
     </View>

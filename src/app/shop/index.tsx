@@ -186,24 +186,27 @@ export default function ShopScreen() {
             shop/box/[boxKey] — the tip has to point at a control that is actually on this screen,
             and the row is the one that leads to the batch open. */}
         <View ref={shopCoachRef} collapsable={false}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+          {/* A 3×2 grid, not a horizontal row like Featured. As a row the sixth box, Promethean
+              Vault, sat off-screen with no scroll indicator and testers reported the mythic box as
+              missing from the Shop. Six fixed boxes fit on screen, so every one stays visible. */}
+          <View style={styles.boxGrid}>
             {BOX_LIST.map((box) => (
               <Pressable
                 key={box.key}
-                style={styles.tile}
+                style={[styles.tile, styles.boxTile]}
                 onPress={() => router.push({ pathname: '/shop/box/[boxKey]', params: { boxKey: box.key } })}>
                 <View style={[styles.rarityBar, { backgroundColor: RARITY_COLOR[box.rarity] }]} />
                 <View style={[styles.tileArt, { backgroundColor: BOX_TINT[box.key] }]}>
                   <BoxArt boxKey={box.key} size={44} pedestal />
                 </View>
-                <Text style={styles.tileName} numberOfLines={1}>
+                <Text style={styles.tileName} numberOfLines={2}>
                   {box.name}
                 </Text>
                 <RarityLabel rarity={box.rarity} />
                 <EmberAmount amount={box.price} containerStyle={styles.tilePrice} />
               </Pressable>
             ))}
-          </ScrollView>
+          </View>
         </View>
         <Text style={styles.note}>Published odds on every box. Every box can also be earned — none is purchase-only.</Text>
 
@@ -315,6 +318,17 @@ const styles = StyleSheet.create({
     right: 0,
     height: 3,
     opacity: 0.9,
+  },
+  boxGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  // Three across: 30% each plus two gaps, with flexGrow taking up the slack.
+  boxTile: {
+    width: undefined,
+    flexBasis: '30%',
+    flexGrow: 1,
   },
   tileArt: {
     width: 54,

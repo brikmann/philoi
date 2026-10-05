@@ -6,6 +6,7 @@ import { EquippedFlameSvg } from '@/components/flame-icon';
 import { FlareEffectLayer } from '@/components/economy/flare-perimeter';
 import { SHARE_CARD_HEIGHT, SHARE_CARD_WIDTH, ShareCardFrame } from '@/components/share-card-frame';
 import { Colors, Fonts } from '@/constants/theme';
+import { passLevelLabel } from '@/lib/economy/forge-pass';
 import { RARITY_COLOR, RARITY_LABEL, type Rarity } from '@/lib/economy/rarity';
 import type { RankTierName, SeasonCard, SeasonReward } from '@/types/database';
 
@@ -125,7 +126,7 @@ export const SeasonPlacementShareCard = forwardRef<View, ScreenProps>(function S
         🎓 {card.university} · #{card.rank.toLocaleString('en-US')} of {card.board_size.toLocaleString('en-US')}
       </Text>
       <Text style={styles.effort}>
-        {card.hours_locked_in}h locked in · {card.pass_xp.toLocaleString('en-US')} XP this season
+        {card.hours_locked_in}h locked in · {passLevelLabel(card.pass_xp)} · {card.pass_xp.toLocaleString('en-US')} XP
       </Text>
       <Text style={styles.swipe}>your rewards →</Text>
     </ShareCardFrame>

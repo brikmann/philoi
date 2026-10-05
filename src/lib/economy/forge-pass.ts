@@ -115,15 +115,55 @@ export function cumulativeXpThroughLevel(level: number): number {
   return total;
 }
 
-/** Where a raw Pass-XP total puts you: current level + progress into the next. */
-export function levelFromXp(xp: number): { level: number; intoLevel: number; nextLevelCost: number } {
+/**
+ * Where a raw Pass-XP total puts you: current level + progress into the next.
+ *
+ * Past L100 the track overflows into PRESTIGE (0232): `level` stays 100, `prestige` counts the whole
+ * PRESTIGE_LEVEL_XP blocks beyond it, and intoLevel / nextLevelCost become the progress toward the
+ * next prestige — so every bar keeps moving instead of sitting "maxed". Below 100, prestige is 0.
+ */
+export function levelFromXp(xp: number): { level: number; intoLevel: number; nextLevelCost: number; prestige: number } {
   let remaining = xp;
   for (let l = 1; l <= SEASON.totalLevels; l += 1) {
     const cost = levelCost(l);
-    if (remaining < cost) return { level: l - 1, intoLevel: remaining, nextLevelCost: cost };
+    if (remaining < cost) return { level: l - 1, intoLevel: remaining, nextLevelCost: cost, prestige: 0 };
     remaining -= cost;
   }
-  return { level: SEASON.totalLevels, intoLevel: 0, nextLevelCost: 0 };
+  const prestige = prestigeFromXp(xp);
+  return {
+    level: SEASON.totalLevels,
+    intoLevel: remaining - prestige * PRESTIGE_LEVEL_XP,
+    nextLevelCost: PRESTIGE_LEVEL_XP,
+    prestige,
+  };
+}
+
+// ───────────────────────────── Prestige · overflow past L100 (0232) ─────────────────────────────
+/**
+ * Each prestige level is this much Pass XP earned PAST L100 (~36 hours of lock-in at the base rate),
+ * so prestige is rare and every level is a trophy. The most cracked realistic season (~190k) lands
+ * near +11.
+ *
+ * DRAWS THE BAR ONLY. economy_config('pass_prestige').level_xp is authoritative, and claims and
+ * rewards come from the server (get_pass_prestige / claim_pass_prestige), never from here.
+ */
+export const PRESTIGE_LEVEL_XP = 9_000;
+
+/** Whole prestige levels in a Pass-XP total. MUST match pass_prestige_from_xp() (0232). */
+export function prestigeFromXp(xp: number): number {
+  return Math.max(0, Math.floor((xp - SEASON_XP_TOTAL) / PRESTIGE_LEVEL_XP));
+}
+
+/** The level a Pass-XP total reads as: 100 + prestige past the apex ("Level 103"). */
+export function displayLevelFromXp(xp: number): number {
+  const { level, prestige } = levelFromXp(xp);
+  return level + prestige;
+}
+
+/** "Level 103 (+3 prestige)" / "Level 42" — the one wording for a pass level everywhere it shows. */
+export function passLevelLabel(xp: number): string {
+  const { level, prestige } = levelFromXp(xp);
+  return prestige > 0 ? `Level ${level + prestige} (+${prestige} prestige)` : `Level ${level}`;
 }
 
 export type PassReward =
@@ -288,27 +328,22 @@ export function premiumLaneTotals(): { embers: number; boxes: number; items: num
   };
 }
 
-/**
- * Past 100 the track keeps paying every 5 levels (FORGE_PASS_SEASON1 §"Post-100 prestige loop") —
- * it keeps heavy users engaged through Dec 23 without needing a single new piece of art.
- *
- * The Paid cache is 10% a legacy Legendary/Mythic and 90% 1,000 embers; the roll happens
- * SERVER-side like every other roll in this economy, so this is only the label.
- */
-export const PRESTIGE_INTERVAL = 5;
-export const PRESTIGE_FREE: PassReward = { kind: 'embers', amount: 100 };
-export const PRESTIGE_PAID_LABEL = 'Prestige Cache';
-
-/** Prestige levels are 105, 110, 115… — a level past the apex that pays out. */
-export function isPrestigeLevel(level: number): boolean {
-  return level > SEASON.totalLevels && (level - SEASON.totalLevels) % PRESTIGE_INTERVAL === 0;
-}
-
 /** Level 100 premium also carries the completionist badge alongside the Mythic crown medal. */
 export const CAPSTONE_BADGE: PassReward = { kind: 'badge', badgeKey: 's1-completionist', label: 'S1 Completionist' };
 
+// ───────────────────────────── Pass XP · the base rate ─────────────────────────────
+/**
+ * Every completed lock-in of 5+ minutes credits this much Pass XP per credited hour (0227's
+ * 'lock_in_time', once per check-in). Achievements alone top out near 33k a season against an
+ * 85,000 L100, so this is what makes the track finishable by locking in.
+ *
+ * COPY ONLY. economy_config('pass_xp_per_lock_in_hour') is authoritative, and the Done screen shows
+ * the ledger row the server wrote (fetchLockInPassCredit), never `hours × this`.
+ */
+export const LOCK_IN_PASS_XP_PER_HOUR = 250;
+
 // ───────────────────────────── Pass XP · the achievement system ─────────────────────────────
-// The ONLY source of Pass XP. Verified-effort only (Step 18) — these fire off already-counted
+// Bonuses on top of the base rate. Verified-effort only (Step 18) — these fire off already-counted
 // lock-ins, never self-reported junk.
 
 export type AchievementCadence = 'daily' | 'weekly' | 'season';
@@ -340,7 +375,6 @@ export const ACHIEVEMENTS: Achievement[] = [
   { key: 'weekly_hit_goal', cadence: 'weekly', label: 'Hit your weekly goal', xp: 150 },
 
   // Season / one-time milestones
-  { key: 'season_new_rank', cadence: 'season', label: 'Reach a new rank this season', xp: 500 },
   { key: 'season_finish_campfire_challenge', cadence: 'season', label: 'Finish a full campfire challenge', xp: 300 },
   { key: 'season_thirty_day_streak', cadence: 'season', label: '30-day streak', xp: 500 },
 ];

@@ -75,6 +75,16 @@ const SKIES = {
     [0.78, '#7E2A18'],
     [1, '#E86A2A'],
   ],
+  // The Flame Pass track — the --ember identity (mocks 247/259), not the paywall's night sky. No
+  // blue or purple anywhere: charcoal ember at the top, where the light text sits, burning down to
+  // the leaderboard splash's mid-ember (#7a2a08) at the foot.
+  pass: [
+    [0, '#0B0503'],
+    [0.3, '#170803'],
+    [0.62, '#2E1004'],
+    [0.86, '#521C06'],
+    [1, '#7a2a08'],
+  ],
   // Mock 227's `.mini.fire` — the tutorial's premium shift.
   tutorial: [
     [0, '#0C0812'],

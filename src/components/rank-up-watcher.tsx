@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
 
 import { RankUpCelebration } from '@/components/rank-up-celebration';
@@ -6,7 +6,8 @@ import { RankUpShareCard } from '@/components/rank-up-share-card';
 import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { Screen } from '@/components/ui/screen';
 import { Colors } from '@/constants/theme';
-import { fetchLastRankUpReward, fetchMyRanks } from '@/lib/api/goals';
+import { fetchLastRankUpReward, fetchMyRanks, fetchRecentRankCrates } from '@/lib/api/goals';
+import { equipCosmetic } from '@/lib/api/inventory';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
   deriveRankUpLevel,
@@ -16,10 +17,12 @@ import {
   writeLastSeenRank,
   type RankUpEvent,
 } from '@/lib/rank-watch';
-import { isRankUp } from '@/lib/rank-tiers';
+import { getItem } from '@/lib/economy/catalog';
+import { RARITY_COLOR } from '@/lib/economy/rarity';
+import { isRankUp, rankOrdinal } from '@/lib/rank-tiers';
 import { shareCardImage } from '@/lib/share-card';
 import { syncStepLadder } from '@/lib/step-ladder-sync';
-import type { MyRank, RankUpReward } from '@/types/database';
+import type { MyRank, RankCrate, RankTierName, RankUpReward } from '@/types/database';
 
 // Imperative presenter, set by the mounted RankUpWatcher. Dev-tools and the watcher itself both
 // go through showRankUp() so there is exactly ONE path into the celebration (RANKUP_SPEC §7b) —
@@ -52,6 +55,10 @@ export function RankUpWatcher() {
   // What the rank-up paid, fetched alongside the presentation. Null until it lands (or forever, if
   // the read fails) — the celebration simply omits the line, which is what it always did.
   const [reward, setReward] = useState<RankUpReward | null>(null);
+  // The crates this climb actually paid (0231) — every rung strictly above the rank last shown, up
+  // to and including the one being celebrated, highest first. Empty until the read lands, and on an
+  // older server, which falls back to `reward` above.
+  const [crates, setCrates] = useState<RankCrate[]>([]);
 
   // Register this mount as the global presenter for showRankUp().
   useEffect(() => {
@@ -60,7 +67,20 @@ export function RankUpWatcher() {
       setPresentToken((n) => n + 1);
       // Cleared first so a second rank-up cannot show the previous one's payout for a frame.
       setReward(null);
+      setCrates([]);
       fetchLastRankUpReward().then(setReward).catch(() => {});
+      fetchRecentRankCrates()
+        .then((all) => {
+          const floor = rankOrdinal(event.fromTier, event.fromDivision);
+          const ceiling = rankOrdinal(event.tier, event.division);
+          setCrates(
+            all.filter((c) => {
+              const o = rankOrdinal(c.tier as RankTierName, c.division);
+              return o > floor && o <= ceiling;
+            })
+          );
+        })
+        .catch(() => {});
     };
     return () => {
       present = null;
@@ -160,6 +180,43 @@ export function RankUpWatcher() {
   // does not draw yet.
   const hasFloor = useRevealFloor('rank_up', pending !== null);
 
+  // One crate is the normal case; a single check-in that jumps two rungs pays two. The celebration
+  // shows the TOP crate's box (named by the rank reached) and sums the currency — the other boxes
+  // are already in the inventory, and the box row says so.
+  const crateReward = useMemo(() => {
+    const top = crates[0];
+    if (!top) return null;
+    return {
+      embers: crates.reduce((n, c) => n + c.embers, 0),
+      passXp: crates.reduce((n, c) => n + c.pass_xp, 0),
+      boxKey: top.box_key,
+      boxId: top.box_id,
+      boxName: `${top.label} Box`,
+      moreBoxes: crates.filter((c) => c.box_key).length - 1,
+    };
+  }, [crates]);
+
+  // The rank-set flames — their own rows, with Equip, since the grant already minted them. A key
+  // this build has no catalog entry for is skipped, like everywhere else an item is drawn.
+  const crateCosmetics = useMemo(
+    () =>
+      crates.flatMap((c) => {
+        const item = c.exclusive_item_key ? getItem(c.exclusive_item_key) : undefined;
+        if (!item) return [];
+        return [
+          {
+            key: item.id,
+            name: item.name,
+            accent: RARITY_COLOR[item.rarity],
+            onEquip: () => {
+              equipCosmetic(item).catch(() => {});
+            },
+          },
+        ];
+      }),
+    [crates]
+  );
+
   if (!pending || !hasFloor) return null;
 
   return (
@@ -174,7 +231,8 @@ export function RankUpWatcher() {
           streakDays={profile?.current_streak ?? 0}
           handle={profile?.handle ?? null}
           isBandCrossing={pending.isBandCrossing}
-          reward={reward ? { embers: reward.embers, boxKey: reward.box_key } : null}
+          reward={crateReward ?? (reward ? { embers: reward.embers, boxKey: reward.box_key } : null)}
+          cosmetics={crateCosmetics.length > 0 ? crateCosmetics : null}
           onContinue={() => setPending(null)}
           onShare={handleShare}
           sharing={sharing}
@@ -189,7 +247,7 @@ export function RankUpWatcher() {
             // The SAME read the celebration itself renders — 0142's get_my_last_rank_up_reward —
             // so the card and the screen it was shared from name the same prize. Null until that
             // read lands, which leaves the stamp off rather than guessing at one.
-            boxKey={reward?.box_key ?? null}
+            boxKey={crateReward?.boxKey ?? reward?.box_key ?? null}
           />
         </View>
       </Screen>

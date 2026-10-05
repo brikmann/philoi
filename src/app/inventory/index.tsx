@@ -54,7 +54,7 @@ export default function InventoryScreen() {
   const inventoryCoachRef = useCoachMark('inventory');
   const router = useRouter();
   const { profile } = useAuth();
-  const { embers, owned, equippedBySlot, boxStacks, badges, loading, error } = useInventory();
+  const { inventory, embers, owned, equippedBySlot, boxStacks, badges, loading, error, retry } = useInventory();
   const [filter, setFilter] = useState<ItemType | 'ALL'>('ALL');
   const [sort, setSort] = useState<SortMode>('recent');
   const [openingStack, setOpeningStack] = useState<BoxStack | null>(null);
@@ -249,10 +249,27 @@ export default function InventoryScreen() {
         ) : null}
 
         {/* ── Owned grid ── */}
-        {loading ? <Text style={styles.hint}>Loading…</Text> : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {loading && !inventory ? <Text style={styles.hint}>Loading…</Text> : null}
+        {/* A refresh that failed over tiles we already have stays a quiet line — the grid below is
+            still the last good read, so there is nothing to block on. */}
+        {error && inventory ? (
+          <Pressable onPress={retry} accessibilityRole="button" hitSlop={8}>
+            <Text style={styles.error}>{error} Tap to retry.</Text>
+          </Pressable>
+        ) : null}
 
-        {!loading && shown.length === 0 ? (
+        {error && !inventory && !loading ? (
+          // 🐛 Nothing loaded at all (a dropped connection on first open). This used to print the raw
+          // fetch error and then fall through to "Nothing here yet." below it — telling someone with
+          // 100 items they own nothing. Say what happened and offer the one thing that fixes it.
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>Couldn’t load your inventory.</Text>
+            <Text style={styles.emptyBody}>{error} Your items are safe — check your connection and try again.</Text>
+            <Pressable style={styles.emptyCta} onPress={retry} accessibilityRole="button">
+              <Text style={styles.emptyCtaText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : inventory && shown.length === 0 ? (
           <View style={styles.empty}>
             {/* A pinned tier with nothing in it is not an empty inventory, and saying "nothing here
                 yet" to someone holding 40 items would read as a bug in the grid rather than as an

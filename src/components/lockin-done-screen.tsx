@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, withDelay, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 
+import { showRewardReveal } from '@/components/economy/reward-reveal';
 import { GymClipThumbnail } from '@/components/gym-clip-player';
 import { RankBadge } from '@/components/rank-badge';
 import { PersonalFlame } from '@/components/personal-flame';
@@ -12,9 +13,11 @@ import { TextInput } from '@/components/ui/text-input';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyGroups } from '@/hooks/use-my-groups';
+import { fetchLockInPassCredit, type LockInPassCredit } from '@/lib/api/forge-pass';
 import { fetchCheckInClips } from '@/lib/api/gym-clips';
 import { postCheckInToCircle, setCheckInCaption } from '@/lib/api/lock-ins';
 import { useAuth } from '@/lib/auth/auth-context';
+import { levelFromXp, SEASON } from '@/lib/economy/forge-pass';
 import { getErrorMessage } from '@/lib/errors';
 import { formatDurationClock } from '@/lib/format';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
@@ -98,6 +101,56 @@ export function LockInDoneScreen({
 
   const [displayXp, setDisplayXp] = useState(0);
   const [plusVisible, setPlusVisible] = useState(false);
+  // What this session ACTUALLY paid the Emberfall Pass — the ledger row the server's lock-in
+  // trigger wrote (0227), never `hours × 250` worked out here. Null until it answers, and stays null
+  // when nothing was credited (under 5 min, season not live): no Pass line at all, not a "+0".
+  const [passCredit, setPassCredit] = useState<LockInPassCredit | null>(null);
+  const passFill = useSharedValue(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchLockInPassCredit(checkInId)
+      .then((c) => {
+        if (!cancelled) setPassCredit(c);
+      })
+      .catch(() => {
+        // The credit is already banked server-side; failing to READ it only hides the line.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [checkInId]);
+
+  // Where the Pass was before this Stop vs. after it. "Before" subtracts the bonus credits too — the
+  // same Stop can unlock a daily achievement or a rank-up, and leaving those in would start the bar
+  // above where the user actually was.
+  const passAfter = passCredit ? levelFromXp(passCredit.pass_xp) : null;
+  const passBefore = passCredit ? levelFromXp(passCredit.pass_xp - passCredit.xp - passCredit.bonus_xp) : null;
+  // Past L100 the bar is the climb to the next PRESTIGE (0232), so crossing one is a level-up too.
+  const passPrestiged = !!passAfter && !!passBefore && passAfter.prestige > passBefore.prestige;
+  const passLeveledUp = !!passAfter && !!passBefore && (passAfter.level > passBefore.level || passPrestiged);
+
+  useEffect(() => {
+    if (!passAfter || !passBefore) return;
+    const ratio = (l: { intoLevel: number; nextLevelCost: number }) => (l.nextLevelCost > 0 ? l.intoLevel / l.nextLevelCost : 1);
+    // Crossing a level fills from empty: the bar is the CURRENT level, which you entered at 0.
+    passFill.value = passLeveledUp ? 0 : ratio(passBefore);
+    passFill.value = withDelay(500, withTiming(ratio(passAfter), { duration: 900 }));
+    // A prestige is ~36 hours past a full pass — the biggest thing this screen can report, so it gets
+    // the full reveal. Nothing is listed as won: the rewards are a claim on the Flame Pass, and the
+    // reveal never congratulates you for something the server has not paid yet.
+    if (passPrestiged) {
+      showRewardReveal({
+        kind: 'pass_prestige',
+        title: `Prestige +${passAfter.prestige}`,
+        subtitle: `Level ${passAfter.level + passAfter.prestige} on the ${SEASON.name} Pass — your rewards are waiting on the Flame Pass.`,
+        rewards: [],
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- animate once, when the credit lands
+  }, [passCredit]);
+
+  const passFillStyle = useAnimatedStyle(() => ({ width: `${Math.min(passFill.value, 1) * 100}%` }));
 
   useEffect(() => {
     if (!GYM_VIDEO_CLIPS_ENABLED || !workoutRecap) return;
@@ -262,6 +315,34 @@ export function LockInDoneScreen({
             <Text style={[styles.rankChipText, { color: RANK_TIER_METAL[rankAfter.tier].text }]} numberOfLines={1}>
               {formatRankTier(rankAfter.tier, rankAfter.division)}
               {rankProgressSuffix}
+            </Text>
+          </View>
+        )}
+
+        {/* The Emberfall Pass, beside the rank XP above: what this session credited and the bar it
+            moved. Every number here is the server's (get_lock_in_pass_credit). */}
+        {passCredit && passAfter && (
+          <View style={styles.pass}>
+            <View style={styles.passHead}>
+              <Text style={styles.passXp} numberOfLines={1}>
+                +{passCredit.xp.toLocaleString()} {SEASON.name} Pass XP
+              </Text>
+              {passCredit.bonus_xp > 0 && <Text style={styles.passBonus}>+{passCredit.bonus_xp.toLocaleString()} bonus</Text>}
+            </View>
+            <View style={styles.passTrack}>
+              <Animated.View style={[styles.passFill, passFillStyle]} />
+            </View>
+            <Text style={styles.passLevel} numberOfLines={1}>
+              {passPrestiged
+                ? `Prestige +${passAfter.prestige} reached · Level ${passAfter.level + passAfter.prestige}`
+                : passAfter.prestige > 0
+                  ? `Level ${passAfter.level + passAfter.prestige} (+${passAfter.prestige} prestige)`
+                  : passLeveledUp
+                    ? `Level ${passAfter.level} reached`
+                    : `Level ${passAfter.level}`}
+              {passAfter.level < SEASON.totalLevels
+                ? ` · ${passAfter.intoLevel.toLocaleString()} / ${passAfter.nextLevelCost.toLocaleString()} to ${passAfter.level + 1}`
+                : ` · ${passAfter.intoLevel.toLocaleString()} / ${passAfter.nextLevelCost.toLocaleString()} to +${passAfter.prestige + 1}`}
             </Text>
           </View>
         )}
@@ -536,6 +617,53 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
+  },
+  // The Pass block — same card surface as the rank chip, stretched so the bar has room to move.
+  pass: {
+    alignSelf: 'stretch',
+    backgroundColor: Colors.cardDark,
+    borderWidth: 1,
+    borderColor: `${Colors.amber}55`,
+    borderRadius: Radius.card,
+    paddingVertical: 10,
+    paddingHorizontal: 13,
+    marginTop: 12,
+    gap: 7,
+  },
+  passHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  passXp: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+    color: Colors.amber,
+    fontVariant: ['tabular-nums'],
+  },
+  passBonus: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+    color: Colors.muted,
+  },
+  passTrack: {
+    height: 6,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.trackAlt,
+    overflow: 'hidden',
+  },
+  passFill: {
+    height: '100%',
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.amber,
+  },
+  passLevel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+    color: Colors.muted,
+    fontVariant: ['tabular-nums'],
   },
   streak: {
     flexDirection: 'row',

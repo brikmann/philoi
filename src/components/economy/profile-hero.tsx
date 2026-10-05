@@ -115,7 +115,7 @@ export function ProfileHero({
                 )}
               </EquippedAvatarHalo>
               <View style={styles.info}>
-                <BurningName userId={userId} style={styles.name} suffix={nameSuffix} licks>
+                <BurningName userId={userId} style={styles.name} suffix={nameSuffix} hero>
                   {name}
                 </BurningName>
                 {handle ? (

@@ -4,7 +4,7 @@
 
 import { track } from '@/lib/analytics';
 import { boxPoolByRarity, getItem, type CatalogItem, type EquipSlot } from '@/lib/economy/catalog';
-import { supabase } from '@/lib/supabase';
+import { isConnectionLost, supabase } from '@/lib/supabase';
 
 export type OwnedCosmetic = {
   id: string;
@@ -58,8 +58,24 @@ export type Inventory = {
   pass: PassState;
 };
 
+/**
+ * 🐛 CRITICAL (device triage): opening Inventory on iOS failed with "fetch failed … The network
+ * connection was lost (Promise.swift:56)". Not the payload — the heaviest prod inventory is ~120
+ * rows in one STABLE call, no per-item fetches — but the transport: iOS tore down the pooled
+ * connection and the request died on the first try. lib/supabase's retryingFetch re-sends exactly
+ * this, but only for GETs, and an rpc() is a POST by default, so get_inventory got zero retries.
+ *
+ * `get: true` sends it as a GET. get_inventory is STABLE and PostgREST only serves GET for
+ * STABLE/IMMUTABLE functions (in a read-only transaction), so repeating it can't move an ember.
+ * That covers the sub-second flake; one slower retry here covers a drop that outlasts it (Wi-Fi to
+ * cellular handoff) before the screen falls back to its "couldn't load — retry" state.
+ */
 export async function fetchInventory(): Promise<Inventory> {
-  const { data, error } = await supabase.rpc('get_inventory');
+  let { data, error } = await supabase.rpc('get_inventory', undefined, { get: true });
+  if (error && isConnectionLost(error)) {
+    await new Promise((r) => setTimeout(r, 1200));
+    ({ data, error } = await supabase.rpc('get_inventory', undefined, { get: true }));
+  }
   if (error) throw error;
   const inv = data as Inventory;
   // A server still on 0067 doesn't send `loadout` at all. Defaulting keeps every downstream `?.`

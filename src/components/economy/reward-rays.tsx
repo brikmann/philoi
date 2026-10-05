@@ -29,6 +29,7 @@ import type { RewardCue } from "@/lib/sound";
 export type RewardRevealKind =
   | "rank_up"
   | "pass_level"
+  | "pass_prestige"
   | "daily_fire"
   | "challenge_solo"
   | "challenge_team"
@@ -94,6 +95,19 @@ export const REVEAL_TUNING: Record<
     cue: "victory-short",
     eyebrow: "FLAME PASS",
     priority: 60,
+  },
+  // PRESTIGE (0232) — a level past L100 is ~36 hours of lock-in beyond a full pass, so it is the
+  // rarest thing the track pays and reads like it: the full 'victory' cut (a prestige is claimed a
+  // handful of times a season, so the tail has room), the widest fan short of a rank-up, and a
+  // priority just under it.
+  pass_prestige: {
+    tint: Colors.amber,
+    rays: 18,
+    scale: 1.12,
+    intensity: 0.88,
+    cue: "victory",
+    eyebrow: "FLAME PASS PRESTIGE",
+    priority: 90,
   },
   // ON THE UNIVERSAL VICTORY, not 'ignite'. This row used to argue that the daily fire is the day's
   // small beat rather than a win, and that was a fair reading of the ladder — but it left the one

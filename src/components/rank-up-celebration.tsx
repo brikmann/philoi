@@ -95,7 +95,20 @@ type RankUpCelebrationProps = {
    * 🔒 Display only. economy_track_rank_change moved the embers and minted the box when the rank
    * landed; this is a read of that, arriving well after the fact.
    */
-  reward?: { embers: number; boxKey: string | null } | null;
+  reward?: {
+    embers: number;
+    boxKey: string | null;
+    /**
+     * 0231's crate fields. Optional so 0142's legacy read (embers + box key only) still renders.
+     * `boxName` is the crate's own name, by the rank reached ("Diamond I Box"); `boxId` is the
+     * minted loot_boxes row, so Open needs no guess; `passXp` is what landed on this season's Pass;
+     * `moreBoxes` counts the lower rungs' crates a multi-rung jump also paid (already in inventory).
+     */
+    passXp?: number;
+    boxId?: string | null;
+    boxName?: string;
+    moreBoxes?: number;
+  } | null;
   /**
    * Cosmetics this rank unlocked — §0b. Each becomes its own RewardRow with an **Equip** action
    * rather than Claim: the grant already minted it, so the only thing left to do with a title or a
@@ -1098,7 +1111,7 @@ export function RankUpCelebration({
 
   const claim = useRewardClaim({
     boxKey: rewardBoxKey,
-    boxName: rewardBoxKey ? BOXES[rewardBoxKey]?.name : null,
+    boxName: rewardBoxKey ? (reward?.boxName ?? BOXES[rewardBoxKey]?.name) : null,
     embers: reward?.embers ?? 0,
     // NO XP ROW. A rank-up is what XP PAID FOR — the bar it would tick is the one that just
     // emptied into this celebration. Granting it a row would be the screen paying you for arriving
@@ -1139,10 +1152,19 @@ export function RankUpCelebration({
    * what leaves Open off the row rather than routing at a box that cannot be found — the same
    * posture the challenge screen takes when `box.id` is null on an older payload.
    */
-  const rewardBoxId = useMemo(
-    () => (rewardBoxKey ? boxStacks.find((st) => st.boxKey === rewardBoxKey)?.ids[0] : undefined),
-    [rewardBoxKey, boxStacks]
-  );
+  // 0231's crate read DOES carry the id, so it is used when that box is still unopened; the
+  // newest-of-key guess stays as the fallback for 0142's id-less read.
+  const crateBoxId = reward?.boxId ?? null;
+  // Hoisted so the rows memo below depends on values, not on the `reward` object.
+  const crateBoxName = reward?.boxName ?? null;
+  const crateMoreBoxes = reward?.moreBoxes ?? 0;
+  const cratePassXp = reward?.passXp ?? 0;
+  const rewardBoxId = useMemo(() => {
+    if (!rewardBoxKey) return undefined;
+    const stack = boxStacks.find((st) => st.boxKey === rewardBoxKey);
+    if (crateBoxId && stack?.ids.includes(crateBoxId)) return crateBoxId;
+    return stack?.ids[0];
+  }, [rewardBoxKey, boxStacks, crateBoxId]);
 
   const handleOpenBox = useCallback(() => {
     if (!rewardBoxId || !rewardBoxKey) return;
@@ -1165,8 +1187,12 @@ export function RankUpCelebration({
     if (rewardBoxKey) {
       rows.push({
         kind: 'box',
-        title: BOXES[rewardBoxKey]?.name ?? 'Loot box',
-        detail: `${BOXES[rewardBoxKey]?.rarity ?? ''} box · rank-up reward`.trim(),
+        title: crateBoxName ?? BOXES[rewardBoxKey]?.name ?? 'Loot box',
+        detail: crateBoxName
+          ? `${BOXES[rewardBoxKey]?.name ?? 'Loot box'} · rank crate${
+              crateMoreBoxes > 0 ? ` · +${crateMoreBoxes} more in inventory` : ''
+            }`
+          : `${BOXES[rewardBoxKey]?.rarity ?? ''} box · rank-up reward`.trim(),
         // 🔴 Mock 170 calls this one out by name: the rank-up's Ignition Crate is UNCOMMON and
         // renders GREEN. It was gold here, like every other box row in the app was.
         chip: { label: (BOXES[rewardBoxKey]?.rarity ?? 'earned').toUpperCase(), color: boxAccent(rewardBoxKey) },
@@ -1201,12 +1227,27 @@ export function RankUpCelebration({
         destination: '→ wallet',
       });
     }
+    // PASS XP, display only. Not the rank XP the comment on useRewardClaim refuses a row to — this is
+    // the crate's own credit to THIS season's Pass (0231), a separate bar the climb also fills. No
+    // claim control: nothing flies, the number already landed on the Pass.
+    if (cratePassXp > 0) {
+      rows.push({
+        kind: 'xp',
+        title: 'Pass XP',
+        detail: 'Rank crate · this season',
+        value: `+${cratePassXp.toLocaleString('en-US')}`,
+        destination: '→ Pass',
+      });
+    }
     return rows;
   }, [
     rewardBoxKey,
     rewardBoxId,
     handleOpenBox,
     reward?.embers,
+    cratePassXp,
+    crateBoxName,
+    crateMoreBoxes,
     cosmetics,
     tier,
     division,

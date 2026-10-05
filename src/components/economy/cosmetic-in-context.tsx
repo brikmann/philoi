@@ -459,14 +459,19 @@ export function CosmeticHero({
         </View>
       );
     case "BANNER":
+      // The banner's scene is composed portrait (216 × 452, a phone screen) and drawn with
+      // preserveAspectRatio="none". The old size × 1.7 by size × 0.85 strip squashed it to a quarter
+      // of its height under an 80% scrim, which read as a line. Fill the stage like a flame or
+      // relic does, in the same box the "In action" chat uses, and show it bare: this beat IS the
+      // banner, there is no chat on it to keep legible.
       return (
-        <View
-          style={[
-            styles.heroBanner,
-            { width: size * 1.7, height: size * 0.85 },
-          ]}
-        >
-          <CampfireBannerArt itemKey={item.id} variant="screen" animated />
+        <View style={styles.heroBanner}>
+          <CampfireBannerArt
+            itemKey={item.id}
+            variant="screen"
+            animated
+            scrim={false}
+          />
         </View>
       );
     case "TITLE":
@@ -1048,6 +1053,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#241a38",
   },
   heroBanner: {
+    width: 270,
+    height: CONTEXT_STAGE_HEIGHT - 8,
     borderRadius: Radius.card,
     overflow: "hidden",
   },

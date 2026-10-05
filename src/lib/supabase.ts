@@ -33,8 +33,17 @@ const storage =
 //
 // We only retry GETs. A failed GET (every PostgREST select — friends, loadouts, active lock-ins,
 // social challenges) is safe to repeat; retrying a POST/RPC could double-apply an economy mutation,
-// so those bubble the error up unchanged.
+// so those bubble the error up unchanged. A read-only RPC opts in with `rpc(fn, args, { get: true })`
+// — PostgREST only serves GET for STABLE/IMMUTABLE functions and runs it read-only, so the server
+// itself guarantees a GET it accepts is safe to repeat (see fetchInventory).
 const CONNECTION_LOST = /network connection was lost|connection was lost|-1005|Network request failed/i;
+
+/** True for the transport flake above. Accepts a thrown Error or a returned PostgrestError, whose
+ * message postgrest-js builds as `${name}: ${message}` when the underlying fetch rejected. */
+export function isConnectionLost(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : (err as { message?: unknown } | null)?.message;
+  return typeof msg === 'string' && CONNECTION_LOST.test(msg);
+}
 
 const retryingFetch: typeof fetch = async (input, init) => {
   const method = (init?.method ?? 'GET').toUpperCase();

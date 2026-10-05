@@ -2,7 +2,7 @@ import type { Ionicons } from '@expo/vector-icons';
 
 import { Colors } from '@/constants/theme';
 import { getItem, type CatalogItem } from '@/lib/economy/catalog';
-import { SEASON, levelFromXp } from '@/lib/economy/forge-pass';
+import { SEASON, passLevelLabel } from '@/lib/economy/forge-pass';
 import { RARITY_COLOR, RARITY_LABEL, type Rarity } from '@/lib/economy/rarity';
 import { formatDistanceKm, formatSessionDuration, pluralize } from '@/lib/format';
 import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
@@ -224,9 +224,9 @@ export function attachmentView(
 
     case 'pass': {
       // The curve lives in forge-pass.ts; the server froze the raw XP so this stays one definition.
-      const { level } = levelFromXp(snap.pass_xp ?? 0);
+      // Past L100 it reads "Level 103 (+3 prestige)" (0232).
       return {
-        title: `Flame Pass · Level ${level}`,
+        title: `Flame Pass · ${passLevelLabel(snap.pass_xp ?? 0)}`,
         subtitle: `${SEASON.name} season`,
         eyebrow: 'STANDING',
         eyebrowColor: Colors.ember,

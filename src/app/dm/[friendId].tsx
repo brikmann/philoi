@@ -1,24 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { EmberFill } from '@/components/ui/ember-fill';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useDmThread } from '@/hooks/use-dm-thread';
@@ -77,10 +76,14 @@ export default function DmThreadScreen() {
   const myUserId = myProfile?.id;
 
   const thread = useDmThread(friendId);
-  // The shelf runs to the bottom EDGE, with the inset as padding inside it — same as the
-  // campfire composer. `edges` above is top-only on purpose, so this is the one place that knows
-  // about the gesture bar.
+  // This screen insets its own chrome, the way the campfire does: the top bar pads by insets.top
+  // and the composer shelf runs to the bottom EDGE with insets.bottom as padding inside it.
   const insets = useSafeAreaInsets();
+  // Messages come back oldest-first, so the newest is at the END of the list.
+  const listRef = useRef<FlatList<DmThreadMessage>>(null);
+  const scrollToEnd = useCallback(() => {
+    listRef.current?.scrollToEnd({ animated: true });
+  }, []);
   const [friend, setFriend] = useState<Profile | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -177,10 +180,16 @@ export default function DmThreadScreen() {
   const friendLoadout = friendId ? (loadouts[friendId] ?? {}) : {};
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safe}>
+    // 🐛 THE COMPOSER SAT HALFWAY UP THE SCREEN. This screen used to roll its own SafeAreaView +
+    // KeyboardAvoidingView, with a hardcoded iOS keyboardVerticalOffset of 90 — for a native
+    // header this screen hides. That phantom 90px opened as a gap between the keyboard and the
+    // shelf, and the list had no flex of its own to claim the space. It now sits on the same shell
+    // as the campfire (group/[groupId]/index.tsx): <Screen edges={[]}> supplies the ONE
+    // keyboard-avoiding wrapper with no offset, and the screen insets its own top bar and shelf.
+    <Screen padded={false} edges={[]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.top}>
+      <View style={[styles.top, { paddingTop: Spacing.two + insets.top }]}>
         <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
           <Ionicons name="chevron-back" size={22} color={Colors.muted} />
         </Pressable>
@@ -219,10 +228,7 @@ export default function DmThreadScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.body}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+      <View style={styles.body}>
         {/* The guardrails speak for themselves here. dm_open_thread refuses a non-friend or a
             blocked pair, and when it does, its message IS the screen — an empty thread with a live
             composer would invite a send that can only fail. */}
@@ -240,9 +246,13 @@ export default function DmThreadScreen() {
               </View>
             ) : (
               <FlatList
+                ref={listRef}
                 data={thread.messages}
                 keyExtractor={(item) => item.id}
+                style={styles.flatlist}
                 contentContainerStyle={styles.list}
+                onContentSizeChange={scrollToEnd}
+                keyboardShouldPersistTaps="handled"
                 ListEmptyComponent={
                   !thread.loading ? (
                     <EmptyState title="No messages yet" body={`Say something to ${name}.`} />
@@ -337,7 +347,7 @@ export default function DmThreadScreen() {
             </View>
           </>
         )}
-      </KeyboardAvoidingView>
+      </View>
 
       <ReportBlockSheet
         visible={moreOpen}
@@ -345,17 +355,11 @@ export default function DmThreadScreen() {
         onReport={() => router.push(`/report?userId=${friendId}`)}
         onBlock={handleBlock}
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    // Transparent, not a flat fill: this screen doesn't route through <Screen>, so an opaque colour
-    // here would paint over the navigator's deep-purple radial (Ember reskin sweep).
-    backgroundColor: 'transparent',
-  },
   top: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -410,6 +414,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
+  },
+  flatlist: {
+    flex: 1,
   },
   list: {
     padding: Spacing.four,

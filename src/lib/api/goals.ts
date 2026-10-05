@@ -1,6 +1,6 @@
 import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
-import type { Goal, GoalType, MyRank, RankUpReward } from '@/types/database';
+import type { Goal, GoalType, MyRank, RankCrate, RankUpReward } from '@/types/database';
 
 export async function fetchMyGoals(userId: string): Promise<Goal[]> {
   const { data, error } = await supabase
@@ -96,6 +96,17 @@ export async function fetchLastRankUpReward(): Promise<RankUpReward | null> {
   const { data, error } = await supabase.rpc('get_my_last_rank_up_reward');
   if (error) return null;
   return (data as RankUpReward[] | null)?.[0] ?? null;
+}
+
+/**
+ * The rank crates paid in the last week (0231) — embers, Pass XP, the box and, on a tier entry, the
+ * rank-set flame. The watcher keeps the rungs between the rank it last showed and the one it is
+ * celebrating. Best-effort like the read above: an empty list just leaves the crate rows off.
+ */
+export async function fetchRecentRankCrates(): Promise<RankCrate[]> {
+  const { data, error } = await supabase.rpc('get_my_recent_rank_crates');
+  if (error) return [];
+  return (data as RankCrate[] | null) ?? [];
 }
 
 export async function fetchMyRanks(): Promise<MyRank[]> {

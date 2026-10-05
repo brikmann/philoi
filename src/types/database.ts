@@ -531,6 +531,28 @@ export type SeasonCard = {
   rewards: SeasonReward[];
 };
 
+/** One reward a prestige level pays, as the server's config states it (0232). */
+export type PassPrestigeReward =
+  | { kind: 'embers'; embers: number }
+  | { kind: 'box'; box_key: string }
+  | { kind: 'item'; item_key: string; item_slot: string | null; item_rarity: string };
+
+/** The Flame Pass past L100 — get_pass_prestige() (migration 0232). */
+export type PassPrestige = {
+  season_id: string;
+  pass_xp: number;
+  /** Whole prestige levels past L100. */
+  prestige: number;
+  base_xp: number;
+  level_xp: number;
+  /** Prestige levels already claimed, ascending. */
+  claimed: number[];
+  /** Every level reached plus the next, and every milestone — with what each pays. */
+  track: { prestige: number; rewards: PassPrestigeReward[] }[];
+  /** Where the season close froze you (season_prestige_finals). Null until the close has run. */
+  final: { prestige: number; pass_xp: number } | null;
+};
+
 /** design-mocks/94's stat strip — get_campfire_stats(). Members only; a non-member gets no row. */
 export type CampfireStats = {
   member_count: number;
@@ -1017,6 +1039,8 @@ export type AnalyticsEventName =
   | 'forge_combined'
   | 'pass_tier_claimed'
   | 'pass_level_claimed'
+  // A Flame Pass prestige level claimed (migration 0232) — past L100, ~36h of lock-in each.
+  | 'pass_prestige_claimed'
   | 'iap_purchase_completed'
   | 'iap_purchase_cancelled'
   | 'iap_purchase_failed'
@@ -2178,6 +2202,26 @@ export type RankUpReward = {
   awarded_at: string;
 };
 
+/**
+ * One rung's crate as it was PAID (0231, rank_crate_grants) — get_my_recent_rank_crates. A rung is
+ * crossed once in a lifetime, so a crate is too. `pass_xp` is 0 when no season was live, and
+ * `exclusive_item_key` is set only on the nine tier entries (the rank-set flames).
+ */
+export type RankCrate = {
+  rank_index: number;
+  /** Display label, numerals already flipped: "Diamond I", "Divine II", "Primordial". */
+  label: string;
+  tier: string;
+  /** STORED division (3 = lowest in the tier) — compare with rankOrdinal, never show it. */
+  division: number;
+  embers: number;
+  pass_xp: number;
+  box_key: string | null;
+  box_id: string | null;
+  exclusive_item_key: string | null;
+  granted_at: string;
+};
+
 export type UnseenChallengeReward = {
   challenge_id: string;
   public_name: string | null;
@@ -3191,6 +3235,8 @@ export type Database = {
       get_my_unseen_challenge_rewards: { Args: Record<string, never>; Returns: UnseenChallengeReward[] };
       /** What the last rank-up actually paid (0142). Read-only; the grant happened at 0121. */
       get_my_last_rank_up_reward: { Args: Record<string, never>; Returns: RankUpReward[] };
+      /** Every rank crate paid in the last 7 days, highest rung first (0231). Read-only. */
+      get_my_recent_rank_crates: { Args: Record<string, never>; Returns: RankCrate[] };
       /** Stamps the fire-once flag so the reveal never plays twice (0116). */
       mark_challenge_reward_seen: { Args: { p_challenge_id: string }; Returns: undefined };
       /** Personal goals that finished and were never celebrated (0167). Read-only; it cannot pay. */
@@ -3542,6 +3588,18 @@ export type Database = {
       credit_pass_xp: { Args: { p_achievement: string; p_xp: number; p_period: string }; Returns: number };
       /** Live counters for the progress-style achievements (migration 0065). */
       get_pass_achievement_progress: { Args: Record<string, never>; Returns: Record<string, number> };
+      /** What one lock-in credited the Pass, from the ledger (migration 0227). Null = nothing. */
+      get_lock_in_pass_credit: {
+        Args: { p_check_in_id: string };
+        Returns: { xp: number; bonus_xp: number; season_id: string; pass_xp: number } | null;
+      };
+      /** The Pass past L100 — prestige, claims and the reward track (migration 0232). */
+      get_pass_prestige: { Args: Record<string, never>; Returns: PassPrestige };
+      /** Claim one prestige level's rewards; the server decides them (migration 0232). */
+      claim_pass_prestige: {
+        Args: { p_prestige: number };
+        Returns: { prestige: number; season_id: string; rewards: PassPrestigeReward[] };
+      };
       /** Equipped cosmetics for OTHER users — keys only, nothing sellable or private. */
       get_public_loadouts: {
         Args: { p_user_ids: string[] };

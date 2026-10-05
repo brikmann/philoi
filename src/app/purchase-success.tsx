@@ -269,7 +269,7 @@ function IgniteName({ intro, name }: { intro: { value: number }; name: string })
   return (
     <View>
       <Animated.View style={fire}>
-        <BurningName owns style={styles.burnName} licks>
+        <BurningName owns style={styles.burnName} hero>
           {name}
         </BurningName>
       </Animated.View>

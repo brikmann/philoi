@@ -14,7 +14,6 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
@@ -30,8 +29,10 @@ import { useSealOwner } from '@/lib/economy/seal-owners';
 //
 // The always-on ownership flex: not an equippable cosmetic, just the fact of owning the pass, shown
 // everywhere the campus sees the name. Fire-gradient glyphs (the mock's
-// `linear-gradient(0deg,#E0612C,#FFB347 42%,#FFF3D6)` + background-clip:text), a flickering glow
-// behind them, weight 900, and — at hero sizes only — small flame licks off the top.
+// `linear-gradient(0deg,#E0612C,#FFB347 42%,#FFF3D6)` + background-clip:text), weight 900, and an
+// aura: the name itself radiates heat — a slow-breathing ember glow under the glyphs plus a quicker
+// flicker close in. Nothing rides above the glyphs; the old flame licks off the top bobbed like
+// stickers and read cheap, so the heat comes off the letters instead.
 //
 // ── HOW THE GRADIENT IS DRAWN WITHOUT background-clip ──
 //
@@ -46,9 +47,9 @@ import { useSealOwner } from '@/lib/economy/seal-owners';
 // bands read as a vertical ramp. Six bands over a 15pt line is ~2.5pt a step, below what reads as
 // banding at list sizes.
 //
-// Cheap on purpose: a board can hold several of these. The glow is ONE shared value driving ONE
-// view's opacity; nothing re-renders React per frame, and under Reduce Motion (or a blurred screen)
-// the loop parks rather than runs.
+// Cheap on purpose: a board can hold several of these. The aura and the flicker are two shared
+// values driving two views' opacity; nothing re-renders React per frame, and under Reduce Motion (or
+// a blurred screen) both loops park at a steady glow rather than run.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The mock's ramp, bottom → top. */
@@ -112,8 +113,9 @@ type Props = {
   numberOfLines?: number;
   /** Rendered after the name in the PLAIN style (" · you", a handle) — never on fire. */
   suffix?: ReactNode;
-  /** Flame licks off the top of the glyphs. Hero sizes only; at list sizes they are noise. */
-  licks?: boolean;
+  /** A wider, hotter aura for hero sizes (the profile header, the purchase reveal). At list sizes it
+   *  would bleed into the neighbouring rows, so lists get the tight one. */
+  hero?: boolean;
   /**
    * Pin the Emberfall Seal after the name when `userId` owns it (<SealBadge>). On by default so
    * every surface that shows a name shows the Seal too; a name drawn from `owns` alone (the reveal,
@@ -122,7 +124,7 @@ type Props = {
   seal?: boolean;
 };
 
-export function BurningName({ children, userId, owns, style, numberOfLines = 1, suffix, licks = false, seal = true }: Props) {
+export function BurningName({ children, userId, owns, style, numberOfLines = 1, suffix, hero = false, seal = true }: Props) {
   const fetched = usePassHolder(owns === undefined ? userId : null);
   const burning = owns ?? fetched;
   // Independent of `burning`: the Seal outlives the pass, so a lapsed finisher is a plain name + Seal.
@@ -130,7 +132,7 @@ export function BurningName({ children, userId, owns, style, numberOfLines = 1, 
 
   if (!sealed) {
     return (
-      <Name burning={burning} style={style} numberOfLines={numberOfLines} suffix={suffix} licks={licks}>
+      <Name burning={burning} style={style} numberOfLines={numberOfLines} suffix={suffix} hero={hero}>
         {children}
       </Name>
     );
@@ -142,7 +144,7 @@ export function BurningName({ children, userId, owns, style, numberOfLines = 1, 
   return (
     <View style={[outer, styles.withSuffix]}>
       <View style={styles.shrink}>
-        <Name burning={burning} style={text} numberOfLines={numberOfLines} licks={licks}>
+        <Name burning={burning} style={text} numberOfLines={numberOfLines} hero={hero}>
           {children}
         </Name>
       </View>
@@ -163,14 +165,14 @@ function Name({
   style,
   numberOfLines,
   suffix,
-  licks,
+  hero,
 }: {
   children: string;
   burning: boolean;
   style?: StyleProp<TextStyle>;
   numberOfLines: number;
   suffix?: ReactNode;
-  licks: boolean;
+  hero: boolean;
 }) {
   if (!burning) {
     return (
@@ -186,7 +188,7 @@ function Name({
   if (!suffix) {
     return (
       <View style={outer}>
-        <FireText text={children} style={text} numberOfLines={numberOfLines} licks={licks} />
+        <FireText text={children} style={text} numberOfLines={numberOfLines} hero={hero} />
       </View>
     );
   }
@@ -195,7 +197,7 @@ function Name({
   return (
     <View style={[outer, styles.withSuffix]}>
       <View style={styles.shrink}>
-        <FireText text={children} style={text} numberOfLines={numberOfLines} licks={licks} />
+        <FireText text={children} style={text} numberOfLines={numberOfLines} hero={hero} />
       </View>
       <Text style={[text, styles.suffix]} numberOfLines={1}>
         {suffix}
@@ -208,28 +210,40 @@ function FireText({
   text,
   style,
   numberOfLines,
-  licks,
+  hero,
 }: {
   text: string;
   style: TextStyle;
   numberOfLines: number;
-  licks: boolean;
+  hero: boolean;
 }) {
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
   const run = usePassMotion();
   const pulse = useSharedValue(0.5);
+  const breath = useSharedValue(0.5);
 
   useEffect(() => {
     if (run) {
       pulse.value = withRepeat(withTiming(1, { duration: 950, easing: Easing.inOut(Easing.sin) }), -1, true);
+      // The aura breathes slower than the flicker — heat rolling off, not a strobe.
+      breath.value = withRepeat(withTiming(1, { duration: 2600, easing: Easing.inOut(Easing.sin) }), -1, true);
     } else {
       // Parked at the middle, so a held-still name is the same fire stopped, not a dimmer one.
       cancelAnimation(pulse);
+      cancelAnimation(breath);
       pulse.value = 0.5;
+      breath.value = 0.5;
     }
-  }, [run, pulse]);
+  }, [run, pulse, breath]);
 
   const glow = useAnimatedStyle(() => ({ opacity: interpolate(pulse.value, [0, 1], [0.35, 1]) }));
+  const auraGlow = useAnimatedStyle(() => ({ opacity: interpolate(breath.value, [0, 1], [0.45, 1]) }));
+
+  // The aura's reach, scaled to the glyphs. Android draws a text shadow only inside its own view, so
+  // the aura copy is padded out by its radius — same inner width, so it lays out (and ellipsizes)
+  // exactly like the base copy — and capped at 24, past which Android's blur stops widening.
+  const size = style.fontSize ?? 15;
+  const reach = Math.min(24, Math.round(size * (hero ? 0.95 : 0.6)));
 
   function onLayout(e: LayoutChangeEvent) {
     const { width, height } = e.nativeEvent.layout;
@@ -241,8 +255,22 @@ function FireText({
 
   return (
     <View>
-      {/* The flicker: a hotter, wider glow behind the glyphs, breathing. Behind the base copy, so
-          only its halo shows. */}
+      {/* The aura: an ember-red copy far behind the glyphs, its wide soft shadow the heat the name
+          gives off. Only the halo shows — the base copy and the bands cover its letters. */}
+      {box ? (
+        <Animated.View
+          style={[styles.layer, { top: -reach, left: -reach, width: box.w + reach * 2, height: box.h + reach * 2 }, auraGlow]}
+          pointerEvents="none">
+          <Text
+            style={[fire, styles.aura, { padding: reach, width: box.w + reach * 2, textShadowRadius: reach }]}
+            numberOfLines={numberOfLines}>
+            {text}
+          </Text>
+        </Animated.View>
+      ) : null}
+
+      {/* The flicker: a hotter glow close in, quicker than the aura. Behind the base copy, so only
+          its halo shows. */}
       {box ? (
         <Animated.View style={[styles.layer, { width: box.w, height: box.h }, glow]} pointerEvents="none">
           <Text style={[fire, styles.flicker, { width: box.w }]} numberOfLines={numberOfLines}>
@@ -271,46 +299,7 @@ function FireText({
             );
           })
         : null}
-
-      {licks && box && run ? <Licks width={box.w} height={box.h} /> : null}
     </View>
-  );
-}
-
-/** Four small tongues off the top of the name (mock 225's `.lick`). */
-const LICKS = [
-  { at: 0.14, h: 0.42, delay: 0 },
-  { at: 0.42, h: 0.58, delay: 350 },
-  { at: 0.66, h: 0.44, delay: 700 },
-  { at: 0.86, h: 0.52, delay: 200 },
-] as const;
-
-function Licks({ width, height }: { width: number; height: number }) {
-  return (
-    <>
-      {LICKS.map((l) => (
-        <Lick key={l.at} left={width * l.at} h={height * l.h} delay={l.delay} top={height * 0.1} />
-      ))}
-    </>
-  );
-}
-
-function Lick({ left, h, delay, top }: { left: number; h: number; delay: number; top: number }) {
-  const t = useSharedValue(0);
-  useEffect(() => {
-    t.value = withDelay(delay, withRepeat(withTiming(1, { duration: 550, easing: Easing.inOut(Easing.quad) }), -1, true));
-  }, [delay, t]);
-  const style = useAnimatedStyle(() => ({
-    opacity: interpolate(t.value, [0, 1], [0.45, 1]),
-    transform: [{ translateY: interpolate(t.value, [0, 1], [3, -3]) }, { scaleY: interpolate(t.value, [0, 1], [0.8, 1.15]) }],
-  }));
-  const w = Math.max(5, h * 0.45);
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[styles.lick, { left: left - w / 2, top: top - h, width: w, height: h, borderRadius: w / 2 }, style]}>
-      <View style={[styles.lickCore, { width: w * 0.5, height: h * 0.55, borderRadius: w / 4 }]} />
-    </Animated.View>
   );
 }
 
@@ -324,6 +313,11 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(255,120,40,0.75)',
     textShadowOffset: { width: 0, height: -1 },
     textShadowRadius: 8,
+  },
+  aura: {
+    color: FIRE_BOTTOM,
+    textShadowColor: 'rgba(224,97,44,0.9)',
+    textShadowOffset: { width: 0, height: 0 },
   },
   flicker: {
     color: FIRE_BOTTOM,
@@ -348,16 +342,6 @@ const styles = StyleSheet.create({
     // per band would stack six glows into a smear.
     textShadowRadius: 0,
     textShadowColor: 'transparent',
-  },
-  lick: {
-    position: 'absolute',
-    backgroundColor: 'rgba(255,158,77,0.75)',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  lickCore: {
-    backgroundColor: 'rgba(255,243,214,0.85)',
-    marginBottom: 1,
   },
   withSuffix: {
     flexDirection: 'row',

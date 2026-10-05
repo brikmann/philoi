@@ -816,6 +816,37 @@ const EMBERFALL_PLACEMENT: CatalogItem[] = [
     art: { kind: 'medal', from: '#A9761A', to: '#FFDF7A' } }),
 ];
 
+// ── Season 1 · Flame Pass prestige (0232) ──
+//
+// Overflowing the Pass past L100: every 9,000 XP beyond it is one prestige level. These are the
+// milestone exclusives (+1 / +3 / +5 / +10, claimed with that prestige level) and the season medal
+// (minted at close for anyone who reached +1). `acquisition: 'earned'` keeps every one of them out of
+// boxPool() — no box, no direct buy — and out of box_droppable_items server-side (0232 asserts it).
+// Each row's season_stamp carries the prestige it was won at ("+3 PRESTIGE · S1").
+const EMBERFALL_PRESTIGE: CatalogItem[] = [
+  item({ id: 'flame-s1-prestige', name: 'Overflow Flame', type: 'FLAME', rarity: 'legendary', acquisition: 'earned', archetype: 'neutron', seasonStamped: true,
+    howToGet: 'Reach Prestige +1 on the Emberfall Pass — 9,000 Pass XP past Level 100.',
+    lore: 'The track ran out. The fire didn’t. White at the heart, because there was nothing left to burn but you.',
+    art: { kind: 'flame', from: '#E0612C', to: '#FFF4D6' } }),
+  item({ id: 'particle-s1-prestige', name: 'Overflow Embers', type: 'PARTICLE', rarity: 'legendary', acquisition: 'earned', archetype: 'solar-arc', seasonStamped: true,
+    howToGet: 'Reach Prestige +3 on the Emberfall Pass.',
+    lore: 'Sparks thrown off a forge that should have cooled weeks ago.',
+    art: { kind: 'particle', from: '#F5401C', to: '#FFF4D6' } }),
+  item({ id: 'flare-s1-prestige', name: 'Overflow Aura', type: 'FLARE', rarity: 'legendary', acquisition: 'earned', seasonStamped: true,
+    howToGet: 'Reach Prestige +5 on the Emberfall Pass.',
+    lore: 'Five times past the end of the track. The fire has stopped asking for permission.',
+    art: { kind: 'flare', from: '#F5401C', to: '#FFF4D6' },
+    flare: { colour: '#FFB03C', effect: 'flames' } }),
+  item({ id: 'halo-s1-prestige-crown', name: 'The Overflow Crown', type: 'HALO', rarity: 'mythic', acquisition: 'earned', archetype: 'crown', seasonStamped: true,
+    howToGet: 'Reach Prestige +10 on the Emberfall Pass — 90,000 Pass XP past Level 100.',
+    lore: 'Ten full tracks beyond the last level. Almost nobody will ever see one burning.',
+    art: { kind: 'halo', from: '#B01A0E', to: '#FFF4D6' } }),
+  item({ id: 'medal-s1-prestige', name: 'Emberfall Prestige', type: 'MEDAL', rarity: 'legendary', acquisition: 'earned', archetype: 'crown', seasonStamped: true,
+    howToGet: 'Finish Emberfall at Prestige +1 or higher. The medal is struck with your final prestige.',
+    lore: 'Level one hundred was the end of the track, not the end of the season.',
+    art: { kind: 'medal', from: '#8A2B00', to: '#FFF4D6' } }),
+];
+
 // ───────────────────────────── Retired (0222 · mock 249's title prune) ─────────────────────────────
 //
 // Off the keep-list. Nothing grants, drops or sells these any more, and no screen offers them as
@@ -985,6 +1016,56 @@ export function isDefaultItem(id: string): boolean {
   return DEFAULT_IDS.has(id);
 }
 
+/**
+ * The rank set (migration 0231) — one signature flame per tier, granted ONLY by climbing into it.
+ *
+ * Each is the exclusive in that tier-entry rung's crate (rank_rung_crates.exclusive_item_key), so
+ * the howToGet below is the server's grant condition word for word. `earned`, so boxPool() and the
+ * direct-buy row never see them and salvage refuses them (0213) — prestige, not currency. The ramp
+ * is the tier's own metal (RANK_TIER_METAL outer → inner), so the flame reads as the badge lit.
+ */
+const RANK_SET: CatalogItem[] = [
+  item({ id: 'flame-rank-silver', name: 'Quicksilver Flame', type: 'FLAME', rarity: 'rare', acquisition: 'earned', archetype: 'ember',
+    howToGet: 'Reach Silver I.',
+    lore: 'The first metal the climb strikes. It runs like water and never once sits still.',
+    art: { kind: 'flame', from: '#6B7280', to: '#C4CBD6' } }),
+  item({ id: 'flame-rank-gold', name: 'Gilded Flame', type: 'FLAME', rarity: 'rare', acquisition: 'earned', archetype: 'solar',
+    howToGet: 'Reach Gold I.',
+    lore: 'Eighty-five hours in, the fire starts to look like something worth keeping.',
+    art: { kind: 'flame', from: '#9A6A12', to: '#F5C542' } }),
+  item({ id: 'flame-rank-platinum', name: 'Platinum Flame', type: 'FLAME', rarity: 'epic', acquisition: 'earned', archetype: 'volt',
+    howToGet: 'Reach Platinum I.',
+    lore: 'Cool to look at, white-hot to touch. Most people never see it this close.',
+    art: { kind: 'flame', from: '#6E8B98', to: '#A7C7D4' } }),
+  item({ id: 'flame-rank-diamond', name: 'Diamond Fire', type: 'FLAME', rarity: 'epic', acquisition: 'earned', archetype: 'neutron',
+    howToGet: 'Reach Diamond I.',
+    lore: 'Pressure, and time, and more of both than anyone thought you had.',
+    art: { kind: 'flame', from: '#2C6E76', to: '#7FE0E8' } }),
+  item({ id: 'flame-rank-hero', name: "Hero's Pyre", type: 'FLAME', rarity: 'legendary', acquisition: 'earned', archetype: 'forge',
+    howToGet: 'Reach Hero I.',
+    lore: 'The realm of legend opens with a fire they light for the ones who made it.',
+    art: { kind: 'flame', from: '#8F2E28', to: '#E0574C' } }),
+  item({ id: 'flame-rank-titan', name: 'Titanfire', type: 'FLAME', rarity: 'legendary', acquisition: 'earned', archetype: 'toxic',
+    howToGet: 'Reach Titan I.',
+    lore: 'Older than the gods, and it remembers being the only light there was.',
+    art: { kind: 'flame', from: '#1E5E4A', to: '#4FA88C' } }),
+  item({ id: 'flame-rank-divine', name: 'Divine Flame', type: 'FLAME', rarity: 'legendary', acquisition: 'earned', archetype: 'solar',
+    howToGet: 'Reach Divine I.',
+    lore: 'Taken from the mountain without asking. Nobody up there has come to take it back.',
+    art: { kind: 'flame', from: '#C0A24E', to: '#F7E9C0' } }),
+  item({ id: 'flame-rank-immortal', name: 'Undying Flame', type: 'FLAME', rarity: 'mythic', acquisition: 'earned', archetype: 'cosmic',
+    howToGet: 'Reach Immortal I.',
+    lore: 'Nine hundred hours. It has stopped needing fuel; it burns on what you have become.',
+    art: { kind: 'flame', from: '#8E6BC8', to: '#EAE2FA' } }),
+  item({ id: 'flame-rank-primordial', name: 'The First Fire', type: 'FLAME', rarity: 'mythic', acquisition: 'earned', archetype: 'forge',
+    howToGet: 'Reach Primordial.',
+    lore: 'Before the forge, before the hearth, there was this. Now there is you.',
+    art: { kind: 'flame', from: '#B0431E', to: '#F2A33C' } }),
+];
+
+/** The rank set's ids, lowest tier first — the order the crates mint them in. */
+export const RANK_SET_IDS: readonly string[] = RANK_SET.map((i) => i.id);
+
 export const CATALOG: CatalogItem[] = [
   ...DEFAULTS,
   ...FLAMES,
@@ -1003,6 +1084,8 @@ export const CATALOG: CatalogItem[] = [
   ...MEDALS,
   ...EMBERFALL_SET,
   ...EMBERFALL_PLACEMENT,
+  ...RANK_SET,
+  ...EMBERFALL_PRESTIGE,
   // Last, and in CATALOG at all only so getItem() resolves owned copies and cosmetic_rarity can
   // still price them. Every listing below filters them out.
   ...RETIRED,

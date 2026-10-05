@@ -9,6 +9,7 @@ import { setOwnPassHolder } from '@/lib/economy/pass-holders';
 import { ownsSeal, setOwnSealOwner } from '@/lib/economy/seal-owners';
 import { subscribeToInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { getErrorMessage } from '@/lib/errors';
+import { isConnectionLost } from '@/lib/supabase';
 
 /**
  * Unopened boxes collapsed to one entry per box_key (punchlist 9 §4). Eleven earned Vessels were
@@ -75,11 +76,25 @@ export function useInventory() {
       // And the Seal, off the same owned rows — it lands the moment L100 is claimed.
       setOwnSealOwner(session.user.id, ownsSeal(inv.cosmetics));
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not load your inventory.'));
+      // A failed refresh leaves the last good inventory in place — the screen decides whether that
+      // is a full "couldn't load" state (nothing loaded yet) or a quiet note over stale tiles. The
+      // raw transport error ("TypeError: fetch failed … Promise.swift:56") is not copy.
+      setError(
+        isConnectionLost(e)
+          ? 'Lost the connection while loading your inventory.'
+          : getErrorMessage(e, 'Could not load your inventory.')
+      );
     } finally {
       setLoading(false);
     }
   }, [session]);
+
+  /** The Retry button: unlike a silent focus refetch, it shows the loading state while it runs. */
+  const retry = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    void refetch();
+  }, [refetch]);
 
   useFocusEffect(
     useCallback(() => {
@@ -190,5 +205,6 @@ export function useInventory() {
     loading,
     error,
     refetch,
+    retry,
   };
 }
