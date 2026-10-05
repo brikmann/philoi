@@ -92,27 +92,27 @@ import type {
 
 const PARTICIPANTS_POLL_MS = 20000;
 // Anti-idle liveness (economy anti-cheat, build 10). The "still here? tap to confirm" prompt fires
-// ~10 min after the last confirmation, matching the shortened server-side stale sweep
-// (notify_stale_lock_ins nudges at 10 min and closes at ~12 min). A per-cycle random jitter of
-// +/-~2 min is applied so the interval is not perfectly predictable -- an alarmed/scripted auto-tap
+// ~18 min after the last confirmation, matching the server-side stale sweep
+// (notify_stale_lock_ins nudges at 18 min and closes at ~20 min, 0226 — 0221 had 10/12). A per-cycle
+// random jitter of up to 2 min is applied so the interval is not perfectly predictable -- an alarmed/scripted auto-tap
 // can't lock onto a fixed cadence. See STILL_HERE_JITTER_MS and the jittered threshold below.
-const STILL_HERE_BASE_MS = 10 * 60 * 1000;
+const STILL_HERE_BASE_MS = 18 * 60 * 1000;
 const STILL_HERE_JITTER_MS = 2 * 60 * 1000;
 // The hard freeze. If the "still here?" prompt goes unanswered this long after the last
 // confirmation, the session auto-pauses — this is what makes the tap genuinely REQUIRED to keep
 // earning (without it the prompt was cosmetic: the clock ran on and time kept banking). Set
-// deliberately BELOW the server's ~12-min stale-close (notify_stale_lock_ins, 0221: 10-min nudge
+// deliberately BELOW the server's ~20-min stale-close (notify_stale_lock_ins, 0226: 18-min nudge
 // + 2-min grace) so the client pause wins the race — the server sweep skips paused sessions, so
 // a frozen session is PRESERVED rather than closed, and one tap (a resume, which re-stamps
 // last_confirmed_at per 0218) picks it right back up. The prompt itself fires at the jittered
-// [8,10] min threshold, leaving 1–3 min to respond before this freeze lands.
-const STILL_HERE_FREEZE_MS = STILL_HERE_BASE_MS + 60 * 1000; // 11 min — must stay < the 12-min server close.
+// [16,18] min threshold, leaving 1–3 min to respond before this freeze lands.
+const STILL_HERE_FREEZE_MS = STILL_HERE_BASE_MS + 60 * 1000; // 19 min — must stay < the 20-min server close.
 
 /**
- * The prompt's threshold for one confirmation cycle: somewhere in [8, 10] min, EARLIER-only.
+ * The prompt's threshold for one confirmation cycle: somewhere in [16, 18] min, EARLIER-only.
  *
- * Earlier-only because the server nudges at a fixed 10 min and closes ~2 min later
- * (notify_stale_lock_ins, 0221). A +jitter would land the in-app prompt after the push, and at
+ * Earlier-only because the server nudges at a fixed 18 min and closes ~2 min later
+ * (notify_stale_lock_ins, 0226). A +jitter would land the in-app prompt after the push, and at
  * the top of the range after the close itself — a present user losing a session they were never
  * asked about. The server is the enforcement; this only has to ask first.
  *
@@ -1050,13 +1050,13 @@ function LockInScreen() {
     );
   }
 
-  // The server closed this session while the app wasn't looking (0221's ~12-min unconfirmed
+  // The server closed this session while the app wasn't looking (0226's ~20-min unconfirmed
   // sweep). Say so, rather than parking on "Starting your session…" or a dead timer.
   if (!activeSession && endedRemotelyId && !loading && !posted && !stopping) {
     return (
       <Screen style={styles.container}>
         <Text style={styles.loading}>
-          This session ended — Philoi closes a lock-in after about 12 minutes without a &quot;still
+          This session ended — Philoi closes a lock-in after about 20 minutes without a &quot;still
           here?&quot; answer. Your time up to your last check-in was saved.
         </Text>
         <Pressable onPress={() => router.replace('/')} style={styles.bailOut} accessibilityRole="button">

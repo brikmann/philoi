@@ -183,7 +183,7 @@ export function ActiveSessionProvider({ children }: { children: ReactNode }) {
     }
   }, [authSession, refresh]);
 
-  // The 0221 sweep closes an unconfirmed session ~12 min after the last confirm, and a phone
+  // The 0226 sweep closes an unconfirmed session ~20 min after the last confirm, and a phone
   // that's locked or in another app is exactly when that happens. Without this check on return,
   // the client keeps a live-looking session the server has already ended.
   useEffect(() => {
