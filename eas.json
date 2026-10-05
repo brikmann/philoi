@@ -14,6 +14,8 @@
         "GOOGLE_WEB_CLIENT_ID": "921536564136-a1up91voavotk62kg5l24t1ja1uinbqc.apps.googleusercontent.com",
         "GOOGLE_IOS_CLIENT_ID": "921536564136-s18vdec893u1dlgvhs5aaep59fdetmi3.apps.googleusercontent.com",
         "STRAVA_CLIENT_ID": "267324",
+        "POSTHOG_API_KEY": "phc_mqNBQujdHrWsZoquwHCH3FvotLpiiNuFFUCMFKDDPBZe",
+        "POSTHOG_HOST": "https://us.i.posthog.com",
         "REVENUECAT_IOS_KEY": "appl_PEPUaAMnUXdwvXlxBqUhKYxdwmI",
         "REVENUECAT_ANDROID_KEY": "goog_CYTmPnqpPEjJtufdLOlhWbBSGzB"
       },
