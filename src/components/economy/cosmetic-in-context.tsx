@@ -280,7 +280,6 @@ function MiniLockIn({
             colour={flare.colour}
             effect={flare.effect}
             tier={flareTier}
-            bounds="container"
           />
         </View>
       ) : null}

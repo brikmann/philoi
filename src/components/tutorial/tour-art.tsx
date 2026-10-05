@@ -188,7 +188,7 @@ export function CosmeticHero({ kind, name }: { kind: CosmeticKind; name: string 
         <View style={styles.hero}>
           {it.flare ? (
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              <FlarePerimeter colour={it.flare.colour} effect={it.flare.effect} bounds="container" />
+              <FlarePerimeter colour={it.flare.colour} effect={it.flare.effect} />
             </View>
           ) : null}
           <TourFlame height={70} itemId={id} />

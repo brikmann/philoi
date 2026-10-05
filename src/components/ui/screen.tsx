@@ -26,18 +26,33 @@ type ScreenProps = ViewProps & {
    * `insets.bottom` to whatever sits at the foot, or its content runs under the clock.
    */
   edges?: readonly Edge[];
+  /**
+   * A full-bleed, pointer-transparent layer painted OUTSIDE the SafeAreaView — on the same box as
+   * the ground, so it reaches behind the status bar and the nav bar with no inset math. Drawn after
+   * the content, so it sits over it (the lock-in flare's wash is meant to be over the timer).
+   *
+   * This is what a child mount can never do: anything inside the SafeAreaView is laid out inside
+   * its padding. The running lock-in passes its equipped flare here (lock-in/index.tsx).
+   */
+  overlay?: React.ReactNode;
 };
 
 // KeyboardAvoidingView here (not just in individual forms) so every screen built on Screen
 // gets it for free — a plain View doesn't resize/shift for the keyboard on either platform,
 // which was covering inputs on every form using this wrapper (setup-handle, join,
 // edit-profile, goal check-in caption).
-export function Screen({ style, padded = true, backgroundColor, edges, ...rest }: ScreenProps) {
+export function Screen({ style, padded = true, backgroundColor, edges, overlay, ...rest }: ScreenProps) {
   const body = (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.container, padded && styles.padded, style]} {...rest} />
     </KeyboardAvoidingView>
   );
+
+  const overlayLayer = overlay ? (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {overlay}
+    </View>
+  ) : null;
 
   // THE reskin sweep, done once (DESIGN_LANGUAGE_EMBER §6). 38 screens render through this
   // component, so putting the deep-purple radial here is what makes the background app-wide
@@ -48,6 +63,18 @@ export function Screen({ style, padded = true, backgroundColor, edges, ...rest }
   // handful of callers still passing it don't break; they simply get the radial like everything
   // else, which is what they wanted from `dark` in the first place.
   if (backgroundColor) {
+    // The fill moves to an outer View only when there is an overlay to paint beside the safe area;
+    // every other solid-ground screen keeps its exact tree.
+    if (overlayLayer) {
+      return (
+        <View style={[styles.safeArea, { backgroundColor }]}>
+          <SafeAreaView edges={edges} style={styles.safeArea}>
+            {body}
+          </SafeAreaView>
+          {overlayLayer}
+        </View>
+      );
+    }
     return (
       <SafeAreaView edges={edges} style={[styles.safeArea, { backgroundColor }]}>
         {body}
@@ -61,6 +88,7 @@ export function Screen({ style, padded = true, backgroundColor, edges, ...rest }
       <SafeAreaView edges={edges} style={styles.safeArea}>
         {body}
       </SafeAreaView>
+      {overlayLayer}
     </ScreenBackground>
   );
 }

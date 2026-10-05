@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useId, useRef, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -11,7 +11,6 @@ import Animated, {
   useReducedMotion,
   type EasingFunction,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import * as Haptics from 'expo-haptics';
@@ -223,25 +222,22 @@ type Props = {
    * A mode multiplier applied on top of the tier — see GYM_FLARE_DAMPEN. 1 = study, full curve.
    */
   dampen?: number;
-  /**
-   * `window` (the default) is the lock-in screen: full-bleed, escaping the safe area. `container`
-   * fits the overlay to whatever box it is mounted in — the Cosmetic Gallery's lock-in stage, a
-   * preview sheet. Without it a flare in a 280px stage was drawn at WINDOW size and clipped, so the
-   * bottom/right rims and every effect that lands low (Hammer's floor strike, Inferno's edge fire,
-   * Emberfall's lava pool) fell off-stage — which is why the legendary/mythic flares never
-   * previewed properly.
-   */
-  bounds?: 'window' | 'container';
 };
 
 /**
  * The parameterized overlay. One component, driven entirely by the two fields on the catalog item —
  * adding a flare is a catalog entry, never a new component.
+ *
+ * It always fits the box it is mounted in. On the lock-in screen that box is the whole window,
+ * because the flare goes through <Screen overlay>, which paints OUTSIDE the SafeAreaView. It used to
+ * be a child of the screen sized to the window and offset by the negative safe-area insets to escape
+ * that padding — and the top inset is where the escape failed: the status-bar strip stayed dark.
+ * The Cosmetic Gallery stage and the preview sheets get the same fit-to-box for free; a window-sized
+ * flare in a 280px stage clipped every rim and effect that lands low (Hammer's floor strike,
+ * Inferno's edge fire, Emberfall's lava pool).
  */
-export function FlarePerimeter({ bounds = 'window', ...props }: Props) {
-  const win = useWindowDimensions();
+export function FlarePerimeter(props: Props) {
   const [box, setBox] = useState({ w: 0, h: 0 });
-  if (bounds === 'window') return <PerimeterOverlay {...props} width={win.width} height={win.height} fullBleed />;
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -249,7 +245,7 @@ export function FlarePerimeter({ bounds = 'window', ...props }: Props) {
   };
   return (
     <View style={StyleSheet.absoluteFill} onLayout={onLayout} pointerEvents="none">
-      {box.w > 0 && box.h > 0 && <PerimeterOverlay {...props} width={box.w} height={box.h} fullBleed={false} />}
+      {box.w > 0 && box.h > 0 && <PerimeterOverlay {...props} width={box.w} height={box.h} />}
     </View>
   );
 }
@@ -262,30 +258,14 @@ function PerimeterOverlay({
   dampen = 1,
   width,
   height,
-  fullBleed,
-}: Omit<Props, 'bounds'> & { width: number; height: number; fullBleed: boolean }) {
+}: Props & { width: number; height: number }) {
   const colour = flareDisplayColour(effect, swatch);
-  const insets = useSafeAreaInsets();
   const uid = useId();
   const intensity = dampened(FLARE_INTENSITY[tier], dampen);
   const washAlpha = WASH_ALPHA_AT_FULL * intensity.coverage;
   const rimPeak = RIM_PEAK * intensity.glow;
 
-  // FULL-BLEED, ESCAPING THE SAFE AREA. <Screen> wraps its children in a SafeAreaView, which insets
-  // by PADDING — so StyleSheet.absoluteFill here covered only the inset box, while the Svg inside it
-  // was sized to the whole window. Two visible bugs fell out of that one mismatch: the status-bar /
-  // notch strip stayed dark (the aura never reached it), and the gradient sat one top-inset lower
-  // than the screen's centre, tipping the rim into a lopsided arc. Offsetting by the negative insets
-  // puts this layer back on the window box wherever it is mounted. Safe because SafeAreaView insets
-  // with padding and RN Views do not clip — nothing above us needs overflow to be visible.
-  // A contained overlay has no safe area to escape: it sits exactly on the box it measured.
-  const frame = {
-    position: 'absolute' as const,
-    top: fullBleed ? -insets.top : 0,
-    left: fullBleed ? -insets.left : 0,
-    width,
-    height,
-  };
+  const frame = { position: 'absolute' as const, top: 0, left: 0, width, height };
 
   const rim = Math.round(Math.min(width, height) * RIM_FRACTION_OF_MIN);
 

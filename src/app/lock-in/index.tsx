@@ -1089,7 +1089,23 @@ function LockInScreen() {
   // chip, the body-doubles collapse to one line, and the CTA becomes "Finish workout."
   if (isGym) {
     return (
-      <Screen backgroundColor={IMMERSIVE_BG} style={styles.gymContainer} padded={false}>
+      <Screen
+        backgroundColor={IMMERSIVE_BG}
+        style={styles.gymContainer}
+        padded={false}
+        // The equipped flare's perimeter aura (FLARES_SPEC.md, punchlist 15.2). LOCK-IN ONLY, and
+        // only for as long as the session runs — it used to be mounted at the root and painted every
+        // screen in the app, which read as a permanent full-screen wash rather than a cosmetic.
+        // Renders nothing when the slot is empty (most users — there is no free flare), and is
+        // pointer-transparent end to end. Through `overlay`, not as a child: only a layer outside the
+        // SafeAreaView reaches behind the status bar.
+        //
+        // GYM RUNS FAINTER (GYM_FLARE_DAMPEN). This screen is picked up between every set, so a
+        // full-strength perimeter is in the user's face in a way it never is for study — where the
+        // phone goes face-down. The ramp still happens here, it is just quieter throughout.
+        overlay={
+          <EquippedFlarePerimeter tier={flareTier} dampen={GYM_FLARE_DAMPEN * (paused ? PAUSED_FLARE_DAMPEN : 1)} />
+        }>
         <View style={styles.gymFlameLayer} pointerEvents="none">
           {/* The equipped PARTICLE cosmetic, finally painted (COSMETIC_UI_FIXES §5) — a field
               scoped to the flame's own box, not to the screen, so it can be worn alongside a flare
@@ -1255,17 +1271,6 @@ function LockInScreen() {
         />
 
         {audioSheetOpen && <SessionAudioSheet visible onClose={() => setAudioSheetOpen(false)} />}
-
-        {/* The equipped flare's perimeter aura (FLARES_SPEC.md, punchlist 15.2). LOCK-IN ONLY, and
-            only for as long as the session runs — it used to be mounted at the root and painted
-            every screen in the app, which read as a permanent full-screen wash rather than a
-            cosmetic. Renders nothing when the slot is empty (most users — there is no free flare),
-            and is pointer-transparent end to end.
-
-            GYM RUNS FAINTER (GYM_FLARE_DAMPEN). This screen is picked up between every set, so a
-            full-strength perimeter is in the user's face in a way it never is for study — where the
-            phone goes face-down. The ramp still happens here, it is just quieter throughout. */}
-        <EquippedFlarePerimeter tier={flareTier} dampen={GYM_FLARE_DAMPEN * (paused ? PAUSED_FLARE_DAMPEN : 1)} />
       </Screen>
     );
   }
@@ -1275,7 +1280,14 @@ function LockInScreen() {
   // Custom. The fire and the timer own it: no goal-tool symbol in the flame, no filler copy, no
   // in-session caption field.
   return (
-    <Screen backgroundColor={IMMERSIVE_BG} style={styles.container} padded={false}>
+    <Screen
+      backgroundColor={IMMERSIVE_BG}
+      style={styles.container}
+      padded={false}
+      // The equipped flare's perimeter aura — LOCK-IN ONLY, through `overlay` so it reaches behind
+      // the status bar (see the gym screen above). Paused: the tier holds where it was (credited
+      // time is frozen) and the surge calms.
+      overlay={<EquippedFlarePerimeter tier={flareTier} dampen={paused ? PAUSED_FLARE_DAMPEN : 1} />}>
       <DriftingEmbers />
 
       {/* TOP — centered activity over the campfire name, with minimize parked top-right. */}
@@ -1464,14 +1476,6 @@ function LockInScreen() {
       />
 
       {audioSheetOpen && <SessionAudioSheet visible onClose={() => setAudioSheetOpen(false)} />}
-
-      {/* The equipped flare's perimeter aura (FLARES_SPEC.md, punchlist 15.2). LOCK-IN ONLY, and
-          only for as long as the session runs — it used to be mounted at the root and painted
-          every screen in the app, which read as a permanent full-screen wash rather than a
-          cosmetic. Renders nothing when the slot is empty (most users — there is no free flare),
-          and is pointer-transparent end to end. */}
-      {/* Paused: the tier holds where it was (credited time is frozen) and the surge calms. */}
-      <EquippedFlarePerimeter tier={flareTier} dampen={paused ? PAUSED_FLARE_DAMPEN : 1} />
     </Screen>
   );
 }
