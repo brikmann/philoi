@@ -49,7 +49,7 @@ export function PrivateClimb() {
       <View style={styles.note}>
         <Ionicons name="lock-closed" size={14} color={Colors.muted} />
         <Text style={styles.noteText}>
-          Your season rank is Private: no boards, no comparisons. Nobody else sees your rank, and your rewards
+          Your rank is Private: no boards, no comparisons. Nobody else sees your rank, and your rewards
           don&apos;t change.
         </Text>
       </View>

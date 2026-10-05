@@ -282,23 +282,23 @@ export function CosmeticHero({ kind, name }: { kind: CosmeticKind; name: string 
 // ─────────────────────────── the ranks ───────────────────────────
 
 /**
- * 🔴 COPY + EMBLEMS ONLY. The seasonal-reset framing on this ladder is approved but the reset itself
- * is a separate, deferred task — nothing here reads or implies a rank migration. The effort labels
- * are season-relative descriptions, not thresholds the server computes.
+ * 🔴 COPY + EMBLEMS ONLY. Rank is a lifetime climb (0230): it never decays and never resets — the
+ * Flame Pass is the only seasonal track. The effort labels are each tier's entry in locked-in hours
+ * on 0203's curve (250 XP/h, streak bonus ignored), rounded; the server computes none of them.
  */
 const ASCENSION: { tier: RankTierName; effort: string }[] = [
-  { tier: 'primordial', effort: '#1 on campus' },
-  { tier: 'immortal', effort: 'top handful' },
-  { tier: 'olympian', effort: 'near-daily, all term' },
-  { tier: 'titan', effort: 'most days, all term' },
-  { tier: 'hero', effort: 'the ascension gate' },
+  { tier: 'primordial', effort: '~2,500 h · years' },
+  { tier: 'immortal', effort: '~900 h' },
+  { tier: 'olympian', effort: '~660 h' },
+  { tier: 'titan', effort: '~480 h' },
+  { tier: 'hero', effort: '~340 h · the ascension gate' },
 ];
 
 const MORTAL: { tier: RankTierName; effort: string }[] = [
-  { tier: 'diamond', effort: 'weeks in' },
-  { tier: 'platinum', effort: 'a few weeks' },
-  { tier: 'gold', effort: 'a solid week+' },
-  { tier: 'silver', effort: 'first few days' },
+  { tier: 'diamond', effort: '~230 h' },
+  { tier: 'platinum', effort: '~150 h' },
+  { tier: 'gold', effort: '~85 h' },
+  { tier: 'silver', effort: '~40 h' },
   { tier: 'bronze', effort: 'where everyone starts' },
 ];
 
@@ -307,8 +307,8 @@ export function RankLadder() {
     <View style={styles.ladder}>
       <View style={styles.reset}>
         <Text style={styles.resetText}>
-          ↺ <Text style={styles.resetStrong}>Every season you start at Bronze</Text> and climb again — a season is one
-          semester.
+          ↑ <Text style={styles.resetStrong}>Your rank never resets</Text> — every hour you lock in counts for good. The
+          Flame Pass is what starts fresh each season.
         </Text>
       </View>
       <Band label="⬆ ASCENSION — only a handful reach it" ascension />

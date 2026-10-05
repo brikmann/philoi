@@ -168,14 +168,14 @@ export function tutorialCards(displayName: string | null, handle: string | null)
     {
       key: 'ranks',
       title: 'Climb the ranks',
-      // 🔴 COPY + EMBLEMS ONLY. The seasonal reset this card describes is approved but DEFERRED to its
-      // own task — no rank migration, rollover or placement logic rides on this card.
+      // 🔴 COPY + EMBLEMS ONLY. Rank is a lifetime climb (0230) — no decay, no seasonal reset. Only
+      // the Flame Pass is seasonal, so that is the one thing this card may say starts over.
       cindy: [
-        'Each season resets you to Bronze. The mortal climb — up to Diamond — is for everyone; crossing into ascension (Hero → Primordial) is for the truly dedicated.',
+        'Your rank never resets — every hour you lock in climbs it for good. The mortal climb, up to Diamond, is for everyone; crossing into ascension (Hero → Primordial) takes years. The Flame Pass is what starts fresh each season.',
       ],
       steps: [
         <MiniScreen key="r">
-          <MiniHeader glyph="🏆" title="The ranks" right="10 tiers · per season" />
+          <MiniHeader glyph="🏆" title="The ranks" right="10 tiers · for life" />
           <RankLadder />
         </MiniScreen>,
       ],

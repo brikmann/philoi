@@ -143,7 +143,7 @@ export default function LeaderboardsScreen() {
   const dial = rankVisibilityOf(profile);
   const friendsEmptyTitle = 'No friends on the board yet';
   const friendsEmptyBody =
-    'Your season rank is on Friends, so only friends show here. Add some to see how you stack up — your rewards are the same either way.';
+    'Your rank is on Friends, so only friends show here. Add some to see how you stack up — your rewards are the same either way.';
   const uniEmptyTitle = 'Nobody here yet';
   const uniEmptyBody = 'Be the first from your school to start a streak.';
   const globalEmptyTitle = dial === 'friends' ? friendsEmptyTitle : 'Nobody here yet';

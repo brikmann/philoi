@@ -455,7 +455,7 @@ export default function SettingsScreen() {
             same RPC, so the two never disagree. It is its own card rather than a row in PRIVACY
             because it needs its copy on screen: who sees me, what do I see, and that rewards are
             identical in all three. */}
-        <Text style={styles.sectionLabel}>SEASON RANK</Text>
+        <Text style={styles.sectionLabel}>RANK VISIBILITY</Text>
         <View style={[styles.group, styles.rankDialGroup]}>
           <RankVisibilityPicker value={rankVisibility} onChange={handleChangeRankVisibility} />
         </View>
