@@ -505,12 +505,12 @@ function RootNavigator() {
         <Stack.Screen name="cindy-voice" options={{ headerShown: false, presentation: 'modal' }} />
         {/* The "talk to someone" surface APP_BLOCKER_SPEC §C-safety requires (mock 116 frame 3). */}
         <Stack.Screen name="support" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
-        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+        <Stack.Screen name="settings" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* The bell feed draws its own "Activity" header (notifications.tsx). Without this line the
             route falls to the default Stack header, which stacks a lowercase "notifications" title
             and a "(tabs)" liquid-glass back button ON TOP of that header — the double-header mess. */}
         <Stack.Screen name="notifications" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
-        <Stack.Screen name="settings-notifications" options={{ title: 'Notifications' }} />
+        <Stack.Screen name="settings-notifications" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="body-metrics" options={{ title: 'Body' }} />
         {/* Focus Nudge setup — mock 109 frame 1. A real route, not just a settings sub-page: the
             shield's primary button deep-links into the app and the support surface next door is

@@ -48,9 +48,6 @@ export default function NotificationsScreen() {
           <Ionicons name="chevron-back" size={24} color={Colors.muted} />
         </Pressable>
         <Text style={styles.headerTitle}>Activity</Text>
-        <Pressable onPress={() => router.push('/settings-notifications')} hitSlop={12} accessibilityLabel="Notification settings">
-          <Ionicons name="options-outline" size={20} color={Colors.muted} />
-        </Pressable>
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}

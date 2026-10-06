@@ -168,6 +168,18 @@ export default function DmThreadScreen() {
 
   const name = friend?.display_name ?? '…';
 
+  function handleChallenge() {
+    if (!friendId) return;
+    router.push({
+      pathname: '/challenge/create',
+      params: {
+        opponentId: friendId,
+        mode: 'h2h',
+        ...(friend?.display_name ? { opponentName: friend.display_name } : {}),
+      },
+    });
+  }
+
   // Both participants in one call — see the batching note in economy/public-identity.tsx. A thread
   // has exactly two authors, so resolving them here rather than per bubble means a hundred-message
   // scroll fires no reads at all. Mine is fetched too so an own bubble can't fall back to
@@ -321,6 +333,18 @@ export default function DmThreadScreen() {
             {/* The campfire composer: a pill field on a translucent shelf, and a send button that
                 is LIT only when there is something to send. */}
             <View style={[styles.inputRow, { paddingBottom: Spacing.two + insets.bottom }]}>
+              {/* The campfire's "+" next to the composer, here a straight line to a 1:1 duel with
+                  this friend — the same params friend-profile's Challenge button sends, so it is
+                  the one challenge flow, not a fork of it. */}
+              <Pressable
+                onPress={handleChallenge}
+                disabled={!friendId}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={`Challenge ${name}`}
+                style={[styles.send, styles.plus]}>
+                <Ionicons name="add" size={22} color={Colors.ink} />
+              </Pressable>
               <TextInput
                 style={styles.input}
                 placeholder={`Message ${name}…`}
@@ -528,6 +552,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  plus: {
+    backgroundColor: 'rgba(36,28,56,0.9)',
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
   },
   sendOff: {
     backgroundColor: Colors.disabledSurface,

@@ -4,7 +4,9 @@ import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { GradientTitleText } from '@/components/economy/gradient-title';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
+import { useAuth } from '@/lib/auth/auth-context';
 import { titleLabel, type CatalogItem } from '@/lib/economy/catalog';
+import { hasDevTitle, withDevTitle } from '@/lib/economy/dev-title';
 import { useEquipped } from '@/lib/economy/loadout';
 
 // The equipped cosmetics as they appear on OTHER people's screens — profile, feed rows,
@@ -81,8 +83,11 @@ function TitleLine({
 /** Tagline under a name on leaderboards / profile. Nothing renders without an equipped Title. */
 export function EquippedTitle({ style, enabled = true }: { style?: ViewStyle; enabled?: boolean }) {
   const equipped = useEquipped('title');
-  const title = enabled ? equipped : undefined;
-  if (!title) return null;
+  const { session } = useAuth();
+  const worn = enabled ? equipped : undefined;
+  if (!worn) return null;
+  // Your own view of the developer's title — the public map in use-public-loadouts covers everyone else's.
+  const title = hasDevTitle(session?.user.id) ? withDevTitle(worn) : worn;
   return (
     <View style={style}>
       <TitleLine title={title} name={titleLabel(title).name} />

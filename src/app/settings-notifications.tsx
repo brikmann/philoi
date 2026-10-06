@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { PushOffBanner } from '@/components/push-off-banner';
+import { BackHeader } from '@/components/ui/back-header';
 import { Screen } from '@/components/ui/screen';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -65,6 +66,7 @@ export default function NotificationsSettingsScreen() {
 
   return (
     <Screen padded={false}>
+      <BackHeader title="Notifications" />
       <ScrollView contentContainerStyle={styles.container}>
         <PushOffBanner style={{ marginHorizontal: 0 }} />
         <Text style={styles.intro}>

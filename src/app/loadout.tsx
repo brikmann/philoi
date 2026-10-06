@@ -217,7 +217,7 @@ export default function LoadoutScreen() {
 
         <Pressable style={styles.invLink} onPress={() => router.push('/inventory')} accessibilityRole="button">
           <Text style={styles.invLinkText}>Open full inventory</Text>
-          <Ionicons name="chevron-forward" size={13} color={Colors.achieverText} />
+          <Ionicons name="chevron-forward" size={13} color={Colors.muted} />
         </Pressable>
       </ScrollView>
     </Screen>
@@ -437,6 +437,6 @@ const styles = StyleSheet.create({
   invLinkText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.achieverText,
+    color: Colors.muted,
   },
 });

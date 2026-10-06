@@ -9,6 +9,7 @@ import { CONTACT_EMAIL, FeedbackSheet } from '@/components/feedback-sheet';
 import { RankVisibilityPicker } from '@/components/rank-visibility-picker';
 import { ReminderSettings } from '@/components/reminder-settings';
 import { Avatar } from '@/components/ui/avatar';
+import { BackHeader } from '@/components/ui/back-header';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
@@ -305,6 +306,7 @@ export default function SettingsScreen() {
 
   return (
     <Screen padded={false}>
+      <BackHeader title="Settings" />
       <ScrollView contentContainerStyle={styles.container}>
         {/* Identity first (mock 16) — the screen should open by telling you whose settings these
             are, and the most common reason anyone lands here is to change their own details. */}

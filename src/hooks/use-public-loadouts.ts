@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 
 import { useAuth } from '@/lib/auth/auth-context';
 import { getItem, type CatalogItem, type EquipSlot } from '@/lib/economy/catalog';
+import { hasDevTitle, withDevTitle } from '@/lib/economy/dev-title';
 import { useLoadout } from '@/lib/economy/loadout';
 import type { Rarity } from '@/lib/economy/rarity';
 import { supabase } from '@/lib/supabase';
@@ -179,6 +180,12 @@ export function usePublicLoadouts(userIds: (string | null | undefined)[]): Recor
     // genuinely wearing nothing reads the same either way, since the RPC has nothing to say about
     // it either.
     if (me && me in out && Object.keys(mine).length > 0) out[me] = mine;
+    // The developer's title, applied here for the same reason as the line above: one place, and
+    // every surface that draws someone's title reads this map. A copy, never the cached object.
+    for (const id of Object.keys(out)) {
+      const title = out[id].title;
+      if (title && hasDevTitle(id)) out[id] = { ...out[id], title: withDevTitle(title) };
+    }
     return out;
     // `cache` is mutable module state; `tick` and `gen` are what re-run this after a fetch lands
     // and after an invalidation marked an entry stale.

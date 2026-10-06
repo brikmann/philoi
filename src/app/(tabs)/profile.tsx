@@ -150,17 +150,9 @@ export default function ProfileScreen() {
     <ScreenBackground>
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       {isOwn ? (
-        // The Profile tab root — standardized title (same as the other three tabs). Settings is
-        // the ONE right-side action here (PHILOI_UI_SPEC.md §4b) — Friends moved to Home, so
-        // every header carries at most one action pointing to a different destination.
-        <TabHeader
-          title="Profile"
-          right={
-            <Pressable onPress={() => router.push('/settings')} hitSlop={8} accessibilityLabel="Settings">
-              <Ionicons name="settings-outline" size={20} color={Colors.muted} />
-            </Pressable>
-          }
-        />
+        // The Profile tab root — standardized title (same as the other three tabs). No settings
+        // gear: Settings lives in the side drawer, which is the one place it is reached from.
+        <TabHeader title="Profile" />
       ) : (
         // A pushed detail view of someone else's profile, not the tab root — back navigation,
         // not a standardized tab title.

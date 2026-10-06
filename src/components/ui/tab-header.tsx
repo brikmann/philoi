@@ -65,7 +65,9 @@ export function TabHeader({ title, icon, right, cindy = true, menu = true, back 
             <Ionicons name="chevron-back" size={22} color={Colors.ink} />
           </Pressable>
         )}
-        {menu && <DrawerButton size={21} />}
+        {/* Back owns the corner when there is one: a pushed screen showing both read as two ways
+            out, and the hamburger is only right on a drawer-root destination. */}
+        {menu && !canGoBack && <DrawerButton size={21} />}
         {icon && (
           <View style={styles.iconChip}>
             <Ionicons name={icon} size={13} color={Colors.amber} />

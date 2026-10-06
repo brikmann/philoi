@@ -104,7 +104,11 @@ export function EmberfallSplash() {
       ? `${shortDate(season.startsAt)} – ${shortDate(season.endsAt - 1)}`
       : null;
 
-  const onLayout = (e: LayoutChangeEvent) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
+  const onLayout = (e: LayoutChangeEvent) => {
+    const { width: w, height: h } = e.nativeEvent.layout;
+    // A 0 pass (a remount mid-transition) must not wipe a good measurement.
+    if (w > 0 && h > 0) setSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+  };
   // Gradient ids are global in react-native-svg — a shared literal blanks every instance after the
   // first on Android.
   const fieldId = `emberfall-field-${ids}`;
@@ -154,7 +158,16 @@ export function EmberfallSplash() {
 
       <View style={styles.inner}>
         <Text style={styles.kicker}>{copy.kicker}</Text>
-        <Text style={styles.wordmark} numberOfLines={1} adjustsFontSizeToFit>
+        {/* Keyed on the measured width. adjustsFontSizeToFit fits ONCE against whatever width the
+            first pass had, and iOS keeps that shrunken size when the box later widens — re-entering
+            the tutorial and coming back measured the banner mid-transition and left the wordmark
+            tiny for good. A new width remounts the line so it re-fits; the floor caps the shrink. */}
+        <Text
+          key={Math.round(size.w)}
+          style={styles.wordmark}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}>
           {season.name.toUpperCase()}
         </Text>
         <View style={styles.row}>

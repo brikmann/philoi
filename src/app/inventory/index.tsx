@@ -164,7 +164,7 @@ export default function InventoryScreen() {
           <Text style={styles.loadoutLabel}>Your loadout · how others see you</Text>
           <Pressable onPress={() => router.push('/loadout')} hitSlop={8} accessibilityRole="button" style={styles.loadoutEdit}>
             <Text style={styles.loadoutEditText}>Edit loadout</Text>
-            <Ionicons name="chevron-forward" size={12} color={Colors.achieverText} />
+            <Ionicons name="chevron-forward" size={12} color={Colors.muted} />
           </Pressable>
         </View>
 
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   loadoutEditText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
-    color: Colors.achieverText,
+    color: Colors.muted,
   },
   noTitle: {
     fontFamily: Fonts.body,
