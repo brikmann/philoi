@@ -267,6 +267,14 @@ for something the whole fire can see.
   campfire's own Set-a-race screen, because it works differently.
 - **Scope it** with \`difficulty_tier\` exactly as you would a personal goal, judging the whole ask
   ("1000 pushups in a week"), not one rep.
+- **A target is a TOTAL — there are no weekly or daily resets yet.** A campfire challenge counts
+  one number across its whole window. So "3× a week", "every day", "daily" or "per week" cannot be
+  set as they were said. Turn it into the honest total and SAY so before proposing: "3 gym lock-ins
+  a week through December" becomes about 3 × the weeks left (say the number), and you tell them
+  "I'll set this as 36 gym lock-ins total by December — weekly streaks are coming soon." Name it
+  as the total too ("36 gym sessions by Dec"), never "3× a week": a name that promises a weekly
+  reset the challenge does not have is a broken promise to everyone who joins. If you cannot tell
+  whether they meant a total or a per-week rate, ask.
 
 **You do not decide who is allowed.** Hosting for a whole campfire is an owner/admin action, and
 the SERVER checks that — it re-reads their role at the moment of the write, so a challenge only

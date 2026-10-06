@@ -459,10 +459,18 @@ export const COACH_TOOLS: CoachToolSpec[] = [
             'is rendered as "0 / <target> <metric>" and becomes the name of the lock-in type each ' +
             'participant gets, so it must read correctly as both.',
         },
-        target: { type: 'number', description: 'How many. "1000 pushups" is 1000.' },
+        target: {
+          type: 'number',
+          description:
+            'How many, as a TOTAL over the whole challenge. "1000 pushups" is 1000. There is no ' +
+            'per-week or per-day reset: "3× a week through December" must be converted to the total ' +
+            '(3 × weeks left) and you must tell them it is a total.',
+        },
         label: {
           type: 'string',
-          description: 'What the challenge is called, e.g. "1000 pushups". Under 60 characters.',
+          description:
+            'What the challenge is called, e.g. "1000 pushups". Under 60 characters. Name the total, ' +
+            'never a rate like "3× a week" — the challenge has no weekly reset.',
         },
         shape: {
           type: 'string',
