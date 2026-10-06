@@ -486,10 +486,16 @@ function RootNavigator() {
             navigator, the timer recomputes from startedAt, and the Live Activity is driven by
             LiveActivitySync at the root. It is the two screen-owned effects above that are not,
             and opting one modal out costs nothing — the win this feature exists for is the four
-            always-mounted tabs, not a modal the user has navigated away from. */}
+            always-mounted tabs, not a modal the user has navigated away from.
+
+            FULL-SCREEN, not 'modal'. On iOS 'modal' is a page sheet: a card that starts BELOW the
+            status bar with the previous screen peeking above it, so the flare's <Screen overlay>
+            had no status-bar strip to paint, however it was mounted. The sheet's swipe-down was
+            also the gym screen's only non-Stop exit; both modes have a minimize button now.
+            Android draws 'modal' and 'fullScreenModal' the same way. */}
         <Stack.Screen
           name="lock-in/index"
-          options={{ presentation: 'modal', title: 'Lock in', headerShown: false, freezeOnBlur: false }}
+          options={{ presentation: 'fullScreenModal', title: 'Lock in', headerShown: false, freezeOnBlur: false }}
         />
         <Stack.Screen name="lock-in/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="goal/create" options={{ presentation: 'modal', title: 'New goal' }} />

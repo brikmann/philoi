@@ -1152,6 +1152,16 @@ function LockInScreen() {
               </View>
             )}
           </View>
+          {/* Minimize, NOT stop — same as the study screen. Gym had none because the iOS sheet's
+              swipe-down did the job; the route is a fullScreenModal now (so the flare can reach the
+              status bar), which has no swipe, and Stop would have been the only way out. */}
+          <Pressable
+            onPress={() => router.replace('/')}
+            hitSlop={12}
+            accessibilityLabel="Minimize lock-in"
+            accessibilityRole="button">
+            <Ionicons name="remove" size={22} color={Colors.textTertiary} />
+          </Pressable>
         </View>
 
         <ScrollView
