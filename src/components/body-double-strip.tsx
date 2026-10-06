@@ -51,6 +51,11 @@ export function BodyDoubleStrip({ lockIns }: { lockIns: ActiveCircleLockIn[] }) 
         {lockIns.map((a) => (
           <View key={a.session.id} style={styles.column}>
             <Avatar lockIn={a} size={34} />
+            {/* First name only — the column is 48px, and this strip now carries friends from
+                outside the campfire too, so an avatar alone no longer says who it is. */}
+            <Text style={styles.columnName} numberOfLines={1}>
+              {a.display_name.split(' ')[0]}
+            </Text>
             <Text style={styles.columnTimer}>{formatDurationClock(elapsedFor(a, now))}</Text>
           </View>
         ))}
@@ -123,6 +128,12 @@ const styles = StyleSheet.create({
   avatarInitial: {
     color: Colors.ember,
     fontFamily: Fonts.bodyBold,
+  },
+  columnName: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 10,
+    color: Colors.ink,
+    maxWidth: 48,
   },
   columnTimer: {
     fontFamily: Fonts.body,

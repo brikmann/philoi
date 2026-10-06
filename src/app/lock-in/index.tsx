@@ -64,7 +64,7 @@ import { sendToCindy } from '@/lib/api/coach';
 import { fetchOrCreateDailyFire } from '@/lib/api/daily-fire';
 import { fetchMyRanks } from '@/lib/api/goals';
 import { fetchWorkoutRecap, startWorkout } from '@/lib/api/gym';
-import { type ActiveCircleLockIn, confirmLockInSession, fetchActiveCircleLockIns, stopLockInSession } from '@/lib/api/lock-ins';
+import { type ActiveCircleLockIn, confirmLockInSession, fetchMyVisibleActiveLockIns, stopLockInSession } from '@/lib/api/lock-ins';
 import { fetchMyStreak } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -428,24 +428,30 @@ function LockInScreen() {
     return () => clearTimeout(timer);
   }, [starting]);
 
-  // "Locked in with you" (PHILOI_UI_SPEC.md §13) — scoped to this campfire only; a solo
-  // session (circleId null) shows no body-doubles. Polling, not Realtime Presence (see the
-  // lock-in build plan for why: no existing Presence usage in this codebase yet).
+  // "Locked in with you" (PHILOI_UI_SPEC.md §13) — everyone RLS lets you see locked in right now:
+  // campfire-mates AND accepted friends (0233), in a solo session as much as a campfire one. It used
+  // to be this campfire's sessions only, so a solo lock-in showed nobody. The campfire interior keeps
+  // fetchActiveCircleLockIns — that view is deliberately that-campfire-only. This campfire's people
+  // sort first, then the longest-running. Polling, not Realtime Presence (see the lock-in build plan
+  // for why: no existing Presence usage in this codebase yet).
   //
   // Gated on focus/foreground: a session outlives this screen, so without that the app would keep
   // asking the server who else is here every 20s for the entire length of a two-hour lock-in spent
   // in another app. The gate refetches on return, which is the only moment the answer is read.
   const circleId = activeSession?.circleId ?? null;
   const pollParticipants = useCallback(async () => {
-    if (!session || !circleId) return;
+    if (!session) return;
     try {
-      const active = await fetchActiveCircleLockIns(circleId);
-      setActiveLockIns(active.filter((a) => a.session.user_id !== session.user.id));
+      const active = await fetchMyVisibleActiveLockIns(session.user.id);
+      const here = (a: ActiveCircleLockIn) => (circleId != null && a.session.circle_id === circleId ? 0 : 1);
+      setActiveLockIns(
+        active.sort((a, b) => here(a) - here(b) || a.session.started_at.localeCompare(b.session.started_at))
+      );
     } catch {
       // Ambient presence is a nice-to-have — a failed poll shouldn't surface an error to the user.
     }
   }, [session, circleId]);
-  useGatedInterval(pollParticipants, PARTICIPANTS_POLL_MS, Boolean(session && circleId));
+  useGatedInterval(pollParticipants, PARTICIPANTS_POLL_MS, Boolean(session));
 
   // The live workout log (PHILOI_UI_SPEC.md §23). `mode` on the active session already routes
   // gym here (see active-session-context.tsx) — this is the logger that hook was reserved for.
