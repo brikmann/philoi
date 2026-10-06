@@ -54,6 +54,20 @@ function daysPhrase(ms: number, unit: 'left' | 'to claim' | 'opens'): string {
   return `${days} days ${unit}`;
 }
 
+const WORDMARK_SIZE = 28;
+// Inter Black caps with the 0.5 tracking run ~0.78em per glyph — measured off "EMBERFALL", and a
+// touch generous so the estimate errs toward fitting rather than clipping.
+const WORDMARK_EM_PER_CHAR = 0.78;
+const INNER_PADDING_X = 32; // styles.inner paddingHorizontal × 2
+
+/** Full size unless the name would overrun the banner; never below 60%. Before layout: full size. */
+function wordmarkSize(name: string, bannerWidth: number): { fontSize: number; lineHeight: number } {
+  const room = bannerWidth - INNER_PADDING_X;
+  const fit = room > 0 ? room / (Math.max(name.length, 1) * WORDMARK_EM_PER_CHAR) : WORDMARK_SIZE;
+  const fontSize = Math.max(WORDMARK_SIZE * 0.6, Math.min(WORDMARK_SIZE, fit));
+  return { fontSize, lineHeight: Math.round(fontSize * 1.15) };
+}
+
 type Copy = {
   kicker: string;
   pill: string;
@@ -158,16 +172,11 @@ export function EmberfallSplash() {
 
       <View style={styles.inner}>
         <Text style={styles.kicker}>{copy.kicker}</Text>
-        {/* Keyed on the measured width. adjustsFontSizeToFit fits ONCE against whatever width the
-            first pass had, and iOS keeps that shrunken size when the box later widens — re-entering
-            the tutorial and coming back measured the banner mid-transition and left the wordmark
-            tiny for good. A new width remounts the line so it re-fits; the floor caps the shrink. */}
-        <Text
-          key={Math.round(size.w)}
-          style={styles.wordmark}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}>
+        {/* Sized here, NOT by adjustsFontSizeToFit. On iOS that prop shrank this line to a sliver
+            ("ridiculously small") — it fits against the fixed lineHeight as well as the width, and
+            re-keying on width didn't save it. The wordmark only ever needs to shrink for a long
+            season name, and that is arithmetic on the measured width. */}
+        <Text style={[styles.wordmark, wordmarkSize(season.name, size.w)]} numberOfLines={1}>
           {season.name.toUpperCase()}
         </Text>
         <View style={styles.row}>
