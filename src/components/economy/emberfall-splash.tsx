@@ -3,6 +3,8 @@ import { useId, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { FallingEmbers } from '@/components/pass/emberfall-art';
+import { ShineSweep } from '@/components/pass/pass-motion';
 import { Colors, Fonts } from '@/constants/theme';
 import { useSeason, type SeasonState } from '@/hooks/use-season';
 
@@ -30,14 +32,10 @@ const DAY_MS = 86_400_000;
 const FIELD = ['#3a1402', '#7a2a08', '#b8541a'] as const;
 const BLOOM = '#F5C542';
 
-// Static sparks, placed as the mock places them. Static on purpose: this sits above a scrolling
-// list on every Leaderboard visit, and a falling-ember animation there is all cost, no information.
-const SPARKS = [
-  { left: '18%', top: '62%', size: 5 },
-  { left: '34%', top: '30%', size: 3 },
-  { left: '68%', top: '70%', size: 5 },
-  { left: '82%', top: '40%', size: 4 },
-] as const;
+// The motion is the Flame Pass banner's (mock 224), reused rather than re-drawn: embers falling
+// through the field and a soft light pass across it. Both come from the pass's own primitives, so
+// they share its reduce-motion / app-backgrounded gating (usePassMotion) — a Reduce Motion user
+// gets the still field, and nothing animates while the app is off-screen.
 
 function shortDate(ms: number): string {
   return new Date(ms).toLocaleDateString('en-US', {
@@ -150,22 +148,8 @@ export function EmberfallSplash() {
           </Svg>
         </View>
       )}
-      {SPARKS.map((p, i) => (
-        <View
-          key={i}
-          pointerEvents="none"
-          style={[
-            styles.spark,
-            {
-              left: p.left,
-              top: p.top,
-              width: p.size,
-              height: p.size,
-              borderRadius: p.size / 2,
-            },
-          ]}
-        />
-      ))}
+      {size.h > 0 ? <FallingEmbers count={6} fall={size.h + 20} /> : null}
+      <ShineSweep period={4200} opacity={0.22} />
       {/* The faint inner gold hairline — drawn over the field, inside the clip, so it follows the
           radius exactly. */}
       <View style={styles.hairline} pointerEvents="none" />
@@ -235,15 +219,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS,
     borderWidth: 1,
     borderColor: 'rgba(245,197,66,0.25)',
-  },
-  spark: {
-    position: 'absolute',
-    backgroundColor: '#FFD27A',
-    opacity: 0.8,
-    shadowColor: '#FFB347',
-    shadowOpacity: 1,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 0 },
   },
   inner: {
     paddingTop: 13,
