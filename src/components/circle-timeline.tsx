@@ -682,8 +682,9 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
                 onReactionChanged={timeline.feed.refetch}
               />
             )}
-            {/* 0162 · §Distribution — a campfire-hosted challenge posts as a card in the chat with
-                an inline join CTA. The card OWNS the body text (it renders the host's line as its
+            {/* 0162 · §Distribution — a campfire-hosted challenge posts as a card in the chat: the
+                record of when it was posted, tapping through to its standings. Join lives on the
+                pinned ActiveChallengeStrip only, so there is one join and one state. The card OWNS the body text (it renders the host's line as its
                 headline), which is why the `body.length > 0` block below excludes this kind: the
                 alternative is the same sentence printed twice, once as a heading and once under
                 it. Same reason the photo branch does not repeat its caption inside the image. */}

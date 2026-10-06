@@ -117,8 +117,14 @@ export default function ChallengesScreen() {
   // Finished work moves out of the way (punchlist 4E) — the tab was accumulating every past
   // challenge above the live ones. `sections` (the FlatList's data) is now ACTIVE personal goals
   // only; everything finished collects in the collapsed History block below.
-  const active = challenges.filter((c) => !c.completed_at);
-  const completed = challenges.filter((c) => c.completed_at);
+  //
+  // A goal MINTED for a campfire challenge (challenge_source_id, 0162) is that challenge's counter,
+  // not a challenge of its own: listed here it read "Visits · 0/3 · One-time" beside the real race
+  // on Friends. It stays on the lock-in menu, which is where its count is logged. Filtered here,
+  // not in fetchMyChallenges, because that read also feeds the lock-in menu and the fitness sync.
+  const personal = challenges.filter((c) => !c.challenge_source_id);
+  const active = personal.filter((c) => !c.completed_at);
+  const completed = personal.filter((c) => c.completed_at);
   const sections = active;
 
   // Pending invites stay up top with the live ones — they're the most actionable card on the

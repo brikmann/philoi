@@ -17,6 +17,7 @@ import { Screen } from '@/components/ui/screen';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useChallengeReward, challengeRewardResult } from '@/hooks/use-challenge-reward';
+import { useGroupChallengeWatch } from '@/hooks/use-challenge-watch';
 import { useMyChallenges } from '@/hooks/use-my-challenges';
 import { useOpponentAvatar } from '@/hooks/use-duel-avatars';
 import { useShareRank } from '@/hooks/use-share-rank';
@@ -246,6 +247,76 @@ function Results({
  * The window itself ("72h") stays either way: it is a rule of the challenge, not a countdown, and
  * it is exactly the thing somebody opens this table to read.
  */
+/**
+ * LIVE STANDINGS — who is in a running campfire race and where each of them stands.
+ *
+ * This screen is where the campfire's pinned strip, its chat card and the Challenges → Friends row
+ * all land, so it is the one standings view. It reads the same RPC and hook the Watch screen does
+ * (get_group_challenge_watch), so the two can never disagree; Watch keeps the full board with
+ * cheers, and this is the top of it. Same order rule as Watch: anonymous racers last, then
+ * progress, then name — and same competition ranking, so a tie reads 1, 1, 3.
+ */
+const STANDINGS_SHOWN = 5;
+
+function LiveStandings({
+  challengeId,
+  myUserId,
+  placement,
+}: {
+  challengeId: string;
+  myUserId: string | undefined;
+  placement: boolean;
+}) {
+  const { rows, loading } = useGroupChallengeWatch(challengeId);
+  if (loading && rows.length === 0) return <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} />;
+  if (rows.length === 0) return null;
+
+  const head = rows[0];
+  const target = Math.max(1, head.target_count ?? 1);
+  const sorted = [...rows].sort(
+    (a, b) =>
+      Number(a.is_anonymous) - Number(b.is_anonymous) ||
+      (b.member_progress ?? 0) - (a.member_progress ?? 0) ||
+      a.member_name.localeCompare(b.member_name),
+  );
+  const named = sorted.filter((r) => !r.is_anonymous);
+  const doneCount = placement ? 0 : named.filter((r) => (r.member_progress ?? 0) >= target).length;
+
+  return (
+    <View style={styles.results}>
+      <Text style={styles.sectionLabel}>
+        {placement ? 'Standings' : `Standings · ${doneCount}/${rows.length} done`}
+      </Text>
+      {sorted.slice(0, STANDINGS_SHOWN).map((r) => {
+        const rank = r.is_anonymous ? null : named.findIndex((n) => n.member_progress === r.member_progress) + 1;
+        const progress = r.member_progress ?? 0;
+        const done = !placement && !r.is_anonymous && progress >= target;
+        return (
+          <View key={r.member_id} style={[styles.resultRow, r.member_id === myUserId && styles.resultRowMe]}>
+            <Text style={[styles.resultPlace, rank === 1 && progress > 0 && styles.resultPlaceWin]}>
+              {rank ?? '—'}
+            </Text>
+            <Text style={styles.resultName} numberOfLines={1}>
+              {r.member_id === myUserId ? 'You' : r.member_name}
+            </Text>
+            {done ? <Ionicons name="checkmark-circle" size={15} color={Colors.green} /> : null}
+            <Text style={styles.resultValue}>
+              {r.is_anonymous
+                ? '—'
+                : placement
+                  ? formatMetricValue(head.race_metric, progress)
+                  : `${progress}/${target}`}
+            </Text>
+          </View>
+        );
+      })}
+      {sorted.length > STANDINGS_SHOWN ? (
+        <Text style={styles.resultsError}>+{sorted.length - STANDINGS_SHOWN} more — Watch live for the full board</Text>
+      ) : null}
+    </View>
+  );
+}
+
 function durationValue(c: SocialChallenge, verdict?: ChallengeVerdict): string {
   if (!c.ends_at) return `${c.window_hours}h`;
   return `${c.window_hours}h · ${challengeClockText(c.status, c.ends_at, verdict)}`;
@@ -618,6 +689,10 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
             placement={placement}
             raceMetric={c.race_metric}
           />
+        ) : null}
+
+        {c.mode === 'group' && !duel && c.shape !== 'team_match' && c.status === 'active' ? (
+          <LiveStandings challengeId={c.id} myUserId={session?.user.id} placement={placement} />
         ) : null}
 
         {/* Watchable while it runs AND once it is over: 0112 opened the settled band on the group

@@ -1,12 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { joinCampfireChallenge } from '@/lib/api/social-challenges';
-import { getErrorMessage } from '@/lib/errors';
 
 // THE CHALLENGE CARD IN THE CHAT (CHALLENGE_CINDY_SCOPING.md §Distribution, migration 0162).
 //
@@ -21,17 +17,18 @@ import { getErrorMessage } from '@/lib/errors';
 // this is what satisfies it; a parallel feed of pseudo-messages would have needed every one of
 // those behaviours rebuilt.
 //
-// 🔒 WHAT IT DELIBERATELY DOES NOT DO: read the challenge. A member who has not joined yet is not
-// on the roster, so get_my_social_challenges does not necessarily return it to them — a card that
-// fetched its own subject would render blank for exactly the people the join CTA is FOR. The
-// message body already carries the headline the host posted ("1000 pushups — who's in?"), so the
-// card renders from what it has and puts the detail one tap away on the challenge screen. No read,
-// no spinner, no empty state.
+// 🔒 WHAT IT DELIBERATELY DOES NOT DO: read the challenge. The message body already carries the
+// headline the host posted ("1000 pushups — who's in?"), so the card renders from what it has and
+// puts the detail one tap away on the challenge screen. No read, no spinner, no empty state — and
+// one card per message never costs one query per message.
 //
-// JOINING IS OPEN, HOSTING IS NOT. join_campfire_challenge admits any member of the campfire;
-// host_campfire_challenge admits only an owner or admin. That asymmetry IS the §Opt-in model — an
-// open challenge posts to the fire and people put themselves in it — so this button is shown to
-// everyone and gated by nothing on the client.
+// 🔴 AN ANNOUNCEMENT, NOT A SECOND JOIN. This card used to carry its own Join button and a local
+// `joined` flag, beside the pinned ActiveChallengeStrip's Join, so the campfire had two join
+// surfaces that kept separate state: join from the strip and the card still offered Join; join
+// from the card and nothing else knew. The strip is the one live surface now (roster-aware via
+// get_circle_active_challenges, flips to "You're in"), and this card is the record of when the
+// challenge was posted. Tapping it opens the same challenge-info screen the strip and the
+// Challenges → Friends row open.
 
 export function ChallengeChatCard({
   challengeId,
@@ -41,44 +38,23 @@ export function ChallengeChatCard({
   challengeId: string;
   /** The host's own line, from the message body. Null when it was deleted or empty. */
   headline: string | null;
-  /** The host sees their own card. They are already enrolled, so there is nothing to join. */
+  /** The host sees their own card. */
   isOwn: boolean;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [joined, setJoined] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const open = () => router.push(`/challenge-info/${challengeId}`);
-
-  const join = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await joinCampfireChallenge(challengeId);
-      setJoined(true);
-    } catch (e) {
-      // Shown inline rather than in an Alert: the refusals this can return are ordinary and
-      // legible ("That challenge is over", "belongs to a campfire you're not in"), and a modal for
-      // a race that closed while you scrolled is heavier than the news deserves.
-      setError(getErrorMessage(e, "That didn't go through."));
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
-    <View style={styles.card}>
-      <Pressable
-        onPress={open}
-        accessibilityRole="button"
-        accessibilityLabel={`Open challenge${headline ? `: ${headline}` : ''}`}
-        style={styles.head}>
+    <Pressable
+      onPress={() => router.push(`/challenge-info/${challengeId}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`Open challenge${headline ? `: ${headline}` : ''}`}
+      style={styles.card}>
+      <View style={styles.head}>
         <View style={styles.badge}>
           <Ionicons name="bonfire" size={13} color={Colors.ember} />
         </View>
         <View style={styles.headText}>
-          <Text style={styles.kicker}>Campfire challenge</Text>
+          <Text style={styles.kicker}>{isOwn ? 'You hosted a challenge' : 'Campfire challenge'}</Text>
           {headline ? (
             <Text style={styles.headline} numberOfLines={2}>
               {headline}
@@ -86,26 +62,9 @@ export function ChallengeChatCard({
           ) : null}
         </View>
         <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
-      </Pressable>
-
-      {joined ? (
-        // Same shape as ChallengeAcceptRow's accepted state, and for the same reason: a greyed-out
-        // Join reads as something that failed rather than as something that worked.
-        <View style={styles.state}>
-          <Ionicons name="checkmark-circle" size={15} color={Colors.green} />
-          <Text style={styles.joined}>You&apos;re in — it&apos;s on your lock-in menu now</Text>
-        </View>
-      ) : isOwn ? (
-        <View style={styles.state}>
-          <Ionicons name="megaphone-outline" size={15} color={Colors.textTertiary} />
-          <Text style={styles.hosting}>You&apos;re hosting this one</Text>
-        </View>
-      ) : (
-        <PrimaryButton label="Join" disabled={busy} loading={busy} onPress={join} />
-      )}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-    </View>
+      </View>
+      <Text style={styles.footer}>See standings</Text>
+    </Pressable>
   );
 }
 
@@ -140,19 +99,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: Colors.textTertiary,
   },
+  footer: { fontFamily: Fonts.bodySemiBold, fontSize: 12, color: Colors.ember, paddingLeft: 34 },
   headline: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13.5,
     color: Colors.ink,
   },
-  state: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingTop: Spacing.two - 2,
-  },
-  joined: { fontFamily: Fonts.bodySemiBold, fontSize: 12.5, color: Colors.green },
-  hosting: { fontFamily: Fonts.bodySemiBold, fontSize: 12.5, color: Colors.textTertiary },
-  error: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.danger },
 });

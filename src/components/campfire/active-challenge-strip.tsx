@@ -90,6 +90,7 @@ export function ActiveChallengeStrip({
           <View style={styles.text}>
             <Text style={styles.kicker}>
               {challenges.length === 1 ? 'Active challenge' : `${challenges.length} active challenges`}
+              {` · ${top.participant_count} in`}
             </Text>
             <Text style={styles.title} numberOfLines={1}>
               {title}
