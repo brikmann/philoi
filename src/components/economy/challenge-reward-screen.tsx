@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
+  FadeIn,
+  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -10,9 +12,10 @@ import Animated, {
 import Svg, { Circle, Defs, G, Line, RadialGradient, Stop } from 'react-native-svg';
 
 import { BoxArt } from '@/components/economy/box-art';
+import { FieldRest, Podium } from '@/components/economy/challenge-podium';
 import { ItemArt } from '@/components/economy/item-art';
 import { asBoxKey, useRewardClaim } from '@/components/economy/reward-claim';
-import { RewardRevealFrame, type RowClaim } from '@/components/economy/reward-reveal-frame';
+import { RewardRevealFrame, type HeroStage, type RowClaim } from '@/components/economy/reward-reveal-frame';
 import { type RewardRowSpec } from '@/components/economy/reward-rows';
 import { boxAccent } from '@/lib/economy/boxes';
 import { useRevealCue, type RewardRevealKind } from '@/components/economy/reward-reveal';
@@ -20,6 +23,7 @@ import { UnlockReveal } from '@/components/economy/unlock-reveal';
 import { EquippedFlameSvg } from '@/components/flame-icon';
 import { DefeatedStrip, KingStatue } from '@/components/economy/king-statue';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { useChallengePodium, type ChallengePodium } from '@/hooks/use-challenge-podium';
 import { useInventory } from '@/hooks/use-inventory';
 import { campfireFinisherKey, titleLabel, type CatalogItem } from '@/lib/economy/catalog';
 import { useFlameRamp } from '@/lib/economy/flame-ramp';
@@ -32,6 +36,7 @@ import {
   type PlacementTier,
   type RewardContext,
 } from '@/lib/challenge-reward-copy';
+import type { SocialChallengeRaceMetric } from '@/types/database';
 
 // The challenge / campfire result screen — design-mocks/47.
 //
@@ -113,6 +118,17 @@ type Props = {
    * and installed builds must never see a payload key they do not know.
    */
   challengeId?: string;
+  /**
+   * Mock 267's podium inputs. The field itself is read here (useChallengePodium) off `challengeId`;
+   * these are what the presenter already knows that the settled standings do not carry: the units
+   * the figures are in, what the race was called, and — where the presenter has it — the campfire.
+   * Without `challengeId` a board race keeps the pre-podium flame, so an un-updated presenter
+   * degrades rather than draws an empty stage.
+   */
+  raceMetric?: SocialChallengeRaceMetric | null;
+  challengeName?: string | null;
+  campfireName?: string | null;
+  myUserId?: string | null;
 };
 
 export function ChallengeRewardScreen({
@@ -127,6 +143,10 @@ export function ChallengeRewardScreen({
   opponentAvatarUrl,
   revealKind,
   challengeId,
+  raceMetric,
+  challengeName,
+  campfireName,
+  myUserId,
 }: Props) {
   const reduceMotion = useReduceMotion();
   const intensity = TIER_INTENSITY[result.tier];
@@ -172,6 +192,16 @@ export function ChallengeRewardScreen({
   // flame and the warm copy the tier pool already writes for them.
   const isDuelWin = result.context === 'duel' && result.tier === 'rank1';
 
+  // MOCK 267 · THE PODIUM, for a board race with a field worth standing on. A duel keeps its king
+  // (a 2-person podium is "you won" said worse) and a field under three keeps the flame — both are
+  // branched AROUND, not replaced. If the field cannot be read, or settled with fewer than three
+  // ranked racers to stand on the pillars, the flame comes back rather than a half-built stage.
+  const wantsPodium = result.context === 'board' && result.fieldSize >= 3 && Boolean(challengeId);
+  const { podium, failed: podiumFailed } = useChallengePodium(challengeId, wantsPodium);
+  const podiumReady = podium != null && podium.racers.filter((r) => r.place != null).length >= 3;
+  const podiumMode = wantsPodium && !podiumFailed && (podium == null || podiumReady);
+  const campfire = campfireName?.trim() || podium?.campfire || null;
+
   // The spec's intensity ladder, as one number the burst scales off: ray length, glow and flame
   // all climb together rather than each being tuned per tier by hand.
   const energy = intensity.level / 7;
@@ -210,7 +240,18 @@ export function ChallengeRewardScreen({
   // object itself is new on every render, including the ~16 a second the balance counter pushes
   // while embers are in the air — depending on it whole would rebuild every row spec mid-flight and
   // defeat RewardRow's memo. These four are the only inputs a row's appearance actually has.
-  const { claimed, busy, claimFor, claim: claimOne } = claim;
+  const { claimed, busy, claimFor, claim: claimOne, remeasure } = claim;
+
+  // The winner's avatar mounts when the field lands, which can be after both of the frame's own
+  // mount-time measurements — so it asks for its own, once on layout and once after the build-in
+  // has finished scaling the column (a measurement mid-overshoot is a few points off).
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(settleTimer.current), []);
+  const onWinnerLayout = () => {
+    remeasure();
+    clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(remeasure, 600);
+  };
   const rows = useMemo(
     () =>
       buildRows(
@@ -241,9 +282,27 @@ export function ChallengeRewardScreen({
       // full-screen ray blast behind "NEEDS IGNITION" would be the app cheering a loss. Mock 47's
       // own 120pt crest rays below are gated on the same comparison for the same reason. One
       // comparison to move if Noah wants it lower.
-      rays={intensity.level >= 3}
-      heroStyle={styles.burst}
+      // In podium mode the light is the WINNER's — it bursts off their avatar, not off your result
+      // — so it is not gated on your tier: 4th of 6 still shows who took the race.
+      rays={podiumMode || intensity.level >= 3}
+      heroStyle={podiumMode ? styles.podiumHero : styles.burst}
       hero={
+        podiumMode ? (
+          (stage: HeroStage) => (
+            <PodiumHero
+              stage={stage}
+              result={result}
+              podium={podiumReady ? podium : null}
+              headline={headline}
+              displayName={displayName}
+              challengeName={challengeName ?? null}
+              campfire={campfire}
+              raceMetric={raceMetric ?? null}
+              myUserId={myUserId ?? null}
+              onWinnerLayout={onWinnerLayout}
+            />
+          )
+        ) : (
         <>
           <Animated.View style={[styles.glowLayer, glowStyle]} pointerEvents="none">
             <Svg width={200} height={200}>
@@ -287,6 +346,7 @@ export function ChallengeRewardScreen({
             </View>
           )}
         </>
+        )
       }
       rows={rows}
       footer={
@@ -300,18 +360,24 @@ export function ChallengeRewardScreen({
           </Pressable>
         ) : null
       }>
-      <Text style={[styles.eyebrow, { color: intensity.accent }]}>{intensity.label}</Text>
-      <Text style={styles.headline}>{headline}</Text>
-      {/* THE FIELD, STATED (#186). A placement race's result is "where you came out of how many",
-          and until now that number appeared nowhere on the screen that celebrates it — the
-          subline said "🥇 1st" whether you had beaten two people or two hundred. Given its own
-          line, in the tier's accent, because on a big campfire race it IS the result. */}
-      {fieldLine(result) ? (
-        <View style={[styles.fieldPill, { borderColor: intensity.accent }]}>
-          <Text style={[styles.fieldPillText, { color: intensity.accent }]}>{fieldLine(result)}</Text>
-        </View>
-      ) : null}
-      <Text style={styles.subline}>{subline(result)}</Text>
+      {/* The podium hero carries its own eyebrow and headline ABOVE the pillars (mock 267), so
+          step one's text block is only the flame reveal's. */}
+      {podiumMode ? null : (
+        <>
+          <Text style={[styles.eyebrow, { color: intensity.accent }]}>{intensity.label}</Text>
+          <Text style={styles.headline}>{headline}</Text>
+          {/* THE FIELD, STATED (#186). A placement race's result is "where you came out of how
+              many", and until now that number appeared nowhere on the screen that celebrates it —
+              the subline said "🥇 1st" whether you had beaten two people or two hundred. Given its
+              own line, in the tier's accent, because on a big campfire race it IS the result. */}
+          {fieldLine(result) ? (
+            <View style={[styles.fieldPill, { borderColor: intensity.accent }]}>
+              <Text style={[styles.fieldPillText, { color: intensity.accent }]}>{fieldLine(result)}</Text>
+            </View>
+          ) : null}
+          <Text style={styles.subline}>{subline(result)}</Text>
+        </>
+      )}
     </RewardRevealFrame>
   );
 }
@@ -360,9 +426,108 @@ function fieldLine(r: ChallengeRewardResult): string | null {
 function subline(r: ChallengeRewardResult): string {
   // The medal moves up into the field pill when there is one, so it is stated once per screen.
   const lead = fieldLine(r) ? null : TIER_MEDAL[r.tier];
-  return [lead, r.opponentName ? `You beat ${r.opponentName}` : null, r.metricLabel, r.durationLabel]
+  // No duration (mock 267): "1561h" is a rule of the race, not a result, and it read as one.
+  return [lead, r.opponentName ? `You beat ${r.opponentName}` : null, r.metricLabel]
     .filter(Boolean)
     .join(' · ');
+}
+
+/** "🥈 PODIUM · 2ND OF 5" on the podium, "4TH OF 6 · IN THE MIX" off it. */
+function podiumEyebrow(r: ChallengeRewardResult): string {
+  const label = TIER_INTENSITY[r.tier].label;
+  if (r.placement == null) return label;
+  const of = `${ordinal(r.placement).toUpperCase()} OF ${r.fieldSize}`;
+  const medal = podiumMedal(r);
+  return medal ? `${medal} ${label} · ${of}` : `${of} · ${label}`;
+}
+
+/** The medal glyph alone ("🥈"), on the podium only. */
+function podiumMedal(r: ChallengeRewardResult): string | null {
+  if (r.tier !== 'rank1' && r.tier !== 'rank2' && r.tier !== 'rank3') return null;
+  return TIER_MEDAL[r.tier].split(' ')[0];
+}
+
+/** "🥈 2nd of 5" — the collapsed bar's lead. */
+function placementShort(r: ChallengeRewardResult): string | null {
+  if (r.placement == null) return null;
+  const medal = podiumMedal(r);
+  return `${medal ? `${medal} ` : ''}${ordinal(r.placement)} of ${r.fieldSize}`;
+}
+
+/**
+ * MOCK 267 · STEP ONE IS A PODIUM, STEP TWO IS A BAR.
+ *
+ * Step one: eyebrow, the copy pool's headline, "challenge · campfire" — never a duration — then the
+ * three pillars with the frame's anchor on the WINNER's avatar, so the full-screen fan bursts from
+ * the champion, and the rest of the field compactly underneath.
+ *
+ * Step two: the whole stage recedes into one line ("🥈 2nd of 5 · Noah · Run Club") the way the
+ * flame reveal's headline is stood down, so the crate / XP / title rows have the screen.
+ */
+function PodiumHero({
+  stage,
+  result,
+  podium,
+  headline,
+  displayName,
+  challengeName,
+  campfire,
+  raceMetric,
+  myUserId,
+  onWinnerLayout,
+}: {
+  stage: HeroStage;
+  result: ChallengeRewardResult;
+  /** Null while the field is still loading — the stage holds its height rather than jumping. */
+  podium: ChallengePodium | null;
+  headline: string;
+  displayName: string;
+  challengeName: string | null;
+  campfire: string | null;
+  raceMetric: SocialChallengeRaceMetric | null;
+  myUserId: string | null;
+  onWinnerLayout: () => void;
+}) {
+  const accent = TIER_INTENSITY[result.tier].accent;
+  if (stage.rewards) {
+    const lead = placementShort(result);
+    const rest = [displayName, campfire].filter(Boolean).join(' · ');
+    return (
+      <Animated.View entering={FadeIn.duration(260)} style={styles.collapsed}>
+        <View style={styles.cbar}>
+          <Text style={styles.cbarText} numberOfLines={1}>
+            {lead ? <Text style={{ color: accent }}>{lead}</Text> : null}
+            {lead && rest ? ' · ' : ''}
+            {rest}
+          </Text>
+        </View>
+      </Animated.View>
+    );
+  }
+  const sub = [challengeName?.trim() || result.metricLabel, campfire].filter(Boolean).join(' · ');
+  return (
+    <View style={styles.stage}>
+      <Text style={[styles.eyebrow, { color: accent }]}>{podiumEyebrow(result)}</Text>
+      <Text style={styles.headline}>{headline}</Text>
+      {sub ? <Text style={styles.subline}>{sub}</Text> : null}
+      {podium ? (
+        <Animated.View entering={FadeInDown.duration(380)} style={styles.podiumWrap}>
+          <Podium
+            racers={podium.racers}
+            myId={myUserId}
+            metric={raceMetric}
+            winnerRef={stage.originRef}
+            onWinnerLayout={onWinnerLayout}
+          />
+          <FieldRest racers={podium.racers} myId={myUserId} metric={raceMetric} />
+        </Animated.View>
+      ) : (
+        <View style={styles.podiumPending}>
+          <ActivityIndicator color={Colors.amber} />
+        </View>
+      )}
+    </View>
+  );
 }
 
 function buildRows(
@@ -459,6 +624,42 @@ function buildRows(
 }
 
 const styles = StyleSheet.create({
+  podiumHero: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  stage: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  podiumWrap: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  // The loaded podium's height, held while the field is read so the headline does not jump.
+  podiumPending: {
+    height: 210,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  collapsed: {
+    alignItems: 'center',
+    paddingTop: Spacing.two,
+  },
+  cbar: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#2A2340',
+    backgroundColor: '#201633',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    maxWidth: '100%',
+  },
+  cbarText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.ink,
+  },
   kingHolder: {
     alignItems: 'center',
     gap: 8,

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
@@ -81,6 +81,14 @@ export type RowClaim = {
   claimOne?: RewardClaim['claim'];
 };
 
+/** What a function-form `hero` is told. */
+export type HeroStage = {
+  /** Step two is up — the rewards are showing. */
+  rewards: boolean;
+  /** Put on whatever the light and the flights should come off. */
+  originRef: RefObject<View | null>;
+};
+
 type Props = {
   /** The claim hook, already constructed by the screen with its own payload. */
   claim: RewardClaim;
@@ -98,8 +106,14 @@ type Props = {
   /**
    * The thing the light comes off and the rewards fly out of. Gets `originRef`, so it is also what
    * the rays anchor on — the fan has to bloom from the flame, not from the middle of the phone.
+   *
+   * OR A FUNCTION OF THE STAGE (mock 267). The podium needs two things a plain node cannot have:
+   * to put the anchor on ONE avatar inside it (the light comes off the winner, not off the middle
+   * of three pillars), and to know when step two has started so it can recede into a bar the way
+   * step one's headline does. Given a function, the frame hands it `originRef` and leaves placing
+   * it to the hero; the wrapper below then carries no ref of its own.
    */
-  hero: ReactNode;
+  hero: ReactNode | ((stage: HeroStage) => ReactNode);
   /** The hero's box, when it needs a fixed one (the challenge burst is a 200pt square). */
   heroStyle?: StyleProp<ViewStyle>;
   /**
@@ -267,9 +281,13 @@ export function RewardRevealFrame({
           scaling it too would just be the whole screen zooming. */}
       <Animated.View style={[styles.buildLayer, buildStyle]}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <View style={heroStyle ?? styles.hero} ref={originRef} collapsable={false}>
-            {hero}
-          </View>
+          {typeof hero === 'function' ? (
+            <View style={heroStyle ?? styles.hero}>{hero({ rewards: showRewards, originRef })}</View>
+          ) : (
+            <View style={heroStyle ?? styles.hero} ref={originRef} collapsable={false}>
+              {hero}
+            </View>
+          )}
 
           {/* STEP ONE. Stood down rather than unmounted once the rewards are up: the hero above it
               is the flights' measured origin and the rays' anchor, and remounting the column around

@@ -64,7 +64,7 @@ export async function prefetchAvatars(...urls: (string | null | undefined)[]): P
  * component: this one is a fixed circle with a ring, sized in card units, and generalising the
  * shared Avatar to cover it would be a wider change than the duel card justifies.
  */
-function RoundAvatar({
+export function RoundAvatar({
   url,
   name,
   size,

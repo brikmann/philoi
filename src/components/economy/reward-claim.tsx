@@ -693,6 +693,12 @@ export function useRewardClaim({
     layer,
     /** The box's display name, for a caller that labels its own Open control. */
     boxName,
+    /**
+     * Measure the hero again. For a hero whose anchor mounts after the reveal does — the podium
+     * draws its winner once the settled field has loaded, which can land after both of the
+     * mount-time measurements above.
+     */
+    remeasure: measure,
   };
 }
 

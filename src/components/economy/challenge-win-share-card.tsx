@@ -2,12 +2,14 @@ import { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
+import { PinnedYouRow, Podium } from '@/components/economy/challenge-podium';
 import { DefeatedStrip, KingStatue } from '@/components/economy/king-statue';
 import { boxStamp } from '@/components/economy/share-card-stamp';
 import { ShareCardFrame, fitFontSize } from '@/components/share-card-frame';
 import { Colors, Fonts } from '@/constants/theme';
+import { useChallengePodium } from '@/hooks/use-challenge-podium';
 import { TIER_INTENSITY, TIER_MEDAL, ordinal, type PlacementTier } from '@/lib/challenge-reward-copy';
-import type { RankTierName } from '@/types/database';
+import type { RankTierName, SocialChallengeRaceMetric } from '@/types/database';
 
 // §E — the challenge/placement story card (design-mocks/104, reworked to 171 + 172), fired from the
 // challenge reward reveal's "Share to your story".
@@ -24,6 +26,10 @@ import type { RankTierName } from '@/types/database';
 //     DEFEATED strip above it with their name struck through. See king-statue.tsx.
 //   · BOARD — the crown + "1st of 12" (mock 171 card 3). A placement race has a FIELD, not an
 //     opponent, and the size of that field is the whole result: "1st" says nothing without it.
+//   · BOARD, FIELD ≥ 3 — the mini podium (mock 267), the same pillars the reveal draws. On the
+//     podium your pillar is ringed; off it the top three still stand (who won IS the story) and
+//     YOUR row is pinned under them in ember, with "beat N racers" so a mid-pack finish still reads
+//     as worth posting. Falls back to the crown when the field could not be read.
 //
 // Deliberately does NOT show the ember payout. A share card is a flex, and "I won 50 embers" is a
 // worse flex than "I beat Dee" — it also advertises a currency number that means nothing to
@@ -64,6 +70,15 @@ type Props = {
 
   /** The box this win granted, for the "what you won" stamp. Never an ember count. */
   boxKey?: string | null;
+
+  // ── board podium (mock 267) ──
+  /** The settled race — the field is read off it, sharing the reveal's cached fetch. */
+  challengeId?: string | null;
+  raceMetric?: SocialChallengeRaceMetric | null;
+  myUserId?: string | null;
+  /** "100 km Distance Challenge" — the podium card's title line. */
+  challengeName?: string | null;
+  campfireName?: string | null;
 };
 
 export const ChallengeWinShareCard = forwardRef<View, Props>(function ChallengeWinShareCard(
@@ -83,16 +98,45 @@ export const ChallengeWinShareCard = forwardRef<View, Props>(function ChallengeW
     placement,
     fieldSize,
     boxKey,
+    challengeId,
+    raceMetric,
+    myUserId,
+    challengeName,
+    campfireName,
   },
   ref
 ) {
   const intensity = TIER_INTENSITY[tier];
   const isDuel = context === 'duel';
 
+  const wantsPodium = !isDuel && (fieldSize ?? 0) >= 3 && Boolean(challengeId);
+  const { podium } = useChallengePodium(challengeId, wantsPodium);
+  const ranked = podium?.racers.filter((r) => r.place != null) ?? [];
+  const showPodium = wantsPodium && ranked.length >= 3;
+  const me = myUserId ? podium?.racers.find((r) => r.id === myUserId) ?? null : null;
+  const onPodium = placement != null && placement <= 3;
+  const campfire = campfireName?.trim() || podium?.campfire || null;
+  const title = challengeName?.trim() || contextLine;
+  // Beaten = everyone who finished below you. Counted off the field, not off `ranked`: anonymous
+  // racers are withheld by name, not by existence, and you beat them all the same.
+  const beat = placement != null && fieldSize ? Math.max(0, fieldSize - placement) : 0;
+  const podiumMetric = [
+    metricLabel,
+    campfire,
+    !onPodium && beat > 0 ? `beat ${beat} racer${beat === 1 ? '' : 's'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const medal = tier === 'rank1' || tier === 'rank2' || tier === 'rank3' ? TIER_MEDAL[tier].split(' ')[0] : null;
+  const podiumKick =
+    placement != null && fieldSize
+      ? `${medal ? `${medal} ` : ''}${ordinal(placement).toUpperCase()} OF ${fieldSize}${onPodium ? ' · PODIUM' : ''}`
+      : intensity.label;
+
   return (
     <ShareCardFrame
       ref={ref}
-      kick={isDuel ? 'DUEL WON' : intensity.label}
+      kick={isDuel ? 'DUEL WON' : showPodium ? podiumKick : intensity.label}
       kickColor={isDuel ? '#9EC6FF' : intensity.accent}
       // 🔴 NO LONGER `ground="season"`. This card was one of the three lighting itself from the
       // lava floor while the rank-up and unlock cards lit from above — see the frame's own note on
@@ -100,7 +144,9 @@ export const ChallengeWinShareCard = forwardRef<View, Props>(function ChallengeW
       rayTint={isDuel ? '#9EC6FF' : intensity.accent}
       // The fan sits behind the statue's torso rather than at the card's midpoint, so the light
       // reads as coming off the figure.
-      rayCenterY={isDuel ? 0.44 : 0.4}
+      // On the podium card the fan sits on the winner's pillar, up where mock 267 lights it.
+      rayCenterY={isDuel ? 0.44 : showPodium ? 0.24 : 0.4}
+      rayOpacity={showPodium && !onPodium ? 0.2 : undefined}
       handle={handle}
       tier={rankTier}
       division={division}>
@@ -128,6 +174,19 @@ export const ChallengeWinShareCard = forwardRef<View, Props>(function ChallengeW
             </Text>
             {boxStamp(boxKey)}
           </View>
+        </View>
+      ) : showPodium && podium ? (
+        <View style={styles.podiumColumn}>
+          <Podium racers={podium.racers} myId={myUserId} metric={raceMetric} size="card" />
+          {/* Off the podium: YOUR row, pinned. On it, your pillar is already ringed above. */}
+          {!onPodium && me ? <PinnedYouRow racer={me} metric={raceMetric} /> : null}
+          <Text style={[styles.podiumTitle, { fontSize: fitFontSize(title, 19, 13, 26) }]} numberOfLines={2}>
+            {title}
+          </Text>
+          <Text style={styles.metric} numberOfLines={2}>
+            {podiumMetric}
+          </Text>
+          {boxStamp(boxKey)}
         </View>
       ) : (
         <>
@@ -190,6 +249,18 @@ const styles = StyleSheet.create({
   duelTop: {
     alignItems: 'center',
     gap: 8,
+  },
+  podiumColumn: {
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  podiumTitle: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.ink,
+    textAlign: 'center',
+    marginTop: 16,
+    lineHeight: 23,
   },
   duelBottom: {
     alignItems: 'center',

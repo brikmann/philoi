@@ -14,7 +14,7 @@ import { useShareRank } from '@/hooks/use-share-rank';
 import { track } from '@/lib/analytics';
 import { fetchUnseenChallengeRewards, markChallengeRewardSeen } from '@/lib/api/social-challenges';
 import { useAuth } from '@/lib/auth/auth-context';
-import { metricLabel } from '@/lib/challenge-metric';
+import { challengeTitle, metricLabel } from '@/lib/challenge-metric';
 import { challengeRevealKind } from '@/lib/challenge-outcome';
 import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { shareCardImage } from '@/lib/share-card';
@@ -175,6 +175,10 @@ export function ChallengeSettlementWatcher() {
             // that ordered the queue rather than by a second guess at the shape.
             revealKind={revealKind}
             challengeId={current.challenge_id}
+            // Mock 267's podium. The campfire is not on this row; the podium hook reads it.
+            raceMetric={current.race_metric}
+            challengeName={challengeTitle(current)}
+            myUserId={session?.user.id ?? null}
             // §F.1 — the king's two faces. Already fetched for the share card below, so the
             // reveal and the card it shares are drawn from one pair of avatars rather than two.
             winnerAvatarUrl={profile?.avatar_url ?? null}
@@ -207,6 +211,11 @@ export function ChallengeSettlementWatcher() {
               opponentAvatarUrl={opponentAvatarUrl}
               // What the win granted, named rather than counted — see share-card-stamp.
               boxKey={result.box?.key ?? null}
+              // Mock 267 — the podium card reads the same cached field the reveal does.
+              challengeId={current.challenge_id}
+              raceMetric={current.race_metric}
+              myUserId={session?.user.id ?? null}
+              challengeName={challengeTitle(current)}
               handle={profile?.handle ?? null}
               rankTier={shareRank.tier}
               division={shareRank.division}
