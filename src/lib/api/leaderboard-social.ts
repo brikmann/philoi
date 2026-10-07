@@ -84,7 +84,16 @@ export async function fetchChallengeWatch(challengeId: string): Promise<Challeng
 export async function fetchGroupChallengeWatch(challengeId: string): Promise<GroupChallengeWatchRow[]> {
   const { data, error } = await supabase.rpc('get_group_challenge_watch', { p_challenge_id: challengeId });
   if (error) throw error;
-  return data ?? [];
+  // Normalised ONCE, here, for every reader (the Watch board and the info screen's standings).
+  // member_progress is Postgres `numeric`, which supabase-js hands back as a STRING — so every
+  // subtraction, `>=` and leader comparison downstream was string arithmetic. And member_name is
+  // display_name, which is nullable (0236), so a half-onboarded racer's null name threw inside
+  // `.localeCompare` and took the Watch screen down.
+  return (data ?? []).map((r) => ({
+    ...r,
+    member_name: r.member_name ?? 'Racer',
+    member_progress: r.member_progress == null ? null : Number(r.member_progress),
+  }));
 }
 
 // "Let friends watch my live challenges" (§16/§19) — default off.

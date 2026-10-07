@@ -1,17 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BoxArt } from '@/components/economy/box-art';
 import { ChallengeRewardScreen } from '@/components/economy/challenge-reward-screen';
+import { EmberIcon } from '@/components/economy/ember-icon';
 import { IncomingChallengeSheet } from '@/components/incoming-challenge-sheet';
 import { ChallengeWinShareCard } from '@/components/economy/challenge-win-share-card';
 import { prefetchAvatars } from '@/components/economy/king-statue';
 import { PrizePoolPanel } from '@/components/economy/prize-pool-panel';
 import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { Avatar } from '@/components/ui/avatar';
+import { Crown } from '@/components/ui/crown';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
+import { EmberFill } from '@/components/ui/ember-fill';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { ScreenBackground } from '@/components/ui/screen-background';
@@ -33,10 +37,11 @@ import {
   metricLabel,
   metricNoun,
 } from '@/lib/challenge-metric';
-import { challengeClockText, challengeRevealKind, duelOutcome, type ChallengeVerdict } from '@/lib/challenge-outcome';
+import { challengeRevealKind } from '@/lib/challenge-outcome';
 import { previewScopedReward } from '@/lib/api/challenges';
 import { asBoxKey } from '@/lib/challenge-tier';
-import { BOXES } from '@/lib/economy/boxes';
+import { BOXES, boxAccent } from '@/lib/economy/boxes';
+import { RARITY_LABEL } from '@/lib/economy/rarity';
 import { fetchChallengeResults } from '@/lib/api/social-challenges';
 import { answerChallengeInvite } from '@/lib/api/challenge-lifecycle';
 import { rewardChips } from '@/lib/challenge-reward-summary';
@@ -46,6 +51,7 @@ import { shareCardImage } from '@/lib/share-card';
 import type {
   ChallengeResultRow,
   GoalClaimLevel,
+  GroupChallengeWatchRow,
   ScopedRewardPreview,
   SocialChallenge,
   SocialChallengeRaceMetric,
@@ -244,91 +250,288 @@ function Results({
 }
 
 /**
- * THE DURATION ROW, IN THE RIGHT TENSE.
+ * WHEN IT ENDS, AS A DATE (mock 266).
  *
- * 🔴 "Duration · 72h · ending soon" on a duel that had ended. All three shapes built this row from
- * `formatTimeLeft(ends_at)`, which only knows about a clock and therefore kept promising a future
- * on a race with a result. challengeClockText is the one derivation every challenge surface now
- * shares — it prefers the stored verdict and falls back to the countdown only while the race is
- * genuinely undecided.
+ * This was `${window_hours}h · ${challengeClockText(...)}` — "1609h · 67d left" — which made the
+ * reader do arithmetic to learn the one fact they wanted. An end date is a fact; a countdown in
+ * hours is a puzzle. Every shape reads it this way now, duels included.
  *
- * The window itself ("72h") stays either way: it is a rule of the challenge, not a countdown, and
- * it is exactly the thing somebody opens this table to read.
+ * A challenge that has not started (a pending duel, a draft) has no ends_at yet — its clock starts
+ * when it does — so it states the run length instead of inventing a date.
  */
+function endsText(c: SocialChallenge, long: boolean): string {
+  if (!c.ends_at) {
+    const days = Math.max(1, Math.round(c.window_hours / 24));
+    return `${days} day${days === 1 ? '' : 's'} once it starts`;
+  }
+  return new Date(c.ends_at).toLocaleDateString(
+    'en-US',
+    long ? { month: 'short', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' }
+  );
+}
+
 /**
- * LIVE STANDINGS — who is in a running campfire race and where each of them stands.
- *
- * This screen is where the campfire's pinned strip, its chat card and the Challenges → Friends row
- * all land, so it is the one standings view. It reads the same RPC and hook the Watch screen does
- * (get_group_challenge_watch), so the two can never disagree; Watch keeps the full board with
- * cheers, and this is the top of it. Same order rule as Watch: anonymous racers last, then
- * progress, then name — and same competition ranking, so a tie reads 1, 1, 3.
+ * Same order rule as the Watch board: anonymous racers last, then progress, then name. Null-safe on
+ * the name — display_name is nullable (0236) and a null reaching localeCompare is what took Watch
+ * down. Progress is already a number (fetchGroupChallengeWatch normalises the numeric string).
  */
-const STANDINGS_SHOWN = 5;
-
-function LiveStandings({
-  challengeId,
-  myUserId,
-  placement,
-}: {
-  challengeId: string;
-  myUserId: string | undefined;
-  placement: boolean;
-}) {
-  const { rows, loading } = useGroupChallengeWatch(challengeId);
-  if (loading && rows.length === 0) return <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} />;
-  if (rows.length === 0) return null;
-
-  const head = rows[0];
-  const target = Math.max(1, head.target_count ?? 1);
-  const sorted = [...rows].sort(
+function sortRacers(rows: GroupChallengeWatchRow[]): GroupChallengeWatchRow[] {
+  return [...rows].sort(
     (a, b) =>
       Number(a.is_anonymous) - Number(b.is_anonymous) ||
       (b.member_progress ?? 0) - (a.member_progress ?? 0) ||
-      a.member_name.localeCompare(b.member_name),
+      (a.member_name ?? '').localeCompare(b.member_name ?? ''),
   );
+}
+
+/**
+ * THE PRIZE — the hero of a campfire race (mock 266).
+ *
+ * 🔒 EVERY FIGURE IS THE SERVER'S. The crate, its rarity and the embers come from
+ * preview_challenge_reward (via previewScopedReward, asked with the server-derived verifiability);
+ * the XP is the row's own payout_xp; the title is 0212's finisher label. There is no tier→crate or
+ * tier→payout table here. When there is no scoped crate to show — an unscoped race, an embers-only
+ * tier, or a preview that failed — it degrades to one compact line rather than drawing a crate the
+ * race will not mint.
+ */
+function PrizeCard({
+  c,
+  scoped,
+  scopedPending,
+  settled,
+  placement,
+}: {
+  c: SocialChallenge;
+  scoped: ScopedRewardPreview | null;
+  /** A tier exists and its preview is still on the way — a skeleton, not a downgrade. */
+  scopedPending: boolean;
+  settled: boolean;
+  placement: boolean;
+}) {
+  const boxKey = asBoxKey(scoped?.box);
+  const box = boxKey ? BOXES[boxKey] : null;
+  const campfire = c.circle_name ?? 'campfire';
+  const note = placement
+    ? 'Bigger field pays more · reward scales with your band'
+    : 'All or nothing · each share scales with where you place';
+
+  if (scopedPending) {
+    return (
+      <View style={[styles.prize, styles.prizePending]}>
+        <ActivityIndicator color={Colors.amber} />
+      </View>
+    );
+  }
+
+  if (!scoped || !box || !boxKey) {
+    return (
+      <View style={styles.rewardLine}>
+        <EmberIcon size={22} />
+        <Text style={styles.rewardLineText}>
+          {settled ? 'Paid' : 'Pays'} up to <Text style={styles.prizeStrong}>+{c.payout_xp.toLocaleString('en-US')} XP</Text>
+          {scoped ? (
+            <>
+              {' '}+ <Text style={styles.prizeStrong}>{scoped.embers.toLocaleString('en-US')} embers</Text>
+            </>
+          ) : null}{' '}
+          at the top band, and every finisher earns a permanent {campfire} title. {placement ? 'Scales with your band.' : 'Only if everyone finishes.'}
+        </Text>
+      </View>
+    );
+  }
+
+  const accent = boxAccent(boxKey);
+  return (
+    <View style={[styles.prize, { borderColor: `${accent}66` }]}>
+      <Text style={styles.prizeKicker}>{settled ? 'THE PRIZE' : 'UP FOR GRABS'}</Text>
+      <View style={styles.crate}>
+        <BoxArt boxKey={boxKey} size={104} />
+        <View style={[styles.crateTag, { backgroundColor: accent }]}>
+          <Text style={styles.crateTagText}>{RARITY_LABEL[box.rarity]}</Text>
+        </View>
+      </View>
+      <Text style={styles.crateName}>{box.name}</Text>
+      <Text style={styles.crateWhat}>
+        {settled ? 'The top band took this crate' : 'Finish at the top and this crate is yours'} —{' '}
+        <Text style={styles.prizeStrong}>+{c.payout_xp.toLocaleString('en-US')} XP</Text> and{' '}
+        <Text style={styles.prizeStrong}>{scoped.embers.toLocaleString('en-US')} embers</Text> at the top band, and a
+        permanent <Text style={styles.prizeStrong}>{campfire}</Text> title.
+      </Text>
+      <View style={styles.scaled}>
+        <Text style={styles.scaledText}>🏅 {note}</Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * YOUR STANDING + THE LIVE BOARD (mock 266) — one component so the watch RPC is polled once.
+ *
+ * Reads the same hook and RPC the Watch screen does (get_group_challenge_watch), so the two can
+ * never disagree; Watch keeps the full board with cheers, and this is the top of it. Same ranking:
+ * competition ranks, so a tie reads 1, 1, 3.
+ */
+const STANDINGS_SHOWN = 5;
+
+function LiveRace({
+  c,
+  myUserId,
+  placement,
+}: {
+  c: SocialChallenge;
+  myUserId: string | undefined;
+  placement: boolean;
+}) {
+  const { rows, loading } = useGroupChallengeWatch(c.id);
+  if (loading && rows.length === 0) return <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} />;
+  if (rows.length === 0) return null;
+
+  const metric = rows[0].race_metric ?? c.race_metric;
+  // A measured collective bar (0169) — distance or volume everyone clears — is in target_value, in
+  // the metric's raw unit; target_count is the lock-in count goal's bar. Reading target_count for
+  // the first would make every racer "done" at 1.
+  const measured = !placement && c.target_value != null && metric != null && metric !== 'count';
+  const target = Math.max(1, measured ? (c.target_value ?? 1) : (rows[0].target_count ?? c.target_count ?? 1));
+  const fig = (v: number) => (placement || measured ? formatMetricValue(metric, v) : `${v}/${target}`);
+
+  const sorted = sortRacers(rows);
   const named = sorted.filter((r) => !r.is_anonymous);
+  const rankOf = (r: GroupChallengeWatchRow) =>
+    r.is_anonymous ? null : named.findIndex((n) => n.member_progress === r.member_progress) + 1;
+  const top = named[0]?.member_progress ?? 0;
   const doneCount = placement ? 0 : named.filter((r) => (r.member_progress ?? 0) >= target).length;
 
+  // ── your standing ──
+  const me = named.find((r) => r.member_id === myUserId) ?? null;
+  let standing: { label: string; big: string; small: string; fig: string; sub: string } | null = null;
+  if (me && placement) {
+    const mine = me.member_progress ?? 0;
+    const rank = rankOf(me) ?? 0;
+    const below = named.filter((r) => (r.member_progress ?? 0) < mine);
+    const above = named.filter((r) => (r.member_progress ?? 0) > mine);
+    const tiedTop = rank === 1 && named.filter((r) => r.member_progress === mine).length > 1;
+    const sub =
+      rank === 1
+        ? mine === 0
+          ? 'Nobody has started'
+          : tiedTop
+            ? 'Tied for the lead'
+            : below[0]
+              ? `+${formatMetricValue(metric, mine - (below[0].member_progress ?? 0))} ahead`
+              : 'Out in front'
+        : (() => {
+            const next = above[above.length - 1];
+            return `${formatMetricValue(metric, (next.member_progress ?? 0) - mine)} behind #${rankOf(next)}`;
+          })();
+    standing = {
+      label: rank === 1 && mine > 0 && !tiedTop ? "YOU'RE WINNING" : `YOU'RE #${rank}`,
+      big: `#${rank}`,
+      small: `of ${sorted.length}`,
+      fig: formatMetricValue(metric, mine),
+      sub,
+    };
+  } else if (!placement) {
+    // No personal rank on a collective goal — the house passes or fails together, so the hero
+    // figure is the house's, with yours beside it.
+    const mine = me?.member_progress ?? null;
+    standing = {
+      label: 'THE CAMPFIRE',
+      big: `${doneCount}`,
+      small: `of ${sorted.length} done`,
+      fig: mine != null ? fig(mine) : '—',
+      sub: mine == null ? 'Spectating' : mine >= target ? 'You’re done ✓' : 'You',
+    };
+  }
+
   return (
-    <View style={styles.results}>
-      <Text style={styles.sectionLabel}>
-        {placement ? 'Standings' : `Standings · ${doneCount}/${rows.length} done`}
-      </Text>
+    <>
+      {standing ? (
+        <View style={styles.you}>
+          <View>
+            <Text style={styles.youLabel}>{standing.label}</Text>
+            <Text style={styles.youPos}>
+              {standing.big} <Text style={styles.youPosSmall}>{standing.small}</Text>
+            </Text>
+          </View>
+          <View style={styles.youFig}>
+            <Text style={styles.youFigBig}>{standing.fig}</Text>
+            <Text style={styles.youFigSub}>{standing.sub.toUpperCase()}</Text>
+          </View>
+        </View>
+      ) : null}
+
+      <View style={styles.boardHead}>
+        <Text style={styles.sectionLabel}>{placement ? 'STANDINGS' : `STANDINGS · ${doneCount}/${sorted.length} DONE`}</Text>
+        <View style={styles.liveTag}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>LIVE</Text>
+        </View>
+      </View>
       {sorted.slice(0, STANDINGS_SHOWN).map((r) => {
-        const rank = r.is_anonymous ? null : named.findIndex((n) => n.member_progress === r.member_progress) + 1;
-        const progress = r.member_progress ?? 0;
-        const done = !placement && !r.is_anonymous && progress >= target;
+        const rank = rankOf(r);
+        const v = r.member_progress ?? 0;
+        const isMe = r.member_id === myUserId;
+        const leads = !r.is_anonymous && top > 0 && v === top;
+        const share = r.is_anonymous ? 0 : placement ? (top > 0 ? v / top : 0) : Math.min(1, v / target);
         return (
-          <View key={r.member_id} style={[styles.resultRow, r.member_id === myUserId && styles.resultRowMe]}>
-            <Text style={[styles.resultPlace, rank === 1 && progress > 0 && styles.resultPlaceWin]}>
-              {rank ?? '—'}
-            </Text>
-            <Text style={styles.resultName} numberOfLines={1}>
-              {r.member_id === myUserId ? 'You' : r.member_name}
-            </Text>
-            {done ? <Ionicons name="checkmark-circle" size={15} color={Colors.green} /> : null}
-            <Text style={styles.resultValue}>
-              {r.is_anonymous
-                ? '—'
-                : placement
-                  ? formatMetricValue(head.race_metric, progress)
-                  : `${progress}/${target}`}
-            </Text>
+          <View key={r.member_id} style={[styles.boardRow, isMe && styles.boardRowMe]}>
+            <Text style={[styles.boardRank, (isMe || rank === 1) && v > 0 && styles.boardRankLit]}>{rank ?? '—'}</Text>
+            {r.is_anonymous ? (
+              <View style={styles.anonAvatar}>
+                <Ionicons name="person" size={14} color={Colors.textTertiary} />
+              </View>
+            ) : (
+              <Avatar label={r.member_name ?? 'Racer'} size={32} lit={isMe} />
+            )}
+            <View style={styles.boardWho}>
+              <View style={styles.boardNameRow}>
+                <Text style={styles.boardName} numberOfLines={1}>
+                  {isMe ? 'You' : (r.member_name ?? 'Racer')}
+                </Text>
+                {leads ? <Crown size={14} /> : null}
+              </View>
+              <View style={styles.bar}>
+                {share > 0 ? (
+                  <EmberFill radius={3} style={[styles.barFill, { width: `${Math.max(4, Math.round(share * 100))}%` as `${number}%` }]}>
+                    <View />
+                  </EmberFill>
+                ) : null}
+              </View>
+            </View>
+            <Text style={styles.boardFig}>{r.is_anonymous ? '—' : fig(v)}</Text>
           </View>
         );
       })}
       {sorted.length > STANDINGS_SHOWN ? (
-        <Text style={styles.resultsError}>+{sorted.length - STANDINGS_SHOWN} more — Watch live for the full board</Text>
+        <Text style={styles.boardMore}>+{sorted.length - STANDINGS_SHOWN} more · tap Watch live for the full board</Text>
+      ) : null}
+    </>
+  );
+}
+
+/** The rules, collapsed (mock 266): secondary, below the fold, one tap to open. */
+function HowItWorks({ rows, note }: { rows: Row[]; note: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.how}>
+      <Pressable
+        style={styles.howHead}
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}>
+        <Text style={styles.howTitle}>How it works</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.muted} />
+      </Pressable>
+      {open ? (
+        <View style={styles.howBody}>
+          <Rules rows={rows} flat />
+          {note}
+        </View>
       ) : null}
     </View>
   );
 }
 
-function durationValue(c: SocialChallenge, verdict?: ChallengeVerdict): string {
-  if (!c.ends_at) return `${c.window_hours}h`;
-  return `${c.window_hours}h · ${challengeClockText(c.status, c.ends_at, verdict)}`;
-}
 
 function SocialInfo({ challengeId }: { challengeId: string }) {
   const { challenges, loading, refetch } = useSocialChallenges();
@@ -377,16 +580,24 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
   const tier = c.difficulty_tier;
   const claimLevel = c.verifiability ?? 'honor';
   const [scoped, setScoped] = useState<ScopedRewardPreview | null>(null);
+  // A rejected preview used to leave the screen waiting forever. Now it settles to "no crate", and
+  // the prize card degrades to its compact reward line instead of a crate nobody priced.
+  const [scopedFailed, setScopedFailed] = useState(false);
   useEffect(() => {
     if (!tier) return;
     let alive = true;
-    previewScopedReward(tier, claimLevel).then((r) => {
-      if (alive) setScoped(r);
-    });
+    previewScopedReward(tier, claimLevel)
+      .then((r) => {
+        if (alive) setScoped(r);
+      })
+      .catch(() => {
+        if (alive) setScopedFailed(true);
+      });
     return () => {
       alive = false;
     };
   }, [tier, claimLevel]);
+  const scopedPending = Boolean(tier) && !scoped && !scopedFailed;
 
   const isCreator = session?.user.id === c.created_by;
   // `shape` (0096), not `opponent_id != null`. A collective goal used to draw the duel arena
@@ -401,10 +612,11 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
   const placement = isPlacement(c);
   const settled = c.status === 'completed' || c.status === 'expired';
   const otherName = (isCreator ? c.opponent_name : c.created_by_name) ?? 'them';
-  // The stored verdict, from the one module that knows who won. Only a duel has one — a group or
-  // placement race reads "Final" — so this is null for the other two shapes and the rows below
-  // pass undefined.
-  const outcome = duel ? duelOutcome(c, session?.user.id, otherName) : null;
+  // Mock 266's standings-first layout is for the campfire race — a collective goal or a placement
+  // race. A duel and a team match keep the layout below, which is built around their own shapes.
+  const raceLayout = !duel && c.mode === 'group' && c.shape !== 'team_match';
+  // Every shape states when it ends as a date, never as hours left.
+  const endsRow: Row = { k: settled ? 'Ended' : 'Ends', v: endsText(c, true) };
 
   // ── §4 · BEING CHALLENGED IS A MOMENT ────────────────────────────────────────────────────────
   //
@@ -553,7 +765,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
     ? [
         { k: 'Type', v: 'Head-to-head' },
         { k: 'The race', v: metricLabel(c.race_metric) },
-        { k: 'Duration', v: durationValue(c, outcome?.verdict) },
+        endsRow,
         // Past tense once it is decided. "Winner takes +200 XP" over a finished race reads as an
         // offer that is still open.
         { k: settled ? 'Winner took' : 'Winner takes', v: `+${c.payout_xp} XP`, highlight: true },
@@ -567,7 +779,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
       ? [
           { k: 'Type', v: 'Placement race' },
           { k: 'The race', v: metricLabel(c.race_metric) },
-          { k: 'Duration', v: durationValue(c) },
+          endsRow,
           { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP by band`, highlight: true },
           ...scopedRows,
           ...finisherRows,
@@ -592,7 +804,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
                   ? `Everyone hits ${formatMetricValue(c.race_metric, c.target_value)}`
                   : `Everyone locks in ${c.target_count ?? 1}×`,
           },
-          { k: 'Duration', v: durationValue(c) },
+          endsRow,
           { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP`, highlight: true },
           ...scopedRows,
           ...finisherRows,
@@ -602,6 +814,32 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           { k: 'Campfire', v: c.circle_name ?? '—' },
         ];
 
+  // The one paragraph that explains rather than lists — shared by both layouts.
+  const noteEl = (
+    <View style={styles.note}>
+      {duel ? (
+        <Text style={styles.noteText}>
+          <Text style={styles.noteStrong}>Winner +{c.payout_xp} XP</Text> — scales with effort, capped to keep
+          it fair. The loser gets a rematch, not a penalty. Whoever has the most{' '}
+          {metricNoun(c.race_metric)} when the clock hits zero takes it.
+        </Text>
+      ) : placement ? (
+        <Text style={styles.noteText}>
+          <Text style={styles.noteStrong}>Everyone places.</Text> The whole campfire is entered and the
+          board is ranked on {metricNoun(c.race_metric)} when the clock hits zero. There is nothing to
+          pass or fail — your reward scales with the band you finish in, and a bigger field pays more
+          for the same band. Race nothing and you still get a rank, just no payout.
+        </Text>
+      ) : (
+        <Text style={styles.noteText}>
+          <Text style={styles.noteStrong}>All or nothing.</Text> Nobody is paid unless every racer hits{' '}
+          {c.target_count ?? 1} qualifying lock-ins before the clock runs out — and once they do, each
+          share scales with where you placed. Only the people who accepted are in it.
+        </Text>
+      )}
+    </View>
+  );
+
   return (
     <>
       {/* 🔴 The header was rendering the literal route string `challenge-info/[challengeId]`. The
@@ -610,6 +848,69 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           than in the layout because only this screen knows the name — the layout has the id and
           nothing else. */}
       <Stack.Screen options={{ title: challengeTitle(c) }} />
+      {raceLayout ? (
+        // ── MOCK 266: STANDINGS FIRST ──
+        //
+        // The screen answers "what can I win, and where do I stand" before anything else: the
+        // prize, your standing, the live board. The rules table that used to lead is still all
+        // here, collapsed under "How it works". Every gate is the one the old layout had — live
+        // standings only while active, final standings once settled, Watch while active or after.
+        <>
+          <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+            <View style={styles.raceHero}>
+              <Text style={styles.publicName} numberOfLines={2}>
+                {challengeTitle(c)}
+              </Text>
+              <Text style={styles.raceMeta} numberOfLines={2}>
+                {metricLabel(c.race_metric)} · <Text style={styles.raceMetaStrong}>{c.circle_name ?? 'Campfire'}</Text> ·{' '}
+                {c.accepted_count} racing · {settled ? 'ended' : 'ends'}{' '}
+                <Text style={styles.raceMetaStrong}>{endsText(c, false)}</Text>
+              </Text>
+            </View>
+
+            <PrizeCard c={c} scoped={scoped} scopedPending={scopedPending} settled={settled} placement={placement} />
+
+            {c.status === 'active' ? <LiveRace c={c} myUserId={session?.user.id} placement={placement} /> : null}
+
+            {settled ? (
+              <Results
+                challengeId={c.id}
+                myUserId={session?.user.id}
+                onShare={result ? handleShare : null}
+                sharing={sharing}
+                placement={placement}
+                raceMetric={c.race_metric}
+              />
+            ) : null}
+
+            {/* Mock 217's pool — the finisher ladder, what the box can roll and its odds link. Kept
+                (it carries the drop-odds disclosure) but closed: the prize card above is the hero. */}
+            {c.circle_id ? (
+              <PrizePoolPanel
+                boxKey={scopedBox}
+                embers={scoped?.embers ?? null}
+                campfire={c.circle_name ?? 'Campfire'}
+                settled={settled}
+                myPlace={settled ? reward?.placement ?? null : null}
+                initiallyOpen={false}
+              />
+            ) : null}
+
+            <HowItWorks rows={rows} note={noteEl} />
+          </ScrollView>
+
+          {c.status === 'active' || settled ? (
+            <View style={styles.stickyCta}>
+              <PrimaryButton
+                label={settled ? 'See the race' : 'Watch live'}
+                onPress={() =>
+                  router.push({ pathname: '/watch/[challengeId]', params: { challengeId: c.id, mode: c.mode } })
+                }
+              />
+            </View>
+          ) : null}
+        </>
+      ) : (
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Text style={styles.publicName} numberOfLines={2}>
           {challengeTitle(c)}
@@ -664,28 +965,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
 
         <Rules rows={rows} />
 
-        <View style={styles.note}>
-          {duel ? (
-            <Text style={styles.noteText}>
-              <Text style={styles.noteStrong}>Winner +{c.payout_xp} XP</Text> — scales with effort, capped to keep
-              it fair. The loser gets a rematch, not a penalty. Whoever has the most{' '}
-              {metricNoun(c.race_metric)} when the clock hits zero takes it.
-            </Text>
-          ) : placement ? (
-            <Text style={styles.noteText}>
-              <Text style={styles.noteStrong}>Everyone places.</Text> The whole campfire is entered and the
-              board is ranked on {metricNoun(c.race_metric)} when the clock hits zero. There is nothing to
-              pass or fail — your reward scales with the band you finish in, and a bigger field pays more
-              for the same band. Race nothing and you still get a rank, just no payout.
-            </Text>
-          ) : (
-            <Text style={styles.noteText}>
-              <Text style={styles.noteStrong}>All or nothing.</Text> Nobody is paid unless every racer hits{' '}
-              {c.target_count ?? 1} qualifying lock-ins before the clock runs out — and once they do, each
-              share scales with where you placed. Only the people who accepted are in it.
-            </Text>
-          )}
-        </View>
+        {noteEl}
 
         {/* Mock 217's prize pool. 0212's scope exactly — a campfire field that gets ranked, so
             never a duel (an opponent, not a field) and never a personal goal (the other variant). */}
@@ -710,10 +990,6 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           />
         ) : null}
 
-        {c.mode === 'group' && !duel && c.shape !== 'team_match' && c.status === 'active' ? (
-          <LiveStandings challengeId={c.id} myUserId={session?.user.id} placement={placement} />
-        ) : null}
-
         {/* Watchable while it runs AND once it is over: 0112 opened the settled band on the group
             watch RPC, which is what made a finished campfire race a dead end where a finished duel
             was not. */}
@@ -728,6 +1004,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           </View>
         ) : null}
       </ScrollView>
+      )}
 
       {/* §4 — the arena, over the rules. Duels only: a collective or placement invite has no
           opponent to stand opposite, and mock 175's card is a two-fighter composition. Those keep
@@ -762,6 +1039,11 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
                 // the row that ordered the queue rather than by a second guess at the shape.
                 revealKind={challengeRevealKind(c)}
                 challengeId={c.id}
+                // Mock 267's podium — what this screen already knows about the race.
+                raceMetric={c.race_metric}
+                challengeName={challengeTitle(c)}
+                campfireName={c.circle_name}
+                myUserId={profile?.id ?? null}
                 // §F.1 — the king's two faces, the same pair the share card below already uses.
                 winnerAvatarUrl={profile?.avatar_url ?? null}
                 opponentAvatarUrl={opponentAvatarUrl}
@@ -795,6 +1077,11 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
             opponentName={result.opponentName ?? null}
             opponentAvatarUrl={opponentAvatarUrl}
             boxKey={result.box?.key ?? null}
+            challengeId={c.id}
+            raceMetric={c.race_metric}
+            myUserId={profile?.id ?? null}
+            challengeName={challengeTitle(c)}
+            campfireName={c.circle_name}
             handle={profile?.handle ?? null}
             rankTier={shareRank.tier}
             division={shareRank.division}
@@ -969,9 +1256,10 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
   );
 }
 
-function Rules({ rows }: { rows: Row[] }) {
+/** `flat` drops the card chrome, for when the table sits inside another card ("How it works"). */
+function Rules({ rows, flat = false }: { rows: Row[]; flat?: boolean }) {
   return (
-    <View style={styles.rules}>
+    <View style={flat ? styles.rulesFlat : styles.rules}>
       {rows.map((r, i) => (
         <View key={r.k} style={[styles.rule, i > 0 && styles.ruleDivider]}>
           <Text style={styles.ruleKey}>{r.k}</Text>
@@ -1259,6 +1547,271 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11,
     color: Colors.muted,
+  },
+  // ─── mock 266 · the campfire race, standings first ───
+  raceHero: {
+    alignItems: 'center',
+    marginBottom: Spacing.three,
+  },
+  raceMeta: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.muted,
+    textAlign: 'center',
+    marginTop: -Spacing.two,
+  },
+  raceMetaStrong: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.ink,
+  },
+  prize: {
+    alignItems: 'center',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    backgroundColor: Colors.cardDark,
+    paddingVertical: 18,
+    paddingHorizontal: Spacing.three,
+    marginBottom: Spacing.three,
+  },
+  prizePending: {
+    height: 220,
+    justifyContent: 'center',
+  },
+  prizeKicker: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: Colors.muted,
+  },
+  crate: {
+    marginTop: Spacing.two,
+    marginBottom: 6,
+  },
+  crateTag: {
+    position: 'absolute',
+    top: -4,
+    right: -14,
+    borderRadius: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  crateTagText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9,
+    letterSpacing: 0.6,
+    color: Colors.forgeBg,
+  },
+  crateName: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 19,
+    color: Colors.ink,
+  },
+  crateWhat: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: Colors.muted,
+    textAlign: 'center',
+    marginTop: 3,
+  },
+  prizeStrong: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.ember,
+  },
+  scaled: {
+    marginTop: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  scaledText: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    color: Colors.muted,
+  },
+  rewardLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    backgroundColor: Colors.card,
+    padding: 13,
+    marginBottom: Spacing.three,
+  },
+  rewardLineText: {
+    flex: 1,
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: Colors.ink,
+  },
+  you: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.emberForward,
+    backgroundColor: 'rgba(224,97,44,0.14)',
+    paddingVertical: Spacing.three,
+    paddingHorizontal: 18,
+    marginBottom: Spacing.three,
+  },
+  youLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: Colors.ember,
+  },
+  youPos: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 30,
+    lineHeight: 34,
+    color: Colors.ink,
+    marginTop: 3,
+  },
+  youPosSmall: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.muted,
+  },
+  youFig: {
+    alignItems: 'flex-end',
+    flexShrink: 1,
+  },
+  youFigBig: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 22,
+    color: Colors.ink,
+  },
+  youFigSub: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    color: Colors.muted,
+    marginTop: 2,
+  },
+  boardHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  liveTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: Spacing.two,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF5A7A',
+  },
+  liveText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    color: '#FF5A7A',
+  },
+  boardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    backgroundColor: Colors.card,
+    marginBottom: 6,
+  },
+  boardRowMe: {
+    borderColor: Colors.emberForward,
+    backgroundColor: 'rgba(224,97,44,0.12)',
+  },
+  boardRank: {
+    width: 20,
+    textAlign: 'center',
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.muted,
+  },
+  boardRankLit: {
+    color: Colors.ember,
+  },
+  boardWho: {
+    flex: 1,
+    minWidth: 0,
+  },
+  boardNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  boardName: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+  bar: {
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Colors.disabled,
+    marginTop: 5,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: 5,
+  },
+  boardFig: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+  boardMore: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.muted,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  how: {
+    marginTop: Spacing.three,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    backgroundColor: Colors.card,
+    overflow: 'hidden',
+  },
+  howHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+    paddingHorizontal: 15,
+  },
+  howTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+    color: Colors.ink,
+  },
+  howBody: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.line,
+    paddingBottom: Spacing.twelve,
+  },
+  rulesFlat: {},
+  stickyCta: {
+    paddingTop: Spacing.twelve,
+    paddingBottom: Spacing.two,
   },
   rules: {
     backgroundColor: Colors.achieverBg,

@@ -416,11 +416,18 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
   // is null precisely because where they stand is the thing being withheld. The rest of the order
   // is unchanged: progress desc, then name as the tiebreak, because name is the one key that does
   // not move mid-race.
+  // 🔴 CRASH FIX: member_name can be null — get_group_challenge_watch (0236) returns
+  // `case when vis.ok then p.display_name else 'Anonymous'`, and p.display_name is itself
+  // nullable (a half-onboarded account). A null name reached `.localeCompare` and threw,
+  // taking the whole Watch screen down the moment the field included such a racer (the
+  // "+1 more" row the info screen hides but this board renders). Null-safe the name, and
+  // coerce member_progress with Number() because Postgres numeric serialises as a STRING
+  // over supabase-js — "50200" - "50.2" is NaN, which silently dropped the distance order.
   const sorted = [...rows].sort(
     (a, b) =>
       Number(a.is_anonymous) - Number(b.is_anonymous) ||
-      (b.member_progress ?? 0) - (a.member_progress ?? 0) ||
-      a.member_name.localeCompare(b.member_name),
+      (Number(b.member_progress) || 0) - (Number(a.member_progress) || 0) ||
+      (a.member_name ?? '').localeCompare(b.member_name ?? ''),
   );
 
   // Everyone whose figure this viewer is allowed to read. The leader, the ranks and the share

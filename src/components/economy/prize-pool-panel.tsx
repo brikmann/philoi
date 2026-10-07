@@ -82,6 +82,7 @@ export function PrizePoolPanel({
   campfire,
   settled,
   myPlace,
+  initiallyOpen = true,
 }: {
   /** The box the server preview says the top band takes. Null = unscoped or embers-only. */
   boxKey: BoxKey | null;
@@ -90,8 +91,10 @@ export function PrizePoolPanel({
   settled: boolean;
   /** The viewer's settled place, when there is one — their title is the one drawn large. */
   myPlace: number | null;
+  /** Closed by default where a bigger prize card already leads the screen (mock 266). */
+  initiallyOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(initiallyOpen);
   const [oddsOpen, setOddsOpen] = useState(false);
   const { items, odds, ready } = useDropPool(boxKey);
   const box = boxKey ? BOXES[boxKey] : null;
