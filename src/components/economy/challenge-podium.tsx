@@ -1,6 +1,6 @@
-import { useId, type Ref } from 'react';
+import { type Ref } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { RoundAvatar } from '@/components/economy/king-statue';
 import { Crown } from '@/components/ui/crown';
@@ -87,8 +87,6 @@ function Pillar({
   const gold = metal === 'gold';
   const av = gold ? s.avWin : s.av;
   const h = s.h[metal];
-  // Gradient ids are global in react-native-svg — a fixed one blanks every pillar after the first.
-  const wash = `podiumWash-${useId()}`;
   return (
     <View style={[styles.col, { width: s.col }]}>
       <View
@@ -113,15 +111,16 @@ function Pillar({
             paddingTop: Math.round(av / 4) + (size === 'card' ? 3 : 5),
           },
         ]}>
-        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
-          <Defs>
-            <LinearGradient id={wash} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={m.ring} stopOpacity={gold ? 0.24 : 0.15} />
-              <Stop offset="1" stopColor="#1A1328" stopOpacity={1} />
-            </LinearGradient>
-          </Defs>
-          <Rect x={0} y={0} width="100%" height="100%" fill={`url(#${wash})`} />
-        </Svg>
+        {/* The pillar wash — a vertical fill from the metal's tint down to the dark ground. Drawn
+            with expo-linear-gradient (not react-native-svg) so it reliably fills the pill edge to
+            edge; the old SVG `width="100%"` + absoluteFill combo rendered the band off-centre. */}
+        <LinearGradient
+          colors={[`${m.ring}${gold ? '3D' : '26'}`, '#1A1328']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
         <Text style={[styles.rank, { color: m.text, fontSize: s.rank }]}>{racer.place ?? '–'}</Text>
         <Text style={[styles.name, { fontSize: s.name, maxWidth: s.col - 8 }]} numberOfLines={1}>
           {racer.name}
@@ -264,16 +263,19 @@ const styles = StyleSheet.create({
   },
   rank: {
     fontFamily: Fonts.bodyExtraBold,
+    textAlign: 'center',
   },
   name: {
     fontFamily: Fonts.bodyBold,
     color: Colors.ink,
     marginTop: 1,
+    textAlign: 'center',
   },
   figure: {
     fontFamily: Fonts.bodyBold,
     color: '#D8CCEB',
     marginTop: 1,
+    textAlign: 'center',
   },
   youTag: {
     borderRadius: 5,
