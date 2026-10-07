@@ -2,7 +2,7 @@ import { usePathname, useRouter } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PhiloiIcon, type PhiloiIconName } from '@/components/ui/philoi-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -138,6 +138,11 @@ export function DrawerButton({ color = Colors.ink, size = 22 }: { color?: string
 function AppDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
+  // Insets are read HERE, out in the root SafeAreaProvider's tree, and applied as plain padding
+  // inside the Modal. A <SafeAreaView> inside the Modal measured against the Modal's own native
+  // root on iOS, which resolved top to 0 on alternate presents — "Menu" jumped up under the clock
+  // every other open. This value comes from the app root and does not resync per present.
+  const insets = useSafeAreaInsets();
   // Held mounted through the closing animation — a <Modal> unmounts its children the instant
   // `visible` flips, so animating the panel out means keeping it here a beat longer than `open`.
   const [mounted, setMounted] = useState(open);
@@ -221,7 +226,7 @@ function AppDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
         </Animated.View>
 
         <Animated.View style={[styles.panel, panelStyle]}>
-          <SafeAreaView edges={['top', 'bottom']} style={styles.panelInner}>
+          <View style={[styles.panelInner, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             <View style={styles.head}>
               <Text style={styles.headTitle}>Menu</Text>
               <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close menu">
@@ -243,7 +248,7 @@ function AppDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
                 <Row row={SETTINGS_ROW} pathname={pathname} onPress={() => go(SETTINGS_ROW.route)} muted />
               </View>
             </ScrollView>
-          </SafeAreaView>
+          </View>
         </Animated.View>
       </View>
     </Modal>
