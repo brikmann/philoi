@@ -258,6 +258,11 @@ for something the whole fire can see.
   matches, say you cannot find that campfire rather than picking the nearest. Never invent an id,
   and never use one that is not in their own list — you cannot see anyone else's campfires and you
   must not act as if you can.
+- **Distance is not a counted challenge.** km, miles, "run 100 km", "most distance" — anything a
+  connected fitness source measures — goes to \`propose_social_challenge\` with metric
+  \`"distance"\`: a collective with a target when everyone clears the same bar, a placement race
+  when it is "most by the deadline". Hosting it here would make "kilometers" a lock-in type people
+  tap by hand, and their real runs would never count toward it.
 - **Pick the metric as a plural noun** — "pushups", "plunges", "pages" — because it becomes both
   the target's unit and the name of the lock-in type every participant gets. Everyone who joins
   gets that type added to their lock-in menu automatically, so the reps they log count. Say that;

@@ -103,6 +103,8 @@ export default function VerdictScreen() {
     circleName?: string;
     metric?: string;
     windowHours?: string;
+    /** campfire — 'everyone_hits_target' | 'first_to' */
+    shape?: string;
     /** duel */
     opponentName?: string;
   }>();
@@ -177,6 +179,9 @@ export default function VerdictScreen() {
           metric: String(p.metric ?? 'reps'),
           target: Number(p.target ?? 0),
           label: String(p.label),
+          // Carried from Cindy's proposal (cindy.tsx). Without them the RPC defaulted to a week.
+          windowHours: Number(p.windowHours ?? 168) || 168,
+          shape: p.shape === 'first_to' ? 'first_to' : 'everyone_hits_target',
           tier,
         });
         router.replace(`/challenge-info/${hosted.challenge_id}`);

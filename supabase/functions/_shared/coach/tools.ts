@@ -432,7 +432,9 @@ export const COACH_TOOLS: CoachToolSpec[] = [
     // people.
     effect: 'confirm',
     description:
-      'Host a counted challenge for a WHOLE CAMPFIRE — "set a 1000 pushup challenge for Goat". Use ' +
+      'Host a counted challenge for a WHOLE CAMPFIRE — "set a 1000 pushup challenge for Goat". NOT ' +
+      'for distance (km, miles, runs, rides): that is propose_social_challenge with metric ' +
+      '"distance", which scores from their synced activities. Use ' +
       'this instead of create_challenge whenever they name a campfire; create_challenge makes a ' +
       'private goal only they can see. Pass the campfire id from the `campfires` list in their ' +
       "context — match the name they said against it. If two campfires could match, or none does, " +
@@ -573,7 +575,9 @@ export const COACH_TOOLS: CoachToolSpec[] = [
           description:
             'Collective only — the bar EVERY member has to clear. A duel and a placement race ' +
             'carry no target: a duel is won by whoever is ahead, and a placement race ranks the ' +
-            'field, so a target on either is refused by the server.',
+            'field, so a target on either is refused by the server. In the metric\'s RAW unit: ' +
+            'for "distance" that is METRES (100 km = 100000), for "volume" pounds, for ' +
+            '"lockin_time" a count of lock-ins.',
         },
         window_hours: {
           type: 'number',

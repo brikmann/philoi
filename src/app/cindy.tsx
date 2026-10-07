@@ -203,6 +203,15 @@ export default function CindyScreen() {
             label: String(input.label ?? 'Challenge'),
             metric: String(input.metric ?? 'reps'),
             target: String(input.target ?? 0),
+            // 🔴 WAS DROPPED, so every challenge hosted through this screen ran the RPC's default
+            // 168h as 'everyone_hits_target' — "100 km through December" became a one-week race.
+            // The inline path in coach.ts always forwarded both; this door had silently lost them.
+            windowHours: String(
+              typeof input.window_hours === 'number' && input.window_hours > 0
+                ? Math.round(input.window_hours)
+                : 168
+            ),
+            shape: input.shape === 'first_to' ? 'first_to' : 'everyone_hits_target',
             tier: typeof input.difficulty_tier === 'string' ? input.difficulty_tier : 'uncommon',
             rationale: typeof input.scope_rationale === 'string' ? input.scope_rationale : '',
           },

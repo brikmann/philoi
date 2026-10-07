@@ -24,7 +24,15 @@ import { useShareRank } from '@/hooks/use-share-rank';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
-import { challengeTitle, formatMetricValue, isDuel, isPlacement, metricLabel, metricNoun } from '@/lib/challenge-metric';
+import {
+  challengeTitle,
+  countChallengeLabel,
+  formatMetricValue,
+  isDuel,
+  isPlacement,
+  metricLabel,
+  metricNoun,
+} from '@/lib/challenge-metric';
 import { challengeClockText, challengeRevealKind, duelOutcome, type ChallengeVerdict } from '@/lib/challenge-outcome';
 import { previewScopedReward } from '@/lib/api/challenges';
 import { asBoxKey } from '@/lib/challenge-tier';
@@ -572,7 +580,18 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
         ]
       : [
           { k: 'Type', v: 'Collective goal' },
-          { k: 'The goal', v: `Everyone locks in ${c.target_count ?? 1}×` },
+          // 🔴 WAS always `Everyone locks in ${target_count}×` — the bug challengeTitle's guards
+          // exist for, on the one row that had none: a hosted "100 kilometers" read "Everyone locks
+          // in 100×", and a measured bar (distance, volume) read its null target_count as 1×.
+          {
+            k: 'The goal',
+            v:
+              c.race_metric === 'count'
+                ? `Everyone hits ${countChallengeLabel(c)}`
+                : c.target_value != null && c.race_metric
+                  ? `Everyone hits ${formatMetricValue(c.race_metric, c.target_value)}`
+                  : `Everyone locks in ${c.target_count ?? 1}×`,
+          },
           { k: 'Duration', v: durationValue(c) },
           { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP`, highlight: true },
           ...scopedRows,
