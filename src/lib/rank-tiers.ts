@@ -53,17 +53,17 @@ export const RANK_TIER_LABEL: Record<RankTierName, string> = {
   primordial: 'Primordial',
 };
 
-// 🔴 III IS THE TOP OF EACH TIER (Noah's call: "3 = top" is what people already recognise).
+// 🔴 I IS THE TOP OF EACH TIER (standard ranked convention — Platinum I is the top of Platinum,
+// promoting to Diamond III; Platinum III is the entry rung). Reversed from the earlier "3 = top".
 //
-// The STORED division still runs the other way — `rank_thresholds` gives division 3 to the lowest
+// The STORED division still runs the same way — `rank_thresholds` gives division 3 to the lowest
 // cumulative-XP row in a tier and 1 to the highest, and rank_tier_for_score, rankOrdinal and
-// nextRank all depend on that direction. Flipping the data would mean a migration, a re-derive of
-// every threshold row, and a stale baseline on every device that has one written (rank-watch.ts).
+// nextRank all depend on that direction. That data is UNTOUCHED: stored 1 is still the top rung.
 //
-// So only the LABEL inverts, here, once: stored 3 reads "I", stored 1 reads "III". The XP required
-// for each rung is untouched, and so is rank-up detection — `rankOrdinal` never sees a numeral.
-// Everything that shows a numeral goes through this map or `divisionMarks`; nothing derives one.
-export const DIVISION_NUMERAL: Record<number, string> = { 3: 'I', 2: 'II', 1: 'III' };
+// Only the LABEL maps the other way now: stored 1 (top) reads "I", stored 3 (bottom) reads "III".
+// The XP required for each rung is untouched, and so is rank-up detection — `rankOrdinal` never
+// sees a numeral. Everything that shows a numeral goes through this map or `divisionMarks`.
+export const DIVISION_NUMERAL: Record<number, string> = { 3: 'III', 2: 'II', 1: 'I' };
 
 /**
  * The displayed numeral as a COUNT — 1 for I, 3 for III — which is what the badge needs: chevrons
