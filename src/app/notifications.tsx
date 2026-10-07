@@ -36,6 +36,22 @@ export default function NotificationsScreen() {
 
   function open(n: NotificationEvent) {
     if (!n.route) return;
+    // 🔴 CRASH GUARD. A malformed row can carry an unfilled dynamic segment — e.g. route
+    // '/group/[groupId]' with route_params holding the literal placeholder "[group id]" instead of
+    // a real UUID. Pushed blind, that literal reached the target screen's `where id = $1` and threw
+    // `invalid input syntax for type uuid: "[group id]"`, crashing the app from the bell. Every
+    // `[param]` the route declares must have a real, non-placeholder value before we navigate;
+    // otherwise the tap is a no-op (the row still renders) rather than a crash.
+    const needed = [...n.route.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]);
+    const params = (n.route_params ?? {}) as Record<string, unknown>;
+    const missing = needed.some((key) => {
+      const v = params[key];
+      return typeof v !== 'string' || v.trim() === '' || /^\[.*\]$/.test(v.trim());
+    });
+    if (missing) {
+      if (__DEV__) console.warn('notification: skipping tap, bad route params', n.route, params);
+      return;
+    }
     // The route was stored when the event was written, so this needs no per-type switch and an old
     // row keeps working after a screen is renamed.
     router.push({ pathname: n.route as never, params: n.route_params as never });
