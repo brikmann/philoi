@@ -80,7 +80,9 @@ export default function ChallengeInfoScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Back">
           <Ionicons name="chevron-back" size={24} color={Colors.muted} />
         </Pressable>
-        <Text style={styles.headerTitle}>{isGoal ? 'Goal info' : 'Challenge info'}</Text>
+        {/* No "Challenge info" subheading on the race layout — the big challenge title + meta sit
+            right below it (mock 266), so a second title is redundant. Goals keep their label. */}
+        {isGoal ? <Text style={styles.headerTitle}>Goal info</Text> : null}
       </View>
 
       {isGoal ? <GoalInfo challengeId={challengeId} /> : <SocialInfo challengeId={challengeId} />}
@@ -847,7 +849,9 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           this names it with the actual challenge, which is what a title is for. Set here rather
           than in the layout because only this screen knows the name — the layout has the id and
           nothing else. */}
-      <Stack.Screen options={{ title: challengeTitle(c) }} />
+      {/* Hide the native header entirely — it was the liquid-glass "(tabs) <title>" bar + the ember
+          flame bubble, doubling the screen's own back chevron + title. One header only. */}
+      <Stack.Screen options={{ headerShown: false }} />
       {raceLayout ? (
         // ── MOCK 266: STANDINGS FIRST ──
         //
@@ -1204,7 +1208,8 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
     <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
       {/* Same reason as the social variant: this route reaches the header with nothing but an id,
           so the name has to be set from whichever body knows it. */}
-      <Stack.Screen options={{ title: g.label ?? 'Goal' }} />
+      {/* Native header off here too — the screen's own "Goal info" header is the single one. */}
+      <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.goalHero}>
         <View style={styles.goalIcon}>
           <DisciplineIcon name={CHALLENGE_TYPE_GLYPH[g.type]} size={30} color={Colors.amber} />
