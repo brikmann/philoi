@@ -50,6 +50,19 @@ Deno.serve(async (req) => {
     // Service role — strava_connections has no client-facing RLS policy at all, this is the
     // only path that ever writes to it.
     const serviceClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+
+    // ONE PHILOI ACCOUNT PER STRAVA ATHLETE — the latest connect wins. The link is keyed by
+    // athlete_id, never by email, so the Strava account and the Philoi login can be different
+    // people's addresses. But two Philoi accounts holding the same athlete broke strava-webhook,
+    // which looks the athlete up with maybeSingle(): two rows is an error, read as "no connection",
+    // and every activity was dropped. Connecting here moves the athlete to this account.
+    const { error: releaseError } = await serviceClient
+      .from('strava_connections')
+      .delete()
+      .eq('athlete_id', tokenData.athlete.id)
+      .neq('user_id', user.id);
+    if (releaseError) return json({ error: releaseError.message }, 500);
+
     const { error: upsertError } = await serviceClient.from('strava_connections').upsert({
       user_id: user.id,
       athlete_id: tokenData.athlete.id,

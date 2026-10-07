@@ -21,6 +21,11 @@ const GOAL_TYPE_BY_ACTIVITY_TYPE: Record<string, string> = {
   Ride: 'run',
   VirtualRide: 'run',
   GravelRide: 'run',
+  // Walks and hikes are cardio too — 'run' is labelled "Cardio" in the app and its own comment
+  // says walking counts toward the same distance ladder. Missing here, a Strava walk cleared both
+  // floors and was dropped without a trace.
+  Walk: 'run',
+  Hike: 'run',
   Workout: 'gym',
   WeightTraining: 'gym',
 };
