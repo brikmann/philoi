@@ -1,24 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BoxArt } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
+import { EquippedFlameSvg } from '@/components/flame-icon';
+import { BackHeader } from '@/components/ui/back-header';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { createChallenge, previewScopedReward, setGoalScope } from '@/lib/api/challenges';
 import { syncChallengeFromDevice } from '@/lib/api/fitness-challenge-sync';
+import { recordCoachAction } from '@/lib/api/coach';
 import {
   createGroupChallenge,
+  createH2HChallenge,
   createPlacementChallenge,
   hostCampfireChallenge,
+  setChallengeScope,
 } from '@/lib/api/social-challenges';
 import { BOXES } from '@/lib/economy/boxes';
-import { asBoxKey, TIER_COLOR, TIER_LINE } from '@/lib/challenge-tier';
+import { asBoxKey, isDifficultyTier, TIER_COLOR, TIER_LINE } from '@/lib/challenge-tier';
 import { getErrorMessage } from '@/lib/errors';
 import type {
   ChallengeCountMode,
@@ -31,11 +35,13 @@ import type {
 } from '@/types/database';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// CINDY'S VERDICT — a screen, not a chat bubble (design-mocks/173, CODE_PROMPT §A).
+// CINDY'S VERDICT — a screen, not a chat bubble (design-mocks/173, CODE_PROMPT §A; laid out per
+// design-mocks/263).
 //
-// "You're doing a challenge, and this is what you could win." One full screen: the goal at the
-// top, the tier and Cindy's reasoning under it, the crate it pays, and the CTA. Every branch of
-// the loop — solo, duel, campfire — arrives here, and only the CTA differs.
+// "You're doing a challenge, and this is what you could win." One vertical read: Cindy says why,
+// the goal, the tier she scores it, the crate it pays, one "Lock it in". Every branch of the loop —
+// solo, duel, campfire, collective, placement — arrives here, and only what `start` creates
+// differs.
 //
 // 🔒 THE NUMBERS ARE THE SERVER'S. Cindy proposes a TIER and is forbidden from saying what it
 // pays (SCOPING_RULES in the coach prompt); this screen asks preview_challenge_reward, which reads
@@ -107,6 +113,12 @@ export default function VerdictScreen() {
     shape?: string;
     /** duel */
     opponentName?: string;
+    /** duel — set when the opponent is already chosen (the create Q&A), so this screen creates it. */
+    opponentId?: string;
+    /** duel — the optional "let a campfire watch" circle a people-sheet deep link carried. */
+    watchCircleId?: string;
+    /** The coach tool whose proposal priced this, so the chat's pending chip is resolved on create. */
+    coachTool?: string;
   }>();
 
   const tier = (p.tier as DifficultyTier) ?? 'uncommon';
@@ -169,6 +181,15 @@ export default function VerdictScreen() {
 
   const boxKey = asBoxKey(preview?.box);
 
+  // The create Q&A scores through Cindy's chat op, which leaves her proposal 'proposed' in the
+  // transcript. Resolving it once the challenge really exists stops /cindy re-offering a confirm
+  // chip that would create it a second time. Fire-and-forget: recordCoachAction never throws.
+  const resolveCoachProposal = () => {
+    if (p.coachTool) {
+      void recordCoachAction({ tool: p.coachTool, input: {}, effect: 'confirm', summary: String(p.label) }, 'done');
+    }
+  };
+
   const start = async () => {
     if (!session) return;
     setBusy(true);
@@ -184,6 +205,7 @@ export default function VerdictScreen() {
           shape: p.shape === 'first_to' ? 'first_to' : 'everyone_hits_target',
           tier,
         });
+        resolveCoachProposal();
         router.replace(`/challenge-info/${hosted.challenge_id}`);
         return;
       }
@@ -216,21 +238,43 @@ export default function VerdictScreen() {
                 publicName: String(p.label),
                 tier,
               });
+        resolveCoachProposal();
         router.replace(`/challenge-info/${created.id}`);
         return;
       }
       if (branch === 'duel') {
-        // A duel needs an opponent and a metric the create form already knows how to collect, so
-        // this hands off rather than reimplementing that picker behind a different door.
+        const metric = (p.metric ?? 'lockin_time') as SocialChallengeRaceMetric;
+        const windowHours = Number(p.windowHours ?? 168) || 168;
+        if (p.opponentId) {
+          // The create Q&A already asked who, so the duel is created here like every other branch.
+          // A duel is inserted 'pending' (it is an invite), which set_challenge_scope accepts — so
+          // the tier is the same second call it always was, swallowed on failure for the same
+          // reason: an unscoped duel pays a smaller reward, never a wrong one, and losing an invite
+          // the opponent already has over a tier that did not stick is the worse trade.
+          const duel = await createH2HChallenge({
+            opponentId: String(p.opponentId),
+            raceMetric: metric,
+            windowHours,
+            circleId: p.watchCircleId ? String(p.watchCircleId) : null,
+            publicName: String(p.label),
+          });
+          if (duel?.id) await setChallengeScope(duel.id, tier).catch(() => {});
+          resolveCoachProposal();
+          router.replace(`/challenge-info/${duel.id}`);
+          return;
+        }
+        // Scored in Cindy's chat, which cannot see the friends list — so the opponent is the one
+        // open question. The create Q&A asks exactly that and comes straight back here with it,
+        // carrying her tier, reason and terms unchanged.
         router.replace({
           pathname: '/challenge/create',
-          // The metric rides along with the tier: Cindy proposed both, and dropping the metric
-          // would land them on the picker's default with a tier scoped for something else.
           params: {
             shape: 'duel',
             publicName: String(p.label),
             tier,
-            ...(p.metric ? { raceMetric: String(p.metric) } : {}),
+            rationale: p.rationale ?? '',
+            raceMetric: metric,
+            windowHours: String(windowHours),
           },
         });
         return;
@@ -268,6 +312,7 @@ export default function VerdictScreen() {
       // line, and routeChallengeSync no-ops for every type with no device source. A goal created
       // inside the creation quiet window never throws a reveal over the screen being dismissed.
       if (created) syncChallengeFromDevice(created).catch(() => {});
+      resolveCoachProposal();
       router.replace('/(tabs)/challenges');
     } catch (e) {
       Alert.alert('That did not go through', getErrorMessage(e, 'Try again in a moment.'));
@@ -276,168 +321,234 @@ export default function VerdictScreen() {
     }
   };
 
-  const cta =
-    branch === 'campfire'
-      ? `Post to ${p.circleName ?? 'the campfire'}`
-      : branch === 'duel'
-        ? `Challenge ${p.opponentName ?? 'a friend'}`
-        : branch === 'collective'
-          ? `Set it for ${p.circleName || 'the campfire'}`
-          : branch === 'placement'
-            ? `Start the race in ${p.circleName || 'the campfire'}`
-            : 'Start this goal';
+  // ── Colour: ONE per rarity, everywhere it is named ──
+  //
+  // The badge is the tier Cindy judged. The crate tile, its tag and the "what it pays" kicker take
+  // the CRATE's own rarity — the same colour whenever the crate is the tier's (the auto-tracked
+  // case), and honestly a different one when an honour claim pays a capped crate. Painting a capped
+  // Furnace in the LEGENDARY gold would be the screen lying about the prize; the honour caveat below
+  // is what explains the gap instead.
+  const tierColor = TIER_COLOR[tier];
+  const boxRarity = boxKey ? BOXES[boxKey].rarity : null;
+  const crateColor = boxRarity && isDifficultyTier(boxRarity) ? TIER_COLOR[boxRarity] : tierColor;
+  const tierName = tier.charAt(0).toUpperCase() + tier.slice(1);
+  const rationale = p.rationale?.trim();
 
   return (
+    // Headerless (registered in _layout.tsx): the native header was the iOS liquid-glass pill
+    // reading "(cindy)". Mock 263 replaces it with the plain ‹ row every pushed page uses.
     <Screen padded={false}>
-      <Stack.Screen options={{ title: "Cindy's verdict", headerShown: true }} />
+      <BackHeader title="Cindy's verdict" />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.kicker}>YOUR GOAL</Text>
-        <Text style={styles.goal}>{p.label}</Text>
-
-        <Text style={styles.deserves}>Cindy thinks this deserves</Text>
-        <Text style={[styles.tier, { color: TIER_COLOR[tier] }]}>{tier.toUpperCase()}</Text>
-        <Text style={styles.rationale}>{p.rationale?.trim() || TIER_LINE[tier]}</Text>
-
-        {/* The crate, lit. The halo takes the tier's own colour rather than the flame ramp: this is
-            the one screen where the subject is the PRIZE, not the user's fire, and a legendary
-            crate glowing violet because someone equipped a violet flame would read as the wrong
-            rarity. Same SVG-underneath trick as everywhere else — no radial gradients in RN. */}
-        <View style={styles.heroWrap}>
-          <Svg width={180} height={180} style={StyleSheet.absoluteFill} pointerEvents="none">
-            <Defs>
-              <RadialGradient id="verdictHalo" cx="50%" cy="50%" r="50%">
-                <Stop offset="0" stopColor={TIER_COLOR[tier]} stopOpacity={0.38} />
-                <Stop offset="0.68" stopColor={TIER_COLOR[tier]} stopOpacity={0} />
-              </RadialGradient>
-            </Defs>
-            <Circle cx={90} cy={90} r={90} fill="url(#verdictHalo)" />
-          </Svg>
-          {preview === null ? (
-            <ActivityIndicator color={Colors.amber} />
-          ) : boxKey ? (
-            <BoxArt boxKey={boxKey} size={104} pedestal />
-          ) : (
-            <EmberIcon size={54} />
-          )}
+        {/* 1 · Cindy speaks. Her rationale VERBATIM when she gave one (see the header); either way
+            she states the verdict, and the tier's generic line sits under the badge below. */}
+        <View style={styles.cindyRow}>
+          <View style={styles.cindyAvatar}>
+            <EquippedFlameSvg width={22} height={27} />
+          </View>
+          <View style={styles.says}>
+            <Text style={styles.saysText}>
+              {rationale ? `${rationale} ` : ''}I&apos;m scoring this{' '}
+              <Text style={[styles.saysTier, { color: tierColor }]}>{tierName}</Text>.
+            </Text>
+          </View>
         </View>
 
-        <Text style={styles.unlocksLabel}>POTENTIAL UNLOCKS</Text>
+        {/* 2 · The goal, plainly. */}
+        <View style={styles.goalBlock}>
+          <Text style={styles.kicker}>THE GOAL</Text>
+          <Text style={styles.goal}>{p.label}</Text>
+        </View>
+
+        {/* 3 · The tier — the emotional core. Its own tinted card so it reads as JUDGED, not as a
+            row in a list. */}
+        <View style={[styles.tierCard, { borderColor: `${tierColor}66`, backgroundColor: `${tierColor}1F` }]}>
+          <Text style={styles.kicker}>CINDY SCORES IT</Text>
+          <View style={styles.tierBadge}>
+            <View style={[styles.tierDot, { backgroundColor: tierColor, shadowColor: tierColor }]} />
+            <Text style={[styles.tierText, { color: tierColor, textShadowColor: `${tierColor}88` }]}>
+              {tier.toUpperCase()}
+            </Text>
+          </View>
+          <Text style={styles.why}>{TIER_LINE[tier]}</Text>
+        </View>
+
+        {/* 4 · What it pays — the SERVER's crate and embers (previewScopedReward), never a local
+            table. */}
         {preview ? (
-          <View style={[styles.crate, { borderColor: TIER_COLOR[tier] }]}>
-            {boxKey ? <BoxArt boxKey={boxKey} size={34} /> : <EmberIcon size={22} />}
-            <View style={styles.crateMeta}>
-              <Text style={[styles.crateName, { color: TIER_COLOR[tier] }]}>
-                {boxKey ? BOXES[boxKey].name : 'Embers only'}
-              </Text>
-              <View style={styles.crateLineRow}>
+          <View style={styles.pay}>
+            <View style={[styles.crate, { borderColor: `${crateColor}88`, shadowColor: crateColor }]}>
+              {boxKey ? <BoxArt boxKey={boxKey} size={40} /> : <EmberIcon size={26} />}
+              {boxRarity ? (
+                <View style={[styles.crateTag, { backgroundColor: crateColor }]}>
+                  <Text style={styles.crateTagText}>{boxRarity.toUpperCase()}</Text>
+                </View>
+              ) : null}
+            </View>
+            <View style={styles.payMeta}>
+              <Text style={[styles.payKicker, { color: crateColor }]}>WHAT IT PAYS</Text>
+              <Text style={styles.payName}>{boxKey ? BOXES[boxKey].name : 'Embers only'}</Text>
+              <View style={styles.emberRow}>
                 <EmberIcon size={11} />
-                <Text style={styles.crateLine}>
-                  {preview.embers.toLocaleString('en-US')} embers
+                <Text style={styles.emberText}>
+                  <Text style={styles.emberStrong}>{preview.embers.toLocaleString('en-US')} embers</Text>
+                  {branch === 'solo' ? '' : ' at the top band'}
                 </Text>
               </View>
             </View>
           </View>
         ) : (
-          <View style={styles.crateSkeleton} />
+          <View style={styles.paySkeleton}>
+            <ActivityIndicator color={Colors.amber} />
+          </View>
         )}
 
-        {/* The discount, said BEFORE they commit. A user who learns at the reveal that unverified
-            pays a tier down has been surprised by a rule working exactly as designed. */}
-        {/* 0209 — the tier is the EFFORT Cindy judged; the crate above is what an unvouched claim
-            PAYS. Both named, with the route between them, so "LEGENDARY" beside The Furnace reads
-            as a cap with a way out rather than a mispriced goal. Only two friends lift it — a clip
-            is shown to them but never settles anything by itself (0165). */}
-        {preview?.discounted ? (
+        {/* 5 · The honour caveat, said BEFORE they commit, and only to an honour claim. A user who
+            learns at the reveal that unverified pays a tier down has been surprised by a rule
+            working exactly as designed. 0209: the tier is the EFFORT Cindy judged; the crate is what
+            an unvouched claim PAYS. Only two friends lift it — a clip never settles anything by
+            itself (0165). */}
+        {claimLevel === 'honor' && preview?.discounted ? (
           <View style={styles.caveatRow}>
-            <Ionicons name="people-outline" size={14} color={Colors.textTertiary} />
+            <Ionicons name="people-outline" size={13} color={Colors.textTertiary} />
             <Text style={styles.caveat}>
               {tier.toUpperCase()} effort · earns {boxKey ? BOXES[boxKey].name : 'this'} on your word.
               {' '}Self-reported goals pay a capped tier; app-tracked ones pay the full tier.
             </Text>
           </View>
-        ) : preview ? (
-          <View style={styles.caveatRow}>
-            <Ionicons name="checkmark-circle-outline" size={14} color={Colors.green} />
-            <Text style={styles.caveat}>Tracked automatically, so it pays the full tier.</Text>
-          </View>
         ) : null}
-
-        <View style={styles.cta}>
-          <PrimaryButton label={cta} onPress={start} loading={busy} disabled={busy || !preview} />
-        </View>
       </ScrollView>
+
+      {/* 6 · One action. Every branch's create is behind it, unchanged (`start` above). */}
+      <View style={styles.footer}>
+        <PrimaryButton label="Lock it in" onPress={start} loading={busy} disabled={busy || !preview} />
+        <Pressable
+          onPress={() => router.back()}
+          disabled={busy}
+          hitSlop={8}
+          accessibilityRole="button"
+          style={styles.adjust}>
+          <Text style={styles.adjustText}>Adjust the goal</Text>
+        </Pressable>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: Spacing.four, alignItems: 'center', paddingBottom: Spacing.six },
-  kicker: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 9.5,
-    letterSpacing: 2.4,
-    color: Colors.textTertiary,
+  content: { paddingHorizontal: Spacing.four, paddingTop: Spacing.two, paddingBottom: Spacing.four },
+
+  cindyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
+  cindyAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Colors.plum,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  says: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 14,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+  },
+  saysText: { fontFamily: Fonts.body, fontSize: 13.5, lineHeight: 19, color: Colors.ink },
+  saysTier: { fontFamily: Fonts.bodyBold },
+
+  goalBlock: { alignItems: 'center', marginTop: Spacing.four },
+  kicker: { fontFamily: Fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.4, color: Colors.textTertiary },
   goal: {
     fontFamily: Fonts.bodyBold,
     fontSize: 21,
+    lineHeight: 25,
     color: Colors.ink,
     textAlign: 'center',
-    marginTop: 5,
-    lineHeight: 26,
+    marginTop: 4,
   },
-  deserves: { fontFamily: Fonts.body, fontSize: 12, color: Colors.muted, marginTop: Spacing.three },
-  tier: { fontFamily: Fonts.bodyBold, fontSize: 27, letterSpacing: 1, marginTop: 4 },
-  rationale: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    lineHeight: 17,
-    color: Colors.muted,
-    textAlign: 'center',
-    marginTop: 7,
-    maxWidth: 280,
+
+  tierCard: {
+    marginTop: Spacing.four,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 15,
+    alignItems: 'center',
   },
-  heroWrap: {
-    width: 180,
-    height: 180,
+  tierBadge: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6, marginBottom: 8 },
+  tierDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  tierText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 24,
+    letterSpacing: 1,
+    textShadowRadius: 12,
+    textShadowOffset: { width: 0, height: 0 },
+  },
+  why: { fontFamily: Fonts.body, fontSize: 12.5, lineHeight: 18, color: Colors.muted, textAlign: 'center' },
+
+  pay: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: 16,
+    padding: 13,
+  },
+  paySkeleton: {
+    marginTop: 14,
+    height: 80,
+    borderRadius: 16,
+    backgroundColor: Colors.card,
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: Spacing.two,
-  },
-  unlocksLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 9.5,
-    letterSpacing: 2,
-    color: Colors.textTertiary,
-    marginBottom: Spacing.two,
   },
   crate: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
+    width: 54,
+    height: 54,
+    borderRadius: 12,
     borderWidth: 1,
-    borderRadius: Radius.card,
-    padding: 11,
-    backgroundColor: 'rgba(20,14,26,0.66)',
+    backgroundColor: Colors.cardDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
-  crateSkeleton: {
-    alignSelf: 'stretch',
-    height: 58,
-    borderRadius: Radius.card,
-    backgroundColor: 'rgba(20,14,26,0.5)',
+  crateTag: {
+    position: 'absolute',
+    top: -7,
+    alignSelf: 'center',
+    borderRadius: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  crateMeta: { flex: 1, gap: 3 },
-  crateName: { fontFamily: Fonts.bodyBold, fontSize: 13.5 },
-  crateLineRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  crateLine: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },
-  caveatRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 7,
-    marginTop: Spacing.two,
-    alignSelf: 'stretch',
-  },
-  caveat: { flex: 1, fontFamily: Fonts.body, fontSize: 11, lineHeight: 15.5, color: Colors.textTertiary },
-  cta: { alignSelf: 'stretch', marginTop: Spacing.four },
+  crateTagText: { fontFamily: Fonts.bodyBold, fontSize: 8, letterSpacing: 0.5, color: Colors.forgeBg },
+  payMeta: { flex: 1, minWidth: 0 },
+  payKicker: { fontFamily: Fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.2 },
+  payName: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.ink, marginTop: 1, marginBottom: 3 },
+  emberRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  emberText: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },
+  emberStrong: { fontFamily: Fonts.bodyBold, color: Colors.amber },
+
+  caveatRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 6, marginTop: 9 },
+  caveat: { flexShrink: 1, fontFamily: Fonts.body, fontSize: 10.5, lineHeight: 15, color: Colors.textTertiary },
+
+  footer: { paddingHorizontal: Spacing.four, paddingTop: Spacing.three, paddingBottom: Spacing.three },
+  adjust: { alignSelf: 'center', marginTop: 9, paddingVertical: 4 },
+  adjustText: { fontFamily: Fonts.body, fontSize: 12, color: Colors.muted },
 });
