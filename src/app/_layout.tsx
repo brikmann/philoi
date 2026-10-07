@@ -569,6 +569,9 @@ function RootNavigator() {
         {/* Headerless: the screen draws its own top row (mock 98) — the native header was adding a
             trailing glyph at the right edge of "New challenge" that leads nowhere. */}
         <Stack.Screen name="challenge/create" options={{ presentation: 'modal', headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* Cindy's verdict draws its own ‹ header (mock 263). Unregistered, it inherited the native
+            liquid-glass pill titled "(cindy)". */}
+        <Stack.Screen name="challenge/verdict" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* Forge Shop + reward economy (Step 21). All header-less — each screen draws its own
             top row with the ember balance pinned right, which a native header can't carry. The
             box-open sequence is a modal because it's a fullscreen animation you shouldn't be able
