@@ -6,7 +6,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
 import { useAuth } from '@/lib/auth/auth-context';
 import { titleLabel, type CatalogItem } from '@/lib/economy/catalog';
-import { hasDevTitle, withDevTitle } from '@/lib/economy/dev-title';
+import { devTitleFor } from '@/lib/economy/dev-title';
 import { useEquipped } from '@/lib/economy/loadout';
 
 // The equipped cosmetics as they appear on OTHER people's screens — profile, feed rows,
@@ -86,8 +86,9 @@ export function EquippedTitle({ style, enabled = true }: { style?: ViewStyle; en
   const { session } = useAuth();
   const worn = enabled ? equipped : undefined;
   if (!worn) return null;
-  // Your own view of the developer's title — the public map in use-public-loadouts covers everyone else's.
-  const title = hasDevTitle(session?.user.id) ? withDevTitle(worn) : worn;
+  // Your own view of the developer's title — the public map in use-public-loadouts covers everyone
+  // else's. Only overlays the dev words on the DEFAULT title; a won/earned title shows as itself.
+  const title = devTitleFor(session?.user.id, worn);
   return (
     <View style={style}>
       <TitleLine title={title} name={titleLabel(title).name} />
