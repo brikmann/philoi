@@ -24,6 +24,16 @@ export const METAL = {
 } as const;
 type Metal = keyof typeof METAL;
 
+// "Noah Brikman" → "Noah B." — the leaderboard's own convention, so a full name doesn't truncate to
+// "Noah Brik…" on a pillar (and the hero share card). Already-short names ("Maya K.", "You") are
+// returned unchanged. The avatar keeps the full name for its initial.
+export function shortName(full: string): string {
+  const parts = full.trim().split(/\s+/);
+  if (parts.length < 2) return full;
+  const initial = parts[parts.length - 1].replace(/[^A-Za-z]/g, '').charAt(0);
+  return initial ? `${parts[0]} ${initial}.` : parts[0];
+}
+
 const SIZES = {
   screen: { col: 92, gap: 10, av: 52, avWin: 60, h: { gold: 128, silver: 104, bronze: 86 }, rank: 19, name: 11, fig: 12, crown: 26 },
   card: { col: 66, gap: 7, av: 36, avWin: 44, h: { gold: 88, silver: 70, bronze: 56 }, rank: 15, name: 9.5, fig: 9.5, crown: 20 },
@@ -123,7 +133,7 @@ function Pillar({
         />
         <Text style={[styles.rank, { color: m.text, fontSize: s.rank }]}>{racer.place ?? '–'}</Text>
         <Text style={[styles.name, { fontSize: s.name, maxWidth: s.col - 8 }]} numberOfLines={1}>
-          {racer.name}
+          {shortName(racer.name)}
         </Text>
         {racer.score != null ? (
           <Text style={[styles.figure, { fontSize: s.fig }]} numberOfLines={1}>
@@ -193,7 +203,7 @@ function RestRow({
     <View style={[styles.restRow, mine && styles.restRowMine]}>
       <Text style={[styles.restRank, mine && { color: Colors.ember }]}>{racer.place ?? '–'}</Text>
       <Text style={styles.restName} numberOfLines={1}>
-        {racer.name}
+        {shortName(racer.name)}
       </Text>
       {mine ? (
         <View style={[styles.youTag, styles.youTagInline, { backgroundColor: Colors.ember }]}>
@@ -222,7 +232,7 @@ export function PinnedYouRow({
       <RoundAvatar url={racer.avatarUrl} name={racer.name} size={30} ring={Colors.emberForward} ringWidth={1.5} />
       <View style={styles.pinnedMid}>
         <Text style={styles.pinnedName} numberOfLines={1}>
-          {racer.name}
+          {shortName(racer.name)}
         </Text>
         <View style={[styles.youTag, styles.youTagInline, { backgroundColor: Colors.ember }]}>
           <Text style={styles.youText}>YOU</Text>
