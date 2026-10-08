@@ -87,6 +87,12 @@ export function CindyConsent({ onDone }: { onDone: () => void }) {
           Settings.
         </Text>
 
+        {/* Provider credit — Anthropic / ElevenLabs brand attribution, and it reassures the user who
+            her "brain" and voice actually are. */}
+        <Text style={styles.credit}>
+          Cindy&apos;s intelligence is powered by Claude (Anthropic). Her voice is ElevenLabs.
+        </Text>
+
         <PrimaryButton label={busy ? 'Turning her on…' : 'Turn Cindy on'} onPress={accept} disabled={busy} />
         <Text style={styles.skip} onPress={() => router.back()}>
           Not now
@@ -123,6 +129,17 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: Colors.textTertiary,
     paddingHorizontal: Spacing.two,
+  },
+  credit: {
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    lineHeight: 15,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.two,
+    marginTop: Spacing.two,
+    marginBottom: Spacing.three,
+    opacity: 0.85,
   },
   skip: {
     fontFamily: Fonts.body,
