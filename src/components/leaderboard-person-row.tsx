@@ -4,6 +4,7 @@ import { EquippedHexGlow } from '@/components/economy/loadout-bits';
 import { PublicIdentity, useResolvedLoadout } from '@/components/economy/public-identity';
 import { RankBadge } from '@/components/rank-badge';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { shortName } from '@/lib/format';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
 import { formatRankTier } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
@@ -62,7 +63,7 @@ export function LeaderboardPersonRow({
           thing in this file that could cost frames while scrolling. */}
       <PublicIdentity
         userId={userId}
-        name={displayName}
+        name={shortName(displayName)}
         avatarUrl={avatarUrl}
         size={30}
         loadout={resolved}
