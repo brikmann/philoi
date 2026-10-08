@@ -460,6 +460,11 @@ const TITLES_EARNED: CatalogItem[] = [
   item({ id: 'title-ascended', name: '"Ascended"', type: 'TITLE', rarity: 'mythic', acquisition: 'earned', seasonStamped: true,
     howToGet: 'Finish the season ranked #1 on the global leaderboard.',
     lore: 'You didn’t win the season — you transcended it. The arena has a new god.', art: { kind: 'title', from: '#FF6B6B', to: '#FFF0B8' } }),
+  // The developer's own title (Noah, 2026-10-07). Granted by hand to his account as an 'earned' row,
+  // so salvage_cosmetic refuses to sell it; no box, pass or season path can drop it.
+  item({ id: 'title-prometheus', name: '"Prometheus, Developer of Philoi"', type: 'TITLE', rarity: 'mythic', acquisition: 'earned', oneOfOne: true,
+    howToGet: 'Bring the fire.',
+    lore: 'He stole fire from the gods and handed it to everyone who would sit by it. Every campfire here was lit from his.', art: { kind: 'title', from: '#FF6B6B', to: '#FFD27A' } }),
   // Printed for EVERY racer when a campfire challenge settles (0212, mock 217) — "Goat Champion",
   // "Goat 2nd Place Finisher". A template, not an item: the server grants it under a per-challenge
   // key (`title-campfire-finisher:<challenge_id>`, because cosmetics_owned is one row per key) and
