@@ -9,6 +9,7 @@ import { RankBadge } from '@/components/rank-badge';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { shortName } from '@/lib/format';
 import { useAuth } from '@/lib/auth/auth-context';
 import { formatRankTier } from '@/lib/rank-tiers';
 import { supabase } from '@/lib/supabase';
@@ -58,8 +59,8 @@ export function LeaderboardRow({ rank, row, isMe, groupId, onChanged }: Leaderbo
           )}
         </PublicHalo>
         <View style={styles.nameColumn}>
-          <BurningName userId={row.user_id} style={styles.name} suffix={isMe ? ' (you)' : undefined}>
-            {row.display_name}
+          <BurningName userId={row.user_id} style={styles.name} numberOfLines={1} suffix={isMe ? ' (you)' : undefined}>
+            {shortName(row.display_name)}
           </BurningName>
           <Text style={styles.handle}>@{row.handle ?? 'newcomer'}</Text>
           <PublicTitle loadout={loadout} compact />

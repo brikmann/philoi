@@ -7,6 +7,7 @@ import { Crown } from '@/components/ui/crown';
 import { Colors, Fonts } from '@/constants/theme';
 import type { PodiumRacer } from '@/hooks/use-challenge-podium';
 import { formatMetricValue } from '@/lib/challenge-metric';
+import { shortName } from '@/lib/format';
 import type { SocialChallengeRaceMetric } from '@/types/database';
 
 // THE PODIUM (design-mocks/267) — three pillars for a settled board race, drawn twice: full size in
@@ -23,16 +24,6 @@ export const METAL = {
   bronze: { ring: '#CD7F32', text: '#CD7F32', edge: '#5A3D22' },
 } as const;
 type Metal = keyof typeof METAL;
-
-// "Noah Brikman" → "Noah B." — the leaderboard's own convention, so a full name doesn't truncate to
-// "Noah Brik…" on a pillar (and the hero share card). Already-short names ("Maya K.", "You") are
-// returned unchanged. The avatar keeps the full name for its initial.
-export function shortName(full: string): string {
-  const parts = full.trim().split(/\s+/);
-  if (parts.length < 2) return full;
-  const initial = parts[parts.length - 1].replace(/[^A-Za-z]/g, '').charAt(0);
-  return initial ? `${parts[0]} ${initial}.` : parts[0];
-}
 
 const SIZES = {
   screen: { col: 92, gap: 10, av: 52, avWin: 60, h: { gold: 128, silver: 104, bronze: 86 }, rank: 19, name: 11, fig: 12, crown: 26 },

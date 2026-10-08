@@ -4,6 +4,16 @@ export function pluralize(count: number, singular: string, plural = `${singular}
   return count === 1 ? singular : plural;
 }
 
+// "Noah Brikman" → "Noah B." — first name + last initial, for the narrow surfaces where a full name
+// truncates to "Noah Brikm…" (the leaderboard podium + rows, the podium share card). Already-short
+// names ("Maya K.", "You") and single-word names are returned unchanged.
+export function shortName(full: string): string {
+  const parts = full.trim().split(/\s+/);
+  if (parts.length < 2) return full;
+  const initial = parts[parts.length - 1].replace(/[^A-Za-z]/g, '').charAt(0);
+  return initial ? `${parts[0]} ${initial}.` : parts[0];
+}
+
 export function formatSessionDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.round((totalSeconds % 3600) / 60);
