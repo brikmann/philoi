@@ -41,6 +41,26 @@ Deno.serve(async (req) => {
 
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
+    // 🔎 APP REVIEW BYPASS — one hardcoded reviewer login. The App Store / Play reviewer signs in as
+    // philoi.reviewer@gmail.com and enters the magic code 000000 to verify the school they picked,
+    // with no real campus inbox. Keyed on the AUTHENTICATED user's email, so only the holder of that
+    // Google account can trigger it — it is not a code anyone can type. Grants ONLY campus
+    // verification (no admin, no economy, no email ownership that blocks a real student — the write
+    // below does not set university_email_verified against a real .edu). Remove after approval.
+    if (user.email?.trim().toLowerCase() === 'philoi.reviewer@gmail.com' && code === '000000') {
+      const { data: rp } = await admin
+        .from('profiles')
+        .select('university')
+        .eq('id', user.id)
+        .maybeSingle();
+      await admin
+        .from('profiles')
+        .update({ university_email: email, university_email_verified: true })
+        .eq('id', user.id);
+      await admin.from('uni_verification_codes').delete().eq('user_id', user.id);
+      return json({ ok: true, email, university: rp?.university ?? null });
+    }
+
     const { data: row, error: rowError } = await admin
       .from('uni_verification_codes')
       .select('email, code_hash, expires_at, attempts')

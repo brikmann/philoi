@@ -51,6 +51,14 @@ Deno.serve(async (req) => {
 
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
+    // 🔎 APP REVIEW BYPASS (pairs with verify_uni_code). For the one hardcoded reviewer login, skip
+    // the school-domain check and the real email send — just acknowledge, so the client advances to
+    // the code step, where the reviewer enters 000000. Keyed on the authenticated user's email, so
+    // no one else can trigger it (and it mails nothing). Remove after approval.
+    if (user.email?.trim().toLowerCase() === 'philoi.reviewer@gmail.com') {
+      return json({ ok: true, email });
+    }
+
     const { data: profile, error: profileError } = await admin
       .from('profiles')
       .select('university, university_domain')
