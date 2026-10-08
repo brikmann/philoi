@@ -10,6 +10,7 @@ import { Crown } from '@/components/ui/crown';
 import { Colors, Fonts } from '@/constants/theme';
 import { BurningName } from '@/components/burning-name';
 import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
+import { shortName } from '@/lib/format';
 import { getUniversityCrest } from '@/lib/university-crests';
 import type { RankTierName } from '@/types/database';
 
@@ -65,14 +66,6 @@ const FLUTE_GAP = 9;
 // Render order left-to-right for however many columns are present (1, 2, or 3 — "fewer than 3
 // rankable people... gracefully fall back", PHILOI_UI_SPEC.md §15's small-board rule).
 const RENDER_ORDER: number[][] = [[0], [1, 0], [1, 0, 2]];
-
-// "Noah Brikman" -> "Noah B." — the narrow podium truncates to first name + last initial (the
-// full row list / profile still show the full name); a bare first name stays as-is.
-function podiumName(displayName: string): string {
-  const parts = displayName.trim().split(/\s+/);
-  if (parts.length < 2) return displayName;
-  return `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.`;
-}
 
 export type PodiumPersonItem = {
   kind: 'person';
@@ -218,7 +211,7 @@ function PodiumColumn({
           style={[styles.name, item.isMe && styles.nameMe]}
           numberOfLines={1}
           suffix={item.isMe ? ' · you' : undefined}>
-          {podiumName(item.displayName)}
+          {shortName(item.displayName)}
         </BurningName>
       ) : (
         <Text style={[styles.name, item.isMe && styles.nameMe]} numberOfLines={1}>
