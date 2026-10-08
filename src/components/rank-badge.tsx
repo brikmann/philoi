@@ -178,9 +178,9 @@ function Emblem({ tier, fill }: { tier: RankTierName; fill: string }) {
 
 // ─────────────────────────────── the division escalation ───────────────────────────────
 //
-// `marks` is the ROMAN NUMERAL'S VALUE, not the stored division — the two run opposite ways since
-// the flip, and `divisionMarks()` is the single place that conversion lives. So III, the top of its
-// tier, is also the most ornate badge in it: 3 chevrons, wing-ticks and a crown spike. 0 marks
+// `marks` is how far up its tier the rung sits, not the stored division and not the numeral's value
+// — `divisionMarks()` is the single place that conversion lives. So I, the top of its tier, is also
+// the most ornate badge in it: 3 chevrons, wing-ticks and a crown spike. 0 marks
 // covers Primordial, which has no divisions at all, and an unknown division, which must not
 // invent one.
 

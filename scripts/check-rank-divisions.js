@@ -2,8 +2,9 @@
 /**
  * Division guard: the roman numeral the app PRINTS must agree with the XP the ladder CHARGES.
  *
- * WS9 flipped the numerals so III is the top of each tier — you climb I → II → III, because "3 is
- * the best one" is what people already recognise. It flipped them at the display layer only:
+ * The numerals read the standard ranked way: I is the top of each tier and III the entry rung —
+ * you climb III → II → I, then promote to the next tier's III (39ec726, 2026-10-07; WS9 had made
+ * III the top, and this reverses it). Either way the flip lives at the display layer only:
  * `rank_thresholds` still stores division 3 for the CHEAPEST rung in a tier and 1 for the dearest,
  * because rank_tier_for_score, rankOrdinal, nextRank and every last-seen-rank baseline already
  * written to a device all depend on that direction. One map in src/lib/rank-tiers.ts inverts it.
@@ -16,10 +17,11 @@
  * So this asserts the thing that has to stay true no matter which half moves:
  *
  *   1. The numerals are a bijection over {1,2,3} — no rung unnamed, no numeral used twice.
- *   2. Within every tier, the rung with the MOST cumulative XP required is displayed "III" and the
- *      one with the least is displayed "I". This is the flip itself, stated as an invariant.
- *   3. `divisionMarks` (the badge's chevron count) equals the numeral's own value, so a badge can
- *      never show two chevrons under a "III".
+ *   2. Within every tier, the rung with the MOST cumulative XP required is displayed "I" and the
+ *      one with the least is displayed "III". This is the convention itself, stated as an invariant.
+ *   3. `divisionMarks` (the badge's chevron count) rises with the CLIMB, not with the numeral: the
+ *      top rung ("I") is the most ornate badge in its tier (3 marks) and the entry rung ("III") the
+ *      plainest (1). A rank-up ignites the newest chevron, so marks must grow on a promotion.
  *   4. Cumulative XP rises monotonically with `rankOrdinal`. This is what makes rank-up DETECTION
  *      correct: the watcher fires when the ordinal increases, so if a higher ordinal could ever be
  *      reachable at less XP, a promotion would land as a demotion or not fire at all. Relabelling
@@ -74,7 +76,7 @@ for (const n of printed) {
   if (!(n in VALUE)) fail(`DIVISION_NUMERAL contains "${n}", which is not one of I, II, III`);
 }
 
-// 3 · the badge's chevron count is the numeral's value
+// 3 · the badge's chevron count rises with the climb — the top rung, "I", carries 3 marks
 const marksMatch = tiersSrc.match(/function divisionMarks\(division: number\): number \{\s*return ([^;]+);/);
 if (!marksMatch) {
   fail('could not find divisionMarks() in src/lib/rank-tiers.ts — the badge derives its chevrons from it');
@@ -83,10 +85,10 @@ if (!marksMatch) {
   // function it is checking. The body is one arithmetic expression out of our own repo.
   const divisionMarks = new Function('division', `return ${marksMatch[1]};`);
   for (const d of stored) {
-    const want = VALUE[NUMERAL[d]];
+    const want = 4 - VALUE[NUMERAL[d]];
     const got = divisionMarks(d);
     if (got !== want) {
-      fail(`divisionMarks(${d}) = ${got}, but stored division ${d} displays as "${NUMERAL[d]}" (${want} chevrons)`);
+      fail(`divisionMarks(${d}) = ${got}, but stored division ${d} displays as "${NUMERAL[d]}" (${want} chevrons — the top rung is the most ornate)`);
     }
   }
 }
@@ -127,7 +129,7 @@ if (!rows) {
   process.exit(1);
 }
 
-// 2 · within each tier, the dearest rung is "III" and the cheapest is "I"
+// 2 · within each tier, the dearest rung is "I" and the cheapest is "III"
 const byTier = new Map();
 for (const row of rows) {
   if (!byTier.has(row.tier)) byTier.set(row.tier, []);
@@ -141,16 +143,16 @@ for (const [tier, tierRows] of byTier) {
   const sorted = [...tierRows].sort((a, b) => a.xp - b.xp);
   const cheapest = NUMERAL[sorted[0].division];
   const dearest = NUMERAL[sorted[sorted.length - 1].division];
-  if (cheapest !== 'I') {
+  if (cheapest !== 'III') {
     fail(
       `${tier}: the cheapest rung (${sorted[0].xp.toLocaleString()} XP, stored division ${sorted[0].division}) ` +
-        `displays as "${cheapest}" — the bottom of a tier must read "I"`
+        `displays as "${cheapest}" — the bottom of a tier must read "III"`
     );
   }
-  if (dearest !== 'III') {
+  if (dearest !== 'I') {
     fail(
       `${tier}: the dearest rung (${sorted[sorted.length - 1].xp.toLocaleString()} XP, stored division ` +
-        `${sorted[sorted.length - 1].division}) displays as "${dearest}" — the top of a tier must read "III"`
+        `${sorted[sorted.length - 1].division}) displays as "${dearest}" — the top of a tier must read "I"`
     );
   }
 }

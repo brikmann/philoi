@@ -66,9 +66,10 @@ export const RANK_TIER_LABEL: Record<RankTierName, string> = {
 export const DIVISION_NUMERAL: Record<number, string> = { 3: 'III', 2: 'II', 1: 'I' };
 
 /**
- * The displayed numeral as a COUNT — 1 for I, 3 for III — which is what the badge needs: chevrons
- * match the numeral and the frame gains detail as it climbs (mock 213). Clamped to 1–3 so a
- * malformed division can't ask for a fourth chevron the geometry has no room for.
+ * The badge's chevron count — how far up its tier a rung sits, NOT the numeral's value: the entry
+ * rung ("III") draws 1, the top rung ("I") draws 3, so the frame gains detail as it climbs (mock
+ * 213) and a rank-up always adds the chevron it ignites. Clamped to 1–3 so a malformed division
+ * can't ask for a fourth chevron the geometry has no room for. check-rank-divisions guards this.
  */
 export function divisionMarks(division: number): number {
   return Math.max(1, Math.min(3, 4 - division));
