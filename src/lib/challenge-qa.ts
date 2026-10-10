@@ -23,8 +23,14 @@ import type { ChallengeCountMode, ChallengePeriod, ChallengeType, SocialChalleng
 export type QaWhat = 'study' | 'gym' | 'run' | 'ride' | 'steps' | 'sleep' | 'volume' | 'custom';
 export type QaCadence = 'day' | 'week' | 'once';
 export type QaWho = 'solo' | 'friend' | 'campfire';
-/** A campfire either clears one bar together, or is ranked on who did the most. */
-export type QaCampfireKind = 'together' | 'race';
+/**
+ * The three campfire shapes:
+ *   · together   — every member clears the SAME bar ("everyone runs 50 km");
+ *   · race       — ranked on who did the most, no bar at all (a placement race);
+ *   · collective — the campfire POOLS toward one total ("500 km between us"), optionally paying
+ *                  whoever contributed most (0240).
+ */
+export type QaCampfireKind = 'together' | 'race' | 'collective';
 
 /** Everything one typed sentence can contribute. Every field is optional: absent = not said. */
 export type QaParse = {
@@ -41,6 +47,8 @@ export type QaParse = {
   windowHours?: number;
   who?: QaWho;
   campfireKind?: QaCampfireKind;
+  /** On a pooled total: pay whoever contributed most ("…and pay the top contributor"). */
+  contributorReward?: boolean;
   /** A grade, a mark, a percentage — the one ask this screen hands to Cindy's own chat. */
   grade?: boolean;
 };
@@ -72,7 +80,30 @@ function endOfMonth(monthIndex: number, now: Date): Date {
   return endOfDay(new Date(year, monthIndex + 1, 0));
 }
 
-function parseDeadline(t: string, now: Date): { deadline?: Date; windowHours?: number } {
+const NUMBER_WORDS: Record<string, number> = {
+  a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12,
+};
+const SPAN_COUNT = `(\\d+|${Object.keys(NUMBER_WORDS).join('|')})`;
+
+/** The last day of the academic term `now` falls in: fall → Dec 31, winter → Apr 30, summer → Aug 31. */
+function endOfTerm(now: Date): Date {
+  const m = now.getMonth();
+  const y = now.getFullYear();
+  if (m >= 8) return endOfDay(new Date(y, 11, 31));
+  if (m <= 3) return endOfDay(new Date(y, 3, 30));
+  return endOfDay(new Date(y, 7, 31));
+}
+
+/**
+ * `bareSpan`: the open question IS "how long does it run?", so a duration with no preposition — a
+ * bare "2 months" — is the answer. Anywhere else a bare duration is too likely to be part of a rate
+ * ("3 days a week") to read as the window.
+ */
+function parseDeadline(t: string, now: Date, bareSpan = false): { deadline?: Date; windowHours?: number } {
+  if (/\b(?:by\s+)?(?:the\s+)?end of (?:the\s+)?(?:semester|term)\b|\bthis (?:semester|term)\b/.test(t)) {
+    return { deadline: endOfTerm(now) };
+  }
   // "by / through / until / end of December"
   const month = t.match(
     /\b(?:by|through|thru|until|till|before|end of|in|during)\s+(?:the end of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b/
@@ -97,11 +128,18 @@ function parseDeadline(t: string, now: Date): { deadline?: Date; windowHours?: n
     return { deadline: endOfDay(d) };
   }
 
-  // "in 3 weeks", "for 10 days", "over 2 months", "next 4 weeks"
-  const span = t.match(/\b(?:in|for|over|within|next)\s+(?:the next\s+)?(\d+|a|an|one|two|three|four|six)\s+(day|week|month)s?\b/);
+  // "in 3 weeks", "for 10 days", "over 2 months", "next 4 weeks" — and, answering "when", a bare
+  // "2 months". Never "3 days a week": that is a rate, and the cadence reader owns it.
+  // A bare span needs a real count: "a week" with no preposition is the tail of a rate ("3 days a
+  // week"), never a window.
+  const notRate = '\\b(?!\\s*(?:a|per|each|every)\\s+(?:day|week))';
+  const span =
+    t.match(new RegExp(`\\b(?:in|for|over|within|next)\\s+(?:the next\\s+)?${SPAN_COUNT}\\s+(day|week|month)s?${notRate}`)) ??
+    (bareSpan
+      ? t.match(new RegExp(`(?:^|\\s)(\\d+|${Object.keys(NUMBER_WORDS).filter((w) => w !== 'a' && w !== 'an').join('|')})\\s+(day|week|month)s?${notRate}`))
+      : null);
   if (span) {
-    const words: Record<string, number> = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, six: 6 };
-    const n = words[span[1]] ?? Number(span[1]);
+    const n = NUMBER_WORDS[span[1]] ?? Number(span[1]);
     const unitHours = span[2] === 'day' ? DAY_HOURS : span[2] === 'week' ? WEEK_HOURS : 30 * DAY_HOURS;
     if (n > 0) return { windowHours: n * unitHours };
   }
@@ -116,7 +154,7 @@ function parseNumber(raw: string): number {
  * Read one sentence. `now` is a parameter so a deadline resolves against the same clock the window
  * is later measured from.
  */
-export function parseQa(input: string, now: Date = new Date()): QaParse {
+export function parseQa(input: string, now: Date = new Date(), opts: { step?: QaStep } = {}): QaParse {
   const t = ` ${input.toLowerCase().replace(/[’']/g, '').replace(/\s+/g, ' ').trim()} `;
   const out: QaParse = {};
 
@@ -124,15 +162,15 @@ export function parseQa(input: string, now: Date = new Date()): QaParse {
   if (/\b(grade|gpa|marks?|exam|midterm|final exam|test score)\b|\d\s*%/.test(t)) out.grade = true;
 
   // ── what ──
-  const distance = t.match(/(\d[\d,]*(?:\.\d+)?)\s*(km|kms|kilomet\w*|k|mi|miles?)\b/);
+  // A distance is a number with a WHOLE distance unit. A bare `k` is not one ("10k steps" is ten
+  // thousand steps), and a stray `k` before the unit is a typo, never a multiplier: "500kkm" is
+  // 500 km, not 500,000.
+  const distance = t.match(/(\d[\d,]*(?:\.\d+)?)\s*k?\s*(km|kms|kilomet\w*|mi|miles?)\b/);
   if (/\bsteps?\b/.test(t)) out.what = 'steps';
   else if (/\bsleep/.test(t)) out.what = 'sleep';
   else if (/\b(ride|riding|rode|cycl\w*|bike|biking)\b/.test(t)) out.what = 'ride';
   else if (/\b(volume|lbs?|pounds|kgs?)\b/.test(t) && /\b(lift|lifted|lifting|volume|total)\b/.test(t)) out.what = 'volume';
-  else if (
-    /\b(run|runs|running|ran|jog\w*|marathon|5k|10k|half|km|kms|kilomet\w*|miles)\b/.test(t) ||
-    (distance && distance[2] !== 'k')
-  )
+  else if (/\b(run|runs|running|ran|jog\w*|marathon|5k|10k|half|km|kms|kilomet\w*|miles|distance)\b/.test(t) || distance)
     out.what = 'run';
   else if (/\b(study|studying|studied|revision|revise|revising|homework|readings?)\b/.test(t)) out.what = 'study';
   else if (/\b(gym|workouts?|work out|lifting|training|train)\b/.test(t)) out.what = 'gym';
@@ -146,10 +184,17 @@ export function parseQa(input: string, now: Date = new Date()): QaParse {
   }
 
   if (out.target == null && (out.what === 'run' || out.what === 'ride') && distance) {
-    // "5k" on a run is five kilometres, not five thousand.
     const n = parseNumber(distance[1]);
     out.target = /^mi/.test(distance[2]) ? Math.round(n * 1.609 * 10) / 10 : n;
     out.unit = 'km';
+  }
+  if (out.target == null && (out.what === 'run' || out.what === 'ride')) {
+    // "a 5k", "10k by June" on a run is five / ten KILOMETRES, not thousands — the race name.
+    const race = t.match(/\b(\d{1,3})k\b(?!\s*(?:steps?|lbs?|pounds))/);
+    if (race) {
+      out.target = Number(race[1]);
+      out.unit = 'km';
+    }
   }
   if (out.target == null && /\b(?:a\s+)?(half marathon)\b/.test(t)) {
     out.target = 21.1;
@@ -205,16 +250,86 @@ export function parseQa(input: string, now: Date = new Date()): QaParse {
     else if (/\b(in total|total|once|one time|one-time|overall)\b/.test(t)) out.cadence = 'once';
   }
 
-  Object.assign(out, parseDeadline(t, now));
+  Object.assign(out, parseDeadline(t, now, opts.step === 'when'));
 
   // ── who ──
   if (/\b(just me|myself|solo|alone|on my own|by myself|personal)\b/.test(t)) out.who = 'solo';
-  else if (/\b(campfire|my fire|the fire|group|crew|squad|the house|everyone|all of us|we all)\b/.test(t)) out.who = 'campfire';
+  else if (/\b(campfire|my fire|the fire|group|crew|squad|club|team|the house|everyone|all of us|we all|between us)\b/.test(t)) out.who = 'campfire';
   else if (/\b(friends?|vs\.?|versus|against|duel|head to head|1v1)\b/.test(t)) out.who = 'friend';
 
-  if (/\b(most|ranked|leaderboard|who (?:can|gets|does)|winner|first to|race)\b/.test(t)) out.campfireKind = 'race';
-  else if (/\b(everyone|all of us|we all|together|same (?:goal|target|bar))\b/.test(t)) out.campfireKind = 'together';
+  // ── which campfire shape ──
+  // Read in this order because the words overlap: "pay whoever contributes MOST" is a pooled
+  // total with a payout, not a race, so the contributor and pooled phrasings are checked before
+  // the race words ("most") can claim it.
+  const contributor =
+    /\bcontribut\w*\b/.test(t) && /\b(top|most|highest|biggest|best|largest)\b/.test(t)
+      ? true
+      : /\b(?:pay|reward|prize)\s+(?:the\s+|whoever\s+)?(?:top|highest|biggest|best)\b/.test(t);
+  const pooled = /\b(cumulative(?:ly)?|combined|collectively|between (?:us|all of us)|as a (?:club|group|team|campfire|house)|pool(?:ed|ing)?|shared (?:goal|total|target)|in total as)\b/.test(t);
+  if (contributor) {
+    out.campfireKind = 'collective';
+    out.contributorReward = true;
+  } else if (pooled) {
+    out.campfireKind = 'collective';
+  } else if (/\b(most|ranked|leaderboard|who (?:can|gets|does)|whoever|winner|first to|race)\b/.test(t)) {
+    out.campfireKind = 'race';
+  } else if (/\b(everyone|each of us|all of us|we all|together|same (?:goal|target|bar))\b/.test(t)) {
+    out.campfireKind = 'together';
+  }
+  // A pool is a campfire thing by definition — "500 km cumulatively, pay the top contributor"
+  // names no campfire, but it cannot be anything else.
+  if (out.campfireKind === 'collective' && !out.who) out.who = 'campfire';
 
+  return out;
+}
+
+/** Cindy's structured reading of a typed answer (ai-coach `extract_challenge`). Null = not said. */
+export type QaExtracted = {
+  discipline: QaWhat | null;
+  custom_name: string | null;
+  target: number | null;
+  unit: string | null;
+  cadence: QaCadence | null;
+  deadline: string | null;
+  window_days: number | null;
+  who: QaWho | null;
+  mode: 'solo' | 'duel' | 'placement' | 'together' | 'collective' | null;
+  contributor_reward: boolean;
+  is_grade: boolean;
+};
+
+/**
+ * Cindy's reading as a QaParse, so it merges through exactly the path the regex's does. Anything
+ * out of range is dropped rather than trusted: a model's number becomes the terms of a real
+ * challenge, so it gets the same "unsure answers nothing" rule as the regex.
+ */
+export function parseFromExtracted(g: QaExtracted, now: Date = new Date()): QaParse {
+  const out: QaParse = {};
+  if (g.is_grade) out.grade = true;
+  if (g.discipline) out.what = g.discipline;
+  if (g.discipline === 'custom' && g.custom_name) out.customName = g.custom_name.trim().slice(0, 40);
+  if (typeof g.target === 'number' && g.target > 0 && g.target < 10_000_000) {
+    out.target = g.target;
+    out.unit = g.unit === 'count' ? (g.custom_name ?? undefined) : (g.unit ?? undefined);
+  }
+  if (g.cadence) out.cadence = g.cadence;
+  if (g.deadline && /^\d{4}-\d{2}-\d{2}$/.test(g.deadline)) {
+    const [y, m, d] = g.deadline.split('-').map(Number);
+    const at = endOfDay(new Date(y, m - 1, d));
+    if (at.getTime() > now.getTime()) out.deadline = at;
+  } else if (typeof g.window_days === 'number' && g.window_days > 0) {
+    out.windowHours = Math.round(g.window_days) * DAY_HOURS;
+  }
+  if (g.who) out.who = g.who;
+  if (g.mode === 'duel') out.who = 'friend';
+  if (g.mode === 'solo') out.who = 'solo';
+  if (g.mode === 'placement') out.campfireKind = 'race';
+  if (g.mode === 'together') out.campfireKind = 'together';
+  if (g.mode === 'collective') {
+    out.campfireKind = 'collective';
+    if (g.contributor_reward) out.contributorReward = true;
+  }
+  if (out.campfireKind && !out.who) out.who = 'campfire';
   return out;
 }
 
@@ -281,10 +396,13 @@ export type QaAnswers = {
   opponent: { id: string; name: string } | null;
   circle: { id: string; name: string; isAdmin: boolean } | null;
   campfireKind: QaCampfireKind | null;
+  /** A pooled total that pays its top contributor. Meaningless on any other shape. */
+  contributorReward: boolean;
   grade: boolean;
 };
 
 export const EMPTY_ANSWERS: QaAnswers = {
+  contributorReward: false,
   what: null,
   customName: null,
   target: null,
@@ -331,23 +449,51 @@ function needsWhen(a: QaAnswers): boolean {
   return a.deadline == null && a.windowHours == null;
 }
 
+/**
+ * The metrics a placement race can rank on. Anything else raced across a campfire becomes a
+ * hosted "first to N" — which, unlike a placement race, needs its N.
+ */
+function placementRanks(what: QaWhat): boolean {
+  return what === 'run' || what === 'ride' || what === 'volume' || what === 'study' || what === 'gym';
+}
+
+/**
+ * Whether the challenge has a number at all. A race does not: "most distance this semester" IS the
+ * challenge, and asking for a target there was bug #1 ("I didn't catch a number"). A duel is a race
+ * too — whoever is further along when it ends.
+ */
+export function needsTarget(a: QaAnswers): boolean {
+  if (!a.who) return false;
+  if (a.who === 'solo') return true;
+  if (a.who === 'friend') return false;
+  if (!a.campfireKind) return false;
+  if (a.campfireKind === 'race') return !placementRanks(a.what ?? 'custom');
+  return true;
+}
+
+/**
+ * The open question. WHO comes before HOW MUCH: whether a number is needed at all depends on who
+ * is in and how they compete, so it cannot be asked first (the old order asked every placement
+ * race for a target it would never use).
+ */
 export function nextStep(a: QaAnswers): QaStep {
   if (a.grade) return 'handoff';
   if (!a.what) return 'what';
   if (a.what === 'custom' && !a.customName) return 'custom_name';
-  if (a.target == null) return 'specifics';
   if (!a.who) return 'who';
   if (!whoFits(a.what, a.who)) return 'mismatch';
   if (a.who === 'friend' && !a.opponent) return 'friend';
   if (a.who === 'campfire' && !a.circle) return 'campfire';
   if (a.who === 'campfire' && !a.campfireKind) return 'campfire_kind';
+  if (needsTarget(a) && a.target == null) return 'specifics';
   if (needsWhen(a)) return 'when';
   return 'score';
 }
 
 /** For the progress bar: the share of the four mock questions already answered. */
 export function progressOf(a: QaAnswers): number {
-  const done = [a.what != null, a.target != null, a.who != null, nextStep(a) === 'score'].filter(Boolean).length;
+  const amount = a.target != null || (a.who != null && a.campfireKind != null && !needsTarget(a)) || a.who === 'friend';
+  const done = [a.what != null, a.who != null, amount, nextStep(a) === 'score'].filter(Boolean).length;
   return done / 4;
 }
 
@@ -361,8 +507,27 @@ function shortDate(d: Date): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/** A race with no number: "Most km run", "Most study hours". */
+function describeMost(a: QaAnswers): string {
+  switch (a.what) {
+    case 'run':
+      return 'Most km run';
+    case 'ride':
+      return 'Most km ridden';
+    case 'study':
+      return 'Most study hours';
+    case 'gym':
+      return 'Most gym time';
+    case 'volume':
+      return 'Most weight lifted';
+    default:
+      return `Most ${a.customName ?? 'done'}`;
+  }
+}
+
 /** The thing itself, without who: "Run 100 km", "Gym 3× a week", "1,000 pushups". */
 export function describeWhat(a: QaAnswers): string {
+  if (a.target == null && !needsTarget(a) && a.who != null) return describeMost(a);
   const n = a.target ?? 0;
   const per = a.cadence === 'day' ? ' a day' : a.cadence === 'week' ? ' a week' : '';
   switch (a.what) {
@@ -442,6 +607,29 @@ function raceMetricOf(what: QaWhat): SocialChallengeRaceMetric {
   return 'lockin_time';
 }
 
+/**
+ * A pooled total's metric and raw target, from the discipline. Null when nothing measures it on its
+ * own. Every unit is explicit here so no shape can fall through to another one's ("Lift 500 lb").
+ */
+export function poolOf(
+  a: Pick<QaAnswers, 'what' | 'unit'>,
+  total: number
+): { metric: 'distance' | 'volume' | 'lockin_time'; raw: number; unitLabel: string } | null {
+  switch (a.what) {
+    case 'run':
+    case 'ride':
+      return { metric: 'distance', raw: Math.round(total * 1000), unitLabel: 'km' };
+    case 'volume':
+      return { metric: 'volume', raw: Math.round(total), unitLabel: 'lb' };
+    case 'study':
+      return { metric: 'lockin_time', raw: Math.round(total * 3600), unitLabel: 'study hours' };
+    case 'gym':
+      return a.unit === 'hours' ? { metric: 'lockin_time', raw: Math.round(total * 3600), unitLabel: 'gym hours' } : null;
+    default:
+      return null;
+  }
+}
+
 /** The plural noun a hosted (counted) campfire challenge names its lock-in type with. */
 function hostedNounOf(a: QaAnswers): string {
   if (a.what === 'study') return 'study hours';
@@ -501,11 +689,12 @@ export function verdictRouteFor(a: QaAnswers, now: Date = new Date()): VerdictRo
   const circle = { circleId: a.circle?.id ?? '', circleName: a.circle?.name ?? '' };
   const metric = raceMetricOf(what);
 
-  if (a.campfireKind === 'race' && (metric !== 'lockin_time' || what === 'study' || what === 'gym')) {
-    // Ranked 1..N with no shared bar — the server refuses a target on a placement race.
+  if (a.campfireKind === 'race' && placementRanks(what)) {
+    // Ranked 1..N with no shared bar — the server refuses a target on a placement race, and a
+    // number the user typed anyway ("race to 100 km") is not what decides it, so it is not named.
     return {
       note: null,
-      params: { branch: 'placement', label, metric, windowHours: String(windowHours), ...circle },
+      params: { branch: 'placement', label: `${describeMost(a)}${describeWhen(a)}`.slice(0, 60), metric, windowHours: String(windowHours), ...circle },
     };
   }
 
@@ -515,11 +704,48 @@ export function verdictRouteFor(a: QaAnswers, now: Date = new Date()): VerdictRo
       ? `I'll set this as ${fmt(total)} total — the campfire counts one number across the window. Weekly streaks are coming soon.`
       : null;
 
+  if (a.campfireKind === 'collective') {
+    // ONE shared total (0240). The metric comes from WHAT was answered, never a default: run/ride
+    // is distance in km (bug #2 printed "Lift 500 lb" for a run), lifting is pounds, study and gym
+    // time are lock-in seconds. Stored RAW — metres, pounds, seconds — as challenge_metric_value sums.
+    const pool = poolOf(a, total);
+    if (pool) {
+      const reward = a.contributorReward ? ' · top contributor wins' : '';
+      return {
+        note,
+        params: {
+          branch: 'pooled',
+          label: `${fmt(total)} ${pool.unitLabel} together${describeWhen(a)}${reward}`.slice(0, 60),
+          metric: pool.metric,
+          target: String(pool.raw),
+          rewardTop: a.contributorReward ? '1' : '0',
+          windowHours: String(windowHours),
+          ...circle,
+        },
+      };
+    }
+    // Nothing a server can sum on its own (pushups, gym visits, steps): typed counts are people's
+    // word, and a pool of them is cleared for everyone by one entry. Same total, as a bar each.
+    const counted = hostedNounOf(a);
+    return {
+      note: `I can only pool distance, lifting and lock-in time — so it's ${fmt(total)} ${counted} each.`,
+      params: {
+        branch: 'campfire',
+        label: `${fmt(total)} ${counted}${describeWhen(a)}`.slice(0, 60),
+        metric: counted,
+        target: String(total),
+        windowHours: String(windowHours),
+        shape: 'everyone_hits_target',
+        ...circle,
+      },
+    };
+  }
+
   if (metric === 'distance' || metric === 'volume') {
     // A measured bar everyone clears (0169). Stored RAW: metres for distance, which is what
     // challenge_metric_value sums — the verdict passes `target` straight to createGroupChallenge.
     const raw = metric === 'distance' ? Math.round(total * 1000) : Math.round(total);
-    const name = metric === 'distance' ? `${fmt(total)} km${describeWhen(a)}` : `${fmt(total)} lb${describeWhen(a)}`;
+    const name = `${fmt(total)} ${metric === 'distance' ? 'km' : 'lb'} each${describeWhen(a)}`;
     return {
       note,
       params: { branch: 'collective', label: name.slice(0, 60), metric, target: String(raw), windowHours: String(windowHours), ...circle },
@@ -550,7 +776,7 @@ export function verdictRouteFor(a: QaAnswers, now: Date = new Date()): VerdictRo
  */
 export function scoringPrompt(a: QaAnswers, route: VerdictRoute): string {
   const p = route.params;
-  const goal = `${describeWhat(a)}${describeWhen(a)}`;
+  const goal = p.branch === 'placement' || p.branch === 'pooled' ? p.label : `${describeWhat(a)}${describeWhen(a)}`;
   // The campfire is named WITH its id. Her hosting rules resolve an id from the user's own
   // campfires by name, and ask when unsure — which here would be a question about something the
   // user already tapped. The shape is named for the same reason: each one maps to one tool.
@@ -561,8 +787,10 @@ export function scoringPrompt(a: QaAnswers, route: VerdictRoute): string {
       : a.who === 'friend'
         ? `It's a duel against ${a.opponent?.name ?? 'a friend'} — whoever is further along when it ends wins.`
         : p.branch === 'placement'
-          ? `It's a placement race for ${fire} — the whole campfire ranked on most by the deadline.`
-          : p.branch === 'collective'
+          ? `It's a placement race for ${fire} — the whole campfire ranked on most by the deadline. There is no target.`
+          : p.branch === 'pooled'
+            ? `It's a shared total for ${fire} — everyone's ${p.metric === 'distance' ? 'distance' : p.metric === 'volume' ? 'weight lifted' : 'lock-in time'} counts toward ONE combined target, not each person's own${a.contributorReward ? ', and the top contributor is paid when it is hit' : ''}.`
+            : p.branch === 'collective'
             ? `It's a collective goal for ${fire} — everyone has to hit ${p.label}.`
             : `It's a challenge to host for ${fire} — everyone has to hit ${p.label}, as a total.`;
   return `Score this challenge for me: ${goal}. ${who} Give it a difficulty tier and propose it — I'll confirm it on your verdict screen.`;

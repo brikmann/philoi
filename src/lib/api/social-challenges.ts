@@ -237,6 +237,60 @@ export async function createPlacementChallenge(
 }
 
 /**
+ * 0240 · ONE shared total for a whole campfire — "500 km between us by Dec 31, pay the top
+ * contributor". The bar is the SUM of everyone's metric (not every member clearing it), it settles
+ * the moment the sum reaches it, and it starts ACTIVE with the campfire enrolled — unlike
+ * createGroupChallenge, which leaves a draft for the admin to invite into.
+ *
+ * `targetValue` is RAW: metres for distance, pounds for volume, seconds for lock-in time — the units
+ * challenge_metric_value sums. The tier goes in with the create, as for a placement race.
+ */
+export async function createPooledChallenge(input: {
+  circleId: string;
+  raceMetric: 'distance' | 'volume' | 'lockin_time';
+  targetValue: number;
+  windowHours: number;
+  publicName?: string | null;
+  rewardTopContributor?: boolean;
+  tier?: DifficultyTier | null;
+}): Promise<SocialChallenge> {
+  const { data, error } = await supabase.rpc('create_pooled_challenge', {
+    p_circle_id: input.circleId,
+    p_race_metric: input.raceMetric,
+    p_target_value: input.targetValue,
+    p_window_hours: input.windowHours,
+    p_public_name: input.publicName ?? null,
+    p_reward_top_contributor: input.rewardTopContributor ?? false,
+    p_tier: input.tier ?? null,
+  });
+  if (error) throw error;
+  track('challenge_created', {
+    mode: 'pooled',
+    circle_id: input.circleId,
+    reward_top: input.rewardTopContributor ?? false,
+    tier: input.tier ?? null,
+  });
+  return data as SocialChallenge;
+}
+
+export type PooledProgress = {
+  pooled: true;
+  reward_top_contributor: boolean;
+  race_metric: 'distance' | 'volume' | 'lockin_time';
+  /** Raw units — metres, pounds, seconds. */
+  target_value: number;
+  total: number;
+  contributors: { user_id: string; display_name: string; value: number }[];
+};
+
+/** The shared total for a pooled collective (0240). Null for anything else, or on failure. */
+export async function fetchPooledProgress(challengeId: string): Promise<PooledProgress | null> {
+  const { data, error } = await supabase.rpc('get_pooled_progress', { p_challenge_id: challengeId });
+  if (error) return null;
+  return (data as PooledProgress | null) ?? null;
+}
+
+/**
  * Host a COUNTED challenge for a whole campfire — "1000 pushups for Goat" (migration 0162).
  *
  * The fourth create path, and the only one that is not just an insert. `host_campfire_challenge`

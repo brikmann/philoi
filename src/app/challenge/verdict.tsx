@@ -18,6 +18,7 @@ import {
   createGroupChallenge,
   createH2HChallenge,
   createPlacementChallenge,
+  createPooledChallenge,
   hostCampfireChallenge,
   setChallengeScope,
 } from '@/lib/api/social-challenges';
@@ -55,7 +56,7 @@ import type {
 // generic tier blurb can. It falls back to a per-tier line only when she did not supply one.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-type Branch = 'solo' | 'duel' | 'campfire' | 'collective' | 'placement';
+type Branch = 'solo' | 'duel' | 'campfire' | 'collective' | 'placement' | 'pooled';
 
 /**
  * Cindy's solo proposal arrives as `solo_goal` — the branch name the create_challenge routing in
@@ -64,7 +65,7 @@ type Branch = 'solo' | 'duel' | 'campfire' | 'collective' | 'placement';
  * kind of drift that ends with two answers to "what did I just agree to".
  */
 function asBranch(raw: string | undefined): Branch {
-  if (raw === 'campfire' || raw === 'duel' || raw === 'collective' || raw === 'placement') return raw;
+  if (raw === 'campfire' || raw === 'duel' || raw === 'collective' || raw === 'placement' || raw === 'pooled') return raw;
   return 'solo';
 }
 
@@ -119,6 +120,8 @@ export default function VerdictScreen() {
     watchCircleId?: string;
     /** The coach tool whose proposal priced this, so the chat's pending chip is resolved on create. */
     coachTool?: string;
+    /** pooled only: '1' = the top contributor is paid (0240). */
+    rewardTop?: string;
   }>();
 
   const tier = (p.tier as DifficultyTier) ?? 'uncommon';
@@ -160,7 +163,9 @@ export default function VerdictScreen() {
         : 'honor'
       : branch === 'campfire'
         ? 'honor'
-        : (branch === 'collective' ? OBSERVED_COLLECTIVE_METRICS : OBSERVED_METRICS).includes(
+        : branch === 'pooled'
+          ? 'auto'
+          : (branch === 'collective' ? OBSERVED_COLLECTIVE_METRICS : OBSERVED_METRICS).includes(
               String(p.metric ?? '')
             )
           ? 'auto'
@@ -206,7 +211,24 @@ export default function VerdictScreen() {
           tier,
         });
         resolveCoachProposal();
-        router.replace(`/challenge-info/${hosted.challenge_id}`);
+        router.replace({ pathname: '/challenge-info/[challengeId]', params: { challengeId: hosted.challenge_id, fresh: '1' } });
+        return;
+      }
+      if (branch === 'pooled') {
+        // 0240 — one shared total. Created ACTIVE with the campfire enrolled, tier in the same
+        // transaction; `target` arrives raw (metres / lb / seconds) from verdictRouteFor.
+        const metric = p.metric === 'volume' || p.metric === 'lockin_time' ? p.metric : 'distance';
+        const created = await createPooledChallenge({
+          circleId: String(p.circleId),
+          raceMetric: metric,
+          targetValue: Number(p.target ?? 0),
+          windowHours: Number(p.windowHours ?? 168) || 168,
+          publicName: String(p.label),
+          rewardTopContributor: p.rewardTop === '1',
+          tier,
+        });
+        resolveCoachProposal();
+        router.replace({ pathname: '/challenge-info/[challengeId]', params: { challengeId: created.id, fresh: '1' } });
         return;
       }
       if (branch === 'collective' || branch === 'placement') {
@@ -239,7 +261,7 @@ export default function VerdictScreen() {
                 tier,
               });
         resolveCoachProposal();
-        router.replace(`/challenge-info/${created.id}`);
+        router.replace({ pathname: '/challenge-info/[challengeId]', params: { challengeId: created.id, fresh: '1' } });
         return;
       }
       if (branch === 'duel') {
@@ -260,7 +282,7 @@ export default function VerdictScreen() {
           });
           if (duel?.id) await setChallengeScope(duel.id, tier).catch(() => {});
           resolveCoachProposal();
-          router.replace(`/challenge-info/${duel.id}`);
+          router.replace({ pathname: '/challenge-info/[challengeId]', params: { challengeId: duel.id, fresh: '1' } });
           return;
         }
         // Scored in Cindy's chat, which cannot see the friends list — so the opponent is the one
@@ -392,7 +414,13 @@ export default function VerdictScreen() {
                 <EmberIcon size={11} />
                 <Text style={styles.emberText}>
                   <Text style={styles.emberStrong}>{preview.embers.toLocaleString('en-US')} embers</Text>
-                  {branch === 'solo' ? '' : ' at the top band'}
+                  {branch === 'solo'
+                    ? ''
+                    : branch === 'pooled'
+                      ? p.rewardTop === '1'
+                        ? ' to the top contributor when the total is hit'
+                        : ' when the total is hit'
+                      : ' at the top band'}
                 </Text>
               </View>
             </View>

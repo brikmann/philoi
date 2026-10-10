@@ -15,18 +15,20 @@ import { useFriends } from '@/hooks/use-friends';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { useAuth } from '@/lib/auth/auth-context';
 import { duplicateGoalMessage, findDuplicateActiveGoal } from '@/lib/api/challenges';
-import { CoachError, isScopedTier, parseProposedGoals, sendToCindy, type CoachReply } from '@/lib/api/coach';
+import { CoachError, extractChallenge, isScopedTier, parseProposedGoals, sendToCindy, type CoachReply } from '@/lib/api/coach';
 import {
   customNameFrom,
   EMPTY_ANSWERS,
   findNamed,
   nextStep,
+  parseFromExtracted,
   parseQa,
   progressOf,
   scoringPrompt,
   verdictRouteFor,
   whoFits,
   type QaAnswers,
+  type QaParse,
   type QaStep,
   type QaWhat,
   type QaWho,
@@ -71,7 +73,7 @@ type Msg = { id: string; from: 'cindy' | 'me'; text: string };
  * stretch after the questions run out — scoring, a follow-up from Cindy, or a stop the user has to
  * resolve (a duplicate goal, consent, an error).
  */
-type Mode = 'asking' | 'scoring' | 'followup' | 'consent' | 'retry' | 'duplicate' | 'done';
+type Mode = 'asking' | 'reading' | 'scoring' | 'followup' | 'consent' | 'retry' | 'duplicate' | 'done';
 
 /** The proposals that carry a scoped tier. Anything else (start_session, a milestone) is not one. */
 const SCORING_TOOLS = ['create_challenge', 'propose_social_challenge', 'host_campfire_challenge', 'create_goals'];
@@ -153,6 +155,11 @@ function questionFor(step: QaStep, a: QaAnswers, ctx: { friendCount: number; gro
     case 'custom_name':
       return "Love it. What is it? Name it the way you'd log it — “pushups”, “guitar”, “cold plunges”.";
     case 'specifics':
+      if (a.campfireKind === 'collective') {
+        return a.what === 'run' || a.what === 'ride'
+          ? `What's the total ${a.circle?.name ?? 'the campfire'} is pooling toward — and by when?`
+          : 'What total are you all pooling toward, and by when?';
+      }
       return a.what === 'run' || a.what === 'ride'
         ? 'Nice. How far, and by when?'
         : a.what === 'study'
@@ -173,7 +180,7 @@ function questionFor(step: QaStep, a: QaAnswers, ctx: { friendCount: number; gro
         ? "You're not in a campfire yet. Join or start one first — or make it just you, or a friend."
         : 'Which campfire?';
     case 'campfire_kind':
-      return `Does everyone in ${a.circle?.name ?? 'the campfire'} hit the same bar, or is it a race for the most?`;
+      return `How does ${a.circle?.name ?? 'the campfire'} play it — everyone hits the same bar, a race for the most, or one total you all pool toward?`;
     case 'when':
       return a.who === 'solo' ? 'Every day, every week, or one target you hit once?' : 'How long does it run?';
     case 'mismatch':
@@ -187,23 +194,55 @@ function questionFor(step: QaStep, a: QaAnswers, ctx: { friendCount: number; gro
   }
 }
 
-/** A re-ask for when a typed answer did not move the question on. */
-function repromptFor(step: QaStep): string {
+/**
+ * A re-ask for when a typed answer did not move the question on. `attempt` counts the misses on
+ * THIS question, so a second miss acknowledges the first rather than repeating it word for word —
+ * the same line twice in a row reads as a stuck loop (#5).
+ */
+function repromptFor(step: QaStep, a: QaAnswers, attempt: number): string {
+  const pick = (lines: string[]) => lines[Math.min(attempt, lines.length - 1)];
   switch (step) {
-    case 'specifics':
-      return 'I didn’t catch a number — try “20 km by December” or “3× a week”.';
+    case 'specifics': {
+      const distance = a.what === 'run' || a.what === 'ride';
+      if (a.campfireKind === 'collective') {
+        return pick([
+          distance ? 'I need the total — “500 km by Dec 31”?' : 'I need the total you’re pooling toward — a number and a deadline.',
+          distance
+            ? 'Still no total — a number like “500 km”. If nobody’s pooling and it’s just most-wins, say “race” instead.'
+            : 'Still no number. Try “200 hours by December” — or say “race” if it’s most-wins.',
+        ]);
+      }
+      return pick([
+        distance ? 'I didn’t catch a distance — try “20 km by December”.' : 'I didn’t catch a number — try “3× a week” or “40 hours this month”.',
+        distance
+          ? 'Still not seeing a distance — a number like “100 km”, or say “most wins” for a race.'
+          : 'Still no number there. A count and a timeframe works: “10 hours a week”, “20 by June”.',
+        'Tap one of the examples above and change it after if you like.',
+      ]);
+    }
     case 'who':
     case 'friend':
     case 'campfire':
-      return 'Tap one above, or tell me who — a friend’s name or a campfire’s.';
+      return pick([
+        'Tap one above, or tell me who — a friend’s name or a campfire’s.',
+        'I couldn’t match that to a friend or campfire — tap one of them above.',
+      ]);
     case 'campfire_kind':
-      return 'Same bar for everyone, or most wins?';
+      return pick([
+        'Same bar for everyone, most wins, or one shared total?',
+        'Tap one above — “Everyone hits it”, “Race for the most”, or “One shared total”.',
+      ]);
     case 'when':
-      return 'Give me a timeframe — “2 weeks”, “by December”, “every day”.';
+      return pick([
+        'Give me a timeframe — “2 weeks”, “by December”, “every day”.',
+        'Still need a timeframe. “2 months” or “by Dec 31” both work — or tap one above.',
+      ]);
     default:
-      return 'Tell me a little more?';
+      return pick(['Tell me a little more?', 'Say it another way and I’ll take another run at it.']);
   }
 }
+
+type ScoringTurn = { role: 'user' | 'assistant'; content: string };
 
 let msgSeq = 0;
 const msg = (from: Msg['from'], text: string): Msg => ({ id: `m${++msgSeq}`, from, text });
@@ -271,6 +310,13 @@ export default function CreateChallengeScreen() {
   const [tierlessRounds, setTierlessRounds] = useState(0);
   /** A grade ask, verbatim, for the hand-off to Cindy's chat (she scopes courses and pass marks). */
   const [gradeAsk, setGradeAsk] = useState('');
+  /** Misses on the open question, so a re-ask never repeats itself word for word (#5). */
+  const [misses, setMisses] = useState<{ step: QaStep; n: number }>({ step: 'what', n: 0 });
+  /**
+   * The scoring exchange, kept HERE rather than in her chat (#9): the scoring turn is transient on
+   * the server, so a follow-up question she asks is answered with this as its only context.
+   */
+  const [scoringThread, setScoringThread] = useState<ScoringTurn[]>([]);
   const scrollRef = useRef<ScrollView>(null);
 
   // ── THE STRAY COACH MARK (punchlist #10) ──
@@ -343,15 +389,52 @@ export default function CreateChallengeScreen() {
 
   // ─────────────────────────── typed (or chip-as-sentence) answers ───────────────────────────
 
-  function submitText(raw: string) {
+  /**
+   * One typed answer, read. The regex is the fast path — chips are sentences it was written for, and
+   * a short answer that cleanly moves the question on needs nothing more. Anything longer, or
+   * anything the regex could not place, also goes to Cindy, whose structured reading WINS field by
+   * field (#8 / the durable fix): "most distance by end of semester" and "500 km cumulatively, pay
+   * the top contributor" are sentences, not patterns. Her failure of any kind leaves the regex's
+   * reading standing, so this can only improve an answer.
+   */
+  async function read(text: string, step: QaStep): Promise<QaParse> {
+    const p = parseQa(text, new Date(), { step });
+    if (!consented) return p;
+    const words = text.trim().split(/\s+/).length;
+    const regexMoved = nextStep({ ...answers, ...pickAnswers(p) }) !== step;
+    if (words <= 3 && regexMoved) return p;
+    setMode('reading');
+    const goal = await extractChallenge(text, {
+      step,
+      today: new Date().toISOString().slice(0, 10),
+      known: {
+        what: answers.what,
+        custom_name: answers.customName,
+        target: answers.target,
+        unit: answers.unit,
+        who: answers.who,
+        campfire_kind: answers.campfireKind,
+      },
+    });
+    setMode('asking');
+    if (!goal) return p;
+    const e = parseFromExtracted(goal);
+    const out: QaParse = { ...p };
+    for (const [k, v] of Object.entries(e)) {
+      if (v !== undefined && v !== null) (out as Record<string, unknown>)[k] = v;
+    }
+    return out;
+  }
+
+  async function submitText(raw: string) {
     const text = raw.trim();
     if (!text) return;
     setDraft('');
 
     if (mode === 'followup' || mode === 'retry') {
       // Cindy asked something; this is the reply to HER. Anything concrete in it (a new number, a
-      // new deadline) is folded into the answers too, so the terms the verdict creates are the terms
-      // the user just gave rather than the ones from before her question.
+      // new deadline, a different shape) is folded into the answers too, so the terms the verdict
+      // creates are the terms the user just gave rather than the ones from before her question.
       say(msg('me', text));
       const p = parseQa(text);
       const merged: QaAnswers = {
@@ -360,19 +443,22 @@ export default function CreateChallengeScreen() {
         ...(p.cadence ? { cadence: p.cadence } : {}),
         ...(p.deadline ? { deadline: p.deadline, windowHours: null } : {}),
         ...(p.windowHours ? { windowHours: p.windowHours, deadline: null } : {}),
+        ...(answers.who === 'campfire' && p.campfireKind
+          ? { campfireKind: p.campfireKind, contributorReward: !!p.contributorReward }
+          : {}),
       };
       setAnswers(merged);
-      void scoreWith(merged, text);
+      void scoreWith(merged, text, scoringThread);
       return;
     }
     if (mode !== 'asking') return;
 
-    const p = parseQa(text);
+    say(msg('me', text));
+    const p = await read(text, step);
     const a: QaAnswers = { ...answers };
     const lead: string[] = [];
 
     if (p.grade) {
-      say(msg('me', text));
       setAnswers({ ...a, grade: true });
       setGradeAsk(text);
       say(msg('cindy', questionFor('handoff', a, ctx)));
@@ -435,12 +521,14 @@ export default function CreateChallengeScreen() {
     } else if (p.who && (!a.who || step === 'who')) {
       a.who = p.who;
     }
-    if (p.campfireKind && (!a.campfireKind || step === 'campfire_kind')) a.campfireKind = p.campfireKind;
+    if (p.campfireKind && (!a.campfireKind || step === 'campfire_kind')) {
+      a.campfireKind = p.campfireKind;
+      a.contributorReward = p.campfireKind === 'collective' && !!p.contributorReward;
+    }
 
     if (preScored) {
-      say(msg('me', text));
       if (a.opponent) finishPreScored(a.opponent);
-      else say(msg('cindy', repromptFor('friend')));
+      else say(msg('cindy', repromptFor('friend', a, 0)));
       return;
     }
 
@@ -448,12 +536,14 @@ export default function CreateChallengeScreen() {
     const before = nextStep(withPrefill(answers));
     const after = nextStep(withPrefill(a));
     const changed = JSON.stringify(a) !== JSON.stringify(answers);
-    say(msg('me', text));
     if (!changed || (after === before && lead.length === 0 && step !== 'what' && step !== 'custom_name')) {
       if (changed) setAnswers(a);
-      say(msg('cindy', lead[0] ?? repromptFor(step)));
+      const n = misses.step === step ? misses.n : 0;
+      setMisses({ step, n: n + 1 });
+      say(msg('cindy', lead[0] ?? repromptFor(step, a, n)));
       return;
     }
+    setMisses({ step: after, n: 0 });
     proceed(a, lead);
   }
 
@@ -482,16 +572,31 @@ export default function CreateChallengeScreen() {
       return;
     }
     const route = verdictRouteFor(a);
-    say(msg('cindy', route.note ? `${route.note} Scoring it now…` : `Got it — ${route.params.label}. Scoring it now…`));
-    await scoreWith(a, scoringPrompt(a, route));
+    // #10 — no "Got it — … Scoring it now…" ticker between the last answer and the verdict: the
+    // spinner says it, and the verdict says the rest. A note is a real caveat ("I'll set this as
+    // 120 total"), so that one still shows.
+    if (route.note) say(msg('cindy', route.note));
+    await scoreWith(a, scoringPrompt(a, route), []);
   }
 
-  async function scoreWith(a: QaAnswers, message: string) {
+  /** `history` is this scoring exchange so far — passed in, so a call never reads a stale copy. */
+  async function scoreWith(a: QaAnswers, message: string, history: ScoringTurn[]) {
     setMode('scoring');
     try {
-      const reply = await sendToCindy(message);
+      // #9 — transient: never written to her chat, so the internal prompt (with its campfire id)
+      // cannot surface there later. This exchange is her whole context, carried by the client.
+      const reply = await sendToCindy(message, { persist: false, history });
+      setScoringThread(
+        [
+          ...history,
+          { role: 'user' as const, content: message },
+          { role: 'assistant' as const, content: reply.text || '(proposed it)' },
+        ].slice(-8)
+      );
       const verdict = verdictFrom(reply);
-      if (reply.text.trim()) say(msg('cindy', reply.text.trim()));
+      // #10 — when she scored it, straight to the verdict; her reasoning is ON the verdict screen.
+      // Only a question (no verdict) is said in the thread, because the user has to answer it.
+      if (!verdict && reply.text.trim()) say(msg('cindy', reply.text.trim()));
       if (verdict) {
         setTierlessRounds(0);
         openVerdict(a, verdict);
@@ -527,7 +632,6 @@ export default function CreateChallengeScreen() {
       ...route.params,
       tier: v.tier,
       rationale: v.rationale,
-      ...(v.tool ? { coachTool: v.tool } : {}),
       ...(route.params.branch === 'duel' && watchCircleId ? { watchCircleId } : {}),
     };
     setLastVerdict(verdictParams);
@@ -565,7 +669,7 @@ export default function CreateChallengeScreen() {
 
   type Chip = { key: string; label: string; onPress: () => void; selected?: boolean };
   const chips: Chip[] = (() => {
-    if (mode === 'scoring') return [];
+    if (mode === 'scoring' || mode === 'reading') return [];
     if (mode === 'consent') {
       return [
         { key: 'on', label: 'Turn Cindy on', onPress: () => router.push('/cindy') },
@@ -573,7 +677,7 @@ export default function CreateChallengeScreen() {
       ];
     }
     if (mode === 'retry') return [{ key: 'again', label: 'Try again', onPress: () => { setMode('asking'); void startScoring(answers); } }];
-    if (mode === 'followup') return [{ key: 'just', label: 'Just score it', onPress: () => { say(msg('me', 'Just score it')); void scoreWith(answers, JUST_SCORE_IT); } }];
+    if (mode === 'followup') return [{ key: 'just', label: 'Just score it', onPress: () => { say(msg('me', 'Just score it')); void scoreWith(answers, JUST_SCORE_IT, scoringThread); } }];
     if (mode === 'duplicate') {
       return [
         { key: 'change', label: 'Change the goal', onPress: () => { setMode('asking'); proceed({ ...answers, what: null, customName: null, target: null, unit: null, cadence: null }); } },
@@ -646,8 +750,14 @@ export default function CreateChallengeScreen() {
         }));
       case 'campfire_kind':
         return [
-          { key: 'together', label: 'Everyone hits it', onPress: () => answer('Everyone hits it', { campfireKind: 'together' }) },
-          { key: 'race', label: 'Race for the most', onPress: () => answer('Race for the most', { campfireKind: 'race' }) },
+          { key: 'together', label: 'Everyone hits it', onPress: () => answer('Everyone hits it', { campfireKind: 'together', contributorReward: false }) },
+          { key: 'race', label: 'Race for the most', onPress: () => answer('Race for the most', { campfireKind: 'race', contributorReward: false }) },
+          { key: 'pool', label: 'One shared total', onPress: () => answer('One shared total', { campfireKind: 'collective', contributorReward: false }) },
+          {
+            key: 'pool-top',
+            label: 'Shared total · top contributor wins',
+            onPress: () => answer('Shared total — top contributor wins', { campfireKind: 'collective', contributorReward: true }),
+          },
           // 0173's team match is its own room — two named teams, a scorekeeper — so this LEAVES
           // rather than becoming an answer (the old form's Team tile, same door).
           {
@@ -693,7 +803,7 @@ export default function CreateChallengeScreen() {
       : step === 'custom_name'
         ? 'Name it…'
         : 'Pick above, or just tell me…';
-  const inputLocked = mode === 'scoring' || mode === 'done' || mode === 'consent' || mode === 'duplicate' || step === 'handoff';
+  const inputLocked = mode === 'scoring' || mode === 'reading' || mode === 'done' || mode === 'consent' || mode === 'duplicate' || step === 'handoff';
   const progress = mode === 'done' ? 1 : progressOf(answers);
 
   return (
@@ -723,10 +833,10 @@ export default function CreateChallengeScreen() {
           )
         )}
 
-        {mode === 'scoring' ? (
+        {mode === 'scoring' || mode === 'reading' ? (
           <View style={styles.thinking}>
             <ActivityIndicator size="small" color={Colors.amber} />
-            <Text style={styles.thinkingText}>Cindy&apos;s scoring it…</Text>
+            <Text style={styles.thinkingText}>{mode === 'reading' ? 'Cindy’s reading that…' : 'Cindy’s scoring it…'}</Text>
           </View>
         ) : null}
 
@@ -784,6 +894,20 @@ export default function CreateChallengeScreen() {
 
 /** What "Just score it" sends — named so the tierless floor in scoreWith can recognise it. */
 const JUST_SCORE_IT = 'Score it exactly as described — pick the tier you would judge it at.';
+
+/** A parse as the answer fields it would set — for asking "would this move the question on?". */
+function pickAnswers(p: QaParse): Partial<QaAnswers> {
+  const out: Partial<QaAnswers> = {};
+  if (p.what) out.what = p.what;
+  if (p.customName) out.customName = p.customName;
+  if (p.target != null) out.target = p.target;
+  if (p.cadence) out.cadence = p.cadence;
+  if (p.deadline) out.deadline = p.deadline;
+  if (p.windowHours) out.windowHours = p.windowHours;
+  if (p.who) out.who = p.who;
+  if (p.campfireKind) out.campfireKind = p.campfireKind;
+  return out;
+}
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

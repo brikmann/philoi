@@ -19,7 +19,8 @@ import { EmberFill } from '@/components/ui/ember-fill';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { ScreenBackground } from '@/components/ui/screen-background';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { shortName } from '@/lib/format';
 import { useChallengeReward, challengeRewardResult } from '@/hooks/use-challenge-reward';
 import { useGroupChallengeWatch } from '@/hooks/use-challenge-watch';
 import { useMyChallenges } from '@/hooks/use-my-challenges';
@@ -42,7 +43,7 @@ import { previewScopedReward } from '@/lib/api/challenges';
 import { asBoxKey } from '@/lib/challenge-tier';
 import { BOXES, boxAccent } from '@/lib/economy/boxes';
 import { RARITY_LABEL } from '@/lib/economy/rarity';
-import { fetchChallengeResults } from '@/lib/api/social-challenges';
+import { fetchChallengeResults, fetchPooledProgress, type PooledProgress } from '@/lib/api/social-challenges';
 import { answerChallengeInvite } from '@/lib/api/challenge-lifecycle';
 import { rewardChips } from '@/lib/challenge-reward-summary';
 import { getErrorMessage } from '@/lib/errors';
@@ -511,6 +512,62 @@ function LiveRace({
   );
 }
 
+/** A pooled total's raw value in the unit people think in: km, lb, hours. */
+function poolFig(metric: PooledProgress['race_metric'], raw: number): string {
+  if (metric === 'distance') return `${(raw / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })} km`;
+  if (metric === 'lockin_time') return `${(raw / 3600).toLocaleString('en-US', { maximumFractionDigits: 1 })} h`;
+  return `${Math.round(raw).toLocaleString('en-US')} lb`;
+}
+
+/**
+ * 0240 · a pooled goal's shared total — the campfire's sum against ONE target, and who is carrying
+ * it. Renders nothing for any other collective (get_pooled_progress returns null), so it is safe to
+ * mount on every collective. Re-read every 30 s while live, the same cadence the board settles on.
+ */
+function PooledProgressCard({ challengeId, live }: { challengeId: string; live: boolean }) {
+  const [prog, setProg] = useState<PooledProgress | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetchPooledProgress(challengeId).then((r) => {
+        if (alive) setProg(r);
+      });
+    void load();
+    const t = live ? setInterval(load, 30_000) : null;
+    return () => {
+      alive = false;
+      if (t) clearInterval(t);
+    };
+  }, [challengeId, live]);
+  if (!prog) return null;
+  const ratio = prog.target_value > 0 ? Math.min(1, prog.total / prog.target_value) : 0;
+  return (
+    <View style={styles.pool}>
+      <Text style={styles.poolKicker}>TOGETHER</Text>
+      <Text style={styles.poolFig}>
+        {poolFig(prog.race_metric, prog.total)}
+        <Text style={styles.poolOf}> / {poolFig(prog.race_metric, prog.target_value)}</Text>
+      </Text>
+      <View style={styles.poolTrack}>
+        <View style={[styles.poolFill, { width: `${Math.max(2, Math.round(ratio * 100))}%` as `${number}%` }]} />
+      </View>
+      {prog.reward_top_contributor ? (
+        <Text style={styles.poolNote}>The top contributor is paid at the top band when the total is hit.</Text>
+      ) : null}
+      {prog.contributors.slice(0, 5).map((row, i) => (
+        <View key={row.user_id} style={styles.poolRow}>
+          <Text style={styles.poolRank}>{i + 1}</Text>
+          <Text style={styles.poolName} numberOfLines={1}>
+            {shortName(row.display_name)}
+          </Text>
+          <Text style={styles.poolVal}>{poolFig(prog.race_metric, row.value)}</Text>
+        </View>
+      ))}
+      {prog.contributors.length === 0 ? <Text style={styles.poolNote}>Nobody has logged toward it yet.</Text> : null}
+    </View>
+  );
+}
+
 /** The rules, collapsed (mock 266): secondary, below the fold, one tap to open. */
 function HowItWorks({ rows, note }: { rows: Row[]; note: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -535,9 +592,32 @@ function HowItWorks({ rows, note }: { rows: Row[]; note: ReactNode }) {
 }
 
 
+/** How long a just-opened challenge is retried before "isn't available" — about 10 s in all. */
+const MISS_RETRY_MS = [600, 1200, 2000, 3000, 3500];
+
 function SocialInfo({ challengeId }: { challengeId: string }) {
   const { challenges, loading, refetch } = useSocialChallenges();
   const c = challenges.find((x) => x.id === challengeId);
+
+  // 🔴 #6 — "isn't available" / an endless spinner straight after "Lock it in". The list is only
+  // fetched on FOCUS, and a screen swapped in by router.replace from inside the New Challenge
+  // modal is not reliably focused, so `loading` could stay true forever; and a single miss (a
+  // fetch that raced the create, or failed) was final. Now it fetches on mount too, and a miss is
+  // retried for ~10 s before the screen says the row is gone. A genuinely missing challenge still
+  // says so — just not on the first empty answer.
+  const [misses, setMisses] = useState(0);
+  useEffect(() => {
+    void refetch();
+  }, [refetch, challengeId]);
+  const missed = !c && !loading;
+  useEffect(() => {
+    if (!missed || misses >= MISS_RETRY_MS.length) return;
+    const t = setTimeout(() => {
+      void refetch().finally(() => setMisses((n) => n + 1));
+    }, MISS_RETRY_MS[misses]);
+    return () => clearTimeout(t);
+  }, [missed, misses, refetch]);
+  const stillTrying = missed && misses < MISS_RETRY_MS.length;
 
   // 🔴 "That challenge isn't available any more." on a race that exists. The list starts EMPTY and
   // `loading` starts true (use-social-challenges), so every open of this screen missed on the first
@@ -547,7 +627,13 @@ function SocialInfo({ challengeId }: { challengeId: string }) {
   // The RPC does return settled challenges to their racers, so once the fetch lands a finished duel
   // resolves and this screen shows its result. It is only genuinely gone when the fetch has
   // completed and still has no row for this id.
-  if (!c) return loading ? <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} /> : <Missing what="challenge" />;
+  if (!c) {
+    return loading || stillTrying ? (
+      <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} />
+    ) : (
+      <Missing what="challenge" />
+    );
+  }
   // Split so the body can use hooks. The lookup above can miss (a deep link into a cache that
   // hasn't loaded, a stale back-stack entry), and an early return above a useEffect is the
   // hook-order bug that comes back the next time somebody adds one.
@@ -873,6 +959,8 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
             </View>
 
             <PrizeCard c={c} scoped={scoped} scopedPending={scopedPending} settled={settled} placement={placement} />
+
+            {c.shape === 'collective' ? <PooledProgressCard challengeId={c.id} live={c.status === 'active'} /> : null}
 
             {c.status === 'active' ? <LiveRace c={c} myUserId={session?.user.id} placement={placement} /> : null}
 
@@ -1288,6 +1376,25 @@ function Missing({ what }: { what: string }) {
 }
 
 const styles = StyleSheet.create({
+  pool: {
+    marginTop: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    gap: 6,
+  },
+  poolKicker: { fontFamily: Fonts.bodyBold, fontSize: 10, letterSpacing: 1.2, color: Colors.muted },
+  poolFig: { fontFamily: Fonts.bodyBold, fontSize: 22, color: Colors.ink },
+  poolOf: { fontFamily: Fonts.body, fontSize: 14, color: Colors.muted },
+  poolTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
+  poolFill: { height: 6, borderRadius: 3, backgroundColor: Colors.amber },
+  poolNote: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.textTertiary },
+  poolRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  poolRank: { width: 16, fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.muted },
+  poolName: { flex: 1, fontFamily: Fonts.bodySemiBold, fontSize: 13, color: Colors.ink },
+  poolVal: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.ink },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

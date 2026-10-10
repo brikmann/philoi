@@ -3090,6 +3090,24 @@ export type Database = {
         Returns: SocialChallenge;
       };
       /** The third shape (0126) — the whole campfire ranked 1..N on one metric, paid by band. */
+      /** 0240 · one shared total for a campfire; raw units (metres / lb / seconds). */
+      create_pooled_challenge: {
+        Args: {
+          p_circle_id: string;
+          p_race_metric: 'distance' | 'volume' | 'lockin_time';
+          p_target_value: number;
+          p_window_hours: number;
+          p_public_name?: string | null;
+          p_reward_top_contributor?: boolean;
+          p_tier?: string | null;
+          p_starts_on?: string | null;
+          p_ends_on?: string | null;
+          p_payout_xp?: number;
+        };
+        Returns: SocialChallenge;
+      };
+      /** 0240 · the shared total + contributors of a pooled collective; null otherwise. */
+      get_pooled_progress: { Args: { p_challenge_id: string }; Returns: unknown };
       create_placement_challenge: {
         Args: {
           p_circle_id: string;

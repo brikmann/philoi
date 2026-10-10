@@ -250,10 +250,58 @@ async function currentUserId(): Promise<string> {
 
 // ───────────────────────────── chat ─────────────────────────────
 
-export async function sendToCindy(message: string): Promise<CoachReply> {
-  const reply = await invoke<CoachReply>('ai-coach', { op: 'chat', message });
+export async function sendToCindy(
+  message: string,
+  opts?: {
+    /**
+     * False for a turn that must never reach her visible chat — the New-Challenge Q&A's scoring
+     * prompt carries a campfire id and reads as a system line, not something the user said. The
+     * server neither writes nor replays it; `history` is the only context she gets.
+     */
+    persist?: boolean;
+    history?: { role: 'user' | 'assistant'; content: string }[];
+  }
+): Promise<CoachReply> {
+  const reply = await invoke<CoachReply>('ai-coach', {
+    op: 'chat',
+    message,
+    ...(opts?.persist === false ? { persist: false, history: opts.history ?? [] } : {}),
+  });
   track('cindy_message_sent', { has_action: reply.action !== null, tool: reply.action?.tool ?? null });
   return reply;
+}
+
+/** What Cindy reads out of one typed New-Challenge answer (ai-coach `extract_challenge`). Null = not said. */
+export type ExtractedGoal = {
+  discipline: 'study' | 'gym' | 'run' | 'ride' | 'steps' | 'sleep' | 'volume' | 'custom' | null;
+  custom_name: string | null;
+  target: number | null;
+  unit: 'km' | 'hours' | 'sessions' | 'lb' | 'steps' | 'count' | null;
+  cadence: 'day' | 'week' | 'once' | null;
+  /** YYYY-MM-DD. */
+  deadline: string | null;
+  window_days: number | null;
+  who: 'solo' | 'friend' | 'campfire' | null;
+  mode: 'solo' | 'duel' | 'placement' | 'together' | 'collective' | null;
+  contributor_reward: boolean;
+  is_grade: boolean;
+};
+
+/**
+ * Read a typed answer into structured terms. Transient — nothing reaches her chat. Resolves null on
+ * ANY failure (off, rate-limited, offline, an unreadable reply): the regex parser's reading stands,
+ * so this can only ever improve an answer, never block one.
+ */
+export async function extractChallenge(
+  text: string,
+  context: { step: string; known: Record<string, unknown>; today: string }
+): Promise<ExtractedGoal | null> {
+  try {
+    const res = await invoke<{ goal: ExtractedGoal | null }>('ai-coach', { op: 'extract_challenge', text, ...context });
+    return res?.goal ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
