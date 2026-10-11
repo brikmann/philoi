@@ -390,11 +390,18 @@ function LiveRace({
   if (rows.length === 0) return null;
 
   const metric = rows[0].race_metric ?? c.race_metric;
+  // 0241 · a POOLED total has no per-person "done": each member has a CONTRIBUTION (their km
+  // toward the shared bar), metered server-side. It reads like a ranked board — contribution,
+  // rank, top contributor crowned — never the counted "0/1" (which is what the board showed while
+  // the watch RPC carried neither `pooled` nor `target_value`).
+  const pooled = !!(rows[0].pooled ?? c.pooled);
+  const targetValue = rows[0].target_value ?? c.target_value ?? null;
   // A measured collective bar (0169) — distance or volume everyone clears — is in target_value, in
   // the metric's raw unit; target_count is the lock-in count goal's bar. Reading target_count for
   // the first would make every racer "done" at 1.
-  const measured = !placement && c.target_value != null && metric != null && metric !== 'count';
-  const target = Math.max(1, measured ? (c.target_value ?? 1) : (rows[0].target_count ?? c.target_count ?? 1));
+  const measured = !placement && (pooled || (targetValue != null && metric != null && metric !== 'count'));
+  const ranked = placement || pooled;
+  const target = Math.max(1, measured ? (targetValue ?? 1) : (rows[0].target_count ?? c.target_count ?? 1));
   const fig = (v: number) => (placement || measured ? formatMetricValue(metric, v) : `${v}/${target}`);
 
   const sorted = sortRacers(rows);
@@ -402,12 +409,23 @@ function LiveRace({
   const rankOf = (r: GroupChallengeWatchRow) =>
     r.is_anonymous ? null : named.findIndex((n) => n.member_progress === r.member_progress) + 1;
   const top = named[0]?.member_progress ?? 0;
-  const doneCount = placement ? 0 : named.filter((r) => (r.member_progress ?? 0) >= target).length;
+  const doneCount = ranked ? 0 : named.filter((r) => (r.member_progress ?? 0) >= target).length;
 
   // ── your standing ──
   const me = named.find((r) => r.member_id === myUserId) ?? null;
   let standing: { label: string; big: string; small: string; fig: string; sub: string } | null = null;
-  if (me && placement) {
+  if (me && pooled) {
+    const mine = me.member_progress ?? 0;
+    const rank = rankOf(me) ?? 0;
+    const tiedTop = rank === 1 && named.filter((r) => r.member_progress === mine).length > 1;
+    standing = {
+      label: mine === 0 ? 'YOUR SHARE' : rank === 1 && !tiedTop ? 'TOP CONTRIBUTOR' : `CONTRIBUTOR #${rank}`,
+      big: mine === 0 ? '—' : `#${rank}`,
+      small: `of ${sorted.length}`,
+      fig: formatMetricValue(metric, mine),
+      sub: mine === 0 ? 'Log to add to the total' : tiedTop ? 'Tied at the top' : 'You',
+    };
+  } else if (me && placement) {
     const mine = me.member_progress ?? 0;
     const rank = rankOf(me) ?? 0;
     const below = named.filter((r) => (r.member_progress ?? 0) < mine);
@@ -433,7 +451,7 @@ function LiveRace({
       fig: formatMetricValue(metric, mine),
       sub,
     };
-  } else if (!placement) {
+  } else if (!ranked) {
     // No personal rank on a collective goal — the house passes or fails together, so the hero
     // figure is the house's, with yours beside it.
     const mine = me?.member_progress ?? null;
@@ -464,7 +482,9 @@ function LiveRace({
       ) : null}
 
       <View style={styles.boardHead}>
-        <Text style={styles.sectionLabel}>{placement ? 'STANDINGS' : `STANDINGS · ${doneCount}/${sorted.length} DONE`}</Text>
+        <Text style={styles.sectionLabel}>
+          {pooled ? 'CONTRIBUTIONS' : placement ? 'STANDINGS' : `STANDINGS · ${doneCount}/${sorted.length} DONE`}
+        </Text>
         <View style={styles.liveTag}>
           <View style={styles.liveDot} />
           <Text style={styles.liveText}>LIVE</Text>
@@ -475,7 +495,7 @@ function LiveRace({
         const v = r.member_progress ?? 0;
         const isMe = r.member_id === myUserId;
         const leads = !r.is_anonymous && top > 0 && v === top;
-        const share = r.is_anonymous ? 0 : placement ? (top > 0 ? v / top : 0) : Math.min(1, v / target);
+        const share = r.is_anonymous ? 0 : ranked ? (top > 0 ? v / top : 0) : Math.min(1, v / target);
         return (
           <View key={r.member_id} style={[styles.boardRow, isMe && styles.boardRowMe]}>
             <Text style={[styles.boardRank, (isMe || rank === 1) && v > 0 && styles.boardRankLit]}>{rank ?? '—'}</Text>
@@ -879,21 +899,28 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           { k: 'Campfire', v: c.circle_name ?? '—' },
         ]
       : [
-          { k: 'Type', v: 'Collective goal' },
+          { k: 'Type', v: c.pooled ? 'Shared total' : 'Collective goal' },
           // 🔴 WAS always `Everyone locks in ${target_count}×` — the bug challengeTitle's guards
           // exist for, on the one row that had none: a hosted "100 kilometers" read "Everyone locks
           // in 100×", and a measured bar (distance, volume) read its null target_count as 1×.
           {
             k: 'The goal',
             v:
-              c.race_metric === 'count'
+              c.pooled && c.target_value != null && c.race_metric
+                ? `Together: ${formatMetricValue(c.race_metric, c.target_value)}`
+                : c.race_metric === 'count'
                 ? `Everyone hits ${countChallengeLabel(c)}`
                 : c.target_value != null && c.race_metric
                   ? `Everyone hits ${formatMetricValue(c.race_metric, c.target_value)}`
                   : `Everyone locks in ${c.target_count ?? 1}×`,
           },
           endsRow,
-          { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP`, highlight: true },
+          c.pooled
+            ? { k: settled ? 'Contributors took' : 'Contributors take', v: `up to +${c.payout_xp} XP when it's hit`, highlight: true }
+            : { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP`, highlight: true },
+          ...(c.pooled && c.reward_top_contributor
+            ? [{ k: 'Top contributor', v: `+ more embers · “${c.circle_name ?? 'Campfire'} Top Contributor” title` }]
+            : []),
           ...scopedRows,
           ...finisherRows,
           // The racers, not the campfire — since 0096 this is an invited subset, and the count on
@@ -970,7 +997,8 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
                 myUserId={session?.user.id}
                 onShare={result ? handleShare : null}
                 sharing={sharing}
-                placement={placement}
+                // 0241 · a settled pool is a contributor board: podium + km, not XP
+                placement={placement || !!c.pooled}
                 raceMetric={c.race_metric}
               />
             ) : null}
@@ -979,6 +1007,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
                 (it carries the drop-odds disclosure) but closed: the prize card above is the hero. */}
             {c.circle_id ? (
               <PrizePoolPanel
+                pooled={c.pooled ? { rewardTop: !!c.reward_top_contributor } : null}
                 boxKey={scopedBox}
                 embers={scoped?.embers ?? null}
                 campfire={c.circle_name ?? 'Campfire'}

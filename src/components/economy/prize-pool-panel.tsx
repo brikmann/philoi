@@ -83,7 +83,10 @@ export function PrizePoolPanel({
   settled,
   myPlace,
   initiallyOpen = true,
+  pooled = null,
 }: {
+  /** 0241 · a pooled total: titles go to contributors, and an exclusive one to the top contributor. */
+  pooled?: { rewardTop: boolean } | null;
   /** The box the server preview says the top band takes. Null = unscoped or embers-only. */
   boxKey: BoxKey | null;
   embers: number | null;
@@ -124,13 +127,38 @@ export function PrizePoolPanel({
               <View style={styles.headText}>
                 <Text style={styles.headName}>{box.name}</Text>
                 <Text style={styles.headSub}>
-                  {settled ? 'The top band took' : 'The top band takes'} the box · +{embers.toLocaleString('en-US')} embers
+                  {pooled
+                    ? `Every contributor when the club hits the total · up to +${embers.toLocaleString('en-US')} embers${pooled.rewardTop ? ', most for the biggest share' : ''}`
+                    : `${settled ? 'The top band took' : 'The top band takes'} the box · +${embers.toLocaleString('en-US')} embers`}
                 </Text>
               </View>
             </View>
           ) : null}
 
-          <Text style={styles.up}>🏅 Every finisher earns a badge</Text>
+          {pooled ? (
+            <>
+              <Text style={styles.up}>🏅 Every contributor earns a badge</Text>
+              <View style={styles.champ}>
+                <View style={[styles.medal, { backgroundColor: medalColor(1) }]}>
+                  <Text style={styles.medalText}>1</Text>
+                </View>
+                <View style={styles.champText}>
+                  <Text style={[styles.champName, { color: medalColor(1) }]}>
+                    {campfire} {pooled.rewardTop ? 'Top Contributor' : 'Contributor'}
+                  </Text>
+                  <Text style={styles.champSub}>
+                    {pooled.rewardTop
+                      ? 'Exclusive — only the biggest share of the total earns it. Minted when the total is hit.'
+                      : 'Minted to everyone who added to the total · can’t be sold or forged.'}
+                  </Text>
+                </View>
+                <Text style={styles.excl}>{pooled.rewardTop ? 'Top' : 'All'}</Text>
+              </View>
+            </>
+          ) : null}
+          {pooled ? null : <Text style={styles.up}>🏅 Every finisher earns a badge</Text>}
+          {pooled ? null : (
+          <>
           <View style={styles.champ}>
             <View style={[styles.medal, { backgroundColor: medalColor(heroPlace) }]}>
               <Text style={styles.medalText}>{heroPlace}</Text>
@@ -157,6 +185,8 @@ export function PrizePoolPanel({
               <Text style={styles.plText}>Nth Place Finisher</Text>
             </View>
           </View>
+          </>
+          )}
 
           {/* The box's contents only once the server's allowlist has answered — a pool drawn from
               the bundle alone could promise an item the roll can no longer produce. */}

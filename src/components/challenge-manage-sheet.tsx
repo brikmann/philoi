@@ -223,7 +223,9 @@ export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChange
   const raceLabel = isPlacement(c)
     ? `Placement · ${metricLabel(c.race_metric).toLowerCase()}`
     : isGroup
-      ? 'Group · all or nothing'
+      ? c.pooled
+        ? 'Group · shared total'
+        : 'Group · all or nothing'
       : metricLabel(c.race_metric);
   const statusLabel: Record<string, string> = {
     draft: 'not started',

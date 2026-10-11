@@ -404,9 +404,15 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
   // only a position. Without this branch `target_count` (null by constraint) would coerce to 0,
   // Math.max would rescue the divisor to 1, and every racer would render as permanently finished.
   const placement = head.shape === 'placement';
+  // 0241 · a POOLED total ranks like a placement race: each row is a metered CONTRIBUTION to the
+  // shared bar, and the meter is against the top contributor — never "0/1". A plain measured
+  // collective (0169, "everyone runs 50 km") meters against its own target_value.
+  const pooled = !!head.pooled;
+  const ranked = placement || pooled;
+  const measured = !ranked && head.target_value != null && head.race_metric != null && head.race_metric !== 'count';
   // Guard the divisor, not the display: a 0 would turn every meter into NaN% and silently blank
   // the list rather than fail loudly.
-  const target = Math.max(1, head.target_count ?? 1);
+  const target = Math.max(1, measured ? (head.target_value ?? 1) : (head.target_count ?? 1));
 
   // Deterministic order. get_group_challenge_watch (0056) sorts `by member_progress desc` only, so
   // members on the same count come back in whatever order the planner happened to produce, which
@@ -485,10 +491,14 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
   return (
     <View style={styles.container}>
       <View style={styles.goalRow}>
-        <Ionicons name={placement ? 'trophy' : 'people'} size={13} color={Colors.achieverText} />
+        <Ionicons name={ranked ? 'trophy' : 'people'} size={13} color={Colors.achieverText} />
         <Text style={styles.goalText} numberOfLines={1}>
           {head.public_name?.trim() ||
-            (placement ? metricLabel(head.race_metric) : `Everyone locks in ${head.target_count ?? 1}×`)}{' '}
+            (placement
+              ? metricLabel(head.race_metric)
+              : pooled && head.target_value != null
+                ? `Together: ${formatMetricValue(head.race_metric, head.target_value)}`
+                : `Everyone locks in ${head.target_count ?? 1}×`)}{' '}
           · {head.circle_name}
         </Text>
         <Text style={styles.timeLeft}>{challengeClockText(head.status, head.ends_at)}</Text>
@@ -503,7 +513,7 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
           // figure, no live status. Deliberately still IN the list — removing them would shrink
           // the field and misrepresent the race.
           const anon = item.is_anonymous;
-          const done = !anon && (item.member_progress ?? 0) >= target;
+          const done = !anon && !ranked && (item.member_progress ?? 0) >= target;
           const isMe = item.member_id === session?.user.id;
           const cheers = cheeredCount?.userId === item.member_id ? cheeredCount.count : item.member_cheers;
           const mine = item.cheered_by_me || cheeredCount?.userId === item.member_id;
@@ -543,14 +553,14 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
                 ) : (
                   <ProgressBar
                     ratio={
-                      placement
+                      ranked
                         ? top > 0
                           ? (item.member_progress ?? 0) / top
                           : 0
                         : (item.member_progress ?? 0) / target
                     }
                     height={5}
-                    fillColor={placement ? (isLeading(item.member_progress) ? Colors.ember : Colors.coral) : done ? Colors.ember : Colors.coral}
+                    fillColor={ranked ? (isLeading(item.member_progress) ? Colors.ember : Colors.coral) : done ? Colors.ember : Colors.coral}
                   />
                 )}
                 {/* CHEER, UNDER EACH PERSON — CAMPFIRE_REDESIGN_SPEC's "cheer count under each
@@ -589,10 +599,10 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
               </View>
               {/* "12h 30m", not "45000/1" — a placement race's figure is a metric in its own
                   units, and there is no denominator to print beside it. */}
-              <Text style={[styles.groupProgress, (placement ? isLeading(item.member_progress) : done) && styles.groupProgressDone]}>
+              <Text style={[styles.groupProgress, (ranked ? isLeading(item.member_progress) : done) && styles.groupProgressDone]}>
                 {anon
                   ? '–'
-                  : placement
+                  : ranked || measured
                     ? formatMetricValue(head.race_metric, item.member_progress ?? 0)
                     : `${item.member_progress ?? 0}/${target}`}
               </Text>

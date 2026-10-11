@@ -1416,6 +1416,11 @@ export type GroupChallengeWatchRow = {
   /** What a placement race ranks on — the units member_progress is in. Null for a collective
    *  goal, whose progress is a count of lock-ins and needs no unit. */
   race_metric: SocialChallengeRaceMetric | null;
+  /** 0241 · a measured collective's bar, raw units (metres / lb / seconds). Null otherwise. */
+  target_value?: number | null;
+  /** 0241 · pooled: member_progress is each member's CONTRIBUTION, metered like a placement race. */
+  pooled?: boolean;
+  reward_top_contributor?: boolean;
   member_id: string;
   /** 'Anonymous' when `is_anonymous` — the real display name is never sent (0170 §3). */
   member_name: string;
@@ -2078,6 +2083,10 @@ export type SocialChallenge = {
    * need it: create writes a public_name and challengeTitle prefers that.
    */
   target_value?: number | null;
+  /** 0240/0241 · a collective whose bar is the SUM of everyone's metric. Optional: older rows/builds. */
+  pooled?: boolean;
+  /** 0240/0241 · on a pooled goal, the top contributor is paid at the top band + an exclusive title. */
+  reward_top_contributor?: boolean;
   /** What THIS viewer has reported so far on a grade race. Null is "not in yet", which is a
    *  different thing from a reported 0 and has to render differently. */
   my_reported_value: number | null;

@@ -440,7 +440,15 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
       <View style={styles.labelRow}>
         <View style={styles.labelLeft}>
           <Ionicons name={grade ? 'school' : 'people'} size={12} color={Colors.achieverText} />
-          <Text style={styles.labelText}>{grade ? 'Course · all or nothing' : 'Group · all or nothing'}</Text>
+          <Text style={styles.labelText}>
+            {grade
+              ? 'Course · all or nothing'
+              : c.pooled
+                ? c.reward_top_contributor
+                  ? 'Shared total · top contributor wins'
+                  : 'Group · shared total'
+                : 'Group · all or nothing'}
+          </Text>
           <TierPill tier={c.difficulty_tier} />
         </View>
         <View style={styles.labelLeft}>
@@ -470,7 +478,16 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
           always was. (The reason the field itself was one short — the creator never got a
           participant row — is create_group_challenge, fixed in 0147.) */}
       <View style={styles.groupCountRow}>
-        {awaitingAnswers ? (
+        {c.pooled && !awaitingAnswers ? (
+          // 0241 · a pooled total has no per-person "done" — the count would read 0/6 until the
+          // whole club finished. The bar is the club's, and the info screen meters it.
+          <Text style={styles.groupCount}>
+            <Text style={styles.groupCountMuted}>
+              {memberCount} pooling toward{' '}
+              {c.target_value != null && c.race_metric ? formatMetricValue(c.race_metric, c.target_value) : 'one total'}
+            </Text>
+          </Text>
+        ) : awaitingAnswers ? (
           <Text style={styles.groupCount}>
             <Text style={styles.groupCountBig}>{memberCount}</Text>
             <Text style={styles.groupCountMuted}>
@@ -484,13 +501,13 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
             <Text style={styles.groupCountMuted}> / {memberCount} done</Text>
           </Text>
         )}
-        {everyoneDone && !awaitingAnswers && <Text style={styles.groupDoneTag}>Everyone finished 🎉</Text>}
+        {everyoneDone && !awaitingAnswers && !c.pooled && <Text style={styles.groupDoneTag}>Everyone finished 🎉</Text>}
       </View>
 
       {/* Same reasoning as the row above: `segments` is one pip per accepted member, filled when
           they finish. Before the gun that is a row of empty pips that cannot fill, sized by how
           many people have accepted so far — it looked like progress stuck at zero. */}
-      {!awaitingAnswers && (
+      {!awaitingAnswers && !c.pooled && (
         <View style={styles.segRow}>
           {segments.map((on, i) => (
             <View key={i} style={[styles.seg, on && styles.segOn]} />
@@ -500,7 +517,13 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
 
       <View style={styles.footRow}>
         <Ionicons name="trophy" size={12} color={Colors.achieverText} />
-        <Text style={styles.footText}>Everyone who finishes scores</Text>
+        <Text style={styles.footText}>
+          {c.pooled
+            ? c.reward_top_contributor
+              ? 'Crate for the club when it hits the total · biggest share pays more'
+              : 'Everyone who contributes scores when the total is hit'
+            : 'Everyone who finishes scores'}
+        </Text>
       </View>
 
       {canReportGrade ? (
