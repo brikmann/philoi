@@ -29,6 +29,7 @@ import { fetchProfileById, fetchUserRank, type UserRank } from '@/lib/api/profil
 import { formatSessionDuration } from '@/lib/format';
 import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import { supabase } from '@/lib/supabase';
+import { blockUser } from '@/lib/api/agora';
 import { getErrorMessage } from '@/lib/errors';
 import type { ActiveChallengeMarker, Profile, ProfileRelationship, ProfileStats } from '@/types/database';
 
@@ -178,8 +179,14 @@ export default function FriendProfileScreen() {
 
   async function handleBlock() {
     if (!myProfile) return;
-    await supabase.from('blocked_users').insert({ blocker_id: myProfile.id, blocked_id: userId });
+    try {
+      await blockUser(myProfile.id, userId);
+    } catch (e) {
+      Alert.alert('Could not block', getErrorMessage(e, 'Try again.'));
+      return;
+    }
     router.back();
+    Alert.alert('User blocked', "You won't see their posts or messages anymore.");
   }
 
   return (

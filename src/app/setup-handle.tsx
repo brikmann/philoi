@@ -426,6 +426,7 @@ export default function SetupHandleScreen() {
                 <Text style={styles.link} onPress={() => Linking.openURL(PRIVACY_URL)}>
                   Privacy Policy
                 </Text>
+                , including <Text style={styles.bold}>zero tolerance for objectionable content and abusive behaviour</Text>
               </Text>
             </Pressable>
 

@@ -4,6 +4,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { setMyBio } from '@/lib/api/journal';
+import { getErrorMessage } from '@/lib/errors';
 
 // §3 — the one-line bio, edited in a sheet rather than inline.
 //
@@ -37,7 +38,7 @@ export function BioEditor({
       onSaved(stored);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save your bio.');
+      setError(getErrorMessage(e, 'Could not save your bio.'));
     } finally {
       setSaving(false);
     }

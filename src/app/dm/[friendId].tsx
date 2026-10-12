@@ -26,6 +26,7 @@ import { track } from '@/lib/analytics';
 import { deleteMyDm, sendDm, type DmThreadMessage } from '@/lib/api/dm';
 import { fetchProfileById } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
+import { blockUser } from '@/lib/api/agora';
 import { getErrorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/types/database';
@@ -158,7 +159,7 @@ export default function DmThreadScreen() {
   async function handleBlock() {
     if (!myUserId || !friendId) return;
     try {
-      await supabase.from('blocked_users').insert({ blocker_id: myUserId, blocked_id: friendId });
+      await blockUser(myUserId, friendId);
       router.back();
       Alert.alert('User blocked', "You won't see their messages anymore.");
     } catch (e) {

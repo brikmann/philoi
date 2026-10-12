@@ -242,22 +242,38 @@ export async function reportAgora(input: {
   postId?: string | null;
   commentId?: string | null;
 }): Promise<void> {
-  const { error } = await supabase.from('moderation_reports').insert({
-    reporter_id: input.reporterId,
-    reported_user_id: input.reportedUserId,
-    reason: input.reason,
-    reported_agora_post_id: input.postId ?? null,
-    reported_agora_comment_id: input.commentId ?? null,
-  });
+  const { data: report, error } = await supabase
+    .from('moderation_reports')
+    .insert({
+      reporter_id: input.reporterId,
+      reported_user_id: input.reportedUserId,
+      reason: input.reason,
+      reported_agora_post_id: input.postId ?? null,
+      reported_agora_comment_id: input.commentId ?? null,
+    })
+    .select('id')
+    .single();
   if (error) throw error;
+  // Same alert report.tsx sends, so an Agora report reaches the 24h triage inbox too (MODERATION.md).
+  // Un-awaited: the report is filed; the reporter doesn't wait on SMTP.
+  supabase.functions.invoke('report_alert', { body: { reportId: report.id } }).catch(() => {
+    // Server-side logging owns this failure — see the function's own console.error paths.
+  });
 }
 
-export async function blockAgoraUser(blockerId: string, blockedId: string): Promise<void> {
+/**
+ * Block someone, everywhere — RLS (is_blocked_either_way) hides their chat, DMs, posts and comments
+ * from the blocker and closes DMs both ways. Throws on failure so no caller can tell the user
+ * "blocked" when nothing was written; blocking someone already blocked is a success, not an error.
+ */
+export async function blockUser(blockerId: string, blockedId: string): Promise<void> {
   const { error } = await supabase
     .from('blocked_users')
     .insert({ blocker_id: blockerId, blocked_id: blockedId });
-  if (error) throw error;
+  if (error && error.code !== '23505') throw error;
 }
+
+export const blockAgoraUser = blockUser;
 
 export type BlockedUser = {
   id: string;

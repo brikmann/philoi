@@ -22,6 +22,7 @@ import {
   blockAgoraUser,
   deleteAgoraComment,
   fetchAgoraComments,
+  reportAgora,
 } from '@/lib/api/agora';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -133,50 +134,79 @@ function Thread({
     }
   }
 
+  async function report(comment: AgoraComment) {
+    if (!profile) return;
+    try {
+      await reportAgora({
+        reporterId: profile.id,
+        reportedUserId: comment.user_id,
+        reason: 'Reported from the Agora',
+        commentId: comment.id,
+      });
+      // Hidden for the reporter at once, as a reported post is (agora/index.tsx).
+      setComments((prev) => prev.filter((c) => c.id !== comment.id));
+      Alert.alert('Reported', 'Thanks — we review every report within 24 hours.');
+    } catch (e) {
+      Alert.alert('Could not report', getErrorMessage(e, 'Something went wrong.'));
+    }
+  }
+
+  async function block(comment: AgoraComment) {
+    if (!profile) return;
+    try {
+      await blockAgoraUser(profile.id, comment.user_id);
+      setComments((prev) => prev.filter((c) => c.user_id !== comment.user_id));
+    } catch (e) {
+      Alert.alert('Could not block', getErrorMessage(e, 'Something went wrong.'));
+    }
+  }
+
+  // Report + Block, offered on every comment that isn't yours (Guideline 1.2). Three buttons at most
+  // per Alert — Android silently drops a fourth — so "Remove" on your own post is a separate step.
+  function reportOrBlock(comment: AgoraComment) {
+    Alert.alert('Report or block', `${comment.display_name}'s comment`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Report', onPress: () => void report(comment) },
+      { text: 'Block user', style: 'destructive', onPress: () => void block(comment) },
+    ]);
+  }
+
   function confirmRemove(comment: AgoraComment) {
     const mine = comment.is_mine;
     const isMyItem = item.user_id === profile?.id;
 
     if (!mine && !isMyItem) {
-      // Not yours, and not on your post — the action available to you is to stop seeing them.
-      Alert.alert('Block this person?', `You won't see ${comment.display_name} anywhere on Philoi.`, [
+      reportOrBlock(comment);
+      return;
+    }
+
+    if (!mine) {
+      // Someone else's comment on your post: remove it, or report / block them.
+      Alert.alert('Comment options', undefined, [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: async () => {
-            if (!profile) return;
-            try {
-              await blockAgoraUser(profile.id, comment.user_id);
-              setComments((prev) => prev.filter((c) => c.user_id !== comment.user_id));
-            } catch (e) {
-              Alert.alert('Could not block', getErrorMessage(e, 'Something went wrong.'));
-            }
-          },
-        },
+        { text: 'Report or block…', onPress: () => reportOrBlock(comment) },
+        { text: 'Remove', style: 'destructive', onPress: () => void remove(comment) },
       ]);
       return;
     }
 
-    Alert.alert(mine ? 'Delete your comment?' : 'Remove this comment?', undefined, [
+    Alert.alert('Delete your comment?', undefined, [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteAgoraComment(comment.id);
-            setComments((prev) => {
-              const next = prev.filter((c) => c.id !== comment.id);
-              onCountChange(itemId, next.length);
-              return next;
-            });
-          } catch (e) {
-            Alert.alert('Could not remove', getErrorMessage(e, 'Something went wrong.'));
-          }
-        },
-      },
+      { text: 'Remove', style: 'destructive', onPress: () => void remove(comment) },
     ]);
+  }
+
+  async function remove(comment: AgoraComment) {
+    try {
+      await deleteAgoraComment(comment.id);
+      setComments((prev) => {
+        const next = prev.filter((c) => c.id !== comment.id);
+        onCountChange(itemId, next.length);
+        return next;
+      });
+    } catch (e) {
+      Alert.alert('Could not remove', getErrorMessage(e, 'Something went wrong.'));
+    }
   }
 
   // The header is one line, so it names the FIRST attachment — ATTACH_ORDER makes that the

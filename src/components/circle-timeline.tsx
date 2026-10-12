@@ -53,9 +53,9 @@ import {
   type ReactionsByMessage,
 } from '@/lib/api/message-reactions';
 import { fetchMySocialChallenges } from '@/lib/api/social-challenges';
+import { blockUser } from '@/lib/api/agora';
 import { getErrorMessage } from '@/lib/errors';
 import { activeMentionQuery, applyMention, splitMentions } from '@/lib/mentions';
-import { supabase } from '@/lib/supabase';
 import type { CampfireMember, SocialChallenge } from '@/types/database';
 
 // THE CAMPFIRE IS THE CHAT (mock 101 frame 1).
@@ -465,7 +465,12 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
             text: 'Block user',
             style: 'destructive' as const,
             onPress: async () => {
-              await supabase.from('blocked_users').insert({ blocker_id: myUserId, blocked_id: message.user_id });
+              try {
+                await blockUser(myUserId, message.user_id);
+              } catch (e) {
+                Alert.alert('Could not block', getErrorMessage(e, 'Try again.'));
+                return;
+              }
               timeline.refetch();
               Alert.alert('User blocked', "You won't see their posts or messages anymore.");
             },
