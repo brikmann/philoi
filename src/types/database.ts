@@ -2508,6 +2508,13 @@ export type CoachHomeBubbleRow = {
 export type Database = {
   public: {
     Tables: {
+      /** 0243 · Meme Monday drops. Select-only for authenticated; a drop is bought via buy_meme_drop. */
+      meme_drop_schedule: {
+        Row: { item_key: string; price_embers: number; unlocks_at: string; ends_at: string };
+        Insert: { item_key: string; price_embers: number; unlocks_at: string; ends_at: string };
+        Update: Partial<{ item_key: string; price_embers: number; unlocks_at: string; ends_at: string }>;
+        Relationships: [];
+      };
       /** 0173 · the sport catalog behind team mode's picker. Read-only to clients (RLS allows
        *  select to authenticated and nothing else), which is why there is no Insert/Update shape
        *  worth writing here beyond what the type system needs. */
@@ -3593,6 +3600,8 @@ export type Database = {
         Args: { p_key: string; p_slot: string | null; p_rarity: string };
         Returns: { cosmetic_key: string; spent: number };
       };
+      /** 0243 · the server prices it and checks the window; the client sends only the key. */
+      buy_meme_drop: { Args: { p_key: string }; Returns: { cosmetic_key: string; spent: number } };
       equip_cosmetic: { Args: { p_key: string; p_slot: string | null }; Returns: undefined };
       /** Keyed by SLOT since migration 0070 — one item can occupy several slots, so a key alone
        * no longer identifies what to clear. */

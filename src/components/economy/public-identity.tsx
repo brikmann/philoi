@@ -87,6 +87,7 @@ type AuraMotion = {
 // lives in flare-signature's SIGNATURE_CYCLE_MS (two breaths per cycle), shared with the shop tile.
 const AURA: Record<FlareEffect, AuraMotion> = {
   glow: { peak: 0.52, swing: 0.16, reach: 1.5 },
+  'aura-counter': { peak: 0.56, swing: 0.18, reach: 1.52 },
   smoke: { peak: 0.42, swing: 0.14, reach: 1.62 },
   plasma: { peak: 0.6, swing: 0.24, reach: 1.56 },
   zaps: { peak: 0.62, swing: 0.34, reach: 1.48 },

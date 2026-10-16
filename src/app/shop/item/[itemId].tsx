@@ -12,9 +12,13 @@ import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useStopPreviewOnLeave } from '@/hooks/use-audio-preview';
 import { useInventory } from '@/hooks/use-inventory';
+import { useMemeDrops } from '@/hooks/use-meme-drops';
 import { buyCosmetic, equipCosmetic } from '@/lib/api/inventory';
+import { buyMemeDrop } from '@/lib/api/meme-drops';
 import { getItem, SLOT_LABEL } from '@/lib/economy/catalog';
 import { cosmeticEffect } from '@/lib/economy/cosmetic-effect';
+import { countdownLabel, dropDateLabel, dropPhase } from '@/lib/economy/meme-drops';
+import { requestInventoryRefresh } from '@/lib/economy/wallet-refresh';
 import { getErrorMessage } from '@/lib/errors';
 import { DIRECT_BUY_PRICE, RARITY_COLOR, SALVAGE_EMBERS, rarityGlow } from '@/lib/economy/rarity';
 
@@ -25,6 +29,7 @@ export default function ShopItemScreen() {
   const router = useRouter();
   const { itemId } = useLocalSearchParams<{ itemId: string }>();
   const { embers, ownedKeys, refetch } = useInventory();
+  const memeDrops = useMemeDrops();
   const [busy, setBusy] = useState(false);
   const [bought, setBought] = useState(false);
   const [equipping, setEquipping] = useState(false);
@@ -41,12 +46,26 @@ export default function ShopItemScreen() {
   // Narrowed into a const so `buy()` closes over a non-nullable item.
   const item = found;
 
-  const price = DIRECT_BUY_PRICE[item.rarity];
+  // A Meme Monday drop (0243) is priced and windowed by the SERVER — this screen only mirrors the
+  // schedule row so it can say "drops Mon, Nov 2" or "ends in 3d"; buy_meme_drop re-checks both.
+  const isDrop = item.acquisition === 'drop';
+  const drop = isDrop ? memeDrops.byKey.get(item.id) : undefined;
+  const phase = drop ? dropPhase(drop, memeDrops.now) : null;
+  const price = drop ? drop.price : DIRECT_BUY_PRICE[item.rarity];
   const owned = ownedKeys.has(item.id);
   // Prestige is not for sale — earned and Pass-exclusive items never reach this screen from the
   // Featured row, but a deep link could, so the gate is enforced here too.
-  const purchasable = item.acquisition === 'box';
+  const purchasable = isDrop ? phase === 'live' : item.acquisition === 'box';
   const canAfford = embers >= price;
+  const lockedLabel = !isDrop
+    ? 'Earn-only — never for sale'
+    : !memeDrops.loaded
+      ? 'Checking the drop…'
+      : phase === 'upcoming' && drop
+        ? `Drops ${dropDateLabel(drop.unlocksAt)}`
+        : phase === 'ended'
+          ? 'This drop has ended'
+          : 'Not on sale';
 
   // The refetch is what makes the buy visible: `buyCosmetic` mutates server-side only, so without
   // pulling get_inventory again the ember balance in the header, this screen's own "You already
@@ -55,8 +74,14 @@ export default function ShopItemScreen() {
   async function buy() {
     setBusy(true);
     try {
-      await buyCosmetic(item);
+      if (isDrop) {
+        await buyMemeDrop(item);
+      } else {
+        await buyCosmetic(item);
+      }
       await refetch();
+      // Every other mounted balance (the shop pill under this screen) too, not just this one.
+      requestInventoryRefresh();
       setBought(true);
     } catch (e) {
       Alert.alert("Couldn't buy that", getErrorMessage(e, 'Something went wrong.'));
@@ -121,7 +146,7 @@ export default function ShopItemScreen() {
             </View>
           ) : !purchasable ? (
             <View style={[styles.buyBtn, styles.disabled]}>
-              <Text style={styles.buyBtnText}>Earn-only — never for sale</Text>
+              <Text style={styles.buyBtnText}>{lockedLabel}</Text>
             </View>
           ) : (
             <Pressable
@@ -138,10 +163,19 @@ export default function ShopItemScreen() {
           {!canAfford && purchasable && !owned ? (
             <Text style={styles.note}>You have {formatEmbers(embers)} embers. Lock in to earn more.</Text>
           ) : null}
-          <Text style={styles.note}>
-            Buying it outright costs more than gambling for it in a box — that&apos;s the price of certainty. Salvages
-            back for {formatEmbers(SALVAGE_EMBERS[item.rarity])} embers.
-          </Text>
+          {isDrop ? (
+            <Text style={styles.note}>
+              {drop && phase === 'live'
+                ? `Meme Monday drop — on sale for ${countdownLabel(drop.endsAt - memeDrops.now)} more, then it's gone for good.`
+                : "Meme Monday drop — buyable only during its week, then it's gone for good."}{' '}
+              Salvages back for {formatEmbers(SALVAGE_EMBERS[item.rarity])} embers.
+            </Text>
+          ) : (
+            <Text style={styles.note}>
+              Buying it outright costs more than gambling for it in a box — that&apos;s the price of certainty. Salvages
+              back for {formatEmbers(SALVAGE_EMBERS[item.rarity])} embers.
+            </Text>
+          )}
         </View>
       </ScrollView>
 

@@ -11,13 +11,15 @@ import Svg, {
   RadialGradient,
   Rect,
   Stop,
+  Text as SvgText,
 } from 'react-native-svg';
 
 import { EASE_SINE, spread, usePhasedLoop } from '@/components/economy/flare-perimeter';
-import { Colors } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { DEFAULT_LOADOUT, getItem } from '@/lib/economy/catalog';
+import { mix } from '@/lib/economy/colour';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // THE BANNER SET — one bespoke, coded, animated scene per banner (design-mocks/101c-banner-art.html).
@@ -1143,9 +1145,252 @@ function EmberfallStandardScene({ w, h, from, to, animated, uid }: SceneProps) {
   );
 }
 
+// ─────────────────────────── 8 · Touch Grass (epic, Meme Monday) ───────────────────────────
+//
+// MEME_MONDAY.html's forest, recomposed for the portrait frame: the art is landscape, so the sun and
+// the birds take the sky the scrim leaves clear, and the pines stand in two rows across the middle
+// where the header strip still shows them. The birds bob and the sun breathes — nothing else moves.
+
+const GRASS_BIRDS = [
+  { x: 34, y: 62, w: 28, delay: 0.07 },
+  { x: 92, y: 40, w: 20, delay: 0.3 },
+  { x: 128, y: 84, w: 20, delay: 0.5 },
+] as const;
+
+// Pines as (base-centre x, base y, half-width, height). Back row lighter, front row darker.
+const GRASS_PINES_BACK = [
+  [18, 232, 16, 54],
+  [62, 238, 20, 70],
+  [118, 230, 18, 60],
+  [176, 236, 22, 74],
+] as const;
+const GRASS_PINES_FRONT = [
+  [38, 262, 20, 74],
+  [96, 268, 24, 88],
+  [150, 262, 20, 70],
+  [204, 270, 24, 86],
+] as const;
+
+function pine([cx, base, hw, h]: readonly [number, number, number, number]): string {
+  return `M${cx - hw} ${base} L${cx} ${base - h} L${cx + hw} ${base} Z`;
+}
+
+function Bird({ w, colour }: { w: number; colour: string }) {
+  const half = w / 2;
+  return (
+    <Svg width={w + 4} height={w / 2 + 4} viewBox={`-2 -${w / 4 + 2} ${w + 4} ${w / 2 + 4}`}>
+      <Path
+        d={`M0 0 q${half / 2} ${-half / 2} ${half} 0 q${half / 2} ${-half / 2} ${half} 0`}
+        stroke={colour}
+        strokeWidth={2.2}
+        fill="none"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+function BobbingBird({ left, top, w, phase }: { left: number; top: number; w: number; phase: number }) {
+  const t = usePhasedLoop(phase, 1500, EASE_SINE, true);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: -5 * t.value }] }));
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top }, style]}>
+      <Bird w={w} colour="#eafbe6" />
+    </Animated.View>
+  );
+}
+
+function BreathingSun({ left, top, size, uid }: { left: number; top: number; size: number; uid: string }) {
+  const t = usePhasedLoop(0, 1300, EASE_SINE, true);
+  const style = useAnimatedStyle(() => ({ opacity: 0.45 + 0.4 * t.value }));
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top, width: size, height: size, opacity: 0 }, style]}>
+      <Svg width={size} height={size}>
+        <Defs>
+          <RadialGradient id={`grassSunLive-${uid}`} cx="50%" cy="50%" r="50%">
+            <Stop offset="0" stopColor="#DFF3C4" stopOpacity={0.9} />
+            <Stop offset="1" stopColor="#DFF3C4" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={size / 2} cy={size / 2} r={size / 2} fill={`url(#grassSunLive-${uid})`} />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+function TouchGrassScene({ w, h, from, to, animated, uid }: SceneProps) {
+  const sun = { x: 168, y: 70, r: 22 };
+  return (
+    <>
+      <Svg width={w} height={h} style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox={`0 0 ${VB_W} ${VB_H}`}>
+        <Defs>
+          <LinearGradient id={`grassSky-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#2b6b47" />
+            <Stop offset="0.5" stopColor={mix('#2b6b47', from, 0.5)} />
+            <Stop offset="1" stopColor={from} />
+          </LinearGradient>
+          <RadialGradient id={`grassSun-${uid}`} cx={sun.x} cy={sun.y} r={70} gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#DFF3C4" stopOpacity={0.55} />
+            <Stop offset="1" stopColor="#DFF3C4" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect width={VB_W} height={VB_H} fill={`url(#grassSky-${uid})`} />
+        <Rect width={VB_W} height={VB_H} fill={`url(#grassSun-${uid})`} />
+        <Circle cx={sun.x} cy={sun.y} r={sun.r} fill="#DFF3C4" opacity={animated ? 0.55 : 0.75} />
+        {/* Still frame: the birds where the live ones rest. */}
+        {animated
+          ? null
+          : GRASS_BIRDS.map((b) => (
+              <Path
+                key={b.x}
+                d={`M${b.x} ${b.y} q${b.w / 4} ${-b.w / 4} ${b.w / 2} 0 q${b.w / 4} ${-b.w / 4} ${b.w / 2} 0`}
+                stroke="#eafbe6"
+                strokeWidth={2}
+                fill="none"
+                strokeLinecap="round"
+              />
+            ))}
+        <G fill="#123f26">
+          {GRASS_PINES_BACK.map((p) => (
+            <Path key={p[0]} d={pine(p)} />
+          ))}
+        </G>
+        <Rect y={236} width={VB_W} height={VB_H - 236} fill="#0f3a22" />
+        <G fill="#0c2e1b">
+          {GRASS_PINES_FRONT.map((p) => (
+            <Path key={p[0]} d={pine(p)} />
+          ))}
+        </G>
+        <Rect y={266} width={VB_W} height={VB_H - 266} fill="#0a2716" />
+        {/* The art's grass edge: a lighter hairline where the meadow meets the trees. */}
+        <Rect y={266} width={VB_W} height={1.5} fill={to} opacity={0.35} />
+      </Svg>
+      {animated ? (
+        <>
+          <BreathingSun left={px(w, sun.x - 40)} top={py(h, sun.y) - px(w, 40)} size={px(w, 80)} uid={uid} />
+          {GRASS_BIRDS.map((b) => (
+            <BobbingBird key={b.x} left={px(w, b.x)} top={py(h, b.y) - px(w, b.w / 4)} w={px(w, b.w)} phase={b.delay} />
+          ))}
+        </>
+      ) : null}
+    </>
+  );
+}
+
+// ─────────────────────────── 9 · Caught in 4K (legendary, Meme Monday) ───────────────────────────
+//
+// MEME_MONDAY.html's hand-drawn doodle of the lock-in screen: a camcorder frame with REC and 4K, a
+// little phone with a flame on it, 24:59, LOCKED IN :) and a smiley. The art's "boil" is an animated
+// turbulence filter, which react-native-svg cannot run — so it is rebuilt as what a boil actually is
+// on paper: the drawing redrawn three times, each element nudged a hair differently, flipped between
+// in hard steps (the art's 0.46s, three frames). Three static SVGs and an opacity flip, no filter.
+
+/** Per-element nudges, indexed (element + frame) % 3 — so no two elements jump the same way. */
+const DOODLE_JITTER = [
+  { dx: 0.6, dy: 0, rot: -0.8 },
+  { dx: -0.6, dy: 0.6, rot: 0.7 },
+  { dx: 0.5, dy: -0.5, rot: -0.3 },
+] as const;
+const DOODLE_STEP_MS = 460;
+
+function DoodleFrame({ frame }: { frame: number }) {
+  const nudge = (e: number, cx: number, cy: number) => {
+    const j = DOODLE_JITTER[(e + frame) % DOODLE_JITTER.length];
+    return `translate(${j.dx} ${j.dy}) rotate(${j.rot} ${cx} ${cy})`;
+  };
+  const ink = '#dbeff2';
+  const hand = Fonts.black;
+  return (
+    <G fill="none" stroke={ink} strokeWidth={2.3} strokeLinecap="round" strokeLinejoin="round">
+      {/* The camcorder frame and its corner brackets. */}
+      <G transform={nudge(0, 108, 226)}>
+        <Rect x={8} y={14} width={200} height={424} rx={16} />
+        <Path d="M30 30 h-10 v10 M186 30 h10 v10 M30 422 h-10 v-10 M186 422 h10 v-10" />
+      </G>
+      <G transform={nudge(1, 40, 46)}>
+        <Circle cx={34} cy={46} r={3.5} fill="#FF4D4D" stroke="none" />
+        <SvgText x={42} y={51} fontFamily={hand} fontSize={14} fill="#FF6B6B" stroke="none">
+          REC
+        </SvgText>
+      </G>
+      <G transform={nudge(2, 186, 46)}>
+        <SvgText x={192} y={53} textAnchor="end" fontFamily={hand} fontSize={17} fill="#46E0E0" stroke="none">
+          4K
+        </SvgText>
+      </G>
+      {/* The phone, with the flame on its screen. */}
+      <G transform={nudge(3, 48, 110)}>
+        <Rect x={26} y={72} width={44} height={74} rx={9} />
+        <Path d="M48 92 C56 106 65 109 57 124 A11 11 0 0 1 39 122 C35 108 48 105 48 92 Z" stroke="#FF8A3D" />
+      </G>
+      <G transform={nudge(4, 140, 104)}>
+        <SvgText x={140} y={112} textAnchor="middle" fontFamily={hand} fontSize={30} fill="#FFE08A" stroke="none">
+          24:59
+        </SvgText>
+      </G>
+      <G transform={nudge(5, 140, 140)}>
+        <SvgText x={140} y={146} textAnchor="middle" fontFamily={hand} fontSize={15} fill="#eaf9fb" stroke="none">
+          LOCKED IN :)
+        </SvgText>
+        <Path d="M98 158 q8 5 16 0 q8 5 16 0 q8 5 16 0 q8 5 16 0" stroke="#9fe8ee" />
+      </G>
+      <G transform={nudge(6, 70, 190)}>
+        <Path d="M96 182 q-12 10 -24 3" />
+        <Path d="M76 181 l-5 4 m5 -4 l-3 6" stroke="#46E0E0" />
+      </G>
+      <G transform={nudge(7, 176, 196)}>
+        <Circle cx={176} cy={196} r={13} />
+        <Path d="M171 199 q5 5 10 0" />
+        <Circle cx={172} cy={193} r={1.5} fill={ink} stroke="none" />
+        <Circle cx={180} cy={193} r={1.5} fill={ink} stroke="none" />
+      </G>
+      <G transform={nudge(8, 186, 82)}>
+        <Path d="M186 74 l2 6 l6 2 l-6 2 l-2 6 l-2 -6 l-6 -2 l6 -2 Z" stroke="#FFE08A" />
+      </G>
+      {/* A second faint doodle line, so the frame reads as sketched rather than ruled. */}
+      <G transform={nudge(9, 108, 226)} opacity={0.35}>
+        <Rect x={10} y={16} width={197} height={421} rx={17} strokeWidth={1.2} />
+      </G>
+    </G>
+  );
+}
+
+function DoodleStep({ frame, w, h }: { frame: number; w: number; h: number }) {
+  const t = usePhasedLoop(0, DOODLE_STEP_MS, Easing.linear, false);
+  const style = useAnimatedStyle(() => ({ opacity: Math.min(2, Math.floor(t.value * 3)) === frame ? 1 : 0 }));
+  return (
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: frame === 0 ? 1 : 0 }, style]}>
+      <Svg width={w} height={h} preserveAspectRatio="none" viewBox={`0 0 ${VB_W} ${VB_H}`}>
+        <DoodleFrame frame={frame} />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+function CaughtIn4KScene({ w, h, from, to, animated, uid }: SceneProps) {
+  return (
+    <>
+      <Svg width={w} height={h} style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox={`0 0 ${VB_W} ${VB_H}`}>
+        <Defs>
+          <LinearGradient id={`doodleBg-${uid}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={mix(from, to, 0.18)} />
+            <Stop offset="0.6" stopColor={from} />
+            <Stop offset="1" stopColor={from} />
+          </LinearGradient>
+        </Defs>
+        <Rect width={VB_W} height={VB_H} fill={`url(#doodleBg-${uid})`} />
+        {animated ? null : <DoodleFrame frame={0} />}
+      </Svg>
+      {animated ? [0, 1, 2].map((f) => <DoodleStep key={f} frame={f} w={w} h={h} />) : null}
+    </>
+  );
+}
+
 // ─────────────────────────── the dispatcher ───────────────────────────
 
 const SCENES: Record<string, (p: SceneProps) => ReactNode> = {
+  'banner-meme-touch-grass': TouchGrassScene,
+  'banner-meme-caught-in-4k': CaughtIn4KScene,
   'banner-base-hearth': HearthlightScene,
   'banner-emberfall-night': EmberfallNightScene,
   'banner-ashfall-ridge': AshfallRidgeScene,

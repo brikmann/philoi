@@ -28,6 +28,7 @@ import { FLAME_PATH, FLAME_VIEWBOX } from '@/components/ui/flame-logo';
 import type { FlareEffect } from '@/lib/economy/catalog';
 import { tint } from '@/lib/economy/colour';
 import { flareDisplayColour } from '@/components/economy/flare-signature';
+import { AuraCounter } from '@/components/economy/aura-counter';
 
 // The lock-in perimeter aura (FLARES_SPEC.md, mock 88).
 //
@@ -509,6 +510,9 @@ function EffectLayer({ effect, colour, width, height }: { effect: FlareEffect; c
     // The base glow IS the effect for `glow` flares — the breath above carries them.
     case 'glow':
       return null;
+    // +1000 Aura (Meme Monday): the live session counter and its once-a-session cap burst.
+    case 'aura-counter':
+      return <AuraCounter width={width} height={height} />;
   }
 }
 

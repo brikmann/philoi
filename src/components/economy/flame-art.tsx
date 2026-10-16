@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Defs, G, LinearGradient, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, G, LinearGradient, Path, Polygon, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { useCosmeticClock } from '@/components/economy/cosmetic-clock';
 import { useMotionActive } from '@/hooks/use-motion-active';
 import type { FlameArchetype } from '@/lib/economy/catalog';
-import { shade, tint } from '@/lib/economy/colour';
+import { mix, shade, tint } from '@/lib/economy/colour';
 import { useEquipped } from '@/lib/economy/loadout';
 import type { Rarity } from '@/lib/economy/rarity';
 
@@ -25,6 +25,8 @@ import type { Rarity } from '@/lib/economy/rarity';
 //   cosmic   a nebula-filled body with a slow swirl and stars inside it
 //   neutron  a needle-thin body round a blinding white core, sharp radiant spokes
 //   forge    a billowing hammered body throwing sparks
+//   padlock  Locked In (Meme Monday): a steel padlock whose keyhole IS the flame, glow breathing
+//   holo     Main Character (Meme Monday): a holographic flame cycling through cyan, pink and gold
 //
 // RARITY FLOURISH (mock 240's footer): Legendary and Mythic get a rim of hot light round the
 // silhouette, and Mythic adds the strike — the bolt mock 240 gives Stormforge.
@@ -53,6 +55,8 @@ const ARCHETYPES: ReadonlySet<string> = new Set<FlameArchetype>([
   'cosmic',
   'neutron',
   'forge',
+  'padlock',
+  'holo',
 ]);
 
 /** A flame archetype this build knows how to draw. Anything else falls back to the generic flame. */
@@ -91,10 +95,19 @@ const BODY: Record<FlameArchetype, string> = {
   neutron: 'M50 84 C37 81 32 66 38 52 C42 42 47 30 50 4 C53 30 58 42 62 52 C68 66 63 81 50 84 Z',
   // A billow with a second tongue thrown sideways, as off a struck bar.
   forge: 'M50 84 C30 82 22 66 28 50 C32 56 38 56 38 48 C38 36 30 30 36 18 C42 28 50 28 52 20 C54 12 52 8 56 4 C62 16 70 22 68 36 C74 32 76 26 74 20 C84 34 84 56 76 68 C70 78 60 84 50 84 Z',
+  // MEME_MONDAY.html's keyhole flame, mapped from its 180x210 box (lock base y188 -> 86, x90 -> 50,
+  // scale .48). The flame sits INSIDE the padlock, so it is small and its base is the keyhole's.
+  padlock: 'M50 45.68C54.8 55.28 61.52 57.2 56.72 67.76A7.2 7.2 0 0 1 43.28 66.8C41.36 57.2 50 55.28 50 45.68Z',
+  // MEME_MONDAY.html's Main Character flame, from its 180x200 box (base y194 -> 84, scale .433).
+  holo: 'M50 6.06C62.12 30.31 82.47 38.1 68.19 65.81A19.92 19.92 0 0 1 31.81 64.08C24.89 42.43 44.8 38.97 43.94 19.92C48.27 30.31 49.13 23.38 50 6.06Z',
 };
 
 /** The inner core of a bespoke silhouette: the body itself, pulled in toward its base. */
 const CORE_TRANSFORM = 'translate(50 84) scale(0.6 0.66) translate(-50 -84)';
+/** The keyhole flame's base is the keyhole's, not the tile's — its core pivots there instead. */
+const PADLOCK_CORE_TRANSFORM = 'translate(50 73.5) scale(0.6 0.66) translate(-50 -73.5)';
+/** Main Character's own inner tongue from the art, rather than a shrunk copy of the body. */
+const HOLO_CORE = 'M50 25.98C56.06 39.83 64.72 42.43 57.79 58.02A9.96 9.96 0 0 1 42.21 56.29C39.61 43.3 50 41.57 50 25.98Z';
 
 /**
  * Maps a mark authored in the 0-100 tile box onto the brand FLAME_PATH's 24 box: the tile flame's
@@ -146,6 +159,28 @@ const FORGE_SPARKS = [
 const FORGE_RISE = 40;
 
 const MYTHIC_BOLT = { d: 'M80 4 L70 18 L76 19 L64 34', cx: 72, cy: 19 };
+
+// Locked In. The tile draws the whole padlock (shackle, steel body, the flame as its keyhole, the
+// slot under it). The LIVE brand flame cannot wear that — a lock body that size would cover the
+// flame whose animation is the activity signal (§4) — so on the brand flame it is a shackle behind
+// and a small lock at the base the flame rises out of.
+const PADLOCK_SHACKLE = 'M35.6 37.04V25.52a14.4 14.4 0 0 1 28.8 0V37.04';
+const PADLOCK_BODY = { x: 27.92, y: 36.08, w: 44.16, h: 49.92, r: 8.64 };
+const PADLOCK_SLOT = { x: 48.08, y: 67.76, w: 3.84, h: 10.56 };
+const PADLOCK_GLOW = { x: 50, y: 62, r: 24 };
+const PADLOCK_BRAND_SHACKLE = 'M30 60V38a20 20 0 0 1 40 0V60';
+const PADLOCK_BRAND_BODY = { x: 37, y: 66, w: 26, h: 21, r: 4.5 };
+const PADLOCK_BRAND_SLOT = { x: 48.6, y: 72, w: 2.8, h: 8 };
+
+// Main Character. The hue cycle is three tinted copies of the body crossfading (react-native-svg
+// has no hue-rotate filter), plus the art's two twinkling stars.
+const HOLO_TINTS = ['#46E0E0', '#FF6FD8', '#FFE08A'] as const;
+const HOLO_STARS = [
+  { x: 34.8, y: 21.2, s: 3.2, colour: '#46E0E0', phase: 0 },
+  { x: 67.8, y: 25.5, s: 3.2, colour: '#FFE08A', phase: 0.27 },
+];
+/** The box every holo tint layer is drawn in — the body's own bounds, padded. */
+const HOLO_BOX = { cx: 50, cy: 45, r: 41 };
 
 function rayPoints(cx: number, cy: number, deg: number, r0: number, r1: number, w: number): string {
   const a = (deg * Math.PI) / 180;
@@ -228,6 +263,44 @@ function Bolt({ d }: { d: string }) {
   );
 }
 
+function SteelDefs({ id }: { id: string }) {
+  return (
+    <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+      <Stop offset="0" stopColor="#d7dce3" />
+      <Stop offset="1" stopColor="#3a3f48" />
+    </LinearGradient>
+  );
+}
+
+function PadlockGlow({ id, from }: { id: string; from: string }) {
+  return (
+    <>
+      <Defs>
+        <RadialGradient id={id} cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor={from} stopOpacity={0.55} />
+          <Stop offset="1" stopColor={from} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Circle cx={PADLOCK_GLOW.x} cy={PADLOCK_GLOW.y} r={PADLOCK_GLOW.r} fill={`url(#${id})`} />
+    </>
+  );
+}
+
+function HoloTint({ id, colour }: { id: string; colour: string }) {
+  return (
+    <>
+      <Defs>
+        <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#ffffff" stopOpacity={0.9} />
+          <Stop offset="0.45" stopColor={colour} stopOpacity={1} />
+          <Stop offset="1" stopColor={colour} stopOpacity={0.15} />
+        </LinearGradient>
+      </Defs>
+      <Path d={BODY.holo} fill={`url(#${id})`} />
+    </>
+  );
+}
+
 type MarkProps = {
   archetype: FlameArchetype;
   rarity: Rarity;
@@ -237,11 +310,45 @@ type MarkProps = {
   ids: string;
   /** True when FlameArchetypeOverlay is drawing the moving marks — the still drawing leaves them out. */
   live: boolean;
+  /** Drawing onto the live brand flame (FlameArchetypeDecor) rather than the item's own tile. */
+  brand?: boolean;
 };
 
 /** Marks BEHIND the body — the corona, the neutron's spokes. */
-function BackMarks({ archetype, from, to, live }: MarkProps) {
+function BackMarks({ archetype, from, to, live, ids, brand }: MarkProps) {
   switch (archetype) {
+    case 'padlock': {
+      const steel = `flameSteel-${ids}`;
+      if (brand) {
+        return (
+          <>
+            <Defs>
+              <SteelDefs id={steel} />
+            </Defs>
+            <Path d={PADLOCK_BRAND_SHACKLE} fill="none" stroke={`url(#${steel})`} strokeWidth={6} strokeLinecap="round" />
+          </>
+        );
+      }
+      return (
+        <>
+          <Defs>
+            <SteelDefs id={steel} />
+          </Defs>
+          {live ? null : <PadlockGlow id={`flamePadGlow-${ids}`} from={from} />}
+          <Path d={PADLOCK_SHACKLE} fill="none" stroke={`url(#${steel})`} strokeWidth={7.2} strokeLinecap="round" />
+          <Rect
+            x={PADLOCK_BODY.x}
+            y={PADLOCK_BODY.y}
+            width={PADLOCK_BODY.w}
+            height={PADLOCK_BODY.h}
+            rx={PADLOCK_BODY.r}
+            fill={`url(#${steel})`}
+            stroke={from}
+            strokeWidth={1}
+          />
+        </>
+      );
+    }
     case 'solar':
       return (
         <>
@@ -268,9 +375,52 @@ function BackMarks({ archetype, from, to, live }: MarkProps) {
 }
 
 /** Marks IN FRONT of the body — the signature itself. */
-function FrontMarks({ archetype, rarity, from, to, ids, live }: MarkProps) {
+function FrontMarks({ archetype, rarity, from, to, ids, live, brand }: MarkProps) {
   const mythicBolt = rarity === 'mythic' && !live ? <Bolt d={MYTHIC_BOLT.d} /> : null;
   switch (archetype) {
+    case 'padlock': {
+      if (brand) {
+        const steel = `flameSteelFront-${ids}`;
+        return (
+          <>
+            <Defs>
+              <SteelDefs id={steel} />
+            </Defs>
+            <Rect
+              x={PADLOCK_BRAND_BODY.x}
+              y={PADLOCK_BRAND_BODY.y}
+              width={PADLOCK_BRAND_BODY.w}
+              height={PADLOCK_BRAND_BODY.h}
+              rx={PADLOCK_BRAND_BODY.r}
+              fill={`url(#${steel})`}
+              stroke={from}
+              strokeWidth={1}
+            />
+            <Rect
+              x={PADLOCK_BRAND_SLOT.x}
+              y={PADLOCK_BRAND_SLOT.y}
+              width={PADLOCK_BRAND_SLOT.w}
+              height={PADLOCK_BRAND_SLOT.h}
+              rx={1.2}
+              fill={from}
+            />
+          </>
+        );
+      }
+      return (
+        <>
+          <Rect x={PADLOCK_SLOT.x} y={PADLOCK_SLOT.y} width={PADLOCK_SLOT.w} height={PADLOCK_SLOT.h} rx={1.44} fill={from} />
+          {mythicBolt}
+        </>
+      );
+    }
+    case 'holo':
+      return (
+        <>
+          {live ? null : HOLO_STARS.map((st) => <Path key={st.phase} d={sparkle(st.x, st.y, st.s)} fill={st.colour} />)}
+          {mythicBolt}
+        </>
+      );
     case 'volt':
       return (
         <>
@@ -365,7 +515,7 @@ export function FlameArchetypeDecor({
 }): ReactNode {
   if (!isFlameArchetype(archetype)) return null;
   const ids = `${idSafe(uid)}-${which}`;
-  const props: MarkProps = { archetype, rarity, from, to, ids, live: false };
+  const props: MarkProps = { archetype, rarity, from, to, ids, live: false, brand: true };
   if (which === 'back') {
     return (
       <G transform={marksTransform}>
@@ -424,6 +574,7 @@ export function FlameArchetypeShape({
   const ids = idSafe(uid);
   const bodyId = `flameArtBody-${ids}`;
   const nebulaId = `flameArtNebula-${ids}`;
+  const ownId = `flameArtOwn-${ids}`;
   const hot = tint(from, 0.62);
   const known = isFlameArchetype(archetype);
   const kind: FlameArchetype = known ? archetype : 'ember';
@@ -439,6 +590,15 @@ export function FlameArchetypeShape({
           <Stop offset="0.4" stopColor={from} />
           <Stop offset="1" stopColor={shade(to, 0.55)} />
         </LinearGradient>
+        {kind === 'padlock' || kind === 'holo' ? (
+          // The meme flames carry the art's own ramps: Locked In's keyhole runs gold -> ember -> red,
+          // Main Character's holo runs cyan -> pink -> a deep violet base.
+          <LinearGradient id={ownId} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={to} />
+            <Stop offset="0.5" stopColor={kind === 'padlock' ? mix(from, to, 0.45) : from} />
+            <Stop offset="1" stopColor={kind === 'padlock' ? from : shade(from, 0.78)} />
+          </LinearGradient>
+        ) : null}
         {kind === 'cosmic' ? (
           // Mock 240's nebula: a pale heart low in the body, the item's colour, a deep-space rim.
           <RadialGradient id={nebulaId} cx="50%" cy="75%" r="70%">
@@ -449,9 +609,18 @@ export function FlameArchetypeShape({
         ) : null}
       </Defs>
       {known ? <BackMarks {...props} /> : null}
-      <Path d={body} fill={kind === 'cosmic' ? `url(#${nebulaId})` : `url(#${bodyId})`} />
+      <Path
+        d={body}
+        fill={kind === 'cosmic' ? `url(#${nebulaId})` : kind === 'padlock' || kind === 'holo' ? `url(#${ownId})` : `url(#${bodyId})`}
+      />
       {kind === 'ember' ? (
         <Path d={GENERIC_CORE} fill={hot} opacity={0.6} />
+      ) : kind === 'holo' ? (
+        <Path d={HOLO_CORE} fill="#DFF8FF" opacity={0.85} />
+      ) : kind === 'padlock' ? (
+        <G transform={PADLOCK_CORE_TRANSFORM}>
+          <Path d={body} fill="#FFF3CE" opacity={0.7} />
+        </G>
       ) : kind === 'neutron' ? (
         // The neutron's core is the white star, not a lighter copy of the body.
         <G transform={CORE_TRANSFORM}>
@@ -485,10 +654,12 @@ const CYCLE_MS: Record<FlameArchetype, number> = {
   cosmic: 2200,
   neutron: 1400,
   forge: 1300,
+  padlock: 2600, // the art's 2.6s glow
+  holo: 7000, // the art's 7s hue cycle
 };
 const BOLT_MS = 2400;
 
-type Motion = 'flash' | 'rise' | 'drip' | 'breathe' | 'twinkle' | 'shimmer' | 'fly' | 'strike';
+type Motion = 'flash' | 'rise' | 'drip' | 'breathe' | 'twinkle' | 'shimmer' | 'fly' | 'strike' | 'cycle';
 
 /**
  * One animated mark: an Animated.View boxed round (cx, cy) ± r in tile units, holding a little
@@ -562,6 +733,10 @@ function Mover({
         break;
       case 'strike':
         o = t >= 0.88 && t < 0.96 ? 1 : 0;
+        break;
+      case 'cycle':
+        // One of three tints taking its turn: peaks once per cycle, dark for most of the rest.
+        o = 0.5 * wave * wave;
         break;
     }
     // Same keys every run — gate the value, never the key.
@@ -693,6 +868,38 @@ function OverlayLayers({
           <ForgeSpark x={sp.x} y={sp.y} dx={sp.dx} to={to} t={0} />
         </Mover>
       ));
+      break;
+    case 'padlock':
+      movers = (
+        <Mover clock={clock} mult={1} phase={0} motion="breathe" cx={PADLOCK_GLOW.x} cy={PADLOCK_GLOW.y} r={PADLOCK_GLOW.r} px={px}>
+          <PadlockGlow id={`flamePadGlowLive-${ids}`} from={from} />
+        </Mover>
+      );
+      break;
+    case 'holo':
+      movers = (
+        <>
+          {HOLO_TINTS.map((c, i) => (
+            <Mover
+              key={c}
+              clock={clock}
+              mult={1}
+              phase={i / HOLO_TINTS.length}
+              motion="cycle"
+              cx={HOLO_BOX.cx}
+              cy={HOLO_BOX.cy}
+              r={HOLO_BOX.r}
+              px={px}>
+              <HoloTint id={`flameHolo${i}-${ids}`} colour={c} />
+            </Mover>
+          ))}
+          {HOLO_STARS.map((st) => (
+            <Mover key={st.phase} clock={clock} mult={3} phase={st.phase} motion="twinkle" cx={st.x} cy={st.y} r={st.s + 0.5} px={px}>
+              <Path d={sparkle(st.x, st.y, st.s)} fill={st.colour} />
+            </Mover>
+          ))}
+        </>
+      );
       break;
     case 'ember':
       break;

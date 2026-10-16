@@ -79,6 +79,8 @@ function howToGet(item: CatalogItem): string {
       return 'Earned by standing';
     case 'default':
       return 'Starter set';
+    case 'drop':
+      return 'Meme Monday drop';
   }
 }
 

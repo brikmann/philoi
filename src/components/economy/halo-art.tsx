@@ -1,10 +1,22 @@
 import { useId, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Defs, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  Ellipse,
+  G,
+  LinearGradient,
+  Path,
+  RadialGradient,
+  Rect,
+  Stop,
+  Text as SvgText,
+  TextPath,
+} from 'react-native-svg';
 
 import { useCosmeticClock } from '@/components/economy/cosmetic-clock';
-import { Colors } from '@/constants/theme';
+import { Colors, Fonts } from '@/constants/theme';
 import { useMotionActive } from '@/hooks/use-motion-active';
 import { getItem, type Archetype, type CatalogItem, type HaloArchetype } from '@/lib/economy/catalog';
 import { mix, shade, tint } from '@/lib/economy/colour';
@@ -36,7 +48,21 @@ import { mix, shade, tint } from '@/lib/economy/colour';
 // Reduce Motion, an off-screen screen, or `motion="still"` draws the same art frozen.
 
 /** How a halo's ring is drawn. One per look; an archetype owns one or more of them. */
-export type HaloStyle = 'ring' | 'band' | 'double' | 'glow' | 'embers' | 'prism' | 'flare' | 'aura' | 'crown' | 'petals';
+export type HaloStyle =
+  | 'ring'
+  | 'band'
+  | 'double'
+  | 'glow'
+  | 'embers'
+  | 'prism'
+  | 'flare'
+  | 'aura'
+  | 'crown'
+  | 'petals'
+  // Meme Monday (0243, MEME_MONDAY.html): the word RIZZ orbiting on a text ring, and a goat
+  // circling the avatar upright — it revolves, it never spins on itself.
+  | 'rizz'
+  | 'goat';
 
 /**
  * Which slice of a halo a <HaloRing> draws.
@@ -87,6 +113,8 @@ const ARCHETYPE_STYLES: Record<HaloArchetype, readonly HaloStyle[]> = {
   hades: ['aura'],
   crown: ['crown'],
   petals: ['petals'],
+  rizz: ['rizz'],
+  goat: ['goat'],
 };
 
 function isHaloArchetype(a: Archetype | undefined): a is HaloArchetype {
@@ -137,6 +165,9 @@ export const HALO_REACH: Record<HaloStyle, number> = {
   aura: 1.48,
   crown: 1.52,
   petals: 1.36,
+  rizz: 1.42,
+  // The goat's lap (1.23R) plus its horns: 1.65 of the avatar's radius at the top of the lap.
+  goat: 1.68,
 };
 
 /** The one clock every halo layer reads. Each layer's cadence is a whole-number multiple of it. */
@@ -150,7 +181,7 @@ type HaloLive = {
   /** Tongue swaps per cycle (fire-ring). */
   lick?: number;
   /** Marks that travel their own path. */
-  movers?: 'embers' | 'streaks' | 'petals';
+  movers?: 'embers' | 'streaks' | 'petals' | 'goat';
 };
 
 // Mock cadences, rounded to the nearest whole multiple of the 24s clock.
@@ -165,6 +196,8 @@ const HALO_LIVE: Record<HaloStyle, HaloLive> = {
   aura: { pulse: { mult: 16, lo: 0.5 }, movers: 'streaks' }, // 1.5s flicker
   crown: { pulse: { mult: 12, lo: 0.3 } }, // 2s regal pulse
   petals: { movers: 'petals' },
+  rizz: { spin: 3, pulse: { mult: 9, lo: 0.5 } }, // 8s orbit (art 9s), 2.7s glow (art 2.6s)
+  goat: { pulse: { mult: 9, lo: 0.5 }, movers: 'goat' }, // the goat's orbit: GOAT_MULT
 };
 
 /** Styles that draw something on top of the avatar. */
@@ -195,6 +228,41 @@ const petalScale = (rAvatar: number) => (rAvatar * 0.34) / 10;
 
 /** The sakura orbit: on the ring, a hair outside it. */
 const petalOrbit = (R: number) => R + R / 42;
+
+/** RIZZ's text ring: just outside the swept ring, with the type sized off the avatar. */
+const rizzRadius = (R: number) => R * 1.14;
+const rizzFont = (R: number) => R * 0.19;
+const RIZZ_TEXT = 'RIZZ · RIZZ · RIZZ · RIZZ · RIZZ · RIZZ · ';
+
+/** The goat rides a little outside the ring, so it reads as circling the avatar, not crossing it. */
+const goatOrbit = (R: number) => R * 1.16;
+/** The goat's square box in viewBox units (GOAT_VIEWBOX's 48), so the goat is ~0.6R nose to tail. */
+const goatSize = (rAvatar: number) => rAvatar * 0.875;
+/** Orbits per 24s clock cycle: ~3.4s per lap, the art's own. */
+const GOAT_MULT = 7;
+
+/**
+ * MEME_MONDAY.html's goat, verbatim, drawn round its body's centre (0, 0). It faces right and stays
+ * upright all the way round. GOAT_VIEWBOX is the square 48-unit box both the frozen and the live
+ * goat are drawn in, so the two are the same size and pivot on the same point.
+ */
+function Goat() {
+  return (
+    <G>
+      <Ellipse cx="0" cy="0" rx="13" ry="8" fill="#fff6e2" />
+      <Circle cx="12" cy="-4" r="6" fill="#fff6e2" />
+      <Path d="M14 -9 q6 -8 2 -14" stroke="#e7d4a6" strokeWidth={2.8} fill="none" />
+      <Path d="M9 -9 q4 -8 -2 -13" stroke="#e7d4a6" strokeWidth={2.8} fill="none" />
+      <Circle cx="15" cy="-4" r="1.4" fill="#3a2e18" />
+      <G stroke="#f0e4c6" strokeWidth={3} strokeLinecap="round">
+        <Path d="M-8 7 v8" />
+        <Path d="M-2 7 v8" />
+        <Path d="M6 6 v8" />
+      </G>
+    </G>
+  );
+}
+const GOAT_VIEWBOX = '-24 -24 48 48';
 
 // ─────────────────────────── the drawing ───────────────────────────
 
@@ -575,6 +643,62 @@ export function HaloRing({ style, from, to, boost, spread: bloom, rAvatar, uid, 
       );
     }
 
+    // ── rizz — Meme Monday: a pink ring, and the word itself orbiting on a text ring outside it. ──
+    case 'rizz': {
+      const Rt = rizzRadius(R);
+      const textPathId = `haloRizz-${uid}`;
+      return (
+        <>
+          {defs}
+          <Defs>
+            {/* Starts at the top and runs clockwise twice round, so the words never hit a seam. */}
+            <Path
+              id={textPathId}
+              d={`M50 ${fmt(50 - Rt)} a${fmt(Rt)} ${fmt(Rt)} 0 1 1 0 ${fmt(2 * Rt)} a${fmt(Rt)} ${fmt(Rt)} 0 1 1 0 ${fmt(-2 * Rt)}`}
+            />
+          </Defs>
+          {has('base') && (
+            <>
+              {tierBloom}
+              {ring(R, sweep, 2.4 * u, o(0.9))}
+              {ring(R - 0.9 * u, '#ffffff', 0.5 * u, 0.25)}
+            </>
+          )}
+          {has('pulse') && glow(R, from, 3 * u)}
+          {has('spin') && (
+            <SvgText fill={to} fontFamily={Fonts.bodyBold} fontSize={rizzFont(R)} letterSpacing={rizzFont(R) * 0.32}>
+              <TextPath href={`#${textPathId}`}>{RIZZ_TEXT}</TextPath>
+            </SvgText>
+          )}
+        </>
+      );
+    }
+
+    // ── goat — Meme Monday: a gold ring with a glow; the goat itself travels in screen space. ──
+    case 'goat': {
+      const Rg = goatOrbit(R);
+      const gs = goatSize(rAvatar) / 48;
+      return (
+        <>
+          {defs}
+          {has('base') && (
+            <>
+              {tierBloom}
+              {ring(R, sweep, 3 * u, o(0.95))}
+              {ring(R - 1 * u, '#ffffff', 0.6 * u, 0.25)}
+            </>
+          )}
+          {has('pulse') && glow(R, to, 3.2 * u)}
+          {/* Frozen: parked at the top of its lap. The live one is GoatOrbit, over the avatar. */}
+          {has('frozen') && (
+            <G transform={`translate(50 ${fmt(50 - Rg)}) scale(${fmt(gs)})`}>
+              <Goat />
+            </G>
+          )}
+        </>
+      );
+    }
+
     // ── warm-ring · common — Emberring, the base: one clean swept ring with a specular inner
     // edge, breathing. The plain one on purpose: everything above has to read as an upgrade. ──
     case 'ring':
@@ -660,7 +784,9 @@ export function HaloFrame({
           <HaloRing {...ring} uid={`${uid}o`} part="over" />
         </Svg>
       )}
-      {live && HALO_LIVE[style].movers === 'petals' && <HaloOverLive ring={ring} box={box} uid={uid} />}
+      {live && (HALO_LIVE[style].movers === 'petals' || HALO_LIVE[style].movers === 'goat') && (
+        <HaloOverLive ring={ring} box={box} uid={uid} />
+      )}
     </View>
   );
 }
@@ -724,12 +850,36 @@ function HaloLiveLayers({ ring, box, uid }: { ring: RingArt; box: number; uid: s
   );
 }
 
-/** On top of the avatar — only Sakura's petals, which must never be hidden behind a face. */
+/** On top of the avatar — Sakura's petals and the Goated goat, which must never hide behind a face. */
 function HaloOverLive({ ring, box, uid }: { ring: RingArt; box: number; uid: string }) {
   const reduceMotion = useReducedMotion();
   const active = useMotionActive();
-  if (reduceMotion || !active) return null; // the frozen petals are in the still layer
+  if (reduceMotion || !active) return null; // the frozen petals / goat are in the still layer
+  if (HALO_LIVE[ring.style].movers === 'goat') return <GoatOrbit ring={ring} box={box} />;
   return <PetalFall ring={ring} box={box} uid={uid} />;
+}
+
+// ── Goated: one goat revolving round the avatar's centre, upright the whole lap. ──
+
+function GoatOrbit({ ring, box }: { ring: RingArt; box: number }) {
+  const clock = useCosmeticClock(HALO_CLOCK_MS, true);
+  const p = box / 100;
+  const orbit = goatOrbit(ring.rAvatar * 1.06) * p;
+  const size = goatSize(ring.rAvatar) * p;
+  const style = useAnimatedStyle(() => {
+    // Starts at the top (−90°) like the frozen frame, and goes clockwise.
+    const a = clock.value * GOAT_MULT * Math.PI * 2 - Math.PI / 2;
+    return { transform: [{ translateX: orbit * Math.cos(a) }, { translateY: orbit * Math.sin(a) }] };
+  });
+  return (
+    <Animated.View
+      style={[{ position: 'absolute', left: 50 * p - size / 2, top: 50 * p - size / 2, width: size, height: size }, style]}
+      pointerEvents="none">
+      <Svg width={size} height={size} viewBox={GOAT_VIEWBOX}>
+        <Goat />
+      </Svg>
+    </Animated.View>
+  );
 }
 
 type Clock = SharedValue<number>;

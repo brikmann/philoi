@@ -45,10 +45,10 @@ function displayName(item: CatalogItem): string {
 export default function CosmeticGalleryScreen() {
   const { profile } = useAuth();
   const [surface, setSurface] = useState<CosmeticSurface>('art');
-  const [selected, setSelected] = useState<CatalogItem>(() => itemsOfType('FLAME')[0]);
+  const [selected, setSelected] = useState<CatalogItem>(() => itemsOfType('FLAME', { includeDrops: true })[0]);
 
   const sections = useMemo(
-    () => ITEM_TYPES.map((type) => ({ type, items: itemsOfType(type) })).filter((s) => s.items.length > 0),
+    () => ITEM_TYPES.map((type) => ({ type, items: itemsOfType(type, { includeDrops: true }) })).filter((s) => s.items.length > 0),
     [],
   );
 

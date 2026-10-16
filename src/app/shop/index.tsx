@@ -7,6 +7,7 @@ import { BoxArt, BOX_TINT } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { EmberAmount, EmberPill, RarityLabel, SectionLabel, formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
+import { MemeDropCard } from '@/components/economy/meme-drop-card';
 import { FlamePassTile } from '@/components/pass/flame-pass-tile';
 import { PreviewBadgeCorner } from '@/components/economy/preview-button';
 import { Screen } from '@/components/ui/screen';
@@ -14,6 +15,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useInventory } from '@/hooks/use-inventory';
+import { useMemeDrops } from '@/hooks/use-meme-drops';
 import { BOX_LIST } from '@/lib/economy/boxes';
 import { boxPool, type CatalogItem } from '@/lib/economy/catalog';
 import { EMBER_PACKS, levelFromXp, passOnSale, seasonPhase } from '@/lib/economy/forge-pass';
@@ -77,6 +79,8 @@ export default function ShopScreen() {
   const shopCoachRef = useCoachMark('shop');
   const router = useRouter();
   const { embers, pass, ownedKeys, loading } = useInventory();
+  // This month's limited drop (0243). Absent — no section at all — when nothing is live or scheduled.
+  const { featured: memeDrop, now: dropNow } = useMemeDrops();
 
   // LEVEL, not tier — the Flame Pass counts in levels and the rank ladder counts in tiers, and the
   // two must never share a word (code prompt §"Copy rule").
@@ -137,6 +141,23 @@ export default function ShopScreen() {
           onOpen={() => router.push('/forge-pass')}
           onBuy={() => router.push('/paywall')}
         />
+
+        {/* ── Meme Monday (0243) — one limited drop a month, its week only ── */}
+        {memeDrop ? (
+          <>
+            <SectionLabel label="Meme Monday" action={memeDrop.phase === 'live' ? 'Limited drop' : 'Locked'} />
+            <MemeDropCard
+              drop={memeDrop.drop}
+              phase={memeDrop.phase}
+              after={memeDrop.after}
+              now={dropNow}
+              owned={ownedKeys.has(memeDrop.drop.item.id)}
+              onOpen={() =>
+                router.push({ pathname: '/shop/item/[itemId]', params: { itemId: memeDrop.drop.item.id } })
+              }
+            />
+          </>
+        ) : null}
 
         {/* ── Featured · direct buy (§8.4) ── */}
         <SectionLabel label="Featured · buy direct" action={rotatesInLabel(now)} />

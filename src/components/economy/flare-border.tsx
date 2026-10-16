@@ -75,6 +75,8 @@ type RimKind = 'line' | 'strong' | 'hairline';
 
 const RIM_KIND: Record<FlareEffect, RimKind> = {
   glow: 'strong',
+  // +1000 Aura's counter lives on the lock-in screen; everywhere else it is a strong glow.
+  'aura-counter': 'strong',
   plasma: 'strong',
   flames: 'hairline',
   smoke: 'line',
@@ -90,6 +92,7 @@ const RIM_KIND: Record<FlareEffect, RimKind> = {
  */
 const RING_MULT: Record<FlareEffect, number> = {
   glow: 6, // 12.8s / 6 = 2.13s
+  'aura-counter': 6,
   smoke: 8, // 2.3s
   plasma: 4, // 2.1s
   zaps: 2, // 2.3s
@@ -361,6 +364,7 @@ function LiveMarks({ effect, colour, card }: { effect: FlareEffect; colour: stri
     // Smoke lives in the unclipped layer; glow is its ring alone.
     case 'smoke':
     case 'glow':
+    case 'aura-counter':
       return null;
   }
 }

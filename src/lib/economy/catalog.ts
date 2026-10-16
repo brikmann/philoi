@@ -80,8 +80,12 @@ export const SLOT_FOR_TYPE: Record<ItemType, EquipSlot | null> = {
  * - `default` — the starter loadout every account is seeded with (#88). Never in a box, never
  *   purchasable, and never sellable: they are the floor a slot falls back to, so letting one be
  *   salvaged would leave a slot that can never be filled again without a support ticket.
+ * - `drop` — a Meme Monday drop (0243). Ember-buyable ONLY inside its scheduled week, then gone:
+ *   never in a box, never in Featured, never direct-buyable through buy_cosmetic. The window and
+ *   the price live server-side in meme_drop_schedule; this flag only keeps the item out of every
+ *   other pool.
  */
-export type Acquisition = 'box' | 'earned' | 'forge-pass-S1' | 'default';
+export type Acquisition = 'box' | 'earned' | 'forge-pass-S1' | 'default' | 'drop';
 
 /** Template id for the per-challenge campfire finisher titles (0212). Owned keys are `<this>:<challenge_id>`. */
 export const CAMPFIRE_FINISHER_TITLE = 'title-campfire-finisher';
@@ -113,7 +117,11 @@ export type FlareEffect =
   | 'flames'
   | 'plasma'
   | 'glow'
-  | 'emberfall';
+  | 'emberfall'
+  // +1000 Aura (Meme Monday, 0243): a live counter climbing +1 per credited second of the session,
+  // capped at +9999, with a one-shot rainbow burst at the cap. Driven by the session clock, not by a
+  // loop — see AuraCounter in flare-perimeter.tsx.
+  | 'aura-counter';
 
 /**
  * Which bespoke drawing an item gets WITHIN its type (Cosmetic Art Program, mocks 240–246/255).
@@ -128,9 +136,11 @@ export type FlareEffect =
  * Absent = the type-family vector is still the right drawing. Renderers MUST fall back to it for an
  * unknown or missing value: an installed build will meet archetypes added after it shipped.
  */
-export type FlameArchetype = 'ember' | 'volt' | 'toxic' | 'solar' | 'cosmic' | 'neutron' | 'forge';
+// `padlock` (Locked In) and `holo` (Main Character) are the Meme Monday flames; `rizz` and `goat`
+// the Meme Monday halos (MEME_MONDAY.html is the art source for all four).
+export type FlameArchetype = 'ember' | 'volt' | 'toxic' | 'solar' | 'cosmic' | 'neutron' | 'forge' | 'padlock' | 'holo';
 export type CardArchetype = 'stone' | 'metal' | 'weave' | 'magma' | 'grid' | 'ash' | 'marble' | 'anvil';
-export type HaloArchetype = 'warm-ring' | 'ember-orbit' | 'prism' | 'fire-ring' | 'hades' | 'crown' | 'petals';
+export type HaloArchetype = 'warm-ring' | 'ember-orbit' | 'prism' | 'fire-ring' | 'hades' | 'crown' | 'petals' | 'rizz' | 'goat';
 export type ParticleArchetype = 'rising' | 'swarm' | 'ash' | 'solar-arc' | 'lightning' | 'void-smoke';
 /** Mock 246's struck emblems. The two placement ones are the standing ladder (Top N% / podium). */
 export type MedalArchetype =
@@ -1071,6 +1081,46 @@ const RANK_SET: CatalogItem[] = [
 /** The rank set's ids, lowest tier first — the order the crates mint them in. */
 export const RANK_SET_IDS: readonly string[] = RANK_SET.map((i) => i.id);
 
+// ───────────────────────────── Meme Monday drops (0243) ─────────────────────────────
+// Limited, ember-buyable, one per month (MEME_MONDAY_model.md: exclusivity, not frequency). An item
+// here is in the catalog for ever — so an owned copy always resolves — but it is only BUYABLE inside
+// its meme_drop_schedule window, which the server checks (buy_meme_drop). Items with no schedule row
+// are the backlog: listed nowhere, sold nowhere, until a row is added.
+//
+// Keys follow the `<type>-<name>` convention rather than the drop doc's `cos.meme.*` — every
+// renderer dispatches on the type prefix, and set_campfire_banner only accepts `banner-%`.
+const MEME_DROPS: CatalogItem[] = [
+  item({ id: 'flame-meme-locked-in', name: 'Locked In', type: 'FLAME', rarity: 'legendary', acquisition: 'drop', archetype: 'padlock',
+    howToGet: 'A Meme Monday drop — buyable only during its week.',
+    lore: 'Phone on do-not-disturb, world locked out. A padlocked flame only the committed carry.',
+    art: { kind: 'flame', from: '#E4473A', to: '#FFE08A' } }),
+  item({ id: 'flame-meme-main-character', name: 'Main Character', type: 'FLAME', rarity: 'legendary', acquisition: 'drop', archetype: 'holo',
+    howToGet: 'A Meme Monday drop — buyable only during its week.',
+    lore: 'The world is your montage. A holographic flame that shifts through every colour.',
+    art: { kind: 'flame', from: '#FF6FD8', to: '#46E0E0' } }),
+  item({ id: 'flare-meme-aura-1000', name: '+1000 Aura', type: 'FLARE', rarity: 'legendary', acquisition: 'drop',
+    howToGet: 'A Meme Monday drop — buyable only during its week.',
+    lore: "A live aura counter climbs the longer you're locked in, +1 all the way to +9999. Hit the cap and your whole screen goes ballistic.",
+    art: { kind: 'flare', from: '#173A1A', to: '#8BE06A' },
+    flare: { colour: '#8BE06A', effect: 'aura-counter' } }),
+  item({ id: 'halo-meme-rizz', name: 'Rizz', type: 'HALO', rarity: 'epic', acquisition: 'drop', archetype: 'rizz',
+    howToGet: 'A Meme Monday drop — buyable only during its week.',
+    lore: 'Unspoken charisma, said out loud. The word literally orbits you. W aura guaranteed.',
+    art: { kind: 'halo', from: '#FF7AA8', to: '#FFD1E6' } }),
+  item({ id: 'halo-meme-goated', name: 'Goated', type: 'HALO', rarity: 'legendary', acquisition: 'drop', archetype: 'goat',
+    howToGet: 'A Meme Monday drop — buyable only during its week.',
+    lore: 'Greatest Of All Time. Horns included, dominance mandatory.',
+    art: { kind: 'halo', from: '#B9842F', to: '#FFF0C0' } }),
+  item({ id: 'banner-meme-touch-grass', name: 'Touch Grass', type: 'BANNER', rarity: 'epic', acquisition: 'drop',
+    howToGet: 'A Meme Monday drop — buyable only during its week.',
+    lore: 'A whole forest, birds and all. You logged off and went outside. Allegedly.',
+    art: { kind: 'banner', from: '#0A1C12', to: '#5BCB7A' } }),
+  item({ id: 'banner-meme-caught-in-4k', name: 'Caught in 4K', type: 'BANNER', rarity: 'legendary', acquisition: 'drop',
+    howToGet: 'A Meme Monday drop — buyable only during its week.',
+    lore: 'Your grind, immortalized, as a gloriously dorky hand-drawn doodle of the lock-in screen.',
+    art: { kind: 'banner', from: '#10131A', to: '#46E0E0' } }),
+];
+
 export const CATALOG: CatalogItem[] = [
   ...DEFAULTS,
   ...FLAMES,
@@ -1091,6 +1141,7 @@ export const CATALOG: CatalogItem[] = [
   ...EMBERFALL_PLACEMENT,
   ...RANK_SET,
   ...EMBERFALL_PRESTIGE,
+  ...MEME_DROPS,
   // Last, and in CATALOG at all only so getItem() resolves owned copies and cosmetic_rarity can
   // still price them. Every listing below filters them out.
   ...RETIRED,
@@ -1152,9 +1203,14 @@ export function titleLabel(item: Pick<CatalogItem, 'name' | 'labelIsStamp'> & { 
   return { name: bare, stamp: item.seasonStamp ?? null };
 }
 
-/** Every LIVE item of a type — what the gallery lists and what "N of M owned" counts. No retired. */
-export function itemsOfType(type: ItemType): CatalogItem[] {
-  return CATALOG.filter((i) => i.type === type && !i.retired);
+/**
+ * Every LIVE item of a type — what the loadout's locked tiles list and what "N of M owned" counts.
+ * No retired items, and no Meme Monday drops: a drop you don't own is either not released yet (its
+ * art is the reveal) or gone for good, so it is never "something you're missing". An OWNED drop
+ * still shows everywhere, through the owned rows. `includeDrops` is for the dev Cosmetic Gallery.
+ */
+export function itemsOfType(type: ItemType, opts: { includeDrops?: boolean } = {}): CatalogItem[] {
+  return CATALOG.filter((i) => i.type === type && !i.retired && (opts.includeDrops || i.acquisition !== 'drop'));
 }
 
 /**

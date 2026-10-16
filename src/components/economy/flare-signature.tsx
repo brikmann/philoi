@@ -75,6 +75,7 @@ export const LIGHTNING = {
  */
 export const SIGNATURE_CYCLE_MS: Record<FlareEffect, number> = {
   glow: 12_800,
+  'aura-counter': 12_800,
   smoke: 18_400,
   plasma: 8_400,
   zaps: 4_600,
@@ -306,6 +307,7 @@ function build(effect: FlareEffect, colour: string, f: SignatureFrame): Signatur
     // GLOW — White Incandescence, Solar Flare. The bloom FlareAura already draws IS the signature,
     // exactly as `EffectLayer` returns null for it at full screen.
     case 'glow':
+    case 'aura-counter':
     default:
       return [];
   }

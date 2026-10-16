@@ -97,7 +97,11 @@ export default function InventoryScreen() {
   // `ofType`, not `shown`: with a tier pinned those differ, and "3 of 7 flames owned" while the
   // grid is narrowed to Epics would be counting one thing and naming another.
   const ownedOfType =
-    filter === 'ALL' ? null : `${ofType.length} of ${itemsOfType(filter).length} ${filter.toLowerCase()}s owned`;
+    filter === 'ALL'
+      ? null
+      : // Owned Meme Monday drops count on both sides: they are not in itemsOfType (an unowned drop
+        // is never "missing"), so without adding them back N could read higher than M.
+        `${ofType.length} of ${itemsOfType(filter).length + ofType.filter((i) => i.acquisition === 'drop').length} ${filter.toLowerCase()}s owned`;
 
   // What the Forge could take, and the best rung it could actually complete. Computed off `owned`
   // rather than `shown` on purpose: the Forge does not care which category chip is active, and a
