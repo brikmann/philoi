@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<!-- LinkedIn company-page cover, 1128x191 logical (exported at 3x). Rebuild: node outreach-assets/linkedin-banner/build.mjs
+     Bottom-left ~300px is covered by the company logo on desktop, and mobile crops the sides, so only
+     decoration (sky, constellation) lives there. Emberfall skin from design-mocks/232-website-emberfall.html;
+     podium metals from src/components/parthenon-podium.tsx. Leaderboard names/scores are sample UI data. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Philoi LinkedIn Banner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap">
+<style>
+  *{box-sizing:border-box;margin:0}
+  html,body{width:1128px;height:191px;overflow:hidden}
+  body{
+    position:relative;
+    font-family:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;
+    color:#FFF6EC;-webkit-font-smoothing:antialiased;
+    /* the Emberfall sky, laid on its side: night on the left, the fall burning in on the right */
+    background:
+      radial-gradient(380px 200px at 80% 120%,rgba(245,90,30,.55),transparent 70%),
+      radial-gradient(300px 160px at 50% 0%,rgba(160,108,213,.18),transparent 70%),
+      linear-gradient(100deg,#040309 0%,#05081F 12%,#0A1440 28%,#14174A 40%,#2C1548 55%,#45184A 68%,#5A2018 84%,#A83C18 100%);
+  }
+  .lava{
+    position:absolute;left:30%;right:-10%;bottom:-60px;height:110px;
+    background:radial-gradient(60% 100% at 70% 100%,rgba(245,64,28,.6),rgba(224,97,44,.2) 46%,transparent 74%);
+    filter:blur(3px);
+  }
+  .embers{position:absolute;inset:0;pointer-events:none}
+  .embers i{position:absolute;border-radius:50%;background:radial-gradient(circle,#FFE7B0,#FF8A2A 70%,transparent);box-shadow:0 0 6px rgba(255,150,60,.9)}
+  .constell{position:absolute;left:34px;top:18px;opacity:.55}
+  /* Greek key meander along the top edge */
+  .key{position:absolute;left:0;right:0;height:10px;opacity:.28;background-repeat:repeat-x;background-size:18px 10px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='10' viewBox='0 0 24 16'><path d='M1 15 V4 H14 V11 H8 V7 H11' fill='none' stroke='%23FFD27A' stroke-width='1.6'/></svg>")}
+  .key.t{top:5px}
+
+  .row{position:absolute;inset:0;display:flex;align-items:center;padding:0 40px 0 300px;gap:34px}
+  .main{flex:1;min-width:0}
+  .eyebrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .live{
+    display:inline-flex;align-items:center;gap:7px;padding:4px 10px 4px 9px;border-radius:999px;
+    border:1px solid rgba(124,255,176,.4);background:rgba(10,30,22,.6);
+    font-size:10.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#7CFFB0;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:#7CFFB0;box-shadow:0 0 0 3px rgba(124,255,176,.22),0 0 9px #7CFFB0}
+  .season{font-size:10.5px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:#FFD27A}
+  .season b{color:#FFF6EC;font-weight:800}
+  h1{font-size:34px;font-weight:900;letter-spacing:-.04em;line-height:1.02;text-shadow:0 2px 18px rgba(0,0,0,.4)}
+  .hl{background:linear-gradient(0deg,#E0612C,#F2A33C 45%,#FFE39B);-webkit-background-clip:text;color:transparent;
+    filter:drop-shadow(0 -1px 8px rgba(255,140,60,.55))}
+  .sub{margin-top:11px;display:flex;align-items:center;gap:16px;font-size:13px;font-weight:600;color:#D8CFE4}
+  /* Apple's supplied badge, unaltered (appstore-badge.svg). Clear space >= 1/10 of its height on every side. */
+  .badge{height:34px;display:block}
+  .url{padding:4px 11px;border-radius:999px;background:linear-gradient(135deg,#E0612C,#F2A33C,#FFD27A);color:#3A1608;font-size:12px;font-weight:800}
+
+  /* the leaderboard card */
+  .lb{flex:none;width:318px;padding:10px 12px 8px;border-radius:16px;
+    background:linear-gradient(180deg,rgba(9,6,17,.82),rgba(20,14,34,.82));
+    border:1px solid rgba(255,158,77,.45);box-shadow:0 14px 40px rgba(0,0,0,.5),0 0 30px rgba(224,97,44,.25)}
+  .lbh{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .lbh span{font-size:8.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#B3A9C6}
+  .lbh em{font-style:normal;font-size:8px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#3A1608;
+    padding:2px 7px;border-radius:999px;background:linear-gradient(135deg,#E0612C,#F2A33C,#FFD27A)}
+  .r{position:relative;display:flex;align-items:center;gap:8px;height:27px;padding:0 9px;border-radius:9px;margin-bottom:4px;background:rgba(255,255,255,.05)}
+  .rk{width:18px;height:18px;flex:none;display:flex;align-items:center;justify-content:center;font-style:normal;
+    clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);font-size:9.5px;font-weight:900;color:#2A1608}
+  .g{background:linear-gradient(180deg,#FFE9A8,#F5C542 55%,#C79A16)}
+  .s{background:linear-gradient(180deg,#EDEFF3,#C7CDD6 55%,#9AA2AE)}
+  .b{background:linear-gradient(180deg,#F0C08A,#C87F3F 55%,#8A4E22)}
+  .n{background:rgba(255,255,255,.12);color:#B3A9C6}
+  .av{width:18px;height:18px;border-radius:6px;flex:none}
+  .nm{font-size:11.5px;font-weight:700}
+  .pts{margin-left:auto;font-size:11px;font-weight:800;color:#FFD27A;font-variant-numeric:tabular-nums}
+  .r.you{background:linear-gradient(90deg,rgba(224,97,44,.4),rgba(224,97,44,.08));border:1px solid rgba(255,170,90,.6);
+    box-shadow:0 0 16px rgba(224,97,44,.45)}
+  .r.you .nm{background:linear-gradient(0deg,#E0612C,#F2A33C 45%,#FFE39B);-webkit-background-clip:text;color:transparent}
+  .up{font-size:9px;font-weight:800;color:#7CFFB0;letter-spacing:.04em}
+</style>
+</head>
+<body>
+  <div class="lava"></div>
+  <div class="key t"></div>
+
+  <!-- the constellation of Hades (mock 232), faint, in the logo-covered corner -->
+  <svg class="constell" width="210" height="130" viewBox="0 0 150 120" fill="none">
+    <g stroke="#FFD27A" stroke-width=".8"><path d="M20 90 L45 60 L75 70 L100 40 L130 55 M75 70 L80 30 M100 40 L95 15"/></g>
+    <g fill="#FFE7B0"><circle cx="20" cy="90" r="2"/><circle cx="45" cy="60" r="2.4"/><circle cx="75" cy="70" r="2"/>
+      <circle cx="100" cy="40" r="2.8"/><circle cx="130" cy="55" r="1.8"/><circle cx="80" cy="30" r="2.2"/><circle cx="95" cy="15" r="1.8"/></g>
+  </svg>
+
+  <div class="embers" id="em"></div>
+
+  <div class="row">
+    <div class="main">
+      <div class="eyebrow">
+        <span class="live"><i class="dot"></i>Now live</span>
+        <span class="season">Season 1 · <b>Emberfall</b></span>
+      </div>
+      <h1>Turn Your Campus Into<br>Your <span class="hl">Leaderboard.</span></h1>
+      <div class="sub"><img class="badge" src="appstore-badge.svg" alt="Download on the App Store"><span class="url">philoi.app</span></div>
+    </div>
+
+    <div class="lb">
+      <div class="lbh"><span>Your campus · This week</span><em>Emberfall</em></div>
+      <div class="r"><i class="rk g">1</i><i class="av" style="background:linear-gradient(135deg,#4FB0E5,#a06cd5)"></i><span class="nm">maya_k</span><span class="pts">4,820</span></div>
+      <div class="r you"><i class="rk s">2</i><i class="av" style="background:linear-gradient(135deg,#E0612C,#FFD27A)"></i><span class="nm">you</span><span class="up">▲ 2</span><span class="pts">4,415</span></div>
+      <div class="r"><i class="rk b">3</i><i class="av" style="background:linear-gradient(135deg,#3DA85C,#4FB0E5)"></i><span class="nm">devpatel</span><span class="pts">4,310</span></div>
+      <div class="r"><i class="rk n">4</i><i class="av" style="background:linear-gradient(135deg,#FF6BD0,#a06cd5)"></i><span class="nm">sarah.l</span><span class="pts">3,640</span></div>
+    </div>
+  </div>
+
+<script>
+  // Static ember field, seeded so every export is identical; denser toward the burning right side.
+  let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const em = document.getElementById('em');
+  for (let i = 0; i < 46; i++) {
+    const x = Math.pow(rnd(), 0.6) * 1128, y = rnd() * 191, r = 1 + rnd() * 2.2;
+    const e = document.createElement('i');
+    e.style.cssText = `left:${x}px;top:${y}px;width:${r}px;height:${r}px;opacity:${0.35 + rnd() * 0.6}`;
+    em.appendChild(e);
+  }
+</script>
+</body>
+</html>
