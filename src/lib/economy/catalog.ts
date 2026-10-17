@@ -475,6 +475,11 @@ const TITLES_EARNED: CatalogItem[] = [
   item({ id: 'title-prometheus', name: '"Prometheus, Developer of Philoi"', type: 'TITLE', rarity: 'mythic', acquisition: 'earned', oneOfOne: true,
     howToGet: 'Bring the fire.',
     lore: 'He stole fire from the gods and handed it to everyone who would sit by it. Every campfire here was lit from his.', art: { kind: 'title', from: '#FF6B6B', to: '#FFD27A' } }),
+  // Hand-granted by the developer (Noah, 2026-10-17) to Laurier users promoting fitness on campus —
+  // BigRaptor and Andrew Abu. 'earned' rows with the personal note as provenance; nothing drops it.
+  item({ id: 'title-content-creator-laurier', name: '"Content Creator • Laurier"', type: 'TITLE', rarity: 'legendary', acquisition: 'earned',
+    howToGet: 'Awarded personally by the developer.',
+    lore: 'For spreading the fire across Laurier — getting people moving, one post at a time.', art: { kind: 'title', from: '#5B2C83', to: '#FFD24D' } }),
   // Printed for EVERY racer when a campfire challenge settles (0212, mock 217) — "Goat Champion",
   // "Goat 2nd Place Finisher". A template, not an item: the server grants it under a per-challenge
   // key (`title-campfire-finisher:<challenge_id>`, because cosmetics_owned is one row per key) and
