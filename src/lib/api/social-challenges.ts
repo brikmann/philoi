@@ -69,6 +69,13 @@ type GradeTerms = {
   courseCode?: string | null;
 };
 
+export type LockinGoalType = 'gym' | 'study';
+
+/** Only sent when set: a server without 0247 refuses an argument it has never heard of. */
+function lockinScopeArg(scope: LockinGoalType | null | undefined): { p_lockin_goal_type?: LockinGoalType } {
+  return scope ? { p_lockin_goal_type: scope } : {};
+}
+
 export async function createH2HChallenge(
   input: {
     opponentId: string;
@@ -78,6 +85,11 @@ export async function createH2HChallenge(
     circleId?: string | null;
     /** The user-set public name (v2). Null/blank falls back to the metric naming it. */
     publicName?: string | null;
+    /**
+     * 0247 · which lock-ins a lockin_time race counts — "Most gym time" counts gym lock-ins only.
+     * Omitted from the call when unset, so the payload is identical to a pre-0247 one.
+     */
+    lockinGoalType?: LockinGoalType | null;
   } & CustomSpan &
     GradeTerms
 ): Promise<SocialChallenge> {
@@ -91,6 +103,7 @@ export async function createH2HChallenge(
     p_ends_on: input.endsOn ?? null,
     p_grade_target: input.gradeTarget ?? null,
     p_course_code: input.courseCode ?? null,
+    ...lockinScopeArg(input.lockinGoalType),
   });
   if (error) throw error;
   track('challenge_created', { mode: 'h2h', circle_id: input.circleId ?? null, custom_span: input.endsOn != null });
@@ -212,6 +225,11 @@ export async function createPlacementChallenge(
      * `verifiability` from the race metric itself, so nothing here can claim to be auto-tracked.
      */
     tier?: DifficultyTier | null;
+    /**
+     * 0247 · which lock-ins a lockin_time race counts — "Most gym time" counts gym lock-ins only.
+     * Omitted from the call when unset, so the payload is identical to a pre-0247 one.
+     */
+    lockinGoalType?: LockinGoalType | null;
   } & CustomSpan &
     GradeTerms
 ): Promise<SocialChallenge> {
@@ -225,6 +243,7 @@ export async function createPlacementChallenge(
     p_grade_target: input.gradeTarget ?? null,
     p_course_code: input.courseCode ?? null,
     p_tier: input.tier ?? null,
+    ...lockinScopeArg(input.lockinGoalType),
   });
   if (error) throw error;
   track('challenge_created', {
@@ -253,6 +272,8 @@ export async function createPooledChallenge(input: {
   publicName?: string | null;
   rewardTopContributor?: boolean;
   tier?: DifficultyTier | null;
+  /** 0247 · see createH2HChallenge. */
+  lockinGoalType?: LockinGoalType | null;
 }): Promise<SocialChallenge> {
   const { data, error } = await supabase.rpc('create_pooled_challenge', {
     p_circle_id: input.circleId,
@@ -262,6 +283,7 @@ export async function createPooledChallenge(input: {
     p_public_name: input.publicName ?? null,
     p_reward_top_contributor: input.rewardTopContributor ?? false,
     p_tier: input.tier ?? null,
+    ...lockinScopeArg(input.lockinGoalType),
   });
   if (error) throw error;
   track('challenge_created', {

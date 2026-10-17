@@ -563,6 +563,16 @@ export const COACH_TOOLS: CoachToolSpec[] = [
             'use "lockin_time" and say plainly in your reply that it will be scored on hours ' +
             'rather than pretending the metric exists.',
         },
+        lockin_kind: {
+          type: 'string',
+          // 0247 · without this a "most gym time" duel counted every lock-in, so study hours won
+          // it. Optional and additive: an installed client ignores it, and the server still infers
+          // the kind from a label naming gym or study.
+          enum: ['gym', 'study'],
+          description:
+            'With metric "lockin_time" only: which lock-ins count. "gym" for gym time/sessions, ' +
+            '"study" for study hours. Omit it when ANY lock-in should count.',
+        },
         circle_id: {
           type: 'string',
           description:

@@ -326,6 +326,7 @@ export default function CindyScreen() {
             tier: isScopedTier(input.difficulty_tier) ? input.difficulty_tier : 'uncommon',
             rationale: typeof input.scope_rationale === 'string' ? input.scope_rationale : '',
             metric: String(input.metric ?? 'lockin_time'),
+            ...(input.lockin_kind === 'gym' || input.lockin_kind === 'study' ? { lockinGoalType: input.lockin_kind } : {}),
             target: String(input.target ?? 0),
             windowHours: String(
               typeof input.window_hours === 'number' && input.window_hours > 0

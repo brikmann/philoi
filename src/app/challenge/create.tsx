@@ -274,6 +274,8 @@ export default function CreateChallengeScreen() {
     publicName?: string;
     label?: string;
     windowHours?: string;
+    /** 0247 · carried from Cindy's chat proposal back to the verdict unchanged. */
+    lockinGoalType?: string;
   }>();
   const prefillCircleId = params.circleId ?? params.groupId ?? null;
   /** A duel already scored in Cindy's chat, waiting only on who. */
@@ -650,6 +652,7 @@ export default function CreateChallengeScreen() {
         label: params.publicName ?? params.label ?? 'Challenge',
         metric: params.raceMetric ?? params.metric ?? 'lockin_time',
         windowHours: params.windowHours ?? '168',
+        ...(params.lockinGoalType ? { lockinGoalType: params.lockinGoalType } : {}),
         opponentId: opponent.id,
         opponentName: opponent.name,
       },

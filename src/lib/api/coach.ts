@@ -722,6 +722,9 @@ export async function performCoachAction(action: CoachAction, ctx: ActionContext
           tier: isScopedTier(tier) ? tier : 'uncommon',
           rationale: typeof action.input.scope_rationale === 'string' ? action.input.scope_rationale : '',
           metric: String(action.input.metric ?? 'lockin_time'),
+          ...(action.input.lockin_kind === 'gym' || action.input.lockin_kind === 'study'
+            ? { lockinGoalType: String(action.input.lockin_kind) }
+            : {}),
           target: String(action.input.target ?? 0),
           windowHours: String(
             typeof action.input.window_hours === 'number' && action.input.window_hours > 0

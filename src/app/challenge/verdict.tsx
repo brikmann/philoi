@@ -21,6 +21,7 @@ import {
   createPooledChallenge,
   hostCampfireChallenge,
   setChallengeScope,
+  type LockinGoalType,
 } from '@/lib/api/social-challenges';
 import { BOXES } from '@/lib/economy/boxes';
 import { asBoxKey, isDifficultyTier, TIER_COLOR, TIER_LINE } from '@/lib/challenge-tier';
@@ -122,6 +123,8 @@ export default function VerdictScreen() {
     coachTool?: string;
     /** pooled only: '1' = the top contributor is paid (0240). */
     rewardTop?: string;
+    /** duel, placement, pooled on lockin_time: 'gym' | 'study' — which lock-ins count (0247). */
+    lockinGoalType?: string;
   }>();
 
   const tier = (p.tier as DifficultyTier) ?? 'uncommon';
@@ -195,6 +198,11 @@ export default function VerdictScreen() {
     }
   };
 
+  // 0247 · which lock-ins a lockin_time race counts. Only gym/study are scopes; anything else is
+  // dropped rather than sent, and the server would refuse it on any metric but lockin_time.
+  const lockinGoalType: LockinGoalType | null =
+    p.lockinGoalType === 'gym' || p.lockinGoalType === 'study' ? p.lockinGoalType : null;
+
   const start = async () => {
     if (!session) return;
     setBusy(true);
@@ -226,6 +234,7 @@ export default function VerdictScreen() {
           publicName: String(p.label),
           rewardTopContributor: p.rewardTop === '1',
           tier,
+          lockinGoalType: metric === 'lockin_time' ? lockinGoalType : null,
         });
         resolveCoachProposal();
         router.replace({ pathname: '/challenge-info/[challengeId]', params: { challengeId: created.id, fresh: '1' } });
@@ -248,6 +257,7 @@ export default function VerdictScreen() {
                 windowHours,
                 publicName: String(p.label),
                 tier,
+                lockinGoalType: metric === 'lockin_time' ? lockinGoalType : null,
               })
             : await createGroupChallenge({
                 circleId: String(p.circleId),
@@ -279,6 +289,7 @@ export default function VerdictScreen() {
             windowHours,
             circleId: p.watchCircleId ? String(p.watchCircleId) : null,
             publicName: String(p.label),
+            lockinGoalType: metric === 'lockin_time' ? lockinGoalType : null,
           });
           if (duel?.id) await setChallengeScope(duel.id, tier).catch(() => {});
           resolveCoachProposal();
@@ -297,6 +308,7 @@ export default function VerdictScreen() {
             rationale: p.rationale ?? '',
             raceMetric: metric,
             windowHours: String(windowHours),
+            ...(lockinGoalType ? { lockinGoalType } : {}),
           },
         });
         return;

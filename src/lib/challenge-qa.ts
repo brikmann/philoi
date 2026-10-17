@@ -608,6 +608,19 @@ function raceMetricOf(what: QaWhat): SocialChallengeRaceMetric {
 }
 
 /**
+ * Which lock-ins a lockin_time race counts (0247). Without it "Most gym time" scored every
+ * lock-in — study hours won a gym duel. Null for anything that is not a lock-in-time race.
+ */
+export function lockinGoalTypeOf(what: QaWhat | null | undefined): 'gym' | 'study' | null {
+  return what === 'gym' || what === 'study' ? what : null;
+}
+
+function lockinScopeParam(what: QaWhat, metric: string): Record<string, string> {
+  const scope = metric === 'lockin_time' ? lockinGoalTypeOf(what) : null;
+  return scope ? { lockinGoalType: scope } : {};
+}
+
+/**
  * A pooled total's metric and raw target, from the discipline. Null when nothing measures it on its
  * own. Every unit is explicit here so no shape can fall through to another one's ("Lift 500 lb").
  */
@@ -678,6 +691,7 @@ export function verdictRouteFor(a: QaAnswers, now: Date = new Date()): VerdictRo
         branch: 'duel',
         label,
         metric: raceMetricOf(what),
+        ...lockinScopeParam(what, raceMetricOf(what)),
         windowHours: String(windowHours),
         opponentId: a.opponent?.id ?? '',
         opponentName: a.opponent?.name ?? '',
@@ -694,7 +708,14 @@ export function verdictRouteFor(a: QaAnswers, now: Date = new Date()): VerdictRo
     // number the user typed anyway ("race to 100 km") is not what decides it, so it is not named.
     return {
       note: null,
-      params: { branch: 'placement', label: `${describeMost(a)}${describeWhen(a)}`.slice(0, 60), metric, windowHours: String(windowHours), ...circle },
+      params: {
+        branch: 'placement',
+        label: `${describeMost(a)}${describeWhen(a)}`.slice(0, 60),
+        metric,
+        ...lockinScopeParam(what, metric),
+        windowHours: String(windowHours),
+        ...circle,
+      },
     };
   }
 
@@ -717,6 +738,7 @@ export function verdictRouteFor(a: QaAnswers, now: Date = new Date()): VerdictRo
           branch: 'pooled',
           label: `${fmt(total)} ${pool.unitLabel} together${describeWhen(a)}${reward}`.slice(0, 60),
           metric: pool.metric,
+          ...lockinScopeParam(what, pool.metric),
           target: String(pool.raw),
           rewardTop: a.contributorReward ? '1' : '0',
           windowHours: String(windowHours),
