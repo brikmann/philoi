@@ -4,7 +4,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -16,6 +16,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { BodyDoubleStrip, BodyDoubleStripCollapsed } from '@/components/body-double-strip';
@@ -177,6 +178,34 @@ function GymScrim() {
         <Rect x={0} y={0} width="100%" height="100%" fill="url(#gymScrim)" />
       </Svg>
     </View>
+  );
+}
+
+/**
+ * <Screen>, with the safe area applied as plain padding from the ROOT provider instead of by a
+ * native <SafeAreaView>.
+ *
+ * This route is a fullScreenModal (_layout.tsx), so on iOS it is a separately presented native
+ * root. A native SafeAreaView inside it measures against that root, and the answer drifts between
+ * presentations — enter, minimize, re-enter, and the header and footer were padded by the wrong
+ * amount until they sat off the visible screen. It is the drawer bug from dce4996 in a different
+ * modal. useSafeAreaInsets() reads the app-root provider, which is the window's insets and does
+ * not resync per present.
+ *
+ * The inner View takes exactly the box the SafeAreaView's padding used to leave, so `style`,
+ * `padded` and every absoluteFill child lay out as they did before. The ground and `overlay` still
+ * sit outside it and stay full-bleed.
+ */
+function LockInScreenFrame({ style, padded = true, children, ...rest }: ComponentProps<typeof Screen>) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Screen
+      {...rest}
+      edges={[]}
+      padded={false}
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }}>
+      <View style={[styles.frame, padded && styles.framePadded, style]}>{children}</View>
+    </Screen>
   );
 }
 
@@ -948,7 +977,7 @@ function LockInScreen() {
     return (
       // Immersive forge backdrop (Colors.forgeBg), not the plum `dark` Screen — the celebration
       // paints its own radial glow over this, and the safe-area insets stay dark too.
-      <Screen backgroundColor={Colors.forgeBg} padded={false}>
+      <LockInScreenFrame backgroundColor={Colors.forgeBg} padded={false}>
         <RankUpCelebration
           tier={rankUpInfo.tier}
           division={rankUpInfo.division}
@@ -977,13 +1006,13 @@ function LockInScreen() {
             isDivisionBump={rankUpInfo.fromTier === rankUpInfo.tier}
           />
         </View>
-      </Screen>
+      </LockInScreenFrame>
     );
   }
 
   if (posted && postedCheckIn && fireCompleteInfo) {
     return (
-      <Screen dark>
+      <LockInScreenFrame dark>
         <FlameMeterComplete
           displayName={profile?.display_name ?? 'You'}
           goalType={postedCheckIn.goal_type}
@@ -1012,13 +1041,13 @@ function LockInScreen() {
             division={rankAfter?.division ?? 3}
           />
         </View>
-      </Screen>
+      </LockInScreenFrame>
     );
   }
 
   if (posted && postedCheckIn) {
     return (
-      <Screen style={styles.container}>
+      <LockInScreenFrame style={styles.container}>
         <RewardBurst ref={rewardBurstRef} cue="settle" />
         <LockInDoneScreen
           goalType={postedCheckIn.goal_type}
@@ -1052,7 +1081,7 @@ function LockInScreen() {
             xpEarned={postedCheckIn.xp_earned}
           />
         </View>
-      </Screen>
+      </LockInScreenFrame>
     );
   }
 
@@ -1060,7 +1089,7 @@ function LockInScreen() {
   // sweep). Say so, rather than parking on "Starting your session…" or a dead timer.
   if (!activeSession && endedRemotelyId && !loading && !posted && !stopping) {
     return (
-      <Screen style={styles.container}>
+      <LockInScreenFrame style={styles.container}>
         <Text style={styles.loading}>
           This session ended — Philoi closes a lock-in after about 20 minutes without a &quot;still
           here?&quot; answer. Your time up to your last check-in was saved.
@@ -1068,13 +1097,13 @@ function LockInScreen() {
         <Pressable onPress={() => router.replace('/')} style={styles.bailOut} accessibilityRole="button">
           <Text style={styles.bailOutLabel}>Back to Philoi</Text>
         </Pressable>
-      </Screen>
+      </LockInScreenFrame>
     );
   }
 
   if (loading || activeLoading || !activeSession) {
     return (
-      <Screen style={styles.container}>
+      <LockInScreenFrame style={styles.container}>
         <Text style={styles.loading}>{error ?? 'Starting your session…'}</Text>
         {/* Belt-and-braces for punchlist #42: the wedge above is fixed at the source, but a
             genuinely stalled network call can still park someone here, and this screen is a
@@ -1085,7 +1114,7 @@ function LockInScreen() {
             <Text style={styles.bailOutLabel}>Back to Philoi</Text>
           </Pressable>
         )}
-      </Screen>
+      </LockInScreenFrame>
     );
   }
 
@@ -1095,7 +1124,7 @@ function LockInScreen() {
   // chip, the body-doubles collapse to one line, and the CTA becomes "Finish workout."
   if (isGym) {
     return (
-      <Screen
+      <LockInScreenFrame
         backgroundColor={IMMERSIVE_BG}
         style={styles.gymContainer}
         padded={false}
@@ -1287,7 +1316,7 @@ function LockInScreen() {
         />
 
         {audioSheetOpen && <SessionAudioSheet visible onClose={() => setAudioSheetOpen(false)} />}
-      </Screen>
+      </LockInScreenFrame>
     );
   }
 
@@ -1296,7 +1325,7 @@ function LockInScreen() {
   // Custom. The fire and the timer own it: no goal-tool symbol in the flame, no filler copy, no
   // in-session caption field.
   return (
-    <Screen
+    <LockInScreenFrame
       backgroundColor={IMMERSIVE_BG}
       style={styles.container}
       padded={false}
@@ -1492,7 +1521,7 @@ function LockInScreen() {
       />
 
       {audioSheetOpen && <SessionAudioSheet visible onClose={() => setAudioSheetOpen(false)} />}
-    </Screen>
+    </LockInScreenFrame>
   );
 }
 
@@ -1518,6 +1547,13 @@ const styles = StyleSheet.create({
   flameField: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  frame: {
+    flex: 1,
+  },
+  // Matches <Screen>'s own `padded` gutter, which the frame now has to supply.
+  framePadded: {
+    paddingHorizontal: Spacing.four,
   },
   container: {
     flex: 1,

@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Alert,
+  Dimensions,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -129,6 +130,22 @@ export function UnlockReveal({
   const [equipping, setEquipping] = useState(false);
   const [equipped, setEquipped] = useState(false);
 
+  // WHERE THIS ROOT SITS ON THE PHONE. Every caller nests the reveal inside a SafeAreaView (the
+  // shop's Screen, the reveal host, the challenge frame's overlay), so an absolutely-filled layer
+  // stops at the status bar and the home indicator — the rays read as a lit box with dark bands
+  // above and below it. FullscreenRays escapes those wrappers given the root's window offset, the
+  // same measurement the reward frame hands it.
+  const rootRef = useRef<View>(null);
+  const [rootOffset, setRootOffset] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const measureRoot = () =>
+    rootRef.current?.measureInWindow((x, y) =>
+      setRootOffset((prev) =>
+        prev && prev.x === x && prev.y === y ? prev : { x, y },
+      ),
+    );
+
   // Auto-walk ①→②→③ until the user takes over, then hold. Stops at ③ rather than looping: the last
   // beat is the one that answers "what does it do", and cycling away from it mid-read undoes that.
   useEffect(() => {
@@ -206,11 +223,28 @@ export function UnlockReveal({
         : "Equip now";
 
   return (
-    <View style={styles.root}>
+    <View ref={rootRef} style={styles.root} onLayout={measureRoot}>
+      {/* The scrim bleeds with the rays, so the inset strips are as dark as the rest of the page. */}
+      <View
+        pointerEvents="none"
+        style={[
+          styles.scrim,
+          rootOffset
+            ? {
+                // Padded past the screen for the same window-vs-screen reason as SCREEN_BLEED_PAD.
+                left: -rootOffset.x - SCRIM_BLEED,
+                top: -rootOffset.y - SCRIM_BLEED,
+                width: Dimensions.get("screen").width + SCRIM_BLEED * 2,
+                height: Dimensions.get("screen").height + SCRIM_BLEED * 2,
+              }
+            : StyleSheet.absoluteFill,
+        ]}
+      />
       <FullscreenRays
         kind="item_unlock"
         tint={{ inner: hueLight, outer: hue }}
         intensity={0.5}
+        rootOffset={rootOffset}
       />
 
       {onBack ? (
@@ -341,6 +375,9 @@ export function UnlockReveal({
   );
 }
 
+/** How far past the device screen the bleeding scrim reaches on every side. */
+const SCRIM_BLEED = 200;
+
 /** Toward white, on the item's own hue — the kicker and the rays' hot core. */
 function lighten(hex: string, amount: number): string {
   const n = parseInt(hex.replace("#", "").slice(0, 6), 16);
@@ -357,10 +394,14 @@ function capitalise(s: string): string {
 }
 
 const styles = StyleSheet.create({
+  // NOT `overflow: 'hidden'` — the scrim and the rays deliberately paint past this box to reach the
+  // edges of the phone (the ray layer clips itself).
   root: {
     flex: 1,
+  },
+  scrim: {
+    position: "absolute",
     backgroundColor: "rgba(11,8,20,0.94)",
-    overflow: "hidden",
   },
   back: {
     position: "absolute",

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useId, useState } from 'react';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -143,6 +143,17 @@ export default function GroupScreen() {
   useEffect(() => {
     track('chat_opened', { group_id: groupId });
   }, [groupId]);
+
+  // Re-read the group every time this screen regains focus. Campfire settings (group/[id]/edit)
+  // saves the banner, name and emoji and then router.back()s — but its refetch() updates ITS OWN
+  // useGroup instance, not this one, and nothing else invalidates it. Without this the screen you
+  // land back on still holds the pre-save row, so a newly chosen banner never appeared until the
+  // campfire was closed and reopened.
+  useFocusEffect(
+    useCallback(() => {
+      refetchGroup();
+    }, [refetchGroup])
+  );
 
   // The roster, fetched once here rather than twice below: the @-mention autocomplete and the
   // ping sheet both need it, and they are both inside the timeline.
