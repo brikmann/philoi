@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="launched">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -31,7 +31,7 @@
 
 <!-- Meta copy is true on both sides of Oct 1; the visible CTA carries the date. -->
 <title>Philoi — Season 1: Emberfall · The social accountability app for students</title>
-<meta name="description" content="Turn your campus into your leaderboard. Philoi is the social accountability app for students: lock in, climb your campus leaderboard, study around campfires with friends and earn Season 1: Emberfall looks. iOS first, Android next.">
+<meta name="description" content="Turn your campus into your leaderboard. Philoi is the social accountability app for students: lock in, climb your campus leaderboard, study around campfires with friends and earn Season 1: Emberfall looks. Out now on iOS, Android next.">
 <link rel="canonical" href="https://philoi.app/">
 <meta name="theme-color" content="#040309">
 <meta name="color-scheme" content="dark">
@@ -41,14 +41,14 @@
 <meta property="og:site_name" content="Philoi">
 <meta property="og:url" content="https://philoi.app/">
 <meta property="og:title" content="Philoi — Season 1: Emberfall">
-<meta property="og:description" content="The social accountability app for students. Turn your campus into your leaderboard — iOS first, Android next.">
+<meta property="og:description" content="The social accountability app for students. Turn your campus into your leaderboard. Out now on iOS.">
 <meta property="og:image" content="https://philoi.app/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Philoi — For the Best on Campus. Season 1: Emberfall, on iOS October 1.">
+<meta property="og:image:alt" content="Philoi — For the Best on Campus. Season 1: Emberfall, out now on iOS.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Philoi — Season 1: Emberfall">
-<meta name="twitter:description" content="The social accountability app for students. Turn your campus into your leaderboard — iOS first, Android next.">
+<meta name="twitter:description" content="The social accountability app for students. Turn your campus into your leaderboard. Out now on iOS.">
 <meta name="twitter:image" content="https://philoi.app/og.png">
 
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -123,7 +123,7 @@ html.launched .cta-pre{display:none!important}
 /* ══ The page — ONE continuous Emberfall wash, top to bottom ═════════════
    The paywall sky (mock 223 / 233): void → deep blue → purple → ember → orange. */
 .page{
-  position:relative;isolation:isolate;min-height:100vh;
+  position:relative;isolation:isolate;min-height:100vh;overflow-x:clip;
   background:linear-gradient(180deg,#040309 0%,#05081F 7%,#0A1440 18%,#14174A 30%,#2C1548 46%,#45184A 58%,#5A2018 74%,#A83C18 88%,#E86A2A 100%);
 }
 /* Embers across the whole page — fixed to the viewport so they drift over
@@ -399,6 +399,73 @@ html.launched .cta-pre{display:none!important}
 .js .reveal{opacity:0;transform:translateY(16px);transition:opacity .6s cubic-bezier(.2,.7,.3,1),transform .6s cubic-bezier(.2,.7,.3,1)}
 .js .reveal.in{opacity:1;transform:none}
 
+/* ══ OUT ON iOS NOW — the launch treatment ══════════════════════════════ */
+/* Top strip: a molten band that flows sideways, riding the sticky nav. */
+.launchbar{
+  display:flex;align-items:center;justify-content:center;gap:10px;min-height:38px;padding:6px 16px;
+  background:linear-gradient(90deg,#F5401C,#E0612C,#F2A33C,#FFD27A,#F2A33C,#E0612C,#F5401C);background-size:300% 100%;
+  animation:molten 6s linear infinite;color:var(--on-ember);font-size:12.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+}
+.launchbar:hover{filter:brightness(1.08)}
+.launchbar .go{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:12px;background:rgba(58,22,8,.88);color:var(--ember);letter-spacing:.04em}
+@keyframes molten{to{background-position:300% 0}}
+/* the "live" dot — a coal that breathes a ring outward */
+.dot{position:relative;width:9px;height:9px;flex:none;border-radius:50%;background:#7CFFB0;box-shadow:0 0 10px #7CFFB0}
+.dot::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid #7CFFB0;animation:ping 1.6s cubic-bezier(0,0,.2,1) infinite}
+.launchbar .dot{background:#2a8a50;box-shadow:none}
+.launchbar .dot::after{border-color:#2a8a50}
+@keyframes ping{0%{transform:scale(1);opacity:.9}100%{transform:scale(2.8);opacity:0}}
+
+/* Nav button: a pale band sweeping across */
+.get.cta-live{position:relative;overflow:hidden;background:linear-gradient(135deg,#E0612C,#F2A33C,#FFD27A);color:var(--on-ember);box-shadow:0 0 18px rgba(255,140,50,.45)}
+.get.cta-live::after,.appstore.hot::after{
+  content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;transform:skewX(-20deg);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:sweep 3.4s ease-in-out infinite;
+}
+@keyframes sweep{0%,55%{left:-60%}100%{left:130%}}
+
+/* Hero badge */
+.livebadge{
+  display:flex;width:fit-content;align-items:center;gap:10px;margin-bottom:16px;padding:9px 16px 9px 13px;border-radius:999px;
+  background:rgba(124,255,176,.08);border:1px solid rgba(124,255,176,.45);
+  box-shadow:0 0 24px rgba(124,255,176,.18),inset 0 0 12px rgba(124,255,176,.08);
+  font-size:13px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#CFFFE0;
+}
+.livebadge b{color:#7CFFB0}
+.hero .hl{background:linear-gradient(90deg,#FFE39B,#F2A33C,#FF7A2F,#F2A33C,#FFE39B);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;animation:molten 5s linear infinite}
+
+/* The App Store button, on fire */
+.appstore.hot{
+  position:relative;overflow:hidden;min-height:58px;padding:9px 22px 9px 17px;border-radius:15px;
+  border:1.5px solid rgba(255,210,122,.75);animation:pulseGlow 2.4s ease-in-out infinite;
+  transition:transform .2s ease;
+}
+.appstore.hot:hover{transform:translateY(-2px) scale(1.03)}
+.appstore.hot svg{width:26px;height:26px}
+.appstore.hot b{font-size:20px}
+.appstore.hot small{font-size:10.5px}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,140,50,.55),0 0 22px rgba(255,140,50,.35)}50%{box-shadow:0 0 0 9px rgba(255,140,50,0),0 0 38px rgba(255,170,70,.65)}}
+.free{font-size:13px;font-weight:700;color:var(--muted)}
+.free b{color:var(--ember)}
+
+/* Ticker band between hero and scenes */
+.ticker{
+  position:relative;overflow:hidden;margin:30px 0 0;padding:13px 0;transform:rotate(-2deg);
+  background:linear-gradient(90deg,#5A2018,#E0612C 30%,#F2A33C 50%,#E0612C 70%,#5A2018);
+  border-block:1px solid rgba(255,210,122,.6);box-shadow:0 0 40px rgba(245,64,28,.35);
+  width:106%;margin-inline:-3%;
+}
+.ticker .track{display:flex;width:max-content;animation:tick 26s linear infinite}
+.ticker span{display:inline-flex;align-items:center;gap:18px;padding-right:18px;white-space:nowrap;font-size:15px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#1a0b04}
+.ticker span i{width:8px;height:8px;transform:rotate(45deg);background:#FFF3D6;flex:none}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+/* Final CTA, launched */
+.final .bigout{font-size:clamp(40px,12vw,84px);line-height:.98;font-weight:900;letter-spacing:-.04em;margin-bottom:6px;filter:drop-shadow(0 4px 22px rgba(58,22,8,.55))}
+.final .bigout .flash{animation-duration:2.6s}
+.final .kick{display:inline-flex;align-items:center;gap:8px;margin-bottom:12px}
+.final .appstore.hot{margin-top:4px}
+
 /* ══ Desktop — scale UP; the phone render stays the source of truth ════ */
 @media (min-width:820px){
   .shell{padding-inline:36px}
@@ -418,7 +485,12 @@ html.launched .cta-pre{display:none!important}
   .shop-grid .passbanner{margin-top:0}
   .profile{max-width:300px}
   .final{padding:96px 0 64px}
+  .launchbar{font-size:13.5px}
+  .livebadge{font-size:14px}
+  .ticker{margin-top:44px;padding:16px 0}
+  .ticker span{font-size:18px}
 }
+@media (max-width:420px){ .launchbar .long{display:none} }
 
 /* ══ Reduced motion — everything to a finished still ═══════════════════ */
 @media (prefers-reduced-motion:reduce){
@@ -457,6 +529,7 @@ html.launched .cta-pre{display:none!important}
 
     <!-- ══ 1 · Nav ═════════════════════════════════════════════════════ -->
     <header class="nav">
+      <a class="launchbar cta-live" href="https://apps.apple.com/app/id6790697786"><span class="dot" aria-hidden="true"></span>Out on iOS now<span class="long">&nbsp;· Season 1: Emberfall is live</span><span class="go">Get it free →</span></a>
       <div class="shell">
         <a class="logo" href="/"><svg aria-hidden="true"><use href="#flame"/></svg>Philoi</a>
         <a class="get cta-pre" href="#get">Get the app</a>
@@ -470,6 +543,7 @@ html.launched .cta-pre{display:none!important}
       <section class="hero" aria-labelledby="heroTitle">
         <div class="shell hero-grid">
           <div>
+            <p class="livebadge cta-live"><span class="dot" aria-hidden="true"></span><span><b>Out on iOS</b> now</span></p>
             <p class="namegloss">
               <span class="top"><span class="gk" lang="grc">φίλοι</span><span class="say">/ fee-loy / (philoi)</span></span>
               <span class="mean" style="display:block">Ancient Greek for your closest friends — the people you show up for.</span>
@@ -479,8 +553,8 @@ html.launched .cta-pre{display:none!important}
             <p class="lede">Lock in, climb your school&rsquo;s ranks, and duel your friends. Every hour you focus is scored — and everyone can see it.</p>
 
             <div class="row-cta cta-live">
-              <a class="appstore" href="https://apps.apple.com/app/id6790697786"><svg aria-hidden="true"><use href="#apple"/></svg><span><small>Download on the</small><b>App Store</b></span></a>
-              <span class="pill ghost">Out now on iOS</span>
+              <a class="appstore hot" href="https://apps.apple.com/app/id6790697786"><svg aria-hidden="true"><use href="#apple"/></svg><span><small>Download on the</small><b>App Store</b></span></a>
+              <span class="free"><b>Free</b> · Android next</span>
             </div>
             <div class="cta-pre">
               <div class="row-cta">
@@ -510,6 +584,11 @@ html.launched .cta-pre{display:none!important}
           </div>
         </div>
       </section>
+
+      <div class="ticker cta-live" aria-hidden="true"><div class="track">
+        <span>Out on iOS now<i></i>Season 1: Emberfall<i></i>Lock in<i></i>Climb your campus<i></i>Out on iOS now<i></i>Duel your friends<i></i></span>
+        <span>Out on iOS now<i></i>Season 1: Emberfall<i></i>Lock in<i></i>Climb your campus<i></i>Out on iOS now<i></i>Duel your friends<i></i></span>
+      </div></div>
 
       <div class="gkey" aria-hidden="true"><i></i><svg viewBox="0 0 34 12"><path d="M2 9 h6 v-6 h4 v6 h6 v-6 h4 v6 h6" stroke="#FFD27A" stroke-width="1.2" stroke-linecap="square" fill="none"/></svg><i></i></div>
 
@@ -660,10 +739,12 @@ html.launched .cta-pre{display:none!important}
       <!-- ══ 8 · Final CTA ═════════════════════════════════════════════ -->
       <section class="final" id="get">
         <div class="shell">
-          <h2>Ready to lock in?</h2>
+          <p class="kick cta-live"><span class="dot" aria-hidden="true"></span>Season 1 is live</p>
+          <h2 class="bigout cta-live"><span class="flash">Out on iOS now.</span></h2>
+          <h2 class="cta-pre">Ready to lock in?</h2>
           <p class="l cta-pre">iOS October 1 · Android next.</p>
-          <p class="l cta-live">Out now on iOS · Android next.</p>
-          <a class="appstore cta-live" href="https://apps.apple.com/app/id6790697786"><svg aria-hidden="true"><use href="#apple"/></svg><span><small>Download on the</small><b>App Store</b></span></a>
+          <p class="l cta-live">Ready to lock in? It&rsquo;s free on the App Store · Android next.</p>
+          <a class="appstore hot cta-live" href="https://apps.apple.com/app/id6790697786"><svg aria-hidden="true"><use href="#apple"/></svg><span><small>Download on the</small><b>App Store</b></span></a>
           <form class="notify cta-pre" action="mailto:support@philoi.app" method="post" enctype="text/plain" data-notify>
             <label class="sr-only" for="notify-final">Your email</label>
             <input id="notify-final" type="email" name="email" placeholder="you@yourschool.edu" autocomplete="email" required>
@@ -685,7 +766,7 @@ html.launched .cta-pre{display:none!important}
           <a href="/delete-account.html">Delete account</a>
           <a href="/support.html">Support</a>
         </nav>
-        <p class="copy">&copy; 2026 Philoi · For the Best on Campus</p>
+        <p class="copy">&copy; 2026 Noah Patrick Brikman · For the Best on Campus</p>
       </div>
     </footer>
   </div>
