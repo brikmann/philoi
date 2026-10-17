@@ -2,12 +2,13 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { EquippedHexGlow } from '@/components/economy/loadout-bits';
 import { PublicIdentity, useResolvedLoadout } from '@/components/economy/public-identity';
+import { LiveStatusBadge } from '@/components/live-status-badge';
 import { RankBadge } from '@/components/rank-badge';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { shortName } from '@/lib/format';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
 import { formatRankTier } from '@/lib/rank-tiers';
-import type { RankTierName } from '@/types/database';
+import type { PresenceRow, RankTierName } from '@/types/database';
 
 // The compact leaderboard row shared by the Leaderboard tab (design-mocks/11) and the
 // intra-campfire board (PHILOI_UI_SPEC.md §15 — "same row style"). Position · avatar · name +
@@ -38,6 +39,7 @@ export function LeaderboardPersonRow({
   secondaryValue,
   isMe,
   loadout,
+  presence,
 }: {
   rank: number;
   userId: string;
@@ -51,6 +53,9 @@ export function LeaderboardPersonRow({
   isMe: boolean;
   /** Batched at the list — see the note above. */
   loadout?: PublicLoadout;
+  /** Live status (0245), batched at the list through usePresence. Last-active only ever comes back
+   * for a friend, so the row tags it "· friend" (mock 273). */
+  presence?: PresenceRow;
 }) {
   // Resolved once and shared: EquippedHexGlow draws YOUR halo when handed `undefined`, so it must
   // never see the raw prop.
@@ -69,7 +74,12 @@ export function LeaderboardPersonRow({
         loadout={resolved}
         motion="reduced"
         suffix={isMe ? ' · you' : undefined}
-        sub={<Text style={styles.sub}>{formatRankTier(tier, division)}</Text>}
+        sub={
+          <>
+            <Text style={styles.sub}>{formatRankTier(tier, division)}</Text>
+            <LiveStatusBadge presence={presence} lastActive tagFriend />
+          </>
+        }
       />
       <View>
         <EquippedHexGlow size={24} loadout={resolved} />

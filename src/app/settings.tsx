@@ -29,6 +29,7 @@ import { track } from '@/lib/analytics';
 import { resetCoachMarks } from '@/lib/coach-marks';
 import { resetTutorial } from '@/lib/tutorial';
 import { rankVisibilityOf, setRankVisibility } from '@/lib/api/privacy';
+import { setLiveStatusPrefs, type LiveStatusPrefs } from '@/lib/api/presence';
 import { setMyPhotoVisibility } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
 import { revokeAppleSignInBestEffort } from '@/lib/auth/providers';
@@ -154,6 +155,12 @@ export default function SettingsScreen() {
   const [watchOptIn, setWatchOptInState] = useState(profile?.watch_opt_in ?? false);
   // 0217 · the season rank dial (0170's Private mode became its middle setting, 'friends').
   const [rankVisibility, setRankVisibilityState] = useState<RankVisibility>(rankVisibilityOf(profile));
+  // 0245 · live status. Absent columns (a database older than this build) read as the default, on.
+  const [livePrefs, setLivePrefsState] = useState<Required<LiveStatusPrefs>>({
+    show_live_status: profile?.show_live_status ?? true,
+    show_live_activity: profile?.show_live_activity ?? true,
+    show_last_active: profile?.show_last_active ?? true,
+  });
   const cindy = useCindy();
   const [cindyBubbleOverride, setCindyBubbleOverride] = useState<boolean | null>(null);
   // Optimistic on top of the fetched value: the toggle has to move on tap, but the hook refetches
@@ -218,6 +225,17 @@ export default function SettingsScreen() {
     setRankVisibility(next)
       .then(() => refreshProfile?.())
       .catch(() => setRankVisibilityState(prev));
+  }
+
+  // 0245 · optimistic with rollback, like the rank dial: a switch left showing "off" after a failed
+  // write would tell someone they are hidden while their badge is still lit for their whole campus.
+  function handleChangeLivePref(key: keyof LiveStatusPrefs, value: boolean) {
+    if (!session?.user.id) return;
+    const prev = livePrefs;
+    setLivePrefsState({ ...prev, [key]: value });
+    setLiveStatusPrefs(session.user.id, { [key]: value })
+      .then(() => refreshProfile?.())
+      .catch(() => setLivePrefsState(prev));
   }
 
   // The sense prefs write to AsyncStorage through an in-memory cache that updates synchronously,
@@ -451,6 +469,37 @@ export default function SettingsScreen() {
           />
           <SettingsRow icon="ban" label="Blocked users" onPress={() => router.push('/blocked-users')} />
         </View>
+
+        {/* LIVE STATUS (mock 273, migration 0245). Every gate is server-side in get_presence, so
+            these writes take effect on the next read anyone makes — "hides you instantly" is true
+            to within one board refresh. */}
+        <Text style={styles.sectionLabel}>LIVE STATUS</Text>
+        <View style={styles.group}>
+          <SettingsToggleRow
+            icon="flame"
+            label="Show when I'm locked in or online"
+            description="A live badge under your name — “Locked in” while in a session, or “Online now” when the app's open. Visible across your verified campus."
+            value={livePrefs.show_live_status}
+            onValueChange={(v) => handleChangeLivePref('show_live_status', v)}
+          />
+          <SettingsToggleRow
+            icon="book"
+            label="Show what I'm locked in on"
+            description="Adds the discipline — STUDY · LIFTING · CARDIO · DEEP WORK. Off = just “Locked in”."
+            value={livePrefs.show_live_activity}
+            onValueChange={(v) => handleChangeLivePref('show_live_activity', v)}
+          />
+          <SettingsToggleRow
+            icon="time"
+            label="Show “last active” to friends"
+            description="Lets friends see when you were last on (“Active 12m ago”). Reciprocal — hide yours and you can't see theirs. Friends only."
+            value={livePrefs.show_last_active}
+            onValueChange={(v) => handleChangeLivePref('show_last_active', v)}
+          />
+        </View>
+        <Text style={styles.sectionHint}>
+          Turns off instantly. Clears the moment your lock-in ends, and auto-expires if a session runs stale.
+        </Text>
 
         {/* SEASON RANK (CODE_PROMPT_season_privacy.md, migration 0217) — the three-way dial that
             grew out of 0170's Private mode. The same control onboarding shows, writing through the

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LiveStatusBadge } from '@/components/live-status-badge';
 import { Avatar } from '@/components/ui/avatar';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -19,6 +20,7 @@ import {
   type Relationship,
   type SuggestedPerson,
 } from '@/lib/api/friend-requests';
+import { usePresence } from '@/hooks/use-presence';
 import { getErrorMessage } from '@/lib/errors';
 
 // "Add friends" (design-mocks/34 + 35 — the same screen in two states, per their identical
@@ -156,6 +158,8 @@ export default function AddFriendScreen() {
   }
 
   const searchingActive = query.trim().length > 0;
+  // Live status (0245) on search results and suggestions — one batched call for whichever list is up.
+  const presence = usePresence(searchingActive ? results.map((r) => r.user_id) : suggested.map((s) => s.user_id));
   const incoming = requests.filter((r) => r.direction === 'incoming');
   const sent = requests.filter((r) => r.direction === 'sent');
 
@@ -199,6 +203,7 @@ export default function AddFriendScreen() {
                   </Text>
                   {r.handle && <Text style={styles.handle}>@{r.handle}</Text>}
                   {r.mutual_circle_name && <Text style={styles.sub}>in {r.mutual_circle_name}</Text>}
+                  <LiveStatusBadge presence={presence[r.user_id]} />
                 </View>
                 {renderActionButton(r.user_id, relationshipFor(r.user_id, r.relationship))}
               </View>
@@ -276,6 +281,7 @@ export default function AddFriendScreen() {
                         {s.display_name}
                       </Text>
                       {s.mutual_circle_name && <Text style={styles.sub}>in {s.mutual_circle_name}</Text>}
+                      <LiveStatusBadge presence={presence[s.user_id]} />
                     </View>
                     {renderActionButton(s.user_id, relationshipFor(s.user_id, 'none'))}
                   </View>

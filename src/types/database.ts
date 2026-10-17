@@ -73,6 +73,23 @@ export type RankTierName =
 // "Who can see my photos" (§19): Everyone · My campfires (default) · Just me (private journal).
 export type PhotoVisibility = 'everyone' | 'campfires' | 'private';
 
+/**
+ * One user's presence as get_presence (0245) resolved it for the CALLER. Every gate (verified
+ * campus, opt-outs, blocks, friendship, reciprocity) is applied server-side — a field that comes
+ * back false/null means "show nothing", never "unknown".
+ *
+ * `discipline` is a key, not a label; see DISCIPLINE_LABEL in components/live-status-badge.tsx.
+ * An unrecognised key renders as a bare "Locked in".
+ */
+export type PresenceRow = {
+  user_id: string;
+  locked_in: boolean;
+  discipline: string | null;
+  online: boolean;
+  /** Friends only, and only when both sides show last-active. */
+  last_active_at: string | null;
+};
+
 // Per-category push notification toggles (§19). Partial on the wire — a missing key means
 // "on" (see notify_push()'s coalesce). The client fills defaults via DEFAULT_NOTIFICATION_PREFS.
 export type NotificationPrefs = {
@@ -202,6 +219,16 @@ export type Profile = {
   embers: number;
   /** "Let friends watch my live challenges" (§16/§19) — default off; gates the profile-scoped Watch CTA. */
   watch_opt_in: boolean;
+  /**
+   * LIVE STATUS (0245). Optional for the same reason as rank_visibility below — a build can be
+   * newer than its database. Absent reads as on, which is the column default.
+   * show_live_status: the campus-public "Locked in" / "Online" badge.
+   * show_live_activity: the discipline after "Locked in ·".
+   * show_last_active: friends-only "Active 7m ago" — reciprocal, so off also hides theirs from you.
+   */
+  show_live_status?: boolean;
+  show_live_activity?: boolean;
+  show_last_active?: boolean;
   /**
    * PRIVATE MODE (0170). Only accepted friends can see this user's competitive numbers: off every
    * board and out of search for a non-friend, "Rank muted" on their profile, "Anonymous" at the
@@ -3636,6 +3663,10 @@ export type Database = {
         Args: { p_prestige: number };
         Returns: { prestige: number; season_id: string; rewards: PassPrestigeReward[] };
       };
+      // 0245 — live status for a batch of users (≤200 ids), gated server-side for the caller.
+      get_presence: { Args: { p_user_ids: string[] }; Returns: PresenceRow[] };
+      // 0245 — stamps the caller's last_seen_at (throttled to one write per 30s).
+      touch_presence: { Args: Record<string, never>; Returns: undefined };
       /** Equipped cosmetics for OTHER users — keys only, nothing sellable or private. */
       get_public_loadouts: {
         Args: { p_user_ids: string[] };

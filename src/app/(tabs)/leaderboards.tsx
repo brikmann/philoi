@@ -8,6 +8,7 @@ import { EquippedHexGlow, PublicTitle } from '@/components/economy/loadout-bits'
 import { CosmeticAvatar, useResolvedLoadout } from '@/components/economy/public-identity';
 import { BurntOutCampfire } from '@/components/empty-states/burnt-out-campfire';
 import { LeaderboardGap, LeaderboardPersonRow } from '@/components/leaderboard-person-row';
+import { LiveStatusBadge } from '@/components/live-status-badge';
 import {
   usePublicLoadouts,
   useRefreshPublicLoadoutsOnFocus,
@@ -24,6 +25,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { RankBadge } from '@/components/rank-badge';
 import { useCrossCirclePeople } from '@/hooks/use-cross-circle-people';
 import { useGlobalLeaderboard } from '@/hooks/use-global-leaderboard';
+import { usePresence } from '@/hooks/use-presence';
 import { useUniversityLeaderboard } from '@/hooks/use-university-leaderboard';
 import { useUniversityTotals } from '@/hooks/use-university-totals';
 import { track } from '@/lib/analytics';
@@ -36,6 +38,7 @@ import type {
   CrossCirclePerson,
   GlobalLeaderboardRow,
   LeaderboardSearchResult,
+  PresenceRow,
   RankTierName,
   UniversityLeaderboardRow,
 } from '@/types/database';
@@ -247,6 +250,10 @@ export default function LeaderboardsScreen() {
   // Search hits wear their gear too (mock 259) — batched over the whole result list, same as a board.
   // get_public_loadouts already answers for any user id, so this needs nothing from search_leaderboard.
   const searchLoadouts = usePublicLoadouts(searchOpen ? searchResults.map((r) => r.user_id) : []);
+  // Live status (0245) — ONE get_presence call over whatever is on screen, board or search, same
+  // batching as gear above. Re-read on focus and every ~45s while focused, which is what clears a
+  // badge once someone's lock-in ends.
+  const presence = usePresence(searchOpen ? searchResults.map((r) => r.user_id) : visibleUserIds);
 
   const sortedTotals = totals
     .map((t) => ({ ...t, perCapita: t.member_count > 0 ? t.total_xp / t.member_count : 0 }))
@@ -278,7 +285,10 @@ export default function LeaderboardsScreen() {
         ListHeaderComponent={
           board.top3.length > 0 ? (
             <View style={styles.podiumWrap}>
-              <ParthenonPodium top={board.top3} onPressItem={(item) => goToProfile(item.key)} />
+              <ParthenonPodium
+                top={board.top3.map((t) => (t.kind === 'person' ? { ...t, presence: presence[t.key] } : t))}
+                onPressItem={(item) => goToProfile(item.key)}
+              />
             </View>
           ) : null
         }
@@ -294,6 +304,7 @@ export default function LeaderboardsScreen() {
               value={personValue(item.row, metric)}
               isMe={item.row.user_id === session?.user.id}
               loadout={gear(item.row.user_id)}
+              presence={presence[item.row.user_id]}
             />
           </Pressable>
         )}
@@ -313,6 +324,7 @@ export default function LeaderboardsScreen() {
                   value={personValue(board.pinned.row, metric)}
                   isMe
                   loadout={gear(board.pinned.row.user_id)}
+                  presence={presence[board.pinned.row.user_id]}
                 />
               </Pressable>
             </>
@@ -376,7 +388,12 @@ export default function LeaderboardsScreen() {
             keyboardShouldPersistTaps="handled"
             ListHeaderComponent={searchResults.length > 0 ? <Text style={styles.sectionLabel}>Results</Text> : null}
             renderItem={({ item }) => (
-              <SearchResultRow item={item} loadout={searchLoadouts[item.user_id]} onPress={() => goToProfile(item.user_id)} />
+              <SearchResultRow
+                item={item}
+                loadout={searchLoadouts[item.user_id]}
+                presence={presence[item.user_id]}
+                onPress={() => goToProfile(item.user_id)}
+              />
             )}
             ItemSeparatorComponent={() => <View style={styles.divider} />}
             ListEmptyComponent={
@@ -514,11 +531,13 @@ export default function LeaderboardsScreen() {
 function SearchResultRow({
   item,
   loadout,
+  presence,
   onPress,
 }: {
   item: LeaderboardSearchResult;
   /** Batched over the result list — see the note in economy/public-identity.tsx. */
   loadout?: PublicLoadout;
+  presence?: PresenceRow;
   onPress: () => void;
 }) {
   // Resolved once and shared: EquippedHexGlow and PublicTitle need the SAME object, and the hex glow
@@ -555,6 +574,7 @@ function SearchResultRow({
           {item.handle ? `@${item.handle} · ` : ''}
           {item.board}
         </Text>
+        <LiveStatusBadge presence={presence} lastActive tagFriend />
       </View>
       <View>
         <EquippedHexGlow size={22} loadout={resolved} />

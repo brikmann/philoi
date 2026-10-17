@@ -20,6 +20,7 @@ import { EntitlementReconciler } from '@/components/economy/entitlement-reconcil
 import { LoadoutSync } from '@/components/economy/loadout-sync';
 import { FocusNudgeSync } from '@/components/focus-nudge-sync';
 import { LiveActivitySync } from '@/components/live-activity-sync';
+import { PresenceHeartbeat } from '@/components/presence-heartbeat';
 import { NavDrawerProvider } from '@/components/nav/app-drawer';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { OfflineBanner } from '@/components/offline-banner';
@@ -695,6 +696,9 @@ function RootLayout() {
                 Renders nothing; mounted here because the surfaces it feeds are spread across the
                 whole app. */}
             <LoadoutSync />
+            {/* Stamps last_seen_at (0245) while the app is foregrounded — what "Online" and
+                "Active 7m ago" read. Renders nothing. */}
+            <PresenceHeartbeat />
             {/* Drives the iOS Live Activity / Android ongoing notification while a lock-in runs
                 (#87). Renders nothing; mounted here because the session outlives the lock-in
                 screen — you can minimize it, navigate away, and background the app, and the Lock

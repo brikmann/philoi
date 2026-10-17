@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EquippedHexGlow, PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar, useResolvedLoadout } from '@/components/economy/public-identity';
 import { FriendPingSheet } from '@/components/friend-ping-sheet';
+import { LiveStatusBadge } from '@/components/live-status-badge';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
 import { RankBadge } from '@/components/rank-badge';
 import { EmberSearchBar } from '@/components/ui/ember-search-bar';
@@ -20,11 +21,12 @@ import {
   type PublicLoadout,
 } from '@/hooks/use-public-loadouts';
 import { useMyActiveLockIns } from '@/hooks/use-my-active-lockins';
+import { usePresence } from '@/hooks/use-presence';
 import { useSocialChallenges } from '@/hooks/use-social-challenges';
 import { friendStatusLine, nudgeToLockIn, type Friend } from '@/lib/api/friends';
 import { getErrorMessage } from '@/lib/errors';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
-import type { PingResult } from '@/types/database';
+import type { PingResult, PresenceRow } from '@/types/database';
 
 // Friend ping — "Your people" (design-mocks/21, PHILOI_UI_SPEC.md §4b/§16). Person-first entry:
 // real (mutually-accepted) friends grouped by live state, each with a state-aware quick action
@@ -68,6 +70,9 @@ function PeopleScreenContent() {
   // Re-read on focus: this list is where you look to see what your friends are wearing, and it
   // outlives every equip they make while you have the app open.
   useRefreshPublicLoadoutsOnFocus(friendIds);
+  // Online / "Active 7m ago" (0245) for the friends NOT already in the Locked-in-now section, which
+  // reads their sessions directly. One batched call.
+  const presence = usePresence(rest.map((f) => f.friend_id));
 
   function statusLine(f: Friend): string {
     return friendStatusLine(f, goalByUser.get(f.friend_id) ?? null);
@@ -228,6 +233,7 @@ function PeopleScreenContent() {
                   loadout={loadouts[f.friend_id]}
                   status={statusLine(f)}
                   lockedIn={false}
+                  presence={presence[f.friend_id]}
                   nudged={nudged.has(f.friend_id)}
                   onOpen={() => openSheet(f)}
                   onQuick={() => handleNudge(f)}
@@ -280,12 +286,15 @@ function FriendRow({
   friend,
   status,
   lockedIn,
+  presence,
   nudged,
   onOpen,
   onQuick,
   onMessage,
 }: {
   friend: Friend;
+  /** Live status (0245) — only passed for friends outside the Locked-in-now section. */
+  presence?: PresenceRow;
   /** Batched by the list above — see economy/public-identity.tsx. */
   loadout?: PublicLoadout;
   status: string;
@@ -323,6 +332,7 @@ function FriendRow({
         <Text style={[styles.status, lockedIn && styles.statusOn]} numberOfLines={1}>
           {status}
         </Text>
+        <LiveStatusBadge presence={presence} lastActive />
       </View>
       {/* Their rank hex, as on every board row. Absent when their season rank is on Private (0217)
           — the status line already drops the rank words in that case. */}

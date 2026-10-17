@@ -9,6 +9,7 @@ import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTimin
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { HeroRankStrip, ProfileHero } from '@/components/economy/profile-hero';
+import { LiveStatusBadge } from '@/components/live-status-badge';
 import { CollectionEntry } from '@/components/profile/collection-entry';
 import { CompareBanner } from '@/components/profile/compare-banner';
 import { DisciplineRelicTracker } from '@/components/profile/discipline-relic-tracker';
@@ -18,6 +19,7 @@ import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { usePresenceOf } from '@/hooks/use-presence';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -98,6 +100,9 @@ export default function FriendProfileScreen() {
   const theirHall = useTrophyHall(userId);
   // THEIR loadout, not yours — every cosmetic on this screen is driven by this one read.
   const loadout = usePublicLoadout(userId);
+  // Live status (0245). Last-active is friends-only and the server already nulls it for anyone
+  // else, so the header can always ask for it.
+  const presence = usePresenceOf(userId === myProfile?.id ? null : userId);
   const myHall = useTrophyHall(myProfile?.id);
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -238,6 +243,7 @@ export default function FriendProfileScreen() {
               ) : null}
             </View>
           ) : null}
+          <LiveStatusBadge presence={presence} variant="pill" lastActive />
         </ProfileHero>
 
         <View style={styles.acts}>

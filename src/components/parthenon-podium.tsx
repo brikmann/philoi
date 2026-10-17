@@ -5,6 +5,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { FlareAura } from '@/components/economy/public-identity';
+import { LiveStatusBadge } from '@/components/live-status-badge';
 import { RankBadge } from '@/components/rank-badge';
 import { Crown } from '@/components/ui/crown';
 import { Colors, Fonts } from '@/constants/theme';
@@ -12,7 +13,7 @@ import { BurningName } from '@/components/burning-name';
 import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
 import { shortName } from '@/lib/format';
 import { getUniversityCrest } from '@/lib/university-crests';
-import type { RankTierName } from '@/types/database';
+import type { PresenceRow, RankTierName } from '@/types/database';
 
 // THE PODIUM — top 3 rise as fluted Greek pillars, #1 tallest in the centre (design-mocks/95).
 //
@@ -76,6 +77,8 @@ export type PodiumPersonItem = {
   division: number;
   value: string;
   isMe?: boolean;
+  /** Live status (0245), batched by the screen. */
+  presence?: PresenceRow;
 };
 
 export type PodiumUniversityItem = {
@@ -219,6 +222,7 @@ function PodiumColumn({
         </Text>
       )}
       {item.kind === 'person' ? <PublicTitle loadout={loadout} compact /> : null}
+      {item.kind === 'person' ? <LiveStatusBadge presence={item.presence} centered /> : null}
       <View style={styles.valueRow}>
         {item.kind === 'person' && <RankBadge tier={item.tier} division={item.division} size={15} />}
         {/* Score in the POSITION's metal (mock 95) — the podium's own colour language, which is why
