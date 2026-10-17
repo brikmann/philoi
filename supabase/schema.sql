@@ -2491,7 +2491,7 @@ create table if not exists social_challenges (
   starts_at timestamptz,
   ends_at timestamptz,
   status text not null default 'pending' check (status in ('pending', 'active', 'completed', 'declined', 'expired')),
-  winner_id uuid references profiles (id), -- h2h only, set by finalize_social_challenges()
+  winner_id uuid references profiles (id) on delete set null, -- h2h only, set by finalize_social_challenges(); SET NULL so a winner can delete their account (0244)
   payout_xp int not null check (payout_xp > 0),
   created_at timestamptz not null default now(),
   check ((mode = 'h2h') = (opponent_id is not null)),
