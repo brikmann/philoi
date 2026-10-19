@@ -13,11 +13,10 @@
 --
 -- ── "Active" is the reaper's definition, restated ──
 --
--- A session counts while status = 'active', it is not paused, and last_confirmed_at is inside the
--- 20-minute window notify_stale_lock_ins (0226) enforces: nudge at 18 min unconfirmed, abandon 2 min
--- later. Restating the window here — rather than trusting status alone — means a reaper cron that
--- runs late can never leave a crashed session glowing on someone's row. Paused sessions are not
--- "locked in now": a pause is the user saying they stepped away.
+-- A session counts while status = 'active' and it is not paused. (Drafted against 0226's 20-min
+-- last_confirmed_at window; 0250 cut the still-here check, so a lock-in runs until stopped and
+-- last_confirmed_at is no longer a liveness signal — the window was dropped before this applied.)
+-- Paused sessions are not "locked in now": a pause is the user saying they stepped away.
 --
 -- ── "Campus" means a VERIFIED campus, both sides ──
 --
@@ -130,7 +129,6 @@ as $$
         on s.user_id = t.id
        and s.status = 'active'
        and not s.paused
-       and s.last_confirmed_at > now() - interval '20 minutes'
      where not coalesce(t.is_disabled, false)
   ),
   gated as (

@@ -7,8 +7,6 @@ import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ComponentProps } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
-  FadeInDown,
-  FadeOutUp,
   interpolateColor,
   useAnimatedStyle,
   useSharedValue,
@@ -65,7 +63,7 @@ import { sendToCindy } from '@/lib/api/coach';
 import { fetchOrCreateDailyFire } from '@/lib/api/daily-fire';
 import { fetchMyRanks } from '@/lib/api/goals';
 import { fetchWorkoutRecap, startWorkout } from '@/lib/api/gym';
-import { type ActiveCircleLockIn, confirmLockInSession, fetchMyVisibleActiveLockIns, stopLockInSession } from '@/lib/api/lock-ins';
+import { type ActiveCircleLockIn, fetchMyVisibleActiveLockIns, stopLockInSession } from '@/lib/api/lock-ins';
 import { fetchMyStreak } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -92,43 +90,6 @@ import type {
 } from '@/types/database';
 
 const PARTICIPANTS_POLL_MS = 20000;
-// Anti-idle liveness (economy anti-cheat, build 10). The "still here? tap to confirm" prompt fires
-// ~18 min after the last confirmation, matching the server-side stale sweep
-// (notify_stale_lock_ins nudges at 18 min and closes at ~20 min, 0226 — 0221 had 10/12). A per-cycle
-// random jitter of up to 2 min is applied so the interval is not perfectly predictable -- an alarmed/scripted auto-tap
-// can't lock onto a fixed cadence. See STILL_HERE_JITTER_MS and the jittered threshold below.
-const STILL_HERE_BASE_MS = 18 * 60 * 1000;
-const STILL_HERE_JITTER_MS = 2 * 60 * 1000;
-// The hard freeze. If the "still here?" prompt goes unanswered this long after the last
-// confirmation, the session auto-pauses — this is what makes the tap genuinely REQUIRED to keep
-// earning (without it the prompt was cosmetic: the clock ran on and time kept banking). Set
-// deliberately BELOW the server's ~20-min stale-close (notify_stale_lock_ins, 0226: 18-min nudge
-// + 2-min grace) so the client pause wins the race — the server sweep skips paused sessions, so
-// a frozen session is PRESERVED rather than closed, and one tap (a resume, which re-stamps
-// last_confirmed_at per 0218) picks it right back up. The prompt itself fires at the jittered
-// [16,18] min threshold, leaving 1–3 min to respond before this freeze lands.
-const STILL_HERE_FREEZE_MS = STILL_HERE_BASE_MS + 60 * 1000; // 19 min — must stay < the 20-min server close.
-
-/**
- * The prompt's threshold for one confirmation cycle: somewhere in [16, 18] min, EARLIER-only.
- *
- * Earlier-only because the server nudges at a fixed 18 min and closes ~2 min later
- * (notify_stale_lock_ins, 0226). A +jitter would land the in-app prompt after the push, and at
- * the top of the range after the close itself — a present user losing a session they were never
- * asked about. The server is the enforcement; this only has to ask first.
- *
- * Derived from the cycle's own timestamp (an integer hash), not Math.random(): the same cycle
- * always gets the same threshold, so a re-render can't re-roll it and the React Compiler can
- * cache it — Math.random() in render is impure, which is what lint rejected.
- */
-function stillHereThreshold(lastConfirmedMs: number): number {
-  let h = Math.floor(lastConfirmedMs) | 0;
-  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
-  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
-  h ^= h >>> 16;
-  const unit = (h >>> 0) / 0xffffffff; // [0, 1]
-  return STILL_HERE_BASE_MS - Math.round(unit * STILL_HERE_JITTER_MS);
-}
 const MAX_PHOTOS = 6;
 // One tag for this screen's wake lock, so activate/deactivate always refer to the same lock.
 const KEEP_AWAKE_TAG = 'philoi-lock-in';
@@ -255,22 +216,16 @@ function LockInScreen() {
     loading: activeLoading,
     start,
     clear,
-    touchConfirmedAt,
     pause: pauseSession,
     resume: resumeSession,
     reconcile: reconcileSession,
     endedRemotelyId,
   } = useActiveSession();
   // Pause (0218, mock 218). Paused time earns nothing server-side; everything below that reacts to
-  // it — the frozen clock, the dimmed flame, the released wake lock, the silenced "still here?" —
+  // it — the frozen clock, the dimmed flame, the released wake lock —
   // is this screen agreeing with the server about what the session is doing.
   const paused = Boolean(activeSession?.pausedAt);
   const [pauseBusy, setPauseBusy] = useState(false);
-  // True only while the session is auto-paused because the "still here?" prompt went unanswered
-  // past STILL_HERE_FREEZE_MS — distinct from a manual pause. Drives the frozen "tap to confirm
-  // you're still here" copy and routes that tap to a resume. Cleared the moment the session is no
-  // longer paused (`frozen` below is idleFrozen && paused), and reset by every resume/toggle.
-  const [idleFrozen, setIdleFrozen] = useState(false);
   // Read-only. FocusNudgeSync in _layout owns arming and disarming — this screen only reports
   // whether it happened, because the shield has to survive navigating away from here.
   const focusNudgeOn = useFocusNudgeArmed();
@@ -581,54 +536,6 @@ function LockInScreen() {
   // embersBeforeSnapshot capture below.
   const { embers: walletEmbers, refetch: refetchInventory } = useInventory();
   const flareEquipped = useFlareEquipped();
-  // Keyed off last confirmation, not session start — matches the server-side sweep
-  // (notify_stale_lock_ins), so tapping "still here" actually dismisses this banner
-  // instead of it staying stuck on for the rest of a long session. Recomputed inline off its own
-  // 1s `now` tick, gated off while paused or blurred like every other interval on this screen.
-  //
-  // Never while paused — they paused on purpose, and the server sweep skips paused sessions too.
-  // Resume stamps last_confirmed_at, so the clock this reads restarts from the resume.
-  // A fresh jitter each confirmation cycle (keyed on lastConfirmedAt) — see stillHereThreshold.
-  // `now` ticks on its own gated interval rather than reading Date.now() in render (impure).
-  const [now, setNow] = useState(() => Date.now());
-  useGatedInterval(() => setNow(Date.now()), 1000, activeSession != null && !paused);
-  const stillHereDue =
-    activeSession && !paused
-      ? now - activeSession.lastConfirmedAt.getTime() > stillHereThreshold(activeSession.lastConfirmedAt.getTime())
-      : false;
-  // Overdue: the prompt has gone unanswered past the freeze cutoff, so time has stopped being the
-  // user's to bank. We auto-pause (below) to make that real on screen and in credit.
-  const stillHereOverdue =
-    activeSession != null && !paused
-      ? now - activeSession.lastConfirmedAt.getTime() > STILL_HERE_FREEZE_MS
-      : false;
-
-  // Fire the freeze exactly once per confirmation cycle. Pausing is optimistic (the clock stops on
-  // this tick, not when the RPC answers). It must NOT retry on failure: the usual failure is "Session
-  // not found or already stopped" — the server's sweep closed it while the phone was away — and a
-  // retry-per-tick against that flipped the screen paused/running forever. The context reconciles
-  // on failure instead, which clears a dead session and lands on the ended state below.
-  const autoPausedCycleRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!activeSession || !stillHereOverdue || paused || pauseBusy || stopping) return;
-    const cycle = activeSession.lastConfirmedAt.getTime();
-    if (autoPausedCycleRef.current === cycle) return;
-    autoPausedCycleRef.current = cycle;
-    setIdleFrozen(true);
-    setPauseBusy(true);
-    pauseSession()
-      .catch(() => {
-        if (screenMountedRef.current) setIdleFrozen(false);
-      })
-      .finally(() => {
-        if (screenMountedRef.current) setPauseBusy(false);
-      });
-  }, [activeSession, stillHereOverdue, paused, pauseBusy, stopping, pauseSession]);
-
-  // Only meaningful while actually paused: whatever un-pauses the session (the still-here tap, the
-  // manual button, a reconcile) ends the frozen state with it, so the overlay can never stick.
-  const frozen = idleFrozen && paused;
-
   // ── CINDY, mid-session (CINDY_SPEC "Entry points — Lock-in", mock 117 §C) ──
   // Consent gates both halves, the same way home does: no consent means no bubble, no fetch, and
   // a flame that behaves exactly as it did before she existed.
@@ -732,8 +639,6 @@ function LockInScreen() {
 
   async function handlePauseToggle() {
     if (!activeSession || pauseBusy || stopping) return;
-    // A manual pause or resume is the user's own call — never the "you went quiet" freeze.
-    setIdleFrozen(false);
     setPauseBusy(true);
     setError(null);
     try {
@@ -743,29 +648,6 @@ function LockInScreen() {
     } finally {
       if (screenMountedRef.current) setPauseBusy(false);
     }
-  }
-
-  async function handleConfirmStillHere() {
-    if (!activeSession) return;
-    // Frozen for idle: the confirmation IS a resume. resume_lock_in_session re-stamps
-    // last_confirmed_at (0218 — "coming back is the still-here answer"), which un-freezes the
-    // clock and restarts the credit cap from now.
-    if (frozen) {
-      if (pauseBusy || stopping) return;
-      setPauseBusy(true);
-      setError(null);
-      try {
-        await resumeSession();
-        if (screenMountedRef.current) setIdleFrozen(false);
-      } catch (e) {
-        if (screenMountedRef.current) setError(getErrorMessage(e, 'Could not resume.'));
-      } finally {
-        if (screenMountedRef.current) setPauseBusy(false);
-      }
-      return;
-    }
-    await confirmLockInSession(activeSession.id);
-    touchConfirmedAt();
   }
 
   async function takePhoto() {
@@ -1085,14 +967,14 @@ function LockInScreen() {
     );
   }
 
-  // The server closed this session while the app wasn't looking (0226's ~20-min unconfirmed
-  // sweep). Say so, rather than parking on "Starting your session…" or a dead timer.
+  // The server closed this session while the app wasn't looking (the 3-hour pause cap, or a Stop
+  // from another device). Say so, rather than parking on "Starting your session…" or a dead timer.
   if (!activeSession && endedRemotelyId && !loading && !posted && !stopping) {
     return (
       <LockInScreenFrame style={styles.container}>
         <Text style={styles.loading}>
-          This session ended — Philoi closes a lock-in after about 20 minutes without a &quot;still
-          here?&quot; answer. Your time up to your last check-in was saved.
+          This session ended while you were away — it was paused for over 3 hours, or stopped on another
+          device. Your time was saved.
         </Text>
         <Pressable onPress={() => router.replace('/')} style={styles.bailOut} accessibilityRole="button">
           <Text style={styles.bailOutLabel}>Back to Philoi</Text>
@@ -1222,18 +1104,6 @@ function LockInScreen() {
           <LockInPresencePill presence={presence} compact />
 
           <BodyDoubleStripCollapsed lockIns={activeLockIns} />
-
-          {(stillHereDue || frozen) && (
-            <Animated.View entering={FadeInDown.springify().damping(14)} exiting={FadeOutUp.duration(200)}>
-              <Pressable onPress={handleConfirmStillHere} style={styles.stillHereBanner}>
-                <Text style={styles.stillHereText}>
-                  {frozen
-                    ? 'Paused — you went quiet. Tap to pick your session back up.'
-                    : 'Long session — still here? Tap to confirm.'}
-                </Text>
-              </Pressable>
-            </Animated.View>
-          )}
 
           {workoutLoading && !workout && <Text style={styles.loading}>Setting up your workout…</Text>}
 
@@ -1427,18 +1297,6 @@ function LockInScreen() {
         {/* No rank bar here. The projection lives on Home and on the Lock-Screen Live Activity;
             the in-app lock-in screen is flame + timer only (mock 91 / FLARES_SPEC). I added this in
             868b1f6 against the older spec — punchlist 17 P2(a) removes it. */}
-
-        {(stillHereDue || frozen) && (
-          <Animated.View entering={FadeInDown.springify().damping(14)} exiting={FadeOutUp.duration(200)} style={styles.bannerInset}>
-            <Pressable onPress={handleConfirmStillHere} style={styles.stillHereBanner}>
-              <Text style={styles.stillHereText}>
-                {frozen
-                  ? 'Paused — you went quiet. Tap to pick your session back up.'
-                  : 'Long session — still here? Tap to confirm.'}
-              </Text>
-            </Pressable>
-          </Animated.View>
-        )}
 
         {/* "Focus Nudge on" (APP_BLOCKER_SPEC §B). Deliberately a quiet pill and not a claim about
             enforcement — nothing is being blocked, and someone who reads this as a lock will feel
@@ -1642,24 +1500,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: Colors.amber,
     marginTop: -6,
-  },
-  stillHereBanner: {
-    backgroundColor: Colors.achieverBg,
-    borderRadius: Radius.input,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    alignSelf: 'stretch',
-  },
-  // Base screen only. It runs `padded={false}` so the flame and embers can bleed to the edges,
-  // which means each inset block supplies its own — whereas gym's copy of this banner already
-  // sits inside the padded log ScrollView and would double up if the inset lived on the banner.
-  bannerInset: {
-    paddingHorizontal: Spacing.three,
-  },
-  stillHereText: {
-    fontFamily: Fonts.bodySemiBold,
-    color: Colors.achieverText,
-    textAlign: 'center',
   },
   // Mock 109's `.lkbadge` — a warm-outlined pill, not a chip with a fill. It is status, not an
   // action, and nothing on this screen should compete with the flame.
