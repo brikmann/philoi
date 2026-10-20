@@ -35,12 +35,12 @@ import {
 } from '@/components/economy/flare-perimeter';
 import { useKeepScreenAwakePref } from '@/lib/reward-settings';
 import { FireShareCard } from '@/components/fire-share-card';
-import { LockInShareCard } from '@/components/lock-in-share-card';
 import { FlameMeterComplete } from '@/components/flame-meter-complete';
 import { LockInDoneScreen } from '@/components/lockin-done-screen';
 import { LockInPresencePill } from '@/components/lockin-presence-pill';
 import { RankUpCelebration } from '@/components/rank-up-celebration';
 import { RankUpShareCard } from '@/components/rank-up-share-card';
+import { StoryShareSheet } from '@/components/story-sticker/story-share-sheet';
 import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
 import { SessionFlame } from '@/components/session-flame';
 import { SessionPhotoGallery } from '@/components/session-photo-gallery';
@@ -286,8 +286,9 @@ function LockInScreen() {
   // taps Share.
   const fireCardRef = useRef<View>(null);
   const rankCardRef = useRef<View>(null);
-  const lockInCardRef = useRef<View>(null);
-  const [lockInSharing, setLockInSharing] = useState(false);
+  // The story sticker (CODE_PROMPT story-share sticker) — the done screen's own share. Its sheet
+  // owns the preview, the capture and the Instagram hand-off.
+  const [stickerOpen, setStickerOpen] = useState(false);
 
   // Slow ink->coral color breathe on the running timer — a quiet "this is live" signal
   // distinct from SessionFlame's own flick (kept separate to avoid prop-drilling a shared value).
@@ -834,17 +835,6 @@ function LockInScreen() {
     }
   }
 
-  // The proof-of-work card (mock 96, card 2) — the done screen's own share, distinct from the
-  // daily-fire card above it: one is "I did a session", the other is "I kept the fire".
-  async function handleShareLockIn() {
-    setLockInSharing(true);
-    try {
-      await shareCardImage(lockInCardRef, 'Share your lock-in');
-    } finally {
-      setLockInSharing(false);
-    }
-  }
-
   async function handleShareFireComplete() {
     if (!fireCompleteInfo) return;
     setFireSharing(true);
@@ -946,23 +936,22 @@ function LockInScreen() {
           circleId={doneCircleId}
           circleName={doneCircleName}
           onDone={() => router.replace('/')}
-          onShare={handleShareLockIn}
-          sharing={lockInSharing}
+          onShare={() => setStickerOpen(true)}
         />
-        <View style={styles.offscreenCard} pointerEvents="none">
-          <LockInShareCard
-            ref={lockInCardRef}
-            goalType={postedCheckIn.goal_type}
-            goalDetail={postedCheckIn.goal_detail}
-            durationSeconds={postedCheckIn.duration_seconds ?? 0}
-            circleName={doneCircleName}
-            handle={profile?.handle ?? null}
-            tier={rankAfter?.tier}
-            division={rankAfter?.division}
-            streakDays={streakAfter}
-            xpEarned={postedCheckIn.xp_earned}
-          />
-        </View>
+        {/* "I did a session" — distinct from the daily-fire card, which is "I kept the fire". */}
+        <StoryShareSheet
+          visible={stickerOpen}
+          onClose={() => setStickerOpen(false)}
+          session={{
+            checkInId: postedCheckIn.id,
+            goalType: postedCheckIn.goal_type,
+            goalDetail: postedCheckIn.goal_detail,
+            durationSeconds: postedCheckIn.duration_seconds ?? 0,
+            xpEarned: postedCheckIn.xp_earned,
+            distanceM: postedCheckIn.distance_m,
+            streakDays: streakAfter,
+          }}
+        />
       </LockInScreenFrame>
     );
   }

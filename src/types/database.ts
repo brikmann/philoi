@@ -1129,6 +1129,8 @@ export type AnalyticsEventName =
   | 'milestone_posted'
   | 'milestone_cheered'
   | 'milestone_shared'
+  // The story-share sticker. `target` is instagram | save | system; `backdrop` is photo | cosmetic.
+  | 'story_sticker_shared'
   // The Agora (AGORA_SPEC) — appended block. No event carries a cheer or comment COUNT, only that
   // the action happened, for the same reason the economy events carry no balance.
   | 'agora_viewed'
@@ -3501,6 +3503,20 @@ export type Database = {
       get_my_cross_circle_people: { Args: Record<string, never>; Returns: CrossCirclePerson[] };
       get_university_totals: { Args: { p_limit?: number }; Returns: UniversityTotal[] };
       get_my_ranks: { Args: Record<string, never>; Returns: MyRank[] };
+      // The caller's academic program + Greek patron (0247) — "Heir of <Patron>". Zero rows when no
+      // program is set. Callers must fail soft: 0247 may not be applied where a build points.
+      get_my_program: {
+        Args: Record<string, never>;
+        Returns: {
+          program_id: string;
+          name: string;
+          program_key: string;
+          university: string;
+          patron_key: string;
+          patron_name: string;
+          patron_attribute: string;
+        }[];
+      };
       start_lock_in_session: {
         // Every argument optional and the new ones appended (0182), so an installed build calling
         // the old three still resolves against the same function.

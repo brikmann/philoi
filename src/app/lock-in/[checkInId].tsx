@@ -1,20 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { LockInShareCard } from '@/components/lock-in-share-card';
 import { PhotoViewer } from '@/components/photo-viewer';
+import { StoryShareSheet } from '@/components/story-sticker/story-share-sheet';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { useShareRank } from '@/hooks/use-share-rank';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchLockInDetail, type LockInDetail } from '@/lib/api/check-ins';
 import { formatDurationClock } from '@/lib/format';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
-import { shareCardImage } from '@/lib/share-card';
 
 function formatLockInDate(iso: string): string {
   const date = new Date(iso);
@@ -27,7 +25,7 @@ function formatLockInDate(iso: string): string {
 
 // design-mocks/54a — the detail screen behind a tap on any recent lock-in on Home (punchlist
 // 3): goal, duration, XP, date, photos, PRs, and which campfire it posted to, plus a share flow
-// (54b) that reuses the same off-screen-card-capture technique as the fire/rank-up share cards.
+// (54b) — now the story sticker, the same one the done screen shares.
 export default function LockInDetailScreen() {
   const router = useRouter();
   const { profile } = useAuth();
@@ -35,9 +33,7 @@ export default function LockInDetailScreen() {
   const [detail, setDetail] = useState<LockInDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewerUri, setViewerUri] = useState<string | null>(null);
-  const [sharing, setSharing] = useState(false);
-  const cardRef = useRef<View>(null);
-  const shareRank = useShareRank();
+  const [stickerOpen, setStickerOpen] = useState(false);
 
   useEffect(() => {
     if (!checkInId) return;
@@ -50,15 +46,6 @@ export default function LockInDetailScreen() {
       cancelled = true;
     };
   }, [checkInId]);
-
-  async function handleShare() {
-    setSharing(true);
-    try {
-      await shareCardImage(cardRef, 'Share your lock-in');
-    } finally {
-      setSharing(false);
-    }
-  }
 
   if (loading) {
     return (
@@ -158,7 +145,7 @@ export default function LockInDetailScreen() {
 
         <View style={styles.shareRow}>
           <View style={styles.shareBtn}>
-            <PrimaryButton label="Share" onPress={handleShare} loading={sharing} />
+            <PrimaryButton label="Share" onPress={() => setStickerOpen(true)} />
           </View>
           <Pressable style={styles.privateBtn} onPress={() => router.back()}>
             <Text style={styles.privateBtnText}>Keep private</Text>
@@ -168,22 +155,18 @@ export default function LockInDetailScreen() {
 
       <PhotoViewer visible={viewerUri !== null} uri={viewerUri} onClose={() => setViewerUri(null)} />
 
-      <View style={styles.offscreenCard} pointerEvents="none">
-        <LockInShareCard
-          ref={cardRef}
-          goalType={detail.goal_type}
-          goalDetail={detail.goal_detail}
-          durationSeconds={detail.duration_seconds ?? 0}
-          at={new Date(detail.created_at)}
-          handle={profile?.handle ?? null}
-          tier={shareRank.tier}
-          division={shareRank.division}
-          xpEarned={detail.xp_earned}
-          // prCount is computed above from this session's own sets. The card shows it only for a
-          // gym session with at least one PR, so passing it unconditionally is safe.
-          prCount={prCount}
-        />
-      </View>
+      <StoryShareSheet
+        visible={stickerOpen}
+        onClose={() => setStickerOpen(false)}
+        session={{
+          checkInId: detail.id,
+          goalType: detail.goal_type,
+          goalDetail: detail.goal_detail,
+          durationSeconds: detail.duration_seconds ?? 0,
+          xpEarned: detail.xp_earned,
+          distanceM: detail.distance_m,
+        }}
+      />
     </Screen>
   );
 }
@@ -339,10 +322,5 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.muted,
-  },
-  offscreenCard: {
-    position: 'absolute',
-    top: -10000,
-    left: 0,
   },
 });

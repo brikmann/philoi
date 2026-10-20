@@ -316,6 +316,8 @@ export type LockInDetail = {
   duration_seconds: number | null;
   xp_earned: number;
   created_at: string;
+  /** Device-verified distance — synced runs only. The story sticker's distance + pace line. */
+  distance_m: number | null;
   signedPhotoUrls: string[];
   circleName: string | null;
   circleEmoji: string | null;
@@ -330,7 +332,7 @@ export type LockInDetail = {
 export async function fetchLockInDetail(checkInId: string): Promise<LockInDetail | null> {
   const { data: row, error } = await supabase
     .from('check_ins')
-    .select('id, goal_type, goal_detail, duration_seconds, xp_earned, created_at, photo_url, circle_id')
+    .select('id, goal_type, goal_detail, duration_seconds, xp_earned, created_at, distance_m, photo_url, circle_id')
     .eq('id', checkInId)
     .is('removed_at', null)
     .maybeSingle();
@@ -359,6 +361,7 @@ export async function fetchLockInDetail(checkInId: string): Promise<LockInDetail
     duration_seconds: row.duration_seconds,
     xp_earned: row.xp_earned,
     created_at: row.created_at,
+    distance_m: row.distance_m ?? null,
     signedPhotoUrls,
     circleName: circle?.name ?? null,
     circleEmoji: circle?.emoji ?? null,

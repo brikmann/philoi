@@ -80,6 +80,10 @@ const config: ExpoConfig = {
       // explicitly below). Declared here as well because it is a review-visible capability and it
       // should be readable in this file rather than inferred from a plugin default.
       UIBackgroundModes: ['audio'],
+      // The story-share sticker (modules/philoi-story-share). canOpenURL answers false for any
+      // scheme not declared here, so without it "Share to Instagram Stories" always falls back to
+      // the share sheet even with Instagram installed.
+      LSApplicationQueriesSchemes: ['instagram-stories'],
     },
   },
   android: {
@@ -448,6 +452,10 @@ const config: ExpoConfig = {
     // Same deal for Whoop (§17) — public client id only. WHOOP_CLIENT_SECRET lives ONLY in
     // Supabase's Edge Function secrets (supabase/functions/whoop-*), never here.
     whoopClientId: process.env.WHOOP_CLIENT_ID ?? null,
+    // The story-share sticker's `source_application` (modules/philoi-story-share). A PUBLIC Facebook
+    // App ID registered for Instagram's Stories sharing — Instagram rejects the hand-off without
+    // one. Null = the Stories button falls back to the system share sheet; nothing throws.
+    facebookAppId: process.env.FACEBOOK_APP_ID ?? null,
     // Native Google Sign-In (punchlist 2, §0) — both are PUBLIC client IDs (safe client-side,
     // same trust level as an OAuth redirect URI). googleWebClientId MUST be the exact Client ID
     // already configured in Supabase's Google provider (Auth > Providers > Google) — that's what
