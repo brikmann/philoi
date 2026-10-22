@@ -41,7 +41,8 @@ export type StickerRank = {
 
 export type StickerModel = {
   handle: string | null;
-  patron: { key: string; name: string } | null;
+  /** The academic program (0247) and the patron it answers to — "Heir of Athena · Philosophy". */
+  patron: { key: string; name: string; program: string } | null;
   /** H:MM:SS — the hero. */
   clock: string;
   /** "Deep Work", "Gym", or the session's own detail. */
@@ -159,7 +160,7 @@ type Fetched = {
   /** The check-in these were fetched for — a session-specific piece is ignored for any other. */
   forCheckIn: string | null;
   rank: MyRank | null;
-  patron: { key: string; name: string } | null;
+  patron: StickerModel['patron'];
   board: { board: 'My uni' | 'Global'; rank: number } | null;
   gymVolumeLb: number;
   workout: WorkoutRow[];
@@ -183,7 +184,7 @@ export function useStickerModel(session: StickerSession | null): { model: Sticke
       soft(
         Promise.resolve(supabase.rpc('get_my_program')).then(({ data, error }) => {
           const row = error ? null : data?.[0];
-          return row ? { key: row.patron_key, name: row.patron_name } : null;
+          return row ? { key: row.patron_key, name: row.patron_name, program: row.name } : null;
         }),
         null
       ),

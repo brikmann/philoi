@@ -175,6 +175,12 @@ export const StorySticker = forwardRef<View, Props>(function StorySticker({ mode
                 <Text style={[styles.heir, shadow, cosmetic ? styles.onArt : null]} numberOfLines={1}>
                   Heir of {model.patron.name}
                 </Text>
+                {/* The program rides beside the heir, and it is the part that gives way: "Heir of X"
+                    never truncates, a long program name ("Geography & Environmental Management")
+                    ellipsizes instead. */}
+                <Text style={[styles.program, shadow, cosmetic ? styles.programOnArt : null]} numberOfLines={1}>
+                  · {model.patron.program}
+                </Text>
               </>
             ) : null}
           </View>
@@ -372,10 +378,20 @@ const styles = StyleSheet.create({
     color: INK,
   },
   heir: {
-    flexShrink: 1,
+    flexShrink: 0,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
     color: MUTED,
+  },
+  program: {
+    flexShrink: 1,
+    marginLeft: -3,
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: DIM,
+  },
+  programOnArt: {
+    color: '#D9C9A4',
   },
   hero: {
     flexDirection: 'row',
