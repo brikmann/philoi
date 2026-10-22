@@ -13,6 +13,8 @@ export type StickerPrefs = {
   showRank: boolean;
   showStreak: boolean;
   showCampus: boolean;
+  /** Gym only — the exercise list with PR flags. Ignored for any other session. */
+  showExercises: boolean;
   backdrop: StickerBackdrop;
 };
 
@@ -21,6 +23,7 @@ export const DEFAULT_STICKER_PREFS: StickerPrefs = {
   showRank: false,
   showStreak: false,
   showCampus: false,
+  showExercises: false,
   backdrop: 'photo',
 };
 
@@ -35,6 +38,7 @@ async function loadStickerPrefs(): Promise<StickerPrefs> {
       showRank: parsed.showRank === true,
       showStreak: parsed.showStreak === true,
       showCampus: parsed.showCampus === true,
+      showExercises: parsed.showExercises === true,
       backdrop: parsed.backdrop === 'cosmetic' ? 'cosmetic' : 'photo',
     };
   } catch {

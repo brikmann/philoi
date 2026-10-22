@@ -52,6 +52,17 @@ export type StickerModel = {
   rank: StickerRank | null;
   streakDays: number;
   campus: { value: string; label: string; phrase: string } | null;
+  /** Gym only — one row per exercise, in the order they were done. Empty for every other session. */
+  exercises: StickerExercise[];
+};
+
+export type StickerExercise = {
+  name: string;
+  sets: number;
+  /** The best set by estimated 1RM, as the roll-up stores it: "185 lb × 5", or "12 reps" bodyweight. */
+  topSet: string;
+  /** Any set of this exercise was a personal best when it was banked. */
+  isPr: boolean;
 };
 
 /** "1:24:06" always — the sticker's hero shows hours even under an hour, so every card has the same
@@ -127,6 +138,23 @@ async function fetchGymVolumeLb(checkInId: string): Promise<number> {
   return kg * LB_PER_KG;
 }
 
+type WorkoutRow = { exercise: string; sets: number; reps: number; weight: number | null; is_pr: boolean | null };
+
+/**
+ * The session's exercises — check_in_workout_sets, the per-exercise roll-up stop_lock_in_session
+ * writes: set count, the best set by e1RM, and is_pr if any set was a PR (0250). Legacy
+ * batch-logged rows carry no PR flag, so they simply never show one.
+ */
+async function fetchWorkoutRows(checkInId: string): Promise<WorkoutRow[]> {
+  const { data, error } = await supabase
+    .from('check_in_workout_sets')
+    .select('exercise, sets, reps, weight, is_pr')
+    .eq('check_in_id', checkInId)
+    .order('position');
+  if (error) throw error;
+  return (data ?? []) as WorkoutRow[];
+}
+
 type Fetched = {
   /** The check-in these were fetched for — a session-specific piece is ignored for any other. */
   forCheckIn: string | null;
@@ -134,9 +162,10 @@ type Fetched = {
   patron: { key: string; name: string } | null;
   board: { board: 'My uni' | 'Global'; rank: number } | null;
   gymVolumeLb: number;
+  workout: WorkoutRow[];
 };
 
-const EMPTY: Fetched = { forCheckIn: null, rank: null, patron: null, board: null, gymVolumeLb: 0 };
+const EMPTY: Fetched = { forCheckIn: null, rank: null, patron: null, board: null, gymVolumeLb: 0, workout: [] };
 
 export function useStickerModel(session: StickerSession | null): { model: StickerModel | null } {
   const { profile } = useAuth();
@@ -160,9 +189,10 @@ export function useStickerModel(session: StickerSession | null): { model: Sticke
       ),
       userId ? soft(fetchUserBoardPosition(userId), null) : Promise.resolve(null),
       isGym ? soft(fetchGymVolumeLb(checkInId), 0) : Promise.resolve(0),
-    ]).then(([rank, patron, board, gymVolumeLb]) => {
+      isGym ? soft(fetchWorkoutRows(checkInId), []) : Promise.resolve([]),
+    ]).then(([rank, patron, board, gymVolumeLb, workout]) => {
       if (cancelled) return;
-      setFetched({ forCheckIn: checkInId, rank, patron, board, gymVolumeLb });
+      setFetched({ forCheckIn: checkInId, rank, patron, board, gymVolumeLb, workout });
     });
     return () => {
       cancelled = true;
@@ -171,14 +201,30 @@ export function useStickerModel(session: StickerSession | null): { model: Sticke
 
   if (!session) return { model: null };
 
+  const unit = profile?.weight_unit === 'kg' ? 'kg' : 'lb';
+  const sameSession = fetched.forCheckIn === session.checkInId;
   let disciplineLine: string | null = null;
   if (session.goalType === 'run' && session.distanceM && session.distanceM > 0) {
     disciplineLine = `${formatDistanceKm(session.distanceM)} · ${pacePerKm(session.durationSeconds, session.distanceM)}`;
-  } else if (session.goalType === 'gym' && fetched.forCheckIn === session.checkInId && fetched.gymVolumeLb > 0) {
-    const unit = profile?.weight_unit === 'kg' ? 'kg' : 'lb';
+  } else if (session.goalType === 'gym' && sameSession && fetched.gymVolumeLb > 0) {
     const amount = unit === 'kg' ? fetched.gymVolumeLb / LB_PER_KG : fetched.gymVolumeLb;
     disciplineLine = `${Math.round(amount).toLocaleString()} ${unit} moved`;
   }
+
+  // The tracker logs in lb; a kg profile sees its own unit, rounded to the plate it would be.
+  const exercises: StickerExercise[] =
+    session.goalType === 'gym' && sameSession
+      ? fetched.workout.map((w) => {
+          const weight = w.weight != null && w.weight > 0 ? (unit === 'kg' ? w.weight / LB_PER_KG : Number(w.weight)) : null;
+          const shown = weight == null ? null : unit === 'kg' ? Math.round(weight * 2) / 2 : Math.round(weight);
+          return {
+            name: w.exercise,
+            sets: w.sets,
+            topSet: shown == null ? `${w.reps} reps` : `${shown.toLocaleString()} ${unit} × ${w.reps}`,
+            isPr: w.is_pr === true,
+          };
+        })
+      : [];
 
   let campus: StickerModel['campus'] = null;
   if (fetched.board) {
@@ -202,6 +248,7 @@ export function useStickerModel(session: StickerSession | null): { model: Sticke
       rank: fetched.rank ? buildRank(fetched.rank) : null,
       streakDays: session.streakDays ?? profile?.current_streak ?? 0,
       campus,
+      exercises,
     },
   };
 }

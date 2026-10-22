@@ -92,6 +92,7 @@ export function StoryShareSheet({ visible, session, onClose }: Props) {
         rank: prefs.showRank,
         streak: prefs.showStreak,
         campus: prefs.showCampus,
+        exercises: prefs.showExercises && (model?.exercises.length ?? 0) > 0,
       });
     } catch (e) {
       console.warn('[story-sticker] share failed:', e);
@@ -189,6 +190,15 @@ export function StoryShareSheet({ visible, session, onClose }: Props) {
                 disabled={!model?.campus}
                 onChange={(v) => setPrefs({ showCampus: v })}
               />
+              {/* Gym only, and only when the session logged anything — a toggle for an empty list is noise. */}
+              {model && model.exercises.length > 0 ? (
+                <ToggleRow
+                  name="Exercises"
+                  detail={exercisesDetail(model.exercises.length, model.exercises.filter((e) => e.isPr).length)}
+                  value={prefs.showExercises}
+                  onChange={(v) => setPrefs({ showExercises: v })}
+                />
+              ) : null}
             </View>
           ) : null}
         </ScrollView>
@@ -230,6 +240,12 @@ export function StoryShareSheet({ visible, session, onClose }: Props) {
       </View>
     </Modal>
   );
+}
+
+/** "4 exercises · 2 new PRs". */
+function exercisesDetail(count: number, prs: number): string {
+  const base = `${count} exercise${count === 1 ? '' : 's'}`;
+  return prs > 0 ? `${base} · ${prs} new PR${prs === 1 ? '' : 's'}` : base;
 }
 
 function ToggleRow({

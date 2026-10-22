@@ -13,7 +13,7 @@ import { mix } from '@/lib/economy/colour';
 import type { FlameRamp } from '@/lib/economy/flame-ramp';
 import { RARITY_COLOR, RARITY_ORDER } from '@/lib/economy/rarity';
 import { RANK_TIER_METAL } from '@/lib/rank-tiers';
-import type { StickerModel } from '@/lib/story-sticker/data';
+import type { StickerExercise, StickerModel } from '@/lib/story-sticker/data';
 import type { StickerBackdrop, StickerPrefs } from '@/lib/story-sticker/prefs';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -44,6 +44,8 @@ const GOLD = '#FFD166';
 const MUTED = '#C9BFE6';
 const DIM = '#8A80A8';
 const INK = '#F4F0FF';
+/** The workout list's cap — past this the card stops being a sticker and becomes a log. */
+const MAX_EXERCISE_ROWS = 5;
 /** The brand ember ramp — the bar and accents when no flame is equipped. */
 const BRAND_BAR: [string, string] = ['#FF7A2F', '#FFB05A'];
 
@@ -67,7 +69,7 @@ export type StickerSkin = {
 
 type Props = {
   model: StickerModel;
-  prefs: Pick<StickerPrefs, 'showRank' | 'showStreak' | 'showCampus'>;
+  prefs: Pick<StickerPrefs, 'showRank' | 'showStreak' | 'showCampus' | 'showExercises'>;
   skin: StickerSkin;
   /** 'full' for the on-screen preview; the captured PNG always renders 'still'. */
   motion: CardMotion;
@@ -98,6 +100,9 @@ export const StorySticker = forwardRef<View, Props>(function StorySticker({ mode
   const showBadge = prefs.showRank && rank;
   const shadow = cosmetic ? styles.shadow : null;
   const what = [model.goalLabel, model.disciplineLine].filter(Boolean).join(' · ');
+  const exercises = prefs.showExercises ? model.exercises : [];
+  const exerciseRows = pickExerciseRows(exercises);
+  const prCount = exercises.filter((e) => e.isPr).length;
 
   return (
     // The capture root: transparent, no opaque parent, collapsable={false} so Android keeps a real
@@ -146,6 +151,21 @@ export const StorySticker = forwardRef<View, Props>(function StorySticker({ mode
 
         {cosmetic ? <View style={styles.spacer} /> : null}
 
+        {/* Everything below the watermark. In cosmetic mode it carries its own scrim, anchored to the
+            text rather than to the card: a gym list can grow the card well past its minimum, and the
+            art scales with the card, so a card-height gradient left the clock sitting on the
+            brightest part of the art (the Golden Anvil's hammer). This one starts fading in just
+            above the first line however tall the card gets. */}
+        <View>
+          {cosmetic ? (
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(10,7,4,0)', 'rgba(10,7,4,0.62)', 'rgba(10,7,4,0.9)']}
+              locations={[0, 0.22, 1]}
+              style={styles.contentScrim}
+            />
+          ) : null}
+
         {model.handle || model.patron ? (
           <View style={styles.who}>
             {model.handle ? <Text style={[styles.handle, shadow]}>@{model.handle}</Text> : null}
@@ -167,6 +187,34 @@ export const StorySticker = forwardRef<View, Props>(function StorySticker({ mode
         <Text style={[styles.what, shadow, { color: cosmetic ? GOLD : heroAccent }]} numberOfLines={1}>
           {what}
         </Text>
+
+        {exerciseRows.length > 0 ? (
+          <View style={[styles.workout, cosmetic ? styles.statOnArt : null]}>
+            <View style={styles.workoutHead}>
+              <Text style={[styles.workoutLabel, cosmetic ? styles.onArt : null]}>WORKOUT</Text>
+              {prCount > 0 ? (
+                <Text style={[styles.newPrs, shadow]}>
+                  {prCount} NEW PR{prCount === 1 ? '' : 'S'}
+                </Text>
+              ) : null}
+            </View>
+            {exerciseRows.map((e, i) => (
+              <View key={`${e.name}-${i}`} style={[styles.exRow, i > 0 && styles.exRowRule]}>
+                <Text style={[styles.exName, shadow]} numberOfLines={1}>
+                  {e.name}
+                </Text>
+                {e.isPr ? <PrTag /> : null}
+                <Text style={[styles.exTop, shadow]} numberOfLines={1}>
+                  <Text style={[styles.exSets, cosmetic ? styles.onArt : null]}>{e.sets} sets · </Text>
+                  {e.topSet}
+                </Text>
+              </View>
+            ))}
+            {exercises.length > exerciseRows.length ? (
+              <Text style={[styles.exMore, cosmetic ? styles.onArt : null]}>+{exercises.length - exerciseRows.length} more</Text>
+            ) : null}
+          </View>
+        ) : null}
 
         <View style={styles.prog}>
           <View style={styles.progTop}>
@@ -201,10 +249,36 @@ export const StorySticker = forwardRef<View, Props>(function StorySticker({ mode
             ))}
           </View>
         ) : null}
+        </View>
       </View>
     </View>
   );
 });
+
+/**
+ * At most MAX_EXERCISE_ROWS, in the order they were done — but a PR always makes the cut, since the
+ * PR is the reason to show the list at all. Everything left over is "+N more".
+ */
+function pickExerciseRows(all: StickerExercise[]): StickerExercise[] {
+  if (all.length <= MAX_EXERCISE_ROWS) return all;
+  const keep = new Set<number>();
+  all.forEach((e, i) => {
+    if (e.isPr && keep.size < MAX_EXERCISE_ROWS) keep.add(i);
+  });
+  all.forEach((_, i) => {
+    if (keep.size < MAX_EXERCISE_ROWS) keep.add(i);
+  });
+  return all.filter((_, i) => keep.has(i));
+}
+
+/** The gold PR flag — the one loud chip on the card. */
+function PrTag() {
+  return (
+    <LinearGradient colors={['#FFE29A', '#FFC24D']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.prTag}>
+      <Text style={styles.prTagText}>PR</Text>
+    </LinearGradient>
+  );
+}
 
 /** The watermark flame — the brand mark, in the worn fire's colours when one is equipped. */
 function StickerFlame({ ramp }: { ramp: FlameRamp | null }) {
@@ -276,6 +350,15 @@ const styles = StyleSheet.create({
   },
   spacer: {
     flex: 1,
+    // The art's guaranteed band — a long workout list grows the card instead of eating this.
+    minHeight: 120,
+  },
+  contentScrim: {
+    position: 'absolute',
+    top: -64,
+    left: -18,
+    right: -18,
+    bottom: -16,
   },
   who: {
     flexDirection: 'row',
@@ -321,6 +404,78 @@ const styles = StyleSheet.create({
   },
   prog: {
     marginTop: 14,
+  },
+  workout: {
+    marginTop: 12,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+  workoutHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 3,
+  },
+  workoutLabel: {
+    fontFamily: Fonts.black,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    color: MUTED,
+  },
+  newPrs: {
+    fontFamily: Fonts.black,
+    fontSize: 9.5,
+    letterSpacing: 1,
+    color: GOLD,
+  },
+  exRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 5,
+  },
+  exRowRule: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  exName: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: INK,
+  },
+  exTop: {
+    marginLeft: 'auto',
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: INK,
+    fontVariant: ['tabular-nums'],
+  },
+  exSets: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: MUTED,
+  },
+  exMore: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 10.5,
+    color: MUTED,
+    paddingTop: 2,
+    paddingBottom: 2,
+  },
+  prTag: {
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+  },
+  prTagText: {
+    fontFamily: Fonts.black,
+    fontSize: 8.5,
+    letterSpacing: 1,
+    color: '#2A1D0C',
   },
   progTop: {
     flexDirection: 'row',
