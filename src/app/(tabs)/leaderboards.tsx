@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -52,9 +52,10 @@ const SCOPE_LABEL: Record<Scope, string> = { camp: 'Friends', uni: 'My uni', vs:
 // campfire-mates (get_my_cross_circle_people), so "Friends" is what it actually shows.
 const SCOPES: Scope[] = ['camp', 'uni', 'global', 'vs'];
 
-// The visible list caps at rank 10 below the podium (ranks 1-3) — your own row/pillar pins at
-// the bottom with your true rank whenever it falls outside that window (PHILOI_UI_SPEC.md §15).
-const VISIBLE_RANKS = 10;
+// Every board lists everyone on it below the podium (ranks 1-3) — Noah, 2026-10-21; it used to cap
+// at rank 10. The RPCs are asked for the whole board (p_limit null, 0253), so the pinned own-row
+// below only fires if a board is ever capped again.
+const VISIBLE_RANKS = Infinity;
 
 /** Mock 259's gold accent for section labels (RESULTS) — people.tsx uses the same value. */
 const SECTION_GOLD = '#C9A24A';
@@ -133,6 +134,8 @@ function buildRankedBoard<T extends UniversityLeaderboardRow | GlobalLeaderboard
 export default function LeaderboardsScreen() {
   const router = useRouter();
   const { session, profile } = useAuth();
+  // A deep link can pick the tab — the daily placement push opens My uni (?scope=uni, 0253).
+  const { scope: linkedScope } = useLocalSearchParams<{ scope?: string }>();
 
   // SEASON RANK DIAL (0217, grown from 0170's Private mode). The wall is symmetric and server-side:
   //   public  — the four boards as they have always been.
@@ -152,6 +155,10 @@ export default function LeaderboardsScreen() {
   const globalEmptyTitle = dial === 'friends' ? friendsEmptyTitle : 'Nobody here yet';
   const globalEmptyBody = dial === 'friends' ? friendsEmptyBody : 'Check back once more people join.';
   const [pickedScope, setScope] = useState<Scope>('camp');
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- follows the route param, which changes on a push tap while the tab stays mounted
+    if (linkedScope && (SCOPES as string[]).includes(linkedScope)) setScope(linkedScope as Scope);
+  }, [linkedScope]);
   const scope: Scope = dial === 'friends' ? 'global' : pickedScope;
   const scopes: Scope[] = dial === 'friends' ? ['global'] : SCOPES;
   const scopeLabel = (s: Scope) => (dial === 'friends' && s === 'global' ? 'Friends' : SCOPE_LABEL[s]);
@@ -356,8 +363,8 @@ export default function LeaderboardsScreen() {
   }
 
   // Friends: "#N of M" among friends. The server already ranked the board over the viewer and their
-  // friends, so this is the viewer's server-truth rank over the rows it returned (the RPC's 50-row
-  // window only undercounts M past 50 friends, and then the rank is still exact).
+  // friends, so this is the viewer's server-truth rank over the rows it returned (the RPC returns the
+  // whole board, 0253).
   const myFriendsRow = dial === 'friends' ? globalRows.find((r) => r.is_me) : undefined;
 
   return (

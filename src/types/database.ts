@@ -2977,10 +2977,10 @@ export type Database = {
       delete_my_account: { Args: Record<string, never>; Returns: undefined };
       delete_my_message: { Args: { p_message_id: string }; Returns: undefined };
       get_university_leaderboard: {
-        Args: { p_university: string; p_limit?: number };
+        Args: { p_university: string; p_limit?: number | null };
         Returns: UniversityLeaderboardRow[];
       };
-      get_global_leaderboard: { Args: { p_limit?: number }; Returns: GlobalLeaderboardRow[] };
+      get_global_leaderboard: { Args: { p_limit?: number | null }; Returns: GlobalLeaderboardRow[] };
       get_my_placements: { Args: Record<string, never>; Returns: MyPlacement[] };
       search_leaderboard: { Args: { p_query: string; p_limit?: number }; Returns: LeaderboardSearchResult[] };
       get_relationship_with: { Args: { p_user_id: string }; Returns: ProfileRelationship };

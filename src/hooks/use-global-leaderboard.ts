@@ -14,7 +14,7 @@ export function useGlobalLeaderboard() {
   const refetch = useCallback(async () => {
     try {
       setError(null);
-      setRows(await fetchGlobalLeaderboard(50));
+      setRows(await fetchGlobalLeaderboard(null));
     } catch (e) {
       setError(getErrorMessage(e, 'Could not load the global leaderboard.'));
     } finally {

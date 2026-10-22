@@ -16,8 +16,9 @@ import type {
 // scope, search, friend-profile support, and the Watch spectator read (PHILOI_UI_SPEC.md §15/16/18).
 
 // The Leaderboard tab's "Global" scope (§15's 4th tab) — best individuals worldwide, same
-// true-rank-pinning shape as fetchUniversityLeaderboard (see lib/api/groups.ts).
-export async function fetchGlobalLeaderboard(limit = 50): Promise<GlobalLeaderboardRow[]> {
+// true-rank-pinning shape as fetchUniversityLeaderboard (see lib/api/groups.ts). null = the whole
+// board (0253), which is every verified student.
+export async function fetchGlobalLeaderboard(limit: number | null = 50): Promise<GlobalLeaderboardRow[]> {
   const { data, error } = await supabase.rpc('get_global_leaderboard', { p_limit: limit });
   if (error) throw error;
   return data ?? [];

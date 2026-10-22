@@ -300,7 +300,8 @@ export async function fetchLeaderboard(groupId: string): Promise<LeaderboardRow[
 export async function fetchUniversityLeaderboard(university: string): Promise<UniversityLeaderboardRow[]> {
   const { data, error } = await supabase.rpc('get_university_leaderboard', {
     p_university: university,
-    p_limit: 50,
+    // null = everyone on the board (0253) — the tab lists the whole school, not a top 50.
+    p_limit: null,
   });
   if (error) throw error;
   return data ?? [];
