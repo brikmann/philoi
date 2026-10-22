@@ -167,6 +167,7 @@ export const StorySticker = forwardRef<View, Props>(function StorySticker({ mode
           ) : null}
 
         {model.handle || model.patron ? (
+          <View style={styles.identity}>
           <View style={styles.who}>
             {model.handle ? <Text style={[styles.handle, shadow]}>@{model.handle}</Text> : null}
             {model.patron ? (
@@ -175,14 +176,16 @@ export const StorySticker = forwardRef<View, Props>(function StorySticker({ mode
                 <Text style={[styles.heir, shadow, cosmetic ? styles.onArt : null]} numberOfLines={1}>
                   Heir of {model.patron.name}
                 </Text>
-                {/* The program rides beside the heir, and it is the part that gives way: "Heir of X"
-                    never truncates, a long program name ("Geography & Environmental Management")
-                    ellipsizes instead. */}
-                <Text style={[styles.program, shadow, cosmetic ? styles.programOnArt : null]} numberOfLines={1}>
-                  · {model.patron.program}
-                </Text>
               </>
             ) : null}
+          </View>
+          {/* The program on its own line under the name, where the seed's longest
+              ("Geography & Environmental Management") fits whole instead of truncating beside the heir. */}
+          {model.patron ? (
+            <Text style={[styles.program, shadow, cosmetic ? styles.programOnArt : null]} numberOfLines={1}>
+              {model.patron.program}
+            </Text>
+          ) : null}
           </View>
         ) : null}
 
@@ -366,11 +369,13 @@ const styles = StyleSheet.create({
     right: -18,
     bottom: -16,
   },
+  identity: {
+    marginBottom: 12,
+  },
   who: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    marginBottom: 12,
   },
   handle: {
     fontFamily: Fonts.black,
@@ -378,15 +383,14 @@ const styles = StyleSheet.create({
     color: INK,
   },
   heir: {
-    flexShrink: 0,
+    flexShrink: 1,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
     color: MUTED,
   },
   program: {
-    flexShrink: 1,
-    marginLeft: -3,
-    fontFamily: Fonts.body,
+    marginTop: 2,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
     color: DIM,
   },
