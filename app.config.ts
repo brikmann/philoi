@@ -470,4 +470,54 @@ const config: ExpoConfig = {
   },
 };
 
+/**
+ * APP_VARIANT=dev rebrands this build as a standalone app that installs ALONGSIDE the App Store
+ * prod app (com.philoi.app) on the same iPhone. Set ONLY in eas.json's `development.ios.env` —
+ * under `ios`, not the profile-wide env, because `development` is also the Android QA build (and
+ * `focus-nudge-dev` extends it), and an Android dev package would need its own google-services.json
+ * entry or Gradle fails. Prod, preview, play-internal and every Android build never see it.
+ *
+ * Everything bundle-derived follows from ios.bundleIdentifier: @bacons/apple-targets builds each
+ * extension id as `<bundle id>.<Suffix>`, and the Focus Nudge App Group is `group.<bundle id>` in
+ * all three places that name it (withFocusNudgeEntitlements, the three Screen Time
+ * expo-target.config.js files, FOCUS_NUDGE_APP_GROUP in FocusNudgeShared.swift).
+ *
+ * Same prod backend (auth.philoi.app) — the dev app reads and writes real data as your account.
+ */
+if (process.env.APP_VARIANT === 'dev') {
+  config.name = 'Philoi Dev';
+  // Dev deep links. Linking.createURL follows this, so Supabase OAuth returns to
+  // philoi-dev://auth/callback, which must be in the Supabase allowed-redirects list. Links that
+  // hardcode philoi:// (Strava/Whoop redirects, the gcal/Spotify relays, the shield buttons) still
+  // open the PROD app from inside the dev one.
+  config.scheme = 'philoi-dev';
+  config.icon = './assets/images/icon-dev.png';
+  config.ios = {
+    ...config.ios,
+    bundleIdentifier: 'com.philoi.app.dev',
+    icon: './assets/images/icon-dev.png',
+    // Universal links resolve through philoi.app's apple-app-site-association, which lists only the
+    // prod App ID. The dev bundle can't claim them, and asking for the entitlement on a domain it
+    // can't verify only complicates signing.
+    associatedDomains: undefined,
+  };
+  // Google returns to the app through the REVERSED iOS client id, so a separate dev OAuth client
+  // (bundle com.philoi.app.dev) needs its own URL scheme. Derived from the same env var the JS reads,
+  // so the two can't disagree; with the prod client id this yields the prod scheme unchanged.
+  const iosClientId = process.env.GOOGLE_IOS_CLIENT_ID;
+  if (iosClientId) {
+    config.plugins = config.plugins?.map((plugin) =>
+      Array.isArray(plugin) && plugin[0] === '@react-native-google-signin/google-signin'
+        ? [
+            plugin[0],
+            {
+              ...plugin[1],
+              iosUrlScheme: iosClientId.split('.').reverse().join('.'),
+            },
+          ]
+        : plugin,
+    );
+  }
+}
+
 export default config;
