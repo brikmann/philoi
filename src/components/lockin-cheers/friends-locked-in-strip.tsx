@@ -6,7 +6,8 @@ import type { FriendLockedIn } from '@/lib/api/lockin-cheers';
 
 /**
  * Home's "{N} friends locked in now" strip (mock 298, panel 0) — directly above the Lock In
- * button, so a member who isn't locked in can still cheer a friend who is. Renders nothing when
+ * button, so a member who isn't locked in can still cheer or message a friend who is — and read
+ * their replies, since a friend you wrote to is live and so is listed here. Renders nothing when
  * nobody is live: an empty strip would only advertise that.
  */
 export function FriendsLockedInStrip({
@@ -18,8 +19,14 @@ export function FriendsLockedInStrip({
   unread: number;
   onPress: () => void;
 }) {
+  const live = friends.filter((f) => f.live);
   if (friends.length === 0) return null;
-  const label = friends.length === 1 ? `${friends[0].name} is locked in now` : `${friends.length} friends locked in now`;
+  const label =
+    live.length === 0
+      ? `Reply to ${friends[0].name}`
+      : live.length === 1
+        ? `${live[0].name} is locked in now`
+        : `${live.length} friends locked in now`;
 
   return (
     <Pressable

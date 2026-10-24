@@ -3690,12 +3690,14 @@ export type Database = {
           out_display_name: string | null;
           out_handle: string | null;
           out_avatar_url: string | null;
+          out_live: boolean;
           out_goal_type: string | null;
           out_category: string | null;
           out_activity: string | null;
-          out_started_at: string;
+          out_started_at: string | null;
           out_paused: boolean;
           out_i_cheered: boolean;
+          out_thread_open: boolean;
           out_unread: number;
         }[];
       };

@@ -5,10 +5,11 @@ import type { GoalType } from '@/types/database';
 /**
  * Lock-in cheers + session-scoped messages (migration 0270, mock 298).
  *
- * Everything here is LIVE-ONLY. A cheer needs the friend to be locked in; a message needs both of
- * you to be. There is no inbox and no history: once either session ends the thread reads back
- * empty, and the server refuses the rows outright — so nothing in this module caches a thread
- * past the screen that is showing it.
+ * Everything here is LIVE-ONLY. A cheer needs the friend to be locked in. A message starts only
+ * toward a friend who is locked in (you needn't be), and the thread stays open while at least one
+ * of you is. There is no inbox and no history: once neither is live the thread reads back empty
+ * and the server refuses the rows outright — so nothing in this module caches a thread past the
+ * screen that is showing it.
  */
 
 export type CheerPreset = 'lock_in' | 'lets_go' | 'respect' | 'keep_going' | 'for_the_house' | 'proud_of_you';
@@ -36,14 +37,17 @@ export type FriendLockedIn = {
   userId: string;
   name: string;
   avatarUrl: string | null;
-  /** Null when they hide what they're doing (show_live_activity off). */
+  /** False for a friend listed only because your thread with them is still open (you're live). */
+  live: boolean;
+  /** Null when they hide what they're doing (show_live_activity off), or aren't live. */
   goalType: GoalType | null;
   category: string | null;
   activity: string | null;
-  startedAt: string;
+  startedAt: string | null;
   paused: boolean;
   iCheered: boolean;
-  /** Unread messages from them in the open thread. Always 0 while you aren't live. */
+  threadOpen: boolean;
+  /** Unread messages from them in the open thread. */
   unread: number;
 };
 
@@ -52,12 +56,14 @@ type FriendRow = {
   out_display_name: string | null;
   out_handle: string | null;
   out_avatar_url: string | null;
+  out_live: boolean;
   out_goal_type: string | null;
   out_category: string | null;
   out_activity: string | null;
-  out_started_at: string;
+  out_started_at: string | null;
   out_paused: boolean;
   out_i_cheered: boolean;
+  out_thread_open: boolean;
   out_unread: number;
 };
 
@@ -72,18 +78,21 @@ export async function fetchFriendsLockedIn(): Promise<FriendLockedIn[]> {
     userId: r.out_user_id,
     name: displayName(r.out_display_name, r.out_handle),
     avatarUrl: r.out_avatar_url,
+    live: r.out_live,
     goalType: (r.out_goal_type as GoalType | null) ?? null,
     category: r.out_category,
     activity: r.out_activity,
     startedAt: r.out_started_at,
     paused: r.out_paused,
     iCheered: r.out_i_cheered,
+    threadOpen: r.out_thread_open,
     unread: r.out_unread ?? 0,
   }));
 }
 
 /** "🧠 Deep Work", "🏋️ Gym" — or a neutral line when they keep the activity private. */
-export function friendActivityLabel(f: Pick<FriendLockedIn, 'goalType' | 'category' | 'activity'>): string {
+export function friendActivityLabel(f: Pick<FriendLockedIn, 'live' | 'goalType' | 'category' | 'activity'>): string {
+  if (!f.live) return 'Not locked in';
   if (f.category === 'deep_work') return '🧠 Deep Work';
   if (f.category === 'study') return `${GOAL_TYPE_META.study.emoji} ${GOAL_TYPE_META.study.label}`;
   if (f.category === 'fitness' && f.activity === 'cardio') return `${GOAL_TYPE_META.run.emoji} ${GOAL_TYPE_META.run.label}`;

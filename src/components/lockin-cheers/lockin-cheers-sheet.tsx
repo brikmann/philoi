@@ -38,9 +38,10 @@ import { getErrorMessage } from '@/lib/errors';
  * The one presence panel both entry points open (mock 298, panels 2 + 3): every friend live right
  * now, each with 🔥 Cheer and 💬 Message inline, and a light 1:1 thread reached only from here.
  *
- * A thread exists only while you are BOTH live — so from Home, before you've started a session,
- * 💬 explains that instead of opening. When either session ends the friend drops off the list and
- * an open thread says it closed; nothing is kept to come back to.
+ * You can message any friend who is live, locked in yourself or not, and a thread stays open while
+ * at least one of you is — a friend who wrote to you and has since stopped stays listed (no 🔥,
+ * since there is no session to cheer) until you stop too. When neither is live the friend drops
+ * off the list and an open thread says it closed; nothing is kept to come back to.
  */
 export function LockInCheersSheet({
   visible,
@@ -57,7 +58,7 @@ export function LockInCheersSheet({
   onClose: () => void;
   friends: FriendLockedIn[];
   meId: string | null;
-  /** Whether the viewer has a live session — messages need both sides live. */
+  /** Whether the viewer has a live session — only changes the copy. */
   meLive: boolean;
   inboundSeq: number;
   onCheered: (userId: string) => void;
@@ -94,10 +95,6 @@ export function LockInCheersSheet({
   };
 
   const openThread = (friend: FriendLockedIn) => {
-    if (!meLive) {
-      setError('Lock in to message — threads only run while you’re both live. Cheers work anytime.');
-      return;
-    }
     setError(null);
     setPickerFor(null);
     setThreadWith(friend);
@@ -125,12 +122,12 @@ export function LockInCheersSheet({
           ) : (
             <>
               <Text style={styles.title}>
-                {meLive ? 'Locked in with you' : 'Friends locked in now'} · {friends.length} live
+                {meLive ? 'Locked in with you' : 'Friends locked in now'} · {friends.filter((f) => f.live).length} live
               </Text>
               <Text style={styles.sub}>
                 {meLive
                   ? 'Send a cheer or a quick message — they won’t break focus either way. Back to your timer when you’re done.'
-                  : 'Send a cheer — it won’t break their focus, and you don’t need to start a session.'}
+                  : 'Send a cheer or a quick message — it won’t break their focus, and you don’t need to start a session.'}
               </Text>
               {error && <Text style={styles.error}>{error}</Text>}
               <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
@@ -146,12 +143,12 @@ export function LockInCheersSheet({
                         <Text style={styles.activity} numberOfLines={1}>
                           {friendActivityLabel(f)}{' '}
                           <Text style={styles.activityTime}>
-                            · {f.paused ? 'paused' : timeInLabel(f.startedAt)}
+                            · {!f.startedAt ? 'thread open' : f.paused ? 'paused' : timeInLabel(f.startedAt)}
                           </Text>
                         </Text>
                       </View>
                       <View style={styles.actions}>
-                        {f.iCheered ? (
+                        {!f.live ? null : f.iCheered ? (
                           <View style={[styles.iconButton, styles.iconDone]} accessibilityLabel={`Cheered ${f.name}`}>
                             <Ionicons name="checkmark" size={18} color={Colors.green} />
                           </View>
@@ -167,15 +164,15 @@ export function LockInCheersSheet({
                         )}
                         <Pressable
                           onPress={() => openThread(f)}
-                          style={[styles.iconButton, f.unread > 0 && styles.iconReply, !meLive && styles.iconMuted]}
+                          style={[styles.iconButton, f.unread > 0 && styles.iconReply]}
                           accessibilityRole="button"
-                          accessibilityLabel={meLive ? `Message ${f.name}` : 'Lock in to message'}>
+                          accessibilityLabel={`Message ${f.name}`}>
                           <Text style={styles.iconGlyph}>💬</Text>
                           <UnreadBadge count={f.unread} ringColor={Colors.card} />
                         </Pressable>
                       </View>
                     </View>
-                    {pickerFor === f.userId && !f.iCheered && (
+                    {pickerFor === f.userId && f.live && !f.iCheered && (
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.picker} contentContainerStyle={styles.pickerContent}>
                         {CHEER_PRESETS.map((p) => (
                           <Pressable
@@ -301,7 +298,7 @@ function ThreadView({
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>
           {name}
-          {friend ? ` · ${friendActivityLabel(friend)} · ${timeInLabel(friend.startedAt)}` : ''}
+          {friend?.startedAt ? ` · ${friendActivityLabel(friend)} · ${timeInLabel(friend.startedAt)}` : ''}
         </Text>
         <Pressable
           onPress={() => setMenuOpen(true)}
@@ -314,8 +311,8 @@ function ThreadView({
       </View>
       <Text style={styles.sub}>
         {closed
-          ? `${name}’s session ended, so this thread closed. Nothing here is kept.`
-          : 'Quick back-and-forth while you both grind. Pick a preset or type a line.'}
+          ? 'Neither of you is locked in now, so this thread closed. Nothing here is kept.'
+          : 'A quick back-and-forth while one of you grinds. Pick a preset or type a line.'}
       </Text>
 
       {!closed && (
@@ -325,7 +322,7 @@ function ThreadView({
             style={styles.bubbles}
             contentContainerStyle={styles.bubblesContent}
             onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}>
-            {shown.length === 0 && <Text style={styles.empty}>Say something — it only lasts while you’re both live.</Text>}
+            {shown.length === 0 && <Text style={styles.empty}>Say something — it only lasts while one of you is live.</Text>}
             {shown.map((m) => (
               <View key={m.id} style={[styles.bubble, m.fromMe ? styles.bubbleMe : styles.bubbleThem]}>
                 <Text style={m.fromMe ? styles.bubbleMeText : styles.bubbleThemText}>{m.body}</Text>

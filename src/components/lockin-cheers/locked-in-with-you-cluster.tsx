@@ -22,6 +22,7 @@ export function LockedInWithYouCluster({
   onPress: () => void;
 }) {
   if (friends.length === 0) return null;
+  const liveCount = friends.filter((f) => f.live).length;
   return (
     <View style={styles.cluster}>
       <Text style={styles.clusterLabel}>Locked in with you</Text>
@@ -29,9 +30,9 @@ export function LockedInWithYouCluster({
         onPress={onPress}
         style={({ pressed }) => [styles.pill, pressed && styles.pressed]}
         accessibilityRole="button"
-        accessibilityLabel={`${friends.length} friends locked in with you${unread > 0 ? `, ${unread} unread` : ''}. Open.`}>
+        accessibilityLabel={`${liveCount} friends locked in with you${unread > 0 ? `, ${unread} unread` : ''}. Open.`}>
         <FriendFaceStack people={friends} max={3} />
-        <Text style={styles.pillCount}>{friends.length} live</Text>
+        <Text style={styles.pillCount}>{liveCount} live</Text>
         <UnreadBadge count={unread} />
       </Pressable>
     </View>
