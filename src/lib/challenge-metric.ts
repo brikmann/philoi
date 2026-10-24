@@ -102,11 +102,25 @@ export function metricSpec(metric: SocialChallengeRaceMetric | null | undefined)
   return METRICS[metric] ?? COLLECTIVE;
 }
 
-export function metricLabel(metric: SocialChallengeRaceMetric | null | undefined): string {
+/**
+ * 0247/0263 · which lock-ins a lockin_time race counts. A "most gym time" race is scored on gym
+ * lock-ins only, so labelling it "Most lock-in time" told people study hours would count — read
+ * as "most overall time". Only lockin_time has a scope; it is ignored for every other metric.
+ */
+export type LockinScope = 'gym' | 'study' | null | undefined;
+
+const SCOPED_LOCKIN: Record<'gym' | 'study', { label: string; noun: string }> = {
+  gym: { label: 'Most gym time', noun: 'gym time' },
+  study: { label: 'Most study time', noun: 'study time' },
+};
+
+export function metricLabel(metric: SocialChallengeRaceMetric | null | undefined, scope?: LockinScope): string {
+  if (metric === 'lockin_time' && scope) return SCOPED_LOCKIN[scope].label;
   return metricSpec(metric).label;
 }
 
-export function metricNoun(metric: SocialChallengeRaceMetric | null | undefined): string {
+export function metricNoun(metric: SocialChallengeRaceMetric | null | undefined, scope?: LockinScope): string {
+  if (metric === 'lockin_time' && scope) return SCOPED_LOCKIN[scope].noun;
   return metricSpec(metric).noun;
 }
 
@@ -131,6 +145,7 @@ export function challengeTitle(challenge: {
   shape?: ChallengeShape | null;
   mode?: string;
   target_count?: number | null;
+  lockin_goal_type?: LockinScope;
 }): string {
   const named = challenge.public_name?.trim();
   if (named) return named;
@@ -155,7 +170,7 @@ export function challengeTitle(challenge: {
     return `Everyone locks in ${challenge.target_count ?? 1}×`;
   }
   if (isTeamMatch(challenge)) return 'A team match';
-  return metricLabel(challenge.race_metric);
+  return metricLabel(challenge.race_metric, challenge.lockin_goal_type);
 }
 
 /**

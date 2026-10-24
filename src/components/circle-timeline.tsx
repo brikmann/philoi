@@ -606,7 +606,10 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
       pieces.some((p) => p.mention && (p.text.toLowerCase() === '@all' || p.text.toLowerCase() === `@${myHandle}`));
     // D4 · this message IS a card rather than something someone typed, so the speech bubble around
     // it stands down. Photos keep their bubble: a photo with a caption is still a message.
-    const isCardAttachment = message.attach_kind === 'lockin';
+    // A hosted challenge is a card too: ChallengeChatCard's header row is `flex: 1`, so inside the
+    // shrink-to-fit bubble it collapsed to a few characters and a "500km" goal read as a cut-off
+    // blob. It brings its own framed card, so the bubble standing down is right for it as well.
+    const isCardAttachment = message.attach_kind === 'lockin' || message.attach_kind === 'challenge';
 
     return (
       <View style={[styles.msgRow, isOwn && styles.msgRowOwn, isCardAttachment && styles.msgRowCard]}>
@@ -1313,8 +1316,8 @@ const styles = StyleSheet.create({
   // a shrink-to-fit bubble (msgBody is flexShrink:1 under msgRow's `maxWidth`, not a definite
   // `width`) the whole card collapsed to min-content — a thin stub with the time tag clipped to the
   // same width. A DEFINITE width is the fix: the row gets `width` (not maxWidth) and the body stops
-  // shrinking, giving the card's flex rows something real to divide. Scoped to lockin attachments
-  // so ordinary text/photo bubbles keep their shrink-to-fit sizing.
+  // shrinking, giving the card's flex rows something real to divide. Scoped to card attachments
+  // (lockin, challenge) so ordinary text/photo bubbles keep their shrink-to-fit sizing.
   msgRowCard: {
     width: '92%',
     maxWidth: '92%',

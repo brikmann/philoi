@@ -204,7 +204,7 @@ export function IncomingChallengeSheet({
     transform: [{ scale: 0.7 + clash.value * 0.3 + strike.value * 0.5 }],
   }));
 
-  const raceLabel = challenge.race_metric ? metricLabel(challenge.race_metric) : null;
+  const raceLabel = challenge.race_metric ? metricLabel(challenge.race_metric, challenge.lockin_goal_type) : null;
 
   return (
     <Modal visible={visible} animationType="fade" statusBarTranslucent onRequestClose={onClose}>

@@ -1417,6 +1417,8 @@ export type ChallengeWatch = {
   has_cheered: boolean;
   /** Which competitor they backed, so the cheered side can be marked. */
   cheered_for: string | null;
+  /** 0263 · which lock-ins a lockin_time race counts (0247). Optional: absent before 0263. */
+  lockin_goal_type?: 'gym' | 'study' | null;
 };
 
 /**
@@ -2116,6 +2118,11 @@ export type SocialChallenge = {
   pooled?: boolean;
   /** 0240/0241 · on a pooled goal, the top contributor is paid at the top band + an exclusive title. */
   reward_top_contributor?: boolean;
+  /**
+   * 0263 · which lock-ins a lockin_time race counts — 'gym' or 'study' (0247 stores it, 0263 is the
+   * first read that returns it). Null counts every lock-in. Optional: absent before 0263.
+   */
+  lockin_goal_type?: 'gym' | 'study' | null;
   /** What THIS viewer has reported so far on a grade race. Null is "not in yet", which is a
    *  different thing from a reported 0 and has to render differently. */
   my_reported_value: number | null;
