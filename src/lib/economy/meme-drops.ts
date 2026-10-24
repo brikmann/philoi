@@ -39,7 +39,7 @@ export function toDrops(rows: readonly MemeDropRow[]): MemeDrop[] {
 }
 
 /**
- * What the shop surfaces: this month's drop if one is live, otherwise the next one as a locked date.
+ * What the shop surfaces: this week's drop if one is live, otherwise the next one as a locked date.
  * `after` is the drop following the featured one, shown only as a date — never its art, so the
  * next reveal is still a reveal.
  */

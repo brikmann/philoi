@@ -8,7 +8,7 @@ import { countdownLabel, dropDateLabel, type MemeDrop } from '@/lib/economy/meme
 import { RARITY_COLOR, rarityGlow } from '@/lib/economy/rarity';
 
 /**
- * This month's Meme Monday drop (0243) — the shop's one limited slot.
+ * This week's Meme Monday drop (0243, weekly since 0255) — the shop's one limited slot.
  *
  * LIVE: the item, its server price and how long is left; tapping opens the buy screen, which the
  * server re-checks. UPCOMING: a locked date and nothing else — the art stays hidden so the drop is
@@ -68,7 +68,7 @@ export function MemeDropCard({
         </View>
       </Pressable>
       <Text style={styles.note}>
-        {"One limited drop a month. Each is buyable for its week only, then it's gone for good."}
+        {"A new limited drop every Monday. Each is buyable for its week only, then it's gone for good."}
         {after ? ` Next: ${dropDateLabel(after.unlocksAt)}.` : ''}
       </Text>
     </View>

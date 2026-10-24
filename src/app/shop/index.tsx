@@ -79,7 +79,7 @@ export default function ShopScreen() {
   const shopCoachRef = useCoachMark('shop');
   const router = useRouter();
   const { embers, pass, ownedKeys, loading } = useInventory();
-  // This month's limited drop (0243). Absent — no section at all — when nothing is live or scheduled.
+  // This week's limited drop (0243, weekly since 0255). Absent — no section at all — when nothing is live or scheduled.
   const { featured: memeDrop, now: dropNow } = useMemeDrops();
 
   // LEVEL, not tier — the Flame Pass counts in levels and the rank ladder counts in tiers, and the
@@ -142,7 +142,7 @@ export default function ShopScreen() {
           onBuy={() => router.push('/paywall')}
         />
 
-        {/* ── Meme Monday (0243) — one limited drop a month, its week only ── */}
+        {/* ── Meme Monday (0243/0255) — a new limited drop every Monday, its week only ── */}
         {memeDrop ? (
           <>
             <SectionLabel label="Meme Monday" action={memeDrop.phase === 'live' ? 'Limited drop' : 'Locked'} />
