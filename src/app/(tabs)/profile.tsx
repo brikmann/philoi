@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,6 +11,9 @@ import { useAuraTier } from '@/components/economy/applied-art';
 import { useFlareSurge } from '@/components/economy/flare-border';
 import { EquippedTitle, PublicTitle } from '@/components/economy/loadout-bits';
 import { HeroRankStrip, ProfileHero } from '@/components/economy/profile-hero';
+import { ClaimHouseCard } from '@/components/house/claim-house-card';
+import { HouseSeal } from '@/components/house/house-seal';
+import { heirTo } from '@/components/house/identity-line';
 import { BioEditor } from '@/components/profile/bio-editor';
 import { CollectionEntry } from '@/components/profile/collection-entry';
 import { DisciplineRelicTracker } from '@/components/profile/discipline-relic-tracker';
@@ -28,11 +31,13 @@ import { useMyRanks } from '@/hooks/use-my-ranks';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchMyRecentLockIns, fetchUserLockInPhotos, type MyRecentLockIn } from '@/lib/api/check-ins';
+import { fetchMyProgram } from '@/lib/api/house';
 import { RankMuted } from '@/components/rank-muted';
 import { fetchMyLockInStats, fetchProfileById, fetchUserLockInStats, fetchUserRank, type UserRank } from '@/lib/api/profile';
 import { formatSessionDuration, pluralize } from '@/lib/format';
 import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import type { MyRank, Profile } from '@/types/database';
+import type { MyProgramRow } from '@/types/house';
 
 // The avatar's own diameter — which is exactly what EquippedAvatarHalo's `size` means. It adds
 // the ring's reach on top itself, so passing a padded box here makes the halo hug a phantom face
@@ -88,9 +93,32 @@ export default function ProfileScreen() {
   const [recentLockIns, setRecentLockIns] = useState<MyRecentLockIn[]>([]);
   // null = closed. A string (even empty) means the editor is open with that draft.
   const [bioDraft, setBioDraft] = useState<string | null>(null);
+  // Your own house (0257). `undefined` = not known — loading, or the read failed (0264 not live,
+  // offline) — and renders nothing; only a SUCCESSFUL "no program" (null) offers the claim card, so
+  // a failed read can never tell someone who has a house to go and claim one.
+  const [myProgram, setMyProgram] = useState<MyProgramRow | null | undefined>(undefined);
 
   const profile = isOwn ? myProfile : otherProfile;
   const universalRank: MyRank | UserRank | undefined = isOwn ? myRanks.find((r) => r.scope === 'universal') : (otherRank ?? undefined);
+
+  // On focus, not mount: the change-program screen is pushed over this tab, and coming back from it
+  // has to show the new house without a pull-to-refresh.
+  useFocusEffect(
+    useCallback(() => {
+      if (!isOwn) return;
+      let live = true;
+      fetchMyProgram()
+        .then((p) => {
+          if (live) setMyProgram(p);
+        })
+        .catch(() => {
+          // Fails soft: no house row, no claim card — the profile reads as it did before 0257.
+        });
+      return () => {
+        live = false;
+      };
+    }, [isOwn])
+  );
 
   useEffect(() => {
     if (isOwn || !userIdParam) return;
@@ -178,6 +206,9 @@ export default function ProfileScreen() {
           avatarSize={AVATAR_SIZE}
           auraTier={auraTier}
           flareSurge={flareSurge}
+          // Your own card's house line is the fuller row under it (title + change link), so the
+          // hero keeps just the seal. A visitor gets the hero's "Heir to · Program" line.
+          houseLine={!isOwn}
           // `EquippedTitle` reads the signed-in user's store, so on someone else's profile it would
           // structurally render blank — their title comes off the public loadout fetched above.
           title={isOwn ? <EquippedTitle /> : <PublicTitle loadout={theirs ?? {}} />}
@@ -206,6 +237,28 @@ export default function ProfileScreen() {
             </Text>
           ) : null}
         </ProfileHero>
+
+        {/* Own profile only: YOUR HOUSE (mock 288) — "Heir to Heracles, Titan of the Twelve Labours ·
+            Kin", with a quiet way to change it. No program yet → the claim card in its place. */}
+        {isOwn && myProgram ? (
+          <View style={styles.houseRow}>
+            <HouseSeal patronKey={myProgram.patron_key} patronName={myProgram.patron_name} size={18} />
+            <Text style={styles.houseText} numberOfLines={1}>
+              {heirTo(myProgram.patron_name)}
+              {myProgram.patron_title ? `, ${myProgram.patron_title}` : ''}
+              {' · '}
+              <Text style={styles.houseProgram}>{myProgram.program_abbrev || myProgram.name}</Text>
+            </Text>
+            <Pressable
+              onPress={() => router.push('/house/change-program')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Change program">
+              <Text style={styles.houseChange}>Change program</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {isOwn && myProgram === null ? <ClaimHouseCard /> : null}
 
         {/* Own profile only: the door into the loadout picker (mock 250), right under the thing it
             edits. */}
@@ -366,6 +419,31 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  houseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Spacing.twelve,
+    paddingHorizontal: 2,
+  },
+  houseText: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.muted,
+  },
+  houseProgram: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.amber,
+  },
+  // Quiet on purpose — changing your program is rare, and it should not compete with the loadout.
+  houseChange: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.textTertiary,
+    textDecorationLine: 'underline',
+  },
   // Mock 250's entry point — quiet, right-aligned under the card it edits.
   loadoutLink: {
     flexDirection: 'row',

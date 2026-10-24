@@ -4,13 +4,16 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
 
 import { ExercisePicker } from '@/components/exercise-picker';
+import { PrConsentSheet } from '@/components/fitness/pr-consent-sheet';
 import { GymClipCaptureButton } from '@/components/gym-clip-capture-button';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useExerciseLibrary } from '@/hooks/use-exercise-library';
 import { saveWorkoutAsRoutine } from '@/lib/api/gym';
 import { getErrorMessage } from '@/lib/errors';
 import { fireConfirm, fireLightTap } from '@/lib/reward-feedback';
 import type { ActiveWorkout, ActiveWorkoutExercise, Exercise, WorkoutSet, WorkoutSetClipRefs } from '@/types/database';
+import type { ExerciseUnit } from '@/types/house';
 
 type WorkoutLogProps = {
   workout: ActiveWorkout;
@@ -33,6 +36,14 @@ let draftSeq = 0;
 function newDraft(weight: string, reps: string): Draft {
   draftSeq += 1;
   return { key: `d${draftSeq}`, weight, reps };
+}
+
+/** The reps column's header and what it holds (0265): a time exercise logs seconds there, a
+ * distance one metres. Weight and reps exercises both count reps. */
+function repsColumn(unit: ExerciseUnit): { label: string; noun: string; maxLength: number } {
+  if (unit === 'time') return { label: 'sec', noun: 'second', maxLength: 5 };
+  if (unit === 'distance') return { label: 'm', noun: 'metre', maxLength: 6 };
+  return { label: 'reps', noun: 'rep', maxLength: 3 };
 }
 
 function numText(value: number | null | undefined): string {
@@ -80,6 +91,19 @@ export function WorkoutLog({
   const [replacingId, setReplacingId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Mock 295 — the PR set a clip was just attached to, waiting on "Post PR & rank" or "Keep private".
+  const [consentFor, setConsentFor] = useState<{ setId: string; exerciseName: string } | null>(null);
+  // ── WHAT EACH LIFT MEASURES (0265) ──
+  //
+  // get_active_workout doesn't return the exercise's unit, so it's read off the library (which
+  // selects `*`, unit included once 0265 is live) by exercise_id — plus whatever was picked this
+  // session, since a lift created mid-workout isn't in this copy of the library yet. Missing
+  // everywhere (an old row, a pre-0265 server) means weight, which is what every lift was before.
+  const { byId: libraryById } = useExerciseLibrary();
+  const [pickedUnits, setPickedUnits] = useState<Record<string, ExerciseUnit>>({});
+  function unitOf(exercise: ActiveWorkoutExercise): ExerciseUnit {
+    return pickedUnits[exercise.exercise_id] ?? libraryById.get(exercise.exercise_id)?.unit ?? 'weight';
+  }
   // "Routines build from memory" (§23). This used to be offered on the done screen; punchlist 6
   // §3 moved it here, where the lifts are on screen in front of you and it isn't competing with
   // the recap for attention. Only for a freestyle session — re-saving a routine you just
@@ -130,7 +154,7 @@ export function WorkoutLog({
     const draft = draftsFor(exercise)[index];
     const reps = Number(draft.reps);
     if (!Number.isFinite(reps) || reps <= 0) {
-      setError('A set needs at least one rep.');
+      setError(`A set needs at least one ${repsColumn(unitOf(exercise)).noun}.`);
       return;
     }
     const weightText = draft.weight.trim();
@@ -223,6 +247,8 @@ export function WorkoutLog({
     setReplacingId(null);
     setAddOpen(false);
     setError(null);
+    const pickedUnit = exercise.unit;
+    if (pickedUnit) setPickedUnits((prev) => ({ ...prev, [exercise.id]: pickedUnit }));
     try {
       if (replacing) {
         // A replace keeps the same workout_exercise row, so any half-typed draft under it would
@@ -247,6 +273,7 @@ export function WorkoutLog({
         const exerciseDrafts = draftsFor(exercise);
         const hasPr = exercise.sets.some((s) => s.is_pr);
         const menuOpen = menuFor === exercise.id;
+        const reps = repsColumn(unitOf(exercise));
 
         return (
           <View key={exercise.id} style={styles.card}>
@@ -318,7 +345,7 @@ export function WorkoutLog({
             <View style={styles.setHead}>
               <Text style={[styles.setHeadCell, styles.colNo]}>Set</Text>
               <Text style={[styles.setHeadCell, styles.colField]}>lb</Text>
-              <Text style={[styles.setHeadCell, styles.colField]}>reps</Text>
+              <Text style={[styles.setHeadCell, styles.colField]}>{reps.label}</Text>
               <View style={styles.colAction} />
             </View>
 
@@ -346,7 +373,15 @@ export function WorkoutLog({
                   <GymClipCaptureButton
                     set={set}
                     autoPromptPr={prPromptSetId === set.id}
-                    onChanged={(refs) => onSetClipChanged(exercise.id, refs)}
+                    onChanged={(refs) => {
+                      onSetClipChanged(exercise.id, refs);
+                      // A clip just landed on a PR (not a re-record of one already filmed): ask
+                      // whether it ranks. Nothing is moved or re-uploaded — the clip is already in
+                      // the private bucket; the sheet only flips the set's ranking + consent.
+                      if (set.is_pr && refs.video_key && !set.video_key) {
+                        setConsentFor({ setId: set.id, exerciseName: exercise.name });
+                      }
+                    }}
                   />
                 )}
                 {set.is_pr && (
@@ -377,8 +412,8 @@ export function WorkoutLog({
                   placeholder="0"
                   placeholderTextColor={Colors.textTertiary}
                   keyboardType="number-pad"
-                  maxLength={3}
-                  accessibilityLabel="Reps"
+                  maxLength={reps.maxLength}
+                  accessibilityLabel={reps.label === 'reps' ? 'Reps' : reps.label === 'sec' ? 'Seconds' : 'Metres'}
                 />
                 <Pressable
                   onPress={() => handleBank(exercise, index)}
@@ -454,6 +489,12 @@ export function WorkoutLog({
           setReplacingId(null);
         }}
         onPick={handlePicked}
+      />
+
+      <PrConsentSheet
+        workoutSetId={consentFor?.setId ?? null}
+        exerciseName={consentFor?.exerciseName ?? ''}
+        onClose={() => setConsentFor(null)}
       />
     </View>
   );

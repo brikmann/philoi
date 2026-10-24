@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { EmberfallSplash } from '@/components/economy/emberfall-splash';
 import { EquippedHexGlow, PublicTitle } from '@/components/economy/loadout-bits';
@@ -25,12 +25,14 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { RankBadge } from '@/components/rank-badge';
 import { useCrossCirclePeople } from '@/hooks/use-cross-circle-people';
 import { useGlobalLeaderboard } from '@/hooks/use-global-leaderboard';
+import { useMetricLeaderboard } from '@/hooks/use-metric-leaderboard';
 import { usePresence } from '@/hooks/use-presence';
 import { useUniversityLeaderboard } from '@/hooks/use-university-leaderboard';
 import { useUniversityTotals } from '@/hooks/use-university-totals';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversityShortNames } from '@/lib/api/groups';
+import { fetchMyProgram } from '@/lib/api/house';
 import { searchLeaderboard } from '@/lib/api/leaderboard-social';
 import { rankVisibilityOf } from '@/lib/api/privacy';
 import { getUniversityCrest } from '@/lib/university-crests';
@@ -42,15 +44,23 @@ import type {
   RankTierName,
   UniversityLeaderboardRow,
 } from '@/types/database';
+import type { MetricLeaderboardRow, MyProgramRow } from '@/types/house';
 
-type Scope = 'camp' | 'uni' | 'vs' | 'global';
+type Scope = 'camp' | 'uni' | 'house' | 'vs' | 'global';
 type Metric = 'xp' | 'streak';
 type VsMetric = 'total' | 'avg';
 
-const SCOPE_LABEL: Record<Scope, string> = { camp: 'Friends', uni: 'My uni', vs: 'Uni vs. Uni', global: 'Global' };
-// Order reads Friends · My uni · Global · Uni vs. Uni (Noah). The `camp` board pools your friends +
-// campfire-mates (get_my_cross_circle_people), so "Friends" is what it actually shows.
-const SCOPES: Scope[] = ['camp', 'uni', 'global', 'vs'];
+const SCOPE_LABEL: Record<Scope, string> = {
+  camp: 'Friends',
+  uni: 'My uni',
+  house: 'My program',
+  vs: 'Uni vs. Uni',
+  global: 'Global',
+};
+// Order reads Friends · My uni · My program · Global · Uni vs. Uni (Noah). The `camp` board pools
+// your friends + campfire-mates (get_my_cross_circle_people), so "Friends" is what it actually shows.
+// `house` is the house board (mock 288): every Heir of your program, across both schools.
+const SCOPES: Scope[] = ['camp', 'uni', 'house', 'global', 'vs'];
 
 // Every board lists everyone on it below the podium (ranks 1-3) — Noah, 2026-10-21; it used to cap
 // at rank 10. The RPCs are asked for the whole board (p_limit null, 0253), so the pinned own-row
@@ -79,10 +89,35 @@ function boardUserIds(board: Board<PersonRow> | null): string[] {
   ];
 }
 
+/** The house board (get_metric_leaderboard 'season_xp' / 'my_program', 0265) in the Global board's
+ * row shape, so it ranks, podiums and pins through exactly the same code as the other XP boards. */
+function houseRowAsGlobal(row: MetricLeaderboardRow): GlobalLeaderboardRow {
+  return {
+    user_id: row.user_id,
+    handle: row.handle ?? '',
+    display_name: row.display_name,
+    avatar_url: row.avatar_url,
+    is_pro: row.is_pro,
+    score: row.value,
+    tier: row.tier as RankTierName,
+    division: row.division,
+    university: row.university,
+    check_ins_this_week: 0,
+    rank: row.rank,
+    is_me: row.is_me,
+  };
+}
+
 function personValue(row: PersonRow, metric: Metric): string {
   if (metric === 'xp') return `${Math.round(row.score).toLocaleString()} XP`;
   if ('current_streak' in row) return `🔥 ${row.current_streak}d`;
   return `${row.check_ins_this_week}× wk`;
+}
+
+// The school for the identity line. Global and house rows carry it; Friends rows don't, and the
+// identity line falls back to the 0264 badge for those.
+function rowUniversity(row: PersonRow): string | null {
+  return 'university' in row ? (row.university ?? null) : null;
 }
 
 function personPodiumItem(row: PersonRow, metric: Metric, isMe: boolean): PodiumItem {
@@ -178,6 +213,29 @@ export default function LeaderboardsScreen() {
   const { rows: uniRows, loading: uniLoading, error: uniError, refetch: refetchUni } = useUniversityLeaderboard(university);
   const { totals, loading: totalsLoading, refetch: refetchTotals } = useUniversityTotals();
   const { rows: globalRows, loading: globalLoading, error: globalError, refetch: refetchGlobal } = useGlobalLeaderboard();
+  // The house board. Your program names the house; with none set the pill is a gentle nudge to pick
+  // one rather than an empty board. Re-read each time the pill is opened, since the pick happens on
+  // another screen while this tab stays mounted.
+  const [myProgram, setMyProgram] = useState<MyProgramRow | null>(null);
+  const [programLoaded, setProgramLoaded] = useState(false);
+  useEffect(() => {
+    if (scope !== 'house') return;
+    fetchMyProgram()
+      .then(setMyProgram)
+      .catch(() => setMyProgram(null))
+      .finally(() => setProgramLoaded(true));
+  }, [scope]);
+  const {
+    rows: houseMetricRows,
+    loading: houseLoading,
+    error: houseError,
+    refetch: refetchHouse,
+  } = useMetricLeaderboard({
+    metric: scope === 'house' && myProgram ? 'season_xp' : null,
+    scope: 'my_program',
+    window: 'all',
+    limit: null,
+  });
   const autoFallbackDone = useRef(false);
   const [universityShortNames, setUniversityShortNames] = useState<Record<string, string>>({});
 
@@ -235,18 +293,47 @@ export default function LeaderboardsScreen() {
     }
   }
 
-  const loading = scope === 'camp' ? peopleLoading : scope === 'uni' ? uniLoading : scope === 'global' ? globalLoading : totalsLoading;
-  const refetch = scope === 'camp' ? refetchPeople : scope === 'uni' ? refetchUni : scope === 'global' ? refetchGlobal : refetchTotals;
+  const loading =
+    scope === 'camp'
+      ? peopleLoading
+      : scope === 'uni'
+        ? uniLoading
+        : scope === 'house'
+          ? houseLoading || !programLoaded
+          : scope === 'global'
+            ? globalLoading
+            : totalsLoading;
+  const refetch =
+    scope === 'camp'
+      ? refetchPeople
+      : scope === 'uni'
+        ? refetchUni
+        : scope === 'house'
+          ? refetchHouse
+          : scope === 'global'
+            ? refetchGlobal
+            : refetchTotals;
 
+  // The house board is XP only — the Streaks toggle has no house twin — so it always ranks on XP.
+  const boardMetric: Metric = scope === 'house' ? 'xp' : metric;
   const campBoard = buildCampBoard(people, metric, session?.user.id);
   const uniBoard = buildRankedBoard(uniRows, metric);
+  const houseBoard = buildRankedBoard(houseMetricRows.map(houseRowAsGlobal), 'xp');
   const globalBoard = buildRankedBoard(globalRows, metric);
 
   // Only the scope actually on screen — all four boards are computed every render, but fetching
   // gear for the three nobody is looking at would triple the request for nothing. The module cache
   // behind the hook means switching scopes re-uses whatever already resolved.
   const visibleUserIds = boardUserIds(
-    scope === 'camp' ? campBoard : scope === 'uni' ? uniBoard : scope === 'global' ? globalBoard : null
+    scope === 'camp'
+      ? campBoard
+      : scope === 'uni'
+        ? uniBoard
+        : scope === 'house'
+          ? houseBoard
+          : scope === 'global'
+            ? globalBoard
+            : null
   );
   const boardLoadouts = usePublicLoadouts(visibleUserIds);
   // Somebody else's equip has to be able to reach this board. The cache behind the hook holds a
@@ -308,10 +395,11 @@ export default function LeaderboardsScreen() {
               avatarUrl={item.row.avatar_url}
               tier={item.row.tier}
               division={item.row.division}
-              value={personValue(item.row, metric)}
+              value={personValue(item.row, boardMetric)}
               isMe={item.row.user_id === session?.user.id}
               loadout={gear(item.row.user_id)}
               presence={presence[item.row.user_id]}
+              university={rowUniversity(item.row)}
             />
           </Pressable>
         )}
@@ -328,10 +416,11 @@ export default function LeaderboardsScreen() {
                   avatarUrl={board.pinned.row.avatar_url}
                   tier={board.pinned.row.tier}
                   division={board.pinned.row.division}
-                  value={personValue(board.pinned.row, metric)}
+                  value={personValue(board.pinned.row, boardMetric)}
                   isMe
                   loadout={gear(board.pinned.row.user_id)}
                   presence={presence[board.pinned.row.user_id]}
+                  university={rowUniversity(board.pinned.row)}
                 />
               </Pressable>
             </>
@@ -414,7 +503,13 @@ export default function LeaderboardsScreen() {
             {/* Pinned above the tabs rather than scrolled with a board: it belongs to the season, not
                 to any one scope. Renders nothing once the season has closed. */}
             <EmberfallSplash />
-            <View style={styles.pillRow}>
+            {/* Five scopes outgrow a narrow phone, so the row scrolls; with room to spare the pills
+                still stretch to fill it, as the four did. */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pillScroll}
+              contentContainerStyle={styles.pillRow}>
               {scopes.map((s) => {
                 const on = scope === s;
                 return (
@@ -441,26 +536,41 @@ export default function LeaderboardsScreen() {
                   </Pressable>
                 );
               })}
+            </ScrollView>
+            <View style={styles.metricRow}>
+              {scope === 'vs' ? (
+                <>
+                  <Pressable style={[styles.metricPill, vsMetric === 'total' && styles.pillOn]} onPress={() => setVsMetric('total')}>
+                    <Text style={[styles.pillLabel, vsMetric === 'total' && styles.pillLabelOn]}>Total XP</Text>
+                  </Pressable>
+                  <Pressable style={[styles.metricPill, vsMetric === 'avg' && styles.pillOn]} onPress={() => setVsMetric('avg')}>
+                    <Text style={[styles.pillLabel, vsMetric === 'avg' && styles.pillLabelOn]}>Avg / member</Text>
+                  </Pressable>
+                </>
+              ) : scope === 'house' ? (
+                // "Kinesiology · Heirs of Heracles" (mock 288) — the house, not one school's slice of it.
+                <Text style={styles.houseTitle} numberOfLines={1}>
+                  {myProgram ? `${myProgram.name} · Heirs of ${myProgram.patron_name}` : 'Your house'}
+                </Text>
+              ) : (
+                <>
+                  <Pressable style={[styles.metricPill, metric === 'xp' && styles.pillOn]} onPress={() => setMetric('xp')}>
+                    <Text style={[styles.pillLabel, metric === 'xp' && styles.pillLabelOn]}>XP</Text>
+                  </Pressable>
+                  <Pressable style={[styles.metricPill, metric === 'streak' && styles.pillOn]} onPress={() => setMetric('streak')}>
+                    <Text style={[styles.pillLabel, metric === 'streak' && styles.pillLabelOn]}>Streaks</Text>
+                  </Pressable>
+                </>
+              )}
+              {/* The Fitness board (mock 289) — its own surface, ranked on real fitness, not XP. */}
+              <Pressable
+                style={[styles.metricPill, styles.fitnessPill]}
+                onPress={() => router.push('/fitness')}
+                accessibilityRole="button"
+                accessibilityLabel="Open the Fitness board">
+                <Text style={[styles.pillLabel, styles.fitnessLabel]}>🏃 Fitness ›</Text>
+              </Pressable>
             </View>
-            {scope !== 'vs' ? (
-              <View style={styles.metricRow}>
-                <Pressable style={[styles.metricPill, metric === 'xp' && styles.pillOn]} onPress={() => setMetric('xp')}>
-                  <Text style={[styles.pillLabel, metric === 'xp' && styles.pillLabelOn]}>XP</Text>
-                </Pressable>
-                <Pressable style={[styles.metricPill, metric === 'streak' && styles.pillOn]} onPress={() => setMetric('streak')}>
-                  <Text style={[styles.pillLabel, metric === 'streak' && styles.pillLabelOn]}>Streaks</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={styles.metricRow}>
-                <Pressable style={[styles.metricPill, vsMetric === 'total' && styles.pillOn]} onPress={() => setVsMetric('total')}>
-                  <Text style={[styles.pillLabel, vsMetric === 'total' && styles.pillLabelOn]}>Total XP</Text>
-                </Pressable>
-                <Pressable style={[styles.metricPill, vsMetric === 'avg' && styles.pillOn]} onPress={() => setVsMetric('avg')}>
-                  <Text style={[styles.pillLabel, vsMetric === 'avg' && styles.pillLabelOn]}>Avg / member</Text>
-                </Pressable>
-              </View>
-            )}
           </View>
 
           {scope === 'camp' &&
@@ -473,6 +583,32 @@ export default function LeaderboardsScreen() {
               <CampusLockedState />
             ) : (
               renderPersonBoard(uniBoard, uniEmptyTitle, uniEmptyBody, uniError)
+            ))}
+
+          {scope === 'house' &&
+            (!programLoaded ? (
+              <ActivityIndicator color={Colors.coral} style={{ marginTop: Spacing.four }} />
+            ) : !myProgram ? (
+              <EmptyState
+                emoji="🏛️"
+                title="Pick your program"
+                body="Your program names your house. Pick it and this board ranks you against every Heir of it, at both schools."
+                action={
+                  <Pressable
+                    style={styles.lockedCta}
+                    onPress={() => router.push('/house/change-program?ceremony=1')}
+                    accessibilityRole="button">
+                    <Text style={styles.lockedCtaLabel}>Pick my program</Text>
+                  </Pressable>
+                }
+              />
+            ) : (
+              renderPersonBoard(
+                houseBoard,
+                'Your house is just forming',
+                'Houses are brand new — this board fills up as more Heirs pick their program. Climb now and you open it.',
+                houseError
+              )
             ))}
 
           {myFriendsRow && globalRows.length > 1 && (
@@ -656,12 +792,16 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     paddingBottom: Spacing.two,
   },
+  pillScroll: {
+    flexGrow: 0,
+  },
   pillRow: {
+    flexGrow: 1,
     flexDirection: 'row',
     gap: Spacing.one,
   },
   scopePress: {
-    flex: 1,
+    flexGrow: 1,
   },
   // iOS-only lift under the lit tab (mock 259's `0 4px 12px rgba(224,97,44,.35)`). No elevation:
   // Android's would cast grey from a transparent Pressable, which is worse than none.
@@ -676,7 +816,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: Radius.pill,
     paddingVertical: 7,
-    paddingHorizontal: Spacing.one,
+    paddingHorizontal: Spacing.twelve,
   },
   scopeTabIdle: {
     backgroundColor: Colors.cardDark,
@@ -691,7 +831,23 @@ const styles = StyleSheet.create({
   },
   metricRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.two,
+  },
+  // Right-aligned beside the board's own metric pills — a way OUT to another board, not a metric.
+  fitnessPill: {
+    marginLeft: 'auto',
+    borderColor: Colors.lineStrong,
+  },
+  fitnessLabel: {
+    color: Colors.amber,
+  },
+  houseTitle: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.ember,
+    letterSpacing: 0.4,
   },
   metricPill: {
     backgroundColor: Colors.card,

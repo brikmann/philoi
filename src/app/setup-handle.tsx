@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CampusVerification, CampusVerifiedPanel } from '@/components/campus-verification';
+import { ProgramPicker } from '@/components/house/program-picker';
 import { DEFAULT_HEIGHT_CM, HeightRuler } from '@/components/onboarding/height-ruler';
 import { DEFAULT_WEIGHT_KG, WeightRuler, type WeightUnit } from '@/components/onboarding/weight-ruler';
 import { FirstRunSpine, SPINE_ROW_HEIGHT } from '@/components/tutorial/first-run-spine';
@@ -13,8 +14,10 @@ import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversities } from '@/lib/api/groups';
+import { fetchProgramsForUniversity, setMyProgram } from '@/lib/api/house';
 import { setMyHeightCm, setMyWeightKg } from '@/lib/api/relics';
 import { getErrorMessage } from '@/lib/errors';
+import { invalidateIdentityBadge } from '@/lib/house/identity-badges';
 import { markOnboardingDone } from '@/lib/onboarding';
 import { supabase } from '@/lib/supabase';
 import {
@@ -24,6 +27,7 @@ import {
   sampleEmailFor,
   shortSchoolName,
 } from '@/lib/universities';
+import type { ProgramRow } from '@/types/house';
 
 const CONSENT_VERSION = '2026-06-30';
 const PRIVACY_URL = 'https://philoi.app/privacy.html';
@@ -47,11 +51,19 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 // ─────────────────────────── THE ORDER (mock 239) ───────────────────────────
 //
 //   1 username + display name, with the 18+/Terms consent folded into the bottom
-//   2 height (optional)   3 weight (optional)   4 where you study   5 verify campus (optional)
+//   2 height (optional)   3 weight (optional)   4 where you study   5 what you study (mock 291)
+//   6 verify campus (optional)
 //
 // Verify is LAST so the heaviest step hands straight on into the tour, and setup is the first half
-// of one run: same ScreenBackground as tutorial.tsx, same FirstRunSpine reading `SETUP n / 5` where
+// of one run: same ScreenBackground as tutorial.tsx, same FirstRunSpine reading `SETUP n / 6` where
 // the tour's reads `TOUR n / 20`.
+//
+// Step 5 is Phase 1's PROGRAM field (ONBOARDING_FLOW_3phase.md) — data entry, not the ceremony. The
+// program names the user's house (programs.patron_key); the patron is shown here only as what the
+// pick implies, and it is revealed and pledged to in Phase 3 (/house/claim), after the tour. It is
+// skipped entirely — not shown, not counted — when the school has no programs (today only Laurier
+// and Waterloo have any), and quietly when the list can't be fetched (a server without 0257), since
+// a missing house must never hold an account hostage. That user gets "Claim your house" later.
 //
 // 🔴 CONSENT IS ASKED ON STEP 1 BUT WRITTEN LAST. `has_consented` is what releases this gate — the
 // moment it is true, _layout's Stack.Protected drops this screen and the tutorial gate takes over.
@@ -79,14 +91,16 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 // Skippable for the same reason height is, though the fallback is worse: no weight means Cindy
 // asks once or scores off the demographic anchors.
 //
-// Step 5 is the OPTIONAL campus verification (UNI_VERIFICATION_SPEC.md §5). It's skipped
+// Step 6 is the OPTIONAL campus verification (UNI_VERIFICATION_SPEC.md §5). It's skipped
 // entirely — not shown, not counted — when the chosen school has no known email domain, since
-// there's nothing to send a code to; step 4's CTA then enters Philoi directly. Never a blocker
-// either way: skipping just leaves the two campus boards locked.
-type Step = 1 | 2 | 3 | 4 | 5;
+// there's nothing to send a code to; the step before it then enters Philoi directly. Never a
+// blocker either way: skipping just leaves the two campus boards locked.
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
-/** The full run. A school with no domain drops it to 4 the moment that is known (step 4). */
-const SETUP_STEPS = 5;
+/** The full run. A school with no domain, or no programs, drops one each the moment that is known. */
+const SETUP_STEPS = 6;
+
+const PROGRAM_CONFIRM_NOTE = "You'll meet your patron and pledge your loyalty after the quick tour of how Philoi works.";
 
 export default function SetupHandleScreen() {
   const { session, profile, refreshProfile } = useAuth();
@@ -130,12 +144,30 @@ export default function SetupHandleScreen() {
   const [ageChecked, setAgeChecked] = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
 
+  // Each school's program list, keyed by name. Keyed (rather than one "current list") so a slow
+  // answer for a school the user has since tapped away from can't overwrite the one they're on —
+  // no effect-scoped cancel flag needed. An errored fetch is cached as [] — "no programs here".
+  const [programsBySchool, setProgramsBySchool] = useState<Record<string, ProgramRow[]>>({});
+  // The list step 5 is drawing, fixed when step 4 is left — so going Back and picking a different
+  // school can't swap the picker's rows out from under it.
+  const [programStep, setProgramStep] = useState<{ university: string; rows: ProgramRow[] } | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUniversities().then(setUniversities).catch(() => {});
   }, []);
+
+  // Prefetch the moment a listed school is picked, so step 4's spine already knows whether a
+  // program step is coming and the step itself opens with its list in hand.
+  useEffect(() => {
+    if (!university) return;
+    loadPrograms(university);
+    // loadPrograms is redefined every render; the worst a stale copy can do is miss the cache and
+    // fetch once more, so the school is the only input that should re-run this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [university]);
 
   // Live "@handle available" check (PHILOI_UI_SPEC.md §21: "availability-checked and unique") —
   // debounced so we're not firing a query on every keystroke.
@@ -171,10 +203,18 @@ export default function SetupHandleScreen() {
   // Not while the domain is still resolving: whether step 5 exists depends on the answer, and
   // continuing early would skip verification for a school that has a domain.
   const canContinueStudy = (Boolean(university) || notListed) && !resolvingDomain;
-  /** Step 4 is the last step when there is nothing to verify against. */
+  /** With nothing to verify against, the school (or program) step is the last one. */
   const studyIsLast = !(university && universityDomain);
   // Only once a school is actually chosen on step 4 — before that, "no domain" just means "not asked yet".
-  const setupTotal = step === 4 && studyIsLast && (university || notListed) ? SETUP_STEPS - 1 : SETUP_STEPS;
+  const verifyKnownAbsent = step >= 4 && studyIsLast && Boolean(university || notListed);
+  // Known on step 4 only for a listed school whose prefetch has answered; from step 5 on it is fixed.
+  const programsKnownAbsent =
+    step === 4 ? Boolean(university && programsBySchool[university]?.length === 0) : step === 6 && !programStep;
+  const setupTotal = SETUP_STEPS - (verifyKnownAbsent ? 1 : 0) - (programsKnownAbsent ? 1 : 0);
+  // Verify reads as step 5 of 5 when the program step never existed for this school.
+  const spineStep = step === 6 && !programStep ? 5 : step;
+  /** The school step's CTA enters Philoi when neither a program nor a verify step follows it. */
+  const studyEnters = studyIsLast && programsKnownAbsent;
 
   // Strictly the live server flag (punchlist 6 §1) — there is no local "just verified" state to
   // go stale. The school has to match too: the flag on the profile belongs to the school stored
@@ -236,7 +276,25 @@ export default function SetupHandleScreen() {
     setStep(2);
   }
 
-  /** Save the school, then verify it — or, with no domain to verify against, enter Philoi. */
+  /**
+   * A school's programs, from the keyed cache or the server. Never throws: an error (offline, or a
+   * server without get_programs_for_university) is cached as "no programs", which skips the step.
+   */
+  async function loadPrograms(name: string): Promise<ProgramRow[]> {
+    const cached = programsBySchool[name];
+    if (cached) return cached;
+    let rows: ProgramRow[];
+    try {
+      rows = await fetchProgramsForUniversity(name);
+    } catch (e) {
+      console.warn('[onboarding] could not load programs — skipping the program step:', e);
+      rows = [];
+    }
+    setProgramsBySchool((prev) => ({ ...prev, [name]: rows }));
+    return rows;
+  }
+
+  /** Save the school, then pick a program — or verify — or, with neither to do, enter Philoi. */
   async function handleContinueStudy() {
     setLoading(true);
     setError(null);
@@ -256,9 +314,39 @@ export default function SetupHandleScreen() {
     }
 
     await refreshProfile();
+    // A free-text school is looked up too — someone who typed Laurier's exact name still has a house.
+    const rows = resolvedUniversity ? await loadPrograms(resolvedUniversity) : [];
+    setProgramStep(resolvedUniversity && rows.length > 0 ? { university: resolvedUniversity, rows } : null);
     setLoading(false);
+    if (rows.length > 0) setStep(5);
+    else if (studyIsLast) await enterPhiloi();
+    else setStep(6);
+  }
+
+  /**
+   * Save the program, then verify — or enter Philoi.
+   *
+   * A failed save is NOT a dead end. The step is required only in the sense that a school with
+   * programs doesn't offer a skip; letting a server error hold the whole account at step 5 would
+   * make a house more load-bearing than the account. The miss is recoverable — the profile's
+   * "Claim your house" card picks it up — so it warns and moves on.
+   */
+  async function handleConfirmProgram(program: ProgramRow) {
+    if (!session) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await setMyProgram(program.program_id);
+      // The stack beside your own name ("Heir to Heracles · Kin · Laurier") is cached for 10 min.
+      invalidateIdentityBadge(session.user.id);
+      await refreshProfile();
+    } catch (e) {
+      console.warn('[onboarding] could not save program — continuing without one:', e);
+    } finally {
+      setLoading(false);
+    }
     if (studyIsLast) await enterPhiloi();
-    else setStep(5);
+    else setStep(6);
   }
 
   /**
@@ -356,10 +444,11 @@ export default function SetupHandleScreen() {
       {/* Six segments only when verification is actually on this user's path — a school with no
           domain never sees that step, so showing a sixth dot would promise one that never comes.
           Both body-metric steps are on everyone's path, so they always count. */}
-      {/* The same spine the tour draws (mock 239 "ONE SPINE"). Five until a school is picked that has
-          no domain — at which point the verify step is known not to exist and stops being promised. */}
+      {/* The same spine the tour draws (mock 239 "ONE SPINE"). Six until a school is picked that has
+          no domain or no programs — at which point that step is known not to exist and stops being
+          promised. */}
       <View style={styles.spineRow}>
-        <FirstRunSpine total={setupTotal} filled={step} label={`SETUP ${step} / ${setupTotal}`} />
+        <FirstRunSpine total={setupTotal} filled={spineStep} label={`SETUP ${spineStep} / ${setupTotal}`} />
       </View>
 
       {step === 1 && (
@@ -597,9 +686,27 @@ export default function SetupHandleScreen() {
         </View>
       )}
 
+      {/* What you study (mock 291) — only ever reached when the school has programs. The picker carries
+          its own CTAs (a row tap picks; the confirm has "Looks right" / "Choose a different program"),
+          so the shared nav keeps only Back here. Keyed by school so Back → a new school → Continue
+          opens a fresh search rather than the last school's confirm. */}
+      {step === 5 && programStep && (
+        <View style={styles.step}>
+          <ProgramPicker
+            key={programStep.university}
+            university={programStep.university}
+            programs={programStep.rows}
+            initialProgramId={profile?.program_id}
+            onConfirm={(program) => void handleConfirmProgram(program)}
+            saving={loading}
+            confirmNote={PROGRAM_CONFIRM_NOTE}
+          />
+        </View>
+      )}
+
       {/* OPTIONAL campus verification (§5) — the LAST step. Only ever reached when the school has a
           domain; every way out of it (verified, already verified, skipped) enters Philoi. */}
-      {step === 5 && university && universityDomain && (
+      {step === 6 && university && universityDomain && (
         <View style={styles.step}>
           {campusVerified ? (
             <CampusVerifiedPanel
@@ -624,21 +731,24 @@ export default function SetupHandleScreen() {
 
       {error && <Text style={styles.error}>{error}</Text>}
 
-      {/* Step 5 carries its own CTAs (Send code / Verify / Skip), so the shared nav bar sits it
-          out entirely — two competing primary buttons on one screen is how someone taps
-          "Continue" and skips verification without meaning to. Back still works.
+      {/* Steps 5 and 6 carry their own CTAs (the picker's confirm; Send code / Verify / Skip), so the
+          shared nav bar's primary sits them out — two competing primary buttons on one screen is
+          how someone taps "Continue" and skips verification without meaning to. Back still works,
+          and from verify it skips over a program step this school never had.
           The two rulers' Skips are plain text links, not second buttons, so they keep the
           shared CTA. */}
       <View style={styles.nav}>
         {step > 1 && (
-          <Pressable style={styles.back} onPress={() => setStep((s) => (s - 1) as Step)}>
+          <Pressable
+            style={styles.back}
+            onPress={() => setStep((s) => (s === 6 && !programStep ? 4 : ((s - 1) as Step)))}>
             <Text style={styles.backLabel}>Back</Text>
           </Pressable>
         )}
-        {step !== 5 && (
+        {step < 5 && (
           <View style={styles.nextWrap}>
             <PrimaryButton
-              label={step === 4 && studyIsLast ? 'Enter Philoi →' : 'Continue'}
+              label={step === 4 && studyEnters ? 'Enter Philoi →' : 'Continue'}
               loading={loading}
               // Steps 2 and 3 have nothing to validate — every position on either ruler is inside
               // its column's range by construction — so neither is ever disabled.

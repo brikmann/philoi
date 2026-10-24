@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EquippedHexGlow, PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar, useResolvedLoadout } from '@/components/economy/public-identity';
 import { FriendPingSheet } from '@/components/friend-ping-sheet';
+import { HouseSeal } from '@/components/house/house-seal';
+import { IdentityLine } from '@/components/house/identity-line';
 import { LiveStatusBadge } from '@/components/live-status-badge';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
 import { RankBadge } from '@/components/rank-badge';
@@ -325,10 +327,15 @@ function FriendRow({
         {lockedIn && <View style={styles.liveDot} />}
       </View>
       <View style={styles.who}>
-        <Text style={styles.name} numberOfLines={1}>
-          {friend.display_name}
-        </Text>
+        {/* The house seal beside the name, outside its text so a long name truncates first. */}
+        <View style={styles.nameRow}>
+          <Text style={styles.name} numberOfLines={1}>
+            {friend.display_name}
+          </Text>
+          <HouseSeal userId={friend.friend_id} size={15} style={styles.seal} />
+        </View>
         <PublicTitle loadout={resolved} compact />
+        <IdentityLine userId={friend.friend_id} style={styles.identity} />
         <Text style={[styles.status, lockedIn && styles.statusOn]} numberOfLines={1}>
           {status}
         </Text>
@@ -439,10 +446,23 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+  },
   name: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13.5,
     color: Colors.ink,
+    flexShrink: 1,
+  },
+  seal: {
+    marginLeft: 5,
+  },
+  identity: {
+    fontSize: 11,
+    marginTop: 1,
   },
   status: {
     fontFamily: Fonts.body,

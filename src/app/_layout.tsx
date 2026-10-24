@@ -34,6 +34,7 @@ import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { fetchMyActiveLockInSession } from '@/lib/api/lock-ins';
 import { registerPushToken } from '@/lib/notifications';
 import { track } from '@/lib/analytics';
+import { isCeremonyDone } from '@/lib/house/ceremony';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
 import { isTutorialDone } from '@/lib/tutorial';
 import { posthog } from '@/lib/posthog';
@@ -92,14 +93,17 @@ const FALLBACK_METRICS = {
 const navTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: 'transparent' } };
 
 function RootNavigator() {
-  const { ready, error, session, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
+  const { ready, error, session, profile, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
   const { hasCircle, refetch: refetchHasCircle } = useHasAnyCircle();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
   // Null until the flag has been read. The gate below tests `=== false` for the same reason the
   // onboarding one does: a nullish value must never be mistaken for "not done" and bounce someone
   // into the tour on every launch while the read is still in flight.
   const [tutorialDone, setTutorialDone] = useState<boolean | null>(null);
+  // Phase 3's flag (lib/house/ceremony). Null while its read is in flight, same rule as the two above.
+  const [ceremonyDone, setCeremonyDone] = useState<boolean | null>(null);
   const userId = session?.user?.id ?? null;
+  const hasProgram = Boolean(profile?.program_id);
   const router = useRouter();
   const pathname = usePathname();
   const [interLoaded] = useInterFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_900Black });
@@ -165,6 +169,7 @@ function RootNavigator() {
     // tutorial" clears it and then navigates, and a stale in-memory `true` would make the replay
     // silently do nothing.
     isTutorialDone(userId).then(setTutorialDone);
+    isCeremonyDone(userId).then(setCeremonyDone);
     // userId too, not just pathname: before sign-in there is no id and the flag reads "done", and
     // a new account's session can arrive without a navigation — re-read the moment the user changes.
   }, [pathname, refetchHasCircle, userId]);
@@ -375,6 +380,69 @@ function RootNavigator() {
     };
   }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, onboardingDone, tutorialDone, pathname, router, userId]);
 
+  // 🔴 THE CEREMONY GATE — Phase 3, "claim your house" (ONBOARDING_FLOW_3phase.md, mocks 286/287).
+  // Data → teach → claim: it fires only once the tutorial is DONE (`=== true`), so it and the tour
+  // gate above are mutually exclusive by construction — one waits on `false`, this on `true` — and
+  // can never fight over a frame.
+  //
+  // ONLY FOR A PROFILE WITH A PROGRAM. The ceremony reveals the house the program grants; with no
+  // program there is nothing to reveal, and nobody is pushed into picking one — the profile's
+  // "Claim your house" card is the invitation instead (it runs the ceremony after the pick itself).
+  //
+  // ONLY ON HOME (`/`). Every way the first run ends lands there — the tour's Done/Skip replace to
+  // `/`, and the Flame Pass CTA's paywall closes back to it — so this catches the first run without
+  // ever yanking someone off the paywall, a deep link, or /house/change-program mid-pick (which the
+  // claim screen itself sends people to).
+  //
+  // Re-checked before redirecting, for the tutorial gate's reason: the seal marks the ceremony done
+  // (in memory first) and replaces to `/` in the same tick, while `ceremonyDone` still holds the
+  // snapshot `false`. The claim screen's no-house exit stands the gate down the same way
+  // (skipCeremonyThisSession), so a failed read can't loop Home → claim → Home. `cancelled` drops a
+  // check whose inputs moved on; the re-run with the new inputs decides afresh.
+  useEffect(() => {
+    if (
+      !(
+        appReady &&
+        session &&
+        !needsHandle &&
+        !needsConsent &&
+        !needsAccountDisabled &&
+        onboardingDone === true &&
+        tutorialDone === true &&
+        ceremonyDone === false &&
+        hasProgram &&
+        pathname === '/'
+      )
+    ) {
+      return;
+    }
+    let cancelled = false;
+    isCeremonyDone(userId).then((done) => {
+      if (cancelled) return;
+      if (done) {
+        setCeremonyDone(true);
+        return;
+      }
+      router.replace('/house/claim');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    appReady,
+    session,
+    needsHandle,
+    needsConsent,
+    needsAccountDisabled,
+    onboardingDone,
+    tutorialDone,
+    ceremonyDone,
+    hasProgram,
+    pathname,
+    router,
+    userId,
+  ]);
+
   if (!appReady) {
     if (!stuck) return null;
     return (
@@ -464,6 +532,16 @@ function RootNavigator() {
             hit a protected-out route and was silently dropped: no fresh account ever saw the tour.
             No header and no back gesture: the tour owns the whole screen and has its own Skip. */}
         <Stack.Screen name="tutorial" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />
+        {/* Phase 3 — claim your house (mocks 286/287). Same group and same reason as the tour: the
+            ceremony gate below the tutorial's sends people here once the account is usable. No back
+            gesture — the pledge, or "Choose a different program", are the ways out. */}
+        <Stack.Screen name="house/claim" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="house/change-program" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* The fitness board + any-exercise board (0265) and compare-anyone (0265). Each draws its
+            own back header. */}
+        <Stack.Screen name="fitness/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="fitness/exercise" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="versus/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="group/[groupId]/index" options={{ title: '' }} />
         <Stack.Screen name="group/[groupId]/edit" options={{ presentation: 'modal', headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="group/[groupId]/invite" options={{ presentation: 'modal', title: '', headerShown: false }} />

@@ -8,6 +8,8 @@ import { FlareBorder, type FlareBorderMotion } from '@/components/economy/flare-
 import type { FlareTier } from '@/components/economy/flare-perimeter';
 import { publicBannerStyle } from '@/components/economy/public-identity';
 import { SeasonChip } from '@/components/economy/season-chip';
+import { HouseSeal } from '@/components/house/house-seal';
+import { IdentityLine } from '@/components/house/identity-line';
 import { RankBadge } from '@/components/rank-badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -24,7 +26,8 @@ import type { RankTierName } from '@/types/database';
 //   2. Banner mat      — a thin frame in the banner's colours between the flare and the card
 //   3. CARD backdrop   — the equipped card's scene behind everything
 //   4. Avatar          — the PERSON (photo, else initial), ringed by the equipped HALO
-//   5. Burning name    — a Flame Pass holder's name, on fire
+//   5. Burning name    — a Flame Pass holder's name, on fire, with the HOUSE SEAL beside it and
+//                        "Heir to {Patron} · {Program}" under it (mock 288)
 //   6. Title           — the equipped title in its own gradient (loadout-bits)
 //   7. Rank strip      — the earned rank hex + the Emberfall season chip (footer)
 //
@@ -58,6 +61,7 @@ export function ProfileHero({
   motion = 'full',
   title,
   nameSuffix,
+  houseLine = true,
   trailing,
   footer,
   children,
@@ -81,6 +85,10 @@ export function ProfileHero({
   title?: ReactNode;
   /** Plain text after the name — never on fire (BurningName's `suffix`). */
   nameSuffix?: ReactNode;
+  /** "Heir to {Patron} · {Program}" under the name. Off where the caller draws a fuller house row
+   *  of its own (your own profile, which adds the title and the change-program link). The seal
+   *  beside the name stays either way. */
+  houseLine?: boolean;
   /** Right of the identity block — the loadout preview's flame. */
   trailing?: ReactNode;
   /** Under the identity row, inside the card — the rank strip. */
@@ -115,14 +123,21 @@ export function ProfileHero({
                 )}
               </EquippedAvatarHalo>
               <View style={styles.info}>
-                <BurningName userId={userId} style={styles.name} suffix={nameSuffix} hero>
-                  {name}
-                </BurningName>
+                {/* The seal sits OUTSIDE the name's text so a long name truncates and the house
+                    stays. Nothing renders without one — the name line is then exactly as before. */}
+                <View style={styles.nameRow}>
+                  <BurningName userId={userId} style={styles.name} suffix={nameSuffix} hero>
+                    {name}
+                  </BurningName>
+                  <HouseSeal userId={userId} size={22} style={styles.seal} />
+                </View>
                 {handle ? (
                   <Text style={styles.handle} numberOfLines={1}>
                     @{handle}
                   </Text>
                 ) : null}
+                {/* The school is the caller's own row (children), so not repeated here. */}
+                {houseLine ? <IdentityLine userId={userId} showSchool={false} style={styles.house} /> : null}
                 {title ? <View style={styles.title}>{title}</View> : null}
                 {children}
               </View>
@@ -213,10 +228,23 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+  },
   name: {
     fontFamily: Fonts.bodyBold,
     fontSize: 20,
     color: Colors.ink,
+    flexShrink: 1,
+  },
+  seal: {
+    marginLeft: 6,
+  },
+  house: {
+    fontSize: 12,
+    marginTop: 1,
   },
   handle: {
     fontFamily: Fonts.body,

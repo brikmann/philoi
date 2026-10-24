@@ -7,8 +7,26 @@ import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useExerciseLibrary } from '@/hooks/use-exercise-library';
 import { useAuth } from '@/lib/auth/auth-context';
+import { createExercise } from '@/lib/api/stats';
 import { getErrorMessage } from '@/lib/errors';
 import type { Exercise } from '@/types/database';
+import type { ExerciseUnit } from '@/types/house';
+
+/** What a new lift measures (0265). For time/distance, a set's reps field holds seconds/metres. */
+const UNITS: { unit: ExerciseUnit; label: string }[] = [
+  { unit: 'weight', label: 'Weight' },
+  { unit: 'reps', label: 'Reps' },
+  { unit: 'time', label: 'Time' },
+  { unit: 'distance', label: 'Distance' },
+];
+
+/** The server has no create_exercise yet (pre-0265) — PostgREST's "not in the schema cache", or
+ *  Postgres' own undefined_function. Any OTHER error is a real refusal (the name filter, a bad
+ *  name) and must not be routed around by the direct insert. */
+function isMissingRpc(e: unknown): boolean {
+  const code = typeof e === 'object' && e !== null ? (e as { code?: string }).code : undefined;
+  return code === 'PGRST202' || code === '42883';
+}
 
 type ExercisePickerProps = {
   visible: boolean;
@@ -23,9 +41,10 @@ type ExercisePickerProps = {
 export function ExercisePicker({ visible, title = 'Choose an exercise', onClose, onPick }: ExercisePickerProps) {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
-  const { exercises, loading, addCustom } = useExerciseLibrary();
+  const { exercises, byId, loading, addCustom, refetch } = useExerciseLibrary();
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
+  const [unit, setUnit] = useState<ExerciseUnit>('weight');
   const [error, setError] = useState<string | null>(null);
 
   const trimmed = query.trim();
@@ -43,15 +62,37 @@ export function ExercisePicker({ visible, title = 'Choose an exercise', onClose,
   function handlePick(exercise: Exercise) {
     setQuery('');
     setError(null);
+    setUnit('weight');
     onPick(exercise);
   }
 
+  // create_exercise (0265) finds-or-creates by normalized name and runs the name filter, so it is
+  // the path whenever the server has it. It hands back only an id: a de-dupe onto a lift already
+  // in the library resolves to that row; a genuinely new one is described from what was typed,
+  // and the library refetches so it's there next time the picker opens.
   async function handleCreate() {
     if (!session || creating) return;
     setCreating(true);
     setError(null);
     try {
-      handlePick(await addCustom(session.user.id, trimmed));
+      let picked: Exercise;
+      try {
+        const id = await createExercise(trimmed, null, unit);
+        picked = byId.get(id) ?? {
+          id,
+          name: trimmed.replace(/\s+/g, ' '),
+          muscle_group: null,
+          created_by: session.user.id,
+          created_at: new Date().toISOString(),
+          unit,
+        };
+        void refetch();
+      } catch (e) {
+        if (!isMissingRpc(e)) throw e;
+        // Pre-0265: the old private insert. There's no unit column yet, so the lift is weight.
+        picked = await addCustom(session.user.id, trimmed);
+      }
+      handlePick(picked);
     } catch (e) {
       setError(getErrorMessage(e, 'Could not add that exercise.'));
     } finally {
@@ -86,6 +127,20 @@ export function ExercisePicker({ visible, title = 'Choose an exercise', onClose,
 
           <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
             {canCreate && (
+              <View style={styles.units} accessibilityRole="radiogroup" accessibilityLabel="What this exercise measures">
+                {UNITS.map((u) => (
+                  <Pressable
+                    key={u.unit}
+                    onPress={() => setUnit(u.unit)}
+                    style={[styles.unit, unit === u.unit && styles.unitOn]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: unit === u.unit }}>
+                    <Text style={[styles.unitLabel, unit === u.unit && styles.unitLabelOn]}>{u.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            {canCreate && (
               <Pressable onPress={handleCreate} disabled={creating} style={styles.createRow}>
                 <Ionicons name="add-circle-outline" size={17} color={Colors.amber} />
                 <Text style={styles.createLabel} numberOfLines={1}>
@@ -105,6 +160,9 @@ export function ExercisePicker({ visible, title = 'Choose an exercise', onClose,
                 <Text style={styles.rowName} numberOfLines={1}>
                   {exercise.name}
                 </Text>
+                {exercise.unit && exercise.unit !== 'weight' ? (
+                  <Text style={styles.rowMeta}>{UNITS.find((u) => u.unit === exercise.unit)?.label}</Text>
+                ) : null}
                 {exercise.muscle_group && <Text style={styles.rowMeta}>{exercise.muscle_group}</Text>}
               </Pressable>
             ))}
@@ -186,6 +244,31 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 10.5,
     color: Colors.textTertiary,
+  },
+  units: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+  unit: {
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    borderRadius: Radius.pill,
+    paddingVertical: 6,
+  },
+  unitOn: {
+    backgroundColor: Colors.achieverBg,
+    borderColor: Colors.amber,
+  },
+  unitLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+    color: Colors.muted,
+  },
+  unitLabelOn: {
+    color: Colors.amber,
   },
   createRow: {
     flexDirection: 'row',

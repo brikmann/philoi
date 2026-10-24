@@ -5,6 +5,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { FlareAura } from '@/components/economy/public-identity';
+import { HouseSealInline } from '@/components/house/house-seal';
 import { LiveStatusBadge } from '@/components/live-status-badge';
 import { RankBadge } from '@/components/rank-badge';
 import { Crown } from '@/components/ui/crown';
@@ -213,7 +214,13 @@ function PodiumColumn({
           userId={item.key}
           style={[styles.name, item.isMe && styles.nameMe]}
           numberOfLines={1}
-          suffix={item.isMe ? ' · you' : undefined}>
+          suffix={
+            <>
+              {/* The house seal only — a podium column is a third of the screen, no room for the line. */}
+              <HouseSealInline userId={item.key} size={13} />
+              {item.isMe ? ' · you' : null}
+            </>
+          }>
           {shortName(item.displayName)}
         </BurningName>
       ) : (

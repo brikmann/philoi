@@ -6,6 +6,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BurningName } from '@/components/burning-name';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
+import { HouseSealInline } from '@/components/house/house-seal';
+import { IdentityLine } from '@/components/house/identity-line';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TextInput } from '@/components/ui/text-input';
 import { Screen } from '@/components/ui/screen';
@@ -161,10 +163,16 @@ export default function CampfireMembersScreen() {
                 motion="reduced"
               />
               <View style={styles.who}>
-                <BurningName userId={m.user_id} style={styles.name} numberOfLines={1}>
+                <BurningName
+                  userId={m.user_id}
+                  style={styles.name}
+                  numberOfLines={1}
+                  suffix={<HouseSealInline userId={m.user_id} size={14} />}>
                   {m.display_name}
                 </BurningName>
                 <PublicTitle loadout={loadouts[m.user_id] ?? {}} compact />
+                {/* Which house each campfire-mate reps (mock 288) — nothing until they pick a program. */}
+                <IdentityLine userId={m.user_id} style={styles.identity} />
                 {m.handle && <Text style={styles.handle}>@{m.handle}</Text>}
               </View>
 
@@ -313,6 +321,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11,
     color: Colors.muted,
+  },
+  identity: {
+    fontSize: 11,
+    marginTop: 1,
   },
   roleChip: {
     borderRadius: Radius.pill,

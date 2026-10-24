@@ -2,6 +2,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { EquippedHexGlow } from '@/components/economy/loadout-bits';
 import { PublicIdentity, useResolvedLoadout } from '@/components/economy/public-identity';
+import { HouseSealInline } from '@/components/house/house-seal';
+import { IdentityLine } from '@/components/house/identity-line';
 import { LiveStatusBadge } from '@/components/live-status-badge';
 import { RankBadge } from '@/components/rank-badge';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -23,6 +25,11 @@ import type { PresenceRow, RankTierName } from '@/types/database';
 // `loadout` is REQUIRED-ish in spirit: every caller should pass it down from one
 // usePublicLoadouts(ids) call over the whole page. Omitting it falls back to a per-row fetch,
 // which on a 30-row board is 30 requests on first paint.
+//
+// THE HOUSE (mock 288). The patron seal rides the name line and "Heir to Asclepius · Biomed Sci ·
+// Waterloo" runs on from the tier label, so the global board says which house, program and school
+// each person reps. Both read the batched identity badge themselves — no prop to plumb — and both
+// vanish when there is none, leaving the row exactly as it was.
 
 /** Gold/silver/bronze for the top three positions (design-mocks/94's `.rk.g/.s/.b`) — the medal
  * colours of the PLACE, deliberately not the person's rank tier, which the hexagon already says. */
@@ -40,6 +47,7 @@ export function LeaderboardPersonRow({
   isMe,
   loadout,
   presence,
+  university,
 }: {
   rank: number;
   userId: string;
@@ -56,6 +64,9 @@ export function LeaderboardPersonRow({
   /** Live status (0245), batched at the list through usePresence. Last-active only ever comes back
    * for a friend, so the row tags it "· friend" (mock 273). */
   presence?: PresenceRow;
+  /** The board row's own school (get_global_leaderboard returns it) — shown until the identity
+   *  badge lands, and on its own for someone with no program. */
+  university?: string | null;
 }) {
   // Resolved once and shared: EquippedHexGlow draws YOUR halo when handed `undefined`, so it must
   // never see the raw prop.
@@ -73,10 +84,19 @@ export function LeaderboardPersonRow({
         size={30}
         loadout={resolved}
         motion="reduced"
-        suffix={isMe ? ' · you' : undefined}
+        suffix={
+          <>
+            <HouseSealInline userId={userId} size={14} />
+            {isMe ? ' · you' : null}
+          </>
+        }
         sub={
           <>
-            <Text style={styles.sub}>{formatRankTier(tier, division)}</Text>
+            {/* One truncating line: at 320pt the school is what gives way, never the tier. */}
+            <Text style={styles.sub} numberOfLines={1}>
+              {formatRankTier(tier, division)}
+              <IdentityLine userId={userId} university={university} leading=" · " style={styles.sub} />
+            </Text>
             <LiveStatusBadge presence={presence} lastActive tagFriend />
           </>
         }

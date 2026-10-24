@@ -1,3 +1,15 @@
+import type {
+  DisputeResult,
+  ExerciseLibraryRow,
+  ExerciseUnit,
+  IdentityBadge,
+  MetricCatalogRow,
+  MetricLeaderboardRow,
+  MyProgramRow,
+  ProgramRow,
+  VersusRow,
+} from '@/types/house';
+
 // social_media stays for historical rows' typing — the lock-in goal picker (PHILOI_UI_SPEC.md
 // §12) doesn't offer it, only gym/run/study/job_applications/read/custom.
 export type GoalType = 'gym' | 'run' | 'study' | 'social_media' | 'custom' | 'job_applications' | 'read';
@@ -155,6 +167,10 @@ export type Profile = {
    * Hipolabs. Null means the school has no known domain, so it can't be verified; that never
    * blocks onboarding, it only leaves the two campus boards locked. */
   university_domain: string | null;
+  /** The academic program picked at onboarding (0257) — it names the house (programs.patron_key);
+   * the patron is never stored or chosen on its own. Set via `set_my_program`. Absent on a server
+   * that predates 0257, so read it as falsy, not strictly null. */
+  program_id: string | null;
   /** The verified campus address. Verification-only — the user still signs in with Google/Apple,
    * and this is never an auth identity (see supabase/functions/send_uni_code). */
   university_email: string | null;
@@ -759,6 +775,11 @@ export type Exercise = {
   muscle_group: string | null;
   created_by: string | null;
   created_at: string;
+  /** 0265 — normalized name; one exercise board per slug, however many private customs share it.
+   * Optional so a build reading a pre-0265 row still types. */
+  slug?: string;
+  /** 0265 — what a set measures. For time/distance the set's `reps` holds seconds/metres. */
+  unit?: ExerciseUnit;
 };
 
 /** A saved routine — just an ordered list of lifts. Targets are deliberately NOT stored here:
@@ -813,6 +834,12 @@ export type WorkoutSet = {
   duration_s: number | null;
   resolution: string | null;
   uploaded_at: string | null;
+  /** 0265 — logged, never ranked (mock 295 "Keep private"). */
+  pr_private?: boolean;
+  /** 0265 — owner consented to moderator review; with a clip, the set reads "✓ clip on file". */
+  clip_consent_at?: string | null;
+  /** 0266 — 'disputed' while a report is open; 'pulled' after a failed review (counts for nothing). */
+  pr_status?: 'ok' | 'disputed' | 'pulled';
 };
 
 /** Just the clip pointers on a set — what the capture control hands back after attaching or
@@ -2838,6 +2865,13 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      // The H2H / fitness-board stat library (0265). Read-only reference data.
+      metric_catalog: {
+        Row: MetricCatalogRow;
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       routines: {
         Row: Routine;
         // Written via save_routine() so the routine + its ordered lifts land atomically.
@@ -3505,18 +3539,28 @@ export type Database = {
       get_my_ranks: { Args: Record<string, never>; Returns: MyRank[] };
       // The caller's academic program + Greek patron (0247) — "Heir of <Patron>". Zero rows when no
       // program is set. Callers must fail soft: 0247 may not be applied where a build points.
-      get_my_program: {
-        Args: Record<string, never>;
-        Returns: {
-          program_id: string;
-          name: string;
-          program_key: string;
-          university: string;
-          patron_key: string;
-          patron_name: string;
-          patron_attribute: string;
-        }[];
+      // 0264 appends patron_title / program_abbrev / program_lore (null against a pre-0264 server).
+      get_my_program: { Args: Record<string, never>; Returns: MyProgramRow[] };
+      // The program picker's list for one school (0257/0264), each row with the house it grants.
+      get_programs_for_university: { Args: { p_university: string }; Returns: ProgramRow[] };
+      set_my_program: { Args: { p_program_id: string }; Returns: undefined };
+      // House · program · school for up to 200 people at once (0264) — the identity stack.
+      get_identity_badges: { Args: { p_user_ids: string[] }; Returns: IdentityBadge[] };
+      // The fitness/any-stat board (0265): both board gates, verified-only filter, identity columns.
+      get_metric_leaderboard: {
+        Args: { p_metric: string; p_scope?: string; p_window?: string; p_limit?: number | null; p_verified_only?: boolean };
+        Returns: MetricLeaderboardRow[];
       };
+      // Compare-anyone (0265). Raises with hint 'rank_private' if either side hides their rank.
+      versus: { Args: { p_a: string; p_b: string; p_metric_keys: string[] }; Returns: VersusRow[] };
+      search_exercise_library: { Args: { p_query?: string | null; p_limit?: number }; Returns: ExerciseLibraryRow[] };
+      create_exercise: { Args: { p_name: string; p_muscle_group?: string | null; p_unit?: ExerciseUnit }; Returns: string };
+      set_workout_set_ranking: {
+        Args: { p_workout_set_id: string; p_private: boolean; p_consent: boolean };
+        Returns: WorkoutSet;
+      };
+      // Report-only PR verification (0266): files a 'PR dispute' report; three open disputes pull it.
+      dispute_pr: { Args: { p_workout_set_id: string; p_note?: string | null }; Returns: DisputeResult };
       start_lock_in_session: {
         // Every argument optional and the new ones appended (0182), so an installed build calling
         // the old three still resolves against the same function.

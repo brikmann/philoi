@@ -170,6 +170,13 @@ export default function FriendProfileScreen() {
     });
   }
 
+  // Head to head (mock 292) — any stats, side by side, with a ⚔ hand-off to a real duel. Not gated
+  // on friendship or on their rank being public: versus() is the one that says "they keep their
+  // stats private", and it says it on the compare screen rather than as a missing button here.
+  function handleHeadToHead() {
+    router.push({ pathname: '/versus', params: { with: userId } });
+  }
+
   // WS3 · the 1:1 thread (MESSAGING_DM_SPEC.md). Rendered only for an accepted friend, because
   // friends-only is the server's rule too — dm_open_thread refuses a non-friend — and a button
   // whose only outcome is "You can only message friends." is worse than no button.
@@ -273,6 +280,10 @@ export default function FriendProfileScreen() {
             <Text style={styles.actChallengeText}>Challenge</Text>
           </Pressable>
         </View>
+        <Pressable style={styles.actVersus} onPress={handleHeadToHead} accessibilityLabel={`Head to head with ${profile.display_name}`}>
+          <Text style={styles.actVersusText}>⚔ Head to head</Text>
+          <Text style={styles.actVersusSub}>Compare any stats</Text>
+        </Pressable>
 
         {/* 0170 · Private mode. A non-friend sees "Rank muted" where the hexagon, the XP bar and
             the board position would be. The name, handle and avatar above are untouched. */}
@@ -505,6 +516,29 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ink,
+  },
+  // A row of its own under the actions rather than a fourth button squeezed into them: it's a
+  // place you go (a whole comparison), not a one-tap action like the three above.
+  actVersus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+    borderWidth: 1,
+    borderColor: 'rgba(224,97,44,0.4)',
+    borderRadius: Radius.button,
+    paddingVertical: Spacing.two,
+  },
+  actVersusText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.amber,
+  },
+  actVersusSub: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
   },
   stats: {
     flexDirection: 'row',

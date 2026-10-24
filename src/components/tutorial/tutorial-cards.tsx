@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { BurningName } from '@/components/burning-name';
 import { EMBER, EmberfallSeal, EmberfallSky, FallingEmbers } from '@/components/pass/emberfall-art';
+import { PatronCrest } from '@/components/story-sticker/patron-crest';
 import {
   MiniBanner,
   MiniBubble,
@@ -47,7 +48,7 @@ import { RARITY_COLOR } from '@/lib/economy/rarity';
 // ─────────────────────────── THE COVERAGE RULE ───────────────────────────
 //
 // 🔴 EVERY MAIN-MENU DESTINATION GETS A CARD. Home/flame, ranks, Emberfall, profile + relics,
-// campfires, campfire chat, challenges, personal goals, Cindy, leaderboard, the Agora, sharing,
+// campfires, campfire chat, challenges, personal goals, Cindy, leaderboard, your house, the Agora, sharing,
 // cosmetics, the shop, opening crates, inventory, the Forge, settings, and the Flame Pass last. The three
 // that were missing from earlier drafts and are explicitly not to be dropped again are the Agora,
 // the Inventory and the Forge.
@@ -387,6 +388,26 @@ export function tutorialCards(displayName: string | null, handle: string | null)
           <MiniRow glyph="🥇" title="Laurier" right="2.4M" highlight />
           <MiniRow glyph="2" title="Waterloo" right="2.1M" />
           <MiniRow glyph="3" title="Western" right="1.6M" />
+        </MiniScreen>,
+      ],
+    },
+    {
+      // Phase 2's fourth beat (ONBOARDING_FLOW_3phase.md): "the boards & your house". Here, before
+      // the ceremony, so the patron that claims them in Phase 3 is something they were told about
+      // rather than a surprise. Concept card — nothing to tap.
+      key: 'house',
+      title: 'Your house',
+      cindy: [
+        'Climb your campus board — and every program is a Greek house. Kinesiology reps Heracles, Math reps Athena. Your patron\'s seal rides beside your name on every board. 🏛️',
+      ],
+      steps: [
+        <MiniScreen key="hs">
+          <MiniHeader glyph="🏛️" title="Campus board" right="Program · Uni · Global" />
+          <HouseRow rank="1" name="@ava" patronKey="athena" patron="Athena" house="Heir to Athena · Math" right="12,480" />
+          <HouseRow rank="2" name="You" patronKey="heracles" patron="Heracles" house="Heir to Heracles · Kin" right="11,905" me />
+          <HouseRow rank="3" name="@marcus" patronKey="hermes" patron="Hermes" house="Heir to Hermes · BBA" right="9,340" />
+          <View style={styles.spacer} />
+          <MiniMuted color={Colors.amber}>Laurier Kin vs Waterloo Kin ⚔️</MiniMuted>
         </MiniScreen>,
       ],
     },
@@ -793,6 +814,41 @@ function CosmeticStep({ spec, name }: { spec: CosmeticSpec; name: string }) {
   );
 }
 
+/** A board row with the identity stack under the name (mock 288) — the real crest, never an emoji. */
+function HouseRow({
+  rank,
+  name,
+  patronKey,
+  patron,
+  house,
+  right,
+  me,
+}: {
+  rank: string;
+  name: string;
+  patronKey: string;
+  patron: string;
+  house: string;
+  right: string;
+  me?: boolean;
+}) {
+  return (
+    <View style={[styles.houseRow, me && styles.houseRowMe]}>
+      <Text style={styles.houseRank}>{rank}</Text>
+      <PatronCrest patronKey={patronKey} name={patron} size={22} />
+      <View style={styles.houseText}>
+        <Text style={styles.houseName} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={styles.houseSub} numberOfLines={1}>
+          {house}
+        </Text>
+      </View>
+      <Text style={styles.housePts}>{right}</Text>
+    </View>
+  );
+}
+
 /** The story-format share card, as it appears in the tour. `art` is real art, never an emoji. */
 function ShareCard({
   big,
@@ -988,6 +1044,23 @@ const styles = StyleSheet.create({
   fireB: { fontFamily: Fonts.bodyBold, color: EMBER.e2 },
   flameWrap: { alignItems: 'center', gap: 2, marginTop: 6, flex: 1, justifyContent: 'center' },
   spacer: { flex: 1 },
+  houseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#1e1630',
+    borderWidth: 1,
+    borderColor: '#2c2340',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  houseRowMe: { borderColor: Colors.amber },
+  houseRank: { width: 10, fontFamily: Fonts.bodyBold, fontSize: 11, color: Colors.muted },
+  houseText: { flex: 1, minWidth: 0 },
+  houseName: { fontFamily: Fonts.bodyBold, fontSize: 11, color: Colors.ink },
+  houseSub: { fontFamily: Fonts.body, fontSize: 9.5, color: Colors.ember },
+  housePts: { fontFamily: Fonts.bodyBold, fontSize: 10, color: Colors.muted },
   sectionLabel: { fontFamily: Fonts.bodyBold, fontSize: 10, color: '#cbbfe6' },
   relics: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, justifyContent: 'center' },
   relic: { alignItems: 'center', width: 44, gap: 2 },

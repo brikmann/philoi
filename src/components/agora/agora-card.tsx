@@ -9,6 +9,8 @@ import { EquippedCardBackdrop } from '@/components/economy/applied-art';
 import { ItemArt } from '@/components/economy/item-art';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
+import { HouseSealInline } from '@/components/house/house-seal';
+import { IdentityLine } from '@/components/house/identity-line';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
@@ -109,10 +111,18 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
             userId={item.user_id}
             style={styles.name}
             numberOfLines={1}
-            suffix={item.handle ? <Text style={styles.handle}> @{item.handle}</Text> : undefined}>
+            suffix={
+              <>
+                {/* The house seal sits with the name, before the handle (mock 288). */}
+                <HouseSealInline userId={item.user_id} size={14} />
+                {item.handle ? <Text style={styles.handle}> @{item.handle}</Text> : null}
+              </>
+            }>
             {item.display_name}
           </BurningName>
           <PublicTitle loadout={loadout} compact />
+          {/* House · program only — the campus pill below already names the school. */}
+          <IdentityLine userId={item.user_id} showSchool={false} style={styles.identity} />
           <View style={styles.metaRow}>
             <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>
             {rank ? <Text style={[styles.rank, { color: rank.color }]}>· {rank.label}</Text> : null}
@@ -364,6 +374,10 @@ function CardSurface({ cardId, children }: { cardId?: string; children: ReactNod
 // feed showing the old one even once a fresh loadout reached this prop. That is half of the "Agora
 // shows Ash Walker, not Ascended" report; the other half was the cache upstream. The rule the next
 // slot added to this card has to follow: if AgoraCardInner reads it, compare it here.
+//
+// The house seal and identity line are NOT props, so they have nothing to compare: each reads the
+// identity-badge store through its own useSyncExternalStore, which re-renders that child even when
+// this memo holds the card still.
 export const AgoraCard = memo(
   AgoraCardInner,
   (a, b) =>
@@ -424,6 +438,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     color: Colors.textTertiary,
+  },
+  identity: {
+    marginTop: 1,
   },
   metaRow: {
     flexDirection: 'row',

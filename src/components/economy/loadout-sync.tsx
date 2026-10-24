@@ -8,6 +8,7 @@ import { setSessionAudioChoice, startEquippedAmbient, stopEquippedAmbient } from
 import { clearLoadout, setLoadoutFromInventory, useLoadout } from '@/lib/economy/loadout';
 import { clearPassHolders, setOwnPassHolder } from '@/lib/economy/pass-holders';
 import { clearSealOwners, ownsSeal, setOwnSealOwner } from '@/lib/economy/seal-owners';
+import { clearIdentityBadges } from '@/lib/house/identity-badges';
 
 // Renders nothing. Its whole job is to keep the module-level loadout store fed, so the live flame,
 // the profile card, and the sound layer can all read the equipped set without each of them opening
@@ -70,6 +71,8 @@ export function LoadoutSync() {
       // Same rule for the burning name: the next account must not inherit this one's fire.
       clearPassHolders();
       clearSealOwners();
+      // And the house stack — the next account on this device has its own program (0264).
+      clearIdentityBadges();
       return;
     }
 

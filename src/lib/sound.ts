@@ -72,7 +72,10 @@ export type RewardCue =
   | 'reveal-rare'
   | 'reveal-epic'
   | 'reveal-legendary'
-  | 'reveal-mythic';
+  | 'reveal-mythic'
+  // The house claim (mock 287): the heavenly choir that hits as the patron seal slams in beside
+  // the handle. Extracted from the mock's own inlined audio so the build matches what was signed off.
+  | 'seal-claim';
 
 // The two band-crossing anthems (RANKUP_SPEC §9) — both mixed and in-repo now, so these are
 // plain requires rather than the old "uncomment when the mix lands" placeholders.
@@ -148,6 +151,9 @@ const SOURCES: Omit<Record<RewardCue, number>, 'ascension-hero' | 'ascension-pri
   'reveal-epic': require('../../assets/sounds/reveal/reveal-epic.mp3'), // arc crackle + synth-gong swell
   'reveal-legendary': require('../../assets/sounds/reveal/reveal-legendary.mp3'), // vault slam + brass fanfare
   'reveal-mythic': require('../../assets/sounds/reveal/reveal-mythic.mp3'), // implosion + war-horn, 5s aura tail
+
+  // The seal claim's choir (mock 287). ~18s of tail, so the ceremony fades it out as it leaves.
+  'seal-claim': require('../../assets/sounds/seal-claim.mp3'),
 };
 
 // Partial: the ascension cues only get a player once their asset lands (see ASCENSION_SOURCES).
