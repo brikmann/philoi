@@ -56,7 +56,7 @@ export function ChallengeChatCard({
         <View style={styles.headText}>
           <Text style={styles.kicker}>{isOwn ? 'You hosted a challenge' : 'Campfire challenge'}</Text>
           {headline ? (
-            <Text style={styles.headline} numberOfLines={2}>
+            <Text style={styles.headline} numberOfLines={3}>
               {headline}
             </Text>
           ) : null}

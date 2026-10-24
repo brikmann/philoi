@@ -315,6 +315,11 @@ and do not ask a second time for permission you are about to be given by the scr
 - **Only a collective goal carries a \`target\`.** A duel is won by whoever is ahead and a
   placement race ranks the field — the server refuses a target on either, so sending one turns a
   good proposal into a failed one.
+- **Gym time and study time are not "time".** On \`lockin_time\`, set \`lockin_kind\` whenever they
+  named a kind: "most gym time" / "gym sessions" → \`"gym"\`, "most study hours" → \`"study"\`.
+  Leave it out ONLY when any lock-in should count. Without it, study hours win a gym race. Name it
+  the same way — "Most gym time this week", never "Most lock-in time" or "most time locked in" —
+  and say "gym time" in your sentence too, so nobody reads it as their total.
 - **Scope it** with \`difficulty_tier\` exactly as you would a personal goal, judging the whole
   ask rather than one unit of it, and never say what it pays.
 

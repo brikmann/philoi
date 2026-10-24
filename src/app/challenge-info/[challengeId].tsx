@@ -872,7 +872,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
   const rows: Row[] = duel
     ? [
         { k: 'Type', v: 'Head-to-head' },
-        { k: 'The race', v: metricLabel(c.race_metric) },
+        { k: 'The race', v: metricLabel(c.race_metric, c.lockin_goal_type) },
         endsRow,
         // Past tense once it is decided. "Winner takes +200 XP" over a finished race reads as an
         // offer that is still open.
@@ -886,7 +886,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
     : placement
       ? [
           { k: 'Type', v: 'Placement race' },
-          { k: 'The race', v: metricLabel(c.race_metric) },
+          { k: 'The race', v: metricLabel(c.race_metric, c.lockin_goal_type) },
           endsRow,
           { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP by band`, highlight: true },
           ...scopedRows,
@@ -936,12 +936,12 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
         <Text style={styles.noteText}>
           <Text style={styles.noteStrong}>Winner +{c.payout_xp} XP</Text> — scales with effort, capped to keep
           it fair. The loser gets a rematch, not a penalty. Whoever has the most{' '}
-          {metricNoun(c.race_metric)} when the clock hits zero takes it.
+          {metricNoun(c.race_metric, c.lockin_goal_type)} when the clock hits zero takes it.
         </Text>
       ) : placement ? (
         <Text style={styles.noteText}>
           <Text style={styles.noteStrong}>Everyone places.</Text> The whole campfire is entered and the
-          board is ranked on {metricNoun(c.race_metric)} when the clock hits zero. There is nothing to
+          board is ranked on {metricNoun(c.race_metric, c.lockin_goal_type)} when the clock hits zero. There is nothing to
           pass or fail — your reward scales with the band you finish in, and a bigger field pays more
           for the same band. Race nothing and you still get a rank, just no payout.
         </Text>
@@ -979,7 +979,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
                 {challengeTitle(c)}
               </Text>
               <Text style={styles.raceMeta} numberOfLines={2}>
-                {metricLabel(c.race_metric)} · <Text style={styles.raceMetaStrong}>{c.circle_name ?? 'Campfire'}</Text> ·{' '}
+                {metricLabel(c.race_metric, c.lockin_goal_type)} · <Text style={styles.raceMetaStrong}>{c.circle_name ?? 'Campfire'}</Text> ·{' '}
                 {c.accepted_count} racing · {settled ? 'ended' : 'ends'}{' '}
                 <Text style={styles.raceMetaStrong}>{endsText(c, false)}</Text>
               </Text>
@@ -1190,7 +1190,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
             // door onto the identical reveal, and the two have to produce the same card.
             context={result.context === 'duel' ? 'duel' : 'board'}
             contextLine={shareContextLine(c, result.opponentName ?? null)}
-            metricLabel={metricLabel(c.race_metric)}
+            metricLabel={metricLabel(c.race_metric, c.lockin_goal_type)}
             placement={result.placement}
             fieldSize={result.fieldSize}
             winnerName={profile?.display_name ?? 'You'}

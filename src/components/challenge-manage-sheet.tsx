@@ -221,12 +221,12 @@ export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChange
   // Was `race_metric === 'lockin_time' ? 'Most lock-in time' : 'Most XP'` — the same two-branch
   // ternary that made a volume duel call itself an XP duel on three other screens.
   const raceLabel = isPlacement(c)
-    ? `Placement · ${metricLabel(c.race_metric).toLowerCase()}`
+    ? `Placement · ${metricLabel(c.race_metric, c.lockin_goal_type).toLowerCase()}`
     : isGroup
       ? c.pooled
         ? 'Group · shared total'
         : 'Group · all or nothing'
-      : metricLabel(c.race_metric);
+      : metricLabel(c.race_metric, c.lockin_goal_type);
   const statusLabel: Record<string, string> = {
     draft: 'not started',
     pending: 'waiting on answers',

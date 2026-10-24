@@ -94,7 +94,7 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
   const grade = isGrade(c);
   // A grade race is named by its bar, not by "Grade target" — the label row is where the shape is
   // announced, and "70% in KP451" is the thing worth reading.
-  const raceLabel = grade ? gradeChallengeLabel(c) : metricLabel(c.race_metric);
+  const raceLabel = grade ? gradeChallengeLabel(c) : metricLabel(c.race_metric, c.lockin_goal_type);
   // public_name is what the spec titles the card with; it was written at creation and read by
   // nothing until 0112 started selecting it.
   const title = challengeTitle(c);

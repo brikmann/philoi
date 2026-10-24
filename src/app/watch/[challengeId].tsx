@@ -290,7 +290,7 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
       keyboardShouldPersistTaps="handled">
       <View style={styles.goalRow}>
         <Ionicons name="flash" size={13} color={Colors.achieverText} />
-        <Text style={styles.goalText}>{metricLabel(watch.race_metric)}</Text>
+        <Text style={styles.goalText}>{metricLabel(watch.race_metric, watch.lockin_goal_type)}</Text>
         {/* 🔴 "Most lock-in time · ending soon", four lines above "Final · this challenge has
             ended". This was `formatTimeLeft(ends_at)` unconditionally, and a countdown cannot know
             the race has a result — the GROUP header two hundred lines down has always had the
