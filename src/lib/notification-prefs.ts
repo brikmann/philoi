@@ -199,7 +199,14 @@ export const CATEGORY_SUBTYPES: Record<NotificationCategoryKey, NotificationPref
 // person acts, every friend's phone lights up — and they sit in the same category as friend
 // requests, which nobody wants to miss. Without these, "my friend posts too much" is only fixable
 // by muting friend requests too, which is how a category gets turned off and stays off.
-export type NotificationTypeKey = 'type_friend_locked_in' | 'type_friend_agora_post';
+export type NotificationTypeKey =
+  | 'type_friend_locked_in'
+  | 'type_friend_agora_post'
+  // 0270 — lock-in cheers and session-scoped messages. Their own switches because they are
+  // the one friend event that lands DURING a session, and someone muting them should not have to
+  // lose friend requests to do it.
+  | 'type_lockin_cheer'
+  | 'type_lockin_message';
 
 export type NotificationTypeItem = {
   key: NotificationTypeKey;
@@ -219,6 +226,16 @@ export const CATEGORY_TYPE_KEYS: Record<NotificationCategoryKey, NotificationTyp
       key: 'type_friend_agora_post',
       label: 'A friend posts',
       description: 'At most one a friend, every six hours',
+    },
+    {
+      key: 'type_lockin_cheer',
+      label: 'A friend cheers your lock-in',
+      description: 'At most one a friend, each session',
+    },
+    {
+      key: 'type_lockin_message',
+      label: 'A friend messages your lock-in',
+      description: 'Only while you are both locked in',
     },
   ],
   cat_challenges: [],

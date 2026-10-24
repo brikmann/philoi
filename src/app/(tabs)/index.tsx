@@ -26,6 +26,8 @@ import { DrawerButton } from '@/components/nav/app-drawer';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { HomeXpBar } from '@/components/home-xp-bar';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
+import { FriendsLockedInStrip } from '@/components/lockin-cheers/friends-locked-in-strip';
+import { LockInCheersSheet } from '@/components/lockin-cheers/lockin-cheers-sheet';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { TAB_HEADER_HEIGHT, TAB_HEADER_PADDING_TOP } from '@/components/ui/tab-header';
@@ -36,6 +38,7 @@ import { useCindy } from '@/hooks/use-cindy';
 import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useCindyBubble } from '@/hooks/use-cindy-bubble';
 import { useDailyFire } from '@/hooks/use-daily-fire';
+import { useLockInCheers } from '@/hooks/use-lockin-cheers';
 import { useShareRank } from '@/hooks/use-share-rank';
 import { useTodayLockInCount } from '@/hooks/use-today-lockin-count';
 import { useActiveSession } from '@/lib/active-session-context';
@@ -94,6 +97,9 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
   const router = useRouter();
   const { session, profile } = useAuth();
   const { session: activeSession } = useActiveSession();
+  // Friends locked in right now (0270) — the strip above the Lock In button.
+  const lockInCheers = useLockInCheers({ live: Boolean(activeSession) });
+  const [cheersOpen, setCheersOpen] = useState(false);
   const todayCount = useTodayLockInCount();
   const { dailyFire, error: dailyFireError } = useDailyFire();
   const [myMarker, setMyMarker] = useState<ActiveChallengeMarker | null>(null);
@@ -297,6 +303,13 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
 
       {/* Mock 92's `.cta` — its own padded block, not flush against the rank row above it. */}
       <View style={styles.ctaBlock}>
+        {/* "4 friends locked in now" (mock 298) — directly above the button, so you can cheer a
+            friend without starting a session of your own. Nothing renders while nobody is live. */}
+        <FriendsLockedInStrip
+          friends={lockInCheers.friends}
+          unread={lockInCheers.unreadTotal}
+          onPress={() => setCheersOpen(true)}
+        />
         {/* The wrapper is the coach-mark's anchor and nothing else: PrimaryButton does not forward a
             ref, and measuring ctaBlock itself would light its 18px of padding rather than the
             button. collapsable={false} because Android flattens a prop-less View out of the native
@@ -309,6 +322,18 @@ function YourFirePage({ rank, onLockIn }: { rank: MyRank | undefined; onLockIn: 
           />
         </View>
       </View>
+
+      <LockInCheersSheet
+        visible={cheersOpen}
+        onClose={() => setCheersOpen(false)}
+        friends={lockInCheers.friends}
+        meId={session?.user.id ?? null}
+        meLive={Boolean(activeSession)}
+        inboundSeq={lockInCheers.inboundSeq}
+        onCheered={lockInCheers.markCheered}
+        onThreadRead={lockInCheers.markThreadRead}
+        onChanged={lockInCheers.refetch}
+      />
 
       {/* Open room below the CTA. The "Your recent lock-ins" journal used to fill this — lock-in
           data now lives ONLY on Profile (punchlist 4B), so the fire is the hero with breathing
