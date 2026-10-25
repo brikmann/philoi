@@ -43,23 +43,23 @@ type NavRow = {
 
 type NavGroup = { title: string; rows: NavRow[] };
 
+// THE MENU BEHIND ☰ (nav restructure, mock 301). Home · Search · Lock In · Leaderboard · Profile
+// are on the bottom bar now, so the drawer holds everything that does not earn a permanent slot —
+// mock 301's list, plus the destinations the old Play/Social groups carried that have no other
+// home (Friends, Challenges, Grind-alikes, Your fire, history), so nothing is orphaned by the move.
 const GROUPS: NavGroup[] = [
-  {
-    title: 'Play',
-    rows: [
-      { key: 'home', label: 'Home', icon: 'home', route: '/', match: ['/'] },
-      { key: 'leaderboards', label: 'Leaderboards', icon: 'leaderboards', route: '/leaderboards' },
-      { key: 'challenges', label: 'Challenges', icon: 'challenges', route: '/challenges' },
-      { key: 'profile', label: 'Profile', icon: 'profile', route: '/profile' },
-    ],
-  },
   {
     title: 'Social',
     rows: [
-      // The Agora leads Social (mock 161) — the gathering places sit together, and the town square
-      // is the newest of them. The route itself is Agent 3's; this row is what points at it.
-      { key: 'agora', label: 'The Agora', icon: 'agora', route: '/agora', badge: 'NEW' },
-      // Grind-alikes (0275) sits by the Agora: both are where you meet people you don't know yet.
+      { key: 'campfires', label: 'Campfires', icon: 'campfires', route: '/campfires' },
+      {
+        key: 'friends',
+        label: 'Friends',
+        icon: 'friends',
+        route: '/people',
+        match: ['/people', '/friend-profile'],
+      },
+      // Grind-alikes (0275): where you meet people you don't know yet. Also on Search and Profile.
       {
         key: 'grind-alikes',
         label: 'Grind-alikes',
@@ -67,31 +67,28 @@ const GROUPS: NavGroup[] = [
         route: '/grind-alikes',
         match: ['/grind-alikes', '/grind-alike'],
       },
-      { key: 'campfires', label: 'Campfires', icon: 'campfires', route: '/campfires' },
-      {
-        key: 'friends',
-        label: 'Friends',
-        icon: 'friends',
-        route: '/people',
-        match: ['/people', '/add-friend', '/friend-profile'],
-      },
+      { key: 'invite', label: 'Invite friends', icon: 'person-plus', route: '/add-friend' },
+      { key: 'challenges', label: 'Challenges', icon: 'challenges', route: '/challenges' },
     ],
   },
   {
     title: 'Rewards',
     rows: [
-      { key: 'pass', label: 'Flame Pass', icon: 'pass', route: '/forge-pass' },
       { key: 'shop', label: 'Shop', icon: 'shop', route: '/shop' },
       { key: 'inventory', label: 'Inventory', icon: 'inventory', route: '/inventory' },
-      // Mock 161's fourth Rewards row. It was held back until /forge existed — a menu row that
-      // lands on "Unmatched Route" is worse than a row that is not there — and the screen ships in
-      // this commit, so here it is, one line as promised.
-      //
       // `lit` is mock 158's `.mrow.forge` treatment: an ember left border, an ember label and an
-      // ember icon. The only row in the drawer that gets it. Mock 158 gives it to the Forge and
-      // nothing else, which is the point — it is not a "new" badge that goes stale, it is the row
-      // the Rewards group is built around.
+      // ember icon. The only row in the drawer that gets it.
       { key: 'forge', label: 'Forge', icon: 'forge', route: '/forge', lit: true },
+      { key: 'pass', label: 'Flame Pass', icon: 'pass', route: '/forge-pass' },
+    ],
+  },
+  {
+    title: 'You',
+    rows: [
+      { key: 'your-fire', label: 'Your fire', icon: 'home', route: '/your-fire' },
+      { key: 'history', label: 'Lock-in history', icon: 'leaderboards', route: '/lock-in-history' },
+      { key: 'fitness-sync', label: 'Fitness sync', icon: 'sliders', route: '/connected-apps' },
+      { key: 'cindy', label: 'Cindy', icon: 'agora', route: '/cindy' },
     ],
   },
 ];
@@ -327,9 +324,9 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: PANEL_WIDTH,
-    backgroundColor: '#17111F',
+    backgroundColor: Colors.spacePanel,
     borderRightWidth: 1,
-    borderRightColor: '#2E2542',
+    borderRightColor: Colors.spaceLine,
   },
   panelInner: {
     flex: 1,
@@ -358,7 +355,7 @@ const styles = StyleSheet.create({
   group: {
     paddingVertical: 5,
     borderTopWidth: 1,
-    borderTopColor: '#201830',
+    borderTopColor: Colors.spaceLine,
     marginTop: 4,
   },
   groupTitle: {

@@ -29,7 +29,7 @@ import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { useActiveSession } from '@/lib/active-session-context';
 import { useLoadout } from '@/lib/economy/loadout';
-import { TabHeader } from '@/components/ui/tab-header';
+import { AppTopBar } from '@/components/nav/app-top-bar';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyRanks } from '@/hooks/use-my-ranks';
@@ -188,9 +188,9 @@ export default function ProfileScreen() {
     <ScreenBackground>
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       {isOwn ? (
-        // The Profile tab root — standardized title (same as the other three tabs). No settings
-        // gear: Settings lives in the side drawer, which is the one place it is reached from.
-        <TabHeader title="Profile" />
+        // The Profile tab root — the same global top bar as every tab (✈ · 🔔 · ☰). No settings
+        // gear: Settings lives in the drawer behind ☰.
+        <AppTopBar />
       ) : (
         // A pushed detail view of someone else's profile, not the tab root — back navigation,
         // not a standardized tab title.

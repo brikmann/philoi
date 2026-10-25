@@ -6,11 +6,11 @@ import { Platform } from 'react-native';
 // zero per-file edits.
 export const Colors = {
   // Twilight base — see spec §1's twilight-900/800/700/600 scale.
-  twilight900: '#14111C', // deepest — nav bar, phone frame, behind everything
-  cream: '#1B1726', // twilight-800 — app background, every screen
-  forgeBg: '#17131F', // immersive rank-up backdrop — the dark twilight the forge settles into (design-mocks/32's radial floor), darker than cream, never the flat plum
-  card: '#241C38', // twilight-700 — elevated surface: cards, sheets, fields, discover rows
-  disabled: '#2D2740', // twilight-600 — controls, avatar bg, progress-track bg
+  twilight900: '#0A0716', // deepest — nav bar, phone frame, behind everything
+  cream: '#0E0A1C', // twilight-800 — app background, every screen
+  forgeBg: '#0E0A1C', // immersive rank-up backdrop — the dark twilight the forge settles into (design-mocks/32's radial floor), darker than cream, never the flat plum
+  card: '#1A1230', // twilight-700 — elevated surface: cards, sheets, fields, discover rows
+  disabled: '#241A3A', // twilight-600 — controls, avatar bg, progress-track bg
   plum: '#3A2E5C', // plum-500 — brand plum accent surface, logo backplate
 
   // Firelight accent
@@ -21,9 +21,9 @@ export const Colors = {
   logBrownDark: '#6E4423',
 
   // Text & lines
-  ink: '#FFF6EC', // text-primary
+  ink: '#F4F0FF', // text-primary
   muted: '#A99CBD', // text-secondary
-  textTertiary: '#7C7194', // hints, disabled text
+  textTertiary: '#8A80A8', // hints, disabled text
   line: 'rgba(255,255,255,0.08)', // hairline borders
   lineStrong: 'rgba(255,255,255,0.12)', // field borders
 
@@ -39,7 +39,7 @@ export const Colors = {
   soloChipText: '#CBBFE0', // muted lavender used for "solo"/off-state labels on dark surfaces
   coldButtonText: '#E7DDF5', // CTA button "cold variant" text — §7, pairs with coldChipBg
   selectedBg: '#2B2036', // design-mocks' selected-state purple surface (tile/pill/row selected, invite card bg)
-  cardDark: '#20182F', // darker stat-card surface, between disabled and twilight-900
+  cardDark: '#150E28', // darker stat-card surface, between disabled and twilight-900
   trackAlt: '#4A4460', // secondary/muted progress-track fill and divider dots
   warmSubtext: '#E7C9B8', // muted peachy subtext on a lit/achiever-bg surface (selected pill sub, live lock-in card detail line)
   danger: '#E86A5A', // destructive action text/icon (leave/delete campfire) — design-mocks/19
@@ -54,9 +54,9 @@ export const Colors = {
   // top ~15% of a tall phone and the rest of the screen sat on #161320, which reads as black in
   // the body. bgRadialMid carries the purple down through the middle of the screen so the ramp
   // lands as depth rather than as a lit strip above a black page.
-  bgRadialFrom: '#2C1B36',
-  bgRadialMid: '#231830',
-  bgRadialTo: '#161320',
+  bgRadialFrom: '#221738',
+  bgRadialMid: '#160F2A',
+  bgRadialTo: '#0E0A1C',
   // The near-black used for text ON an ember-gradient fill (§3). Orange-black rather than pure
   // black so it reads as burnt into the button rather than pasted on top.
   onEmber: '#3A1608',
@@ -91,6 +91,21 @@ export const Colors = {
   // projection on the lock-in rank bar. Always this, never the tier colour — tier colour says
   // where you ARE, orange says what you're chasing.
   emberForward: '#FF7A2F',
+
+  // ── "Space purple" (nav restructure, mocks 301-304) ──
+  // The ShareSpot-menu canvas. The base tokens above (cream/card/disabled/bgRadial*) were repointed
+  // to this scale so every screen picks it up; these name the scale itself for the new chrome.
+  // Ember stays the action colour, gold is earned + identity, legend purple is secondary.
+  spaceBg: '#0E0A1C',
+  spacePanel: '#1A1230',
+  spacePanel2: '#241A3A',
+  spaceLine: '#2E2348',
+  spaceDim: '#8A80A8',
+  spaceFaint: '#5F5680',
+  navEmber: '#FF7A2F',
+  navEmber2: '#FFB05A',
+  gold: '#FFD166',
+  legend: '#B98BFF',
 } as const;
 
 /**

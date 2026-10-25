@@ -268,6 +268,7 @@ export async function shouldShowCoachMark(key: CoachMarkKey, userId: string | nu
   if (tourClosedThisSession) return false;
   if (Date.now() - tourClosedAtMs < TOUR_COOLDOWN_MS) return false;
   if (!(await isTutorialDone(userId))) return false;
-  if (!(await isCoachTourDone())) return false;
+  // No `isCoachTourDone()` gate: the guided tour is no longer mounted, so nothing would ever set
+  // its flag and every contextual tip would stay dark for a new account.
   return !(await isCoachMarkSeen(key));
 }

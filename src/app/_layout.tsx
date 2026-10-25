@@ -12,7 +12,6 @@ import { PostHogProvider } from 'posthog-react-native';
 
 import { ChallengeSettlementWatcher } from '@/components/challenge-settlement-watcher';
 import { CoachMarkHost } from '@/components/coach-mark';
-import { CoachTourDriver } from '@/components/coach-tour';
 import { GoalCompletionWatcher } from '@/components/goal-completion-watcher';
 import { GoalRevealWatcher } from '@/components/goal-reveal-watcher';
 import { RewardRevealHost } from '@/components/economy/reward-reveal';
@@ -271,7 +270,9 @@ function RootNavigator() {
       // A friend's "lock in?" nudge (design-mocks/21) — open the lock-in goal picker (Step 4).
       // The home screen reads ?lockin=1 and pops the picker; no setup, straight to starting.
       if (data?.type === 'lock_in_nudge') {
-        router.push('/?lockin=1');
+        // The Lock In tab owns starting a session now (nav restructure). Home still forwards a
+        // bare /?lockin=1 there too, for the route-carrying copy of this push.
+        router.navigate('/lockin');
         return;
       }
       // Someone wants to change or end a shared challenge (design-mocks/71, migration 0058).
@@ -612,6 +613,11 @@ function RootNavigator() {
         {/* Campfires is a hamburger destination now, not a tab (punchlist 16 §4). */}
         <Stack.Screen name="campfires" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="people" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* Nav restructure: the ✈ inbox, and the two screens the old Home / Leaderboard tabs became
+            (your fire = the fire strip's destination; all boards = the classic board views). */}
+        <Stack.Screen name="messages" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="your-fire" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="all-boards" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* The Agora (AGORA_SPEC) — the town square, a Social destination beside Campfires and
             Friends. The composer is a modal so posting reads as an interruption you return from,
             not as somewhere you navigated to. */}
@@ -813,14 +819,10 @@ function RootLayout() {
                 above takes the reveal floor: a tooltip is not something to make a rank-up wait
                 behind. */}
             <CoachMarkHost />
-            {/* And the thing that DRIVES those marks on a first run (CODE_PROMPT_tutorial_lands.md).
-                Renders nothing; it navigates. Mounted here rather than on Home because it walks the
-                user off Home on step two and has to outlive every screen it visits — a driver that
-                unmounted with the screen that started it would end its own tour.
-
-                AFTER CoachMarkHost, which is not load-bearing (it only calls into that module) but
-                keeps the pair readable as one feature: the overlay, then the thing that raises it. */}
-            <CoachTourDriver />
+            {/* The guided coach TOUR is gone (onboarding simplified): the card tutorial hands
+                straight to Home and the contextual marks above are the only tips. Its driver
+                (components/coach-tour.tsx) is no longer mounted; `shouldShowCoachMark` no longer
+                waits on it. */}
             <OfflineBanner />
           </NavDrawerProvider>
         </ScreenBackground>

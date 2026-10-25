@@ -1,92 +1,34 @@
 import { Tabs } from 'expo-router';
-import { StyleSheet } from 'react-native';
 
-import { PhiloiIcon } from '@/components/ui/philoi-icon';
-import { Colors, Fonts } from '@/constants/theme';
+import { BottomBar } from '@/components/nav/bottom-bar';
 
-// The bar these feed is hidden (see tabBarStyle below) — the drawer is the nav now. They are kept,
-// and moved onto the mock-158 vector set, so the four core destinations are drawn by the same hand
-// here as in the drawer: one 24 grid, 1.8 stroke, grey outline -> filled ember. What was here
-// before was three families at once (an Ionicons trophy, a MaterialCommunityIcons target, the
-// brand FlameLogo), which is exactly the inconsistency mock 158 exists to end.
+// THE BOTTOM BAR IS BACK (nav restructure, mocks 301/302) — ShareSpot-style, social first:
+// Home (the community feed) · Search · 🔥 Lock In (center) · Leaderboard · Profile. The drawer behind
+// the top-right ☰ keeps everything else (components/nav/app-drawer.tsx).
+//
+// Challenges stays IN this group, off the bar (BottomBar only draws the five slots it names): the
+// challenge pushes and every server-written route deep-link to /(tabs)/challenges, and moving the
+// file would break all of them. It's reachable from the Leaderboard tab and from the drawer.
 
 export default function TabsLayout() {
-  // The root Stack's own `contentStyle.paddingTop` (see app/_layout.tsx's `topInset`) only
-  // reserves space for the floating live-session bar on screens pushed directly onto that
-  // Stack — it does NOT cascade into this nested Tabs navigator (punchlist 2, §0: the bar was
-  // "overlapping/crowding the Leaderboard & Challenge titles" specifically, since Home's own
-  // greeting/hero content happened to leave enough headroom to hide the same bug). `sceneStyle`
-  // is this navigator's own equivalent — applied here so every tab's shared TabHeader chrome
-  // gets pushed below the bar uniformly, without each of the 4 screens reserving it separately.
-  // No inset any more — the live-session pill is retired (Ember pass §3).
-  const topInset = 0;
-
   return (
     <Tabs
+      tabBar={(props) => <BottomBar {...props} />}
       screenOptions={{
         headerShown: false,
-        // THE BIG ONE for freezeOnBlur (see enableFreeze() in ../_layout.tsx). All four tabs stay
-        // mounted for the life of the app — that is what makes a deep link to /(tabs)/challenges
-        // cheap and it is also why an idle Home kept reconciling behind whatever the user was
-        // actually doing. Blurred tabs now stop rendering entirely until they are looked at again.
+        // THE BIG ONE for freezeOnBlur (see enableFreeze() in ../_layout.tsx). Every tab stays
+        // mounted for the life of the app; blurred tabs stop rendering until they're looked at again.
         freezeOnBlur: true,
-        tabBarActiveTintColor: Colors.coral,
-        tabBarInactiveTintColor: Colors.muted,
-        // THE BOTTOM BAR IS RETIRED (mock 157 option B). One nav now — the side drawer in
-        // components/nav/app-drawer.tsx — so Home/Leaderboards/Challenges/Profile are drawer rows
-        // like everything else instead of the four destinations the app privileged by accident of
-        // which navigator they landed in.
-        //
-        // The Tabs navigator itself STAYS, with its bar hidden. Every deep link, push and
-        // notification route in the app names these paths (/(tabs)/challenges from the challenge
-        // pushes, /?lockin=1 from a friend's nudge), and flattening the group into the root Stack
-        // to delete a bar nobody can see would rewrite all of them for no visible gain.
-        tabBarStyle: { display: 'none' },
-        tabBarLabelStyle: styles.label,
-        // Still load-bearing, still not cosmetic: without a colour here the scene falls back to
-        // react-navigation's default WHITE. But it must be the radial's OUTER stop, not the old
-        // flat cream — cream is opaque and was painting straight over the deep-purple radial on
-        // every tab, which is why Settings/Profile/Challenges read as flat dark while screens
-        // outside the tab navigator looked right (punchlist 16 §1).
-        sceneStyle: { paddingTop: topInset, backgroundColor: 'transparent' },
+        // Transparent so the root <ScreenBackground> shows through — without a colour here the
+        // scene falls back to react-navigation's default WHITE.
+        sceneStyle: { backgroundColor: 'transparent' },
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          // Home, not Campfires — this tab is the flame / lock-in hub now and campfires is a
-          // hamburger destination (punchlist 16 §4).
-          title: 'Home',
-          tabBarIcon: ({ focused }) => <PhiloiIcon name="home" size={23} active={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="leaderboards"
-        options={{
-          title: 'Leaderboards',
-          tabBarIcon: ({ focused }) => <PhiloiIcon name="leaderboards" size={23} active={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="challenges"
-        options={{
-          title: 'Challenges',
-          tabBarIcon: ({ focused }) => <PhiloiIcon name="challenges" size={23} active={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ focused }) => <PhiloiIcon name="profile" size={23} active={focused} />,
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Home' }} />
+      <Tabs.Screen name="search" options={{ title: 'Search' }} />
+      <Tabs.Screen name="lockin" options={{ title: 'Lock In' }} />
+      <Tabs.Screen name="leaderboards" options={{ title: 'Leaderboard' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="challenges" options={{ title: 'Challenges', href: null }} />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  label: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-  },
-});

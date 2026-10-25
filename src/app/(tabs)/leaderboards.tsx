@@ -1,1012 +1,571 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-
-import { EmberfallSplash } from '@/components/economy/emberfall-splash';
-import { EquippedHexGlow, PublicTitle } from '@/components/economy/loadout-bits';
-import { CosmeticAvatar, useResolvedLoadout } from '@/components/economy/public-identity';
-import { BurntOutCampfire } from '@/components/empty-states/burnt-out-campfire';
-import { LeaderboardGap, LeaderboardPersonRow } from '@/components/leaderboard-person-row';
-import { LiveStatusBadge } from '@/components/live-status-badge';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  usePublicLoadouts,
-  useRefreshPublicLoadoutsOnFocus,
-  type PublicLoadout,
-} from '@/hooks/use-public-loadouts';
-import { ParthenonPodium, type PodiumItem } from '@/components/parthenon-podium';
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { HouseSeal } from '@/components/house/house-seal';
+import { IdentityLine } from '@/components/house/identity-line';
+import { AppTopBar } from '@/components/nav/app-top-bar';
 import { PrivateClimb } from '@/components/private-climb';
-import { EmberFill } from '@/components/ui/ember-fill';
-import { EmberSearchBar } from '@/components/ui/ember-search-bar';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Screen } from '@/components/ui/screen';
-import { TabHeader } from '@/components/ui/tab-header';
+import { Avatar } from '@/components/ui/avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { RankBadge } from '@/components/rank-badge';
-import { useCrossCirclePeople } from '@/hooks/use-cross-circle-people';
-import { useGlobalLeaderboard } from '@/hooks/use-global-leaderboard';
-import { useMetricLeaderboard } from '@/hooks/use-metric-leaderboard';
-import { usePresence } from '@/hooks/use-presence';
-import { useUniversityLeaderboard } from '@/hooks/use-university-leaderboard';
-import { useUniversityTotals } from '@/hooks/use-university-totals';
-import { track } from '@/lib/analytics';
-import { useAuth } from '@/lib/auth/auth-context';
-import { fetchUniversityShortNames } from '@/lib/api/groups';
+import { useMetricCatalog, useMetricLeaderboard } from '@/hooks/use-metric-leaderboard';
 import { fetchMyProgram } from '@/lib/api/house';
-import { searchLeaderboard } from '@/lib/api/leaderboard-social';
 import { rankVisibilityOf } from '@/lib/api/privacy';
-import { getUniversityCrest } from '@/lib/university-crests';
-import type {
-  CrossCirclePerson,
-  GlobalLeaderboardRow,
-  LeaderboardSearchResult,
-  PresenceRow,
-  RankTierName,
-  UniversityLeaderboardRow,
-} from '@/types/database';
-import type { MetricLeaderboardRow, MyProgramRow } from '@/types/house';
+import { useAuth } from '@/lib/auth/auth-context';
+import { formatMetricValue } from '@/lib/stats/format';
+import type { MetricCatalogRow, MetricLeaderboardRow, MetricScope, MyProgramRow } from '@/types/house';
 
-type Scope = 'camp' | 'uni' | 'house' | 'vs' | 'global';
-type Metric = 'xp' | 'streak';
-type VsMetric = 'total' | 'avg';
+// THE LEADERBOARD TAB — the new global board (nav restructure, mock 302). Clean and simple: one
+// scope toggle, one metric picker, ranked rows that each carry the person's Heir identity (house
+// seal + program line), you highlighted. Everything reads get_metric_leaderboard (0265) as-is.
+//
+// Row body → Head-to-Head vs them. Avatar → their profile. Your own row → your fire (rank detail).
+// The older board views (campfire boards, uni-vs-uni, the podium) live one tap away at /all-boards,
+// with the fitness boards and Challenges beside them, so the compete loop lost nothing in the move.
 
-const SCOPE_LABEL: Record<Scope, string> = {
-  camp: 'Friends',
-  uni: 'My uni',
-  house: 'My program',
-  vs: 'Uni vs. Uni',
-  global: 'Global',
+const SCOPES: { key: MetricScope; label: string }[] = [
+  { key: 'global', label: 'Global' },
+  { key: 'my_uni', label: 'My Uni' },
+  { key: 'my_program', label: 'Program' },
+  { key: 'friends', label: 'Friends' },
+];
+
+const DEFAULT_METRIC = 'season_xp';
+
+// Server-written pushes still name the OLD board's scopes (0253 sends {"scope":"uni"}); map them
+// onto this board's. 'camp' and 'vs' have no equivalent here — they stay on /all-boards.
+const LINKED_SCOPE: Record<string, MetricScope> = {
+  uni: 'my_uni',
+  my_uni: 'my_uni',
+  house: 'my_program',
+  my_program: 'my_program',
+  global: 'global',
+  friends: 'friends',
 };
-// Order reads Friends · My uni · My program · Global · Uni vs. Uni (Noah). The `camp` board pools
-// your friends + campfire-mates (get_my_cross_circle_people), so "Friends" is what it actually shows.
-// `house` is the house board (mock 288): every Heir of your program, across both schools.
-const SCOPES: Scope[] = ['camp', 'uni', 'house', 'global', 'vs'];
 
-// Every board lists everyone on it below the podium (ranks 1-3) — Noah, 2026-10-21; it used to cap
-// at rank 10. The RPCs are asked for the whole board (p_limit null, 0253), so the pinned own-row
-// below only fires if a board is ever capped again.
-const VISIBLE_RANKS = Infinity;
-
-/** Mock 259's gold accent for section labels (RESULTS) — people.tsx uses the same value. */
-const SECTION_GOLD = '#C9A24A';
-
-type ListRow<T> = { row: T; rank: number };
-type Board<T> = { top3: PodiumItem[]; listRows: ListRow<T>[]; pinned: ListRow<T> | null };
-
-// The three individual-scope row shapes all carry user_id/display_name/avatar_url/tier/division/
-// score; only their "second metric" field differs (current_streak for the Campfires pool vs.
-// check_ins_this_week for My-uni/Global, which don't track a per-user streak directly).
-type PersonRow = CrossCirclePerson | UniversityLeaderboardRow | GlobalLeaderboardRow;
-
-/** Every user id a board will paint, so their equipped gear is fetched in ONE call rather than one
- * per row — see the batching note in components/economy/public-identity.tsx. */
-function boardUserIds(board: Board<PersonRow> | null): string[] {
-  if (!board) return [];
-  return [
-    ...board.top3.filter((t) => t.kind === 'person').map((t) => t.key),
-    ...board.listRows.map((r) => r.row.user_id),
-    ...(board.pinned ? [board.pinned.row.user_id] : []),
-  ];
-}
-
-/** The house board (get_metric_leaderboard 'season_xp' / 'my_program', 0265) in the Global board's
- * row shape, so it ranks, podiums and pins through exactly the same code as the other XP boards. */
-function houseRowAsGlobal(row: MetricLeaderboardRow): GlobalLeaderboardRow {
-  return {
-    user_id: row.user_id,
-    handle: row.handle ?? '',
-    display_name: row.display_name,
-    avatar_url: row.avatar_url,
-    is_pro: row.is_pro,
-    score: row.value,
-    tier: row.tier as RankTierName,
-    division: row.division,
-    university: row.university,
-    check_ins_this_week: 0,
-    rank: row.rank,
-    is_me: row.is_me,
-  };
-}
-
-function personValue(row: PersonRow, metric: Metric): string {
-  if (metric === 'xp') return `${Math.round(row.score).toLocaleString()} XP`;
-  if ('current_streak' in row) return `🔥 ${row.current_streak}d`;
-  return `${row.check_ins_this_week}× wk`;
-}
-
-// The school for the identity line. Global and house rows carry it; Friends rows don't, and the
-// identity line falls back to the 0264 badge for those.
-function rowUniversity(row: PersonRow): string | null {
-  return 'university' in row ? (row.university ?? null) : null;
-}
-
-function personPodiumItem(row: PersonRow, metric: Metric, isMe: boolean): PodiumItem {
-  return {
-    kind: 'person',
-    key: row.user_id,
-    displayName: row.display_name,
-    avatarUrl: row.avatar_url,
-    tier: row.tier as RankTierName,
-    division: row.division,
-    value: personValue(row, metric),
-    isMe,
-  };
-}
-
-// Campfires pool — fully loaded client-side (no server-truth rank), so "true rank" is just the
-// position in the fully-sorted array.
-function buildCampBoard(people: CrossCirclePerson[], metric: Metric, myId?: string): Board<CrossCirclePerson> {
-  const ordered = [...people].sort((a, b) => (metric === 'xp' ? b.score - a.score : b.current_streak - a.current_streak));
-  const top3 = ordered.slice(0, 3).map((p) => personPodiumItem(p, metric, p.user_id === myId));
-  const listRows = ordered.slice(3, VISIBLE_RANKS).map((row, i) => ({ row, rank: i + 4 }));
-  const myIndex = ordered.findIndex((p) => p.user_id === myId);
-  const pinned = myIndex >= VISIBLE_RANKS ? { row: ordered[myIndex], rank: myIndex + 1 } : null;
-  return { top3, listRows, pinned };
-}
-
-// My-uni / Global — server-truth `rank`/`is_me` when sorted by XP (the RPC's own order, which
-// always includes the caller's row even far outside p_limit); Streaks re-sorts the fetched slice
-// client-side, so its "rank" is just a local position within that slice (the RPC only fetched the
-// top p_limit by XP, so this doesn't reflect a true global streak rank — same limitation the
-// pre-existing My-uni board already had).
-function buildRankedBoard<T extends UniversityLeaderboardRow | GlobalLeaderboardRow>(rows: T[], metric: Metric): Board<T> {
-  if (metric === 'xp') {
-    const ordered = [...rows].sort((a, b) => a.rank - b.rank);
-    const top3 = ordered.slice(0, 3).map((r) => personPodiumItem(r, metric, r.is_me));
-    const listRows = ordered.filter((r) => r.rank >= 4 && r.rank <= VISIBLE_RANKS).map((row) => ({ row, rank: row.rank }));
-    const mine = ordered.find((r) => r.is_me);
-    const pinned = mine && mine.rank > VISIBLE_RANKS ? { row: mine, rank: mine.rank } : null;
-    return { top3, listRows, pinned };
-  }
-  const ordered = [...rows].sort((a, b) => b.check_ins_this_week - a.check_ins_this_week);
-  const top3 = ordered.slice(0, 3).map((r) => personPodiumItem(r, metric, r.is_me));
-  const listRows = ordered.slice(3, VISIBLE_RANKS).map((row, i) => ({ row, rank: i + 4 }));
-  const myIndex = ordered.findIndex((r) => r.is_me);
-  const pinned = myIndex >= VISIBLE_RANKS ? { row: ordered[myIndex], rank: myIndex + 1 } : null;
-  return { top3, listRows, pinned };
-}
-
-export default function LeaderboardsScreen() {
+export default function LeaderboardTab() {
   const router = useRouter();
-  const { session, profile } = useAuth();
-  // A deep link can pick the tab — the daily placement push opens My uni (?scope=uni, 0253).
-  const { scope: linkedScope } = useLocalSearchParams<{ scope?: string }>();
-
-  // SEASON RANK DIAL (0217, grown from 0170's Private mode). The wall is symmetric and server-side:
-  //   public  — the four boards as they have always been.
-  //   friends — every board comes back re-ranked over the viewer + their friends, so the Campfires,
-  //             uni and Global scopes would be one comparison under three labels. The tab collapses
-  //             to a single Friends board with "#N of M" above it.
-  //   private — every board comes back as just the viewer. There is no board to draw, so the tab
-  //             is their own climb (PrivateClimb) instead.
-  // Derived per render rather than seeded into state: the tab stays mounted, and changing the dial
-  // in Settings must reshape it on the way back.
+  const { profile } = useAuth();
+  // The viewer's own visibility dial, honoured exactly as the old board did: private sees only their
+  // own climb, friends-only sees only the Friends board.
   const dial = rankVisibilityOf(profile);
-  const friendsEmptyTitle = 'No friends on the board yet';
-  const friendsEmptyBody =
-    'Your rank is on Friends, so only friends show here. Add some to see how you stack up — your rewards are the same either way.';
-  const uniEmptyTitle = 'Nobody here yet';
-  const uniEmptyBody = 'Be the first from your school to start a streak.';
-  const globalEmptyTitle = dial === 'friends' ? friendsEmptyTitle : 'Nobody here yet';
-  const globalEmptyBody = dial === 'friends' ? friendsEmptyBody : 'Check back once more people join.';
-  const [pickedScope, setScope] = useState<Scope>('camp');
+  const [pickedScope, setPickedScope] = useState<MetricScope>('global');
+  const { scope: linkedScope } = useLocalSearchParams<{ scope?: string }>();
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- follows the route param, which changes on a push tap while the tab stays mounted
-    if (linkedScope && (SCOPES as string[]).includes(linkedScope)) setScope(linkedScope as Scope);
+    if (linkedScope && LINKED_SCOPE[linkedScope]) setPickedScope(LINKED_SCOPE[linkedScope]);
   }, [linkedScope]);
-  const scope: Scope = dial === 'friends' ? 'global' : pickedScope;
-  const scopes: Scope[] = dial === 'friends' ? ['global'] : SCOPES;
-  const scopeLabel = (s: Scope) => (dial === 'friends' && s === 'global' ? 'Friends' : SCOPE_LABEL[s]);
-  const [metric, setMetric] = useState<Metric>('xp');
-  const [vsMetric, setVsMetric] = useState<VsMetric>('total');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<LeaderboardSearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
+  const scope: MetricScope = dial === 'friends' ? 'friends' : pickedScope;
+  const scopes = dial === 'friends' ? SCOPES.filter((s) => s.key === 'friends') : SCOPES;
 
-  const { people, loading: peopleLoading, error: peopleError, refetch: refetchPeople } = useCrossCirclePeople();
-  const university = profile?.university ?? '';
-  // The gate (UNI_VERIFICATION_SPEC.md §4). Client-side this swaps in the 🔒 state; the RPCs
-  // enforce it independently, so an unverified account can't appear on a campus board even
-  // through a hand-rolled call — which is the whole reason the rankings mean anything.
-  const campusVerified = profile?.university_email_verified ?? false;
-  const { rows: uniRows, loading: uniLoading, error: uniError, refetch: refetchUni } = useUniversityLeaderboard(university);
-  const { totals, loading: totalsLoading, refetch: refetchTotals } = useUniversityTotals();
-  const { rows: globalRows, loading: globalLoading, error: globalError, refetch: refetchGlobal } = useGlobalLeaderboard();
-  // The house board. Your program names the house; with none set the pill is a gentle nudge to pick
-  // one rather than an empty board. Re-read each time the pill is opened, since the pick happens on
-  // another screen while this tab stays mounted.
-  const [myProgram, setMyProgram] = useState<MyProgramRow | null>(null);
+  const { catalog } = useMetricCatalog();
+  const [metricKey, setMetricKey] = useState(DEFAULT_METRIC);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const stat = catalog.find((r) => r.key === metricKey) ?? null;
+
+  const [program, setProgram] = useState<MyProgramRow | null>(null);
   const [programLoaded, setProgramLoaded] = useState(false);
   useEffect(() => {
-    if (scope !== 'house') return;
     fetchMyProgram()
-      .then(setMyProgram)
-      .catch(() => setMyProgram(null))
+      .then(setProgram)
+      .catch(() => setProgram(null))
       .finally(() => setProgramLoaded(true));
-  }, [scope]);
-  const {
-    rows: houseMetricRows,
-    loading: houseLoading,
-    error: houseError,
-    refetch: refetchHouse,
-  } = useMetricLeaderboard({
-    metric: scope === 'house' && myProgram ? 'season_xp' : null,
-    scope: 'my_program',
-    window: 'all',
-    limit: null,
-  });
-  const autoFallbackDone = useRef(false);
-  const [universityShortNames, setUniversityShortNames] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    track('leaderboard_viewed', { scope });
-  }, [scope]);
-
-  useEffect(() => {
-    fetchUniversityShortNames()
-      .then(setUniversityShortNames)
-      .catch(() => {
-        // Falls back to full names below — a failed fetch shouldn't block the board.
-      });
   }, []);
 
-  // "Board renders empty" (punchlist 2, §1) — get_my_cross_circle_people() now already merges
-  // friends + campfire-mates, but a brand new account can still have neither. Rather than land
-  // on a lonely single-person podium (or the burnt-out-campfire empty state) by default, fall
-  // back the INITIAL scope to My-uni once — only once, and only if the user hasn't already
-  // picked a scope themselves, so it never fights a deliberate tap back to Campfires.
-  useEffect(() => {
-    if (autoFallbackDone.current || peopleLoading || scope !== 'camp') return;
-    autoFallbackDone.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time fallback once the pool's first load resolves, not a render-loop risk
-    if (people.length <= 1 && university) setScope('uni');
-  }, [peopleLoading, people.length, university, scope]);
+  // Same gates as the fitness board: a scope that can't have a board for this viewer explains itself.
+  const gate: 'none' | 'no_school' | 'unverified' | 'no_program' =
+    scope === 'my_uni' && !profile?.university
+      ? 'no_school'
+      : scope === 'my_uni' && !profile?.university_email_verified
+        ? 'unverified'
+        : scope === 'my_program' && programLoaded && !program
+          ? 'no_program'
+          : 'none';
+  const held = dial === 'private' || gate !== 'none' || (scope === 'my_program' && !programLoaded) || !stat;
 
-  useEffect(() => {
-    if (!searchOpen) return;
-    const trimmed = searchQuery.trim();
-    if (!trimmed) {
-      setSearchResults([]);
-      return;
-    }
-    setSearching(true);
-    const timeout = setTimeout(() => {
-      searchLeaderboard(trimmed)
-        .then(setSearchResults)
-        .catch(() => setSearchResults([]))
-        .finally(() => setSearching(false));
-    }, 300);
-    return () => clearTimeout(timeout);
-  }, [searchQuery, searchOpen]);
+  const { rows, loading, error, refetch } = useMetricLeaderboard({
+    metric: held || !stat ? null : stat.metric,
+    scope,
+    window: stat?.metric_window ?? 'all',
+  });
 
-  function handleOpenSearch() {
-    setSearchOpen(true);
-    track('leaderboard_search_used', { scope });
+  const format = (v: number) => (stat ? formatMetricValue(stat.unit, v) : String(v));
+
+  function openProfile(row: MetricLeaderboardRow) {
+    if (row.is_me) router.push('/profile');
+    else router.push({ pathname: '/friend-profile', params: { userId: row.user_id } });
   }
 
-  function goToProfile(userId: string) {
-    if (userId === session?.user.id) {
-      router.push('/profile');
-    } else {
-      router.push({ pathname: '/friend-profile', params: { userId } });
-    }
+  function openRow(row: MetricLeaderboardRow) {
+    if (row.is_me) router.push('/your-fire');
+    else router.push({ pathname: '/versus', params: { with: row.user_id } });
   }
-
-  const loading =
-    scope === 'camp'
-      ? peopleLoading
-      : scope === 'uni'
-        ? uniLoading
-        : scope === 'house'
-          ? houseLoading || !programLoaded
-          : scope === 'global'
-            ? globalLoading
-            : totalsLoading;
-  const refetch =
-    scope === 'camp'
-      ? refetchPeople
-      : scope === 'uni'
-        ? refetchUni
-        : scope === 'house'
-          ? refetchHouse
-          : scope === 'global'
-            ? refetchGlobal
-            : refetchTotals;
-
-  // The house board is XP only — the Streaks toggle has no house twin — so it always ranks on XP.
-  const boardMetric: Metric = scope === 'house' ? 'xp' : metric;
-  const campBoard = buildCampBoard(people, metric, session?.user.id);
-  const uniBoard = buildRankedBoard(uniRows, metric);
-  const houseBoard = buildRankedBoard(houseMetricRows.map(houseRowAsGlobal), 'xp');
-  const globalBoard = buildRankedBoard(globalRows, metric);
-
-  // Only the scope actually on screen — all four boards are computed every render, but fetching
-  // gear for the three nobody is looking at would triple the request for nothing. The module cache
-  // behind the hook means switching scopes re-uses whatever already resolved.
-  const visibleUserIds = boardUserIds(
-    scope === 'camp'
-      ? campBoard
-      : scope === 'uni'
-        ? uniBoard
-        : scope === 'house'
-          ? houseBoard
-          : scope === 'global'
-            ? globalBoard
-            : null
-  );
-  const boardLoadouts = usePublicLoadouts(visibleUserIds);
-  // Somebody else's equip has to be able to reach this board. The cache behind the hook holds a
-  // row for the life of the process, so without this you'd see whatever they were wearing the
-  // first time they scrolled past — for the rest of the session. Your OWN row needs nothing here:
-  // usePublicLoadouts substitutes the live store for it.
-  useRefreshPublicLoadoutsOnFocus(visibleUserIds);
-  // Search hits wear their gear too (mock 259) — batched over the whole result list, same as a board.
-  // get_public_loadouts already answers for any user id, so this needs nothing from search_leaderboard.
-  const searchLoadouts = usePublicLoadouts(searchOpen ? searchResults.map((r) => r.user_id) : []);
-  // Live status (0245) — ONE get_presence call over whatever is on screen, board or search, same
-  // batching as gear above. Re-read on focus and every ~45s while focused, which is what clears a
-  // badge once someone's lock-in ends.
-  const presence = usePresence(searchOpen ? searchResults.map((r) => r.user_id) : visibleUserIds);
-
-  const sortedTotals = totals
-    .map((t) => ({ ...t, perCapita: t.member_count > 0 ? t.total_xp / t.member_count : 0 }))
-    .sort((a, b) => (vsMetric === 'total' ? b.total_xp - a.total_xp : b.perCapita - a.perCapita));
-  const vsTop3: PodiumItem[] = sortedTotals.slice(0, 3).map((t) => ({
-    kind: 'university',
-    key: t.university,
-    name: universityShortNames[t.university] ?? t.university,
-    value: vsMetric === 'total' ? `${(t.total_xp / 1_000_000 >= 1 ? `${(t.total_xp / 1_000_000).toFixed(2)}M` : Math.round(t.total_xp).toLocaleString())} XP` : `${Math.round(t.perCapita).toLocaleString()} XP`,
-    isMe: t.university === university,
-  }));
-  const vsListRows = sortedTotals.slice(3, VISIBLE_RANKS);
-
-  function renderPersonBoard<T extends PersonRow>(
-    board: Board<T>,
-    emptyTitle: string,
-    emptyBody: string,
-    errorMessage: string | null,
-    useCampfireEmptyIllustration = false
-  ) {
-    const gear = (userId: string): PublicLoadout | undefined => boardLoadouts[userId];
-    const isEmpty = board.top3.length === 0 && board.listRows.length === 0 && !board.pinned;
-    return (
-      <FlatList
-        data={board.listRows}
-        keyExtractor={(item) => item.row.user_id}
-        contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.coral} />}
-        ListHeaderComponent={
-          board.top3.length > 0 ? (
-            <View style={styles.podiumWrap}>
-              <ParthenonPodium
-                top={board.top3.map((t) => (t.kind === 'person' ? { ...t, presence: presence[t.key] } : t))}
-                onPressItem={(item) => goToProfile(item.key)}
-              />
-            </View>
-          ) : null
-        }
-        renderItem={({ item }) => (
-          <Pressable onPress={() => goToProfile(item.row.user_id)}>
-            <LeaderboardPersonRow
-              rank={item.rank}
-              userId={item.row.user_id}
-              displayName={item.row.display_name}
-              avatarUrl={item.row.avatar_url}
-              tier={item.row.tier}
-              division={item.row.division}
-              value={personValue(item.row, boardMetric)}
-              isMe={item.row.user_id === session?.user.id}
-              loadout={gear(item.row.user_id)}
-              presence={presence[item.row.user_id]}
-              university={rowUniversity(item.row)}
-            />
-          </Pressable>
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
-        ListFooterComponent={
-          board.pinned ? (
-            <>
-              <LeaderboardGap />
-              <Pressable onPress={() => goToProfile(board.pinned!.row.user_id)}>
-                <LeaderboardPersonRow
-                  rank={board.pinned.rank}
-                  userId={board.pinned.row.user_id}
-                  displayName={board.pinned.row.display_name}
-                  avatarUrl={board.pinned.row.avatar_url}
-                  tier={board.pinned.row.tier}
-                  division={board.pinned.row.division}
-                  value={personValue(board.pinned.row, boardMetric)}
-                  isMe
-                  loadout={gear(board.pinned.row.user_id)}
-                  presence={presence[board.pinned.row.user_id]}
-                  university={rowUniversity(board.pinned.row)}
-                />
-              </Pressable>
-            </>
-          ) : null
-        }
-        ListEmptyComponent={
-          !loading && isEmpty ? (
-            errorMessage ? (
-              <EmptyState title="Couldn't load leaderboard" body={errorMessage} />
-            ) : useCampfireEmptyIllustration ? (
-              <EmptyState icon={<BurntOutCampfire />} title={emptyTitle} body={emptyBody} />
-            ) : (
-              <EmptyState title={emptyTitle} body={emptyBody} />
-            )
-          ) : null
-        }
-      />
-    );
-  }
-
-  // Private: no board, no search, no scope pills — just the viewer's own ladder.
-  if (dial === 'private') {
-    return (
-      <Screen padded={false}>
-        <TabHeader title="Leaderboard" />
-        <PrivateClimb />
-      </Screen>
-    );
-  }
-
-  // Friends: "#N of M" among friends. The server already ranked the board over the viewer and their
-  // friends, so this is the viewer's server-truth rank over the rows it returned (the RPC returns the
-  // whole board, 0253).
-  const myFriendsRow = dial === 'friends' ? globalRows.find((r) => r.is_me) : undefined;
 
   return (
-    <Screen padded={false}>
-      <TabHeader
-        title="Leaderboard"
-        right={
-          <Pressable onPress={() => (searchOpen ? setSearchOpen(false) : handleOpenSearch())} hitSlop={8} accessibilityLabel={searchOpen ? 'Close search' : 'Search'}>
-            <Ionicons name={searchOpen ? 'close' : 'search'} size={20} color={Colors.muted} />
-          </Pressable>
-        }
-      />
+    <SafeAreaView edges={['top']} style={styles.safe}>
+      <AppTopBar />
+      <View style={styles.head}>
+        <Text style={styles.title}>Leaderboard</Text>
+        <Pressable onPress={() => router.push('/all-boards')} hitSlop={8} accessibilityRole="button" style={styles.more}>
+          <Text style={styles.moreText}>All boards</Text>
+          <Ionicons name="chevron-forward" size={13} color={Colors.spaceDim} />
+        </Pressable>
+      </View>
 
-      {searchOpen ? (
-        <View style={styles.searchScreen}>
-          <EmberSearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search by name or @username"
-            autoFocus
-            style={styles.searchBar}
-          />
-          {searching && <ActivityIndicator color={Colors.coral} style={{ marginTop: Spacing.four }} />}
-          <FlatList
-            data={searchResults}
-            keyExtractor={(item) => item.user_id}
-            contentContainerStyle={styles.searchListContent}
-            keyboardShouldPersistTaps="handled"
-            ListHeaderComponent={searchResults.length > 0 ? <Text style={styles.sectionLabel}>Results</Text> : null}
-            renderItem={({ item }) => (
-              <SearchResultRow
-                item={item}
-                loadout={searchLoadouts[item.user_id]}
-                presence={presence[item.user_id]}
-                onPress={() => goToProfile(item.user_id)}
-              />
-            )}
-            ItemSeparatorComponent={() => <View style={styles.divider} />}
-            ListEmptyComponent={
-              !searching && searchQuery.trim() ? <EmptyState emoji="🔍" title="No one found" body="Try a different name or @username." /> : null
-            }
-          />
-        </View>
+      {dial === 'private' ? (
+        <PrivateClimb />
       ) : (
         <>
-          <View style={styles.header}>
-            {/* Pinned above the tabs rather than scrolled with a board: it belongs to the season, not
-                to any one scope. Renders nothing once the season has closed. */}
-            <EmberfallSplash />
-            {/* Five scopes outgrow a narrow phone, so the row scrolls; with room to spare the pills
-                still stretch to fill it, as the four did. */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.pillScroll}
-              contentContainerStyle={styles.pillRow}>
-              {scopes.map((s) => {
-                const on = scope === s;
-                return (
-                  <Pressable
-                    key={s}
-                    style={[styles.scopePress, on && styles.scopePressOn]}
-                    onPress={() => setScope(s)}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: on }}>
-                    {/* Mock 259: the active tab rides the ember gradient; idle tabs are dark pills. */}
-                    {on ? (
-                      <EmberFill radius={Radius.pill} style={styles.scopeTab}>
-                        <Text style={[styles.scopeLabel, styles.scopeLabelOn]} numberOfLines={1}>
-                          {scopeLabel(s)}
-                        </Text>
-                      </EmberFill>
-                    ) : (
-                      <View style={[styles.scopeTab, styles.scopeTabIdle]}>
-                        <Text style={styles.scopeLabel} numberOfLines={1}>
-                          {scopeLabel(s)}
-                        </Text>
-                      </View>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-            <View style={styles.metricRow}>
-              {scope === 'vs' ? (
-                <>
-                  <Pressable style={[styles.metricPill, vsMetric === 'total' && styles.pillOn]} onPress={() => setVsMetric('total')}>
-                    <Text style={[styles.pillLabel, vsMetric === 'total' && styles.pillLabelOn]}>Total XP</Text>
-                  </Pressable>
-                  <Pressable style={[styles.metricPill, vsMetric === 'avg' && styles.pillOn]} onPress={() => setVsMetric('avg')}>
-                    <Text style={[styles.pillLabel, vsMetric === 'avg' && styles.pillLabelOn]}>Avg / member</Text>
-                  </Pressable>
-                </>
-              ) : scope === 'house' ? (
-                // "Kinesiology · Heirs of Heracles" (mock 288) — the house, not one school's slice of it.
-                <Text style={styles.houseTitle} numberOfLines={1}>
-                  {myProgram ? `${myProgram.name} · Heirs of ${myProgram.patron_name}` : 'Your house'}
-                </Text>
-              ) : (
-                <>
-                  <Pressable style={[styles.metricPill, metric === 'xp' && styles.pillOn]} onPress={() => setMetric('xp')}>
-                    <Text style={[styles.pillLabel, metric === 'xp' && styles.pillLabelOn]}>XP</Text>
-                  </Pressable>
-                  <Pressable style={[styles.metricPill, metric === 'streak' && styles.pillOn]} onPress={() => setMetric('streak')}>
-                    <Text style={[styles.pillLabel, metric === 'streak' && styles.pillLabelOn]}>Streaks</Text>
-                  </Pressable>
-                </>
-              )}
-              {/* The Fitness board (mock 289) — its own surface, ranked on real fitness, not XP. */}
-              <Pressable
-                style={[styles.metricPill, styles.fitnessPill]}
-                onPress={() => router.push('/fitness')}
-                accessibilityRole="button"
-                accessibilityLabel="Open the Fitness board">
-                <Text style={[styles.pillLabel, styles.fitnessLabel]}>🏃 Fitness ›</Text>
-              </Pressable>
-            </View>
+          <View style={styles.scope}>
+            {scopes.map((s) => {
+              const on = s.key === scope;
+              return (
+                <Pressable
+                  key={s.key}
+                  onPress={() => setPickedScope(s.key)}
+                  style={[styles.scopeBtn, on && styles.scopeBtnOn]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: on }}>
+                  <Text style={[styles.scopeText, on && styles.scopeTextOn]}>{s.label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
 
-          {scope === 'camp' &&
-            renderPersonBoard(campBoard, 'No Campfires yet', 'Join or start a Campfire to see how you stack up.', peopleError, true)}
+          <View style={styles.tools}>
+            <Pressable style={styles.metric} onPress={() => setPickerOpen(true)} accessibilityRole="button">
+              <Text style={styles.metricText} numberOfLines={1}>
+                {stat ? `${stat.emoji} ${stat.label}` : 'Loading stats…'}
+              </Text>
+              <Ionicons name="chevron-down" size={14} color={Colors.spaceDim} />
+            </Pressable>
+            <QuickLink label="Fitness" onPress={() => router.push('/fitness')} />
+            <QuickLink label="Challenges" onPress={() => router.push('/challenges')} />
+          </View>
 
-          {scope === 'uni' &&
-            (!university ? (
-              <EmptyState title="Add your school" body="Set your school in Profile to see how you stack up at your university." />
-            ) : !campusVerified ? (
-              <CampusLockedState />
-            ) : (
-              renderPersonBoard(uniBoard, uniEmptyTitle, uniEmptyBody, uniError)
-            ))}
-
-          {scope === 'house' &&
-            (!programLoaded ? (
-              <ActivityIndicator color={Colors.coral} style={{ marginTop: Spacing.four }} />
-            ) : !myProgram ? (
-              <EmptyState
-                emoji="🏛️"
-                title="Pick your program"
-                body="Your program names your house. Pick it and this board ranks you against every Heir of it, at both schools."
-                action={
-                  <Pressable
-                    style={styles.lockedCta}
-                    onPress={() => router.push('/house/change-program?ceremony=1')}
-                    accessibilityRole="button">
-                    <Text style={styles.lockedCtaLabel}>Pick my program</Text>
-                  </Pressable>
-                }
-              />
-            ) : (
-              renderPersonBoard(
-                houseBoard,
-                'Your house is just forming',
-                'Houses are brand new — this board fills up as more Heirs pick their program. Climb now and you open it.',
-                houseError
-              )
-            ))}
-
-          {myFriendsRow && globalRows.length > 1 && (
-            <Text style={styles.friendsStanding}>
-              #{myFriendsRow.rank.toLocaleString()} of {Math.max(globalRows.length, myFriendsRow.rank).toLocaleString()} among
-              your friends
-            </Text>
-          )}
-
-          {scope === 'global' && renderPersonBoard(globalBoard, globalEmptyTitle, globalEmptyBody, globalError)}
-
-          {scope === 'vs' && !campusVerified && <CampusLockedState />}
-
-          {scope === 'vs' && campusVerified && (
+          {gate !== 'none' ? (
+            <GateNotice gate={gate} />
+          ) : (
             <FlatList
-              data={vsListRows}
-              keyExtractor={(item) => item.university}
-              contentContainerStyle={styles.listContent}
-              refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.coral} />}
-              ListHeaderComponent={
-                vsTop3.length > 0 ? (
-                  <View style={styles.podiumWrap}>
-                    <ParthenonPodium top={vsTop3} />
-                  </View>
-                ) : null
+              data={rows}
+              keyExtractor={(r) => r.user_id}
+              contentContainerStyle={styles.list}
+              refreshControl={<RefreshControl refreshing={loading && rows.length > 0} onRefresh={refetch} tintColor={Colors.navEmber} />}
+              ListEmptyComponent={
+                loading ? (
+                  <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
+                ) : (
+                  <Text style={styles.empty}>{error ?? 'Nobody on this board yet — lock in and open it.'}</Text>
+                )
               }
-              renderItem={({ item, index }) => {
-                const crest = getUniversityCrest(item.university);
-                const isMe = item.university === university;
-                const value = vsMetric === 'total' ? `${Math.round(item.total_xp).toLocaleString()} XP` : `${Math.round(item.perCapita).toLocaleString()} XP`;
-                return (
-                  <View style={[styles.row, isMe && styles.rowMe]}>
-                    <Text style={styles.pos}>{index + 4}</Text>
-                    <View style={[styles.crestSmall, { backgroundColor: crest.bg }]}>
-                      <Text style={[styles.crestSmallText, { color: crest.text }]} numberOfLines={1}>
-                        {crest.monogram}
-                      </Text>
-                    </View>
-                    <View style={styles.who}>
-                      <Text style={styles.name} numberOfLines={1}>
-                        {universityShortNames[item.university] ?? item.university}
-                        {isMe ? ' · you' : ''}
-                      </Text>
-                      <Text style={styles.sub}>{vsMetric === 'total' ? 'total XP' : 'avg / active student'}</Text>
-                    </View>
-                    <Text style={styles.val}>{value}</Text>
-                  </View>
-                );
-              }}
-              ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
-              ListEmptyComponent={!loading && vsTop3.length === 0 ? <EmptyState title="No campuses yet" body="Check back once more schools join." /> : null}
+              renderItem={({ item }) => (
+                <BoardRow row={item} value={format(item.value)} onPressRow={openRow} onPressAvatar={openProfile} />
+              )}
             />
           )}
         </>
       )}
-    </Screen>
+
+      <MetricPicker
+        visible={pickerOpen}
+        catalog={catalog}
+        selectedKey={metricKey}
+        onPick={(r) => {
+          setMetricKey(r.key);
+          setPickerOpen(false);
+        }}
+        onClose={() => setPickerOpen(false)}
+      />
+    </SafeAreaView>
   );
 }
 
-// One search hit (mock 259): the person as they appear everywhere else — cosmetic avatar, equipped
-// title under the name — rather than the bare initial it used to draw, plus where they sit (rank
-// badge, board rank, XP). The whole row is the tap target into their profile.
-function SearchResultRow({
-  item,
-  loadout,
-  presence,
-  onPress,
+function BoardRow({
+  row,
+  value,
+  onPressRow,
+  onPressAvatar,
 }: {
-  item: LeaderboardSearchResult;
-  /** Batched over the result list — see the note in economy/public-identity.tsx. */
-  loadout?: PublicLoadout;
-  presence?: PresenceRow;
-  onPress: () => void;
+  row: MetricLeaderboardRow;
+  value: string;
+  onPressRow: (row: MetricLeaderboardRow) => void;
+  onPressAvatar: (row: MetricLeaderboardRow) => void;
 }) {
-  // Resolved once and shared: EquippedHexGlow and PublicTitle need the SAME object, and the hex glow
-  // falls back to YOUR halo when handed undefined.
-  const resolved = useResolvedLoadout(item.user_id, loadout);
+  const rankColor = row.rank === 1 ? Colors.gold : row.is_me ? Colors.navEmber2 : Colors.spaceDim;
+  const initials = (row.display_name || row.handle || '?')
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <Pressable
-      style={styles.searchRow}
-      onPress={onPress}
+      style={[styles.row, row.is_me && styles.rowMe]}
+      onPress={() => onPressRow(row)}
       accessibilityRole="button"
-      accessibilityLabel={`Open ${item.display_name}'s profile`}>
-      {/* Static flares: a result list re-renders on every keystroke. */}
-      <CosmeticAvatar
-        userId={item.user_id}
-        name={item.display_name}
-        avatarUrl={item.avatar_url}
-        size={36}
-        loadout={resolved}
-        motion="reduced"
-      />
-      <View style={styles.searchInfo}>
-        <View style={styles.searchNameRow}>
-          <Text style={styles.searchName} numberOfLines={1}>
-            {item.display_name}
+      accessibilityLabel={`${row.rank}. ${row.is_me ? 'You' : row.display_name}, ${value}${row.is_me ? '' : '. Head-to-head'}`}>
+      <Text style={[styles.rank, { color: rankColor }]}>{row.rank}</Text>
+      <Pressable onPress={() => onPressAvatar(row)} hitSlop={6} accessibilityRole="button" accessibilityLabel="Open profile">
+        {row.avatar_url ? (
+          <Image source={{ uri: row.avatar_url }} style={styles.avatar} contentFit="cover" />
+        ) : (
+          <Avatar label={initials} size={36} />
+        )}
+      </Pressable>
+      <View style={styles.who}>
+        <View style={styles.nameLine}>
+          <Text style={styles.name} numberOfLines={1}>
+            {row.is_me ? 'You' : row.display_name}
           </Text>
-          {item.is_friend && (
-            <View style={styles.friendTag}>
-              <Text style={styles.friendTagText}>Friend</Text>
-            </View>
-          )}
+          {row.patron_key ? <HouseSeal patronKey={row.patron_key} size={13} /> : null}
         </View>
-        <PublicTitle loadout={resolved} compact />
-        <Text style={styles.searchSub} numberOfLines={1}>
-          {item.handle ? `@${item.handle} · ` : ''}
-          {item.board}
-        </Text>
-        <LiveStatusBadge presence={presence} lastActive tagFriend />
+        <IdentityLine userId={row.user_id} university={row.university} style={styles.identity} />
       </View>
-      <View>
-        <EquippedHexGlow size={22} loadout={resolved} />
-        <RankBadge tier={item.tier} division={item.division} size={22} />
-      </View>
-      <View style={styles.searchRank}>
-        <Text style={styles.searchRankValue}>{item.board_rank ? `#${item.board_rank.toLocaleString()}` : '—'}</Text>
-        <Text style={styles.searchRankSub}>{Math.round(item.score).toLocaleString()} XP</Text>
-      </View>
+      <Text style={styles.value}>{value}</Text>
     </Pressable>
   );
 }
 
-// The 🔒 state behind both campus boards (UNI_VERIFICATION_SPEC.md §4, mock 75D shows the pair
-// once unlocked). Deliberately explains WHY rather than just refusing: the restriction is the
-// feature — a campus ranking anyone could join wouldn't be worth topping.
-function CampusLockedState() {
-  const router = useRouter();
+function QuickLink({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <View style={styles.locked}>
-      <Text style={styles.lockedIcon}>🔒</Text>
-      <Text style={styles.lockedTitle}>Verify to unlock</Text>
-      <Text style={styles.lockedBody}>
-        Only students with a verified school email count on My Uni and Uni vs. Uni — that&apos;s what keeps the campus
-        rankings real. Takes about a minute.
-      </Text>
-      <Pressable style={styles.lockedCta} onPress={() => router.push('/campus')} accessibilityRole="button">
-        <Text style={styles.lockedCtaLabel}>Verify my campus</Text>
+    <Pressable style={styles.quick} onPress={onPress} accessibilityRole="button">
+      <Text style={styles.quickText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function GateNotice({ gate }: { gate: 'no_school' | 'unverified' | 'no_program' }) {
+  const router = useRouter();
+  const copy =
+    gate === 'no_program'
+      ? { title: 'Pick your program', body: 'Your program names your house — pick it to rank against every Heir of it.', cta: 'Pick my program', route: '/house/change-program?ceremony=1' }
+      : gate === 'unverified'
+        ? { title: 'Verify your campus email', body: 'My Uni boards are for verified students.', cta: 'Verify', route: '/campus' }
+        : { title: 'Add your university', body: 'Tell us where you study to see your school’s board.', cta: 'Add school', route: '/campus' };
+  return (
+    <View style={styles.gate}>
+      <Text style={styles.gateTitle}>{copy.title}</Text>
+      <Text style={styles.gateBody}>{copy.body}</Text>
+      <Pressable style={styles.gateBtn} onPress={() => router.push(copy.route as never)} accessibilityRole="button">
+        <Text style={styles.gateBtnText}>{copy.cta}</Text>
       </Pressable>
     </View>
   );
 }
 
+function MetricPicker({
+  visible,
+  catalog,
+  selectedKey,
+  onPick,
+  onClose,
+}: {
+  visible: boolean;
+  catalog: MetricCatalogRow[];
+  selectedKey: string;
+  onPick: (row: MetricCatalogRow) => void;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  // Grouped by the catalog's own group labels, in catalog order — the 26-stat library (mock 293).
+  const groups = useMemo(() => {
+    const out: { label: string; rows: MetricCatalogRow[] }[] = [];
+    for (const r of [...catalog].sort((a, b) => a.sort - b.sort)) {
+      const g = out.find((x) => x.label === r.group_label);
+      if (g) g.rows.push(r);
+      else out.push({ label: r.group_label, rows: [r] });
+    }
+    return out;
+  }, [catalog]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.backdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <Text style={styles.sheetTitle}>Rank by</Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {groups.map((g) => (
+              <View key={g.label}>
+                <Text style={styles.sheetGroup}>{g.label}</Text>
+                {g.rows.map((r) => {
+                  const on = r.key === selectedKey;
+                  return (
+                    <Pressable
+                      key={r.key}
+                      style={[styles.sheetRow, on && styles.sheetRowOn]}
+                      onPress={() => onPick(r)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}>
+                      <Text style={styles.sheetEmoji}>{r.emoji}</Text>
+                      <Text style={[styles.sheetLabel, on && styles.sheetLabelOn]}>{r.label}</Text>
+                      {on ? <Ionicons name="checkmark" size={16} color={Colors.navEmber} /> : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
-  locked: {
+  safe: {
     flex: 1,
+  },
+  head: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.five,
-  },
-  lockedIcon: {
-    fontSize: 34,
-  },
-  lockedTitle: {
-    fontFamily: Fonts.displayHeavy,
-    fontSize: 19,
-    color: Colors.ink,
-  },
-  lockedBody: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    lineHeight: 19,
-    color: Colors.muted,
-    textAlign: 'center',
-  },
-  lockedCta: {
-    marginTop: Spacing.two,
-    backgroundColor: Colors.coral,
-    borderRadius: Radius.button,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.five,
-  },
-  lockedCtaLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.ink,
-  },
-  header: {
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.two,
   },
-  pillScroll: {
-    flexGrow: 0,
+  title: {
+    fontFamily: Fonts.black,
+    fontSize: 22,
+    color: Colors.ink,
   },
-  pillRow: {
-    flexGrow: 1,
+  more: {
     flexDirection: 'row',
-    gap: Spacing.one,
-  },
-  scopePress: {
-    flexGrow: 1,
-  },
-  // iOS-only lift under the lit tab (mock 259's `0 4px 12px rgba(224,97,44,.35)`). No elevation:
-  // Android's would cast grey from a transparent Pressable, which is worse than none.
-  scopePressOn: {
-    shadowColor: Colors.coral,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-  },
-  scopeTab: {
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.pill,
-    paddingVertical: 7,
-    paddingHorizontal: Spacing.twelve,
+    gap: 2,
   },
-  scopeTabIdle: {
-    backgroundColor: Colors.cardDark,
-  },
-  scopeLabel: {
-    fontFamily: Fonts.bodyBold,
+  moreText: {
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
-  scopeLabelOn: {
-    color: Colors.onEmber,
+  scope: {
+    flexDirection: 'row',
+    marginHorizontal: Spacing.three,
+    padding: 3,
+    borderRadius: 12,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
-  metricRow: {
+  scopeBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 9,
+  },
+  scopeBtnOn: {
+    backgroundColor: Colors.spacePanel2,
+  },
+  scopeText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
+  },
+  scopeTextOn: {
+    color: Colors.navEmber2,
+  },
+  tools: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+    marginHorizontal: Spacing.three,
+    marginTop: Spacing.two,
+    marginBottom: Spacing.two,
   },
-  // Right-aligned beside the board's own metric pills — a way OUT to another board, not a metric.
-  fitnessPill: {
-    marginLeft: 'auto',
-    borderColor: Colors.lineStrong,
+  metric: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 11,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
-  fitnessLabel: {
-    color: Colors.amber,
-  },
-  houseTitle: {
+  metricText: {
     flexShrink: 1,
     fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    color: Colors.ember,
-    letterSpacing: 0.4,
+    fontSize: 13,
+    color: Colors.ink,
   },
-  metricPill: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.pill,
+  quick: {
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+    borderRadius: 11,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: 'transparent',
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
+    borderColor: Colors.spaceLine,
   },
-  pillOn: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.coral,
-  },
-  pillLabel: {
+  quickText: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.muted,
+    fontSize: 12,
+    color: Colors.legend,
   },
-  pillLabelOn: {
-    color: Colors.achieverText,
+  list: {
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.five,
+    gap: 6,
   },
-  listContent: {
-    padding: Spacing.four,
-    gap: 2,
+  loader: {
+    marginTop: Spacing.five,
   },
-  podiumWrap: {
-    alignItems: 'center',
-    marginBottom: Spacing.four,
+  empty: {
+    marginTop: Spacing.five,
+    textAlign: 'center',
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.spaceDim,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-    padding: Spacing.two,
-    borderRadius: Radius.card,
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   rowMe: {
-    backgroundColor: Colors.selectedBg,
-    borderWidth: 1,
-    borderColor: Colors.coral,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.08)',
   },
-  pos: {
-    width: 18,
+  rank: {
+    width: 24,
     textAlign: 'center',
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.textTertiary,
+    fontFamily: Fonts.black,
+    fontSize: 15,
   },
-  crestSmall: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  crestSmallText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 9,
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   who: {
     flex: 1,
-    minWidth: 0,
+    gap: 2,
+  },
+  nameLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   name: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.ink,
-  },
-  sub: {
-    fontFamily: Fonts.body,
-    fontSize: 10.5,
-    color: Colors.muted,
-  },
-  val: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.ink,
-  },
-  searchScreen: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-  },
-  searchBar: {
-    marginTop: Spacing.two,
-  },
-  searchListContent: {
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.four,
-  },
-  // Mock 259's gold section label — the one warm accent on an otherwise ink/muted list.
-  sectionLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    color: SECTION_GOLD,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginTop: Spacing.two,
-    marginBottom: Spacing.one,
-    marginLeft: 2,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    paddingVertical: 10,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.line,
-  },
-  searchInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  searchNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  searchName: {
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.ink,
-    flexShrink: 1,
   },
-  friendTag: {
-    backgroundColor: 'rgba(61,168,92,0.15)',
-    borderRadius: 5,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
+  identity: {
+    color: Colors.spaceDim,
   },
-  friendTagText: {
+  value: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+  gate: {
+    margin: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    gap: 6,
+  },
+  gateTitle: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 8.5,
-    color: Colors.green,
+    fontSize: 15,
+    color: Colors.ink,
   },
-  searchSub: {
+  gateBody: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontSize: 13,
+    color: Colors.spaceDim,
   },
-  searchRank: {
-    alignItems: 'flex-end',
+  gateBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.navEmber,
   },
-  searchRankValue: {
+  gateBtnText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.amber,
+    color: '#2A0F05',
   },
-  searchRankSub: {
-    fontFamily: Fonts.body,
-    fontSize: 10,
-    color: Colors.muted,
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(6,4,14,0.6)',
   },
-  friendsStanding: {
+  sheet: {
+    maxHeight: '75%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: Colors.spacePanel,
+    borderTopWidth: 1,
+    borderColor: Colors.spaceLine,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
+  },
+  sheetTitle: {
+    fontFamily: Fonts.black,
+    fontSize: 18,
+    color: Colors.ink,
+    marginBottom: Spacing.two,
+  },
+  sheetGroup: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    color: Colors.muted,
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.two,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
+    marginTop: Spacing.three,
+    marginBottom: 4,
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  sheetRowOn: {
+    backgroundColor: Colors.spacePanel2,
+  },
+  sheetEmoji: {
+    fontSize: 16,
+    width: 22,
+    textAlign: 'center',
+  },
+  sheetLabel: {
+    flex: 1,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 14,
+    color: Colors.spaceDim,
+  },
+  sheetLabelOn: {
+    color: Colors.ink,
   },
 });

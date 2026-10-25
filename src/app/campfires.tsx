@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { ValleyPage } from '@/app/(tabs)/index';
+import { ValleyPage } from '@/app/your-fire';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { useCampfireHeat } from '@/hooks/use-campfire-heat';

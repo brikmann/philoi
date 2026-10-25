@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -59,6 +59,14 @@ const TABS: { key: AgoraTab; label: string }[] = [
 ];
 
 export default function AgoraScreen() {
+  return <AgoraFeed />;
+}
+
+/**
+ * The square itself. `/agora` mounts it as its own screen (back header); Home mounts it embedded,
+ * with the global top bar + your-fire strip in place of that header (nav restructure, mock 302).
+ */
+export function AgoraFeed({ embedded = false, top }: { embedded?: boolean; top?: ReactNode }) {
   const router = useRouter();
   const { profile } = useAuth();
   const [tab, setTab] = useState<AgoraTab>('feed');
@@ -169,15 +177,19 @@ export default function AgoraScreen() {
   return (
     <ScreenBackground>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={Colors.muted} />
-          </Pressable>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>The Agora</Text>
-            <Text style={styles.subtitle}>where students gather, as did the Greeks</Text>
+        {embedded ? (
+          top
+        ) : (
+          <View style={styles.header}>
+            <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
+              <Ionicons name="chevron-back" size={22} color={Colors.muted} />
+            </Pressable>
+            <View style={styles.headerText}>
+              <Text style={styles.title}>The Agora</Text>
+              <Text style={styles.subtitle}>where students gather, as did the Greeks</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         <View style={styles.tabs} accessibilityRole="tablist">
           {TABS.map((t) => {
