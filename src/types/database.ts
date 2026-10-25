@@ -9,6 +9,16 @@ import type {
   ProgramRow,
   VersusRow,
 } from '@/types/house';
+import type {
+  DisciplineMixRow,
+  ForestDetail,
+  ForestSummary,
+  GrindAlike,
+  IdentityPatch,
+  MatchDetail,
+  MatchSettings,
+  ProfileIdentity,
+} from '@/types/social';
 
 // social_media stays for historical rows' typing — the lock-in goal picker (PHILOI_UI_SPEC.md
 // §12) doesn't offer it, only gym/run/study/job_applications/read/custom.
@@ -231,6 +241,8 @@ export type Profile = {
   daily_goal_manual_target: number | null;
   /** Opt-in, default off — gates whether completing the meter can post to campfires (§5/§19). */
   publish_flame_completion: boolean;
+  /** 0273 · sticky default for the done screen's "Post to the Agora" toggle. Default off. */
+  post_to_agora?: boolean;
   /** Soft-currency balance (MONETIZATION.md's phase-2 cosmetics shop) — earning-only for now. */
   embers: number;
   /** "Let friends watch my live challenges" (§16/§19) — default off; gates the profile-scoped Watch CTA. */
@@ -1164,6 +1176,11 @@ export type AnalyticsEventName =
   | 'agora_scope_changed'
   | 'agora_composer_opened'
   | 'agora_posted'
+  | 'agora_session_autoposted'
+  | 'forest_joined'
+  | 'forest_created'
+  | 'identity_saved'
+  | 'grind_alikes_opted_in'
   | 'agora_cheered'
   | 'agora_commented'
   | 'challenge_logged'
@@ -3045,6 +3062,52 @@ export type Database = {
       set_my_notification_prefs: { Args: { p_prefs: NotificationPrefs }; Returns: undefined };
       set_daily_goal_mode: { Args: { p_mode: 'auto' | 'manual'; p_manual_target?: number | null }; Returns: undefined };
       set_publish_flame_completion: { Args: { p_enabled: boolean }; Returns: undefined };
+      // ── the social layer (0272–0275) ──
+      get_profile_identity: { Args: { p_user: string }; Returns: ProfileIdentity | null };
+      get_discipline_mix: { Args: { p_user: string; p_window?: string }; Returns: DisciplineMixRow[] };
+      set_my_identity: { Args: { p_patch: IdentityPatch }; Returns: undefined };
+      set_post_to_agora: { Args: { p_enabled: boolean }; Returns: undefined };
+      post_session_to_agora: {
+        Args: { p_check_in_id: string; p_caption?: string | null; p_photo_paths?: string[]; p_visibility?: string };
+        Returns: string;
+      };
+      get_forests: { Args: { p_sort?: string; p_query?: string | null; p_limit?: number }; Returns: ForestSummary[] };
+      get_forest: { Args: { p_forest_id: string }; Returns: ForestDetail | null };
+      get_forest_feed: {
+        Args: { p_forest_id: string; p_before_at?: string | null; p_before_id?: string | null; p_limit?: number };
+        Returns: AgoraItem[];
+      };
+      create_forest: {
+        Args: {
+          p_name: string;
+          p_purpose?: string | null;
+          p_emoji?: string | null;
+          p_tags?: string[];
+          p_visibility?: string;
+          p_this_uni_only?: boolean;
+        };
+        Returns: string;
+      };
+      join_forest: { Args: { p_forest_id: string }; Returns: 'active' | 'pending' };
+      leave_forest: { Args: { p_forest_id: string }; Returns: undefined };
+      close_forest: { Args: { p_forest_id: string }; Returns: undefined };
+      respond_forest_request: { Args: { p_forest_id: string; p_user_id: string; p_approve: boolean }; Returns: undefined };
+      remove_forest_member: { Args: { p_forest_id: string; p_user_id: string }; Returns: undefined };
+      remove_forest_post: { Args: { p_post_id: string }; Returns: undefined };
+      create_forest_post: {
+        Args: { p_forest_id: string; p_body?: string | null; p_photo_path?: string | null; p_attachments?: AgoraAttachInput[] };
+        Returns: string;
+      };
+      create_campfire_in_forest: {
+        Args: { p_forest_id: string; p_name: string; p_emoji: string; p_goal_type: string; p_cadence: string; p_privacy?: string };
+        Returns: Group;
+      };
+      set_campfire_forest: { Args: { p_group_id: string; p_forest_id: string | null }; Returns: undefined };
+      report_forest: { Args: { p_forest_id: string; p_reason: string; p_note?: string | null }; Returns: string };
+      get_my_match_settings: { Args: Record<string, never>; Returns: MatchSettings };
+      set_my_match_settings: { Args: { p_patch: Partial<MatchSettings> }; Returns: MatchSettings };
+      get_grind_alikes: { Args: { p_limit?: number; p_scope?: string | null }; Returns: GrindAlike[] };
+      get_match_detail: { Args: { p_user: string }; Returns: MatchDetail | null };
       get_or_create_daily_fire: {
         Args: { p_day: string; p_day_start: string; p_day_end: string };
         Returns: DailyFire[];
@@ -4134,6 +4197,11 @@ export type AgoraAttachSnapshot = {
   duration_seconds?: number | null;
   distance_m?: number | null;
   completed_at?: string;
+  // lockin · auto-post (0273): set only on a session the done screen posted itself. `photos` are the
+  // session photos beyond the first (which rides in photo_path), as agora-photos paths.
+  auto?: boolean;
+  xp_earned?: number;
+  photos?: string[];
   // lockin · the strength half (migration 0192), present only when the session had lifts in it.
   // Same rule as the rest of this type: FACTS, not display strings — `total_volume` is a number of
   // pounds, never "12,400 lb", and `sets` carries exercise/sets/reps/weight rather than "3×8 @ 225".
@@ -4214,6 +4282,8 @@ export type AgoraItem = {
   cheers: number;
   cheered: boolean;
   comments: number;
+  /** 0274 · set on a forest post (get_agora_item); the global feed never returns one. */
+  forest_id?: string | null;
   created_at: string;
 };
 

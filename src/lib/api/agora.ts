@@ -152,6 +152,46 @@ export async function deleteAgoraPost(id: string): Promise<void> {
   // this function at all. (The RPC still returns the path; nothing needs it here.)
 }
 
+// ───────────────────────────── session auto-post (0273, mock 297) ─────────────────────────────
+
+/**
+ * Post a finished lock-in to the Agora: the session card, the optional caption, and the photos
+ * taken during it. Once per session — a retry returns the first post's id.
+ *
+ * Session photos live in the private check-in bucket, so they're re-uploaded here into
+ * agora-photos (SQL can't copy storage objects). Uploads are cleaned up if the post is refused.
+ */
+export async function postSessionToAgora(input: {
+  checkInId: string;
+  userId: string;
+  caption?: string | null;
+  photoUris?: string[];
+  visibility?: AgoraVisibility;
+}): Promise<string> {
+  const paths: string[] = [];
+  try {
+    for (const uri of (input.photoUris ?? []).slice(0, 4)) paths.push(await uploadAgoraPhoto(input.userId, uri));
+    const { data, error } = await supabase.rpc('post_session_to_agora', {
+      p_check_in_id: input.checkInId,
+      p_caption: input.caption?.trim() || null,
+      p_photo_paths: paths,
+      p_visibility: input.visibility ?? 'friends',
+    });
+    if (error) throw error;
+    track('agora_session_autoposted', { photo_count: paths.length, has_caption: Boolean(input.caption?.trim()) });
+    return data as string;
+  } catch (e) {
+    if (paths.length) await supabase.storage.from(PHOTO_BUCKET).remove(paths);
+    throw e;
+  }
+}
+
+/** The sticky default ("Auto-post my sessions to the Agora"). */
+export async function setPostToAgora(enabled: boolean): Promise<void> {
+  const { error } = await supabase.rpc('set_post_to_agora', { p_enabled: enabled });
+  if (error) throw error;
+}
+
 // ───────────────────────────── cheers ─────────────────────────────
 
 /**
