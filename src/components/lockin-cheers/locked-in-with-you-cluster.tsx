@@ -23,16 +23,19 @@ export function LockedInWithYouCluster({
 }) {
   if (friends.length === 0) return null;
   const liveCount = friends.filter((f) => f.live).length;
+  // A friend can be listed only because your thread is still open (they stopped, you're still
+  // live) — then the pill opens messages, and "0 live" would be wrong.
+  const label = liveCount > 0 ? `${liveCount} live` : 'Messages';
   return (
     <View style={styles.cluster}>
-      <Text style={styles.clusterLabel}>Locked in with you</Text>
+      {liveCount > 0 && <Text style={styles.clusterLabel}>Locked in with you</Text>}
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [styles.pill, pressed && styles.pressed]}
         accessibilityRole="button"
-        accessibilityLabel={`${liveCount} friends locked in with you${unread > 0 ? `, ${unread} unread` : ''}. Open.`}>
+        accessibilityLabel={`${liveCount > 0 ? `${liveCount} friends locked in with you` : 'Messages'}${unread > 0 ? `, ${unread} unread` : ''}. Open.`}>
         <FriendFaceStack people={friends} max={3} />
-        <Text style={styles.pillCount}>{liveCount} live</Text>
+        <Text style={styles.pillCount}>{label}</Text>
         <UnreadBadge count={unread} />
       </Pressable>
     </View>

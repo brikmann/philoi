@@ -365,7 +365,18 @@ function LockInScreen() {
       // branch below ends up running or how long it takes.
       startHandledRef.current = true;
       try {
-        const tutorialDone = await isFirstLockInTutorialDone();
+        let tutorialDone = await isFirstLockInTutorialDone();
+        // The flag is device-scoped and only set by a stop on this mount, so an idle auto-stop
+        // (0271), a stop from the notification, or a fresh install left it unset and the two
+        // tooltips replayed for people who have locked in plenty. Anyone with a streak on record
+        // has done this before — they never see it, and the flag catches up.
+        if (!tutorialDone) {
+          const streak = await fetchMyStreak(session.user.id).catch(() => null);
+          if (streak && streak.longest_streak > 0) {
+            tutorialDone = true;
+            void markFirstLockInTutorialDone();
+          }
+        }
         if (!screenMountedRef.current) return;
         if (!tutorialDone) {
           setTutorialStep(1);
