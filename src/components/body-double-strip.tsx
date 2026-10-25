@@ -40,14 +40,10 @@ function Avatar({ lockIn, size }: { lockIn: ActiveCircleLockIn; size: number }) 
 export type BodyDoubleCheers = { unread: number; onPress: () => void };
 
 function CheerAffordance({ cheers }: { cheers: BodyDoubleCheers }) {
+  if (cheers.unread <= 0) return null;
   return (
-    <View style={styles.cheerRow}>
-      {cheers.unread > 0 && (
-        <View style={styles.unread} accessibilityLabel={`${cheers.unread} unread`}>
-          <Text style={styles.unreadText}>{cheers.unread > 9 ? '9+' : cheers.unread}</Text>
-        </View>
-      )}
-      <Text style={styles.cheerText}>Cheer ›</Text>
+    <View style={[styles.cheerRow, styles.unread]} accessibilityLabel={`${cheers.unread} unread`}>
+      <Text style={styles.unreadText}>{cheers.unread > 9 ? '9+' : cheers.unread}</Text>
     </View>
   );
 }
@@ -186,15 +182,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   cheerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
     marginLeft: 'auto',
-  },
-  cheerText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 10,
-    color: Colors.ember,
   },
   unread: {
     minWidth: 16,
