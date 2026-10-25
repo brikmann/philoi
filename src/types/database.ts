@@ -3732,6 +3732,45 @@ export type Database = {
       };
       // 0245 — live status for a batch of users (≤200 ids), gated server-side for the caller.
       get_presence: { Args: { p_user_ids: string[] }; Returns: PresenceRow[] };
+      // 0270 — lock-in cheers + session-scoped messages. Rows are out_-prefixed (RETURNS TABLE
+      // shadowing); lib/api/lockin-cheers.ts maps them.
+      get_friends_locked_in: {
+        Args: Record<string, never>;
+        Returns: {
+          out_user_id: string;
+          out_display_name: string | null;
+          out_handle: string | null;
+          out_avatar_url: string | null;
+          out_live: boolean;
+          out_goal_type: string | null;
+          out_category: string | null;
+          out_activity: string | null;
+          out_started_at: string | null;
+          out_paused: boolean;
+          out_i_cheered: boolean;
+          out_thread_open: boolean;
+          out_unread: number;
+        }[];
+      };
+      get_my_lockin_cheers: {
+        Args: Record<string, never>;
+        Returns: {
+          out_id: string;
+          out_from_user: string;
+          out_display_name: string | null;
+          out_handle: string | null;
+          out_avatar_url: string | null;
+          out_preset: string;
+          out_created_at: string;
+        }[];
+      };
+      send_cheer: { Args: { p_to_user: string; p_preset: string }; Returns: boolean };
+      get_lockin_thread: {
+        Args: { p_with_user: string };
+        Returns: { out_id: string; out_from_me: boolean; out_body: string; out_created_at: string }[];
+      };
+      send_lockin_message: { Args: { p_to_user: string; p_body: string }; Returns: string };
+      report_lockin_thread: { Args: { p_with_user: string; p_reason: string; p_note?: string | null }; Returns: undefined };
       // 0245 — stamps the caller's last_seen_at (throttled to one write per 30s).
       touch_presence: { Args: Record<string, never>; Returns: undefined };
       /** Equipped cosmetics for OTHER users — keys only, nothing sellable or private. */

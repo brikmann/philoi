@@ -38,6 +38,8 @@ import { FireShareCard } from '@/components/fire-share-card';
 import { FlameMeterComplete } from '@/components/flame-meter-complete';
 import { LockInDoneScreen } from '@/components/lockin-done-screen';
 import { LockInPresencePill } from '@/components/lockin-presence-pill';
+import { CheerTally, LockedInWithYouCluster, LockInCheerBannerView } from '@/components/lockin-cheers/locked-in-with-you-cluster';
+import { LockInCheersSheet } from '@/components/lockin-cheers/lockin-cheers-sheet';
 import { RankUpCelebration } from '@/components/rank-up-celebration';
 import { RankUpShareCard } from '@/components/rank-up-share-card';
 import { StoryShareSheet } from '@/components/story-sticker/story-share-sheet';
@@ -51,6 +53,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveWorkout } from '@/hooks/use-active-workout';
 import { useCindy } from '@/hooks/use-cindy';
 import { useCindyLockInLine } from '@/hooks/use-cindy-lockin-line';
+import { useLockInCheers } from '@/hooks/use-lockin-cheers';
 import { useLockInPresence } from '@/hooks/use-lockin-presence';
 import { useElapsedSeconds } from '@/hooks/use-elapsed-seconds';
 import { useGatedInterval } from '@/hooks/use-motion-active';
@@ -549,6 +552,35 @@ function LockInScreen() {
   // re-joins on the next beat.
   const presence = useLockInPresence(activeSession && !stopping && !posted && !paused ? activeSession.id : null);
 
+  // ── Lock-in cheers (0270, mock 298) ── friends live right now, bottom-left; their cheers and
+  // lines land as a quiet banner over the timer and a tally under it. Paused still counts as
+  // live: the session hasn't ended, so the thread stays open.
+  const {
+    friends: cheerFriends,
+    cheers: cheersReceived,
+    unreadTotal: cheerUnread,
+    banners: cheerBanners,
+    inboundSeq: cheerInboundSeq,
+    dismissBanner: dismissCheerBanner,
+    markCheered,
+    markThreadRead,
+    refetch: refetchCheers,
+  } = useLockInCheers({ live: Boolean(activeSession) && !posted, banners: !posted });
+  const [cheersOpen, setCheersOpen] = useState(false);
+  const cheersSheet = (
+    <LockInCheersSheet
+      visible={cheersOpen}
+      onClose={() => setCheersOpen(false)}
+      friends={cheerFriends}
+      meId={session?.user.id ?? null}
+      meLive={Boolean(activeSession) && !posted}
+      inboundSeq={cheerInboundSeq}
+      onCheered={markCheered}
+      onThreadRead={markThreadRead}
+      onChanged={refetchCheers}
+    />
+  );
+
   const { consented: cindyConsented, bubbleEnabled } = useCindy();
   const [cindySheetOpen, setCindySheetOpen] = useState(false);
   const { line: cindyLine, dismiss: dismissCindyLine, notePr } = useCindyLockInLine({
@@ -1023,6 +1055,7 @@ function LockInScreen() {
           </View>
         </View>
         <GymScrim />
+        <LockInCheerBannerView banner={cheerBanners[0]} onDone={dismissCheerBanner} />
 
         <View style={styles.gymHeader}>
           <View style={styles.gymHeaderText}>
@@ -1093,6 +1126,9 @@ function LockInScreen() {
           <LockInPresencePill presence={presence} compact />
 
           <BodyDoubleStripCollapsed lockIns={activeLockIns} />
+
+          <LockedInWithYouCluster friends={cheerFriends} unread={cheerUnread} onPress={() => setCheersOpen(true)} />
+          <CheerTally cheers={cheersReceived} />
 
           {workoutLoading && !workout && <Text style={styles.loading}>Setting up your workout…</Text>}
 
@@ -1175,6 +1211,7 @@ function LockInScreen() {
         />
 
         {audioSheetOpen && <SessionAudioSheet visible onClose={() => setAudioSheetOpen(false)} />}
+        {cheersSheet}
       </LockInScreenFrame>
     );
   }
@@ -1193,6 +1230,7 @@ function LockInScreen() {
       // time is frozen) and the surge calms.
       overlay={<EquippedFlarePerimeter tier={flareTier} dampen={paused ? PAUSED_FLARE_DAMPEN : 1} />}>
       <DriftingEmbers />
+      <LockInCheerBannerView banner={cheerBanners[0]} onDone={dismissCheerBanner} />
 
       {/* TOP — centered activity over the campfire name, with minimize parked top-right. */}
       <View style={styles.top}>
@@ -1275,6 +1313,7 @@ function LockInScreen() {
         <View style={styles.presenceSlot}>
           <LockInPresencePill presence={presence} />
         </View>
+        <CheerTally cheers={cheersReceived} />
       </View>
 
       {/* BOTTOM — pinned, natural size. */}
@@ -1303,6 +1342,9 @@ function LockInScreen() {
         {error && <Text style={styles.error}>{error}</Text>}
 
         <TutorialTooltip visible={tutorialStep === 2} text="Tap Stop when you're done to lock it in for real." />
+
+        {/* "Locked in with you" — bottom-left, one tap, never leaves the session (mock 298). */}
+        <LockedInWithYouCluster friends={cheerFriends} unread={cheerUnread} onPress={() => setCheersOpen(true)} />
 
         <View style={styles.actions}>
           <Pressable
@@ -1368,6 +1410,7 @@ function LockInScreen() {
       />
 
       {audioSheetOpen && <SessionAudioSheet visible onClose={() => setAudioSheetOpen(false)} />}
+      {cheersSheet}
     </LockInScreenFrame>
   );
 }

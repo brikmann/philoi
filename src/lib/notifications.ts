@@ -4,18 +4,28 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { track } from '@/lib/analytics';
+import { isLockInInboundSurfaceActive, LOCKIN_CHEER_PUSH_TYPES } from '@/lib/api/lockin-cheers';
 import { supabase } from '@/lib/supabase';
 
 // Without this, expo-notifications silently swallows the banner/sound for any push that
 // arrives while the app is in the foreground — the OS still receives it, but nothing shows
 // on screen. Registered at module scope so it's set before the app can possibly receive one.
+//
+// The one exception: a lock-in cheer or message while the running timer is on screen. That screen
+// shows its own quiet banner for the same event, and a second, louder OS one over it is exactly
+// the focus break the feature promises not to cause.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    const type = (notification.request.content.data as { type?: unknown } | null)?.type;
+    const ownBanner =
+      typeof type === 'string' && LOCKIN_CHEER_PUSH_TYPES.has(type) && isLockInInboundSurfaceActive();
+    return {
+      shouldShowBanner: !ownBanner,
+      shouldShowList: true,
+      shouldPlaySound: !ownBanner,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 const REMINDER_MAP_KEY = 'philoi_group_reminders';
