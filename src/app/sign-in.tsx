@@ -14,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
+import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { trackAnonymous } from '@/lib/analytics';
@@ -121,8 +122,9 @@ export default function SignInScreen() {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
     Promise.all([isAppleSignInAvailable(), getAccountHint()]).then(([apple, stored]) => {
       setAppleAvailable(apple);
-      // An Apple hint on a device that can't run Sign in with Apple (Android) has no one-tap path,
-      // so it gets the plain screen — the hint stays for the device it was written on.
+      // An Apple hint on a device that can't run Sign in with Apple (Android) would make "Continue
+      // as" a dead button, so it gets the plain screen — the hint stays for the device it was
+      // written on.
       setHint(stored && (stored.provider !== 'apple' || apple) ? stored : null);
     });
   }, []);
@@ -171,8 +173,6 @@ export default function SignInScreen() {
   if (hint === undefined) return <Screen style={styles.container} />;
 
   if (welcomeBack) {
-    const other: AccountHintProvider = welcomeBack.provider === 'google' ? 'apple' : 'google';
-    const showOther = other === 'google' || appleAvailable;
     return (
       <Screen style={styles.container}>
         <View style={styles.spacer} />
@@ -185,41 +185,31 @@ export default function SignInScreen() {
 
         <View style={styles.spacer} />
 
-        <Pressable
-          style={[styles.continueBtn, welcomeBack.provider === 'apple' && styles.continueBtnApple]}
-          onPress={() => handleContinue(welcomeBack)}
-          disabled={loading}
-          accessibilityRole="button"
-          accessibilityLabel={`Continue as @${welcomeBack.handle} with ${welcomeBack.provider === 'apple' ? 'Apple' : 'Google'}`}
-        >
-          <Ionicons
-            name={welcomeBack.provider === 'apple' ? 'logo-apple' : 'logo-google'}
-            size={18}
-            color={welcomeBack.provider === 'apple' ? '#000' : Colors.cream}
+        {/* Philoi's own primary — no provider logo, no provider styling, so it imitates nobody's
+            button. Which provider it relaunches is an implementation detail of the tap. */}
+        <View style={styles.continueWrap}>
+          <PrimaryButton
+            label={`Continue as @${welcomeBack.handle}`}
+            onPress={() => handleContinue(welcomeBack)}
+            loading={loading}
           />
-          <Text
-            style={[styles.googleBtnLabel, welcomeBack.provider === 'apple' && styles.continueLabelApple]}
-            numberOfLines={1}
-          >
-            {loading ? 'Connecting…' : `Continue as @${welcomeBack.handle}`}
-          </Text>
-        </Pressable>
+        </View>
 
-        {showOther &&
-          (other === 'apple' ? (
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE}
-              cornerRadius={15}
-              style={styles.otherAppleBtn}
-              onPress={() => void run(signInWithApple, true)}
-            />
-          ) : (
-            <Pressable style={styles.otherBtn} onPress={() => void run(signInWithGoogle, true)} disabled={loading}>
-              <Ionicons name="logo-google" size={18} color={Colors.ink} />
-              <Text style={styles.otherBtnLabel}>Sign in with Google</Text>
-            </Pressable>
-          ))}
+        {/* The real branded buttons, the same ones the plain screen draws — Apple's own component,
+            offered wherever Google is, so 4.8's equivalence holds here too. */}
+        {appleAvailable && (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+            cornerRadius={15}
+            style={styles.appleBtn}
+            onPress={() => void run(signInWithApple, true)}
+          />
+        )}
+        <Pressable style={styles.googleBtn} onPress={() => void run(signInWithGoogle, true)} disabled={loading}>
+          <Ionicons name="logo-google" size={18} color={Colors.cream} />
+          <Text style={styles.googleBtnLabel}>Sign in with Google</Text>
+        </Pressable>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -375,47 +365,9 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     marginTop: 4,
   },
-  continueBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
+  continueWrap: {
     width: '100%',
-    backgroundColor: Colors.ink,
-    borderRadius: 15,
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-  },
-  // Apple's own white button, closely copied (the HIG allows that) — the stock component can't say
-  // "Continue as @handle".
-  continueBtnApple: {
-    backgroundColor: '#FFFFFF',
-  },
-  continueLabelApple: {
-    color: '#000',
-  },
-  otherAppleBtn: {
-    width: '100%',
-    height: 50,
-    marginTop: Spacing.twelve,
-  },
-  otherBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-    width: '100%',
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    paddingVertical: 14,
-    paddingHorizontal: 15,
-    marginTop: Spacing.twelve,
-  },
-  otherBtnLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
-    color: Colors.ink,
+    marginBottom: Spacing.three,
   },
   notYou: {
     marginTop: Spacing.three,
