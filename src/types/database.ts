@@ -3624,7 +3624,7 @@ export type Database = {
       get_identity_badges: { Args: { p_user_ids: string[] }; Returns: IdentityBadge[] };
       // The fitness/any-stat board (0265): both board gates, verified-only filter, identity columns.
       get_metric_leaderboard: {
-        Args: { p_metric: string; p_scope?: string; p_window?: string; p_limit?: number | null; p_verified_only?: boolean };
+        Args: { p_metric: string; p_scope?: string; p_window?: string; p_limit?: number | null; p_verified_only?: boolean; p_include_unranked?: boolean };
         Returns: MetricLeaderboardRow[];
       };
       // Compare-anyone (0265). Raises with hint 'rank_private' if either side hides their rank.

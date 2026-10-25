@@ -187,7 +187,10 @@ function FitnessBoardRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${row.display_name}, rank ${row.rank}, ${value}`}>
-      <Text style={[styles.pos, MEDAL_COLOR[row.rank] ? { color: MEDAL_COLOR[row.rank] } : null]}>{row.rank}</Text>
+      {/* rank is null only on the 0276 unranked tail, which this board never asks for. */}
+      <Text style={[styles.pos, row.rank != null && MEDAL_COLOR[row.rank] ? { color: MEDAL_COLOR[row.rank] } : null]}>
+        {row.rank ?? '—'}
+      </Text>
       {/* Static flares: a board is a long list. */}
       <CosmeticAvatar userId={row.user_id} name={row.display_name} avatarUrl={row.avatar_url} size={30} loadout={loadout} motion="reduced" />
       <View style={styles.who}>

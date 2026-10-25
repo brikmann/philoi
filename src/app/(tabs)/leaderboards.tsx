@@ -19,6 +19,7 @@ import { HouseSeal } from '@/components/house/house-seal';
 import { IdentityLine } from '@/components/house/identity-line';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { PrivateClimb } from '@/components/private-climb';
+import { usePresence } from '@/hooks/use-presence';
 import { Avatar } from '@/components/ui/avatar';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMetricCatalog, useMetricLeaderboard } from '@/hooks/use-metric-leaderboard';
@@ -26,15 +27,21 @@ import { fetchMyProgram } from '@/lib/api/house';
 import { rankVisibilityOf } from '@/lib/api/privacy';
 import { useAuth } from '@/lib/auth/auth-context';
 import { formatMetricValue } from '@/lib/stats/format';
+import type { PresenceRow } from '@/types/database';
 import type { MetricCatalogRow, MetricLeaderboardRow, MetricScope, MyProgramRow } from '@/types/house';
 
 // THE LEADERBOARD TAB — the new global board (nav restructure, mock 302). Clean and simple: one
 // scope toggle, one metric picker, ranked rows that each carry the person's Heir identity (house
 // seal + program line), you highlighted. Everything reads get_metric_leaderboard (0265) as-is.
 //
+// EVERY MEMBER IN SCOPE (0276): ranked people first, then everyone with nothing logged as "not
+// ranked yet", so the board reads as the real member base. A server without 0276 just returns the
+// ranked part (stats.ts falls back). The green dot is live presence (get_presence, polled while
+// focused); "Live now" narrows the board to who's locked in this minute.
+//
 // Row body → Head-to-Head vs them. Avatar → their profile. Your own row → your fire (rank detail).
-// The older board views (campfire boards, uni-vs-uni, the podium) live one tap away at /all-boards,
-// with the fitness boards and Challenges beside them, so the compete loop lost nothing in the move.
+// The pre-restructure board screen is gone (ui_pass2 §8): this is the only board UI. Fitness boards
+// and Challenges sit one tap away in the tools row; a campfire's own board lives on the campfire.
 
 const SCOPES: { key: MetricScope; label: string }[] = [
   { key: 'global', label: 'Global' },
@@ -46,7 +53,7 @@ const SCOPES: { key: MetricScope; label: string }[] = [
 const DEFAULT_METRIC = 'season_xp';
 
 // Server-written pushes still name the OLD board's scopes (0253 sends {"scope":"uni"}); map them
-// onto this board's. 'camp' and 'vs' have no equivalent here — they stay on /all-boards.
+// onto this board's. 'camp' and 'vs' have no equivalent here and land on the Global default.
 const LINKED_SCOPE: Record<string, MetricScope> = {
   uni: 'my_uni',
   my_uni: 'my_uni',
@@ -74,6 +81,7 @@ export default function LeaderboardTab() {
   const { catalog } = useMetricCatalog();
   const [metricKey, setMetricKey] = useState(DEFAULT_METRIC);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [liveOnly, setLiveOnly] = useState(false);
   const stat = catalog.find((r) => r.key === metricKey) ?? null;
 
   const [program, setProgram] = useState<MyProgramRow | null>(null);
@@ -100,7 +108,11 @@ export default function LeaderboardTab() {
     metric: held || !stat ? null : stat.metric,
     scope,
     window: stat?.metric_window ?? 'all',
+    includeUnranked: true,
   });
+  const presence = usePresence(rows.map((r) => r.user_id));
+  const liveCount = rows.filter((r) => presence[r.user_id]?.locked_in).length;
+  const shownRows = liveOnly ? rows.filter((r) => presence[r.user_id]?.locked_in) : rows;
 
   const format = (v: number) => (stat ? formatMetricValue(stat.unit, v) : String(v));
 
@@ -119,10 +131,6 @@ export default function LeaderboardTab() {
       <AppTopBar />
       <View style={styles.head}>
         <Text style={styles.title}>Leaderboard</Text>
-        <Pressable onPress={() => router.push('/all-boards')} hitSlop={8} accessibilityRole="button" style={styles.more}>
-          <Text style={styles.moreText}>All boards</Text>
-          <Ionicons name="chevron-forward" size={13} color={Colors.spaceDim} />
-        </Pressable>
       </View>
 
       {dial === 'private' ? (
@@ -152,6 +160,15 @@ export default function LeaderboardTab() {
               </Text>
               <Ionicons name="chevron-down" size={14} color={Colors.spaceDim} />
             </Pressable>
+            <Pressable
+              style={[styles.live, liveOnly && styles.liveOn]}
+              onPress={() => setLiveOnly((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: liveOnly }}
+              accessibilityLabel={`Live now, ${liveCount} locked in`}>
+              <View style={styles.liveDot} />
+              <Text style={[styles.liveText, liveOnly && styles.liveTextOn]}>Live {liveCount > 0 ? liveCount : ''}</Text>
+            </Pressable>
             <QuickLink label="Fitness" onPress={() => router.push('/fitness')} />
             <QuickLink label="Challenges" onPress={() => router.push('/challenges')} />
           </View>
@@ -160,7 +177,7 @@ export default function LeaderboardTab() {
             <GateNotice gate={gate} />
           ) : (
             <FlatList
-              data={rows}
+              data={shownRows}
               keyExtractor={(r) => r.user_id}
               contentContainerStyle={styles.list}
               refreshControl={<RefreshControl refreshing={loading && rows.length > 0} onRefresh={refetch} tintColor={Colors.navEmber} />}
@@ -168,11 +185,19 @@ export default function LeaderboardTab() {
                 loading ? (
                   <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
                 ) : (
-                  <Text style={styles.empty}>{error ?? 'Nobody on this board yet — lock in and open it.'}</Text>
+                  <Text style={styles.empty}>
+                    {error ?? (liveOnly ? 'Nobody on this board is locked in right now.' : 'Nobody on this board yet — lock in and open it.')}
+                  </Text>
                 )
               }
               renderItem={({ item }) => (
-                <BoardRow row={item} value={format(item.value)} onPressRow={openRow} onPressAvatar={openProfile} />
+                <BoardRow
+                  row={item}
+                  value={item.rank == null ? '—' : format(item.value)}
+                  presence={presence[item.user_id]}
+                  onPressRow={openRow}
+                  onPressAvatar={openProfile}
+                />
               )}
             />
           )}
@@ -196,11 +221,13 @@ export default function LeaderboardTab() {
 function BoardRow({
   row,
   value,
+  presence,
   onPressRow,
   onPressAvatar,
 }: {
   row: MetricLeaderboardRow;
   value: string;
+  presence: PresenceRow | undefined;
   onPressRow: (row: MetricLeaderboardRow) => void;
   onPressAvatar: (row: MetricLeaderboardRow) => void;
 }) {
@@ -217,14 +244,18 @@ function BoardRow({
       style={[styles.row, row.is_me && styles.rowMe]}
       onPress={() => onPressRow(row)}
       accessibilityRole="button"
-      accessibilityLabel={`${row.rank}. ${row.is_me ? 'You' : row.display_name}, ${value}${row.is_me ? '' : '. Head-to-head'}`}>
-      <Text style={[styles.rank, { color: rankColor }]}>{row.rank}</Text>
+      accessibilityLabel={`${row.rank == null ? 'Not ranked yet' : row.rank}. ${row.is_me ? 'You' : row.display_name}${presence?.locked_in ? ', locked in now' : ''}, ${value}${row.is_me ? '' : '. Head-to-head'}`}>
+      <Text style={[styles.rank, { color: rankColor }]}>{row.rank ?? '—'}</Text>
       <Pressable onPress={() => onPressAvatar(row)} hitSlop={6} accessibilityRole="button" accessibilityLabel="Open profile">
         {row.avatar_url ? (
           <Image source={{ uri: row.avatar_url }} style={styles.avatar} contentFit="cover" />
         ) : (
           <Avatar label={initials} size={36} />
         )}
+        {/* Presence: bright = locked in now, soft = online. Nothing when neither. */}
+        {presence?.locked_in || presence?.online ? (
+          <View style={[styles.presenceDot, !presence.locked_in && styles.presenceDotOnline]} />
+        ) : null}
       </Pressable>
       <View style={styles.who}>
         <View style={styles.nameLine}>
@@ -233,7 +264,11 @@ function BoardRow({
           </Text>
           {row.patron_key ? <HouseSeal patronKey={row.patron_key} size={13} /> : null}
         </View>
-        <IdentityLine userId={row.user_id} university={row.university} style={styles.identity} />
+        {row.rank == null ? (
+          <Text style={styles.identity}>Not ranked yet</Text>
+        ) : (
+          <IdentityLine userId={row.user_id} university={row.university} style={styles.identity} />
+        )}
       </View>
       <Text style={styles.value}>{value}</Text>
     </Pressable>
@@ -342,16 +377,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: Colors.ink,
   },
-  more: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  moreText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.spaceDim,
-  },
   scope: {
     flexDirection: 'row',
     marginHorizontal: Spacing.three,
@@ -403,6 +428,49 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
     color: Colors.ink,
+  },
+  live: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    borderRadius: 11,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  liveOn: {
+    backgroundColor: 'rgba(57,217,138,0.14)',
+    borderColor: '#39D98A',
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#39D98A',
+  },
+  liveText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.spaceDim,
+  },
+  liveTextOn: {
+    color: '#39D98A',
+  },
+  presenceDot: {
+    position: 'absolute',
+    right: -1,
+    bottom: -1,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: '#39D98A',
+    borderWidth: 2,
+    borderColor: Colors.spacePanel,
+  },
+  presenceDotOnline: {
+    backgroundColor: '#2A8A5C',
   },
   quick: {
     paddingVertical: 9,

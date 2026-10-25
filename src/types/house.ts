@@ -60,7 +60,8 @@ export type MetricLeaderboardRow = {
   verified: boolean | null;
   tier: string;
   division: number;
-  rank: number;
+  /** Null only for the unranked tail (0276 p_include_unranked) — someone in scope with nothing logged. */
+  rank: number | null;
   is_me: boolean;
   university: string | null;
   patron_key: string | null;

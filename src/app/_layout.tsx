@@ -21,6 +21,7 @@ import { FocusNudgeSync } from '@/components/focus-nudge-sync';
 import { LiveActivitySync } from '@/components/live-activity-sync';
 import { PresenceHeartbeat } from '@/components/presence-heartbeat';
 import { NavDrawerProvider } from '@/components/nav/app-drawer';
+import { GlobalFooter } from '@/components/nav/global-footer';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { OfflineBanner } from '@/components/offline-banner';
 import { RankUpWatcher } from '@/components/rank-up-watcher';
@@ -617,7 +618,6 @@ function RootNavigator() {
             (your fire = the fire strip's destination; all boards = the classic board views). */}
         <Stack.Screen name="messages" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="your-fire" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
-        <Stack.Screen name="all-boards" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* The Agora (AGORA_SPEC) — the town square, a Social destination beside Campfires and
             Friends. The composer is a modal so posting reads as an interruption you return from,
             not as somewhere you navigated to. */}
@@ -731,9 +731,14 @@ function RootLayout() {
                 NativeStackView), and with no ThemeProvider that is DefaultTheme's white. The
                 transparent contentStyle on each scene just reveals that white container instead
                 of this radial. Android ignores nativeContainerStyle, which is why it looked fine. */}
-            <ThemeProvider value={navTheme}>
-              <RootNavigator />
-            </ThemeProvider>
+            <View style={styles.navigatorArea}>
+              <ThemeProvider value={navTheme}>
+                <RootNavigator />
+              </ThemeProvider>
+            </View>
+            {/* THE footer (ui_pass2 §2) — under the navigator in normal flow, so every screen lays out
+                above it, tabs and drawer screens alike. It decides for itself where it hides. */}
+            <GlobalFooter />
             {/* Renders nothing until a rank actually climbs. Mounted here, above the navigator, so
                 a rank earned from server-side XP (Strava/Whoop webhook, challenge payout) still
                 gets the forge no matter which screen the user is on — the done screen can only ever
@@ -868,6 +873,9 @@ function RootLayout() {
 export default Sentry.wrap(RootLayout);
 
 const styles = StyleSheet.create({
+  navigatorArea: {
+    flex: 1,
+  },
   errorContainer: {
     flex: 1,
     backgroundColor: Colors.cream,

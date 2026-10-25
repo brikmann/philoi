@@ -16,12 +16,15 @@ export function useMetricLeaderboard({
   window,
   limit = null,
   verifiedOnly = false,
+  includeUnranked = false,
 }: {
   metric: string | null;
   scope: MetricScope;
   window: MetricWindow;
   limit?: number | null;
   verifiedOnly?: boolean;
+  /** 0276 — append everyone in scope with nothing logged (rank null). */
+  includeUnranked?: boolean;
 }) {
   const [rows, setRows] = useState<MetricLeaderboardRow[]>([]);
   const [loading, setLoading] = useState(metric !== null);
@@ -40,7 +43,7 @@ export function useMetricLeaderboard({
     setLoading(true);
     try {
       setError(null);
-      const next = await fetchMetricLeaderboard({ metric, scope, window, limit, verifiedOnly });
+      const next = await fetchMetricLeaderboard({ metric, scope, window, limit, verifiedOnly, includeUnranked });
       if (mine === seq.current) setRows(next);
     } catch (e) {
       if (mine === seq.current) {
@@ -50,7 +53,7 @@ export function useMetricLeaderboard({
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [metric, scope, window, limit, verifiedOnly]);
+  }, [metric, scope, window, limit, verifiedOnly, includeUnranked]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-change, no caching layer to defer to
