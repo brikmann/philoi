@@ -23,6 +23,19 @@ export async function track(name: AnalyticsEventName, properties: AnalyticsPrope
   }
 }
 
+/**
+ * PostHog-only capture for events that happen before anyone is signed in (the sign-in screen).
+ * track() drops those — the Supabase `events` row needs a user_id — so they'd never be seen.
+ * PostHog attributes them to the device's anonymous id and stitches it on the next identify().
+ */
+export function trackAnonymous(name: AnalyticsEventName, properties: AnalyticsProperties = {}) {
+  try {
+    posthog?.capture(name, properties);
+  } catch (e) {
+    console.warn('[analytics] failed to track event:', name, e);
+  }
+}
+
 export function identify(userId: string, traits: AnalyticsProperties = {}) {
   posthog?.identify(userId, traits);
 }

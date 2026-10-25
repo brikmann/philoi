@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -15,7 +16,15 @@ import Animated, {
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { isAppleSignInAvailable, signInWithApple, signInWithGoogle } from '@/lib/auth/providers';
+import { trackAnonymous } from '@/lib/analytics';
+import { clearAccountHint, getAccountHint, type AccountHint, type AccountHintProvider } from '@/lib/auth/account-hint';
+import {
+  isAccountUnavailableError,
+  isAppleSignInAvailable,
+  isSignInCancelled,
+  signInWithApple,
+  signInWithGoogle,
+} from '@/lib/auth/providers';
 import { getErrorMessage } from '@/lib/errors';
 
 // design-mocks/01-splash.html's `@keyframes emb` — embers spawn full-size near the flame,
@@ -73,29 +82,153 @@ function FlickeringFlame({ reduceMotion }: { reduceMotion: boolean }) {
   );
 }
 
+// Photo when the hint has one that still loads, initials when it doesn't — a remembered avatar_url
+// can be a provider URL that has since expired.
+function HintAvatar({ hint }: { hint: AccountHint }) {
+  const [broken, setBroken] = useState(false);
+  const initials = (hint.display_name || hint.handle)
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join('');
+
+  if (hint.avatar_url && !broken) {
+    return <Image source={{ uri: hint.avatar_url }} style={styles.hintAvatar} onError={() => setBroken(true)} />;
+  }
+  return (
+    <View style={[styles.hintAvatar, styles.hintAvatarFallback]}>
+      <Text style={styles.hintInitials}>{initials || '?'}</Text>
+    </View>
+  );
+}
+
+const SIGN_IN_FOR: Record<AccountHintProvider, () => Promise<void>> = {
+  google: signInWithGoogle,
+  apple: signInWithApple,
+};
+
 export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
+  // `undefined` while the hint and Apple availability are still being read, so the screen never
+  // flashes the plain buttons and then swaps to "Welcome back" (or the reverse) a beat later.
+  const [hint, setHint] = useState<AccountHint | null | undefined>(undefined);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
-    isAppleSignInAvailable().then(setAppleAvailable);
+    Promise.all([isAppleSignInAvailable(), getAccountHint()]).then(([apple, stored]) => {
+      setAppleAvailable(apple);
+      // An Apple hint on a device that can't run Sign in with Apple (Android) has no one-tap path,
+      // so it gets the plain screen — the hint stays for the device it was written on.
+      setHint(stored && (stored.provider !== 'apple' || apple) ? stored : null);
+    });
   }, []);
 
+  const welcomeBack = hint ?? null;
+  useEffect(() => {
+    if (welcomeBack) trackAnonymous('welcome_back_shown', { provider: welcomeBack.provider });
+  }, [welcomeBack]);
+
   // One loading flag for both providers: two OS sheets racing each other is never what anyone meant.
-  async function run(signIn: () => Promise<void>) {
+  // `quietCancel` is the welcome-back screen's: backing out of the sheet there is not an error.
+  async function run(signIn: () => Promise<void>, quietCancel = false) {
     if (loading) return;
     setError(null);
     setLoading(true);
     try {
       await signIn();
     } catch (e) {
+      if (quietCancel && isSignInCancelled(e)) return;
+      if (welcomeBack && isAccountUnavailableError(e)) {
+        // The remembered account is deleted or barred — don't strand them greeting it.
+        await clearAccountHint();
+        setHint(null);
+      }
       setError(getErrorMessage(e, 'Something went wrong — try again.'));
     } finally {
       setLoading(false);
     }
+  }
+
+  // No auto-submit, ever: "Continue as" is a deliberate tap, so nobody holding the phone gets
+  // signed in by just opening the app. A different account coming back is accepted as-is —
+  // auth-context overwrites the hint on the profile load.
+  function handleContinue(remembered: AccountHint) {
+    trackAnonymous('welcome_back_continue', { provider: remembered.provider });
+    void run(SIGN_IN_FOR[remembered.provider], true);
+  }
+
+  async function handleNotYou() {
+    trackAnonymous('welcome_back_switch');
+    setError(null);
+    await clearAccountHint();
+    setHint(null);
+  }
+
+  if (hint === undefined) return <Screen style={styles.container} />;
+
+  if (welcomeBack) {
+    const other: AccountHintProvider = welcomeBack.provider === 'google' ? 'apple' : 'google';
+    const showOther = other === 'google' || appleAvailable;
+    return (
+      <Screen style={styles.container}>
+        <View style={styles.spacer} />
+
+        <HintAvatar hint={welcomeBack} />
+        <Text style={styles.welcomeKicker}>Welcome back,</Text>
+        <Text style={styles.welcomeHandle} numberOfLines={1}>
+          @{welcomeBack.handle}
+        </Text>
+
+        <View style={styles.spacer} />
+
+        <Pressable
+          style={[styles.continueBtn, welcomeBack.provider === 'apple' && styles.continueBtnApple]}
+          onPress={() => handleContinue(welcomeBack)}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel={`Continue as @${welcomeBack.handle} with ${welcomeBack.provider === 'apple' ? 'Apple' : 'Google'}`}
+        >
+          <Ionicons
+            name={welcomeBack.provider === 'apple' ? 'logo-apple' : 'logo-google'}
+            size={18}
+            color={welcomeBack.provider === 'apple' ? '#000' : Colors.cream}
+          />
+          <Text
+            style={[styles.googleBtnLabel, welcomeBack.provider === 'apple' && styles.continueLabelApple]}
+            numberOfLines={1}
+          >
+            {loading ? 'Connecting…' : `Continue as @${welcomeBack.handle}`}
+          </Text>
+        </Pressable>
+
+        {showOther &&
+          (other === 'apple' ? (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE_OUTLINE}
+              cornerRadius={15}
+              style={styles.otherAppleBtn}
+              onPress={() => void run(signInWithApple, true)}
+            />
+          ) : (
+            <Pressable style={styles.otherBtn} onPress={() => void run(signInWithGoogle, true)} disabled={loading}>
+              <Ionicons name="logo-google" size={18} color={Colors.ink} />
+              <Text style={styles.otherBtnLabel}>Sign in with Google</Text>
+            </Pressable>
+          ))}
+
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        <Pressable onPress={() => void handleNotYou()} disabled={loading} hitSlop={8} style={styles.notYou}>
+          <Text style={styles.notYouLabel}>Not you? Use another account</Text>
+        </Pressable>
+        <Text style={styles.fine}>By continuing you agree to our Terms &amp; Privacy Policy.</Text>
+      </Screen>
+    );
   }
 
   return (
@@ -211,6 +344,87 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 15,
     color: Colors.cream,
+  },
+  hintAvatar: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: Colors.disabled,
+    borderWidth: 2,
+    borderColor: Colors.amber,
+  },
+  hintAvatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hintInitials: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 36,
+    color: Colors.ink,
+  },
+  welcomeKicker: {
+    fontFamily: Fonts.body,
+    fontSize: 15,
+    color: Colors.muted,
+    marginTop: Spacing.three,
+  },
+  welcomeHandle: {
+    fontFamily: Fonts.display,
+    fontSize: 30,
+    letterSpacing: 0.5,
+    color: Colors.ink,
+    marginTop: 4,
+  },
+  continueBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    width: '100%',
+    backgroundColor: Colors.ink,
+    borderRadius: 15,
+    paddingVertical: 15,
+    paddingHorizontal: 15,
+  },
+  // Apple's own white button, closely copied (the HIG allows that) — the stock component can't say
+  // "Continue as @handle".
+  continueBtnApple: {
+    backgroundColor: '#FFFFFF',
+  },
+  continueLabelApple: {
+    color: '#000',
+  },
+  otherAppleBtn: {
+    width: '100%',
+    height: 50,
+    marginTop: Spacing.twelve,
+  },
+  otherBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    width: '100%',
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+    paddingVertical: 14,
+    paddingHorizontal: 15,
+    marginTop: Spacing.twelve,
+  },
+  otherBtnLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 15,
+    color: Colors.ink,
+  },
+  notYou: {
+    marginTop: Spacing.three,
+  },
+  notYouLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.muted,
+    textDecorationLine: 'underline',
   },
   error: {
     fontFamily: Fonts.body,

@@ -292,6 +292,12 @@ export default function SettingsScreen() {
     signOut();
   }
 
+  // Plain sign-out keeps the welcome-back hint so coming back is one tap; this one drops it too,
+  // for a shared or borrowed phone. Same no-confirm reasoning as above.
+  function handleSignOutAndForget() {
+    signOut({ forget: true });
+  }
+
   function handleEmailUs() {
     Linking.openURL(`mailto:${CONTACT_EMAIL}`).catch(() => {
       Alert.alert('No mail app found', `Email us at ${CONTACT_EMAIL} and we'll pick it up from there.`);
@@ -322,7 +328,8 @@ export default function SettingsScreen() {
       await revokeAppleSignInBestEffort(session?.user);
       await deleteMyAccount();
       setDeleteModalOpen(false);
-      await signOut();
+      // Forget too — never greet a deleted account on the next sign-in screen.
+      await signOut({ forget: true });
     } catch (e) {
       Alert.alert('Could not delete account', getErrorMessage(e, 'Try again or contact support@philoi.app.'));
     } finally {
@@ -703,6 +710,13 @@ export default function SettingsScreen() {
         <Text style={styles.sectionLabel}>ACCOUNT</Text>
         <View style={styles.group}>
           <SettingsRow icon="log-out" label="Sign out" chevron={false} onPress={handleSignOut} />
+          <SettingsRow
+            icon="person-remove-outline"
+            label="Sign out & forget this device"
+            description="Next time, sign in from scratch instead of “Welcome back”."
+            chevron={false}
+            onPress={handleSignOutAndForget}
+          />
           <SettingsRow
             icon="trash"
             label="Delete account"

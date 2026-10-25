@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session, User } from '@supabase/supabase-js';
 
 import { identify, track } from '@/lib/analytics';
+import { clearAccountHint, rememberAccount } from '@/lib/auth/account-hint';
 import { signOutGoogle } from '@/lib/auth/providers';
 import { configureBilling, resetBilling } from '@/lib/billing';
 import { getErrorMessage } from '@/lib/errors';
@@ -27,7 +28,11 @@ type AuthContextValue = {
   /** True when a moderator has disabled this account (e.g. a confirmed CSAE action) — see admin_disable_account() in schema.sql. */
   needsAccountDisabled: boolean;
   refreshProfile: () => Promise<void>;
-  signOut: () => Promise<void>;
+  /**
+   * `forget` also deletes the welcome-back hint, so the next sign-in screen is the plain one
+   * ("Sign out & forget this device", account deletion). Plain sign-out keeps it.
+   */
+  signOut: (options?: { forget?: boolean }) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -118,6 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const row = await ensureProfile(user);
     setProfile(row);
+    // Fire-and-forget: the welcome-back hint must never slow or fail a profile load.
+    void rememberAccount(user, row);
     identify(row.id, { handle: row.handle, university: row.university, display_name: row.display_name });
   }
 
@@ -188,8 +195,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     needsConsent: Boolean(session && profile && !profile.has_consented),
     needsAccountDisabled: Boolean(session && profile && profile.is_disabled),
     refreshProfile: async () => loadProfileFor(session?.user),
-    signOut: async () => {
+    signOut: async (options) => {
       const userId = session?.user.id;
+      // First, before anything that can be slow: the sign-in screen reads the hint the moment the
+      // auth gate lands there, and must not greet an account that asked to be forgotten.
+      if (options?.forget) await clearAccountHint();
       // Drop the local session/profile BEFORE any of the awaits below (punchlist 6 §1). The
       // previous account's row — university_email_verified in particular — must never be
       // readable by a screen rendered after sign-out, and every call here is a network call

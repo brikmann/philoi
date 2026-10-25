@@ -36,7 +36,8 @@ export default function AccountDisabledScreen() {
         </Text>
       </View>
 
-      <SecondaryButton label="Sign out" onPress={() => signOut()} />
+      {/* Forget, so the sign-in screen doesn't keep offering a one-tap way back into this. */}
+      <SecondaryButton label="Sign out" onPress={() => signOut({ forget: true })} />
     </Screen>
   );
 }

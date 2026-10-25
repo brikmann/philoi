@@ -1313,7 +1313,13 @@ export type AnalyticsEventName =
   | 'focus_nudge_apps_picked'
   | 'focus_nudge_disclosure_accepted'
   | 'focus_nudge_auto_toggled'
-  | 'focus_nudge_line_fetched';
+  | 'focus_nudge_line_fetched'
+  // Account memory ("Welcome back, @handle" on the sign-in screen). All three fire BEFORE there is
+  // a session, so they go to PostHog only (trackAnonymous) — the events table needs a user_id.
+  // shown → continue is the re-login rate this screen exists to raise; switch is "Not you?".
+  | 'welcome_back_shown'
+  | 'welcome_back_continue'
+  | 'welcome_back_switch';
 
 export type AnalyticsEvent = {
   id: string;

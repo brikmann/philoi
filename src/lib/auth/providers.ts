@@ -12,6 +12,28 @@ import { supabase } from '@/lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
+// Every provider below normalises its own cancel shape (Google SDK code, browser dismiss, Apple's
+// ERR_REQUEST_CANCELED) into this one message, so a caller can tell "they backed out" from a real
+// failure without knowing which SDK ran.
+const SIGN_IN_CANCELLED = 'Sign-in was cancelled.';
+
+export function isSignInCancelled(e: unknown): boolean {
+  return e instanceof Error && e.message === SIGN_IN_CANCELLED;
+}
+
+/**
+ * True when the provider handshake worked but the ACCOUNT is gone or barred (deleted, banned). The
+ * welcome-back screen drops its hint on these rather than keep greeting an account that can't
+ * come back. Matches GoTrue's codes, and its messages for the OAuth redirect path, which only
+ * carries text.
+ */
+export function isAccountUnavailableError(e: unknown): boolean {
+  const code = (e as { code?: unknown } | null)?.code;
+  if (code === 'user_banned' || code === 'user_not_found') return true;
+  const message = e instanceof Error ? e.message.toLowerCase() : '';
+  return message.includes('user is banned') || message.includes('user not found');
+}
+
 const GOOGLE_WEB_CLIENT_ID: string | null = Constants.expoConfig?.extra?.googleWebClientId ?? null;
 const GOOGLE_IOS_CLIENT_ID: string | null = Constants.expoConfig?.extra?.googleIosClientId ?? null;
 
@@ -96,7 +118,7 @@ async function signInWithGoogleOAuth() {
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   if (result.type === 'cancel' || result.type === 'dismiss') {
-    throw new Error('Sign-in was cancelled.');
+    throw new Error(SIGN_IN_CANCELLED);
   }
   if (result.type !== 'success' || !result.url) {
     throw new Error('Google sign-in did not complete.');
@@ -172,7 +194,7 @@ async function signInWithGoogleNative() {
 
   const response = await GoogleSignin.signIn();
   if (isCancelledResponse(response)) {
-    throw new Error('Sign-in was cancelled.');
+    throw new Error(SIGN_IN_CANCELLED);
   }
   if (!isSuccessResponse(response) || !response.data.idToken) {
     throw new Error('Google did not return a sign-in token.');
@@ -196,7 +218,7 @@ export async function signInWithGoogle() {
       await signInWithGoogleNative();
     } catch (e) {
       if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) {
-        throw new Error('Sign-in was cancelled.');
+        throw new Error(SIGN_IN_CANCELLED);
       }
       throw e;
     }
@@ -244,7 +266,7 @@ export async function signInWithApple() {
     });
   } catch (e) {
     if ((e as { code?: string })?.code === 'ERR_REQUEST_CANCELED') {
-      throw new Error('Sign-in was cancelled.');
+      throw new Error(SIGN_IN_CANCELLED);
     }
     throw e;
   }
