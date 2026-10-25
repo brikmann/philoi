@@ -61,6 +61,14 @@ export async function attachWorkoutSetClip(input: {
   return data;
 }
 
+// Moves a consented PR clip out of the 90-day retention rule (gym-clip-pin), so the board's
+// "✓ clip on file" never outlives the clip. Owner + consent are re-checked server-side.
+export async function pinPrClip(workoutSetId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('gym-clip-pin', { body: { workoutSetId } });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
 export async function removeWorkoutSetClip(workoutSetId: string): Promise<void> {
   const { error } = await supabase.rpc('remove_workout_set_clip', { p_workout_set_id: workoutSetId });
   if (error) throw error;

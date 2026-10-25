@@ -23,9 +23,9 @@ import type { ExerciseAgg, ExerciseUnit, MetricLeaderboardRow, MetricScope, MyPr
 // ONE EXERCISE'S BOARD (mocks 294/295) — any movement, `?slug=&name=&unit=`. An aggregation toggle
 // that fits the exercise's unit, the Fitness board's scopes, and a "Verified only" filter.
 //
-// Clips are REVIEW-ONLY. A row says "✓ clip on file" or "no clip · unverified" and nothing more:
-// there is no watch button anywhere, because without an age gate a public clip feed would broadcast
-// minors' workout video. Tapping someone's PR explains that and offers the one lever the community
+// Clips are NEVER PUBLIC. A row says "✓ clip on file" or "no clip · unverified" and nothing more:
+// there is no watch button on the board, because without an age gate a public clip feed would
+// broadcast minors' workout video (friends and circle-mates can still play one — pr-consent-sheet). Tapping someone's PR explains that and offers the one lever the community
 // has — dispute, which goes to a moderator (0266).
 
 const UNITS: ExerciseUnit[] = ['weight', 'reps', 'time', 'distance'];

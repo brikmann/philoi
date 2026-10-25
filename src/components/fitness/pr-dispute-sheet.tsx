@@ -9,9 +9,9 @@ import type { MetricLeaderboardRow } from '@/types/house';
 
 // Tap a PR on an exercise board (mock 295): what the ✓ means, and the community's one lever on it.
 //
-// There is NO watch button, here or anywhere. With no age gate, a public clip feed would broadcast
-// minors' workout video, so a clip is review-only: it exists for a moderator to look at when somebody
-// disputes the number. A dispute files a moderation report (0266); enough of them, or a failed
+// There is NO watch button on the board. With no age gate, a public clip feed would broadcast
+// minors' workout video, so a clip is never public: only the owner's friends and circle-mates can
+// play it (gym-clip-playback-url), plus a moderator when somebody disputes the number. A dispute files a moderation report (0266); enough of them, or a failed
 // review, pulls the PR off the board.
 //
 // The server rejects a second dispute of the same PR and a dispute of your own, with readable
@@ -77,7 +77,7 @@ export function PrDisputeSheet({
                 {row.verified ? ' ✓' : ''}
               </Text>
               <Text style={styles.body}>
-                {row.verified ? 'Clip on file — kept for verification, not shown on the board.' : 'No clip on file — this PR is unverified.'}{' '}
+                {row.verified ? 'Clip on file — their connections can watch to verify; never public.' : 'No clip on file — this PR is unverified.'}{' '}
                 Looks off? Dispute sends it to a moderator; a failed review pulls the PR.
               </Text>
               {canDispute ? (

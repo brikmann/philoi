@@ -29,9 +29,11 @@ Deno.serve(async (req) => {
   if (error) return json({ error: error.message }, 500);
   if (!rows?.length) return json({ purged: 0 });
 
-  // Only ever touch keys under clips/ — the prefix gym-clip-upload-url writes.
-  const safe = rows.filter((r) => r.object_key.startsWith('clips/'));
-  const unsafe = rows.filter((r) => !r.object_key.startsWith('clips/'));
+  // Only ever touch keys under clips/ (what gym-clip-upload-url writes) or pr-clips/ (where
+  // gym-clip-pin moves a PR-backing clip, outside the retention rule).
+  const isClipKey = (k: string) => k.startsWith('clips/') || k.startsWith('pr-clips/');
+  const safe = rows.filter((r) => isClipKey(r.object_key));
+  const unsafe = rows.filter((r) => !isClipKey(r.object_key));
 
   const failed = new Map<string, string>();
   if (safe.length) {
@@ -48,7 +50,7 @@ Deno.serve(async (req) => {
       for (const r of safe) failed.set(r.object_key, msg);
     }
   }
-  for (const r of unsafe) failed.set(r.object_key, 'refused: key outside clips/');
+  for (const r of unsafe) failed.set(r.object_key, 'refused: key outside clips/ and pr-clips/');
 
   const now = new Date().toISOString();
   const done = rows.filter((r) => !failed.has(r.object_key)).map((r) => r.id);
