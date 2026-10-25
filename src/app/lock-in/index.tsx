@@ -567,6 +567,9 @@ function LockInScreen() {
     refetch: refetchCheers,
   } = useLockInCheers({ live: Boolean(activeSession) && !posted, banners: !posted });
   const [cheersOpen, setCheersOpen] = useState(false);
+  // One "Locked in with you" on screen: the body-double strip opens cheers when a friend is
+  // cheerable, instead of a second pill beside it.
+  const stripCheers = cheerFriends.length > 0 ? { unread: cheerUnread, onPress: () => setCheersOpen(true) } : undefined;
   const cheersSheet = (
     <LockInCheersSheet
       visible={cheersOpen}
@@ -1125,9 +1128,11 @@ function LockInScreen() {
               everyone" — and the wide number is the one that carries at the gym. */}
           <LockInPresencePill presence={presence} compact />
 
-          <BodyDoubleStripCollapsed lockIns={activeLockIns} />
+          <BodyDoubleStripCollapsed lockIns={activeLockIns} cheers={stripCheers} />
 
-          <LockedInWithYouCluster friends={cheerFriends} unread={cheerUnread} onPress={() => setCheersOpen(true)} />
+          {activeLockIns.length === 0 && (
+            <LockedInWithYouCluster friends={cheerFriends} unread={cheerUnread} onPress={() => setCheersOpen(true)} />
+          )}
           <CheerTally cheers={cheersReceived} />
 
           {workoutLoading && !workout && <Text style={styles.loading}>Setting up your workout…</Text>}
@@ -1337,14 +1342,17 @@ function LockInScreen() {
           </View>
         )}
 
-        <BodyDoubleStrip lockIns={activeLockIns} />
+        <BodyDoubleStrip lockIns={activeLockIns} cheers={stripCheers} />
 
         {error && <Text style={styles.error}>{error}</Text>}
 
         <TutorialTooltip visible={tutorialStep === 2} text="Tap Stop when you're done to lock it in for real." />
 
-        {/* "Locked in with you" — bottom-left, one tap, never leaves the session (mock 298). */}
-        <LockedInWithYouCluster friends={cheerFriends} unread={cheerUnread} onPress={() => setCheersOpen(true)} />
+        {/* "Locked in with you" (mock 298) rides the body-double strip above. This pill only shows
+            when the strip is empty — e.g. a friend just stopped and their thread is still open. */}
+        {activeLockIns.length === 0 && (
+          <LockedInWithYouCluster friends={cheerFriends} unread={cheerUnread} onPress={() => setCheersOpen(true)} />
+        )}
 
         <View style={styles.actions}>
           <Pressable

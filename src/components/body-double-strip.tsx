@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { ActiveCircleLockIn } from '@/lib/api/lock-ins';
@@ -35,51 +35,87 @@ function Avatar({ lockIn, size }: { lockIn: ActiveCircleLockIn; size: number }) 
   );
 }
 
+/** Set when a friend can be cheered (0270, mock 298): the strip itself becomes the one tap into the
+ * cheers sheet, so the screen carries a single "Locked in with you", not this plus a second pill. */
+export type BodyDoubleCheers = { unread: number; onPress: () => void };
+
+function CheerAffordance({ cheers }: { cheers: BodyDoubleCheers }) {
+  return (
+    <View style={styles.cheerRow}>
+      {cheers.unread > 0 && (
+        <View style={styles.unread} accessibilityLabel={`${cheers.unread} unread`}>
+          <Text style={styles.unreadText}>{cheers.unread > 9 ? '9+' : cheers.unread}</Text>
+        </View>
+      )}
+      <Text style={styles.cheerText}>Cheer ›</Text>
+    </View>
+  );
+}
+
+function Tappable({ cheers, label, children }: { cheers?: BodyDoubleCheers; label: string; children: React.ReactNode }) {
+  if (!cheers) return <>{children}</>;
+  return (
+    <Pressable
+      onPress={cheers.onPress}
+      style={({ pressed }) => pressed && styles.pressed}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}${cheers.unread > 0 ? `, ${cheers.unread} unread` : ''}. Open cheers.`}>
+      {children}
+    </Pressable>
+  );
+}
+
 /** Base screen (mock 51): a labelled, horizontally scrolling strip of lit avatars, each with its
  * own live timer underneath. */
-export function BodyDoubleStrip({ lockIns }: { lockIns: ActiveCircleLockIn[] }) {
+export function BodyDoubleStrip({ lockIns, cheers }: { lockIns: ActiveCircleLockIn[]; cheers?: BodyDoubleCheers }) {
   const now = useTick(lockIns.length > 0);
   if (lockIns.length === 0) return null;
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.labelRow}>
-        <View style={styles.liveDot} />
-        <Text style={styles.label}>Locked in with you</Text>
+    <Tappable cheers={cheers} label={`${lockIns.length} locked in with you`}>
+      <View style={styles.wrap}>
+        <View style={styles.labelRow}>
+          <View style={styles.liveDot} />
+          <Text style={styles.label}>Locked in with you</Text>
+          {cheers && <CheerAffordance cheers={cheers} />}
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+          {lockIns.map((a) => (
+            <View key={a.session.id} style={styles.column}>
+              <Avatar lockIn={a} size={34} />
+              {/* First name only — the column is 48px, and this strip now carries friends from
+                  outside the campfire too, so an avatar alone no longer says who it is. */}
+              <Text style={styles.columnName} numberOfLines={1}>
+                {a.display_name.split(' ')[0]}
+              </Text>
+              <Text style={styles.columnTimer}>{formatDurationClock(elapsedFor(a, now))}</Text>
+            </View>
+          ))}
+        </ScrollView>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-        {lockIns.map((a) => (
-          <View key={a.session.id} style={styles.column}>
-            <Avatar lockIn={a} size={34} />
-            {/* First name only — the column is 48px, and this strip now carries friends from
-                outside the campfire too, so an avatar alone no longer says who it is. */}
-            <Text style={styles.columnName} numberOfLines={1}>
-              {a.display_name.split(' ')[0]}
-            </Text>
-            <Text style={styles.columnTimer}>{formatDurationClock(elapsedFor(a, now))}</Text>
-          </View>
-        ))}
-      </ScrollView>
-    </View>
+    </Tappable>
   );
 }
 
 /** Gym (mock 52): collapsed to a single line — a few avatars and a count. In a gym the log is
  * what you're looking at, so the body-doubles stay as ambient company, not a feature. */
-export function BodyDoubleStripCollapsed({ lockIns }: { lockIns: ActiveCircleLockIn[] }) {
+export function BodyDoubleStripCollapsed({ lockIns, cheers }: { lockIns: ActiveCircleLockIn[]; cheers?: BodyDoubleCheers }) {
   if (lockIns.length === 0) return null;
   const shown = lockIns.slice(0, 3);
   const remaining = lockIns.length - shown.length;
 
   return (
-    <View style={styles.collapsedRow}>
-      {shown.map((a) => (
-        <Avatar key={a.session.id} lockIn={a} size={26} />
-      ))}
-      <Text style={styles.collapsedText} numberOfLines={1}>
-        {remaining > 0 ? `+${remaining} locked in with you` : `${lockIns.length} locked in with you`}
-      </Text>
-    </View>
+    <Tappable cheers={cheers} label={`${lockIns.length} locked in with you`}>
+      <View style={styles.collapsedRow}>
+        {shown.map((a) => (
+          <Avatar key={a.session.id} lockIn={a} size={26} />
+        ))}
+        <Text style={styles.collapsedText} numberOfLines={1}>
+          {remaining > 0 ? `+${remaining} locked in with you` : `${lockIns.length} locked in with you`}
+        </Text>
+        {cheers && <CheerAffordance cheers={cheers} />}
+      </View>
+    </Tappable>
   );
 }
 
@@ -145,6 +181,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
     marginTop: Spacing.twelve,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  cheerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginLeft: 'auto',
+  },
+  cheerText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 10,
+    color: Colors.ember,
+  },
+  unread: {
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: Colors.coral,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9.5,
+    color: Colors.ink,
   },
   collapsedText: {
     flex: 1,
