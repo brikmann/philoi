@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,7 +13,6 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import {
   blockAgoraUser,
-  cheerAgoraItem,
   deleteAgoraPost,
   fetchAgoraItem,
   reportAgora,
@@ -65,18 +64,6 @@ export default function AgoraPostScreen() {
       live = false;
     };
   }, [id, type]);
-
-  const cheer = useCallback(async () => {
-    if (!item || item.cheered) return;
-    setItem({ ...item, cheered: true, cheers: item.cheers + 1 });
-    try {
-      const count = await cheerAgoraItem(item);
-      setItem((prev) => (prev ? { ...prev, cheers: count } : prev));
-    } catch (e) {
-      setItem((prev) => (prev ? { ...prev, cheered: false, cheers: item.cheers } : prev));
-      Alert.alert('Could not cheer', getErrorMessage(e, 'Something went wrong.'));
-    }
-  }, [item]);
 
   // Report and block end by leaving: there is no list here to take the card off, so the screen
   // itself goes — the same "you won't see this again" the feed gives by removing the card.
@@ -143,7 +130,6 @@ export default function AgoraPostScreen() {
             <AgoraCard
               item={item}
               loadout={loadout}
-              onCheer={cheer}
               onComment={() => setSheetOpen(true)}
               // Same split as the feed: your own item gets Delete, someone else's gets
               // report/block (Apple 1.2 — every surface that shows UGC needs both).

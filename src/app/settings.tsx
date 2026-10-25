@@ -21,6 +21,7 @@ import { useEntitlement } from '@/hooks/use-entitlement';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { useStravaConnection } from '@/hooks/use-strava-connection';
+import { setPostToAgora } from '@/lib/api/agora';
 import { setCoachConsent, setCoachPreference } from '@/lib/api/coach';
 import { setDailyGoalMode, setPublishFlameCompletion } from '@/lib/api/daily-fire';
 import { deleteMyAccount } from '@/lib/api/groups';
@@ -152,6 +153,8 @@ export default function SettingsScreen() {
   const [goalMode, setGoalMode] = useState<'auto' | 'manual'>(profile?.daily_goal_mode ?? 'auto');
   const [manualTarget, setManualTarget] = useState(profile?.daily_goal_manual_target ?? 1);
   const [publishCompletion, setPublishCompletion] = useState(profile?.publish_flame_completion ?? false);
+  // 0273 · the sticky default the lock-in done screen's "Post to the Agora" switch starts from.
+  const [postToAgora, setPostToAgoraState] = useState(profile?.post_to_agora ?? false);
   const [watchOptIn, setWatchOptInState] = useState(profile?.watch_opt_in ?? false);
   // 0217 · the season rank dial (0170's Private mode became its middle setting, 'friends').
   const [rankVisibility, setRankVisibilityState] = useState<RankVisibility>(rankVisibilityOf(profile));
@@ -209,6 +212,14 @@ export default function SettingsScreen() {
   function handleTogglePublishCompletion(value: boolean) {
     setPublishCompletion(value);
     setPublishFlameCompletion(value).catch(() => setPublishCompletion(!value));
+  }
+
+  // Refreshes the profile on success so the done screen opens on the new default without a relaunch.
+  function handleTogglePostToAgora(value: boolean) {
+    setPostToAgoraState(value);
+    setPostToAgora(value)
+      .then(() => refreshProfile?.())
+      .catch(() => setPostToAgoraState(!value));
   }
 
   function handleToggleWatchOptIn(value: boolean) {
@@ -449,6 +460,13 @@ export default function SettingsScreen() {
             label="Publish completion to campfires"
             value={publishCompletion}
             onValueChange={handleTogglePublishCompletion}
+          />
+          <SettingsToggleRow
+            icon="megaphone"
+            label="Auto-post my sessions to the Agora"
+            description="Finished lock-ins post with their photos, friends only. Change it per session on the done screen."
+            value={postToAgora}
+            onValueChange={handleTogglePostToAgora}
           />
         </View>
 

@@ -9,6 +9,11 @@ import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTimin
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { HeroRankStrip, ProfileHero } from '@/components/economy/profile-hero';
+import { DisciplineMixBar } from '@/components/identity/discipline-mix-bar';
+import { IdentityCard } from '@/components/identity/identity-card';
+import { IdentityHeadline } from '@/components/identity/identity-headline';
+import { MomentumStrip } from '@/components/identity/momentum-strip';
+import { useProfileIdentity } from '@/components/identity/use-profile-identity';
 import { LiveStatusBadge } from '@/components/live-status-badge';
 import { CollectionEntry } from '@/components/profile/collection-entry';
 import { CompareBanner } from '@/components/profile/compare-banner';
@@ -30,7 +35,6 @@ import { RankMuted } from '@/components/rank-muted';
 import { fetchProfileById, fetchUserRank, type UserRank } from '@/lib/api/profile';
 import { formatSessionDuration } from '@/lib/format';
 import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
-import { supabase } from '@/lib/supabase';
 import { blockUser } from '@/lib/api/agora';
 import { getErrorMessage } from '@/lib/errors';
 import type { ActiveChallengeMarker, Profile, ProfileRelationship, ProfileStats } from '@/types/database';
@@ -104,6 +108,10 @@ export default function FriendProfileScreen() {
   // else, so the header can always ask for it.
   const presence = usePresenceOf(userId === myProfile?.id ? null : userId);
   const myHall = useTrophyHall(myProfile?.id);
+  // Their identity layer (0272). The server has already applied their visibility dial — fields this
+  // viewer may not see simply aren't in the row — so this screen renders whatever comes back, and
+  // a failed read renders nothing.
+  const { identity, mix } = useProfileIdentity(userId === myProfile?.id ? null : userId);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [rank, setRank] = useState<UserRank | null>(null);
@@ -236,6 +244,8 @@ export default function FriendProfileScreen() {
               />
             ) : null
           }>
+          {/* "What they wanna be" — the headline under the name (mock 283's `.pf-head`). */}
+          <IdentityHeadline identity={identity} />
           {profile.university || relationship === 'friends' ? (
             <View style={styles.metaRow}>
               {relationship === 'friends' && (
@@ -284,6 +294,12 @@ export default function FriendProfileScreen() {
           <Text style={styles.actVersusText}>⚔ Head to head</Text>
           <Text style={styles.actVersusSub}>Compare any stats</Text>
         </Pressable>
+
+        {/* The identity layer leads (CODE_PROMPT_identity_profile.md): who they are and how they're
+            moving, above the rank, showcase and trophies that back it up. */}
+        <MomentumStrip identity={identity} />
+        <IdentityCard identity={identity} />
+        <DisciplineMixBar mix={mix} isOwn={false} />
 
         {/* 0170 · Private mode. A non-friend sees "Rank muted" where the hexagon, the XP bar and
             the board position would be. The name, handle and avatar above are untouched. */}

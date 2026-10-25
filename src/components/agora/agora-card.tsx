@@ -25,7 +25,11 @@ import type { AgoraItem } from '@/types/database';
 
 // One card in the square (mock 162 panel 1). Renders both feed row types — a freeform post and a
 // milestone that auto-surfaced — because to a reader they are the same object: somebody did a
-// thing, here is what it was, here is how to cheer it and talk about it.
+// thing, here is what it was, here is how to talk about it.
+//
+// COMMENT-ONLY (#259). There is no cheer, like or count of either on a card — the square pays in
+// conversation, not tallies. `cheerAgoraItem` survives in the API for older installs; nothing here
+// calls it.
 //
 // AUTHOR COSMETICS. "Post authors render their equipped cosmetics — halo ring, flex background
 // card. Another reason to grind." That art is `applied-art.tsx` (Agent 4's surface); this file
@@ -60,12 +64,11 @@ const AVATAR = 38;
 type Props = {
   item: AgoraItem;
   loadout: PublicLoadout;
-  onCheer: (item: AgoraItem) => void;
   onComment: (item: AgoraItem) => void;
   onMore: (item: AgoraItem) => void;
 };
 
-function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
+function AgoraCardInner({ item, loadout, onComment, onMore }: Props) {
   const router = useRouter();
   const { session } = useAuth();
   const [photoFailed, setPhotoFailed] = useState(false);
@@ -73,6 +76,10 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
   const attachments = itemAttachments(item);
   const rank = rankLabel(item);
   const photo = photoFailed ? null : agoraPhotoUrl(item.photo_path);
+  // 0273 · a session the done screen posted itself. Its first photo rides in photo_path like any
+  // post; the rest are frozen into the lockin snapshot, and all of them draw together below.
+  const auto = attachments.some((a) => a.kind === 'lockin' && a.snapshot.auto);
+  const extraPhotos = attachments.flatMap((a) => (a.kind === 'lockin' ? (a.snapshot.photos ?? []) : []));
 
   function openAuthor() {
     // Your own name on your own post goes to YOUR profile. `friend-profile` reads the relationship
@@ -136,6 +143,12 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
           </View>
         </Pressable>
 
+        {auto ? (
+          <View style={styles.autoTag} accessibilityLabel="Posted automatically">
+            <Text style={styles.autoTagText}>⚡ auto</Text>
+          </View>
+        ) : null}
+
         <Pressable onPress={() => onMore(item)} hitSlop={10} accessibilityLabel="More options">
           <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textTertiary} />
         </Pressable>
@@ -145,13 +158,20 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
         const view = attachmentView(a.kind, a.snapshot);
         if (!view) return null;
         return (
-          <AttachmentRow key={attachmentKey(a)} view={view} onPress={() => openAttachment(view)} />
+          <AttachmentRow
+            key={attachmentKey(a)}
+            view={view}
+            xp={a.kind === 'lockin' ? a.snapshot.xp_earned : undefined}
+            onPress={() => openAttachment(view)}
+          />
         );
       })}
 
       {item.body ? <Text style={styles.body}>{item.body}</Text> : null}
 
-      {photo ? (
+      {extraPhotos.length > 0 ? (
+        <SessionPhotos paths={photo ? [item.photo_path as string, ...extraPhotos] : extraPhotos} />
+      ) : photo ? (
         <Image
           source={{ uri: photo }}
           style={styles.photo}
@@ -164,22 +184,6 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
       ) : null}
 
       <View style={styles.actions}>
-        <Pressable
-          style={styles.action}
-          onPress={() => onCheer(item)}
-          disabled={item.cheered}
-          accessibilityRole="button"
-          accessibilityLabel={item.cheered ? 'Already cheered' : 'Cheer'}>
-          <Ionicons
-            name={item.cheered ? 'flame' : 'flame-outline'}
-            size={15}
-            color={item.cheered ? Colors.amber : Colors.muted}
-          />
-          <Text style={[styles.actionLabel, item.cheered && styles.actionLabelOn]}>
-            {item.cheers > 0 ? item.cheers : 'Cheer'}
-          </Text>
-        </Pressable>
-
         <Pressable style={styles.action} onPress={() => onComment(item)} accessibilityRole="button">
           <Ionicons name="chatbubble-outline" size={14} color={Colors.muted} />
           <Text style={styles.actionLabel}>{item.comments > 0 ? item.comments : 'Comment'}</Text>
@@ -190,7 +194,16 @@ function AgoraCardInner({ item, loadout, onCheer, onComment, onMore }: Props) {
 }
 
 /** One attachment tile. Stacked, one per row, in the order `itemAttachments` fixed. */
-function AttachmentRow({ view, onPress }: { view: AgoraAttachmentView; onPress: () => void }) {
+function AttachmentRow({
+  view,
+  xp,
+  onPress,
+}: {
+  view: AgoraAttachmentView;
+  /** A session's frozen XP (0273 snapshot). Absent on anything posted before it. */
+  xp?: number;
+  onPress: () => void;
+}) {
   // The lift sits OUTSIDE the Pressable, not inside it. A clip tile is its own tap target, and in
   // React Native the innermost pressable takes the responder — nesting them would mean tapping a
   // clip opened the session detail instead of playing the clip. Same lesson as D4 in the campfire
@@ -198,15 +211,23 @@ function AttachmentRow({ view, onPress }: { view: AgoraAttachmentView; onPress: 
   if (view.lift) {
     return (
       <View style={styles.attachGroup}>
-        <AttachmentHeadRow view={view} onPress={onPress} />
+        <AttachmentHeadRow view={view} xp={xp} onPress={onPress} />
         <LiftDetail lift={view.lift} />
       </View>
     );
   }
-  return <AttachmentHeadRow view={view} onPress={onPress} />;
+  return <AttachmentHeadRow view={view} xp={xp} onPress={onPress} />;
 }
 
-function AttachmentHeadRow({ view, onPress }: { view: AgoraAttachmentView; onPress: () => void }) {
+function AttachmentHeadRow({
+  view,
+  xp,
+  onPress,
+}: {
+  view: AgoraAttachmentView;
+  xp?: number;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       style={[styles.attach, view.lift && styles.attachWithLift]}
@@ -245,7 +266,36 @@ function AttachmentHeadRow({ view, onPress }: { view: AgoraAttachmentView; onPre
           ) : null}
         </View>
       </View>
+      {xp ? <Text style={styles.attachXp}>+{Math.round(xp).toLocaleString()} XP</Text> : null}
     </Pressable>
+  );
+}
+
+/**
+ * A session's photos, side by side (mock 297). Two to a row so four still fits a phone; a path
+ * that 404s (post deleted mid-scroll) drops out rather than leaving a grey slab.
+ */
+function SessionPhotos({ paths }: { paths: string[] }) {
+  const [failed, setFailed] = useState<string[]>([]);
+  const shown = paths.filter((p) => !failed.includes(p));
+  if (shown.length === 0) return null;
+  return (
+    <View style={styles.photoGrid}>
+      {shown.map((p) => {
+        const uri = agoraPhotoUrl(p);
+        if (!uri) return null;
+        return (
+          <Image
+            key={p}
+            source={{ uri }}
+            style={[styles.gridPhoto, shown.length === 1 && styles.gridPhotoSolo]}
+            contentFit="cover"
+            transition={120}
+            onError={() => setFailed((cur) => (cur.includes(p) ? cur : [...cur, p]))}
+          />
+        );
+      })}
+    </View>
   );
 }
 
@@ -363,11 +413,11 @@ function CardSurface({ cardId, children }: { cardId?: string; children: ReactNod
   );
 }
 
-// Memoized on the fields the card actually draws. A feed re-renders on every cheer, and without
+// Memoized on the fields the card actually draws. A feed re-renders on every comment-count patch, and without
 // this each one re-renders all twenty rows — including their halo and card SVGs.
 //
 // Attachments are not compared: they are frozen at post time and a page's items are replaced
-// wholesale on refresh, so the only thing that moves under a stable id is the cheer/comment counts.
+// wholesale on refresh, so the only thing that moves under a stable id is the comment count.
 //
 // 🐛 EVERY DRAWN SLOT HAS TO BE IN HERE. This compared the halo and the card only, while the card
 // also draws the TITLE and (through CosmeticAvatar) the FLARE — so equipping a new title left the
@@ -382,8 +432,6 @@ export const AgoraCard = memo(
   AgoraCardInner,
   (a, b) =>
     a.item.id === b.item.id &&
-    a.item.cheers === b.item.cheers &&
-    a.item.cheered === b.item.cheered &&
     a.item.comments === b.item.comments &&
     a.loadout.halo?.id === b.loadout.halo?.id &&
     a.loadout.card?.id === b.loadout.card?.id &&
@@ -622,7 +670,40 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: Colors.muted,
   },
-  actionLabelOn: {
+  autoTag: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    backgroundColor: Colors.selectedBg,
+    borderWidth: 1,
+    borderColor: Colors.lineStrong,
+  },
+  autoTagText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9.5,
     color: Colors.amber,
+  },
+  attachXp: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+    color: Colors.amber,
+    fontVariant: ['tabular-nums'],
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: Spacing.two,
+  },
+  // Two to a row: (100% - one 6px gap) / 2, as a flex basis so the gap is honoured.
+  gridPhoto: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    height: 140,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.disabled,
+  },
+  gridPhotoSolo: {
+    height: 190,
   },
 });

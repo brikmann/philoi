@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 
@@ -10,9 +10,11 @@ import { RankBadge } from '@/components/rank-badge';
 import { PersonalFlame } from '@/components/personal-flame';
 import { PlacementMove } from '@/components/placement-move';
 import { TextInput } from '@/components/ui/text-input';
+import { Toggle } from '@/components/ui/toggle';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyGroups } from '@/hooks/use-my-groups';
+import { postSessionToAgora, setPostToAgora } from '@/lib/api/agora';
 import { fetchLockInPassCredit, type LockInPassCredit } from '@/lib/api/forge-pass';
 import { fetchCheckInClips } from '@/lib/api/gym-clips';
 import { postCheckInToCircle, setCheckInCaption } from '@/lib/api/lock-ins';
@@ -83,7 +85,7 @@ export function LockInDoneScreen({
   sharing = false,
 }: LockInDoneScreenProps) {
   const { groups } = useMyGroups();
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   // Mock 92 addresses you by name ("Nice work, Noah"). First name only, and the line still reads
   // correctly without one — a profile that hasn't loaded yet just gets "Nice work".
   const firstName = profile?.display_name?.split(' ')[0] ?? '';
@@ -95,6 +97,12 @@ export function LockInDoneScreen({
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recapOpen, setRecapOpen] = useState(false);
+  // 0273 · "Post to the Agora" (mock 297). Pre-set from the sticky profile default, which is off
+  // until someone turns it on here or in Settings — a session never reaches the square unasked.
+  const [postToAgora, setPostToAgoraState] = useState(profile?.post_to_agora ?? false);
+  // Every exit calls finishToAgora, and "Post & finish" can be retried after a campfire error —
+  // the server dedupes per session too, but one fire per screen keeps the uploads from doubling.
+  const agoraFired = useRef(false);
   // Phase-2 video clips (§23) — the rolled-up recap only has per-exercise totals (no individual
   // set ids), so clips need their own fetch, keyed by this same checkInId. Recap modal only.
   const [clips, setClips] = useState<WorkoutSet[]>([]);
@@ -224,6 +232,8 @@ export function LockInDoneScreen({
   }
 
   const willPost = selectedCircleIds.length > 0;
+  // postSessionToAgora carries at most four; the hint says what will actually ride along.
+  const agoraPhotoCount = Math.min(photos.length, 4);
   // With nothing selected the row used to read "Post to nowhere — pick one", which lands as a
   // placeholder someone forgot to wire rather than as a choice (punchlist 17 P3). The label below
   // switches instead of the value, so the empty state asks for the pick rather than narrating it.
@@ -244,6 +254,30 @@ export function LockInDoneScreen({
     await setCheckInCaption(checkInId, trimmed);
   }
 
+  // Flipping it here IS the sticky setting (spec: set once, stays on), not a one-session override
+  // that Settings has to be visited to make permanent. Fail-soft: the switch still governs this
+  // session even if the default didn't save.
+  function handleToggleAgora(value: boolean) {
+    setPostToAgoraState(value);
+    setPostToAgora(value)
+      .then(() => refreshProfile())
+      .catch(() => {});
+  }
+
+  // Fired, never awaited: the photos re-upload to agora-photos before the post is written, and
+  // nobody should wait on that to leave a screen whose session is already banked. A failure is
+  // silent — the lock-in is safe, only the feed card is missing.
+  function finishToAgora() {
+    if (!postToAgora || agoraFired.current || !profile) return;
+    agoraFired.current = true;
+    postSessionToAgora({
+      checkInId,
+      userId: profile.id,
+      caption: note.trim() || null,
+      photoUris: photos.map((p) => p.uri),
+    }).catch(() => {});
+  }
+
   function toggleCircle(id: string) {
     setSelectedCircleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
@@ -259,6 +293,7 @@ export function LockInDoneScreen({
         await postCheckInToCircle(checkInId, id);
       }
       if (selectedCircleIds.length > 0) fireConfirm();
+      finishToAgora();
       onDone();
     } catch (e) {
       setError(getErrorMessage(e, 'Could not post to the campfire — try again.'));
@@ -277,6 +312,7 @@ export function LockInDoneScreen({
       // far better outcome than trapping them on this screen behind a retry.
     } finally {
       setPosting(false);
+      finishToAgora();
       onDone();
     }
   }
@@ -426,21 +462,41 @@ export function LockInDoneScreen({
             </View>
           )}
 
+          {/* One field, two jobs: the lock-in's own caption and, with the switch below on, the
+              Agora post's caption. Mock 297 orders it photos → caption → switch. */}
           <TextInput
             style={styles.note}
-            placeholder="Add a note… (optional)"
+            placeholder="Add a caption…"
             value={note}
             onChangeText={setNote}
             maxLength={140}
             editable={!posting}
           />
+
+          <View style={styles.agoraRow}>
+            <View style={styles.agoraText}>
+              <Text style={styles.agoraTitle}>Post to the Agora</Text>
+              <Text style={styles.agoraSub}>Your feed · shared with friends</Text>
+            </View>
+            <Toggle
+              value={postToAgora}
+              onValueChange={handleToggleAgora}
+              disabled={posting}
+              accessibilityLabel="Post this session to the Agora"
+            />
+          </View>
+          {postToAgora && photos.length > 0 && (
+            <Text style={styles.agoraHint}>
+              {agoraPhotoCount} photo{agoraPhotoCount === 1 ? '' : 's'} from this session attach automatically.
+            </Text>
+          )}
         </View>
 
         <Pressable style={styles.cta} onPress={handlePost} disabled={posting}>
           {posting ? (
             <ActivityIndicator color={Colors.ink} />
           ) : (
-            <Text style={styles.ctaLabel}>{willPost ? 'Post & finish' : 'Finish'}</Text>
+            <Text style={styles.ctaLabel}>{willPost || postToAgora ? 'Post & finish' : 'Finish'}</Text>
           )}
         </Pressable>
         {/* Only when there's actually something to skip — otherwise it's the same button twice. */}
@@ -788,6 +844,33 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     fontSize: 13,
+  },
+  agoraRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: 10,
+  },
+  agoraText: {
+    flex: 1,
+  },
+  agoraTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.ink,
+  },
+  agoraSub: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
+    marginTop: 1,
+  },
+  agoraHint: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    lineHeight: 15,
+    color: Colors.muted,
+    marginTop: 6,
   },
   cta: {
     backgroundColor: Colors.coral,

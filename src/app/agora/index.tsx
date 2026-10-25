@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AgoraCard } from '@/components/agora/agora-card';
 import { AgoraCommentsSheet } from '@/components/agora/agora-comments-sheet';
+import { ForestsBrowse } from '@/components/forests/forests-browse';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ScreenBackground } from '@/components/ui/screen-background';
@@ -27,7 +28,6 @@ import { track } from '@/lib/analytics';
 import {
   AGORA_SCOPES,
   blockAgoraUser,
-  cheerAgoraItem,
   deleteAgoraPost,
   reportAgora,
   setMilestoneInAgora,
@@ -42,14 +42,26 @@ import type { AgoraItem, AgoraScope } from '@/types/database';
 // "An accomplishment isn't just a private notification to a few friends — it gets reach and
 // validation in front of a real audience, which is the strongest motivator there is."
 //
-// KEPT HEALTHY BY CONSTRUCTION, per the spec. There is no downvote and no ratio: the only quick
-// reaction on a card is a cheer. There are no scores or "you're behind X" lines here either —
+// KEPT HEALTHY BY CONSTRUCTION, per the spec. There is no downvote, no ratio and — since #259 —
+// no like or cheer either: a card is answered with a comment or not at all. There are no scores
+// or "you're behind X" lines here either —
 // standing is a chip on the AUTHOR, never a comparison drawn against the reader. Leaderboards are
 // their own screen precisely so this one can stay a room of people rooting for each other.
+//
+// FEED · FORESTS (CODE_PROMPT_agora_forests.md). Forests are a tab of the Agora, not a new
+// destination: the feed is the commons, a forest is an interest world inside it that funnels into
+// campfires. The feed's scope chips belong to the feed tab alone.
+
+type AgoraTab = 'feed' | 'forests';
+const TABS: { key: AgoraTab; label: string }[] = [
+  { key: 'feed', label: 'Feed' },
+  { key: 'forests', label: 'Forests' },
+];
 
 export default function AgoraScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const [tab, setTab] = useState<AgoraTab>('feed');
   const [scope, setScope] = useState<AgoraScope>('friends');
   const { items, loading, refreshing, loadingMore, error, refresh, loadMore, patchItem, removeItem } =
     useAgoraFeed(scope);
@@ -78,23 +90,6 @@ export default function AgoraScreen() {
     setScope(next);
     track('agora_scope_changed', { scope: next });
   }
-
-  const handleCheer = useCallback(
-    async (item: AgoraItem) => {
-      if (item.cheered) return;
-      // Optimistic: a cheer is cosmetic and reverting one is honest. Waiting on the round trip
-      // makes the single most-tapped control in the app feel broken on a slow connection.
-      patchItem(item.id, { cheered: true, cheers: item.cheers + 1 });
-      try {
-        const count = await cheerAgoraItem(item);
-        patchItem(item.id, { cheers: count });
-      } catch (e) {
-        patchItem(item.id, { cheered: false, cheers: item.cheers });
-        Alert.alert('Could not cheer', getErrorMessage(e, 'Something went wrong.'));
-      }
-    },
-    [patchItem]
-  );
 
   const handleMore = useCallback(
     (item: AgoraItem) => {
@@ -184,86 +179,107 @@ export default function AgoraScreen() {
           </View>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterBar}
-          contentContainerStyle={styles.filters}>
-          {AGORA_SCOPES.map((s) => (
-            <Pressable
-              key={s.key}
-              onPress={() => changeScope(s.key)}
-              style={[styles.filter, scope === s.key && styles.filterOn]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: scope === s.key }}>
-              <Text
-                style={[styles.filterText, scope === s.key && styles.filterTextOn]}
-                numberOfLines={1}>
-                {scopeLabel(s.key, s.label)}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <View style={styles.tabs} accessibilityRole="tablist">
+          {TABS.map((t) => {
+            const on = tab === t.key;
+            return (
+              <Pressable
+                key={t.key}
+                onPress={() => setTab(t.key)}
+                style={[styles.tab, on && styles.tabOn]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: on }}>
+                <Text style={[styles.tabText, on && styles.tabTextOn]}>{t.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-        <FlatList
-          data={items}
-          keyExtractor={(i) => `${i.item_type}:${i.id}`}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.amber} />
-          }
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.6}
-          ItemSeparatorComponent={() => <View style={styles.postSep} />}
-          ListHeaderComponent={
+        {tab === 'forests' ? (
+          <ForestsBrowse />
+        ) : (
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filterBar}
+              contentContainerStyle={styles.filters}>
+              {AGORA_SCOPES.map((s) => (
+                <Pressable
+                  key={s.key}
+                  onPress={() => changeScope(s.key)}
+                  style={[styles.filter, scope === s.key && styles.filterOn]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: scope === s.key }}>
+                  <Text
+                    style={[styles.filterText, scope === s.key && styles.filterTextOn]}
+                    numberOfLines={1}>
+                    {scopeLabel(s.key, s.label)}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <FlatList
+              data={items}
+              keyExtractor={(i) => `${i.item_type}:${i.id}`}
+              contentContainerStyle={styles.list}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.amber} />
+              }
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.6}
+              ItemSeparatorComponent={() => <View style={styles.postSep} />}
+              ListHeaderComponent={
+                <Pressable
+                  style={styles.composer}
+                  onPress={() => {
+                    track('agora_composer_opened', {});
+                    router.push('/agora/compose');
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Write a post">
+                  {profile?.avatar_url ? (
+                    <Image source={{ uri: profile.avatar_url }} style={styles.composerAvatar} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.composerAvatar, styles.composerAvatarFallback]} />
+                  )}
+                  <Text style={styles.composerHint}>Share a win, a photo, a thought…</Text>
+                  <Ionicons name="create-outline" size={16} color={Colors.amber} />
+                </Pressable>
+              }
+              ListEmptyComponent={
+                loading ? (
+                  <ActivityIndicator color={Colors.coral} style={styles.loader} />
+                ) : (
+                  <EmptyScope scope={scope} error={error} hasUniversity={Boolean(profile?.university)} />
+                )
+              }
+              ListFooterComponent={
+                loadingMore ? <ActivityIndicator color={Colors.textTertiary} style={styles.footer} /> : null
+              }
+              renderItem={({ item }) => (
+                <AgoraCard
+                  item={item}
+                  loadout={loadouts[item.user_id] ?? {}}
+                  onComment={setCommentsFor}
+                  onMore={handleMore}
+                />
+              )}
+            />
+
             <Pressable
-              style={styles.composer}
+              style={styles.fab}
               onPress={() => {
                 track('agora_composer_opened', {});
                 router.push('/agora/compose');
               }}
               accessibilityRole="button"
-              accessibilityLabel="Write a post">
-              {profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.composerAvatar} contentFit="cover" />
-              ) : (
-                <View style={[styles.composerAvatar, styles.composerAvatarFallback]} />
-              )}
-              <Text style={styles.composerHint}>Share a win, a photo, a thought…</Text>
-              <Ionicons name="create-outline" size={16} color={Colors.amber} />
+              accessibilityLabel="New post">
+              <Ionicons name="create" size={22} color={Colors.onEmber} />
             </Pressable>
-          }
-          ListEmptyComponent={
-            loading ? (
-              <ActivityIndicator color={Colors.coral} style={styles.loader} />
-            ) : (
-              <EmptyScope scope={scope} error={error} hasUniversity={Boolean(profile?.university)} />
-            )
-          }
-          ListFooterComponent={
-            loadingMore ? <ActivityIndicator color={Colors.textTertiary} style={styles.footer} /> : null
-          }
-          renderItem={({ item }) => (
-            <AgoraCard
-              item={item}
-              loadout={loadouts[item.user_id] ?? {}}
-              onCheer={handleCheer}
-              onComment={setCommentsFor}
-              onMore={handleMore}
-            />
-          )}
-        />
-
-        <Pressable
-          style={styles.fab}
-          onPress={() => {
-            track('agora_composer_opened', {});
-            router.push('/agora/compose');
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="New post">
-          <Ionicons name="create" size={22} color={Colors.onEmber} />
-        </Pressable>
+          </>
+        )}
       </SafeAreaView>
 
       <AgoraCommentsSheet
@@ -351,6 +367,34 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: Colors.textTertiary,
     marginTop: 2,
+  },
+  // A two-way segmented control — the mock's "Feed · Forests" — above the feed's own scope chips.
+  tabs: {
+    flexDirection: 'row',
+    marginHorizontal: Spacing.three,
+    marginTop: Spacing.twelve,
+    padding: 3,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.cardDark,
+    borderWidth: 1,
+    borderColor: Colors.line,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 7,
+    borderRadius: Radius.pill,
+  },
+  tabOn: {
+    backgroundColor: Colors.selectedBg,
+  },
+  tabText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.textTertiary,
+  },
+  tabTextOn: {
+    color: Colors.ember,
   },
   // The row SIZES TO ITS PILLS AND SCROLLS — it does not shrink to fit the screen. A horizontal
   // ScrollView carries flexGrow/flexShrink 1 of its own, so left alone it both eats leftover

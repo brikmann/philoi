@@ -618,6 +618,12 @@ function RootNavigator() {
         <Stack.Screen name="agora/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="agora/[id]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="agora/compose" options={{ headerShown: false, presentation: 'modal' }} />
+        {/* The social layer (0272–0275): identity, forests, grind-alikes. */}
+        <Stack.Screen name="edit-identity" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="forest/[id]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="forest/create" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="grind-alikes" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="grind-alike/[userId]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="add-friend" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="friend-profile" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* WS3 · the 1:1 thread (MESSAGING_DM_SPEC.md, migration 0206). Keyed on the FRIEND, not on

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -25,6 +25,7 @@ import {
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { AGORA_VISIBILITIES, createAgoraPost } from '@/lib/api/agora';
+import { createForestPost } from '@/lib/api/forests';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import { shortSchoolName } from '@/lib/universities';
@@ -42,6 +43,10 @@ import type { AgoraVisibility } from '@/types/database';
 // `create_agora_post` re-reads the fact from the table that owns it and freezes the snapshot
 // server-side, now per item (migration 0140). The label held in state here is only for the chip
 // below — nothing typed on this screen can end up being what the card claims.
+//
+// FOREST POSTS (0274). Opened with ?forestId=, the same composer posts into that forest instead
+// of the square. The audience picker is hidden: a forest post's reach IS the forest (open, or its
+// members only), so a dial here would be a promise the server doesn't keep.
 
 const MAX = 1000;
 
@@ -69,6 +74,7 @@ function slotOf(choice: AchievementChoice): AttachSlot {
 export default function AgoraComposeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { forestId, forestName } = useLocalSearchParams<{ forestId?: string; forestName?: string }>();
 
   const [body, setBody] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -108,17 +114,13 @@ export default function AgoraComposeScreen() {
     if (!canPost || !profile) return;
     setPosting(true);
     try {
-      await createAgoraPost({
-        body,
-        photoUri,
-        userId: profile.id,
-        visibility,
-        attachments: chosen.map(({ choice }) => ({
-          kind: choice.kind,
-          ref_id: choice.refId,
-          key: choice.key,
-        })),
-      });
+      const attachments = chosen.map(({ choice }) => ({
+        kind: choice.kind,
+        ref_id: choice.refId,
+        key: choice.key,
+      }));
+      if (forestId) await createForestPost({ forestId, userId: profile.id, body, photoUri, attachments });
+      else await createAgoraPost({ body, photoUri, userId: profile.id, visibility, attachments });
       router.back();
     } catch (e) {
       Alert.alert('Could not post', getErrorMessage(e, 'Something went wrong.'));
@@ -153,7 +155,9 @@ export default function AgoraComposeScreen() {
           <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button">
             <Text style={styles.cancel}>Cancel</Text>
           </Pressable>
-          <Text style={styles.topTitle}>New post</Text>
+          <Text style={styles.topTitle} numberOfLines={1}>
+            {forestId ? `Post to ${forestName || 'this forest'}` : 'New post'}
+          </Text>
           <Pressable
             onPress={post}
             disabled={!canPost}
@@ -184,32 +188,38 @@ export default function AgoraComposeScreen() {
               )}
               <View style={styles.identityText}>
                 <Text style={styles.name}>{profile?.display_name ?? 'You'}</Text>
-                <View style={styles.audienceRow}>
-                  {AGORA_VISIBILITIES.map((v) => {
-                    const disabled = v.key === 'campus' && !hasCampus;
-                    const on = visibility === v.key;
-                    return (
-                      <Pressable
-                        key={v.key}
-                        disabled={disabled}
-                        onPress={() => setVisibility(v.key)}
-                        style={[styles.aud, on && styles.audOn, disabled && styles.audOff]}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: on, disabled }}>
-                        <Text style={[styles.audText, on && styles.audTextOn]}>
-                          {v.key === 'campus' && profile?.university
-                            ? shortSchoolName(profile.university)
-                            : v.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <Text style={styles.audienceHint}>
-                  {hasCampus || visibility !== 'public'
-                    ? (audience?.hint ?? '')
-                    : 'Set your university in your profile to post to your campus.'}
-                </Text>
+                {forestId ? (
+                  <Text style={styles.audienceHint}>Seen by everyone who can open this forest</Text>
+                ) : (
+                  <>
+                    <View style={styles.audienceRow}>
+                      {AGORA_VISIBILITIES.map((v) => {
+                        const disabled = v.key === 'campus' && !hasCampus;
+                        const on = visibility === v.key;
+                        return (
+                          <Pressable
+                            key={v.key}
+                            disabled={disabled}
+                            onPress={() => setVisibility(v.key)}
+                            style={[styles.aud, on && styles.audOn, disabled && styles.audOff]}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: on, disabled }}>
+                            <Text style={[styles.audText, on && styles.audTextOn]}>
+                              {v.key === 'campus' && profile?.university
+                                ? shortSchoolName(profile.university)
+                                : v.label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <Text style={styles.audienceHint}>
+                      {hasCampus || visibility !== 'public'
+                        ? (audience?.hint ?? '')
+                        : 'Set your university in your profile to post to your campus.'}
+                    </Text>
+                  </>
+                )}
               </View>
             </View>
 
@@ -346,6 +356,8 @@ const styles = StyleSheet.create({
     color: Colors.muted,
   },
   topTitle: {
+    flexShrink: 1,
+    marginHorizontal: Spacing.two,
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.ink,

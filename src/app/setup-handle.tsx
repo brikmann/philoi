@@ -15,6 +15,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversities } from '@/lib/api/groups';
 import { fetchProgramsForUniversity, setMyProgram } from '@/lib/api/house';
+import { setMyIdentity } from '@/lib/api/identity';
 import { setMyHeightCm, setMyWeightKg } from '@/lib/api/relics';
 import { getErrorMessage } from '@/lib/errors';
 import { invalidateIdentityBadge } from '@/lib/house/identity-badges';
@@ -52,10 +53,10 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 //
 //   1 username + display name, with the 18+/Terms consent folded into the bottom
 //   2 height (optional)   3 weight (optional)   4 where you study   5 what you study (mock 291)
-//   6 verify campus (optional)
+//   6 who you are (optional — mock 283)   7 verify campus (optional)
 //
 // Verify is LAST so the heaviest step hands straight on into the tour, and setup is the first half
-// of one run: same ScreenBackground as tutorial.tsx, same FirstRunSpine reading `SETUP n / 6` where
+// of one run: same ScreenBackground as tutorial.tsx, same FirstRunSpine reading `SETUP n / 7` where
 // the tour's reads `TOUR n / 20`.
 //
 // Step 5 is Phase 1's PROGRAM field (ONBOARDING_FLOW_3phase.md) — data entry, not the ceremony. The
@@ -91,14 +92,23 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 // Skippable for the same reason height is, though the fallback is worse: no weight means Cindy
 // asks once or scores off the demographic anchors.
 //
-// Step 6 is the OPTIONAL campus verification (UNI_VERIFICATION_SPEC.md §5). It's skipped
+// Step 6 is the OPTIONAL identity step (CODE_PROMPT_identity_profile.md "Onboarding tie-in", 0272):
+// the two highest-signal identity fields — what you wanna be, what you're working toward — so a new
+// profile is never empty and grind-alike matching has something to read from day one. Asked right
+// after the program because that's where "what you study" naturally becomes "what for". Two fields,
+// one tap, "Skip for now" beside it; it is on EVERY path (a school with no programs reaches it
+// straight from step 4), so the spine always counts it. A failed save is swallowed like height's:
+// 0272 may not be live, and a headline must never hold an account hostage — /edit-identity and the
+// profile's own prompt pick it up later.
+//
+// Step 7 is the OPTIONAL campus verification (UNI_VERIFICATION_SPEC.md §5). It's skipped
 // entirely — not shown, not counted — when the chosen school has no known email domain, since
 // there's nothing to send a code to; the step before it then enters Philoi directly. Never a
 // blocker either way: skipping just leaves the two campus boards locked.
-type Step = 1 | 2 | 3 | 4 | 5 | 6;
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 /** The full run. A school with no domain, or no programs, drops one each the moment that is known. */
-const SETUP_STEPS = 6;
+const SETUP_STEPS = 7;
 
 const PROGRAM_CONFIRM_NOTE = "You'll meet your patron and pledge your loyalty after the quick tour of how Philoi works.";
 
@@ -111,7 +121,10 @@ export default function SetupHandleScreen() {
 
   const [handle, setHandle] = useState(profile?.handle ?? '');
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
-  const [availability, setAvailability] = useState<Availability>('idle');
+  // The last answered lookup, keyed by the handle it answered for. `availability` is DERIVED from it
+  // below rather than set from the effect, so the effect only ever sets state from its async answer
+  // (react-hooks/set-state-in-effect) and a stale answer for an older handle can never show.
+  const [lookup, setLookup] = useState<{ handle: string; taken: boolean } | null>(null);
 
   const [universities, setUniversities] = useState<string[]>([]);
   const [universityQuery, setUniversityQuery] = useState('');
@@ -152,6 +165,11 @@ export default function SetupHandleScreen() {
   // school can't swap the picker's rows out from under it.
   const [programStep, setProgramStep] = useState<{ university: string; rows: ProgramRow[] } | null>(null);
 
+  // Step 6's two identity fields. Only non-empty ones are sent, so skipping — or re-entering setup
+  // and leaving them blank — never clears anything saved since.
+  const [careerGoal, setCareerGoal] = useState('');
+  const [workingToward, setWorkingToward] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -173,11 +191,7 @@ export default function SetupHandleScreen() {
   // debounced so we're not firing a query on every keystroke.
   useEffect(() => {
     const normalized = normalizeHandle(handle);
-    if (normalized.length < 3) {
-      setAvailability('idle');
-      return;
-    }
-    setAvailability('checking');
+    if (normalized.length < 3) return;
     const timer = setTimeout(() => {
       supabase
         .from('profiles')
@@ -185,12 +199,20 @@ export default function SetupHandleScreen() {
         .eq('handle', normalized)
         .neq('id', session!.user.id)
         .maybeSingle()
-        .then(({ data }) => setAvailability(data ? 'taken' : 'available'));
+        .then(({ data }) => setLookup({ handle: normalized, taken: Boolean(data) }));
     }, 400);
     return () => clearTimeout(timer);
   }, [handle, session]);
 
   const normalizedHandle = normalizeHandle(handle);
+  const availability: Availability =
+    normalizedHandle.length < 3
+      ? 'idle'
+      : lookup?.handle !== normalizedHandle
+        ? 'checking'
+        : lookup.taken
+          ? 'taken'
+          : 'available';
   // The consent gate is ASKED here (step 1) and written at the end — see the header.
   const consentChecked = ageChecked && termsChecked;
   const canContinueStep1 =
@@ -207,14 +229,13 @@ export default function SetupHandleScreen() {
   const studyIsLast = !(university && universityDomain);
   // Only once a school is actually chosen on step 4 — before that, "no domain" just means "not asked yet".
   const verifyKnownAbsent = step >= 4 && studyIsLast && Boolean(university || notListed);
-  // Known on step 4 only for a listed school whose prefetch has answered; from step 5 on it is fixed.
+  // Known on step 4 only for a listed school whose prefetch has answered; from step 6 on it is fixed.
   const programsKnownAbsent =
-    step === 4 ? Boolean(university && programsBySchool[university]?.length === 0) : step === 6 && !programStep;
+    step === 4 ? Boolean(university && programsBySchool[university]?.length === 0) : step >= 6 && !programStep;
   const setupTotal = SETUP_STEPS - (verifyKnownAbsent ? 1 : 0) - (programsKnownAbsent ? 1 : 0);
-  // Verify reads as step 5 of 5 when the program step never existed for this school.
-  const spineStep = step === 6 && !programStep ? 5 : step;
-  /** The school step's CTA enters Philoi when neither a program nor a verify step follows it. */
-  const studyEnters = studyIsLast && programsKnownAbsent;
+  // Identity and verify each read one lower when the program step never existed for this school.
+  // (The school step no longer enters Philoi itself: the identity step always follows it.)
+  const spineStep = step >= 6 && !programStep ? step - 1 : step;
 
   // Strictly the live server flag (punchlist 6 §1) — there is no local "just verified" state to
   // go stale. The school has to match too: the flag on the profile belongs to the school stored
@@ -294,7 +315,7 @@ export default function SetupHandleScreen() {
     return rows;
   }
 
-  /** Save the school, then pick a program — or verify — or, with neither to do, enter Philoi. */
+  /** Save the school, then pick a program — or, with none to pick, on to who you are. */
   async function handleContinueStudy() {
     setLoading(true);
     setError(null);
@@ -318,13 +339,11 @@ export default function SetupHandleScreen() {
     const rows = resolvedUniversity ? await loadPrograms(resolvedUniversity) : [];
     setProgramStep(resolvedUniversity && rows.length > 0 ? { university: resolvedUniversity, rows } : null);
     setLoading(false);
-    if (rows.length > 0) setStep(5);
-    else if (studyIsLast) await enterPhiloi();
-    else setStep(6);
+    setStep(rows.length > 0 ? 5 : 6);
   }
 
   /**
-   * Save the program, then verify — or enter Philoi.
+   * Save the program, then on to who you are.
    *
    * A failed save is NOT a dead end. The step is required only in the sense that a school with
    * programs doesn't offer a skip; letting a server error hold the whole account at step 5 would
@@ -345,8 +364,33 @@ export default function SetupHandleScreen() {
     } finally {
       setLoading(false);
     }
+    setStep(6);
+  }
+
+  /**
+   * Save the two identity fields, then verify — or enter Philoi.
+   *
+   * Only what was typed is sent: an empty field is "not answered", not "clear it". A failed write is
+   * swallowed on purpose (see the header) — this is the optional step, and 0272 may not be live.
+   */
+  async function handleContinueIdentity(persist: boolean) {
+    const career = careerGoal.trim();
+    const toward = workingToward.trim();
+    if (persist && (career || toward)) {
+      setLoading(true);
+      try {
+        await setMyIdentity({
+          ...(career ? { career_goal: career } : {}),
+          ...(toward ? { working_toward: toward } : {}),
+        });
+      } catch (e) {
+        console.warn('[onboarding] could not save identity — continuing without it:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
     if (studyIsLast) await enterPhiloi();
-    else setStep(6);
+    else setStep(7);
   }
 
   /**
@@ -704,9 +748,57 @@ export default function SetupHandleScreen() {
         </View>
       )}
 
+      {/* OPTIONAL who-you-are (mock 283, CODE_PROMPT_identity_profile.md) — two fields, then the
+          shared CTA. The prompt copy is the spec's: a statement of identity, not a form field. */}
+      {step === 6 && (
+        <View style={styles.step}>
+          <Text style={styles.h}>What do you wanna be?</Text>
+          <Text style={styles.sub}>What are you locking in for? It leads your profile — friends see it first.</Text>
+
+          <Text style={styles.lbl}>What you wanna be</Text>
+          <View style={styles.field}>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="future sports physio"
+              placeholderTextColor={Colors.textTertiary}
+              value={careerGoal}
+              onChangeText={setCareerGoal}
+              maxLength={60}
+            />
+          </View>
+
+          <Text style={styles.lbl}>What are you working toward?</Text>
+          <View style={styles.field}>
+            <TextInput
+              style={styles.fieldInput}
+              placeholder="first 100kg bench · ace orgo"
+              placeholderTextColor={Colors.textTertiary}
+              value={workingToward}
+              onChangeText={setWorkingToward}
+              maxLength={80}
+            />
+          </View>
+
+          <View style={styles.privacy}>
+            <Ionicons name="people-outline" size={13} color={Colors.muted} />
+            <Text style={styles.privacyText}>
+              Friends-only to start. Change who sees it, or add more, from your profile anytime.
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={() => void handleContinueIdentity(false)}
+            accessibilityRole="button"
+            hitSlop={8}
+            style={styles.skipStep}>
+            <Text style={styles.skipStepText}>Skip for now</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* OPTIONAL campus verification (§5) — the LAST step. Only ever reached when the school has a
           domain; every way out of it (verified, already verified, skipped) enters Philoi. */}
-      {step === 6 && university && universityDomain && (
+      {step === 7 && university && universityDomain && (
         <View style={styles.step}>
           {campusVerified ? (
             <CampusVerifiedPanel
@@ -731,12 +823,12 @@ export default function SetupHandleScreen() {
 
       {error && <Text style={styles.error}>{error}</Text>}
 
-      {/* Steps 5 and 6 carry their own CTAs (the picker's confirm; Send code / Verify / Skip), so the
+      {/* Steps 5 and 7 carry their own CTAs (the picker's confirm; Send code / Verify / Skip), so the
           shared nav bar's primary sits them out — two competing primary buttons on one screen is
           how someone taps "Continue" and skips verification without meaning to. Back still works,
-          and from verify it skips over a program step this school never had.
-          The two rulers' Skips are plain text links, not second buttons, so they keep the
-          shared CTA. */}
+          and from identity it skips over a program step this school never had.
+          The two rulers' and the identity step's Skips are plain text links, not second buttons,
+          so they keep the shared CTA. */}
       <View style={styles.nav}>
         {step > 1 && (
           <Pressable
@@ -745,10 +837,10 @@ export default function SetupHandleScreen() {
             <Text style={styles.backLabel}>Back</Text>
           </Pressable>
         )}
-        {step < 5 && (
+        {(step < 5 || step === 6) && (
           <View style={styles.nextWrap}>
             <PrimaryButton
-              label={step === 4 && studyEnters ? 'Enter Philoi →' : 'Continue'}
+              label={step === 6 && studyIsLast ? 'Enter Philoi →' : 'Continue'}
               loading={loading}
               // Steps 2 and 3 have nothing to validate — every position on either ruler is inside
               // its column's range by construction — so neither is ever disabled.
@@ -757,6 +849,7 @@ export default function SetupHandleScreen() {
                 if (step === 1) handleContinueStep1();
                 else if (step === 2) handleContinueHeight(true);
                 else if (step === 3) handleContinueWeight(true);
+                else if (step === 6) handleContinueIdentity(true);
                 else handleContinueStudy();
               }}
             />

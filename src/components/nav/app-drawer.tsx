@@ -59,6 +59,14 @@ const GROUPS: NavGroup[] = [
       // The Agora leads Social (mock 161) — the gathering places sit together, and the town square
       // is the newest of them. The route itself is Agent 3's; this row is what points at it.
       { key: 'agora', label: 'The Agora', icon: 'agora', route: '/agora', badge: 'NEW' },
+      // Grind-alikes (0275) sits by the Agora: both are where you meet people you don't know yet.
+      {
+        key: 'grind-alikes',
+        label: 'Grind-alikes',
+        icon: 'members',
+        route: '/grind-alikes',
+        match: ['/grind-alikes', '/grind-alike'],
+      },
       { key: 'campfires', label: 'Campfires', icon: 'campfires', route: '/campfires' },
       {
         key: 'friends',
