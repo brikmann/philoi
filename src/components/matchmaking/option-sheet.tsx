@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 
 export type SheetOption<T extends string> = { value: T; label: string; sub?: string };
 
@@ -39,11 +39,11 @@ export function OptionSheet<T extends string>({ visible, title, options, selecte
                   <Text style={[styles.rowLabel, on && styles.rowLabelOn]}>{o.label}</Text>
                   {o.sub ? <Text style={styles.rowSub}>{o.sub}</Text> : null}
                 </View>
-                {on ? <Ionicons name="checkmark" size={19} color={Colors.amber} /> : null}
+                {on ? <UiGlyph name="check" size={19} color={Colors.navEmber} /> : null}
               </Pressable>
             );
           })}
-          <Pressable style={styles.cancelRow} onPress={onClose}>
+          <Pressable style={styles.cancelRow} onPress={onClose} accessibilityRole="button">
             <Text style={styles.cancelLabel}>Cancel</Text>
           </Pressable>
         </Pressable>
@@ -59,7 +59,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: Colors.spaceLine,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: Spacing.four,
@@ -70,14 +73,17 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.line,
+    backgroundColor: Colors.spaceLine,
     marginTop: Spacing.two,
     marginBottom: Spacing.two,
   },
   title: {
+    // The kit's section label, so a sheet's title reads like every other group heading.
     fontFamily: Fonts.bodyBold,
-    fontSize: 13,
-    color: Colors.muted,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
     paddingVertical: Spacing.two,
   },
   row: {
@@ -86,7 +92,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingVertical: Spacing.three,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    borderBottomColor: Colors.spaceLine,
   },
   rowLast: {
     borderBottomWidth: 0,
@@ -100,24 +106,28 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
   rowLabelOn: {
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   rowSub: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
   cancelRow: {
     marginTop: Spacing.three,
     paddingVertical: Spacing.three,
     alignItems: 'center',
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.button,
+    minHeight: 50,
+    justifyContent: 'center',
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 16,
   },
   cancelLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 15,
-    color: Colors.muted,
+    color: Colors.ink,
   },
 });

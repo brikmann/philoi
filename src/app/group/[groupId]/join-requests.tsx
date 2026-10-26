@@ -1,12 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeOut } from 'react-native-reanimated';
 
 import { FlameSvg } from '@/components/flame-icon';
-import { EmberFill } from '@/components/ui/ember-fill';
+import { SocialGlyph } from '@/components/ui/glyphs-social';
 import { Screen } from '@/components/ui/screen';
+import { SPACE_GUTTER, SpaceCard, SpaceEmpty, SpaceHeader, SpaceSection } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGroup } from '@/hooks/use-group';
 import { approveAllJoinRequests, approveJoinRequest, denyJoinRequest, fetchJoinRequests } from '@/lib/api/groups';
@@ -86,77 +87,85 @@ export default function JoinRequestsScreen() {
     <Screen padded={false} style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.hd}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
-          <Ionicons name="arrow-back" size={20} color={Colors.muted} />
-        </Pressable>
-        <Text style={styles.title}>Join requests</Text>
+      <SpaceHeader
+        title="Join requests"
+        subtitle={`${group?.name ?? '…'} · gated`}
+        onBack={() => router.back()}
+        right={
+          requests.length > 0 ? (
+            <View style={styles.cnt}>
+              <Text style={styles.cntLabel}>{requests.length}</Text>
+            </View>
+          ) : null
+        }
+      />
+
+      <View style={styles.body}>
         {requests.length > 0 && (
-          <View style={styles.cnt}>
-            <Text style={styles.cntLabel}>{requests.length}</Text>
+          <SpaceSection
+            right={
+              <Pressable onPress={handleApproveAll} disabled={approvingAll} hitSlop={8} accessibilityRole="button">
+                <Text style={styles.approveAll}>{approvingAll ? 'Approving…' : 'Approve all'}</Text>
+              </Pressable>
+            }>
+            Pending
+          </SpaceSection>
+        )}
+
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        {!loading && requests.length === 0 ? (
+          <View style={styles.empty}>
+            <FlameSvg width={44} height={55} />
+            <SpaceEmpty title="No pending requests" body="New requests to join show up here." />
+          </View>
+        ) : (
+          <View style={styles.list}>
+            {requests.map((r) => (
+              <Animated.View key={r.id} exiting={FadeOut.duration(220)}>
+                <SpaceCard style={styles.req}>
+                  <View style={styles.rtop}>
+                    <View style={styles.av}>
+                      <Text style={styles.avLabel}>{r.display_name.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.who}>
+                      <Text style={styles.nm} numberOfLines={1}>
+                        {r.display_name}
+                      </Text>
+                      {r.handle && <Text style={styles.un}>@{r.handle}</Text>}
+                    </View>
+                  </View>
+
+                  {(r.university || r.shared_circle_name) && (
+                    <View style={styles.ctx}>
+                      <SocialGlyph name="pin" size={12} color={Colors.spaceFaint} />
+                      <Text style={styles.ctxText} numberOfLines={1}>
+                        {[r.university, r.shared_circle_name ? `in "${r.shared_circle_name}"` : null].filter(Boolean).join(' · ')}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.acts}>
+                    <Pressable
+                      style={({ pressed }) => [styles.app, busyId === r.id && styles.actOff, pressed && styles.pressed]}
+                      onPress={() => handleApprove(r.id)}
+                      disabled={busyId === r.id}>
+                      <UiGlyph name="check" size={14} color="#2A0F05" />
+                      <Text style={styles.appLabel}>Approve</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [styles.den, busyId === r.id && styles.actOff, pressed && styles.pressed]}
+                      onPress={() => handleDeny(r.id)}
+                      disabled={busyId === r.id}>
+                      <Text style={styles.denLabel}>Deny</Text>
+                    </Pressable>
+                  </View>
+                </SpaceCard>
+              </Animated.View>
+            ))}
           </View>
         )}
       </View>
-
-      <View style={styles.sub}>
-        <Text style={styles.subGroup} numberOfLines={1}>
-          {group?.name ?? '…'} · gated
-        </Text>
-        {requests.length > 0 && (
-          <Pressable onPress={handleApproveAll} disabled={approvingAll} hitSlop={8}>
-            <Text style={styles.approveAll}>{approvingAll ? 'Approving…' : 'Approve all'}</Text>
-          </Pressable>
-        )}
-      </View>
-
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      {!loading && requests.length === 0 ? (
-        <View style={styles.empty}>
-          <FlameSvg width={44} height={55} />
-          <Text style={styles.emptyTitle}>No pending requests</Text>
-          <Text style={styles.emptySub}>New requests to join show up here.</Text>
-        </View>
-      ) : (
-        <View style={styles.list}>
-          {requests.map((r) => (
-            <Animated.View key={r.id} exiting={FadeOut.duration(220)} style={styles.req}>
-              <View style={styles.rtop}>
-                <View style={styles.av}>
-                  <Text style={styles.avLabel}>{r.display_name.charAt(0).toUpperCase()}</Text>
-                </View>
-                <View style={styles.who}>
-                  <Text style={styles.nm} numberOfLines={1}>
-                    {r.display_name}
-                  </Text>
-                  {r.handle && <Text style={styles.un}>@{r.handle}</Text>}
-                </View>
-              </View>
-
-              {(r.university || r.shared_circle_name) && (
-                <View style={styles.ctx}>
-                  <Ionicons name="location" size={11} color={Colors.textTertiary} />
-                  <Text style={styles.ctxText} numberOfLines={1}>
-                    {[r.university, r.shared_circle_name ? `in "${r.shared_circle_name}"` : null].filter(Boolean).join(' · ')}
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.acts}>
-                <Pressable style={styles.appWrap} onPress={() => handleApprove(r.id)} disabled={busyId === r.id}>
-                  <EmberFill style={styles.app} radius={10} direction="diagonal">
-                    <Ionicons name="checkmark" size={14} color={Colors.onEmber} />
-                    <Text style={styles.appLabel}>Approve</Text>
-                  </EmberFill>
-                </Pressable>
-                <Pressable style={styles.den} onPress={() => handleDeny(r.id)} disabled={busyId === r.id}>
-                  <Text style={styles.denLabel}>Deny</Text>
-                </Pressable>
-              </View>
-            </Animated.View>
-          ))}
-        </View>
-      )}
     </Screen>
   );
 }
@@ -164,68 +173,41 @@ export default function JoinRequestsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 14,
-    paddingTop: 15,
+    paddingTop: Spacing.two,
     // Room under the last card — Screen's SafeAreaView clears the home indicator, this is the
     // gap on top of it.
     paddingBottom: Spacing.three,
   },
-  hd: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 4,
-  },
-  title: {
+  body: {
     flex: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
-    color: Colors.ink,
+    paddingHorizontal: SPACE_GUTTER,
   },
   cnt: {
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,122,47,0.14)',
     borderRadius: Radius.pill,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   cntLabel: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: Colors.achieverText,
-  },
-  sub: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    marginBottom: 12,
-    paddingHorizontal: 2,
-  },
-  subGroup: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.muted,
+    fontSize: 12,
+    color: Colors.navEmber2,
   },
   approveAll: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.amber,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.navEmber2,
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.coral,
+    color: Colors.danger,
     marginBottom: Spacing.two,
   },
   list: {
-    gap: 9,
+    gap: 8,
   },
   req: {
-    backgroundColor: '#141020',
-    borderWidth: 1,
-    borderColor: '#221A34',
-    borderRadius: 14,
     padding: 12,
   },
   rtop: {
@@ -237,28 +219,28 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#1C1430',
+    backgroundColor: Colors.spacePanel2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avLabel: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.achieverText,
+    color: Colors.gold,
   },
   who: {
     flex: 1,
     minWidth: 0,
   },
   nm: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13.5,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
     color: Colors.ink,
   },
   un: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
+    fontSize: 11.5,
+    color: Colors.spaceDim,
   },
   ctx: {
     flexDirection: 'row',
@@ -269,61 +251,54 @@ const styles = StyleSheet.create({
   ctxText: {
     flex: 1,
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontSize: 11.5,
+    color: Colors.spaceDim,
   },
   acts: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 10,
+    marginTop: 12,
   },
-  // Amber + near-black, not the old bold coral with cream text — the ember language's "this is
-  // the action" treatment (DESIGN_LANGUAGE_EMBER §3).
-  // §3, third instance of the same drift: flat Colors.amber under a comment describing the ember
-  // treatment. The Pressable keeps the flex; EmberFill paints the gradient inside it.
-  appWrap: {
-    flex: 1,
-  },
+  // A compact SpaceButton pair: ember fill for the one action, the secondary panel for Deny.
   app: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
     paddingVertical: 9,
+    borderRadius: 12,
+    backgroundColor: Colors.navEmber,
   },
   appLabel: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 12.5,
-    color: Colors.onEmber,
+    color: '#2A0F05',
   },
   den: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#2A2140',
-    borderRadius: 10,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel2,
+    borderRadius: 12,
     paddingVertical: 9,
   },
   denLabel: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.ink,
+  },
+  actOff: {
+    opacity: 0.45,
+  },
+  pressed: {
+    opacity: 0.85,
   },
   empty: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-  },
-  emptyTitle: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.muted,
-  },
-  emptySub: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.textTertiary,
   },
 });

@@ -294,9 +294,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 10,
     borderRadius: 30,
-    backgroundColor: 'rgba(28,20,40,0.98)',
+    backgroundColor: 'rgba(36,26,58,0.98)',
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.45,
@@ -313,9 +313,9 @@ const styles = StyleSheet.create({
   // Amber, matching the badge on the bubble, so "the one I'm holding" looks the same in both
   // places and the toggle is legible without a word of explanation.
   emoSelected: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,122,47,0.12)',
     borderWidth: 1,
-    borderColor: Colors.amber,
+    borderColor: Colors.navEmber,
   },
   emoGlyph: {
     fontSize: 24,
@@ -323,21 +323,21 @@ const styles = StyleSheet.create({
   plus: {
     fontSize: 20,
     fontFamily: Fonts.bodyBold,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   moreRow: {
     position: 'absolute',
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: 'rgba(20,14,24,0.94)',
+    backgroundColor: 'rgba(26,18,48,0.94)',
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   moreText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   picker: {
     position: 'absolute',
@@ -345,9 +345,9 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     maxHeight: '72%',
-    backgroundColor: 'rgba(16,11,20,0.98)',
+    backgroundColor: 'rgba(14,10,28,0.98)',
     borderTopWidth: 1,
-    borderTopColor: Colors.lineStrong,
+    borderTopColor: Colors.spaceLine,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingTop: 8,
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spaceLine,
     alignSelf: 'center',
     marginTop: 4,
     marginBottom: 12,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: Spacing.two,
     marginBottom: 6,
   },
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   noHits: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     paddingVertical: Spacing.three,
   },
 });

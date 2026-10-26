@@ -1,7 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 // THE CHALLENGE CARD IN THE CHAT (CHALLENGE_CINDY_SCOPING.md §Distribution, migration 0162).
@@ -51,7 +52,7 @@ export function ChallengeChatCard({
       style={styles.card}>
       <View style={styles.head}>
         <View style={styles.badge}>
-          <Ionicons name="bonfire" size={13} color={Colors.ember} />
+          <NavGlyph name="flame" size={13} color={Colors.navEmber2} />
         </View>
         <View style={styles.headText}>
           <Text style={styles.kicker}>{isOwn ? 'You hosted a challenge' : 'Campfire challenge'}</Text>
@@ -61,7 +62,7 @@ export function ChallengeChatCard({
             </Text>
           ) : null}
         </View>
-        <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
+        <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
       </View>
       <Text style={styles.footer}>See standings</Text>
     </Pressable>
@@ -71,9 +72,9 @@ export function ChallengeChatCard({
 const styles = StyleSheet.create({
   card: {
     gap: Spacing.two,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.4)',
+    borderColor: 'rgba(255,122,47,0.4)',
     borderRadius: Radius.card,
     padding: Spacing.twelve,
     marginBottom: Spacing.two,
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(242,163,60,0.14)',
+    backgroundColor: 'rgba(255,122,47,0.14)',
   },
   headText: { flex: 1, gap: 1 },
   kicker: {
@@ -97,9 +98,9 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
-  footer: { fontFamily: Fonts.bodySemiBold, fontSize: 12, color: Colors.ember, paddingLeft: 34 },
+  footer: { fontFamily: Fonts.bodySemiBold, fontSize: 12, color: Colors.navEmber2, paddingLeft: 34 },
   headline: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13.5,

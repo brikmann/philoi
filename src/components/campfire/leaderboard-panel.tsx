@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -6,6 +5,8 @@ import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LeaderboardPersonRow } from '@/components/leaderboard-person-row';
+import { SpaceIconButton } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
@@ -128,9 +129,9 @@ export function LeaderboardPanel({ visible, onClose, groupId, myUserId, topInset
                 <SegButton label="This week" on={period === 'week'} onPress={() => setPeriod('week')} />
                 <SegButton label="All time" on={period === 'all'} onPress={() => setPeriod('all')} />
               </View>
-              <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close">
-                <Ionicons name="chevron-down" size={20} color={Colors.muted} />
-              </Pressable>
+              <SpaceIconButton onPress={onClose} label="Close">
+                <UiGlyph name="down" size={18} color={Colors.ink} />
+              </SpaceIconButton>
             </View>
 
             {period === 'week' && (
@@ -202,11 +203,11 @@ const styles = StyleSheet.create({
   },
   sheet: {
     flex: 1,
-    backgroundColor: 'rgba(16,11,20,0.94)',
+    backgroundColor: 'rgba(14,10,28,0.94)',
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     borderTopWidth: 1,
-    borderTopColor: Colors.lineStrong,
+    borderTopColor: Colors.spaceLine,
     paddingTop: 8,
     paddingHorizontal: Spacing.three,
   },
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spaceLine,
     alignSelf: 'center',
     marginTop: 4,
     marginBottom: 12,
@@ -227,15 +228,17 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 18,
     color: Colors.ink,
   },
   seg: {
     flexDirection: 'row',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    padding: 4,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    padding: 3,
     borderRadius: 12,
   },
   segBtn: {
@@ -244,16 +247,16 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   segBtnOn: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,122,47,0.12)',
   },
   segLabel: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   segLabelOn: {
     fontFamily: Fonts.bodyBold,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   list: {
     paddingBottom: Spacing.four,
@@ -261,7 +264,7 @@ const styles = StyleSheet.create({
   unitNote: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: -6,
     marginBottom: 8,
   },
@@ -269,7 +272,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12.5,
     lineHeight: 18,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     paddingTop: Spacing.four,
   },

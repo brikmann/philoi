@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -10,7 +9,9 @@ import { CampfireBannerArt } from '@/components/campfire-banner-art';
 import { CampfireOptionsSheet } from '@/components/campfire-options-sheet';
 import { CircleTimeline } from '@/components/circle-timeline';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Screen } from '@/components/ui/screen';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useCampfireStats } from '@/hooks/use-campfire-stats';
 import { useGroup } from '@/hooks/use-group';
@@ -226,6 +227,16 @@ export default function GroupScreen() {
             its status-bar padding, so the banner runs edge-to-edge and under the clock with
             nothing but a fade between it and the chat. */}
         <HeaderVeil />
+        {/* The kit's back chevron, in the on-banner (scrim) variant. The identity block beside it
+            still goes back too — it always did, and people have learned to tap it. */}
+        <Pressable
+          style={styles.iconBtn}
+          onPress={() => router.back()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back">
+          <UiGlyph name="back" size={20} color={Colors.ink} />
+        </Pressable>
         <Pressable
           style={styles.fireId}
           onPress={() => router.back()}
@@ -242,10 +253,13 @@ export default function GroupScreen() {
               {group?.name ?? '…'}
               {isOwner ? <Text style={styles.crown}> 👑</Text> : null}
             </Text>
-            <Text style={styles.fireSub} numberOfLines={1}>
-              🔥 {memberCount} {memberCount === 1 ? 'member' : 'members'}
-              {streakDays > 0 ? ` · ${streakDays}-day streak` : ''}
-            </Text>
+            <View style={styles.fireSubRow}>
+              <NavGlyph name="flame" size={11} color={Colors.navEmber2} />
+              <Text style={styles.fireSub} numberOfLines={1}>
+                {memberCount} {memberCount === 1 ? 'member' : 'members'}
+                {streakDays > 0 ? ` · ${streakDays}-day streak` : ''}
+              </Text>
+            </View>
           </View>
         </Pressable>
 
@@ -255,14 +269,14 @@ export default function GroupScreen() {
             onPress={() => setLeaderboardVisible(true)}
             accessibilityRole="button"
             accessibilityLabel="Open the leaderboard">
-            <Text style={styles.trophy}>🏆</Text>
+            <NavGlyph name="trophy" size={18} color={Colors.gold} />
           </Pressable>
           <Pressable
             style={styles.iconBtn}
             onPress={() => setOptionsVisible(true)}
             accessibilityRole="button"
             accessibilityLabel="Campfire options">
-            <Ionicons name="ellipsis-horizontal" size={18} color={Colors.ink} />
+            <UiGlyph name="more" size={18} color={Colors.ink} />
           </Pressable>
         </View>
       </View>
@@ -351,7 +365,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fireName: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 19,
     letterSpacing: -0.3,
     color: Colors.ink,
@@ -362,35 +376,39 @@ const styles = StyleSheet.create({
   // Was Colors.heatLabel — the ember-brown that belonged to the heat word this line no longer
   // carries. A members/streak line is status, so it takes the ordinary secondary text colour and
   // stops competing with the name above it.
+  fireSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
   fireSub: {
+    flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.muted,
-    marginTop: 4,
+    color: Colors.onScrim,
   },
   topActions: {
     flexDirection: 'row',
     gap: 8,
   },
+  // The kit's round 36px header button (SpaceIconButton), in its on-banner form: a dark
+  // translucent scrim instead of the opaque spacePanel2 fill, so the banner still reads through it
+  // rather than the chrome punching solid holes in the art.
   iconBtn: {
     width: 36,
     height: 36,
-    borderRadius: 11,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    // mock 174's `.hbtn`: a dark translucent chip that lets the banner read through it rather than
-    // a light scrim that flattens into the art.
-    backgroundColor: 'rgba(25,16,34,0.8)',
+    backgroundColor: Colors.scrimDeep,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.13)',
+    borderColor: 'rgba(46,35,72,0.9)',
   },
-  // `.hbtn.trophy` — the one gold affordance in the bar. The kebab beside it stays quiet on
-  // purpose: two lit buttons is two calls to action, and only one of them is the prize.
+  // The trophy — the one gold affordance in the bar. The kebab beside it stays quiet on purpose:
+  // two lit buttons is two calls to action, and only one of them is the prize.
   iconBtnLead: {
-    backgroundColor: 'rgba(42,31,18,0.8)',
-    borderColor: 'rgba(255,201,77,0.4)',
-  },
-  trophy: {
-    fontSize: 16,
+    backgroundColor: 'rgba(42,31,18,0.72)',
+    borderColor: 'rgba(255,209,102,0.4)',
   },
 });

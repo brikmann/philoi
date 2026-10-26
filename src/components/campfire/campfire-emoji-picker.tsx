@@ -87,9 +87,9 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,122,47,0.12)',
     borderWidth: 1,
-    borderColor: Colors.amber,
+    borderColor: Colors.navEmber,
   },
   previewGlyph: {
     // No lineHeight multiplier: an emoji in a fixed-height box gets clipped on Android.
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11,
     lineHeight: 15,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   row: {
     flexDirection: 'row',
@@ -113,13 +113,13 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   tileOn: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.coral,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   glyph: {
     fontSize: 20,

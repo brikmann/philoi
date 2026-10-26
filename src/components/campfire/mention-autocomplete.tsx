@@ -100,9 +100,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 14,
     right: 70,
-    backgroundColor: 'rgba(20,14,24,0.97)',
+    backgroundColor: 'rgba(26,18,48,0.97)',
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     borderRadius: 14,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
     letterSpacing: 1.4,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 6,
@@ -130,19 +130,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: Colors.line,
+    borderTopColor: Colors.spaceLine,
   },
   avatar: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: Colors.plum,
+    backgroundColor: Colors.spacePanel2,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   avatarAll: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,122,47,0.12)',
   },
   avatarAllGlyph: {
     fontSize: 14,
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   who: {
     flex: 1,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   sub: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: 1,
   },
 });

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -23,6 +22,9 @@ import { TrophyHallSection } from '@/components/profile/trophy-hall-section';
 import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
+import { SocialGlyph } from '@/components/ui/glyphs-social';
+import { SpaceHeader, SpaceIconButton, SpaceSection } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { usePresenceOf } from '@/hooks/use-presence';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
@@ -47,7 +49,7 @@ function formatHours(hours: number): string {
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // The §16 friend-state-machine button (punchlist 2's friend-button design note) — each state
-// reads visually distinct rather than a single flat pill: Add friend (coral filled) -> Requested
+// reads visually distinct rather than a single flat pill: Add friend (ember filled) -> Requested
 // (outline/muted, disabled) animates a quick fill-to-outline crossfade on the actual none-to-
 // requested tap so it clearly registers; Friends renders as its own quiet confirmed pill (no
 // tap-driven transition into it — that happens via the OTHER person accepting elsewhere).
@@ -63,14 +65,14 @@ function FriendActionButton({ relationship, busy, onPress }: { relationship: Pro
   }, [relationship, fill]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(fill.value, [0, 1], [Colors.coral, Colors.card]),
-    borderColor: interpolateColor(fill.value, [0, 1], [Colors.coral, Colors.lineStrong]),
+    backgroundColor: interpolateColor(fill.value, [0, 1], [Colors.navEmber, Colors.spacePanel2]),
+    borderColor: interpolateColor(fill.value, [0, 1], [Colors.navEmber, Colors.spaceLine]),
   }));
 
   if (relationship === 'friends') {
     return (
       <View style={[styles.actFriend, styles.actFriendConfirmed]}>
-        <Ionicons name="checkmark-circle" size={14} color={Colors.green} style={{ marginRight: 4 }} />
+        <UiGlyph name="check" size={14} color={Colors.gold} />
         <Text style={[styles.actFriendText, styles.actFriendTextConfirmed]}>Friends</Text>
       </View>
     );
@@ -79,9 +81,9 @@ function FriendActionButton({ relationship, busy, onPress }: { relationship: Pro
   return (
     <AnimatedPressable style={[styles.actFriend, animatedStyle]} onPress={onPress} disabled={busy || relationship !== 'none'}>
       {relationship === 'none' ? (
-        <Ionicons name="person-add" size={14} color={Colors.ink} style={{ marginRight: 4 }} />
+        <SocialGlyph name="personAdd" size={15} color="#2A0F05" />
       ) : (
-        <Ionicons name="checkmark" size={14} color={Colors.muted} style={{ marginRight: 4 }} />
+        <UiGlyph name="check" size={14} color={Colors.spaceDim} />
       )}
       <Text style={[styles.actFriendText, relationship === 'none' && styles.actFriendTextOn]}>
         {relationship === 'none' ? 'Add friend' : 'Requested'}
@@ -211,14 +213,16 @@ export default function FriendProfileScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <View style={styles.top}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
-          <Ionicons name="chevron-down" size={20} color={Colors.muted} />
-        </Pressable>
-        <Pressable onPress={() => setMoreOpen(true)} hitSlop={8} accessibilityLabel="More options">
-          <Ionicons name="ellipsis-horizontal" size={20} color={Colors.muted} />
-        </Pressable>
-      </View>
+      {/* The kit header with an empty title — mock 43 keeps the name in the hero, not a top bar. */}
+      <SpaceHeader
+        title=""
+        onBack={() => router.back()}
+        right={
+          <SpaceIconButton onPress={() => setMoreOpen(true)} label="More options">
+            <UiGlyph name="more" size={18} color={Colors.ink} />
+          </SpaceIconButton>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.container}>
         {/* THE flex surface: this is the screen a leaderboard or a search result opens, so it is
@@ -270,7 +274,7 @@ export default function FriendProfileScreen() {
                 <Text style={styles.actDeclineText}>Decline</Text>
               </Pressable>
               <Pressable style={[styles.actFriend, styles.actAccept]} onPress={() => handleRespondIncoming(true)} disabled={relationshipBusy}>
-                <Ionicons name="checkmark" size={15} color={Colors.ink} style={{ marginRight: 4 }} />
+                <UiGlyph name="check" size={15} color="#2A0F05" />
                 <Text style={styles.actAcceptText}>Accept</Text>
               </Pressable>
             </>
@@ -281,17 +285,18 @@ export default function FriendProfileScreen() {
               them, and not say a word to them. Friends only, matching dm_open_thread's own gate. */}
           {relationship === 'friends' && (
             <Pressable style={styles.actMessage} onPress={handleMessage} accessibilityLabel={`Message ${profile.display_name}`}>
-              <Ionicons name="chatbubble-ellipses-outline" size={15} color={Colors.ink} style={{ marginRight: 4 }} />
+              <SocialGlyph name="chat" size={16} color={Colors.ink} />
               <Text style={styles.actMessageText}>Message</Text>
             </Pressable>
           )}
           <Pressable style={styles.actChallenge} onPress={handleChallenge}>
-            <Ionicons name="flash" size={15} color={Colors.ink} style={{ marginRight: 4 }} />
+            <SocialGlyph name="bolt" size={15} color="#2A0F05" />
             <Text style={styles.actChallengeText}>Challenge</Text>
           </Pressable>
         </View>
         <Pressable style={styles.actVersus} onPress={handleHeadToHead} accessibilityLabel={`Head to head with ${profile.display_name}`}>
-          <Text style={styles.actVersusText}>⚔ Head to head</Text>
+          <SocialGlyph name="swords" size={15} color={Colors.legend} />
+          <Text style={styles.actVersusText}>Head to head</Text>
           <Text style={styles.actVersusSub}>Compare any stats</Text>
         </Pressable>
 
@@ -357,11 +362,11 @@ export default function FriendProfileScreen() {
 
         {stats && stats.goal_types.length > 0 && (
           <>
-            <Text style={styles.seclbl}>Works on</Text>
+            <SpaceSection>Works on</SpaceSection>
             <View style={styles.chips}>
               {stats.goal_types.map((type) => (
                 <View key={type} style={styles.chip}>
-                  <DisciplineIcon name={GOAL_TYPE_GLYPH[type as keyof typeof GOAL_TYPE_GLYPH]} size={12} color={Colors.ember} />
+                  <DisciplineIcon name={GOAL_TYPE_GLYPH[type as keyof typeof GOAL_TYPE_GLYPH]} size={12} color={Colors.navEmber2} />
                   <Text style={styles.chipText}>{GOAL_TYPE_META[type as keyof typeof GOAL_TYPE_META]?.label ?? type}</Text>
                 </View>
               ))}
@@ -371,7 +376,7 @@ export default function FriendProfileScreen() {
 
         {photos.length > 0 && (
           <>
-            <Text style={styles.seclbl}>Recent lock-ins</Text>
+            <SpaceSection>Recent lock-ins</SpaceSection>
             <View style={styles.grid}>
               {photos.map((p) => (
                 <View key={p.id} style={styles.ph}>
@@ -379,7 +384,7 @@ export default function FriendProfileScreen() {
                     <Image source={{ uri: p.signedPhotoUrl }} style={styles.phImage} />
                   ) : (
                     <View style={[styles.phImage, styles.phFallback]}>
-                      <DisciplineIcon name={GOAL_TYPE_GLYPH[p.goal_type]} size={26} color={Colors.textTertiary} />
+                      <DisciplineIcon name={GOAL_TYPE_GLYPH[p.goal_type]} size={26} color={Colors.spaceFaint} />
                     </View>
                   )}
                   <View style={styles.ov}>
@@ -411,16 +416,9 @@ const styles = StyleSheet.create({
     // scene background — an opaque colour here blocks it (Ember reskin sweep).
     backgroundColor: 'transparent',
   },
-  top: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
-  },
   container: {
-    padding: Spacing.four,
-    paddingTop: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingTop: 0,
     paddingBottom: Spacing.six,
   },
   // Friend tag + university, one line under the title inside the card.
@@ -434,10 +432,11 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
+  // Gold = earned + identity: being their friend is a standing, not a status light.
   friendTag: {
-    backgroundColor: 'rgba(61,168,92,0.15)',
+    backgroundColor: 'rgba(255,209,102,0.12)',
     borderRadius: 6,
     paddingVertical: 2,
     paddingHorizontal: 7,
@@ -445,11 +444,11 @@ const styles = StyleSheet.create({
   friendTagText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 9,
-    color: Colors.green,
+    color: Colors.gold,
   },
   acts: {
     flexDirection: 'row',
-    gap: 9,
+    gap: Spacing.two,
     width: '100%',
     marginTop: 14,
   },
@@ -458,49 +457,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
+    gap: 5,
+    minHeight: 44,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.button,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: Spacing.two,
   },
   actFriendText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
-  // 'none' -> Add friend text color; the coral fill itself is animated (see FriendActionButton).
+  // 'none' -> Add friend text on the ember fill; the fill itself is animated (see FriendActionButton).
   actFriendTextOn: {
-    color: Colors.ink,
+    fontFamily: Fonts.bodyBold,
+    color: '#2A0F05',
   },
-  // 'friends' -> Friends ✓: a quieter confirmed pill, distinct from both the coral CTA and the
-  // plain outline 'requested' look.
+  // 'friends' -> Friends ✓: the kit's gold tone — a quieter confirmed pill, distinct from both the
+  // ember CTA and the plain panel 'requested' look.
   actFriendConfirmed: {
-    backgroundColor: Colors.achieverBg,
-    borderColor: 'transparent',
+    backgroundColor: 'rgba(255,209,102,0.07)',
+    borderColor: '#5A4A1E',
   },
   actFriendTextConfirmed: {
-    color: Colors.green,
+    color: Colors.gold,
   },
-  // 'incoming' -> Accept (green filled) + a secondary Decline (outline) side by side.
+  // 'incoming' -> Accept (ember filled, the one action) + a secondary Decline (panel) side by side.
   actAccept: {
-    backgroundColor: Colors.green,
-    borderColor: Colors.green,
+    backgroundColor: Colors.navEmber,
+    borderColor: Colors.navEmber,
   },
   actAcceptText: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.ink,
+    color: '#2A0F05',
   },
   actDecline: {
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.spacePanel2,
   },
   actDeclineText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
-  // WS3 · Message. A filled outline rather than a second coral fill: the row already has one
+  // WS3 · Message. A panel button rather than a second ember fill: the row already has one
   // primary (Challenge), and two competing fills side by side read as a choice you have to make
   // rather than two things you can do.
   actMessage: {
@@ -508,10 +510,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
+    gap: 5,
+    minHeight: 44,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.button,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: Spacing.two,
   },
   actMessageText: {
@@ -524,17 +528,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.coral,
-    borderRadius: Radius.button,
+    gap: 5,
+    minHeight: 44,
+    backgroundColor: Colors.navEmber,
+    borderRadius: 14,
     paddingVertical: Spacing.two,
   },
   actChallengeText: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.ink,
+    color: '#2A0F05',
   },
   // A row of its own under the actions rather than a fourth button squeezed into them: it's a
-  // place you go (a whole comparison), not a one-tap action like the three above.
+  // place you go (a whole comparison), not a one-tap action like the three above. Legend purple —
+  // secondary, so it never competes with the ember Challenge beside it.
   actVersus: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -542,24 +549,27 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginTop: Spacing.two,
     borderWidth: 1,
-    borderColor: 'rgba(224,97,44,0.4)',
-    borderRadius: Radius.button,
-    paddingVertical: Spacing.two,
+    borderColor: '#3A2D5A',
+    backgroundColor: 'rgba(185,139,255,0.08)',
+    borderRadius: 14,
+    paddingVertical: 10,
   },
   actVersusText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.amber,
+    color: Colors.legend,
   },
   actVersusSub: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   stats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     borderRadius: 14,
     padding: 13,
     marginTop: 12,
@@ -569,26 +579,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 17,
     color: Colors.ink,
   },
   statLabel: {
     fontFamily: Fonts.body,
-    fontSize: 9.5,
-    color: Colors.textTertiary,
+    fontSize: 10,
+    color: Colors.spaceDim,
   },
   markerRow: {
     marginTop: 14,
-  },
-  seclbl: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 10,
-    color: Colors.textTertiary,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginTop: 18,
-    marginBottom: 9,
   },
   chips: {
     flexDirection: 'row',
@@ -603,10 +604,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   chipText: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
     color: Colors.ink,
   },
@@ -618,7 +621,7 @@ const styles = StyleSheet.create({
   ph: {
     width: '32%',
     aspectRatio: 1,
-    borderRadius: 9,
+    borderRadius: 12,
     overflow: 'hidden',
     justifyContent: 'flex-end',
   },
@@ -630,7 +633,7 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   phFallback: {
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
     alignItems: 'center',
     justifyContent: 'center',
   },

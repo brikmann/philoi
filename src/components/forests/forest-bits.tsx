@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { shortSchoolName } from '@/lib/universities';
 import type { ForestSummary } from '@/types/social';
@@ -63,7 +64,15 @@ export function ForestSheet({
         {/* Swallows taps so pressing inside the sheet doesn't dismiss it. */}
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.grabber} />
-          {title ? <Text style={styles.sheetTitle}>{title}</Text> : null}
+          {title ? (
+            <View style={styles.sheetHead}>
+              <Text style={styles.sheetTitle}>{title}</Text>
+              {/* The kit's close control, so a sheet has a visible way out besides the backdrop. */}
+              <Pressable onPress={onClose} hitSlop={10} style={styles.sheetClose} accessibilityRole="button" accessibilityLabel="Close">
+                <UiGlyph name="close" size={14} color={Colors.spaceDim} />
+              </Pressable>
+            </View>
+          ) : null}
           {children}
         </Pressable>
       </Pressable>
@@ -95,7 +104,7 @@ export function SheetRow({
 
 const styles = StyleSheet.create({
   avatarBg: {
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
   },
   avatarFallback: {
     alignItems: 'center',
@@ -114,7 +123,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: Colors.green,
     borderWidth: 2,
-    borderColor: Colors.cream,
+    borderColor: Colors.spaceBg,
   },
   backdrop: {
     flex: 1,
@@ -123,7 +132,10 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: '85%',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: Colors.spaceLine,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 8,
@@ -134,16 +146,32 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spaceLine,
     alignSelf: 'center',
     marginTop: 4,
     marginBottom: Spacing.twelve,
   },
-  sheetTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.ink,
+  sheetHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
     marginBottom: Spacing.two,
+  },
+  sheetTitle: {
+    flex: 1,
+    fontFamily: Fonts.black,
+    fontSize: 17,
+    color: Colors.ink,
+  },
+  sheetClose: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   row: {
     flexDirection: 'row',
@@ -152,7 +180,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    borderBottomColor: Colors.spaceLine,
   },
   rowOff: {
     opacity: 0.5,

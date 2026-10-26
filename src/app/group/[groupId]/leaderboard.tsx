@@ -1,13 +1,13 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { ActiveChallengeMarkerChip } from '@/components/active-challenge-marker-chip';
 import { LeaderboardGap, LeaderboardPersonRow } from '@/components/leaderboard-person-row';
 import { ParthenonPodium, type PodiumItem } from '@/components/parthenon-podium';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SPACE_GUTTER, SpaceChip, SpaceEmpty, SpaceHeader } from '@/components/ui/space-kit';
+import { Colors, Spacing } from '@/constants/theme';
 import { useGroup } from '@/hooks/use-group';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
 import { usePresence } from '@/hooks/use-presence';
@@ -90,15 +90,14 @@ export default function GroupLeaderboardScreen() {
 
   return (
     <Screen padded={false}>
-      <Stack.Screen options={{ title: group?.name ?? 'Leaderboard' }} />
+      {/* The native header gives way to the kit's, like every other pushed screen; the campfire's
+          name stays the title it always was. */}
+      <Stack.Screen options={{ headerShown: false }} />
+      <SpaceHeader title={group?.name ?? 'Leaderboard'} subtitle="Leaderboard" onBack={() => router.back()} />
       <View style={styles.header}>
         <View style={styles.metricRow}>
-          <Pressable style={[styles.metricPill, metric === 'xp' && styles.pillOn]} onPress={() => setMetric('xp')}>
-            <Text style={[styles.pillLabel, metric === 'xp' && styles.pillLabelOn]}>XP</Text>
-          </Pressable>
-          <Pressable style={[styles.metricPill, metric === 'streak' && styles.pillOn]} onPress={() => setMetric('streak')}>
-            <Text style={[styles.pillLabel, metric === 'streak' && styles.pillLabelOn]}>Streaks</Text>
-          </Pressable>
+          <SpaceChip label="XP" selected={metric === 'xp'} onPress={() => setMetric('xp')} />
+          <SpaceChip label="Streaks" selected={metric === 'streak'} onPress={() => setMetric('streak')} />
         </View>
       </View>
 
@@ -106,7 +105,7 @@ export default function GroupLeaderboardScreen() {
         data={listRows}
         keyExtractor={(item) => item.user_id}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.coral} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refetch} tintColor={Colors.navEmber} />}
         ListHeaderComponent={
           top3.length > 0 ? (
             <View style={styles.podiumWrap}>
@@ -162,7 +161,7 @@ export default function GroupLeaderboardScreen() {
           ) : null
         }
         ListEmptyComponent={
-          !loading && isEmpty ? <EmptyState title="Nobody here yet" body={error ?? 'Members show up once they start earning XP.'} /> : null
+          !loading && isEmpty ? <SpaceEmpty title="Nobody here yet" body={error ?? 'Members show up once they start earning XP.'} /> : null
         }
       />
     </Screen>
@@ -171,36 +170,15 @@ export default function GroupLeaderboardScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.two,
   },
   metricRow: {
     flexDirection: 'row',
     gap: Spacing.two,
   },
-  metricPill: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-  },
-  pillOn: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.coral,
-  },
-  pillLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11.5,
-    color: Colors.muted,
-  },
-  pillLabelOn: {
-    color: Colors.achieverText,
-  },
   listContent: {
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.four,
     gap: 2,
   },

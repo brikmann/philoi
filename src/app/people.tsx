@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
-import { Fragment, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -15,6 +14,10 @@ import { RankBadge } from '@/components/rank-badge';
 import { EmberSearchBar } from '@/components/ui/ember-search-bar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { SocialGlyph } from '@/components/ui/glyphs-social';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { SPACE_GUTTER, SpaceHeader, SpaceIconButton, SpaceSection } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFriends } from '@/hooks/use-friends';
 import {
@@ -181,12 +184,14 @@ function PeopleScreenContent() {
     <SafeAreaView edges={['top']} style={styles.safe}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.header}>
-        <Text style={styles.title}>Your people</Text>
-        <Pressable onPress={() => router.push('/add-friend')} hitSlop={8} accessibilityLabel="Add friends">
-          <Ionicons name="person-add-outline" size={21} color={Colors.muted} />
-        </Pressable>
-      </View>
+      <SpaceHeader
+        title="Your people"
+        right={
+          <SpaceIconButton onPress={() => router.push('/add-friend')} label="Add friends">
+            <SocialGlyph name="personAdd" size={18} color={Colors.ink} />
+          </SpaceIconButton>
+        }
+      />
 
       {/* Mock 259: the same ember-ring field as the Leaderboard search. */}
       <EmberSearchBar value={search} onChangeText={setSearch} placeholder="Search friends" style={styles.search} />
@@ -201,12 +206,13 @@ function PeopleScreenContent() {
         )}
         {error && <Text style={styles.error}>{error}</Text>}
 
+        {/* Each friend is its own panel row now (space-kit rows), so the hairline dividers between
+            them went — the 6px gap between panels does that job. */}
         {lockedIn.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>Locked in now · {lockedIn.length}</Text>
-            {lockedIn.map((f, i) => (
-              <Fragment key={f.friend_id}>
-                {i > 0 && <View style={styles.divider} />}
+            <SpaceSection>{`Locked in now · ${lockedIn.length}`}</SpaceSection>
+            {lockedIn.map((f) => (
+              <View key={f.friend_id} style={styles.rowGap}>
                 <FriendRow
                   friend={f}
                   loadout={loadouts[f.friend_id]}
@@ -217,19 +223,16 @@ function PeopleScreenContent() {
                   onQuick={() => handleLockInWith(f)}
                   onMessage={() => handleMessage(f)}
                 />
-              </Fragment>
+              </View>
             ))}
           </>
         )}
 
         {rest.length > 0 && (
           <>
-            <Text style={[styles.sectionLabel, lockedIn.length > 0 && styles.sectionLabelSpaced]}>
-              All friends · {rest.length}
-            </Text>
-            {rest.map((f, i) => (
-              <Fragment key={f.friend_id}>
-                {i > 0 && <View style={styles.divider} />}
+            <SpaceSection>{`All friends · ${rest.length}`}</SpaceSection>
+            {rest.map((f) => (
+              <View key={f.friend_id} style={styles.rowGap}>
                 <FriendRow
                   friend={f}
                   loadout={loadouts[f.friend_id]}
@@ -241,7 +244,7 @@ function PeopleScreenContent() {
                   onQuick={() => handleNudge(f)}
                   onMessage={() => handleMessage(f)}
                 />
-              </Fragment>
+              </View>
             ))}
           </>
         )}
@@ -310,7 +313,7 @@ function FriendRow({
   const resolved = useResolvedLoadout(friend.friend_id, loadout);
 
   return (
-    <Pressable style={styles.row} onPress={onOpen}>
+    <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onOpen}>
       <View style={styles.avatarWrap}>
         {/* Their gear, not a bare circle — this list is where you look at your friends most, so it
             was the loudest place a bought title rendered as nothing. Flares stay static: this is a
@@ -357,18 +360,20 @@ function FriendRow({
         hitSlop={8}
         accessibilityLabel={`Message ${friend.display_name}`}
         style={[styles.quick, styles.quickMessage]}>
-        <Ionicons name="chatbubble-ellipses-outline" size={17} color={Colors.muted} />
+        <SocialGlyph name="chat" size={17} color={Colors.spaceDim} />
       </Pressable>
       <Pressable
         onPress={onQuick}
         hitSlop={8}
         accessibilityLabel={lockedIn ? 'Lock in with them' : 'Nudge to lock in'}
         style={[styles.quick, lockedIn ? styles.quickJoin : nudged && styles.quickDone]}>
-        <Ionicons
-          name={lockedIn ? 'lock-closed' : nudged ? 'checkmark' : 'flame'}
-          size={17}
-          color={lockedIn ? '#FFFFFF' : nudged ? Colors.achieverText : Colors.amber}
-        />
+        {lockedIn ? (
+          <UiGlyph name="lock" size={17} color="#2A0F05" />
+        ) : nudged ? (
+          <UiGlyph name="check" size={17} color={Colors.gold} />
+        ) : (
+          <NavGlyph name="flame" size={17} color={Colors.navEmber} />
+        )}
       </Pressable>
     </Pressable>
   );
@@ -382,51 +387,32 @@ const styles = StyleSheet.create({
     // scene background — an opaque colour here blocks it (Ember reskin sweep).
     backgroundColor: 'transparent',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    marginBottom: Spacing.twelve,
-  },
-  title: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 18,
-    color: Colors.ink,
-  },
   search: {
-    marginHorizontal: Spacing.three,
-    marginBottom: Spacing.twelve,
+    marginHorizontal: SPACE_GUTTER,
+    marginBottom: Spacing.one,
   },
   list: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.six,
   },
-  // Mock 259's gold accent — same value as the Leaderboard's RESULTS label.
-  sectionLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    color: '#C9A24A',
-    marginLeft: 2,
-    marginBottom: 4,
+  rowGap: {
+    marginBottom: 6,
   },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.line,
-  },
-  sectionLabelSpaced: {
-    marginTop: 14,
-  },
+  // The space-kit row panel (SpaceRow's surface), hand-built because this row carries two quick
+  // actions and a rank hex that SpaceRow's single trailing slot can't hold.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingVertical: 10,
-    paddingHorizontal: 6,
-    borderRadius: Radius.card,
+    paddingHorizontal: Spacing.twelve,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  rowPressed: {
+    opacity: 0.85,
   },
   avatarWrap: {
     position: 'relative',
@@ -438,9 +424,9 @@ const styles = StyleSheet.create({
     width: 11,
     height: 11,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
     borderWidth: 2,
-    borderColor: Colors.cream,
+    borderColor: Colors.spacePanel,
   },
   who: {
     flex: 1,
@@ -467,17 +453,17 @@ const styles = StyleSheet.create({
   status: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 1,
   },
   statusOn: {
-    color: Colors.achieverText,
+    color: Colors.navEmber2,
   },
   quick: {
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -486,18 +472,18 @@ const styles = StyleSheet.create({
   quickMessage: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
   },
   quickJoin: {
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
   },
   quickDone: {
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,209,102,0.12)',
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.coral,
+    color: Colors.danger,
     marginBottom: Spacing.two,
   },
 });

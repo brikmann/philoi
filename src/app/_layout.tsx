@@ -613,10 +613,9 @@ function RootNavigator() {
         {/* Campfires is a hamburger destination now, not a tab (punchlist 16 §4). */}
         <Stack.Screen name="campfires" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="people" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
-        {/* Nav restructure: the ✈ inbox, and the two screens the old Home / Leaderboard tabs became
-            (your fire = the fire strip's destination; all boards = the classic board views). */}
+        {/* Nav restructure: the ✈ inbox. (The old Home / Leaderboard screens it once kept as
+            /your-fire and /all-boards are gone — ui_pass2 §8.) */}
         <Stack.Screen name="messages" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
-        <Stack.Screen name="your-fire" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* The Agora (AGORA_SPEC) — the town square, a Social destination beside Campfires and
             Friends. The composer is a modal so posting reads as an interruption you return from,
             not as somewhere you navigated to. */}

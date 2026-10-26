@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -14,6 +13,9 @@ import {
 } from 'react-native';
 
 import { forestSubline } from '@/components/forests/forest-bits';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { SPACE_GUTTER, SpaceButton, SpaceChip } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { FOREST_SORTS, fetchForests } from '@/lib/api/forests';
 import { shortSchoolName } from '@/lib/universities';
@@ -111,33 +113,33 @@ export function ForestsBrowse() {
       keyExtractor={(f) => f.id}
       contentContainerStyle={styles.list}
       keyboardShouldPersistTaps="handled"
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.amber} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.navEmber} />}
       ItemSeparatorComponent={() => <View style={styles.sep} />}
       ListHeaderComponent={
         <View>
           <View style={styles.headRow}>
             <Text style={styles.headTitle}>Find your forest</Text>
             <Pressable style={styles.createBtn} onPress={create} accessibilityRole="button" accessibilityLabel="Create a forest">
-              <Ionicons name="add" size={14} color={Colors.onEmber} />
+              <UiGlyph name="add" size={13} color="#2A0F05" />
               <Text style={styles.createText}>Create</Text>
             </Pressable>
           </View>
 
           <View style={styles.search}>
-            <Ionicons name="search" size={15} color={Colors.textTertiary} />
+            <NavGlyph name="search" size={16} color={Colors.spaceDim} />
             <TextInput
               style={styles.searchInput}
               value={queryText}
               onChangeText={setQueryText}
               placeholder="Search by name or tag"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={Colors.spaceFaint}
               returnKeyType="search"
               autoCorrect={false}
               accessibilityLabel="Search forests"
             />
             {queryText ? (
               <Pressable onPress={() => setQueryText('')} hitSlop={8} accessibilityLabel="Clear search">
-                <Ionicons name="close-circle" size={15} color={Colors.textTertiary} />
+                <UiGlyph name="close" size={14} color={Colors.spaceDim} />
               </Pressable>
             ) : null}
           </View>
@@ -168,25 +170,15 @@ export function ForestsBrowse() {
           ) : null}
 
           <View style={styles.sorts}>
-            {FOREST_SORTS.map((s) => {
-              const on = sort === s.key;
-              return (
-                <Pressable
-                  key={s.key}
-                  onPress={() => setSort(s.key)}
-                  style={[styles.sort, on && styles.sortOn]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}>
-                  <Text style={[styles.sortText, on && styles.sortTextOn]}>{s.label}</Text>
-                </Pressable>
-              );
-            })}
+            {FOREST_SORTS.map((s) => (
+              <SpaceChip key={s.key} label={s.label} selected={sort === s.key} onPress={() => setSort(s.key)} />
+            ))}
           </View>
         </View>
       }
       ListEmptyComponent={
         !current ? (
-          <ActivityIndicator color={Colors.coral} style={styles.loader} />
+          <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
         ) : (
           <EmptyForests failed={current.failed} sort={sort} query={query} onCreate={create} onRetry={() => void load()} />
         )
@@ -208,7 +200,7 @@ function ForestRow({ forest, onPress }: { forest: ForestSummary; onPress: () => 
           <Text style={styles.rowName} numberOfLines={1}>
             {forest.name}
           </Text>
-          {forest.visibility === 'request' ? <Ionicons name="lock-closed" size={11} color={Colors.textTertiary} /> : null}
+          {forest.visibility === 'request' ? <UiGlyph name="lock" size={12} color={Colors.spaceFaint} /> : null}
         </View>
         <Text style={styles.rowSub} numberOfLines={1}>
           {forestSubline(forest)}
@@ -220,7 +212,7 @@ function ForestRow({ forest, onPress }: { forest: ForestSummary; onPress: () => 
           </View>
         ) : null}
       </View>
-      {status ? <Text style={styles.status}>{status}</Text> : <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />}
+      {status ? <Text style={styles.status}>{status}</Text> : <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />}
     </Pressable>
   );
 }
@@ -245,9 +237,7 @@ function EmptyForests({
         <Text style={styles.emptyEmoji}>🌱</Text>
         <Text style={styles.emptyTitle}>Forests are still being planted</Text>
         <Text style={styles.emptyBody}>Couldn’t reach them just now. The feed works as normal.</Text>
-        <Pressable style={styles.emptyGhost} onPress={onRetry} accessibilityRole="button">
-          <Text style={styles.emptyGhostText}>Try again</Text>
-        </Pressable>
+        <SpaceButton label="Try again" variant="secondary" onPress={onRetry} style={styles.emptyBtn} />
       </View>
     );
   }
@@ -261,16 +251,14 @@ function EmptyForests({
       <Text style={styles.emptyEmoji}>🌲</Text>
       <Text style={styles.emptyTitle}>{copy.title}</Text>
       <Text style={styles.emptyBody}>{copy.body}</Text>
-      <Pressable style={styles.emptyCta} onPress={onCreate} accessibilityRole="button">
-        <Text style={styles.emptyCtaText}>Create a forest</Text>
-      </Pressable>
+      <SpaceButton label="Create a forest" onPress={onCreate} style={styles.emptyBtn} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   list: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: 96,
   },
   sep: {
@@ -283,47 +271,48 @@ const styles = StyleSheet.create({
     marginTop: Spacing.twelve,
   },
   headTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
+    fontFamily: Fonts.black,
+    fontSize: 17,
     color: Colors.ink,
   },
+  // A compact ember pill — the one action on this tab, so it gets the action colour.
   createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
     borderRadius: Radius.pill,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: Colors.amber,
+    paddingVertical: 7,
+    backgroundColor: Colors.navEmber,
   },
   createText: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 12,
-    color: Colors.onEmber,
+    color: '#2A0F05',
   },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
     marginTop: Spacing.twelve,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.input,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingHorizontal: Spacing.twelve,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 11,
     fontFamily: Fonts.body,
-    fontSize: 13,
+    fontSize: 13.5,
     color: Colors.ink,
   },
   pulseLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: Spacing.three,
+    marginTop: Spacing.four,
   },
   pulseDot: {
     width: 7,
@@ -333,20 +322,21 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: Colors.textTertiary,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    color: Colors.spaceFaint,
   },
   pulseRow: {
     gap: Spacing.two,
     paddingTop: Spacing.two,
-    paddingRight: Spacing.three,
+    paddingRight: SPACE_GUTTER,
   },
+  // Alive forests take the kit's ember card tone — they're the ones worth a tap right now.
   pulseCard: {
     width: 150,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: 'rgba(255,122,47,0.08)',
     borderWidth: 1,
-    borderColor: `${Colors.amber}44`,
+    borderColor: 'rgba(255,122,47,0.45)',
     borderRadius: 14,
     padding: Spacing.twelve,
   },
@@ -355,55 +345,36 @@ const styles = StyleSheet.create({
   },
   pulseName: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 13,
+    fontSize: 13.5,
     color: Colors.ink,
     marginTop: 6,
   },
   pulseMeta: {
     fontFamily: Fonts.body,
-    fontSize: 10.5,
-    color: Colors.muted,
+    fontSize: 11,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
   pulseLive: {
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
-    color: Colors.amber,
+    color: Colors.navEmber2,
     marginTop: 6,
   },
   sorts: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 6,
     marginTop: Spacing.three,
     marginBottom: Spacing.twelve,
-  },
-  sort: {
-    borderRadius: Radius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.lineStrong,
-  },
-  sortOn: {
-    backgroundColor: Colors.amber,
-    borderColor: Colors.amber,
-  },
-  sortText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: Colors.muted,
-  },
-  sortTextOn: {
-    color: Colors.onEmber,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.twelve,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: 14,
     padding: Spacing.twelve,
   },
@@ -411,7 +382,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: Colors.spacePanel2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -429,13 +400,13 @@ const styles = StyleSheet.create({
   rowName: {
     flexShrink: 1,
     fontFamily: Fonts.bodyBold,
-    fontSize: 13.5,
+    fontSize: 14,
     color: Colors.ink,
   },
   rowSub: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
+    fontSize: 12,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
   rowTags: {
@@ -443,20 +414,21 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginTop: 4,
   },
+  // Suggested is secondary — legend purple; live is the pull — ember.
   suggested: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    color: Colors.sky,
+    fontSize: 10.5,
+    color: Colors.legend,
   },
   liveTag: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    color: Colors.amber,
+    fontSize: 10.5,
+    color: Colors.navEmber2,
   },
   status: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   loader: {
     marginTop: Spacing.five,
@@ -471,42 +443,21 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.ink,
     textAlign: 'center',
     marginTop: Spacing.two,
   },
   emptyBody: {
     fontFamily: Fonts.body,
-    fontSize: 12.5,
+    fontSize: 13,
     lineHeight: 18,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: 4,
   },
-  emptyCta: {
+  emptyBtn: {
     marginTop: Spacing.three,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 9,
-    backgroundColor: Colors.amber,
-  },
-  emptyCtaText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12.5,
-    color: Colors.onEmber,
-  },
-  emptyGhost: {
-    marginTop: Spacing.three,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: Colors.lineStrong,
-  },
-  emptyGhostText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12.5,
-    color: Colors.muted,
+    alignSelf: 'stretch',
   },
 });

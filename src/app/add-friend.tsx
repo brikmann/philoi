@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,7 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LiveStatusBadge } from '@/components/live-status-badge';
 import { Avatar } from '@/components/ui/avatar';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { SPACE_GUTTER, SpaceButton, SpaceHeader, SpaceSection } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import {
   cancelFriendRequest,
@@ -130,7 +132,7 @@ export default function AddFriendScreen() {
       case 'none':
         return (
           <Pressable style={styles.addBtn} onPress={() => handleAdd(userId)}>
-            <Ionicons name="add" size={14} color={Colors.ink} />
+            <UiGlyph name="add" size={13} color="#2A0F05" />
             <Text style={styles.addBtnLabel}>Add</Text>
           </Pressable>
         );
@@ -143,14 +145,14 @@ export default function AddFriendScreen() {
       case 'incoming':
         return (
           <Pressable style={styles.acceptResultBtn} onPress={() => handleAccept(userId)}>
-            <Ionicons name="checkmark" size={14} color={Colors.ink} />
+            <UiGlyph name="check" size={13} color="#2A0F05" />
             <Text style={styles.addBtnLabel}>Accept</Text>
           </Pressable>
         );
       case 'friends':
         return (
           <View style={styles.friendsBtn}>
-            <Ionicons name="checkmark" size={14} color={Colors.textTertiary} />
+            <UiGlyph name="check" size={13} color={Colors.gold} />
             <Text style={styles.friendsBtnLabel}>Friends</Text>
           </View>
         );
@@ -167,24 +169,19 @@ export default function AddFriendScreen() {
     <SafeAreaView edges={['top']} style={styles.safe}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={22} color={Colors.muted} />
-        </Pressable>
-        <Text style={styles.title}>Add friends</Text>
-      </View>
+      <SpaceHeader title="Add friends" onBack={() => router.back()} />
 
       <View style={styles.searchWrap}>
-        <Ionicons name="search" size={15} color={Colors.textTertiary} />
+        <NavGlyph name="search" size={16} color={Colors.spaceDim} />
         <TextInput
           style={styles.searchInput}
           placeholder="Add by @username or name"
-          placeholderTextColor={Colors.textTertiary}
+          placeholderTextColor={Colors.spaceFaint}
           value={query}
           onChangeText={setQuery}
           autoCapitalize="none"
         />
-        {searching && <ActivityIndicator size="small" color={Colors.textTertiary} />}
+        {searching && <ActivityIndicator size="small" color={Colors.navEmber} />}
       </View>
 
       <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
@@ -192,7 +189,7 @@ export default function AddFriendScreen() {
 
         {searchingActive ? (
           <>
-            <Text style={styles.sectionLabel}>Results</Text>
+            <SpaceSection>Results</SpaceSection>
             {results.length === 0 && !searching && <Text style={styles.emptyHint}>No one found.</Text>}
             {results.map((r) => (
               <View key={r.user_id} style={styles.row}>
@@ -211,10 +208,7 @@ export default function AddFriendScreen() {
           </>
         ) : (
           <>
-            <View style={styles.sectionHead}>
-              <Text style={styles.sectionLabel}>Friend requests</Text>
-              <Text style={styles.sectionCount}>{incoming.length}</Text>
-            </View>
+            <SpaceSection right={<Text style={styles.sectionCount}>{incoming.length}</Text>}>Friend requests</SpaceSection>
             {!loadingRequests && incoming.length === 0 && (
               <Text style={styles.emptyHint}>No pending requests.</Text>
             )}
@@ -237,19 +231,20 @@ export default function AddFriendScreen() {
                   </Text>
                 )}
                 <View style={styles.acts}>
-                  <Pressable style={styles.acceptBtn} onPress={() => handleAccept(r.request_user_id)}>
-                    <Text style={styles.acceptBtnLabel}>Accept</Text>
-                  </Pressable>
-                  <Pressable style={styles.declineBtn} onPress={() => handleDecline(r.request_user_id)}>
-                    <Text style={styles.declineBtnLabel}>Decline</Text>
-                  </Pressable>
+                  <SpaceButton label="Accept" onPress={() => handleAccept(r.request_user_id)} style={styles.actBtn} />
+                  <SpaceButton
+                    label="Decline"
+                    variant="secondary"
+                    onPress={() => handleDecline(r.request_user_id)}
+                    style={styles.actBtn}
+                  />
                 </View>
               </View>
             ))}
 
             {sent.length > 0 && (
               <>
-                <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Sent</Text>
+                <SpaceSection>Sent</SpaceSection>
                 {sent.map((r) => (
                   <Pressable
                     key={r.request_user_id}
@@ -272,7 +267,7 @@ export default function AddFriendScreen() {
 
             {suggested.length > 0 && (
               <>
-                <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>Suggested · from your campfires</Text>
+                <SpaceSection>Suggested · from your campfires</SpaceSection>
                 {suggested.map((s) => (
                   <View key={s.user_id} style={styles.row}>
                     <Avatar label={s.display_name} size={38} />
@@ -303,75 +298,56 @@ const styles = StyleSheet.create({
     // scene background — an opaque colour here blocks it (Ember reskin sweep).
     backgroundColor: 'transparent',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    marginBottom: Spacing.three,
-  },
-  title: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 17,
-    color: Colors.ink,
-  },
+  // The search field sits in the space-kit panel family: panel fill on the 1px line, with an ember
+  // ring kept as the one cue that this field is the screen's action.
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.coral,
-    borderRadius: Radius.card,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginHorizontal: Spacing.three,
-    marginBottom: Spacing.three,
+    borderColor: 'rgba(255,122,47,0.55)',
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    marginHorizontal: SPACE_GUTTER,
+    marginBottom: Spacing.one,
   },
   searchInput: {
     flex: 1,
     padding: 0,
     fontFamily: Fonts.body,
-    fontSize: 13,
+    fontSize: 13.5,
     color: Colors.ink,
   },
   list: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.six,
   },
-  sectionHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 9,
-  },
-  sectionLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 10.5,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: Colors.textTertiary,
-  },
   sectionCount: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 11,
-    color: Colors.ember,
-  },
-  sectionLabelSpaced: {
-    marginTop: Spacing.four,
-    marginBottom: 9,
+    color: Colors.navEmber2,
   },
   emptyHint: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     paddingVertical: Spacing.two,
   },
+  // Each person is a space-kit panel row (SpaceRow's surface); hand-built because the trailing
+  // relationship pill and the live badge under the name don't fit SpaceRow's slots.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 8,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.twelve,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    marginBottom: 6,
   },
   who: {
     flex: 1,
@@ -385,57 +361,63 @@ const styles = StyleSheet.create({
   handle: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   sub: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: 1,
   },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
     borderRadius: Radius.pill,
     paddingVertical: 7,
     paddingHorizontal: 14,
   },
   addBtnLabel: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.ink,
+    color: '#2A0F05',
   },
   pendingBtn: {
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 7,
     paddingHorizontal: 14,
   },
   pendingBtnLabel: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
+  // Friends = earned, so gold (the kit's gold tone) rather than the old grey outline.
   friendsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: '#5A4A1E',
+    backgroundColor: 'rgba(255,209,102,0.07)',
     borderRadius: Radius.pill,
     paddingVertical: 7,
     paddingHorizontal: 14,
   },
   friendsBtnLabel: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.gold,
   },
   reqCard: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     padding: Spacing.three,
     marginBottom: Spacing.two,
   },
@@ -447,70 +429,57 @@ const styles = StyleSheet.create({
   ctx: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: 8,
   },
   acts: {
     flexDirection: 'row',
     gap: Spacing.two,
-    marginTop: 10,
+    marginTop: Spacing.twelve,
   },
-  acceptBtn: {
+  actBtn: {
     flex: 1,
-    alignItems: 'center',
-    backgroundColor: Colors.coral,
-    borderRadius: Radius.button,
-    paddingVertical: 9,
+    minHeight: 42,
+    borderRadius: 12,
   },
-  acceptBtnLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12.5,
-    color: Colors.ink,
-  },
+  // Accepting a request from a search result — the same ember pill as Add (it is the row's one
+  // action); the old success-green was the only green control left in this family.
   acceptResultBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.green,
+    backgroundColor: Colors.navEmber,
     borderRadius: Radius.pill,
     paddingVertical: 7,
     paddingHorizontal: 14,
-  },
-  declineBtn: {
-    flex: 1,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.button,
-    paddingVertical: 9,
-  },
-  declineBtnLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.muted,
   },
   sentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.twelve,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    marginBottom: 6,
   },
   pend: {
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
     borderRadius: Radius.pill,
     paddingVertical: 5,
     paddingHorizontal: 11,
   },
   pendLabel: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.coral,
+    color: Colors.danger,
     marginBottom: Spacing.two,
   },
 });

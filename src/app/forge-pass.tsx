@@ -130,6 +130,8 @@ function prestigeRewards(rewards: PassPrestigeReward[]): PassReward[] {
 export default function ForgePassScreen() {
   const router = useRouter();
   // Full-bleed (`edges={[]}`) so the sky reaches the status bar; this screen insets its own chrome.
+  // Top only: the global footer sits under this screen and already absorbs the home-indicator
+  // inset (ui_pass2 §2), so padding the bottom here too doubled the gap under the unlock bar.
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
   const { embers, pass, refetch } = useInventory();
@@ -469,13 +471,13 @@ export default function ForgePassScreen() {
                 <Text style={styles.rule}>{PASS_FINE_PRINT}</Text>
               </>
             }
-            contentContainerStyle={[styles.track, { paddingBottom: insets.bottom + unlockBarH + Spacing.three }]}
+            contentContainerStyle={[styles.track, { paddingBottom: unlockBarH + Spacing.three }]}
             showsVerticalScrollIndicator={false}
           />
         </>
       ) : (
         <ScrollView
-          contentContainerStyle={[styles.xpContent, { paddingBottom: insets.bottom + unlockBarH + Spacing.six }]}
+          contentContainerStyle={[styles.xpContent, { paddingBottom: unlockBarH + Spacing.six }]}
           showsVerticalScrollIndicator={false}>
           <AchievementList earned={pass?.achievements ?? []} />
           <Text style={styles.rule}>
@@ -487,7 +489,7 @@ export default function ForgePassScreen() {
 
       {/* ── the free path: the Flame Pass lane is locked behind one bar ── */}
       {!ownsPremium ? (
-        <View style={[styles.unlockWrap, { paddingBottom: insets.bottom + Spacing.two }]}>
+        <View style={[styles.unlockWrap, { paddingBottom: Spacing.two }]}>
           <Pressable style={styles.unlock} onPress={onUnlock} accessibilityRole="button">
             <EmberBands />
             <Text style={styles.unlockLock}>🔒</Text>

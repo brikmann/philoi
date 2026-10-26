@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -10,7 +9,11 @@ import { HouseSealInline } from '@/components/house/house-seal';
 import { IdentityLine } from '@/components/house/identity-line';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TextInput } from '@/components/ui/text-input';
+import { SocialGlyph } from '@/components/ui/glyphs-social';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Screen } from '@/components/ui/screen';
+import { SPACE_GUTTER, SpaceEmpty, SpaceHeader } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCampfireRole } from '@/hooks/use-campfire-role';
 import { useGroup } from '@/hooks/use-group';
@@ -102,112 +105,112 @@ export default function CampfireMembersScreen() {
     <Screen padded={false} style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={20} color={Colors.muted} />
-        </Pressable>
-        <Text style={styles.title}>Members</Text>
-      </View>
       {/* §6: "· N with keys" is gone. Every row already carries its own role chip, so the count
           was restating in aggregate what the list says per person — and "keys" is internal
           vocabulary that means nothing to a member reading it for the first time. */}
-      <Text style={styles.sub} numberOfLines={1}>
-        {group?.name ?? '…'} · {members.length} {members.length === 1 ? 'member' : 'members'}
-      </Text>
+      <SpaceHeader
+        title="Members"
+        subtitle={`${group?.name ?? '…'} · ${members.length} ${members.length === 1 ? 'member' : 'members'}`}
+        onBack={() => router.back()}
+      />
 
-      <View style={styles.searchRow}>
-        <Ionicons name="search" size={15} color={Colors.textTertiary} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search members"
-          value={query}
-          onChangeText={setQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-        />
-        {query.length > 0 && (
-          <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear search">
-            <Ionicons name="close-circle" size={16} color={Colors.textTertiary} />
-          </Pressable>
-        )}
-      </View>
-
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      <ScrollView contentContainerStyle={styles.list}>
-        {visible.map((m) => {
-          // The owner's own row is never actionable — a campfire always has exactly one owner, and
-          // transferring it is a different act than promoting someone.
-          const canChange = isOwner && m.role !== 'owner';
-          return (
-            // §6 · THE ROW OPENS THE PERSON. This is where people meet each other — you scroll a
-            // campfire's roster, see a name you have been racing, and want to add them. The
-            // add-friend action lives on the profile, so the row's job is to get you there.
-            //
-            // The admin toggle at the end keeps its own Pressable and therefore wins the touch:
-            // nested Pressables deliver to the innermost, so promoting someone does not also
-            // navigate away from the screen you promoted them on.
-            <Pressable
-              key={m.user_id}
-              style={styles.row}
-              onPress={() => openProfile(m.user_id)}
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${m.display_name}'s profile`}>
-              <CosmeticAvatar
-                userId={m.user_id}
-                name={m.display_name}
-                avatarUrl={m.avatar_url}
-                size={36}
-                loadout={loadouts[m.user_id]}
-                motion="reduced"
-              />
-              <View style={styles.who}>
-                <BurningName
-                  userId={m.user_id}
-                  style={styles.name}
-                  numberOfLines={1}
-                  suffix={<HouseSealInline userId={m.user_id} size={14} />}>
-                  {m.display_name}
-                </BurningName>
-                <PublicTitle loadout={loadouts[m.user_id] ?? {}} compact />
-                {/* Which house each campfire-mate reps (mock 288) — nothing until they pick a program. */}
-                <IdentityLine userId={m.user_id} style={styles.identity} />
-                {m.handle && <Text style={styles.handle}>@{m.handle}</Text>}
+      <View style={styles.body}>
+        <View style={styles.searchRow}>
+          <NavGlyph name="search" size={16} color={Colors.spaceDim} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search members"
+            value={query}
+            onChangeText={setQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear search">
+              <View style={styles.clearBtn}>
+                <UiGlyph name="close" size={10} color={Colors.spaceBg} />
               </View>
-
-              <View style={[styles.roleChip, m.role !== 'member' && styles.roleChipKeys]}>
-                <Text style={[styles.roleLabel, m.role !== 'member' && styles.roleLabelKeys]}>{ROLE_LABEL[m.role]}</Text>
-              </View>
-
-              {canChange && (
-                <Pressable
-                  style={styles.action}
-                  onPress={() => setPending(m)}
-                  accessibilityLabel={m.role === 'admin' ? `Remove ${m.display_name} as admin` : `Make ${m.display_name} an admin`}>
-                  <Ionicons
-                    name={m.role === 'admin' ? 'remove-circle-outline' : 'add-circle-outline'}
-                    size={19}
-                    color={m.role === 'admin' ? Colors.danger : Colors.amber}
-                  />
-                </Pressable>
-              )}
             </Pressable>
-          );
-        })}
+          )}
+        </View>
 
-        {!loading && members.length === 0 && <Text style={styles.empty}>Nobody here yet.</Text>}
-        {!loading && members.length > 0 && visible.length === 0 && (
-          <Text style={styles.empty}>Nobody matches “{query.trim()}”.</Text>
-        )}
+        {error && <Text style={styles.error}>{error}</Text>}
 
-        {isOwner && (
-          <Text style={styles.footnote}>
-            Admins can edit the campfire, approve join requests and run challenges. Only you can delete
-            the campfire or change who's an admin.
-          </Text>
-        )}
-      </ScrollView>
+        <ScrollView contentContainerStyle={styles.list}>
+          {visible.map((m) => {
+            // The owner's own row is never actionable — a campfire always has exactly one owner, and
+            // transferring it is a different act than promoting someone.
+            const canChange = isOwner && m.role !== 'owner';
+            return (
+              // §6 · THE ROW OPENS THE PERSON. This is where people meet each other — you scroll a
+              // campfire's roster, see a name you have been racing, and want to add them. The
+              // add-friend action lives on the profile, so the row's job is to get you there.
+              //
+              // The admin toggle at the end keeps its own Pressable and therefore wins the touch:
+              // nested Pressables deliver to the innermost, so promoting someone does not also
+              // navigate away from the screen you promoted them on.
+              <Pressable
+                key={m.user_id}
+                style={styles.row}
+                onPress={() => openProfile(m.user_id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${m.display_name}'s profile`}>
+                <CosmeticAvatar
+                  userId={m.user_id}
+                  name={m.display_name}
+                  avatarUrl={m.avatar_url}
+                  size={36}
+                  loadout={loadouts[m.user_id]}
+                  motion="reduced"
+                />
+                <View style={styles.who}>
+                  <BurningName
+                    userId={m.user_id}
+                    style={styles.name}
+                    numberOfLines={1}
+                    suffix={<HouseSealInline userId={m.user_id} size={14} />}>
+                    {m.display_name}
+                  </BurningName>
+                  <PublicTitle loadout={loadouts[m.user_id] ?? {}} compact />
+                  {/* Which house each campfire-mate reps (mock 288) — nothing until they pick a program. */}
+                  <IdentityLine userId={m.user_id} style={styles.identity} />
+                  {m.handle && <Text style={styles.handle}>@{m.handle}</Text>}
+                </View>
+
+                <View style={[styles.roleChip, m.role !== 'member' && styles.roleChipKeys]}>
+                  <Text style={[styles.roleLabel, m.role !== 'member' && styles.roleLabelKeys]}>{ROLE_LABEL[m.role]}</Text>
+                </View>
+
+                {canChange && (
+                  <Pressable
+                    style={[styles.action, m.role === 'admin' ? styles.actionDemote : styles.actionPromote]}
+                    onPress={() => setPending(m)}
+                    accessibilityLabel={m.role === 'admin' ? `Remove ${m.display_name} as admin` : `Make ${m.display_name} an admin`}>
+                    {m.role === 'admin' ? (
+                      <SocialGlyph name="minus" size={14} color={Colors.danger} />
+                    ) : (
+                      <UiGlyph name="add" size={14} color={Colors.navEmber2} />
+                    )}
+                  </Pressable>
+                )}
+              </Pressable>
+            );
+          })}
+
+          {!loading && members.length === 0 && <SpaceEmpty title="Nobody here yet." />}
+          {!loading && members.length > 0 && visible.length === 0 && (
+            <SpaceEmpty title={`Nobody matches “${query.trim()}”.`} />
+          )}
+
+          {isOwner && (
+            <Text style={styles.footnote}>
+              Admins can edit the campfire, approve join requests and run challenges. Only you can delete
+              the campfire or change who&apos;s an admin.
+            </Text>
+          )}
+        </ScrollView>
+      </View>
 
       <ConfirmDialog
         visible={pending != null}
@@ -230,27 +233,12 @@ export default function CampfireMembersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 14,
-    paddingTop: 15,
+    paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
-    color: Colors.ink,
-  },
-  sub: {
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.muted,
-    marginTop: 8,
-    marginBottom: 12,
-    paddingHorizontal: 2,
+  body: {
+    flex: 1,
+    paddingHorizontal: SPACE_GUTTER,
   },
   error: {
     fontFamily: Fonts.body,
@@ -262,14 +250,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-    marginTop: 12,
-    marginHorizontal: 2,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
   },
   searchInput: {
     flex: 1,
@@ -279,6 +266,15 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     color: Colors.ink,
   },
+  // The filled "clear" disc the old close-circle icon drew, rebuilt around the kit's close glyph.
+  clearBtn: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.spaceDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   list: {
     gap: 8,
     paddingBottom: Spacing.three,
@@ -286,41 +282,27 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
-    backgroundColor: '#141020',
+    gap: 12,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: '#221A34',
+    borderColor: Colors.spaceLine,
     borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 12,
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    overflow: 'hidden',
-    backgroundColor: '#1C1430',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.achieverText,
   },
   who: {
     flex: 1,
     minWidth: 0,
   },
   name: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13.5,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
     color: Colors.ink,
   },
   handle: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
+    fontSize: 11.5,
+    color: Colors.spaceDim,
   },
   identity: {
     fontSize: 11,
@@ -330,36 +312,44 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     paddingHorizontal: 9,
     paddingVertical: 3,
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
+  // Owner / admin hold the keys — gold, the "earned + identity" colour.
   roleChipKeys: {
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,209,102,0.10)',
+    borderColor: '#5A4A1E',
   },
   roleLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   roleLabelKeys: {
-    color: Colors.achieverText,
+    color: Colors.gold,
   },
   action: {
     width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  empty: {
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    paddingVertical: Spacing.four,
+  actionPromote: {
+    borderColor: 'rgba(255,122,47,0.45)',
+    backgroundColor: 'rgba(255,122,47,0.10)',
+  },
+  actionDemote: {
+    borderColor: 'rgba(232,106,90,0.4)',
+    backgroundColor: 'rgba(232,106,90,0.10)',
   },
   footnote: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     paddingHorizontal: 4,
     paddingTop: Spacing.two,
   },

@@ -72,7 +72,7 @@ function FireStrip() {
       <View style={styles.strip}>
         <Pressable
           style={styles.fire}
-          onPress={() => router.push('/your-fire')}
+          onPress={() => router.push('/profile')}
           accessibilityRole="button"
           accessibilityLabel={`${streak}-day streak${rank ? `, ${formatRankTier(rank.tier, rank.division)}` : ''}. Open your fire`}>
           <NavGlyph name="flame" size={18} color={streak > 0 ? Colors.navEmber : Colors.spaceFaint} />

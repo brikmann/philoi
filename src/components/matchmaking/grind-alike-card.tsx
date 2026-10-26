@@ -1,9 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SHOW_ALIKE_SCORE } from '@/components/matchmaking/config';
 import { MatchAvatar } from '@/components/matchmaking/match-avatar';
 import { ReasonChips } from '@/components/matchmaking/reason-chips';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { GrindAlike } from '@/types/social';
 
@@ -38,7 +38,7 @@ export function GrindAlikeCard({ match, onOpen, onMore }: GrindAlikeCardProps) {
         </View>
         {SHOW_ALIKE_SCORE ? <Text style={styles.score}>{Math.round(match.score)} alike</Text> : null}
         <Pressable onPress={onMore} hitSlop={10} accessibilityLabel={`More options for ${match.display_name}`}>
-          <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textTertiary} />
+          <UiGlyph name="more" size={18} color={Colors.spaceDim} />
         </Pressable>
       </View>
       <ReasonChips reasons={match.reasons} />
@@ -48,15 +48,16 @@ export function GrindAlikeCard({ match, onOpen, onMore }: GrindAlikeCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: 16,
-    padding: 13,
-    marginBottom: 11,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
+    padding: Spacing.twelve,
+    marginBottom: Spacing.two,
   },
   pressed: {
     opacity: 0.85,
+    transform: [{ scale: 0.99 }],
   },
   top: {
     flexDirection: 'row',
@@ -75,7 +76,8 @@ const styles = StyleSheet.create({
   goal: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.amber,
+    // Career goal is identity — gold, the way the kit says identity reads.
+    color: Colors.gold,
     marginTop: 1,
   },
   live: {
@@ -87,7 +89,7 @@ const styles = StyleSheet.create({
   score: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginRight: Spacing.one,
   },
 });

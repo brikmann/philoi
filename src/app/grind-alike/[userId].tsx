@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -9,7 +8,10 @@ import { MatchAvatar } from '@/components/matchmaking/match-avatar';
 import { MixOverlapBars } from '@/components/matchmaking/mix-overlap-bars';
 import { ReasonChips } from '@/components/matchmaking/reason-chips';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SocialGlyph } from '@/components/ui/glyphs-social';
+import { SPACE_GUTTER, SpaceButton, SpaceEmpty, SpaceHeader, SpaceIconButton } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { blockUser } from '@/lib/api/agora';
 import { respondFriendRequest, sendFriendRequest } from '@/lib/api/friend-requests';
@@ -56,17 +58,15 @@ export default function GrindAlikeDetailScreen() {
     return (
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <TopBar onBack={() => router.back()} />
-        <View style={styles.missing}>
-          <Text style={styles.missingTitle}>This match isn&apos;t available</Text>
-          <Text style={styles.missingSub}>
-            {state === 'failed'
+        <SpaceEmpty
+          title="This match isn't available"
+          body={
+            state === 'failed'
               ? "We couldn't load it just now. Try again in a bit."
-              : 'They may have changed who can find them, or the shelf has moved on.'}
-          </Text>
-          <Pressable style={styles.missingBack} onPress={() => router.back()} accessibilityRole="button">
-            <Text style={styles.missingBackText}>Back</Text>
-          </Pressable>
-        </View>
+              : 'They may have changed who can find them, or the shelf has moved on.'
+          }
+          action={<SpaceButton label="Back" variant="secondary" onPress={() => router.back()} style={styles.missingBack} />}
+        />
       </SafeAreaView>
     );
   }
@@ -75,7 +75,7 @@ export default function GrindAlikeDetailScreen() {
     return (
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <TopBar onBack={() => router.back()} />
-        <ActivityIndicator color={Colors.amber} style={styles.spinner} />
+        <ActivityIndicator color={Colors.navEmber} style={styles.spinner} />
       </SafeAreaView>
     );
   }
@@ -140,8 +140,6 @@ export default function GrindAlikeDetailScreen() {
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <TopBar onBack={() => router.back()} onMore={() => setMoreOpen(true)} />
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.screenTitle}>Why you two match</Text>
-
         <View style={styles.hero}>
           <MatchAvatar name={d.display_name} avatarUrl={d.avatar_url} size={72} live={d.live} />
           <Text style={styles.name}>{d.display_name}</Text>
@@ -169,7 +167,9 @@ export default function GrindAlikeDetailScreen() {
             </>
           ) : relation === 'friends' ? (
             <Pressable style={styles.btn} onPress={handleMessage} accessibilityLabel={`Message ${d.display_name}`}>
-              <Ionicons name="chatbubble-ellipses-outline" size={15} color={Colors.ink} style={styles.btnIcon} />
+              <View style={styles.btnIcon}>
+                <SocialGlyph name="chat" size={16} color={Colors.ink} />
+              </View>
               <Text style={[styles.btnText, styles.btnTextOn]}>Message</Text>
             </Pressable>
           ) : relation === 'outgoing' ? (
@@ -178,11 +178,17 @@ export default function GrindAlikeDetailScreen() {
             </View>
           ) : (
             <Pressable style={styles.btn} onPress={handleAddFriend} disabled={busy}>
-              <Text style={[styles.btnText, styles.btnTextOn]}>＋ Add friend</Text>
+              <View style={styles.btnIcon}>
+                <SocialGlyph name="personAdd" size={16} color={Colors.ink} />
+              </View>
+              <Text style={[styles.btnText, styles.btnTextOn]}>Add friend</Text>
             </Pressable>
           )}
           <Pressable style={[styles.btn, styles.btnPrimary]} onPress={handleChallenge}>
-            <Text style={[styles.btnText, styles.btnTextPrimary]}>⚔ Challenge</Text>
+            <View style={styles.btnIcon}>
+              <SocialGlyph name="swords" size={16} color="#2A0F05" />
+            </View>
+            <Text style={[styles.btnText, styles.btnTextPrimary]}>Challenge</Text>
           </Pressable>
         </View>
 
@@ -203,18 +209,21 @@ export default function GrindAlikeDetailScreen() {
   );
 }
 
+// The kit header: back chevron, the screen's own title (it used to sit as a small caps line under a
+// bare chevron), and the ⋯ that opens report/block once the match has loaded.
 function TopBar({ onBack, onMore }: { onBack: () => void; onMore?: () => void }) {
   return (
-    <View style={styles.top}>
-      <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
-        <Ionicons name="chevron-back" size={24} color={Colors.muted} />
-      </Pressable>
-      {onMore ? (
-        <Pressable onPress={onMore} hitSlop={10} accessibilityLabel="More options">
-          <Ionicons name="ellipsis-horizontal" size={20} color={Colors.muted} />
-        </Pressable>
-      ) : null}
-    </View>
+    <SpaceHeader
+      title="Why you two match"
+      onBack={onBack}
+      right={
+        onMore ? (
+          <SpaceIconButton onPress={onMore} label="More options">
+            <UiGlyph name="more" size={18} color={Colors.ink} />
+          </SpaceIconButton>
+        ) : undefined
+      }
+    />
   );
 }
 
@@ -223,58 +232,43 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
-  top: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-  },
   container: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.six,
   },
   spinner: {
     marginTop: Spacing.six,
-  },
-  screenTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    marginBottom: Spacing.two,
   },
   hero: {
     alignItems: 'center',
     paddingVertical: Spacing.one,
   },
   name: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 18,
+    fontFamily: Fonts.black,
+    fontSize: 20,
     color: Colors.ink,
     marginTop: 9,
     textAlign: 'center',
   },
+  // Career goal is identity — gold.
   goal: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
-    color: Colors.amber,
+    color: Colors.gold,
     marginTop: 3,
     textAlign: 'center',
   },
   toward: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 2,
     textAlign: 'center',
   },
   meta: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: 3,
     textAlign: 'center',
   },
@@ -285,98 +279,78 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   why: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: 14,
-    padding: 13,
+    padding: Spacing.three,
     marginTop: Spacing.three,
   },
   // Muted, not ember: the number is a similarity read and gets none of the earned-status colour.
   whyTitle: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.5,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: Colors.muted,
+    color: Colors.spaceFaint,
     marginBottom: 10,
   },
   acts: {
     flexDirection: 'row',
-    gap: 9,
+    gap: Spacing.two,
     marginTop: Spacing.three,
   },
+  // Kit button shapes (SpaceButton secondary / primary), drawn locally because these carry their own
+  // accessibility labels and a non-pressable "Requested" state that SpaceButton has no slot for.
   btn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
+    minHeight: 50,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.button,
-    paddingVertical: 12,
+    borderColor: Colors.spaceLine,
+    borderRadius: 16,
   },
   btnAccept: {
     backgroundColor: Colors.green,
     borderColor: Colors.green,
   },
   btnPrimary: {
-    backgroundColor: Colors.coral,
-    borderColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
+    borderColor: Colors.navEmber,
+    shadowColor: Colors.navEmber,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 6,
   },
   btnIcon: {
-    marginRight: 4,
+    marginRight: 6,
   },
   btnText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.muted,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.spaceDim,
   },
   btnTextOn: {
     color: Colors.ink,
   },
   btnTextPrimary: {
-    color: Colors.ink,
+    fontFamily: Fonts.black,
+    color: '#2A0F05',
   },
   mini: {
     fontFamily: Fonts.body,
     fontSize: 11,
     lineHeight: 16,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.twelve,
   },
-  missing: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    marginTop: Spacing.six,
-  },
-  missingTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 16,
-    color: Colors.ink,
-    textAlign: 'center',
-  },
-  missingSub: {
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    marginTop: Spacing.one,
-  },
   missingBack: {
-    marginTop: Spacing.three,
-    borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.button,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-  },
-  missingBackText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.ink,
+    marginTop: Spacing.two,
+    alignSelf: 'stretch',
   },
 });

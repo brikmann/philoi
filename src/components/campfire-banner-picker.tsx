@@ -1,9 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CampfireBannerArt } from '@/components/campfire-banner-art';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
 import { setCampfireBanner } from '@/lib/api/groups';
@@ -111,7 +111,7 @@ export function CampfireBannerPicker({ visible, onClose, campfireName, groupId, 
           {error && <Text style={styles.error}>{error}</Text>}
 
           {loading && banners.length === 0 ? (
-            <ActivityIndicator color={Colors.amber} style={styles.loading} />
+            <ActivityIndicator color={Colors.navEmber} style={styles.loading} />
           ) : banners.length === 0 ? (
             <Text style={styles.empty}>
               You don&apos;t own a banner yet. They come out of boxes and the Flame Pass — until then your fire flies
@@ -147,7 +147,11 @@ export function CampfireBannerPicker({ visible, onClose, campfireName, groupId, 
                       <Text style={[styles.tileName, on && styles.tileNameOn]} numberOfLines={1}>
                         {item.name}
                       </Text>
-                      {on && <Ionicons name="checkmark-circle" size={14} color={Colors.amber} />}
+                      {on && (
+                        <View style={styles.check}>
+                          <UiGlyph name="check" size={10} color="#2A0F05" />
+                        </View>
+                      )}
                     </View>
                   </Pressable>
                 );
@@ -164,13 +168,13 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(6,4,10,0.55)',
+    backgroundColor: 'rgba(6,4,10,0.6)',
   },
   sheet: {
     maxHeight: '82%',
-    backgroundColor: '#161022',
+    backgroundColor: Colors.spaceBg,
     borderTopWidth: 1,
-    borderTopColor: '#2A2140',
+    borderTopColor: Colors.spaceLine,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingTop: 8,
@@ -180,14 +184,14 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: Radius.pill,
-    backgroundColor: '#33294A',
+    backgroundColor: Colors.spaceLine,
     alignSelf: 'center',
     marginTop: 6,
     marginBottom: 14,
   },
   title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 16,
+    fontFamily: Fonts.black,
+    fontSize: 17,
     color: Colors.ink,
     paddingHorizontal: 2,
   },
@@ -195,7 +199,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,
-    color: '#8F83A8',
+    color: Colors.spaceDim,
     paddingHorizontal: 2,
     marginTop: 3,
     marginBottom: Spacing.three,
@@ -214,7 +218,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12.5,
     lineHeight: 18,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     paddingHorizontal: 2,
     paddingBottom: Spacing.four,
   },
@@ -228,12 +232,12 @@ const styles = StyleSheet.create({
     width: '48%',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#241C38',
-    backgroundColor: '#1C1430',
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
     overflow: 'hidden',
   },
   tileOn: {
-    borderColor: Colors.amber,
+    borderColor: Colors.navEmber,
   },
   swatch: {
     height: 64,
@@ -260,9 +264,18 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: '#C8BCDD',
+    color: Colors.spaceDim,
   },
   tileNameOn: {
-    color: Colors.ember,
+    color: Colors.navEmber2,
+  },
+  // The selected tile's tick: the kit's check glyph on an ember disc (was an Ionicons checkmark-circle).
+  check: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: Colors.navEmber,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

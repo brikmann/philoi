@@ -1,14 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GrindAlikeCard } from '@/components/matchmaking/grind-alike-card';
 import { MatchOptInCard, MatchSettingsSection } from '@/components/matchmaking/match-settings-section';
 import { SafetyNote } from '@/components/matchmaking/safety-note';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
-import { BackHeader } from '@/components/ui/back-header';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SPACE_GUTTER, SpaceButton, SpaceCard, SpaceChip, SpaceEmpty, SpaceHeader } from '@/components/ui/space-kit';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { blockUser } from '@/lib/api/agora';
 import { fetchGrindAlikes, fetchMyMatchSettings, MATCH_SCOPE_LABELS, setMyMatchSettings } from '@/lib/api/matchmaking';
@@ -117,10 +117,10 @@ export default function GrindAlikesScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <BackHeader title="Who grinds like you" />
+      <SpaceHeader title="Who grinds like you" />
       <ScrollView
         contentContainerStyle={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.amber} />}>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.navEmber} />}>
         <Text style={styles.intro}>
           People whose lock-in habits, goals and field line up with yours. Not a ranking — a way to find your people.
         </Text>
@@ -132,7 +132,7 @@ export default function GrindAlikesScreen() {
             onRetry={() => setSettingsKey((k) => k + 1)}
           />
         ) : !settings ? (
-          <ActivityIndicator color={Colors.amber} style={styles.spinner} />
+          <ActivityIndicator color={Colors.navEmber} style={styles.spinner} />
         ) : (
           <>
             {!discoverable ? (
@@ -140,19 +140,9 @@ export default function GrindAlikesScreen() {
             ) : (
               <>
                 <View style={styles.chips}>
-                  {SCOPES.map((s) => {
-                    const on = s === scope;
-                    return (
-                      <Pressable
-                        key={s}
-                        style={[styles.chip, on && styles.chipOn]}
-                        onPress={() => setScopeOverride(s)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: on }}>
-                        <Text style={[styles.chipText, on && styles.chipTextOn]}>{MATCH_SCOPE_LABELS[s]}</Text>
-                      </Pressable>
-                    );
-                  })}
+                  {SCOPES.map((s) => (
+                    <SpaceChip key={s} label={MATCH_SCOPE_LABELS[s]} selected={s === scope} onPress={() => setScopeOverride(s)} />
+                  ))}
                 </View>
 
                 {shelfFailed ? (
@@ -162,7 +152,7 @@ export default function GrindAlikesScreen() {
                     onRetry={() => setShelfKey((k) => k + 1)}
                   />
                 ) : !matches ? (
-                  <ActivityIndicator color={Colors.amber} style={styles.spinner} />
+                  <ActivityIndicator color={Colors.navEmber} style={styles.spinner} />
                 ) : matches.length === 0 ? (
                   <SoftState
                     title="No one lines up yet"
@@ -205,17 +195,17 @@ export default function GrindAlikesScreen() {
   );
 }
 
+// The soft "not yet" states sit in a kit card rather than floating on the canvas, so a failed read
+// still occupies the slot the shelf will fill — the page doesn't jump when it arrives.
 function SoftState({ title, sub, onRetry }: { title: string; sub: string; onRetry?: () => void }) {
   return (
-    <View style={styles.soft}>
-      <Text style={styles.softTitle}>{title}</Text>
-      <Text style={styles.softSub}>{sub}</Text>
-      {onRetry ? (
-        <Pressable style={styles.retry} onPress={onRetry} accessibilityRole="button">
-          <Text style={styles.retryText}>Try again</Text>
-        </Pressable>
-      ) : null}
-    </View>
+    <SpaceCard style={styles.soft}>
+      <SpaceEmpty
+        title={title}
+        body={sub}
+        action={onRetry ? <SpaceButton label="Try again" variant="secondary" onPress={onRetry} style={styles.retry} /> : undefined}
+      />
+    </SpaceCard>
   );
 }
 
@@ -226,15 +216,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   container: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.six,
   },
   intro: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
     lineHeight: 18,
-    color: Colors.muted,
-    paddingHorizontal: Spacing.one,
+    color: Colors.spaceDim,
     marginBottom: Spacing.three,
   },
   spinner: {
@@ -245,59 +234,11 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginBottom: Spacing.twelve,
   },
-  chip: {
-    borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.pill,
-    paddingVertical: 6,
-    paddingHorizontal: 13,
-  },
-  chipOn: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.amber,
-  },
-  chipText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.muted,
-  },
-  chipTextOn: {
-    color: Colors.ink,
-  },
   soft: {
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: 16,
-    paddingVertical: Spacing.four,
-    paddingHorizontal: Spacing.three,
-  },
-  softTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.ink,
-    textAlign: 'center',
-  },
-  softSub: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    lineHeight: 17,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    marginTop: Spacing.one,
+    padding: 0,
   },
   retry: {
-    marginTop: Spacing.twelve,
-    borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.button,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.four,
-  },
-  retryText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.ink,
+    marginTop: Spacing.two,
+    minHeight: 40,
   },
 });

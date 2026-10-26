@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -7,10 +6,12 @@ import { CampfireBannerArt } from '@/components/campfire-banner-art';
 import { CampfireBannerPicker } from '@/components/campfire-banner-picker';
 import { CampfireEmojiPicker } from '@/components/campfire/campfire-emoji-picker';
 import { PrivacySelector } from '@/components/privacy-selector';
-import { EmberFill } from '@/components/ui/ember-fill';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Screen } from '@/components/ui/screen';
+import { SPACE_GUTTER, SpaceButton, SpaceHeader, SpaceIconButton } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
 import { DisciplineIcon, type DisciplineIconName } from '@/components/ui/discipline-icon';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGroup } from '@/hooks/use-group';
 import { setCampfireBanner, updateCampfireHouseRules, updateCampfirePrivacy, updateGroup } from '@/lib/api/groups';
@@ -117,12 +118,17 @@ export default function EditGroupScreen() {
 
   return (
     <Screen padded={false} style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Edit campfire</Text>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Close">
-          <Ionicons name="close" size={20} color={Colors.muted} />
-        </Pressable>
-      </View>
+      {/* A modal, so the kit header without a back chevron — the close sits on the right, where it
+          always was. */}
+      <SpaceHeader
+        title="Edit campfire"
+        back={false}
+        right={
+          <SpaceIconButton onPress={() => router.back()} label="Close">
+            <UiGlyph name="close" size={16} color={Colors.ink} />
+          </SpaceIconButton>
+        }
+      />
 
       {/* No KeyboardAvoidingView here: <Screen> already wraps the page in one, and a second 'padding'
           one nested inside it double-counts the keyboard on iOS. */}
@@ -131,7 +137,7 @@ export default function EditGroupScreen() {
           <Text style={styles.lbl}>Name</Text>
           <View style={styles.field}>
             <View style={styles.fieldIcon}>
-              <DisciplineIcon name={THEME_OPTIONS.find((t) => t.value === goalType)?.icon ?? 'flame'} size={15} color={Colors.amber} />
+              <DisciplineIcon name={THEME_OPTIONS.find((t) => t.value === goalType)?.icon ?? 'flame'} size={15} color={Colors.navEmber2} />
             </View>
             <TextInput style={styles.fieldInput} placeholder="e.g. Morning Lifters" value={name} onChangeText={setName} maxLength={40} />
           </View>
@@ -153,7 +159,7 @@ export default function EditGroupScreen() {
               <CampfireBannerArt itemKey={bannerId} fadeTo="#161022" />
             </View>
             <Text style={styles.bannerLabel}>{bannerName(bannerId)}</Text>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+            <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
           </Pressable>
 
           <Text style={styles.lbl}>Who can join</Text>
@@ -171,7 +177,7 @@ export default function EditGroupScreen() {
                   key={tier ?? 'any'}
                   onPress={() => setMinJoinTier(tier)}
                   style={[styles.gatePill, on && styles.gatePillOn, on && metal ? { borderColor: metal.outer } : null]}>
-                  <Text style={[styles.gateLabel, on ? { color: metal?.text ?? Colors.achieverText } : null]}>
+                  <Text style={[styles.gateLabel, on ? { color: metal?.text ?? Colors.navEmber2 } : null]}>
                     {tier ? `${RANK_TIER_LABEL[tier]}+` : 'Anyone'}
                   </Text>
                 </Pressable>
@@ -182,7 +188,7 @@ export default function EditGroupScreen() {
           <Text style={styles.lbl}>House rule</Text>
           <View style={styles.field}>
             <View style={styles.fieldIcon}>
-              <Ionicons name="flame" size={15} color={Colors.amber} />
+              <NavGlyph name="flame" size={14} color={Colors.navEmber2} />
             </View>
             <TextInput
               style={styles.fieldInput}
@@ -197,12 +203,13 @@ export default function EditGroupScreen() {
           {error && <Text style={styles.error}>{error}</Text>}
         </ScrollView>
 
-        <Pressable onPress={handleSave} disabled={loading} accessibilityRole="button">
-          <EmberFill style={[styles.saveBtn, loading && styles.saveBtnBusy]} radius={Radius.button} direction="diagonal">
-            <Ionicons name="checkmark" size={17} color={Colors.onEmber} />
-            <Text style={styles.saveLabel}>{loading ? 'Saving…' : 'Save changes'}</Text>
-          </EmberFill>
-        </Pressable>
+        <SpaceButton
+          label="Save changes"
+          onPress={handleSave}
+          loading={loading}
+          leading={<UiGlyph name="check" size={16} color="#2A0F05" />}
+          style={styles.saveBtn}
+        />
       </View>
 
       <CampfireBannerPicker
@@ -226,52 +233,45 @@ function bannerName(itemKey: string | null): string {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 15,
-    paddingTop: 16,
+    paddingTop: Spacing.two,
     // Save changes sat on the safe-area line. SafeAreaView clears the home indicator; this is the
-    // breathing room above it (CAMPFIRE_REDESIGN_SPEC: "CTAs above the bottom safe area").
+    // breathing room above it (CAMPFIRE_REDESIGN_SPEC: "CTAs above the bottom safe area"). This
+    // modal hides the global bottom bar, so it keeps its own bottom edge.
     paddingBottom: Spacing.three,
   },
   flex: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
-    color: Colors.ink,
-  },
   form: {
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: 16,
   },
+  // The kit's section label (SpaceSection's type), at form spacing rather than its 24px top gap.
   lbl: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
-    marginTop: 12,
-    marginBottom: 6,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
+    marginTop: 16,
+    marginBottom: 8,
   },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    backgroundColor: Colors.card,
+    gap: 10,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.card,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 12,
   },
   fieldIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    backgroundColor: Colors.achieverBg,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,122,47,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -280,17 +280,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 0,
     padding: 0,
-    fontSize: 13,
+    fontSize: 13.5,
     color: Colors.ink,
   },
   bannerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
-    backgroundColor: Colors.card,
+    gap: 12,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.card,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     padding: 10,
   },
   bannerSwatch: {
@@ -303,56 +303,39 @@ const styles = StyleSheet.create({
   bannerLabel: {
     flex: 1,
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
+    fontSize: 13.5,
     color: Colors.ink,
   },
   gateRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 7,
+    gap: 6,
   },
+  // SpaceChip's shape. Not SpaceChip itself: a selected gate takes its tier's metal colours, which
+  // the kit chip (ember-only when on) has no slot for.
   gatePill: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
-    paddingVertical: 7,
+    paddingVertical: 6,
     paddingHorizontal: 12,
   },
   gatePillOn: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.coral,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   gateLabel: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.muted,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
   },
   error: {
     fontFamily: Fonts.body,
-    color: Colors.coral,
-    marginTop: 8,
+    color: Colors.danger,
+    marginTop: 10,
   },
-  // §3 · EMBER GRADIENT, NOT FLAT AMBER.
-  //
-  // This carried a comment claiming it was "the ember treatment" while painting
-  // `backgroundColor: Colors.amber` — one flat yellow. DESIGN_LANGUAGE_EMBER §3's primary is the
-  // amber→coral GRADIENT (what PrimaryButton and the FAB paint); a solid amber slab is the
-  // washed-out thing the rule exists to abolish, and it has now been reported three times. The
-  // fill is <EmberFill> now, so there is no colour here to drift back.
   saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 14,
-  },
-  saveBtnBusy: {
-    opacity: 0.6,
-  },
-  saveLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.onEmber,
+    marginHorizontal: SPACE_GUTTER,
   },
 });

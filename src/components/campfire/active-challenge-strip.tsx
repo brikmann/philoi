@@ -1,8 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { challengeTitle } from '@/lib/challenge-metric';
 import { fetchCircleActiveChallenges, joinCampfireChallenge } from '@/lib/api/social-challenges';
@@ -85,7 +86,7 @@ export function ActiveChallengeStrip({
           accessibilityRole="button"
           accessibilityLabel={`Open the campfire challenge ${title}`}>
           <View style={styles.badge}>
-            <Ionicons name="bonfire" size={13} color={Colors.ember} />
+            <NavGlyph name="flame" size={13} color={Colors.navEmber2} />
           </View>
           <View style={styles.text}>
             <Text style={styles.kicker}>
@@ -100,7 +101,7 @@ export function ActiveChallengeStrip({
 
         {top.i_am_in ? (
           <View style={styles.inRow}>
-            <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
+            <UiGlyph name="check" size={14} color={Colors.green} />
             <Text style={styles.in}>You&apos;re in</Text>
           </View>
         ) : (
@@ -114,7 +115,7 @@ export function ActiveChallengeStrip({
             accessibilityRole="button"
             accessibilityLabel={`Join ${title}`}>
             {busyId === top.id ? (
-              <ActivityIndicator size="small" color={Colors.onEmber} />
+              <ActivityIndicator size="small" color="#2A0F05" />
             ) : (
               <Text style={styles.joinLabel}>Join</Text>
             )}
@@ -144,9 +145,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.4)',
+    borderColor: 'rgba(255,122,47,0.4)',
     borderRadius: Radius.card,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.twelve,
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(242,163,60,0.14)',
+    backgroundColor: 'rgba(255,122,47,0.14)',
   },
   text: { flex: 1, gap: 1 },
   kicker: {
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   title: { fontFamily: Fonts.bodySemiBold, fontSize: 13, color: Colors.ink },
   joinBtn: {
@@ -175,15 +176,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radius.pill,
-    backgroundColor: Colors.ember,
+    backgroundColor: Colors.navEmber,
   },
-  joinLabel: { fontFamily: Fonts.bodySemiBold, fontSize: 12.5, color: Colors.onEmber },
+  joinLabel: { fontFamily: Fonts.black, fontSize: 12.5, color: '#2A0F05' },
   inRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   in: { fontFamily: Fonts.bodySemiBold, fontSize: 12, color: Colors.green },
   more: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     paddingTop: 4,
     paddingLeft: Spacing.two,
   },

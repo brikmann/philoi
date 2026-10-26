@@ -1,9 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { OptionSheet } from '@/components/matchmaking/option-sheet';
+import { SocialGlyph } from '@/components/ui/glyphs-social';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { SpaceSection, SpaceTile } from '@/components/ui/space-kit';
 import { Toggle } from '@/components/ui/toggle';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { FIND_ME_LABELS, MATCH_SCOPE_LABELS } from '@/lib/api/matchmaking';
 import type { FindMe, MatchScope, MatchSettings } from '@/types/social';
@@ -36,11 +39,13 @@ export function MatchSettingsSection({ settings, busy, onChange, hideDiscoverabl
 
   return (
     <>
-      <Text style={styles.heading}>Finding people</Text>
+      <SpaceSection>Finding people</SpaceSection>
       <View style={styles.panel}>
         {!hideDiscoverable && (
           <View style={styles.row}>
-            <Text style={styles.icon}>🧭</Text>
+            <RowIcon>
+              <NavGlyph name="search" size={17} color={Colors.legend} />
+            </RowIcon>
             <View style={styles.rowBody}>
               <Text style={styles.rowTitle}>Show me in Grind-alikes</Text>
               <Text style={styles.rowSub}>Off = you match no one, see no one</Text>
@@ -49,23 +54,29 @@ export function MatchSettingsSection({ settings, busy, onChange, hideDiscoverabl
           </View>
         )}
         <Pressable style={styles.row} onPress={() => setPicker('scope')} disabled={busy} accessibilityRole="button">
-          <Text style={styles.icon}>🎓</Text>
+          <RowIcon>
+            <NavGlyph name="book" size={17} color={Colors.legend} />
+          </RowIcon>
           <View style={styles.rowBody}>
             <Text style={styles.rowTitle}>Match within</Text>
             <Text style={styles.rowSub}>{MATCH_SCOPE_LABELS[settings.match_scope]}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+          <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
         </Pressable>
         <Pressable style={styles.row} onPress={() => setPicker('find')} disabled={busy} accessibilityRole="button">
-          <Text style={styles.icon}>👥</Text>
+          <RowIcon>
+            <SocialGlyph name="people" size={17} color={Colors.legend} />
+          </RowIcon>
           <View style={styles.rowBody}>
             <Text style={styles.rowTitle}>Who can find me</Text>
             <Text style={styles.rowSub}>{FIND_ME_LABELS[settings.find_me]}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+          <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
         </Pressable>
         <View style={[styles.row, styles.rowLast]}>
-          <Text style={styles.icon}>📍</Text>
+          <RowIcon>
+            <SocialGlyph name="pin" size={17} color={Colors.legend} />
+          </RowIcon>
           <View style={styles.rowBody}>
             <Text style={styles.rowTitle}>Show my live status to matches</Text>
             <Text style={styles.rowSub}>Friends already see it — this is for everyone else</Text>
@@ -106,17 +117,23 @@ export function MatchOptInCard({ busy, onEnable }: { busy: boolean; onEnable: (o
         <Toggle value={false} disabled={busy} onValueChange={onEnable} />
       </View>
       <Text style={styles.seeLabel}>What matches can see</Text>
-      <SeeRow icon="🎯" title="Goal & field" sub="From your public profile — nothing you've hidden" />
-      <SeeRow icon="📊" title="Discipline mix" sub="What you lock in on" />
-      <SeeRow icon="📍" title="Live status" sub="Only if you allow it below" last />
+      <SeeRow icon={<NavGlyph name="trophy" size={15} color={Colors.spaceDim} />} title="Goal & field" sub="From your public profile — nothing you've hidden" />
+      <SeeRow icon={<SocialGlyph name="bolt" size={15} color={Colors.spaceDim} />} title="Discipline mix" sub="What you lock in on" />
+      <SeeRow icon={<SocialGlyph name="pin" size={15} color={Colors.spaceDim} />} title="Live status" sub="Only if you allow it below" last />
     </View>
   );
 }
 
-function SeeRow({ icon, title, sub, last }: { icon: string; title: string; sub: string; last?: boolean }) {
+// The settings rows used emoji (🧭 🎓 👥 📍) as row icons; those are chrome, so they're kit tiles
+// with the bespoke glyphs now. Legend purple: these are secondary settings, not the action.
+function RowIcon({ children }: { children: ReactNode }) {
+  return <SpaceTile tone="legend">{children}</SpaceTile>;
+}
+
+function SeeRow({ icon, title, sub, last }: { icon: ReactNode; title: string; sub: string; last?: boolean }) {
   return (
     <View style={[styles.seeRow, last && styles.rowLast]}>
-      <Text style={styles.icon}>{icon}</Text>
+      <View style={styles.seeIcon}>{icon}</View>
       <View style={styles.rowBody}>
         <Text style={styles.seeTitle}>{title}</Text>
         <Text style={styles.rowSub}>{sub}</Text>
@@ -126,60 +143,50 @@ function SeeRow({ icon, title, sub, last }: { icon: string; title: string; sub: 
 }
 
 const styles = StyleSheet.create({
-  heading: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    color: Colors.amber,
-    marginTop: Spacing.four,
-    marginBottom: Spacing.two,
-    paddingHorizontal: Spacing.one,
-  },
   panel: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: 14,
-    paddingHorizontal: 14,
+    paddingHorizontal: Spacing.twelve,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 13,
+    gap: Spacing.twelve,
+    paddingVertical: Spacing.twelve,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    borderBottomColor: Colors.spaceLine,
   },
   rowLast: {
     borderBottomWidth: 0,
   },
-  icon: {
+  seeIcon: {
     width: 22,
-    fontSize: 16,
-    textAlign: 'center',
+    alignItems: 'center',
   },
   rowBody: {
     flex: 1,
     minWidth: 0,
   },
   rowTitle: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
     color: Colors.ink,
   },
   rowSub: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontSize: 12,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
+  // The opt-in leads the screen while it's off, so it takes the kit's ember card tone.
   optIn: {
-    backgroundColor: Colors.card,
+    backgroundColor: 'rgba(255,122,47,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.28)',
-    borderRadius: 16,
-    padding: 14,
+    borderColor: Colors.navEmber,
+    borderRadius: 14,
+    padding: Spacing.three,
   },
   optInTop: {
     flexDirection: 'row',
@@ -194,9 +201,9 @@ const styles = StyleSheet.create({
   seeLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: Colors.muted,
+    color: Colors.spaceFaint,
     marginTop: Spacing.three,
     marginBottom: Spacing.one,
   },
@@ -206,7 +213,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 9,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    borderBottomColor: Colors.spaceLine,
   },
   seeTitle: {
     fontFamily: Fonts.bodySemiBold,

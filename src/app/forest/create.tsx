@@ -14,7 +14,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenBackground } from '@/components/ui/screen-background';
+import { SPACE_GUTTER, SpaceIconButton } from '@/components/ui/space-kit';
 import { Toggle } from '@/components/ui/toggle';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { createForest } from '@/lib/api/forests';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -85,10 +87,12 @@ export default function CreateForestScreen() {
   return (
     <ScreenBackground>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
+        {/* SpaceHeader's layout, with a close ✕ instead of its back chevron: this is a modal (the
+            bottom bar is hidden here), so the way out reads as dismiss, and Create sits on the right. */}
         <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button">
-            <Text style={styles.cancel}>Cancel</Text>
-          </Pressable>
+          <SpaceIconButton onPress={() => router.back()} label="Cancel">
+            <UiGlyph name="close" size={16} color={Colors.ink} />
+          </SpaceIconButton>
           <Text style={styles.topTitle}>New forest</Text>
           <Pressable
             onPress={() => void create()}
@@ -97,7 +101,7 @@ export default function CreateForestScreen() {
             accessibilityRole="button"
             accessibilityLabel="Create forest">
             {busy ? (
-              <ActivityIndicator size="small" color={Colors.onEmber} />
+              <ActivityIndicator size="small" color="#2A0F05" />
             ) : (
               <Text style={[styles.createText, !canCreate && styles.createTextOff]}>Create</Text>
             )}
@@ -130,7 +134,7 @@ export default function CreateForestScreen() {
               value={name}
               onChangeText={setName}
               placeholder="Powerlifting @ Laurier"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={Colors.spaceFaint}
               maxLength={NAME_MAX}
               editable={!busy}
               accessibilityLabel="Forest name"
@@ -146,7 +150,7 @@ export default function CreateForestScreen() {
               value={purpose}
               onChangeText={setPurpose}
               placeholder="One line on who it’s for"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={Colors.spaceFaint}
               maxLength={PURPOSE_MAX}
               multiline
               editable={!busy}
@@ -166,7 +170,8 @@ export default function CreateForestScreen() {
                     onPress={() => setTags((prev) => prev.filter((x) => x !== t))}
                     accessibilityRole="button"
                     accessibilityLabel={`Remove tag ${t}`}>
-                    <Text style={styles.tagText}>#{t} ×</Text>
+                    <Text style={styles.tagText}>#{t}</Text>
+                    <UiGlyph name="close" size={10} color={Colors.legend} />
                   </Pressable>
                 ))}
               </View>
@@ -179,7 +184,7 @@ export default function CreateForestScreen() {
                 onSubmitEditing={addTag}
                 onBlur={addTag}
                 placeholder="powerlifting, 6am, finals…"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={Colors.spaceFaint}
                 returnKeyType="done"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -247,61 +252,55 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.twelve,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
-  },
-  cancel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.muted,
+    gap: Spacing.twelve,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.twelve,
   },
   topTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
+    flex: 1,
+    fontFamily: Fonts.black,
+    fontSize: 20,
     color: Colors.ink,
   },
   createBtn: {
-    minWidth: 70,
+    minWidth: 76,
+    minHeight: 36,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: Radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    backgroundColor: Colors.amber,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.navEmber,
   },
   createBtnOff: {
-    backgroundColor: Colors.disabledSurface,
+    opacity: 0.45,
   },
   createText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12.5,
-    color: Colors.onEmber,
+    fontFamily: Fonts.black,
+    fontSize: 13,
+    color: '#2A0F05',
   },
-  createTextOff: {
-    color: Colors.disabledText,
-  },
+  createTextOff: {},
   scroll: {
-    padding: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingTop: Spacing.one,
     paddingBottom: Spacing.six,
   },
   lede: {
     fontFamily: Fonts.body,
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: Colors.textTertiary,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   preview: {
     alignSelf: 'center',
-    width: 68,
-    height: 68,
+    width: 72,
+    height: 72,
     borderRadius: 20,
     marginTop: Spacing.three,
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,122,47,0.08)',
     borderWidth: 1,
-    borderColor: `${Colors.amber}44`,
+    borderColor: 'rgba(255,122,47,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -321,35 +320,36 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   emojiText: {
     fontSize: 19,
   },
   on: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.amber,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   off: {
     opacity: 0.55,
   },
+  // The kit's section label (SpaceSection), kept as Text so the existing uppercase copy stands.
   label: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: Colors.textTertiary,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    color: Colors.spaceFaint,
     marginTop: Spacing.four,
-    marginBottom: 6,
+    marginBottom: Spacing.two,
   },
   input: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.input,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingHorizontal: Spacing.twelve,
-    paddingVertical: 11,
+    paddingVertical: 12,
     fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.ink,
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   count: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'right',
     marginTop: 4,
   },
@@ -372,15 +372,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     borderRadius: Radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(185,139,255,0.12)',
+    borderWidth: 1,
+    borderColor: '#3A2D5A',
   },
   tagText: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11.5,
-    color: Colors.sky,
+    fontSize: 12,
+    color: Colors.legend,
   },
   segment: {
     flexDirection: 'row',
@@ -390,22 +395,22 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 14,
     padding: Spacing.twelve,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   segLabel: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 13,
+    fontSize: 13.5,
     color: Colors.ink,
   },
   segLabelOn: {
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   segHint: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontSize: 11.5,
+    color: Colors.spaceDim,
     marginTop: 3,
   },
   uniRow: {
@@ -415,19 +420,19 @@ const styles = StyleSheet.create({
     marginTop: Spacing.four,
     borderRadius: 14,
     padding: Spacing.twelve,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   uniTitle: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.ink,
   },
   uniSub: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontSize: 12,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
   error: {

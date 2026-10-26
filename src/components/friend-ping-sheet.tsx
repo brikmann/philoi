@@ -1,7 +1,9 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/ui/avatar';
+import { SocialGlyph } from '@/components/ui/glyphs-social';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { friendStatusLine, type Friend } from '@/lib/api/friends';
 import type { PingResult } from '@/types/database';
@@ -79,7 +81,11 @@ export function FriendPingSheet({
           {/* Primary — state-dependent: join their live session, or nudge them to start one. */}
           <Pressable style={styles.act} onPress={onPrimary}>
             <View style={[styles.actIcon, styles.iLock]}>
-              <Ionicons name={lockedIn ? 'lock-closed' : 'flame'} size={19} color={Colors.coral} />
+              {lockedIn ? (
+                <UiGlyph name="lock" size={19} color={Colors.navEmber} />
+              ) : (
+                <NavGlyph name="flame" size={19} color={Colors.navEmber} />
+              )}
             </View>
             <View style={styles.actText}>
               <Text style={styles.actTitle}>{lockedIn ? 'Lock in with them' : 'Nudge to lock in'}</Text>
@@ -89,29 +95,29 @@ export function FriendPingSheet({
                   : (PING_RESULT_COPY[lastPing ?? 'idle'] ?? 'Send a 🔥 “lock in?” right now')}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+            <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
           </Pressable>
 
           <Pressable style={styles.act} onPress={activeH2H ? onViewChallenge : onChallengeH2H}>
             <View style={[styles.actIcon, styles.iSword]}>
-              <MaterialCommunityIcons name={activeH2H ? 'sword' : 'sword-cross'} size={18} color={Colors.ember} />
+              <SocialGlyph name="swords" size={18} color={Colors.gold} />
             </View>
             <View style={styles.actText}>
               <Text style={styles.actTitle}>{activeH2H ? 'View challenge' : 'Challenge — head to head'}</Text>
               <Text style={styles.actSub}>{activeH2H ? "You're already racing them — see live standings" : 'Race for XP or lock-in time'}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+            <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
           </Pressable>
 
           <Pressable style={styles.act} onPress={onChallengeGroup}>
             <View style={[styles.actIcon, styles.iGroup]}>
-              <Ionicons name="people" size={19} color="#7FD0E0" />
+              <SocialGlyph name="people" size={19} color={Colors.legend} />
             </View>
             <View style={styles.actText}>
               <Text style={styles.actTitle}>Challenge — as a group</Text>
               <Text style={styles.actSub}>Rally a campfire behind a goal</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+            <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
           </Pressable>
         </View>
       </View>
@@ -126,18 +132,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(8,6,12,0.62)',
   },
   sheet: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: Colors.spaceLine,
     paddingTop: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingBottom: 18,
   },
   grab: {
     width: 38,
     height: 4,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spaceLine,
     alignSelf: 'center',
     marginTop: 6,
     marginBottom: 12,
@@ -150,7 +159,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
   actSubWarn: {
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   name: {
     fontFamily: Fonts.bodySemiBold,
@@ -160,37 +169,40 @@ const styles = StyleSheet.create({
   sub: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
   subOn: {
-    color: Colors.achieverText,
+    color: Colors.navEmber2,
   },
   act: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.twelve,
     padding: 12,
-    borderRadius: Radius.input,
-    backgroundColor: Colors.cardDark,
-    marginBottom: 9,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    marginBottom: 8,
   },
   actIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Tile backgrounds per mock 21: lock=warm achiever, sword=selected purple, group=dark teal (one-off).
+  // Space-kit tile tones (SpaceTile): ember for the one action, gold for the race, legend for the
+  // group — replacing mock 21's warm-achiever / selected-purple / one-off teal tiles.
   iLock: {
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,122,47,0.14)',
   },
   iSword: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,209,102,0.12)',
   },
   iGroup: {
-    backgroundColor: '#20303A',
+    backgroundColor: 'rgba(185,139,255,0.14)',
   },
   actText: {
     flex: 1,
@@ -202,8 +214,8 @@ const styles = StyleSheet.create({
   },
   actSub: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
+    fontSize: 11.5,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
 });

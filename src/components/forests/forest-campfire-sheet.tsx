@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ForestSheet } from '@/components/forests/forest-bits';
+import { SpaceButton, SpaceChip } from '@/components/ui/space-kit';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { createCampfireInForest } from '@/lib/api/forests';
 import { getErrorMessage } from '@/lib/errors';
@@ -64,7 +65,7 @@ export function ForestCampfireSheet({
           value={name}
           onChangeText={setName}
           placeholder="The Anvil"
-          placeholderTextColor={Colors.textTertiary}
+          placeholderTextColor={Colors.spaceFaint}
           maxLength={40}
           editable={!busy}
           accessibilityLabel="Campfire name"
@@ -86,28 +87,20 @@ export function ForestCampfireSheet({
 
         <Text style={styles.label}>WHAT YOU’LL LOCK IN ON</Text>
         <View style={styles.chips}>
-          {THEMES.map((t) => {
-            const on = goalType === t;
-            return (
-              <Pressable
-                key={t}
-                onPress={() => setGoalType(t)}
-                style={[styles.chip, on && styles.chipOn]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}>
-                <Text style={[styles.chipText, on && styles.chipTextOn]}>
-                  {t === 'custom' ? 'Anything' : GOAL_TYPE_META[t].label}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {THEMES.map((t) => (
+            <SpaceChip
+              key={t}
+              label={t === 'custom' ? 'Anything' : GOAL_TYPE_META[t].label}
+              selected={goalType === t}
+              onPress={() => setGoalType(t)}
+            />
+          ))}
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Pressable style={[styles.cta, !canCreate && styles.ctaOff]} onPress={() => void create()} disabled={!canCreate} accessibilityRole="button">
-          {busy ? <ActivityIndicator color={Colors.onEmber} /> : <Text style={styles.ctaText}>Start campfire</Text>}
-        </Pressable>
+        {/* canCreate already folds in !busy, so `disabled` covers the in-flight state too. */}
+        <SpaceButton label="Start campfire" onPress={() => void create()} disabled={!canCreate} loading={busy} style={styles.cta} />
       </KeyboardAvoidingView>
     </ForestSheet>
   );
@@ -117,20 +110,20 @@ const styles = StyleSheet.create({
   hint: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   label: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: Colors.textTertiary,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    color: Colors.spaceFaint,
     marginTop: Spacing.three,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.input,
     paddingHorizontal: Spacing.twelve,
     paddingVertical: 10,
@@ -149,32 +142,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   emojiText: {
     fontSize: 19,
   },
-  chip: {
-    borderRadius: Radius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    backgroundColor: Colors.cream,
-    borderWidth: 1,
-    borderColor: Colors.lineStrong,
-  },
   chipOn: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.amber,
-  },
-  chipText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11.5,
-    color: Colors.muted,
-  },
-  chipTextOn: {
-    color: Colors.ember,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   error: {
     fontFamily: Fonts.body,
@@ -184,17 +161,5 @@ const styles = StyleSheet.create({
   },
   cta: {
     marginTop: Spacing.three,
-    borderRadius: 14,
-    paddingVertical: 13,
-    alignItems: 'center',
-    backgroundColor: Colors.amber,
-  },
-  ctaOff: {
-    backgroundColor: Colors.disabledSurface,
-  },
-  ctaText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.onEmber,
   },
 });

@@ -1,8 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useTeamMatch } from '@/hooks/use-team-match';
@@ -157,7 +157,7 @@ function MatchCard({ match, loading, onOpen }: { match: TeamMatch; loading: bool
       )}
       {!final && match.my_team !== null && (
         <View style={styles.state}>
-          <Ionicons name="checkmark-circle" size={15} color={Colors.green} />
+          <UiGlyph name="check" size={15} color={Colors.green} />
           <Text style={styles.joined}>
             You&apos;re on {match.my_team === 'a' ? match.team_a_name : match.team_b_name}
           </Text>
@@ -172,9 +172,9 @@ function MatchCard({ match, loading, onOpen }: { match: TeamMatch; loading: bool
 const styles = StyleSheet.create({
   card: {
     gap: Spacing.two,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.4)',
+    borderColor: 'rgba(255,122,47,0.4)',
     borderRadius: Radius.card,
     padding: Spacing.twelve,
     marginBottom: Spacing.two,
@@ -185,23 +185,23 @@ const styles = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.danger },
   live: { fontFamily: Fonts.bodyBold, fontSize: 9, letterSpacing: 1, color: Colors.danger },
   ft: { fontFamily: Fonts.bodyBold, fontSize: 9, letterSpacing: 1, color: Colors.green },
-  pending: { fontFamily: Fonts.bodyBold, fontSize: 9, letterSpacing: 1, color: Colors.textTertiary },
+  pending: { fontFamily: Fonts.bodyBold, fontSize: 9, letterSpacing: 1, color: Colors.spaceDim },
   scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
   scoreSide: { flex: 1, alignItems: 'center', gap: 3 },
   teamName: { fontFamily: Fonts.bodyBold, fontSize: 11.5 },
   score: { fontFamily: Fonts.displayHeavy, fontSize: 34, lineHeight: 38 },
-  dash: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.textTertiary },
+  dash: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.spaceDim },
   foot: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.two,
     borderTopWidth: 1,
-    borderTopColor: Colors.line,
+    borderTopColor: Colors.spaceLine,
     paddingTop: Spacing.two,
   },
-  footText: { flex: 1, fontFamily: Fonts.body, fontSize: 10.5, color: Colors.muted },
-  footCta: { fontFamily: Fonts.bodyBold, fontSize: 11, color: Colors.achieverText },
+  footText: { flex: 1, fontFamily: Fonts.body, fontSize: 10.5, color: Colors.spaceDim },
+  footCta: { fontFamily: Fonts.bodyBold, fontSize: 11, color: Colors.navEmber2 },
   joinRow: { flexDirection: 'row', gap: Spacing.two },
   joinBtn: {
     flex: 1,

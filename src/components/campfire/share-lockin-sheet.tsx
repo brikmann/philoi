@@ -79,7 +79,7 @@ export function ShareLockInSheet({
 
           <View style={styles.head}>
             <View style={styles.headIcon}>
-              <PhiloiIcon name="share" size={18} color={Colors.ember} />
+              <PhiloiIcon name="share" size={18} color={Colors.navEmber2} />
             </View>
             <View style={styles.headText}>
               <Text style={styles.title}>Share a lock-in</Text>
@@ -90,7 +90,7 @@ export function ShareLockInSheet({
           {error && <Text style={styles.error}>{error}</Text>}
 
           {loading ? (
-            <ActivityIndicator color={Colors.amber} style={styles.loading} />
+            <ActivityIndicator color={Colors.navEmber} style={styles.loading} />
           ) : (
             <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
               {lockIns.length === 0 ? (
@@ -133,9 +133,9 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: '76%',
-    backgroundColor: 'rgba(16,11,20,0.97)',
+    backgroundColor: 'rgba(14,10,28,0.97)',
     borderTopWidth: 1,
-    borderTopColor: Colors.lineStrong,
+    borderTopColor: Colors.spaceLine,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingTop: 8,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spaceLine,
     alignSelf: 'center',
     marginTop: 4,
     marginBottom: 14,
@@ -160,9 +160,9 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 11,
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,122,47,0.12)',
     borderWidth: 1,
-    borderColor: Colors.amber,
+    borderColor: Colors.navEmber,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 3,
   },
   error: {
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12.5,
     lineHeight: 18,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     paddingVertical: Spacing.three,
   },
   row: {
@@ -206,13 +206,13 @@ const styles = StyleSheet.create({
     gap: 11,
     paddingVertical: 11,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    borderBottomColor: Colors.spaceLine,
   },
   rowIcon: {
     width: 36,
     height: 36,
     borderRadius: 11,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   rowMeta: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: 1,
   },
 });

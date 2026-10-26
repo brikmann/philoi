@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 
 import { PhiloiIcon, type PhiloiIconName } from '@/components/ui/philoi-icon';
 import { useRouter } from 'expo-router';
@@ -9,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CampfireBadge } from '@/components/campfire-badge';
 import { CampfireBannerPicker } from '@/components/campfire-banner-picker';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCampfireHeat } from '@/hooks/use-campfire-heat';
 import { useCampfireRole } from '@/hooks/use-campfire-role';
@@ -203,9 +203,13 @@ export function CampfireOptionsSheet({
             {error && <Text style={styles.error}>{error}</Text>}
 
             {rows.map((row) => (
-              <Pressable key={row.key} style={styles.row} onPress={row.onPress} disabled={muting}>
+              <Pressable
+                key={row.key}
+                style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                onPress={row.onPress}
+                disabled={muting}>
                 <View style={styles.rowIcon}>
-                  <PhiloiIcon name={row.icon} size={18} color={Colors.ember} />
+                  <PhiloiIcon name={row.icon} size={18} color={Colors.navEmber2} />
                 </View>
                 <Text style={styles.rowLabel}>{row.label}</Text>
                 {Boolean(row.badge) && (
@@ -213,21 +217,25 @@ export function CampfireOptionsSheet({
                     <Text style={styles.rowBadgeLabel}>{row.badge}</Text>
                   </View>
                 )}
-                <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
+                <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
               </Pressable>
             ))}
 
             <View style={styles.sep} />
 
-            <Pressable style={styles.row} onPress={() => go(`/report?groupId=${groupId}`)}>
+            <Pressable
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              onPress={() => go(`/report?groupId=${groupId}`)}>
               <View style={[styles.rowIcon, styles.rowIconWarn]}>
-                <PhiloiIcon name="flag" size={18} color={Colors.ember} />
+                <PhiloiIcon name="flag" size={18} color={Colors.gold} />
               </View>
               <Text style={styles.rowLabel}>Report this campfire</Text>
-              <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
+              <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
             </Pressable>
 
-            <Pressable style={styles.row} onPress={() => setConfirmOpen(true)}>
+            <Pressable
+              style={({ pressed }) => [styles.row, styles.rowDanger, pressed && styles.rowPressed]}
+              onPress={() => setConfirmOpen(true)}>
               <View style={[styles.rowIcon, styles.rowIconDanger]}>
                 <PhiloiIcon name="leave" size={18} color={Colors.danger} />
               </View>
@@ -266,16 +274,19 @@ export function CampfireOptionsSheet({
   );
 }
 
+// The space kit's sheet: a spaceBg slab on a spaceLine top edge, its rows SpaceRow's panel
+// (14px-family corners, 1px line). Not SpaceRow itself — each row leads with a PhiloiIcon tile and
+// can carry a count badge, and the danger row needs its own tinted surface.
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(6,4,10,0.55)',
+    backgroundColor: 'rgba(6,4,10,0.6)',
   },
   sheet: {
-    backgroundColor: '#161022',
+    backgroundColor: Colors.spaceBg,
     borderTopWidth: 1,
-    borderTopColor: '#2A2140',
+    borderTopColor: Colors.spaceLine,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingTop: 8,
@@ -285,7 +296,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: Radius.pill,
-    backgroundColor: '#33294A',
+    backgroundColor: Colors.spaceLine,
     alignSelf: 'center',
     marginTop: 6,
     marginBottom: 14,
@@ -293,27 +304,27 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
+    gap: 12,
     paddingHorizontal: 2,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1730',
-    marginBottom: Spacing.two,
+    borderBottomColor: Colors.spaceLine,
+    marginBottom: Spacing.twelve,
   },
   headerText: {
     flex: 1,
     minWidth: 0,
   },
   name: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    lineHeight: 18,
+    fontFamily: Fonts.black,
+    fontSize: 16,
+    lineHeight: 20,
     color: Colors.ink,
   },
   sub: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: '#8F83A8',
+    fontSize: 12,
+    color: Colors.spaceDim,
     marginTop: 1,
   },
   error: {
@@ -326,48 +337,64 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 13,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderRadius: Radius.card,
+    gap: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    marginBottom: 6,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
+  rowPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
+  },
+  rowDanger: {
+    backgroundColor: 'rgba(232,106,90,0.08)',
+    borderColor: 'rgba(232,106,90,0.32)',
+  },
+  // SpaceTile's 36px square, at the sheet's 32.
   rowIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: '#1C1430',
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,122,47,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowIconWarn: {
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,209,102,0.12)',
   },
   rowIconDanger: {
-    backgroundColor: 'rgba(255,90,60,0.14)',
+    backgroundColor: 'rgba(232,106,90,0.14)',
   },
   rowLabel: {
     flex: 1,
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.ink,
   },
   rowLabelDanger: {
-    color: '#FF8F8F',
+    color: Colors.danger,
   },
   rowBadge: {
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: Colors.navEmber,
     borderRadius: Radius.pill,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
+    minWidth: 20,
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
   },
   rowBadgeLabel: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 11,
-    color: Colors.achieverText,
+    color: '#2A0F05',
   },
   sep: {
     height: 1,
-    backgroundColor: '#1E1730',
-    marginVertical: 6,
+    backgroundColor: Colors.spaceLine,
+    marginTop: 4,
+    marginBottom: 10,
   },
 });

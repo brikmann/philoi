@@ -53,13 +53,13 @@ const styles = StyleSheet.create({
     width: 64,
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   track: {
     flex: 1,
     height: 9,
     borderRadius: 5,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel2,
     overflow: 'hidden',
   },
   fill: {
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     borderRadius: 5,
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
   },
   mine: {
     position: 'absolute',
@@ -78,12 +78,13 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: Colors.coldChipText,
+    // Yours in legend purple — secondary to theirs, which is the subject of this screen.
+    borderColor: Colors.legend,
   },
   legend: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: Spacing.one,
   },
 });

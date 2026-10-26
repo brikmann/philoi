@@ -8,8 +8,8 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { EmberFill } from '@/components/ui/ember-fill';
 import { PhiloiIcon, type PhiloiIconName } from '@/components/ui/philoi-icon';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
@@ -116,11 +116,13 @@ export function CampfireFab({
         accessibilityRole="button"
         accessibilityLabel={open ? 'Close the campfire menu' : 'Open the campfire menu'}
         accessibilityState={{ expanded: open }}>
-        <EmberFill style={styles.fab} radius={26} direction="diagonal">
+        {/* The kit's primary ember (SpaceButton's fill + glow) in a circle; the + is the kit's add
+            glyph, still rotated by plusStyle into an × while the menu is open. */}
+        <View style={styles.fab}>
           <Animated.View style={plusStyle}>
-            <Text style={styles.plus}>+</Text>
+            <UiGlyph name="add" size={24} color="#2A0F05" />
           </Animated.View>
-        </EmberFill>
+        </View>
       </Pressable>
     </>
   );
@@ -159,7 +161,7 @@ function FabRow({
           </Text>
         </View>
         <View style={[styles.dot, item.hot && styles.dotHot]}>
-          <PhiloiIcon name={item.icon} size={20} color={Colors.ember} />
+          <PhiloiIcon name={item.icon} size={20} color={Colors.navEmber2} />
         </View>
       </Pressable>
     </Animated.View>
@@ -173,7 +175,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(8,6,12,0.55)',
+    backgroundColor: 'rgba(8,6,18,0.55)',
   },
   menu: {
     position: 'absolute',
@@ -191,9 +193,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   label: {
-    backgroundColor: 'rgba(20,14,24,0.92)',
+    backgroundColor: 'rgba(26,18,48,0.92)',
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     paddingVertical: 8,
     paddingHorizontal: 13,
     borderRadius: 12,
@@ -205,7 +207,7 @@ const styles = StyleSheet.create({
   },
   labelHint: {
     fontFamily: Fonts.body,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   dot: {
     width: 46,
@@ -213,13 +215,13 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   dotHot: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.amber,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   // 🔴 D2 · THE + BELONGS BOTTOM-RIGHT, AND USED TO RENDER BOTTOM-LEFT.
   //
@@ -243,11 +245,11 @@ const styles = StyleSheet.create({
     borderRadius: FAB_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  plus: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 28,
-    lineHeight: 32,
-    color: Colors.onEmber,
+    backgroundColor: Colors.navEmber,
+    shadowColor: Colors.navEmber,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 6,
   },
 });

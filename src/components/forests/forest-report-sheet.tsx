@@ -1,8 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text } from 'react-native';
 
 import { ForestSheet, SheetRow } from '@/components/forests/forest-bits';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { FOREST_REPORT_REASONS, reportForest } from '@/lib/api/forests';
 import { getErrorMessage } from '@/lib/errors';
@@ -51,9 +51,9 @@ export function ForestReportSheet({
           onPress={() => void send(r)}
           right={
             sending === r ? (
-              <ActivityIndicator size="small" color={Colors.amber} />
+              <ActivityIndicator size="small" color={Colors.navEmber} />
             ) : (
-              <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
+              <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
             )
           }
         />
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   hint: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginBottom: Spacing.one,
   },
   error: {

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -27,6 +26,7 @@ import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TextInput } from '@/components/ui/text-input';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { CHAT_ENABLED } from '@/constants/feature-flags';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -511,27 +511,29 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
     }
 
     // ── the inline embeds (mock 101's `.embed`) ────────────────────────────────────────────────
+    // Rail colours follow the space language: ember for activity (lock-ins, flames, check-ins),
+    // legend purple for a live challenge, gold for a won one, faint for a card that failed to load.
     // Everything that is not a message is an attachment to the conversation, so it gets the same
     // frame: a left accent stripe in the colour of what it is, over the chat's own ground. That
     // one frame is what makes a lock-in card and a challenge card read as the same KIND of thing
     // — a rich thing someone dropped in — rather than as two unrelated widgets.
     if (row.kind === 'live_session') {
       return (
-        <Embed accent={Colors.amber}>
+        <Embed accent={Colors.navEmber}>
           <LiveLockInCard activeLockIn={row.data} />
         </Embed>
       );
     }
     if (row.kind === 'flame_completion') {
       return (
-        <Embed accent={Colors.amber}>
+        <Embed accent={Colors.navEmber}>
           <FlameCompletionCard item={row.data} />
         </Embed>
       );
     }
     if (row.kind === 'active_challenge') {
       return (
-        <Embed accent={Colors.ember}>
+        <Embed accent={Colors.legend}>
           <Pressable
             onPress={() =>
               router.push({ pathname: '/challenge-info/[challengeId]', params: { challengeId: row.data.id } })
@@ -548,7 +550,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
     }
     if (row.kind === 'check_in') {
       return (
-        <Embed accent={Colors.amber}>
+        <Embed accent={Colors.navEmber}>
           {/* D6 · `hideReactions` — THE OLD BAR, GONE FROM THE CAMPFIRE.
               The 🔥💪👏😂❤️ row Noah still sees is this card's own ReactionBar, not the chat's. The
               campfire's reaction model is one-per-person on a MESSAGE (mock 178, migration 0171),
@@ -566,7 +568,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
     }
     if (row.kind === 'challenge') {
       return (
-        <Embed accent={Colors.ember}>
+        <Embed accent={Colors.gold}>
           <ChallengeCompletionCard event={row.data} />
         </Embed>
       );
@@ -813,7 +815,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
               timeline.refetch();
               loadChallenges();
             }}
-            tintColor={Colors.coral}
+            tintColor={Colors.navEmber}
           />
         }
         renderItem={renderRow}
@@ -875,7 +877,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
                     disabled={sending}
                     accessibilityRole="button"
                     accessibilityLabel={`Remove photo ${i + 1}`}>
-                    <Ionicons name="close" size={12} color={Colors.ink} />
+                    <UiGlyph name="close" size={10} color={Colors.ink} />
                   </Pressable>
                 </View>
               ))}
@@ -883,7 +885,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
                   and the dead tap this whole item is about. */}
               {uploadProgress && (
                 <View style={styles.progress}>
-                  <ActivityIndicator size="small" color={Colors.amber} />
+                  <ActivityIndicator size="small" color={Colors.navEmber} />
                   <Text style={styles.progressText}>
                     {uploadProgress.done} of {uploadProgress.total}
                   </Text>
@@ -912,11 +914,11 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
             accessibilityLabel={pendingPhotos.length > 0 ? 'Post photos' : 'Send message'}>
             {(draft.trim() || pendingPhotos.length > 0) && !sending ? (
               <EmberFill style={styles.sendButton} radius={20} direction="diagonal">
-                <Ionicons name="send" size={16} color={Colors.onEmber} style={styles.sendGlyph} />
+                <UiGlyph name="send" size={17} color={Colors.onEmber} />
               </EmberFill>
             ) : (
               <View style={[styles.sendButton, styles.sendButtonOff]}>
-                <Ionicons name="send" size={16} color={Colors.textTertiary} style={styles.sendGlyph} />
+                <UiGlyph name="send" size={17} color={Colors.spaceFaint} />
               </View>
             )}
           </Pressable>
@@ -1130,7 +1132,7 @@ function SharedLockIn({ checkInId, onReactionChanged }: { checkInId: string; onR
 
   if (state.phase === 'gone') {
     return (
-      <Embed accent={Colors.muted}>
+      <Embed accent={Colors.spaceFaint}>
         <Text style={styles.attachLockInGone}>That lock-in isn&apos;t around any more.</Text>
       </Embed>
     );
@@ -1138,7 +1140,7 @@ function SharedLockIn({ checkInId, onReactionChanged }: { checkInId: string; onR
 
   if (state.phase === 'failed') {
     return (
-      <Embed accent={Colors.muted}>
+      <Embed accent={Colors.spaceFaint}>
         <Pressable
           onPress={retry}
           accessibilityRole="button"
@@ -1155,7 +1157,7 @@ function SharedLockIn({ checkInId, onReactionChanged }: { checkInId: string; onR
     // A placeholder the same shape as the frame it will become, so the row does not jump when the
     // card lands.
     return (
-      <Embed accent={Colors.amber}>
+      <Embed accent={Colors.navEmber}>
         <Text style={styles.attachLockInGone}>Loading that lock-in…</Text>
       </Embed>
     );
@@ -1181,7 +1183,7 @@ function SharedLockIn({ checkInId, onReactionChanged }: { checkInId: string; onR
   //
   // Passing `onPress` down means there is ONE pressable in the stack and nothing to swallow.
   return (
-    <Embed accent={Colors.amber}>
+    <Embed accent={Colors.navEmber}>
       <LockInEventCard item={item} onReactionChanged={onReactionChanged} onPress={openLockIn} hideReactions />
     </Embed>
   );
@@ -1198,7 +1200,7 @@ const styles = StyleSheet.create({
   },
   error: {
     fontFamily: Fonts.body,
-    color: Colors.coral,
+    color: Colors.danger,
     textAlign: 'center',
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
@@ -1208,7 +1210,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   list: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 8,
   },
@@ -1233,10 +1235,10 @@ const styles = StyleSheet.create({
   dayLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
-    color: '#9A8FB8',
-    backgroundColor: '#1A1226',
+    color: Colors.onScrimFaint,
+    backgroundColor: Colors.scrim,
     borderWidth: 1,
-    borderColor: '#2A1F3A',
+    borderColor: Colors.spaceLine,
     paddingVertical: 3,
     paddingHorizontal: 12,
     borderRadius: 11,
@@ -1251,7 +1253,7 @@ const styles = StyleSheet.create({
   sysText: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.onScrim,
   },
   // 🐛 §4 · WHY EMBEDS RENDERED AS A TALL THIN SLIVER.
   //
@@ -1275,7 +1277,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     backgroundColor: 'rgba(22,15,30,0.93)',
     borderWidth: 1,
-    borderColor: '#322648',
+    borderColor: Colors.spaceLine,
     borderLeftWidth: 3,
     borderRadius: 16,
     padding: 4,
@@ -1294,12 +1296,12 @@ const styles = StyleSheet.create({
   systemLine: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.textTertiary,
+    color: Colors.onScrimFaint,
     textAlign: 'center',
   },
   systemName: {
     fontFamily: Fonts.bodySemiBold,
-    color: Colors.muted,
+    color: Colors.onScrim,
   },
   msgRow: {
     flexDirection: 'row',
@@ -1346,7 +1348,7 @@ const styles = StyleSheet.create({
   sender: {
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.onScrim,
   },
   bubble: {
     paddingVertical: Spacing.two,
@@ -1356,13 +1358,14 @@ const styles = StyleSheet.create({
   // Asymmetric "tail" corner (mock 101's `.bubble`) — the squared corner points toward whoever's
   // side the bubble came from.
   bubbleOther: {
-    backgroundColor: 'rgba(36,28,56,0.86)',
+    // The space panel, translucent — it sits on banner art.
+    backgroundColor: 'rgba(26,18,48,0.88)',
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderTopLeftRadius: 4,
-    borderTopRightRadius: Radius.card,
-    borderBottomLeftRadius: Radius.card,
-    borderBottomRightRadius: Radius.card,
+    borderTopRightRadius: 14,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
   },
   bubbleOwn: {
     // The solid coral stays as the UNDER-colour: EmberFill needs one layout pass to measure
@@ -1390,8 +1393,8 @@ const styles = StyleSheet.create({
   },
   bubbleMentioned: {
     borderLeftWidth: 3,
-    borderLeftColor: Colors.ember,
-    backgroundColor: 'rgba(58,42,26,0.6)',
+    borderLeftColor: Colors.navEmber,
+    backgroundColor: 'rgba(58,30,24,0.62)',
   },
   body: {
     fontFamily: Fonts.body,
@@ -1439,15 +1442,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(28,20,40,0.98)',
+    backgroundColor: 'rgba(26,18,48,0.98)',
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
-  // Yours is amber-ringed — the same treatment the tray gives your held emoji, so the two places
+  // Yours is ember-ringed — the same treatment the tray gives your held emoji, so the two places
   // agree about which one is "mine".
   badgeMine: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.amber,
+    backgroundColor: 'rgba(58,30,24,0.98)',
+    borderColor: Colors.navEmber,
   },
   badgeGlyph: {
     fontSize: 12,
@@ -1455,7 +1458,7 @@ const styles = StyleSheet.create({
   attachLockInGone: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.onScrim,
     padding: Spacing.two,
   },
   attachLockInRetry: {
@@ -1467,12 +1470,12 @@ const styles = StyleSheet.create({
   attachLockInRetryText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.amber,
+    color: Colors.navEmber2,
     padding: Spacing.two,
   },
   mention: {
     fontFamily: Fonts.bodyBold,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   // On the coral bubble the ember token disappears into the fill, so own-message mentions go
   // white instead — the mock does the same thing with `.msg.me .mention`.
@@ -1482,7 +1485,7 @@ const styles = StyleSheet.create({
   time: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   timeOwn: {
     color: 'rgba(255,255,255,0.75)',
@@ -1498,7 +1501,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: Spacing.two,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingTop: Spacing.two,
   },
   chipRow: {
@@ -1506,7 +1509,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: Spacing.two,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingTop: Spacing.two,
   },
   chip: {
@@ -1516,7 +1519,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: 'rgba(0,0,0,0.25)',
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   chipImage: {
     width: '100%',
@@ -1543,7 +1546,7 @@ const styles = StyleSheet.create({
   progressText: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.onScrim,
   },
   // D3 · the inline grid. Two columns via percentage widths and wrap rather than a nested
   // FlatList: this lives inside a row of the outer FlatList, and a virtualised list inside a
@@ -1592,9 +1595,10 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     maxHeight: 100,
-    backgroundColor: 'rgba(36,28,56,0.9)',
+    // spacePanel2 at 90%: the composer field stays a hair translucent over the scrim shelf.
+    backgroundColor: 'rgba(36,26,58,0.9)',
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 10,
     paddingHorizontal: 16,
@@ -1607,13 +1611,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // No glyph nudge any more: the old Ionicons paper plane sat low-left in its box; UiGlyph's
+  // `send` is drawn centred on the 48 grid.
   sendButtonOff: {
-    backgroundColor: Colors.disabledSurface,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.disabledBorder,
-  },
-  sendGlyph: {
-    // Ionicons' paper plane sits visually low-left inside its box; nudge it back to centre.
-    marginLeft: 2,
+    borderColor: Colors.spaceLine,
   },
 });

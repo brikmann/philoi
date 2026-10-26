@@ -1,11 +1,14 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CampfireBannerArt } from '@/components/campfire-banner-art';
 import { PrivacySelector } from '@/components/privacy-selector';
+import { SocialGlyph } from '@/components/ui/glyphs-social';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Screen } from '@/components/ui/screen';
+import { SPACE_GUTTER, SpaceButton, SpaceHeader, SpaceIconButton, SpaceTile } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
 import { FlameLogo } from '@/components/ui/flame-logo';
@@ -76,7 +79,8 @@ function ToggleRow({
   value,
   onValueChange,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  /** A glyph from the space family, drawn inside the row's legend tile. */
+  icon: ReactNode;
   title: string;
   subtitle: string;
   value: boolean;
@@ -84,9 +88,7 @@ function ToggleRow({
 }) {
   return (
     <View style={styles.tog}>
-      <View style={styles.togIcon}>
-        <Ionicons name={icon} size={16} color={Colors.amber} />
-      </View>
+      <SpaceTile tone="legend">{icon}</SpaceTile>
       <View style={styles.togText}>
         <Text style={styles.togTitle}>{title}</Text>
         <Text style={styles.togSubtitle}>{subtitle}</Text>
@@ -239,12 +241,16 @@ export default function CreateGroupScreen() {
 
   return (
     <Screen padded={false} style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Start a campfire</Text>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Close">
-          <Ionicons name="close" size={20} color={Colors.muted} />
-        </Pressable>
-      </View>
+      {/* A modal, so the kit header without a back chevron — close on the right, as before. */}
+      <SpaceHeader
+        title="Start a campfire"
+        back={false}
+        right={
+          <SpaceIconButton onPress={() => router.back()} label="Close">
+            <UiGlyph name="close" size={16} color={Colors.ink} />
+          </SpaceIconButton>
+        }
+      />
 
       {/* No KeyboardAvoidingView here: <Screen> already wraps the page in one, and a second 'padding'
           one nested inside it double-counts the keyboard on iOS. */}
@@ -257,7 +263,7 @@ export default function CreateGroupScreen() {
           <Text style={styles.lbl}>Name</Text>
           <View style={styles.field}>
             <View style={styles.fieldIcon}>
-              <DisciplineIcon name={THEME_OPTIONS.find((t) => t.value === goalType)?.icon ?? 'flame'} size={15} color={Colors.amber} />
+              <DisciplineIcon name={THEME_OPTIONS.find((t) => t.value === goalType)?.icon ?? 'flame'} size={15} color={Colors.navEmber2} />
             </View>
             <TextInput
               style={styles.fieldInput}
@@ -277,7 +283,7 @@ export default function CreateGroupScreen() {
                   onPress={() => setGoalType(option.value)}
                   style={[styles.iconTile, on && styles.iconTileOn]}
                   accessibilityLabel={GOAL_TYPE_META[option.value].label}>
-                  <DisciplineIcon name={option.icon} size={16} color={on ? Colors.amber : Colors.muted} />
+                  <DisciplineIcon name={option.icon} size={16} color={on ? Colors.navEmber2 : Colors.spaceDim} />
                 </Pressable>
               );
             })}
@@ -292,7 +298,7 @@ export default function CreateGroupScreen() {
           <View style={styles.divider} />
 
           <ToggleRow
-            icon="school"
+            icon={<NavGlyph name="book" size={17} color={Colors.legend} />}
             title="For a class?"
             subtitle="Make it a course study-hall"
             value={isClass}
@@ -314,14 +320,14 @@ export default function CreateGroupScreen() {
                 </View>
                 {profile?.university && (
                   <View style={styles.chip}>
-                    <Ionicons name="location" size={11} color={Colors.soloChipText} />
+                    <SocialGlyph name="pin" size={12} color={Colors.legend} />
                     <Text style={styles.chipText}>{profile.university}</Text>
                   </View>
                 )}
               </View>
 
               <ToggleRow
-                icon="ribbon"
+                icon={<NavGlyph name="trophy" size={17} color={Colors.legend} />}
                 title="I can help with this class"
                 subtitle="Flags you as someone who's aced it"
                 value={isHelper}
@@ -336,10 +342,13 @@ export default function CreateGroupScreen() {
           {error && <Text style={styles.error}>{error}</Text>}
         </ScrollView>
 
-        <Pressable style={styles.createBtn} onPress={handleCreate} disabled={loading}>
-          <FlameLogo size={17} />
-          <Text style={styles.createLabel}>{loading ? 'Lighting…' : 'Light the campfire'}</Text>
-        </Pressable>
+        <SpaceButton
+          label="Light the campfire"
+          onPress={handleCreate}
+          loading={loading}
+          leading={<FlameLogo size={17} />}
+          style={styles.createBtn}
+        />
 
         {isOnboarding && (
           <Text
@@ -358,57 +367,50 @@ export default function CreateGroupScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 15,
-    paddingTop: 16,
-    // "Light the campfire" was flush against the safe-area line — this is the gap above it.
+    paddingTop: Spacing.two,
+    // "Light the campfire" was flush against the safe-area line — this is the gap above it. This
+    // modal hides the global bottom bar, so it keeps its own bottom edge.
     paddingBottom: Spacing.three,
   },
   flex: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  title: {
-    fontFamily: Fonts.display,
-    fontSize: 17,
-    color: Colors.ink,
-  },
   form: {
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.three,
   },
   onboardingIntro: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginBottom: Spacing.two,
   },
+  // The kit's section label (SpaceSection's type), at form spacing rather than its 24px top gap.
   lbl: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
-    marginTop: 12,
-    marginBottom: 6,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
+    marginTop: 16,
+    marginBottom: 8,
   },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    backgroundColor: Colors.card,
+    gap: 10,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.card,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 12,
   },
   fieldIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    backgroundColor: Colors.achieverBg,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,122,47,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -417,7 +419,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 0,
     padding: 0,
-    fontSize: 13,
+    fontSize: 13.5,
     color: Colors.ink,
   },
   fieldInputNoIcon: {
@@ -425,50 +427,51 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 0,
     padding: 0,
-    fontSize: 13,
+    fontSize: 13.5,
     color: Colors.ink,
   },
   emrow: {
     flexDirection: 'row',
-    gap: 7,
-    marginTop: 8,
+    gap: 8,
+    marginTop: 10,
   },
   iconTile: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: Colors.card,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconTileOn: {
-    backgroundColor: Colors.achieverBg,
-    borderWidth: 1.5,
-    borderColor: Colors.coral,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   bannerNote: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 11.5,
     lineHeight: 15,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: -2,
     marginBottom: 8,
   },
   bannerRow: {
     flexDirection: 'row',
-    gap: 9,
+    gap: 8,
     paddingRight: Spacing.two,
   },
   bannerTile: {
     width: 116,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.line,
-    backgroundColor: Colors.card,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
     overflow: 'hidden',
   },
   bannerTileOn: {
-    borderColor: Colors.amber,
+    borderColor: Colors.navEmber,
   },
   bannerSwatch: {
     height: 52,
@@ -476,54 +479,48 @@ const styles = StyleSheet.create({
   },
   bannerName: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 10.5,
-    color: Colors.muted,
+    fontSize: 11,
+    color: Colors.spaceDim,
     paddingHorizontal: 8,
     paddingVertical: 7,
   },
   bannerNameOn: {
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.line,
-    marginTop: 16,
+    backgroundColor: Colors.spaceLine,
+    marginTop: 18,
     marginBottom: 4,
   },
   tog: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
+    gap: 12,
     paddingVertical: 11,
-  },
-  togIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: Colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   togText: {
     flex: 1,
   },
   togTitle: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13.5,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
     color: Colors.ink,
   },
   togSubtitle: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
+    fontSize: 12,
+    color: Colors.spaceDim,
     marginTop: 1,
   },
   nest: {
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingHorizontal: 12,
     paddingTop: 4,
-    paddingBottom: 10,
+    paddingBottom: 12,
     marginVertical: 2,
   },
   chip: {
@@ -531,40 +528,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     alignSelf: 'flex-start',
-    backgroundColor: Colors.card,
+    backgroundColor: 'rgba(185,139,255,0.10)',
+    borderWidth: 1,
+    borderColor: '#3A2D5A',
     borderRadius: Radius.pill,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    marginTop: 8,
+    marginTop: 10,
   },
   chipText: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.soloChipText,
+    color: Colors.legend,
   },
   error: {
     fontFamily: Fonts.body,
-    color: Colors.coral,
+    color: Colors.danger,
     marginTop: Spacing.two,
   },
   createBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-    backgroundColor: Colors.coral,
-    borderRadius: 14,
-    padding: 14,
-  },
-  createLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
-    color: Colors.ink,
+    marginHorizontal: SPACE_GUTTER,
   },
   skipLink: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 14,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     textDecorationLine: 'underline',
     marginTop: Spacing.two,

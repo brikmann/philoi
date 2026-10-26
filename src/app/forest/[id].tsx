@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -11,6 +10,8 @@ import { ForestCampfireSheet } from '@/components/forests/forest-campfire-sheet'
 import { ForestReportSheet } from '@/components/forests/forest-report-sheet';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ScreenBackground } from '@/components/ui/screen-background';
+import { SPACE_GUTTER, SpaceButton, SpaceEmpty, SpaceHeader, SpaceIconButton, SpaceSection } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { blockAgoraUser, reportAgora } from '@/lib/api/agora';
@@ -241,33 +242,30 @@ export default function ForestScreen() {
   return (
     <ScreenBackground>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={Colors.muted} />
-          </Pressable>
-          <Text style={styles.topTitle}>Forest</Text>
-          {forest ? (
-            <Pressable onPress={() => setMenuOpen(true)} hitSlop={10} accessibilityLabel="Forest options">
-              <Ionicons name="ellipsis-horizontal" size={20} color={Colors.muted} />
-            </Pressable>
-          ) : (
-            <View style={styles.topSpacer} />
-          )}
-        </View>
+        <SpaceHeader
+          title="Forest"
+          right={
+            forest ? (
+              <SpaceIconButton onPress={() => setMenuOpen(true)} label="Forest options">
+                <UiGlyph name="more" size={18} color={Colors.ink} />
+              </SpaceIconButton>
+            ) : undefined
+          }
+        />
 
         {state === 'loading' ? (
-          <ActivityIndicator color={Colors.coral} style={styles.loader} />
+          <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
         ) : state !== 'ready' || !forest ? (
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyEmoji}>🌲</Text>
-            <Text style={styles.empty}>
-              {state === 'missing' ? 'This forest isn’t here anymore.' : 'Couldn’t reach this forest just now.'}
-            </Text>
-            {state === 'failed' ? (
-              <Pressable style={styles.ghostBtn} onPress={() => void load()} accessibilityRole="button">
-                <Text style={styles.ghostText}>Try again</Text>
-              </Pressable>
-            ) : null}
+            <SpaceEmpty
+              title={state === 'missing' ? 'This forest isn’t here anymore.' : 'Couldn’t reach this forest just now.'}
+              action={
+                state === 'failed' ? (
+                  <SpaceButton label="Try again" variant="secondary" onPress={() => void load()} style={styles.emptyBtn} />
+                ) : undefined
+              }
+            />
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.body}>
@@ -298,21 +296,18 @@ export default function ForestScreen() {
               {forest.is_owner ? (
                 <Text style={styles.ownerNote}>You started this forest</Text>
               ) : isMember ? (
-                <Pressable style={styles.ghostBtn} onPress={() => setLeaveOpen(true)} disabled={busy} accessibilityRole="button">
-                  <Text style={styles.ghostText}>Leave</Text>
-                </Pressable>
+                <SpaceButton label="Leave" variant="secondary" onPress={() => setLeaveOpen(true)} disabled={busy} style={styles.heroBtn} />
               ) : isPending ? (
                 <View style={[styles.ghostBtn, styles.btnOff]}>
                   <Text style={styles.ghostText}>Requested</Text>
                 </View>
               ) : (
-                <Pressable style={styles.primaryBtn} onPress={() => void join()} disabled={busy} accessibilityRole="button">
-                  {busy ? (
-                    <ActivityIndicator color={Colors.onEmber} />
-                  ) : (
-                    <Text style={styles.primaryText}>{forest.visibility === 'request' ? 'Request to join' : 'Join forest'}</Text>
-                  )}
-                </Pressable>
+                <SpaceButton
+                  label={forest.visibility === 'request' ? 'Request to join' : 'Join forest'}
+                  onPress={() => void join()}
+                  loading={busy}
+                  style={styles.heroBtn}
+                />
               )}
             </View>
 
@@ -327,7 +322,7 @@ export default function ForestScreen() {
                 {/* ── owner: pending requests ── */}
                 {forest.is_owner && forest.pending && forest.pending.length > 0 ? (
                   <>
-                    <Text style={styles.section}>WAITING TO JOIN</Text>
+                    <SpaceSection>WAITING TO JOIN</SpaceSection>
                     {forest.pending.map((p) => (
                       <View key={p.user_id} style={styles.row}>
                         <Pressable onPress={() => openProfile(p.user_id)} accessibilityRole="button">
@@ -356,7 +351,7 @@ export default function ForestScreen() {
                 ) : null}
 
                 {/* ── campfires: the funnel ── */}
-                <Text style={styles.section}>CAMPFIRES IN THIS FOREST</Text>
+                <SpaceSection>CAMPFIRES IN THIS FOREST</SpaceSection>
                 {(forest.campfires ?? []).length === 0 ? (
                   <Text style={styles.quiet}>No campfires yet. Start the first — that’s where challenges and dares run.</Text>
                 ) : (
@@ -392,18 +387,18 @@ export default function ForestScreen() {
                 )}
                 {isMember ? (
                   <Pressable style={styles.addRow} onPress={() => setCampfireOpen(true)} accessibilityRole="button">
-                    <Ionicons name="add" size={15} color={Colors.amber} />
+                    <UiGlyph name="add" size={14} color={Colors.navEmber2} />
                     <Text style={styles.addText}>Start a campfire in this forest</Text>
                   </Pressable>
                 ) : null}
 
                 {/* ── feed ── */}
-                <Text style={styles.section}>FOREST FEED</Text>
+                <SpaceSection>FOREST FEED</SpaceSection>
                 {isMember ? (
                   <Pressable style={styles.composer} onPress={compose} accessibilityRole="button" accessibilityLabel="Post to this forest">
                     <ForestAvatar name={profile?.display_name ?? ''} url={profile?.avatar_url ?? null} size={28} />
                     <Text style={styles.composerHint}>Drop your grind here…</Text>
-                    <Ionicons name="create-outline" size={16} color={Colors.amber} />
+                    <UiGlyph name="edit" size={16} color={Colors.navEmber2} />
                   </Pressable>
                 ) : null}
                 {feed.length === 0 ? (
@@ -422,12 +417,12 @@ export default function ForestScreen() {
                 )}
                 {!feedDone && feed.length > 0 ? (
                   <Pressable style={styles.moreBtn} onPress={() => void loadMore()} disabled={loadingMore} accessibilityRole="button">
-                    {loadingMore ? <ActivityIndicator color={Colors.textTertiary} /> : <Text style={styles.ghostText}>Load more</Text>}
+                    {loadingMore ? <ActivityIndicator color={Colors.spaceDim} /> : <Text style={styles.ghostText}>Load more</Text>}
                   </Pressable>
                 ) : null}
 
                 {/* ── members ── */}
-                <Text style={styles.section}>MEMBERS</Text>
+                <SpaceSection>MEMBERS</SpaceSection>
                 <View style={styles.members}>
                   {(forest.members ?? []).map((m) => (
                     <Pressable key={m.user_id} style={styles.member} onPress={() => tapMember(m)} accessibilityRole="button" accessibilityLabel={m.display_name}>
@@ -586,26 +581,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.twelve,
-  },
-  topTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.ink,
-  },
-  topSpacer: {
-    width: 20,
-  },
   loader: {
     marginTop: Spacing.six,
   },
   body: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.six,
   },
   hero: {
@@ -613,12 +593,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   heroEmoji: {
-    width: 64,
-    height: 64,
+    width: 68,
+    height: 68,
     borderRadius: 20,
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,122,47,0.08)',
     borderWidth: 1,
-    borderColor: `${Colors.amber}44`,
+    borderColor: 'rgba(255,122,47,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -626,8 +606,8 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   name: {
-    fontFamily: Fonts.displayHeavy,
-    fontSize: 21,
+    fontFamily: Fonts.black,
+    fontSize: 22,
     color: Colors.ink,
     textAlign: 'center',
     marginTop: Spacing.twelve,
@@ -636,19 +616,19 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     lineHeight: 19,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: 4,
   },
   presence: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.two,
   },
   presenceLive: {
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   tags: {
     flexDirection: 'row',
@@ -657,44 +637,39 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: Spacing.two,
   },
+  // Tags are secondary metadata — legend purple, the kit's secondary accent.
   tag: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.sky,
+    fontSize: 11.5,
+    color: Colors.legend,
   },
   ownerNote: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.textTertiary,
+    color: Colors.gold,
     marginTop: Spacing.three,
   },
-  primaryBtn: {
+  heroBtn: {
     marginTop: Spacing.three,
-    minWidth: 160,
-    alignItems: 'center',
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: 10,
-    backgroundColor: Colors.amber,
+    minWidth: 180,
   },
-  primaryText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 13,
-    color: Colors.onEmber,
-  },
+  // "Requested" — the secondary SpaceButton's shape, as a non-pressable label.
   ghostBtn: {
     marginTop: Spacing.three,
+    minWidth: 180,
+    minHeight: 50,
     alignItems: 'center',
-    borderRadius: Radius.pill,
+    justifyContent: 'center',
+    borderRadius: 16,
     paddingHorizontal: Spacing.four,
-    paddingVertical: 9,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   ghostText: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 12.5,
-    color: Colors.muted,
+    fontSize: 13,
+    color: Colors.spaceDim,
   },
   btnOff: {
     opacity: 0.6,
@@ -703,32 +678,24 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12.5,
     lineHeight: 19,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.four,
     paddingHorizontal: Spacing.three,
-  },
-  section: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: Colors.textTertiary,
-    marginTop: Spacing.four,
-    marginBottom: Spacing.two,
   },
   quiet: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
     lineHeight: 18,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.twelve,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: 14,
     padding: Spacing.twelve,
     marginBottom: Spacing.two,
@@ -739,60 +706,61 @@ const styles = StyleSheet.create({
   rowName: {
     flex: 1,
     fontFamily: Fonts.bodyBold,
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.ink,
   },
   rowSub: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
+    fontSize: 12,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
   campfireEmoji: {
     fontSize: 22,
   },
+  // The join code is the tap's payoff, so it carries the ember chip.
   codeChip: {
     borderRadius: 8,
     paddingHorizontal: 9,
     paddingVertical: 5,
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,122,47,0.12)',
     borderWidth: 1,
-    borderColor: Colors.amber,
+    borderColor: Colors.navEmber,
   },
   codeText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
     letterSpacing: 1,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   inText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   addRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: 6,
     borderRadius: 14,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     paddingVertical: Spacing.twelve,
   },
   addText: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 12.5,
-    color: Colors.amber,
+    fontSize: 13,
+    color: Colors.navEmber2,
   },
   composer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     borderRadius: 14,
     paddingHorizontal: Spacing.twelve,
     paddingVertical: 10,
@@ -801,8 +769,8 @@ const styles = StyleSheet.create({
   composerHint: {
     flex: 1,
     fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.textTertiary,
+    fontSize: 13,
+    color: Colors.spaceFaint,
   },
   card: {
     marginBottom: Spacing.three,
@@ -823,37 +791,38 @@ const styles = StyleSheet.create({
   memberName: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 10.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 4,
     maxWidth: 56,
   },
   memberRole: {
     fontFamily: Fonts.bodyBold,
     fontSize: 8.5,
-    color: Colors.amber,
+    color: Colors.gold,
   },
   smallGhost: {
     borderRadius: Radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   smallGhostText: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: Colors.muted,
+    fontSize: 11.5,
+    color: Colors.ink,
   },
   smallPrimary: {
     borderRadius: Radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: Colors.amber,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    backgroundColor: Colors.navEmber,
   },
   smallPrimaryText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: Colors.onEmber,
+    fontFamily: Fonts.black,
+    fontSize: 11.5,
+    color: '#2A0F05',
   },
   emptyWrap: {
     alignItems: 'center',
@@ -863,11 +832,7 @@ const styles = StyleSheet.create({
   emptyEmoji: {
     fontSize: 30,
   },
-  empty: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    marginTop: Spacing.two,
+  emptyBtn: {
+    alignSelf: 'stretch',
   },
 });

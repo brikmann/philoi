@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -18,7 +17,9 @@ import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { EmberFill } from '@/components/ui/ember-fill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
+import { SpaceIconButton } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useDmThread } from '@/hooks/use-dm-thread';
 import { usePublicLoadouts, useRefreshPublicLoadoutsOnFocus } from '@/hooks/use-public-loadouts';
@@ -203,9 +204,11 @@ export default function DmThreadScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={[styles.top, { paddingTop: Spacing.two + insets.top }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={22} color={Colors.muted} />
-        </Pressable>
+        {/* SpaceHeader's chrome, hand-assembled: the title slot here is a tappable avatar + name
+            that opens their profile, which SpaceHeader's plain title text can't be. */}
+        <SpaceIconButton onPress={() => router.back()} label="Back">
+          <UiGlyph name="back" size={20} color={Colors.ink} />
+        </SpaceIconButton>
 
         <Pressable
           style={styles.who}
@@ -236,9 +239,9 @@ export default function DmThreadScreen() {
           </View>
         </Pressable>
 
-        <Pressable onPress={() => setMoreOpen(true)} hitSlop={8} accessibilityLabel="More options">
-          <Ionicons name="ellipsis-horizontal" size={20} color={Colors.muted} />
-        </Pressable>
+        <SpaceIconButton onPress={() => setMoreOpen(true)} label="More options">
+          <UiGlyph name="more" size={18} color={Colors.ink} />
+        </SpaceIconButton>
       </View>
 
       <View style={styles.body}>
@@ -255,7 +258,7 @@ export default function DmThreadScreen() {
 
             {thread.loading && thread.messages.length === 0 ? (
               <View style={styles.loading}>
-                <ActivityIndicator color={Colors.coral} />
+                <ActivityIndicator color={Colors.navEmber} />
               </View>
             ) : (
               <FlatList
@@ -344,7 +347,7 @@ export default function DmThreadScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Challenge ${name}`}
                 style={[styles.send, styles.plus]}>
-                <Ionicons name="add" size={22} color={Colors.ink} />
+                <UiGlyph name="add" size={18} color={Colors.ink} />
               </Pressable>
               <TextInput
                 style={styles.input}
@@ -361,11 +364,11 @@ export default function DmThreadScreen() {
                 accessibilityLabel="Send">
                 {draft.trim() && thread.threadId && !sending ? (
                   <EmberFill style={styles.send} radius={20} direction="diagonal">
-                    <Ionicons name="send" size={16} color={Colors.onEmber} style={styles.sendGlyph} />
+                    <UiGlyph name="send" size={17} color={Colors.onEmber} />
                   </EmberFill>
                 ) : (
                   <View style={[styles.send, styles.sendOff]}>
-                    <Ionicons name="send" size={16} color={Colors.textTertiary} style={styles.sendGlyph} />
+                    <UiGlyph name="send" size={17} color={Colors.spaceFaint} />
                   </View>
                 )}
               </Pressable>
@@ -388,11 +391,11 @@ const styles = StyleSheet.create({
   top: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.twelve,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    paddingBottom: Spacing.twelve,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    borderBottomColor: Colors.spaceLine,
   },
   who: {
     flex: 1,
@@ -404,14 +407,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 16,
+    fontFamily: Fonts.black,
+    fontSize: 17,
     color: Colors.ink,
   },
   handle: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   body: {
     flex: 1,
@@ -430,12 +433,12 @@ const styles = StyleSheet.create({
   blockedText: {
     fontFamily: Fonts.body,
     fontSize: 15,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   error: {
     fontFamily: Fonts.body,
-    color: Colors.coral,
+    color: Colors.danger,
     textAlign: 'center',
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.two,
@@ -444,7 +447,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   list: {
-    padding: Spacing.four,
+    padding: Spacing.three,
     gap: Spacing.two,
   },
   // ── the bubbles, straight off circle-timeline.tsx ───────────────────────────────────
@@ -482,13 +485,13 @@ const styles = StyleSheet.create({
   // Asymmetric "tail" corner — the squared corner points toward whoever's side the bubble came
   // from, which is how you tell the two sides apart at a glance.
   bubbleOther: {
-    backgroundColor: 'rgba(36,28,56,0.86)',
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderTopLeftRadius: 4,
-    borderTopRightRadius: Radius.card,
-    borderBottomLeftRadius: Radius.card,
-    borderBottomRightRadius: Radius.card,
+    borderTopRightRadius: 14,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
   },
   bubbleOwn: {
     // The solid coral stays as the UNDER-colour: EmberFill needs one layout pass to measure
@@ -519,7 +522,7 @@ const styles = StyleSheet.create({
   time: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   timeOwn: {
     color: 'rgba(255,255,255,0.75)',
@@ -539,9 +542,9 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     maxHeight: 100,
-    backgroundColor: 'rgba(36,28,56,0.9)',
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 10,
     paddingHorizontal: 16,
@@ -555,17 +558,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   plus: {
-    backgroundColor: 'rgba(36,28,56,0.9)',
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
+  // No glyph nudge any more: the old Ionicons paper plane sat low-left in its box, UiGlyph's
+  // `send` is drawn centred on the 48 grid.
   sendOff: {
-    backgroundColor: Colors.disabledSurface,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.disabledBorder,
-  },
-  sendGlyph: {
-    // Ionicons' paper plane sits visually low-left inside its box; nudge it back to centre.
-    marginLeft: 2,
+    borderColor: Colors.spaceLine,
   },
 });

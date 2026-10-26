@@ -39,7 +39,7 @@ export function MatchAvatar({ name, avatarUrl, size = 46, live = false }: MatchA
 
 const styles = StyleSheet.create({
   round: {
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
   },
   fallback: {
     alignItems: 'center',
@@ -55,6 +55,6 @@ const styles = StyleSheet.create({
     bottom: -1,
     backgroundColor: Colors.green,
     borderWidth: 2,
-    borderColor: Colors.card,
+    borderColor: Colors.spacePanel,
   },
 });

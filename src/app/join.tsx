@@ -1,13 +1,14 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { FlameLogo } from '@/components/ui/flame-logo';
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { SocialGlyph } from '@/components/ui/glyphs-social';
 import { Screen } from '@/components/ui/screen';
+import { SPACE_GUTTER, SpaceButton, SpaceHeader, SpaceIconButton } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { signInWithGoogle } from '@/lib/auth/providers';
@@ -17,6 +18,8 @@ import { joinGroupWithCode } from '@/lib/api/groups';
 // Reached via philoi://join?code=ABC123 whether or not the user is signed in. Punchlist 2, §3:
 // this had drifted from the current create/join visual language (mocks 04/10) — the header +
 // field-card treatment below now match group/create.tsx exactly rather than a plain bare form.
+// Space-purple pass: the header is the kit's SpaceHeader (no back — this is a modal-style
+// destination you close), and both CTAs are SpaceButton's ember primary.
 export default function JoinScreen() {
   const router = useRouter();
   const { session } = useAuth();
@@ -60,7 +63,7 @@ export default function JoinScreen() {
             Join {params.code ? `with code ${params.code.toUpperCase()}` : 'a Campfire'}
           </Text>
           <Text style={[styles.body, styles.bodyOnDark]}>Sign in first — your Campfire’s waiting.</Text>
-          <PrimaryButton
+          <SpaceButton
             label="Continue with Google"
             onPress={() => signInWithGoogle().catch((e) => setError(getErrorMessage(e, 'Something went wrong — try again.')))}
           />
@@ -72,12 +75,15 @@ export default function JoinScreen() {
 
   return (
     <Screen padded={false} style={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Join a campfire</Text>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Close">
-          <Ionicons name="close" size={20} color={Colors.muted} />
-        </Pressable>
-      </View>
+      <SpaceHeader
+        title="Join a campfire"
+        back={false}
+        right={
+          <SpaceIconButton onPress={() => router.back()} label="Close">
+            <UiGlyph name="close" size={18} color={Colors.ink} />
+          </SpaceIconButton>
+        }
+      />
 
       <View style={styles.form}>
         <View style={styles.icon}>
@@ -88,7 +94,7 @@ export default function JoinScreen() {
         <Text style={styles.lbl}>Invite code</Text>
         <View style={styles.field}>
           <View style={styles.fieldIcon}>
-            <Ionicons name="key" size={15} color={Colors.amber} />
+            <SocialGlyph name="key" size={15} color={Colors.navEmber} />
           </View>
           <TextInput
             style={styles.fieldInput}
@@ -101,7 +107,7 @@ export default function JoinScreen() {
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
-        <PrimaryButton label="Join Campfire" onPress={() => handleJoin(code)} loading={loading} />
+        <SpaceButton label="Join Campfire" onPress={() => handleJoin(code)} loading={loading} />
       </View>
     </Screen>
   );
@@ -112,25 +118,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   screen: {
-    paddingHorizontal: 15,
-    paddingTop: 16,
+    paddingTop: Spacing.two,
   },
   signInPrompt: {
     gap: Spacing.three,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  headerTitle: {
-    fontFamily: Fonts.display,
-    fontSize: 17,
-    color: Colors.ink,
-  },
   form: {
     gap: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingTop: Spacing.two,
   },
   icon: {
     alignSelf: 'center',
@@ -140,22 +136,27 @@ const styles = StyleSheet.create({
     fontSize: 26,
     color: Colors.ink,
   },
+  // Was Colors.cream — which the space retheme repointed to the #0E0A1C BACKGROUND, so this title
+  // had become dark-on-dark. Ink is what "on dark" means now.
   titleOnDark: {
-    color: Colors.cream,
+    color: Colors.ink,
   },
   body: {
     fontFamily: Fonts.body,
     fontSize: 15,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   bodyOnDark: {
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
+  // SpaceSection's label treatment, kept inline because the form's gap already spaces it.
   lbl: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
     marginTop: 4,
     marginBottom: -4,
   },
@@ -163,10 +164,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.card,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 12,
   },
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 7,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,122,47,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -188,6 +189,6 @@ const styles = StyleSheet.create({
   },
   error: {
     fontFamily: Fonts.body,
-    color: Colors.coral,
+    color: Colors.danger,
   },
 });

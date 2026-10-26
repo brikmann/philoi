@@ -30,24 +30,24 @@ const styles = StyleSheet.create({
     marginTop: Spacing.twelve,
   },
   chip: {
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 5,
     paddingHorizontal: 10,
   },
   // The strongest shared trait gets the ember wash, the way mock 299 lights the first chip.
   chipHot: {
-    backgroundColor: 'rgba(224,97,44,0.09)',
-    borderColor: 'rgba(242,163,60,0.28)',
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   text: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   textHot: {
-    color: Colors.warmSubtext,
+    color: Colors.navEmber2,
   },
 });

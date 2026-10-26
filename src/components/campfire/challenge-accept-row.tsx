@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { SpaceButton } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { SocialChallenge } from '@/types/database';
 
@@ -19,7 +19,7 @@ import type { SocialChallenge } from '@/types/database';
 //     ember TEXT and hairlines, never as a fill — carrying a near-white `Colors.ink` label. That
 //     is the "muted weird yellow" from the recording, and it fails contrast outright. Decline was
 //     the warm chip brown, which read olive-tan beside it. They are the app's primary/ghost pair
-//     now, the same pair sell-flow and challenge-sent-sheet use.
+//     now — the space kit's primary/secondary SpaceButton pair.
 //
 //  2. THE GATE WAS THE CHALLENGE'S STATUS, NOT THE VIEWER'S INVITE. `status === 'pending'` is a
 //     property of the RACE ("somebody was invited and hasn't answered"), not of this viewer, so
@@ -48,10 +48,10 @@ export function ChallengeAcceptRow({
     return (
       <View style={styles.actions}>
         <View style={styles.half}>
-          <PrimaryButton label="Accept" disabled={busy} loading={busy} onPress={() => onRespond(true)} />
+          <SpaceButton label="Accept" disabled={busy} loading={busy} onPress={() => onRespond(true)} />
         </View>
         <View style={styles.half}>
-          <PrimaryButton label="Decline" variant="ghost" disabled={busy} onPress={() => onRespond(false)} />
+          <SpaceButton label="Decline" variant="secondary" disabled={busy} onPress={() => onRespond(false)} />
         </View>
       </View>
     );
@@ -63,7 +63,7 @@ export function ChallengeAcceptRow({
     // something that worked.
     return (
       <View style={styles.state}>
-        <Ionicons name="checkmark-circle" size={15} color={Colors.green} />
+        <UiGlyph name="check" size={15} color={Colors.green} />
         <Text style={styles.joined}>
           You&apos;re in
           {challenge.invited_count > 0 ? ` · waiting on ${challenge.invited_count} more` : ' · waiting on the gun'}
@@ -75,7 +75,7 @@ export function ChallengeAcceptRow({
   if (challenge.my_state === 'declined') {
     return (
       <View style={styles.state}>
-        <Ionicons name="close-circle" size={15} color={Colors.muted} />
+        <UiGlyph name="close" size={13} color={Colors.spaceDim} />
         <Text style={styles.declined}>You passed on this one</Text>
       </View>
     );
@@ -108,6 +108,6 @@ const styles = StyleSheet.create({
   declined: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
 });
