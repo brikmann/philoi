@@ -1175,6 +1175,9 @@ export type AnalyticsEventName =
   | 'agora_viewed'
   | 'agora_scope_changed'
   | 'agora_composer_opened'
+  // Home's Flame Pass card + its Shop shortcut (mock 306) — the Pass's Home conversion funnel.
+  | 'home_pass_card_tapped'
+  | 'home_shop_shortcut_tapped'
   | 'agora_posted'
   | 'agora_session_autoposted'
   | 'forest_joined'
