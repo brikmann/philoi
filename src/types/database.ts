@@ -3863,6 +3863,66 @@ export type Database = {
       };
       send_lockin_message: { Args: { p_to_user: string; p_body: string }; Returns: string };
       report_lockin_thread: { Args: { p_with_user: string; p_reason: string; p_note?: string | null }; Returns: undefined };
+      // Home as a connection surface (0281, mock 318) — read-only.
+      get_my_week_vs_last: {
+        Args: Record<string, never>;
+        Returns: {
+          out_week_start: string;
+          out_this_week_seconds: number;
+          out_last_week_seconds: number;
+          out_last_week_to_date_secs: number;
+          out_sessions_this_week: number;
+          out_current_streak: number;
+          out_longest_streak: number;
+          out_tier: string;
+          out_division: number;
+          out_rank_index: number;
+          out_week_start_rank_index: number;
+        }[];
+      };
+      get_my_backers_this_week: {
+        Args: Record<string, never>;
+        Returns: {
+          out_user_id: string;
+          out_display_name: string | null;
+          out_handle: string | null;
+          out_avatar_url: string | null;
+          out_cheers: number;
+          out_kind: string;
+          out_preset: string | null;
+          out_goal_type: string | null;
+          out_category: string | null;
+          out_activity: string | null;
+          out_attach_kind: string | null;
+          out_detail: string | null;
+          out_at: string;
+        }[];
+      };
+      get_friends_recent_effort: {
+        Args: { p_limit?: number };
+        Returns: {
+          out_user_id: string;
+          out_display_name: string | null;
+          out_handle: string | null;
+          out_avatar_url: string | null;
+          out_kind: string;
+          out_live: boolean;
+          out_goal_type: string | null;
+          out_category: string | null;
+          out_activity: string | null;
+          out_duration_seconds: number | null;
+          out_started_at: string | null;
+          out_paused: boolean;
+          out_exercise: string | null;
+          out_weight: number | null;
+          out_reps: number | null;
+          out_body: string | null;
+          out_post_id: string | null;
+          out_i_cheered: boolean;
+          out_at: string;
+          out_total: number;
+        }[];
+      };
       // 0245 — stamps the caller's last_seen_at (throttled to one write per 30s).
       touch_presence: { Args: Record<string, never>; Returns: undefined };
       /** Equipped cosmetics for OTHER users — keys only, nothing sellable or private. */
