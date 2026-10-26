@@ -10,8 +10,7 @@ import { ItemArt } from '@/components/economy/item-art';
 import { MemeDropCard } from '@/components/economy/meme-drop-card';
 import { FlamePassTile } from '@/components/pass/flame-pass-tile';
 import { PreviewBadgeCorner } from '@/components/economy/preview-button';
-import { RewardGlyph } from '@/components/ui/glyphs-rewards';
-import { SPACE_GUTTER, SpaceHeader, SpaceIconButton, SpaceSection } from '@/components/ui/space-kit';
+import { SPACE_GUTTER, SpaceHeader, SpaceSection } from '@/components/ui/space-kit';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useGatedInterval } from '@/hooks/use-motion-active';
@@ -113,17 +112,9 @@ export default function ShopScreen() {
     <SafeAreaView edges={['top']} style={styles.safe}>
       <SpaceHeader
         title="Shop"
-        right={
-          <>
-            {/* Until now the ONLY route into the inventory was "Collect all → Inventory" after a box
-                open, so everything bought outside that flow landed somewhere the user had no way to
-                reach — which reads as "the purchase did nothing" (punchlist 8 §3). */}
-            <SpaceIconButton onPress={() => router.push('/inventory')} label="Your inventory">
-              <RewardGlyph name="bag" size={18} color={Colors.navEmber2} />
-            </SpaceIconButton>
-            <EmberPill embers={embers} />
-          </>
-        }
+        // No inventory button here any more: the ☰ drawer's Inventory row is the standing door into
+        // it (punchlist 8 §3's "no way to reach a purchase" is answered there, from every tab).
+        right={<EmberPill embers={embers} />}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
