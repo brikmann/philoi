@@ -13,7 +13,6 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { noteTourClosed } from '@/lib/coach-marks';
-import { isCeremonyDone } from '@/lib/house/ceremony';
 import { markTutorialDone } from '@/lib/tutorial';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -94,19 +93,11 @@ export default function TutorialScreen() {
       // Not awaited: the flag is a local write and the user should not watch a spinner to leave a
       // tutorial. If it somehow fails they see the tour once more, which is survivable.
       markTutorialDone(userId).catch(() => {});
-      // Phase 3 (ONBOARDING_FLOW_3phase.md): someone who picked a program goes straight into the
-      // claim ceremony, rather than flashing Home before _layout's ceremony gate redirects. A replayed
-      // tour whose ceremony is already done lands on Home as before.
-      const programId = profile?.program_id;
-      if (!programId) {
-        router.replace('/');
-        return;
-      }
-      isCeremonyDone(userId)
-        .catch(() => true)
-        .then((done) => router.replace(done ? '/' : '/house/claim'));
+      // The tour is a Settings replay now — setup ends in the patron claim itself — so it always
+      // returns Home. An account that somehow still owes the ceremony is caught there by _layout's gate.
+      router.replace('/');
     },
-    [card.key, index, profile?.program_id, router, userId]
+    [card.key, index, router, userId]
   );
 
   const goTo = useCallback((i: number) => {

@@ -3,10 +3,7 @@ import * as Linking from 'expo-linking';
 import { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { CampusVerification, CampusVerifiedPanel } from '@/components/campus-verification';
 import { ProgramPicker } from '@/components/house/program-picker';
-import { DEFAULT_HEIGHT_CM, HeightRuler } from '@/components/onboarding/height-ruler';
-import { DEFAULT_WEIGHT_KG, WeightRuler, type WeightUnit } from '@/components/onboarding/weight-ruler';
 import { FirstRunSpine, SPINE_ROW_HEIGHT } from '@/components/tutorial/first-run-spine';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
@@ -16,11 +13,11 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversities } from '@/lib/api/groups';
 import { fetchProgramsForUniversity, setMyProgram } from '@/lib/api/house';
 import { setMyIdentity } from '@/lib/api/identity';
-import { setMyHeightCm, setMyWeightKg } from '@/lib/api/relics';
 import { getErrorMessage } from '@/lib/errors';
 import { invalidateIdentityBadge } from '@/lib/house/identity-badges';
 import { markOnboardingDone } from '@/lib/onboarding';
 import { supabase } from '@/lib/supabase';
+import { markTutorialDone } from '@/lib/tutorial';
 import {
   findCachedUniversity,
   formatHintFor,
@@ -49,68 +46,54 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 // Back actually work: it's just local `step` state, not navigation across a gate boundary a
 // user shouldn't be able to re-enter once past it.
 //
-// ─────────────────────────── THE ORDER (mock 239) ───────────────────────────
+// ─────────────────────────────────── THE ORDER ───────────────────────────────────
 //
 //   1 username + display name, with the 18+/Terms consent folded into the bottom
-//   2 height (optional)   3 weight (optional)   4 where you study   5 what you study (mock 291)
-//   6 who you are (optional — mock 283)   7 verify campus (optional)
+//   2 who you are — what you wanna be, what you're working toward, what you're into (optional)
+//   3 where you study   4 what you study (mock 291)
 //
-// Verify is LAST so the heaviest step hands straight on into the tour, and setup is the first half
-// of one run: same ScreenBackground as tutorial.tsx, same FirstRunSpine reading `SETUP n / 7` where
-// the tour's reads `TOUR n / 20`.
+// …and then a patron claims you. The consent write at the end releases this screen, and _layout's
+// ceremony gate takes a user with a program from Home straight into /house/claim ("You will represent
+// <school> as a <program> student"). Nothing else sits in the run any more: the twenty-card tour is
+// Settings → "Replay tutorial" only, and height, weight and campus verification moved out to the
+// screens that already own them (body-metrics.tsx, campus.tsx) — setup asks only what the claim needs.
 //
-// Step 5 is Phase 1's PROGRAM field (ONBOARDING_FLOW_3phase.md) — data entry, not the ceremony. The
+// Step 4 is Phase 1's PROGRAM field (ONBOARDING_FLOW_3phase.md) — data entry, not the ceremony. The
 // program names the user's house (programs.patron_key); the patron is shown here only as what the
-// pick implies, and it is revealed and pledged to in Phase 3 (/house/claim), after the tour. It is
-// skipped entirely — not shown, not counted — when the school has no programs (today only Laurier
-// and Waterloo have any), and quietly when the list can't be fetched (a server without 0257), since
-// a missing house must never hold an account hostage. That user gets "Claim your house" later.
+// pick implies, and it is revealed and pledged to in Phase 3 (/house/claim), the moment setup ends.
+// The school comes FIRST because programs are listed per school (get_programs_for_university). The
+// step is skipped entirely — not shown, not counted — when the school has no programs (today only
+// Laurier and Waterloo have any), and quietly when the list can't be fetched (a server without 0257),
+// since a missing house must never hold an account hostage. That user lands on Home and gets "Claim
+// your house" later.
 //
 // 🔴 CONSENT IS ASKED ON STEP 1 BUT WRITTEN LAST. `has_consented` is what releases this gate — the
-// moment it is true, _layout's Stack.Protected drops this screen and the tutorial gate takes over.
-// Writing it when step 1 is ticked would eject the user at the next profile refresh (step 1's own
-// handle write) with height, weight, school and campus never asked. So step 1 only REQUIRES the two
-// ticks; `enterPhiloi` writes them, from whichever step turns out to be the last one.
+// moment it is true, _layout's Stack.Protected drops this screen. Writing it when step 1 is ticked
+// would eject the user at the next profile refresh (step 1's own handle write) with who they are,
+// their school and their program never asked. So step 1 only REQUIRES the two ticks; `enterPhiloi`
+// writes them, from whichever step turns out to be the last one.
 //
 // The old standalone "Who sees your climb?" step is gone. `profiles.rank_visibility` defaults to
 // 'public' in the column itself (0217), so dropping the screen changes nothing for a new account;
-// the dial still lives in Settings, and the tour's Leaderboard card says so.
+// the dial still lives in Settings.
 //
-// Step 2 is the OPTIONAL height estimate (design-mocks/128). Migration 0119 shipped the whole
-// server half of this — the `height_cm` column, `stride_m_for` (height/100 × 0.42, falling back to
-// a 0.75 m adult average) and the `set_my_height_cm` RPC — and its own header says "until the
-// onboarding step collects one". Nothing ever did: `setMyHeightCm` in lib/api/relics.ts had zero
-// call sites, so every user in the app is on the fallback stride and Noah's "height estimation
-// didn't render" was simply a step that had never been built. Skippable by design, because the
-// fallback is a real answer and the distance relic must not be gated behind a measurement.
-//
-// Step 3 is the OPTIONAL weight estimate (design-mocks/188) — the other half of the same
-// question, and the one DIFFICULTY_SCOPING.md §"Fitness is IPSATIVE" has been waiting on. Height
-// feeds a stride; weight is the DENOMINATOR Cindy scores a load goal against, so "squat 300" is
-// read as ~1.9× a 160 lb lifter rather than as 300 raw pounds. Until this step existed the
-// tutorial's Personal-goals card promised per-bodyweight scoring the app could not compute.
-// Skippable for the same reason height is, though the fallback is worse: no weight means Cindy
-// asks once or scores off the demographic anchors.
-//
-// Step 6 is the OPTIONAL identity step (CODE_PROMPT_identity_profile.md "Onboarding tie-in", 0272):
-// the two highest-signal identity fields — what you wanna be, what you're working toward — so a new
-// profile is never empty and grind-alike matching has something to read from day one. Asked right
-// after the program because that's where "what you study" naturally becomes "what for". Two fields,
-// one tap, "Skip for now" beside it; it is on EVERY path (a school with no programs reaches it
-// straight from step 4), so the spine always counts it. A failed save is swallowed like height's:
-// 0272 may not be live, and a headline must never hold an account hostage — /edit-identity and the
-// profile's own prompt pick it up later.
-//
-// Step 7 is the OPTIONAL campus verification (UNI_VERIFICATION_SPEC.md §5). It's skipped
-// entirely — not shown, not counted — when the chosen school has no known email domain, since
-// there's nothing to send a code to; the step before it then enters Philoi directly. Never a
-// blocker either way: skipping just leaves the two campus boards locked.
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+// Step 2 is the OPTIONAL identity step (CODE_PROMPT_identity_profile.md "Onboarding tie-in", 0272):
+// what you wanna be, what you're working toward, and up to eight interest tags (the same set
+// /edit-identity edits) — so a new profile is never empty and grind-alike matching has something to
+// read from day one. Second, straight after the name: it's about the person, and the school and
+// program that follow are the paperwork the claim reads. "Skip for now" beside it. A failed save is
+// swallowed: 0272 may not be live, and a headline must never hold an account hostage —
+// /edit-identity and the profile's own prompt pick it up later.
+type Step = 1 | 2 | 3 | 4;
 
-/** The full run. A school with no domain, or no programs, drops one each the moment that is known. */
-const SETUP_STEPS = 7;
+/** The full run. A school with no programs drops the last step the moment that is known. */
+const SETUP_STEPS = 4;
 
-const PROGRAM_CONFIRM_NOTE = "You'll meet your patron and pledge your loyalty after the quick tour of how Philoi works.";
+const PROGRAM_CONFIRM_NOTE = "Next, you'll meet your patron and pledge your loyalty.";
+
+// The interest-tag limits, mirroring /edit-identity (and 0272's own checks).
+const MAX_TAG = 24;
+const MAX_TAGS = 8;
 
 export default function SetupHandleScreen() {
   const { session, profile, refreshProfile } = useAuth();
@@ -134,26 +117,6 @@ export default function SetupHandleScreen() {
   const [universityDomain, setUniversityDomain] = useState<string | null>(profile?.university_domain ?? null);
   const [resolvingDomain, setResolvingDomain] = useState(false);
 
-  // Pre-filled from the profile so re-entering onboarding shows what was saved rather than
-  // resetting to the default and quietly re-writing it. `height_cm` is `numeric` server-side, so it
-  // can come back as a string through PostgREST — coerced here, once, instead of inside the picker.
-  const [heightCm, setHeightCm] = useState<number>(() => {
-    const saved = Number(profile?.height_cm);
-    return Number.isFinite(saved) && saved > 0 ? Math.round(saved) : DEFAULT_HEIGHT_CM;
-  });
-  const [heightTouched, setHeightTouched] = useState(false);
-
-  // Same pre-fill rule as height, and the same `numeric`-through-PostgREST coercion. `weight_unit`
-  // is a display preference rather than a second quantity — the stored figure is always kilograms —
-  // so a returning user gets the ruler drawn in the unit they last chose, showing the value they
-  // last saved.
-  const [weightKg, setWeightKg] = useState<number>(() => {
-    const saved = Number(profile?.weight_kg);
-    return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_WEIGHT_KG;
-  });
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>(profile?.weight_unit ?? 'lb');
-  const [weightTouched, setWeightTouched] = useState(false);
-
   const [ageChecked, setAgeChecked] = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
 
@@ -161,14 +124,16 @@ export default function SetupHandleScreen() {
   // answer for a school the user has since tapped away from can't overwrite the one they're on —
   // no effect-scoped cancel flag needed. An errored fetch is cached as [] — "no programs here".
   const [programsBySchool, setProgramsBySchool] = useState<Record<string, ProgramRow[]>>({});
-  // The list step 5 is drawing, fixed when step 4 is left — so going Back and picking a different
+  // The list step 4 is drawing, fixed when step 3 is left — so going Back and picking a different
   // school can't swap the picker's rows out from under it.
   const [programStep, setProgramStep] = useState<{ university: string; rows: ProgramRow[] } | null>(null);
 
-  // Step 6's two identity fields. Only non-empty ones are sent, so skipping — or re-entering setup
+  // Step 2's identity fields. Only non-empty ones are sent, so skipping — or re-entering setup
   // and leaving them blank — never clears anything saved since.
   const [careerGoal, setCareerGoal] = useState('');
   const [workingToward, setWorkingToward] = useState('');
+  const [interests, setInterests] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -177,7 +142,7 @@ export default function SetupHandleScreen() {
     fetchUniversities().then(setUniversities).catch(() => {});
   }, []);
 
-  // Prefetch the moment a listed school is picked, so step 4's spine already knows whether a
+  // Prefetch the moment a listed school is picked, so step 3's spine already knows whether a
   // program step is coming and the step itself opens with its list in hand.
   useEffect(() => {
     if (!university) return;
@@ -222,26 +187,13 @@ export default function SetupHandleScreen() {
   // "not listed" fallback (PHILOI_UI_SPEC.md §21) — a school not yet seeded in the canonical
   // table can still be saved as free text rather than blocking onboarding.
   const notListed = universityQuery.trim().length > 0 && !universities.some((u) => u.toLowerCase() === universityQuery.trim().toLowerCase());
-  // Not while the domain is still resolving: whether step 5 exists depends on the answer, and
-  // continuing early would skip verification for a school that has a domain.
+  // Not while the domain is still resolving: the school saves WITH its domain, which campus
+  // verification (campus.tsx) reads later.
   const canContinueStudy = (Boolean(university) || notListed) && !resolvingDomain;
-  /** With nothing to verify against, the school (or program) step is the last one. */
-  const studyIsLast = !(university && universityDomain);
-  // Only once a school is actually chosen on step 4 — before that, "no domain" just means "not asked yet".
-  const verifyKnownAbsent = step >= 4 && studyIsLast && Boolean(university || notListed);
-  // Known on step 4 only for a listed school whose prefetch has answered; from step 6 on it is fixed.
-  const programsKnownAbsent =
-    step === 4 ? Boolean(university && programsBySchool[university]?.length === 0) : step >= 6 && !programStep;
-  const setupTotal = SETUP_STEPS - (verifyKnownAbsent ? 1 : 0) - (programsKnownAbsent ? 1 : 0);
-  // Identity and verify each read one lower when the program step never existed for this school.
-  // (The school step no longer enters Philoi itself: the identity step always follows it.)
-  const spineStep = step >= 6 && !programStep ? step - 1 : step;
-
-  // Strictly the live server flag (punchlist 6 §1) — there is no local "just verified" state to
-  // go stale. The school has to match too: the flag on the profile belongs to the school stored
-  // WITH it, so a user who backs up and picks a different school at step 2 must see the verify
-  // form for the new one, not a badge earned at the old one.
-  const campusVerified = Boolean(profile?.university_email_verified && profile?.university === university);
+  // Known on step 3 only for a listed school whose prefetch has answered — the program step is last,
+  // so nothing after it needs the answer fixed.
+  const programsKnownAbsent = step === 3 && Boolean(university && programsBySchool[university]?.length === 0);
+  const setupTotal = SETUP_STEPS - (programsKnownAbsent ? 1 : 0);
 
   // Only the cached schools can show a domain without a network call. Anything else shows "—",
   // which is honest: we don't know it yet, and it's resolved on select if Hipolabs does.
@@ -271,7 +223,7 @@ export default function SetupHandleScreen() {
   }
 
   /**
-   * Save the handle and name, then on to height.
+   * Save the handle and name, then on to who you are.
    *
    * Written HERE rather than with the school (where it used to ride) so a handle taken in the
    * meantime is reported on the step that owns the field, not three screens later. Safe to write
@@ -315,7 +267,7 @@ export default function SetupHandleScreen() {
     return rows;
   }
 
-  /** Save the school, then pick a program — or, with none to pick, on to who you are. */
+  /** Save the school, then pick a program — or, with none to pick, enter Philoi. */
   async function handleContinueStudy() {
     setLoading(true);
     setError(null);
@@ -339,14 +291,15 @@ export default function SetupHandleScreen() {
     const rows = resolvedUniversity ? await loadPrograms(resolvedUniversity) : [];
     setProgramStep(resolvedUniversity && rows.length > 0 ? { university: resolvedUniversity, rows } : null);
     setLoading(false);
-    setStep(rows.length > 0 ? 5 : 6);
+    if (rows.length > 0) setStep(4);
+    else await enterPhiloi();
   }
 
   /**
-   * Save the program, then on to who you are.
+   * Save the program, then enter Philoi — the patron claim follows from there.
    *
    * A failed save is NOT a dead end. The step is required only in the sense that a school with
-   * programs doesn't offer a skip; letting a server error hold the whole account at step 5 would
+   * programs doesn't offer a skip; letting a server error hold the whole account at step 4 would
    * make a house more load-bearing than the account. The miss is recoverable — the profile's
    * "Claim your house" card picks it up — so it warns and moves on.
    */
@@ -364,24 +317,38 @@ export default function SetupHandleScreen() {
     } finally {
       setLoading(false);
     }
-    setStep(6);
+    await enterPhiloi();
+  }
+
+  function addTag() {
+    const tag = tagDraft.trim().toLowerCase();
+    if (!tag) return;
+    // The server lowercases and dedupes too; doing it here keeps the chips honest about what saves.
+    if (!interests.includes(tag) && interests.length < MAX_TAGS) setInterests([...interests, tag]);
+    setTagDraft('');
   }
 
   /**
-   * Save the two identity fields, then verify — or enter Philoi.
+   * Save the identity fields, then on to where you study.
    *
-   * Only what was typed is sent: an empty field is "not answered", not "clear it". A failed write is
-   * swallowed on purpose (see the header) — this is the optional step, and 0272 may not be live.
+   * Only what was answered is sent: an empty field is "not answered", not "clear it" — and a tag typed
+   * but never "+ add"-ed still counts, since Continue is the obvious way to say "that one too". A
+   * failed write is swallowed on purpose (see the header) — this is the optional step, and 0272 may
+   * not be live.
    */
   async function handleContinueIdentity(persist: boolean) {
     const career = careerGoal.trim();
     const toward = workingToward.trim();
-    if (persist && (career || toward)) {
+    const pending = tagDraft.trim().toLowerCase();
+    const tags =
+      pending && !interests.includes(pending) && interests.length < MAX_TAGS ? [...interests, pending] : interests;
+    if (persist && (career || toward || tags.length > 0)) {
       setLoading(true);
       try {
         await setMyIdentity({
           ...(career ? { career_goal: career } : {}),
           ...(toward ? { working_toward: toward } : {}),
+          ...(tags.length > 0 ? { interests: tags } : {}),
         });
       } catch (e) {
         console.warn('[onboarding] could not save identity — continuing without it:', e);
@@ -389,73 +356,13 @@ export default function SetupHandleScreen() {
         setLoading(false);
       }
     }
-    if (studyIsLast) await enterPhiloi();
-    else setStep(7);
-  }
-
-  /**
-   * Save the height and move on.
-   *
-   * SKIPPING IS A REAL PATH, not a shortcut past a required field: with no height the server uses
-   * a 0.75 m adult-average stride (0119), so the cost is accuracy on one relic ladder and nothing
-   * else. `heightTouched` is what tells the two apart — an untouched picker sitting on its default
-   * is not a measurement, and writing it would turn "I skipped" into a claim about the user's body.
-   *
-   * A failed write is swallowed on purpose. This is the optional step; blocking onboarding on it
-   * would make an estimate more load-bearing than the account itself, and Settings can set a
-   * height later.
-   */
-  async function handleContinueHeight(persist: boolean) {
-    if (persist && heightTouched) {
-      setLoading(true);
-      try {
-        await setMyHeightCm(heightCm);
-        await refreshProfile();
-      } catch (e) {
-        console.warn('[onboarding] could not save height:', e);
-      } finally {
-        setLoading(false);
-      }
-    }
-    // Height always leads to weight: the two are one question.
     setStep(3);
   }
 
   /**
-   * Save the weight and move on.
-   *
-   * SAME SKIP CONTRACT AS HEIGHT, and it matters more here. `weightTouched` is set only by a
-   * SCROLL — WeightRuler reports a unit switch with source 'unit' precisely so that toggling
-   * lb⇄kg out of curiosity cannot turn the default 160 lb into a claim about this person's body.
-   * A skipped weight is a real, supported state: Cindy asks once or scopes off the demographic
-   * anchors (DIFFICULTY_SCOPING.md), which is worse than knowing but is never wrong.
-   *
-   * The unit IS written even on an untouched step, because a unit preference is a statement about
-   * how the user reads numbers rather than about their body — and it is what makes Settings open
-   * in kg for someone who never gave us a weight at all.
-   *
-   * A failed write is swallowed for the same reason height's is: this is the optional step, and
-   * blocking onboarding on it would make an estimate more load-bearing than the account.
-   */
-  async function handleContinueWeight(persist: boolean) {
-    if (persist && weightTouched) {
-      setLoading(true);
-      try {
-        await setMyWeightKg(weightKg, weightUnit);
-        await refreshProfile();
-      } catch (e) {
-        console.warn('[onboarding] could not save weight:', e);
-      } finally {
-        setLoading(false);
-      }
-    }
-    setStep(4);
-  }
-
-  /**
    * THE LAST WRITE — the consent ticked on step 1. This is what releases the gate: once the refresh
-   * lands, _layout drops this screen and routes a fresh account into the tour, which wears the same
-   * background and the same spine, so the hand-off reads as one run (mock 239's "Bridge").
+   * lands, _layout drops this screen onto Home, and its ceremony gate takes a user with a program
+   * straight into the patron claim (/house/claim). One without stays on Home.
    */
   async function enterPhiloi() {
     if (!consentChecked || !session) return;
@@ -471,10 +378,12 @@ export default function SetupHandleScreen() {
         })
         .eq('id', session.user.id);
       if (updateError) throw updateError;
-      // The flag _layout writes the instant this gate opens, written a beat early: its tutorial gate
-      // waits on it, so having it already set is one fewer async hop spent on Home between the last
-      // setup step and the first tour card.
+      // The flag _layout writes the instant this gate opens, written a beat early: its ceremony gate
+      // waits on it, so having it already set is one fewer async hop spent on Home before the claim.
       await markOnboardingDone().catch(() => {});
+      // The tour is offered from Settings now, never run here; marking it offered up front is what
+      // lets the contextual coach-marks (which wait on this flag) speak from the first Home visit.
+      await markTutorialDone(session.user.id).catch(() => {});
       await refreshProfile();
     } catch (e) {
       setError(getErrorMessage(e, 'Could not save your consent — try again.'));
@@ -485,14 +394,10 @@ export default function SetupHandleScreen() {
 
   return (
     <Screen padded={false} style={styles.container}>
-      {/* Six segments only when verification is actually on this user's path — a school with no
-          domain never sees that step, so showing a sixth dot would promise one that never comes.
-          Both body-metric steps are on everyone's path, so they always count. */}
-      {/* The same spine the tour draws (mock 239 "ONE SPINE"). Six until a school is picked that has
-          no domain or no programs — at which point that step is known not to exist and stops being
-          promised. */}
+      {/* The same spine the tour draws (mock 239 "ONE SPINE"). Four until a school with no programs is
+          picked — at which point the program step is known not to exist and stops being promised. */}
       <View style={styles.spineRow}>
-        <FirstRunSpine total={setupTotal} filled={spineStep} label={`SETUP ${spineStep} / ${setupTotal}`} />
+        <FirstRunSpine total={setupTotal} filled={step} label={`SETUP ${step} / ${setupTotal}`} />
       </View>
 
       {step === 1 && (
@@ -571,7 +476,7 @@ export default function SetupHandleScreen() {
         </View>
       )}
 
-      {step === 4 && (
+      {step === 3 && (
         <View style={styles.step}>
           <Text style={styles.h}>Where do you study?</Text>
           <Text style={styles.sub}>So we can group your campus and classes.</Text>
@@ -653,88 +558,11 @@ export default function SetupHandleScreen() {
         </View>
       )}
 
-      {/* OPTIONAL height (design-mocks/128, recopied by 188). Framed as what it actually does —
-          it estimates a stride so walking can be scored in kilometres — and never as a
-          requirement, because the server has a perfectly good default for anyone who walks past
-          it. Mock 188 names the second use too, so the pair of steps reads as one question. */}
-      {step === 2 && (
-        <View style={styles.step}>
-          <Text style={styles.h}>How tall are you?</Text>
-          <Text style={styles.sub}>
-            Turns your steps into kilometres — and helps Cindy scope your fitness goals fairly.
-          </Text>
-
-          <View style={styles.rulerPicker}>
-            <HeightRuler
-              value={heightCm}
-              onChange={(cm) => {
-                setHeightCm(cm);
-                setHeightTouched(true);
-              }}
-            />
-          </View>
-
-          <Pressable
-            onPress={() => handleContinueHeight(false)}
-            accessibilityRole="button"
-            hitSlop={8}
-            style={styles.skipStep}>
-            <Text style={styles.skipStepText}>Skip — we&apos;ll use an average</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {/* OPTIONAL weight (design-mocks/188) — the ipsative denominator.
-          The subtitle says what it BUYS the user ("a big lift means more, the lighter you are")
-          rather than what we do with it, because the honest objection to being asked your weight
-          is "why do you want it", and DIFFICULTY_SCOPING.md is explicit that this ethos has to be
-          said out loud everywhere goal-setting happens rather than buried in a privacy policy. */}
-      {step === 3 && (
-        <View style={styles.step}>
-          <Text style={styles.h}>And your weight?</Text>
-          <Text style={styles.sub}>
-            So Cindy scores your fitness goals fairly — a big lift means more, the lighter you are.
-          </Text>
-
-          <View style={styles.rulerPicker}>
-            <WeightRuler
-              value={weightKg}
-              unit={weightUnit}
-              onUnitChange={setWeightUnit}
-              onChange={(kg, source) => {
-                setWeightKg(kg);
-                // Only a scroll is a measurement. A unit switch moves the value to stay on a tick
-                // and must not count as one — see handleContinueWeight.
-                if (source === 'scroll') setWeightTouched(true);
-              }}
-            />
-          </View>
-
-          {/* The promise this screen has to make to earn the answer, and it is exactly the promise
-              the app keeps: no profile surface renders weight, and no reward path can read it. */}
-          <View style={styles.privacy}>
-            <Ionicons name="lock-closed" size={13} color={Colors.muted} />
-            <Text style={styles.privacyText}>
-              Private — only used to scope your goals. Never shown on your profile. Edit anytime in
-              Settings.
-            </Text>
-          </View>
-
-          <Pressable
-            onPress={() => handleContinueWeight(false)}
-            accessibilityRole="button"
-            hitSlop={8}
-            style={styles.skipStep}>
-            <Text style={styles.skipStepText}>Skip for now</Text>
-          </Pressable>
-        </View>
-      )}
-
       {/* What you study (mock 291) — only ever reached when the school has programs. The picker carries
           its own CTAs (a row tap picks; the confirm has "Looks right" / "Choose a different program"),
           so the shared nav keeps only Back here. Keyed by school so Back → a new school → Continue
           opens a fresh search rather than the last school's confirm. */}
-      {step === 5 && programStep && (
+      {step === 4 && programStep && (
         <View style={styles.step}>
           <ProgramPicker
             key={programStep.university}
@@ -750,7 +578,7 @@ export default function SetupHandleScreen() {
 
       {/* OPTIONAL who-you-are (mock 283, CODE_PROMPT_identity_profile.md) — two fields, then the
           shared CTA. The prompt copy is the spec's: a statement of identity, not a form field. */}
-      {step === 6 && (
+      {step === 2 && (
         <View style={styles.step}>
           <Text style={styles.h}>What do you wanna be?</Text>
           <Text style={styles.sub}>What are you locking in for? It leads your profile — friends see it first.</Text>
@@ -779,6 +607,50 @@ export default function SetupHandleScreen() {
             />
           </View>
 
+          {/* What you're into — /edit-identity's tag picker, same limits, same save. */}
+          <Text style={styles.lbl}>
+            What you&apos;re into · {interests.length}/{MAX_TAGS}
+          </Text>
+          {interests.length > 0 && (
+            <View style={styles.tags}>
+              {interests.map((t) => (
+                <Pressable
+                  key={t}
+                  style={styles.tag}
+                  onPress={() => setInterests(interests.filter((x) => x !== t))}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${t}`}>
+                  <Text style={styles.tagText}>{t}</Text>
+                  <Ionicons name="close" size={11} color={Colors.muted} />
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {interests.length < MAX_TAGS && (
+            <View style={styles.field}>
+              <TextInput
+                style={styles.fieldInput}
+                value={tagDraft}
+                onChangeText={setTagDraft}
+                onSubmitEditing={addTag}
+                placeholder="powerlifting, anatomy…"
+                placeholderTextColor={Colors.textTertiary}
+                autoCapitalize="none"
+                returnKeyType="done"
+                submitBehavior="submit"
+                maxLength={MAX_TAG}
+              />
+              <Pressable
+                onPress={addTag}
+                disabled={!tagDraft.trim()}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Add interest">
+                <Text style={[styles.addTag, !tagDraft.trim() && styles.addTagOff]}>+ add</Text>
+              </Pressable>
+            </View>
+          )}
+
           <View style={styles.privacy}>
             <Ionicons name="people-outline" size={13} color={Colors.muted} />
             <Text style={styles.privacyText}>
@@ -796,60 +668,27 @@ export default function SetupHandleScreen() {
         </View>
       )}
 
-      {/* OPTIONAL campus verification (§5) — the LAST step. Only ever reached when the school has a
-          domain; every way out of it (verified, already verified, skipped) enters Philoi. */}
-      {step === 7 && university && universityDomain && (
-        <View style={styles.step}>
-          {campusVerified ? (
-            <CampusVerifiedPanel
-              university={shortSchoolName(university)}
-              onContinue={() => void enterPhiloi()}
-              continueLabel="Enter Philoi →"
-            />
-          ) : (
-            <CampusVerification
-              university={shortSchoolName(university)}
-              domain={universityDomain}
-              verifyCtaLabel="Verify & enter Philoi →"
-              onSkip={() => void enterPhiloi()}
-              onVerified={async () => {
-                await refreshProfile();
-                await enterPhiloi();
-              }}
-            />
-          )}
-        </View>
-      )}
-
       {error && <Text style={styles.error}>{error}</Text>}
 
-      {/* Steps 5 and 7 carry their own CTAs (the picker's confirm; Send code / Verify / Skip), so the
-          shared nav bar's primary sits them out — two competing primary buttons on one screen is
-          how someone taps "Continue" and skips verification without meaning to. Back still works,
-          and from identity it skips over a program step this school never had.
-          The two rulers' and the identity step's Skips are plain text links, not second buttons,
-          so they keep the shared CTA. */}
+      {/* Step 4 carries its own CTAs (the picker's confirm has "Looks right" / "Choose a different
+          program"), so the shared nav bar's primary sits it out — two competing primary buttons on
+          one screen is how someone confirms without meaning to. Back still works. The identity
+          step's Skip is a plain text link, not a second button, so it keeps the shared CTA. */}
       <View style={styles.nav}>
         {step > 1 && (
-          <Pressable
-            style={styles.back}
-            onPress={() => setStep((s) => (s === 6 && !programStep ? 4 : ((s - 1) as Step)))}>
+          <Pressable style={styles.back} onPress={() => setStep((s) => (s - 1) as Step)}>
             <Text style={styles.backLabel}>Back</Text>
           </Pressable>
         )}
-        {(step < 5 || step === 6) && (
+        {step < 4 && (
           <View style={styles.nextWrap}>
             <PrimaryButton
-              label={step === 6 && studyIsLast ? 'Enter Philoi →' : 'Continue'}
+              label={step === 3 && programsKnownAbsent ? 'Enter Philoi →' : 'Continue'}
               loading={loading}
-              // Steps 2 and 3 have nothing to validate — every position on either ruler is inside
-              // its column's range by construction — so neither is ever disabled.
-              disabled={step === 1 ? !canContinueStep1 : step === 4 ? !canContinueStudy : false}
+              disabled={step === 1 ? !canContinueStep1 : step === 3 ? !canContinueStudy : false}
               onPress={() => {
                 if (step === 1) handleContinueStep1();
-                else if (step === 2) handleContinueHeight(true);
-                else if (step === 3) handleContinueWeight(true);
-                else if (step === 6) handleContinueIdentity(true);
+                else if (step === 2) handleContinueIdentity(true);
                 else handleContinueStudy();
               }}
             />
@@ -893,14 +732,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 16,
   },
-  // Either ruler takes the whole middle of its step and centres itself in it (the `.picker` in
-  // mocks 128 and 188), so the readout sits at eye level rather than pinned under the question.
-  rulerPicker: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  // Shared by both rulers — the height step and the weight step are the same layout with a
-  // different question, and mock 188 draws them as a pair.
+  // The identity step's "Skip for now" — a text link, not a second button.
   skipStep: {
     alignSelf: 'center',
     paddingVertical: Spacing.twelve,
@@ -948,6 +780,37 @@ const styles = StyleSheet.create({
     borderRadius: Radius.card,
     paddingVertical: 11,
     paddingHorizontal: 12,
+  },
+  // The interest chips (edit-identity.tsx's), drawn in this screen's field colours.
+  tags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginBottom: 7,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  tagText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+    color: Colors.ink,
+  },
+  addTag: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.amber,
+  },
+  addTagOff: {
+    color: Colors.textTertiary,
   },
   fieldInput: {
     flex: 1,

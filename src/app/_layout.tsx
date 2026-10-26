@@ -36,7 +36,7 @@ import { registerPushToken } from '@/lib/notifications';
 import { track } from '@/lib/analytics';
 import { isCeremonyDone } from '@/lib/house/ceremony';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
-import { isTutorialDone } from '@/lib/tutorial';
+import { isTutorialDone, isTutorialReplayRequested, markTutorialDone } from '@/lib/tutorial';
 import { posthog } from '@/lib/posthog';
 import { loadRewardPreferences } from '@/lib/reward-settings';
 import { Sentry } from '@/lib/sentry';
@@ -334,13 +334,17 @@ function RootNavigator() {
     }
   }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, onboardingDone]);
 
-  // 🔴 THE TUTORIAL GATE (CODE_PROMPT_tutorial.md). Fires the INSTANT onboarding completes — no
-  // home screen in between — so the first run reads as one continuous experience: username,
-  // university, consent, first campfire, then Cindy walks you through the whole app.
+  // 🔴 THE TUTORIAL GATE (CODE_PROMPT_tutorial.md) — REPLAY ONLY NOW. The first run ends in the
+  // patron claim, not the twenty-card tour: setup goes username → who you wanna be → school →
+  // program → claim, and the tour is opened only from Settings' "Replay tutorial". So a flag that
+  // reads "not done" means one of two things, told apart by isTutorialReplayRequested:
+  //   · a replay was asked for → open the tour, as before;
+  //   · it was never offered (a new account, or one that predates the flag) → mark it offered,
+  //     silently. That write is load-bearing: the contextual coach-marks wait on isTutorialDone,
+  //     and without it a new account would never see a single tip.
   //
   // DELIBERATELY AFTER the onboarding gate above and predicated on `onboardingDone === true`, so
-  // the two can never fight over the same frame. The tour comes AFTER the username/university/
-  // consent flow, never instead of it (ONBOARDING_FIXES.md).
+  // the two can never fight over the same frame.
   //
   // Both flags are read as `=== true` / `=== false` rather than truthily: each is null while its
   // AsyncStorage read is in flight, and treating null as false here would bounce a returning user
@@ -374,6 +378,11 @@ function RootNavigator() {
         setTutorialDone(true);
         return;
       }
+      if (!isTutorialReplayRequested(userId)) {
+        markTutorialDone(userId).catch(() => {});
+        setTutorialDone(true);
+        return;
+      }
       track('tutorial_started', {});
       router.replace('/tutorial');
     });
@@ -383,18 +392,18 @@ function RootNavigator() {
   }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, onboardingDone, tutorialDone, pathname, router, userId]);
 
   // 🔴 THE CEREMONY GATE — Phase 3, "claim your house" (ONBOARDING_FLOW_3phase.md, mocks 286/287).
-  // Data → teach → claim: it fires only once the tutorial is DONE (`=== true`), so it and the tour
-  // gate above are mutually exclusive by construction — one waits on `false`, this on `true` — and
-  // can never fight over a frame.
+  // The END of setup now: the moment the consent write releases setup-handle, the user lands on `/`
+  // and this sends them into the claim. It no longer waits on the tutorial — the tour isn't part of
+  // the first run any more, and the tour gate above only redirects for an explicit replay, which a
+  // first run never has, so the two still can't fight over a frame.
   //
   // ONLY FOR A PROFILE WITH A PROGRAM. The ceremony reveals the house the program grants; with no
   // program there is nothing to reveal, and nobody is pushed into picking one — the profile's
   // "Claim your house" card is the invitation instead (it runs the ceremony after the pick itself).
   //
-  // ONLY ON HOME (`/`). Every way the first run ends lands there — the tour's Done/Skip replace to
-  // `/`, and the Flame Pass CTA's paywall closes back to it — so this catches the first run without
-  // ever yanking someone off the paywall, a deep link, or /house/change-program mid-pick (which the
-  // claim screen itself sends people to).
+  // ONLY ON HOME (`/`). The first run lands there the instant setup releases its gate (and a replayed
+  // tour's Done/Skip replace to `/` too), so this catches it without ever yanking someone off the
+  // paywall, a deep link, or /house/change-program mid-pick (which the claim screen sends people to).
   //
   // Re-checked before redirecting, for the tutorial gate's reason: the seal marks the ceremony done
   // (in memory first) and replaces to `/` in the same tick, while `ceremonyDone` still holds the
@@ -410,7 +419,6 @@ function RootNavigator() {
         !needsConsent &&
         !needsAccountDisabled &&
         onboardingDone === true &&
-        tutorialDone === true &&
         ceremonyDone === false &&
         hasProgram &&
         pathname === '/'
@@ -437,7 +445,6 @@ function RootNavigator() {
     needsConsent,
     needsAccountDisabled,
     onboardingDone,
-    tutorialDone,
     ceremonyDone,
     hasProgram,
     pathname,

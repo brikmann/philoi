@@ -71,9 +71,21 @@ export async function isTutorialDone(userId: string | null | undefined): Promise
   return (await AsyncStorage.getItem(tutorialDoneKey(userId))) === 'true';
 }
 
+// The tour no longer runs on its own after setup (setup ends in the patron claim). The only way in
+// is Settings' "Replay tutorial", which clears the flag AND asks for the replay here — so _layout's
+// gate can tell "replay requested" (open the tour) from "never offered" (a new account, or one that
+// predates the flag: mark it offered silently, which also releases the coach-marks waiting on it).
+// In memory, like doneThisSession: a replay asked for and not taken is gone on the next cold start.
+const replayRequested = new Set<string>();
+
+export function isTutorialReplayRequested(userId: string | null | undefined): boolean {
+  return Boolean(userId && replayRequested.has(userId));
+}
+
 export async function markTutorialDone(userId: string | null | undefined): Promise<void> {
   if (!userId) return;
   doneThisSession.add(userId);
+  replayRequested.delete(userId);
   await AsyncStorage.setItem(tutorialDoneKey(userId), 'true');
 }
 
@@ -81,5 +93,6 @@ export async function markTutorialDone(userId: string | null | undefined): Promi
 export async function resetTutorial(userId: string | null | undefined): Promise<void> {
   if (!userId) return;
   doneThisSession.delete(userId);
+  replayRequested.add(userId);
   await AsyncStorage.removeItem(tutorialDoneKey(userId));
 }

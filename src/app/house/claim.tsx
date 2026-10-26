@@ -160,8 +160,11 @@ function LoreScreen({
         <View style={styles.body}>
           <Text style={styles.pname}>{program.patron_name}</Text>
           {program.patron_title ? <Text style={styles.ptitle}>{program.patron_title}</Text> : null}
+          {/* What the pledge means in the user's own terms — the school and the program, both named. */}
           <Text style={styles.yourprog}>
-            Your program is <Text style={styles.yourprogName}>{program.name}</Text>
+            You will represent <Text style={styles.yourprogName}>{program.university}</Text> as{' '}
+            {/^[aeiou]/i.test(program.name) ? 'an' : 'a'}{' '}
+            <Text style={styles.yourprogName}>{program.name}</Text> student
           </Text>
           <Meander />
           {lore.map((p, i) => (
