@@ -7,7 +7,7 @@ import { showRewardReveal } from '@/components/economy/reward-reveal';
 import { GymClipThumbnail } from '@/components/gym-clip-player';
 import { RankBadge } from '@/components/rank-badge';
 import { PlacementMove } from '@/components/placement-move';
-import { SpearPlantBeat, SpearPlantHoplite, SpearPlantShake, useSpearPlant } from '@/components/spear-plant-reveal';
+import { SpearPlantBeat, SpearPlantShake, useSpearPlant } from '@/components/spear-plant-reveal';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { SpaceButton } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
@@ -52,8 +52,6 @@ type LockInDoneScreenProps = {
   sharing?: boolean;
 };
 
-// The hoplite stage (mock 311). The asset's comp is square, so one number sizes it.
-const HOPLITE_SIZE = 200;
 const XP_COUNT_MS = 1100;
 
 // The "done" screen (design-mocks/81-done-screen.html) — built around the SAME big living flame
@@ -66,7 +64,8 @@ const XP_COUNT_MS = 1100;
 // with a "View" that opens the full thing.
 //
 // The flame hero is gone: the screen opens on the spear-plant (mock 311, spear-plant-reveal.tsx) —
-// the hoplite plants, the screen shakes, and the stat groups below slam in on their beats.
+// the hoplite plants alone, the screen shakes, and he makes way as the stat groups slam in on their
+// beats. He is the intro only; the settled screen is just the results.
 //
 // Any rank-up at all — a tier crossing or a same-tier division bump — is handled by the caller
 // showing RankUpCelebration's full-screen forge instead of this component entirely (see
@@ -390,10 +389,6 @@ export function LockInDoneScreen({
             </Pressable>
           )}
         </SpearPlantBeat>
-
-        {/* Below the stats, as in mock 311: the figure is on screen first and the numbers land
-            above it on the strike. */}
-        <SpearPlantHoplite reveal={reveal} style={styles.hoplite} />
       </ScrollView>
 
       <SpearPlantBeat reveal={reveal} beat="cta" style={styles.bottom}>
@@ -628,9 +623,9 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
-  // Anchored, not centred (mock 311: stats at the top, the hoplite standing on the bottom). The pass
-  // credit, the placement and the campfire list all arrive after mount; with a centred column each
-  // arrival re-centred everything and jerked the hoplite and the stats mid-animation.
+  // Anchored, not centred: the pass credit, the placement and the campfire list all arrive after
+  // mount, and with a centred column each arrival re-centred everything and jerked the stats
+  // mid-animation.
   scrollContent: {
     flexGrow: 1,
     alignItems: 'center',
@@ -642,12 +637,6 @@ const styles = StyleSheet.create({
   beat: {
     alignSelf: 'stretch',
     alignItems: 'center',
-  },
-  // `auto` takes up the free space above, so late stats grow into the gap instead of moving him.
-  hoplite: {
-    width: HOPLITE_SIZE,
-    height: HOPLITE_SIZE,
-    marginTop: 'auto',
   },
   // ── mock 92's hero stack ──
   kick: {

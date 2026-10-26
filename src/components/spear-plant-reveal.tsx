@@ -22,7 +22,8 @@ import { playRewardSound } from '@/lib/sound';
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // THE SPEAR-PLANT (design-mocks/311). A lock-in ends: the hoplite stands ALONE on the screen and
 // drives the spear into the ground, the screen shakes on the strike, embers burst from the base —
-// and only then do the stats come in, while he steps back into his place below them.
+// and then he fades off as the stats come in. He is the intro, not part of the results: once the
+// numbers land he is gone, and nothing of him stays on the screen.
 //
 // TWO LAYERS, never baked together:
 //   • the hoplite + impact FX are a Lottie asset (assets/lottie/hoplite-spear-plant.json, built by
@@ -31,20 +32,18 @@ import { playRewardSound } from '@/lib/sound';
 //   • the stats are the done screen's own live views, popped in by <SpearPlantBeat> here. Numbers
 //     change every session, so none of them are ever in the asset.
 //
-// TWO HOPLITES, one seen at a time. The STAGE hoplite plays centre-screen at full size (rendered by
-// <SpearPlantShake> above the content, so nothing else is on screen with him), then glides and
-// shrinks into the SLOT — the <SpearPlantHoplite> box in the done screen's layout, measured in
-// window coordinates — as the stats slam in. The slot holds a parked copy (last frame) from mount,
-// invisible; when the intro ends the stage copy unmounts and the slot copy shows in the same commit,
-// on the same frame at the same rect, so the hand-off can't blink. After that he scrolls with the
-// screen like any other view.
+// ONE HOPLITE, drawn by <SpearPlantShake> above the content (so nothing else is on screen with
+// him) and centred by plain flex layout. 🐛 He used to be positioned from measureInWindow and drawn
+// at opacity 0 until that measurement arrived — on Android a bare unstyled View can be flattened out
+// of the native tree and never report, so he randomly never appeared. Then he glided into a parked
+// copy at the bottom of the done screen, a second hand-off that could blink. Layout can't fail to
+// arrive, and with no slot there is no hand-off: he fades from the `move` beat and unmounts at the end.
 //
 // ONE CLOCK. Every beat, the shake, the glide and the tap-to-skip read a single shared value
 // counting milliseconds since the screen mounted, so nothing can drift from anything else and a skip
 // is one assignment: jump the clock to the end and everything lands on its settled frame together.
 //
-// REDUCE MOTION skips the stage entirely: the slot copy shows parked (spear already planted), no
-// shake, and the stats fade in together with no slam.
+// REDUCE MOTION skips the hoplite entirely: no shake, and the stats fade in together with no slam.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The beat sheet, in ms from mount. The spear lands at `impact`; the stats wait for it. */
@@ -63,17 +62,16 @@ const POP_MS = 500;
 const SHAKE_MS = 450;
 const MOVE_MS = 400;
 const STILL_FADE_MS = 300;
-// The last beat's pop finishes here; the clock runs to it, the stage hoplite hands off to the slot
-// and the skip catcher unmounts.
+// The last beat's pop finishes here; the clock runs to it, and the hoplite and the skip catcher
+// unmount.
 const END_MS = SPEAR_PLANT_BEATS.cta + POP_MS;
 
-/** The stage hoplite's box, and where his centre sits (fraction of the screen's height). */
+/** The hoplite's box. His centre sits a little above the screen's middle (see styles.stageWrap). */
 const STAGE_SIZE = 260;
-const STAGE_CENTRE_Y = 0.44;
 
 // Mock 311's `pop` curve — cubic-bezier(.2,1.5,.4,1), the overshoot is the slam.
 const popEase = Easing.bezierFn(0.2, 1.5, 0.4, 1);
-// The glide into the slot: quick off the mark, gentle into place.
+// His exit: quick off the mark, gentle out.
 const moveEase = Easing.bezierFn(0.4, 0, 0.2, 1);
 
 // The asset by patron. v1 ships one hoplite; the Heracles / Athena silhouettes land here keyed by
@@ -81,16 +79,9 @@ const moveEase = Easing.bezierFn(0.4, 0, 0.2, 1);
 const HOPLITE_DEFAULT: AnimationObject = require('../../assets/lottie/hoplite-spear-plant.json');
 const HOPLITE_BY_PATRON: Partial<Record<string, AnimationObject>> = {};
 
-/** A box in window coordinates (measureInWindow). */
-type Rect = { x: number; y: number; w: number; h: number };
-
 export type SpearPlant = {
   clock: SharedValue<number>;
-  /** The results container's box — the stage the hoplite opens on. */
-  frame: SharedValue<Rect | null>;
-  /** The hoplite's settled box in the layout — where the stage copy glides to. */
-  slot: SharedValue<Rect | null>;
-  /** Reduce-motion is on: no stage, no shake, plain fades. */
+  /** Reduce-motion is on: no hoplite, no shake, plain fades. */
   still: boolean;
   /** The intro is over (ran out or was skipped) — the screen is at rest. */
   settled: boolean;
@@ -107,8 +98,6 @@ export type SpearPlant = {
 export function useSpearPlant(onStatsLand?: () => void): SpearPlant {
   const still = useReducedMotion();
   const clock = useSharedValue(0);
-  const frame = useSharedValue<Rect | null>(null);
-  const slot = useSharedValue<Rect | null>(null);
   const [settled, setSettled] = useState(still);
   const [skipped, setSkipped] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -165,7 +154,7 @@ export function useSpearPlant(onStatsLand?: () => void): SpearPlant {
     setSkipped(true);
   }, [clock, land]);
 
-  return { clock, frame, slot, still, settled, skipped, skip };
+  return { clock, still, settled, skipped, skip };
 }
 
 /** A stat group that slams in on its beat (mock 311's `.st` pop): up 14px and from 0.9 scale. */
@@ -207,8 +196,7 @@ export function SpearPlantShake({
   style?: StyleProp<ViewStyle>;
   children: ReactNode;
 }) {
-  const { clock, frame, still, settled, skip } = reveal;
-  const frameRef = useRef<View>(null);
+  const { clock, still, settled, skip } = reveal;
   const shakeStyle = useAnimatedStyle(() => {
     if (still) return {};
     const t = (clock.value - SPEAR_PLANT_BEATS.impact) / SHAKE_MS;
@@ -222,13 +210,6 @@ export function SpearPlantShake({
   });
   return (
     <Animated.View style={[style, shakeStyle]}>
-      {/* The stage's own box, measured from a plain view that fills the container exactly. */}
-      <View
-        ref={frameRef}
-        pointerEvents="none"
-        style={StyleSheet.absoluteFill}
-        onLayout={() => frameRef.current?.measureInWindow((x, y, w, h) => frame.set({ x, y, w, h }))}
-      />
       {children}
       {!still && !settled && <StageHoplite reveal={reveal} />}
       {/* Tap anywhere to skip — people see this many times a day. Only mounted while the intro
@@ -246,59 +227,20 @@ export function SpearPlantShake({
 }
 
 /**
- * The intro's hoplite: full size, centre stage, alone — then, from the `move` beat, gliding and
- * shrinking onto the slot. Transforms only (no layout props), so the glide runs on the UI thread.
+ * The intro's hoplite: full size, centre stage, alone — then, from the `move` beat, fading back and
+ * off as the stats slam in. Transforms and opacity only, so the exit runs on the UI thread.
  */
 function StageHoplite({ reveal }: { reveal: SpearPlant }) {
-  const { clock, frame, slot } = reveal;
-  const glide = useAnimatedStyle(() => {
-    const f = frame.value;
-    // Not measured yet (the first layout pass): draw nothing rather than a hoplite in the corner.
-    if (!f) return { opacity: 0 };
-    const x0 = (f.w - STAGE_SIZE) / 2;
-    const y0 = f.h * STAGE_CENTRE_Y - STAGE_SIZE / 2;
-    const s = slot.value;
-    if (!s) return { opacity: 1, transform: [{ translateX: x0 }, { translateY: y0 }] };
-    // Scale is about the view's centre, so aim the centre at the slot's centre.
-    const x1 = s.x - f.x + s.w / 2 - STAGE_SIZE / 2;
-    const y1 = s.y - f.y + s.h / 2 - STAGE_SIZE / 2;
-    const k1 = s.w / STAGE_SIZE;
+  const { clock } = reveal;
+  const exit = useAnimatedStyle(() => {
     const p = moveEase(Math.min(Math.max((clock.value - SPEAR_PLANT_BEATS.move) / MOVE_MS, 0), 1));
-    return {
-      opacity: 1,
-      transform: [{ translateX: x0 + (x1 - x0) * p }, { translateY: y0 + (y1 - y0) * p }, { scale: 1 + (k1 - 1) * p }],
-    };
+    return { opacity: 1 - p, transform: [{ scale: 1 - 0.12 * p }] };
   });
   return (
-    <Animated.View pointerEvents="none" style={[styles.stage, glide]}>
-      <HopliteLottie parked={false} patronKey={null} style={styles.fill} />
-    </Animated.View>
-  );
-}
-
-/**
- * The hoplite's place in the done screen's layout. Measures itself for the stage copy to land on,
- * and holds the parked copy — mounted from the start but hidden until the intro is over, so the
- * hand-off never waits on a Lottie decode.
- */
-export function SpearPlantHoplite({
-  reveal,
-  patronKey,
-  style,
-}: {
-  reveal: SpearPlant;
-  patronKey?: string | null;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const { slot } = reveal;
-  const ref = useRef<View>(null);
-  const shown = reveal.still || reveal.settled;
-  return (
-    <View
-      ref={ref}
-      style={[style, !shown && styles.hidden]}
-      onLayout={() => ref.current?.measureInWindow((x, y, w, h) => slot.set({ x, y, w, h }))}>
-      <HopliteLottie parked patronKey={patronKey ?? null} style={styles.fill} />
+    <View pointerEvents="none" style={styles.stageWrap}>
+      <Animated.View style={[styles.stage, exit]}>
+        <HopliteLottie parked={false} patronKey={null} style={styles.fill} />
+      </Animated.View>
     </View>
   );
 }
@@ -334,18 +276,24 @@ const HopliteLottie = memo(function HopliteLottie({
 });
 
 const styles = StyleSheet.create({
-  stage: {
+  // Fills the results container and centres him; the bottom padding lifts his centre to ~44% of
+  // the height, where the eye lands, rather than dead centre.
+  stageWrap: {
     position: 'absolute',
-    left: 0,
     top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: '12%',
+  },
+  stage: {
     width: STAGE_SIZE,
     height: STAGE_SIZE,
   },
   fill: {
     width: '100%',
     height: '100%',
-  },
-  hidden: {
-    opacity: 0,
   },
 });
