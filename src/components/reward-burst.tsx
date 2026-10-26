@@ -7,8 +7,8 @@ import { getRewardPreferencesSync } from '@/lib/reward-settings';
 import { playRewardSound, type RewardCue } from '@/lib/sound';
 
 // Exhaustive over RewardCue for type-safety/future-proofing, but in practice every current
-// call site only ever passes 'settle' (challenges.tsx, lock-in/index.tsx's plain done-screen
-// branch, the retired goal check-in screen) — ignite/whoosh/rankup*/spark fire directly via
+// call site only ever passes 'settle' (challenges.tsx, the retired goal check-in screen; the lock-in
+// done screen dropped it for the spear-plant, which lands the same cue on its impact frame) — ignite/whoosh/rankup*/spark fire directly via
 // reward-feedback.ts, bypassing this component's Lottie+ref mechanism entirely. No new Lottie
 // assets were made for the new cue names, so these reuse the existing three sensibly: ignite
 // and spark borrow the small/quick spark burst, rankup* all borrow the biggest (surge), whoosh

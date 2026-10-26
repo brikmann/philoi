@@ -134,6 +134,19 @@ export function useAgoraFeed(scope: AgoraScope) {
     setPage((prev) => (prev ? { ...prev, items: prev.items.filter((i) => i.id !== id) } : prev));
   }, []);
 
+  /**
+   * Your own just-made post, on top (mock 306 frame 3). It lands on whatever scope is showing: you
+   * just wrote it, and having it vanish because the Friends chip is on would read as a failed post.
+   * The next refresh puts it wherever the scope's own rules say.
+   */
+  const prependItem = useCallback((item: AgoraItem) => {
+    setPage((prev) => {
+      if (!prev) return prev;
+      const key = `${item.item_type}:${item.id}`;
+      return { ...prev, items: [item, ...prev.items.filter((i) => `${i.item_type}:${i.id}` !== key)] };
+    });
+  }, []);
+
   return {
     items,
     loading,
@@ -145,5 +158,6 @@ export function useAgoraFeed(scope: AgoraScope) {
     loadMore,
     patchItem,
     removeItem,
+    prependItem,
   };
 }
