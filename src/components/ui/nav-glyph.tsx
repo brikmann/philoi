@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 
 // THE BESPOKE NAV SET (design-mocks/304-bespoke-icons.html).
 //
@@ -24,7 +24,14 @@ export type NavGlyphName =
   | 'book'
   | 'dumbbell'
   | 'lungs'
-  | 'plus';
+  | 'plus'
+  // ── mock 306: the composer's media row + the Home Flame Pass card ──
+  | 'photo'
+  | 'camera'
+  | 'session'
+  | 'reward'
+  | 'anthem'
+  | 'ticket';
 
 const S = { fill: 'none', stroke: 'currentColor', strokeWidth: 2.6, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
 
@@ -116,6 +123,50 @@ const GLYPHS: Record<NavGlyphName, ReactNode> = {
     <G>
       <Circle cx="24" cy="24" r="13" {...S} />
       <Path d="M24 18 V30 M18 24 H30" {...S} />
+    </G>
+  ),
+  photo: (
+    <G>
+      <Rect x="8" y="12" width="32" height="26" rx="4" {...S} />
+      <Circle cx="18" cy="21" r="3" {...S} />
+      <Path d="M9 35 L19 25 L26 31 L33 25 L39 31" {...S} />
+    </G>
+  ),
+  camera: (
+    <G>
+      <Rect x="8" y="16" width="32" height="21" rx="4" {...S} />
+      <Path d="M17 16 L20 11 H28 L31 16" {...S} />
+      <Circle cx="24" cy="26.5" r="6" {...S} />
+    </G>
+  ),
+  // A lock-in, attached: mock 306 draws it as a smaller cousin of the bar's flame, filled.
+  session: (
+    <Path
+      d="M24 7 C25 14 32 16 30 25 C29 32 24.5 37 19 36 C13 35 11.5 29 15 23.5 C16 26 18.5 27 19 24.5 C20 20.5 17.5 17 24 7 Z"
+      fill="currentColor"
+    />
+  ),
+  reward: (
+    <G>
+      <Circle cx="24" cy="28" r="9" {...S} />
+      <Path d="M19 20 L15 8 M29 20 L33 8" {...S} />
+      <Path
+        d="M24 24 l1.3 2.6 2.9 .3 -2.1 2 .6 2.9 -2.7 -1.4 -2.7 1.4 .6 -2.9 -2.1 -2 2.9 -.3 Z"
+        fill="currentColor"
+      />
+    </G>
+  ),
+  anthem: (
+    <G>
+      <Path d="M20 33 V13.5 L33 10.5 V30" {...S} />
+      <Ellipse cx="16" cy="33" rx="4.4" ry="3.7" fill="currentColor" />
+      <Ellipse cx="29" cy="30" rx="4.4" ry="3.7" fill="currentColor" />
+    </G>
+  ),
+  ticket: (
+    <G>
+      <Path d="M9 15 H39 V22 A2.6 2.6 0 0 0 39 29 V35 H9 V29 A2.6 2.6 0 0 0 9 22 Z" {...S} />
+      <Path d="M27 16 V34" {...S} strokeWidth={2.4} strokeDasharray="3 3" />
     </G>
   ),
 };

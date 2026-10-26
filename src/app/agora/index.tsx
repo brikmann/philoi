@@ -20,15 +20,18 @@ import { AgoraCommentsSheet } from '@/components/agora/agora-comments-sheet';
 import { ForestsBrowse } from '@/components/forests/forests-browse';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAgoraFeed } from '@/hooks/use-agora-feed';
 import { usePublicLoadouts, useRefreshPublicLoadoutsOnFocus } from '@/hooks/use-public-loadouts';
+import { onAgoraPost } from '@/lib/agora-just-posted';
 import { track } from '@/lib/analytics';
 import {
   AGORA_SCOPES,
   blockAgoraUser,
   deleteAgoraPost,
+  fetchAgoraItem,
   reportAgora,
   setMilestoneInAgora,
 } from '@/lib/api/agora';
@@ -65,14 +68,55 @@ export default function AgoraScreen() {
 /**
  * The square itself. `/agora` mounts it as its own screen (back header); Home mounts it embedded,
  * with the global top bar + your-fire strip in place of that header (nav restructure, mock 302).
+ *
+ * `feedHeader` scrolls WITH the feed, above the compose row — Home's Flame Pass card (mock 306),
+ * which is meant to read as part of the feed rather than as chrome pinned over it.
  */
-export function AgoraFeed({ embedded = false, top }: { embedded?: boolean; top?: ReactNode }) {
+export function AgoraFeed({
+  embedded = false,
+  top,
+  feedHeader,
+}: {
+  embedded?: boolean;
+  top?: ReactNode;
+  feedHeader?: ReactNode;
+}) {
   const router = useRouter();
   const { profile } = useAuth();
   const [tab, setTab] = useState<AgoraTab>('feed');
   const [scope, setScope] = useState<AgoraScope>('friends');
-  const { items, loading, refreshing, loadingMore, error, refresh, loadMore, patchItem, removeItem } =
-    useAgoraFeed(scope);
+  const {
+    items,
+    loading,
+    refreshing,
+    loadingMore,
+    error,
+    refresh,
+    loadMore,
+    patchItem,
+    removeItem,
+    prependItem,
+  } = useAgoraFeed(scope);
+
+  // Your post, the moment the composer closes (mock 306 frame 3): fetched by id and put on top,
+  // highlighted, while the compose row stays where it was.
+  const [freshId, setFreshId] = useState<string | null>(null);
+  useEffect(
+    () =>
+      onAgoraPost(({ id, itemType }) => {
+        setTab('feed');
+        fetchAgoraItem(id, itemType)
+          .then((item) => {
+            if (!item) return;
+            prependItem(item);
+            setFreshId(item.id);
+          })
+          .catch(() => {
+            // It posted; the next refresh shows it. Not worth an alert over a working post.
+          });
+      }),
+    [prependItem]
+  );
 
   const [commentsFor, setCommentsFor] = useState<AgoraItem | null>(null);
   const [moreFor, setMoreFor] = useState<AgoraItem | null>(null);
@@ -243,22 +287,31 @@ export function AgoraFeed({ embedded = false, top }: { embedded?: boolean; top?:
               onEndReachedThreshold={0.6}
               ItemSeparatorComponent={() => <View style={styles.postSep} />}
               ListHeaderComponent={
-                <Pressable
-                  style={styles.composer}
-                  onPress={() => {
-                    track('agora_composer_opened', {});
-                    router.push('/agora/compose');
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Write a post">
-                  {profile?.avatar_url ? (
-                    <Image source={{ uri: profile.avatar_url }} style={styles.composerAvatar} contentFit="cover" />
-                  ) : (
-                    <View style={[styles.composerAvatar, styles.composerAvatarFallback]} />
-                  )}
-                  <Text style={styles.composerHint}>Share a win, a photo, a thought…</Text>
-                  <Ionicons name="create-outline" size={16} color={Colors.amber} />
-                </Pressable>
+                <>
+                  {feedHeader}
+                  {/*
+                    The compose row (mock 306): one tap anywhere opens the one sheet. The two icons
+                    preview what it attaches; they are not separate doors — a door per icon would be
+                    the separate-flows design the mock retired.
+                  */}
+                  <Pressable
+                    style={styles.composer}
+                    onPress={() => {
+                      track('agora_composer_opened', {});
+                      router.push('/agora/compose');
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Write a post">
+                    {profile?.avatar_url ? (
+                      <Image source={{ uri: profile.avatar_url }} style={styles.composerAvatar} contentFit="cover" />
+                    ) : (
+                      <View style={[styles.composerAvatar, styles.composerAvatarFallback]} />
+                    )}
+                    <Text style={styles.composerHint}>Share something…</Text>
+                    <NavGlyph name="photo" size={19} color={Colors.spaceDim} />
+                    <NavGlyph name="session" size={19} color={Colors.spaceDim} />
+                  </Pressable>
+                </>
               }
               ListEmptyComponent={
                 loading ? (
@@ -270,26 +323,19 @@ export function AgoraFeed({ embedded = false, top }: { embedded?: boolean; top?:
               ListFooterComponent={
                 loadingMore ? <ActivityIndicator color={Colors.textTertiary} style={styles.footer} /> : null
               }
-              renderItem={({ item }) => (
-                <AgoraCard
-                  item={item}
-                  loadout={loadouts[item.user_id] ?? {}}
-                  onComment={setCommentsFor}
-                  onMore={handleMore}
-                />
-              )}
+              renderItem={({ item }) => {
+                const card = (
+                  <AgoraCard
+                    item={item}
+                    loadout={loadouts[item.user_id] ?? {}}
+                    onComment={setCommentsFor}
+                    onMore={handleMore}
+                  />
+                );
+                return item.id === freshId ? <View style={styles.fresh}>{card}</View> : card;
+              }}
             />
 
-            <Pressable
-              style={styles.fab}
-              onPress={() => {
-                track('agora_composer_opened', {});
-                router.push('/agora/compose');
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="New post">
-              <Ionicons name="create" size={22} color={Colors.onEmber} />
-            </Pressable>
           </>
         )}
       </SafeAreaView>
@@ -461,13 +507,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: 14,
+    borderColor: Colors.spaceLine,
+    borderRadius: 13,
     paddingHorizontal: Spacing.twelve,
     paddingVertical: 10,
-    marginBottom: Spacing.two,
+    marginBottom: Spacing.twelve,
   },
   composerAvatar: {
     width: 29,
@@ -498,15 +544,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     marginTop: Spacing.six,
   },
-  fab: {
-    position: 'absolute',
-    right: Spacing.three,
-    bottom: Spacing.four,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.amber,
-    alignItems: 'center',
-    justifyContent: 'center',
+  // Your just-posted card (mock 306 frame 3): an ember edge and a faint ember wash.
+  fresh: {
+    borderRadius: 17,
+    borderWidth: 1.5,
+    borderColor: '#4A3718',
+    backgroundColor: 'rgba(255,122,47,0.06)',
   },
 });

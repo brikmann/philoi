@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AgoraFeed } from '@/app/agora/index';
 import { LockInCheersSheet } from '@/components/lockin-cheers/lockin-cheers-sheet';
 import { AppTopBar } from '@/components/nav/app-top-bar';
+import { HomePassCard } from '@/components/pass/home-pass-card';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useLockInCheers } from '@/hooks/use-lockin-cheers';
@@ -15,12 +16,15 @@ import { formatRankTier } from '@/lib/rank-tiers';
 import type { MyRank } from '@/types/database';
 
 // HOME = THE COMMUNITY (nav restructure, mocks 301/302). The Agora feed is the landing now; the
-// flame/lock-in hub that used to live here moved to /your-fire (one tap, via the fire strip) and
+// flame/lock-in hub that used to live here folded into your profile (one tap, via the fire strip) and
 // starting a session moved to the center Lock In tab.
 //
 // The thin fire strip keeps your own flame visible without making it the hero: streak · rank, and
 // "● N live" for friends locked in right now, which opens the same locked-in-with-you panel the
 // old Home's strip did.
+//
+// The Flame Pass card (mock 306) leads the feed itself, above the compose row, so it scrolls away
+// with the posts rather than pinning a sales banner over them.
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -38,6 +42,7 @@ export default function HomeScreen() {
   return (
     <AgoraFeed
       embedded
+      feedHeader={<HomePassCard />}
       top={
         <>
           <AppTopBar />
@@ -72,9 +77,9 @@ function FireStrip() {
       <View style={styles.strip}>
         <Pressable
           style={styles.fire}
-          onPress={() => router.push('/your-fire')}
+          onPress={() => router.push('/profile')}
           accessibilityRole="button"
-          accessibilityLabel={`${streak}-day streak${rank ? `, ${formatRankTier(rank.tier, rank.division)}` : ''}. Open your fire`}>
+          accessibilityLabel={`${streak}-day streak${rank ? `, ${formatRankTier(rank.tier, rank.division)}` : ''}. Open your profile`}>
           <NavGlyph name="flame" size={18} color={streak > 0 ? Colors.navEmber : Colors.spaceFaint} />
           <Text style={styles.streak}>
             {streak}-day streak
