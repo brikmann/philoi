@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
-import { CosmeticAvatar } from '@/components/economy/public-identity';
+import { BoardRow, NO_LOADOUT } from '@/components/board-row';
 import { BoardTrackerBanner } from '@/components/fitness/tracker-prompts';
-import { HouseSeal } from '@/components/house/house-seal';
 import { CompeteGlyph } from '@/components/ui/glyphs-compete';
 import { SpaceEmpty, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -18,11 +17,7 @@ import type { MetricLeaderboardRow } from '@/types/house';
 // list AND pinned under it with where you stand ("14 km behind Aisha."), so the one number you
 // opened the board for never scrolls away.
 //
-// Deliberately not LeaderboardPersonRow: that row is the XP board's (tier label + rank hexagon),
-// and a fitness board ranks on one real number, so the rank hexagon would be noise here.
-
-/** Gold/silver/bronze for the PLACE — same values as leaderboard-person-row's. */
-const MEDAL_COLOR: Record<number, string> = { 1: '#F5C542', 2: '#CFD3DC', 3: '#D08A4F' };
+// Rows are the XP board's BoardRow (see FitnessBoardRow), so both boards read as one format.
 
 // Short school names change about once a year; one read per process, shared by every board.
 let shortNamesCache: Record<string, string> | null = null;
@@ -180,6 +175,10 @@ export function FitnessBoard({
   );
 }
 
+// The XP board's row (components/board-row.tsx), so a loadout reads the same on every board —
+// flare edge and glow, halo, title, and the equipped card's animated backdrop. This fills its
+// fitness slots: the "Kin · Laurier" line, the PR-clip status, the window caption and ⚔ Versus.
+// The whole row (and the avatar) opens their profile; Versus is its own button.
 function FitnessBoardRow({
   row,
   value,
@@ -208,58 +207,44 @@ function FitnessBoardRow({
     );
 
   return (
-    <Pressable
-      style={[styles.row, row.is_me && styles.rowMe]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${row.display_name}, rank ${row.rank}, ${value}`}>
-      {/* rank is null only on the 0276 unranked tail, which this board never asks for. */}
-      <Text style={[styles.pos, row.rank != null && MEDAL_COLOR[row.rank] ? { color: MEDAL_COLOR[row.rank] } : null]}>
-        {row.rank ?? '—'}
-      </Text>
-      {/* Static flares: a board is a long list. */}
-      <CosmeticAvatar userId={row.user_id} name={row.display_name} avatarUrl={row.avatar_url} size={30} loadout={loadout} motion="reduced" />
-      <View style={styles.who}>
-        <Text style={styles.name} numberOfLines={1}>
-          {shortName(row.display_name)}
-          {row.is_me ? ' · you' : ''}
-        </Text>
-        {identity || row.patron_key ? (
-          <View style={styles.identityRow}>
-            {/* The board already carries patron_key, so the seal draws without a per-row lookup. */}
-            {row.patron_key ? <HouseSeal patronKey={row.patron_key} size={12} /> : null}
-            {identity ? (
-              <Text style={styles.sub} numberOfLines={1}>
-                {identity}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
-        {verification && onPressVerification && !row.is_me ? (
+    <BoardRow
+      row={row}
+      value={value}
+      valueCaption={valueCaption}
+      loadout={loadout ?? NO_LOADOUT}
+      onPressRow={onPress}
+      onPressAvatar={onPress}
+      identity={
+        identity ? (
+          <Text style={styles.sub} numberOfLines={1}>
+            {identity}
+          </Text>
+        ) : null
+      }
+      extra={
+        verification && onPressVerification && !row.is_me ? (
           <Pressable onPress={onPressVerification} hitSlop={6} accessibilityRole="button" accessibilityLabel="About this PR">
             {verification}
           </Pressable>
         ) : (
           verification
-        )}
-      </View>
-      <View style={styles.valueColumn}>
-        <Text style={styles.val}>{value}</Text>
-        {valueCaption ? <Text style={styles.valSub}>{valueCaption}</Text> : null}
-      </View>
-      {row.is_me ? (
-        <View style={styles.versusSpacer} />
-      ) : (
-        <Pressable
-          style={styles.versus}
-          onPress={onVersus}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={`Versus ${row.display_name}`}>
-          <CompeteGlyph name="versus" size={15} color={Colors.navEmber2} />
-        </Pressable>
-      )}
-    </Pressable>
+        )
+      }
+      trailing={
+        row.is_me ? (
+          <View style={styles.versusSpacer} />
+        ) : (
+          <Pressable
+            style={styles.versus}
+            onPress={onVersus}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`Versus ${row.display_name}`}>
+            <CompeteGlyph name="versus" size={15} color={Colors.navEmber2} />
+          </Pressable>
+        )
+      }
+    />
   );
 }
 
@@ -291,10 +276,6 @@ const styles = StyleSheet.create({
   banner: {
     marginBottom: Spacing.two,
   },
-  rowMe: {
-    backgroundColor: 'rgba(255,122,47,0.08)',
-    borderColor: Colors.navEmber,
-  },
   pos: {
     width: 20,
     textAlign: 'center',
@@ -310,11 +291,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ink,
-  },
-  identityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
   },
   sub: {
     flexShrink: 1,
@@ -338,12 +314,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ink,
-  },
-  valSub: {
-    fontFamily: Fonts.body,
-    fontSize: 9.5,
-    color: Colors.spaceFaint,
-    marginTop: 1,
   },
   versus: {
     width: 28,
