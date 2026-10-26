@@ -18,6 +18,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
 import { EquippedCardBackdrop } from '@/components/economy/applied-art';
+import { FitnessBoardPanel } from '@/components/fitness/fitness-board-panel';
 import { HouseSeal } from '@/components/house/house-seal';
 import { IdentityLine } from '@/components/house/identity-line';
 import { AppTopBar } from '@/components/nav/app-top-bar';
@@ -49,8 +50,16 @@ import type { MetricCatalogRow, MetricLeaderboardRow, MetricScope, MyProgramRow 
 // focused); "Live now" narrows the board to who's locked in this minute.
 //
 // Row body → Head-to-Head vs them. Avatar → their profile. Your own row → your Profile.
-// The pre-restructure board screen is gone (ui_pass2 §8): this is the only board UI. Fitness boards
-// and Challenges sit one tap away in the tools row; a campfire's own board lives on the campfire.
+// The pre-restructure board screen is gone (ui_pass2 §8): this is the only board UI. The XP | Fitness
+// toggle in the header swaps the Fitness board (FitnessBoardPanel) in on this same screen, under the
+// same scope row — it used to push a separate /fitness screen, which now just redirects here.
+// Challenges sits one tap away in the tools row; a campfire's own board lives on the campfire.
+
+type Board = 'xp' | 'fitness';
+const BOARDS: { key: Board; label: string }[] = [
+  { key: 'xp', label: 'XP' },
+  { key: 'fitness', label: 'Fitness' },
+];
 
 const SCOPES: { key: MetricScope; label: string }[] = [
   { key: 'global', label: 'Global' },
@@ -79,11 +88,16 @@ export default function LeaderboardTab() {
   // own climb, friends-only sees only the Friends board.
   const dial = rankVisibilityOf(profile);
   const [pickedScope, setPickedScope] = useState<MetricScope>('global');
-  const { scope: linkedScope } = useLocalSearchParams<{ scope?: string }>();
+  const [board, setBoard] = useState<Board>('xp');
+  const { scope: linkedScope, board: linkedBoard } = useLocalSearchParams<{ scope?: string; board?: string }>();
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- follows the route param, which changes on a push tap while the tab stays mounted
     if (linkedScope && LINKED_SCOPE[linkedScope]) setPickedScope(LINKED_SCOPE[linkedScope]);
   }, [linkedScope]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- same: /fitness redirects here with ?board=fitness
+    if (linkedBoard === 'fitness' || linkedBoard === 'xp') setBoard(linkedBoard);
+  }, [linkedBoard]);
   const scope: MetricScope = dial === 'friends' ? 'friends' : pickedScope;
   const scopes = dial === 'friends' ? SCOPES.filter((s) => s.key === 'friends') : SCOPES;
 
@@ -113,8 +127,10 @@ export default function LeaderboardTab() {
           : 'none';
   const held = dial === 'private' || gate !== 'none' || (scope === 'my_program' && !programLoaded) || !stat;
 
+  // The scope gate and program fetch hold both boards; the XP fetch also waits while Fitness shows.
+  const scopeHeld = gate !== 'none' || (scope === 'my_program' && !programLoaded);
   const { rows, loading, error, refetch } = useMetricLeaderboard({
-    metric: held || !stat ? null : stat.metric,
+    metric: held || board !== 'xp' || !stat ? null : stat.metric,
     scope,
     window: stat?.metric_window ?? 'all',
     includeUnranked: true,
@@ -145,6 +161,24 @@ export default function LeaderboardTab() {
       <AppTopBar />
       <View style={styles.head}>
         <Text style={styles.title}>Leaderboard</Text>
+        {dial === 'private' ? null : (
+          <View style={styles.boardToggle}>
+            {BOARDS.map((b) => {
+              const on = b.key === board;
+              return (
+                <Pressable
+                  key={b.key}
+                  onPress={() => setBoard(b.key)}
+                  style={[styles.boardBtn, on && styles.boardBtnOn]}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={`${b.label} board`}>
+                  <Text style={[styles.boardText, on && styles.boardTextOn]}>{b.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       {dial === 'private' ? (
@@ -167,54 +201,65 @@ export default function LeaderboardTab() {
             })}
           </View>
 
-          <View style={styles.tools}>
-            <Pressable style={styles.metric} onPress={() => setPickerOpen(true)} accessibilityRole="button">
-              <Text style={styles.metricText} numberOfLines={1}>
-                {stat ? `${stat.emoji} ${stat.label}` : 'Loading stats…'}
-              </Text>
-              <Ionicons name="chevron-down" size={14} color={Colors.spaceDim} />
-            </Pressable>
-            <Pressable
-              style={[styles.live, liveOnly && styles.liveOn]}
-              onPress={() => setLiveOnly((v) => !v)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: liveOnly }}
-              accessibilityLabel={`Live now, ${liveCount} locked in`}>
-              <View style={styles.liveDot} />
-              <Text style={[styles.liveText, liveOnly && styles.liveTextOn]}>Live {liveCount > 0 ? liveCount : ''}</Text>
-            </Pressable>
-            <QuickLink label="Fitness" onPress={() => router.push('/fitness')} />
-            <QuickLink label="Challenges" onPress={() => router.push('/challenges')} />
-          </View>
-
-          {gate !== 'none' ? (
-            <GateNotice gate={gate} />
+          {board === 'fitness' ? (
+            <FitnessBoardPanel
+              scope={scope}
+              held={scopeHeld}
+              notice={gate !== 'none' ? <GateNotice gate={gate} /> : null}
+              program={program}
+              actions={<QuickLink label="Challenges" onPress={() => router.push('/challenges')} />}
+            />
           ) : (
-            <FlatList
-              data={shownRows}
-              keyExtractor={(r) => r.user_id}
-              contentContainerStyle={styles.list}
-              refreshControl={<RefreshControl refreshing={loading && rows.length > 0} onRefresh={refetch} tintColor={Colors.navEmber} />}
-              ListEmptyComponent={
-                loading ? (
-                  <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
-                ) : (
-                  <Text style={styles.empty}>
-                    {error ?? (liveOnly ? 'Nobody on this board is locked in right now.' : 'Nobody on this board yet — lock in and open it.')}
+            <>
+              <View style={styles.tools}>
+                <Pressable style={styles.metric} onPress={() => setPickerOpen(true)} accessibilityRole="button">
+                  <Text style={styles.metricText} numberOfLines={1}>
+                    {stat ? `${stat.emoji} ${stat.label}` : 'Loading stats…'}
                   </Text>
-                )
-              }
-              renderItem={({ item }) => (
-                <BoardRow
-                  row={item}
-                  value={item.rank == null ? '—' : format(item.value)}
-                  presence={presence[item.user_id]}
-                  loadout={loadouts[item.user_id] ?? NO_LOADOUT}
-                  onPressRow={openRow}
-                  onPressAvatar={openProfile}
+                  <Ionicons name="chevron-down" size={14} color={Colors.spaceDim} />
+                </Pressable>
+                <Pressable
+                  style={[styles.live, liveOnly && styles.liveOn]}
+                  onPress={() => setLiveOnly((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: liveOnly }}
+                  accessibilityLabel={`Live now, ${liveCount} locked in`}>
+                  <View style={styles.liveDot} />
+                  <Text style={[styles.liveText, liveOnly && styles.liveTextOn]}>Live {liveCount > 0 ? liveCount : ''}</Text>
+                </Pressable>
+                <QuickLink label="Challenges" onPress={() => router.push('/challenges')} />
+              </View>
+
+              {gate !== 'none' ? (
+                <GateNotice gate={gate} />
+              ) : (
+                <FlatList
+                  data={shownRows}
+                  keyExtractor={(r) => r.user_id}
+                  contentContainerStyle={styles.list}
+                  refreshControl={<RefreshControl refreshing={loading && rows.length > 0} onRefresh={refetch} tintColor={Colors.navEmber} />}
+                  ListEmptyComponent={
+                    loading ? (
+                      <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
+                    ) : (
+                      <Text style={styles.empty}>
+                        {error ?? (liveOnly ? 'Nobody on this board is locked in right now.' : 'Nobody on this board yet — lock in and open it.')}
+                      </Text>
+                    )
+                  }
+                  renderItem={({ item }) => (
+                    <BoardRow
+                      row={item}
+                      value={item.rank == null ? '—' : format(item.value)}
+                      presence={presence[item.user_id]}
+                      loadout={loadouts[item.user_id] ?? NO_LOADOUT}
+                      onPressRow={openRow}
+                      onPressAvatar={openProfile}
+                    />
+                  )}
                 />
               )}
-            />
+            </>
           )}
         </>
       )}
@@ -481,6 +526,31 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.black,
     fontSize: 22,
     color: Colors.ink,
+  },
+  // XP | Fitness — a compact twin of the scope control, beside the title.
+  boardToggle: {
+    flexDirection: 'row',
+    padding: 3,
+    borderRadius: 11,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  boardBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  boardBtnOn: {
+    backgroundColor: Colors.spacePanel2,
+  },
+  boardText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
+  },
+  boardTextOn: {
+    color: Colors.navEmber2,
   },
   scope: {
     flexDirection: 'row',
