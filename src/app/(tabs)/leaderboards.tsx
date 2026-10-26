@@ -411,8 +411,9 @@ function BoardRow({
       accessibilityRole="button"
       accessibilityLabel={`${row.rank == null ? 'Not ranked yet' : row.rank}. ${row.is_me ? 'You' : row.display_name}${title ? `, ${title.earned ? 'earned title' : 'title'} ${title.name}` : ''}${presence?.locked_in ? ', locked in now' : ''}, ${value}${row.is_me ? '' : '. Head-to-head'}`}>
       {card ? (
-        // `still`: a list of animated card scenes is twenty SVGs ticking at once.
-        <EquippedCardBackdrop cardId={card.id} radius={15} motion="still">
+        // Animated, as the Agora feed draws it. Only worn cards get a backdrop, so the ticking scenes
+        // are the handful of rows that flex one — the same budget the feed already carries.
+        <EquippedCardBackdrop cardId={card.id} radius={15}>
           <View style={styles.rowInner}>{content}</View>
         </EquippedCardBackdrop>
       ) : (

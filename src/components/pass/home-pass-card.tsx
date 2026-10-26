@@ -107,18 +107,6 @@ export function HomePassCard() {
           </View>
         </LinearGradient>
       </Pressable>
-
-      <Pressable
-        style={styles.shop}
-        onPress={() => {
-          track('home_shop_shortcut_tapped', {});
-          router.push('/shop');
-        }}
-        hitSlop={6}
-        accessibilityRole="button"
-        accessibilityLabel="Open the shop">
-        <Text style={styles.shopText}>Shop ›</Text>
-      </Pressable>
     </View>
   );
 }
@@ -190,24 +178,5 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 10,
     color: Colors.muted,
-  },
-  // The Shop shortcut, under the card's right edge — a second door into the same economy.
-  shop: {
-    alignSelf: 'flex-end',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 7,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.spacePanel,
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-  },
-  shopText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: Colors.navEmber2,
   },
 });
