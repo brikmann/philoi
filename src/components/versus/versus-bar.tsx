@@ -78,13 +78,13 @@ const styles = StyleSheet.create({
     minWidth: 54,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   valueRight: {
     textAlign: 'right',
   },
   valueLead: {
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   valueLeadThem: {
     color: VERSUS_THEM_TEXT,
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 9.5,
     letterSpacing: 0.3,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   sword: {
     color: Colors.danger,
@@ -103,16 +103,16 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     height: 16,
-    borderRadius: 5,
+    borderRadius: 6,
     overflow: 'hidden',
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
   },
   barFlagged: {
     borderWidth: 1,
     borderColor: 'rgba(232,106,90,0.45)',
   },
   left: {
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
     justifyContent: 'center',
     paddingLeft: 6,
   },

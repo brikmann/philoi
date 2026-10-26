@@ -1,14 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BoxArt } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { EquippedFlameSvg } from '@/components/flame-icon';
-import { BackHeader } from '@/components/ui/back-header';
-import { PrimaryButton } from '@/components/ui/primary-button';
-import { Screen } from '@/components/ui/screen';
+import { CompeteGlyph } from '@/components/ui/glyphs-compete';
+import { SpaceButton, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { createChallenge, previewScopedReward, setGoalScope } from '@/lib/api/challenges';
@@ -370,9 +369,10 @@ export default function VerdictScreen() {
 
   return (
     // Headerless (registered in _layout.tsx): the native header was the iOS liquid-glass pill
-    // reading "(cindy)". Mock 263 replaces it with the plain ‹ row every pushed page uses.
-    <Screen padded={false}>
-      <BackHeader title="Cindy's verdict" />
+    // reading "(cindy)". Mock 263 replaces it with the plain ‹ row every pushed page uses. Top edge
+    // only and transparent: the root paints the space ground and the global bar owns the foot.
+    <SafeAreaView edges={['top']} style={styles.safe}>
+      <SpaceHeader title="Cindy's verdict" />
       <ScrollView contentContainerStyle={styles.content}>
         {/* 1 · Cindy speaks. Her rationale VERBATIM when she gave one (see the header); either way
             she states the verdict, and the tier's generic line sits under the badge below. */}
@@ -439,7 +439,7 @@ export default function VerdictScreen() {
           </View>
         ) : (
           <View style={styles.paySkeleton}>
-            <ActivityIndicator color={Colors.amber} />
+            <ActivityIndicator color={Colors.navEmber} />
           </View>
         )}
 
@@ -450,7 +450,7 @@ export default function VerdictScreen() {
             itself (0165). */}
         {claimLevel === 'honor' && preview?.discounted ? (
           <View style={styles.caveatRow}>
-            <Ionicons name="people-outline" size={13} color={Colors.textTertiary} />
+            <CompeteGlyph name="people" size={13} color={Colors.spaceFaint} />
             <Text style={styles.caveat}>
               {tier.toUpperCase()} effort · earns {boxKey ? BOXES[boxKey].name : 'this'} on your word.
               {' '}Self-reported goals pay a capped tier; app-tracked ones pay the full tier.
@@ -461,37 +461,33 @@ export default function VerdictScreen() {
 
       {/* 6 · One action. Every branch's create is behind it, unchanged (`start` above). */}
       <View style={styles.footer}>
-        <PrimaryButton label="Lock it in" onPress={start} loading={busy} disabled={busy || !preview} />
-        <Pressable
-          onPress={() => router.back()}
-          disabled={busy}
-          hitSlop={8}
-          accessibilityRole="button"
-          style={styles.adjust}>
-          <Text style={styles.adjustText}>Adjust the goal</Text>
-        </Pressable>
+        <SpaceButton label="Lock it in" onPress={start} loading={busy} disabled={busy || !preview} />
+        <SpaceButton label="Adjust the goal" variant="ghost" onPress={() => router.back()} disabled={busy} style={styles.adjust} />
       </View>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: Spacing.four, paddingTop: Spacing.two, paddingBottom: Spacing.four },
+  safe: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: SPACE_GUTTER, paddingTop: Spacing.two, paddingBottom: Spacing.four },
 
   cindyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
   cindyAvatar: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: Colors.plum,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
   says: {
     flex: 1,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderTopLeftRadius: 4,
     borderTopRightRadius: 14,
     borderBottomLeftRadius: 14,
@@ -503,7 +499,7 @@ const styles = StyleSheet.create({
   saysTier: { fontFamily: Fonts.bodyBold },
 
   goalBlock: { alignItems: 'center', marginTop: Spacing.four },
-  kicker: { fontFamily: Fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.4, color: Colors.textTertiary },
+  kicker: { fontFamily: Fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.4, color: Colors.spaceFaint },
   goal: {
     fontFamily: Fonts.bodyBold,
     fontSize: 21,
@@ -515,7 +511,7 @@ const styles = StyleSheet.create({
 
   tierCard: {
     marginTop: Spacing.four,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1.5,
     padding: 15,
     alignItems: 'center',
@@ -536,24 +532,26 @@ const styles = StyleSheet.create({
     textShadowRadius: 12,
     textShadowOffset: { width: 0, height: 0 },
   },
-  why: { fontFamily: Fonts.body, fontSize: 12.5, lineHeight: 18, color: Colors.muted, textAlign: 'center' },
+  why: { fontFamily: Fonts.body, fontSize: 12.5, lineHeight: 18, color: Colors.spaceDim, textAlign: 'center' },
 
   pay: {
     marginTop: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 13,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: 16,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     padding: 13,
   },
   paySkeleton: {
     marginTop: 14,
     height: 80,
-    borderRadius: 16,
-    backgroundColor: Colors.card,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -562,7 +560,7 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 12,
     borderWidth: 1,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spaceBg,
     alignItems: 'center',
     justifyContent: 'center',
     shadowOpacity: 0.5,
@@ -582,13 +580,12 @@ const styles = StyleSheet.create({
   payKicker: { fontFamily: Fonts.bodyBold, fontSize: 9.5, letterSpacing: 1.2 },
   payName: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.ink, marginTop: 1, marginBottom: 3 },
   emberRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  emberText: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },
-  emberStrong: { fontFamily: Fonts.bodyBold, color: Colors.amber },
+  emberText: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.spaceDim },
+  emberStrong: { fontFamily: Fonts.bodyBold, color: Colors.navEmber2 },
 
   caveatRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 6, marginTop: 9 },
-  caveat: { flexShrink: 1, fontFamily: Fonts.body, fontSize: 10.5, lineHeight: 15, color: Colors.textTertiary },
+  caveat: { flexShrink: 1, fontFamily: Fonts.body, fontSize: 10.5, lineHeight: 15, color: Colors.spaceFaint },
 
-  footer: { paddingHorizontal: Spacing.four, paddingTop: Spacing.three, paddingBottom: Spacing.three },
-  adjust: { alignSelf: 'center', marginTop: 9, paddingVertical: 4 },
-  adjustText: { fontFamily: Fonts.body, fontSize: 12, color: Colors.muted },
+  footer: { paddingHorizontal: SPACE_GUTTER, paddingTop: Spacing.three, paddingBottom: Spacing.three },
+  adjust: { marginTop: 4, minHeight: 40 },
 });

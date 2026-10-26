@@ -1,14 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { dismissCoachMark } from '@/components/coach-mark';
 import { EquippedFlameSvg } from '@/components/flame-icon';
-import { BackHeader } from '@/components/ui/back-header';
-import { EmberFill } from '@/components/ui/ember-fill';
 import { Screen } from '@/components/ui/screen';
+import { SpaceHeader } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCindy } from '@/hooks/use-cindy';
 import { useFriends } from '@/hooks/use-friends';
@@ -810,14 +809,13 @@ export default function CreateChallengeScreen() {
   const progress = mode === 'done' ? 1 : progressOf(answers);
 
   return (
-    // Its own `‹ New challenge` row (BackHeader) — headerless in _layout.tsx, so no native
-    // liquid-glass pill. <Screen> brings the radial ground and the keyboard avoidance.
+    // Its own `‹ New challenge` row (SpaceHeader) — headerless in _layout.tsx, so no native
+    // liquid-glass pill. <Screen> brings the ground (this is a modal, nothing paints under it) and
+    // the keyboard avoidance.
     <Screen padded={false}>
-      <BackHeader title="New challenge" />
+      <SpaceHeader title="New challenge" />
       <View style={styles.progressTrack}>
-        <EmberFill radius={2} style={[styles.progressFill, { width: `${Math.max(6, Math.round(progress * 100))}%` as `${number}%` }]}>
-          <View />
-        </EmberFill>
+        <View style={[styles.progressFill, { width: `${Math.max(6, Math.round(progress * 100))}%` as `${number}%` }]} />
       </View>
 
       <ScrollView
@@ -838,7 +836,7 @@ export default function CreateChallengeScreen() {
 
         {mode === 'scoring' || mode === 'reading' ? (
           <View style={styles.thinking}>
-            <ActivityIndicator size="small" color={Colors.amber} />
+            <ActivityIndicator size="small" color={Colors.navEmber} />
             <Text style={styles.thinkingText}>{mode === 'reading' ? 'Cindy’s reading that…' : 'Cindy’s scoring it…'}</Text>
           </View>
         ) : null}
@@ -879,15 +877,9 @@ export default function CreateChallengeScreen() {
             accessibilityRole="button"
             accessibilityLabel="Send"
             style={styles.sendPress}>
-            {inputLocked || !draft.trim() ? (
-              <View style={[styles.send, styles.sendOff]}>
-                <Ionicons name="arrow-up" size={19} color={Colors.disabledText} />
-              </View>
-            ) : (
-              <EmberFill radius={20} style={styles.send}>
-                <Ionicons name="arrow-up" size={19} color={Colors.onEmber} />
-              </EmberFill>
-            )}
+            <View style={[styles.send, inputLocked || !draft.trim() ? styles.sendOff : styles.sendOn]}>
+              <UiGlyph name="send" size={18} color={inputLocked || !draft.trim() ? Colors.spaceFaint : '#2A0F05'} />
+            </View>
           </Pressable>
         </View>
       </View>
@@ -937,26 +929,28 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.three,
     marginBottom: Spacing.two,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Colors.spaceLine,
     overflow: 'hidden',
   },
-  progressFill: { height: 3 },
+  progressFill: { height: 3, borderRadius: 2, backgroundColor: Colors.navEmber },
 
-  thread: { paddingHorizontal: Spacing.three + 2, paddingTop: Spacing.one, paddingBottom: Spacing.four, gap: Spacing.twelve },
+  thread: { paddingHorizontal: Spacing.three, paddingTop: Spacing.one, paddingBottom: Spacing.four, gap: Spacing.twelve },
   cq: { flexDirection: 'row', alignItems: 'flex-start', gap: 9 },
   flame: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: Colors.plum,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
   qb: {
     maxWidth: '82%',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderTopLeftRadius: 4,
     borderTopRightRadius: 14,
     borderBottomLeftRadius: 14,
@@ -964,13 +958,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: Spacing.twelve,
   },
-  qbNow: { borderColor: Colors.emberForward },
+  qbNow: { borderColor: Colors.navEmber },
   qbText: { fontFamily: Fonts.body, fontSize: 13.5, lineHeight: 18.5, color: Colors.ink },
 
   ans: {
     alignSelf: 'flex-end',
     maxWidth: '80%',
-    backgroundColor: Colors.amber,
+    backgroundColor: Colors.navEmber,
     borderTopLeftRadius: 14,
     borderTopRightRadius: 14,
     borderBottomLeftRadius: 14,
@@ -978,30 +972,31 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 13,
   },
-  ansText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.onEmber },
+  ansText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: '#2A0F05' },
 
   thinking: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingLeft: 39 },
-  thinkingText: { fontFamily: Fonts.body, fontSize: 12, color: Colors.textTertiary },
+  thinkingText: { fontFamily: Fonts.body, fontSize: 12, color: Colors.spaceDim },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, paddingLeft: 39 },
   chip: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: 10,
+    borderColor: Colors.spaceLine,
+    borderRadius: Radius.pill,
     paddingVertical: 9,
     paddingHorizontal: 13,
   },
-  chipSel: { backgroundColor: 'rgba(255,140,66,0.16)', borderColor: Colors.emberForward },
-  chipText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.soloChipText },
-  chipTextSel: { color: Colors.ink },
+  chipSel: { backgroundColor: 'rgba(255,122,47,0.12)', borderColor: Colors.navEmber },
+  chipText: { fontFamily: Fonts.bodySemiBold, fontSize: 13, color: Colors.ink },
+  chipTextSel: { color: Colors.navEmber2 },
 
-  foot: { paddingHorizontal: Spacing.three + 2, paddingTop: Spacing.two, paddingBottom: Spacing.three },
-  hint: { fontFamily: Fonts.body, fontSize: 10.5, color: Colors.textTertiary, textAlign: 'center', marginBottom: Spacing.two },
-  hintStrong: { fontFamily: Fonts.bodyBold, color: Colors.ember },
+  foot: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.three },
+  hint: { fontFamily: Fonts.body, fontSize: 10.5, color: Colors.spaceDim, textAlign: 'center', marginBottom: Spacing.two },
+  hintStrong: { fontFamily: Fonts.bodyBold, color: Colors.gold },
   inRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   input: { flex: 1, borderRadius: Radius.pill, paddingVertical: 10 },
   sendPress: { width: 40, height: 40 },
   send: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  sendOff: { backgroundColor: Colors.disabledSurface },
+  sendOff: { backgroundColor: Colors.spacePanel2, borderWidth: 1, borderColor: Colors.spaceLine },
+  sendOn: { backgroundColor: Colors.navEmber },
 });

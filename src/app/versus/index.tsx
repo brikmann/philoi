@@ -1,12 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { EmptyState } from '@/components/ui/empty-state';
 import { PrimaryButton } from '@/components/ui/primary-button';
-import { SecondaryButton } from '@/components/ui/secondary-button';
+import { SpaceButton, SpaceCard, SpaceEmpty, SpaceHeader, SpaceSection, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { CompareStatRow } from '@/components/versus/compare-stat-row';
 import { PersonLookup } from '@/components/versus/person-lookup';
 import {
@@ -263,36 +262,30 @@ export default function VersusScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={22} color={Colors.muted} />
-        </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
-          {title}
-        </Text>
-        {step === 'result' && !comparing ? (
-          <Pressable onPress={() => setStep('compose')} hitSlop={8} accessibilityRole="button">
-            <Text style={styles.headerAction}>↺ edit</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      <SpaceHeader
+        title={title}
+        onBack={() => router.back()}
+        right={
+          step === 'result' && !comparing ? (
+            <Pressable onPress={() => setStep('compose')} hitSlop={8} style={styles.headerAction} accessibilityRole="button">
+              <UiGlyph name="edit" size={13} color={Colors.navEmber2} />
+              <Text style={styles.headerActionText}>Edit</Text>
+            </Pressable>
+          ) : null
+        }
+      />
 
       {catalogFailed ? (
-        <EmptyState
-          emoji="⚔️"
-          title="Head to head is almost here"
-          body="Comparing any stat against anyone lands with the next update."
-        />
+        <SpaceEmpty title="Head to head is almost here" body="Comparing any stat against anyone lands with the next update." />
       ) : step === 'lookup' ? (
         <View style={styles.lookup}>
           <PersonLookup myId={myId} onPick={pickPerson} />
         </View>
       ) : targetError ? (
-        <EmptyState
-          emoji="🔍"
+        <SpaceEmpty
           title="Couldn't find them"
           body={targetError}
-          action={<SecondaryButton label="Search someone else" onDark onPress={() => setStep('lookup')} />}
+          action={<SpaceButton label="Search someone else" variant="secondary" onPress={() => setStep('lookup')} style={styles.emptyAction} />}
         />
       ) : (
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -311,7 +304,7 @@ export default function VersusScreen() {
               <VersusPerson userId={target.id} name={target.name} avatarUrl={target.avatarUrl} university={target.university} side="them" />
             ) : (
               <View style={styles.personPending}>
-                <ActivityIndicator color={Colors.textTertiary} />
+                <ActivityIndicator color={Colors.spaceFaint} />
               </View>
             )}
           </View>
@@ -320,10 +313,9 @@ export default function VersusScreen() {
             <>
               <View style={styles.zone}>
                 <View style={styles.zoneHead}>
-                  <Text style={styles.zoneLabel}>
-                    Comparing ({stats.length}/{MAX_COMPARE_STATS})
-                  </Text>
-                  <Text style={styles.zoneLabel}>⚔ = challenge</Text>
+                  <SpaceSection right={<Text style={styles.zoneLegend}>⚔ = challenge</Text>}>
+                    {`Comparing (${stats.length}/${MAX_COMPARE_STATS})`}
+                  </SpaceSection>
                 </View>
                 {stats.map((stat, i) => (
                   <CompareStatRow
@@ -343,7 +335,7 @@ export default function VersusScreen() {
                   disabled={!catalog}
                   style={styles.addStat}
                   accessibilityRole="button">
-                  <Ionicons name="add" size={14} color={Colors.amber} />
+                  <UiGlyph name="add" size={14} color={Colors.navEmber2} />
                   <Text style={styles.addStatLabel}>{catalog ? 'Add stats' : 'Loading the stat library…'}</Text>
                 </Pressable>
               </View>
@@ -351,7 +343,7 @@ export default function VersusScreen() {
               <SendPlanNote duels={plan.duels} cindy={plan.cindy} />
 
               <View style={styles.cta}>
-                <PrimaryButton
+                <SpaceButton
                   label={flaggedCount > 0 ? `Compare · challenge on ${flaggedCount} ⚔` : 'Compare'}
                   onPress={handleCompare}
                   disabled={!target || stats.length === 0}
@@ -360,20 +352,18 @@ export default function VersusScreen() {
               </View>
             </>
           ) : comparing ? (
-            <ActivityIndicator style={styles.loading} color={Colors.amber} />
+            <ActivityIndicator style={styles.loading} color={Colors.navEmber} />
           ) : isPrivate ? (
-            <EmptyState
-              emoji="🔒"
+            <SpaceEmpty
               title="They keep their stats private."
               body="Their rank is hidden, so there is nothing to line up against."
-              action={<SecondaryButton label="Compare someone else" onDark onPress={() => setStep('lookup')} />}
+              action={<SpaceButton label="Compare someone else" variant="secondary" onPress={() => setStep('lookup')} style={styles.emptyAction} />}
             />
           ) : compareError ? (
-            <EmptyState
-              emoji="⚠️"
+            <SpaceEmpty
               title="Couldn't compare"
               body={compareError}
-              action={<SecondaryButton label="Try again" onDark onPress={handleCompare} />}
+              action={<SpaceButton label="Try again" variant="secondary" onPress={handleCompare} style={styles.emptyAction} />}
             />
           ) : rows && target ? (
             <>
@@ -384,6 +374,8 @@ export default function VersusScreen() {
               <SendPlanNote duels={plan.duels} cindy={plan.cindy} />
 
               <View style={styles.cta}>
+                {/* PrimaryButton, not SpaceButton: the send is the screen's one pulsed action, and only
+                    PrimaryButton carries the pulse. */}
                 {plan.duels.length > 0 ? (
                   <PrimaryButton
                     label={`Send the challenge ⚔ · ${plan.duels.length}`}
@@ -393,7 +385,7 @@ export default function VersusScreen() {
                   />
                 ) : null}
                 {plan.cindy.map((stat) => (
-                  <SecondaryButton key={stat.key} label={`Set up ${stat.label} with Cindy`} onDark solid onPress={() => openCindy(stat)} />
+                  <SpaceButton key={stat.key} label={`Set up ${stat.label} with Cindy`} variant="secondary" onPress={() => openCindy(stat)} />
                 ))}
                 {flaggedCount === 0 ? (
                   <Pressable onPress={() => setStep('compose')} style={styles.flagHint} accessibilityRole="button">
@@ -439,14 +431,14 @@ function ResultSummary({ rows, name, duels }: { rows: VersusRow[]; name: string;
   }
 
   return (
-    <View style={styles.summary}>
+    <SpaceCard style={styles.summary}>
       <Text style={styles.summaryText}>
         <Text style={styles.summaryStrong}>
           You lead {mine.length} of {rows.length}.
         </Text>{' '}
         {line}
       </Text>
-    </View>
+    </SpaceCard>
   );
 }
 
@@ -478,31 +470,32 @@ const styles = StyleSheet.create({
     // Transparent so the navigator's radial shows through, as on add-friend.
     backgroundColor: 'transparent',
   },
-  header: {
+  headerAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    marginBottom: Spacing.twelve,
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
-  title: {
-    flex: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 18,
-    color: Colors.ink,
-  },
-  headerAction: {
+  headerActionText: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.amber,
+    fontSize: 12.5,
+    color: Colors.navEmber2,
+  },
+  emptyAction: {
+    marginTop: Spacing.two,
+    alignSelf: 'stretch',
   },
   lookup: {
     flex: 1,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
   },
   body: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.five,
   },
   people: {
@@ -514,41 +507,44 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   personPending: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card + 2,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     minHeight: 110,
   },
+  // The compare zone keeps its dashed edge (it is a zone being built, not a finished card), in the
+  // ember wash the kit uses for "this is the action".
   zone: {
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: 'rgba(242,163,60,0.35)',
-    borderRadius: 13,
+    borderColor: 'rgba(255,122,47,0.35)',
+    borderRadius: 14,
     padding: 10,
     marginTop: Spacing.twelve,
-    backgroundColor: 'rgba(224,97,44,0.05)',
+    backgroundColor: 'rgba(255,122,47,0.05)',
   },
+  // SpaceSection carries a top margin for between-group spacing; inside the zone it leads.
   zoneHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.two,
+    marginTop: -Spacing.four,
   },
-  zoneLabel: {
+  zoneLegend: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 9.5,
+    fontSize: 10.5,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   zoneHint: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'center',
     paddingVertical: Spacing.two,
   },
@@ -562,7 +558,7 @@ const styles = StyleSheet.create({
   addStatLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   cta: {
     gap: Spacing.two,
@@ -573,15 +569,13 @@ const styles = StyleSheet.create({
   },
   summary: {
     marginTop: Spacing.three,
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
     padding: Spacing.twelve,
   },
   summaryText: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
     lineHeight: 18,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   summaryStrong: {
     fontFamily: Fonts.bodyBold,
@@ -595,7 +589,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   planSword: {
     color: Colors.danger,
@@ -611,6 +605,6 @@ const styles = StyleSheet.create({
   flagHintText: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
 });

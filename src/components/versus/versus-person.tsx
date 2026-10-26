@@ -5,7 +5,7 @@ import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { HouseSeal } from '@/components/house/house-seal';
 import { IdentityLine } from '@/components/house/identity-line';
 import { VERSUS_THEM_TEXT } from '@/components/versus/versus-bar';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 
 type VersusPersonProps = {
@@ -43,14 +43,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     gap: Spacing.one,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderRadius: Radius.card + 2,
+    borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: Spacing.two,
   },
   cardYou: {
-    borderColor: 'rgba(224,97,44,0.35)',
+    borderColor: 'rgba(255,122,47,0.45)',
   },
   cardThem: {
     borderColor: 'rgba(160,108,213,0.35)',
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   nameYou: {
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   nameThem: {
     color: VERSUS_THEM_TEXT,

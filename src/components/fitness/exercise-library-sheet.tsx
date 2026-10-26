@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,9 +12,10 @@ import {
 } from 'react-native';
 
 import { EmberSearchBar } from '@/components/ui/ember-search-bar';
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { SpaceButton, SpaceChip, SpaceSection, SpaceTile, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { createExercise, searchExerciseLibrary } from '@/lib/api/stats';
 import { getErrorMessage } from '@/lib/errors';
 import type { ExerciseLibraryRow, ExerciseUnit } from '@/types/house';
@@ -128,16 +128,16 @@ export function ExerciseLibraryPanel({ onPick, onBack }: { onPick: (exercise: Pi
     <View style={styles.panel}>
       <View style={styles.headRow}>
         {onBack ? (
-          <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back to stats">
-            <Ionicons name="chevron-back" size={20} color={Colors.muted} />
+          <Pressable onPress={onBack} hitSlop={10} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Back to stats">
+            <UiGlyph name="back" size={18} color={Colors.ink} />
           </Pressable>
         ) : null}
         <Text style={styles.title}>Rank by exercise</Text>
       </View>
       <EmberSearchBar value={query} onChangeText={setQuery} placeholder="Search bench, pull-ups, hip thrust…" />
       <ScrollView style={styles.results} keyboardShouldPersistTaps="handled">
-        <Text style={styles.section}>{query.trim() ? 'Matches' : 'Popular'}</Text>
-        {searching && results.length === 0 ? <ActivityIndicator color={Colors.coral} style={styles.spinner} /> : null}
+        <SpaceSection>{query.trim() ? 'Matches' : 'Popular'}</SpaceSection>
+        {searching && results.length === 0 ? <ActivityIndicator color={Colors.navEmber} style={styles.spinner} /> : null}
         {error ? <Text style={styles.empty}>{error}</Text> : null}
         {!searching && !error && results.length === 0 ? (
           <Text style={styles.empty}>Nothing by that name yet — create it below and it gets a board.</Text>
@@ -150,7 +150,9 @@ export function ExerciseLibraryPanel({ onPick, onBack }: { onPick: (exercise: Pi
               style={styles.result}
               onPress={() => onPick({ slug: r.slug, name: r.name, unit: r.unit, muscleGroup: r.muscle_group })}
               accessibilityRole="button">
-              <Text style={styles.resultEmoji}>{muscleEmoji(r.muscle_group)}</Text>
+              <SpaceTile>
+                <Text style={styles.resultEmoji}>{muscleEmoji(r.muscle_group)}</Text>
+              </SpaceTile>
               <View style={styles.resultWho}>
                 <Text style={styles.resultName} numberOfLines={1}>
                   {r.name}
@@ -166,7 +168,10 @@ export function ExerciseLibraryPanel({ onPick, onBack }: { onPick: (exercise: Pi
           );
         })}
         <Pressable style={styles.create} onPress={() => setCreating(true)} accessibilityRole="button">
-          <Text style={styles.createTitle}>+ Create an exercise</Text>
+          <View style={styles.createHead}>
+            <UiGlyph name="add" size={14} color={Colors.navEmber2} />
+            <Text style={styles.createTitle}>Create an exercise</Text>
+          </View>
           <Text style={styles.createSub}>Name it, set the unit — it joins the library</Text>
         </Pressable>
         <Text style={styles.note}>Any movement can have a board — community-shared, de-duped by name.</Text>
@@ -217,44 +222,30 @@ function CreateExerciseForm({
   return (
     <ScrollView style={styles.panel} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
       <View style={styles.headRow}>
-        <Pressable onPress={onCancel} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back to the library">
-          <Ionicons name="chevron-back" size={20} color={Colors.muted} />
+        <Pressable onPress={onCancel} hitSlop={10} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Back to the library">
+          <UiGlyph name="back" size={18} color={Colors.ink} />
         </Pressable>
         <Text style={styles.title}>Create an exercise</Text>
       </View>
       <TextInput value={name} onChangeText={setName} placeholder="Weighted pull-up" maxLength={40} autoFocus={!initialName} />
 
-      <Text style={styles.section}>Muscle group</Text>
+      <SpaceSection>Muscle group</SpaceSection>
       <View style={styles.chips}>
         {MUSCLE_GROUPS.map((g) => (
-          <Pressable
-            key={g}
-            style={[styles.chip, muscle === g && styles.chipOn]}
-            onPress={() => setMuscle(muscle === g ? null : g)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: muscle === g }}>
-            <Text style={[styles.chipLabel, muscle === g && styles.chipLabelOn]}>{MUSCLE_LABEL[g]}</Text>
-          </Pressable>
+          <SpaceChip key={g} label={MUSCLE_LABEL[g]} selected={muscle === g} onPress={() => setMuscle(muscle === g ? null : g)} />
         ))}
       </View>
 
-      <Text style={styles.section}>What a set measures</Text>
+      <SpaceSection>What a set measures</SpaceSection>
       <View style={styles.chips}>
         {UNITS.map((u) => (
-          <Pressable
-            key={u}
-            style={[styles.chip, unit === u && styles.chipOn]}
-            onPress={() => setUnit(u)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: unit === u }}>
-            <Text style={[styles.chipLabel, unit === u && styles.chipLabelOn]}>{UNIT_LABEL[u]}</Text>
-          </Pressable>
+          <SpaceChip key={u} label={UNIT_LABEL[u]} selected={unit === u} onPress={() => setUnit(u)} />
         ))}
       </View>
       <Text style={styles.note}>{UNIT_HINT[unit]} — the board ranks on this, so pick it carefully.</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <PrimaryButton label="Create & open its board" onPress={handleCreate} loading={busy} disabled={trimmed.length < 2} />
+      <SpaceButton label="Create & open its board" onPress={handleCreate} loading={busy} disabled={trimmed.length < 2} />
     </ScrollView>
   );
 }
@@ -293,10 +284,13 @@ export const sheetStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingHorizontal: Spacing.four,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: Colors.spaceLine,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.five,
     height: '82%',
   },
@@ -305,7 +299,7 @@ export const sheetStyles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.line,
+    backgroundColor: Colors.spaceLine,
     marginTop: Spacing.two,
     marginBottom: Spacing.two,
   },
@@ -322,23 +316,24 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginBottom: Spacing.twelve,
   },
+  backBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
+    fontFamily: Fonts.black,
+    fontSize: 18,
     color: Colors.ink,
   },
   results: {
     flex: 1,
     marginTop: Spacing.two,
-  },
-  section: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    color: Colors.muted,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginTop: Spacing.twelve,
-    marginBottom: Spacing.one,
   },
   spinner: {
     marginVertical: Spacing.three,
@@ -346,20 +341,24 @@ const styles = StyleSheet.create({
   empty: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     paddingVertical: Spacing.two,
   },
+  // SpaceRow's panel look; not SpaceRow itself, which has no slot for the lifter count's colour.
   result: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.twelve,
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    paddingHorizontal: Spacing.twelve,
+    marginBottom: Spacing.two,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   resultEmoji: {
-    fontSize: 20,
-    width: 28,
+    fontSize: 18,
     textAlign: 'center',
   },
   resultWho: {
@@ -374,37 +373,42 @@ const styles = StyleSheet.create({
   resultSub: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   lifters: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   create: {
     marginTop: Spacing.three,
     padding: Spacing.twelve,
-    borderRadius: Radius.card,
+    borderRadius: 14,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: Colors.coral,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.08)',
+  },
+  createHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   createTitle: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   createSub: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
   note: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: Spacing.twelve,
   },
   form: {
@@ -415,26 +419,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
-  },
-  chip: {
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    paddingVertical: 6,
-    paddingHorizontal: Spacing.twelve,
-  },
-  chipOn: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.coral,
-  },
-  chipLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.muted,
-  },
-  chipLabelOn: {
-    color: Colors.achieverText,
   },
   error: {
     fontFamily: Fonts.body,

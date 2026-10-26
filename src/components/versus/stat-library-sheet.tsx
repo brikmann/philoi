@@ -1,8 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { MAX_COMPARE_STATS } from '@/components/versus/send-plan';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { MetricCatalogRow } from '@/types/house';
@@ -76,7 +76,7 @@ export function StatLibrarySheet({ visible, catalog, selected, onToggle, onClose
                         accessibilityState={{ selected: on, disabled }}
                         accessibilityLabel={`${row.label}${row.challengeable ? ', challengeable' : ''}`}>
                         {on ? (
-                          <Ionicons name="checkmark" size={12} color={Colors.amber} />
+                          <UiGlyph name="check" size={12} color={Colors.navEmber2} />
                         ) : (
                           <Text style={styles.chipEmoji}>{row.emoji}</Text>
                         )}
@@ -103,17 +103,20 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: '86%',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: Colors.spaceLine,
     paddingTop: 8,
-    paddingHorizontal: 15,
+    paddingHorizontal: Spacing.three,
   },
   grab: {
     width: 36,
     height: 4,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spaceLine,
     alignSelf: 'center',
     marginTop: 4,
     marginBottom: 12,
@@ -125,20 +128,20 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   title: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 16,
+    fontFamily: Fonts.black,
+    fontSize: 18,
     color: Colors.ink,
   },
   done: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 14,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   sub: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   subSword: {
     color: Colors.danger,
@@ -151,10 +154,10 @@ const styles = StyleSheet.create({
   },
   groupLabel: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 9.5,
+    fontSize: 10.5,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: 14,
     marginBottom: 7,
   },
@@ -167,16 +170,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 7,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
   },
   chipOn: {
-    backgroundColor: Colors.achieverBg,
-    borderColor: 'rgba(242,163,60,0.5)',
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   chipDisabled: {
     opacity: 0.4,
@@ -187,10 +190,10 @@ const styles = StyleSheet.create({
   chipLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   chipLabelOn: {
-    color: Colors.ink,
+    color: Colors.navEmber2,
   },
   chipSword: {
     fontSize: 10,

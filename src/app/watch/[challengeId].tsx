@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -18,9 +17,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Crown } from '@/components/ui/crown';
-import { EmptyState } from '@/components/ui/empty-state';
+import { CompeteGlyph } from '@/components/ui/glyphs-compete';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { Screen } from '@/components/ui/screen';
+import { SpaceButton, SpaceCard, SpaceEmpty, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useChallengeWatch, useGroupChallengeWatch } from '@/hooks/use-challenge-watch';
 import { track } from '@/lib/analytics';
@@ -69,11 +69,7 @@ function CheerButton({
       accessibilityRole="button"
       accessibilityState={{ disabled, selected: mine }}
       accessibilityLabel={mine ? `You cheered this side · ${count} cheers` : `Cheer · ${count}`}>
-      <Ionicons
-        name={mine ? 'megaphone' : 'megaphone-outline'}
-        size={14}
-        color={mine ? Colors.ember : disabled ? Colors.textTertiary : Colors.ember}
-      />
+      <CompeteGlyph name="megaphone" size={14} color={mine ? Colors.navEmber : disabled ? Colors.spaceFaint : Colors.navEmber2} />
       <Text style={[styles.cheerText, disabled && !mine && styles.cheerTextDisabled]}>
         {isFinal ? `${count}` : mine ? `Cheered · ${count}` : `Cheer · ${count}`}
       </Text>
@@ -94,8 +90,8 @@ function CheerComposer({
   onCancel: () => void;
   onSend: (note: string) => void;
 }) {
-  // Inside a <Modal>, so the OS inset is this component's problem — the parent <Screen>'s
-  // SafeAreaView does not extend over a modal.
+  // Inside a <Modal>, so the OS inset is this component's problem — the native header and the
+  // screen's own insets do not extend over a modal.
   const insets = useSafeAreaInsets();
   const [note, setNote] = useState('');
   const left = MAX_NOTE - note.trim().length;
@@ -120,7 +116,7 @@ function CheerComposer({
               value={note}
               onChangeText={setNote}
               placeholder="Say something (optional)"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={Colors.spaceFaint}
               multiline
               // Hard cap at the column’s own limit so the field cannot compose something the
               // constraint in 0110 would reject.
@@ -131,14 +127,14 @@ function CheerComposer({
             {/* Only once it matters. A counter sitting at 140/140 from the first frame is noise. */}
             {left <= 40 ? <Text style={styles.noteCount}>{left}</Text> : null}
 
-            <Pressable
-              style={[styles.sendBtn, busy && styles.sendBtnBusy]}
+            {/* Not `loading`: the label itself says "Sending…", which a spinner would hide. */}
+            <SpaceButton
+              label={busy ? 'Sending…' : 'Cheer'}
               onPress={() => onSend(note)}
               disabled={busy}
-              accessibilityRole="button">
-              <Ionicons name="megaphone" size={15} color={Colors.ink} />
-              <Text style={styles.sendText}>{busy ? 'Sending…' : 'Cheer'}</Text>
-            </Pressable>
+              leading={<CompeteGlyph name="megaphone" size={15} color="#2A0F05" />}
+              style={styles.sendBtn}
+            />
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -215,12 +211,12 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
   if (loading && !watch) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={Colors.coral} />
+        <ActivityIndicator color={Colors.navEmber} />
       </View>
     );
   }
   if (error || !watch) {
-    return <EmptyState emoji="👀" title="Can't watch this one" body={error ?? 'This challenge has ended or you no longer have access.'} />;
+    return <SpaceEmpty title="Can't watch this one" body={error ?? 'This challenge has ended or you no longer have access.'} />;
   }
 
   async function handleCheer(forUserId: string, side: 'created_by' | 'opponent', note: string) {
@@ -289,7 +285,7 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled">
       <View style={styles.goalRow}>
-        <Ionicons name="flash" size={13} color={Colors.achieverText} />
+        <CompeteGlyph name="bolt" size={13} color={Colors.navEmber2} />
         <Text style={styles.goalText}>{metricLabel(watch.race_metric, watch.lockin_goal_type)}</Text>
         {/* 🔴 "Most lock-in time · ending soon", four lines above "Final · this challenge has
             ended". This was `formatTimeLeft(ends_at)` unconditionally, and a countdown cannot know
@@ -300,6 +296,8 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
         <Text style={styles.timeLeft}>{challengeClockText(watch.status, watch.ends_at)}</Text>
       </View>
 
+      {/* The matchup and its split bar sit on one panel, so the scoreboard reads as one object. */}
+      <SpaceCard style={styles.board}>
       <View style={styles.matchup}>
         <View style={styles.competitor}>
           <Avatar label={labels.createdByLabel} size={44} lit={isCreator} />
@@ -328,6 +326,7 @@ function H2HWatch({ challengeId }: { challengeId: string }) {
         <View style={[styles.splitA, { width: `${creatorShare * 100}%` }]} />
         <View style={[styles.splitB, { width: `${(1 - creatorShare) * 100}%` }]} />
       </View>
+      </SpaceCard>
 
       <View style={styles.cheerRow}>
         <CheerButton
@@ -390,12 +389,12 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
   if (loading && rows.length === 0) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={Colors.coral} />
+        <ActivityIndicator color={Colors.navEmber} />
       </View>
     );
   }
   if (error || rows.length === 0) {
-    return <EmptyState emoji="👀" title="Can't watch this one" body={error ?? 'This challenge has ended or you no longer have access.'} />;
+    return <SpaceEmpty title="Can't watch this one" body={error ?? 'This challenge has ended or you no longer have access.'} />;
   }
 
   const head = rows[0];
@@ -491,7 +490,7 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
   return (
     <View style={styles.container}>
       <View style={styles.goalRow}>
-        <Ionicons name={ranked ? 'trophy' : 'people'} size={13} color={Colors.achieverText} />
+        {ranked ? <NavGlyph name="trophy" size={13} color={Colors.navEmber2} /> : <CompeteGlyph name="people" size={13} color={Colors.navEmber2} />}
         <Text style={styles.goalText} numberOfLines={1}>
           {head.public_name?.trim() ||
             (placement
@@ -522,7 +521,7 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
               <Text style={styles.groupRank}>{rankOf(index) ?? '–'}</Text>
               {anon ? (
                 <View style={styles.anonAvatar}>
-                  <Ionicons name="person" size={15} color={Colors.textTertiary} />
+                  <NavGlyph name="person" size={15} color={Colors.spaceFaint} />
                 </View>
               ) : (
                 <Avatar label={item.member_name} size={30} />
@@ -560,7 +559,8 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
                         : (item.member_progress ?? 0) / target
                     }
                     height={5}
-                    fillColor={ranked ? (isLeading(item.member_progress) ? Colors.ember : Colors.coral) : done ? Colors.ember : Colors.coral}
+                    trackColor={Colors.spacePanel2}
+                    fillColor={ranked ? (isLeading(item.member_progress) ? Colors.gold : Colors.navEmber) : done ? Colors.gold : Colors.navEmber}
                   />
                 )}
                 {/* CHEER, UNDER EACH PERSON — CAMPFIRE_REDESIGN_SPEC's "cheer count under each
@@ -576,11 +576,7 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
                   {isMe || cheerDisabled ? (
                     cheers > 0 || mine ? (
                       <View style={styles.groupCheerCount}>
-                        <Ionicons
-                          name={mine ? 'megaphone' : 'megaphone-outline'}
-                          size={11}
-                          color={mine ? Colors.ember : Colors.textTertiary}
-                        />
+                        <CompeteGlyph name="megaphone" size={11} color={mine ? Colors.navEmber : Colors.spaceFaint} />
                         <Text style={[styles.groupCheerText, mine && styles.groupCheerTextMine]}>{cheers}</Text>
                       </View>
                     ) : null
@@ -591,7 +587,7 @@ function GroupWatch({ challengeId }: { challengeId: string }) {
                       hitSlop={6}
                       accessibilityRole="button"
                       accessibilityLabel={`Cheer ${item.member_name} · ${cheers} cheers`}>
-                      <Ionicons name="megaphone-outline" size={11} color={Colors.ember} />
+                      <CompeteGlyph name="megaphone" size={11} color={Colors.navEmber2} />
                       <Text style={styles.groupCheerText}>{cheers > 0 ? `Cheer · ${cheers}` : 'Cheer'}</Text>
                     </Pressable>
                   )}
@@ -638,10 +634,12 @@ export default function WatchScreen() {
   if (!challengeId) return null;
 
   return (
-    <Screen padded={false}>
+    // A plain transparent View, not <Screen>: the native header (title 'Watch') owns the top inset,
+    // the root paints the space ground, and the global bar owns the foot.
+    <View style={styles.flex}>
       <Stack.Screen options={{ title: 'Watch' }} />
       {mode === 'group' ? <GroupWatch challengeId={challengeId} /> : <H2HWatch challengeId={challengeId} />}
-    </Screen>
+    </View>
   );
 }
 
@@ -653,7 +651,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.six,
   },
   container: {
-    padding: Spacing.four,
+    padding: SPACE_GUTTER,
     gap: Spacing.three,
   },
   goalRow: {
@@ -665,12 +663,15 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.achieverText,
+    color: Colors.navEmber2,
   },
   timeLeft: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
+  },
+  board: {
+    gap: Spacing.three,
   },
   matchup: {
     flexDirection: 'row',
@@ -696,26 +697,27 @@ const styles = StyleSheet.create({
   liveStatus: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     maxWidth: 120,
   },
   vs: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   splitTrack: {
     flexDirection: 'row',
     height: 8,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
     overflow: 'hidden',
   },
   splitA: {
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
   },
+  // The other side in the secondary purple, so the split reads as two sides, not fill + track.
   splitB: {
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.legend,
   },
   cheerRow: {
     flexDirection: 'row',
@@ -727,58 +729,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: Colors.achieverBg,
-    borderRadius: Radius.button,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: Spacing.two,
   },
   // The side this viewer backed: an ember rim, so "who am I behind" is legible at a glance rather
   // than inferable only from which count moved.
   cheerBtnMine: {
-    borderWidth: 1,
-    borderColor: Colors.ember,
+    borderColor: Colors.navEmber,
   },
   // Spent / settled / competing. Kept fully opaque — this is still a readable count, and dimming
   // it to 0.4 would make the number itself hard to read for the rest of the challenge.
   cheerBtnDisabled: {
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
   },
   cheerText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   cheerTextDisabled: {
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   finalNote: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'center',
     marginTop: Spacing.two,
     letterSpacing: 0.3,
   },
   groupList: {
-    gap: 2,
+    gap: 6,
   },
   groupRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    padding: Spacing.two,
-    borderRadius: Radius.card,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.twelve,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   groupRowMe: {
-    backgroundColor: Colors.selectedBg,
-    borderWidth: 1,
-    borderColor: Colors.coral,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   groupRank: {
     width: 18,
     textAlign: 'center',
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   // 0170 §3 · the anonymous racer's ghost, in place of their avatar. A generic glyph rather than
   // a blurred/greyed real avatar: a blur still leaks the shape and colour of the photo.
@@ -788,20 +794,20 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   anonHint: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   anonLine: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: 2,
   },
   groupWho: {
@@ -824,7 +830,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   // The strip under each meter: live status on the left, this racer's cheers on the right.
   groupUnder: {
@@ -838,7 +844,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,122,47,0.12)',
     borderRadius: Radius.pill,
     paddingVertical: 3,
     paddingHorizontal: 8,
@@ -851,10 +857,10 @@ const styles = StyleSheet.create({
   groupCheerText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 10,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   groupCheerTextMine: {
-    color: Colors.ember,
+    color: Colors.navEmber,
   },
   groupProgress: {
     fontFamily: Fonts.bodySemiBold,
@@ -862,7 +868,7 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
   groupProgressDone: {
-    color: Colors.ember,
+    color: Colors.gold,
   },
   flex: {
     flex: 1,
@@ -873,18 +879,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(9,7,14,0.55)',
   },
   sheet: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: Colors.spaceLine,
     paddingTop: 8,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
   },
   grab: {
     alignSelf: 'center',
     width: 36,
     height: 4,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.lineStrong,
+    backgroundColor: Colors.spaceLine,
     marginBottom: Spacing.three,
   },
   sheetTitle: {
@@ -895,17 +904,17 @@ const styles = StyleSheet.create({
   sheetSub: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: 2,
     marginBottom: Spacing.three,
   },
   noteInput: {
     minHeight: 76,
     maxHeight: 140,
-    borderRadius: Radius.input,
-    backgroundColor: Colors.achieverBg,
+    borderRadius: 14,
+    backgroundColor: Colors.spaceBg,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
     fontFamily: Fonts.body,
@@ -919,25 +928,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   sendBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.one,
     marginTop: Spacing.three,
-    paddingVertical: Spacing.twelve,
-    borderRadius: Radius.button,
-    backgroundColor: Colors.ember,
-  },
-  sendBtnBusy: {
-    opacity: 0.6,
-  },
-  sendText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.ink,
   },
   wall: {
     marginTop: Spacing.three,
@@ -955,11 +949,11 @@ const styles = StyleSheet.create({
   wallWho: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   wallFor: {
     fontFamily: Fonts.body,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   wallNote: {
     fontFamily: Fonts.body,

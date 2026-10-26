@@ -3,8 +3,9 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'rea
 
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { HouseSeal } from '@/components/house/house-seal';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { CompeteGlyph } from '@/components/ui/glyphs-compete';
+import { SpaceEmpty, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
 import { fetchUniversityShortNames } from '@/lib/api/groups';
 import { shortName } from '@/lib/format';
@@ -107,7 +108,7 @@ export function FitnessBoard({
         data={rows}
         keyExtractor={(r) => r.user_id}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={Colors.coral} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={Colors.navEmber} />}
         ListHeaderComponent={header}
         renderItem={({ item }) => (
           <FitnessBoardRow
@@ -121,13 +122,13 @@ export function FitnessBoard({
             onVersus={() => onVersus(item)}
           />
         )}
-        ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
         ListFooterComponent={footer}
         ListEmptyComponent={
           loading ? null : error ? (
-            <EmptyState emoji="🏋️" title="Couldn't load this board" body={error} />
+            <SpaceEmpty title="Couldn't load this board" body={error} />
           ) : (
-            <EmptyState emoji="🏋️" title={emptyTitle} body={emptyBody} />
+            <SpaceEmpty title={emptyTitle} body={emptyBody} />
           )
         }
       />
@@ -230,7 +231,7 @@ function FitnessBoardRow({
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={`Versus ${row.display_name}`}>
-          <Text style={styles.versusLabel}>⚔</Text>
+          <CompeteGlyph name="versus" size={15} color={Colors.navEmber2} />
         </Pressable>
       )}
     </Pressable>
@@ -242,28 +243,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.four,
-    gap: 2,
   },
+  // SpaceRow's panel; your own row takes the ember edge the Leaderboard tab gives it.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    padding: Spacing.two,
-    borderRadius: Radius.card,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.twelve,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   rowMe: {
-    backgroundColor: Colors.selectedBg,
-    borderWidth: 1,
-    borderColor: Colors.coral,
+    backgroundColor: 'rgba(255,122,47,0.08)',
+    borderColor: Colors.navEmber,
   },
   pos: {
-    width: 18,
+    width: 20,
     textAlign: 'center',
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   who: {
     flex: 1,
@@ -283,12 +287,12 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   verify: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 10,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: 1,
   },
   verifyOk: {
@@ -305,7 +309,7 @@ const styles = StyleSheet.create({
   valSub: {
     fontFamily: Fonts.body,
     fontSize: 9.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: 1,
   },
   versus: {
@@ -314,30 +318,26 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   versusSpacer: {
     width: 28,
   },
-  versusLabel: {
-    fontSize: 13,
-    color: Colors.amber,
-  },
   pinned: {
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
     borderTopWidth: 1,
-    borderTopColor: Colors.line,
-    backgroundColor: Colors.twilight900,
+    borderTopColor: Colors.spaceLine,
+    backgroundColor: Colors.spaceBg,
     gap: Spacing.one,
   },
   standing: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.amber,
+    color: Colors.navEmber2,
     textAlign: 'center',
   },
 });

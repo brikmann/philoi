@@ -1,10 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/ui/card';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
+import { CompeteGlyph } from '@/components/ui/glyphs-compete';
+import { SpaceCard, SpaceTile } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { GoalEditSheet } from '@/components/goal-edit-sheet';
@@ -381,11 +382,11 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
   );
 
   return (
-    <Card style={styles.card}>
+    <SpaceCard style={styles.card}>
       <Pressable onPress={onInfo} onLongPress={handleDelete} style={styles.header}>
-        <View style={styles.iconTile}>
-          <DisciplineIcon name={CHALLENGE_TYPE_GLYPH[challenge.type]} size={18} color={Colors.ember} />
-        </View>
+        <SpaceTile tone="ember">
+          <DisciplineIcon name={CHALLENGE_TYPE_GLYPH[challenge.type]} size={18} color={Colors.navEmber2} />
+        </SpaceTile>
         <View style={styles.titleColumn}>
           <Text style={styles.title} numberOfLines={1}>
             {personalGoalTitle(challenge)}
@@ -405,7 +406,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
           style={styles.kebab}
           accessibilityRole="button"
           accessibilityLabel={`Manage ${personalGoalTitle(challenge)}`}>
-          <Ionicons name="ellipsis-horizontal" size={16} color={Colors.muted} />
+          <UiGlyph name="more" size={18} color={Colors.spaceDim} />
         </Pressable>
       </Pressable>
 
@@ -436,7 +437,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
         {isComplete ? (
           <View style={styles.smashed}>
             <Text style={styles.smashedText}>Smashed</Text>
-            <Ionicons name="checkmark" size={12} color={Colors.green} />
+            <UiGlyph name="check" size={12} color={Colors.gold} />
           </View>
         ) : (
           <Text style={styles.pct}>{pct}%</Text>
@@ -457,7 +458,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
           promise one crate and the reveal deliver another. */}
       {tier && reward ? (
         <View style={[styles.rewardRow, { borderColor: TIER_COLOR[tier] }]}>
-          <Ionicons name="cube-outline" size={13} color={TIER_COLOR[tier]} />
+          <CompeteGlyph name="box" size={13} color={TIER_COLOR[tier]} />
           <Text style={styles.rewardText} numberOfLines={1}>
             <Text style={[styles.rewardTier, { color: TIER_COLOR[tier] }]}>{tier.toUpperCase()}</Text>
             {/* 0209 — "effort" when the payout is capped, because the tier is what Cindy judged and
@@ -502,14 +503,14 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
           onPress={() => setGradeOpen(true)}
           accessibilityRole="button"
           accessibilityLabel={`Report your grade for ${personalGoalTitle(challenge)}`}>
-          <Ionicons name="school-outline" size={15} color={Colors.onEmber} />
+          <CompeteGlyph name="school" size={15} color="#2A0F05" />
           <Text style={styles.claimCtaLabel}>Report your grade</Text>
         </Pressable>
       ) : null}
 
       {isMissed ? (
         <View style={styles.missedRow}>
-          <Ionicons name="remove-circle-outline" size={14} color={Colors.textTertiary} />
+          <CompeteGlyph name="minus" size={14} color={Colors.spaceFaint} />
           <Text style={styles.missedLabel}>
             {/* Worded to hold for both rules: before 0210 a miss was "under the target", since it is
                 "under the pass line" — so it names the mark and the target and claims neither. */}
@@ -541,7 +542,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
           }
           accessibilityRole="button"
           accessibilityLabel={`Mark ${personalGoalTitle(challenge)} complete`}>
-          <Ionicons name="checkmark" size={15} color={Colors.onEmber} />
+          <UiGlyph name="check" size={15} color="#2A0F05" />
           <Text style={styles.claimCtaLabel}>Mark complete</Text>
         </Pressable>
       )}
@@ -615,7 +616,7 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
         // GoalRevealWatcher and this card agree about what just happened.
         onSettled={() => onChanged()}
       />
-    </Card>
+    </SpaceCard>
   );
 }
 
@@ -631,12 +632,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 11,
     borderWidth: 1,
-    backgroundColor: 'rgba(20,14,26,0.5)',
+    backgroundColor: Colors.spacePanel2,
   },
   rewardTier: { fontFamily: Fonts.bodyBold, fontSize: 10.5, letterSpacing: 0.7 },
-  rewardText: { flex: 1, fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },
+  rewardText: { flex: 1, fontFamily: Fonts.body, fontSize: 11.5, color: Colors.spaceDim },
   unlockLine: { paddingHorizontal: 10, marginTop: -2 },
-  ladderLine: { paddingHorizontal: 10, fontFamily: Fonts.body, fontSize: 10.5, lineHeight: 15, color: Colors.textTertiary },
+  ladderLine: { paddingHorizontal: 10, fontFamily: Fonts.body, fontSize: 10.5, lineHeight: 15, color: Colors.spaceFaint },
   missedRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -645,20 +646,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.line,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel2,
   },
-  missedLabel: { flex: 1, fontFamily: Fonts.body, fontSize: 12, color: Colors.textTertiary },
+  missedLabel: { flex: 1, fontFamily: Fonts.body, fontSize: 12, color: Colors.spaceFaint },
   claimCta: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: Colors.ember,
+    height: 44,
+    borderRadius: 14,
+    // The card's one action — the kit's primary ember, not the old pale-gold fill.
+    backgroundColor: Colors.navEmber,
   },
-  claimCtaLabel: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: Colors.onEmber },
+  claimCtaLabel: { fontFamily: Fonts.black, fontSize: 13.5, color: '#2A0F05' },
   pendingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -667,22 +669,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.35)',
-    backgroundColor: 'rgba(242,163,60,0.07)',
+    borderColor: 'rgba(255,176,90,0.35)',
+    backgroundColor: 'rgba(255,176,90,0.07)',
   },
-  pendingLabel: { flex: 1, fontFamily: Fonts.bodySemiBold, fontSize: 12.5, color: Colors.amber },
+  pendingLabel: { flex: 1, fontFamily: Fonts.bodySemiBold, fontSize: 12.5, color: Colors.navEmber2 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-  },
-  iconTile: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
-    backgroundColor: Colors.achieverBg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: Spacing.twelve,
   },
   titleColumn: {
     flex: 1,
@@ -696,7 +690,7 @@ const styles = StyleSheet.create({
   source: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
   kebab: {
@@ -705,7 +699,9 @@ const styles = StyleSheet.create({
   },
   cadenceChip: {
     borderRadius: Radius.pill,
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     paddingVertical: 3,
     paddingHorizontal: 9,
   },
@@ -714,21 +710,22 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   progressTrack: {
-    height: 10,
+    height: 8,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.line,
+    backgroundColor: Colors.spacePanel2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: Radius.pill,
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
   },
+  // Gold = earned, the kit's one colour for a finished thing.
   progressFillDone: {
-    backgroundColor: Colors.green,
+    backgroundColor: Colors.gold,
   },
   statusRow: {
     flexDirection: 'row',
@@ -745,7 +742,7 @@ const styles = StyleSheet.create({
   pct: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.navEmber2,
   },
   smashed: {
     flexDirection: 'row',
@@ -755,40 +752,44 @@ const styles = StyleSheet.create({
   smashedText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: Colors.green,
+    color: Colors.gold,
   },
   reset: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   quickRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
   },
+  // SpaceChip's shape, but bespoke: the chip carries per-pill disabled + accessibility props.
   quickPill: {
     borderRadius: Radius.pill,
-    paddingVertical: Spacing.one,
+    paddingVertical: 6,
     paddingHorizontal: Spacing.three,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderWidth: 1,
+    borderColor: Colors.navEmber,
   },
   quickPillLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.achieverText,
+    color: Colors.navEmber2,
   },
   quickPillGhost: {
     borderRadius: Radius.pill,
-    paddingVertical: Spacing.one,
+    paddingVertical: 6,
     paddingHorizontal: Spacing.three,
-    borderWidth: 2,
-    borderColor: Colors.line,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   quickPillGhostLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   logRow: {
     flexDirection: 'row',
@@ -799,18 +800,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   logButton: {
-    backgroundColor: Colors.coral,
-    borderRadius: Radius.input,
+    backgroundColor: Colors.navEmber,
+    borderRadius: 14,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
   },
   logButtonLabel: {
-    fontFamily: Fonts.bodyBold,
-    color: Colors.ink,
+    fontFamily: Fonts.black,
+    color: '#2A0F05',
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.coral,
+    color: Colors.danger,
   },
 });

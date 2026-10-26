@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChallengeCard } from '@/components/challenge-card';
 import { GoalStreakRewardScreen } from '@/components/economy/goal-streak-reward-screen';
@@ -10,11 +10,9 @@ import { GoalStreakShareCard } from '@/components/economy/goal-streak-share-card
 import { TargetEmberHero } from '@/components/empty-states/target-ember-hero';
 import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
 import { SocialChallengeCard } from '@/components/social-challenge-card';
-import { EmptyState } from '@/components/ui/empty-state';
-import { PrimaryButton } from '@/components/ui/primary-button';
-import { Screen } from '@/components/ui/screen';
 import { ScreenBackground } from '@/components/ui/screen-background';
-import { TabHeader } from '@/components/ui/tab-header';
+import { SpaceButton, SpaceEmpty, SpaceHeader, SpaceSection, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useMyChallenges } from '@/hooks/use-my-challenges';
@@ -79,7 +77,7 @@ function SocialGroup({
   if (challenges.length === 0) return null;
   return (
     <>
-      <Text style={styles.groupHeading}>{label}</Text>
+      <SpaceSection>{label}</SpaceSection>
       <View style={styles.socialList}>
         {challenges.map((c) => {
           const card = <SocialChallengeCard challenge={c} myUserId={myUserId} onChanged={onChanged} />;
@@ -253,7 +251,7 @@ export default function ChallengesScreen() {
           </View>
         </View>
         {/* The drawer opens UPWARD — there's nothing below a bar sitting on the screen's edge. */}
-        <Ionicons name={historyOpen ? 'chevron-down' : 'chevron-up'} size={15} color={Colors.textTertiary} />
+        <UiGlyph name={historyOpen ? 'down' : 'up'} size={15} color={Colors.spaceFaint} />
       </Pressable>
     ) : null;
 
@@ -300,12 +298,15 @@ export default function ChallengesScreen() {
   const showEmpty = !loading && !socialLoading && !hasActive;
 
   return (
-    <Screen padded={false}>
+    // Top edge only, like the other tabs: the root paints the ground and the global bar owns the
+    // bottom inset.
+    <SafeAreaView edges={['top']} style={styles.safe}>
       {/* The header always renders — including in the empty state, which previously showed NO
-          chrome at all (no drawer, no back, no Cindy), leaving a user with no active challenges
-          stuck with only the CTA. `back` adds a chevron when this tab was pushed onto a stack
-          (e.g. from a notification), and is a no-op on the drawer-root case. */}
-      <TabHeader title="Challenges" back />
+          chrome at all, leaving a user with no active challenges stuck with only the CTA.
+          SpaceHeader, not AppTopBar: this tab has no slot on the bar (it's reached from the
+          Leaderboard and the drawer), so it needs a back chevron, which AppTopBar doesn't carry.
+          A cold deep link with no history backs out to Home. */}
+      <SpaceHeader title="Challenges" />
       {/* Hoisted above the branch on purpose: completing your last active goal flips this screen
           into the empty layout mid-animation, and a burst mounted inside either branch would be
           unmounted by that flip. Held at a stable child position so it survives the swap. */}
@@ -360,13 +361,13 @@ export default function ChallengesScreen() {
       ) : null}
       {showEmpty ? (
         <View style={styles.emptyScreen}>
-          <EmptyState
-            icon={<TargetEmberHero />}
+          <TargetEmberHero />
+          <SpaceEmpty
             title="No active challenges"
             body="Race a friend or set a personal goal. Winner takes the XP."
             action={
               <View style={styles.emptyCta}>
-                <PrimaryButton label="Start a challenge" onPress={() => router.push('/challenge/create')} />
+                <SpaceButton label="Start a challenge" onPress={() => router.push('/challenge/create')} />
               </View>
             }
           />
@@ -384,12 +385,12 @@ export default function ChallengesScreen() {
                 refetch();
                 refetchSocial();
               }}
-              tintColor={Colors.coral}
+              tintColor={Colors.navEmber}
             />
           }
           ListHeaderComponent={
             <View style={styles.header}>
-              <PrimaryButton label="Start a challenge" onPress={() => router.push('/challenge/create')} />
+              <SpaceButton label="Start a challenge" onPress={() => router.push('/challenge/create')} />
               {error && <Text style={styles.error}>{error}</Text>}
 
               {/* Friends | Personal (mock 102 v2). The two lists were stacked in one scroll, so a
@@ -458,15 +459,24 @@ export default function ChallengesScreen() {
       )}
       {historyPanel}
       {historyBar}
-    </Screen>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+  },
+  // A segmented control on one panel — the Leaderboard tab's scope toggle, so the two read as one.
   tabs: {
     flexDirection: 'row',
-    gap: Spacing.two,
+    gap: 4,
+    padding: 4,
     marginTop: Spacing.three,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   tab: {
     flex: 1,
@@ -474,42 +484,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    paddingVertical: 10,
-    borderRadius: 11,
-    backgroundColor: Colors.achieverBg,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   tabOn: {
-    backgroundColor: Colors.coral,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   tabText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   tabTextOn: {
-    color: Colors.ink,
+    color: Colors.navEmber2,
   },
   tabCount: {
     borderRadius: Radius.pill,
     paddingHorizontal: 6,
     paddingVertical: 1,
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
   },
   tabCountOn: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: Colors.navEmber,
   },
   tabCountText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 9,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   tabCountTextOn: {
-    color: Colors.ink,
+    color: '#2A0F05',
   },
   tabEmpty: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.four,
   },
@@ -533,7 +545,7 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: Spacing.two,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
   },
@@ -541,27 +553,14 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     marginTop: Spacing.two,
   },
-  groupHeading: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.4,
-    color: Colors.textTertiary,
-    marginTop: Spacing.three,
-  },
-  sectionLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: Colors.textTertiary,
-    marginTop: Spacing.four,
-  },
   // A border-top row on the screen's bottom edge (mock 98's `.histbar`).
   historyBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: Colors.line,
-    paddingHorizontal: Spacing.four,
+    borderTopColor: Colors.spaceLine,
+    paddingHorizontal: SPACE_GUTTER,
     paddingVertical: Spacing.twelve,
   },
   historyLeft: {
@@ -569,15 +568,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
-  // Deliberately NOT sectionLabel: that carries marginTop:24 for its use as a standalone heading,
+  // Deliberately NOT SpaceSection: that carries a top margin for its use as a standalone heading,
   // which inside this centered row would drop the text below the chevron.
   historyLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   historyChip: {
-    backgroundColor: Colors.disabledSurface,
+    backgroundColor: Colors.spacePanel2,
     borderRadius: Radius.pill,
     paddingVertical: 2,
     paddingHorizontal: Spacing.two,
@@ -585,7 +584,7 @@ const styles = StyleSheet.create({
   historyChipText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   historyPanel: {
     flexShrink: 1,
@@ -593,25 +592,25 @@ const styles = StyleSheet.create({
   },
   historyList: {
     gap: Spacing.three,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.three,
   },
   list: {
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.six,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingBottom: Spacing.four,
   },
   error: {
     fontFamily: Fonts.body,
-    color: Colors.coral,
+    color: Colors.danger,
   },
   emptyScreen: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
   },
   // The ember CTA is the one action on this screen, so it gets a real width rather than
   // stretching edge to edge like a form's submit button (mock 98 draws it at 220).

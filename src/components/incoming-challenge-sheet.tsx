@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -14,8 +13,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar, useResolvedLoadout } from '@/components/economy/public-identity';
 import { RewardRays } from '@/components/economy/reward-reveal';
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { CompeteGlyph } from '@/components/ui/glyphs-compete';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { ScreenBackground } from '@/components/ui/screen-background';
+import { SpaceButton, SpaceIconButton, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useOpponentAvatar } from '@/hooks/use-duel-avatars';
@@ -217,9 +219,9 @@ export function IncomingChallengeSheet({
 
         <SafeAreaView style={styles.safe}>
           <View style={styles.topbar}>
-            <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
-              <Ionicons name="close" size={22} color={Colors.textTertiary} />
-            </Pressable>
+            <SpaceIconButton onPress={onClose} label="Close">
+              <UiGlyph name="close" size={18} color={Colors.ink} />
+            </SpaceIconButton>
           </View>
 
           <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -260,14 +262,14 @@ export function IncomingChallengeSheet({
             <View style={styles.stakes}>
               {challenge.payout_xp > 0 ? (
                 <View style={styles.stake}>
-                  <Ionicons name="trophy" size={15} color={Colors.amber} />
+                  <NavGlyph name="trophy" size={15} color={Colors.gold} />
                   <Text style={styles.stakeText}>
                     +{challenge.payout_xp.toLocaleString('en-US')} XP to the winner
                   </Text>
                 </View>
               ) : null}
               <View style={styles.stake}>
-                <Ionicons name={live ? 'time' : 'hourglass-outline'} size={15} color={Colors.amber} />
+                <CompeteGlyph name={live ? 'clock' : 'hourglass'} size={15} color={Colors.navEmber2} />
                 <Text style={styles.stakeText}>
                   {live ? `${clock} left` : `${formatWindow(challenge.window_hours)} race`}
                 </Text>
@@ -278,7 +280,7 @@ export function IncomingChallengeSheet({
           </ScrollView>
 
           <View style={styles.foot}>
-            <PrimaryButton
+            <SpaceButton
               label="Accept the challenge"
               onPress={handleAccept}
               disabled={busy}
@@ -287,7 +289,7 @@ export function IncomingChallengeSheet({
             {/* DECLINE IS GRACEFUL (§4): a ghost, not a red destructive button, and it never asks
                 "are you sure". Turning down a duel is an ordinary answer, and dressing it as a
                 dangerous one pressures the receiver into a race they did not want. */}
-            <PrimaryButton label="Not this time" variant="ghost" onPress={onDecline} disabled={busy} />
+            <SpaceButton label="Not this time" variant="ghost" onPress={onDecline} disabled={busy} />
           </View>
         </SafeAreaView>
       </ScreenBackground>
@@ -307,22 +309,22 @@ const styles = StyleSheet.create({
   topbar: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
-    paddingHorizontal: Spacing.three,
-    paddingTop: 0,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingTop: Spacing.two,
     zIndex: 2,
   },
   body: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.four,
   },
   eyebrow: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
     letterSpacing: 1.4,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   headline: {
     fontFamily: Fonts.bodyBold,
@@ -343,11 +345,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 104,
   },
-  // Which side is YOURS stays a coral ring, deliberately outside the cosmetic layer: it is
+  // Which side is YOURS stays an ember ring, deliberately outside the cosmetic layer: it is
   // orientation, not decoration, so an equipped halo must not be able to repaint or hide it.
   faceYouWrap: {
     borderWidth: 2,
-    borderColor: Colors.coral,
+    borderColor: Colors.navEmber,
     borderRadius: Radius.pill,
   },
   fighterName: {
@@ -365,12 +367,14 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 17,
     letterSpacing: 1.2,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   card: {
     alignSelf: 'stretch',
-    backgroundColor: Colors.twilight900,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.three,
     marginTop: Spacing.four,
@@ -385,7 +389,7 @@ const styles = StyleSheet.create({
   goalSub: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -403,17 +407,17 @@ const styles = StyleSheet.create({
   stakeText: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.coral,
+    color: Colors.danger,
     textAlign: 'center',
     marginTop: Spacing.three,
   },
   foot: {
-    paddingHorizontal: 18,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: 18,
     paddingTop: Spacing.two,
     gap: Spacing.two,

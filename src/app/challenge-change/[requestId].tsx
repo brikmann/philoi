@@ -1,11 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/ui/avatar';
+import { CompeteGlyph } from '@/components/ui/glyphs-compete';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SPACE_GUTTER, SpaceButton, SpaceCard, SpaceEmpty, SpaceHeader } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useChallengeWatch } from '@/hooks/use-challenge-watch';
 import { fetchChallengeChangeRequest, respondToChallengeChange } from '@/lib/api/social-challenges';
@@ -82,19 +84,25 @@ export default function ChallengeChangeConsentScreen() {
 
   if (loading) {
     return (
-      <Screen style={styles.centered}>
-        <ActivityIndicator color={Colors.amber} />
+      <Screen padded={false}>
+        <SpaceHeader title="Request" />
+        <View style={styles.centered}>
+          <ActivityIndicator color={Colors.navEmber} />
+        </View>
       </Screen>
     );
   }
 
   if (error || !request) {
     return (
-      <Screen style={styles.centered}>
-        <Text style={styles.muted}>{error ?? "This request isn't around any more."}</Text>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backLabel}>Go back</Text>
-        </Pressable>
+      <Screen padded={false}>
+        <SpaceHeader title="Request" />
+        <View style={styles.centered}>
+          <SpaceEmpty
+            title={error ?? "This request isn't around any more."}
+            action={<SpaceButton label="Go back" variant="secondary" onPress={() => router.back()} />}
+          />
+        </View>
       </Screen>
     );
   }
@@ -112,7 +120,10 @@ export default function ChallengeChangeConsentScreen() {
   const theirScore = watch ? (iAmCreator ? (watch.opponent_score ?? 0) : watch.created_by_score) : null;
 
   return (
-    <Screen style={styles.container}>
+    // A modal (no bottom bar): SpaceHeader's chevron is the way out besides the answer buttons.
+    <Screen padded={false}>
+      <SpaceHeader title={isCancel ? 'Cancel request' : 'Change request'} />
+      <View style={styles.container}>
       <View style={styles.hero}>
         <Avatar label={request.requested_by_name} size={56} lit />
         <Text style={styles.kicker}>{isCancel ? 'Cancel request' : 'Change request'}</Text>
@@ -131,33 +142,33 @@ export default function ChallengeChangeConsentScreen() {
       </View>
 
       {isCancel ? (
-        <View style={styles.changeCard}>
+        <SpaceCard style={styles.changeCard}>
           <Text style={styles.changeLabel}>What happens</Text>
           <Text style={styles.cancelBody}>
             The challenge ends now and neither side gets the +{request.payout_xp} XP. Whatever you&apos;ve both
             logged stays on your records.
           </Text>
-        </View>
+        </SpaceCard>
       ) : term ? (
-        <View style={styles.changeCard}>
+        <SpaceCard tone="ember" style={styles.changeCard}>
           <Text style={styles.changeLabel}>{term.key}</Text>
           <View style={styles.changeRow}>
             <View style={styles.changeSide}>
               <Text style={styles.changeKey}>Now</Text>
               <Text style={[styles.changeValue, styles.changeWas]}>{term.was}</Text>
             </View>
-            <Text style={styles.changeArrow}>→</Text>
+            <UiGlyph name="forward" size={18} color={Colors.navEmber} />
             <View style={styles.changeSide}>
               <Text style={styles.changeKey}>Proposed</Text>
               <Text style={[styles.changeValue, styles.changeNow]}>{term.now}</Text>
             </View>
           </View>
-        </View>
+        </SpaceCard>
       ) : null}
 
       {myScore !== null && theirScore !== null && (
         <View style={styles.recap}>
-          <Ionicons name="flash" size={12} color={Colors.achieverText} />
+          <CompeteGlyph name="bolt" size={13} color={Colors.gold} />
           <Text style={styles.recapText}>
             Right now: <Text style={styles.recapStrong}>You {fmtScore(myScore)}</Text> ·{' '}
             <Text style={styles.recapStrong}>
@@ -177,29 +188,27 @@ export default function ChallengeChangeConsentScreen() {
 
       <View style={styles.actions}>
         {settled || request.is_mine ? (
-          <Pressable onPress={() => router.back()} style={[styles.actionBtn, styles.decline]}>
-            <Text style={styles.declineLabel}>
-              {request.is_mine && !settled ? 'Waiting on their answer' : 'Close'}
-            </Text>
-          </Pressable>
+          <SpaceButton
+            label={request.is_mine && !settled ? 'Waiting on their answer' : 'Close'}
+            variant="secondary"
+            onPress={() => router.back()}
+          />
         ) : (
           <>
-            <Pressable
+            <SpaceButton
+              label={isCancel ? 'Agree — end it' : 'Agree to the change'}
               onPress={() => handleRespond(true)}
               disabled={responding}
-              style={[styles.actionBtn, styles.agree, responding && styles.busy]}
-              accessibilityRole="button">
-              <Text style={styles.agreeLabel}>{isCancel ? 'Agree — end it' : 'Agree to the change'}</Text>
-            </Pressable>
-            <Pressable
+            />
+            <SpaceButton
+              label="Decline — keep it as is"
+              variant="secondary"
               onPress={() => handleRespond(false)}
               disabled={responding}
-              style={[styles.actionBtn, styles.decline, responding && styles.busy]}
-              accessibilityRole="button">
-              <Text style={styles.declineLabel}>Decline — keep it as is</Text>
-            </Pressable>
+            />
           </>
         )}
+      </View>
       </View>
     </Screen>
   );
@@ -208,43 +217,28 @@ export default function ChallengeChangeConsentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: Spacing.six,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingTop: Spacing.four,
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.three,
-  },
-  muted: {
-    fontFamily: Fonts.body,
-    color: Colors.muted,
-    textAlign: 'center',
-  },
-  backBtn: {
-    borderRadius: Radius.button,
-    borderWidth: 1,
-    borderColor: Colors.line,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.four,
-  },
-  backLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    color: Colors.ink,
+    paddingHorizontal: SPACE_GUTTER,
   },
   hero: {
     alignItems: 'center',
   },
   kicker: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 1.5,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: Colors.amber,
+    color: Colors.navEmber2,
     marginTop: Spacing.two,
   },
   ask: {
-    fontFamily: Fonts.displayHeavy,
+    fontFamily: Fonts.black,
     fontSize: 19,
     lineHeight: 24,
     color: Colors.ink,
@@ -252,20 +246,17 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   askName: {
-    color: Colors.achieverText,
+    color: Colors.navEmber2,
   },
   changeCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: Spacing.three,
     marginTop: Spacing.four,
   },
   changeLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 10,
-    letterSpacing: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginBottom: 9,
   },
   changeRow: {
@@ -283,32 +274,27 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   changeValue: {
-    fontFamily: Fonts.displayHeavy,
+    fontFamily: Fonts.black,
     fontSize: 20,
     marginTop: 3,
     color: Colors.ink,
   },
   changeWas: {
     fontSize: 16,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textDecorationLine: 'line-through',
   },
   changeNow: {
-    color: Colors.amber,
-  },
-  changeArrow: {
-    fontFamily: Fonts.body,
-    fontSize: 18,
-    color: Colors.coral,
+    color: Colors.navEmber2,
   },
   cancelBody: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
     lineHeight: 19,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   recap: {
     flexDirection: 'row',
@@ -320,7 +306,7 @@ const styles = StyleSheet.create({
   recapText: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   recapStrong: {
     fontFamily: Fonts.bodyBold,
@@ -330,37 +316,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 17,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.four,
   },
   actions: {
     marginTop: 'auto',
     gap: 9,
-    paddingBottom: Spacing.two,
-  },
-  actionBtn: {
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  busy: {
-    opacity: 0.6,
-  },
-  agree: {
-    backgroundColor: Colors.coral,
-  },
-  agreeLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.ink,
-  },
-  decline: {
-    backgroundColor: Colors.card,
-  },
-  declineLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.muted,
+    paddingBottom: Spacing.three,
   },
 });

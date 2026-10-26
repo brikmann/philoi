@@ -1,13 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BoxArt } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
-import { PrimaryButton } from '@/components/ui/primary-button';
-import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { CompeteGlyph } from '@/components/ui/glyphs-compete';
+import { SpaceButton, SpaceEmpty, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { bandedGradeTier, createScopedGoals, previewScopedReward, type ScopedGoalInput } from '@/lib/api/challenges';
 import { asBoxKey, TIER_COLOR } from '@/lib/challenge-tier';
 import { BOXES } from '@/lib/economy/boxes';
@@ -154,16 +154,20 @@ export default function VerdictBatchScreen() {
 
   if (goals.length === 0) {
     return (
-      <Screen>
-        <Stack.Screen options={{ title: "Cindy's verdict", headerShown: true }} />
-        <Text style={styles.empty}>There was nothing to set up here — ask Cindy again?</Text>
-      </Screen>
+      <SafeAreaView edges={['top']} style={styles.safe}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SpaceHeader title="Cindy's verdict" />
+        <SpaceEmpty title="There was nothing to set up here — ask Cindy again?" />
+      </SafeAreaView>
     );
   }
 
   return (
-    <Screen padded={false}>
-      <Stack.Screen options={{ title: "Cindy's verdict", headerShown: true }} />
+    // Headerless like its sibling verdict.tsx: the native bar was the one non-space strip left on
+    // this flow, so the ‹ row every pushed page uses replaces it. Back behaviour is the same pop.
+    <SafeAreaView edges={['top']} style={styles.safe}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SpaceHeader title="Cindy's verdict" />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.kicker}>YOUR GOALS</Text>
         <Text style={styles.headline}>{p.headline?.trim() || `${goals.length} goals, scoped`}</Text>
@@ -179,7 +183,7 @@ export default function VerdictBatchScreen() {
             <View key={`${g.label}-${i}`} style={[styles.row, { borderColor: TIER_COLOR[tier] }]}>
               <View style={styles.rowArt}>
                 {price === undefined || (price === null && Object.keys(prices).length === 0) ? (
-                  <ActivityIndicator color={Colors.amber} />
+                  <ActivityIndicator color={Colors.navEmber} />
                 ) : boxKey ? (
                   <BoxArt boxKey={boxKey} size={40} />
                 ) : (
@@ -233,7 +237,7 @@ export default function VerdictBatchScreen() {
             of "here is what you are chasing" — mock 237's ceilings, stated before the goal is set. */}
         {goals.some((g) => claimLevelFor(g) === 'grade') ? (
           <View style={styles.caveatRow}>
-            <Ionicons name="school-outline" size={14} color={Colors.textTertiary} />
+            <CompeteGlyph name="school" size={14} color={Colors.spaceFaint} />
             <Text style={styles.caveat}>
               Grades are your word, so they top out at Epic — and only your first two each season
               earn a crate. After that, a pass pays embers.
@@ -242,7 +246,7 @@ export default function VerdictBatchScreen() {
         ) : null}
         {goals.some((g) => claimLevelFor(g) === 'honor') ? (
           <View style={styles.caveatRow}>
-            <Ionicons name="hand-left-outline" size={14} color={Colors.textTertiary} />
+            <CompeteGlyph name="hand" size={14} color={Colors.spaceFaint} />
             <Text style={styles.caveat}>
               You report these yourself, so they pay the honour rate — capped at The Furnace.
               App-tracked goals pay the full tier automatically.
@@ -251,7 +255,7 @@ export default function VerdictBatchScreen() {
         ) : null}
 
         <View style={styles.cta}>
-          <PrimaryButton
+          <SpaceButton
             label={`Start ${goals.length === 1 ? 'this goal' : `these ${goals.length} goals`}`}
             onPress={start}
             loading={busy}
@@ -259,17 +263,18 @@ export default function VerdictBatchScreen() {
           />
         </View>
       </ScrollView>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: Spacing.four, paddingBottom: Spacing.six, gap: Spacing.two },
+  safe: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: SPACE_GUTTER, paddingTop: Spacing.two, paddingBottom: Spacing.six, gap: Spacing.two },
   kicker: {
     fontFamily: Fonts.bodyBold,
     fontSize: 9.5,
     letterSpacing: 2.4,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'center',
   },
   headline: {
@@ -283,7 +288,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     lineHeight: 17,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginBottom: Spacing.two,
   },
@@ -292,27 +297,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 11,
     borderWidth: 1,
-    borderRadius: Radius.card,
+    borderRadius: 14,
     padding: 11,
-    backgroundColor: 'rgba(20,14,26,0.66)',
+    backgroundColor: Colors.spacePanel,
   },
   rowArt: { width: 44, alignItems: 'center', justifyContent: 'center' },
   rowMeta: { flex: 1, gap: 3 },
   rowLabel: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.ink },
-  rowTarget: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },
+  rowTarget: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.spaceDim },
   rowRewardLine: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
   rowUnlock: { marginTop: 3 },
   rowTier: { fontFamily: Fonts.bodyBold, fontSize: 10, letterSpacing: 1 },
-  rowDot: { fontFamily: Fonts.body, fontSize: 11, color: Colors.textTertiary },
-  rowReward: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },
+  rowDot: { fontFamily: Fonts.body, fontSize: 11, color: Colors.spaceFaint },
+  rowReward: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.spaceDim },
   caveatRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: Spacing.two },
-  caveat: { flex: 1, fontFamily: Fonts.body, fontSize: 11, lineHeight: 15.5, color: Colors.textTertiary },
+  caveat: { flex: 1, fontFamily: Fonts.body, fontSize: 11, lineHeight: 15.5, color: Colors.spaceFaint },
   cta: { marginTop: Spacing.four },
-  empty: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.muted,
-    textAlign: 'center',
-    marginTop: Spacing.six,
-  },
 });

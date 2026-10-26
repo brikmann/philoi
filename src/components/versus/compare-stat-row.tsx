@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import type { CompareStat } from '@/components/versus/send-plan';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 
@@ -25,10 +25,10 @@ export function CompareStatRow({ stat, flagged, isFirst, isLast, onToggleFlag, o
     <View style={styles.row}>
       <View style={styles.moves}>
         <Pressable onPress={() => onMove(-1)} disabled={isFirst} hitSlop={4} accessibilityLabel={`Move ${stat.label} up`}>
-          <Ionicons name="chevron-up" size={13} color={isFirst ? Colors.disabled : Colors.textTertiary} />
+          <UiGlyph name="up" size={13} color={isFirst ? Colors.spaceLine : Colors.spaceFaint} />
         </Pressable>
         <Pressable onPress={() => onMove(1)} disabled={isLast} hitSlop={4} accessibilityLabel={`Move ${stat.label} down`}>
-          <Ionicons name="chevron-down" size={13} color={isLast ? Colors.disabled : Colors.textTertiary} />
+          <UiGlyph name="down" size={13} color={isLast ? Colors.spaceLine : Colors.spaceFaint} />
         </Pressable>
       </View>
       <Text style={styles.label} numberOfLines={1}>
@@ -53,7 +53,7 @@ export function CompareStatRow({ stat, flagged, isFirst, isLast, onToggleFlag, o
       )}
 
       <Pressable onPress={onRemove} hitSlop={8} accessibilityLabel={`Remove ${stat.label}`}>
-        <Ionicons name="close" size={14} color={Colors.textTertiary} />
+        <UiGlyph name="close" size={14} color={Colors.spaceFaint} />
       </Pressable>
     </View>
   );
@@ -64,10 +64,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: 10,
+    borderColor: Colors.spaceLine,
+    borderRadius: 12,
     paddingVertical: 7,
     paddingHorizontal: 9,
     marginBottom: 6,
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   switchLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 9.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   switchLabelOn: {
     color: Colors.danger,
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 18,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
     justifyContent: 'center',
   },
   trackOn: {
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     height: 13,
     borderRadius: 7,
     marginLeft: 2.5,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spaceFaint,
   },
   knobOn: {
     marginLeft: 16.5,
@@ -118,6 +118,6 @@ const styles = StyleSheet.create({
   compareOnly: {
     fontFamily: Fonts.body,
     fontSize: 9.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
 });

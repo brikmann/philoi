@@ -1,12 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CosmeticAvatar } from '@/components/economy/public-identity';
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { CompeteGlyph } from '@/components/ui/glyphs-compete';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Screen } from '@/components/ui/screen';
-import { SecondaryButton } from '@/components/ui/secondary-button';
+import { SPACE_GUTTER, SpaceButton, SpaceCard, SpaceEmpty, SpaceHeader, SpaceSection } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGatedInterval } from '@/hooks/use-motion-active';
@@ -48,7 +48,7 @@ import type { TeamMatch, TeamSide } from '@/types/database';
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 function sideColor(m: TeamMatch, side: TeamSide) {
-  return (side === 'a' ? m.team_a_color : m.team_b_color) ?? Colors.amber;
+  return (side === 'a' ? m.team_a_color : m.team_b_color) ?? Colors.navEmber;
 }
 function sideName(m: TeamMatch, side: TeamSide) {
   return side === 'a' ? m.team_a_name : m.team_b_name;
@@ -100,20 +100,20 @@ export default function TeamMatchScreen() {
 
   if (loading && !match) {
     return (
-      <Screen>
-        <Stack.Screen options={{ title: 'Match' }} />
-        <ActivityIndicator color={Colors.amber} style={styles.centred} />
+      <Screen padded={false}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SpaceHeader title="Match" />
+        <ActivityIndicator color={Colors.navEmber} style={styles.centred} />
       </Screen>
     );
   }
 
   if (!match) {
     return (
-      <Screen>
-        <Stack.Screen options={{ title: 'Match' }} />
-        <Text style={styles.empty}>
-          {error ?? "That match isn't here — it may belong to a campfire you've left."}
-        </Text>
+      <Screen padded={false}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <SpaceHeader title="Match" />
+        <SpaceEmpty title={error ?? "That match isn't here — it may belong to a campfire you've left."} />
       </Screen>
     );
   }
@@ -123,10 +123,11 @@ export default function TeamMatchScreen() {
   const played = match.my_team !== null;
 
   return (
-    <Screen>
-      <Stack.Screen
-        options={{ title: isFinal ? 'Full time' : match.sport_label, headerBackTitle: 'Back' }}
-      />
+    // The native header is swapped for the space-kit row (same title), so this screen matches the
+    // rest of the compete surface. Unregistered in _layout, so it is hidden here.
+    <Screen padded={false}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SpaceHeader title={isFinal ? 'Full time' : match.sport_label} />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {/* ── the header: sport, clock, who is keeping score ── */}
         <View style={styles.hero}>
@@ -135,9 +136,12 @@ export default function TeamMatchScreen() {
             {scorekeeping ? ' · SCOREKEEPER' : ''}
           </Text>
           {!isFinal && match.score_mode === 'live' && (
-            <Text style={styles.clock}>
-              ⏱ {formatClock(elapsed)} · {match.clock_started_at ? 'running' : 'paused'}
-            </Text>
+            <View style={styles.clockRow}>
+              <CompeteGlyph name="clock" size={15} color={Colors.gold} />
+              <Text style={styles.clock}>
+                {formatClock(elapsed)} · {match.clock_started_at ? 'running' : 'paused'}
+              </Text>
+            </View>
           )}
           <Text style={styles.subhead}>
             {match.ref_name ? `Scorekeeper: ${match.ref_name}` : 'No scorekeeper set'}
@@ -162,16 +166,15 @@ export default function TeamMatchScreen() {
           <>
             <View style={styles.ctlRow}>
               <View style={styles.ctlHalf}>
-                <SecondaryButton
-                  label={match.clock_started_at ? '⏸ Pause' : '▶ Start clock'}
+                <SpaceButton
+                  label={match.clock_started_at ? 'Pause' : 'Start clock'}
+                  variant="secondary"
                   onPress={() => act(() => refSetClock(match.id, !match.clock_started_at))}
                   disabled={busy}
-                  onDark
-                  solid
                 />
               </View>
               <View style={styles.ctlHalf}>
-                <PrimaryButton label="⏹ End match" onPress={() => act(() => refEndMatch(match.id))} disabled={busy} />
+                <SpaceButton label="End match" onPress={() => act(() => refEndMatch(match.id))} disabled={busy} />
               </View>
             </View>
             <Text style={styles.note}>
@@ -195,13 +198,9 @@ export default function TeamMatchScreen() {
                   style={[
                     styles.joinBtn,
                     { borderColor: sideColor(match, side) },
-                    mine && { backgroundColor: Colors.selectedBg },
+                    mine && styles.joinBtnMine,
                   ]}>
-                  <Ionicons
-                    name={mine ? 'checkmark-circle' : 'add-circle-outline'}
-                    size={15}
-                    color={sideColor(match, side)}
-                  />
+                  <CompeteGlyph name={mine ? 'checkCircle' : 'addCircle'} size={16} color={sideColor(match, side)} />
                   <Text style={[styles.joinText, { color: sideColor(match, side) }]} numberOfLines={1}>
                     {mine ? `You're on ${sideName(match, side)}` : `Join ${sideName(match, side)}`}
                   </Text>
@@ -220,7 +219,7 @@ export default function TeamMatchScreen() {
         {isFinal && <ResultPanel match={match} />}
 
         {/* ── the roster: names and sides, and nothing else ── */}
-        <Text style={styles.label}>Who played</Text>
+        <SpaceSection>Who played</SpaceSection>
         {match.roster.length === 0 ? (
           <Text style={styles.hint}>Nobody has picked a side yet.</Text>
         ) : (
@@ -244,7 +243,7 @@ export default function TeamMatchScreen() {
 
         {isFinal && (
           <View style={styles.doneBtn}>
-            <PrimaryButton label="Back to the campfire" onPress={() => router.back()} />
+            <SpaceButton label="Back to the campfire" onPress={() => router.back()} />
           </View>
         )}
       </ScrollView>
@@ -340,19 +339,19 @@ function ConfirmPanel({
 
   if (!played && !canResolve) {
     return (
-      <View style={styles.panel}>
+      <SpaceCard style={styles.panel}>
         <Text style={styles.panelTitle}>Final score, both sides confirm</Text>
         <Text style={styles.hint}>
           Pick a side above to report or confirm the score. Philoi doesn&apos;t keep score for this
           one — the game&apos;s own scoreboard does.
         </Text>
-      </View>
+      </SpaceCard>
     );
   }
 
   if (reported && !mineReported) {
     return (
-      <View style={styles.panel}>
+      <SpaceCard style={styles.panel}>
         <Text style={styles.panelTitle}>
           {match.reported_by_name ?? 'They'} reported {match.team_a_name} {match.reported_score_a} –{' '}
           {match.reported_score_b} {match.team_b_name}
@@ -363,28 +362,27 @@ function ConfirmPanel({
         </Text>
         <View style={styles.ctlRow}>
           <View style={styles.ctlHalf}>
-            <SecondaryButton
+            <SpaceButton
               label="That's wrong"
+              variant="secondary"
               onPress={() => act(() => confirmTeamMatchScore(match.id, false))}
               disabled={busy}
-              onDark
-              solid
             />
           </View>
           <View style={styles.ctlHalf}>
-            <PrimaryButton
+            <SpaceButton
               label="Confirm"
               onPress={() => act(() => confirmTeamMatchScore(match.id, true))}
               disabled={busy}
             />
           </View>
         </View>
-      </View>
+      </SpaceCard>
     );
   }
 
   return (
-    <View style={styles.panel}>
+    <SpaceCard style={styles.panel}>
       <Text style={styles.panelTitle}>
         {mineReported ? 'Waiting on the other team' : 'What was the final score?'}
       </Text>
@@ -422,7 +420,7 @@ function ConfirmPanel({
         </View>
       </View>
       {played && (
-        <PrimaryButton
+        <SpaceButton
           label="Report this score"
           disabled={busy || !numbersOk}
           onPress={() => act(() => reportTeamMatchScore(match.id, Number(a), Number(b)))}
@@ -430,19 +428,18 @@ function ConfirmPanel({
       )}
       {canResolve && (
         <View style={styles.resolveWrap}>
-          <SecondaryButton
+          <SpaceButton
             label="Settle it as host"
+            variant="secondary"
             disabled={busy || !numbersOk}
             onPress={() => act(() => resolveTeamMatch(match.id, Number(a), Number(b)))}
-            onDark
-            solid
           />
           <Text style={styles.hint}>
             Settles at the score above without the other side confirming. For a match that stalled.
           </Text>
         </View>
       )}
-    </View>
+    </SpaceCard>
   );
 }
 
@@ -474,7 +471,13 @@ function ResultPanel({ match }: { match: TeamMatch }) {
         const won = draw || side === winner;
         return (
           <View key={side} style={[styles.resultRow, { borderColor: sideColor(match, side) }]}>
-            <Text style={styles.resultIcon}>{won ? '🏆' : '🤝'}</Text>
+            <View style={styles.resultIcon}>
+              {won ? (
+                <NavGlyph name="trophy" size={20} color={Colors.gold} />
+              ) : (
+                <CompeteGlyph name="people" size={20} color={Colors.spaceDim} />
+              )}
+            </View>
             <View style={styles.resultText}>
               <Text style={[styles.resultTeam, { color: sideColor(match, side) }]} numberOfLines={1}>
                 {sideName(match, side)}
@@ -497,28 +500,22 @@ function ResultPanel({ match }: { match: TeamMatch }) {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingBottom: Spacing.five, gap: Spacing.two },
+  container: { paddingHorizontal: SPACE_GUTTER, paddingBottom: Spacing.five, gap: Spacing.two },
   centred: { marginTop: Spacing.five },
-  empty: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.muted,
-    textAlign: 'center',
-    marginTop: Spacing.five,
-  },
   hero: { alignItems: 'center', gap: 3, marginTop: Spacing.twelve, marginBottom: Spacing.two },
   eyebrow: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
     letterSpacing: 2,
-    color: Colors.coral,
+    color: Colors.navEmber2,
   },
-  clock: { fontFamily: Fonts.displayHeavy, fontSize: 14, color: Colors.ember },
-  subhead: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted },
+  clockRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  clock: { fontFamily: Fonts.displayHeavy, fontSize: 14, color: Colors.gold },
+  subhead: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.spaceDim },
   teamPanel: {
     borderWidth: 2,
-    borderRadius: Radius.card + 4,
-    backgroundColor: Colors.cardDark,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
     padding: Spacing.twelve,
     alignItems: 'center',
     gap: Spacing.one,
@@ -529,9 +526,9 @@ const styles = StyleSheet.create({
   stepBtn: {
     minWidth: 54,
     height: 44,
-    borderRadius: Radius.button,
+    borderRadius: 12,
     borderWidth: 1,
-    backgroundColor: Colors.twilight900,
+    backgroundColor: Colors.spacePanel2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -541,7 +538,7 @@ const styles = StyleSheet.create({
   stepLabel: { fontFamily: Fonts.bodyBold, fontSize: 14 },
   ctlRow: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.two },
   ctlHalf: { flex: 1 },
-  note: { fontFamily: Fonts.body, fontSize: 11, color: Colors.textTertiary, textAlign: 'center' },
+  note: { fontFamily: Fonts.body, fontSize: 11, color: Colors.spaceFaint, textAlign: 'center' },
   joinRow: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.two },
   joinBtn: {
     flex: 1,
@@ -551,16 +548,14 @@ const styles = StyleSheet.create({
     gap: 6,
     height: 44,
     paddingHorizontal: Spacing.two,
-    borderRadius: Radius.button,
+    borderRadius: 12,
     borderWidth: 1,
+    backgroundColor: Colors.spacePanel,
   },
+  // Selected side: the kit's ember wash under the team's own border colour.
+  joinBtnMine: { backgroundColor: 'rgba(255,122,47,0.12)' },
   joinText: { fontFamily: Fonts.bodyBold, fontSize: 12.5, flexShrink: 1 },
   panel: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    borderColor: Colors.line,
-    padding: Spacing.twelve,
     gap: Spacing.two,
     marginTop: Spacing.two,
   },
@@ -568,45 +563,38 @@ const styles = StyleSheet.create({
   scoreEntry: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.two },
   scoreField: { flex: 1, gap: 4 },
   scoreFieldLabel: { fontFamily: Fonts.bodyBold, fontSize: 11.5 },
-  scoreDash: { fontFamily: Fonts.displayHeavy, fontSize: 18, color: Colors.muted, paddingBottom: Spacing.twelve },
+  scoreDash: { fontFamily: Fonts.displayHeavy, fontSize: 18, color: Colors.spaceDim, paddingBottom: Spacing.twelve },
   resolveWrap: { gap: Spacing.two, marginTop: Spacing.two },
   resultWrap: { gap: Spacing.two, marginTop: Spacing.twelve },
   resultScore: { fontFamily: Fonts.displayHeavy, fontSize: 24, textAlign: 'center' },
-  resultDash: { color: Colors.muted },
+  resultDash: { color: Colors.spaceDim },
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
     borderWidth: 1,
-    borderRadius: Radius.card,
-    backgroundColor: Colors.cardDark,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
     padding: Spacing.twelve,
   },
-  resultIcon: { fontSize: 20 },
+  resultIcon: { width: 24, alignItems: 'center' },
   resultText: { flex: 1, gap: 2 },
   resultTeam: { fontFamily: Fonts.bodyBold, fontSize: 13.5 },
-  resultSub: { fontFamily: Fonts.body, fontSize: 11, color: Colors.muted },
+  resultSub: { fontFamily: Fonts.body, fontSize: 11, color: Colors.spaceDim },
   resultTag: { paddingHorizontal: Spacing.two, paddingVertical: 4, borderRadius: Radius.pill },
-  tagWin: { backgroundColor: Colors.green },
-  tagLose: { backgroundColor: Colors.disabled },
-  tagWinText: { fontFamily: Fonts.bodyBold, fontSize: 9.5, letterSpacing: 0.5, color: Colors.twilight900 },
+  // Gold is the earned colour in the space language; the winners' tag wears it.
+  tagWin: { backgroundColor: Colors.gold },
+  tagLose: { backgroundColor: Colors.spacePanel2 },
+  tagWinText: { fontFamily: Fonts.bodyBold, fontSize: 9.5, letterSpacing: 0.5, color: '#2A1A00' },
   tagLoseText: { fontFamily: Fonts.bodyBold, fontSize: 9.5, letterSpacing: 0.5, color: Colors.ink },
   everyone: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.coldChipText,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.one,
   },
-  label: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 10.5,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: Colors.textTertiary,
-    marginTop: Spacing.twelve,
-  },
-  hint: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted, lineHeight: 16 },
+  hint: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.spaceDim, lineHeight: 16 },
   warn: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.danger, lineHeight: 16 },
   error: { fontFamily: Fonts.body, fontSize: 12, color: Colors.danger, marginTop: Spacing.two },
   rosterWrap: { gap: Spacing.one },

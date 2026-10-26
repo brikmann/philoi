@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ExerciseLibraryPanel, sheetStyles, type PickedExercise } from '@/components/fitness/exercise-library-sheet';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { SpaceSection, SpaceTile } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { MetricCatalogRow } from '@/types/house';
 
@@ -94,7 +97,7 @@ export function MetricPickerSheet({
                   {groups.length === 0 ? <Text style={styles.empty}>The stat library didn&apos;t load. Close this and pull the board down to try again.</Text> : null}
                   {groups.map((g) => (
                     <View key={g.key}>
-                      <Text style={styles.section}>{g.label}</Text>
+                      <SpaceSection>{g.label}</SpaceSection>
                       {g.rows.map((r) => {
                         const on = r.key === selectedKey;
                         return (
@@ -107,25 +110,29 @@ export function MetricPickerSheet({
                             }}
                             accessibilityRole="button"
                             accessibilityState={{ selected: on }}>
-                            <Text style={styles.emoji}>{r.emoji}</Text>
+                            <SpaceTile tone={on ? 'ember' : 'panel'}>
+                              <Text style={styles.emoji}>{r.emoji}</Text>
+                            </SpaceTile>
                             <View style={styles.who}>
                               <Text style={styles.label}>{r.label}</Text>
                               <Text style={styles.hint}>{metricHint(r)}</Text>
                             </View>
-                            {on ? <Text style={styles.tick}>✓</Text> : null}
+                            {on ? <UiGlyph name="check" size={16} color={Colors.navEmber} /> : null}
                           </Pressable>
                         );
                       })}
                     </View>
                   ))}
-                  <Text style={styles.section}>Any exercise</Text>
+                  <SpaceSection>Any exercise</SpaceSection>
                   <Pressable style={styles.row} onPress={() => setPage('exercise')} accessibilityRole="button">
-                    <Text style={styles.emoji}>🔎</Text>
+                    <SpaceTile>
+                      <NavGlyph name="search" size={18} color={Colors.spaceDim} />
+                    </SpaceTile>
                     <View style={styles.who}>
                       <Text style={styles.label}>Any exercise…</Text>
                       <Text style={styles.hint}>search the library or create one — every exercise gets a board</Text>
                     </View>
-                    <Text style={styles.chevron}>›</Text>
+                    <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
                   </Pressable>
                   <Text style={styles.note}>Every metric re-ranks the board live, within whatever scope you picked.</Text>
                 </ScrollView>
@@ -146,14 +153,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
+    fontFamily: Fonts.black,
+    fontSize: 18,
     color: Colors.ink,
   },
   done: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   list: {
     flex: 1,
@@ -161,32 +168,28 @@ const styles = StyleSheet.create({
   empty: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     paddingVertical: Spacing.three,
   },
-  section: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    color: Colors.muted,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginTop: Spacing.twelve,
-    marginBottom: Spacing.one,
-  },
+  // SpaceRow's panel, with the kit's ember selected state (SpaceRow has none).
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.twelve,
     paddingVertical: 10,
-    paddingHorizontal: Spacing.two,
-    borderRadius: 10,
+    paddingHorizontal: Spacing.twelve,
+    marginBottom: Spacing.two,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   rowOn: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   emoji: {
-    fontSize: 20,
-    width: 28,
+    fontSize: 18,
     textAlign: 'center',
   },
   who: {
@@ -201,21 +204,12 @@ const styles = StyleSheet.create({
   hint: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
-  },
-  tick: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.coral,
-  },
-  chevron: {
-    fontSize: 20,
-    color: Colors.muted,
+    color: Colors.spaceFaint,
   },
   note: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: Spacing.three,
     marginBottom: Spacing.two,
   },

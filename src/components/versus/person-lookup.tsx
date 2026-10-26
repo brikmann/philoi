@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -6,7 +5,9 @@ import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { HouseSealInline } from '@/components/house/house-seal';
 import { IdentityLine } from '@/components/house/identity-line';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
 import { searchPeople, type PersonSearchResult } from '@/lib/api/friend-requests';
 import { getErrorMessage } from '@/lib/errors';
@@ -53,18 +54,18 @@ export function PersonLookup({ myId, onPick }: PersonLookupProps) {
   return (
     <View style={styles.container}>
       <View style={styles.searchWrap}>
-        <Ionicons name="search" size={15} color={Colors.textTertiary} />
+        <NavGlyph name="search" size={16} color={Colors.spaceFaint} />
         <TextInput
           style={styles.searchInput}
           placeholder="Find anyone — @username or name"
-          placeholderTextColor={Colors.textTertiary}
+          placeholderTextColor={Colors.spaceFaint}
           value={query}
           onChangeText={handleChange}
           autoCapitalize="none"
           autoCorrect={false}
           autoFocus
         />
-        {searching && <ActivityIndicator size="small" color={Colors.textTertiary} />}
+        {searching && <ActivityIndicator size="small" color={Colors.spaceFaint} />}
       </View>
 
       <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
@@ -103,7 +104,7 @@ function LookupRow({ person, loadout, onPress }: { person: PersonSearchResult; l
         <IdentityLine userId={person.user_id} university={person.university} style={styles.identity} />
         <PublicTitle loadout={loadout} compact />
       </View>
-      <Text style={styles.go}>›</Text>
+      <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
     </Pressable>
   );
 }
@@ -116,10 +117,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.input - 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingHorizontal: 13,
     paddingVertical: 4,
   },
@@ -135,14 +136,19 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     paddingBottom: Spacing.five,
   },
+  // SpaceRow's look (panel, 1px line, 13 corners) — not SpaceRow itself, which takes a plain title
+  // and this row's name line carries the seal and handle inline.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
+    gap: Spacing.twelve,
     paddingVertical: 11,
-    paddingHorizontal: Spacing.two,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    paddingHorizontal: Spacing.twelve,
+    marginBottom: Spacing.two,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   who: {
     flex: 1,
@@ -156,28 +162,23 @@ const styles = StyleSheet.create({
   handle: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   identity: {
     fontSize: 10,
     marginTop: 1,
   },
-  go: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 18,
-    color: Colors.amber,
-  },
   hint: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'center',
     paddingVertical: Spacing.four,
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.coral,
+    color: Colors.danger,
     textAlign: 'center',
     paddingVertical: Spacing.two,
   },

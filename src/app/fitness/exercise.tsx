@@ -6,12 +6,11 @@ import { ExerciseLibrarySheet, muscleLabel } from '@/components/fitness/exercise
 import { FitnessBoard } from '@/components/fitness/fitness-board';
 import { FITNESS_SCOPES, FitnessScopePills } from '@/components/fitness/fitness-scope-pills';
 import { PrDisputeSheet } from '@/components/fitness/pr-dispute-sheet';
-import { BackHeader } from '@/components/ui/back-header';
-import { EmptyState } from '@/components/ui/empty-state';
-import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
+import { SpaceButton, SpaceChip, SpaceEmpty, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { Toggle } from '@/components/ui/toggle';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useMetricLeaderboard } from '@/hooks/use-metric-leaderboard';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchMyProgram } from '@/lib/api/house';
@@ -99,20 +98,16 @@ export default function ExerciseBoardScreen() {
           </Text>
           {muscle ? <Text style={styles.exerciseSub}>{muscle}</Text> : null}
         </View>
-        <Text style={styles.change}>▾ change</Text>
+        <View style={styles.change}>
+          <Text style={styles.changeText}>Change</Text>
+          <UiGlyph name="down" size={12} color={Colors.navEmber2} />
+        </View>
       </Pressable>
 
       {aggs.length > 1 ? (
         <View style={styles.aggRow}>
           {aggs.map((a) => (
-            <Pressable
-              key={a}
-              style={[styles.aggPill, agg === a && styles.aggPillOn]}
-              onPress={() => setAgg(a)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: agg === a }}>
-              <Text style={[styles.aggLabel, agg === a && styles.aggLabelOn]}>{aggLabel(a, unit)}</Text>
-            </Pressable>
+            <SpaceChip key={a} label={aggLabel(a, unit)} selected={agg === a} onPress={() => setAgg(a)} />
           ))}
         </View>
       ) : null}
@@ -141,31 +136,28 @@ export default function ExerciseBoardScreen() {
   let body: React.ReactNode;
   if (dial === 'private') {
     body = (
-      <EmptyState
-        emoji="🔒"
+      <SpaceEmpty
         title="Your rank is private"
         body="Private climbers aren't on any board. Change it in Settings whenever you want in."
-        action={<PrimaryButton label="Open Settings" onPress={() => router.push('/settings')} />}
+        action={<SpaceButton label="Open Settings" onPress={() => router.push('/settings')} style={styles.emptyAction} />}
       />
     );
   } else if (gate === 'no_school') {
-    body = <EmptyState emoji="🏫" title="Add your school" body="Set your school in Profile to see how you stack up at your university." />;
+    body = <SpaceEmpty title="Add your school" body="Set your school in Profile to see how you stack up at your university." />;
   } else if (gate === 'unverified') {
     body = (
-      <EmptyState
-        emoji="🔒"
+      <SpaceEmpty
         title="Verify to unlock"
         body="Only students with a verified school email count on My uni — that's what keeps the campus rankings real."
-        action={<PrimaryButton label="Verify my campus" onPress={() => router.push('/campus')} />}
+        action={<SpaceButton label="Verify my campus" onPress={() => router.push('/campus')} style={styles.emptyAction} />}
       />
     );
   } else if (gate === 'no_program') {
     body = (
-      <EmptyState
-        emoji="🏛️"
+      <SpaceEmpty
         title="Pick your program"
         body="Your program names your house. Pick it and this board ranks you against every Heir of it, at both schools."
-        action={<PrimaryButton label="Pick my program" onPress={() => router.push('/house/change-program?ceremony=1')} />}
+        action={<SpaceButton label="Pick my program" onPress={() => router.push('/house/change-program?ceremony=1')} style={styles.emptyAction} />}
       />
     );
   } else {
@@ -196,7 +188,7 @@ export default function ExerciseBoardScreen() {
 
   return (
     <Screen padded={false}>
-      <BackHeader title="Exercise board" />
+      <SpaceHeader title="Exercise board" />
       {/* The header rides outside the list so the gated states keep the toggles above them. */}
       {header}
       {body}
@@ -222,15 +214,17 @@ export default function ExerciseBoardScreen() {
 const styles = StyleSheet.create({
   header: {
     gap: Spacing.two,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.twelve,
   },
   exercise: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     padding: Spacing.twelve,
   },
   exerciseWho: {
@@ -245,36 +239,25 @@ const styles = StyleSheet.create({
   exerciseSub: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   change: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  changeText: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.amber,
+    fontSize: 12,
+    color: Colors.navEmber2,
   },
   aggRow: {
     flexDirection: 'row',
     gap: Spacing.two,
   },
-  aggPill: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-  },
-  aggPillOn: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.coral,
-  },
-  aggLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.muted,
-  },
-  aggLabelOn: {
-    color: Colors.achieverText,
+  emptyAction: {
+    marginTop: Spacing.two,
+    alignSelf: 'stretch',
   },
   filterRow: {
     flexDirection: 'row',
@@ -292,18 +275,18 @@ const styles = StyleSheet.create({
   filterSub: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   house: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.ember,
+    color: Colors.gold,
     letterSpacing: 0.4,
   },
   footer: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'center',
     marginTop: Spacing.three,
   },

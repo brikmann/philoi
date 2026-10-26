@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceButton, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { disputePr } from '@/lib/api/stats';
 import { getErrorMessage } from '@/lib/errors';
 import { shortName } from '@/lib/format';
@@ -87,34 +88,25 @@ export function PrDisputeSheet({
                     value={note}
                     onChangeText={setNote}
                     placeholder="What looks off? (optional)"
-                    placeholderTextColor={Colors.textTertiary}
+                    placeholderTextColor={Colors.spaceFaint}
                     maxLength={280}
                     multiline
                   />
-                  <Pressable
-                    style={[styles.dispute, busy && styles.dim]}
-                    onPress={handleDispute}
-                    disabled={busy}
-                    accessibilityRole="button">
-                    <Text style={styles.disputeLabel}>{busy ? 'Sending…' : '⚑ Dispute this PR'}</Text>
-                  </Pressable>
+                  <SpaceButton label="⚑ Dispute this PR" variant="danger" onPress={handleDispute} loading={busy} />
                 </>
               ) : null}
-              <Pressable
-                style={styles.secondary}
+              <SpaceButton
+                label="View profile"
+                variant="ghost"
                 onPress={() => {
                   const id = row.user_id;
                   close();
                   onViewProfile(id);
                 }}
-                accessibilityRole="button">
-                <Text style={styles.secondaryLabel}>View profile</Text>
-              </Pressable>
+              />
             </>
           ) : null}
-          <Pressable style={styles.cancelRow} onPress={close}>
-            <Text style={styles.cancelLabel}>Close</Text>
-          </Pressable>
+          <SpaceButton label="Close" variant="secondary" onPress={close} />
         </Pressable>
       </Pressable>
       </KeyboardAvoidingView>
@@ -132,10 +124,13 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingHorizontal: Spacing.four,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: Colors.spaceLine,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.five,
     gap: Spacing.twelve,
   },
@@ -144,25 +139,25 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.line,
+    backgroundColor: Colors.spaceLine,
     marginTop: Spacing.two,
   },
   title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 16,
+    fontFamily: Fonts.black,
+    fontSize: 18,
     color: Colors.ink,
   },
   body: {
     fontFamily: Fonts.body,
     fontSize: 13,
     lineHeight: 19,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   note: {
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.input,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.twelve,
     minHeight: 56,
@@ -171,41 +166,5 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     textAlignVertical: 'top',
     letterSpacing: 0,
-  },
-  dispute: {
-    alignItems: 'center',
-    paddingVertical: Spacing.twelve,
-    borderRadius: Radius.button,
-    backgroundColor: Colors.dangerBg,
-    borderWidth: 1,
-    borderColor: Colors.danger,
-  },
-  disputeLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.danger,
-  },
-  dim: {
-    opacity: 0.6,
-  },
-  secondary: {
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-  },
-  secondaryLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.amber,
-  },
-  cancelRow: {
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.button,
-  },
-  cancelLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
-    color: Colors.muted,
   },
 });

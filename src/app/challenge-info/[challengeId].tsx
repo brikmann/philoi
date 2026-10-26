@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -15,11 +14,12 @@ import { useRevealFloor } from '@/components/economy/reward-reveal';
 import { Avatar } from '@/components/ui/avatar';
 import { Crown } from '@/components/ui/crown';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
-import { EmberFill } from '@/components/ui/ember-fill';
-import { PrimaryButton } from '@/components/ui/primary-button';
-import { Screen } from '@/components/ui/screen';
+import { CompeteGlyph } from '@/components/ui/glyphs-compete';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { ScreenBackground } from '@/components/ui/screen-background';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceButton, SpaceEmpty, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { shortName } from '@/lib/format';
 import { useChallengeReward, challengeRewardResult } from '@/hooks/use-challenge-reward';
 import { useGroupChallengeWatch } from '@/hooks/use-challenge-watch';
@@ -76,18 +76,17 @@ export default function ChallengeInfoScreen() {
   const isGoal = kind === 'goal';
 
   return (
-    <Screen>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={24} color={Colors.muted} />
-        </Pressable>
-        {/* No "Challenge info" subheading on the race layout — the big challenge title + meta sit
-            right below it (mock 266), so a second title is redundant. Goals keep their label. */}
-        {isGoal ? <Text style={styles.headerTitle}>Goal info</Text> : null}
-      </View>
+    // Top edge only: the root paints the ground and the global bottom bar owns the bottom inset.
+    <SafeAreaView edges={['top']} style={styles.safe}>
+      {/* No "Challenge info" title on the race layout — the big challenge title + meta sit right
+          below it (mock 266), so a second title is redundant. Goals keep their label. Back is
+          still a plain router.back(), as it always was. */}
+      <SpaceHeader title={isGoal ? 'Goal info' : ''} onBack={() => router.back()} />
 
-      {isGoal ? <GoalInfo challengeId={challengeId} /> : <SocialInfo challengeId={challengeId} />}
-    </Screen>
+      <View style={styles.page}>
+        {isGoal ? <GoalInfo challengeId={challengeId} /> : <SocialInfo challengeId={challengeId} />}
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -135,7 +134,7 @@ function Results({
   }, [challengeId]);
 
   if (error) return <Text style={styles.resultsError}>{error}</Text>;
-  if (!rows) return <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} />;
+  if (!rows) return <ActivityIndicator color={Colors.navEmber} style={styles.resultsLoading} />;
   // A challenge that settled before 0111/0112 has no roster, so there are no standings to show.
   // Says so rather than drawing an empty podium.
   if (rows.length === 0) {
@@ -183,7 +182,7 @@ function Results({
               private: a result of "somebody anonymous won" is not a result. */}
           {r.is_anonymous ? (
             <View style={styles.anonAvatar}>
-              <Ionicons name="person" size={14} color={Colors.textTertiary} />
+              <NavGlyph name="person" size={14} color={Colors.spaceFaint} />
             </View>
           ) : (
             <Avatar label={r.member_name} size={28} lit={r.member_id === myUserId} />
@@ -239,14 +238,14 @@ function Results({
           once — and a win is worth advertising the day after too, which is the whole "advertise
           your wins" ethos the milestone surfaces are built on. Same card, reachable forever. */}
       {onShare ? (
-        <Pressable
+        <SpaceButton
+          variant="secondary"
           style={styles.resultShare}
           onPress={onShare}
           disabled={sharing}
-          accessibilityRole="button">
-          <Ionicons name="share-outline" size={15} color={Colors.muted} />
-          <Text style={styles.resultShareText}>{sharing ? 'Preparing…' : 'Share your result'}</Text>
-        </Pressable>
+          label={sharing ? 'Preparing…' : 'Share your result'}
+          leading={<UiGlyph name="share" size={15} color={Colors.ink} />}
+        />
       ) : null}
     </View>
   );
@@ -321,7 +320,7 @@ function PrizeCard({
   if (scopedPending) {
     return (
       <View style={[styles.prize, styles.prizePending]}>
-        <ActivityIndicator color={Colors.amber} />
+        <ActivityIndicator color={Colors.navEmber} />
       </View>
     );
   }
@@ -386,7 +385,7 @@ function LiveRace({
   placement: boolean;
 }) {
   const { rows, loading } = useGroupChallengeWatch(c.id);
-  if (loading && rows.length === 0) return <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} />;
+  if (loading && rows.length === 0) return <ActivityIndicator color={Colors.navEmber} style={styles.resultsLoading} />;
   if (rows.length === 0) return null;
 
   const metric = rows[0].race_metric ?? c.race_metric;
@@ -501,7 +500,7 @@ function LiveRace({
             <Text style={[styles.boardRank, (isMe || rank === 1) && v > 0 && styles.boardRankLit]}>{rank ?? '—'}</Text>
             {r.is_anonymous ? (
               <View style={styles.anonAvatar}>
-                <Ionicons name="person" size={14} color={Colors.textTertiary} />
+                <NavGlyph name="person" size={14} color={Colors.spaceFaint} />
               </View>
             ) : (
               <Avatar label={r.member_name ?? 'Racer'} size={32} lit={isMe} />
@@ -515,9 +514,7 @@ function LiveRace({
               </View>
               <View style={styles.bar}>
                 {share > 0 ? (
-                  <EmberFill radius={3} style={[styles.barFill, { width: `${Math.max(4, Math.round(share * 100))}%` as `${number}%` }]}>
-                    <View />
-                  </EmberFill>
+                  <View style={[styles.barFill, { width: `${Math.max(4, Math.round(share * 100))}%` as `${number}%` }]} />
                 ) : null}
               </View>
             </View>
@@ -599,7 +596,7 @@ function HowItWorks({ rows, note }: { rows: Row[]; note: ReactNode }) {
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}>
         <Text style={styles.howTitle}>How it works</Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.muted} />
+        <UiGlyph name={open ? 'up' : 'down'} size={16} color={Colors.spaceDim} />
       </Pressable>
       {open ? (
         <View style={styles.howBody}>
@@ -649,7 +646,7 @@ function SocialInfo({ challengeId }: { challengeId: string }) {
   // completed and still has no row for this id.
   if (!c) {
     return loading || stillTrying ? (
-      <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} />
+      <ActivityIndicator color={Colors.navEmber} style={styles.resultsLoading} />
     ) : (
       <Missing what="challenge" />
     );
@@ -1022,7 +1019,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
 
           {c.status === 'active' || settled ? (
             <View style={styles.stickyCta}>
-              <PrimaryButton
+              <SpaceButton
                 label={settled ? 'See the race' : 'Watch live'}
                 onPress={() =>
                   router.push({ pathname: '/watch/[challengeId]', params: { challengeId: c.id, mode: c.mode } })
@@ -1057,7 +1054,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           // "done" to draw because nothing has to be finished.
           <View style={styles.houseHero}>
             <View style={styles.houseIcon}>
-              <Ionicons name="trophy" size={26} color={Colors.amber} />
+              <NavGlyph name="trophy" size={26} color={Colors.gold} />
             </View>
             <Text style={styles.houseCount}>
               <Text style={styles.houseCountBig}>{c.member_count ?? c.accepted_count}</Text>
@@ -1072,7 +1069,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           // the campfire's name, not two faces with a VS between them.
           <View style={styles.houseHero}>
             <View style={styles.houseIcon}>
-              <Ionicons name="people" size={26} color={Colors.amber} />
+              <CompeteGlyph name="people" size={26} color={Colors.navEmber2} />
             </View>
             <Text style={styles.houseCount}>
               <Text style={styles.houseCountBig}>{c.completed_count ?? 0}</Text>
@@ -1116,7 +1113,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
             was not. */}
         {c.status === 'active' || settled ? (
           <View style={styles.actions}>
-            <PrimaryButton
+            <SpaceButton
               label={settled ? 'See the race' : 'Watch live'}
               onPress={() =>
                 router.push({ pathname: '/watch/[challengeId]', params: { challengeId: c.id, mode: c.mode } })
@@ -1254,7 +1251,7 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
 
   // Same first-frame miss as SocialInfo above — the list is empty until the fetch lands, and
   // "isn't available any more" is a lie about a goal that is sitting on the tab behind you.
-  if (!g) return loading ? <ActivityIndicator color={Colors.amber} style={styles.resultsLoading} /> : <Missing what="goal" />;
+  if (!g) return loading ? <ActivityIndicator color={Colors.navEmber} style={styles.resultsLoading} /> : <Missing what="goal" />;
 
   const pct = Math.min(100, Math.round((g.progress / g.target) * 100));
   const isAuto = g.count_mode !== 'manual';
@@ -1329,7 +1326,7 @@ function GoalInfo({ challengeId }: { challengeId: string }) {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.goalHero}>
         <View style={styles.goalIcon}>
-          <DisciplineIcon name={CHALLENGE_TYPE_GLYPH[g.type]} size={30} color={Colors.amber} />
+          <DisciplineIcon name={CHALLENGE_TYPE_GLYPH[g.type]} size={30} color={Colors.navEmber2} />
         </View>
         <Text style={styles.goalTitle}>
           {g.label ?? `${g.target.toLocaleString('en-US')} ${unit}`}
@@ -1399,7 +1396,7 @@ function Rules({ rows, flat = false }: { rows: Row[]; flat?: boolean }) {
 function Missing({ what }: { what: string }) {
   return (
     <View style={styles.missing}>
-      <Text style={styles.missingText}>That {what} isn&apos;t available any more.</Text>
+      <SpaceEmpty title={`That ${what} isn't available any more.`} />
     </View>
   );
 }
@@ -1408,32 +1405,28 @@ const styles = StyleSheet.create({
   pool: {
     marginTop: Spacing.three,
     padding: Spacing.three,
-    borderRadius: Radius.card,
-    backgroundColor: Colors.card,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     gap: 6,
   },
-  poolKicker: { fontFamily: Fonts.bodyBold, fontSize: 10, letterSpacing: 1.2, color: Colors.muted },
+  poolKicker: { fontFamily: Fonts.bodyBold, fontSize: 10, letterSpacing: 1.2, color: Colors.spaceDim },
   poolFig: { fontFamily: Fonts.bodyBold, fontSize: 22, color: Colors.ink },
-  poolOf: { fontFamily: Fonts.body, fontSize: 14, color: Colors.muted },
-  poolTrack: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
-  poolFill: { height: 6, borderRadius: 3, backgroundColor: Colors.amber },
-  poolNote: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.textTertiary },
+  poolOf: { fontFamily: Fonts.body, fontSize: 14, color: Colors.spaceDim },
+  poolTrack: { height: 6, borderRadius: 3, backgroundColor: Colors.spacePanel2, overflow: 'hidden' },
+  poolFill: { height: 6, borderRadius: 3, backgroundColor: Colors.navEmber },
+  poolNote: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.spaceFaint },
   poolRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  poolRank: { width: 16, fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.muted },
+  poolRank: { width: 16, fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.spaceDim },
   poolName: { flex: 1, fontFamily: Fonts.bodySemiBold, fontSize: 13, color: Colors.ink },
   poolVal: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.ink },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.twelve,
-    paddingBottom: Spacing.three,
+  safe: {
+    flex: 1,
   },
-  headerTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 18,
-    color: Colors.ink,
+  page: {
+    flex: 1,
+    paddingHorizontal: SPACE_GUTTER,
   },
   body: {
     paddingBottom: Spacing.four,
@@ -1457,7 +1450,7 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 16,
-    backgroundColor: 'rgba(242,163,60,0.14)',
+    backgroundColor: 'rgba(255,122,47,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1472,13 +1465,14 @@ const styles = StyleSheet.create({
   houseCountMuted: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   sectionLabel: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
+    fontSize: 10.5,
     letterSpacing: 0.6,
-    color: Colors.muted,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
     marginBottom: Spacing.two,
   },
   results: {
@@ -1490,7 +1484,7 @@ const styles = StyleSheet.create({
   resultsError: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.four,
   },
@@ -1500,22 +1494,24 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingVertical: 9,
     paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: Colors.achieverBg,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
     marginBottom: 6,
   },
   resultRowMe: {
-    borderWidth: 1,
-    borderColor: Colors.ember,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.10)',
   },
   resultPlace: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     minWidth: 26,
   },
   resultPlaceWin: {
-    color: Colors.amber,
+    color: Colors.gold,
   },
   // 0170 §3 · the anonymous racer's ghost, in place of their avatar.
   anonAvatar: {
@@ -1524,10 +1520,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
   resultWho: {
     flex: 1,
@@ -1541,21 +1537,21 @@ const styles = StyleSheet.create({
   resultReward: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.amber,
+    color: Colors.gold,
     marginTop: 1,
   },
   resultBand: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   resultXp: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   resultXpPaid: {
-    color: Colors.ember,
+    color: Colors.gold,
   },
   // ─── placement (mock 114) ───
   resultFigures: {
@@ -1570,7 +1566,7 @@ const styles = StyleSheet.create({
   resultXpUnder: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.ember,
+    color: Colors.gold,
   },
   podium: {
     flexDirection: 'row',
@@ -1594,14 +1590,14 @@ const styles = StyleSheet.create({
   podiumValue: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   podiumStep: {
     width: '100%',
     height: 26,
     borderTopLeftRadius: 6,
     borderTopRightRadius: 6,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spacePanel2,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -1609,7 +1605,7 @@ const styles = StyleSheet.create({
   // First place stands taller and lit — the ladder is the whole reason a podium beats three rows.
   podiumStepFirst: {
     height: 40,
-    backgroundColor: Colors.amber,
+    backgroundColor: Colors.gold,
   },
   podiumPlace: {
     fontFamily: Fonts.bodyBold,
@@ -1617,20 +1613,7 @@ const styles = StyleSheet.create({
     color: Colors.twilight900,
   },
   resultShare: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
     marginTop: Spacing.two,
-    paddingVertical: 11,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.lineStrong,
-  },
-  resultShareText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.muted,
   },
   // Inside a <Modal>, which renders outside this screen's SafeAreaView, so the OS inset is the
   // reveal's own problem.
@@ -1658,12 +1641,12 @@ const styles = StyleSheet.create({
   competitorName: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   vs: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   goalHero: {
     alignItems: 'center',
@@ -1674,7 +1657,7 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 16,
-    backgroundColor: 'rgba(242,163,60,0.14)',
+    backgroundColor: 'rgba(255,122,47,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1687,7 +1670,7 @@ const styles = StyleSheet.create({
   goalProgress: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   // ─── mock 266 · the campfire race, standings first ───
   raceHero: {
@@ -1697,7 +1680,7 @@ const styles = StyleSheet.create({
   raceMeta: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: -Spacing.two,
   },
@@ -1707,10 +1690,10 @@ const styles = StyleSheet.create({
   },
   prize: {
     alignItems: 'center',
-    borderRadius: 18,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    backgroundColor: Colors.cardDark,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
     paddingVertical: 18,
     paddingHorizontal: Spacing.three,
     marginBottom: Spacing.three,
@@ -1723,7 +1706,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
     letterSpacing: 1.4,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   crate: {
     marginTop: Spacing.two,
@@ -1752,19 +1735,19 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: 3,
   },
   prizeStrong: {
     fontFamily: Fonts.bodyBold,
-    color: Colors.ember,
+    color: Colors.gold,
   },
   scaled: {
     marginTop: 9,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     backgroundColor: 'rgba(0,0,0,0.25)',
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -1772,7 +1755,7 @@ const styles = StyleSheet.create({
   scaledText: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   rewardLine: {
     flexDirection: 'row',
@@ -1780,8 +1763,8 @@ const styles = StyleSheet.create({
     gap: 11,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.line,
-    backgroundColor: Colors.card,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
     padding: 13,
     marginBottom: Spacing.three,
   },
@@ -1796,10 +1779,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 18,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.emberForward,
-    backgroundColor: 'rgba(224,97,44,0.14)',
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.10)',
     paddingVertical: Spacing.three,
     paddingHorizontal: 18,
     marginBottom: Spacing.three,
@@ -1808,7 +1791,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
     letterSpacing: 1.2,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   youPos: {
     fontFamily: Fonts.bodyBold,
@@ -1820,7 +1803,7 @@ const styles = StyleSheet.create({
   youPosSmall: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   youFig: {
     alignItems: 'flex-end',
@@ -1835,7 +1818,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 10,
     letterSpacing: 0.8,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
   boardHead: {
@@ -1869,23 +1852,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 13,
     borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: Colors.card,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
     marginBottom: 6,
   },
   boardRowMe: {
-    borderColor: Colors.emberForward,
-    backgroundColor: 'rgba(224,97,44,0.12)',
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.10)',
   },
   boardRank: {
     width: 20,
     textAlign: 'center',
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   boardRankLit: {
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   boardWho: {
     flex: 1,
@@ -1905,12 +1888,14 @@ const styles = StyleSheet.create({
   bar: {
     height: 5,
     borderRadius: 3,
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
     marginTop: 5,
     overflow: 'hidden',
   },
   barFill: {
     height: 5,
+    borderRadius: 3,
+    backgroundColor: Colors.navEmber,
   },
   boardFig: {
     fontFamily: Fonts.bodyBold,
@@ -1920,7 +1905,7 @@ const styles = StyleSheet.create({
   boardMore: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: 2,
   },
@@ -1928,8 +1913,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.line,
-    backgroundColor: Colors.card,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
     overflow: 'hidden',
   },
   howHead: {
@@ -1946,7 +1931,7 @@ const styles = StyleSheet.create({
   },
   howBody: {
     borderTopWidth: 1,
-    borderTopColor: Colors.line,
+    borderTopColor: Colors.spaceLine,
     paddingBottom: Spacing.twelve,
   },
   rulesFlat: {},
@@ -1955,9 +1940,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
   },
   rules: {
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: 14,
     overflow: 'hidden',
   },
@@ -1971,12 +1956,12 @@ const styles = StyleSheet.create({
   },
   ruleDivider: {
     borderTopWidth: 1,
-    borderTopColor: Colors.line,
+    borderTopColor: Colors.spaceLine,
   },
   ruleKey: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   ruleValue: {
     fontFamily: Fonts.bodyBold,
@@ -1985,15 +1970,15 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   ruleValueWin: {
-    color: Colors.ember,
+    color: Colors.gold,
   },
   // Mock 102's `.note` — the one place on the screen that explains rather than lists.
   note: {
-    backgroundColor: '#231A2E',
+    backgroundColor: Colors.spacePanel2,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.coral,
-    borderTopRightRadius: 10,
-    borderBottomRightRadius: 10,
+    borderLeftColor: Colors.navEmber,
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 13,
     marginTop: Spacing.three,
@@ -2006,7 +1991,7 @@ const styles = StyleSheet.create({
   },
   noteStrong: {
     fontFamily: Fonts.bodyBold,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   actions: {
     marginTop: Spacing.four,
@@ -2015,10 +2000,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  missingText: {
-    fontFamily: Fonts.body,
-    fontSize: 13.5,
-    color: Colors.muted,
   },
 });

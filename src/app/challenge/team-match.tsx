@@ -1,11 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { CompeteGlyph, RadioGlyph } from '@/components/ui/glyphs-compete';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Screen } from '@/components/ui/screen';
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { SPACE_GUTTER, SpaceButton, SpaceCard, SpaceChip, SpaceHeader, SpaceSection } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { fetchCampfireMembers } from '@/lib/api/groups';
@@ -171,11 +173,14 @@ export default function TeamMatchCreateScreen() {
   }
 
   return (
-    <Screen>
-      <Stack.Screen options={{ title: 'Team match', headerBackTitle: 'Back' }} />
+    // The native header is swapped for the space-kit row (same title). Unregistered in _layout, so
+    // it is hidden here.
+    <Screen padded={false}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <SpaceHeader title="Team match" />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.banner}>
-          <Ionicons name="people" size={16} color={Colors.achieverText} />
+        <SpaceCard tone="gold" style={styles.banner}>
+          <CompeteGlyph name="people" size={18} color={Colors.gold} />
           <View style={styles.bannerText}>
             <Text style={styles.bannerTitle}>Two teams, one scorekeeper</Text>
             <Text style={styles.bannerSub}>
@@ -183,10 +188,10 @@ export default function TeamMatchCreateScreen() {
               stats.
             </Text>
           </View>
-        </View>
+        </SpaceCard>
 
         {/* ── which campfire ── */}
-        <Text style={styles.label}>Which campfire?</Text>
+        <SpaceSection>Which campfire?</SpaceSection>
         {groups.length === 0 ? (
           <Text style={styles.hint}>Join or start a Campfire first — a match belongs to one.</Text>
         ) : (
@@ -207,7 +212,7 @@ export default function TeamMatchCreateScreen() {
 
         {notAdmin && (
           <View style={styles.adminNotice}>
-            <Ionicons name="lock-closed" size={13} color={Colors.muted} />
+            <UiGlyph name="lock" size={14} color={Colors.spaceDim} />
             <Text style={styles.adminNoticeText}>
               Only admins can post a match for {circle?.name ?? 'a campfire'}. Ask an owner to make
               you one.
@@ -216,9 +221,9 @@ export default function TeamMatchCreateScreen() {
         )}
 
         {/* ── the sport ── */}
-        <Text style={styles.label}>Pick the game</Text>
+        <SpaceSection>Pick the game</SpaceSection>
         {sports === null ? (
-          <ActivityIndicator color={Colors.amber} style={styles.loader} />
+          <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
         ) : (
           <View style={styles.sportGrid}>
             {sports.map((s) => (
@@ -250,7 +255,7 @@ export default function TeamMatchCreateScreen() {
         {sport && !isCustom && <Text style={styles.hint}>Scores step by {sport.score_step_label.replace('+', '')}.</Text>}
 
         {/* ── the teams ── */}
-        <Text style={styles.label}>The teams</Text>
+        <SpaceSection>The teams</SpaceSection>
         <TeamRow
           name={teamAName}
           onName={setTeamAName}
@@ -270,81 +275,64 @@ export default function TeamMatchCreateScreen() {
         )}
 
         {/* ── how the score gets kept (§1b — the load-bearing choice) ── */}
-        <Text style={styles.label}>How is the score kept?</Text>
+        <SpaceSection>How is the score kept?</SpaceSection>
         <ModeRow
           selected={scoreMode === 'confirm'}
           onPress={() => setScoreMode('confirm')}
-          icon="checkmark-done"
+          icon="confirm"
           title="Final score, both sides confirm"
           sub="For real games. Nobody tracks anything live — afterwards one player enters the final score and someone on the other team confirms it."
         />
         <ModeRow
           selected={scoreMode === 'live'}
           onPress={() => setScoreMode('live')}
-          icon="stopwatch"
+          icon="live"
           title="Live scoreboard"
           sub="For pickup games with no official board. One scorekeeper taps the score in as it happens and the whole campfire watches it tick."
         />
 
         {/* ── the scorekeeper ── */}
-        <Text style={styles.label}>Who keeps score?</Text>
+        <SpaceSection>Who keeps score?</SpaceSection>
         <Text style={styles.hint}>
           {scoreMode === 'live'
             ? 'Only this person can move the score. It can be anyone — a captain, a spectator, a player.'
             : 'They can settle the match if the two sides disagree. Not required to do anything otherwise.'}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-          <Pressable
-            onPress={() => setRefUserId(null)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: refUserId === null }}
-            style={[styles.circleChip, refUserId === null && styles.chipSelected]}>
-            <Text style={[styles.chipText, refUserId === null && styles.chipTextSelected]}>You</Text>
-          </Pressable>
+          <SpaceChip label="You" selected={refUserId === null} onPress={() => setRefUserId(null)} />
           {(roster ?? [])
             .filter((m) => m.user_id !== myUserId)
             .map((m) => (
-              <Pressable
+              <SpaceChip
                 key={m.user_id}
+                label={m.display_name}
+                selected={refUserId === m.user_id}
                 onPress={() => setRefUserId(m.user_id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: refUserId === m.user_id }}
-                style={[styles.circleChip, refUserId === m.user_id && styles.chipSelected]}>
-                <Text style={[styles.chipText, refUserId === m.user_id && styles.chipTextSelected]}>
-                  {m.display_name}
-                </Text>
-              </Pressable>
+              />
             ))}
         </ScrollView>
 
         {/* ── the reward ── */}
-        <Text style={styles.label}>What it pays</Text>
+        <SpaceSection>What it pays</SpaceSection>
         <Text style={styles.hint}>
           Every player on the winning side gets the same crate; every player on the losing side gets
           the one below. A draw pays both sides the winners&apos; tier.
         </Text>
         <View style={styles.chipRow}>
           {TIER_LADDER.slice(0, 4).map((t) => (
-            <Pressable
-              key={t}
-              onPress={() => setLoserTier(t)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: t === loserTier }}
-              style={[styles.circleChip, t === loserTier && styles.chipSelected]}>
-              <Text style={[styles.chipText, t === loserTier && styles.chipTextSelected]}>{TIER_LABEL[t]}</Text>
-            </Pressable>
+            <SpaceChip key={t} label={TIER_LABEL[t]} selected={t === loserTier} onPress={() => setLoserTier(t)} />
           ))}
         </View>
         <View style={styles.rewardLine}>
           <View style={styles.rewardChip}>
-            <Ionicons name="trophy" size={12} color={Colors.green} />
-            <Text style={[styles.rewardChipText, { color: Colors.green }]}>
+            <NavGlyph name="trophy" size={13} color={Colors.gold} />
+            <Text style={[styles.rewardChipText, { color: Colors.gold }]}>
               Winners: {TIER_LABEL[winnerTier]}
             </Text>
           </View>
           <View style={styles.rewardChip}>
-            <Ionicons name="hand-left" size={12} color={Colors.sky} />
-            <Text style={[styles.rewardChipText, { color: Colors.sky }]}>Losers: {TIER_LABEL[loserTier]}</Text>
+            <CompeteGlyph name="hand" size={13} color={Colors.legend} />
+            <Text style={[styles.rewardChipText, { color: Colors.legend }]}>Losers: {TIER_LABEL[loserTier]}</Text>
           </View>
         </View>
 
@@ -356,7 +344,7 @@ export default function TeamMatchCreateScreen() {
 
       <View style={styles.footer}>
         {error && <Text style={styles.error}>{error}</Text>}
-        <PrimaryButton
+        <SpaceButton
           label={notAdmin ? `Only ${circle?.name ?? 'campfire'} admins can` : 'Post to campfire'}
           onPress={post}
           loading={saving}
@@ -424,7 +412,8 @@ function ModeRow({
 }: {
   selected: boolean;
   onPress: () => void;
-  icon: keyof typeof Ionicons.glyphMap;
+  /** confirm = both sides confirm the final score; live = the scorekeeper's running board. */
+  icon: 'confirm' | 'live';
   title: string;
   sub: string;
 }) {
@@ -434,105 +423,97 @@ function ModeRow({
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       style={[styles.modeRow, selected && styles.modeRowOn]}>
-      <Ionicons name={icon} size={17} color={selected ? Colors.achieverText : Colors.muted} />
+      {icon === 'confirm' ? (
+        <UiGlyph name="check" size={18} color={selected ? Colors.navEmber2 : Colors.spaceDim} />
+      ) : (
+        <CompeteGlyph name="clock" size={18} color={selected ? Colors.navEmber2 : Colors.spaceDim} />
+      )}
       <View style={styles.modeText}>
         <Text style={[styles.modeTitle, selected && styles.modeTitleOn]}>{title}</Text>
         <Text style={styles.modeSub}>{sub}</Text>
       </View>
-      <Ionicons
-        name={selected ? 'radio-button-on' : 'radio-button-off'}
-        size={17}
-        color={selected ? Colors.achieverText : Colors.textTertiary}
-      />
+      <RadioGlyph on={selected} size={18} color={selected ? Colors.navEmber : Colors.spaceFaint} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { paddingBottom: Spacing.five, gap: Spacing.two },
+  container: { paddingHorizontal: SPACE_GUTTER, paddingBottom: Spacing.five, gap: Spacing.two },
   loader: { alignSelf: 'flex-start', marginVertical: Spacing.two },
   banner: {
     flexDirection: 'row',
-    gap: Spacing.two,
+    gap: Spacing.twelve,
     alignItems: 'flex-start',
-    backgroundColor: Colors.cardDark,
-    borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.3)',
-    borderRadius: Radius.card,
     padding: Spacing.twelve,
-    marginTop: Spacing.two,
+    marginTop: Spacing.one,
   },
   bannerText: { flex: 1, gap: 2 },
   bannerTitle: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: Colors.ink },
-  bannerSub: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted, lineHeight: 16 },
-  label: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 10.5,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: Colors.textTertiary,
-    marginTop: Spacing.twelve,
-  },
-  hint: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted, lineHeight: 16 },
+  bannerSub: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.spaceDim, lineHeight: 16 },
+  hint: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.spaceDim, lineHeight: 16 },
   warn: { fontFamily: Fonts.body, fontSize: 11.5, color: Colors.danger },
   error: { fontFamily: Fonts.body, fontSize: 12, color: Colors.danger, marginBottom: Spacing.two },
   chipRow: { flexDirection: 'row', gap: Spacing.two, paddingVertical: Spacing.one, flexWrap: 'wrap' },
+  // The campfire chip carries the fire's emoji beside its name, so it stays bespoke rather than a
+  // SpaceChip (which is label-only) — drawn to the same pill.
   circleChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: Spacing.twelve,
-    paddingVertical: Spacing.two,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
   },
-  chipSelected: { backgroundColor: Colors.selectedBg, borderColor: Colors.amber },
-  chipText: { fontFamily: Fonts.bodySemiBold, fontSize: 12.5, color: Colors.muted },
-  chipTextSelected: { color: Colors.ink },
+  chipSelected: { backgroundColor: 'rgba(255,122,47,0.12)', borderColor: Colors.navEmber },
+  chipText: { fontFamily: Fonts.bodySemiBold, fontSize: 12.5, color: Colors.spaceDim },
+  chipTextSelected: { color: Colors.navEmber2 },
   circleEmoji: { fontSize: 13 },
   adminNotice: {
     flexDirection: 'row',
     gap: Spacing.two,
     alignItems: 'flex-start',
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     padding: Spacing.twelve,
   },
-  adminNoticeText: { flex: 1, fontFamily: Fonts.body, fontSize: 11.5, color: Colors.muted, lineHeight: 16 },
+  adminNoticeText: { flex: 1, fontFamily: Fonts.body, fontSize: 11.5, color: Colors.spaceDim, lineHeight: 16 },
   sportGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   sportTile: {
     width: 66,
     alignItems: 'center',
     gap: 3,
     paddingVertical: Spacing.two,
-    borderRadius: Radius.card,
-    backgroundColor: Colors.card,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
   },
-  sportTileOn: { borderColor: Colors.amber, backgroundColor: Colors.selectedBg },
+  sportTileOn: { borderColor: Colors.navEmber, backgroundColor: 'rgba(255,122,47,0.12)' },
   sportEmoji: { fontSize: 20 },
-  sportName: { fontFamily: Fonts.bodySemiBold, fontSize: 9.5, color: Colors.muted },
+  sportName: { fontFamily: Fonts.bodySemiBold, fontSize: 9.5, color: Colors.spaceDim },
   teamRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   colorDot: { width: 22, height: 22, borderRadius: 11 },
   teamNameInput: { flex: 1 },
   modeRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.two,
+    gap: Spacing.twelve,
     padding: Spacing.twelve,
-    borderRadius: Radius.card,
-    backgroundColor: Colors.card,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
   },
-  modeRowOn: { borderColor: Colors.amber, backgroundColor: Colors.selectedBg },
+  modeRowOn: { borderColor: Colors.navEmber, backgroundColor: 'rgba(255,122,47,0.08)' },
   modeText: { flex: 1, gap: 2 },
-  modeTitle: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.muted },
+  modeTitle: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.spaceDim },
   modeTitleOn: { color: Colors.ink },
-  modeSub: { fontFamily: Fonts.body, fontSize: 11, color: Colors.textTertiary, lineHeight: 15 },
+  modeSub: { fontFamily: Fonts.body, fontSize: 11, color: Colors.spaceFaint, lineHeight: 15 },
   rewardLine: { flexDirection: 'row', gap: Spacing.two, justifyContent: 'center', marginTop: Spacing.two },
   rewardChip: {
     flexDirection: 'row',
@@ -541,17 +522,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.twelve,
     paddingVertical: 6,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
   },
   rewardChipText: { fontFamily: Fonts.bodyBold, fontSize: 11.5 },
   footnote: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'center',
     marginTop: Spacing.twelve,
   },
-  footer: { paddingVertical: Spacing.twelve },
+  footer: { paddingHorizontal: SPACE_GUTTER, paddingVertical: Spacing.twelve },
 });

@@ -6,11 +6,10 @@ import { FitnessBoard } from '@/components/fitness/fitness-board';
 import { FITNESS_SCOPES, FitnessScopePills } from '@/components/fitness/fitness-scope-pills';
 import { MetricPickerSheet } from '@/components/fitness/metric-picker-sheet';
 import { PrDisputeSheet } from '@/components/fitness/pr-dispute-sheet';
-import { BackHeader } from '@/components/ui/back-header';
-import { EmptyState } from '@/components/ui/empty-state';
-import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceButton, SpaceEmpty, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useMetricCatalog, useMetricLeaderboard } from '@/hooks/use-metric-leaderboard';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchMyProgram } from '@/lib/api/house';
@@ -99,12 +98,11 @@ export default function FitnessBoardScreen() {
   if (dial === 'private') {
     return (
       <Screen padded={false}>
-        <BackHeader title="Fitness" />
-        <EmptyState
-          emoji="🔒"
+        <SpaceHeader title="Fitness" />
+        <SpaceEmpty
           title="Your rank is private"
           body="Private climbers aren't on any board, so there's nothing to rank you against. Change it in Settings whenever you want in."
-          action={<PrimaryButton label="Open Settings" onPress={() => router.push('/settings')} />}
+          action={<SpaceButton label="Open Settings" onPress={() => router.push('/settings')} style={styles.emptyAction} />}
         />
       </Screen>
     );
@@ -112,14 +110,14 @@ export default function FitnessBoardScreen() {
 
   return (
     <Screen padded={false}>
-      <BackHeader title="Fitness" />
+      <SpaceHeader title="Fitness" subtitle="Ranked purely on real fitness" />
       <View style={styles.header}>
         <FitnessScopePills scopes={scopes} value={scope} onChange={setScope} />
         <Pressable style={styles.metricChip} onPress={() => setPickerOpen(true)} accessibilityRole="button" accessibilityLabel="Change metric">
           <Text style={styles.metricLabel} numberOfLines={1}>
             {stat ? `${stat.emoji} ${stat.label}` : catalogError ? 'Stats unavailable' : 'Loading stats…'}
           </Text>
-          <Text style={styles.metricChange}>▾ change metric</Text>
+          <UiGlyph name="down" size={14} color={Colors.spaceDim} />
         </Pressable>
         {scope === 'my_program' && program ? (
           <Text style={styles.house}>
@@ -129,20 +127,18 @@ export default function FitnessBoardScreen() {
       </View>
 
       {gate === 'no_school' ? (
-        <EmptyState emoji="🏫" title="Add your school" body="Set your school in Profile to see how you stack up at your university." />
+        <SpaceEmpty title="Add your school" body="Set your school in Profile to see how you stack up at your university." />
       ) : gate === 'unverified' ? (
-        <EmptyState
-          emoji="🔒"
+        <SpaceEmpty
           title="Verify to unlock"
           body="Only students with a verified school email count on My uni — that's what keeps the campus rankings real."
-          action={<PrimaryButton label="Verify my campus" onPress={() => router.push('/campus')} />}
+          action={<SpaceButton label="Verify my campus" onPress={() => router.push('/campus')} style={styles.emptyAction} />}
         />
       ) : gate === 'no_program' ? (
-        <EmptyState
-          emoji="🏛️"
+        <SpaceEmpty
           title="Pick your program"
           body="Your program names your house. Pick it and this board ranks you against every Heir of it, at both schools."
-          action={<PrimaryButton label="Pick my program" onPress={() => router.push('/house/change-program?ceremony=1')} />}
+          action={<SpaceButton label="Pick my program" onPress={() => router.push('/house/change-program?ceremony=1')} style={styles.emptyAction} />}
         />
       ) : (
         <FitnessBoard
@@ -198,21 +194,21 @@ export default function FitnessBoardScreen() {
 const styles = StyleSheet.create({
   header: {
     gap: Spacing.two,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.twelve,
   },
+  // The Leaderboard tab's metric picker, so the two boards read as one family.
   metricChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: Spacing.two,
-    alignSelf: 'flex-start',
-    maxWidth: '100%',
-    backgroundColor: Colors.selectedBg,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 11,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.coral,
-    borderRadius: Radius.pill,
-    paddingVertical: 6,
-    paddingHorizontal: Spacing.twelve,
+    borderColor: Colors.spaceLine,
   },
   metricLabel: {
     flexShrink: 1,
@@ -220,21 +216,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.ink,
   },
-  metricChange: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.amber,
+  emptyAction: {
+    marginTop: Spacing.two,
+    alignSelf: 'stretch',
   },
   house: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.ember,
+    color: Colors.gold,
     letterSpacing: 0.4,
   },
   footer: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'center',
     marginTop: Spacing.three,
   },
