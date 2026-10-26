@@ -1,20 +1,22 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuraTier } from '@/components/economy/applied-art';
 import { BoxArt, BOX_TINT } from '@/components/economy/box-art';
 import { BoxStackSheet } from '@/components/economy/box-stack-sheet';
-import { EmberPill, RarityLabel, SectionLabel, SourceTag } from '@/components/economy/economy-bits';
+import { EmberPill, RarityLabel, SourceTag } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { EquippedTitle } from '@/components/economy/loadout-bits';
 import { PreviewButton } from '@/components/economy/preview-button';
 import { ProfileHero } from '@/components/economy/profile-hero';
 import { SeasonChip, isSeasonItem } from '@/components/economy/season-chip';
 import { EmberText } from '@/components/ui/ember-text';
+import { RewardGlyph } from '@/components/ui/glyphs-rewards';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
-import { Screen } from '@/components/ui/screen';
+import { SPACE_GUTTER, SpaceButton, SpaceChip, SpaceEmpty, SpaceHeader, SpaceSection, SpaceTile } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveSession } from '@/lib/active-session-context';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -132,15 +134,9 @@ export default function InventoryScreen() {
   const auraTier = useAuraTier(activeSession);
 
   return (
-    <Screen padded={false}>
+    <SafeAreaView edges={['top']} style={styles.safe}>
+      <SpaceHeader title="Inventory" right={<EmberPill embers={embers} />} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={Colors.ink} />
-          </Pressable>
-          <Text style={styles.title}>Inventory</Text>
-          <EmberPill embers={embers} />
-        </View>
 
         {/* ── Loadout preview — "how others see you" ──
             ProfileHero, the profile's own composite (mock 248) — not a lookalike, so it can never
@@ -168,7 +164,7 @@ export default function InventoryScreen() {
           <Text style={styles.loadoutLabel}>Your loadout · how others see you</Text>
           <Pressable onPress={() => router.push('/loadout')} hitSlop={8} accessibilityRole="button" style={styles.loadoutEdit}>
             <Text style={styles.loadoutEditText}>Edit loadout</Text>
-            <Ionicons name="chevron-forward" size={12} color={Colors.muted} />
+            <UiGlyph name="forward" size={12} color={Colors.navEmber2} />
           </Pressable>
         </View>
 
@@ -176,15 +172,7 @@ export default function InventoryScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           {TYPE_FILTERS.map((f) => {
             const on = filter === f.key;
-            return (
-              <Pressable
-                key={f.key}
-                style={[styles.chip, on && styles.chipOn]}
-                onPress={() => setFilter(f.key)}
-                accessibilityState={{ selected: on }}>
-                <Text style={[styles.chipText, on && styles.chipTextOn]}>{f.label}</Text>
-              </Pressable>
-            );
+            return <SpaceChip key={f.key} label={f.label} selected={on} onPress={() => setFilter(f.key)} />;
           })}
         </ScrollView>
 
@@ -235,7 +223,7 @@ export default function InventoryScreen() {
             <TierChip
               label="All"
               count={ofType.length}
-              color={Colors.muted}
+              color={Colors.ink}
               on={pinnedRarity === null}
               onPress={() => chooseSort(withRarityFilter(null))}
             />
@@ -266,38 +254,24 @@ export default function InventoryScreen() {
           // 🐛 Nothing loaded at all (a dropped connection on first open). This used to print the raw
           // fetch error and then fall through to "Nothing here yet." below it — telling someone with
           // 100 items they own nothing. Say what happened and offer the one thing that fixes it.
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Couldn’t load your inventory.</Text>
-            <Text style={styles.emptyBody}>{error} Your items are safe — check your connection and try again.</Text>
-            <Pressable style={styles.emptyCta} onPress={retry} accessibilityRole="button">
-              <Text style={styles.emptyCtaText}>Retry</Text>
-            </Pressable>
-          </View>
+          <SpaceEmpty
+            title="Couldn’t load your inventory."
+            body={`${error} Your items are safe — check your connection and try again.`}
+            action={<SpaceButton label="Retry" onPress={retry} style={styles.emptyCta} />}
+          />
         ) : inventory && shown.length === 0 ? (
-          <View style={styles.empty}>
-            {/* A pinned tier with nothing in it is not an empty inventory, and saying "nothing here
-                yet" to someone holding 40 items would read as a bug in the grid rather than as an
-                answer about Mythics. */}
-            {pinnedRarity ? (
-              <>
-                <Text style={styles.emptyTitle}>No {rarityFilterLabel(pinnedRarity)} yet.</Text>
-                <Text style={styles.emptyBody}>
-                  Nothing you own sits at this tier{filter === 'ALL' ? '' : ` under ${filter.toLowerCase()}s`} — pick
-                  another tier above, or forge your spares upward.
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.emptyTitle}>Nothing here yet.</Text>
-                <Text style={styles.emptyBody}>
-                  Win challenges, climb the Flame Pass, or open a box — everything you own lands here.
-                </Text>
-              </>
-            )}
-            <Pressable style={styles.emptyCta} onPress={() => router.push('/shop')}>
-              <Text style={styles.emptyCtaText}>Open the Shop</Text>
-            </Pressable>
-          </View>
+          // A pinned tier with nothing in it is not an empty inventory, and saying "nothing here
+          // yet" to someone holding 40 items would read as a bug in the grid rather than as an
+          // answer about Mythics.
+          <SpaceEmpty
+            title={pinnedRarity ? `No ${rarityFilterLabel(pinnedRarity)} yet.` : 'Nothing here yet.'}
+            body={
+              pinnedRarity
+                ? `Nothing you own sits at this tier${filter === 'ALL' ? '' : ` under ${filter.toLowerCase()}s`} — pick another tier above, or forge your spares upward.`
+                : 'Win challenges, climb the Flame Pass, or open a box — everything you own lands here.'
+            }
+            action={<SpaceButton label="Open the Shop" onPress={() => router.push('/shop')} style={styles.emptyCta} />}
+          />
         ) : (
           <View style={styles.grid}>
             {shown.map((item, i) => (
@@ -334,9 +308,9 @@ export default function InventoryScreen() {
             onPress={() => router.push(forgeReady.best ? { pathname: '/forge', params: { rarity: forgeReady.best } } : '/forge')}
             accessibilityRole="button"
             accessibilityLabel="Open the Forge">
-            <View style={styles.forgeIcon}>
-              <PhiloiIcon name="forge" size={20} color={Colors.ember} />
-            </View>
+            <SpaceTile tone="ember">
+              <PhiloiIcon name="forge" size={20} color={Colors.navEmber2} />
+            </SpaceTile>
             <View style={styles.forgeText}>
               <EmberText style={styles.forgeTitle}>The Forge</EmberText>
               <Text style={styles.forgeSub}>
@@ -345,7 +319,7 @@ export default function InventoryScreen() {
                   : `${forgeReady.total} item${forgeReady.total === 1 ? '' : 's'} you could melt down into something better.`}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+            <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
           </Pressable>
         ) : null}
 
@@ -355,7 +329,7 @@ export default function InventoryScreen() {
             shop, so anything you EARNED just sat there invisible. */}
         {boxStacks.length > 0 ? (
           <>
-            <SectionLabel label={`Unopened boxes · ${boxStacks.reduce((n, s) => n + s.count, 0)}`} />
+            <SpaceSection>{`Unopened boxes · ${boxStacks.reduce((n, s) => n + s.count, 0)}`}</SpaceSection>
             <View style={styles.boxRow}>
               {boxStacks.map((stack) => {
                 const box = BOXES[stack.boxKey as BoxKey];
@@ -403,7 +377,7 @@ export default function InventoryScreen() {
             provenance IS its value, and a bought one must never be styled to look earned. */}
         {badges.length > 0 ? (
           <>
-            <SectionLabel label="Badges" />
+            <SpaceSection>Badges</SpaceSection>
             {(['earned', 'other'] as const).map((group) => {
               const rows = badges.filter((b) => (group === 'earned' ? b.source === 'earned' : b.source !== 'earned'));
               if (rows.length === 0) return null;
@@ -453,7 +427,7 @@ export default function InventoryScreen() {
           router.push({ pathname: '/shop/open', params: { boxIds: ids.join(','), boxKey: openingStack.boxKey } });
         }}
       />
-    </Screen>
+    </SafeAreaView>
   );
 }
 
@@ -492,12 +466,12 @@ function ItemTile({
         <View style={styles.slotBadges}>
           {inStart ? (
             <View style={styles.slotBadge} accessibilityLabel="Equipped as start sting">
-              <Ionicons name="play" size={7} color="#2a1608" />
+              <RewardGlyph name="play" size={8} color={INK_ON_EMBER} />
             </View>
           ) : null}
           {inStop ? (
             <View style={styles.slotBadge} accessibilityLabel="Equipped as end sting">
-              <Ionicons name="stop" size={7} color="#2a1608" />
+              <RewardGlyph name="stop" size={8} color={INK_ON_EMBER} />
             </View>
           ) : null}
         </View>
@@ -553,38 +527,31 @@ function TierChip({
       style={[
         styles.tierChip,
         count === 0 && !on && styles.tierChipEmpty,
-        on && { borderColor: color, backgroundColor: Colors.selectedBg },
+        on && { borderColor: color, backgroundColor: Colors.spacePanel2 },
       ]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: on }}
       accessibilityLabel={`${label}, ${count} owned`}>
-      <Text style={[styles.tierChipText, { color: on ? color : Colors.muted }]}>{label}</Text>
+      <Text style={[styles.tierChipText, { color: on ? color : Colors.spaceDim }]}>{label}</Text>
       <Text style={[styles.tierChipCount, on && { color }]}>{count}</Text>
     </Pressable>
   );
 }
 
+/** Dark ink on an ember fill — the kit's primary-button label colour, for the tile badges. */
+const INK_ON_EMBER = '#2A0F05';
+
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.six,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
-  },
-  title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 20,
-    color: Colors.ink,
+  safe: {
     flex: 1,
   },
+  content: {
+    paddingHorizontal: SPACE_GUTTER,
+    paddingBottom: Spacing.six,
+  },
   loadout: {
-    marginTop: Spacing.twelve,
+    marginTop: Spacing.one,
   },
   loadoutLabelRow: {
     flexDirection: 'row',
@@ -600,38 +567,25 @@ const styles = StyleSheet.create({
   loadoutEditText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.navEmber2,
   },
   noTitle: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
+  // SpaceSection's voice, inline beside the Edit link.
   loadoutLabel: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 9,
-    letterSpacing: 1,
-    color: Colors.textTertiary,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    color: Colors.spaceFaint,
     textTransform: 'uppercase',
   },
   chips: {
     gap: 7,
     paddingVertical: Spacing.twelve,
-  },
-  chip: {
-    borderRadius: Radius.pill,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    backgroundColor: Colors.cardDark,
-  },
-  chipOn: {
-    backgroundColor: Colors.coral,
-  },
-  chipText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: Colors.muted,
   },
   tierChips: {
     gap: 6,
@@ -642,9 +596,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     borderRadius: Radius.pill,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    backgroundColor: Colors.cardDark,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
     paddingVertical: 5,
     paddingHorizontal: 11,
   },
@@ -659,7 +613,7 @@ const styles = StyleSheet.create({
   tierChipCount: {
     fontFamily: Fonts.bodyBold,
     fontSize: 9.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   sortRow: {
     flexDirection: 'row',
@@ -669,15 +623,17 @@ const styles = StyleSheet.create({
   },
   sortLabel: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: Colors.textTertiary,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    color: Colors.spaceFaint,
     textTransform: 'uppercase',
     flex: 1,
   },
   segment: {
     flexDirection: 'row',
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     padding: 2,
   },
@@ -686,19 +642,17 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 13,
   },
+  // The kit's selected-chip wash, so the segment and the category chips above light the same way.
   segmentBtnOn: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,122,47,0.14)',
   },
   segmentText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   segmentTextOn: {
-    color: Colors.ink,
-  },
-  chipTextOn: {
-    color: '#fff',
+    color: Colors.navEmber2,
   },
   grid: {
     flexDirection: 'row',
@@ -707,8 +661,8 @@ const styles = StyleSheet.create({
   },
   tile: {
     width: '31.5%',
-    backgroundColor: Colors.cream,
-    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderRadius: 14,
     // Clips the rarity bar to the tile's own corners — without it the bar draws as a square
     // strip over a rounded card.
     overflow: 'hidden',
@@ -717,7 +671,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#2a2438',
+    borderColor: Colors.spaceLine,
     gap: 3,
   },
   rarityBar: {
@@ -729,8 +683,9 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   // The equipped item per slot is ringed + ticked — the one piece of state the grid must carry.
+  // Ember, the kit's "active" colour, and the same ring the loadout grid draws round its equipped.
   tileEquipped: {
-    borderColor: Colors.amber,
+    borderColor: Colors.navEmber,
   },
   equipBadge: {
     position: 'absolute',
@@ -739,7 +694,7 @@ const styles = StyleSheet.create({
     width: 15,
     height: 15,
     borderRadius: 8,
-    backgroundColor: Colors.amber,
+    backgroundColor: Colors.navEmber,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
@@ -747,7 +702,7 @@ const styles = StyleSheet.create({
   equipBadgeText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 9,
-    color: '#2a1608',
+    color: INK_ON_EMBER,
   },
   // ▶ / ■ — which of the two lock-in stings this SFX is bound to. Sits where the plain ✓ would,
   // and replaces it: for a two-slot item "equipped" alone doesn't answer the question.
@@ -763,7 +718,7 @@ const styles = StyleSheet.create({
     width: 15,
     height: 15,
     borderRadius: 8,
-    backgroundColor: Colors.amber,
+    backgroundColor: Colors.navEmber,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -788,8 +743,8 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontFamily: Fonts.body,
-    fontSize: 10,
-    color: Colors.textTertiary,
+    fontSize: 10.5,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.twelve,
   },
@@ -798,22 +753,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.twelve,
-    backgroundColor: Colors.cardDark,
+    // SpaceCard's ember tone, as a row — it stays hand-built because the title is an EmberText.
+    backgroundColor: 'rgba(255,122,47,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.35)',
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.amber,
-    borderRadius: 13,
+    borderColor: 'rgba(255,122,47,0.45)',
+    borderRadius: 14,
     padding: Spacing.twelve,
     marginTop: Spacing.three,
-  },
-  forgeIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.achieverBg,
   },
   forgeText: {
     flex: 1,
@@ -828,7 +774,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   boxRow: {
     flexDirection: 'row',
@@ -837,8 +783,10 @@ const styles = StyleSheet.create({
   },
   boxTile: {
     width: '31.5%',
-    backgroundColor: Colors.cardDark,
-    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: 9,
     paddingHorizontal: 6,
     alignItems: 'center',
@@ -856,7 +804,7 @@ const styles = StyleSheet.create({
     top: -5,
     right: -8,
     minWidth: 20,
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
     borderRadius: Radius.pill,
     paddingHorizontal: 5,
     paddingVertical: 1,
@@ -865,7 +813,7 @@ const styles = StyleSheet.create({
   countBadgeText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 9.5,
-    color: '#fff',
+    color: INK_ON_EMBER,
   },
   boxName: {
     fontFamily: Fonts.bodyBold,
@@ -877,12 +825,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 7.5,
     lineHeight: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   openBtn: {
     marginTop: Spacing.one,
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
     borderRadius: Radius.pill,
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -890,12 +838,12 @@ const styles = StyleSheet.create({
   openBtnText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
-    color: '#2a1608',
+    color: INK_ON_EMBER,
   },
   badgeGroup: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    color: Colors.muted,
+    fontSize: 11,
+    color: Colors.spaceDim,
     marginTop: Spacing.two,
     marginBottom: Spacing.one,
   },
@@ -903,8 +851,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.cardDark,
-    borderRadius: 11,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 13,
     padding: Spacing.twelve,
     marginBottom: 6,
   },
@@ -912,12 +862,12 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spaceLine,
   },
   // Earned badges get the warm marker; bought ones stay neutral. Colour is never the ONLY
   // difference — the SourceTag on the right spells it out in words.
   badgeDotEarned: {
-    backgroundColor: Colors.amber,
+    backgroundColor: Colors.gold,
   },
   badgeText: {
     flex: 1,
@@ -930,42 +880,16 @@ const styles = StyleSheet.create({
   badgeProv: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.coral,
+    color: Colors.danger,
     marginTop: Spacing.two,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: Spacing.five,
-    gap: Spacing.two,
-  },
-  emptyTitle: {
-    fontFamily: Fonts.display,
-    fontSize: 18,
-    color: Colors.ink,
-  },
-  emptyBody: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    lineHeight: 19,
-    color: Colors.muted,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.four,
   },
   emptyCta: {
     marginTop: Spacing.two,
-    backgroundColor: Colors.coral,
-    borderRadius: Radius.button,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.five,
-  },
-  emptyCtaText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
-    color: Colors.ink,
+    alignSelf: 'stretch',
   },
 });

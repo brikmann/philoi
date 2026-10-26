@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { FriendFaceStack, UnreadBadge } from '@/components/lockin-cheers/friend-faces';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { FriendLockedIn } from '@/lib/api/lockin-cheers';
 
 /**
@@ -38,7 +39,8 @@ export function FriendsLockedInStrip({
       <Text style={styles.label} numberOfLines={1}>
         {label}
       </Text>
-      <Text style={styles.cta}>Cheer →</Text>
+      <Text style={styles.cta}>Cheer</Text>
+      <UiGlyph name="forward" size={12} color={Colors.navEmber2} />
       <UnreadBadge count={unread} />
     </Pressable>
   );
@@ -49,10 +51,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.button,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 13,
     marginBottom: 11,
@@ -69,8 +71,9 @@ const styles = StyleSheet.create({
   },
   cta: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: Colors.amber,
+    fontSize: 11.5,
+    color: Colors.navEmber2,
   },
 });
+
 

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
@@ -6,6 +5,8 @@ import Animated, { FadeIn, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { ExercisePicker } from '@/components/exercise-picker';
 import { PrConsentSheet } from '@/components/fitness/pr-consent-sheet';
 import { GymClipCaptureButton } from '@/components/gym-clip-capture-button';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useExerciseLibrary } from '@/hooks/use-exercise-library';
@@ -284,7 +285,7 @@ export function WorkoutLog({
                 </Text>
                 {hasPr && (
                   <Animated.View entering={ZoomIn.springify().damping(12)} style={styles.prPill}>
-                    <Ionicons name="trophy" size={9} color={Colors.achieverText} />
+                    <NavGlyph name="trophy" size={10} color={Colors.gold} />
                     <Text style={styles.prPillText}>PR</Text>
                   </Animated.View>
                 )}
@@ -296,14 +297,14 @@ export function WorkoutLog({
                 onPress={() => setMenuFor(menuOpen ? null : exercise.id)}
                 hitSlop={8}
                 accessibilityLabel={`Options for ${exercise.name}`}>
-                <Ionicons name="ellipsis-horizontal" size={16} color={Colors.textTertiary} />
+                <UiGlyph name="more" size={16} color={Colors.spaceDim} />
               </Pressable>
             </View>
 
             {menuOpen && (
               <Animated.View entering={FadeIn.duration(120)} style={styles.menu}>
                 <Pressable style={styles.menuItem} onPress={() => handleReplacePressed(exercise)}>
-                  <Ionicons name="swap-horizontal" size={15} color={Colors.amber} />
+                  <UiGlyph name="refresh" size={15} color={Colors.navEmber2} />
                   <Text style={styles.menuLabel}>Replace exercise</Text>
                 </Pressable>
                 {/* Two explicit moves rather than drag-to-reorder — no drag library exists in
@@ -315,7 +316,7 @@ export function WorkoutLog({
                     setMenuFor(null);
                     onMoveExercise(exercise.id, -1);
                   }}>
-                  <Ionicons name="arrow-up" size={15} color={exerciseIndex === 0 ? Colors.disabled : Colors.amber} />
+                  <UiGlyph name="up" size={15} color={exerciseIndex === 0 ? Colors.spaceLine : Colors.navEmber2} />
                   <Text style={[styles.menuLabel, exerciseIndex === 0 && styles.menuLabelDisabled]}>Move up</Text>
                 </Pressable>
                 <Pressable
@@ -325,10 +326,10 @@ export function WorkoutLog({
                     setMenuFor(null);
                     onMoveExercise(exercise.id, 1);
                   }}>
-                  <Ionicons
-                    name="arrow-down"
+                  <UiGlyph
+                    name="down"
                     size={15}
-                    color={exerciseIndex === workout.exercises.length - 1 ? Colors.disabled : Colors.amber}
+                    color={exerciseIndex === workout.exercises.length - 1 ? Colors.spaceLine : Colors.navEmber2}
                   />
                   <Text
                     style={[styles.menuLabel, exerciseIndex === workout.exercises.length - 1 && styles.menuLabelDisabled]}>
@@ -336,7 +337,7 @@ export function WorkoutLog({
                   </Text>
                 </Pressable>
                 <Pressable style={styles.menuItem} onPress={() => handleRemovePressed(exercise)}>
-                  <Ionicons name="trash-outline" size={15} color={Colors.danger} />
+                  <UiGlyph name="trash" size={15} color={Colors.danger} />
                   <Text style={[styles.menuLabel, styles.menuLabelDanger]}>Remove exercise</Text>
                 </Pressable>
               </Animated.View>
@@ -364,7 +365,7 @@ export function WorkoutLog({
                   onPress={() => handleUnbank(exercise, set.id)}
                   style={[styles.check, styles.checkOn, styles.colAction]}
                   accessibilityLabel={`Remove set ${index + 1}`}>
-                  <Ionicons name="checkmark" size={15} color={Colors.ink} />
+                  <UiGlyph name="check" size={15} color="#2A0F05" />
                 </Pressable>
                 {/* Per-set clip (§23 phase-2, design-mocks/38) — a banked set only. There's
                     nothing to attach a clip to before ✓, since the workout_sets row is what
@@ -386,7 +387,7 @@ export function WorkoutLog({
                 )}
                 {set.is_pr && (
                   <Animated.View entering={ZoomIn.springify().damping(12)} style={styles.rowPr}>
-                    <Ionicons name="trophy" size={9} color={Colors.achieverText} />
+                    <NavGlyph name="trophy" size={9} color={Colors.gold} />
                   </Animated.View>
                 )}
               </Animated.View>
@@ -400,7 +401,7 @@ export function WorkoutLog({
                   value={draft.weight}
                   onChangeText={(t) => patchDraft(exercise, index, { weight: t })}
                   placeholder="—"
-                  placeholderTextColor={Colors.textTertiary}
+                  placeholderTextColor={Colors.spaceFaint}
                   keyboardType="decimal-pad"
                   maxLength={6}
                   accessibilityLabel="Weight"
@@ -410,7 +411,7 @@ export function WorkoutLog({
                   value={draft.reps}
                   onChangeText={(t) => patchDraft(exercise, index, { reps: t })}
                   placeholder="0"
-                  placeholderTextColor={Colors.textTertiary}
+                  placeholderTextColor={Colors.spaceFaint}
                   keyboardType="number-pad"
                   maxLength={reps.maxLength}
                   accessibilityLabel={reps.label === 'reps' ? 'Reps' : reps.label === 'sec' ? 'Seconds' : 'Metres'}
@@ -420,20 +421,20 @@ export function WorkoutLog({
                   disabled={savingKey === draft.key}
                   style={[styles.check, styles.colAction]}
                   accessibilityLabel="Save set">
-                  <Ionicons name="checkmark" size={15} color={savingKey === draft.key ? Colors.amber : Colors.trackAlt} />
+                  <UiGlyph name="check" size={15} color={savingKey === draft.key ? Colors.navEmber2 : Colors.spaceFaint} />
                 </Pressable>
                 {/* Only offered past the first row, so an exercise always keeps one row ready
                     to log into. */}
                 {index > 0 && (
                   <Pressable onPress={() => dropDraft(exercise, index)} hitSlop={6} style={styles.dropDraft}>
-                    <Ionicons name="close" size={12} color={Colors.textTertiary} />
+                    <UiGlyph name="close" size={12} color={Colors.spaceFaint} />
                   </Pressable>
                 )}
               </View>
             ))}
 
             <Pressable onPress={() => addDraft(exercise)} style={styles.addSet} hitSlop={6}>
-              <Ionicons name="add" size={13} color={Colors.amber} />
+              <UiGlyph name="add" size={13} color={Colors.navEmber2} />
               <Text style={styles.addSetLabel}>Add set</Text>
             </Pressable>
           </View>
@@ -447,7 +448,7 @@ export function WorkoutLog({
       {error && <Text style={styles.error}>{error}</Text>}
 
       <Pressable onPress={() => setAddOpen(true)} style={styles.addExercise}>
-        <Ionicons name="add" size={15} color={Colors.amber} />
+        <UiGlyph name="add" size={15} color={Colors.navEmber2} />
         <Text style={styles.addExerciseLabel}>Add exercise</Text>
       </Pressable>
 
@@ -459,7 +460,7 @@ export function WorkoutLog({
               value={routineName}
               onChangeText={setRoutineName}
               placeholder="Name this routine"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={Colors.spaceFaint}
               maxLength={40}
               autoFocus
               accessibilityLabel="Routine name"
@@ -469,12 +470,12 @@ export function WorkoutLog({
               disabled={savingRoutine || routineName.trim().length === 0}
               style={[styles.routineSaveBtn, routineName.trim().length === 0 && styles.routineSaveBtnDisabled]}
               accessibilityLabel="Save routine">
-              <Ionicons name="checkmark" size={16} color={Colors.ink} />
+              <UiGlyph name="check" size={16} color="#2A0F05" />
             </Pressable>
           </View>
         ) : (
           <Pressable onPress={() => setNamingRoutine(true)} style={styles.routineLink} hitSlop={6}>
-            <Ionicons name="bookmark-outline" size={12} color={Colors.amber} />
+            <UiGlyph name="add" size={12} color={Colors.navEmber2} />
             <Text style={styles.routineLinkText}>Save this as a routine</Text>
           </Pressable>
         ))}
@@ -505,12 +506,12 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 11,
   },
-  // Translucent, not solid (design-mocks/52's `.ex`) — Colors.card (#241C38) at 82% so the
+  // Translucent, not solid (design-mocks/52's `.ex`) — Colors.spacePanel (#1A1230) at 82% so the
   // dimmed flame behind the gym session glows through the log instead of being walled off by it.
   card: {
-    backgroundColor: 'rgba(36,28,56,0.82)',
+    backgroundColor: 'rgba(26,18,48,0.82)',
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 12,
@@ -530,7 +531,7 @@ const styles = StyleSheet.create({
   },
   name: {
     flexShrink: 1,
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 13.5,
     color: Colors.ink,
   },
@@ -538,25 +539,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,209,102,0.12)',
     borderRadius: Radius.pill,
     paddingVertical: 2,
     paddingHorizontal: 6,
   },
+  // Gold: a PR is earned.
   prPillText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 9.5,
-    color: Colors.achieverText,
+    color: Colors.gold,
   },
   setCount: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   menu: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     borderRadius: 10,
     padding: 4,
     marginBottom: 8,
@@ -575,7 +577,7 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
   menuLabelDisabled: {
-    color: Colors.disabled,
+    color: Colors.spaceFaint,
   },
   menuLabelDanger: {
     color: Colors.danger,
@@ -591,7 +593,7 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'center',
   },
   setRow: {
@@ -614,19 +616,19 @@ const styles = StyleSheet.create({
   setNo: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   cell: {
-    backgroundColor: Colors.forgeBg,
+    backgroundColor: Colors.spaceBg,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: 8,
     paddingVertical: 7,
     paddingHorizontal: 4,
   },
   cellBanked: {
-    borderColor: 'rgba(224,97,44,0.4)',
+    borderColor: 'rgba(255,122,47,0.45)',
   },
   cellInput: {
     fontFamily: Fonts.body,
@@ -647,15 +649,15 @@ const styles = StyleSheet.create({
   check: {
     height: 30,
     borderRadius: 8,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkOn: {
-    backgroundColor: Colors.coral,
-    borderColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
+    borderColor: Colors.navEmber,
   },
   rowPr: {
     position: 'absolute',
@@ -664,7 +666,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: '#3A2E14',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -680,9 +682,9 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   addSetLabel: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   addExercise: {
     flexDirection: 'row',
@@ -691,14 +693,15 @@ const styles = StyleSheet.create({
     gap: 6,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.card,
-    paddingVertical: 11,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(26,18,48,0.6)',
   },
   addExerciseLabel: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   routineLink: {
     flexDirection: 'row',
@@ -707,9 +710,9 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   routineLinkText: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   routineSaveRow: {
     flexDirection: 'row',
@@ -718,9 +721,9 @@ const styles = StyleSheet.create({
   },
   routineNameInput: {
     flex: 1,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.input,
     paddingVertical: 9,
     paddingHorizontal: 11,
@@ -732,30 +735,31 @@ const styles = StyleSheet.create({
   routineSaveBtn: {
     width: 42,
     borderRadius: Radius.input,
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
     alignItems: 'center',
     justifyContent: 'center',
   },
   routineSaveBtnDisabled: {
-    backgroundColor: Colors.disabled,
+    opacity: 0.45,
   },
   routineSavedText: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   empty: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     textAlign: 'center',
     paddingVertical: Spacing.two,
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.coral,
+    color: Colors.danger,
+
     textAlign: 'center',
   },
 });

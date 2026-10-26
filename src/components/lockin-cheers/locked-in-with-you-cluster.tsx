@@ -3,6 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 
 import { FriendFace, FriendFaceStack, UnreadBadge } from '@/components/lockin-cheers/friend-faces';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import type { FriendLockedIn, ReceivedCheer } from '@/lib/api/lockin-cheers';
@@ -42,16 +44,20 @@ export function LockedInWithYouCluster({
   );
 }
 
-/** "🔥 3 cheers" under the timer — nothing until the first one lands. */
+/** "🔥 3 cheers" under the timer — nothing until the first one lands. The flame is the bespoke
+ * glyph now; the row is an Animated.View so the glyph and the line fade in as one. */
 export function CheerTally({ cheers }: { cheers: ReceivedCheer[] }) {
   if (cheers.length === 0) return null;
   const names = cheers.map((c) => c.name.split(/\s+/)[0]);
   const who =
     names.length === 1 ? names[0] : names.length === 2 ? `${names[0]} & ${names[1]}` : `${names[0]} & ${names.length - 1} more`;
   return (
-    <Animated.Text entering={FadeIn.duration(300)} style={styles.tally} numberOfLines={1}>
-      🔥 {cheers.length} {cheers.length === 1 ? 'cheer' : 'cheers'} · {who}
-    </Animated.Text>
+    <Animated.View entering={FadeIn.duration(300)} style={styles.tallyRow}>
+      <NavGlyph name="flame" size={12} color={Colors.gold} />
+      <Text style={styles.tally} numberOfLines={1}>
+        {cheers.length} {cheers.length === 1 ? 'cheer' : 'cheers'} · {who}
+      </Text>
+    </Animated.View>
   );
 }
 
@@ -95,7 +101,13 @@ function BannerCard({ banner, onDone }: { banner: LockInCheerBanner; onDone: (id
         {banner.kind === 'cheer' ? ' cheered you on\n' : ' says\n'}
         {banner.kind === 'cheer' ? banner.text : `“${banner.text}”`}
       </Text>
-      <Text style={styles.bannerGlyph}>{banner.kind === 'cheer' ? '🔥' : '💬'}</Text>
+      <View style={styles.bannerGlyph}>
+        {banner.kind === 'cheer' ? (
+          <NavGlyph name="flame" size={16} color={Colors.gold} />
+        ) : (
+          <UiGlyph name="send" size={15} color={Colors.legend} />
+        )}
+      </View>
     </Animated.View>
   );
 }
@@ -109,8 +121,8 @@ const styles = StyleSheet.create({
   clusterLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 9.5,
-    letterSpacing: 0.5,
-    color: Colors.textTertiary,
+    letterSpacing: 0.6,
+    color: Colors.spaceFaint,
     textTransform: 'uppercase',
   },
   pill: {
@@ -118,9 +130,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: Spacing.two,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 6,
     paddingLeft: 7,
@@ -134,11 +146,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.ink,
   },
+  // Gold: a cheer is something you were given.
+  tallyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: Spacing.two,
+  },
   tally: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.amber,
-    marginTop: Spacing.two,
+    color: Colors.gold,
     textAlign: 'center',
   },
   banner: {
@@ -150,10 +169,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: 13,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: Spacing.twelve,
     shadowColor: '#000',
@@ -171,9 +190,15 @@ const styles = StyleSheet.create({
   },
   bannerName: {
     fontFamily: Fonts.bodyBold,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   bannerGlyph: {
-    fontSize: 20,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: Colors.spacePanel2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+
 });

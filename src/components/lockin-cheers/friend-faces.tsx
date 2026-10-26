@@ -16,7 +16,7 @@ export function FriendFace({
   avatarUrl,
   size,
   live = false,
-  ringColor = Colors.card,
+  ringColor = Colors.spacePanel,
 }: {
   name: string;
   avatarUrl: string | null;
@@ -52,7 +52,7 @@ export function FriendFaceStack({
   people,
   size = 26,
   max = 4,
-  ringColor = Colors.card,
+  ringColor = Colors.spacePanel,
 }: {
   people: { userId: string; name: string; avatarUrl: string | null }[];
   size?: number;
@@ -76,7 +76,7 @@ export function FriendFaceStack({
 }
 
 /** The unread count bubble on the pill corner. Renders nothing at zero. */
-export function UnreadBadge({ count, ringColor = Colors.cream }: { count: number; ringColor?: string }) {
+export function UnreadBadge({ count, ringColor = Colors.spaceBg }: { count: number; ringColor?: string }) {
   if (count <= 0) return null;
   return (
     <View style={[styles.badge, { borderColor: ringColor }]} accessibilityLabel={`${count} unread`}>
@@ -87,12 +87,12 @@ export function UnreadBadge({ count, ringColor = Colors.cream }: { count: number
 
 const styles = StyleSheet.create({
   face: {
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
   },
   initialsFace: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.plum,
+    backgroundColor: '#3A2D5A',
   },
   initials: {
     fontFamily: Fonts.bodyBold,
@@ -121,13 +121,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderRadius: 10,
     borderWidth: 2,
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
-    color: Colors.ink,
+    color: '#2A0F05',
   },
+
 });

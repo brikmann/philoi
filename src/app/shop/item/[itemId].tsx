@@ -1,14 +1,14 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { EmberPill, RarityLabel, formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
 import { PurchaseSheet } from '@/components/economy/purchase-sheet';
-import { Screen } from '@/components/ui/screen';
+import { SPACE_GUTTER, SpaceEmpty, SpaceHeader } from '@/components/ui/space-kit';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useStopPreviewOnLeave } from '@/hooks/use-audio-preview';
 import { useInventory } from '@/hooks/use-inventory';
@@ -38,9 +38,10 @@ export default function ShopItemScreen() {
   const found = getItem(itemId ?? '');
   if (!found) {
     return (
-      <Screen>
-        <Text style={styles.missing}>That item doesn&apos;t exist.</Text>
-      </Screen>
+      <SafeAreaView edges={['top']} style={styles.safe}>
+        <SpaceHeader title="Shop" />
+        <SpaceEmpty title="That item doesn't exist." />
+      </SafeAreaView>
     );
   }
   // Narrowed into a const so `buy()` closes over a non-nullable item.
@@ -106,15 +107,9 @@ export default function ShopItemScreen() {
   }
 
   return (
-    <Screen padded={false}>
+    <SafeAreaView edges={['top']} style={styles.safe}>
+      <SpaceHeader title={isDrop ? 'Meme Monday' : 'Buy direct'} right={<EmberPill embers={embers} />} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={Colors.ink} />
-          </Pressable>
-          <View style={styles.flex} />
-          <EmberPill embers={embers} />
-        </View>
 
         <View style={styles.hero}>
           <View style={[styles.glow, { backgroundColor: rarityGlow(item.rarity, 0.5) }]} />
@@ -141,12 +136,12 @@ export default function ShopItemScreen() {
 
         <View style={styles.ctas}>
           {owned ? (
-            <View style={[styles.buyBtn, styles.disabled]}>
-              <Text style={styles.buyBtnText}>You already own this</Text>
+            <View style={[styles.buyBtn, styles.inert]}>
+              <Text style={[styles.buyBtnText, styles.buyBtnTextOff]}>You already own this</Text>
             </View>
           ) : !purchasable ? (
-            <View style={[styles.buyBtn, styles.disabled]}>
-              <Text style={styles.buyBtnText}>{lockedLabel}</Text>
+            <View style={[styles.buyBtn, styles.inert]}>
+              <Text style={[styles.buyBtnText, styles.buyBtnTextOff]}>{lockedLabel}</Text>
             </View>
           ) : (
             <Pressable
@@ -194,22 +189,24 @@ export default function ShopItemScreen() {
           router.back();
         }}
       />
-    </Screen>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: { flex: 1 },
   content: { paddingBottom: Spacing.six },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: Spacing.three,
-    paddingHorizontal: Spacing.three,
-  },
-  flex: { flex: 1 },
-  missing: { fontFamily: Fonts.body, color: Colors.muted },
+  // The hero is a kit panel now — the rarity rule rides its top edge and the glow sits inside it,
+  // so the item reads as an object on a card rather than floating loose on the ground.
   hero: {
     height: 210,
+    marginHorizontal: SPACE_GUTTER,
+    marginBottom: Spacing.three,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -231,7 +228,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.two,
   },
-  body: { paddingHorizontal: Spacing.four },
+  body: { paddingHorizontal: SPACE_GUTTER },
   name: {
     fontFamily: Fonts.bodyBold,
     fontSize: 22,
@@ -242,7 +239,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontSize: 12.5,
     lineHeight: 19,
-    color: '#b7a9cc',
+    color: Colors.spaceDim,
     marginTop: Spacing.twelve,
   },
   effect: {
@@ -255,23 +252,32 @@ const styles = StyleSheet.create({
   slot: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceFaint,
     marginTop: Spacing.two,
   },
   ctas: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingTop: Spacing.four,
     gap: Spacing.two,
   },
+  // SpaceButton's primary, hand-built because the label carries an inline ember glyph.
   buyBtn: {
-    backgroundColor: Colors.coral,
-    borderRadius: 14,
-    paddingVertical: 14,
+    backgroundColor: Colors.navEmber,
+    borderRadius: 16,
+    minHeight: 50,
+    paddingHorizontal: Spacing.four,
     alignItems: 'center',
+    justifyContent: 'center',
   },
+  // Can't afford / mid-buy: SpaceButton's off state — the same ember, fire turned down.
   disabled: {
     opacity: 0.45,
-    backgroundColor: Colors.card,
+  },
+  // Owned / not for sale: not an action at all, so no ember — a secondary panel carrying the reason.
+  inert: {
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   buyBtnRow: {
     flexDirection: 'row',
@@ -279,15 +285,19 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   buyBtnText: {
+    fontFamily: Fonts.black,
+    fontSize: 15,
+    color: '#2A0F05',
+  },
+  buyBtnTextOff: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.ink,
+    color: Colors.spaceDim,
   },
   note: {
     fontFamily: Fonts.body,
-    fontSize: 10,
+    fontSize: 10.5,
     lineHeight: 15,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
 });

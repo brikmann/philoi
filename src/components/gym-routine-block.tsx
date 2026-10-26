@@ -1,9 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { RoutineEditor } from '@/components/routine-editor';
-import { Colors, Fonts, Radius } from '@/constants/theme';
+import { SessionGlyph, type SessionGlyphName } from '@/components/ui/glyphs-session';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts } from '@/constants/theme';
 import { useRoutines } from '@/hooks/use-routines';
 import type { RoutineWithExercises, WorkoutEnergy } from '@/types/database';
 
@@ -15,10 +17,10 @@ type GymRoutineBlockProps = {
   onEnergyChange: (energy: WorkoutEnergy) => void;
 };
 
-const ENERGY_OPTIONS: { value: WorkoutEnergy; label: string; sub: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'light', label: 'Light', sub: 'ease it off', icon: 'leaf-outline' },
-  { value: 'same', label: 'Same', sub: 'as usual', icon: 'reorder-two-outline' },
-  { value: 'dialed', label: 'Dialed', sub: 'push it', icon: 'flash' },
+const ENERGY_OPTIONS: { value: WorkoutEnergy; label: string; sub: string; icon: SessionGlyphName }[] = [
+  { value: 'light', label: 'Light', sub: 'ease it off', icon: 'level1' },
+  { value: 'same', label: 'Same', sub: 'as usual', icon: 'level2' },
+  { value: 'dialed', label: 'Dialed', sub: 'push it', icon: 'level3' },
 ];
 
 // Revealed inside the lock-in goal picker the moment GYM is selected (PHILOI_UI_SPEC.md §23,
@@ -55,7 +57,7 @@ export function GymRoutineBlock({ routineId, onRoutineChange, energy, onEnergyCh
         <Text style={styles.label}>Today&apos;s routine</Text>
         {routines.length > 0 && (
           <View style={styles.fromMem}>
-            <Ionicons name="time-outline" size={11} color={Colors.amber} />
+            <SessionGlyph name="timer" size={11} color={Colors.legend} />
             <Text style={styles.fromMemText}>from your routines</Text>
           </View>
         )}
@@ -70,7 +72,7 @@ export function GymRoutineBlock({ routineId, onRoutineChange, energy, onEnergyCh
             onLongPress={() => openEditor(routine)}
             style={[styles.routine, selected && styles.routineSelected]}>
             <View style={styles.routineIcon}>
-              <Ionicons name="barbell" size={15} color={Colors.amber} />
+              <NavGlyph name="dumbbell" size={17} color={Colors.navEmber2} />
             </View>
             <View style={styles.routineMeta}>
               <Text style={[styles.routineName, selected && styles.routineNameSelected]} numberOfLines={1}>
@@ -93,7 +95,7 @@ export function GymRoutineBlock({ routineId, onRoutineChange, energy, onEnergyCh
         onPress={() => onRoutineChange(null)}
         style={[styles.routine, routineId === null && styles.routineSelected]}>
         <View style={[styles.routineIcon, styles.freestyleIcon]}>
-          <Ionicons name="flash-outline" size={15} color={Colors.soloChipText} />
+          <UiGlyph name="edit" size={15} color={Colors.spaceDim} />
         </View>
         <View style={styles.routineMeta}>
           <Text style={[styles.routineName, routineId === null && styles.routineNameSelected]}>Freestyle</Text>
@@ -104,7 +106,7 @@ export function GymRoutineBlock({ routineId, onRoutineChange, energy, onEnergyCh
       </Pressable>
 
       <Pressable onPress={() => openEditor(null)} style={styles.newRoutine}>
-        <Ionicons name="add" size={14} color={Colors.amber} />
+        <UiGlyph name="add" size={14} color={Colors.navEmber2} />
         <Text style={styles.newRoutineLabel}>New routine</Text>
       </Pressable>
 
@@ -121,7 +123,7 @@ export function GymRoutineBlock({ routineId, onRoutineChange, energy, onEnergyCh
               key={option.value}
               onPress={() => onEnergyChange(option.value)}
               style={[styles.mood, selected && styles.moodSelected]}>
-              <Ionicons name={option.icon} size={15} color={Colors.amber} />
+              <SessionGlyph name={option.icon} size={15} color={selected ? Colors.navEmber : Colors.spaceDim} />
               <Text style={[styles.moodLabel, selected && styles.moodLabelSelected]}>{option.label}</Text>
               <Text style={[styles.moodSub, selected && styles.moodSubSelected]}>{option.sub}</Text>
             </Pressable>
@@ -154,15 +156,18 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 7,
   },
+  // SpaceSection's small uppercase label.
   label: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
   },
   labelHint: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   fromMem: {
     flexDirection: 'row',
@@ -172,34 +177,34 @@ const styles = StyleSheet.create({
   fromMemText: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.amber,
+    color: Colors.legend,
   },
   routine: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: Colors.cream,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 13,
     paddingVertical: 10,
     paddingHorizontal: 11,
     marginBottom: 7,
   },
   routineSelected: {
-    borderColor: Colors.coral,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.10)',
   },
   routineIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: Colors.achieverBg,
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255,122,47,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   freestyleIcon: {
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel,
   },
   routineMeta: {
     flex: 1,
@@ -211,18 +216,18 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
   routineNameSelected: {
-    color: Colors.achieverText,
+    color: Colors.navEmber2,
   },
   routineExercises: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 1,
   },
   routineCount: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   newRoutine: {
     flexDirection: 'row',
@@ -231,14 +236,14 @@ const styles = StyleSheet.create({
     gap: 6,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.card,
-    paddingVertical: 9,
+    borderColor: Colors.spaceLine,
+    borderRadius: 13,
+    paddingVertical: 10,
   },
   newRoutineLabel: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   moods: {
     flexDirection: 'row',
@@ -247,33 +252,34 @@ const styles = StyleSheet.create({
   mood: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: 11,
-    paddingVertical: 8,
+    borderColor: Colors.spaceLine,
+    borderRadius: 12,
+    paddingVertical: 9,
     paddingHorizontal: 4,
   },
   moodSelected: {
-    borderColor: Colors.coral,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.10)',
   },
   moodLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.muted,
-    marginTop: 3,
+    color: Colors.spaceDim,
+    marginTop: 4,
   },
   moodLabelSelected: {
-    color: Colors.achieverText,
+    color: Colors.ink,
   },
   moodSub: {
     fontFamily: Fonts.body,
     fontSize: 9,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: 2,
   },
   moodSubSelected: {
-    color: Colors.warmSubtext,
+    color: Colors.navEmber2,
   },
+
 });

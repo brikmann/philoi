@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -15,6 +14,8 @@ import {
 
 import { FriendFace, UnreadBadge } from '@/components/lockin-cheers/friend-faces';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGatedInterval } from '@/hooks/use-motion-active';
 import { blockUser } from '@/lib/api/agora';
@@ -150,7 +151,7 @@ export function LockInCheersSheet({
                       <View style={styles.actions}>
                         {!f.live ? null : f.iCheered ? (
                           <View style={[styles.iconButton, styles.iconDone]} accessibilityLabel={`Cheered ${f.name}`}>
-                            <Ionicons name="checkmark" size={18} color={Colors.green} />
+                            <UiGlyph name="check" size={18} color={Colors.green} />
                           </View>
                         ) : (
                           <Pressable
@@ -159,7 +160,7 @@ export function LockInCheersSheet({
                             disabled={sending === f.userId}
                             accessibilityRole="button"
                             accessibilityLabel={`Cheer ${f.name}`}>
-                            <Text style={styles.iconGlyph}>🔥</Text>
+                            <NavGlyph name="flame" size={18} color="#2A0F05" />
                           </Pressable>
                         )}
                         <Pressable
@@ -167,8 +168,8 @@ export function LockInCheersSheet({
                           style={[styles.iconButton, f.unread > 0 && styles.iconReply]}
                           accessibilityRole="button"
                           accessibilityLabel={`Message ${f.name}`}>
-                          <Text style={styles.iconGlyph}>💬</Text>
-                          <UnreadBadge count={f.unread} ringColor={Colors.card} />
+                          <UiGlyph name="send" size={17} color={f.unread > 0 ? Colors.navEmber2 : Colors.ink} />
+                          <UnreadBadge count={f.unread} ringColor={Colors.spacePanel} />
                         </Pressable>
                       </View>
                     </View>
@@ -294,7 +295,7 @@ function ThreadView({
     <View style={styles.thread}>
       <View style={styles.threadHeader}>
         <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back to friends">
-          <Ionicons name="chevron-back" size={20} color={Colors.muted} />
+          <UiGlyph name="back" size={18} color={Colors.spaceDim} />
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>
           {name}
@@ -306,7 +307,7 @@ function ThreadView({
           style={styles.threadMenu}
           accessibilityRole="button"
           accessibilityLabel="Report or block">
-          <Ionicons name="ellipsis-horizontal" size={18} color={Colors.muted} />
+          <UiGlyph name="more" size={18} color={Colors.spaceDim} />
         </Pressable>
       </View>
       <Text style={styles.sub}>
@@ -345,7 +346,7 @@ function ThreadView({
               value={draft}
               onChangeText={setDraft}
               placeholder="Type a line…"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={Colors.spaceFaint}
               maxLength={LOCKIN_MESSAGE_MAX}
               style={styles.input}
               returnKeyType="send"
@@ -358,7 +359,7 @@ function ThreadView({
               style={[styles.sendButton, (busy || draft.trim().length === 0) && styles.iconMuted]}
               accessibilityRole="button"
               accessibilityLabel="Send">
-              <Ionicons name="arrow-up" size={18} color={Colors.twilight900} />
+              <UiGlyph name="send" size={17} color="#2A0F05" />
             </Pressable>
           </View>
         </>
@@ -377,7 +378,7 @@ function ThreadView({
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(5,3,10,0.6)',
+    backgroundColor: 'rgba(14,10,28,0.6)',
   },
   sheetWrap: {
     flex: 1,
@@ -385,11 +386,11 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: '82%',
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     borderTopWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     paddingHorizontal: 15,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.five,
@@ -399,14 +400,14 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spaceLine,
     marginTop: Spacing.one,
     marginBottom: Spacing.twelve,
   },
   title: {
     flexShrink: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
+    fontFamily: Fonts.black,
+    fontSize: 16,
     color: Colors.ink,
     paddingHorizontal: Spacing.half,
   },
@@ -414,7 +415,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11,
     lineHeight: 15,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     paddingHorizontal: Spacing.half,
     paddingTop: Spacing.half,
     paddingBottom: Spacing.twelve,
@@ -422,14 +423,14 @@ const styles = StyleSheet.create({
   error: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.amber,
+    color: Colors.danger,
     paddingHorizontal: Spacing.half,
     paddingBottom: Spacing.two,
   },
   empty: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     textAlign: 'center',
     paddingVertical: Spacing.three,
   },
@@ -445,7 +446,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: Colors.line,
+    borderTopColor: Colors.spaceLine,
   },
   rowText: {
     flex: 1,
@@ -459,12 +460,12 @@ const styles = StyleSheet.create({
   activity: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 10.5,
-    color: Colors.amber,
+    color: Colors.navEmber2,
     marginTop: 1,
   },
   activityTime: {
     fontFamily: Fonts.body,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   actions: {
     flexDirection: 'row',
@@ -477,33 +478,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.line,
-    backgroundColor: Colors.card,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel2,
   },
+  // The row's one ember action.
   iconCheer: {
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
     borderColor: 'transparent',
   },
   iconDone: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(61,168,92,0.10)',
     borderColor: 'rgba(61,168,92,0.4)',
   },
   iconReply: {
-    borderColor: 'rgba(255,210,122,0.35)',
-    backgroundColor: 'rgba(255,210,122,0.08)',
+    borderColor: 'rgba(255,176,90,0.4)',
+    backgroundColor: 'rgba(255,122,47,0.10)',
   },
   iconMuted: {
     opacity: 0.45,
   },
-  iconGlyph: {
-    fontSize: 16,
-  },
   picker: {
     flexGrow: 0,
     marginBottom: 10,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: 13,
   },
   pickerContent: {
@@ -524,7 +523,7 @@ const styles = StyleSheet.create({
   presetLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 9.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 3,
   },
   thread: {
@@ -541,9 +540,9 @@ const styles = StyleSheet.create({
   bubbles: {
     flexGrow: 0,
     maxHeight: 280,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spaceBg,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: 13,
   },
   bubblesContent: {
@@ -558,19 +557,19 @@ const styles = StyleSheet.create({
   },
   bubbleMe: {
     alignSelf: 'flex-end',
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
     borderBottomRightRadius: 4,
   },
   bubbleThem: {
     alignSelf: 'flex-start',
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: Colors.spacePanel2,
     borderBottomLeftRadius: 4,
   },
   bubbleMeText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
     lineHeight: 16,
-    color: Colors.ink,
+    color: '#2A0F05',
   },
   bubbleThemText: {
     fontFamily: Fonts.body,
@@ -586,16 +585,16 @@ const styles = StyleSheet.create({
   },
   quick: {
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 6,
-    paddingHorizontal: 11,
-    backgroundColor: Colors.selectedBg,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.spacePanel2,
   },
   quickText: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.muted,
+    fontSize: 11.5,
+    color: Colors.spaceDim,
   },
   composer: {
     flexDirection: 'row',
@@ -608,9 +607,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.ink,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spaceBg,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.input,
     paddingHorizontal: Spacing.twelve,
     paddingVertical: 10,
@@ -619,7 +618,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.amber,
+    backgroundColor: Colors.navEmber,
+
     alignItems: 'center',
     justifyContent: 'center',
   },

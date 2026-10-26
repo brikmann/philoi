@@ -1,11 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
-import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { SpaceButton } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { getErrorMessage } from '@/lib/errors';
 import { previewScopedReward } from '@/lib/api/challenges';
 import { claimGoalComplete } from '@/lib/api/vouch';
@@ -91,15 +91,20 @@ export default function GoalClaimScreen() {
     <Screen>
       <Stack.Screen options={{ title: 'Complete goal', headerShown: true }} />
 
-      {tier ? <Text style={styles.tierTag}>{tier.toUpperCase()} GOAL</Text> : null}
+      {tier ? (
+        <View style={styles.tierTag}>
+          <Text style={styles.tierTagText}>{tier.toUpperCase()} GOAL</Text>
+        </View>
+      ) : null}
       <Text style={styles.goalName}>You did it?</Text>
       <Text style={styles.claimLine}>&ldquo;{label}&rdquo;</Text>
+      {/* The crate is the earned thing on this screen, so it alone takes gold. */}
       <Text style={styles.question}>
-        Mark it complete and it settles on your word — {honorCrate ?? 'your crate'}.
+        Mark it complete and it settles on your word — <Text style={styles.crate}>{honorCrate ?? 'your crate'}</Text>.
       </Text>
 
       <View style={styles.note}>
-        <Ionicons name="information-circle-outline" size={16} color={Colors.textTertiary} />
+        <UiGlyph name="info" size={16} color={Colors.legend} />
         <Text style={styles.noteText}>
           Self-reported goals pay a capped tier. App-tracked goals (steps, workouts, focus time) pay
           the full tier automatically — nothing to claim here.
@@ -108,29 +113,35 @@ export default function GoalClaimScreen() {
 
       <View style={styles.spacer} />
 
-      {claiming ? (
-        <ActivityIndicator size="small" color={Colors.amber} style={{ marginBottom: Spacing.three }} />
-      ) : null}
-      <PrimaryButton label="Mark it complete" onPress={claim} disabled={claiming} />
-      <Pressable onPress={() => router.back()} disabled={claiming} accessibilityRole="button" style={styles.cancelWrap}>
-        <Text style={styles.cancel}>Not yet</Text>
-      </Pressable>
+      {/* The kit's primary carries the in-flight spinner itself (it was a separate indicator above
+          the button); disabled the whole time, exactly as before. */}
+      <SpaceButton label="Mark it complete" onPress={claim} loading={claiming} />
+      <SpaceButton label="Not yet" variant="ghost" onPress={() => router.back()} disabled={claiming} style={styles.cancelWrap} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  // Legend purple: the tier is secondary context, not the action and not the reward.
   tierTag: {
+    alignSelf: 'center',
+    marginTop: Spacing.three,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: '#3A2D5A',
+    backgroundColor: 'rgba(185,139,255,0.08)',
+  },
+  tierTagText: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 9,
-    letterSpacing: 2,
-    color: '#A06CD5',
-    textAlign: 'center',
-    marginTop: Spacing.two,
+    fontSize: 9.5,
+    letterSpacing: 1.6,
+    color: Colors.legend,
   },
   goalName: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 22,
+    fontFamily: Fonts.black,
+    fontSize: 26,
     color: Colors.ink,
     textAlign: 'center',
     marginTop: 6,
@@ -140,20 +151,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.ink,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
   question: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    lineHeight: 19,
+    color: Colors.spaceDim,
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: 8,
   },
+  crate: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.gold,
+  },
+  // SpaceCard's legend tone — an informational aside.
   note: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: Colors.cardDark,
+    gap: 10,
+    backgroundColor: 'rgba(185,139,255,0.08)',
+    borderWidth: 1,
+    borderColor: '#3A2D5A',
     borderRadius: 14,
     padding: 14,
     marginTop: Spacing.four,
@@ -161,11 +180,10 @@ const styles = StyleSheet.create({
   noteText: {
     flex: 1,
     fontFamily: Fonts.body,
-    fontSize: 11.5,
-    lineHeight: 16,
-    color: Colors.textTertiary,
+    fontSize: 12,
+    lineHeight: 17,
+    color: Colors.spaceDim,
   },
   spacer: { flex: 1, minHeight: Spacing.four },
-  cancelWrap: { paddingVertical: Spacing.three, alignItems: 'center' },
-  cancel: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.muted },
+  cancelWrap: { marginTop: Spacing.two, marginBottom: Spacing.two },
 });

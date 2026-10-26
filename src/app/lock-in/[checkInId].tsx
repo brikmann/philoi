@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -6,8 +5,11 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { PhotoViewer } from '@/components/photo-viewer';
 import { StoryShareSheet } from '@/components/story-sticker/story-share-sheet';
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { GOAL_TYPE_NAV_GLYPH } from '@/components/ui/glyphs-session';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Screen } from '@/components/ui/screen';
+import { SPACE_GUTTER, SpaceButton, SpaceEmpty, SpaceSection } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchLockInDetail, type LockInDetail } from '@/lib/api/check-ins';
@@ -26,6 +28,9 @@ function formatLockInDate(iso: string): string {
 // design-mocks/54a — the detail screen behind a tap on any recent lock-in on Home (punchlist
 // 3): goal, duration, XP, date, photos, PRs, and which campfire it posted to, plus a share flow
 // (54b) — now the story sticker, the same one the done screen shares.
+//
+// Space-purple pass: the discipline glyph the Lock In tab started it with (not the goal emoji),
+// kit panels and buttons, gold for the XP it earned.
 export default function LockInDetailScreen() {
   const router = useRouter();
   const { profile } = useAuth();
@@ -50,7 +55,7 @@ export default function LockInDetailScreen() {
   if (loading) {
     return (
       <Screen style={styles.centered}>
-        <ActivityIndicator color={Colors.coral} />
+        <ActivityIndicator color={Colors.navEmber} />
       </Screen>
     );
   }
@@ -58,7 +63,7 @@ export default function LockInDetailScreen() {
   if (!detail) {
     return (
       <Screen style={styles.centered}>
-        <Text style={styles.emptyText}>This lock-in isn’t available.</Text>
+        <SpaceEmpty title="This lock-in isn’t available." />
       </Screen>
     );
   }
@@ -70,13 +75,18 @@ export default function LockInDetailScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.back}>
-          <Ionicons name="chevron-down" size={22} color={Colors.muted} />
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={styles.back}
+          accessibilityRole="button"
+          accessibilityLabel="Close">
+          <UiGlyph name="down" size={18} color={Colors.ink} />
         </Pressable>
 
         <View style={styles.hero}>
           <View style={styles.gicon}>
-            <Text style={styles.giconEmoji}>{GOAL_TYPE_META[detail.goal_type].emoji}</Text>
+            <NavGlyph name={GOAL_TYPE_NAV_GLYPH[detail.goal_type]} size={30} color={Colors.navEmber} />
           </View>
           <Text style={styles.gname}>{detail.goal_detail || GOAL_TYPE_META[detail.goal_type].label}</Text>
           <Text style={styles.gdate}>
@@ -90,21 +100,26 @@ export default function LockInDetailScreen() {
             <Text style={styles.bigStatValue}>{formatDurationClock(detail.duration_seconds ?? 0)}</Text>
             <Text style={styles.bigStatLabel}>DURATION</Text>
           </View>
+          <View style={styles.statDivider} />
           <View style={styles.bigStat}>
-            <Text style={[styles.bigStatValue, styles.amber]}>+{detail.xp_earned}</Text>
+            <Text style={[styles.bigStatValue, styles.earned]}>+{detail.xp_earned}</Text>
             <Text style={styles.bigStatLabel}>XP EARNED</Text>
           </View>
+          <View style={styles.statDivider} />
           <View style={styles.bigStat}>
             <Text style={styles.bigStatValue}>{prCount}</Text>
             <Text style={styles.bigStatLabel}>PRs</Text>
           </View>
         </View>
 
-        <Text style={styles.sectionLabel}>Details</Text>
+        <SpaceSection>Details</SpaceSection>
         <View style={styles.detailsCard}>
           <View style={styles.row}>
             <Text style={styles.rowKey}>Streak</Text>
-            <Text style={styles.rowValue}>🔥 {streakDays} days · kept alive</Text>
+            <View style={styles.rowValueInline}>
+              <NavGlyph name="flame" size={13} color={Colors.gold} />
+              <Text style={styles.rowValue}>{streakDays} days · kept alive</Text>
+            </View>
           </View>
           {topSet && (
             <View style={[styles.row, styles.rowBorder]}>
@@ -116,7 +131,8 @@ export default function LockInDetailScreen() {
                 </Text>
                 {topSet.is_pr && (
                   <View style={styles.prBadge}>
-                    <Text style={styles.prBadgeText}>🔥 PR</Text>
+                    <NavGlyph name="trophy" size={10} color={Colors.gold} />
+                    <Text style={styles.prBadgeText}>PR</Text>
                   </View>
                 )}
               </View>
@@ -132,7 +148,7 @@ export default function LockInDetailScreen() {
 
         {detail.signedPhotoUrls.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>Photos</Text>
+            <SpaceSection>Photos</SpaceSection>
             <View style={styles.photoGrid}>
               {detail.signedPhotoUrls.map((uri) => (
                 <Pressable key={uri} onPress={() => setViewerUri(uri)}>
@@ -144,12 +160,13 @@ export default function LockInDetailScreen() {
         )}
 
         <View style={styles.shareRow}>
-          <View style={styles.shareBtn}>
-            <PrimaryButton label="Share" onPress={() => setStickerOpen(true)} />
-          </View>
-          <Pressable style={styles.privateBtn} onPress={() => router.back()}>
-            <Text style={styles.privateBtnText}>Keep private</Text>
-          </Pressable>
+          <SpaceButton
+            label="Share"
+            onPress={() => setStickerOpen(true)}
+            leading={<UiGlyph name="share" size={16} color="#2A0F05" />}
+            style={styles.shareBtn}
+          />
+          <SpaceButton label="Keep private" variant="secondary" onPress={() => router.back()} style={styles.shareBtn} />
         </View>
       </ScrollView>
 
@@ -176,49 +193,59 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyText: {
-    fontFamily: Fonts.body,
-    color: Colors.muted,
-  },
   scroll: {
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.six,
   },
+  // The kit's round 36px header action, chevron pointing down: this screen dismisses, it doesn't
+  // go "back" through a stack.
   back: {
     alignSelf: 'flex-start',
-    paddingVertical: Spacing.two,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.two,
   },
   hero: {
     alignItems: 'center',
     marginTop: Spacing.two,
   },
   gicon: {
-    width: 60,
-    height: 60,
-    borderRadius: 15,
-    backgroundColor: Colors.selectedBg,
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,122,47,0.10)',
+    borderWidth: 1,
+    borderColor: Colors.navEmber,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  giconEmoji: {
-    fontSize: 28,
-  },
   gname: {
-    fontFamily: Fonts.displayHeavy,
-    fontSize: 19,
+    fontFamily: Fonts.black,
+    fontSize: 22,
     color: Colors.ink,
-    marginTop: Spacing.two,
+    marginTop: Spacing.twelve,
+    textAlign: 'center',
   },
   gdate: {
     fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.textTertiary,
-    marginTop: 2,
+    fontSize: 12,
+    color: Colors.spaceDim,
+    marginTop: 3,
+    textAlign: 'center',
   },
   bigStats: {
     flexDirection: 'row',
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
+    alignItems: 'center',
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: Spacing.three,
     marginTop: Spacing.four,
   },
@@ -226,49 +253,49 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  statDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: Colors.spaceLine,
+  },
   bigStatValue: {
     fontFamily: Fonts.displayHeavy,
     fontSize: 20,
     color: Colors.ink,
+    fontVariant: ['tabular-nums'],
   },
-  amber: {
-    color: Colors.amber,
+  // Gold = earned (the space kit's rule).
+  earned: {
+    color: Colors.gold,
   },
   bigStatLabel: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 9.5,
-    letterSpacing: 0.4,
-    color: Colors.textTertiary,
-    marginTop: 2,
-  },
-  sectionLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 10,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: Colors.textTertiary,
-    marginTop: Spacing.four,
-    marginBottom: Spacing.two,
+    letterSpacing: 0.6,
+    color: Colors.spaceFaint,
+    marginTop: 3,
   },
   detailsCard: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingHorizontal: Spacing.three,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.twelve,
   },
   rowBorder: {
     borderTopWidth: 1,
-    borderTopColor: Colors.line,
+    borderTopColor: Colors.spaceLine,
   },
   rowKey: {
     flex: 1,
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   rowValue: {
     fontFamily: Fonts.bodySemiBold,
@@ -281,15 +308,18 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   prBadge: {
-    backgroundColor: Colors.achieverBg,
-    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(255,209,102,0.12)',
+    borderRadius: Radius.pill,
     paddingVertical: 2,
     paddingHorizontal: 7,
   },
   prBadgeText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
-    color: Colors.ember,
+    color: Colors.gold,
   },
   photoGrid: {
     flexDirection: 'row',
@@ -299,8 +329,8 @@ const styles = StyleSheet.create({
   photo: {
     width: 96,
     height: 96,
-    borderRadius: Radius.card,
-    backgroundColor: Colors.disabled,
+    borderRadius: 12,
+    backgroundColor: Colors.spacePanel2,
   },
   shareRow: {
     flexDirection: 'row',
@@ -309,18 +339,5 @@ const styles = StyleSheet.create({
   },
   shareBtn: {
     flex: 1,
-  },
-  privateBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: Radius.button,
-    paddingVertical: Spacing.three,
-  },
-  privateBtnText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.muted,
   },
 });

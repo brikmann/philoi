@@ -8,9 +8,10 @@ import {
   type TaxonomySecondChoice,
   type TaxonomyStep,
 } from '@/components/taxonomy-two-tap';
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { SpaceButton, SpaceChip } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { fetchMyCourses } from '@/lib/api/courses';
 import { createGoal } from '@/lib/api/goals';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -143,8 +144,9 @@ export default function CreateGoalScreen() {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {step === 'second' && (
-          <Pressable onPress={goBack} style={styles.back} accessibilityRole="button" hitSlop={8}>
-            <Text style={styles.backLabel}>‹ Back</Text>
+          <Pressable onPress={goBack} style={styles.back} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8}>
+            <UiGlyph name="back" size={14} color={Colors.spaceDim} />
+            <Text style={styles.backLabel}>Back</Text>
           </Pressable>
         )}
 
@@ -164,7 +166,7 @@ export default function CreateGoalScreen() {
             have said which discipline it belongs to. */}
         {chosen && (
           <>
-            <Text style={styles.label}>Give it a name (optional)</Text>
+            <Text style={styles.label}>Name (optional)</Text>
             <Text style={styles.help}>
               A named goal stays a {GOAL_TYPE_META[chosen].label} goal — &ldquo;KP231&rdquo; under Study still counts
               toward Study&rsquo;s totals and its relic. Re-using a name you already have just opens that goal again.
@@ -179,26 +181,24 @@ export default function CreateGoalScreen() {
             <Text style={styles.label}>Cadence</Text>
             <View style={styles.row}>
               {GOAL_CADENCE_PRESETS[chosen].map((preset) => (
-                <Pressable
+                <SpaceChip
                   key={preset}
+                  label={preset}
+                  selected={!customCadence && cadence === preset}
                   onPress={() => {
                     setCadence(preset);
                     setCustomCadence(false);
                   }}
-                  style={[styles.chip, !customCadence && cadence === preset && styles.chipSelected]}>
-                  <Text style={[styles.chipText, !customCadence && cadence === preset && styles.chipTextSelected]}>
-                    {preset}
-                  </Text>
-                </Pressable>
+                />
               ))}
-              <Pressable
+              <SpaceChip
+                label="Custom"
+                selected={customCadence}
                 onPress={() => {
                   setCustomCadence(true);
                   setCadence('');
                 }}
-                style={[styles.chip, customCadence && styles.chipSelected]}>
-                <Text style={[styles.chipText, customCadence && styles.chipTextSelected]}>Custom</Text>
-              </Pressable>
+              />
             </View>
             {customCadence && (
               <TextInput
@@ -210,7 +210,7 @@ export default function CreateGoalScreen() {
             )}
 
             {error && <Text style={styles.error}>{error}</Text>}
-            <PrimaryButton label="Start this goal" onPress={handleCreate} loading={loading} />
+            <SpaceButton label="Start this goal" onPress={handleCreate} loading={loading} style={styles.cta} />
           </>
         )}
       </ScrollView>
@@ -249,62 +249,54 @@ const styles = StyleSheet.create({
   },
   back: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   backLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   title: {
-    fontFamily: Fonts.display,
-    fontSize: 22,
+    fontFamily: Fonts.black,
+    fontSize: 24,
     color: Colors.ink,
   },
   subtitle: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginBottom: Spacing.two,
   },
   help: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     lineHeight: 17,
-    marginTop: -4,
+    marginTop: -2,
   },
+  // SpaceSection's small uppercase label — the same one the Lock In tab heads its goal row with.
   label: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.ink,
-    marginTop: Spacing.three,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
+    marginTop: Spacing.four,
   },
   row: {
     flexDirection: 'row',
     gap: Spacing.two,
     flexWrap: 'wrap',
   },
-  chip: {
-    borderWidth: 2,
-    borderColor: Colors.line,
-    borderRadius: Radius.pill,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-  },
-  chipSelected: {
-    borderColor: Colors.coral,
-    backgroundColor: Colors.coral,
-  },
-  chipText: {
-    fontFamily: Fonts.bodySemiBold,
-    color: Colors.ink,
-  },
-  chipTextSelected: {
-    color: Colors.ink,
+  cta: {
+    marginTop: Spacing.three,
   },
   error: {
     fontFamily: Fonts.body,
-    color: Colors.coral,
+    color: Colors.danger,
     marginTop: Spacing.two,
   },
+
 });

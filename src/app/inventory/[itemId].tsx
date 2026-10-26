@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CosmeticContextPair } from '@/components/economy/cosmetic-in-context';
 import { EmberIcon } from '@/components/economy/ember-icon';
@@ -12,7 +12,7 @@ import { SeasonChip, isSeasonItem } from '@/components/economy/season-chip';
 import { SellConfirmScreen, SellRewardScreen } from '@/components/economy/sell-flow';
 import { SfxSlotPicker, type SfxChoice } from '@/components/economy/sfx-slot-picker';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
-import { Screen } from '@/components/ui/screen';
+import { SPACE_GUTTER, SpaceButton, SpaceEmpty, SpaceHeader } from '@/components/ui/space-kit';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAudioPreview, useStopPreviewOnLeave } from '@/hooks/use-audio-preview';
 import { useInventory } from '@/hooks/use-inventory';
@@ -82,9 +82,10 @@ export default function ItemDetailScreen() {
   const found = owned.find((o) => o.id === itemId);
   if (!found) {
     return (
-      <Screen>
-        <Text style={styles.missing}>You don&apos;t own that item.</Text>
-      </Screen>
+      <SafeAreaView edges={['top']} style={styles.safe}>
+        <SpaceHeader title="Inventory" />
+        <SpaceEmpty title="You don't own that item." />
+      </SafeAreaView>
     );
   }
   // Narrowed once into a const so the async handlers below close over a non-nullable value —
@@ -186,16 +187,16 @@ export default function ItemDetailScreen() {
   }
 
   return (
-    <Screen padded={false}>
+    <SafeAreaView edges={['top']} style={styles.safe}>
+      {/* The back chevron used to float over the hero art; it lives in the kit header now, and the
+          hero is a panel under it. The bar names the slot so the screen says what it equips into. */}
+      <SpaceHeader title={item.slot ? SLOT_LABEL[item.slot] : 'Showcase'} subtitle="Inventory" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <View style={[styles.glow, { backgroundColor: rarityGlow(item.rarity, 0.5) }]} />
           {/* The same 3px rarity rule the grid tile carries (mock 216), so tapping a tile lands on
               a screen wearing the tile's colour rather than on a neutral hero. */}
           <View style={[styles.rarityBar, { backgroundColor: RARITY_COLOR[item.rarity] }]} />
-          <Pressable style={styles.back} onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={18} color="#fff" />
-          </Pressable>
           <ItemArt item={item} size={120} />
         </View>
 
@@ -262,11 +263,13 @@ export default function ItemDetailScreen() {
           {/* SFX equips through the Start/End/Both picker above — a single Equip button here would
               have to silently pick a slot on the user's behalf. */}
           {!item.showcaseOnly && !isSfx ? (
-            <Pressable style={styles.equipBtn} onPress={doEquip} disabled={busy}>
-              <Text style={styles.equipBtnText}>
-                {item.equipped ? `Unequip ${SLOT_LABEL[item.slot!]}` : `Equip ${SLOT_LABEL[item.slot!]}`}
-              </Text>
-            </Pressable>
+            <SpaceButton
+              label={item.equipped ? `Unequip ${SLOT_LABEL[item.slot!]}` : `Equip ${SLOT_LABEL[item.slot!]}`}
+              // Unequip is the step back, so it drops to the secondary panel; Equip is the ember action.
+              variant={item.equipped ? 'secondary' : 'primary'}
+              onPress={doEquip}
+              disabled={busy}
+            />
           ) : null}
 
           {/* Starter items have no Sell at all (#88). They're the floor a slot falls back to, so
@@ -303,7 +306,7 @@ export default function ItemDetailScreen() {
                     })
                   }
                   disabled={busy}>
-                  <PhiloiIcon name="forge" size={16} color={Colors.ember} />
+                  <PhiloiIcon name="forge" size={16} color={Colors.navEmber2} />
                   {/* No rung math on the tail: "3 epics make a legendary" is the Forge screen's
                       job, and it made this button read like a spec sheet. */}
                   <Text style={styles.forgeBtnText}>Send to the Forge</Text>
@@ -331,20 +334,28 @@ export default function ItemDetailScreen() {
           )}
         </View>
       </ScrollView>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+  },
   content: {
     paddingBottom: Spacing.six,
   },
-  missing: {
-    fontFamily: Fonts.body,
-    color: Colors.muted,
-  },
+  // A kit panel with the rarity rule on its top edge — the same hero the shop's item screen wears,
+  // so a thing you're looking at to buy and the thing once owned read as one object.
   hero: {
     height: 210,
+    marginHorizontal: SPACE_GUTTER,
+    marginBottom: Spacing.three,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -362,19 +373,8 @@ const styles = StyleSheet.create({
     height: 3,
     opacity: 0.9,
   },
-  back: {
-    position: 'absolute',
-    top: Spacing.three,
-    left: Spacing.twelve,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   body: {
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
   },
   name: {
     fontFamily: Fonts.bodyBold,
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontSize: 12.5,
     lineHeight: 19,
-    color: '#b7a9cc',
+    color: Colors.spaceDim,
     marginTop: Spacing.twelve,
   },
   tags: {
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
   },
   stamp: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(185,139,255,0.14)',
     borderRadius: Radius.pill,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -410,12 +410,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 8,
     letterSpacing: 0.8,
-    color: '#c79bec',
+    color: Colors.legend,
   },
   provenance: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: Spacing.two,
   },
   previewRow: {
@@ -427,35 +427,26 @@ const styles = StyleSheet.create({
   },
   swap: {
     marginTop: Spacing.three,
-    backgroundColor: Colors.cardDark,
-    borderRadius: 11,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     padding: Spacing.twelve,
   },
   swapText: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 11.5,
     lineHeight: 17,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   swapBold: {
     fontFamily: Fonts.bodyBold,
     color: Colors.ink,
   },
   ctas: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingTop: Spacing.four,
     gap: Spacing.two,
-  },
-  equipBtn: {
-    backgroundColor: Colors.amber,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  equipBtnText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: '#2a1608',
   },
   // Ember-outlined rather than filled: Sell is the established action on this screen and the Forge
   // is the alternative to it, not a replacement — a solid ember slab here would outrank Equip.
@@ -464,24 +455,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: 'rgba(255,122,47,0.08)',
     borderWidth: 1,
-    borderColor: Colors.amber,
-    borderRadius: 14,
-    paddingVertical: 13,
+    borderColor: Colors.navEmber,
+    borderRadius: 16,
+    minHeight: 50,
     paddingHorizontal: Spacing.two,
   },
   forgeBtnText: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 12.5,
-    color: Colors.ember,
+    fontSize: 14,
+    color: Colors.navEmber2,
     textAlign: 'center',
   },
+  // SpaceButton's secondary, hand-built because the label carries an inline ember glyph.
   sellBtn: {
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    paddingVertical: 14,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 16,
+    minHeight: 50,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   sellBtnRow: {
     flexDirection: 'row',
@@ -491,17 +486,17 @@ const styles = StyleSheet.create({
   sellBtnText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.ember,
+    color: Colors.ink,
   },
   sellSub: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   sellNote: {
     fontFamily: Fonts.body,
-    fontSize: 9.5,
-    color: Colors.textTertiary,
+    fontSize: 10.5,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
 });

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useId, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
@@ -11,6 +10,7 @@ import { EmberfallGallery, trackHighlights } from '@/components/pass/emberfall-g
 import { ShineSweep } from '@/components/pass/pass-motion';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
 import { useProductPrices, usePurchase } from '@/hooks/use-purchase';
@@ -235,8 +235,13 @@ export default function PaywallScreen() {
       <CosmeticDetailSheet item={detail} name={firstName} onClose={() => setDetail(null)} />
 
       {/* Last in the tree so it sits over the sky and the rain without needing a zIndex. */}
-      <Pressable style={[styles.close, { top: insets.top + Spacing.two }]} onPress={close} hitSlop={12} accessibilityLabel="Close">
-        <Ionicons name="close" size={18} color={EMBER.warm} />
+      <Pressable
+        style={[styles.close, { top: insets.top + Spacing.two }]}
+        onPress={close}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Close">
+        <UiGlyph name="close" size={18} color={EMBER.warm} />
       </Pressable>
     </Screen>
   );
@@ -270,12 +275,15 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: 0,
   },
+  // The kit's 36px round header button, kept translucent because it sits over the Emberfall sky.
   close: {
     position: 'absolute',
     right: 15,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
     backgroundColor: 'rgba(0,0,0,0.28)',
     alignItems: 'center',
     justifyContent: 'center',

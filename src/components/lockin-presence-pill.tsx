@@ -1,8 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import type { LockInPresence, LockInPresenceKey } from '@/types/database';
@@ -163,10 +163,12 @@ export function LockInPresencePill({
       // nodes turns a glance into a sentence read twice.
       accessibilityRole="text"
       accessibilityLabel={line}>
-      <Ionicons
-        name={presence.display === 'floor' ? 'flame-outline' : 'flame'}
+      {/* The bespoke flame (nav-glyph's one filled glyph). The floor state's quieter mark is the
+          same flame in the faint ink rather than an outline, which this family does not draw. */}
+      <NavGlyph
+        name="flame"
         size={compact ? 11 : 13}
-        color={Colors.ember}
+        color={presence.display === 'floor' ? Colors.spaceDim : Colors.navEmber2}
       />
       <Text style={[styles.text, compact && styles.textCompact]} numberOfLines={1}>
         {line}
@@ -187,8 +189,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.3)',
-    backgroundColor: 'rgba(36,26,46,0.7)',
+    borderColor: 'rgba(255,176,90,0.3)',
+    backgroundColor: 'rgba(26,18,48,0.78)',
     maxWidth: '92%',
   },
   pillCompact: {
@@ -199,8 +201,9 @@ const styles = StyleSheet.create({
   text: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.ember,
+    color: Colors.navEmber2,
     flexShrink: 1,
+
   },
   textCompact: {
     fontSize: 11,

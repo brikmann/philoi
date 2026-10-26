@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmberPill, RarityLabel } from '@/components/economy/economy-bits';
 import { ForgeStrike, FORGE_STRIKE_BLOCK_H } from '@/components/economy/forge-strike';
@@ -11,6 +11,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { EmberFill } from '@/components/ui/ember-fill';
 import { Screen } from '@/components/ui/screen';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
+import { SPACE_GUTTER, SpaceButton, SpaceEmpty, SpaceHeader, SpaceSection } from '@/components/ui/space-kit';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useRevealPreview, useRevealSting } from '@/hooks/use-audio-preview';
@@ -220,18 +221,9 @@ function ForgeFlow() {
   const anyOpen = FORGE_LADDER.some(isOpen);
   if (!loading && !error && owned.length > 0 && !anyOpen) {
     return (
-      <Screen padded={false}>
+      <SafeAreaView edges={['top']} style={styles.safe}>
+        <SpaceHeader title="The Forge" right={<EmberPill embers={embers} />} />
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.top}>
-            <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-              <Ionicons name="chevron-back" size={22} color={Colors.ink} />
-            </Pressable>
-            <View style={styles.titleRow}>
-              <PhiloiIcon name="forge" size={20} color={Colors.ember} />
-              <Text style={styles.title}>The Forge</Text>
-            </View>
-            <EmberPill embers={embers} />
-          </View>
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>The Forge has nothing left to make you.</Text>
             <Text style={styles.emptyFine}>
@@ -243,29 +235,28 @@ function ForgeFlow() {
                 dropPoolAt('mythic').length}{' '}
               forgeable cosmetics are yours · nothing will be taken · new drops reopen it.
             </Text>
-            <Pressable style={styles.emptyCta} onPress={() => router.push('/inventory')}>
-              <Text style={styles.emptyCtaText}>Go to inventory</Text>
-            </Pressable>
+            <SpaceButton
+              label="Go to inventory"
+              variant="secondary"
+              onPress={() => router.push('/inventory')}
+              style={styles.emptyCta}
+            />
           </View>
         </ScrollView>
-      </Screen>
+      </SafeAreaView>
     );
   }
 
   return (
-    <Screen padded={false}>
+    <SafeAreaView edges={['top']} style={styles.safe}>
+      {/* The one-line explainer rides the kit header's subtitle; the forge mark that used to sit in
+          the title row lives on the Forge button, which is the thing it names. */}
+      <SpaceHeader
+        title="The Forge"
+        subtitle="Combine items to craft a higher rarity."
+        right={<EmberPill embers={embers} />}
+      />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={Colors.ink} />
-          </Pressable>
-          <View style={styles.titleRow}>
-            <PhiloiIcon name="forge" size={20} color={Colors.ember} />
-            <Text style={styles.title}>The Forge</Text>
-          </View>
-          <EmberPill embers={embers} />
-        </View>
-        <Text style={styles.subtitle}>Combine items to craft a higher rarity.</Text>
 
         {/* ── The reforge path (mock 155's tab strip) ── */}
         <View style={styles.tabs}>
@@ -347,7 +338,7 @@ function ForgeFlow() {
             What survives is the part the visuals CAN'T say: the denominator, and the two promises.
             Since 0139 that denominator is the UN-OWNED count, not the pool size — that is the set
             the roll actually draws from, so it is the number that tells the truth. */}
-        <Text style={styles.sectionLabel}>What you&apos;ll get</Text>
+        <SpaceSection>What you&apos;ll get</SpaceSection>
         <View style={styles.explain}>
           {tierComplete ? (
             <Text style={styles.explainText}>
@@ -364,9 +355,7 @@ function ForgeFlow() {
         </View>
 
         {/* ── The fuel ── */}
-        <Text style={styles.sectionLabel}>
-          Your {step.from}s · {fuel.length} eligible
-        </Text>
+        <SpaceSection>{`Your ${step.from}s · ${fuel.length} eligible`}</SpaceSection>
 
         {loading ? <Text style={styles.hint}>Loading…</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -398,9 +387,7 @@ function ForgeFlow() {
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No {step.from}s to spare.</Text>
             <Text style={styles.emptyFine}>Box-pool items only — open a box or win a challenge.</Text>
-            <Pressable style={styles.emptyCta} onPress={() => router.push('/shop')}>
-              <Text style={styles.emptyCtaText}>Open the Shop</Text>
-            </Pressable>
+            <SpaceButton label="Open the Shop" variant="secondary" onPress={() => router.push('/shop')} style={styles.emptyCta} />
           </View>
         ) : (
           <View style={styles.grid}>
@@ -456,7 +443,7 @@ function ForgeFlow() {
               <EmberFill style={styles.fill} radius={14} direction="diagonal" />
             </View>
           )}
-          <PhiloiIcon name="forge" size={18} color={ready && !busy ? Colors.onEmber : Colors.textTertiary} />
+          <PhiloiIcon name="forge" size={18} color={ready && !busy ? Colors.onEmber : Colors.spaceFaint} />
           <Text style={[styles.primaryBtnText, (!ready || busy) && styles.primaryBtnTextOff]}>
             {busy
               ? 'Forging…'
@@ -469,7 +456,7 @@ function ForgeFlow() {
         </Pressable>
         <Text style={styles.ctaFine}>The Forge is free — the items are the cost.</Text>
       </View>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
@@ -498,15 +485,15 @@ function ForgeReveal({
     // The server granted something this build's catalog doesn't know. Say so with the key rather
     // than rendering blank — it is already in the inventory either way.
     return (
-      <Screen>
+      <SafeAreaView edges={['top']} style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.emptyTitle}>Forged {result.cosmetic_key}</Text>
-          <Text style={styles.emptyBody}>Update the app to see this one.</Text>
-          <Pressable style={styles.ghostBtn} onPress={onDone}>
-            <Text style={styles.ghostBtnText}>Go to inventory</Text>
-          </Pressable>
+          <SpaceEmpty
+            title={`Forged ${result.cosmetic_key}`}
+            body="Update the app to see this one."
+            action={<SpaceButton label="Go to inventory" variant="secondary" onPress={onDone} style={styles.emptyCta} />}
+          />
         </View>
-      </Screen>
+      </SafeAreaView>
     );
   }
 
@@ -526,7 +513,7 @@ function ForgeReveal({
   }
 
   return (
-    <Screen padded={false}>
+    <SafeAreaView edges={['top']} style={styles.safe}>
       <View style={styles.heroWrap}>
         <View style={[styles.heroGlow, { backgroundColor: rarityGlow(item.rarity, 0.45) }]} />
         <ItemArt item={item} size={140} />
@@ -571,44 +558,20 @@ function ForgeReveal({
             </Text>
           </Pressable>
         ) : null}
-        <Pressable style={styles.ghostBtn} onPress={onDone}>
-          <Text style={styles.ghostBtnText}>Add to inventory</Text>
-        </Pressable>
-        <Pressable style={styles.ghostBtn} onPress={onAgain}>
-          <Text style={styles.ghostBtnText}>Forge again</Text>
-        </Pressable>
+        <SpaceButton label="Add to inventory" variant="secondary" onPress={onDone} />
+        <SpaceButton label="Forge again" variant="ghost" onPress={onAgain} />
       </View>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+  },
   content: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: 140,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Spacing.two,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
-    color: Colors.ink,
-  },
-  subtitle: {
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.textTertiary,
-    marginTop: Spacing.half,
-    marginBottom: Spacing.three,
   },
   tabs: {
     flexDirection: 'row',
@@ -620,14 +583,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 7,
     borderRadius: Radius.card,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     // Clips the lit rung's gradient underlay to the card corner.
     overflow: 'hidden',
   },
   tabOn: {
-    borderColor: Colors.ember,
+    borderColor: Colors.navEmber,
   },
   // A rung with no way to fill it reads as dimmed rather than hidden — the ladder is the ladder,
   // and a missing tab would be a lie about the design.
@@ -637,7 +600,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   // Near-black ON the gradient, the same pairing every lit ember surface uses — the old light
   // `Colors.ember` label was readable over a tint and would vanish into the fill's top stop.
@@ -645,10 +608,10 @@ const styles = StyleSheet.create({
     color: Colors.onEmber,
   },
   recipe: {
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     padding: Spacing.twelve,
     alignItems: 'center',
   },
@@ -656,7 +619,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
     letterSpacing: 0.4,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginBottom: Spacing.two,
   },
   slots: {
@@ -673,22 +636,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel2,
   },
   slotEmpty: {
     borderStyle: 'dashed',
-    borderColor: Colors.trackAlt,
-    backgroundColor: Colors.twilight900,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spaceBg,
   },
   slotPlus: {
     fontFamily: Fonts.bodyBold,
     fontSize: 18,
-    color: Colors.trackAlt,
+    color: Colors.spaceFaint,
   },
   arrow: {
     fontFamily: Fonts.bodyBold,
     fontSize: 16,
-    color: Colors.ember,
+    color: Colors.navEmber2,
     marginHorizontal: 2,
   },
   out: {
@@ -698,7 +661,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    backgroundColor: Colors.twilight900,
+    backgroundColor: Colors.spaceBg,
   },
   outQ: {
     fontFamily: Fonts.bodyBold,
@@ -707,29 +670,20 @@ const styles = StyleSheet.create({
   recipeHint: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
-    color: Colors.ember,
+    color: Colors.navEmber2,
     marginTop: Spacing.twelve,
     textAlign: 'center',
   },
   // A closed rung drops out of ember: the lit line is the call to action, and "you own every Epic"
   // is not one. It is information, and it should read at the weight of information.
   recipeHintShut: {
-    color: Colors.textTertiary,
-  },
-  sectionLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-    color: Colors.textTertiary,
-    marginTop: Spacing.three,
-    marginBottom: Spacing.two,
+    color: Colors.spaceDim,
   },
   explain: {
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     padding: Spacing.twelve,
     gap: Spacing.two,
   },
@@ -737,13 +691,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     lineHeight: 18,
-    color: Colors.muted,
+    color: Colors.ink,
   },
   explainFine: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
     lineHeight: 16,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   grid: {
     flexDirection: 'row',
@@ -753,18 +707,18 @@ const styles = StyleSheet.create({
   cell: {
     width: '31.5%',
     aspectRatio: 1,
-    borderRadius: 12,
-    backgroundColor: Colors.cardDark,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
     padding: Spacing.one,
   },
   cellOn: {
-    borderColor: Colors.ember,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.08)',
   },
   // Not disabled — still tappable to no effect would be confusing, so it dims to say "the recipe is
   // full, put something back first".
@@ -781,7 +735,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 6.5,
     letterSpacing: 0.6,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   cellTick: {
     position: 'absolute',
@@ -799,8 +753,10 @@ const styles = StyleSheet.create({
     color: Colors.onEmber,
   },
   empty: {
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     padding: Spacing.three,
     alignItems: 'center',
     gap: Spacing.two,
@@ -811,45 +767,30 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     textAlign: 'center',
   },
-  emptyBody: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    lineHeight: 18,
-    color: Colors.muted,
-    textAlign: 'center',
-  },
   // The second paragraph these panels used to carry, at the weight it should always have had. The
   // verdict is the title; this is the footnote under it, not more body copy.
   emptyFine: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
     lineHeight: 16,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   emptyCta: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.button,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
+    alignSelf: 'stretch',
     marginTop: Spacing.one,
-  },
-  emptyCtaText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12.5,
-    color: Colors.ember,
   },
   hint: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     textAlign: 'center',
     paddingVertical: Spacing.two,
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.coral,
+    color: Colors.danger,
     textAlign: 'center',
     paddingVertical: Spacing.two,
   },
@@ -858,21 +799,22 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingTop: Spacing.two,
-    paddingBottom: Spacing.four,
+    // No bottom inset: the global bottom bar sits under the screen and owns that edge.
+    paddingBottom: Spacing.three,
     gap: Spacing.two,
-    backgroundColor: Colors.twilight900,
+    backgroundColor: Colors.spaceBg,
     borderTopWidth: 1,
-    borderTopColor: Colors.line,
+    borderTopColor: Colors.spaceLine,
   },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,
-    borderRadius: 14,
-    paddingVertical: 14,
+    borderRadius: 16,
+    minHeight: 50,
     // No backgroundColor: enabled, the gradient underlay is the fill (and paints its own solid
     // mid-ember before the first layout pass, so there is never a transparent frame); disabled,
     // primaryBtnOff supplies the flat grey.
@@ -883,38 +825,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   primaryBtnOff: {
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   primaryBtnText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
+    fontFamily: Fonts.black,
+    fontSize: 15,
     color: Colors.onEmber,
   },
   primaryBtnTextOff: {
-    color: Colors.textTertiary,
+    fontFamily: Fonts.bodyBold,
+    color: Colors.spaceDim,
   },
   ctaFine: {
     fontFamily: Fonts.body,
-    fontSize: 9.5,
-    color: Colors.textTertiary,
+    fontSize: 10,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   revealCtas: {
     marginTop: 'auto',
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingBottom: Spacing.three,
     gap: Spacing.two,
-  },
-  ghostBtn: {
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  ghostBtnText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.ember,
   },
   // ── forging ──
   strikeWrap: {
@@ -939,7 +873,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
     letterSpacing: 2,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   center: {
     flex: 1,
@@ -991,7 +925,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontSize: 12.5,
     lineHeight: 19,
-    color: '#b7a9cc',
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.twelve,
   },

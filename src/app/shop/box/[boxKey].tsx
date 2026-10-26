@@ -1,14 +1,15 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BoxArt } from '@/components/economy/box-art';
 import { OddsTable } from '@/components/economy/drop-odds';
 import { EmberIcon } from '@/components/economy/ember-icon';
-import { EmberAmount, EmberPill, SectionLabel } from '@/components/economy/economy-bits';
-import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { EmberAmount, EmberPill } from '@/components/economy/economy-bits';
+import { RewardGlyph } from '@/components/ui/glyphs-rewards';
+import { SPACE_GUTTER, SpaceEmpty, SpaceHeader, SpaceSection } from '@/components/ui/space-kit';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useBoxOdds } from '@/hooks/use-box-odds';
 import { useInventory } from '@/hooks/use-inventory';
 import { buyBox } from '@/lib/api/inventory';
@@ -33,9 +34,10 @@ export default function BoxDetailScreen() {
   const box = BOXES[boxKey as BoxKey];
   if (!box) {
     return (
-      <Screen>
-        <Text style={styles.missing}>That box doesn&apos;t exist.</Text>
-      </Screen>
+      <SafeAreaView edges={['top']} style={styles.safe}>
+        <SpaceHeader title="Loot box" />
+        <SpaceEmpty title="That box doesn't exist." />
+      </SafeAreaView>
     );
   }
 
@@ -61,15 +63,11 @@ export default function BoxDetailScreen() {
   }
 
   return (
-    <Screen padded={false}>
+    <SafeAreaView edges={['top']} style={styles.safe}>
+      {/* The box's own name is the hero's headline just below, so the bar names the kind of screen
+          rather than saying it twice. */}
+      <SpaceHeader title="Loot box" right={<EmberPill embers={embers} />} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={Colors.ink} />
-          </Pressable>
-          <View style={styles.flex} />
-          <EmberPill embers={embers} />
-        </View>
 
         <View style={styles.hero}>
           {/* Pedestalled (mock 216): rarity glow, ground shadow and the slow float — this is
@@ -82,7 +80,7 @@ export default function BoxDetailScreen() {
           <Text style={styles.howto}>Earn it free: {box.earnedBy}</Text>
         </View>
 
-        <SectionLabel label="Drop odds" />
+        <SpaceSection>Drop odds</SpaceSection>
         <OddsTable rows={oddsRows} />
 
         <Text style={styles.oddsReal}>{oddsAreRealLine(box)}</Text>
@@ -91,10 +89,10 @@ export default function BoxDetailScreen() {
             odds are what every open actually does; this is only a bad-luck backstop on top. Run
             together, they'd read as the odds being adjusted, which is exactly the impression the
             published-odds requirement exists to prevent. */}
-        <SectionLabel label="Bad-luck protection" />
+        <SpaceSection>Bad-luck protection</SpaceSection>
         <View style={styles.guarantee}>
           <View style={styles.guaranteeRow}>
-            <Ionicons name="shield-checkmark" size={13} color={Colors.amber} />
+            <RewardGlyph name="shield" size={15} color={Colors.gold} />
             <Text style={styles.guaranteeText}>{pityLineFrom(pity)}</Text>
           </View>
           <Text style={styles.guaranteeSub}>
@@ -102,7 +100,7 @@ export default function BoxDetailScreen() {
           </Text>
         </View>
 
-        <SectionLabel label="Duplicates & salvage" />
+        <SpaceSection>Duplicates & salvage</SpaceSection>
         <View style={styles.guarantee}>
           <Text style={styles.salvageText}>
             Pull something you already own and it turns straight into embers — no wasted duplicates. You can also sell
@@ -122,7 +120,7 @@ export default function BoxDetailScreen() {
           </Text>
         </View>
 
-        <SectionLabel label="How it opens" />
+        <SpaceSection>How it opens</SpaceSection>
         <Text style={styles.crackCopy}>{box.crackCopy}</Text>
 
         {/* Count and price stack rather than sitting on one line: three batch sizes across, with a
@@ -159,28 +157,22 @@ export default function BoxDetailScreen() {
           your place on any leaderboard.
         </Text>
       </ScrollView>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+  },
   content: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.six,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: Spacing.three,
-  },
-  flex: { flex: 1 },
-  missing: {
-    fontFamily: Fonts.body,
-    color: Colors.muted,
   },
   hero: {
     alignItems: 'center',
-    paddingVertical: Spacing.four,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
   },
   heroName: {
     fontFamily: Fonts.bodyBold,
@@ -196,16 +188,18 @@ const styles = StyleSheet.create({
   },
   howto: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.twelve,
     paddingHorizontal: Spacing.four,
   },
   guarantee: {
-    backgroundColor: Colors.cardDark,
-    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     padding: Spacing.twelve,
     gap: Spacing.two,
   },
@@ -218,27 +212,27 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 17,
-    color: '#e7ddf5',
+    color: Colors.ink,
     flex: 1,
   },
   guaranteeSub: {
     fontFamily: Fonts.body,
     fontSize: 10,
     lineHeight: 15,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   oddsReal: {
     fontFamily: Fonts.body,
     fontSize: 10,
     lineHeight: 15,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: Spacing.two,
   },
   salvageText: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 17,
-    color: '#e7ddf5',
+    color: Colors.ink,
   },
   salvageGrid: {
     flexDirection: 'row',
@@ -248,8 +242,8 @@ const styles = StyleSheet.create({
   },
   salvageCell: {
     width: '31%',
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel2,
+    borderRadius: 10,
     paddingVertical: Spacing.two,
     alignItems: 'center',
     gap: 2,
@@ -262,40 +256,46 @@ const styles = StyleSheet.create({
   salvagePct: {
     fontFamily: Fonts.body,
     fontSize: 9,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   crackCopy: {
     fontFamily: Fonts.body,
     fontStyle: 'italic',
     fontSize: 12,
     lineHeight: 18,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   buyRow: {
     flexDirection: 'row',
     gap: Spacing.two,
     marginTop: Spacing.four,
   },
+  // SpaceButton's shapes, kept hand-built because each button stacks a count over a price —
+  // the kit's button is one label. ×1 is the ember action; the batch sizes are secondary panels.
   buy: {
     flex: 1,
-    borderRadius: 13,
-    paddingVertical: 11,
+    borderRadius: 16,
+    minHeight: 50,
+    paddingVertical: 9,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 2,
   },
   buyPrimary: {
-    backgroundColor: Colors.plum,
+    backgroundColor: Colors.navEmber,
   },
   buyGhost: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   buyDisabled: {
-    opacity: 0.4,
+    opacity: 0.45,
   },
   buyText: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 14,
-    color: Colors.ink,
+    color: '#2A0F05',
   },
   buyPriceRow: {
     flexDirection: 'row',
@@ -305,23 +305,23 @@ const styles = StyleSheet.create({
   buyPrice: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 10.5,
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(42,15,5,0.75)',
   },
   buyGhostText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: '#c79bec',
+    color: Colors.ink,
   },
   buyGhostPrice: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   legal: {
     fontFamily: Fonts.body,
     fontSize: 9.5,
     lineHeight: 14,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.two,
   },

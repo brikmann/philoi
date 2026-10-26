@@ -1,16 +1,17 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BoxArt, BOX_TINT } from '@/components/economy/box-art';
 import { EmberIcon } from '@/components/economy/ember-icon';
-import { EmberAmount, EmberPill, RarityLabel, SectionLabel, formatEmbers } from '@/components/economy/economy-bits';
+import { EmberAmount, EmberPill, RarityLabel, formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { MemeDropCard } from '@/components/economy/meme-drop-card';
 import { FlamePassTile } from '@/components/pass/flame-pass-tile';
 import { PreviewBadgeCorner } from '@/components/economy/preview-button';
-import { Screen } from '@/components/ui/screen';
+import { RewardGlyph } from '@/components/ui/glyphs-rewards';
+import { SPACE_GUTTER, SpaceHeader, SpaceIconButton, SpaceSection } from '@/components/ui/space-kit';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useGatedInterval } from '@/hooks/use-motion-active';
@@ -107,25 +108,24 @@ export default function ShopScreen() {
   const prices = useProductPrices();
 
   return (
-    <Screen padded={false}>
+    // Space-purple pass: top-edge safe area only — the root paints the ground and mounts the global
+    // bottom bar, so neither a radial nor a bottom inset belongs to this screen any more.
+    <SafeAreaView edges={['top']} style={styles.safe}>
+      <SpaceHeader
+        title="Shop"
+        right={
+          <>
+            {/* Until now the ONLY route into the inventory was "Collect all → Inventory" after a box
+                open, so everything bought outside that flow landed somewhere the user had no way to
+                reach — which reads as "the purchase did nothing" (punchlist 8 §3). */}
+            <SpaceIconButton onPress={() => router.push('/inventory')} label="Your inventory">
+              <RewardGlyph name="bag" size={18} color={Colors.navEmber2} />
+            </SpaceIconButton>
+            <EmberPill embers={embers} />
+          </>
+        }
+      />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={Colors.ink} />
-          </Pressable>
-          <Text style={styles.title}>Shop</Text>
-          {/* Until now the ONLY route into the inventory was "Collect all → Inventory" after a box
-              open, so everything bought outside that flow landed somewhere the user had no way to
-              reach — which reads as "the purchase did nothing" (punchlist 8 §3). */}
-          <Pressable
-            onPress={() => router.push('/inventory')}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Your inventory">
-            <Ionicons name="cube-outline" size={21} color={Colors.ember} />
-          </Pressable>
-          <EmberPill embers={embers} />
-        </View>
 
         {/* ── Flame Pass hero (mock 214) ──
             The single Flame Pass entry in the shop. The legacy pre-funnel Emberfall banner that
@@ -145,7 +145,9 @@ export default function ShopScreen() {
         {/* ── Meme Monday (0243/0255) — a new limited drop every Monday, its week only ── */}
         {memeDrop ? (
           <>
-            <SectionLabel label="Meme Monday" action={memeDrop.phase === 'live' ? 'Limited drop' : 'Locked'} />
+            <SpaceSection right={<Text style={styles.sectionAction}>{memeDrop.phase === 'live' ? 'Limited drop' : 'Locked'}</Text>}>
+              Meme Monday
+            </SpaceSection>
             <MemeDropCard
               drop={memeDrop.drop}
               phase={memeDrop.phase}
@@ -160,7 +162,7 @@ export default function ShopScreen() {
         ) : null}
 
         {/* ── Featured · direct buy (§8.4) ── */}
-        <SectionLabel label="Featured · buy direct" action={rotatesInLabel(now)} />
+        <SpaceSection right={<Text style={styles.sectionAction}>{rotatesInLabel(now)}</Text>}>Featured · buy direct</SpaceSection>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
           {FEATURED.map((item) => {
             const owned = ownedKeys.has(item.id);
@@ -172,7 +174,7 @@ export default function ShopScreen() {
                 {/* The same 3px rarity rule the inventory grid wears (mock 216) — a featured pick
                     and the copy of it you already own read as the same object. */}
                 <View style={[styles.rarityBar, { backgroundColor: RARITY_COLOR[item.rarity] }]} />
-                <View style={[styles.tileArt, { backgroundColor: Colors.cardDark }]}>
+                <View style={[styles.tileArt, { backgroundColor: Colors.spacePanel2 }]}>
                   <ItemArt item={item} size={44} />
                   {/* Audition without leaving the row (PUNCHLIST_11) — a thumb can run down the
                       featured strip and hear each one. Starting any preview stops the last. */}
@@ -201,7 +203,7 @@ export default function ShopScreen() {
         </Text>
 
         {/* ── The six boxes ── */}
-        <SectionLabel label="Loot boxes" />
+        <SpaceSection>Loot boxes</SpaceSection>
         {/* First visit to the Shop (CODE_PROMPT_coach_marks.md). Anchored on the crate row rather
             than on an "Open ×N" button, because that button lives one screen deeper on
             shop/box/[boxKey] — the tip has to point at a control that is actually on this screen,
@@ -232,7 +234,7 @@ export default function ShopScreen() {
         <Text style={styles.note}>Published odds on every box. Every box can also be earned — none is purchase-only.</Text>
 
         {/* ── Ember packs — the only real-money surface, and it's deferred ── */}
-        <SectionLabel label="Buy embers" />
+        <SpaceSection>Buy embers</SpaceSection>
         <View style={styles.packs}>
           {EMBER_PACKS.map((pack) => (
             <Pressable
@@ -285,27 +287,23 @@ export default function ShopScreen() {
 
         {loading ? <Text style={styles.note}>Loading your embers…</Text> : null}
       </ScrollView>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+  },
   content: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.six,
   },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
-  },
-  title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 20,
-    color: Colors.ink,
-    flex: 1,
+  // SpaceSection's right slot — the old SectionLabel action, in the kit's quieter voice.
+  sectionAction: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.navEmber2,
   },
   packBusy: {
     opacity: 0.6,
@@ -321,7 +319,7 @@ const styles = StyleSheet.create({
   },
   tile: {
     width: 96,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderRadius: 14,
     // Clips the rarity bar to the tile's corners.
     overflow: 'hidden',
@@ -330,7 +328,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
   },
   rarityBar: {
     position: 'absolute',
@@ -375,14 +373,14 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 9,
     letterSpacing: 1,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: 6,
   },
   note: {
     fontFamily: Fonts.body,
-    fontSize: 10,
+    fontSize: 10.5,
     lineHeight: 15,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: Spacing.two,
   },
   packs: {
@@ -394,20 +392,23 @@ const styles = StyleSheet.create({
     width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardDark,
-    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     padding: Spacing.twelve,
     gap: Spacing.two,
   },
+  // Ember is the one action colour — the best-value pack is the one the eye should land on.
   packBest: {
-    borderWidth: 1,
-    borderColor: Colors.coral,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.08)',
   },
   bestTag: {
     position: 'absolute',
     top: -8,
     right: 8,
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
     borderRadius: Radius.pill,
     paddingHorizontal: 6,
     paddingVertical: 1,
@@ -415,7 +416,7 @@ const styles = StyleSheet.create({
   bestTagText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 8,
-    color: '#fff',
+    color: '#2A0F05',
   },
   packLeft: {
     flex: 1,
@@ -428,10 +429,10 @@ const styles = StyleSheet.create({
   packAmt: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   bonusTag: {
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,209,102,0.12)',
     borderRadius: Radius.pill,
     paddingHorizontal: 5,
     paddingVertical: 1,
@@ -439,15 +440,15 @@ const styles = StyleSheet.create({
   bonusTagText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 9,
-    color: Colors.achieverText,
+    color: Colors.gold,
   },
   packSub: {
     fontFamily: Fonts.body,
     fontSize: 9.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   packPrice: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: Colors.spacePanel2,
     borderRadius: 9,
     paddingVertical: 5,
     paddingHorizontal: 9,
@@ -459,9 +460,9 @@ const styles = StyleSheet.create({
   },
   rule: {
     fontFamily: Fonts.body,
-    fontSize: 10,
+    fontSize: 10.5,
     lineHeight: 15,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'center',
     marginTop: Spacing.four,
   },

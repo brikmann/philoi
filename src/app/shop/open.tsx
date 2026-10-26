@@ -9,7 +9,8 @@ import { MultiItemReveal } from '@/components/economy/multi-item-reveal';
 import { UnlockReveal } from '@/components/economy/unlock-reveal';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceButton } from '@/components/ui/space-kit';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { useShareCardCapture } from '@/hooks/use-share-card-capture';
 import { useShareRank } from '@/hooks/use-share-rank';
@@ -138,12 +139,12 @@ function BoxOpenFlow() {
             {ids.length > 1 ? 'Those boxes are' : 'That box is'} still unopened in your inventory — nothing was lost.
             Try again from there.
           </Text>
-          <Pressable style={styles.ghostBtn} onPress={() => router.replace('/inventory')}>
-            <Text style={styles.ghostBtnText}>Go to inventory</Text>
-          </Pressable>
-          <Pressable style={styles.plainBtn} onPress={() => router.back()}>
-            <Text style={styles.plainBtnText}>Back</Text>
-          </Pressable>
+          {/* Kit buttons: the inventory is the way forward here (the boxes are still in it), so it
+              takes the ember; Back is the quiet exit. */}
+          <View style={styles.errorActions}>
+            <SpaceButton label="Go to inventory" onPress={() => router.replace('/inventory')} />
+            <SpaceButton label="Back" variant="ghost" onPress={() => router.back()} />
+          </View>
         </View>
       </Screen>
     );
@@ -401,136 +402,40 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   rolling: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 14,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   error: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.coral,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 15,
+    color: Colors.ink,
     textAlign: 'center',
     paddingHorizontal: Spacing.four,
   },
   errorNote: {
     fontFamily: Fonts.body,
-    fontSize: 12,
-    lineHeight: 18,
-    color: Colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.spaceDim,
     textAlign: 'center',
     paddingHorizontal: Spacing.five,
     marginTop: -Spacing.two,
   },
+  errorActions: {
+    alignSelf: 'stretch',
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.two,
+  },
   plainBtn: {
     paddingVertical: Spacing.two,
   },
+  // The reveal's own CTAs belong to UnlockReveal / MultiItemReveal; Share is the quiet ghost under
+  // them, in the kit's ghost voice.
   shareText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.muted,
-    textAlign: 'center',
-  },
-  plainBtnText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.muted,
-  },
-  heroWrap: {
-    height: 260,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroGlow: {
-    position: 'absolute',
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-  },
-  heroBody: {
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-  },
-  newTag: {
-    backgroundColor: Colors.coral,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 9,
-    paddingVertical: 2,
-    marginBottom: Spacing.two,
-  },
-  newTagText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 8,
-    letterSpacing: 1,
-    color: '#fff',
-  },
-  heroName: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 24,
-    color: Colors.ink,
-    textAlign: 'center',
-  },
-  previewRow: {
-    alignItems: 'center',
-    marginTop: Spacing.two,
-  },
-  heroLore: {
-    fontFamily: Fonts.body,
-    fontStyle: 'italic',
-    fontSize: 12.5,
-    lineHeight: 19,
-    color: '#b7a9cc',
-    textAlign: 'center',
-    marginTop: Spacing.twelve,
-  },
-  dupeNote: {
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
-    padding: Spacing.twelve,
-    marginTop: Spacing.three,
-  },
-  dupeText: {
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    lineHeight: 17,
-    color: Colors.muted,
-    textAlign: 'center',
-  },
-  dupeEmbers: {
-    fontFamily: Fonts.bodyBold,
-    color: Colors.ember,
-  },
-  ctaBar: {
-    marginTop: 'auto',
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.four,
-    gap: Spacing.two,
-  },
-  primaryBtn: {
-    backgroundColor: Colors.coral,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  primaryBtnText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: '#2a1608',
-  },
-  ghostBtn: {
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  ghostBtnText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.ember,
-  },
-  oddsFlex: {
-    fontFamily: Fonts.body,
-    fontSize: 9.5,
-    color: Colors.textTertiary,
+    color: Colors.navEmber2,
     textAlign: 'center',
   },
   // Parked off-screen rather than unmounted: view-shot can only capture a view that is actually

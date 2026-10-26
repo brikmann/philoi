@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -7,7 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SessionAudioPicker } from '@/components/economy/session-audio-picker';
 import { GymRoutineBlock } from '@/components/gym-routine-block';
 import { TaxonomyTwoTap, taxonomyStepCopy, type TaxonomySecondChoice } from '@/components/taxonomy-two-tap';
-import { DisciplineIcon } from '@/components/ui/discipline-icon';
+import { GOAL_TYPE_NAV_GLYPH } from '@/components/ui/glyphs-session';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
 import { useMyGroups } from '@/hooks/use-my-groups';
@@ -15,7 +16,7 @@ import { fetchLockinTimeGoals } from '@/lib/api/challenges';
 import { fetchMyGoals } from '@/lib/api/goals';
 import { useAuth } from '@/lib/auth/auth-context';
 import { setSessionAudioChoice } from '@/lib/economy/equipped-audio';
-import { GOAL_TYPE_GLYPH, GOAL_TYPE_META, LOCK_IN_CATEGORY_META, goalTypeForChoice } from '@/lib/goal-types';
+import { GOAL_TYPE_META, LOCK_IN_CATEGORY_META, goalTypeForChoice } from '@/lib/goal-types';
 import type { Challenge, FitnessActivity, Goal, LockInCategory, WorkoutEnergy } from '@/types/database';
 
 type LockinGoalPickerProps = {
@@ -231,7 +232,7 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
         {lockedCircleId && (
           <View style={[styles.circleHeader, { top: insets.top + Spacing.three }]}>
             <View style={styles.circleHeaderIcon}>
-              <Ionicons name="flame" size={14} color={Colors.amber} />
+              <NavGlyph name="flame" size={14} color={Colors.navEmber} />
             </View>
             <Text style={styles.circleHeaderLabel}>{lockedCircleName ?? 'This Campfire'}</Text>
           </View>
@@ -241,8 +242,8 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
           <View style={styles.grab} />
 
           {step === 'second' && (
-            <Pressable onPress={goBack} style={styles.back} accessibilityRole="button" hitSlop={8}>
-              <Ionicons name="chevron-back" size={15} color={Colors.muted} />
+            <Pressable onPress={goBack} style={styles.back} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8}>
+              <UiGlyph name="back" size={14} color={Colors.spaceDim} />
               <Text style={styles.backLabel}>Back</Text>
             </Pressable>
           )}
@@ -281,7 +282,7 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
               accessibilityRole="button"
               accessibilityState={{ expanded: optionsOpen }}
               style={styles.optionsToggle}>
-              <Ionicons name={optionsOpen ? 'chevron-up' : 'options-outline'} size={14} color={Colors.muted} />
+              <UiGlyph name={optionsOpen ? 'up' : 'filter'} size={14} color={Colors.spaceDim} />
               <Text style={styles.optionsToggleLabel}>
                 {optionsOpen ? 'Hide options' : 'Options — campfire, detail, audio'}
               </Text>
@@ -291,13 +292,13 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
           {step === 'second' && optionsOpen && (
             <>
           <View style={styles.detailRow}>
-            <Ionicons name="pricetag" size={14} color={Colors.textTertiary} />
+            <UiGlyph name="edit" size={14} color={Colors.spaceFaint} />
             <TextInput
               style={styles.detailInput}
               value={detail}
               onChangeText={setDetail}
               placeholder='Add a detail — "leg day", "CS midterm"…'
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={Colors.spaceFaint}
               maxLength={60}
             />
           </View>
@@ -324,10 +325,10 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
                   accessibilityState={{ selected }}
                   accessibilityLabel={`${label}, a ${GOAL_TYPE_META[goalType].label} goal`}
                   style={[styles.goalChip, selected && styles.goalChipSelected]}>
-                  <DisciplineIcon
-                    name={GOAL_TYPE_GLYPH[goalType]}
-                    size={12}
-                    color={selected ? Colors.coral : Colors.textTertiary}
+                  <NavGlyph
+                    name={GOAL_TYPE_NAV_GLYPH[goalType]}
+                    size={13}
+                    color={selected ? Colors.navEmber2 : Colors.spaceFaint}
                   />
                   <Text style={[styles.goalChipLabel, selected && styles.goalChipLabelSelected]}>{label}</Text>
                 </Pressable>
@@ -343,7 +344,7 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
               accessibilityRole="button"
               accessibilityLabel={`New ${GOAL_TYPE_META[goalType].label} goal`}
               style={[styles.goalChip, styles.goalChipNew]}>
-              <Ionicons name="add" size={12} color={Colors.amber} />
+              <UiGlyph name="add" size={12} color={Colors.navEmber2} />
               <Text style={[styles.goalChipLabel, styles.goalChipNewLabel]}>New</Text>
             </Pressable>
           </ScrollView>
@@ -364,7 +365,7 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
                       accessibilityRole="button"
                       accessibilityState={{ selected }}
                       style={[styles.goalChip, selected && styles.goalChipSelected]}>
-                      <Ionicons name="flag" size={12} color={selected ? Colors.coral : Colors.textTertiary} />
+                      <NavGlyph name="trophy" size={13} color={selected ? Colors.navEmber2 : Colors.spaceFaint} />
                       <Text style={[styles.goalChipLabel, selected && styles.goalChipLabelSelected]}>{label}</Text>
                       <Text style={styles.goalChipMeta}>
                         {formatHours(goal.progress)}/{formatHours(goal.target)}h
@@ -428,7 +429,7 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
               style={[styles.start, !canStart && styles.startDisabled]}
               onPress={() => category && handleStart({ category, activity, courseId })}
               disabled={!canStart}>
-              <Ionicons name="lock-closed" size={16} color={Colors.ink} />
+              <UiGlyph name="lock" size={16} color="#2A0F05" />
               <Text style={styles.startLabel}>Start lock-in</Text>
             </Pressable>
           )}
@@ -451,12 +452,12 @@ const styles = StyleSheet.create({
   backLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   subtitle: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 2,
     marginBottom: Spacing.three,
   },
@@ -471,12 +472,12 @@ const styles = StyleSheet.create({
   optionsToggleLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(9,7,14,0.55)',
+    backgroundColor: 'rgba(14,10,28,0.6)',
   },
   circleHeader: {
     position: 'absolute',
@@ -490,7 +491,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 7,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,122,47,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -503,7 +504,9 @@ const styles = StyleSheet.create({
     // Capped so the gym branch (routines + energy, §23) scrolls internally instead of pushing
     // the sheet past the top of the screen.
     maxHeight: '90%',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
+    borderTopWidth: 1,
+    borderColor: Colors.spaceLine,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 8,
@@ -519,14 +522,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spaceLine,
     alignSelf: 'center',
     marginTop: 4,
     marginBottom: 12,
   },
   title: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 16,
+    fontFamily: Fonts.black,
+    fontSize: 20,
     color: Colors.ink,
     marginBottom: 12,
   },
@@ -552,17 +555,17 @@ const styles = StyleSheet.create({
     borderRadius: Radius.card,
     borderWidth: 1.5,
     borderColor: 'transparent',
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.spaceBg,
   },
   tileSelected: {
-    borderColor: Colors.coral,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.10)',
   },
   tileIcon: {
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,122,47,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -572,16 +575,16 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
   tileLabelSelected: {
-    color: Colors.achieverText,
+    color: Colors.navEmber2,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.spaceBg,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.card,
+    borderColor: Colors.spaceLine,
+    borderRadius: 13,
     paddingVertical: 11,
     paddingHorizontal: 12,
     marginTop: 11,
@@ -594,11 +597,14 @@ const styles = StyleSheet.create({
     padding: 0,
     letterSpacing: 0,
   },
+  // SpaceSection's small uppercase label.
   goalHint: {
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.textTertiary,
-    marginTop: 9,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
+    marginTop: Spacing.three,
   },
   goalRow: {
     gap: Spacing.two,
@@ -612,32 +618,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.line,
-    backgroundColor: Colors.cream,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel2,
   },
+  // The Lock In tab's dashed "New goal" chip.
   goalChipNew: {
     borderStyle: 'dashed',
-    borderColor: Colors.amber,
   },
   goalChipNewLabel: {
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
+  // SpaceChip's selected state.
   goalChipSelected: {
-    borderColor: Colors.coral,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.12)',
   },
   goalChipLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   goalChipLabelSelected: {
-    color: Colors.ink,
+    color: Colors.navEmber2,
   },
   goalChipMeta: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   mode: {
     flexDirection: 'row',
@@ -647,32 +654,32 @@ const styles = StyleSheet.create({
   pill: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.card,
+    borderColor: Colors.spaceLine,
+    borderRadius: 13,
     padding: 10,
   },
   pillOn: {
-    borderColor: Colors.coral,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.10)',
   },
   pillLabel: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   pillLabelOn: {
-    color: Colors.achieverText,
+    color: Colors.ink,
   },
   pillSub: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: 2,
   },
   pillSubOn: {
-    color: Colors.warmSubtext,
+    color: Colors.navEmber2,
   },
   circleRow: {
     gap: Spacing.two,
@@ -686,12 +693,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.line,
-    backgroundColor: Colors.cream,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel2,
   },
   circleChipSelected: {
-    borderColor: Colors.coral,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.12)',
   },
   circleEmoji: {
     fontSize: 16,
@@ -699,27 +706,36 @@ const styles = StyleSheet.create({
   circleName: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   circleNameSelected: {
-    color: Colors.achieverText,
+    color: Colors.navEmber2,
   },
+  // The Lock In tab's Start button — the sheet's one ember action.
   start: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.coral,
-    borderRadius: 14,
-    padding: 14,
+    backgroundColor: Colors.navEmber,
+    borderRadius: 16,
+    padding: 15,
     marginTop: 14,
+    shadowColor: Colors.navEmber,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 6,
   },
   startDisabled: {
-    backgroundColor: Colors.disabled,
+    opacity: 0.45,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   startLabel: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.black,
     fontSize: 15,
-    color: Colors.ink,
+    color: '#2A0F05',
   },
+
 });

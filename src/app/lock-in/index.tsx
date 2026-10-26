@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
@@ -47,7 +46,10 @@ import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
 import { SessionFlame } from '@/components/session-flame';
 import { SessionPhotoGallery } from '@/components/session-photo-gallery';
 import { TutorialTooltip } from '@/components/tutorial-tooltip';
+import { SessionGlyph } from '@/components/ui/glyphs-session';
 import { Screen } from '@/components/ui/screen';
+import { SpaceButton } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { WorkoutLog } from '@/components/workout-log';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveWorkout } from '@/hooks/use-active-workout';
@@ -107,14 +109,15 @@ type CindyStatusState =
   | { phase: 'pending' }
   | { phase: 'answered'; text: string }
   | { phase: 'failed' };
-// "Immersive darker background, minimal chrome" (PHILOI_UI_SPEC.md §13, design-mocks/51) —
-// distinct from every other screen's Colors.cream, a one-off for this screen only.
-const IMMERSIVE_BG = '#17131f';
+// "Immersive darker background, minimal chrome" (PHILOI_UI_SPEC.md §13, design-mocks/51). Was a
+// one-off '#17131f' warm-grey; the space-purple pass puts it on the same deepest canvas the Lock In
+// tab hands off from, so Start reads as stepping further in rather than onto a different screen.
+const IMMERSIVE_BG = Colors.spaceBg;
 // How far the equipped flare's perimeter calms while paused — a hold, not an off switch, so the
 // cosmetic is still visibly yours on a break.
 const PAUSED_FLARE_DAMPEN = 0.35;
-// The play glyph on the lit resume disc — mock 218's #160a02, dark enough to read on ember.
-const PAUSE_RESUME_INK = '#160a02';
+// The play glyph on the lit resume disc — the kit's on-ember ink, dark enough to read on navEmber.
+const PAUSE_RESUME_INK = '#2A0F05';
 // The pre-workout energy state, shrunk to a single word for the gym header chip (design-mocks/52's
 // `.energy`, which reads "DIALED") — it's what nudged the suggested numbers on every row below,
 // so it stays visible while lifting, just no longer as a full sentence.
@@ -124,8 +127,8 @@ const ENERGY_CHIP_LABEL: Record<WorkoutEnergy, string> = {
   dialed: 'Dialed',
 };
 
-// Mock 52's top scrim — `linear-gradient(180deg,#17131f 8%,rgba(23,19,31,.55) 40%,
-// rgba(23,19,31,.15) 70%,transparent)`, so the workout log stays readable over the flame behind
+// Mock 52's top scrim — `linear-gradient(180deg,BG 8%,BG/.55 40%,BG/.15 70%,transparent)` over
+// IMMERSIVE_BG, so the workout log stays readable over the flame behind
 // it. An SVG gradient rather than stacked translucent Views, which band visibly at this height.
 function GymScrim() {
   return (
@@ -308,7 +311,7 @@ function LockInScreen() {
     timerPulse.value = withRepeat(withSequence(withTiming(1, { duration: 1400 }), withTiming(0, { duration: 1400 })), -1, false);
   }, [timerPulse, reduceMotion, paused]);
   const timerPulseStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(timerPulse.value, [0, 1], [Colors.ink, Colors.coral]),
+    color: interpolateColor(timerPulse.value, [0, 1], [Colors.ink, Colors.navEmber2]),
   }));
 
   // Only for the plain "done" recap — a tier CROSS skips this entirely, since
@@ -1011,9 +1014,7 @@ function LockInScreen() {
           This session ended while you were away — it was paused for over 3 hours, or stopped on another
           device. Your time was saved.
         </Text>
-        <Pressable onPress={() => router.replace('/')} style={styles.bailOut} accessibilityRole="button">
-          <Text style={styles.bailOutLabel}>Back to Philoi</Text>
-        </Pressable>
+        <SpaceButton label="Back to Philoi" variant="secondary" onPress={() => router.replace('/')} style={styles.bailOut} />
       </LockInScreenFrame>
     );
   }
@@ -1027,9 +1028,7 @@ function LockInScreen() {
             modal with no header — i.e. no back button. Never leave the only way out as a
             force-quit. */}
         {startStalled && (
-          <Pressable onPress={() => router.replace('/')} style={styles.bailOut} accessibilityRole="button">
-            <Text style={styles.bailOutLabel}>Back to Philoi</Text>
-          </Pressable>
+          <SpaceButton label="Back to Philoi" variant="secondary" onPress={() => router.replace('/')} style={styles.bailOut} />
         )}
       </LockInScreenFrame>
     );
@@ -1094,8 +1093,9 @@ function LockInScreen() {
           )}
           <View style={styles.gymHeaderRight}>
             <View style={styles.timerPill}>
+              {paused && <SessionGlyph name="pause" size={10} color={Colors.spaceDim} />}
               <Animated.Text style={[styles.timerPillValue, paused ? styles.timerPaused : timerPulseStyle]}>
-                {paused ? `❚❚ ${formatDurationClock(elapsedSeconds)}` : formatDurationClock(elapsedSeconds)}
+                {formatDurationClock(elapsedSeconds)}
               </Animated.Text>
             </View>
             <FlareTierCaption tier={flareTier} />
@@ -1111,9 +1111,10 @@ function LockInScreen() {
           <Pressable
             onPress={() => router.replace('/')}
             hitSlop={12}
+            style={styles.minimizeBtn}
             accessibilityLabel="Minimize lock-in"
             accessibilityRole="button">
-            <Ionicons name="remove" size={22} color={Colors.textTertiary} />
+            <SessionGlyph name="minimize" size={18} color={Colors.spaceDim} />
           </Pressable>
         </View>
 
@@ -1172,7 +1173,7 @@ function LockInScreen() {
               style={[styles.cameraButton, photos.length >= MAX_PHOTOS && styles.cameraButtonDisabled]}
               accessibilityLabel="Take a photo"
               accessibilityRole="button">
-              <Ionicons name="camera" size={20} color={Colors.ink} />
+              <SessionGlyph name="camera" size={20} color={Colors.ink} />
               {photos.length > 0 && (
                 <View style={styles.cameraBadge}>
                   <Text style={styles.cameraBadgeText}>{photos.length}</Text>
@@ -1186,7 +1187,7 @@ function LockInScreen() {
               style={styles.cameraButton}
               accessibilityLabel="Change this session's audio"
               accessibilityRole="button">
-              <Ionicons name="musical-notes" size={20} color={Colors.ink} />
+              <SessionGlyph name="music" size={20} color={Colors.ink} />
             </Pressable>
             {photos.length > 0 && (
               <Pressable
@@ -1194,7 +1195,7 @@ function LockInScreen() {
                 style={styles.galleryArrow}
                 accessibilityLabel="See this session's photos"
                 accessibilityRole="button">
-                <Ionicons name="chevron-up" size={14} color={Colors.muted} />
+                <UiGlyph name="up" size={14} color={Colors.spaceDim} />
               </Pressable>
             )}
             <PauseToggle paused={paused} busy={pauseBusy || stopping} onPress={handlePauseToggle} />
@@ -1260,10 +1261,10 @@ function LockInScreen() {
         <Pressable
           onPress={() => router.replace('/')}
           hitSlop={12}
-          style={styles.minimize}
+          style={[styles.minimizeBtn, styles.minimize]}
           accessibilityLabel="Minimize lock-in"
           accessibilityRole="button">
-          <Ionicons name="remove" size={22} color={Colors.textTertiary} />
+          <SessionGlyph name="minimize" size={18} color={Colors.spaceDim} />
         </Pressable>
       </View>
 
@@ -1348,7 +1349,7 @@ function LockInScreen() {
             is off, which is the common case and must never look like a broken control. */}
         {focusNudgeOn && (
           <View style={styles.focusNudgePill}>
-            <Ionicons name="heart-circle" size={13} color={Colors.ember} />
+            <SessionGlyph name="shield" size={13} color={Colors.legend} />
             <Text style={styles.focusNudgePillText}>Focus Nudge on</Text>
           </View>
         )}
@@ -1372,7 +1373,7 @@ function LockInScreen() {
             style={[styles.cameraButton, photos.length >= MAX_PHOTOS && styles.cameraButtonDisabled]}
             accessibilityLabel="Take a photo"
             accessibilityRole="button">
-            <Ionicons name="camera" size={18} color={Colors.ink} />
+            <SessionGlyph name="camera" size={19} color={Colors.ink} />
             {photos.length > 0 && (
               <View style={styles.cameraBadge}>
                 <Text style={styles.cameraBadgeText}>{photos.length}</Text>
@@ -1387,7 +1388,7 @@ function LockInScreen() {
             style={styles.cameraButton}
             accessibilityLabel="Change this session's audio"
             accessibilityRole="button">
-            <Ionicons name="musical-notes" size={18} color={Colors.ink} />
+            <SessionGlyph name="music" size={19} color={Colors.ink} />
           </Pressable>
           {/* Only once there's something to show — an empty gallery arrow is a dead control. */}
           {photos.length > 0 && (
@@ -1396,7 +1397,7 @@ function LockInScreen() {
               style={styles.galleryArrow}
               accessibilityLabel="See this session's photos"
               accessibilityRole="button">
-              <Ionicons name="chevron-up" size={14} color={Colors.muted} />
+              <UiGlyph name="up" size={14} color={Colors.spaceDim} />
             </Pressable>
           )}
           {/* Directly LEFT of Stop (mock 218), so the one destructive control keeps the edge. */}
@@ -1435,8 +1436,8 @@ function LockInScreen() {
 }
 
 // Pause / Resume (mock 218). The same 42px round control as the camera beside it, so it reads as a
-// session control rather than a second primary action: an amber-rimmed pause while running, a lit
-// ember disc to resume — the one thing on a paused screen that should pull the eye.
+// session control rather than a second primary action: an ember-rimmed pause while running, a lit
+// navEmber disc to resume — the one thing on a paused screen that should pull the eye.
 function PauseToggle({ paused, busy, onPress }: { paused: boolean; busy: boolean; onPress: () => void }) {
   return (
     <Pressable
@@ -1445,7 +1446,7 @@ function PauseToggle({ paused, busy, onPress }: { paused: boolean; busy: boolean
       style={[styles.pauseButton, paused && styles.resumeButton, busy && styles.cameraButtonDisabled]}
       accessibilityLabel={paused ? 'Resume lock-in' : 'Pause lock-in'}
       accessibilityRole="button">
-      <Ionicons name={paused ? 'play' : 'pause'} size={18} color={paused ? PAUSE_RESUME_INK : Colors.amber} />
+      <SessionGlyph name={paused ? 'play' : 'pause'} size={16} color={paused ? PAUSE_RESUME_INK : Colors.navEmber2} />
     </Pressable>
   );
 }
@@ -1472,24 +1473,13 @@ const styles = StyleSheet.create({
   },
   loading: {
     fontFamily: Fonts.body,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     marginTop: Spacing.six,
   },
   bailOut: {
     marginTop: Spacing.three,
     alignSelf: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.13)',
-    borderRadius: 13,
-    paddingVertical: Spacing.twelve,
-    paddingHorizontal: Spacing.four,
-  },
-  bailOutLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.coldButtonText,
   },
   // Flame + timer + "LOCKED IN" claim the leftover vertical space between the header chip and
   // whatever's below (still-here banner / body-doubles / photos / actions) and center within
@@ -1520,6 +1510,18 @@ const styles = StyleSheet.create({
     top: 0,
     right: Spacing.three,
   },
+  // The kit's 36px round header action (SpaceIconButton's look), so minimize reads as the same
+  // control the Lock In tab's top bar uses — still quiet: dim glyph, no ember.
+  minimizeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   // BOTTOM zone — a plain (non-flex) block; it renders at its natural size right after
   // whatever space CENTER's flex:1 didn't consume, which is what pins it to the bottom.
   // Full-bleed inside the footer's own padding, sitting above the still-here banner and actions.
@@ -1531,7 +1533,7 @@ const styles = StyleSheet.create({
   campfireName: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 3,
   },
   timer: {
@@ -1539,8 +1541,8 @@ const styles = StyleSheet.create({
     fontSize: 64,
     letterSpacing: 1,
     color: Colors.ink,
-    // Mock's `text-shadow:0 0 28px rgba(242,163,60,.45)` — the timer catches the firelight.
-    textShadowColor: 'rgba(242,163,60,0.45)',
+    // Mock's `text-shadow:0 0 28px` glow, in navEmber — the timer catches the firelight.
+    textShadowColor: 'rgba(255,122,47,0.42)',
     textShadowRadius: 28,
   },
   // Sits between the flame and the timer (mock 51), tucked up under the flame's base.
@@ -1549,7 +1551,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 2.5,
     textTransform: 'uppercase',
-    color: Colors.amber,
+    color: Colors.navEmber2,
     marginTop: -6,
   },
   // Mock 109's `.lkbadge` — a warm-outlined pill, not a chip with a fill. It is status, not an
@@ -1572,14 +1574,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.3)',
-    backgroundColor: 'rgba(36,26,46,0.7)',
+    borderColor: '#3A2D5A',
+    backgroundColor: 'rgba(185,139,255,0.08)',
     marginBottom: Spacing.two,
   },
+  // Legend purple, not ember: it is a status (secondary), and ember is the one action colour.
   focusNudgePillText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.ember,
+    color: Colors.legend,
   },
   actions: {
     flexDirection: 'row',
@@ -1594,9 +1597,9 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.09)',
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: Colors.spaceLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1620,24 +1623,24 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     paddingHorizontal: 3,
-    backgroundColor: Colors.coral,
+    backgroundColor: Colors.navEmber,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cameraBadgeText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
-    color: Colors.ink,
+    color: '#2A0F05',
   },
-  // "Style it quiet (not alarm-red)" (§13) — a translucent slab, no icon, no color shout.
+  // "Style it quiet (not alarm-red)" (§13) — the kit's secondary slab, no icon, no color shout.
   stopButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.13)',
-    borderRadius: 13,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: Spacing.twelve,
   },
   // Mock 218's `.disc.pause` / `.disc.resume`, at the row's 42px.
@@ -1645,54 +1648,65 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,122,47,0.08)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255,210,122,0.5)',
+    borderColor: 'rgba(255,176,90,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   resumeButton: {
-    backgroundColor: Colors.ember,
-    borderColor: Colors.ember,
+    backgroundColor: Colors.navEmber,
+    borderColor: Colors.navEmber,
+    shadowColor: Colors.navEmber,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
   },
   // Mock 218: the clock and the label step back to the dim ink; the note sits under the clock.
   timerPaused: {
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textShadowRadius: 0,
   },
   pausedLabel: {
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   pausedNote: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     maxWidth: 240,
     marginTop: 6,
   },
   stopLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.coldButtonText,
-  },
-  finishButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.coral,
-    borderRadius: 13,
-    paddingVertical: Spacing.twelve,
-  },
-  finishLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.ink,
   },
+  // The kit's primary: the one ember action on the gym screen.
+  finishButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.navEmber,
+    borderRadius: 14,
+    paddingVertical: Spacing.twelve,
+    shadowColor: Colors.navEmber,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  finishLabel: {
+    fontFamily: Fonts.black,
+    fontSize: 14,
+    color: '#2A0F05',
+  },
   error: {
     fontFamily: Fonts.body,
-    color: Colors.coral,
+    color: Colors.danger,
     textAlign: 'center',
     paddingHorizontal: Spacing.three,
   },
@@ -1733,7 +1747,12 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   timerPill: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 5,
     paddingHorizontal: 11,
@@ -1744,7 +1763,7 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
   energyChip: {
-    backgroundColor: 'rgba(242,163,60,0.16)',
+    backgroundColor: 'rgba(255,122,47,0.14)',
     borderRadius: Radius.pill,
     paddingVertical: 3,
     paddingHorizontal: 9,
@@ -1753,7 +1772,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
     textTransform: 'uppercase',
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   gymCindyLine: {
     // The bubble sizes itself to its own 280px max and centres its tail; the log column it sits

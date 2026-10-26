@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -16,7 +15,9 @@ import Svg, { Path } from 'react-native-svg';
 
 import { PhotoViewer } from '@/components/photo-viewer';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceEmpty, SpaceSection } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { fetchSyncedActivityDetail, type SyncedActivityDetail } from '@/lib/api/synced-activity';
 import { formatDistanceKm, formatDurationClock, formatPacePerKm } from '@/lib/format';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
@@ -85,7 +86,7 @@ export default function ActivityDetailScreen() {
   if (loading) {
     return (
       <Screen style={styles.centered}>
-        <ActivityIndicator color={Colors.coral} />
+        <ActivityIndicator color={Colors.navEmber} />
       </Screen>
     );
   }
@@ -93,7 +94,7 @@ export default function ActivityDetailScreen() {
   if (!detail) {
     return (
       <Screen style={styles.centered}>
-        <Text style={styles.emptyText}>This activity isn’t available.</Text>
+        <SpaceEmpty title="This activity isn’t available." />
       </Screen>
     );
   }
@@ -109,8 +110,13 @@ export default function ActivityDetailScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.back}>
-          <Ionicons name="chevron-down" size={22} color={Colors.muted} />
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={styles.back}
+          accessibilityRole="button"
+          accessibilityLabel="Close">
+          <UiGlyph name="down" size={18} color={Colors.ink} />
         </Pressable>
 
         <Text style={styles.title}>{checkIn.goal_detail || GOAL_TYPE_META[checkIn.goal_type].label}</Text>
@@ -145,10 +151,10 @@ export default function ActivityDetailScreen() {
 
         {detail.splits.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>Splits</Text>
+            <SpaceSection>Splits</SpaceSection>
             <View style={styles.splitsCard}>
-              {detail.splits.map((split) => (
-                <View key={split.split} style={styles.splitRow}>
+              {detail.splits.map((split, i) => (
+                <View key={split.split} style={[styles.splitRow, i > 0 && styles.splitRowBorder]}>
                   <Text style={styles.splitIndex}>KM {split.split}</Text>
                   <Text style={styles.splitPace}>{formatPacePerKm(split.distance, split.moving_time) ?? '—'}</Text>
                   <Text style={styles.splitTime}>{formatDurationClock(split.moving_time)}</Text>
@@ -163,7 +169,7 @@ export default function ActivityDetailScreen() {
             broader scope and another brand review). */}
         {detail.signedPhotoUrls.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>Photos from this lock-in</Text>
+            <SpaceSection>Photos from this lock-in</SpaceSection>
             <View style={styles.photoGrid}>
               {detail.signedPhotoUrls.map((uri) => (
                 <Pressable key={uri} onPress={() => setViewerUri(uri)}>
@@ -182,7 +188,7 @@ export default function ActivityDetailScreen() {
             <Pressable style={styles.openButton} onPress={() => openStravaActivity(checkIn.external_id!)}>
               <RNImage source={STRAVA_BADGE} style={styles.buttonBadge} resizeMode="contain" />
               <Text style={styles.openButtonText}>View on Strava</Text>
-              <Ionicons name="open-outline" size={14} color={Colors.ink} />
+              <UiGlyph name="external" size={14} color={Colors.ink} />
             </Pressable>
 
             {isGarmin && <Text style={styles.attribution}>Recorded with {detail.deviceName}.</Text>}
@@ -200,20 +206,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyText: {
-    fontFamily: Fonts.body,
-    color: Colors.muted,
-  },
   scroll: {
     paddingHorizontal: Spacing.four,
     paddingBottom: Spacing.six,
   },
+  // The kit's round 36px header action, chevron down: this screen dismisses.
   back: {
     alignSelf: 'flex-start',
-    paddingVertical: Spacing.two,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.two,
+    marginBottom: Spacing.twelve,
   },
   title: {
-    fontFamily: Fonts.displayHeavy,
+    fontFamily: Fonts.black,
     fontSize: 24,
     color: Colors.ink,
   },
@@ -234,8 +246,8 @@ const styles = StyleSheet.create({
     color: STRAVA_ORANGE,
   },
   map: {
-    borderRadius: Radius.card,
-    backgroundColor: Colors.card,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
     borderColor: 'rgba(252,76,2,0.25)',
     overflow: 'hidden',
@@ -243,8 +255,10 @@ const styles = StyleSheet.create({
   },
   statRow: {
     flexDirection: 'row',
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: Spacing.three,
   },
   statCell: {
@@ -256,37 +270,36 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.displayHeavy,
     fontSize: 18,
     color: Colors.ink,
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 9,
     letterSpacing: 0.8,
-    color: Colors.muted,
-  },
-  sectionLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    color: Colors.muted,
-    marginTop: Spacing.four,
-    marginBottom: Spacing.two,
+    color: Colors.spaceFaint,
   },
   splitsCard: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingHorizontal: Spacing.three,
   },
   splitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 9,
+    paddingVertical: 10,
+  },
+  splitRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.spaceLine,
   },
   splitIndex: {
     flex: 1,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   splitPace: {
     flex: 1,
@@ -300,7 +313,8 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
+    fontVariant: ['tabular-nums'],
   },
   photoGrid: {
     flexDirection: 'row',
@@ -310,8 +324,8 @@ const styles = StyleSheet.create({
   photo: {
     width: 96,
     height: 96,
-    borderRadius: Radius.card,
-    backgroundColor: Colors.disabled,
+    borderRadius: 12,
+    backgroundColor: Colors.spacePanel2,
   },
   openButton: {
     flexDirection: 'row',
@@ -320,7 +334,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginTop: Spacing.five,
     paddingVertical: Spacing.three,
-    borderRadius: Radius.card,
+    borderRadius: 16,
     backgroundColor: 'rgba(252,76,2,0.14)',
     borderWidth: 1,
     borderColor: STRAVA_ORANGE,
@@ -337,7 +351,8 @@ const styles = StyleSheet.create({
   attribution: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.muted,
+    color: Colors.spaceDim,
+
     textAlign: 'center',
     marginTop: Spacing.two,
   },

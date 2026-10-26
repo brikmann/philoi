@@ -1,8 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { DisciplineIcon } from '@/components/ui/discipline-icon';
+import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { addCourse, archiveCourse, fetchMyCourses } from '@/lib/api/courses';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -31,6 +31,19 @@ import type { FitnessActivity, LockInCategory, UserCourse } from '@/types/databa
 //
 // What DOES live here is everything identical in all three: the tap-1 cards, the course list, the
 // Custom row, the add-a-course form, the Cardio/Strength rows, and the styles for them.
+
+// The Lock In tab's discipline glyphs (nav-glyph.tsx), so tap 1 and tap 2 here wear exactly the
+// marks the tab's picker does: brain = Deep Work, book = Study, dumbbell = Gym, lungs = Cardio.
+// Display only — LOCK_IN_CATEGORY_META.glyph stays the DisciplineIcon key every other surface reads.
+const CATEGORY_GLYPH: Record<LockInCategory, NavGlyphName> = {
+  study: 'book',
+  deep_work: 'brain',
+  fitness: 'dumbbell',
+};
+const ACTIVITY_GLYPH: Record<FitnessActivity, NavGlyphName> = {
+  cardio: 'lungs',
+  strength: 'dumbbell',
+};
 
 export type TaxonomyStep = 'category' | 'second';
 
@@ -173,13 +186,13 @@ export function TaxonomyTwoTap({
               accessibilityLabel={`${LOCK_IN_CATEGORY_META[cat].label}. ${LOCK_IN_CATEGORY_META[cat].sub}`}
               style={styles.bigCard}>
               <View style={styles.bigCardIcon}>
-                <DisciplineIcon name={LOCK_IN_CATEGORY_META[cat].glyph} size={26} color={Colors.amber} />
+                <NavGlyph name={CATEGORY_GLYPH[cat]} size={26} color={Colors.navEmber} />
               </View>
               <View style={styles.bigCardText}>
                 <Text style={styles.bigCardLabel}>{LOCK_IN_CATEGORY_META[cat].label}</Text>
                 <Text style={styles.bigCardSub}>{LOCK_IN_CATEGORY_META[cat].sub}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+              <UiGlyph name="forward" size={15} color={Colors.spaceFaint} />
             </Pressable>
           ))}
         </View>
@@ -213,7 +226,7 @@ export function TaxonomyTwoTap({
                 accessibilityRole="button"
                 accessibilityLabel={`Remove ${course.code ?? course.title}`}
                 style={styles.rowRemove}>
-                <Ionicons name="trash-outline" size={15} color={Colors.textTertiary} />
+                <UiGlyph name="trash" size={15} color={Colors.spaceFaint} />
               </Pressable>
             </Pressable>
           ))}
@@ -226,7 +239,7 @@ export function TaxonomyTwoTap({
             accessibilityRole="button"
             style={[styles.row, styles.rowDashed]}>
             <View style={[styles.rowDot, styles.rowDotDashed]}>
-              <Ionicons name="ellipsis-horizontal" size={14} color={Colors.muted} />
+              <UiGlyph name="more" size={16} color={Colors.spaceDim} />
             </View>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>Custom</Text>
@@ -234,7 +247,7 @@ export function TaxonomyTwoTap({
                 {category === 'deep_work' ? 'Side project, application, anything you build…' : 'Reading, review, practice sets…'}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
+            <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
           </Pressable>
 
           {addingCourse ? (
@@ -245,7 +258,7 @@ export function TaxonomyTwoTap({
                   value={newCourseCode}
                   onChangeText={setNewCourseCode}
                   placeholder="KP390"
-                  placeholderTextColor={Colors.textTertiary}
+                  placeholderTextColor={Colors.spaceFaint}
                   autoCapitalize="characters"
                   maxLength={10}
                 />
@@ -254,7 +267,7 @@ export function TaxonomyTwoTap({
                   value={newCourseTitle}
                   onChangeText={setNewCourseTitle}
                   placeholder="Data Analysis"
-                  placeholderTextColor={Colors.textTertiary}
+                  placeholderTextColor={Colors.spaceFaint}
                   maxLength={80}
                 />
               </View>
@@ -277,7 +290,7 @@ export function TaxonomyTwoTap({
               accessibilityRole="button"
               style={[styles.row, styles.rowDashed]}>
               <View style={[styles.rowDot, styles.rowDotDashed]}>
-                <Ionicons name="add" size={15} color={Colors.amber} />
+                <UiGlyph name="add" size={15} color={Colors.navEmber2} />
               </View>
               <View style={styles.rowText}>
                 <Text style={styles.rowLabel}>Add a course</Text>
@@ -301,7 +314,7 @@ export function TaxonomyTwoTap({
                 accessibilityLabel={meta.label}
                 style={[styles.row, activity === act && styles.rowSelected]}>
                 <View style={styles.rowDot}>
-                  <DisciplineIcon name={meta.glyph} size={16} color={Colors.ink} />
+                  <NavGlyph name={ACTIVITY_GLYPH[act]} size={20} color={activity === act ? Colors.navEmber : Colors.ink} />
                 </View>
                 <View style={styles.rowText}>
                   <View style={styles.rowLabelLine}>
@@ -314,7 +327,7 @@ export function TaxonomyTwoTap({
                   </View>
                   <Text style={styles.rowSub}>{meta.sub}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
+                <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
               </Pressable>
             );
           })}
@@ -337,19 +350,20 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingVertical: 18,
     paddingHorizontal: Spacing.three,
-    borderRadius: Radius.card,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
   },
 
+  // SpaceTile's ember tone, a size up.
   bigCardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.card,
+    width: 46,
+    height: 46,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,122,47,0.14)',
   },
 
   bigCardText: {
@@ -358,7 +372,7 @@ const styles = StyleSheet.create({
   },
 
   bigCardLabel: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 17,
     color: Colors.ink,
   },
@@ -366,7 +380,7 @@ const styles = StyleSheet.create({
   bigCardSub: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
 
   rows: {
@@ -378,28 +392,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     paddingVertical: 12,
-    paddingHorizontal: 13,
-    borderRadius: Radius.card,
+    paddingHorizontal: Spacing.twelve,
+    borderRadius: 13,
     borderWidth: 1,
-    borderColor: Colors.line,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
   },
 
   // In the lock-in sheet this is only ever visible with Options open, since a tap otherwise starts
   // the session outright. On the create screens it is the ordinary resting state: tap 2 selects,
   // and the row stays lit while the member names the thing and presses Create.
+  // The Lock In tab's selected discipline tile: ember rim, ember wash.
   rowSelected: {
-    borderColor: Colors.amber,
-    backgroundColor: Colors.achieverBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.10)',
   },
 
   rowDot: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
   },
 
   rowRemove: {
@@ -416,12 +431,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
   },
 
   rowDashed: {
     borderStyle: 'dashed',
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     backgroundColor: 'transparent',
   },
 
@@ -445,29 +460,31 @@ const styles = StyleSheet.create({
   rowSub: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
 
+  // Legend purple: a secondary fact about the row, not an action.
   autoPill: {
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(185,139,255,0.14)',
   },
 
   autoPillLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 9.5,
-    color: Colors.achieverText,
+    color: Colors.legend,
   },
 
   addCourse: {
     gap: Spacing.two,
     padding: 13,
-    borderRadius: Radius.card,
+    borderRadius: 13,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
   },
 
   addCourseFields: {
@@ -490,21 +507,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
 
+  // A small kit primary — this IS the action on the open form.
   addCourseSave: {
     alignSelf: 'flex-start',
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: Radius.button,
-    backgroundColor: Colors.achieverBg,
+    borderRadius: 12,
+    backgroundColor: Colors.navEmber,
   },
 
   addCourseSaveDisabled: {
-    backgroundColor: Colors.disabled,
+    opacity: 0.45,
   },
 
   addCourseSaveLabel: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 12.5,
-    color: Colors.achieverText,
+    color: '#2A0F05',
   },
+
 });

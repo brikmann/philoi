@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuraTier } from '@/components/economy/applied-art';
 import { CosmeticContextPair } from '@/components/economy/cosmetic-in-context';
@@ -10,7 +10,10 @@ import { ItemArt } from '@/components/economy/item-art';
 import { EquippedTitle } from '@/components/economy/loadout-bits';
 import { ProfileHero } from '@/components/economy/profile-hero';
 import { EmberBands, SeasonChip, isSeasonItem } from '@/components/economy/season-chip';
-import { Screen } from '@/components/ui/screen';
+import { RewardGlyph, type RewardGlyphName } from '@/components/ui/glyphs-rewards';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { SPACE_GUTTER, SpaceHeader } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory, type OwnedItem } from '@/hooks/use-inventory';
 import { equipCosmetic } from '@/lib/api/inventory';
@@ -45,18 +48,24 @@ import { getErrorMessage } from '@/lib/errors';
 // The flame is shown BESIDE the identity, never as the avatar: the avatar is the person (mock 248).
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-type SlotTab = { key: string; label: string; glyph: keyof typeof Ionicons.glyphMap; types: ItemType[] };
+// 'flame' is the nav set's flame (the same mark as the Lock-in tab); every other slot glyph lives in
+// glyphs-rewards.tsx. Both sets are the same 48-grid hand, so the strip reads as one family.
+type SlotTab = { key: string; label: string; glyph: RewardGlyphName | 'flame'; types: ItemType[] };
 
 const TABS: SlotTab[] = [
   { key: 'flame', label: 'Flame', glyph: 'flame', types: ['FLAME'] },
-  { key: 'card', label: 'Card', glyph: 'albums-outline', types: ['CARD'] },
-  { key: 'halo', label: 'Halo', glyph: 'ellipse-outline', types: ['HALO'] },
-  { key: 'particle', label: 'Particle', glyph: 'sparkles-outline', types: ['PARTICLE'] },
-  { key: 'flare', label: 'Flare', glyph: 'scan-outline', types: ['FLARE'] },
-  { key: 'title', label: 'Title', glyph: 'text-outline', types: ['TITLE'] },
-  { key: 'banner', label: 'Banner', glyph: 'flag-outline', types: ['BANNER'] },
-  { key: 'audio', label: 'Audio', glyph: 'musical-notes-outline', types: ['AUDIO', 'SFX'] },
+  { key: 'card', label: 'Card', glyph: 'card', types: ['CARD'] },
+  { key: 'halo', label: 'Halo', glyph: 'halo', types: ['HALO'] },
+  { key: 'particle', label: 'Particle', glyph: 'particle', types: ['PARTICLE'] },
+  { key: 'flare', label: 'Flare', glyph: 'flare', types: ['FLARE'] },
+  { key: 'title', label: 'Title', glyph: 'title', types: ['TITLE'] },
+  { key: 'banner', label: 'Banner', glyph: 'banner', types: ['BANNER'] },
+  { key: 'audio', label: 'Audio', glyph: 'audio', types: ['AUDIO', 'SFX'] },
 ];
+
+function SlotGlyph({ name, color }: { name: SlotTab['glyph']; color: string }) {
+  return name === 'flame' ? <NavGlyph name="flame" size={14} color={color} /> : <RewardGlyph name={name} size={14} color={color} />;
+}
 
 /** A tile in the grid: an owned item (equippable), or a catalog item you don't have yet. */
 type Tile = { kind: 'owned'; item: OwnedItem } | { kind: 'locked'; item: CatalogItem };
@@ -151,15 +160,9 @@ export default function LoadoutScreen() {
   const flame = loadout.flame;
 
   return (
-    <Screen padded={false}>
+    <SafeAreaView edges={['top']} style={styles.safe}>
+      <SpaceHeader title="Loadout" right={<EmberPill embers={embers} />} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={Colors.ink} />
-          </Pressable>
-          <Text style={styles.title}>Loadout</Text>
-          <EmberPill embers={embers} />
-        </View>
 
         {/* ── Live preview ── */}
         <ProfileHero
@@ -192,7 +195,7 @@ export default function LoadoutScreen() {
                 accessibilityRole="tab"
                 accessibilityState={{ selected: on }}>
                 {on ? <EmberBands /> : null}
-                <Ionicons name={t.glyph} size={13} color={on ? INK_ON_EMBER : Colors.muted} />
+                <SlotGlyph name={t.glyph} color={on ? INK_ON_EMBER : Colors.spaceDim} />
                 <Text style={[styles.tabText, on && styles.tabTextOn]}>{t.label}</Text>
               </Pressable>
             );
@@ -206,7 +209,7 @@ export default function LoadoutScreen() {
           <Text style={styles.sheadR}>tap to equip</Text>
         </View>
 
-        {loading && owned.length === 0 ? <ActivityIndicator color={Colors.ember} style={styles.spinner} /> : null}
+        {loading && owned.length === 0 ? <ActivityIndicator color={Colors.navEmber} style={styles.spinner} /> : null}
 
         <View style={styles.grid}>
           {tiles.map((t) => (
@@ -219,10 +222,10 @@ export default function LoadoutScreen() {
 
         <Pressable style={styles.invLink} onPress={() => router.push('/inventory')} accessibilityRole="button">
           <Text style={styles.invLinkText}>Open full inventory</Text>
-          <Ionicons name="chevron-forward" size={13} color={Colors.muted} />
+          <UiGlyph name="forward" size={13} color={Colors.navEmber2} />
         </Pressable>
       </ScrollView>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
@@ -249,11 +252,15 @@ function LoadoutTile({ tile, pending, onPress }: { tile: Tile; pending: boolean;
           <Text style={styles.equippedBadgeText}>✓ Equipped</Text>
         </View>
       ) : null}
-      {locked ? <Ionicons name="lock-closed" size={10} color={Colors.textTertiary} style={styles.lock} /> : null}
+      {locked ? (
+        <View style={styles.lock}>
+          <UiGlyph name="lock" size={11} color={Colors.spaceFaint} />
+        </View>
+      ) : null}
 
       {/* Greyed rather than hidden: the art still says what you'd be getting. */}
       <View style={[styles.art, locked && styles.artLocked]}>
-        {pending ? <ActivityIndicator color={Colors.ember} /> : <ItemArt item={item} size={38} />}
+        {pending ? <ActivityIndicator color={Colors.navEmber} /> : <ItemArt item={item} size={38} />}
       </View>
       <Text style={[styles.name, locked && styles.nameLocked]} numberOfLines={1}>
         {displayName(item)}
@@ -276,32 +283,22 @@ function LoadoutTile({ tile, pending, onPress }: { tile: Tile; pending: boolean;
 const INK_ON_EMBER = '#1a1020';
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.six,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.twelve,
-  },
-  title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 20,
-    color: Colors.ink,
+  safe: {
     flex: 1,
+  },
+  content: {
+    paddingHorizontal: SPACE_GUTTER,
+    paddingBottom: Spacing.six,
   },
   noTitle: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   previewMeta: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 4,
   },
   flame: {
@@ -320,8 +317,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: '#2a2140',
-    backgroundColor: '#1b1430',
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
     overflow: 'hidden',
   },
   tabOn: {
@@ -330,7 +327,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   tabTextOn: {
     color: INK_ON_EMBER,
@@ -342,15 +339,18 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.twelve,
     paddingBottom: Spacing.two,
   },
+  // SpaceSection's voice, with the hint on the right.
   sheadL: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 13,
-    color: Colors.ink,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
   },
   sheadR: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   spinner: {
     marginVertical: Spacing.four,
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     aspectRatio: 0.86,
     borderRadius: 14,
     borderWidth: 1,
-    backgroundColor: '#18112b',
+    backgroundColor: Colors.spacePanel,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 5,
@@ -378,8 +378,8 @@ const styles = StyleSheet.create({
   // shadow, which Android would draw grey.
   tileEquipped: {
     borderWidth: 2,
-    borderColor: '#FF8A2C',
-    backgroundColor: '#22152a',
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.08)',
   },
   equippedBadge: {
     position: 'absolute',
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   nameLocked: {
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   tags: {
     alignItems: 'center',
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 7.5,
     lineHeight: 10,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'center',
   },
   invLink: {
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
   },
   invLinkText: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.muted,
+    fontSize: 12.5,
+    color: Colors.navEmber2,
   },
 });

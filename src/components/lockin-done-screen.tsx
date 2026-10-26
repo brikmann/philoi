@@ -1,7 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 
 import { showRewardReveal } from '@/components/economy/reward-reveal';
@@ -9,8 +8,11 @@ import { GymClipThumbnail } from '@/components/gym-clip-player';
 import { RankBadge } from '@/components/rank-badge';
 import { PersonalFlame } from '@/components/personal-flame';
 import { PlacementMove } from '@/components/placement-move';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { SpaceButton } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyGroups } from '@/hooks/use-my-groups';
@@ -389,7 +391,7 @@ export function LockInDoneScreen({
 
         {streakAfter > 0 && (
           <View style={styles.streak}>
-            <Ionicons name="flame" size={15} color={Colors.amber} />
+            <NavGlyph name="flame" size={15} color={Colors.gold} />
             <Text style={styles.streakText}>
               {streakAfter}-day streak · {streakIncreased ? '+1 today' : 'kept alive'}
             </Text>
@@ -400,11 +402,14 @@ export function LockInDoneScreen({
             and clips all live behind "View". */}
         {workoutExercises.length > 0 && (
           <Pressable style={styles.gymLine} onPress={() => setRecapOpen(true)} accessibilityRole="button">
-            <Ionicons name="barbell" size={14} color={Colors.amber} />
+            <View style={styles.gymTile}>
+              <NavGlyph name="dumbbell" size={18} color={Colors.navEmber2} />
+            </View>
             <Text style={styles.gymSummary} numberOfLines={1}>
               {gymSummary}
             </Text>
             <Text style={styles.gymView}>View</Text>
+            <UiGlyph name="forward" size={12} color={Colors.spaceFaint} />
           </Pressable>
         )}
       </ScrollView>
@@ -452,7 +457,7 @@ export function LockInDoneScreen({
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: on }}
                     accessibilityLabel={`Post to ${group.name}`}>
-                    {on && <Ionicons name="checkmark" size={12} color={Colors.achieverText} />}
+                    {on && <UiGlyph name="check" size={12} color={Colors.navEmber2} />}
                     <Text style={[styles.circleChipText, on && styles.circleChipTextOn]} numberOfLines={1}>
                       {group.emoji} {group.name}
                     </Text>
@@ -492,13 +497,13 @@ export function LockInDoneScreen({
           )}
         </View>
 
-        <Pressable style={styles.cta} onPress={handlePost} disabled={posting}>
-          {posting ? (
-            <ActivityIndicator color={Colors.ink} />
-          ) : (
-            <Text style={styles.ctaLabel}>{willPost || postToAgora ? 'Post & finish' : 'Finish'}</Text>
-          )}
-        </Pressable>
+        {/* The one ember action on this screen — the kit's primary, with its spinner while posting. */}
+        <SpaceButton
+          label={willPost || postToAgora ? 'Post & finish' : 'Finish'}
+          onPress={handlePost}
+          loading={posting}
+          style={styles.cta}
+        />
         {/* Only when there's actually something to skip — otherwise it's the same button twice. */}
         {willPost && (
           <Pressable onPress={handleJustFinish} disabled={posting} style={styles.skip}>
@@ -510,7 +515,10 @@ export function LockInDoneScreen({
             from the done screen). */}
         {onShare && (
           <Pressable onPress={onShare} disabled={sharing || posting} style={styles.skip} accessibilityLabel="Share this lock-in">
-            <Text style={styles.shareLabel}>{sharing ? 'Preparing…' : 'Share to your story'}</Text>
+            <View style={styles.shareInner}>
+              <UiGlyph name="share" size={14} color={Colors.navEmber2} />
+              <Text style={styles.shareLabel}>{sharing ? 'Preparing…' : 'Share to your story'}</Text>
+            </View>
           </Pressable>
         )}
       </View>
@@ -554,22 +562,22 @@ function GymRecapSheet({
               {recap.routine_name ?? 'Your workout'}
               {prCount > 0 ? ` · ${prCount} PR${prCount === 1 ? '' : 's'}` : ''}
             </Text>
-            <Pressable onPress={onClose} hitSlop={8} accessibilityLabel="Close">
-              <Ionicons name="close" size={19} color={Colors.textTertiary} />
+            <Pressable onPress={onClose} hitSlop={8} style={styles.sheetClose} accessibilityLabel="Close">
+              <UiGlyph name="close" size={16} color={Colors.spaceDim} />
             </Pressable>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetBody}>
             {recap.exercises.map((s, i) => (
               <View key={i} style={styles.setRow}>
-                <Ionicons name="barbell-outline" size={12} color={Colors.amber} />
+                <NavGlyph name="dumbbell" size={14} color={Colors.spaceFaint} />
                 <Text style={styles.setText} numberOfLines={1}>
                   {s.exercise} · {s.sets}×{s.reps}
                   {s.weight ? ` @ ${s.weight}` : ''}
                 </Text>
                 {s.is_pr && (
                   <View style={styles.prTag}>
-                    <Ionicons name="trophy" size={9} color={Colors.achieverText} />
+                    <NavGlyph name="trophy" size={10} color={Colors.gold} />
                     <Text style={styles.prTagText}>PR</Text>
                   </View>
                 )}
@@ -580,7 +588,7 @@ function GymRecapSheet({
                 earns this line, a personal best actually logged in the session does. */}
             {recap.brag_earned && (
               <View style={styles.bragRow}>
-                <Ionicons name="flash" size={13} color={Colors.achieverText} />
+                <NavGlyph name="flame" size={13} color={Colors.gold} />
                 <Text style={styles.bragText}>You were feeling dialed — and the numbers backed it up.</Text>
               </View>
             )}
@@ -625,7 +633,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
     letterSpacing: 1.6,
-    color: Colors.amber,
+    color: Colors.navEmber2,
     marginTop: 16,
   },
   bigName: {
@@ -636,10 +644,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 14,
   },
+  // Gold: the XP is what was EARNED, and gold is the space kit's earned colour.
   stat: {
     fontFamily: Fonts.displayHeavy,
     fontSize: 40,
-    color: Colors.ink,
+    color: Colors.gold,
     marginTop: 6,
     // Tabular figures so a counting number doesn't jitter its own width as it ticks.
     fontVariant: ['tabular-nums'],
@@ -647,13 +656,13 @@ const styles = StyleSheet.create({
   statUnit: {
     fontFamily: Fonts.displayHeavy,
     fontSize: 18,
-    color: Colors.ink,
+    color: Colors.gold,
   },
   statLabel: {
     fontFamily: Fonts.body,
     fontSize: 12,
     letterSpacing: 0.3,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 1,
   },
   rankChip: {
@@ -661,7 +670,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
     alignSelf: 'center',
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
     borderRadius: Radius.pill,
     paddingVertical: 6,
@@ -674,15 +683,16 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
   },
-  // The Pass block — same card surface as the rank chip, stretched so the bar has room to move.
+  // The Pass block — the kit's gold-toned card (SpaceCard tone="gold"): it reports what was earned,
+  // stretched so the bar has room to move.
   pass: {
     alignSelf: 'stretch',
-    backgroundColor: Colors.cardDark,
+    backgroundColor: 'rgba(255,209,102,0.07)',
     borderWidth: 1,
-    borderColor: `${Colors.amber}55`,
-    borderRadius: Radius.card,
-    paddingVertical: 10,
-    paddingHorizontal: 13,
+    borderColor: '#5A4A1E',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     marginTop: 12,
     gap: 7,
   },
@@ -696,64 +706,81 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.amber,
+    color: Colors.gold,
     fontVariant: ['tabular-nums'],
   },
   passBonus: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   passTrack: {
     height: 6,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spacePanel2,
     overflow: 'hidden',
   },
   passFill: {
     height: '100%',
     borderRadius: Radius.pill,
-    backgroundColor: Colors.amber,
+    backgroundColor: Colors.gold,
   },
   passLevel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     fontVariant: ['tabular-nums'],
   },
+  // A gold pill — the streak is a result, not a caption.
   streak: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginTop: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: '#5A4A1E',
+    backgroundColor: 'rgba(255,209,102,0.07)',
   },
   streakText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    // Brighter than the goal line above it — the streak is a result, not a caption.
-    color: Colors.coldChipText,
+    color: Colors.gold,
   },
+  // SpaceRow's look: panel on a 1px line, an ember leading tile, a chevron.
   gymLine: {
     alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: Spacing.twelve,
     marginTop: 12,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    paddingVertical: 9,
-    paddingHorizontal: 11,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 13,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.twelve,
+  },
+  gymTile: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,122,47,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   gymSummary: {
     flex: 1,
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.muted,
+    fontSize: 12.5,
+    color: Colors.ink,
   },
   gymView: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11.5,
-    color: Colors.amber,
+    fontSize: 12,
+    color: Colors.navEmber2,
   },
   bottom: {
     width: '100%',
@@ -771,15 +798,15 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
   },
-  // The mock's post card is one step up from its stage; this screen's stage is Colors.cream, so
-  // the elevated surface here is Colors.card and the note field insets back down to cream.
+  // The mock's post card is one step up from its stage: a kit panel (spacePanel on spaceLine), with
+  // the note field inset back down to the spaceBg canvas.
   post: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: 16,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
   },
@@ -792,7 +819,7 @@ const styles = StyleSheet.create({
   postToLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   postToName: {
     flex: 1,
@@ -802,8 +829,8 @@ const styles = StyleSheet.create({
   },
   change: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontSize: 11.5,
+    color: Colors.navEmber2,
   },
   circleGrid: {
     flexDirection: 'row',
@@ -817,28 +844,30 @@ const styles = StyleSheet.create({
     gap: 4,
     maxWidth: 180,
     borderRadius: Radius.pill,
-    borderWidth: 1.5,
-    borderColor: Colors.line,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel2,
     paddingVertical: 6,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
   },
+  // SpaceChip's selected state.
   circleChipOn: {
-    borderColor: Colors.coral,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.12)',
   },
   circleChipText: {
     flexShrink: 1,
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.muted,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
   },
   circleChipTextOn: {
-    color: Colors.achieverText,
+    color: Colors.navEmber2,
   },
   // Flatter than the standalone field it replaced — inside the post card it reads as part of the
   // card, not as a second input competing with it.
   note: {
-    backgroundColor: Colors.cream,
+    backgroundColor: Colors.spaceBg,
     borderWidth: 0,
     borderRadius: 10,
     paddingVertical: 10,
@@ -862,48 +891,44 @@ const styles = StyleSheet.create({
   agoraSub: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
     marginTop: 1,
   },
   agoraHint: {
     fontFamily: Fonts.body,
     fontSize: 11,
     lineHeight: 15,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 6,
   },
   cta: {
-    backgroundColor: Colors.coral,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: 'center',
     marginTop: 12,
-  },
-  ctaLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.ink,
   },
   skip: {
     alignSelf: 'center',
     paddingVertical: Spacing.two,
     marginTop: 3,
   },
+  shareInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   shareLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.amber,
+    color: Colors.navEmber2,
     textAlign: 'center',
   },
   skipLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.coral,
+    color: Colors.danger,
     textAlign: 'center',
     marginBottom: Spacing.two,
   },
@@ -911,11 +936,13 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(9,7,14,0.55)',
+    backgroundColor: 'rgba(14,10,28,0.6)',
   },
   sheet: {
     maxHeight: '82%',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
+    borderTopWidth: 1,
+    borderColor: Colors.spaceLine,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 8,
@@ -926,7 +953,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.trackAlt,
+    backgroundColor: Colors.spaceLine,
     alignSelf: 'center',
     marginTop: 4,
     marginBottom: 12,
@@ -940,9 +967,19 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     flex: 1,
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
+    fontFamily: Fonts.black,
+    fontSize: 17,
     color: Colors.ink,
+  },
+  sheetClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sheetBody: {
     gap: 6,
@@ -951,19 +988,20 @@ const styles = StyleSheet.create({
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    paddingVertical: 4,
   },
   setText: {
     flex: 1,
     fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.muted,
+    fontSize: 13,
+    color: Colors.ink,
   },
   prTag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,209,102,0.12)',
     borderRadius: Radius.pill,
     paddingVertical: 1,
     paddingHorizontal: 5,
@@ -971,7 +1009,7 @@ const styles = StyleSheet.create({
   prTagText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 9,
-    color: Colors.achieverText,
+    color: Colors.gold,
   },
   bragRow: {
     flexDirection: 'row',
@@ -983,12 +1021,15 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.achieverText,
+    color: Colors.gold,
   },
   clipsLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
+
     marginTop: 12,
   },
   clipsRow: {

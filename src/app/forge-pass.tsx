@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
@@ -18,6 +17,7 @@ import { CosmeticDetail, DetailSheet } from '@/components/pass/cosmetic-detail-s
 import { EMBER, EmberfallSeal, EmberfallSky, FallingEmbers } from '@/components/pass/emberfall-art';
 import { useBreath } from '@/components/pass/pass-motion';
 import { Screen } from '@/components/ui/screen';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Fonts, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
 import { useProductPrices } from '@/hooks/use-purchase';
@@ -311,8 +311,11 @@ export default function ForgePassScreen() {
 
       <View style={[styles.header, { paddingTop: insets.top + Spacing.two }]}>
         <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={EMBER.warm} />
+          {/* SpaceHeader's round back button, but on a translucent scrim and in the season's warm ink:
+              this screen flies the Emberfall sky edge to edge, and an opaque panel disc would punch a
+              hole in it. */}
+          <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Back">
+            <UiGlyph name="back" size={20} color={EMBER.warm} />
           </Pressable>
           <Text style={styles.title} numberOfLines={1}>
             Flame Pass
@@ -1010,6 +1013,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingBottom: 6,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     flex: 1,
