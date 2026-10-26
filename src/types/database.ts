@@ -160,6 +160,9 @@ export type NotificationPrefs = {
    */
   type_friend_locked_in?: boolean;
   type_friend_agora_post?: boolean;
+  /** 0280 · a post made for a campfire / forest you're in. */
+  type_campfire_post?: boolean;
+  type_forest_post?: boolean;
   // ── end WS8 block ─────────────────────────────────────────────────────────────
 };
 
@@ -1179,6 +1182,11 @@ export type AnalyticsEventName =
   // Home's Flame Pass card + its Shop shortcut (mock 306) — the Pass's Home conversion funnel.
   | 'home_pass_card_tapped'
   | 'home_shop_shortcut_tapped'
+  // The standing band (mock 317) that replaced it — on the Lock In tab and your Profile.
+  | 'standing_band_tapped'
+  // The immersive Home feed (mock 317): a page paged into view, and the rail's share.
+  | 'feed_page_viewed'
+  | 'agora_shared'
   | 'agora_posted'
   | 'agora_session_autoposted'
   | 'forest_joined'
@@ -4204,7 +4212,14 @@ export type StepDayInput = {
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The feed's reach dials. Narrowest → widest, the order the chips render in. */
-export type AgoraScope = 'friends' | 'campfires' | 'university' | 'global';
+export type AgoraScope = 'friends' | 'campfires' | 'university' | 'global' | 'all' | 'everyone';
+
+/**
+ * Who a post is for (0280, mock 320) — generated server-side from campfire_id / forest_id /
+ * visibility, the same columns every read gate decides on, so the tag a post wears is the rule that
+ * gated it. 'campus' is legacy: pre-0280 posts keep it, the composer no longer offers it.
+ */
+export type AgoraAudience = 'friends' | 'campfire' | 'forest' | 'everyone' | 'campus';
 
 /**
  * A post's audience — the MILESTONE vocabulary (0093), deliberately reused rather than invented.
@@ -4381,6 +4396,14 @@ export type AgoraItem = {
   /** 0274 · set on a forest post (get_agora_item); the global feed never returns one. */
   forest_id?: string | null;
   created_at: string;
+  /**
+   * 0280 · who it's for, and the room's name/emoji when that's a campfire or forest. Absent on a
+   * server without 0280 and on the campfire/forest channel feeds — the channel says it there.
+   */
+  audience?: AgoraAudience;
+  audience_ref_id?: string | null;
+  audience_name?: string | null;
+  audience_emoji?: string | null;
 };
 
 /** The keyset cursor. Both halves, because two posts can share a millisecond. */

@@ -2,8 +2,8 @@ import { Tabs } from 'expo-router';
 
 
 // THE BOTTOM BAR IS BACK (nav restructure, mocks 301/302) — ShareSpot-style, social first:
-// Home (the community feed) · Search · 🔥 Lock In (center) · Leaderboard · Profile. The drawer behind
-// the top-right ☰ keeps everything else (components/nav/app-drawer.tsx).
+// Home · Social (mock 320: the feed, chats and posting) · 🔥 Lock In (center) · Leaderboard · Profile.
+// The drawer behind the top-right ☰ keeps everything else (components/nav/app-drawer.tsx).
 //
 // The bar itself is NOT drawn here any more (ui_pass2 §2): components/nav/global-footer.tsx mounts it
 // once under the root navigator, so the same bar shows on drawer screens too. `tabBar` returns null.
@@ -26,7 +26,9 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: 'transparent' },
       }}>
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="search" options={{ title: 'Search' }} />
+      <Tabs.Screen name="social" options={{ title: 'Social' }} />
+      {/* Off the bar since mock 320 — Social's 🔍 opens it, and installed builds' /search links still land. */}
+      <Tabs.Screen name="search" options={{ title: 'Search', href: null }} />
       <Tabs.Screen name="lockin" options={{ title: 'Lock In' }} />
       <Tabs.Screen name="leaderboards" options={{ title: 'Leaderboard' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />

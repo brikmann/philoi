@@ -28,7 +28,7 @@ import { AGORA_VIDEO_ENABLED } from '@/constants/feature-flags';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { announceAgoraPost } from '@/lib/agora-just-posted';
-import { AGORA_VISIBILITIES, createAgoraPost } from '@/lib/api/agora';
+import { createAgoraPost } from '@/lib/api/agora';
 import {
   AGORA_VIDEO_MAX_SECONDS,
   AgoraVideoLimitError,
@@ -42,7 +42,6 @@ import { createForestPost } from '@/lib/api/forests';
 import { fetchProfileIdentity } from '@/lib/api/identity';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
-import { shortSchoolName } from '@/lib/universities';
 import type { AgoraAttachInput, AgoraVisibility } from '@/types/database';
 import type { Anthem, FeedChannel } from '@/types/social';
 
@@ -60,11 +59,15 @@ import type { Anthem, FeedChannel } from '@/types/social';
 // below — nothing typed on this screen can end up being what the card claims.
 //
 // ONE SHEET, EVERY POST (mock 306 frame 2). Text up top, then the bespoke media row — Photo ·
-// Camera · Session · Reward · Anthem — then the Feed / Campfire / Forest lane, then Post.
+// Camera · Session · Reward · Anthem — then WHO SEES IT, then Post.
+//
+// WHO SEES IT (0280, mock 320). One required choice: Friends only (default) · a campfire · a forest ·
+// Everyone. It is the post's whole reach — only that audience can read it and only they get the
+// notification — and the server derives the post's `audience` from it, so the tag on the card is
+// the rule that gated it. A campfire / forest row opens a "which one" sheet (the lane below).
 //
 // FOREST POSTS (0274). The lane picks the forest; ?forestId= seeds it, so a forest's own "Post"
-// opens on that forest. The audience dial is hidden on a forest lane: a forest post's reach IS the
-// forest (open, or its members only), so a dial there would be a promise the server doesn't keep.
+// opens on that forest. A forest post's reach IS the forest (open, or its members only).
 //
 // CAMPFIRE POSTS (0277, mock 315). Same idea, one more kind: the lane can be a campfire you're in,
 // and the post lands in that campfire's channel on the Feed — its members' curated feed (gym comps,
@@ -109,7 +112,7 @@ function slotOf(choice: AchievementChoice): AttachSlot {
   return choice.kind === 'lockin' ? 'lockin' : 'achievement';
 }
 
-type Lane = { kind: 'forest' | 'campfire'; id: string; name: string };
+type Lane = { kind: 'forest' | 'campfire'; id: string; name: string; emoji?: string };
 
 export default function AgoraComposeScreen() {
   const router = useRouter();
@@ -145,11 +148,12 @@ export default function AgoraComposeScreen() {
   // the clip doesn't land in the slot anyway.
   const videoRun = useRef(0);
 
-  // Campus is the sensible default audience (see migration 0128), but it resolves to NOBODY for an
-  // account with no university set — can_see_agora needs a non-null match on both sides. Rather
-  // than let someone post into a void, the picker disables it and this opens on Global instead.
-  const hasCampus = Boolean(profile?.university);
-  const [visibility, setVisibility] = useState<AgoraVisibility>(hasCampus ? 'campus' : 'public');
+  // WHO SEES IT (0280, mock 320). With no lane, the post is for your friends or for everyone — the
+  // only two square audiences the picker offers (legacy 'campus' posts keep theirs, but it isn't
+  // offered). Friends is the default: reach is something you widen on purpose.
+  const [visibility, setVisibility] = useState<Extract<AgoraVisibility, 'friends' | 'public'>>('friends');
+  // Which kind of room the "pick which" sheet is listing.
+  const [laneKind, setLaneKind] = useState<Lane['kind']>('campfire');
 
   const chosen = SLOT_ORDER.map((slot) => ({ slot, choice: attached[slot] })).filter(
     (c): c is { slot: AttachSlot; choice: AchievementChoice } => Boolean(c.choice)
@@ -173,12 +177,18 @@ export default function AgoraComposeScreen() {
     };
   }, [profile?.id]);
 
-  function openLanePicker() {
+  function openLanePicker(kind: Lane['kind']) {
+    setLaneKind(kind);
     setLanePicker(true);
     if (myChannels !== null) return;
     fetchMyFeedChannels()
       .then((rows) => setMyChannels([...rows.filter((c) => c.kind === 'campfire'), ...rows.filter((c) => c.kind === 'forest')]))
       .catch(() => setMyChannels([]));
+  }
+
+  function chooseSquare(next: 'friends' | 'public') {
+    setLane(null);
+    setVisibility(next);
   }
 
   async function pickPhoto() {
@@ -284,6 +294,21 @@ export default function AgoraComposeScreen() {
 
   async function post() {
     if (!canPost || !profile) return;
+    // A clip never goes public silently (the video prompt's minor-safety rule; there is no age gate
+    // to tell a minor apart, so it holds for everyone): Everyone + a video asks once, on Post.
+    if (video && !lane && visibility === 'public') {
+      Alert.alert('Post this video publicly?', 'Anyone on Philoi will be able to watch it. Friends only keeps it to the people you added.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Friends only', onPress: () => setVisibility('friends') },
+        { text: 'Post publicly', style: 'destructive', onPress: () => void send() },
+      ]);
+      return;
+    }
+    await send();
+  }
+
+  async function send() {
+    if (!profile) return;
     setPosting(true);
     try {
       const attachments: AgoraAttachInput[] = chosen.map(({ choice }) => ({
@@ -307,11 +332,12 @@ export default function AgoraComposeScreen() {
         // Lands on top only if the feed underneath is showing this campfire's channel.
         announceAgoraPost({ id, itemType: 'post', channel: channelKey({ kind: 'campfire', id: lane.id }) });
       } else if (lane) {
-        await createForestPost({ forestId: lane.id, userId: profile.id, body: text, photoUri, attachments });
+        const id = await createForestPost({ forestId: lane.id, userId: profile.id, body: text, photoUri, attachments });
+        // On top in that forest's channel, or in All (0280: All carries your rooms).
+        announceAgoraPost({ id, itemType: 'post', channel: channelKey({ kind: 'forest', id: lane.id }) });
       } else {
         const id = await createAgoraPost({ body: text, photoUri, userId: profile.id, visibility, attachments });
-        // The feed under this modal puts it on top, highlighted (mock 306 frame 3). A forest post
-        // never reaches the square, so only this branch announces.
+        // The feed under this modal puts it on top, highlighted (mock 306 frame 3).
         announceAgoraPost({ id, itemType: 'post' });
       }
       router.back();
@@ -340,12 +366,19 @@ export default function AgoraComposeScreen() {
     });
   }
 
-  function chooseLane(next: Lane | null) {
+  function chooseLane(next: Lane) {
     setLane(next);
     setLanePicker(false);
   }
 
-  const audience = AGORA_VISIBILITIES.find((v) => v.key === visibility);
+  // The reassurance line under the picker, naming whoever was chosen.
+  const promise = lane
+    ? lane.kind === 'campfire'
+      ? `Only ${lane.name}’s members see this & get the notification.`
+      : `Only people in ${lane.name} see this & its members get the notification.`
+    : visibility === 'friends'
+      ? 'Only your friends see this & get the notification.'
+      : 'Anyone on Philoi can see this. Nobody gets a notification — it’s there for whoever looks.';
 
   return (
     <ScreenBackground>
@@ -486,59 +519,48 @@ export default function AgoraComposeScreen() {
               <AttachButton icon="anthem" label="Anthem" on={withAnthem} onPress={toggleAnthem} />
             </View>
 
-            <View style={styles.laneRow}>
-              <Text style={styles.laneLabel}>Posting to</Text>
-              <Pressable
-                style={styles.lanePill}
-                onPress={openLanePicker}
-                accessibilityRole="button"
-                accessibilityLabel={`Posting to ${lane ? lane.name : 'the feed'}. Change`}>
-                <Text style={styles.lanePillText} numberOfLines={1}>
-                  {lane ? lane.name : 'Feed'}
-                </Text>
-                <Ionicons name="chevron-down" size={12} color={Colors.legend} />
-              </Pressable>
-            </View>
-
-            {lane ? (
-              <Text style={styles.audienceHint}>
-                {lane.kind === 'campfire'
-                  ? 'Seen by this campfire’s members, in its channel on the Feed'
-                  : 'Seen by everyone who can open this forest'}
-              </Text>
-            ) : (
-              <>
-                <View style={styles.audienceRow}>
-                  {AGORA_VISIBILITIES.map((v) => {
-                    const disabled = v.key === 'campus' && !hasCampus;
-                    const on = visibility === v.key;
-                    return (
-                      <Pressable
-                        key={v.key}
-                        disabled={disabled}
-                        onPress={() => setVisibility(v.key)}
-                        style={[styles.aud, on && styles.audOn, disabled && styles.audOff]}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: on, disabled }}>
-                        <Text style={[styles.audText, on && styles.audTextOn]}>
-                          {v.key === 'campus' && profile?.university
-                            ? shortSchoolName(profile.university)
-                            : v.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <Text style={styles.audienceHint}>
-                  {hasCampus || visibility !== 'public'
-                    ? (audience?.hint ?? '')
-                    : 'Set your university in your profile to post to your campus.'}
-                </Text>
-                {(video || preparing !== null) && visibility === 'friends' ? (
-                  <Text style={styles.audienceHint}>Videos start at Friends. Widening it is your call.</Text>
-                ) : null}
-              </>
-            )}
+            {/*
+              WHO SEES IT (mock 320) — required, one choice, Friends by default. Only the chosen
+              audience can read the post and only they are notified; nothing ranks it afterwards.
+              A campfire / forest row opens the "pick which" sheet; once picked it names the room.
+            */}
+            <Text style={styles.whoLabel}>WHO SEES IT</Text>
+            <AudienceOption
+              icon="👥"
+              label="Friends only"
+              sub="just the people you added"
+              on={!lane && visibility === 'friends'}
+              onPress={() => chooseSquare('friends')}
+            />
+            <AudienceOption
+              icon={lane?.kind === 'campfire' ? (lane.emoji ?? '🔥') : '🔥'}
+              label={lane?.kind === 'campfire' ? lane.name : 'A campfire'}
+              sub={lane?.kind === 'campfire' ? 'the campfire’s members · change' : 'pick which'}
+              on={lane?.kind === 'campfire'}
+              onPress={() => openLanePicker('campfire')}
+              chevron
+            />
+            <AudienceOption
+              icon={lane?.kind === 'forest' ? (lane.emoji ?? '🌲') : '🌲'}
+              label={lane?.kind === 'forest' ? lane.name : 'A forest'}
+              sub={lane?.kind === 'forest' ? 'everyone in the forest · change' : 'pick which'}
+              on={lane?.kind === 'forest'}
+              onPress={() => openLanePicker('forest')}
+              chevron
+            />
+            <AudienceOption
+              icon="🌐"
+              label="Everyone"
+              sub="public on Philoi"
+              on={!lane && visibility === 'public'}
+              onPress={() => chooseSquare('public')}
+            />
+            <Text style={styles.promise}>
+              ✓ {promise} No algorithm — people only see what they chose.
+            </Text>
+            {(video || preparing !== null) && !lane && visibility === 'friends' ? (
+              <Text style={styles.audienceHint}>Videos start at Friends. Widening it is your call.</Text>
+            ) : null}
 
             <Text style={styles.note}>Comment-only · no likes.</Text>
           </ScrollView>
@@ -560,23 +582,28 @@ export default function AgoraComposeScreen() {
         <Pressable style={styles.scrim} onPress={() => setLanePicker(false)} accessibilityLabel="Close">
           {/* Swallows taps so a press inside the sheet doesn't fall through to the scrim. */}
           <Pressable style={styles.laneSheet} onPress={() => {}}>
-            <Text style={styles.laneSheetTitle}>Post to</Text>
-            <LaneOption label="Feed" sub="The square" on={!lane} onPress={() => chooseLane(null)} />
+            <Text style={styles.laneSheetTitle}>{laneKind === 'campfire' ? 'Which campfire?' : 'Which forest?'}</Text>
             {myChannels === null ? (
               <ActivityIndicator color={Colors.textTertiary} style={styles.laneLoader} />
-            ) : myChannels.length === 0 ? (
-              <Text style={styles.laneEmpty}>Join a campfire, or a forest from Agora → Forests, to post into it.</Text>
+            ) : !myChannels.some((c) => c.kind === laneKind) ? (
+              <Text style={styles.laneEmpty}>
+                {laneKind === 'campfire'
+                  ? 'Join a campfire to post into it.'
+                  : 'Join a forest from Social → 🌲 Forests to post into it.'}
+              </Text>
             ) : (
               <ScrollView style={styles.laneList}>
-                {myChannels.map((c) => (
-                  <LaneOption
-                    key={`${c.kind}:${c.id}`}
-                    label={`${c.emoji} ${c.name}`}
-                    sub={`${c.kind === 'campfire' ? 'Campfire' : 'Forest'} · ${c.member_count} members`}
-                    on={lane?.kind === c.kind && lane.id === c.id}
-                    onPress={() => chooseLane({ kind: c.kind, id: c.id, name: c.name })}
-                  />
-                ))}
+                {myChannels
+                  .filter((c) => c.kind === laneKind)
+                  .map((c) => (
+                    <LaneOption
+                      key={`${c.kind}:${c.id}`}
+                      label={`${c.emoji} ${c.name}`}
+                      sub={`${c.member_count} members`}
+                      on={lane?.kind === c.kind && lane.id === c.id}
+                      onPress={() => chooseLane({ kind: c.kind, id: c.id, name: c.name, emoji: c.emoji })}
+                    />
+                  ))}
               </ScrollView>
             )}
           </Pressable>
@@ -629,6 +656,45 @@ function AttachButton({
           <Ionicons name="checkmark" size={10} color={Colors.onEmber} />
         </View>
       ) : null}
+    </Pressable>
+  );
+}
+
+/** One WHO SEES IT radio row (mock 320's `.aopt`): green border + filled dot when chosen. */
+function AudienceOption({
+  icon,
+  label,
+  sub,
+  on,
+  onPress,
+  chevron = false,
+}: {
+  icon: string;
+  label: string;
+  sub: string;
+  on: boolean;
+  onPress: () => void;
+  /** Opens a "pick which" sheet rather than choosing outright. */
+  chevron?: boolean;
+}) {
+  return (
+    <Pressable
+      style={[styles.aopt, on && styles.aoptOn]}
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: on }}
+      accessibilityLabel={`${label}, ${sub}`}>
+      <Text style={styles.aoptIcon}>{icon}</Text>
+      <View style={styles.flex}>
+        <Text style={styles.aoptName} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={styles.aoptSub} numberOfLines={1}>
+          {sub}
+        </Text>
+      </View>
+      {chevron && !on ? <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} /> : null}
+      <View style={[styles.radio, on && styles.radioOn]}>{on ? <View style={styles.radioDot} /> : null}</View>
     </Pressable>
   );
 }
@@ -843,63 +909,71 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  laneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    marginTop: Spacing.three,
-  },
-  laneLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.muted,
-  },
-  lanePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    flexShrink: 1,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(185,139,255,0.1)',
-    borderWidth: 1,
-    borderColor: '#3A2D4A',
-  },
-  lanePillText: {
-    flexShrink: 1,
+  // WHO SEES IT — mock 320's `.sk` / `.aopt` / `.noalgo`.
+  whoLabel: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    color: Colors.legend,
+    fontSize: 10,
+    letterSpacing: 0.4,
+    color: Colors.spaceFaint,
+    marginTop: Spacing.three,
+    marginBottom: 7,
+    marginHorizontal: 2,
   },
-  audienceRow: {
+  aopt: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: Spacing.twelve,
-  },
-  aud: {
-    borderRadius: Radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 11,
+    paddingHorizontal: Spacing.twelve,
+    paddingVertical: 10,
+    marginBottom: 7,
     backgroundColor: Colors.spacePanel,
     borderWidth: 1,
     borderColor: Colors.spaceLine,
   },
-  audOn: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.navEmber,
+  aoptOn: {
+    borderColor: '#39D98A',
+    backgroundColor: 'rgba(57,217,138,0.08)',
   },
-  audOff: {
-    opacity: 0.4,
+  aoptIcon: {
+    fontSize: 17,
   },
-  audText: {
+  aoptName: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10.5,
-    color: Colors.muted,
+    fontSize: 13,
+    color: Colors.ink,
   },
-  audTextOn: {
-    color: Colors.navEmber2,
+  aoptSub: {
+    fontFamily: Fonts.body,
+    fontSize: 10.5,
+    color: Colors.textTertiary,
+    marginTop: 1,
+  },
+  radio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: Colors.spaceLine,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioOn: {
+    borderColor: '#39D98A',
+  },
+  radioDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#39D98A',
+  },
+  promise: {
+    textAlign: 'center',
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#39D98A',
+    marginTop: Spacing.one,
   },
   audienceHint: {
     fontFamily: Fonts.body,

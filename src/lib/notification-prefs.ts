@@ -206,7 +206,11 @@ export type NotificationTypeKey =
   // the one friend event that lands DURING a session, and someone muting them should not have to
   // lose friend requests to do it.
   | 'type_lockin_cheer'
-  | 'type_lockin_message';
+  | 'type_lockin_message'
+  // 0280 — a post made for a campfire / forest you're in. Fan-out to a whole room, so each gets
+  // its own switch under Campfires.
+  | 'type_campfire_post'
+  | 'type_forest_post';
 
 export type NotificationTypeItem = {
   key: NotificationTypeKey;
@@ -239,7 +243,18 @@ export const CATEGORY_TYPE_KEYS: Record<NotificationCategoryKey, NotificationTyp
     },
   ],
   cat_challenges: [],
-  cat_campfires: [],
+  cat_campfires: [
+    {
+      key: 'type_campfire_post',
+      label: 'Someone posts in your campfire',
+      description: 'At most one a person, each campfire, every six hours',
+    },
+    {
+      key: 'type_forest_post',
+      label: 'Someone posts in your forest',
+      description: 'At most one a person, each forest, every six hours',
+    },
+  ],
   cat_streak_reminders: [],
   cat_season_rank: [],
 };

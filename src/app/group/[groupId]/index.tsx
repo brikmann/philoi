@@ -265,10 +265,10 @@ export default function GroupScreen() {
 
         <View style={styles.topActions}>
           {/* 0277 · this campfire's channel on the Feed — what members POSTED here (gym comps,
-              clips), as opposed to the chat below. Opens Home on that chip. */}
+              clips), as opposed to the chat below. Opens Social's Feed on that chip (mock 320). */}
           <Pressable
             style={styles.iconBtn}
-            onPress={() => router.navigate({ pathname: '/', params: { channel: `campfire:${groupId}` } })}
+            onPress={() => router.navigate({ pathname: '/social', params: { channel: `campfire:${groupId}` } })}
             accessibilityRole="button"
             accessibilityLabel="Campfire posts">
             <NavGlyph name="photo" size={18} color={Colors.ink} />

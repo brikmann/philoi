@@ -4,7 +4,8 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
 import { Colors, Fonts } from '@/constants/theme';
 
-// THE BOTTOM BAR, drawn (mocks 301/302/304): Home · Search · 🔥Lock In · Leaderboard · Profile.
+// THE BOTTOM BAR, drawn (mocks 301/302/304): Home · Social · 🔥Lock In · Leaderboard · Profile.
+// Mock 320 retasked Search as Social (💬): the feed, chats and posting; search lives inside it.
 //
 // Presentational only — components/nav/global-footer.tsx decides when it shows, which slot is lit and
 // where a tap goes, so the SAME bar sits under the tabs and under every drawer screen.
@@ -12,11 +13,11 @@ import { Colors, Fonts } from '@/constants/theme';
 // The center slot is the hero — an elevated ember disc carrying the only FILLED glyph in the set.
 // Every other slot is a stroke glyph: ember when active, faint when not.
 
-export type TabKey = 'index' | 'search' | 'lockin' | 'leaderboards' | 'profile';
+export type TabKey = 'index' | 'social' | 'lockin' | 'leaderboards' | 'profile';
 
 export const TAB_SLOTS: { key: TabKey; href: string; label: string; glyph: NavGlyphName; center?: boolean }[] = [
   { key: 'index', href: '/', label: 'Home', glyph: 'home' },
-  { key: 'search', href: '/search', label: 'Search', glyph: 'search' },
+  { key: 'social', href: '/social', label: 'Social', glyph: 'social' },
   { key: 'lockin', href: '/lockin', label: 'Lock In', glyph: 'flame', center: true },
   { key: 'leaderboards', href: '/leaderboards', label: 'Board', glyph: 'trophy' },
   { key: 'profile', href: '/profile', label: 'You', glyph: 'person' },

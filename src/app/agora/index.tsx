@@ -128,7 +128,7 @@ export function AgoraFeed({
   const [tab, setTab] = useState<AgoraTab>('feed');
   // A scope, or one campfire/forest channel (0277). The name stays `scope`: the hook and the empty
   // state treat both the same way.
-  const [scope, setScope] = useState<FeedKey>('friends');
+  const [scope, setScope] = useState<FeedKey>('all');
   const [channels, setChannels] = useState<FeedChannel[] | null>(null);
   const channel = channels?.find((c) => channelKey(c) === scope) ?? null;
   const {
@@ -206,7 +206,7 @@ export function AgoraFeed({
   useEffect(() => {
     if (channels && parseFeedKey(scope) && !channel) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reconciling against the server's list
-      setScope('friends');
+      setScope('all');
     }
   }, [channels, channel, scope]);
 
@@ -566,8 +566,10 @@ function EmptyScope({
   }
 
   const copy =
-    scope === 'friends'
-      ? 'Quiet in here. Add some friends, or widen the filter to your campus.'
+    scope === 'all'
+      ? 'Nothing from your friends or your rooms yet. Add friends, join a campfire, or post the first one.'
+      : scope === 'friends'
+      ? 'Quiet in here. Add some friends, or check Everyone.'
       : scope === 'campfires'
         ? 'Nobody in your campfires has posted yet. Be the first.'
         : scope === 'university'

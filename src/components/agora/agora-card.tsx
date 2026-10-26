@@ -202,8 +202,11 @@ function AgoraCardInner({ item, loadout, onComment, onMore }: Props) {
   );
 }
 
-/** One attachment tile. Stacked, one per row, in the order `itemAttachments` fixed. */
-function AttachmentRow({
+/**
+ * One attachment tile. Stacked, one per row, in the order `itemAttachments` fixed. Exported for the
+ * immersive Home feed's card pages (mock 317), which draw a session or reward with this same row.
+ */
+export function AttachmentRow({
   view,
   xp,
   onPress,

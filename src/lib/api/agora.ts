@@ -398,11 +398,34 @@ export async function setMilestoneInAgora(id: string, inAgora: boolean): Promise
  * `profiles.university` at render, so the chip reads "Waterloo" rather than "University".
  */
 export const AGORA_SCOPES: { key: AgoraScope; label: string }[] = [
+  // 0280 (mock 320) — the Social tab's channels: chosen sources only, newest first. All = your
+  // friends' posts + everything made for a campfire/forest you're in; Everyone = posts made for
+  // everyone. Your rooms follow as their own chips. The server still answers 'campfires',
+  // 'university' and 'global' for installed builds; this build no longer offers them.
+  { key: 'all', label: 'All' },
   { key: 'friends', label: 'Friends' },
-  { key: 'campfires', label: 'Campfires' },
-  { key: 'university', label: 'University' },
-  { key: 'global', label: 'Global' },
+  { key: 'everyone', label: 'Everyone' },
 ];
+
+/**
+ * The tag a post wears (mock 320): who it was shared with. Read from the server's derived
+ * `audience`, falling back to the visibility dial on a server without 0280.
+ */
+export function audienceTag(item: Pick<AgoraItem, 'audience' | 'audience_name' | 'audience_emoji' | 'visibility'>): string {
+  const audience = item.audience ?? (item.visibility === 'public' ? 'everyone' : item.visibility);
+  switch (audience) {
+    case 'campfire':
+      return `${item.audience_emoji || '🔥'} ${item.audience_name ?? 'Campfire'}`;
+    case 'forest':
+      return `${item.audience_emoji || '🌲'} ${item.audience_name ?? 'Forest'}`;
+    case 'everyone':
+      return '🌐 Everyone';
+    case 'campus':
+      return '🎓 Campus';
+    default:
+      return '👥 Friends';
+  }
+}
 
 /**
  * The composer's audience picker. Note this is the MILESTONE vocabulary (friends/campus/public),

@@ -14,6 +14,7 @@ import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 export type NavGlyphName =
   | 'home'
   | 'search'
+  | 'social'
   | 'flame'
   | 'trophy'
   | 'person'
@@ -48,6 +49,13 @@ const GLYPHS: Record<NavGlyphName, ReactNode> = {
     <G>
       <Circle cx="21" cy="21" r="11" {...S} />
       <Path d="M29 29 L39 39" {...S} />
+    </G>
+  ),
+  // Mock 320's 💬 — Social: two overlapping speech bubbles, the square and its chats.
+  social: (
+    <G>
+      <Path d="M8 12 H30 V27 H17 L11 32 V27 H8 Z" {...S} />
+      <Path d="M30 18 H40 V33 H37 V38 L31 33 H20 V27" {...S} />
     </G>
   ),
   flame: (

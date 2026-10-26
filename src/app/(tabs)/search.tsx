@@ -127,7 +127,16 @@ export default function SearchTab() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
-      <AppTopBar />
+      {/* Off the bar since mock 320: reached from Social's 🔍, so it closes back to Social (a tab's
+          back would land on Home). */}
+      <AppTopBar
+        title="Search"
+        right={
+          <Pressable onPress={() => router.navigate('/social')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back to Social">
+            <Ionicons name="close" size={20} color={Colors.ink} />
+          </Pressable>
+        }
+      />
 
       <View style={styles.bar}>
         <NavGlyph name="search" size={18} color={Colors.spaceDim} />
