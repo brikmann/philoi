@@ -864,15 +864,13 @@ function LockInScreen() {
     }
   }
 
-  // Rank-up wins (PHILOI_UI_SPEC.md §11) — if both fired on the same stop, RankUpCelebration
-  // shows first; Continue here just drops rankUpInfo (rather than navigating home), which lets
-  // the render fall through to the fireCompleteInfo branch below on the very next render.
+  // Rank-up wins (PHILOI_UI_SPEC.md §11) — RankUpCelebration shows first, as its own moment.
+  // Continue just drops rankUpInfo, and the render falls through to whatever comes next: the
+  // fireCompleteInfo payout if this stop also crossed the flame meter, otherwise the done screen,
+  // whose rank line now reads the climb (mock 316). It used to go straight home, which skipped the
+  // done screen — and its "Post to the Agora" — on exactly the sessions most worth posting.
   function handleRankUpContinue() {
-    if (fireCompleteInfo) {
-      setRankUpInfo(null);
-    } else {
-      router.replace('/');
-    }
+    setRankUpInfo(null);
   }
 
   async function handleShareFireComplete() {

@@ -1,11 +1,8 @@
-import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 
 import { showRewardReveal } from '@/components/economy/reward-reveal';
 import { GymClipThumbnail } from '@/components/gym-clip-player';
-import { RankBadge } from '@/components/rank-badge';
 import { PlacementMove } from '@/components/placement-move';
 import { SpearPlantBeat, SpearPlantShake, useSpearPlant } from '@/components/spear-plant-reveal';
 import { NavGlyph } from '@/components/ui/nav-glyph';
@@ -26,7 +23,7 @@ import { levelFromXp, SEASON } from '@/lib/economy/forge-pass';
 import { getErrorMessage } from '@/lib/errors';
 import { formatDurationClock } from '@/lib/format';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
-import { formatRankTier, nextRank, RANK_TIER_METAL, xpProgressRatio } from '@/lib/rank-tiers';
+import { formatRankTier, isRankUp, nextRank, xpProgressRatio } from '@/lib/rank-tiers';
 import { fireConfirm } from '@/lib/reward-feedback';
 import type { ForestSummary } from '@/types/social';
 import type { GoalType, MyRank, WorkoutRecap, WorkoutSet } from '@/types/database';
@@ -65,13 +62,18 @@ const XP_COUNT_MS = 1100;
 // note, the campfire multi-select hides behind "change", and a gym recap collapses to one line
 // with a "View" that opens the full thing.
 //
-// The flame hero is gone: the screen opens on the spear-plant (mock 311, spear-plant-reveal.tsx) —
-// the hoplite plants alone, the screen shakes, and he makes way as the stat groups slam in on their
-// beats. He is the intro only; the settled screen is just the results.
+// The screen opens on the spear-plant (mock 311, spear-plant-reveal.tsx) — the hoplite plants alone,
+// the screen shakes, and he makes way as the results slam in on their beats.
 //
-// Any rank-up at all — a tier crossing or a same-tier division bump — is handled by the caller
-// showing RankUpCelebration's full-screen forge instead of this component entirely (see
-// lock-in/index.tsx); this screen only ever renders for a stop that didn't move the rank.
+// THE REDRAFT (mock 316): one clean hierarchy instead of four announcement blocks. Flame · one
+// greeting ("Locked in, Noah.") · the session TIME as the hero with its discipline under it · ONE
+// reward band (+XP · rank · streak, hairline-divided) · ONE adaptive rank line (climbed, green — or
+// holding your spot, gold — with the bar to the next division) · the post row collapsed to a line ·
+// Done. "Session complete" and "Nice work" are gone on purpose; don't re-add a second greeting.
+//
+// A rank-up is still its OWN moment first: the caller shows RankUpCelebration's forge, and its
+// Continue lands here (lock-in/index.tsx), so this screen's rank line reads the climb calmly rather
+// than stacking the celebration's text on it. Same for a Pass prestige (showRewardReveal below).
 export function LockInDoneScreen({
   goalType,
   goalDetail,
@@ -115,7 +117,8 @@ export function LockInDoneScreen({
   // trigger wrote (0227), never `hours × 250` worked out here. Null until it answers, and stays null
   // when nothing was credited (under 5 min, season not live): no Pass line at all, not a "+0".
   const [passCredit, setPassCredit] = useState<LockInPassCredit | null>(null);
-  const passFill = useSharedValue(0);
+  // Mock 316: the caption field stays folded into the post row until asked for.
+  const [captionOpen, setCaptionOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,19 +139,15 @@ export function LockInDoneScreen({
   // above where the user actually was.
   const passAfter = passCredit ? levelFromXp(passCredit.pass_xp) : null;
   const passBefore = passCredit ? levelFromXp(passCredit.pass_xp - passCredit.xp - passCredit.bonus_xp) : null;
-  // Past L100 the bar is the climb to the next PRESTIGE (0232), so crossing one is a level-up too.
+  // Past L100 the bar is the climb to the next PRESTIGE (0232).
   const passPrestiged = !!passAfter && !!passBefore && passAfter.prestige > passBefore.prestige;
-  const passLeveledUp = !!passAfter && !!passBefore && (passAfter.level > passBefore.level || passPrestiged);
 
+  // The Pass bar itself left this screen in the redraft (mock 316 has one reward band, no fourth
+  // block); its progress lives on the Flame Pass. A PRESTIGE is still its own moment — ~36 hours past
+  // a full pass is the biggest thing a stop can report. Nothing is listed as won: the rewards are a
+  // claim on the Flame Pass, and the reveal never congratulates you for something not yet paid.
   useEffect(() => {
     if (!passAfter || !passBefore) return;
-    const ratio = (l: { intoLevel: number; nextLevelCost: number }) => (l.nextLevelCost > 0 ? l.intoLevel / l.nextLevelCost : 1);
-    // Crossing a level fills from empty: the bar is the CURRENT level, which you entered at 0.
-    passFill.value = passLeveledUp ? 0 : ratio(passBefore);
-    passFill.value = withDelay(500, withTiming(ratio(passAfter), { duration: 900 }));
-    // A prestige is ~36 hours past a full pass — the biggest thing this screen can report, so it gets
-    // the full reveal. Nothing is listed as won: the rewards are a claim on the Flame Pass, and the
-    // reveal never congratulates you for something the server has not paid yet.
     if (passPrestiged) {
       showRewardReveal({
         kind: 'pass_prestige',
@@ -157,10 +156,8 @@ export function LockInDoneScreen({
         rewards: [],
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- animate once, when the credit lands
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the credit lands
   }, [passCredit]);
-
-  const passFillStyle = useAnimatedStyle(() => ({ width: `${Math.min(passFill.value, 1) * 100}%` }));
 
   // Your forests, for the Agora destination chips. A failed read just offers everyone + campfires.
   useEffect(() => {
@@ -189,17 +186,11 @@ export function LockInDoneScreen({
   const [xpCounting, setXpCounting] = useState(false);
   const reveal = useSpearPlant(() => setXpCounting(true));
 
-  // "Diamond II · 75% to III" (mock 92's `.rankchip`). At max rank there is nothing above to chase,
-  // so the chip states the rank alone rather than inventing a target.
-  const up = rankAfter ? nextRank(rankAfter.tier, rankAfter.division) : null;
-  const rankProgressSuffix =
-    rankAfter && up
-      ? ` · ${Math.round(xpProgressRatio(rankAfter.xp_into_tier, rankAfter.xp_for_next_tier) * 100)}% to ${formatRankTier(up.tier, up.division)}`
-      : '';
+  // Climbed = this stop moved the universal rank up a division or tier (the caller's own test).
+  const climbed = Boolean(rankBefore && rankAfter && isRankUp(rankBefore, rankAfter));
 
-  // "Deep work · solo" (mock 81) — the goal, plus whatever qualifies it: the typed detail if there
-  // is one, else the campfire it ran in, else solo.
-  const goalLine = `${GOAL_TYPE_META[goalType].label} · ${goalDetail ?? circleName ?? 'solo'}`;
+  // "DEEP WORK" under the time (mock 316) — the discipline, plus the typed detail when there is one.
+  const goalLabel = `${GOAL_TYPE_META[goalType].label}${goalDetail ? ` · ${goalDetail}` : ''}`;
 
   const workoutExercises = workoutRecap?.exercises ?? [];
   const prCount = workoutExercises.filter((e) => e.is_pr).length;
@@ -216,8 +207,13 @@ export function LockInDoneScreen({
     .filter(Boolean)
     .join(' · ');
 
-  // postSessionToAgora carries at most four; the hint says what will actually ride along.
+  // postSessionToAgora carries at most four; the post row says what will actually ride along.
   const agoraPhotoCount = Math.min(photos.length, 4);
+  const postSub = agoraPhotoCount > 0
+    ? `${agoraPhotoCount} photo${agoraPhotoCount === 1 ? '' : 's'} · ${note.trim() ? 'caption added' : 'add a caption'}`
+    : note.trim()
+      ? 'Caption added'
+      : 'Add a caption';
   const targetKey = target.kind === 'everyone' ? 'everyone' : `${target.kind}:${target.id}`;
 
   // The note belongs to the lock-in, not to the act of posting — so it's saved on BOTH exits. A
@@ -278,90 +274,56 @@ export function LockInDoneScreen({
     }
   }
 
-  async function handleJustFinish() {
-    setPosting(true);
-    try {
-      await saveNote();
-    } catch {
-      // Deliberately not surfaced or blocking: the user asked to be done, and the lock-in itself
-      // (time, XP, streak, photos) is already safely recorded. Losing only an unsaved note is a
-      // far better outcome than trapping them on this screen behind a retry.
-    } finally {
-      setPosting(false);
-      onDone();
-    }
-  }
-
   return (
     <SpearPlantShake reveal={reveal} style={styles.container}>
-      {/* Scrolls rather than compressing: the hero block is fixed-height by design, and a gym
-          session with photos would otherwise squeeze the flame on a short screen. */}
+      {/* Scrolls rather than compressing: a gym session with the spots and the recap line can run
+          past a short screen. */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        {/* Mock 92's `.kick` / `.big-name` / `.stat` / `.statlbl` stack. The XP is the headline
-            now and the clock is its caption — the reverse of the old layout, which led with the
-            duration in 44px type. What a session is WORTH is the number that carries forward;
-            how long it took is context for it. */}
+        {/* 1–2 · the flame the spear-plant resolves into, and ONE greeting. */}
         <SpearPlantBeat reveal={reveal} beat="statsHead" style={styles.beat}>
-          <Text style={styles.kick}>SESSION COMPLETE</Text>
-          <Text style={styles.bigName}>Nice work{firstName ? `, ${firstName}` : ''}</Text>
+          <NavGlyph name="flame" size={44} color={Colors.navEmber} />
+          <Text style={styles.greet}>Locked in{firstName ? `, ${firstName}` : ''}.</Text>
         </SpearPlantBeat>
+
+        {/* 3–4 · the time is the hero; the three rewards share one band. */}
         <SpearPlantBeat reveal={reveal} beat="statsMain" style={styles.beat}>
-          <XpCountUp end={Math.round(xpEarned)} running={xpCounting} instant={reveal.skipped || reveal.still} />
-          <Text style={styles.statLabel} numberOfLines={1}>
-            {formatDurationClock(durationSeconds)} · {goalLine}
+          <Text style={styles.hero}>{formatDurationClock(durationSeconds)}</Text>
+          <Text style={styles.goal} numberOfLines={1}>
+            {goalLabel.toUpperCase()}
           </Text>
+          <View style={styles.band}>
+            <View style={styles.bandCell}>
+              <XpCountUp end={Math.round(xpEarned)} running={xpCounting} instant={reveal.skipped || reveal.still} />
+              <Text style={styles.bandLabel}>XP</Text>
+            </View>
+            {rankAfter ? (
+              <View style={[styles.bandCell, styles.bandCellRule]}>
+                <Text style={[styles.bandValue, climbed ? styles.bandUp : styles.bandHeld]}>{climbed ? '▲' : '—'}</Text>
+                <Text style={styles.bandLabel} numberOfLines={1}>
+                  {formatRankTier(rankAfter.tier, rankAfter.division)}
+                </Text>
+              </View>
+            ) : null}
+            <View style={[styles.bandCell, styles.bandCellRule]}>
+              <Text style={[styles.bandValue, styles.bandStreak]}>🔥 {streakAfter}</Text>
+              <Text style={styles.bandLabel}>Streak</Text>
+            </View>
+          </View>
         </SpearPlantBeat>
 
+        {/* 5 · one rank line, two states — then the board spots and, for gym, the recap door. */}
         <SpearPlantBeat reveal={reveal} beat="statsRest" style={styles.beat}>
-          {/* Mock 204 — where you stand on Friends, your uni and Global, and how it moved: the
-              leaderboard spots, big, straight under what the session earned. Renders nothing for
-              someone not on the board yet. */}
-          <PlacementMove prominent />
+          {rankAfter ? <RankLine rank={rankAfter} climbed={climbed} /> : null}
 
-          {rankBefore && rankAfter && (
-            <View style={[styles.rankChip, { borderColor: `${RANK_TIER_METAL[rankAfter.tier].text}66` }]}>
-              <RankBadge tier={rankAfter.tier} division={rankAfter.division} size={18} />
-              <Text style={[styles.rankChipText, { color: RANK_TIER_METAL[rankAfter.tier].text }]} numberOfLines={1}>
-                {formatRankTier(rankAfter.tier, rankAfter.division)}
-                {rankProgressSuffix}
-              </Text>
-            </View>
-          )}
+          {/* Mock 204 — where you stand on Friends, your uni and Global. Renders nothing for someone
+              not on a board yet. */}
+          <PlacementMove prominent style={styles.placement} />
 
-          {/* The Emberfall Pass, beside the rank XP above: what this session credited and the bar it
-              moved. Every number here is the server's (get_lock_in_pass_credit). */}
-          {passCredit && passAfter && (
-            <View style={styles.pass}>
-              <View style={styles.passHead}>
-                <Text style={styles.passXp} numberOfLines={1}>
-                  +{passCredit.xp.toLocaleString()} {SEASON.name} Pass XP
-                </Text>
-                {passCredit.bonus_xp > 0 && <Text style={styles.passBonus}>+{passCredit.bonus_xp.toLocaleString()} bonus</Text>}
-              </View>
-              <View style={styles.passTrack}>
-                <Animated.View style={[styles.passFill, passFillStyle]} />
-              </View>
-              <Text style={styles.passLevel} numberOfLines={1}>
-                {passPrestiged
-                  ? `Prestige +${passAfter.prestige} reached · Level ${passAfter.level + passAfter.prestige}`
-                  : passAfter.prestige > 0
-                    ? `Level ${passAfter.level + passAfter.prestige} (+${passAfter.prestige} prestige)`
-                    : passLeveledUp
-                      ? `Level ${passAfter.level} reached`
-                      : `Level ${passAfter.level}`}
-                {passAfter.level < SEASON.totalLevels
-                  ? ` · ${passAfter.intoLevel.toLocaleString()} / ${passAfter.nextLevelCost.toLocaleString()} to ${passAfter.level + 1}`
-                  : ` · ${passAfter.intoLevel.toLocaleString()} / ${passAfter.nextLevelCost.toLocaleString()} to +${passAfter.prestige + 1}`}
-              </Text>
-            </View>
-          )}
-
-          {/* One line, not the old recap sprawl — the full per-exercise breakdown, PRs, brag line
-              and clips all live behind "View". */}
+          {/* One line — the full per-exercise breakdown, PRs, brag line and clips live behind it. */}
           {workoutExercises.length > 0 && (
             <Pressable style={styles.gymLine} onPress={() => setRecapOpen(true)} accessibilityRole="button">
               <View style={styles.gymTile}>
@@ -377,39 +339,24 @@ export function LockInDoneScreen({
         </SpearPlantBeat>
       </ScrollView>
 
+      {/* 6–7 · the post row, then Done. */}
       <SpearPlantBeat reveal={reveal} beat="cta" style={styles.bottom}>
-        {/* A thumbnail row, never a gallery — the photos are already saved to the lock-in. */}
-        {photos.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.photoScroll}
-            contentContainerStyle={styles.photoRow}>
-            {photos.map((p) => (
-              <Image key={p.id} source={{ uri: p.uri }} style={styles.photoThumb} />
-            ))}
-          </ScrollView>
-        )}
-
         {error && <Text style={styles.error}>{error}</Text>}
 
         <View style={styles.post}>
-          {/* One field, two jobs: the lock-in's own caption and, with the switch below on, the
-              Agora post's caption. Mock 297 orders it photos → caption → switch. */}
-          <TextInput
-            style={styles.note}
-            placeholder="Add a caption…"
-            value={note}
-            onChangeText={setNote}
-            maxLength={140}
-            editable={!posting}
-          />
-
           <View style={styles.agoraRow}>
-            <View style={styles.agoraText}>
+            {/* The subtitle is the door to the caption — one row, not a field nobody asked for. */}
+            <Pressable
+              style={styles.agoraText}
+              onPress={() => setCaptionOpen(true)}
+              disabled={posting}
+              accessibilityRole="button"
+              accessibilityLabel={`Post to the Agora. ${postSub}`}>
               <Text style={styles.agoraTitle}>Post to the Agora</Text>
-              <Text style={styles.agoraSub}>Pick where it lands below</Text>
-            </View>
+              <Text style={styles.agoraSub} numberOfLines={1}>
+                {postSub}
+              </Text>
+            </Pressable>
             <Toggle
               value={postToAgora}
               onValueChange={handleToggleAgora}
@@ -417,6 +364,21 @@ export function LockInDoneScreen({
               accessibilityLabel="Post this session to the Agora"
             />
           </View>
+
+          {/* One field, two jobs: the lock-in's own caption and, with the switch on, the post's. */}
+          {captionOpen || note ? (
+            <TextInput
+              style={styles.note}
+              placeholder="Add a caption…"
+              value={note}
+              onChangeText={setNote}
+              maxLength={140}
+              editable={!posting}
+              autoFocus={captionOpen && !note}
+            />
+          ) : null}
+
+          {/* Where it lands — everyone, one of your forests, or one of your campfires' channels. */}
           {postToAgora && (
             <ScrollView
               horizontal
@@ -445,29 +407,13 @@ export function LockInDoneScreen({
               ))}
             </ScrollView>
           )}
-          {postToAgora && photos.length > 0 && (
-            <Text style={styles.agoraHint}>
-              {agoraPhotoCount} photo{agoraPhotoCount === 1 ? '' : 's'} from this session attach automatically.
-            </Text>
-          )}
         </View>
 
-        {/* The one ember action on this screen — the kit's primary, with its spinner while posting. */}
-        <SpaceButton
-          label={postToAgora ? 'Post & finish' : 'Finish'}
-          onPress={handlePost}
-          loading={posting}
-          style={styles.cta}
-        />
-        {/* Only when there's actually something to skip — otherwise it's the same button twice. */}
-        {postToAgora && (
-          <Pressable onPress={handleJustFinish} disabled={posting} style={styles.skip}>
-            <Text style={styles.skipLabel}>Just finish</Text>
-          </Pressable>
-        )}
-        {/* Posting to a campfire and posting to a story are different audiences, so Share sits
-            beside the CTA rather than replacing it (mock 96's trigger table: lock-in card fires
-            from the done screen). */}
+        {/* The one exit: posts when the switch is on, just finishes when it's off. The note is
+            saved either way (saveNote). */}
+        <SpaceButton label="Done" onPress={handlePost} loading={posting} style={styles.cta} />
+        {/* Posting to the Agora and posting to a story are different audiences (mock 96's trigger
+            table), so the story share stays — as a quiet link, not a second button. */}
         {onShare && (
           <Pressable onPress={onShare} disabled={sharing || posting} style={styles.skip} accessibilityLabel="Share this lock-in">
             <View style={styles.shareInner}>
@@ -489,6 +435,41 @@ export function LockInDoneScreen({
   );
 }
 
+/**
+ * Mock 316's rank line — one component, two states, never a screen of its own.
+ *   climbed: "▲ Climbed to Gold III"     · 720 / 2100 to Gold IV · green bar
+ *   held:    "Holding your spot · Gold II" · 460 / 2100 to Gold III · gold bar
+ * The numbers are the server's universal rank (xp_into_tier / xp_for_next_tier) — the same source
+ * Home and the Live Activity read. At the top of the climb there is no next step to name.
+ */
+function RankLine({ rank, climbed }: { rank: MyRank; climbed: boolean }) {
+  const name = formatRankTier(rank.tier, rank.division);
+  const up = nextRank(rank.tier, rank.division);
+  const ratio = up ? xpProgressRatio(rank.xp_into_tier, rank.xp_for_next_tier) : 1;
+  return (
+    <View
+      style={[styles.rankLine, climbed ? styles.rankLineUp : styles.rankLineHeld]}
+      accessible
+      accessibilityLabel={`${climbed ? `Climbed to ${name}` : `Holding your spot at ${name}`}${
+        up ? `, ${rank.xp_into_tier} of ${rank.xp_for_next_tier} to ${formatRankTier(up.tier, up.division)}` : ''
+      }`}>
+      <View style={styles.rankTop}>
+        <Text style={[styles.rankTitle, climbed ? styles.rankTitleUp : styles.rankTitleHeld]} numberOfLines={1}>
+          {climbed ? `▲ Climbed to ${name}` : `Holding your spot · ${name}`}
+        </Text>
+        <Text style={styles.rankNext} numberOfLines={1}>
+          {up
+            ? `${Math.round(rank.xp_into_tier).toLocaleString()} / ${Math.round(rank.xp_for_next_tier).toLocaleString()} to ${formatRankTier(up.tier, up.division)}`
+            : 'Top of the climb'}
+        </Text>
+      </View>
+      <View style={styles.rankTrack}>
+        <View style={[styles.rankFill, climbed ? styles.rankFillUp : styles.rankFillHeld, { width: `${ratio * 100}%` }]} />
+      </View>
+    </View>
+  );
+}
+
 // The earned XP, counting up once its stat group lands. Its OWN component on purpose: the count
 // sets state every frame for 1.1s, and when that state lived on LockInDoneScreen it re-rendered the
 // whole screen 60 times a second — the hoplite's LottieView re-stringified its source each time —
@@ -505,12 +486,7 @@ function XpCountUp({ end, running, instant }: { end: number; running: boolean; i
     });
     return () => cancelAnimationFrame(raf);
   }, [running, instant, end]);
-  return (
-    <Text style={styles.stat}>
-      +{(instant ? end : shown).toLocaleString()}
-      <Text style={styles.statUnit}> XP</Text>
-    </Text>
-  );
+  return <Text style={[styles.bandValue, styles.bandXp]}>+{(instant ? end : shown).toLocaleString()}</Text>;
 }
 
 /** One destination in the "Post to the Agora" sub-choice. Single-select: a post lands in one place. */
@@ -634,108 +610,138 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     alignItems: 'center',
   },
-  // ── mock 92's hero stack ──
-  kick: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 10.5,
-    letterSpacing: 1.6,
-    color: Colors.navEmber2,
-    marginTop: 16,
-  },
-  bigName: {
+  // ── mock 316 ──
+  greet: {
     fontFamily: Fonts.displayHeavy,
-    fontSize: 23,
-    lineHeight: 28,
+    fontSize: 19,
     color: Colors.ink,
     textAlign: 'center',
-    marginTop: 14,
-  },
-  // Gold: the XP is what was EARNED, and gold is the space kit's earned colour.
-  stat: {
-    fontFamily: Fonts.displayHeavy,
-    fontSize: 40,
-    color: Colors.gold,
     marginTop: 6,
-    // Tabular figures so a counting number doesn't jitter its own width as it ticks.
+  },
+  // The hero is the time. Tabular so a 1:24:06 and a 46:12 sit on the same baseline grid.
+  hero: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 46,
+    lineHeight: 50,
+    letterSpacing: -1.5,
+    color: Colors.ink,
+    marginTop: 18,
     fontVariant: ['tabular-nums'],
   },
-  statUnit: {
-    fontFamily: Fonts.displayHeavy,
-    fontSize: 18,
-    color: Colors.gold,
+  goal: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    letterSpacing: 2,
+    color: Colors.navEmber2,
+    marginTop: 4,
   },
-  statLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    letterSpacing: 0.3,
-    color: Colors.spaceDim,
-    marginTop: 1,
-  },
-  rankChip: {
+  // One card, three cells divided by hairlines.
+  band: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    alignSelf: 'center',
+    marginTop: 22,
+    paddingVertical: 4,
+    borderRadius: 16,
     backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderRadius: Radius.pill,
-    paddingVertical: 6,
-    paddingHorizontal: 13,
-    maxWidth: '100%',
-    marginTop: 16,
+    borderColor: Colors.spaceLine,
   },
-  rankChipText: {
-    flexShrink: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-  },
-  // The Pass block — the kit's gold-toned card (SpaceCard tone="gold"): it reports what was earned,
-  // stretched so the bar has room to move.
-  pass: {
-    alignSelf: 'stretch',
-    backgroundColor: 'rgba(255,209,102,0.07)',
-    borderWidth: 1,
-    borderColor: '#5A4A1E',
-    borderRadius: 14,
+  bandCell: {
+    flex: 1,
+    alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginTop: 12,
-    gap: 7,
+    paddingHorizontal: 4,
   },
-  passHead: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 8,
+  // The hairline: a left border on every cell but the first, inset by the cell's own padding.
+  bandCellRule: {
+    borderLeftWidth: 1,
+    borderLeftColor: Colors.spaceLine,
   },
-  passXp: {
-    flexShrink: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 13,
-    color: Colors.gold,
+  bandValue: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 19,
+    color: Colors.ink,
     fontVariant: ['tabular-nums'],
   },
-  passBonus: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11.5,
+  // Gold is the kit's earned colour; green is movement up; the streak keeps the ember.
+  bandXp: {
+    color: Colors.gold,
+  },
+  bandUp: {
+    color: Colors.green,
+  },
+  bandHeld: {
     color: Colors.spaceDim,
   },
-  passTrack: {
-    height: 6,
+  bandStreak: {
+    color: Colors.navEmber2,
+  },
+  bandLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 9.5,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    color: Colors.muted,
+    marginTop: 2,
+  },
+  rankLine: {
+    alignSelf: 'stretch',
+    marginTop: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    borderRadius: 13,
+    borderWidth: 1,
+  },
+  rankLineUp: {
+    borderColor: '#2a4d3a',
+    backgroundColor: 'rgba(57,217,138,0.10)',
+  },
+  rankLineHeld: {
+    borderColor: '#3a2d18',
+    backgroundColor: 'rgba(255,209,102,0.07)',
+  },
+  rankTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  rankTitle: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+  },
+  rankTitleUp: {
+    color: Colors.green,
+  },
+  rankTitleHeld: {
+    color: Colors.gold,
+  },
+  rankNext: {
+    marginLeft: 'auto',
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 10.5,
+    color: Colors.spaceDim,
+    fontVariant: ['tabular-nums'],
+  },
+  rankTrack: {
+    height: 7,
+    marginTop: 8,
     borderRadius: Radius.pill,
     backgroundColor: Colors.spacePanel2,
     overflow: 'hidden',
   },
-  passFill: {
+  rankFill: {
     height: '100%',
     borderRadius: Radius.pill,
+  },
+  rankFillUp: {
+    backgroundColor: Colors.green,
+  },
+  rankFillHeld: {
     backgroundColor: Colors.gold,
   },
-  passLevel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11.5,
-    color: Colors.spaceDim,
-    fontVariant: ['tabular-nums'],
+  placement: {
+    marginTop: 12,
   },
   // SpaceRow's look: panel on a 1px line, an ember leading tile, a chevron.
   gymLine: {
@@ -772,21 +778,6 @@ const styles = StyleSheet.create({
   },
   bottom: {
     width: '100%',
-  },
-  // Explicit height: a horizontal ScrollView in a non-flex column otherwise collapses to nothing.
-  photoScroll: {
-    flexGrow: 0,
-    height: 54,
-  },
-  photoRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  photoThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: Colors.spacePanel2,
   },
   // The mock's post card is one step up from its stage: a kit panel (spacePanel on spaceLine), with
   // the note field inset back down to the spaceBg canvas.
@@ -827,6 +818,7 @@ const styles = StyleSheet.create({
   // Flatter than the standalone field it replaced — inside the post card it reads as part of the
   // card, not as a second input competing with it.
   note: {
+    marginTop: 10,
     backgroundColor: Colors.spaceBg,
     borderWidth: 0,
     borderRadius: 10,
@@ -847,7 +839,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    marginTop: 10,
   },
   agoraText: {
     flex: 1,
@@ -862,13 +853,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.spaceDim,
     marginTop: 1,
-  },
-  agoraHint: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
-    lineHeight: 15,
-    color: Colors.spaceDim,
-    marginTop: 6,
   },
   cta: {
     marginTop: 12,
@@ -888,11 +872,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.navEmber2,
     textAlign: 'center',
-  },
-  skipLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12.5,
-    color: Colors.spaceDim,
   },
   error: {
     fontFamily: Fonts.body,
