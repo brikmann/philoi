@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenBackground } from '@/components/ui/screen-background';
 
@@ -24,13 +24,13 @@ import { CollectionEntry } from '@/components/profile/collection-entry';
 import { DisciplineRelicTracker } from '@/components/profile/discipline-relic-tracker';
 import { ProfileShowcase } from '@/components/profile/profile-showcase';
 import { JournalSection } from '@/components/profile/journal-section';
-import { TrophyHallSection } from '@/components/profile/trophy-hall-section';
 import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { useActiveSession } from '@/lib/active-session-context';
 import { useLoadout } from '@/lib/economy/loadout';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyRanks } from '@/hooks/use-my-ranks';
 import { track } from '@/lib/analytics';
@@ -39,8 +39,9 @@ import { fetchMyRecentLockIns, fetchUserLockInPhotos, type MyRecentLockIn } from
 import { fetchMyProgram } from '@/lib/api/house';
 import { RankMuted } from '@/components/rank-muted';
 import { fetchMyLockInStats, fetchProfileById, fetchUserLockInStats, fetchUserRank, type UserRank } from '@/lib/api/profile';
+import { DISCIPLINE_LABELS } from '@/lib/api/identity';
 import { formatSessionDuration, pluralize } from '@/lib/format';
-import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH } from '@/lib/goal-types';
 import type { MyRank, Profile } from '@/types/database';
 import type { MyProgramRow } from '@/types/house';
 
@@ -101,6 +102,8 @@ export default function ProfileScreen() {
   const [otherRank, setOtherRank] = useState<UserRank | null>(null);
   const [stats, setStats] = useState({ lockin_count: 0, total_seconds: 0 });
   const [recentLockIns, setRecentLockIns] = useState<MyRecentLockIn[]>([]);
+  // Which stat box's detail sheet is open (ui_pass2 §5); null = none.
+  const [sheet, setSheet] = useState<'time' | 'mix' | 'journal' | 'sessions' | null>(null);
   // null = closed. A string (even empty) means the editor is open with that draft.
   const [bioDraft, setBioDraft] = useState<string | null>(null);
   // Your own house (0257). `undefined` = not known — loading, or the read failed (0264 not live,
@@ -174,11 +177,12 @@ export default function ProfileScreen() {
         }
       : null;
 
-  // Recently-used goal types, most recent first, deduped — "recent goal types used" is real
-  // and derivable from lock-in history now that goals aren't a persisted per-user list. For
-  // someone else's restricted profile, recentLockIns comes back empty, so this — and the
-  // grid below — naturally disappears too, rather than needing a second privacy check.
-  const recentGoalTypes = [...new Set(recentLockIns.map((r) => r.goal_type))].slice(0, 4);
+  // The boxes' headlines. Trophies = everything the hall would show: relics on a rung (or off
+  // ladder), badges, season placements — a visitor's hidden items are already filtered server-side.
+  const topMix = [...mix].sort((a, b) => b.pct - a.pct)[0] ?? null;
+  const trophyCount = hall
+    ? hall.relics.filter((r) => r.tier === null || r.tier > 0).length + hall.badges.length + hall.seasons.length
+    : 0;
 
   return (
     // Profile is the one tab that never went through <Screen>, so it never picked up the
@@ -228,7 +232,9 @@ export default function ProfileScreen() {
           {/* "What you wanna be" — the headline under the name (mock 283's `.pf-head`). */}
           <IdentityHeadline identity={identity} />
           {profile.university && (
-            <Pressable onPress={() => router.push('/university-leaderboard')}>
+            // Your school's board is the Leaderboard tab's My Uni scope now (the old university
+            // board screen is gone, ui_pass2 §8).
+            <Pressable onPress={() => router.push({ pathname: '/leaderboards', params: { scope: 'uni' } })}>
               <View style={styles.uniRow}>
                 <Ionicons name="location" size={11} color={Colors.textTertiary} />
                 <Text style={styles.uniText}>{profile.university}</Text>
@@ -302,7 +308,6 @@ export default function ProfileScreen() {
             read fails or the dial hides it. */}
         <MomentumStrip identity={identity} onRankPress={isOwn ? () => router.push('/leaderboards') : undefined} />
         <IdentityCard identity={identity} />
-        <DisciplineMixBar mix={mix} isOwn={isOwn} />
 
         {/* Own profile only: the way into matching (0275), which reads the mix and goals above. */}
         {isOwn ? (
@@ -319,132 +324,92 @@ export default function ProfileScreen() {
 
         {universalRank && 'muted' in universalRank && universalRank.muted && <RankMuted />}
 
-        {/* Mock 248's Showcase — chosen medals + relics on a shelf directly under the card. */}
+        {/* Mock 248's Showcase — chosen medals + relics on a shelf. It's who they chose to be seen
+            as, so it stays inline; the counts behind it moved into the boxes below. */}
         {hall && viewingUserId ? <ProfileShowcase hall={hall} userId={viewingUserId} /> : null}
 
-        {/* #204 · Discipline relics, as a PEER of rank: a rung, a bar and the number to the next
-            one, directly under the strip that does the same for XP. Outside the rank-muted gate on
-            purpose — private mode hides rank, and relic visibility is the Trophy Hall's own
-            per-item hide, which get_trophy_hall has already applied to `hall.relics`. */}
-        {hall && viewingUserId ? (
-          <DisciplineRelicTracker relics={hall.relics} userId={viewingUserId} isOwn={isOwn} />
-        ) : null}
+        {/* THE STAT BOXES (ui_pass2 §5). The profile was a long scroll of every number at once; it
+            is six tappable boxes now — one headline each, the detail one tap away (its own screen
+            where one exists, otherwise a sheet holding the component that used to sit inline). */}
+        <View style={styles.boxes}>
+          <StatBox label="Lock-in time" value={formatSessionDuration(stats.total_seconds)} onPress={() => setSheet('time')} />
+          <StatBox
+            label="Sessions"
+            value={String(stats.lockin_count)}
+            onPress={() => (isOwn ? router.push('/lock-in-history') : setSheet('sessions'))}
+          />
+          <StatBox
+            label="PRs"
+            value={identity?.recent_win?.kind === 'pr' ? identity.recent_win.label : '—'}
+            onPress={() => router.push('/fitness')}
+          />
+          <StatBox
+            label="Discipline mix"
+            value={topMix ? `${Math.round(topMix.pct)}% ${DISCIPLINE_LABELS[topMix.bucket]}` : '—'}
+            onPress={() => setSheet('mix')}
+          />
+          <StatBox
+            label="Trophies"
+            value={hall ? String(trophyCount) : '—'}
+            onPress={() =>
+              isOwn
+                ? router.push('/trophy-hall')
+                : router.push({ pathname: '/trophy-hall', params: { userId: viewingUserId ?? '' } })
+            }
+          />
+          <StatBox label="Journal" value="Milestones" onPress={() => setSheet('journal')} />
+        </View>
 
-        {/* §1: the streak / lock-ins / hours strip is GONE. All three already lead Home — the
-            flame, the streak line and the XP bar — so repeating them here made the profile a
-            second dashboard instead of an identity. What survives is the identity banner and the
-            rank strip; everything below is now the Journal, then the Trophy Hall.
-
-            The "Inventory & loadout" row is gone too: the ⚙ menu owns editing, and §7's
-            "Loadout & Collection" entry is the read-only browse that replaces it. */}
-
-        {/* §7: the read-only closet. Sits here rather than at the bottom because it is the one
-            thing on this screen that answers "what have I actually collected" — and on someone
-            else's profile, the thing a visitor most wants to open. */}
+        {/* §7: the read-only closet — one row, under the boxes. */}
         {viewingUserId ? (
           <CollectionEntry userId={viewingUserId} isOwn={isOwn} name={profile.display_name} count={collectionCount} />
         ) : null}
+      </ScrollView>
 
-        {/* §5: the Journal leads, directly under the rank strip. Deliberately above the trophies —
-            a viewer should see WHY someone grinds before they see how much. */}
+      <DetailSheet visible={sheet === 'time'} title="Lock-in time" onClose={() => setSheet(null)}>
+        <Text style={styles.sheetLead}>
+          {formatSessionDuration(stats.total_seconds)} across {stats.lockin_count} {pluralize(stats.lockin_count, 'session')}
+        </Text>
+        {hall && viewingUserId ? <DisciplineRelicTracker relics={hall.relics} userId={viewingUserId} isOwn={isOwn} /> : null}
+      </DetailSheet>
+      <DetailSheet visible={sheet === 'mix'} title="Discipline mix" onClose={() => setSheet(null)}>
+        <DisciplineMixBar mix={mix} isOwn={isOwn} />
+        {mix.length === 0 ? <Text style={styles.sheetLead}>Nothing to mix yet — lock in and it fills.</Text> : null}
+      </DetailSheet>
+      <DetailSheet visible={sheet === 'journal'} title="Journal" onClose={() => setSheet(null)}>
         {viewingUserId ? (
           <JournalSection
             userId={viewingUserId}
             isOwn={isOwn}
-            onAddMilestone={() => router.push('/milestone/new')}
+            onAddMilestone={() => {
+              setSheet(null);
+              router.push('/milestone/new');
+            }}
           />
         ) : null}
-
-        {/* §4: earned proof of status. Below the Journal on purpose — the human layer leads. */}
-        {hall && viewingUserId ? <TrophyHallSection hall={hall} userId={viewingUserId} isOwn={isOwn} showFeatured={false} /> : null}
-
-        {recentGoalTypes.length > 0 && (
-          <View style={styles.goals}>
-            {recentGoalTypes.map((type) => (
-              <View key={type} style={styles.gchip}>
-                <DisciplineIcon name={GOAL_TYPE_GLYPH[type]} size={12} color={Colors.ember} />
-                <Text style={styles.gchipText}>{GOAL_TYPE_META[type]?.label ?? type}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {recentLockIns.length > 0 && (
-          <>
-            <View style={styles.gl}>
-              <Text style={styles.glTitle}>Lock-ins</Text>
-              {/* Own profile only: this list is capped at the most recent handful, and Profile is
-                  the single home for lock-in data now that Home's journal is gone (punchlist 4B/4C)
-                  — so there has to be a way through to the rest. Someone else's profile keeps the
-                  photo gallery and its own visibility rules, with no full-history route. */}
-              {isOwn ? (
-                <Pressable
-                  onPress={() => router.push('/lock-in-history')}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel="See all lock-ins"
-                  style={styles.seeAll}>
-                  <Text style={styles.seeAllText}>See all</Text>
-                  <Ionicons name="chevron-forward" size={13} color={Colors.achieverText} />
-                </Pressable>
+      </DetailSheet>
+      {/* Someone else's sessions: their photo gallery, under their own photo_visibility (there is
+          no full-history route for another person). */}
+      <DetailSheet visible={sheet === 'sessions'} title="Sessions" onClose={() => setSheet(null)}>
+        <View style={styles.grid}>
+          {recentLockIns.map((r) => (
+            <View key={r.id} style={styles.ph}>
+              {r.signedPhotoUrl ? (
+                <Image source={{ uri: r.signedPhotoUrl }} style={styles.phImage} />
               ) : (
-                <Text style={styles.glSub}>
-                  {stats.lockin_count} {pluralize(stats.lockin_count, 'session')}
-                </Text>
+                <View style={[styles.phImage, styles.phFallback]}>
+                  <DisciplineIcon name={GOAL_TYPE_GLYPH[r.goal_type]} size={26} color={Colors.textTertiary} />
+                </View>
               )}
+              <View style={styles.ov}>
+                <DisciplineIcon name={GOAL_TYPE_GLYPH[r.goal_type]} size={11} color="#FFFFFF" />
+                <Text style={styles.ovDuration}>{formatSessionDuration(r.duration_seconds ?? 0)}</Text>
+              </View>
             </View>
-            {isOwn ? (
-              // Own profile: the clean compact list, matching Home's "Your recent lock-ins"
-              // (punchlist: the photo grid ate a huge chunk of screen with mostly-empty tiles).
-              <View style={styles.list}>
-                {recentLockIns.map((r) => {
-                  const isSynced = Boolean(r.source && r.source !== 'manual');
-                  const isStrava = r.source === 'strava';
-                  return (
-                    <Pressable
-                      key={r.id}
-                      style={styles.row}
-                      onPress={() =>
-                        isStrava
-                          ? router.push({ pathname: '/activity/[checkInId]', params: { checkInId: r.id } })
-                          : router.push({ pathname: '/lock-in/[checkInId]', params: { checkInId: r.id } })
-                      }>
-                      <View style={[styles.rowIcon, isSynced && styles.rowIconSynced]}>
-                        <DisciplineIcon name={GOAL_TYPE_GLYPH[r.goal_type]} size={16} color={isSynced ? '#FC4C02' : Colors.amber} />
-                      </View>
-                      <Text style={styles.rowText} numberOfLines={1}>
-                        {isStrava && r.goal_detail ? r.goal_detail : GOAL_TYPE_META[r.goal_type].label}
-                        {!isStrava && r.goal_detail ? <Text style={styles.rowDetail}> · {r.goal_detail}</Text> : null}
-                      </Text>
-                      <Text style={styles.rowDur}>{formatSessionDuration(r.duration_seconds ?? 0)}</Text>
-                      <Ionicons name="chevron-forward" size={13} color={isStrava ? '#FC4C02' : Colors.textTertiary} />
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : (
-              // Someone else's profile keeps the photo gallery.
-              <View style={styles.grid}>
-                {recentLockIns.map((r) => (
-                  <View key={r.id} style={styles.ph}>
-                    {r.signedPhotoUrl ? (
-                      <Image source={{ uri: r.signedPhotoUrl }} style={styles.phImage} />
-                    ) : (
-                      <View style={[styles.phImage, styles.phFallback]}>
-                        <DisciplineIcon name={GOAL_TYPE_GLYPH[r.goal_type]} size={26} color={Colors.textTertiary} />
-                      </View>
-                    )}
-                    <View style={styles.ov}>
-                      <DisciplineIcon name={GOAL_TYPE_GLYPH[r.goal_type]} size={11} color="#FFFFFF" />
-                      <Text style={styles.ovDuration}>{formatSessionDuration(r.duration_seconds ?? 0)}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-          </>
-        )}
-      </ScrollView>
+          ))}
+        </View>
+        {recentLockIns.length === 0 ? <Text style={styles.sheetLead}>No sessions to show.</Text> : null}
+      </DetailSheet>
 
       {/* §3 — opened by tapping the bio line. refreshProfile() pulls the saved value back through
           auth context so the identity block re-renders from the server, not from local state. */}
@@ -462,7 +427,134 @@ export default function ProfileScreen() {
   );
 }
 
+/** One stat box: a headline number and a label; the whole box opens its detail. */
+function StatBox({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.box, pressed && styles.boxPressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}. Open details`}>
+      <Text style={styles.boxValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+        {value}
+      </Text>
+      <View style={styles.boxFoot}>
+        <Text style={styles.boxLabel} numberOfLines={1}>
+          {label}
+        </Text>
+        <UiGlyph name="forward" size={12} color={Colors.spaceFaint} />
+      </View>
+    </Pressable>
+  );
+}
+
+/** The bottom sheet a stat box opens when its detail has no screen of its own. */
+function DetailSheet({
+  visible,
+  title,
+  onClose,
+  children,
+}: {
+  visible: boolean;
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.sheetBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, Spacing.three) }]}>
+          <View style={styles.sheetHead}>
+            <Text style={styles.sheetTitle}>{title}</Text>
+            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+              <UiGlyph name="close" size={18} color={Colors.spaceDim} />
+            </Pressable>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetBody}>
+            {children}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
+  boxes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    marginTop: Spacing.three,
+  },
+  box: {
+    flexBasis: '31%',
+    flexGrow: 1,
+    minHeight: 78,
+    justifyContent: 'space-between',
+    padding: Spacing.twelve,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  boxPressed: {
+    opacity: 0.85,
+  },
+  boxValue: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 17,
+    color: Colors.ink,
+  },
+  boxFoot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 4,
+    marginTop: 6,
+  },
+  boxLabel: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.spaceDim,
+  },
+  sheetBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(6,4,14,0.6)',
+  },
+  sheet: {
+    maxHeight: '82%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: Colors.spacePanel,
+    borderTopWidth: 1,
+    borderColor: Colors.spaceLine,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
+  },
+  sheetHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.two,
+  },
+  sheetTitle: {
+    fontFamily: Fonts.black,
+    fontSize: 18,
+    color: Colors.ink,
+  },
+  sheetBody: {
+    paddingBottom: Spacing.three,
+    gap: Spacing.twelve,
+  },
+  sheetLead: {
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.spaceDim,
+  },
   houseRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -571,93 +663,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     color: Colors.textTertiary,
-  },
-  goals: {
-    flexDirection: 'row',
-    gap: 7,
-    marginTop: 11,
-    flexWrap: 'wrap',
-  },
-  gchip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.pill,
-    paddingVertical: 6,
-    paddingHorizontal: 11,
-  },
-  gchipText: {
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.ember,
-  },
-  gl: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginTop: 14,
-    marginBottom: 8,
-  },
-  glTitle: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.ink,
-  },
-  glSub: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.textTertiary,
-  },
-  seeAll: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  seeAllText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.achieverText,
-  },
-  // Compact list (own profile), mirrors Home's recent-lock-ins rows.
-  list: {
-    gap: 7,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-  },
-  rowIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: Colors.cardDark,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowIconSynced: {
-    backgroundColor: 'rgba(252,76,2,0.14)',
-  },
-  rowText: {
-    flex: 1,
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.ink,
-  },
-  rowDetail: {
-    fontFamily: Fonts.body,
-    color: Colors.muted,
-  },
-  rowDur: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.amber,
-    fontVariant: ['tabular-nums'],
   },
   grid: {
     flexDirection: 'row',

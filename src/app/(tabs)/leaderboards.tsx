@@ -39,7 +39,7 @@ import type { MetricCatalogRow, MetricLeaderboardRow, MetricScope, MyProgramRow 
 // ranked part (stats.ts falls back). The green dot is live presence (get_presence, polled while
 // focused); "Live now" narrows the board to who's locked in this minute.
 //
-// Row body → Head-to-Head vs them. Avatar → their profile. Your own row → your fire (rank detail).
+// Row body → Head-to-Head vs them. Avatar → their profile. Your own row → your Profile.
 // The pre-restructure board screen is gone (ui_pass2 §8): this is the only board UI. Fitness boards
 // and Challenges sit one tap away in the tools row; a campfire's own board lives on the campfire.
 
@@ -122,7 +122,7 @@ export default function LeaderboardTab() {
   }
 
   function openRow(row: MetricLeaderboardRow) {
-    if (row.is_me) router.push('/your-fire');
+    if (row.is_me) router.push('/profile');
     else router.push({ pathname: '/versus', params: { with: row.user_id } });
   }
 
