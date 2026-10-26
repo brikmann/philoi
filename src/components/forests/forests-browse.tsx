@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -35,7 +35,8 @@ const SEARCH_DEBOUNCE_MS = 300;
 /** What is loaded, tagged with the request it answers — so a fast sort switch can't show stale rows. */
 type Loaded = { key: string; rows: ForestSummary[]; failed: boolean };
 
-export function ForestsBrowse() {
+/** `header` scrolls above "Find your forest" — the Agora's chrome when Forests is a tab of it. */
+export function ForestsBrowse({ header }: { header?: ReactNode } = {}) {
   const router = useRouter();
   const [sort, setSort] = useState<ForestSort>('active');
   const [queryText, setQueryText] = useState('');
@@ -117,6 +118,8 @@ export function ForestsBrowse() {
       ItemSeparatorComponent={() => <View style={styles.sep} />}
       ListHeaderComponent={
         <View>
+          {/* Bled back out to full width: the list's gutter is the rows', the chrome has its own. */}
+          {header ? <View style={styles.headerBleed}>{header}</View> : null}
           <View style={styles.headRow}>
             <Text style={styles.headTitle}>Find your forest</Text>
             <Pressable style={styles.createBtn} onPress={create} accessibilityRole="button" accessibilityLabel="Create a forest">
@@ -257,6 +260,9 @@ function EmptyForests({
 }
 
 const styles = StyleSheet.create({
+  headerBleed: {
+    marginHorizontal: -SPACE_GUTTER,
+  },
   list: {
     paddingHorizontal: SPACE_GUTTER,
     paddingBottom: 96,

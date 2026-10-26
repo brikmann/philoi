@@ -24,8 +24,8 @@ import type { MyRank } from '@/types/database';
 // "● N live" for friends locked in right now, which opens the same locked-in-with-you panel the
 // old Home's strip did.
 //
-// The Flame Pass card (mock 306) leads the feed itself, above the compose row, so it scrolls away
-// with the posts rather than pinning a sales banner over them.
+// Only the global bar is pinned. The fire strip and the Flame Pass card (mock 306) sit under it and
+// above the Feed · Forests toggle, and all of it swipes away with the feed so the posts get the screen.
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -48,13 +48,15 @@ export default function HomeScreen() {
           {/* Mock 314: until any tracker is connected (or the card is dismissed), Home — the most-seen
               screen — is where fitness tracking gets found. */}
           <HomeTrackerCard />
-          <HomePassCard />
         </>
       }
-      top={
+      top={<AppTopBar />}
+      scrollTop={
         <>
-          <AppTopBar />
           <FireStrip />
+          <View style={styles.pass}>
+            <HomePassCard />
+          </View>
         </>
       }
     />
@@ -125,6 +127,10 @@ function FireStrip() {
 }
 
 const styles = StyleSheet.create({
+  // The Flame Pass card's gutter, matching the fire strip above it and the feed below.
+  pass: {
+    marginHorizontal: Spacing.three,
+  },
   strip: {
     flexDirection: 'row',
     alignItems: 'center',

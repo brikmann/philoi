@@ -69,16 +69,20 @@ export default function AgoraScreen() {
  * The square itself. `/agora` mounts it as its own screen (back header); Home mounts it embedded,
  * with the global top bar + your-fire strip in place of that header (nav restructure, mock 302).
  *
- * `feedHeader` scrolls WITH the feed, above the compose row — Home's Flame Pass card (mock 306),
- * which is meant to read as part of the feed rather than as chrome pinned over it.
+ * Only `top` is pinned — on Home, just the global bar. Everything else scrolls away with the list so
+ * the feed gets the screen: `scrollTop` (Home's fire strip + Flame Pass card), then the Feed · Forests
+ * toggle and the scope chips, all drawn as the header of whichever list is showing. `feedHeader`
+ * comes after them on the Feed tab only, above the compose row — Home's tracker card (mock 314).
  */
 export function AgoraFeed({
   embedded = false,
   top,
+  scrollTop,
   feedHeader,
 }: {
   embedded?: boolean;
   top?: ReactNode;
+  scrollTop?: ReactNode;
   feedHeader?: ReactNode;
 }) {
   const router = useRouter();
@@ -218,6 +222,51 @@ export function AgoraFeed({
     return key === 'university' && profile?.university ? shortSchoolName(profile.university) : label;
   }
 
+  // Everything that scrolls away above the list (see the doc comment): drawn as the list header of
+  // whichever tab is showing, so swiping either one up leaves only the pinned `top`.
+  const chrome = (
+    <>
+      {scrollTop}
+      <View style={styles.tabs} accessibilityRole="tablist">
+        {TABS.map((t) => {
+          const on = tab === t.key;
+          return (
+            <Pressable
+              key={t.key}
+              onPress={() => setTab(t.key)}
+              style={[styles.tab, on && styles.tabOn]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}>
+              <Text style={[styles.tabText, on && styles.tabTextOn]}>{t.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {tab === 'feed' ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterBar}
+          contentContainerStyle={styles.filters}>
+          {AGORA_SCOPES.map((s) => (
+            <Pressable
+              key={s.key}
+              onPress={() => changeScope(s.key)}
+              style={[styles.filter, scope === s.key && styles.filterOn]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: scope === s.key }}>
+              <Text
+                style={[styles.filterText, scope === s.key && styles.filterTextOn]}
+                numberOfLines={1}>
+                {scopeLabel(s.key, s.label)}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
+    </>
+  );
+
   return (
     <ScreenBackground>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -235,47 +284,10 @@ export function AgoraFeed({
           </View>
         )}
 
-        <View style={styles.tabs} accessibilityRole="tablist">
-          {TABS.map((t) => {
-            const on = tab === t.key;
-            return (
-              <Pressable
-                key={t.key}
-                onPress={() => setTab(t.key)}
-                style={[styles.tab, on && styles.tabOn]}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: on }}>
-                <Text style={[styles.tabText, on && styles.tabTextOn]}>{t.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
         {tab === 'forests' ? (
-          <ForestsBrowse />
+          <ForestsBrowse header={chrome} />
         ) : (
           <>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.filterBar}
-              contentContainerStyle={styles.filters}>
-              {AGORA_SCOPES.map((s) => (
-                <Pressable
-                  key={s.key}
-                  onPress={() => changeScope(s.key)}
-                  style={[styles.filter, scope === s.key && styles.filterOn]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: scope === s.key }}>
-                  <Text
-                    style={[styles.filterText, scope === s.key && styles.filterTextOn]}
-                    numberOfLines={1}>
-                    {scopeLabel(s.key, s.label)}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-
             <FlatList
               data={items}
               keyExtractor={(i) => `${i.item_type}:${i.id}`}
@@ -288,6 +300,8 @@ export function AgoraFeed({
               ItemSeparatorComponent={() => <View style={styles.postSep} />}
               ListHeaderComponent={
                 <>
+                  {/* Bled back out to full width: the list's gutter is the posts', the chrome has its own. */}
+                  <View style={styles.chromeBleed}>{chrome}</View>
                   {feedHeader}
                   {/*
                     The compose row (mock 306): one tap anywhere opens the one sheet. The two icons
@@ -493,6 +507,9 @@ const styles = StyleSheet.create({
   },
   filterTextOn: {
     color: Colors.onEmber,
+  },
+  chromeBleed: {
+    marginHorizontal: -Spacing.three,
   },
   list: {
     paddingHorizontal: Spacing.three,
