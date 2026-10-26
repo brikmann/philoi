@@ -46,7 +46,7 @@ type NavGroup = { title: string; rows: NavRow[] };
 // THE MENU BEHIND ☰ (nav restructure, mock 301). Home · Search · Lock In · Leaderboard · Profile
 // are on the bottom bar now, so the drawer holds everything that does not earn a permanent slot —
 // mock 301's list, plus the destinations the old Play/Social groups carried that have no other
-// home (Friends, Challenges, Grind-alikes, Your fire, history), so nothing is orphaned by the move.
+// home (Friends, Challenges, Grind-alikes, Notifications, history), so nothing is orphaned by the move.
 const GROUPS: NavGroup[] = [
   {
     title: 'Social',
@@ -85,7 +85,9 @@ const GROUPS: NavGroup[] = [
   {
     title: 'You',
     rows: [
-      { key: 'your-fire', label: 'Your fire', icon: 'home', route: '/your-fire' },
+      // A second door to the bell's activity feed (ui_pass2 §6) — cheers, replies, rank, unlocks —
+      // so it's findable from the menu, not only from the top-right glyph.
+      { key: 'notifications', label: 'Notifications', icon: 'bell', route: '/notifications' },
       { key: 'history', label: 'Lock-in history', icon: 'leaderboards', route: '/lock-in-history' },
       { key: 'fitness-sync', label: 'Fitness sync', icon: 'sliders', route: '/connected-apps' },
       { key: 'cindy', label: 'Cindy', icon: 'agora', route: '/cindy' },

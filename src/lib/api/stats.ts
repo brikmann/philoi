@@ -29,14 +29,24 @@ export async function fetchMetricLeaderboard(args: {
   window: MetricWindow;
   limit?: number | null;
   verifiedOnly?: boolean;
+  /** 0276: also list everyone in scope with nothing logged (rank null, value 0), after the ranked. */
+  includeUnranked?: boolean;
 }): Promise<MetricLeaderboardRow[]> {
-  const { data, error } = await supabase.rpc('get_metric_leaderboard', {
+  const base = {
     p_metric: args.metric,
     p_scope: args.scope,
     p_window: args.window,
     p_limit: args.limit ?? 100,
     p_verified_only: args.verifiedOnly ?? false,
-  });
+  };
+  let { data, error } = args.includeUnranked
+    ? await supabase.rpc('get_metric_leaderboard', { ...base, p_include_unranked: true })
+    : await supabase.rpc('get_metric_leaderboard', base);
+  // A server without 0276 has no p_include_unranked — PostgREST answers PGRST202 (no function with
+  // that signature). Fall back to the ranked-only board rather than failing it.
+  if (error && args.includeUnranked && error.code === 'PGRST202') {
+    ({ data, error } = await supabase.rpc('get_metric_leaderboard', base));
+  }
   if (error) throw error;
   return (data ?? []).map((r) => ({ ...r, value: Number(r.value) }));
 }

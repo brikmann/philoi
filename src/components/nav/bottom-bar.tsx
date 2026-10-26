@@ -1,53 +1,54 @@
-import { Tabs } from 'expo-router';
-import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
 import { Colors, Fonts } from '@/constants/theme';
-import { useActiveSession } from '@/lib/active-session-context';
 
-// THE BOTTOM BAR (mocks 301/302/304): Home · Search · 🔥Lock In · Leaderboard · Profile.
+// THE BOTTOM BAR, drawn (mocks 301/302/304): Home · Search · 🔥Lock In · Leaderboard · Profile.
+//
+// Presentational only — components/nav/global-footer.tsx decides when it shows, which slot is lit and
+// where a tap goes, so the SAME bar sits under the tabs and under every drawer screen.
 //
 // The center slot is the hero — an elevated ember disc carrying the only FILLED glyph in the set.
-// Every other slot is a stroke glyph: ember when active, faint when not. Only the five routes named
-// here get a slot; any other screen in the (tabs) group (Challenges) stays routable but off the bar.
+// Every other slot is a stroke glyph: ember when active, faint when not.
 
-type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
+export type TabKey = 'index' | 'search' | 'lockin' | 'leaderboards' | 'profile';
 
-const SLOTS: { route: string; label: string; glyph: NavGlyphName; center?: boolean }[] = [
-  { route: 'index', label: 'Home', glyph: 'home' },
-  { route: 'search', label: 'Search', glyph: 'search' },
-  { route: 'lockin', label: 'Lock In', glyph: 'flame', center: true },
-  { route: 'leaderboards', label: 'Board', glyph: 'trophy' },
-  { route: 'profile', label: 'You', glyph: 'person' },
+export const TAB_SLOTS: { key: TabKey; href: string; label: string; glyph: NavGlyphName; center?: boolean }[] = [
+  { key: 'index', href: '/', label: 'Home', glyph: 'home' },
+  { key: 'search', href: '/search', label: 'Search', glyph: 'search' },
+  { key: 'lockin', href: '/lockin', label: 'Lock In', glyph: 'flame', center: true },
+  { key: 'leaderboards', href: '/leaderboards', label: 'Board', glyph: 'trophy' },
+  { key: 'profile', href: '/profile', label: 'You', glyph: 'person' },
 ];
 
-export function BottomBar({ state, navigation, insets }: TabBarProps) {
-  const focusedName = state.routes[state.index]?.name;
-  const { session: activeSession } = useActiveSession();
-
+export function BottomBar({
+  active,
+  sessionLive,
+  bottomInset,
+  onSelect,
+}: {
+  /** The lit slot; null lights none. */
+  active: TabKey | null;
+  sessionLive: boolean;
+  bottomInset: number;
+  onSelect: (key: TabKey) => void;
+}) {
   return (
-    <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+    <View style={[styles.wrap, { paddingBottom: Math.max(bottomInset, 10) }]}>
       <View style={styles.bar}>
-        {SLOTS.map((slot) => {
-          const route = state.routes.find((r) => r.name === slot.route);
-          if (!route) return null;
-          const focused = focusedName === slot.route;
-          const onPress = () => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
-          };
+        {TAB_SLOTS.map((slot) => {
+          const focused = active === slot.key;
 
           if (slot.center) {
             return (
               <Pressable
-                key={slot.route}
-                onPress={onPress}
+                key={slot.key}
+                onPress={() => onSelect(slot.key)}
                 style={styles.slot}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: focused }}
-                accessibilityLabel={activeSession ? 'Lock In, session running' : 'Lock In'}>
+                accessibilityLabel={sessionLive ? 'Lock In, session running' : 'Lock In'}>
                 <View style={[styles.hero, focused && styles.heroOn]}>
                   <Svg width={48} height={48} style={StyleSheet.absoluteFill}>
                     <Defs>
@@ -59,24 +60,23 @@ export function BottomBar({ state, navigation, insets }: TabBarProps) {
                     <Rect x="0" y="0" width="48" height="48" rx="24" fill="url(#navHero)" />
                   </Svg>
                   <NavGlyph name="flame" size={28} color="#2A0F05" />
-                  {activeSession ? <View style={styles.liveDot} /> : null}
+                  {sessionLive ? <View style={styles.liveDot} /> : null}
                 </View>
                 <Text style={[styles.label, styles.labelCenter]}>{slot.label}</Text>
               </Pressable>
             );
           }
 
-          const tint = focused ? Colors.navEmber2 : Colors.spaceFaint;
           return (
             <Pressable
-              key={slot.route}
-              onPress={onPress}
+              key={slot.key}
+              onPress={() => onSelect(slot.key)}
               style={styles.slot}
               accessibilityRole="tab"
               accessibilityState={{ selected: focused }}
               accessibilityLabel={slot.label}>
               <NavGlyph name={slot.glyph} size={24} color={focused ? Colors.navEmber : Colors.spaceFaint} />
-              <Text style={[styles.label, { color: tint }]}>{slot.label}</Text>
+              <Text style={[styles.label, { color: focused ? Colors.navEmber2 : Colors.spaceFaint }]}>{slot.label}</Text>
             </Pressable>
           );
         })}
