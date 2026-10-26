@@ -43,7 +43,6 @@ import { LockInCheersSheet } from '@/components/lockin-cheers/lockin-cheers-shee
 import { RankUpCelebration } from '@/components/rank-up-celebration';
 import { RankUpShareCard } from '@/components/rank-up-share-card';
 import { StoryShareSheet } from '@/components/story-sticker/story-share-sheet';
-import { RewardBurst, type RewardBurstHandle } from '@/components/reward-burst';
 import { SessionFlame } from '@/components/session-flame';
 import { SessionPhotoGallery } from '@/components/session-photo-gallery';
 import { TutorialTooltip } from '@/components/tutorial-tooltip';
@@ -283,7 +282,6 @@ function LockInScreen() {
   const [doneCircleId, setDoneCircleId] = useState<string | null>(null);
   const [doneCircleName, setDoneCircleName] = useState<string | null>(null);
 
-  const rewardBurstRef = useRef<RewardBurstHandle>(null);
   // The off-screen 9:16 share cards — mounted (but never visible) as soon as their celebration
   // is set, so they're already laid out and ready to capture by the time the user actually
   // taps Share.
@@ -310,13 +308,6 @@ function LockInScreen() {
   const timerPulseStyle = useAnimatedStyle(() => ({
     color: interpolateColor(timerPulse.value, [0, 1], [Colors.ink, Colors.coral]),
   }));
-
-  // Only for the plain "done" recap — a tier CROSS skips this entirely, since
-  // RankUpCelebration fires its own sound/haptic timed to the forge's flare beat instead of
-  // the moment the screen mounts (see rank-up-celebration.tsx).
-  useEffect(() => {
-    if (posted && !rankUpInfo) rewardBurstRef.current?.fire();
-  }, [posted, rankUpInfo]);
 
   // Landing here IS the "press to start" action, unless there's already an active session
   // (e.g. reopened from a "still here?" notification, or resumed from the mini-map) — that
@@ -966,7 +957,6 @@ function LockInScreen() {
   if (posted && postedCheckIn) {
     return (
       <LockInScreenFrame style={styles.container}>
-        <RewardBurst ref={rewardBurstRef} cue="settle" />
         <LockInDoneScreen
           goalType={postedCheckIn.goal_type}
           goalDetail={postedCheckIn.goal_detail}

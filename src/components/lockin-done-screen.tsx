@@ -7,8 +7,8 @@ import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } fro
 import { showRewardReveal } from '@/components/economy/reward-reveal';
 import { GymClipThumbnail } from '@/components/gym-clip-player';
 import { RankBadge } from '@/components/rank-badge';
-import { PersonalFlame } from '@/components/personal-flame';
 import { PlacementMove } from '@/components/placement-move';
+import { SpearPlantBeat, SpearPlantHoplite, SpearPlantShake, useSpearPlant } from '@/components/spear-plant-reveal';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
@@ -24,7 +24,7 @@ import { getErrorMessage } from '@/lib/errors';
 import { formatDurationClock } from '@/lib/format';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
 import { formatRankTier, nextRank, RANK_TIER_METAL, xpProgressRatio } from '@/lib/rank-tiers';
-import { fireConfirm, fireXpTick } from '@/lib/reward-feedback';
+import { fireConfirm } from '@/lib/reward-feedback';
 import type { GoalType, MyRank, WorkoutRecap, WorkoutSet } from '@/types/database';
 
 type LockInDoneScreenProps = {
@@ -50,9 +50,9 @@ type LockInDoneScreenProps = {
   sharing?: boolean;
 };
 
-// Mock 92's done-screen hero: a 118px flame inside a 170px glow.
-const FLAME_SIZE = 118;
-const GLOW_SIZE = 170;
+// The hoplite stage (mock 311). The asset's comp is square, so one number sizes it.
+const HOPLITE_SIZE = 200;
+const XP_COUNT_MS = 1100;
 
 // The "done" screen (design-mocks/81-done-screen.html) — built around the SAME big living flame
 // as the work session, stripped to the four things that matter: you locked in, for how long, the
@@ -62,6 +62,9 @@ const GLOW_SIZE = 170;
 // block now lives on the gym screen, the caption is folded into the post card as an optional
 // note, the campfire multi-select hides behind "change", and a gym recap collapses to one line
 // with a "View" that opens the full thing.
+//
+// The flame hero is gone: the screen opens on the spear-plant (mock 311, spear-plant-reveal.tsx) —
+// the hoplite plants, the screen shakes, and the stat groups below slam in on their beats.
 //
 // Any rank-up at all — a tier crossing or a same-tier division bump — is handled by the caller
 // showing RankUpCelebration's full-screen forge instead of this component entirely (see
@@ -108,7 +111,6 @@ export function LockInDoneScreen({
   const [clips, setClips] = useState<WorkoutSet[]>([]);
 
   const [displayXp, setDisplayXp] = useState(0);
-  const [plusVisible, setPlusVisible] = useState(false);
   // What this session ACTUALLY paid the Emberfall Pass — the ledger row the server's lock-in
   // trigger wrote (0227), never `hours × 250` worked out here. Null until it answers, and stays null
   // when nothing was credited (under 5 min, season not live): no Pass line at all, not a "+0".
@@ -169,31 +171,36 @@ export function LockInDoneScreen({
       });
   }, [checkInId, workoutRecap]);
 
-  // The "+XP" fades in and counts up — the one animation this screen keeps, and now the only one
-  // it needs: mock 92 states the rank as a chip rather than a filling bar, so the number IS the
-  // motion. It counts the EARNED xp rather than the running tier total, so what moves on screen is
-  // what the session actually produced.
-  useEffect(() => {
-    const end = Math.round(xpEarned);
-    const delay = setTimeout(() => {
-      setPlusVisible(true);
-      fireXpTick();
-      const durationMs = 1100;
-      const t0 = Date.now();
-      let raf: ReturnType<typeof requestAnimationFrame>;
-      const step = () => {
-        const p = Math.min((Date.now() - t0) / durationMs, 1);
-        setDisplayXp(Math.round(end * p));
-        if (p < 1) raf = requestAnimationFrame(step);
-      };
-      raf = requestAnimationFrame(step);
-      return () => cancelAnimationFrame(raf);
-    }, 250);
-    return () => clearTimeout(delay);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount for the open animation
-  }, []);
+  // The "+XP" counts up as its stat group slams in — mock 92 states the rank as a chip rather than
+  // a filling bar, so the number IS the motion. It counts the EARNED xp rather than the running
+  // tier total, so what moves on screen is what the session actually produced. The spear-plant's
+  // whoosh and strike are the cues now; the count runs silent under them.
+  const xpEnd = Math.round(xpEarned);
+  const xpRaf = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
+  function countXp() {
+    const t0 = Date.now();
+    const step = () => {
+      const p = Math.min((Date.now() - t0) / XP_COUNT_MS, 1);
+      setDisplayXp(Math.round(xpEnd * p));
+      xpRaf.current = p < 1 ? requestAnimationFrame(step) : null;
+    };
+    xpRaf.current = requestAnimationFrame(step);
+  }
+  const reveal = useSpearPlant(countXp);
 
-  const plusStyle = useAnimatedStyle(() => ({ opacity: withDelay(300, withTiming(plusVisible ? 1 : 0, { duration: 400 })) }));
+  // A skip lands everything on its settled frame, the number included; reduce motion never counts.
+  const shownXp = reveal.skipped || reveal.still ? xpEnd : displayXp;
+  useEffect(() => {
+    if (!reveal.skipped && !reveal.still) return;
+    if (xpRaf.current !== null) cancelAnimationFrame(xpRaf.current);
+    xpRaf.current = null;
+  }, [reveal.skipped, reveal.still]);
+  useEffect(
+    () => () => {
+      if (xpRaf.current !== null) cancelAnimationFrame(xpRaf.current);
+    },
+    []
+  );
 
   // "Diamond II · 75% to III" (mock 92's `.rankchip`). At max rank there is nothing above to chase,
   // so the chip states the rank alone rather than inventing a target.
@@ -318,7 +325,7 @@ export function LockInDoneScreen({
   }
 
   return (
-    <View style={styles.container}>
+    <SpearPlantShake reveal={reveal} style={styles.container}>
       {/* Scrolls rather than compressing: the hero block is fixed-height by design, and a gym
           session with photos would otherwise squeeze the flame on a short screen. */}
       <ScrollView
@@ -326,90 +333,95 @@ export function LockInDoneScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        {/* YOUR flame, in the ramp you have equipped — the same hero Home wears, at mock 92's
-            done-screen size. Not the coal-bed gauge: this screen exists because you just showed
-            up, so there is no "cold" state for it to be in. */}
-        <PersonalFlame size={FLAME_SIZE} glowSize={GLOW_SIZE} />
-
         {/* Mock 92's `.kick` / `.big-name` / `.stat` / `.statlbl` stack. The XP is the headline
             now and the clock is its caption — the reverse of the old layout, which led with the
             duration in 44px type. What a session is WORTH is the number that carries forward;
             how long it took is context for it. */}
-        <Text style={styles.kick}>SESSION COMPLETE</Text>
-        <Text style={styles.bigName}>Nice work{firstName ? `, ${firstName}` : ''}</Text>
-        <Animated.Text style={[styles.stat, plusStyle]}>
-          +{displayXp.toLocaleString()}
-          <Text style={styles.statUnit}> XP</Text>
-        </Animated.Text>
-        <Text style={styles.statLabel} numberOfLines={1}>
-          {formatDurationClock(durationSeconds)} · {goalLine}
-        </Text>
+        <SpearPlantBeat reveal={reveal} beat="statsHead" style={styles.beat}>
+          <Text style={styles.kick}>SESSION COMPLETE</Text>
+          <Text style={styles.bigName}>Nice work{firstName ? `, ${firstName}` : ''}</Text>
+        </SpearPlantBeat>
+        <SpearPlantBeat reveal={reveal} beat="statsMain" style={styles.beat}>
+          <Text style={styles.stat}>
+            +{shownXp.toLocaleString()}
+            <Text style={styles.statUnit}> XP</Text>
+          </Text>
+          <Text style={styles.statLabel} numberOfLines={1}>
+            {formatDurationClock(durationSeconds)} · {goalLine}
+          </Text>
+        </SpearPlantBeat>
 
-        {rankBefore && rankAfter && (
-          <View style={[styles.rankChip, { borderColor: `${RANK_TIER_METAL[rankAfter.tier].text}66` }]}>
-            <RankBadge tier={rankAfter.tier} division={rankAfter.division} size={18} />
-            <Text style={[styles.rankChipText, { color: RANK_TIER_METAL[rankAfter.tier].text }]} numberOfLines={1}>
-              {formatRankTier(rankAfter.tier, rankAfter.division)}
-              {rankProgressSuffix}
-            </Text>
-          </View>
-        )}
-
-        {/* The Emberfall Pass, beside the rank XP above: what this session credited and the bar it
-            moved. Every number here is the server's (get_lock_in_pass_credit). */}
-        {passCredit && passAfter && (
-          <View style={styles.pass}>
-            <View style={styles.passHead}>
-              <Text style={styles.passXp} numberOfLines={1}>
-                +{passCredit.xp.toLocaleString()} {SEASON.name} Pass XP
+        <SpearPlantBeat reveal={reveal} beat="statsRest" style={styles.beat}>
+          {rankBefore && rankAfter && (
+            <View style={[styles.rankChip, { borderColor: `${RANK_TIER_METAL[rankAfter.tier].text}66` }]}>
+              <RankBadge tier={rankAfter.tier} division={rankAfter.division} size={18} />
+              <Text style={[styles.rankChipText, { color: RANK_TIER_METAL[rankAfter.tier].text }]} numberOfLines={1}>
+                {formatRankTier(rankAfter.tier, rankAfter.division)}
+                {rankProgressSuffix}
               </Text>
-              {passCredit.bonus_xp > 0 && <Text style={styles.passBonus}>+{passCredit.bonus_xp.toLocaleString()} bonus</Text>}
             </View>
-            <View style={styles.passTrack}>
-              <Animated.View style={[styles.passFill, passFillStyle]} />
+          )}
+
+          {/* The Emberfall Pass, beside the rank XP above: what this session credited and the bar it
+              moved. Every number here is the server's (get_lock_in_pass_credit). */}
+          {passCredit && passAfter && (
+            <View style={styles.pass}>
+              <View style={styles.passHead}>
+                <Text style={styles.passXp} numberOfLines={1}>
+                  +{passCredit.xp.toLocaleString()} {SEASON.name} Pass XP
+                </Text>
+                {passCredit.bonus_xp > 0 && <Text style={styles.passBonus}>+{passCredit.bonus_xp.toLocaleString()} bonus</Text>}
+              </View>
+              <View style={styles.passTrack}>
+                <Animated.View style={[styles.passFill, passFillStyle]} />
+              </View>
+              <Text style={styles.passLevel} numberOfLines={1}>
+                {passPrestiged
+                  ? `Prestige +${passAfter.prestige} reached · Level ${passAfter.level + passAfter.prestige}`
+                  : passAfter.prestige > 0
+                    ? `Level ${passAfter.level + passAfter.prestige} (+${passAfter.prestige} prestige)`
+                    : passLeveledUp
+                      ? `Level ${passAfter.level} reached`
+                      : `Level ${passAfter.level}`}
+                {passAfter.level < SEASON.totalLevels
+                  ? ` · ${passAfter.intoLevel.toLocaleString()} / ${passAfter.nextLevelCost.toLocaleString()} to ${passAfter.level + 1}`
+                  : ` · ${passAfter.intoLevel.toLocaleString()} / ${passAfter.nextLevelCost.toLocaleString()} to +${passAfter.prestige + 1}`}
+              </Text>
             </View>
-            <Text style={styles.passLevel} numberOfLines={1}>
-              {passPrestiged
-                ? `Prestige +${passAfter.prestige} reached · Level ${passAfter.level + passAfter.prestige}`
-                : passAfter.prestige > 0
-                  ? `Level ${passAfter.level + passAfter.prestige} (+${passAfter.prestige} prestige)`
-                  : passLeveledUp
-                    ? `Level ${passAfter.level} reached`
-                    : `Level ${passAfter.level}`}
-              {passAfter.level < SEASON.totalLevels
-                ? ` · ${passAfter.intoLevel.toLocaleString()} / ${passAfter.nextLevelCost.toLocaleString()} to ${passAfter.level + 1}`
-                : ` · ${passAfter.intoLevel.toLocaleString()} / ${passAfter.nextLevelCost.toLocaleString()} to +${passAfter.prestige + 1}`}
-            </Text>
-          </View>
-        )}
+          )}
 
-        {/* Mock 204 — season placement and its move since you last saw it. Renders nothing for
-            someone not on the board yet. */}
-        <PlacementMove />
+          {/* Mock 204 — season placement and its move since you last saw it. Renders nothing for
+              someone not on the board yet. */}
+          <PlacementMove />
 
-        {streakAfter > 0 && (
-          <View style={styles.streak}>
-            <Ionicons name="flame" size={15} color={Colors.amber} />
-            <Text style={styles.streakText}>
-              {streakAfter}-day streak · {streakIncreased ? '+1 today' : 'kept alive'}
-            </Text>
-          </View>
-        )}
+          {streakAfter > 0 && (
+            <View style={styles.streak}>
+              <Ionicons name="flame" size={15} color={Colors.amber} />
+              <Text style={styles.streakText}>
+                {streakAfter}-day streak · {streakIncreased ? '+1 today' : 'kept alive'}
+              </Text>
+            </View>
+          )}
 
-        {/* One line, not the old recap sprawl — the full per-exercise breakdown, PRs, brag line
-            and clips all live behind "View". */}
-        {workoutExercises.length > 0 && (
-          <Pressable style={styles.gymLine} onPress={() => setRecapOpen(true)} accessibilityRole="button">
-            <Ionicons name="barbell" size={14} color={Colors.amber} />
-            <Text style={styles.gymSummary} numberOfLines={1}>
-              {gymSummary}
-            </Text>
-            <Text style={styles.gymView}>View</Text>
-          </Pressable>
-        )}
+          {/* One line, not the old recap sprawl — the full per-exercise breakdown, PRs, brag line
+              and clips all live behind "View". */}
+          {workoutExercises.length > 0 && (
+            <Pressable style={styles.gymLine} onPress={() => setRecapOpen(true)} accessibilityRole="button">
+              <Ionicons name="barbell" size={14} color={Colors.amber} />
+              <Text style={styles.gymSummary} numberOfLines={1}>
+                {gymSummary}
+              </Text>
+              <Text style={styles.gymView}>View</Text>
+            </Pressable>
+          )}
+        </SpearPlantBeat>
+
+        {/* Below the stats, as in mock 311: the figure is on screen first and the numbers land
+            above it on the strike. */}
+        <SpearPlantHoplite reveal={reveal} style={styles.hoplite} />
       </ScrollView>
 
-      <View style={styles.bottom}>
+      <SpearPlantBeat reveal={reveal} beat="cta" style={styles.bottom}>
         {/* A thumbnail row, never a gallery — the photos are already saved to the lock-in. */}
         {photos.length > 0 && (
           <ScrollView
@@ -513,7 +525,7 @@ export function LockInDoneScreen({
             <Text style={styles.shareLabel}>{sharing ? 'Preparing…' : 'Share to your story'}</Text>
           </Pressable>
         )}
-      </View>
+      </SpearPlantBeat>
 
       <GymRecapSheet
         visible={recapOpen}
@@ -522,7 +534,7 @@ export function LockInDoneScreen({
         clips={clips}
         prCount={prCount}
       />
-    </View>
+    </SpearPlantShake>
   );
 }
 
@@ -619,6 +631,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.two,
+  },
+  // Each stat group stretches like the scroll column it replaces, so the full-width cards inside
+  // (pass, gym line) keep their width and everything else stays centred.
+  beat: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  hoplite: {
+    width: HOPLITE_SIZE,
+    height: HOPLITE_SIZE,
+    marginTop: 4,
   },
   // ── mock 92's hero stack ──
   kick: {
