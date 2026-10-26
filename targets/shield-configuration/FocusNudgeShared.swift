@@ -28,7 +28,17 @@ import ManagedSettings
 /// The one App Group shared by the main app and all three extensions. Must match the group enabled
 /// on all four App IDs in the developer portal — a mismatch here is invisible at build time and
 /// shows up as UserDefaults(suiteName:) returning nil, i.e. a blank shield.
-public let FOCUS_NUDGE_APP_GROUP = "group.com.philoi.app"
+///
+/// DERIVED, not hardcoded: `group.` + the MAIN app's bundle id. The prod app resolves to
+/// group.com.philoi.app exactly as before; the side-by-side dev app (APP_VARIANT=dev in
+/// app.config.ts, bundle com.philoi.app.dev) resolves to group.com.philoi.app.dev, which is the
+/// group its entitlements ask for. Inside an extension Bundle.main is the .appex, whose id is
+/// `<main app id>.<Suffix>` — so drop the last component there to land on the same group.
+public let FOCUS_NUDGE_APP_GROUP: String = {
+  let id = Bundle.main.bundleIdentifier ?? "com.philoi.app"
+  let isExtension = Bundle.main.bundleURL.pathExtension == "appex"
+  return "group." + (isExtension ? (id as NSString).deletingPathExtension : id)
+}()
 
 /// The store the shield is applied to. NAMED rather than the default store, so Philoi's shield is
 /// its own settings store and clearing ours can never clear anything else on the device.

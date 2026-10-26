@@ -2,7 +2,7 @@
 // The Shield Action extension — the two buttons on the nudge (APP_BLOCKER_SPEC §C). See
 // ../device-activity-monitor for why all three of these are hand-rolled on @bacons/apple-targets
 // rather than pulled in from react-native-device-activity.
-module.exports = () => ({
+module.exports = (config) => ({
   type: 'shield-action',
 
   // PRODUCT_MODULE_NAME comes from this, and the generated Info.plist names
@@ -24,6 +24,6 @@ module.exports = () => ({
   entitlements: {
     'com.apple.developer.family-controls': true,
     // The pipe — see the note in ../device-activity-monitor/expo-target.config.js.
-    'com.apple.security.application-groups': ['group.com.philoi.app'],
+    'com.apple.security.application-groups': [`group.${config.ios.bundleIdentifier}`],
   },
 });

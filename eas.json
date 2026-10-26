@@ -19,6 +19,12 @@
         "REVENUECAT_IOS_KEY": "appl_PEPUaAMnUXdwvXlxBqUhKYxdwmI",
         "REVENUECAT_ANDROID_KEY": "goog_CYTmPnqpPEjJtufdLOlhWbBSGzB"
       },
+      "ios": {
+        "env": {
+          "APP_VARIANT": "dev",
+          "GOOGLE_IOS_CLIENT_ID": "921536564136-ep6nl6k1l8fj8itins7isjt9i8sc2jnb.apps.googleusercontent.com"
+        }
+      },
       "android": {
         "buildType": "apk"
       }

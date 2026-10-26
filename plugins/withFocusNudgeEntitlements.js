@@ -20,11 +20,13 @@
 
 const { withEntitlementsPlist } = require('expo/config-plugins');
 
-const APP_GROUP = 'group.com.philoi.app';
-
 module.exports = function withFocusNudgeEntitlements(config) {
   return withEntitlementsPlist(config, (cfg) => {
     const entitlements = cfg.modResults;
+    // group.<bundle id> — group.com.philoi.app for prod, group.com.philoi.app.dev for the
+    // side-by-side dev app (APP_VARIANT=dev). Must match the extensions' expo-target.config.js and
+    // FOCUS_NUDGE_APP_GROUP in FocusNudgeShared.swift, which derive it the same way.
+    const APP_GROUP = `group.${cfg.ios.bundleIdentifier}`;
 
     // The distribution entitlement is granted at the TEAM level and applied per bundle id in the
     // portal; this is the binary-side declaration of it. Both halves are required — a profile

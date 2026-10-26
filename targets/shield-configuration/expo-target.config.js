@@ -3,7 +3,7 @@
 // (APP_BLOCKER_SPEC §C, mocks 109 + 116). See ../device-activity-monitor for why all three of
 // these are hand-rolled on @bacons/apple-targets rather than pulled in from
 // react-native-device-activity.
-module.exports = () => ({
+module.exports = (config) => ({
   type: 'shield-config',
 
   // PRODUCT_MODULE_NAME comes from this, and the generated Info.plist names
@@ -39,6 +39,6 @@ module.exports = () => ({
     'com.apple.developer.family-controls': true,
     // The pipe — see the note in ../device-activity-monitor/expo-target.config.js. This target is
     // the one that fails most visibly without it: no group, no cached copy, blank shield.
-    'com.apple.security.application-groups': ['group.com.philoi.app'],
+    'com.apple.security.application-groups': [`group.${config.ios.bundleIdentifier}`],
   },
 });

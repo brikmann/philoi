@@ -18,7 +18,7 @@
 // types natively (`device-activity-monitor`, `shield-config`, `shield-action`) — it writes the
 // Info.plist, the NSExtensionPointIdentifier and the principal class for each — so hand-rolling
 // the Swift on top of it is both less code and one Xcode-project mutator instead of two.
-module.exports = () => ({
+module.exports = (config) => ({
   type: 'device-activity-monitor',
 
   // PRODUCT_MODULE_NAME is derived from this, and NSExtensionPrincipalClass is written as
@@ -52,6 +52,10 @@ module.exports = () => ({
     // they cannot network, so everything they draw or decide was written here by the app. If the
     // group is not enabled on this App ID in the portal, UserDefaults(suiteName:) returns nil and
     // the feature fails silently: a blank shield, or no shield at all.
-    'com.apple.security.application-groups': ['group.com.philoi.app'],
+    //
+    // `group.<main bundle id>`, derived so the side-by-side dev app (APP_VARIANT=dev, bundle
+    // com.philoi.app.dev) gets group.com.philoi.app.dev. FOCUS_NUDGE_APP_GROUP in the Swift derives
+    // the same string at runtime, and withFocusNudgeEntitlements does it for the app target.
+    'com.apple.security.application-groups': [`group.${config.ios.bundleIdentifier}`],
   },
 });
