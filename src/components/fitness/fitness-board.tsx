@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { CosmeticAvatar } from '@/components/economy/public-identity';
+import { BoardTrackerBanner } from '@/components/fitness/tracker-prompts';
 import { HouseSeal } from '@/components/house/house-seal';
 import { CompeteGlyph } from '@/components/ui/glyphs-compete';
 import { SpaceEmpty, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { useFitnessTracking } from '@/hooks/use-fitness-tracking';
 import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
 import { fetchUniversityShortNames } from '@/lib/api/groups';
 import { shortName } from '@/lib/format';
@@ -101,6 +103,11 @@ export function FitnessBoard({
   const loadouts = usePublicLoadouts(rows.map((r) => r.user_id));
   const me = rows.find((r) => r.is_me);
   const standing = standingLine(rows, formatValue);
+  // Mock 314: with no tracker connected, the slot you'd hold is the nudge — a "not tracked yet"
+  // row pinned where yours would be, and a Connect banner over the list. Both vanish for good once
+  // any tracker is on (use-fitness-tracking.ts); a real row of yours always wins over the slot.
+  const tracking = useFitnessTracking();
+  const untracked = !tracking.loading && !tracking.trackingOn;
 
   return (
     <View style={styles.wrap}>
@@ -109,7 +116,12 @@ export function FitnessBoard({
         keyExtractor={(r) => r.user_id}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={Colors.navEmber} />}
-        ListHeaderComponent={header}
+        ListHeaderComponent={
+          <>
+            <BoardTrackerBanner style={styles.banner} />
+            {header}
+          </>
+        }
         renderItem={({ item }) => (
           <FitnessBoardRow
             row={item}
@@ -145,6 +157,19 @@ export function FitnessBoard({
             onVersus={() => {}}
           />
           {standing ? <Text style={styles.standing}>{standing}</Text> : null}
+        </View>
+      ) : untracked && !loading ? (
+        <View style={styles.pinned}>
+          <View style={[styles.row, styles.rowUntracked]} accessibilityLabel="You, not tracked yet">
+            <Text style={styles.pos}>—</Text>
+            <View style={styles.who}>
+              <Text style={styles.name}>You · not tracked yet</Text>
+            </View>
+            <View style={styles.valueColumn}>
+              <Text style={styles.val}>—</Text>
+            </View>
+            <View style={styles.versusSpacer} />
+          </View>
         </View>
       ) : rows.length > 0 && !loading ? (
         <View style={styles.pinned}>
@@ -257,6 +282,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.spacePanel,
     borderWidth: 1,
     borderColor: Colors.spaceLine,
+  },
+  // The empty slot: dimmed, never the ember "you" edge — it isn't a place you hold yet.
+  rowUntracked: {
+    opacity: 0.5,
+    borderStyle: 'dashed',
+  },
+  banner: {
+    marginBottom: Spacing.two,
   },
   rowMe: {
     backgroundColor: 'rgba(255,122,47,0.08)',

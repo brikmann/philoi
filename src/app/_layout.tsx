@@ -611,6 +611,7 @@ function RootNavigator() {
             reached the same way. */}
         <Stack.Screen name="focus-nudge" options={{ title: 'Focus Nudge' }} />
         <Stack.Screen name="connected-apps" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="fitness-trackers" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="campus" options={{ title: 'Campus' }} />
         <Stack.Screen name="health-connect-rationale" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="strava-auth" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />

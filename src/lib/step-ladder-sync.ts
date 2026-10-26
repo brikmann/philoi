@@ -206,3 +206,15 @@ export async function clearStepLadderSyncState(userId: string): Promise<void> {
     // the conservative direction.
   }
 }
+
+/** When this device last pushed health-store steps for this user (ms epoch), or null if it never
+ *  has. The Fitness trackers screen's "Last sync" line — the same stamp syncStepLadder rate-limits on. */
+export async function getStepLadderLastSyncedAt(userId: string): Promise<number | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(syncKey(userId));
+    const at = raw ? Number(raw) : NaN;
+    return Number.isFinite(at) ? at : null;
+  } catch {
+    return null;
+  }
+}

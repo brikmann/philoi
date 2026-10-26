@@ -89,7 +89,7 @@ const GROUPS: NavGroup[] = [
       // so it's findable from the menu, not only from the top-right glyph.
       { key: 'notifications', label: 'Notifications', icon: 'bell', route: '/notifications' },
       { key: 'history', label: 'Lock-in history', icon: 'leaderboards', route: '/lock-in-history' },
-      { key: 'fitness-sync', label: 'Fitness sync', icon: 'sliders', route: '/connected-apps' },
+      { key: 'fitness-sync', label: 'Fitness trackers', icon: 'sliders', route: '/fitness-trackers' },
       { key: 'cindy', label: 'Cindy', icon: 'agora', route: '/cindy' },
     ],
   },

@@ -40,6 +40,8 @@ import { fetchMyProgram } from '@/lib/api/house';
 import { RankMuted } from '@/components/rank-muted';
 import { fetchMyLockInStats, fetchProfileById, fetchUserLockInStats, fetchUserRank, type UserRank } from '@/lib/api/profile';
 import { DISCIPLINE_LABELS } from '@/lib/api/identity';
+import { TRACKERS_ROUTE } from '@/components/fitness/tracker-prompts';
+import { useFitnessTracking } from '@/hooks/use-fitness-tracking';
 import { formatSessionDuration, pluralize } from '@/lib/format';
 import { GOAL_TYPE_GLYPH } from '@/lib/goal-types';
 import type { MyRank, Profile } from '@/types/database';
@@ -321,6 +323,8 @@ export default function ProfileScreen() {
             <Text style={styles.grindArrow}>→</Text>
           </Pressable>
         ) : null}
+        {/* Own profile only: where the Home card's "do it later in Profile" points (mock 314). */}
+        {isOwn ? <FitnessTrackersRow /> : null}
 
         {universalRank && 'muted' in universalRank && universalRank.muted && <RankMuted />}
 
@@ -428,6 +432,23 @@ export default function ProfileScreen() {
 }
 
 /** One stat box: a headline number and a label; the whole box opens its detail. */
+function FitnessTrackersRow() {
+  const router = useRouter();
+  const { liveConnected } = useFitnessTracking();
+  return (
+    <Pressable
+      style={styles.grindRow}
+      onPress={() => router.push(TRACKERS_ROUTE)}
+      accessibilityRole="button"
+      accessibilityLabel={`Fitness trackers${liveConnected ? ', on' : ''}`}>
+      <Ionicons name="pulse-outline" size={15} color={Colors.ember} />
+      <Text style={styles.grindText}>Fitness trackers</Text>
+      {liveConnected ? <Text style={styles.trackersOn}>✓ On</Text> : null}
+      <Text style={styles.grindArrow}>→</Text>
+    </Pressable>
+  );
+}
+
 function StatBox({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
   return (
     <Pressable
@@ -614,6 +635,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ink,
+  },
+  trackersOn: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.green,
   },
   grindArrow: {
     fontFamily: Fonts.bodySemiBold,

@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { refreshFitnessTracking } from '@/hooks/use-fitness-tracking';
 import { getErrorMessage } from '@/lib/errors';
 import { completeStravaAuth } from '@/lib/strava';
 
@@ -33,6 +34,9 @@ export default function StravaAuthScreen() {
         const connected = await completeStravaAuth(code, state);
         if (cancelled) return;
         setStatus('done');
+        // Clears every "connect a tracker" prompt app-wide (mock 314) — this route, not the
+        // screen that started the flow, is what usually finishes it on Android.
+        if (connected) void refreshFitnessTracking();
         if (!connected) setError('Strava connected, but the app couldn’t confirm it — check Settings → Integrations.');
       } catch (e) {
         if (cancelled) return;
@@ -40,9 +44,13 @@ export default function StravaAuthScreen() {
         setStatus('error');
       } finally {
         // Either way, this screen has nothing more to do — hop back to where the connect flow
-        // started. A short delay so "Connected!" is actually readable instead of flashing by.
+        // started (Home's card, the trackers screen, Integrations — the redirect lands on top of
+        // it). A cold start from the link has nothing under it, so that falls to the trackers
+        // screen. A short delay so "Connected!" is actually readable instead of flashing by.
         setTimeout(() => {
-          if (!cancelled) router.replace('/connected-apps');
+          if (cancelled) return;
+          if (router.canGoBack()) router.back();
+          else router.replace('/fitness-trackers');
         }, 900);
       }
     }

@@ -109,6 +109,20 @@ export async function getStravaConnectionStatus(): Promise<StravaConnectionStatu
   return { connected: Boolean(row?.connected), athleteId: row?.athlete_id ?? null };
 }
 
+/** When the newest Strava activity landed here (ISO), or null if none has. Every activity the
+ * webhook/backfill imports writes one synced_activity_details row (owner-readable, 0046), so the
+ * newest row's created_at is the last time Strava actually fed this account. */
+export async function getStravaLastSyncedAt(): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('synced_activity_details')
+    .select('created_at')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.created_at ?? null;
+}
+
 export async function disconnectStrava(): Promise<void> {
   const { error } = await supabase.rpc('disconnect_my_strava');
   if (error) throw error;

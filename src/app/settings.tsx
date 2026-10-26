@@ -656,6 +656,7 @@ export default function SettingsScreen() {
             description="Turns steps into kilometres, and lets Cindy score a lift against your own bodyweight. Private, and never used to hand out rewards."
             onPress={() => router.push('/body-metrics')}
           />
+          <SettingsRow icon={{ set: 'heart' }} label="Fitness trackers" onPress={() => router.push('/fitness-trackers')} />
           <SettingsRow icon={{ set: 'link' }} label="Integrations" onPress={() => router.push('/connected-apps')} />
           {/* Campus verification state (UNI_VERIFICATION_SPEC.md §6) — the value column is the
               whole story: verified, or the reason it isn't. */}

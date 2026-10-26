@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AgoraFeed } from '@/app/agora/index';
+import { HomeTrackerCard } from '@/components/fitness/tracker-prompts';
 import { LockInCheersSheet } from '@/components/lockin-cheers/lockin-cheers-sheet';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { HomePassCard } from '@/components/pass/home-pass-card';
@@ -42,7 +43,14 @@ export default function HomeScreen() {
   return (
     <AgoraFeed
       embedded
-      feedHeader={<HomePassCard />}
+      feedHeader={
+        <>
+          {/* Mock 314: until any tracker is connected (or the card is dismissed), Home — the most-seen
+              screen — is where fitness tracking gets found. */}
+          <HomeTrackerCard />
+          <HomePassCard />
+        </>
+      }
       top={
         <>
           <AppTopBar />

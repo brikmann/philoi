@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LockInTrackerPrompt } from '@/components/fitness/tracker-prompts';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
@@ -155,6 +156,12 @@ export default function LockInTab() {
               })}
             </View>
 
+            {/* Mock 314: Gym or Run is the moment a tracker matters — say so right there. Renders
+                nothing once any tracker is connected, and never for Study / Deep Work. */}
+            {picked.activity === 'strength' || picked.activity === 'cardio' ? (
+              <LockInTrackerPrompt activity={picked.activity} style={styles.trackerPrompt} />
+            ) : null}
+
             <Text style={styles.section}>Goal</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.goalRow}>
               <Pressable
@@ -264,6 +271,9 @@ const styles = StyleSheet.create({
   },
   discLabelOn: {
     color: Colors.ink,
+  },
+  trackerPrompt: {
+    marginTop: Spacing.three,
   },
   section: {
     fontFamily: Fonts.bodyBold,
