@@ -39,93 +39,55 @@ will 404 — use a server.
 
 ## Brand tokens
 
-Colours and type are mirrored 1:1 from the app's `src/constants/theme.ts`
-(twilight palette + Inter). If the app's theme changes, update the `:root`
-custom properties at the top of each HTML file's `<style>` block.
+`index.html` uses the app's space palette, mirrored from `src/constants/theme.ts`
+(`space*`, `legend`, `emberForward`). If the app's theme changes, update the
+`:root` custom properties at the top of `index.html`. The legal pages still carry
+the older twilight tokens in their own `<style>` blocks.
 
 | token | value | |
 |---|---|---|
-| twilight-900 | `#14111C` | darkest — header, footer |
-| twilight-800 | `#1B1726` | page background |
-| twilight-700 | `#241C38` | cards, surfaces |
-| plum | `#3A2E5C` | logo backplate |
-| coral / amber / ember | `#E0612C` / `#F2A33C` / `#FFD27A` | firelight accents |
-| ink / muted | `#FFF6EC` / `#A99CBD` | text |
+| `--bg` | `#0E0A1C` | page background |
+| `--panel` / `--panel2` | `#1A1230` / `#241A3A` | cards, surfaces |
+| `--line` | `#2E2348` | borders |
+| `--ink` / `--muted` | `#f4f0ff` / `#c9bfe6` | text |
+| `--emgrad` | `#ff7a2f → #ffb05a → #ffd166` | the ember signature; near-black text on it |
+| accents | legend `#b98bff`, gold `#ffd166`, green `#39d98a`, cyan `#4fd6e0` | |
 
-## Layout — mock 233 (Emberfall), mobile-first
+System fonts only: the page loads nothing from another origin.
 
-Most visitors arrive from a QR code on a shirt or poster, so the **phone render
-is the source of truth**. Base styles target 360–430px; `@media (min-width:820px)`
-scales up to a centred shell with two-column scenes.
+## Layout — mock 322, connection-first
 
-The whole page sits on one continuous Emberfall wash (black → blue → purple →
-orange), with slow embers (9–16s falls) drifting across it. In order:
+The design source is `design-mocks/322-website-connection-redesign.html`. The page
+leads with connection; competition is an arena you opt into. In order:
 
-1. Sticky nav: flame mark + "Get the app"
-2. Hero: the φίλοι name gloss, the headline, the
-   launch-state CTA, and a phone showing Kai's burning name climbing 3rd → 1st
-3. **Lock in**: the lock-in screen wearing the Emberfall Ascendant flare
-4. **Campfires**: the group chat, with a challenge thrown inline
-5. **The Agora**: the campus feed
-6. **Cindy**: the coach reading the calendar
-7. **The Shop · Emberfall**: Flame Pass banner, crates, inventory, equipped profile
-8. Final CTA, then the footer with all five required links (incl. Support)
+1. Sticky nav: lowercase **philoi** wordmark + "FEE-loy · friends", section links, "Get philoi"
+2. Hero: "Find your people. / Lock in. / Climb your campus.", the "Live on iOS" pill, and a
+   3-phone fan (Lock In · Home · Social reel) with floating cheer / ⚔ challenge / rank-up chips
+3. App gallery: Lock In, Social reel, Leaderboard
+4. Thesis: "Social media runs on comparison. philoi runs on connection."
+5. How it works (3 steps), then Features (6 cards)
+6. Flex: equipped profile, the Shop, earned-vs-collected lanes, the Flame Pass band, and
+   the flare showing on a leaderboard row and a post
+7. CTA band, then the footer with Privacy / Terms / Child safety / Delete account / Support
 
-Two Greek-key dividers only: after the hero, and before the Shop.
+The phones are illustrative HTML, not screenshots. Keep them truthful to the app:
+comment-only social (no likes or follower counts), and shop items use real names
+and rarities from `catalog.ts`. Items come from crates and drops, so tiles are
+tagged with their source, not given a price. The Flame Pass counts in **levels**.
+IAP copy must not say "free" or "limited time" or show a price.
 
-## Cosmetic art is the app's own renderers, ported
+Desktop-first, with breakpoints at 880px (single column, centred hero) and 520px
+(side phones dim, chips move to the empty lower half of the centre phone, grids
+collapse). The halo spin and pulse dot are CSS-only and stop under
+`prefers-reduced-motion`.
 
-Nothing cosmetic on the page is a stand-in. The inline script ports these
-react-native-svg components to web SVG with the same paths, stops and numbers:
+## Availability
 
-| On the page | Ported from |
-|---|---|
-| Inventory tiles, the profile avatar flame | `economy/item-art.tsx` (`ItemArt`, still path: rarity glow, ground shadow, per-type silhouette) |
-| Crates | `economy/box-art.tsx` on `ItemPedestal` |
-| The Emberfall Seal, Greek key, "Own Emberfall" flash | `pass/emberfall-art.tsx` |
-| Lock-in flame | `flame-icon.tsx` `FlameSvg`, recoloured by `flame-ramp.ts` for an equipped flare |
-| Flare aura + risers | `economy/flare-perimeter.tsx` (`FlarePerimeter` tier 3, `Ascendant`) |
-| Profile preview | `pass/profile-flex.tsx` (`WithCard`) |
-| Burning name | `burning-name.tsx` |
-
-Item names, rarities and palettes are copied from `catalog.ts` (`EMBERFALL_SET`),
-crate names and odds from `boxes.ts`. If the app's art or catalog changes,
-update the `ITEMS` / `BOX` tables and the matching functions in `index.html`.
-
-## Motion
-
-- Continuous motion is `transform` and `opacity`, with one exception: the
-  "Own Emberfall" sweep is the paywall's `background-position` animation.
-- Reveals only hide content once the `<head>` script has added `html.js`.
-- `prefers-reduced-motion: reduce` stops everything; the climb shows Kai at #1.
-
-## The launch gate (pre-launch ↔ launched, no redeploy)
-
-The page carries **both** states in the DOM. A tiny script at the top of `<head>`
-compares `Date.now()` with `LAUNCH` (`2026-10-01T00:00:00-04:00`, the same
-instant as `economy_config.season.starts_at`) and toggles `html.launched` before
-first paint. CSS does the rest:
-
-```css
-html:not(.launched) .cta-live, html.launched .cta-pre { display:none !important }
-```
-
-- **`.cta-pre`**: "October 1 on the App Store" badge, "Launches October 1 · iOS", and the waitlist "Notify me" forms (hero and final CTA).
-- **`.cta-live`**: App Store buttons → `https://apps.apple.com/app/id6790697786`, "Out now on iOS · Android next".
-
-A timeout flips the class for anyone on the page at midnight, and a 30-second
-backstop catches a laptop that slept through it. `LAUNCH` is the only copy of the date.
-
-**Preview either state:** `?preview=launched` or `?preview=prelaunch` (`?preview=pre` also works).
-
-The page flips itself, but the App Store link only works once the approved build
-is **Released** in App Store Connect. That step is manual.
-
-## Waitlist
-
-The "Notify me" forms (pre-launch only) post to the `waitlist` Supabase
-edge function, which records the address as a Resend contact. With JS off it
-falls back to its `mailto:` action.
+The app is live on iOS. Every App Store CTA goes to
+`https://apps.apple.com/app/id6790697786`. Android has no store listing yet, so its
+CTA is a `mailto:support@philoi.app` "follow for launch". Do not point it at the
+`waitlist` edge function: that function's confirmation email still promises
+"Season 1 opens October 1, 2026".
 
 ## Regenerating the images
 

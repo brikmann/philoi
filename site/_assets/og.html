@@ -1,81 +1,49 @@
 <!DOCTYPE html>
-<!-- Source for og.png (1200x630). Regenerate with `npm run assets` — see README.md. -->
+<!-- Source for og.png (1200x630). Regenerate with `node site/_assets/build-assets.mjs` — see README.md.
+     Copy and palette follow the connection-first landing (design-mocks/322). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Philoi OG</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+<title>philoi OG</title>
 <style>
   *{box-sizing:border-box;margin:0}
   html,body{width:1200px;height:630px;overflow:hidden}
   body{
     position:relative;
-    font-family:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;
-    color:#FFF6EC;
+    font-family:-apple-system,"Segoe UI",system-ui,sans-serif;
+    color:#f4f0ff;
     background:
-      radial-gradient(900px 520px at 22% 10%,rgba(224,97,44,.32),transparent 62%),
-      radial-gradient(700px 460px at 88% 90%,rgba(242,163,60,.16),transparent 62%),
-      radial-gradient(600px 400px at 76% 6%,rgba(58,46,92,.6),transparent 64%),
-      linear-gradient(150deg,#14111C,#1B1726 60%,#191428);
-    display:flex;align-items:center;gap:72px;padding:0 92px;
+      radial-gradient(620px 460px at 84% 46%,rgba(255,122,47,.30),transparent 64%),
+      radial-gradient(560px 420px at 80% 36%,rgba(185,139,255,.32),transparent 62%),
+      radial-gradient(700px 420px at 4% 0%,rgba(255,122,47,.12),transparent 60%),
+      #0E0A1C;
+    padding:72px 88px;
   }
-  /* the lava pooling on the bottom edge — the `emberfall` flare */
-  .lava{
-    position:absolute;left:-8%;right:-8%;bottom:-120px;height:300px;
-    background:
-      radial-gradient(56% 100% at 50% 100%,rgba(245,64,28,.55),rgba(224,97,44,.2) 44%,transparent 72%),
-      radial-gradient(92% 100% at 50% 100%,rgba(242,163,60,.15),transparent 64%);
-    filter:blur(2px);
-  }
-  .mark{position:relative;filter:drop-shadow(0 24px 70px rgba(224,97,44,.65));flex:none}
+  /* the faint fading grid from the hero */
+  .grid{position:absolute;inset:0;opacity:.6;
+    background-image:linear-gradient(rgba(185,139,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(185,139,255,.06) 1px,transparent 1px);
+    background-size:44px 44px;-webkit-mask-image:radial-gradient(70% 80% at 72% 45%,#000,transparent 75%)}
   .col{position:relative}
-  .season{
-    display:inline-flex;align-items:center;gap:12px;
-    padding:8px 9px 8px 20px;border-radius:999px;
-    border:1px solid rgba(255,210,122,.3);background:rgba(58,42,34,.5);
-    font-size:19px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#FFD27A;
-    margin-bottom:34px;
-  }
-  .season .tag{
-    padding:5px 15px;border-radius:999px;letter-spacing:.14em;font-weight:800;
-    background:linear-gradient(135deg,#E0612C,#F2A33C,#FFD27A);color:#3A1608;
-  }
-  h1{font-size:80px;font-weight:900;letter-spacing:-.045em;line-height:.98}
-  .grad{background:linear-gradient(120deg,#E0612C,#F2A33C 46%,#FFD27A);-webkit-background-clip:text;color:transparent}
-  .word{font-size:34px;font-weight:800;letter-spacing:-.02em;color:#FFF6EC}
-  .slogan{
-    font-size:17px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;
-    color:#A99CBD;margin-top:8px;
-  }
-  .rule{width:110px;height:4px;border-radius:4px;background:linear-gradient(90deg,#E0612C,#F2A33C);margin:34px 0 26px}
-  .soon{font-size:23px;font-weight:600;color:#A99CBD}
+  .logo{display:flex;align-items:baseline;gap:16px}
+  .mark{font-family:'Helvetica Neue',Arial,sans-serif;font-weight:800;letter-spacing:-2px;line-height:1;font-size:52px}
+  .mark .pp{font-weight:900;font-size:1.12em}
+  .pron{font-size:20px;color:#8a80a8}
+  h1{font-size:92px;font-weight:900;letter-spacing:-3.5px;line-height:.98;margin-top:44px}
+  .em{background:linear-gradient(135deg,#ff7a2f,#ffb05a,#ffd166);-webkit-background-clip:text;color:transparent}
+  .pill{display:inline-flex;align-items:center;gap:12px;margin-top:40px;font-size:22px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+    color:#39d98a;background:rgba(57,217,138,.1);border:1.5px solid #1f5a40;border-radius:999px;padding:11px 24px}
+  .pill .dot{width:12px;height:12px;border-radius:50%;background:#39d98a;box-shadow:0 0 12px #39d98a}
+  .thesis{position:absolute;right:88px;bottom:76px;width:330px;text-align:right;font-size:24px;font-weight:700;line-height:1.3;color:#c9bfe6}
+  .thesis b{color:#f4f0ff}
 </style>
 </head>
 <body>
-  <div class="lava"></div>
-  <div class="mark">
-    <svg width="250" height="250" viewBox="0 0 24 24">
-      <defs>
-        <linearGradient id="o" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0" stop-color="#E0612C"/><stop offset="0.55" stop-color="#F2A33C"/><stop offset="1" stop-color="#FFD27A"/>
-        </linearGradient>
-      </defs>
-      <!-- FLAME_PATH from src/components/ui/flame-logo.tsx — the Cindy flame. The
-           translate/scale is THE flip (CINDY_SPEC rendering rule 1), applied once. -->
-      <g transform="translate(24,0) scale(-1,1)">
-        <path d="M12 2c1.5 4.5 6 5.5 6 10.5a6 6 0 0 1-12 0c0-2.5 1-4 2.4-5.2 0 2.4 1.2 3.6 2.4 3.6.8-2.6-1.4-5 1.2-8.9z" fill="url(#o)"/>
-      </g>
-    </svg>
-  </div>
+  <div class="grid"></div>
   <div class="col">
-    <div class="season">Season 1<span class="tag">Emberfall</span></div>
-    <div class="word">Philoi</div>
-    <div class="slogan">For the Best on Campus</div>
-    <div class="rule"></div>
-    <h1>Turn Your Campus<br>Into Your <span class="grad">Leaderboard.</span></h1>
-    <div class="soon" style="margin-top:26px"><b style="color:#FFD27A;font-weight:700">Out on iOS now</b> — Android next.</div>
+    <div class="logo"><span class="mark"><span class="pp">p</span>hiloi</span><span class="pron">FEE-loy · "friends"</span></div>
+    <h1>Find your people.<br><span class="em">Lock in.</span><br>Climb your campus.</h1>
+    <div class="pill"><span class="dot"></span>Live on iOS · Android next</div>
   </div>
+  <div class="thesis">Social media runs on comparison. <b>philoi runs on connection.</b></div>
 </body>
 </html>
