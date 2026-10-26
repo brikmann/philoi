@@ -1,11 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MilestoneShareCard } from '@/components/economy/milestone-share-card';
-import { ScreenBackground } from '@/components/ui/screen-background';
+import { SpaceButton, SpaceEmpty, SpaceHeader, SpaceIconButton, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useShareRank } from '@/hooks/use-share-rank';
 import { track } from '@/lib/analytics';
@@ -84,44 +84,43 @@ export default function MilestoneScreen() {
     ]);
   }
 
+  // No ScreenBackground in any branch any more: the root paints the space ground, screens stay clear.
   if (loading) {
     return (
-      <ScreenBackground>
-        <SafeAreaView edges={['top']} style={[styles.safeArea, styles.centered]}>
-          <ActivityIndicator color={Colors.coral} />
-        </SafeAreaView>
-      </ScreenBackground>
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <SpaceHeader title="Milestone" />
+        <View style={styles.centered}>
+          <ActivityIndicator color={Colors.navEmber} />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!milestone) {
     return (
-      <ScreenBackground>
-        <SafeAreaView edges={['top']} style={[styles.safeArea, styles.centered]}>
-          <Text style={styles.empty}>This milestone isn&rsquo;t available.</Text>
-        </SafeAreaView>
-      </ScreenBackground>
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <SpaceHeader title="Milestone" />
+        <View style={styles.centered}>
+          <SpaceEmpty title="This milestone isn’t available." />
+        </View>
+      </SafeAreaView>
     );
   }
 
   const chips = effortChips(milestone.effort);
 
   return (
-    <ScreenBackground>
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={Colors.muted} />
-          </Pressable>
-          <Text style={styles.title}>{isOwn && shared ? 'Posted' : 'Milestone'}</Text>
-          {isOwn ? (
-            <Pressable onPress={confirmDelete} hitSlop={8} accessibilityLabel="Delete milestone">
-              <Ionicons name="trash-outline" size={19} color={Colors.textTertiary} />
-            </Pressable>
-          ) : (
-            <View style={styles.topSpacer} />
-          )}
-        </View>
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <SpaceHeader
+          title={isOwn && shared ? 'Posted' : 'Milestone'}
+          right={
+            isOwn ? (
+              <SpaceIconButton onPress={confirmDelete} label="Delete milestone">
+                <UiGlyph name="trash" size={16} color={Colors.spaceDim} />
+              </SpaceIconButton>
+            ) : null
+          }
+        />
 
         <ScrollView contentContainerStyle={styles.container}>
           {isOwn && shared ? (
@@ -155,14 +154,13 @@ export default function MilestoneScreen() {
           </View>
 
           <View style={styles.actions}>
-            <Pressable
-              style={styles.primary}
+            <SpaceButton
+              label={sharing ? 'Preparing…' : 'Share'}
               onPress={handleShare}
               disabled={sharing}
-              accessibilityRole="button">
-              <Ionicons name="share-outline" size={16} color={Colors.onEmber} />
-              <Text style={styles.primaryText}>{sharing ? 'Preparing…' : 'Share'}</Text>
-            </Pressable>
+              leading={<UiGlyph name="share" size={16} color="#2A0F05" />}
+              style={styles.primary}
+            />
 
             {/* Cheering your own post is not a thing — the server would reject the notification
                 anyway, and a lit button that does nothing is worse than no button. */}
@@ -203,8 +201,7 @@ export default function MilestoneScreen() {
             division={isOwn ? shareRank.division : undefined}
           />
         </View>
-      </SafeAreaView>
-    </ScreenBackground>
+    </SafeAreaView>
   );
 }
 
@@ -214,43 +211,27 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   centered: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  empty: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.muted,
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
-  },
-  title: {
-    flex: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
-    color: Colors.ink,
-  },
-  topSpacer: {
-    width: 19,
-  },
   container: {
-    padding: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingBottom: Spacing.five,
     gap: Spacing.three,
   },
   posted: {
     fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.muted,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
     lineHeight: 18,
   },
+  // SpaceCard tone="gold" — a milestone is something earned.
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
+    backgroundColor: 'rgba(255,209,102,0.07)',
+    borderWidth: 1,
+    borderColor: '#5A4A1E',
+    borderRadius: 14,
     padding: Spacing.three,
     gap: 6,
   },
@@ -261,10 +242,10 @@ const styles = StyleSheet.create({
   },
   handle: {
     fontFamily: Fonts.body,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   headline: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 19,
     lineHeight: 25,
     color: Colors.ink,
@@ -273,7 +254,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     lineHeight: 19,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   pills: {
     flexDirection: 'row',
@@ -282,9 +263,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   pill: {
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.35)',
+    borderColor: 'rgba(255,122,47,0.35)',
     borderRadius: Radius.pill,
     paddingVertical: 5,
     paddingHorizontal: 10,
@@ -292,12 +273,12 @@ const styles = StyleSheet.create({
   pillText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   receiptCaption: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.soloChipText,
+    color: Colors.spaceDim,
   },
   actions: {
     flexDirection: 'row',
@@ -305,46 +286,35 @@ const styles = StyleSheet.create({
   },
   primary: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: Colors.amber,
-    borderRadius: Radius.button,
-    paddingVertical: 13,
   },
-  primaryText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 13.5,
-    color: Colors.onEmber,
-  },
+  // SpaceButton secondary's look, kept a Pressable so the cheered state can light it ember.
   secondary: {
     flex: 1,
+    minHeight: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.button,
-    paddingVertical: 13,
+    borderColor: Colors.spaceLine,
+    borderRadius: 16,
   },
   secondaryOn: {
-    borderColor: Colors.amber,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.12)',
   },
   secondaryText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.muted,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.ink,
   },
   secondaryTextOn: {
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   firewall: {
     fontFamily: Fonts.body,
-    fontSize: 10.5,
-    lineHeight: 15,
-    color: Colors.textTertiary,
+    fontSize: 11,
+    lineHeight: 16,
+    color: Colors.spaceFaint,
   },
   offscreenCard: {
     position: 'absolute',

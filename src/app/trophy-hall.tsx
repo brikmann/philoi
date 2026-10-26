@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,8 +8,9 @@ import { RelicDetailSheet } from '@/components/profile/relic-detail-sheet';
 import { RelicLadderRow, isLadderHallRelic } from '@/components/profile/relic-ladder-row';
 import { TrophyTile } from '@/components/profile/trophy-tile';
 import { seasonLabel } from '@/components/profile/trophy-hall-section';
-import { ScreenBackground } from '@/components/ui/screen-background';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import { fetchTrophyHall, setProfileItemHidden, winRate } from '@/lib/api/trophy-hall';
 import { fetchProfileById } from '@/lib/api/profile';
@@ -32,7 +33,6 @@ import type { HallSeason, TrophyHall } from '@/types/database';
 // their own hall, so "hidden" never reads as "lost".
 
 export default function TrophyHallScreen() {
-  const router = useRouter();
   const { userId: userIdParam } = useLocalSearchParams<{ userId?: string }>();
   const { profile: myProfile } = useAuth();
 
@@ -139,15 +139,9 @@ export default function TrophyHallScreen() {
   const showLadders = isOwner || ladders.some((l) => l.earned || l.value > 0);
 
   return (
-    <ScreenBackground>
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={22} color={Colors.muted} />
-          </Pressable>
-          <Text style={styles.title}>{title}</Text>
-          <View style={styles.topSpacer} />
-        </View>
+    // No ScreenBackground of its own any more: the root paints the space ground, screens stay clear.
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <SpaceHeader title={title} />
 
         <ScrollView contentContainerStyle={styles.container}>
           <Text style={styles.blurb}>
@@ -162,10 +156,11 @@ export default function TrophyHallScreen() {
                   key={s.season_id}
                   style={[styles.season, s.hidden && styles.dimmed]}
                   onPress={() => pressSeason(s)}
-                  disabled={!isOwner}>
+                  disabled={!isOwner}
+                  accessibilityRole={isOwner ? 'button' : undefined}>
                   <View style={styles.seasonTop}>
                     <Text style={styles.seasonKicker}>{seasonLabel(s.season_id)}</Text>
-                    {s.hidden ? <Text style={styles.lock}>🔒</Text> : null}
+                    {s.hidden ? <UiGlyph name="lock" size={11} color={Colors.spaceDim} /> : null}
                   </View>
                   <Text style={styles.seasonPlacement}>{formatPlacement(s.placement, s.board_size)}</Text>
                   {s.title || s.medal_key ? (
@@ -237,15 +232,20 @@ export default function TrophyHallScreen() {
               <View style={styles.recordHead}>
                 <Text style={styles.groupLabel}>CHALLENGE RECORD</Text>
                 {isOwner ? (
-                  <Pressable onPress={() => void toggleHidden('record', 'record', !record.hidden)} hitSlop={8}>
-                    <Text style={styles.hideLink}>{record.hidden ? '🔒 Hidden — show' : 'Hide from visitors'}</Text>
+                  <Pressable
+                    onPress={() => void toggleHidden('record', 'record', !record.hidden)}
+                    hitSlop={8}
+                    style={styles.hideLinkRow}
+                    accessibilityRole="button">
+                    {record.hidden ? <UiGlyph name="lock" size={11} color={Colors.navEmber2} /> : null}
+                    <Text style={styles.hideLink}>{record.hidden ? 'Hidden — show' : 'Hide from visitors'}</Text>
                   </Pressable>
                 ) : null}
               </View>
               <View style={styles.record}>
                 <Rec value={String(record.won)} label="duels won" tone={Colors.green} />
-                <Rec value={String(record.lost)} label="lost" tone={Colors.muted} />
-                <Rec value={rate === null ? '—' : `${rate}%`} label="win rate" tone={Colors.amber} />
+                <Rec value={String(record.lost)} label="lost" tone={Colors.spaceDim} />
+                <Rec value={rate === null ? '—' : `${rate}%`} label="win rate" tone={Colors.gold} />
               </View>
               {record.drawn > 0 ? (
                 <Text style={styles.drawn}>
@@ -256,9 +256,12 @@ export default function TrophyHallScreen() {
           ) : null}
 
           {hall && !hall.is_owner && hall.hidden_count > 0 ? (
-            <Text style={styles.hiddenNote}>
-              🔒 {hall.hidden_count} {hall.hidden_count === 1 ? 'item' : 'items'} hidden by owner
-            </Text>
+            <View style={styles.hiddenNoteRow}>
+              <UiGlyph name="lock" size={11} color={Colors.spaceFaint} />
+              <Text style={styles.hiddenNote}>
+                {hall.hidden_count} {hall.hidden_count === 1 ? 'item' : 'items'} hidden by owner
+              </Text>
+            </View>
           ) : null}
 
           {hall && hall.seasons.length === 0 && hall.relics.length === 0 && !record ? (
@@ -271,8 +274,7 @@ export default function TrophyHallScreen() {
         </ScrollView>
 
         <RelicDetailSheet standing={openRelic} onClose={() => setOpenRelic(null)} />
-      </SafeAreaView>
-    </ScreenBackground>
+    </SafeAreaView>
   );
 }
 
@@ -284,7 +286,8 @@ function BadgeTile({ badge }: { badge: BadgeState }) {
       onPress={() => Alert.alert(badge.label, badge.earned ? 'Earned.' : badge.requirement)}
       accessibilityRole="button"
       accessibilityLabel={`${badge.label}, ${badge.earned ? 'earned' : `locked — ${badge.requirement}`}`}>
-      <Ionicons name={badge.icon} size={26} color={badge.earned ? badge.tint : Colors.textTertiary} />
+      {/* Badge art (milestone-badges.ts picks the icon + tint per badge) — content, so it stays. */}
+      <Ionicons name={badge.icon} size={26} color={badge.earned ? badge.tint : Colors.spaceFaint} />
       {badge.earned && badge.count && badge.count > 1 ? (
         <Text style={styles.badgeCount}>×{badge.count}</Text>
       ) : null}
@@ -316,54 +319,37 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
-  },
-  title: {
-    flex: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
-    color: Colors.ink,
-  },
-  topSpacer: {
-    width: 22,
-  },
   container: {
-    padding: Spacing.four,
-    paddingTop: Spacing.twelve,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingTop: Spacing.one,
     paddingBottom: Spacing.six,
     gap: Spacing.four,
   },
   blurb: {
     fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.muted,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
     lineHeight: 18,
   },
   group: {
     gap: Spacing.two,
   },
+  // SpaceSection's label (inline here: each group owns its own gap).
   groupLabel: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 0.5,
-    color: Colors.muted,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    color: Colors.spaceFaint,
   },
   dimmed: {
     opacity: 0.5,
   },
-  lock: {
-    fontSize: 10,
-  },
+  // SpaceCard tone="gold" — a season placement is earned.
   season: {
-    backgroundColor: 'rgba(242,163,60,0.10)',
+    backgroundColor: 'rgba(255,209,102,0.07)',
     borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.28)',
-    borderRadius: Radius.card,
+    borderColor: '#5A4A1E',
+    borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 12,
     gap: 2,
@@ -377,7 +363,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 9,
     letterSpacing: 0.5,
-    color: Colors.amber,
+    color: Colors.gold,
   },
   seasonPlacement: {
     fontFamily: Fonts.bodyBold,
@@ -400,8 +386,8 @@ const styles = StyleSheet.create({
   },
   ladderNote: {
     fontFamily: Fonts.body,
-    fontSize: 10.5,
-    color: Colors.textTertiary,
+    fontSize: 11,
+    color: Colors.spaceFaint,
     lineHeight: 15,
   },
   trophies: {
@@ -421,10 +407,10 @@ const styles = StyleSheet.create({
   badge: {
     width: '22.5%',
     aspectRatio: 1,
-    borderRadius: Radius.card,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.line,
-    backgroundColor: Colors.cardDark,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
@@ -436,7 +422,7 @@ const styles = StyleSheet.create({
   badgeLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 7.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   badgeCount: {
@@ -445,53 +431,65 @@ const styles = StyleSheet.create({
     right: 5,
     fontFamily: Fonts.bodyBold,
     fontSize: 8.5,
-    color: Colors.ember,
+    color: Colors.gold,
   },
   extras: {
     fontFamily: Fonts.body,
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: 2,
   },
   recordHead: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
+    alignItems: 'center',
+  },
+  hideLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   hideLink: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 10.5,
-    color: Colors.ember,
+    fontSize: 11,
+    color: Colors.navEmber2,
   },
   record: {
     flexDirection: 'row',
-    gap: 9,
+    gap: 8,
   },
   rec: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: Colors.cardDark,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: 10,
   },
   recValue: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 18,
   },
   recLabel: {
     fontFamily: Fonts.body,
-    fontSize: 9.5,
-    color: Colors.muted,
+    fontSize: 10,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
   drawn: {
     fontFamily: Fonts.body,
-    fontSize: 10.5,
-    color: Colors.textTertiary,
+    fontSize: 11,
+    color: Colors.spaceFaint,
+  },
+  hiddenNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   hiddenNote: {
     fontFamily: Fonts.body,
-    fontSize: 10.5,
-    color: Colors.textTertiary,
+    fontSize: 11,
+    color: Colors.spaceFaint,
   },
 });

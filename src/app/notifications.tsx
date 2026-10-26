@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, type ReactNode } from 'react';
@@ -8,10 +7,10 @@ import Svg, { Path } from 'react-native-svg';
 import { ItemArt } from '@/components/economy/item-art';
 import { PushOffBanner } from '@/components/push-off-banner';
 import { RankBadge } from '@/components/rank-badge';
-import { EmptyState } from '@/components/ui/empty-state';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceEmpty, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useNotifications } from '@/hooks/use-notifications';
 import { getItem } from '@/lib/economy/catalog';
 import { formatRelativeTime } from '@/lib/format';
@@ -58,13 +57,9 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <Screen padded={false}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={24} color={Colors.muted} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Activity</Text>
-      </View>
+    // Top edge only: the global footer owns the bottom inset.
+    <Screen padded={false} edges={['top']}>
+      <SpaceHeader title="Activity" />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -75,18 +70,19 @@ export default function NotificationsScreen() {
         data={items}
         keyExtractor={(n) => n.id}
         contentContainerStyle={items.length === 0 ? styles.emptyWrap : styles.list}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshItems} tintColor={Colors.coral} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshItems} tintColor={Colors.navEmber} />}
         ListEmptyComponent={
           loading ? null : (
-            <EmptyState
-              icon={<FlameLogo size={64} />}
-              title="Nothing yet"
-              body="Friend requests, challenges and campfire activity will show up here."
-            />
+            <View style={styles.empty}>
+              <FlameLogo size={56} />
+              <SpaceEmpty
+                title="Nothing yet"
+                body="Friend requests, challenges and campfire activity will show up here."
+              />
+            </View>
           )
         }
         renderItem={({ item }) => <Row n={item} onPress={() => open(item)} />}
-        ItemSeparatorComponent={() => <View style={styles.sep} />}
       />
     </Screen>
   );
@@ -97,7 +93,11 @@ function Row({ n, onPress }: { n: NotificationEvent; onPress: () => void }) {
     <Pressable
       onPress={onPress}
       disabled={!n.route}
-      style={({ pressed }) => [styles.row, pressed && n.route ? styles.rowPressed : null]}
+      style={({ pressed }) => [
+        styles.row,
+        n.read_at === null && styles.rowUnread,
+        pressed && n.route ? styles.rowPressed : null,
+      ]}
       accessibilityRole={n.route ? 'button' : undefined}>
       <NotificationLeadingArt n={n} />
       <View style={styles.rowText}>
@@ -152,7 +152,7 @@ function parseRankLabel(label: string | undefined): { tier: RankTierName; divisi
 
 /** A small trophy — gold for a win, muted outline for a loss. */
 function ResultGlyph({ won = false }: { won?: boolean }) {
-  const c = won ? '#F5C542' : Colors.muted;
+  const c = won ? Colors.gold : Colors.spaceDim;
   return (
     <Svg width={24} height={24} viewBox="0 0 40 40">
       <Path d="M13 8 h14 v6 a7 7 0 0 1 -14 0 Z" fill={won ? c : 'none'} stroke={c} strokeWidth={won ? 0 : 2} />
@@ -256,51 +256,51 @@ const SHAPE_STYLE: Record<NotificationImageShape, { borderRadius: number }> = {
 const ART = 44;
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.twelve,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-  },
-  headerTitle: {
-    flex: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 18,
-    color: Colors.ink,
-  },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.coral,
-    paddingHorizontal: Spacing.four,
+    color: Colors.danger,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.two,
   },
+  // The Messages inbox's list shape: standalone panels, 6 apart, no separators.
   list: {
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingBottom: Spacing.five,
+    gap: 6,
   },
   emptyWrap: {
     flexGrow: 1,
     justifyContent: 'center',
   },
+  empty: {
+    alignItems: 'center',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.twelve,
-    paddingVertical: Spacing.twelve,
+    padding: Spacing.twelve,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  // Arrived since you last looked — a legend ring for the split second it is true (see the dot).
+  rowUnread: {
+    borderColor: '#3A2D5A',
   },
   rowPressed: {
-    opacity: 0.6,
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
   },
   art: {
     width: ART,
     height: ART,
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
   },
   artFallback: {
-    borderRadius: Radius.card,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spaceBg,
   },
   rowText: {
     flex: 1,
@@ -324,23 +324,19 @@ const styles = StyleSheet.create({
   },
   body: {
     fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.muted,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
   },
   time: {
     fontFamily: Fonts.body,
     fontSize: 10.5,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     marginTop: 1,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.coral,
-  },
-  sep: {
-    height: 1,
-    backgroundColor: Colors.line,
+    backgroundColor: Colors.navEmber,
   },
 });

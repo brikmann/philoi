@@ -1,6 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { SettingsGlyph } from '@/components/ui/glyphs-settings';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { RankVisibility } from '@/types/database';
 
@@ -17,7 +20,7 @@ import type { RankVisibility } from '@/types/database';
 type Option = {
   value: RankVisibility;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: (color: string) => ReactNode;
   copy: string;
 };
 
@@ -25,19 +28,19 @@ const OPTIONS: Option[] = [
   {
     value: 'public',
     label: 'Public',
-    icon: 'globe-outline',
+    icon: (c) => <SettingsGlyph name="globe" size={14} color={c} />,
     copy: 'Anyone can see your rank. You see the full boards and where you stand on them.',
   },
   {
     value: 'friends',
     label: 'Friends',
-    icon: 'people-outline',
+    icon: (c) => <NavGlyph name="person" size={14} color={c} />,
     copy: 'Only your friends can see your rank. Your boards show just you and your friends.',
   },
   {
     value: 'private',
     label: 'Private',
-    icon: 'lock-closed-outline',
+    icon: (c) => <UiGlyph name="lock" size={14} color={c} />,
     copy: 'Nobody sees your rank. No boards, no comparisons — just your own climb.',
   },
 ];
@@ -68,7 +71,7 @@ export function RankVisibilityPicker({
               accessibilityRole="radio"
               accessibilityState={{ checked: on, disabled }}
               accessibilityLabel={`${o.label}. ${o.copy}`}>
-              <Ionicons name={o.icon} size={14} color={on ? Colors.ink : Colors.muted} />
+              {o.icon(on ? Colors.navEmber2 : Colors.spaceDim)}
               <Text style={[styles.segmentLabel, on && styles.segmentLabelOn]}>{o.label}</Text>
             </Pressable>
           );
@@ -83,7 +86,9 @@ export function RankVisibilityPicker({
 const styles = StyleSheet.create({
   track: {
     flexDirection: 'row',
-    backgroundColor: Colors.disabled,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     padding: 3,
     gap: 3,
@@ -96,17 +101,21 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingVertical: 9,
     borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
+  // Space-purple selected state: the ember wash + ring SpaceChip uses, not a solid coral slab.
   segmentOn: {
-    backgroundColor: Colors.coral,
+    backgroundColor: 'rgba(255,122,47,0.14)',
+    borderColor: Colors.navEmber,
   },
   segmentLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   segmentLabelOn: {
-    color: Colors.ink,
+    color: Colors.navEmber2,
   },
   copy: {
     fontFamily: Fonts.body,
@@ -118,7 +127,7 @@ const styles = StyleSheet.create({
   rewards: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: Spacing.one,
   },
 });

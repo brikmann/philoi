@@ -4,9 +4,10 @@ import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
+import { SpaceButton, SpaceCard, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { updateProfile, uploadAvatar } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -66,7 +67,7 @@ export default function EditProfileScreen() {
   }
 
   return (
-    <Screen style={styles.container}>
+    <Screen padded={false} style={styles.container}>
       <Stack.Screen options={{ title: 'Edit profile' }} />
 
       <Pressable
@@ -75,17 +76,23 @@ export default function EditProfileScreen() {
         disabled={uploadingAvatar}
         accessibilityLabel="Change profile photo"
         accessibilityRole="button">
-        {avatarUri ? (
-          <Image source={{ uri: avatarUri }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={styles.avatarInitial}>{profile?.display_name?.charAt(0).toUpperCase() ?? '?'}</Text>
+        {/* Gold ring — the avatar is identity, and gold is the identity colour. */}
+        <View style={styles.avatarRing}>
+          {avatarUri ? (
+            <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInitial}>{profile?.display_name?.charAt(0).toUpperCase() ?? '?'}</Text>
+            </View>
+          )}
+          <View style={styles.avatarBadge}>
+            <UiGlyph name="edit" size={13} color="#2A0F05" />
           </View>
-        )}
+        </View>
         <Text style={styles.avatarLabel}>{uploadingAvatar ? 'Uploading…' : 'Change photo'}</Text>
       </Pressable>
 
-      <View style={styles.form}>
+      <SpaceCard style={styles.form}>
         <View style={styles.field}>
           <Text style={styles.label}>Handle</Text>
           <TextInput
@@ -109,9 +116,9 @@ export default function EditProfileScreen() {
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
+      </SpaceCard>
 
-        <PrimaryButton label="Save changes" onPress={handleSave} loading={saving} disabled={uploadingAvatar} />
-      </View>
+      <SpaceButton label="Save changes" onPress={handleSave} loading={saving} disabled={uploadingAvatar} />
     </Screen>
   );
 }
@@ -120,10 +127,17 @@ const styles = StyleSheet.create({
   container: {
     gap: Spacing.four,
     paddingTop: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
   },
   avatarPicker: {
     alignItems: 'center',
     gap: Spacing.two,
+  },
+  avatarRing: {
+    padding: 3,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: Colors.gold,
   },
   avatar: {
     width: 88,
@@ -131,33 +145,50 @@ const styles = StyleSheet.create({
     borderRadius: 44,
   },
   avatarFallback: {
-    backgroundColor: Colors.plum,
+    backgroundColor: Colors.spacePanel2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
-    color: Colors.cream,
-    fontFamily: Fonts.display,
+    color: Colors.ink,
+    fontFamily: Fonts.black,
     fontSize: 32,
+  },
+  avatarBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.navEmber,
+    borderWidth: 2,
+    borderColor: Colors.spaceBg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarLabel: {
     fontFamily: Fonts.bodyBold,
-    color: Colors.coral,
+    color: Colors.navEmber2,
     fontSize: 13,
   },
   form: {
     gap: Spacing.three,
   },
   field: {
-    gap: Spacing.one,
+    gap: 6,
   },
+  // SpaceSection's uppercase label, inline over its field.
   label: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 13,
-    color: Colors.ink,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
   },
   error: {
     fontFamily: Fonts.body,
-    color: Colors.coral,
+    fontSize: 13,
+    color: Colors.danger,
   },
 });

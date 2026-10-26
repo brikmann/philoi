@@ -1,10 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { SettingsGlyph } from '@/components/ui/glyphs-settings';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Screen } from '@/components/ui/screen';
+import { SpaceButton, SpaceSection, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { Toggle } from '@/components/ui/toggle';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import {
@@ -51,6 +54,11 @@ import {
 //     the permission is requested, and Google's own rejection checklist calls a mismatch between
 //     that disclosure, the store listing and the declaration the single biggest cause of rejection.
 //     The copy in DISCLOSURE below is lifted from that file rather than rewritten. Keep it that way.
+
+/** The 36px leading tile (SpaceTile's spec); `done` turns it green for a granted permission. */
+function Lead({ children, done = false }: { children: ReactNode; done?: boolean }) {
+  return <View style={[styles.tile, done && styles.tileDone]}>{children}</View>;
+}
 
 export default function FocusNudgeScreen() {
   const supported = focusNudgeSupported();
@@ -151,10 +159,13 @@ export default function FocusNudgeScreen() {
   }
 
   return (
-    <Screen padded={false}>
+    // No bottom edge: the global footer owns the bottom inset (the native header sits on top).
+    <Screen padded={false} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.hero}>
-          <Ionicons name="heart-circle-outline" size={54} color={Colors.amber} />
+          <View style={styles.heroMark}>
+            <SettingsGlyph name="shield" size={30} color={Colors.navEmber2} />
+          </View>
           <Text style={styles.heroTitle}>A gentle pull back, not a wall</Text>
           <Text style={styles.heroBody}>
             Drift to a distracting app mid-session and Philoi will nudge you — warmly. You can always
@@ -170,7 +181,9 @@ export default function FocusNudgeScreen() {
           // extended review. Neither is broken; both are "not in this build".
           <View style={styles.group}>
             <View style={styles.rowLast}>
-              <Ionicons name="information-circle-outline" size={18} color={Colors.muted} style={styles.rowIcon} />
+              <Lead>
+                <UiGlyph name="info" size={18} color={Colors.spaceDim} />
+              </Lead>
               <View style={styles.rowText}>
                 <Text style={styles.rowLabel}>Not available in this build</Text>
                 <Text style={styles.rowDescription}>
@@ -184,7 +197,7 @@ export default function FocusNudgeScreen() {
         ) : curated ? (
           <>
             {/* ── ANDROID STEP 1 — the two switches, in the order they matter. ── */}
-            <Text style={styles.sectionLabel}>PERMISSION</Text>
+            <SpaceSection>Permission</SpaceSection>
             <View style={styles.group}>
               <Pressable
                 style={styles.row}
@@ -195,12 +208,13 @@ export default function FocusNudgeScreen() {
                 onPress={() => setShowDisclosure(true)}
                 accessibilityRole="button"
                 accessibilityLabel="Turn on Accessibility access for Focus Nudge">
-                <Ionicons
-                  name={permissions.accessibility ? 'checkmark-circle' : 'eye-outline'}
-                  size={18}
-                  color={permissions.accessibility ? Colors.green : Colors.amber}
-                  style={styles.rowIcon}
-                />
+                <Lead done={permissions.accessibility}>
+                  {permissions.accessibility ? (
+                    <UiGlyph name="check" size={18} color={Colors.green} />
+                  ) : (
+                    <SettingsGlyph name="eye" size={18} color={Colors.navEmber2} />
+                  )}
+                </Lead>
                 <View style={styles.rowText}>
                   <Text style={styles.rowLabel}>Accessibility access</Text>
                   <Text style={styles.rowDescription}>
@@ -217,17 +231,18 @@ export default function FocusNudgeScreen() {
               </Pressable>
 
               <Pressable
-                style={styles.rowLast}
+                style={styles.row}
                 disabled={permissions.overlay}
                 onPress={openFocusNudgeOverlaySettings}
                 accessibilityRole="button"
                 accessibilityLabel="Allow Philoi to display over other apps">
-                <Ionicons
-                  name={permissions.overlay ? 'checkmark-circle' : 'layers-outline'}
-                  size={18}
-                  color={permissions.overlay ? Colors.green : Colors.amber}
-                  style={styles.rowIcon}
-                />
+                <Lead done={permissions.overlay}>
+                  {permissions.overlay ? (
+                    <UiGlyph name="check" size={18} color={Colors.green} />
+                  ) : (
+                    <SettingsGlyph name="image" size={18} color={Colors.navEmber2} />
+                  )}
+                </Lead>
                 <View style={styles.rowText}>
                   <Text style={styles.rowLabel}>Display over other apps</Text>
                   <Text style={styles.rowDescription}>
@@ -251,11 +266,13 @@ export default function FocusNudgeScreen() {
             </Text>
 
             {/* ── ANDROID STEP 2 — the curated list. ── */}
-            <Text style={styles.sectionLabel}>NUDGE ME ON THESE APPS</Text>
+            <SpaceSection>Nudge me on these apps</SpaceSection>
             {installed.length === 0 ? (
               <View style={styles.group}>
-                <View style={styles.rowLast}>
-                  <Ionicons name="apps-outline" size={18} color={Colors.muted} style={styles.rowIcon} />
+                <View style={styles.row}>
+                  <Lead>
+                    <SettingsGlyph name="phone" size={18} color={Colors.spaceDim} />
+                  </Lead>
                   <View style={styles.rowText}>
                     <Text style={styles.rowLabel}>Nothing to guard yet</Text>
                     <Text style={styles.rowDescription}>
@@ -266,16 +283,12 @@ export default function FocusNudgeScreen() {
               </View>
             ) : (
               <View style={styles.group}>
-                {installed.map((app, index) => {
-                  const last = index === installed.length - 1;
+                {installed.map((app) => {
                   return (
-                    <View key={app.id} style={last ? styles.rowLast : styles.row}>
-                      <Ionicons
-                        name="phone-portrait-outline"
-                        size={18}
-                        color={Colors.amber}
-                        style={styles.rowIcon}
-                      />
+                    <View key={app.id} style={styles.row}>
+                      <Lead>
+                        <SettingsGlyph name="phone" size={18} color={granted ? Colors.navEmber2 : Colors.spaceFaint} />
+                      </Lead>
                       <View style={styles.rowText}>
                         <Text style={[styles.rowLabel, !granted && styles.dimmed]}>{app.label}</Text>
                       </View>
@@ -298,20 +311,21 @@ export default function FocusNudgeScreen() {
         ) : (
           <>
             {/* STEP 1 — permission. */}
-            <Text style={styles.sectionLabel}>PERMISSION</Text>
+            <SpaceSection>Permission</SpaceSection>
             <View style={styles.group}>
               <Pressable
-                style={styles.rowLast}
+                style={styles.row}
                 disabled={granted || requesting}
                 onPress={handleGrant}
                 accessibilityRole="button"
                 accessibilityLabel="Grant Screen Time access">
-                <Ionicons
-                  name={granted ? 'checkmark-circle' : 'time-outline'}
-                  size={18}
-                  color={granted ? Colors.green : Colors.amber}
-                  style={styles.rowIcon}
-                />
+                <Lead done={granted}>
+                  {granted ? (
+                    <UiGlyph name="check" size={18} color={Colors.green} />
+                  ) : (
+                    <SettingsGlyph name="clock" size={18} color={Colors.navEmber2} />
+                  )}
+                </Lead>
                 <View style={styles.rowText}>
                   <Text style={styles.rowLabel}>Screen Time access</Text>
                   <Text style={styles.rowDescription}>
@@ -330,21 +344,24 @@ export default function FocusNudgeScreen() {
               </Pressable>
             </View>
             {status === 'denied' && (
-              <Pressable onPress={() => Linking.openSettings()} style={styles.linkRow}>
+              <Pressable onPress={() => Linking.openSettings()} style={styles.linkRow} accessibilityRole="link">
                 <Text style={styles.link}>Open iOS Settings</Text>
+                <UiGlyph name="external" size={12} color={Colors.navEmber2} />
               </Pressable>
             )}
 
             {/* STEP 2 — the apps. Apple's own picker; we only ever learn how many. */}
-            <Text style={styles.sectionLabel}>NUDGE ME ON THESE APPS</Text>
+            <SpaceSection>Nudge me on these apps</SpaceSection>
             <View style={styles.group}>
               <Pressable
-                style={picked > 0 ? styles.row : styles.rowLast}
+                style={styles.row}
                 disabled={!granted}
                 onPress={handlePick}
                 accessibilityRole="button"
                 accessibilityLabel="Choose apps to nudge on">
-                <Ionicons name="apps-outline" size={18} color={Colors.amber} style={styles.rowIcon} />
+                <Lead>
+                  <SettingsGlyph name="phone" size={18} color={granted ? Colors.navEmber2 : Colors.spaceFaint} />
+                </Lead>
                 <View style={styles.rowText}>
                   <Text style={[styles.rowLabel, !granted && styles.dimmed]}>
                     {picked > 0 ? 'Change apps' : 'Choose apps'}
@@ -357,11 +374,13 @@ export default function FocusNudgeScreen() {
                         : 'Grant Screen Time access first'}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+                <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
               </Pressable>
               {picked > 0 && (
-                <Pressable style={styles.rowLast} onPress={handleClear} accessibilityRole="button">
-                  <Ionicons name="close-circle-outline" size={18} color={Colors.muted} style={styles.rowIcon} />
+                <Pressable style={styles.row} onPress={handleClear} accessibilityRole="button">
+                  <Lead>
+                    <UiGlyph name="close" size={18} color={Colors.spaceDim} />
+                  </Lead>
                   <View style={styles.rowText}>
                     <Text style={styles.rowLabel}>Clear selection</Text>
                   </View>
@@ -378,9 +397,12 @@ export default function FocusNudgeScreen() {
         {supported && (
           <>
             {/* STEP 3 — arming. Default ON per §A. Identical on both platforms. */}
+            <SpaceSection>Arming</SpaceSection>
             <View style={styles.group}>
-              <View style={styles.rowLast}>
-                <Ionicons name="flame-outline" size={18} color={Colors.amber} style={styles.rowIcon} />
+              <View style={styles.row}>
+                <Lead>
+                  <NavGlyph name="flame" size={18} color={Colors.navEmber2} />
+                </Lead>
                 <View style={styles.rowText}>
                   <Text style={styles.rowLabel}>Nudge me automatically when I lock in</Text>
                   <Text style={styles.rowDescription}>
@@ -414,7 +436,9 @@ export default function FocusNudgeScreen() {
         onRequestClose={() => setShowDisclosure(false)}>
         <View style={styles.scrim}>
           <View style={styles.sheet}>
-            <Ionicons name="eye-outline" size={34} color={Colors.amber} />
+            <View style={styles.heroMark}>
+              <SettingsGlyph name="eye" size={30} color={Colors.navEmber2} />
+            </View>
             <Text style={styles.sheetTitle}>Focus Nudge needs Accessibility access.</Text>
             <Text style={styles.sheetBody}>
               Philoi uses Android&apos;s Accessibility service to notice the moment you open an app
@@ -429,22 +453,21 @@ export default function FocusNudgeScreen() {
             <Text style={styles.sheetBody}>
               You pick which apps this applies to, and you can turn it off anytime in Settings.
             </Text>
-            <Pressable
+            <SpaceButton
+              label="Turn on Focus Nudge"
               style={styles.sheetPrimary}
-              accessibilityRole="button"
               onPress={() => {
                 setShowDisclosure(false);
                 track('focus_nudge_disclosure_accepted', {});
                 openFocusNudgeAccessibilitySettings();
-              }}>
-              <Text style={styles.sheetPrimaryLabel}>Turn on Focus Nudge</Text>
-            </Pressable>
-            <Pressable
+              }}
+            />
+            <SpaceButton
+              variant="ghost"
+              label="Not now"
               style={styles.sheetSecondary}
-              accessibilityRole="button"
-              onPress={() => setShowDisclosure(false)}>
-              <Text style={styles.sheetSecondaryLabel}>Not now</Text>
-            </Pressable>
+              onPress={() => setShowDisclosure(false)}
+            />
             <Text style={styles.sheetFootnote}>
               Android opens its own Accessibility list — find{' '}
               <Text style={styles.footnoteStrong}>Philoi Focus Nudge</Text> in it and turn it on.
@@ -458,17 +481,31 @@ export default function FocusNudgeScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.five,
   },
   hero: {
     alignItems: 'center',
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
+    paddingBottom: Spacing.two,
     gap: Spacing.two,
   },
+  // The ember-ringed mark that leads the screen and the disclosure — SpaceCard tone="ember", round.
+  heroMark: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.one,
+  },
   heroTitle: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 17,
+    fontFamily: Fonts.black,
+    fontSize: 18,
     color: Colors.ink,
     textAlign: 'center',
   },
@@ -476,92 +513,100 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     lineHeight: 19,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
-  sectionLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.textTertiary,
-    marginBottom: Spacing.two,
-    marginLeft: 2,
-  },
+  // A stack of standalone SpaceRow-style panels rather than one card with dividers.
   group: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    marginBottom: Spacing.four,
-    overflow: 'hidden',
+    gap: 6,
+    marginTop: Spacing.two,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    gap: Spacing.twelve,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.twelve,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
+  // Kept as a name for the one stand-alone row (the "not in this build" note); same panel.
   rowLast: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.three,
+    gap: Spacing.twelve,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.twelve,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
-  rowIcon: {
-    width: 20,
-    textAlign: 'center',
+  tile: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.spacePanel2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileDone: {
+    backgroundColor: 'rgba(61,168,92,0.14)',
   },
   rowText: {
     flex: 1,
+    gap: 2,
   },
   rowLabel: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.ink,
   },
   rowDescription: {
     fontFamily: Fonts.body,
-    fontSize: 11.5,
+    fontSize: 12,
     lineHeight: 16,
-    color: Colors.textTertiary,
-    marginTop: 2,
+    color: Colors.spaceDim,
   },
   rowState: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 11,
+    letterSpacing: 0.6,
     color: Colors.green,
   },
   rowAction: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   dimmed: {
-    color: Colors.disabledText,
+    color: Colors.spaceFaint,
   },
   linkRow: {
-    marginTop: -Spacing.two,
-    marginBottom: Spacing.four,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Spacing.two,
     paddingHorizontal: 2,
   },
   link: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   footnote: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     paddingHorizontal: 2,
-    marginTop: -Spacing.two,
-    marginBottom: Spacing.four,
+    marginTop: Spacing.two,
   },
   footnoteStrong: {
     fontFamily: Fonts.bodySemiBold,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   scrim: {
     flex: 1,
@@ -570,15 +615,17 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
   sheet: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.card,
     padding: Spacing.four,
     gap: Spacing.three,
     alignItems: 'center',
   },
   sheetTitle: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 17,
+    fontFamily: Fonts.black,
+    fontSize: 18,
     color: Colors.ink,
     textAlign: 'center',
   },
@@ -586,37 +633,22 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     lineHeight: 19,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   sheetPrimary: {
     alignSelf: 'stretch',
-    backgroundColor: Colors.coral,
-    borderRadius: Radius.card,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
     marginTop: Spacing.two,
-  },
-  sheetPrimaryLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
-    color: Colors.onEmber,
   },
   sheetSecondary: {
     alignSelf: 'stretch',
-    paddingVertical: Spacing.two,
-    alignItems: 'center',
-  },
-  sheetSecondaryLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.muted,
+    minHeight: 40,
   },
   sheetFootnote: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
     textAlign: 'center',
   },
 });

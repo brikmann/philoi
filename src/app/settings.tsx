@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AutoPostSyncedToggle } from '@/components/auto-post-synced-toggle';
@@ -9,12 +8,14 @@ import { CONTACT_EMAIL, FeedbackSheet } from '@/components/feedback-sheet';
 import { RankVisibilityPicker } from '@/components/rank-visibility-picker';
 import { ReminderSettings } from '@/components/reminder-settings';
 import { Avatar } from '@/components/ui/avatar';
-import { BackHeader } from '@/components/ui/back-header';
+import { SettingsGlyph, type SettingsGlyphName } from '@/components/ui/glyphs-settings';
+import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
 import { Screen } from '@/components/ui/screen';
+import { SpaceButton, SpaceCard, SpaceHeader, SpaceSection, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
-import { FlameLogo } from '@/components/ui/flame-logo';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { UiGlyph, type UiGlyphName } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useCindy } from '@/hooks/use-cindy';
 import { useCoachMark } from '@/hooks/use-coach-mark';
 import { useEntitlement } from '@/hooks/use-entitlement';
@@ -70,6 +71,48 @@ const PHOTO_VISIBILITY_OPTIONS: { value: PhotoVisibility; description: string }[
 
 const DELETE_CONFIRM_WORD = 'DELETE';
 
+// A row icon from any of the three bespoke sets. Settings rows reach across all of them (the bell is
+// a nav destination, the trash a control, the headphones a settings-only glyph), so the row takes a
+// tagged name rather than three icon props.
+type RowIcon = { nav: NavGlyphName } | { ui: UiGlyphName } | { set: SettingsGlyphName };
+
+function RowGlyph({ icon, color }: { icon: RowIcon; color: string }) {
+  if ('nav' in icon) return <NavGlyph name={icon.nav} size={18} color={color} />;
+  if ('ui' in icon) return <UiGlyph name={icon.ui} size={18} color={color} />;
+  return <SettingsGlyph name={icon.set} size={18} color={color} />;
+}
+
+// The two settings rows, drawn to SpaceRow's spec (panel, 1px line, 13 corners, a 36px glyph tile)
+// but kept local for one reason: SpaceRow clamps its sub-line to two lines, and several of these
+// descriptions ARE the setting — "Reciprocal — hide yours and you can't see theirs" cannot be the
+// part that gets an ellipsis. Same look, untruncated copy, plus the inline value column (mock 16).
+function RowShell({
+  icon,
+  label,
+  description,
+  danger,
+  trailing,
+}: {
+  icon: RowIcon;
+  label: string;
+  description?: string;
+  danger?: boolean;
+  trailing: ReactNode;
+}) {
+  return (
+    <>
+      <View style={[styles.tile, danger && styles.tileDanger]}>
+        <RowGlyph icon={icon} color={danger ? Colors.danger : Colors.navEmber2} />
+      </View>
+      <View style={styles.rowText}>
+        <Text style={[styles.rowTitle, danger && styles.rowLabelDanger]}>{label}</Text>
+        {description ? <Text style={styles.rowDescription}>{description}</Text> : null}
+      </View>
+      {trailing}
+    </>
+  );
+}
+
 function SettingsToggleRow({
   icon,
   label,
@@ -77,7 +120,7 @@ function SettingsToggleRow({
   value,
   onValueChange,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: RowIcon;
   label: string;
   description?: string;
   value: boolean;
@@ -85,12 +128,12 @@ function SettingsToggleRow({
 }) {
   return (
     <View style={styles.row}>
-      <Ionicons name={icon} size={18} color={Colors.amber} style={styles.rowIcon} />
-      <View style={styles.rowText}>
-        <Text style={styles.rowTitle}>{label}</Text>
-        {description ? <Text style={styles.rowDescription}>{description}</Text> : null}
-      </View>
-      <Toggle value={value} onValueChange={onValueChange} />
+      <RowShell
+        icon={icon}
+        label={label}
+        description={description}
+        trailing={<Toggle value={value} onValueChange={onValueChange} />}
+      />
     </View>
   );
 }
@@ -104,7 +147,7 @@ function SettingsRow({
   chevron = true,
   onPress,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: RowIcon;
   label: string;
   description?: string;
   value?: string;
@@ -113,14 +156,23 @@ function SettingsRow({
   onPress: () => void;
 }) {
   return (
-    <Pressable style={styles.row} onPress={onPress}>
-      <Ionicons name={icon} size={18} color={danger ? Colors.danger : Colors.amber} style={styles.rowIcon} />
-      <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, danger && styles.rowLabelDanger]}>{label}</Text>
-        {description ? <Text style={styles.rowDescription}>{description}</Text> : null}
-      </View>
-      {value && <Text style={styles.rowValue}>{value}</Text>}
-      {chevron && <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />}
+    <Pressable
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={value ? `${label}, ${value}` : label}>
+      <RowShell
+        icon={icon}
+        label={label}
+        description={description}
+        danger={danger}
+        trailing={
+          <>
+            {value ? <Text style={styles.rowValue}>{value}</Text> : null}
+            {chevron ? <UiGlyph name="forward" size={14} color={Colors.spaceFaint} /> : null}
+          </>
+        }
+      />
     </Pressable>
   );
 }
@@ -341,12 +393,17 @@ export default function SettingsScreen() {
   const displayName = profile?.display_name ?? 'Your profile';
 
   return (
-    <Screen padded={false}>
-      <BackHeader title="Settings" />
+    // Top edge only: the global footer sits under every screen and owns the bottom inset itself.
+    <Screen padded={false} edges={['top']}>
+      <SpaceHeader title="Settings" />
       <ScrollView contentContainerStyle={styles.container}>
         {/* Identity first (mock 16) — the screen should open by telling you whose settings these
             are, and the most common reason anyone lands here is to change their own details. */}
-        <Pressable style={styles.identity} onPress={() => router.push('/edit-profile')}>
+        <SpaceCard
+          tone="gold"
+          style={styles.identity}
+          onPress={() => router.push('/edit-profile')}
+          accessibilityLabel={`${displayName}, edit profile`}>
           <Avatar label={displayName} size={44} />
           <View style={styles.rowText}>
             <Text style={styles.identityName}>{displayName}</Text>
@@ -354,16 +411,16 @@ export default function SettingsScreen() {
               {profile?.handle ? `@${profile.handle} · edit profile` : 'Edit profile'}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
-        </Pressable>
+          <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
+        </SpaceCard>
 
-        <Text style={styles.sectionLabel}>NOTIFICATIONS</Text>
+        <SpaceSection>Notifications</SpaceSection>
         {/* First visit to Settings (CODE_PROMPT_coach_marks.md). The tour's Settings card names two
             must-dos — notifications on, apps connected — and this is the first of them; the ref sits
             on the existing group View, so there is no extra layout node in the list. */}
         <View ref={settingsCoachRef} collapsable={false} style={styles.group}>
           <SettingsRow
-            icon="notifications"
+            icon={{ nav: 'bell' }}
             label="Notifications"
             description="Categories, quiet hours and your daily reminder"
             onPress={() => router.push('/settings-notifications')}
@@ -375,10 +432,10 @@ export default function SettingsScreen() {
             why it is unavailable there. A settings list that hides the row would leave the #1
             most-requested feature undiscoverable on exactly the devices most likely to be asking
             for it. */}
-        <Text style={styles.sectionLabel}>FOCUS</Text>
+        <SpaceSection>Focus</SpaceSection>
         <View style={styles.group}>
           <SettingsRow
-            icon="heart-circle-outline"
+            icon={{ set: 'shield' }}
             label="Focus Nudge"
             description="A warm pull back when you drift mid-lock-in — never a block"
             onPress={() => router.push('/focus-nudge')}
@@ -388,31 +445,31 @@ export default function SettingsScreen() {
         {/* AUDIO — mock 164 panel 1. The session-audio switch is the one that matters: the ambient
             loop plays over your own music, and at the gym that made the app unusable rather than
             merely annoying (COSMETIC_UI_FIXES §6). */}
-        <Text style={styles.sectionLabel}>AUDIO</Text>
+        <SpaceSection>Audio</SpaceSection>
         <View style={styles.group}>
           <SettingsToggleRow
-            icon="musical-notes"
+            icon={{ set: 'music' }}
             label="Session audio"
             description="Play your equipped ambient during lock-ins"
             value={sessionAudioEnabled}
             onValueChange={handleToggleSessionAudio}
           />
           <SettingsToggleRow
-            icon="volume-high"
+            icon={{ set: 'speaker' }}
             label="Reward & SFX stings"
             description="Box opens, rank-ups, lock-in start and stop"
             value={rewardSfxEnabled}
             onValueChange={handleToggleRewardSfx}
           />
           <SettingsToggleRow
-            icon="headset"
+            icon={{ set: 'headphones' }}
             label="Duck to my music"
             description="Lower the ambient when your music is playing, instead of stopping it"
             value={duckToMusic}
             onValueChange={handleToggleDuckToMusic}
           />
           <SettingsToggleRow
-            icon="phone-portrait"
+            icon={{ set: 'phone' }}
             label="Haptics"
             description="Buzz on rewards and rank-ups"
             value={hapticsEnabled}
@@ -426,10 +483,10 @@ export default function SettingsScreen() {
         {/* LOCK-IN SCREEN — mock 164 panel 1, second block. Default on: a sleeping display stops
             the flare animations AND pauses the ambient loop, so a session left alone quietly dies
             (COSMETIC_UI_FIXES §7). */}
-        <Text style={styles.sectionLabel}>LOCK-IN SCREEN</Text>
+        <SpaceSection>Lock-in screen</SpaceSection>
         <View style={styles.group}>
           <SettingsToggleRow
-            icon="sunny"
+            icon={{ set: 'sun' }}
             label="Keep screen awake"
             description="Hold the display on during a session — a sleeping screen kills the flare and the music"
             value={keepScreenAwake}
@@ -440,36 +497,52 @@ export default function SettingsScreen() {
           When a lock-in ends, the screen goes back to your normal auto-lock.
         </Text>
 
-        <Text style={styles.sectionLabel}>DAILY FIRE</Text>
+        <SpaceSection>Daily fire</SpaceSection>
         <View style={styles.group}>
-          <Pressable style={styles.row} onPress={handleToggleGoalMode}>
-            <FlameLogo size={18} />
-            <Text style={styles.rowLabel}>Goal mode</Text>
-            <Text style={styles.rowValue}>{goalMode === 'auto' ? 'Adaptive' : 'Manual'}</Text>
-          </Pressable>
+          <SettingsRow
+            icon={{ nav: 'flame' }}
+            label="Goal mode"
+            value={goalMode === 'auto' ? 'Adaptive' : 'Manual'}
+            chevron={false}
+            onPress={handleToggleGoalMode}
+          />
           {goalMode === 'manual' && (
             <View style={styles.row}>
-              <Ionicons name="options" size={18} color={Colors.amber} style={styles.rowIcon} />
-              <Text style={styles.rowLabel}>Daily target</Text>
-              <View style={styles.stepper}>
-                <Pressable onPress={() => handleAdjustManualTarget(-1)} hitSlop={8} style={styles.stepperBtn}>
-                  <Ionicons name="remove" size={14} color={Colors.ink} />
-                </Pressable>
-                <Text style={styles.stepperValue}>{manualTarget}</Text>
-                <Pressable onPress={() => handleAdjustManualTarget(1)} hitSlop={8} style={styles.stepperBtn}>
-                  <Ionicons name="add" size={14} color={Colors.ink} />
-                </Pressable>
-              </View>
+              <RowShell
+                icon={{ set: 'sliders' }}
+                label="Daily target"
+                trailing={
+                  <View style={styles.stepper}>
+                    <Pressable
+                      onPress={() => handleAdjustManualTarget(-1)}
+                      hitSlop={8}
+                      style={styles.stepperBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="Lower daily target">
+                      <SettingsGlyph name="minus" size={14} color={Colors.ink} />
+                    </Pressable>
+                    <Text style={styles.stepperValue}>{manualTarget}</Text>
+                    <Pressable
+                      onPress={() => handleAdjustManualTarget(1)}
+                      hitSlop={8}
+                      style={styles.stepperBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel="Raise daily target">
+                      <UiGlyph name="add" size={14} color={Colors.ink} />
+                    </Pressable>
+                  </View>
+                }
+              />
             </View>
           )}
           <SettingsToggleRow
-            icon="send"
+            icon={{ ui: 'send' }}
             label="Publish completion to campfires"
             value={publishCompletion}
             onValueChange={handleTogglePublishCompletion}
           />
           <SettingsToggleRow
-            icon="megaphone"
+            icon={{ set: 'megaphone' }}
             label="Auto-post my sessions to the Agora"
             description="Finished lock-ins post with their photos, friends only. Change it per session on the done screen."
             value={postToAgora}
@@ -477,45 +550,45 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <Text style={styles.sectionLabel}>PRIVACY</Text>
+        <SpaceSection>Privacy</SpaceSection>
         <View style={styles.group}>
           <SettingsRow
-            icon="image"
+            icon={{ set: 'image' }}
             label="Who can see my photos"
             value={PHOTO_VISIBILITY_LABEL[photoVisibility]}
             chevron={false}
             onPress={() => setPhotoModalOpen(true)}
           />
           <SettingsToggleRow
-            icon="eye"
+            icon={{ set: 'eye' }}
             label="Let friends watch my live challenges"
             value={watchOptIn}
             onValueChange={handleToggleWatchOptIn}
           />
-          <SettingsRow icon="ban" label="Blocked users" onPress={() => router.push('/blocked-users')} />
+          <SettingsRow icon={{ set: 'ban' }} label="Blocked users" onPress={() => router.push('/blocked-users')} />
         </View>
 
         {/* LIVE STATUS (mock 273, migration 0245). Every gate is server-side in get_presence, so
             these writes take effect on the next read anyone makes — "hides you instantly" is true
             to within one board refresh. */}
-        <Text style={styles.sectionLabel}>LIVE STATUS</Text>
+        <SpaceSection>Live status</SpaceSection>
         <View style={styles.group}>
           <SettingsToggleRow
-            icon="flame"
+            icon={{ nav: 'flame' }}
             label="Show when I'm locked in or online"
             description="A live badge under your name — “Locked in” while in a session, or “Online now” when the app's open. Visible across your verified campus."
             value={livePrefs.show_live_status}
             onValueChange={(v) => handleChangeLivePref('show_live_status', v)}
           />
           <SettingsToggleRow
-            icon="book"
+            icon={{ nav: 'book' }}
             label="Show what I'm locked in on"
             description="Adds the discipline — STUDY · LIFTING · CARDIO · DEEP WORK. Off = just “Locked in”."
             value={livePrefs.show_live_activity}
             onValueChange={(v) => handleChangeLivePref('show_live_activity', v)}
           />
           <SettingsToggleRow
-            icon="time"
+            icon={{ set: 'clock' }}
             label="Show “last active” to friends"
             description="Lets friends see when you were last on (“Active 12m ago”). Reciprocal — hide yours and you can't see theirs. Friends only."
             value={livePrefs.show_last_active}
@@ -531,10 +604,10 @@ export default function SettingsScreen() {
             same RPC, so the two never disagree. It is its own card rather than a row in PRIVACY
             because it needs its copy on screen: who sees me, what do I see, and that rewards are
             identical in all three. */}
-        <Text style={styles.sectionLabel}>RANK VISIBILITY</Text>
-        <View style={[styles.group, styles.rankDialGroup]}>
+        <SpaceSection>Rank visibility</SpaceSection>
+        <SpaceCard>
           <RankVisibilityPicker value={rankVisibility} onChange={handleChangeRankVisibility} />
-        </View>
+        </SpaceCard>
 
         {/* "Replay tutorial & tips" (CODE_PROMPT_tutorial.md + CODE_PROMPT_coach_marks.md). Clears
             the flag and navigates; the root layout re-reads it on every navigation, so the tour
@@ -552,9 +625,9 @@ export default function SettingsScreen() {
             those have landed and the driver re-reads a stale `true` on arrival and does nothing —
             a Replay button whose effect only appears after a cold start, which is exactly the
             failure being fixed. Neither reset can reject; both swallow their own storage faults. */}
-        <View style={styles.group}>
+        <View style={[styles.group, styles.groupSpaced]}>
           <SettingsRow
-            icon="school-outline"
+            icon={{ set: 'play' }}
             label="Replay tutorial & tips"
             onPress={() => {
               track('coach_marks_reset', {});
@@ -575,19 +648,19 @@ export default function SettingsScreen() {
             bodyweight under "Privacy" would frame it as something to be defended rather than
             something the user is choosing to tell us. The row says what it is FOR: it is the only
             honest answer to "why does a study app know my weight". */}
-        <Text style={styles.sectionLabel}>CONNECTIONS</Text>
+        <SpaceSection>Connections</SpaceSection>
         <View style={styles.group}>
           <SettingsRow
-            icon="body-outline"
+            icon={{ set: 'ruler' }}
             label="Height & weight"
             description="Turns steps into kilometres, and lets Cindy score a lift against your own bodyweight. Private, and never used to hand out rewards."
             onPress={() => router.push('/body-metrics')}
           />
-          <SettingsRow icon="fitness" label="Integrations" onPress={() => router.push('/connected-apps')} />
+          <SettingsRow icon={{ set: 'link' }} label="Integrations" onPress={() => router.push('/connected-apps')} />
           {/* Campus verification state (UNI_VERIFICATION_SPEC.md §6) — the value column is the
               whole story: verified, or the reason it isn't. */}
           <SettingsRow
-            icon="school"
+            icon={{ set: 'cap' }}
             label="Campus"
             value={
               profile?.university_email_verified
@@ -606,17 +679,17 @@ export default function SettingsScreen() {
             consent screen, and a dead toggle here would be a second, worse one. */}
         {cindy.consented && (
           <>
-            <Text style={styles.sectionLabel}>CINDY</Text>
+            <SpaceSection>Cindy</SpaceSection>
             <View style={styles.group}>
-              <SettingsRow icon="chatbubbles" label="Talk to Cindy" onPress={() => router.push('/cindy')} />
+              <SettingsRow icon={{ set: 'chat' }} label="Talk to Cindy" onPress={() => router.push('/cindy')} />
               <SettingsToggleRow
-                icon="chatbox-ellipses"
+                icon={{ nav: 'home' }}
                 label="Her messages on Home"
                 value={cindyBubbleOn}
                 onValueChange={handleToggleCindyBubble}
               />
               <SettingsRow
-                icon="power"
+                icon={{ set: 'power' }}
                 label="Turn Cindy off"
                 chevron={false}
                 onPress={handleTurnCindyOff}
@@ -630,12 +703,12 @@ export default function SettingsScreen() {
 
         {groups.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>REMINDERS</Text>
-            <View style={styles.reminderGroup}>
+            <SpaceSection>Reminders</SpaceSection>
+            <SpaceCard style={styles.listCard}>
               {groups.map((group) => (
                 <ReminderSettings key={group.id} groupId={group.id} groupName={group.name} groupEmoji={group.emoji} />
               ))}
-            </View>
+            </SpaceCard>
           </>
         )}
 
@@ -643,11 +716,11 @@ export default function SettingsScreen() {
             sync from; a lock-in's campfire is opt-in per fire, never posted without consent. */}
         {groups.length > 0 && anyFitnessSourceConnected && (
           <>
-            <Text style={styles.sectionLabel}>AUTO-POST SYNCED WORKOUTS</Text>
-            <Text style={styles.sectionHint}>
+            <SpaceSection>Auto-post synced workouts</SpaceSection>
+            <Text style={[styles.sectionHint, styles.sectionHintAbove]}>
               When a synced workout becomes a lock-in, post it automatically to the campfires you turn on below.
             </Text>
-            <View style={styles.reminderGroup}>
+            <SpaceCard style={styles.listCard}>
               {groups.map((group) => (
                 <AutoPostSyncedToggle
                   key={group.id}
@@ -657,7 +730,7 @@ export default function SettingsScreen() {
                   initialEnabled={group.auto_post_synced}
                 />
               ))}
-            </View>
+            </SpaceCard>
           </>
         )}
 
@@ -665,60 +738,68 @@ export default function SettingsScreen() {
             surface, kept in the same group but LAST — reaching a human about the app and reaching
             a human about yourself are different errands, and the wellbeing one shouldn't be the
             first thing a bug report walks past. */}
-        <Text style={styles.sectionLabel}>HELP & FEEDBACK</Text>
+        <SpaceSection>Help & feedback</SpaceSection>
         <View style={styles.group}>
           <SettingsRow
-            icon="chatbox-ellipses"
+            icon={{ ui: 'edit' }}
             label="Send feedback"
             description="Bug report, feature request, or anything else"
             chevron={false}
             onPress={() => setFeedbackOpen(true)}
           />
           <SettingsRow
-            icon="mail"
+            icon={{ set: 'mail' }}
             label="Email us"
             value={CONTACT_EMAIL}
             chevron={false}
             onPress={handleEmailUs}
           />
           <SettingsRow
-            icon="heart"
+            icon={{ set: 'heart' }}
             label="Talk to someone"
             description="Support if things feel heavy"
             onPress={() => router.push('/support')}
           />
         </View>
 
-        <Text style={styles.sectionLabel}>LEGAL</Text>
+        <SpaceSection>Legal</SpaceSection>
         <View style={styles.group}>
-          <SettingsRow icon="document-text-outline" label="Privacy Policy" onPress={() => Linking.openURL('https://philoi.app/privacy.html')} />
-          <SettingsRow icon="reader-outline" label="Terms of Service" onPress={() => Linking.openURL('https://philoi.app/terms.html')} />
           <SettingsRow
-            icon="shield-checkmark-outline"
+            icon={{ set: 'doc' }}
+            label="Privacy Policy"
+            onPress={() => Linking.openURL('https://philoi.app/privacy.html')}
+          />
+          <SettingsRow
+            icon={{ set: 'doc' }}
+            label="Terms of Service"
+            onPress={() => Linking.openURL('https://philoi.app/terms.html')}
+          />
+          <SettingsRow
+            icon={{ set: 'shield' }}
             label="Child Safety Standards"
             onPress={() => Linking.openURL('https://philoi.app/child-safety.html')}
           />
         </View>
 
-        <Text style={styles.sectionLabel}>PURCHASES</Text>
+        <SpaceSection>Purchases</SpaceSection>
         <View style={styles.group}>
           {/* Apple REQUIRES this to be reachable for any app selling a non-consumable, and Settings
               is where users look for it. The paywall carries a second copy. */}
-          <SettingsRow icon="refresh" label="Restore purchases" chevron={false} onPress={handleRestore} />
+          <SettingsRow icon={{ ui: 'refresh' }} label="Restore purchases" chevron={false} onPress={handleRestore} />
         </View>
 
-        <Text style={styles.sectionLabel}>ACCOUNT</Text>
+        <SpaceSection>Account</SpaceSection>
         <View style={styles.group}>
-          <SettingsRow icon="log-out" label="Sign out" chevron={false} onPress={handleSignOut} />
+          <SettingsRow icon={{ set: 'logout' }} label="Sign out" chevron={false} onPress={handleSignOut} />
           <SettingsRow
-            icon="person-remove-outline"
+            icon={{ set: 'person-x' }}
             label="Sign out & forget this device"
             description="Next time, sign in from scratch instead of “Welcome back”."
             chevron={false}
             onPress={handleSignOutAndForget}
           />
           <SettingsRow
-            icon="trash"
+            icon={{ ui: 'trash' }}
             label="Delete account"
             danger
             chevron={false}
@@ -744,6 +825,7 @@ export default function SettingsScreen() {
       <Modal visible={photoModalOpen} transparent animationType="fade" onRequestClose={() => setPhotoModalOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setPhotoModalOpen(false)}>
           <Pressable style={styles.sheet} onPress={() => {}}>
+            <View style={styles.sheetGrabber} />
             <Text style={styles.sheetTitle}>Who can see my photos</Text>
             <Text style={styles.sheetSubtitle}>
               Applies to your profile grid and your photos shown around campfires.
@@ -754,12 +836,18 @@ export default function SettingsScreen() {
                 <Pressable
                   key={option.value}
                   style={[styles.optionRow, selected && styles.optionRowSelected]}
-                  onPress={() => handleSelectPhotoVisibility(option.value)}>
+                  onPress={() => handleSelectPhotoVisibility(option.value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}>
                   <View style={styles.optionText}>
                     <Text style={styles.optionLabel}>{PHOTO_VISIBILITY_LABEL[option.value]}</Text>
                     <Text style={styles.optionDescription}>{option.description}</Text>
                   </View>
-                  {selected && <Ionicons name="checkmark-circle" size={22} color={Colors.coral} />}
+                  {selected && (
+                    <View style={styles.optionCheck}>
+                      <UiGlyph name="check" size={14} color="#2A0F05" />
+                    </View>
+                  )}
                 </Pressable>
               );
             })}
@@ -771,6 +859,7 @@ export default function SettingsScreen() {
       <Modal visible={deleteModalOpen} transparent animationType="fade" onRequestClose={() => setDeleteModalOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => !deletingAccount && setDeleteModalOpen(false)}>
           <Pressable style={styles.sheet} onPress={() => {}}>
+            <View style={styles.sheetGrabber} />
             <Text style={styles.sheetTitle}>Delete account</Text>
             <Text style={styles.sheetSubtitle}>
               This permanently deletes your profile, all lock-ins, photos, streaks, XP and rank, and your
@@ -788,20 +877,19 @@ export default function SettingsScreen() {
               editable={!deletingAccount}
               style={styles.confirmInput}
             />
-            <Pressable
-              style={[styles.deleteButton, (!deleteArmed || deletingAccount) && styles.deleteButtonDisabled]}
+            <SpaceButton
+              variant="danger"
+              label={deletingAccount ? 'Deleting…' : 'Permanently delete my account'}
               disabled={!deleteArmed || deletingAccount}
-              onPress={handleConfirmDelete}>
-              <Text style={styles.deleteButtonText}>
-                {deletingAccount ? 'Deleting…' : 'Permanently delete my account'}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={styles.cancelButton}
+              onPress={handleConfirmDelete}
+              style={styles.deleteButton}
+            />
+            <SpaceButton
+              variant="ghost"
+              label="Cancel"
               disabled={deletingAccount}
-              onPress={() => setDeleteModalOpen(false)}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </Pressable>
+              onPress={() => setDeleteModalOpen(false)}
+            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -811,16 +899,13 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingBottom: Spacing.five,
   },
   identity: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    padding: Spacing.three,
-    marginBottom: Spacing.four,
+    gap: Spacing.twelve,
   },
   identityName: {
     fontFamily: Fonts.bodyBold,
@@ -830,83 +915,83 @@ const styles = StyleSheet.create({
   identityHandle: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.gold,
     marginTop: 2,
-  },
-  sectionLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.textTertiary,
-    marginBottom: Spacing.two,
-    marginLeft: 2,
   },
   sectionHint: {
     fontFamily: Fonts.body,
     fontSize: 11.5,
-    color: Colors.muted,
-    marginTop: -Spacing.one,
-    marginBottom: Spacing.two,
+    lineHeight: 16,
+    color: Colors.spaceDim,
+    marginTop: Spacing.two,
     marginLeft: 2,
   },
+  // The one hint that introduces its list rather than footnoting it.
+  sectionHintAbove: {
+    marginTop: 0,
+    marginBottom: Spacing.two,
+  },
+  // A group is a stack of standalone rows (the SpaceRow treatment), not one card with dividers.
   group: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    marginBottom: Spacing.four,
-    overflow: 'hidden',
+    gap: 6,
   },
-  rankDialGroup: {
-    padding: Spacing.three,
+  // Replay sits in no section of its own — give it the same air a section label would.
+  groupSpaced: {
+    marginTop: Spacing.four,
   },
-  reminderGroup: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    marginBottom: Spacing.four,
-    paddingHorizontal: Spacing.three,
+  // The per-campfire lists (reminders, auto-post) are rows drawn by their own components.
+  listCard: {
+    paddingVertical: Spacing.one,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    gap: Spacing.twelve,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.twelve,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
-  rowIcon: {
-    width: 22,
-    textAlign: 'center',
+  rowPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
+  },
+  tile: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.spacePanel2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileDanger: {
+    backgroundColor: Colors.dangerBg,
   },
   rowText: {
     flex: 1,
+    gap: 2,
   },
-  // Standalone label — still the flex spacer in the rows that have no rowText wrapper.
-  rowLabel: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.ink,
-  },
-  // The same label INSIDE rowText, which is already the flex spacer. No flex here: rowText is a
-  // column, so a flexed child would stretch against the description below it.
   rowTitle: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.ink,
   },
   rowDescription: {
     fontFamily: Fonts.body,
-    fontSize: 11.5,
+    fontSize: 12,
     lineHeight: 16,
-    color: Colors.muted,
-    marginTop: 2,
+    color: Colors.spaceDim,
   },
   rowLabelDanger: {
     color: Colors.danger,
   },
   rowValue: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
+    flexShrink: 1,
   },
   stepper: {
     flexDirection: 'row',
@@ -914,18 +999,20 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   stepperBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: Colors.disabled,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperValue: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.ink,
-    minWidth: 16,
+    fontFamily: Fonts.black,
+    fontSize: 15,
+    color: Colors.navEmber2,
+    minWidth: 18,
     textAlign: 'center',
   },
   backdrop: {
@@ -934,23 +1021,35 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: Colors.spaceLine,
     padding: Spacing.four,
+    paddingTop: Spacing.twelve,
     paddingBottom: Spacing.five,
     gap: Spacing.two,
   },
+  sheetGrabber: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.spaceLine,
+    marginBottom: Spacing.two,
+  },
   sheetTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
+    fontFamily: Fonts.black,
+    fontSize: 18,
     color: Colors.ink,
   },
   sheetSubtitle: {
     fontFamily: Fonts.body,
     fontSize: 13,
     lineHeight: 19,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginBottom: Spacing.two,
   },
   optionRow: {
@@ -959,11 +1058,14 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.three,
-    borderRadius: Radius.card,
-    backgroundColor: Colors.cardDark,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
   optionRowSelected: {
-    backgroundColor: Colors.selectedBg,
+    backgroundColor: 'rgba(255,122,47,0.10)',
+    borderColor: Colors.navEmber,
   },
   optionText: {
     flex: 1,
@@ -976,13 +1078,21 @@ const styles = StyleSheet.create({
   optionDescription: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: 2,
+  },
+  optionCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.navEmber,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   confirmPrompt: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: Spacing.two,
   },
   confirmWord: {
@@ -994,27 +1104,5 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     marginTop: Spacing.three,
-    backgroundColor: Colors.danger,
-    borderRadius: Radius.button,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-  },
-  deleteButtonDisabled: {
-    opacity: 0.4,
-  },
-  deleteButtonText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.ink,
-  },
-  cancelButton: {
-    marginTop: Spacing.two,
-    paddingVertical: Spacing.two,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.muted,
   },
 });

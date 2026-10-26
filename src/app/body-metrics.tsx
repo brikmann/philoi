@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -10,9 +9,10 @@ import {
   formatWeight,
   type WeightUnit,
 } from '@/components/onboarding/weight-ruler';
-import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceButton, SpaceSection, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { setMyHeightCm, setMyWeightKg } from '@/lib/api/relics';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -102,7 +102,8 @@ export default function BodyMetricsScreen() {
   }
 
   return (
-    <Screen padded={false}>
+    // No bottom edge: the global footer owns the bottom inset.
+    <Screen padded={false} edges={['top', 'left', 'right']}>
       <Stack.Screen options={{ title: 'Body' }} />
 
       <ScrollView contentContainerStyle={styles.container}>
@@ -111,7 +112,7 @@ export default function BodyMetricsScreen() {
           score a lift against your own bodyweight instead of the raw number.
         </Text>
 
-        <Text style={styles.sectionLabel}>HEIGHT</Text>
+        <SpaceSection>Height</SpaceSection>
         <View style={styles.card}>
           <HeightRuler
             value={heightCm}
@@ -127,7 +128,7 @@ export default function BodyMetricsScreen() {
           </Text>
         </View>
 
-        <Text style={styles.sectionLabel}>WEIGHT</Text>
+        <SpaceSection>Weight</SpaceSection>
         <View style={styles.card}>
           <WeightRuler
             value={weightKg}
@@ -149,7 +150,7 @@ export default function BodyMetricsScreen() {
         {/* The same promise onboarding makes, repeated where the number can be changed — the two
             places a user weighs up whether to tell us are the only two places it is worth saying. */}
         <View style={styles.privacy}>
-          <Ionicons name="lock-closed" size={13} color={Colors.muted} />
+          <UiGlyph name="lock" size={14} color={Colors.legend} />
           <Text style={styles.privacyText}>
             Never shown on your profile, and never used to hand out rewards — a personal record
             still pays nothing. It only makes your goals scale to you.
@@ -158,7 +159,7 @@ export default function BodyMetricsScreen() {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <PrimaryButton label="Save" loading={saving} disabled={!dirty} onPress={handleSave} />
+        <SpaceButton label="Save" loading={saving} disabled={!dirty} onPress={handleSave} />
 
         {hasSavedWeight && (
           <Pressable
@@ -177,56 +178,52 @@ export default function BodyMetricsScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 15,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingTop: Spacing.three,
     paddingBottom: 32,
-    gap: Spacing.two,
   },
   blurb: {
     fontFamily: Fonts.body,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: Colors.muted,
-    marginBottom: Spacing.four,
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colors.spaceDim,
   },
-  sectionLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.textTertiary,
-    marginBottom: Spacing.two,
-    marginLeft: 2,
-  },
+  // The SpaceCard panel, with tighter sides so the rulers keep their full sweep.
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: Spacing.four,
     paddingHorizontal: Spacing.two,
-    marginBottom: Spacing.four,
   },
   meta: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontSize: 11.5,
+    color: Colors.spaceFaint,
     textAlign: 'center',
     marginTop: Spacing.four,
   },
+  // SpaceCard tone="legend" — a promise, not an action.
   privacy: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-    backgroundColor: Colors.card,
+    gap: Spacing.twelve,
+    backgroundColor: 'rgba(185,139,255,0.08)',
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.input,
-    paddingVertical: 9,
-    paddingHorizontal: 11,
+    borderColor: '#3A2D5A',
+    borderRadius: 14,
+    paddingVertical: Spacing.twelve,
+    paddingHorizontal: Spacing.twelve,
+    marginTop: Spacing.four,
     marginBottom: Spacing.four,
   },
   privacyText: {
     flex: 1,
     fontFamily: Fonts.body,
-    fontSize: 10.5,
-    lineHeight: 14,
-    color: Colors.muted,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: Colors.spaceDim,
   },
   error: {
     fontFamily: Fonts.body,
@@ -239,8 +236,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.twelve,
   },
   clearText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.textTertiary,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12.5,
+    color: Colors.danger,
   },
 });

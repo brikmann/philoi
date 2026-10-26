@@ -1,10 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { ProgramPicker } from '@/components/house/program-picker';
 import { Screen } from '@/components/ui/screen';
+import { SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchProgramsForUniversity, setMyProgram } from '@/lib/api/house';
@@ -91,20 +91,17 @@ export default function ChangeProgramScreen() {
     ) : null;
 
   return (
-    <Screen padded={false} style={styles.container}>
+    // Top edge only: the global footer owns the bottom inset.
+    <Screen padded={false} edges={['top']} style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.header}>
-        <Pressable onPress={leave} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={24} color={Colors.muted} />
-        </Pressable>
-        <Text style={styles.title}>{toClaim ? 'Claim your house' : 'Your program'}</Text>
-      </View>
+      {/* leave() as the back action — backing out of a claim-driven change returns to the claim. */}
+      <SpaceHeader title={toClaim ? 'Claim your house' : 'Your program'} onBack={leave} />
 
       <View style={styles.body}>
         {empty ??
           (load.state === 'loading' ? (
             <View style={styles.center}>
-              <ActivityIndicator color={Colors.amber} />
+              <ActivityIndicator color={Colors.navEmber} />
             </View>
           ) : load.state === 'error' ? (
             <View style={styles.center}>
@@ -131,23 +128,10 @@ const styles = StyleSheet.create({
   container: {
     paddingBottom: 14,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-  },
-  title: {
-    flex: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 18,
-    color: Colors.ink,
-  },
   body: {
     flex: 1,
     minHeight: 0,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
   },
   center: {
     flex: 1,
@@ -157,7 +141,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   emptyTitle: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 16,
     color: Colors.ink,
     textAlign: 'center',
@@ -166,13 +150,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     lineHeight: 19,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.coral,
+    color: Colors.danger,
     marginTop: Spacing.two,
   },
 });

@@ -1,11 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceEmpty, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { listBlockedUsers, unblockUser, type BlockedUser } from '@/lib/api/agora';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -15,7 +14,6 @@ import { getErrorMessage } from '@/lib/errors';
 // them. Unblocking is immediate — the feed and comment reads filter on the row, not on a cache.
 
 export default function BlockedUsersScreen() {
-  const router = useRouter();
   const { profile } = useAuth();
   const [people, setPeople] = useState<BlockedUser[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -59,23 +57,22 @@ export default function BlockedUsersScreen() {
   }
 
   return (
-    <Screen padded={false}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={24} color={Colors.muted} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Blocked users</Text>
-      </View>
+    // Top edge only: the global footer owns the bottom inset.
+    <Screen padded={false} edges={['top']}>
+      <SpaceHeader title="Blocked users" />
 
       {people === null ? (
-        <ActivityIndicator color={Colors.coral} style={styles.loader} />
+        <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
       ) : people.length === 0 ? (
-        <Text style={styles.empty}>You haven’t blocked anyone.</Text>
+        <SpaceEmpty
+          title="You haven’t blocked anyone."
+          body="Anyone you block from the Agora, a DM or a profile shows up here."
+        />
       ) : (
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
           <View style={styles.group}>
-            {people.map((person, i) => (
-              <View key={person.id} style={[styles.row, i === people.length - 1 && styles.rowLast]}>
+            {people.map((person) => (
+              <View key={person.id} style={styles.row}>
                 <Avatar label={person.display_name} size={36} />
                 <View style={styles.rowText}>
                   <Text style={styles.name} numberOfLines={1}>
@@ -87,10 +84,12 @@ export default function BlockedUsersScreen() {
                     </Text>
                   ) : null}
                 </View>
+                {/* A compact SpaceButton-secondary look, kept a Pressable so it can carry the
+                    per-person accessibility label (the kit button takes none). */}
                 <Pressable
                   onPress={() => confirmUnblock(person)}
                   disabled={busyId === person.id}
-                  style={styles.unblock}
+                  style={({ pressed }) => [styles.unblock, pressed && styles.unblockPressed]}
                   accessibilityRole="button"
                   accessibilityLabel={`Unblock ${person.display_name}`}>
                   <Text style={styles.unblockLabel}>{busyId === person.id ? '…' : 'Unblock'}</Text>
@@ -108,46 +107,33 @@ export default function BlockedUsersScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.twelve,
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.twelve,
-  },
-  headerTitle: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.ink },
   loader: { marginTop: Spacing.six },
-  empty: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    marginTop: Spacing.six,
-  },
-  body: { padding: Spacing.three, gap: Spacing.twelve, paddingBottom: Spacing.five },
-  group: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    paddingHorizontal: Spacing.three,
-  },
+  body: { paddingHorizontal: SPACE_GUTTER, gap: Spacing.twelve, paddingBottom: Spacing.five },
+  // A stack of standalone SpaceRow-style panels.
+  group: { gap: 6 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.twelve,
-    paddingVertical: Spacing.twelve,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.twelve,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
-  rowLast: { borderBottomWidth: 0 },
   rowText: { flex: 1, minWidth: 0 },
-  name: { fontFamily: Fonts.bodySemiBold, fontSize: 15, color: Colors.ink },
-  handle: { fontFamily: Fonts.body, fontSize: 12, color: Colors.textTertiary, marginTop: 2 },
+  name: { fontFamily: Fonts.bodyBold, fontSize: 14.5, color: Colors.ink },
+  handle: { fontFamily: Fonts.body, fontSize: 12, color: Colors.spaceDim, marginTop: 2 },
   unblock: {
     paddingHorizontal: Spacing.twelve,
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.button,
-    backgroundColor: Colors.cardDark,
+    paddingVertical: 7,
+    borderRadius: 12,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
   },
-  unblockLabel: { fontFamily: Fonts.bodySemiBold, fontSize: 13, color: Colors.ink },
-  foot: { fontFamily: Fonts.body, fontSize: 12, lineHeight: 17, color: Colors.textTertiary },
+  unblockPressed: { opacity: 0.85 },
+  unblockLabel: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.ink },
+  foot: { fontFamily: Fonts.body, fontSize: 12, lineHeight: 17, color: Colors.spaceFaint },
 });

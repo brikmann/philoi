@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Linking, Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getPushPermission, registerPushToken } from '@/lib/notifications';
@@ -63,7 +63,7 @@ export function PushOffBanner({ style }: { style?: ViewStyle }) {
 
   return (
     <View style={[styles.banner, style]}>
-      <Ionicons name="notifications-off-outline" size={18} color={Colors.amber} />
+      <NavGlyph name="bell" size={18} color={Colors.navEmber2} />
       <View style={styles.copy}>
         <Text style={styles.title}>Push is off on this phone</Text>
         <Text style={styles.body}>Goals, crates and friend requests show up here, but won’t buzz you.</Text>
@@ -83,8 +83,11 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.three,
     marginBottom: Spacing.twelve,
     padding: Spacing.twelve,
-    borderRadius: Radius.card,
-    backgroundColor: Colors.achieverBg,
+    // SpaceCard tone="ember": the one card on the screen asking you to act.
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.08)',
   },
   copy: {
     flex: 1,
@@ -98,18 +101,18 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.warmSubtext,
+    color: Colors.spaceDim,
     marginTop: 2,
   },
   button: {
-    backgroundColor: Colors.amber,
+    backgroundColor: Colors.navEmber,
     borderRadius: Radius.pill,
     paddingVertical: 6,
     paddingHorizontal: Spacing.twelve,
   },
   buttonText: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.onEmber,
+    color: '#2A0F05',
   },
 });

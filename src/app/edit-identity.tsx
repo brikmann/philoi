@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -14,6 +13,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SettingsGlyph } from '@/components/ui/glyphs-settings';
+import { SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { fetchProfileIdentity, setMyIdentity } from '@/lib/api/identity';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -123,30 +125,31 @@ export default function EditIdentityScreen() {
   const canSave = load === 'ready' && !saving;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back" accessibilityRole="button">
-          <Ionicons name="chevron-back" size={22} color={Colors.ink} />
-        </Pressable>
-        <Text style={styles.title}>Your identity</Text>
-        <Pressable
-          onPress={handleSave}
-          disabled={!canSave}
-          hitSlop={8}
-          style={[styles.save, !canSave && styles.saveOff]}
-          accessibilityRole="button"
-          accessibilityLabel="Save identity">
-          {saving ? (
-            <ActivityIndicator size="small" color={Colors.onEmber} />
-          ) : (
-            <Text style={[styles.saveText, !canSave && styles.saveTextOff]}>Save</Text>
-          )}
-        </Pressable>
-      </View>
+    // Top edge only: the global footer sits under every screen and owns the bottom inset.
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SpaceHeader
+        title="Your identity"
+        right={
+          // Mock 283's ember "Save" pill, in the header's right slot.
+          <Pressable
+            onPress={handleSave}
+            disabled={!canSave}
+            hitSlop={8}
+            style={[styles.save, !canSave && styles.saveOff]}
+            accessibilityRole="button"
+            accessibilityLabel="Save identity">
+            {saving ? (
+              <ActivityIndicator size="small" color="#2A0F05" />
+            ) : (
+              <Text style={[styles.saveText, !canSave && styles.saveTextOff]}>Save</Text>
+            )}
+          </Pressable>
+        }
+      />
 
       {load === 'loading' ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={Colors.coral} />
+          <ActivityIndicator color={Colors.navEmber} />
         </View>
       ) : load === 'failed' ? (
         // Not a blank form: saving a form that never loaded would clear whatever is stored.
@@ -208,7 +211,7 @@ export default function EditIdentityScreen() {
               <Text style={styles.k}>Lock-in anthem</Text>
               <View style={styles.anthemRow}>
                 <View style={styles.art}>
-                  <Text style={styles.artGlyph}>♪</Text>
+                  <SettingsGlyph name="music" size={16} color={Colors.ink} />
                 </View>
                 <View style={styles.flex}>
                   <TextInput
@@ -255,7 +258,7 @@ export default function EditIdentityScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Remove ${t}`}>
                     <Text style={styles.tagText}>{t}</Text>
-                    <Ionicons name="close" size={11} color={Colors.textTertiary} />
+                    <UiGlyph name="close" size={11} color={Colors.spaceDim} />
                   </Pressable>
                 ))}
               </View>
@@ -321,37 +324,25 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.three,
-  },
-  title: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
-    color: Colors.ink,
-  },
   // Mock 283's ember "Save" pill in the header.
   save: {
     minWidth: 58,
     alignItems: 'center',
-    backgroundColor: Colors.amber,
+    backgroundColor: Colors.navEmber,
     borderRadius: Radius.pill,
-    paddingVertical: 6,
+    paddingVertical: 7,
     paddingHorizontal: 14,
   },
   saveOff: {
-    backgroundColor: Colors.disabledSurface,
+    backgroundColor: Colors.spacePanel2,
   },
   saveText: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 13,
-    color: Colors.onEmber,
+    color: '#2A0F05',
   },
   saveTextOff: {
-    color: Colors.disabledText,
+    color: Colors.spaceFaint,
   },
   centered: {
     flex: 1,
@@ -362,31 +353,32 @@ const styles = StyleSheet.create({
   failText: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   retry: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.achieverText,
+    color: Colors.navEmber2,
   },
   container: {
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.five,
-    gap: 10,
+    gap: 8,
   },
   card: {
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
     borderRadius: 14,
     padding: 13,
   },
+  // SpaceSection's label, inside the card.
   k: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 0.5,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   // Bare inputs inside the card, like the mock's values — the card is the field.
   input: {
@@ -399,20 +391,20 @@ const styles = StyleSheet.create({
   },
   // The headline field reads in the same gold it will wear under your name.
   inputCareer: {
-    color: Colors.ember,
+    color: Colors.gold,
     fontFamily: Fonts.bodyBold,
   },
   inputSub: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     paddingTop: 0,
   },
   count: {
     alignSelf: 'flex-end',
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   anthemRow: {
     flexDirection: 'row',
@@ -428,10 +420,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  artGlyph: {
-    fontSize: 14,
-    color: Colors.ink,
-  },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -442,15 +430,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 5,
     paddingHorizontal: 10,
   },
   tagText: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
-    color: Colors.coldChipText,
+    color: Colors.legend,
   },
   tagAdd: {
     flexDirection: 'row',
@@ -459,22 +449,26 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   addChip: {
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderWidth: 1,
+    borderColor: Colors.navEmber,
     borderRadius: Radius.pill,
     paddingVertical: 5,
     paddingHorizontal: 11,
   },
   addChipText: {
-    fontFamily: Fonts.bodySemiBold,
+    fontFamily: Fonts.bodyBold,
     fontSize: 11.5,
-    color: Colors.achieverText,
+    color: Colors.navEmber2,
   },
   visLabel: {
     textAlign: 'center',
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
-    color: Colors.textTertiary,
-    marginTop: 6,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
+    marginTop: Spacing.twelve,
   },
   vis: {
     flexDirection: 'row',
@@ -483,27 +477,28 @@ const styles = StyleSheet.create({
   visOpt: {
     flex: 1,
     alignItems: 'center',
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.button,
-    paddingVertical: 9,
+    borderColor: Colors.spaceLine,
+    borderRadius: 13,
+    paddingVertical: 10,
   },
   visOptOn: {
-    backgroundColor: Colors.selectedBg,
-    borderColor: Colors.coral,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   visText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   visTextOn: {
-    color: Colors.ink,
+    color: Colors.navEmber2,
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.coral,
+    color: Colors.danger,
     marginTop: Spacing.two,
   },
 });

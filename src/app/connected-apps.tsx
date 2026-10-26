@@ -5,7 +5,9 @@ import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Tex
 
 import { FITNESS_SYNC_SOURCES, type SyncSource } from '@/components/fitness-sync-prompt';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceHeader, SpaceSection, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { CalendarConsentDialog } from '@/components/calendar-consent-dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -87,7 +89,13 @@ function ConnectableRow({
   const showConnected = supported && connected;
 
   return (
-    <Pressable style={styles.row} onPress={handlePress} disabled={loading || busy}>
+    <Pressable
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      onPress={handlePress}
+      disabled={loading || busy}
+      accessibilityRole="button"
+      accessibilityLabel={`${source.name}, ${showConnected ? 'connected' : 'connect'}`}>
+      {/* The source's own brand mark on its brand colour — content, not a control, so it stays. */}
       <View style={[styles.icon, { backgroundColor: source.iconBg }]}>
         <Ionicons name={source.icon} size={19} color={source.iconColor} />
       </View>
@@ -96,21 +104,27 @@ function ConnectableRow({
         <Text style={styles.detail}>{source.detail}</Text>
       </View>
       {busy || loading ? (
-        <ActivityIndicator size="small" color={Colors.achieverText} />
+        <ActivityIndicator size="small" color={Colors.navEmber} />
       ) : showConnected ? (
-        <View style={styles.connectedPill}>
-          <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
-          <Text style={styles.connectedLabel}>Connected</Text>
-        </View>
+        <ConnectedPill />
       ) : connectButtonAsset ? (
         <Image source={connectButtonAsset} style={styles.connectButtonImage} resizeMode="contain" />
       ) : (
         <>
           <Text style={styles.connectLabel}>Connect</Text>
-          <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
+          <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
         </>
       )}
     </Pressable>
+  );
+}
+
+function ConnectedPill() {
+  return (
+    <View style={styles.connectedPill}>
+      <UiGlyph name="check" size={12} color={Colors.green} />
+      <Text style={styles.connectedLabel}>Connected</Text>
+    </View>
   );
 }
 
@@ -215,7 +229,12 @@ function GoogleCalendarRow() {
 
   return (
     <>
-      <Pressable style={styles.row} onPress={handlePress} disabled={loading || busy || showConnected}>
+      <Pressable
+        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+        onPress={handlePress}
+        disabled={loading || busy || showConnected}
+        accessibilityRole="button"
+        accessibilityLabel={`Google Calendar, ${showConnected ? 'connected' : 'connect'}`}>
         <View style={[styles.icon, { backgroundColor: '#1b2436' }]}>
           <Ionicons name="calendar" size={19} color="#5B93F5" />
         </View>
@@ -233,16 +252,13 @@ function GoogleCalendarRow() {
           </Text>
         </View>
         {busy || loading ? (
-          <ActivityIndicator size="small" color={Colors.achieverText} />
+          <ActivityIndicator size="small" color={Colors.navEmber} />
         ) : showConnected ? (
-          <View style={styles.connectedPill}>
-            <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
-            <Text style={styles.connectedLabel}>Connected</Text>
-          </View>
+          <ConnectedPill />
         ) : (
           <>
             <Text style={styles.connectLabel}>Connect</Text>
-            <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} />
+            <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
           </>
         )}
       </Pressable>
@@ -285,17 +301,12 @@ export default function ConnectedAppsScreen() {
   const platformSource = getPlatformFitnessSource();
 
   return (
-    <Screen padded={false}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="chevron-back" size={22} color={Colors.ink} />
-        </Pressable>
-        <Text style={styles.title}>Integrations</Text>
-        <View style={{ width: 22 }} />
-      </View>
+    // Top edge only: the global footer owns the bottom inset.
+    <Screen padded={false} edges={['top']}>
+      <SpaceHeader title="Integrations" />
 
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Health & Fitness</Text>
+        <SpaceSection>Health & Fitness</SpaceSection>
         <Text style={styles.subtitle}>Track step and distance challenges automatically. You can always log manually.</Text>
 
         <View style={styles.group}>
@@ -309,7 +320,7 @@ export default function ConnectedAppsScreen() {
         </View>
 
         <View style={styles.privacy}>
-          <Ionicons name="lock-closed" size={13} color={Colors.green} />
+          <UiGlyph name="lock" size={13} color={Colors.green} />
           <Text style={styles.privacyText}>
             {/* "Steps and distance" alone would under-state it: a Sleep goal reads sleep too. */}
             Philoi never writes to your health data — it only reads steps, sleep and distance to verify a challenge.
@@ -318,19 +329,23 @@ export default function ConnectedAppsScreen() {
         </View>
 
         {platformSource === 'health_connect' && (
-          <Pressable style={styles.rationaleLink} onPress={() => router.push('/health-connect-rationale')}>
+          <Pressable
+            style={styles.rationaleLink}
+            onPress={() => router.push('/health-connect-rationale')}
+            accessibilityRole="link">
             <Text style={styles.rationaleLinkText}>How Philoi uses Health Connect data</Text>
+            <UiGlyph name="forward" size={12} color={Colors.navEmber2} />
           </Pressable>
         )}
 
-        <Text style={styles.sectionTitle}>Productivity</Text>
+        <SpaceSection>Productivity</SpaceSection>
 
         <View style={styles.group}>
           <GoogleCalendarRow />
         </View>
 
         <View style={styles.privacy}>
-          <Ionicons name="lock-closed" size={13} color={Colors.green} />
+          <UiGlyph name="lock" size={13} color={Colors.green} />
           <Text style={styles.privacyText}>Read-only, server-side, at send time. Never stored, never shown to anyone.</Text>
         </View>
 
@@ -347,52 +362,35 @@ export default function ConnectedAppsScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
-  },
-  title: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 16,
-    color: Colors.ink,
-  },
   container: {
-    padding: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingBottom: Spacing.five,
   },
   subtitle: {
     fontFamily: Fonts.body,
     fontSize: 13,
     lineHeight: 19,
-    color: Colors.muted,
-    marginBottom: Spacing.four,
+    color: Colors.spaceDim,
+    marginBottom: Spacing.twelve,
   },
-  sectionTitle: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.ink,
-    marginTop: Spacing.five,
-    marginBottom: Spacing.two,
-  },
-  sectionTitleFirst: {
-    marginTop: 0,
-  },
+  // A stack of standalone SpaceRow-style panels rather than one card with dividers.
   group: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    overflow: 'hidden',
+    gap: 6,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.line,
+    gap: Spacing.twelve,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.twelve,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  rowPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
   },
   icon: {
     width: 38,
@@ -405,20 +403,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13.5,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
     color: Colors.ink,
   },
   detail: {
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.muted,
-    marginTop: 1,
+    fontSize: 12,
+    color: Colors.spaceDim,
+    marginTop: 2,
   },
   connectLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.achieverText,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.navEmber2,
   },
   connectedPill: {
     flexDirection: 'row',
@@ -437,14 +435,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.two,
-    marginTop: -Spacing.one,
+    paddingHorizontal: Spacing.twelve,
+    paddingVertical: Spacing.one,
   },
   calendarAction: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   calendarActionDanger: {
     color: Colors.danger,
@@ -452,31 +449,33 @@ const styles = StyleSheet.create({
   calendarActionDivider: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.spaceFaint,
   },
   privacy: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.one,
-    marginTop: Spacing.three,
-    paddingHorizontal: Spacing.one,
+    gap: 6,
+    marginTop: Spacing.twelve,
+    paddingHorizontal: 2,
   },
   privacyText: {
     flex: 1,
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
-    lineHeight: 15,
+    fontSize: 11.5,
+    color: Colors.spaceDim,
+    lineHeight: 16,
   },
   rationaleLink: {
-    marginTop: Spacing.three,
+    marginTop: Spacing.twelve,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
   rationaleLinkText: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.achieverText,
-    textDecorationLine: 'underline',
+    fontSize: 12.5,
+    color: Colors.navEmber2,
   },
   connectButtonImage: {
     height: 24,

@@ -7,6 +7,7 @@ import { ItemArt } from '@/components/economy/item-art';
 import { SeasonChip, isSeasonItem } from '@/components/economy/season-chip';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Screen } from '@/components/ui/screen';
+import { SPACE_GUTTER } from '@/components/ui/space-kit';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
@@ -56,7 +57,8 @@ export default function CosmeticGalleryScreen() {
   if (!__DEV__ && !profile?.is_dev) return <Redirect href="/settings" />;
 
   return (
-    <Screen padded={false}>
+    // No bottom edge: the global footer owns the bottom inset.
+    <Screen padded={false} edges={['top', 'left', 'right']}>
       <Stack.Screen options={{ title: 'Cosmetic Gallery', headerShown: true }} />
       <ScrollView contentContainerStyle={styles.scroll} stickyHeaderIndices={[0]}>
         {/* Sticky stage + surface switch. */}
@@ -158,37 +160,40 @@ const styles = StyleSheet.create({
   scroll: {
     paddingBottom: Spacing.six,
   },
+  // Opaque on purpose: it is a sticky header, so the grid scrolls UNDER it.
   stageWrap: {
-    backgroundColor: Colors.forgeBg,
-    paddingHorizontal: Spacing.four,
+    backgroundColor: Colors.spaceBg,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.three,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.cardDark,
+    borderBottomColor: Colors.spaceLine,
   },
   surfaceRow: {
     flexDirection: 'row',
     gap: Spacing.one,
     paddingVertical: Spacing.two,
   },
+  // SpaceChip's look, stretched to share the row.
   surfacePill: {
     flex: 1,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.cardDark,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 8,
     alignItems: 'center',
   },
   surfacePillOn: {
-    backgroundColor: Colors.ember,
-    borderColor: Colors.ember,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   surfacePillText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   surfacePillTextOn: {
-    color: '#2a1608',
+    color: Colors.navEmber2,
   },
   stage: {
     minHeight: 200,
@@ -208,7 +213,7 @@ const styles = StyleSheet.create({
   stageErrorBody: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   stageErrorBtn: {
@@ -217,12 +222,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.ember,
+    borderColor: Colors.navEmber,
   },
   stageErrorBtnText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
-    color: Colors.ember,
+    color: Colors.navEmber2,
   },
   stageName: {
     fontFamily: Fonts.bodyBold,
@@ -246,11 +251,11 @@ const styles = StyleSheet.create({
   stageEffect: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     marginTop: Spacing.one,
   },
   section: {
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingTop: Spacing.four,
   },
   sectionTitle: {
@@ -261,7 +266,7 @@ const styles = StyleSheet.create({
   },
   sectionCount: {
     fontFamily: Fonts.body,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   grid: {
     flexDirection: 'row',
@@ -270,15 +275,15 @@ const styles = StyleSheet.create({
   },
   tile: {
     width: TILE_WIDTH,
-    borderRadius: Radius.card,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.cardDark,
-    backgroundColor: Colors.card,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
     padding: Spacing.two,
     alignItems: 'center',
   },
   tileOn: {
-    borderColor: Colors.ember,
+    borderColor: Colors.navEmber,
   },
   tileArt: {
     height: 72,

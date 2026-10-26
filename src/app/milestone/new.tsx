@@ -1,11 +1,14 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ScreenBackground } from '@/components/ui/screen-background';
+import { SettingsGlyph } from '@/components/ui/glyphs-settings';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { SpaceButton, SpaceHeader, SpaceIconButton, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
+import { Toggle } from '@/components/ui/toggle';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import {
@@ -96,15 +99,18 @@ export default function NewMilestoneScreen() {
   }
 
   return (
-    <ScreenBackground>
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Close">
-            <Ionicons name="close" size={22} color={Colors.muted} />
-          </Pressable>
-          <Text style={styles.title}>New Milestone</Text>
-          <View style={styles.topSpacer} />
-        </View>
+    // A modal: no ScreenBackground of its own (the root paints the ground), and a close ✕ in the
+    // header's right slot rather than a back chevron, because this sheet dismisses, it doesn't pop.
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <SpaceHeader
+          title="New Milestone"
+          back={false}
+          right={
+            <SpaceIconButton onPress={() => router.back()} label="Close">
+              <UiGlyph name="close" size={16} color={Colors.ink} />
+            </SpaceIconButton>
+          }
+        />
 
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
@@ -150,13 +156,11 @@ export default function NewMilestoneScreen() {
             <View style={styles.field}>
               <View style={styles.receipts}>
                 <View style={styles.receiptsHead}>
-                  <Text style={styles.receiptsTitle}>⚡ BACKED BY YOUR EFFORT</Text>
-                  <Switch
-                    value={attachEffort}
-                    onValueChange={setAttachEffort}
-                    trackColor={{ true: Colors.amber, false: Colors.trackAlt }}
-                    thumbColor="#FFFFFF"
-                  />
+                  <View style={styles.headTitleRow}>
+                    <NavGlyph name="flame" size={13} color={Colors.navEmber2} />
+                    <Text style={styles.receiptsTitle}>BACKED BY YOUR EFFORT</Text>
+                  </View>
+                  <Toggle value={attachEffort} onValueChange={setAttachEffort} />
                 </View>
                 {attachEffort && chips.length > 0 ? (
                   <>
@@ -207,13 +211,11 @@ export default function NewMilestoneScreen() {
             <View style={styles.field}>
               <View style={styles.pin}>
                 <View style={styles.receiptsHead}>
-                  <Text style={styles.pinTitle}>📓 Pin to my Journal</Text>
-                  <Switch
-                    value={pinned}
-                    onValueChange={setPinned}
-                    trackColor={{ true: Colors.amber, false: Colors.trackAlt }}
-                    thumbColor="#FFFFFF"
-                  />
+                  <View style={styles.headTitleRow}>
+                    <NavGlyph name="book" size={14} color={Colors.legend} />
+                    <Text style={styles.pinTitle}>Pin to my Journal</Text>
+                  </View>
+                  <Toggle value={pinned} onValueChange={setPinned} />
                 </View>
                 <Text style={styles.receiptsSub}>
                   Keep it on your profile&rsquo;s Journal so it lives on. Off = share card only, nothing posted.
@@ -224,26 +226,22 @@ export default function NewMilestoneScreen() {
             {/* Stated to the user, not just enforced in SQL — the firewall is a promise about what
                 Philoi rewards, and it only works as a promise if people can read it. */}
             <View style={styles.firewall}>
-              <Ionicons name="shield-checkmark-outline" size={14} color={Colors.green} />
+              <SettingsGlyph name="shield" size={14} color={Colors.green} />
               <Text style={styles.firewallText}>
                 Milestones are just for sharing — they <Text style={styles.firewallStrong}>don&rsquo;t</Text> affect
                 XP, embers, or rank. Philoi rewards the effort; this celebrates what it produced.
               </Text>
             </View>
 
-            <Pressable
-              style={[styles.post, (!headline.trim() || saving) && styles.postDisabled]}
+            <SpaceButton
+              label={saving ? 'Posting…' : 'Share milestone'}
               onPress={post}
               disabled={!headline.trim() || saving}
-              accessibilityRole="button">
-              <Text style={[styles.postText, (!headline.trim() || saving) && styles.postTextDisabled]}>
-                {saving ? 'Posting…' : 'Share milestone'}
-              </Text>
-            </Pressable>
+              style={styles.post}
+            />
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
-    </ScreenBackground>
+    </SafeAreaView>
   );
 }
 
@@ -255,66 +253,53 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
-  },
-  title: {
-    flex: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
-    color: Colors.ink,
-  },
-  topSpacer: {
-    width: 22,
-  },
   container: {
-    padding: Spacing.four,
+    paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.six,
   },
   field: {
     marginTop: Spacing.three,
   },
+  // SpaceSection's label.
   label: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 0.5,
-    color: Colors.muted,
-    marginBottom: 7,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    color: Colors.spaceFaint,
+    marginBottom: Spacing.two,
   },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 7,
   },
+  // SpaceChip's look (kept a local Pressable for its per-chip accessibility state).
   chip: {
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 7,
     paddingHorizontal: 12,
   },
   chipOn: {
-    backgroundColor: Colors.amber,
-    borderColor: 'transparent',
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   chipText: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11.5,
-    color: Colors.muted,
+    fontSize: 12,
+    color: Colors.spaceDim,
   },
   chipTextOn: {
-    color: Colors.onEmber,
+    color: Colors.navEmber2,
   },
+  // SpaceCard tone="ember" — the Philoi twist, on by default.
   receipts: {
-    backgroundColor: 'rgba(242,163,60,0.10)',
+    backgroundColor: 'rgba(255,122,47,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(242,163,60,0.30)',
-    borderRadius: Radius.card,
+    borderColor: Colors.navEmber,
+    borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 13,
   },
@@ -323,11 +308,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  headTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+  },
   receiptsTitle: {
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
     letterSpacing: 0.3,
-    color: Colors.amber,
+    color: Colors.navEmber2,
   },
   receiptChips: {
     flexDirection: 'row',
@@ -336,9 +327,9 @@ const styles = StyleSheet.create({
     marginTop: 9,
   },
   receiptChip: {
-    backgroundColor: 'rgba(20,16,32,0.6)',
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     borderRadius: Radius.pill,
     paddingVertical: 5,
     paddingHorizontal: 10,
@@ -357,10 +348,10 @@ const styles = StyleSheet.create({
   },
   receiptsSub: {
     fontFamily: Fonts.body,
-    fontSize: 9.5,
-    color: Colors.muted,
+    fontSize: 10.5,
+    color: Colors.spaceDim,
     marginTop: 8,
-    lineHeight: 14,
+    lineHeight: 15,
   },
   vis: {
     flexDirection: 'row',
@@ -369,55 +360,56 @@ const styles = StyleSheet.create({
   visOpt: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    borderRadius: Radius.card,
-    paddingVertical: 9,
+    borderColor: Colors.spaceLine,
+    borderRadius: 13,
+    paddingVertical: 10,
   },
   visOptOn: {
-    borderColor: Colors.amber,
-    backgroundColor: Colors.selectedBg,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.12)',
   },
   visText: {
     fontFamily: Fonts.bodySemiBold,
-    fontSize: 11.5,
-    color: Colors.muted,
+    fontSize: 12,
+    color: Colors.spaceDim,
   },
   visTextOn: {
-    color: Colors.ink,
+    color: Colors.navEmber2,
   },
   pin: {
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.card,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 13,
   },
   pinTitle: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12.5,
     color: Colors.ink,
   },
+  // SpaceCard tone="legend" — a promise, not an action.
   firewall: {
     flexDirection: 'row',
     gap: 8,
     alignItems: 'flex-start',
     marginTop: Spacing.three,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: 'rgba(185,139,255,0.08)',
     borderWidth: 1,
-    borderColor: Colors.line,
-    borderRadius: Radius.card,
+    borderColor: '#3A2D5A',
+    borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
   firewallText: {
     flex: 1,
     fontFamily: Fonts.body,
-    fontSize: 10.5,
-    lineHeight: 15,
-    color: Colors.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    color: Colors.spaceDim,
   },
   firewallStrong: {
     fontFamily: Fonts.bodyBold,
@@ -425,22 +417,5 @@ const styles = StyleSheet.create({
   },
   post: {
     marginTop: Spacing.four,
-    backgroundColor: Colors.amber,
-    borderRadius: Radius.button,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  postDisabled: {
-    backgroundColor: Colors.disabledSurface,
-    borderWidth: 1,
-    borderColor: Colors.disabledBorder,
-  },
-  postText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.onEmber,
-  },
-  postTextDisabled: {
-    color: Colors.disabledText,
   },
 });

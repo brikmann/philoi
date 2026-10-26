@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,8 +8,9 @@ import { BurningName } from '@/components/burning-name';
 import { EquippedAvatarHalo } from '@/components/economy/applied-art';
 import { ItemArt } from '@/components/economy/item-art';
 import { PublicTitle } from '@/components/economy/loadout-bits';
-import { ScreenBackground } from '@/components/ui/screen-background';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { track } from '@/lib/analytics';
@@ -44,7 +44,7 @@ const SLOT_ORDER: EquipSlot[] = ['flame', 'halo', 'card', 'flare', 'particle', '
 /** Rarest first — the grid's sort and the legend's order. */
 const RARITIES_DESC = [...RARITIES].reverse();
 
-const GUTTER = Spacing.three;
+const GUTTER = SPACE_GUTTER;
 const GRID_GAP = 9;
 
 type Tile = CollectionItem & { item: CatalogItem; rarity: Rarity; equipped: boolean };
@@ -54,7 +54,6 @@ function tileRarity(row: Pick<CollectionItem, 'rarity_override'> | undefined, it
 }
 
 export default function CollectionScreen() {
-  const router = useRouter();
   const { width } = useWindowDimensions();
   const { userId: userIdParam } = useLocalSearchParams<{ userId?: string }>();
   const { profile: myProfile } = useAuth();
@@ -196,13 +195,9 @@ export default function CollectionScreen() {
   const metal = rank && !rank.muted ? RANK_TIER_METAL[rank.tier] : null;
 
   return (
-    <ScreenBackground>
-      <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <View style={styles.top}>
-          <Pressable style={styles.back} onPress={() => router.back()} hitSlop={8} accessibilityLabel="Back">
-            <Ionicons name="chevron-back" size={18} color={Colors.muted} />
-          </Pressable>
-        </View>
+    // No ScreenBackground of its own any more: the root paints the space ground, screens stay clear.
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <SpaceHeader title="Collection" />
 
         <ScrollView contentContainerStyle={styles.container}>
           {/* ── HERO ── */}
@@ -328,7 +323,10 @@ export default function CollectionScreen() {
 
           {/* Visitors see the size of the gap, never what fills it. */}
           {collection && !collection.is_owner && collection.hidden_count > 0 ? (
-            <Text style={styles.hiddenNote}>🔒 {collection.hidden_count} hidden by owner</Text>
+            <View style={styles.hiddenNoteRow}>
+              <UiGlyph name="lock" size={11} color={Colors.spaceFaint} />
+              <Text style={styles.hiddenNote}>{collection.hidden_count} hidden by owner</Text>
+            </View>
           ) : null}
 
           {tiles.length > 0 ? (
@@ -339,8 +337,7 @@ export default function CollectionScreen() {
             </Text>
           ) : null}
         </ScrollView>
-      </SafeAreaView>
-    </ScreenBackground>
+    </SafeAreaView>
   );
 }
 
@@ -350,7 +347,7 @@ function ItemTile({ tile, size, onPress }: { tile: Tile; size: number; onPress: 
     <Pressable
       style={[
         styles.tile,
-        { width: size, height: size, borderColor: tile.equipped ? Colors.amber : colour + '55' },
+        { width: size, height: size, borderColor: tile.equipped ? Colors.navEmber : colour + '55' },
         tile.equipped && styles.tileEquipped,
         tile.hidden && styles.tileHidden,
       ]}
@@ -363,7 +360,11 @@ function ItemTile({ tile, size, onPress }: { tile: Tile; size: number; onPress: 
         {tile.item.name}
       </Text>
       <View style={[styles.dot, { backgroundColor: colour }]} />
-      {tile.hidden ? <Text style={styles.hiddenMark}>🔒</Text> : null}
+      {tile.hidden ? (
+        <View style={styles.hiddenMark}>
+          <UiGlyph name="lock" size={10} color={Colors.spaceDim} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -372,20 +373,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: 'transparent',
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: GUTTER,
-    paddingTop: Spacing.one,
-  },
-  back: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: Colors.cardDark,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   container: {
     paddingBottom: Spacing.six,
@@ -402,14 +389,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: Colors.spacePanel2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   initial: {
-    fontFamily: Fonts.display,
+    fontFamily: Fonts.black,
     fontSize: 36,
-    color: Colors.ember,
+    color: Colors.gold,
   },
   flameBadge: {
     position: 'absolute',
@@ -418,15 +405,15 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
+    borderColor: Colors.spaceLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
   name: {
     marginTop: Spacing.twelve,
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 25,
     color: Colors.ink,
     textAlign: 'center',
@@ -459,13 +446,13 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: Colors.lineStrong,
-    backgroundColor: Colors.cardDark,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
   },
   uniPillText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 10,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   statLine: {
     flexDirection: 'row',
@@ -477,7 +464,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 17,
     color: Colors.ink,
   },
@@ -485,15 +472,16 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 9.5,
     letterSpacing: 0.6,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
+  // SpaceSection's label.
   sectionHead: {
     paddingHorizontal: GUTTER,
-    paddingBottom: 7,
+    paddingBottom: Spacing.two,
     fontFamily: Fonts.bodyBold,
-    fontSize: 10,
-    letterSpacing: 1.4,
-    color: Colors.muted,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    color: Colors.spaceFaint,
   },
   loadRow: {
     paddingHorizontal: GUTTER - 2,
@@ -508,7 +496,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 14,
     borderWidth: 1.5,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -520,7 +508,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: Fonts.body,
     fontSize: 9.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
   },
   grid: {
@@ -530,9 +518,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: GUTTER,
   },
   tile: {
-    borderRadius: Radius.card,
+    borderRadius: 14,
     borderWidth: 1.5,
-    backgroundColor: Colors.cardDark,
+    backgroundColor: Colors.spacePanel,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
@@ -569,9 +557,8 @@ const styles = StyleSheet.create({
   },
   hiddenMark: {
     position: 'absolute',
-    top: 4,
+    top: 5,
     left: 5,
-    fontSize: 9,
   },
   legend: {
     flexDirection: 'row',
@@ -593,26 +580,31 @@ const styles = StyleSheet.create({
   legendText: {
     fontFamily: Fonts.body,
     fontSize: 10,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   empty: {
     paddingHorizontal: GUTTER,
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     lineHeight: 19,
   },
-  hiddenNote: {
+  hiddenNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: GUTTER,
+  },
+  hiddenNote: {
     fontFamily: Fonts.body,
-    fontSize: 10.5,
-    color: Colors.textTertiary,
+    fontSize: 11,
+    color: Colors.spaceFaint,
   },
   hint: {
     paddingHorizontal: GUTTER,
     fontFamily: Fonts.body,
-    fontSize: 11,
-    color: Colors.textTertiary,
+    fontSize: 11.5,
+    color: Colors.spaceFaint,
     lineHeight: 16,
   },
 });

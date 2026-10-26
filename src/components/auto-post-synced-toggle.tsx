@@ -67,6 +67,6 @@ const styles = StyleSheet.create({
   error: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.coral,
+    color: Colors.danger,
   },
 });

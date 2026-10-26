@@ -1,9 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { SettingsGlyph, type SettingsGlyphName } from '@/components/ui/glyphs-settings';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceCard, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 
 // "TALK TO SOMEONE" — mock 116 frame 3, the support surface APP_BLOCKER_SPEC §C-safety requires
@@ -20,7 +22,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 // is one nobody should trust.
 
 type Option = {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: SettingsGlyphName;
   tint: string;
   title: string;
   detail: string;
@@ -33,7 +35,7 @@ export default function SupportScreen() {
 
   const options: Option[] = [
     {
-      icon: 'chatbubble-ellipses',
+      icon: 'chat',
       tint: 'rgba(120,220,160,0.15)',
       title: 'Text a friend',
       detail: 'Someone from your campfire, or anyone you trust',
@@ -42,7 +44,7 @@ export default function SupportScreen() {
       action: () => router.push('/people'),
     },
     {
-      icon: 'school',
+      icon: 'cap',
       tint: 'rgba(110,155,255,0.15)',
       title: campusWellnessTitle(profile?.university ?? null),
       detail: 'Most campuses offer free counselling — book or drop in',
@@ -60,38 +62,35 @@ export default function SupportScreen() {
   ];
 
   return (
-    <Screen padded={false}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={24} color={Colors.muted} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Talk to someone</Text>
-      </View>
+    // Top edge only: the global footer owns the bottom inset.
+    <Screen padded={false} edges={['top']}>
+      <SpaceHeader title="Talk to someone" />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
+        {/* Legend, not ember: this card is reassurance, not a call to action. */}
+        <SpaceCard tone="legend" style={styles.hero}>
           <Text style={styles.heroTitle}>You don&apos;t have to power through it alone.</Text>
           <Text style={styles.heroBody}>
             Reaching out isn&apos;t quitting — it&apos;s the strong move. Pick whatever feels easiest right
             now.
           </Text>
-        </View>
+        </SpaceCard>
 
         {options.map((option) => (
           <Pressable
             key={option.title}
             onPress={option.action}
-            style={styles.option}
+            style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
             accessibilityRole="button"
             accessibilityLabel={`${option.title}. ${option.detail}`}>
             <View style={[styles.icon, { backgroundColor: option.tint }]}>
-              <Ionicons name={option.icon} size={17} color={Colors.ink} />
+              <SettingsGlyph name={option.icon} size={18} color={Colors.ink} />
             </View>
             <View style={styles.optionText}>
               <Text style={styles.optionTitle}>{option.title}</Text>
               <Text style={styles.optionDetail}>{option.detail}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+            <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
           </Pressable>
         ))}
 
@@ -127,35 +126,31 @@ function openUrl(url: string) {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.twelve,
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.twelve,
-  },
-  headerTitle: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.ink },
-  body: { padding: Spacing.three, gap: Spacing.twelve, paddingBottom: Spacing.five },
-  hero: { gap: Spacing.two, marginBottom: Spacing.two },
-  heroTitle: { fontFamily: Fonts.bodyBold, fontSize: 19, lineHeight: 26, color: Colors.ink },
-  heroBody: { fontFamily: Fonts.body, fontSize: 13, lineHeight: 20, color: Colors.muted },
+  body: { paddingHorizontal: SPACE_GUTTER, gap: 6, paddingBottom: Spacing.five },
+  hero: { gap: Spacing.two, marginBottom: Spacing.twelve },
+  heroTitle: { fontFamily: Fonts.black, fontSize: 19, lineHeight: 26, color: Colors.ink },
+  heroBody: { fontFamily: Fonts.body, fontSize: 13, lineHeight: 20, color: Colors.spaceDim },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.twelve,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.input,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     padding: Spacing.twelve,
   },
-  icon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  optionPressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
+  // The per-option tints stay: a soft green / blue / rose tell the three errands apart at a glance.
+  icon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   optionText: { flex: 1, gap: 2 },
-  optionTitle: { fontFamily: Fonts.bodySemiBold, fontSize: 14, color: Colors.ink },
-  optionDetail: { fontFamily: Fonts.body, fontSize: 11.5, lineHeight: 16, color: Colors.muted },
+  optionTitle: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.ink },
+  optionDetail: { fontFamily: Fonts.body, fontSize: 12, lineHeight: 16, color: Colors.spaceDim },
   foot: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 11.5,
     lineHeight: 17,
-    color: Colors.textTertiary,
-    marginTop: Spacing.two,
+    color: Colors.spaceFaint,
+    marginTop: Spacing.twelve,
   },
 });

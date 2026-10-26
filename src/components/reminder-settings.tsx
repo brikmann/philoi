@@ -105,21 +105,23 @@ const styles = StyleSheet.create({
   timeChip: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     borderWidth: 1,
-    borderColor: Colors.line,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel2,
     borderRadius: Radius.pill,
     paddingVertical: 4,
     paddingHorizontal: Spacing.two,
   },
+  // SpaceChip's selected state — ember ring + wash, ember-light label.
   timeChipActive: {
-    color: Colors.ink,
-    backgroundColor: Colors.coral,
-    borderColor: Colors.coral,
+    color: Colors.navEmber2,
+    backgroundColor: 'rgba(255,122,47,0.12)',
+    borderColor: Colors.navEmber,
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.coral,
+    color: Colors.danger,
   },
 });

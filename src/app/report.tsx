@@ -1,11 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { PrimaryButton } from '@/components/ui/primary-button';
+import { SettingsGlyph } from '@/components/ui/glyphs-settings';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceButton, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useGroup } from '@/hooks/use-group';
 import { getErrorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
@@ -102,7 +102,7 @@ export default function ReportScreen() {
       <Screen style={styles.done}>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.doneMark}>
-          <Ionicons name="shield-checkmark" size={30} color={Colors.amber} />
+          <SettingsGlyph name="shield" size={30} color={Colors.navEmber2} />
         </View>
         <Text style={styles.doneTitle}>Report received</Text>
         <Text style={styles.doneBody}>
@@ -113,7 +113,7 @@ export default function ReportScreen() {
             : ''}
         </Text>
         <View style={styles.doneCta}>
-          <PrimaryButton label="Done" onPress={() => router.back()} />
+          <SpaceButton label="Done" onPress={() => router.back()} />
         </View>
       </Screen>
     );
@@ -123,12 +123,7 @@ export default function ReportScreen() {
     <Screen padded={false}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Back">
-          <Ionicons name="chevron-back" size={20} color={Colors.muted} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Report</Text>
-      </View>
+      <SpaceHeader title="Report" onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
         <Text style={styles.question} numberOfLines={2}>
@@ -155,7 +150,7 @@ export default function ReportScreen() {
         {/* Says out loud that submitting DOES something. The old screen's silence is half of why
             the wiring mattered — a report you can't tell went anywhere isn't worth filing. */}
         <View style={styles.note}>
-          <Ionicons name="mail-outline" size={13} color={Colors.green} />
+          <SettingsGlyph name="mail" size={13} color={Colors.green} />
           <Text style={styles.noteText}>
             Submitting alerts our safety team by email. Child-safety reports are escalated
             immediately.
@@ -167,29 +162,16 @@ export default function ReportScreen() {
           what was missing is the breathing room ON TOP of it — the CTA sat exactly on the safe-area
           line, which is the "not flush to the edge" fix. */}
       <View style={styles.foot}>
-        <PrimaryButton label="Submit report" onPress={handleSubmit} loading={loading} disabled={!reason} />
+        <SpaceButton label="Submit report" onPress={handleSubmit} loading={loading} disabled={!reason} />
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.one,
-  },
-  headerTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 17,
-    color: Colors.ink,
-  },
   list: {
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
+    paddingHorizontal: SPACE_GUTTER,
+    paddingTop: Spacing.one,
     paddingBottom: Spacing.four,
   },
   question: {
@@ -203,17 +185,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: '#141020',
+    backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: '#241C38',
-    borderRadius: Radius.card,
+    borderColor: Colors.spaceLine,
+    borderRadius: 14,
     paddingVertical: 13,
     paddingHorizontal: 14,
-    marginBottom: 9,
+    marginBottom: 6,
   },
   choiceOn: {
-    borderColor: Colors.amber,
-    backgroundColor: '#1E1428',
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.08)',
   },
   choiceLabel: {
     flex: 1,
@@ -234,18 +216,18 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: Colors.trackAlt,
+    borderColor: Colors.spaceFaint,
     alignItems: 'center',
     justifyContent: 'center',
   },
   radioOn: {
-    borderColor: Colors.amber,
+    borderColor: Colors.navEmber,
   },
   radioDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: Colors.amber,
+    backgroundColor: Colors.navEmber,
   },
   error: {
     fontFamily: Fonts.body,
@@ -263,12 +245,12 @@ const styles = StyleSheet.create({
   noteText: {
     flex: 1,
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 11.5,
     lineHeight: 16,
-    color: Colors.textTertiary,
+    color: Colors.spaceDim,
   },
   foot: {
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.three,
   },
@@ -282,19 +264,21 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 18,
-    backgroundColor: Colors.achieverBg,
+    backgroundColor: 'rgba(255,122,47,0.14)',
+    borderWidth: 1,
+    borderColor: Colors.navEmber,
     alignItems: 'center',
     justifyContent: 'center',
   },
   doneTitle: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 20,
     color: Colors.ink,
   },
   doneBody: {
     fontFamily: Fonts.body,
     fontSize: 13.5,
-    color: Colors.muted,
+    color: Colors.spaceDim,
     textAlign: 'center',
     lineHeight: 20,
   },

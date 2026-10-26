@@ -96,7 +96,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -5,
-    backgroundColor: Colors.coral,
+    // The space-purple unread badge — the same ember pill + dark label as the Messages inbox.
+    backgroundColor: Colors.navEmber,
     borderRadius: Radius.pill,
     minWidth: 14,
     height: 14,
@@ -104,11 +105,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
     borderWidth: 1.5,
-    borderColor: Colors.twilight900,
+    borderColor: Colors.spaceBg,
   },
   badgeText: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.black,
     fontSize: 8,
-    color: Colors.ink,
+    color: '#1A1030',
   },
 });

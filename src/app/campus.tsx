@@ -1,11 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CampusVerification, CampusVerifiedPanel } from '@/components/campus-verification';
+import { SettingsGlyph } from '@/components/ui/glyphs-settings';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SpaceButton, SpaceCard, SpaceTile, SPACE_GUTTER } from '@/components/ui/space-kit';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { saveUniversity } from '@/lib/api/campus-verification';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -65,26 +67,31 @@ export default function CampusScreen() {
 
   if (changingSchool) {
     return (
-      <Screen>
+      // No bottom edge: the global footer owns the bottom inset.
+      <Screen padded={false} edges={['top', 'left', 'right']}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <Text style={styles.h}>Change school</Text>
           <Text style={styles.sub}>
             Moving schools clears your verified badge — you&apos;ll re-verify with an email at the new campus.
           </Text>
           {error && <Text style={styles.error}>{error}</Text>}
-          {universities.map((name) => (
-            <Pressable
-              key={name}
-              style={[styles.uni, name === university && styles.uniOn]}
-              disabled={busy}
-              onPress={() => handlePickSchool(name)}>
-              <Text style={styles.uniName} numberOfLines={1}>
-                {name}
-              </Text>
-              <Text style={styles.uniDomain}>{findCachedUniversity(name)?.domain ?? '—'}</Text>
-              {name === university && <Ionicons name="checkmark" size={16} color={Colors.coral} />}
-            </Pressable>
-          ))}
+          <View style={styles.uniList}>
+            {universities.map((name) => (
+              <Pressable
+                key={name}
+                style={({ pressed }) => [styles.uni, name === university && styles.uniOn, pressed && styles.uniPressed]}
+                disabled={busy}
+                onPress={() => handlePickSchool(name)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: name === university, disabled: busy }}>
+                <Text style={styles.uniName} numberOfLines={1}>
+                  {name}
+                </Text>
+                <Text style={styles.uniDomain}>{findCachedUniversity(name)?.domain ?? '—'}</Text>
+                {name === university && <UiGlyph name="check" size={16} color={Colors.navEmber} />}
+              </Pressable>
+            ))}
+          </View>
           <Pressable style={styles.secondary} onPress={() => setChangingSchool(false)} disabled={busy}>
             <Text style={styles.secondaryLabel}>Never mind</Text>
           </Pressable>
@@ -94,15 +101,16 @@ export default function CampusScreen() {
   }
 
   return (
-    <Screen>
+    <Screen padded={false} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {!university ? (
           <>
+            <SpaceTile tone="legend">
+              <SettingsGlyph name="cap" size={18} color={Colors.legend} />
+            </SpaceTile>
             <Text style={styles.h}>No school set</Text>
             <Text style={styles.sub}>Pick your school first — then you can verify it.</Text>
-            <Pressable style={styles.primary} onPress={() => setChangingSchool(true)}>
-              <Text style={styles.primaryLabel}>Choose a school</Text>
-            </Pressable>
+            <SpaceButton label="Choose a school" onPress={() => setChangingSchool(true)} />
           </>
         ) : verified ? (
           <>
@@ -112,12 +120,12 @@ export default function CampusScreen() {
               continueLabel="Done"
               showChangeHint={false}
             />
-            <View style={styles.emailRow}>
-              <Ionicons name="mail" size={14} color={Colors.muted} />
+            <SpaceCard style={styles.emailRow}>
+              <SettingsGlyph name="mail" size={15} color={Colors.spaceDim} />
               <Text style={styles.emailText} numberOfLines={1}>
                 {profile?.university_email}
               </Text>
-            </View>
+            </SpaceCard>
             <Pressable style={styles.secondary} onPress={() => setChangingSchool(true)}>
               <Text style={styles.secondaryLabel}>Change school</Text>
             </Pressable>
@@ -160,10 +168,11 @@ export default function CampusScreen() {
 const styles = StyleSheet.create({
   container: {
     gap: Spacing.three,
+    paddingHorizontal: SPACE_GUTTER,
     paddingVertical: Spacing.four,
   },
   h: {
-    fontFamily: Fonts.displayHeavy,
+    fontFamily: Fonts.black,
     fontSize: 22,
     color: Colors.ink,
   },
@@ -171,69 +180,63 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     lineHeight: 19,
-    color: Colors.muted,
+    color: Colors.spaceDim,
   },
   emailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    padding: Spacing.three,
+    gap: Spacing.two,
   },
   emailText: {
     flex: 1,
     fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.muted,
+    fontSize: 13,
+    color: Colors.spaceDim,
+  },
+  uniList: {
+    gap: 6,
   },
   uni: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.card,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    padding: Spacing.three,
+    backgroundColor: Colors.spacePanel,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    paddingVertical: 13,
+    paddingHorizontal: Spacing.twelve,
   },
   uniOn: {
-    borderColor: Colors.coral,
+    borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(255,122,47,0.08)',
+  },
+  uniPressed: {
+    opacity: 0.85,
   },
   uniName: {
     flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 13,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13.5,
     color: Colors.ink,
   },
   uniDomain: {
     fontFamily: Fonts.body,
-    fontSize: 10.5,
-    color: Colors.textTertiary,
-  },
-  primary: {
-    backgroundColor: Colors.coral,
-    borderRadius: Radius.button,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-  },
-  primaryLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.ink,
+    fontSize: 11,
+    color: Colors.spaceFaint,
   },
   secondary: {
     alignSelf: 'center',
     paddingVertical: Spacing.two,
   },
   secondaryLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.textTertiary,
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.navEmber2,
   },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.coral,
+    color: Colors.danger,
   },
 });
