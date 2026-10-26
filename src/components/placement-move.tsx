@@ -30,7 +30,10 @@ const SCOPE_GLYPH: Record<PlacementScope, string> = { friends: '👥', uni: '�
 // only — the server already re-ranks their uni and Global boards over their friends, so those rows
 // would just be the same comparison wearing three labels. Private: nothing at all, not even the
 // fetch. Their own tier ladder above this card is the whole story for them.
-export function PlacementMove({ style }: { style?: StyleProp<ViewStyle> }) {
+//
+// `prominent` (the lock-in done screen): the boards side by side as three SPOTS — a big #N each —
+// on the space panel, instead of three thin rows. The payout screen keeps the compact list.
+export function PlacementMove({ style, prominent = false }: { style?: StyleProp<ViewStyle>; prominent?: boolean }) {
   const { session, profile } = useAuth();
   const userId = session?.user.id ?? null;
   const dial = rankVisibilityOf(profile);
@@ -74,13 +77,14 @@ export function PlacementMove({ style }: { style?: StyleProp<ViewStyle> }) {
   const uniLabel = profile?.university ?? 'Your uni';
 
   return (
-    <PlacementCard kick={kick} climbed={anyClimb} style={style}>
+    <PlacementCard kick={kick} climbed={anyClimb} prominent={prominent} style={style}>
       {rows.map((r, i) => (
         <PlacementRow
           key={r.scope}
           row={r}
           label={r.scope === 'friends' ? 'Friends' : r.scope === 'uni' ? uniLabel : 'Global'}
           index={i}
+          prominent={prominent}
         />
       ))}
     </PlacementCard>
@@ -90,11 +94,13 @@ export function PlacementMove({ style }: { style?: StyleProp<ViewStyle> }) {
 function PlacementCard({
   kick,
   climbed,
+  prominent,
   style,
   children,
 }: {
   kick: string;
   climbed: boolean;
+  prominent: boolean;
   style?: StyleProp<ViewStyle>;
   children: ReactNode;
 }) {
@@ -102,14 +108,14 @@ function PlacementCard({
   return (
     <Animated.View
       entering={reduceMotion ? undefined : FadeIn.delay(350).duration(400)}
-      style={[styles.card, climbed && styles.cardClimbed, style]}>
-      <Text style={[styles.kick, climbed && styles.kickClimbed]}>{kick}</Text>
-      {children}
+      style={[styles.card, prominent && styles.cardProminent, climbed && styles.cardClimbed, style]}>
+      <Text style={[styles.kick, prominent && styles.kickProminent, climbed && styles.kickClimbed]}>{kick}</Text>
+      {prominent ? <View style={styles.spots}>{children}</View> : children}
     </Animated.View>
   );
 }
 
-function PlacementRow({ row, label, index }: { row: Row; label: string; index: number }) {
+function PlacementRow({ row, label, index, prominent }: { row: Row; label: string; index: number; prominent: boolean }) {
   const { current, total, seen } = row;
   const reduceMotion = useReduceMotion();
   const climbed = seen !== null && current < seen;
@@ -151,16 +157,43 @@ function PlacementRow({ row, label, index }: { row: Row; label: string; index: n
         ? 'others have been busy'
         : null;
   const caption = status ? `of ${total.toLocaleString()} · ${status}` : `of ${total.toLocaleString()}`;
+  const a11y = climbed
+    ? `${label}: you climbed to number ${current.toLocaleString()} of ${total.toLocaleString()}, up ${(seen! - current).toLocaleString()} from ${seen!.toLocaleString()}`
+    : `${label}: number ${current.toLocaleString()} ${caption}`;
+
+  if (prominent) {
+    return (
+      <View style={[styles.spot, index > 0 && styles.spotDivider]} accessible accessibilityLabel={a11y}>
+        <Text style={styles.spotLabel} numberOfLines={1}>
+          {SCOPE_GLYPH[row.scope]} {label}
+        </Text>
+        <Text style={[styles.spotPos, climbed && styles.posClimbed]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+          #{shown.toLocaleString()}
+        </Text>
+        <Text style={styles.spotCaption} numberOfLines={1}>
+          of {total.toLocaleString()}
+        </Text>
+        {climbed ? (
+          <Animated.View
+            entering={reduceMotion ? undefined : ZoomIn.delay(700 + index * 300).springify()}
+            style={styles.delta}>
+            <Ionicons name="arrow-up" size={12} color={Colors.ember} />
+            <Text style={styles.deltaText}>up {(seen! - current).toLocaleString()}</Text>
+          </Animated.View>
+        ) : status ? (
+          <Text style={styles.spotStatus} numberOfLines={2}>
+            {status}
+          </Text>
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View
       style={[styles.row, index > 0 && styles.rowDivider]}
       accessible
-      accessibilityLabel={
-        climbed
-          ? `${label}: you climbed to number ${current.toLocaleString()} of ${total.toLocaleString()}, up ${(seen! - current).toLocaleString()} from ${seen!.toLocaleString()}`
-          : `${label}: number ${current.toLocaleString()} ${caption}`
-      }>
+      accessibilityLabel={a11y}>
       <View style={styles.icon}>
         <Text style={styles.iconGlyph}>{SCOPE_GLYPH[row.scope]}</Text>
       </View>
@@ -197,6 +230,54 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 4,
     paddingHorizontal: 14,
+  },
+  cardProminent: {
+    backgroundColor: Colors.spacePanel,
+    borderColor: Colors.spaceLine,
+    paddingTop: 14,
+    paddingBottom: 14,
+  },
+  kickProminent: {
+    fontSize: 11,
+    color: Colors.navEmber2,
+    marginBottom: 10,
+  },
+  spots: {
+    flexDirection: 'row',
+  },
+  spot: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 4,
+  },
+  spotDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: Colors.spaceLine,
+  },
+  spotLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.4,
+    color: Colors.spaceDim,
+  },
+  spotPos: {
+    fontFamily: Fonts.displayHeavy,
+    fontSize: 28,
+    color: Colors.ink,
+    fontVariant: ['tabular-nums'],
+  },
+  spotCaption: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.spaceDim,
+  },
+  spotStatus: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 10.5,
+    color: Colors.spaceFaint,
+    textAlign: 'center',
   },
   // The glow is the climb's alone — hold and slip sit on the plain card.
   cardClimbed: {

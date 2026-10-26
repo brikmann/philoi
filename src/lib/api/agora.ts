@@ -161,12 +161,19 @@ export async function deleteAgoraPost(id: string): Promise<void> {
  * Session photos live in the private check-in bucket, so they're re-uploaded here into
  * agora-photos (SQL can't copy storage objects). Uploads are cleaned up if the post is refused.
  */
+/**
+ * Where a session post lands. `everyone` is the square (0273's behaviour); a forest or a campfire
+ * scopes it to that one (agora_posts.forest_id from 0274, campfire_id from 0277).
+ */
+export type AgoraSessionTarget = { kind: 'everyone' } | { kind: 'forest'; id: string } | { kind: 'campfire'; id: string };
+
 export async function postSessionToAgora(input: {
   checkInId: string;
   userId: string;
   caption?: string | null;
   photoUris?: string[];
   visibility?: AgoraVisibility;
+  target?: AgoraSessionTarget;
 }): Promise<string> {
   const paths: string[] = [];
   try {
@@ -176,9 +183,18 @@ export async function postSessionToAgora(input: {
       p_caption: input.caption?.trim() || null,
       p_photo_paths: paths,
       p_visibility: input.visibility ?? 'friends',
+      // Sent ONLY when scoped: a server without 0277 has no 6-arg overload, and an "everyone" post
+      // must keep working against it. A scoped post against such a server errors — and the done
+      // screen surfaces that rather than quietly posting it to the whole square instead.
+      ...(input.target?.kind === 'forest' ? { p_forest_id: input.target.id } : {}),
+      ...(input.target?.kind === 'campfire' ? { p_campfire_id: input.target.id } : {}),
     });
     if (error) throw error;
-    track('agora_session_autoposted', { photo_count: paths.length, has_caption: Boolean(input.caption?.trim()) });
+    track('agora_session_autoposted', {
+      photo_count: paths.length,
+      has_caption: Boolean(input.caption?.trim()),
+      target: input.target?.kind ?? 'everyone',
+    });
     return data as string;
   } catch (e) {
     if (paths.length) await supabase.storage.from(PHOTO_BUCKET).remove(paths);

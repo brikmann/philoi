@@ -16,10 +16,11 @@ import { UiGlyph } from '@/components/ui/ui-glyph';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyGroups } from '@/hooks/use-my-groups';
-import { postSessionToAgora, setPostToAgora } from '@/lib/api/agora';
+import { postSessionToAgora, setPostToAgora, type AgoraSessionTarget } from '@/lib/api/agora';
+import { fetchForests } from '@/lib/api/forests';
 import { fetchLockInPassCredit, type LockInPassCredit } from '@/lib/api/forge-pass';
 import { fetchCheckInClips } from '@/lib/api/gym-clips';
-import { postCheckInToCircle, setCheckInCaption } from '@/lib/api/lock-ins';
+import { setCheckInCaption } from '@/lib/api/lock-ins';
 import { useAuth } from '@/lib/auth/auth-context';
 import { levelFromXp, SEASON } from '@/lib/economy/forge-pass';
 import { getErrorMessage } from '@/lib/errors';
@@ -27,6 +28,7 @@ import { formatDurationClock } from '@/lib/format';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
 import { formatRankTier, nextRank, RANK_TIER_METAL, xpProgressRatio } from '@/lib/rank-tiers';
 import { fireConfirm } from '@/lib/reward-feedback';
+import type { ForestSummary } from '@/types/social';
 import type { GoalType, MyRank, WorkoutRecap, WorkoutSet } from '@/types/database';
 
 type LockInDoneScreenProps = {
@@ -93,10 +95,8 @@ export function LockInDoneScreen({
   // Mock 92 addresses you by name ("Nice work, Noah"). First name only, and the line still reads
   // correctly without one — a profile that hasn't loaded yet just gets "Nice work".
   const firstName = profile?.display_name?.split(' ')[0] ?? '';
-  // Seeded with the campfire this session was started in, so the common case is one tap — the
-  // multi-select is still there, just behind "change" instead of being a decision every time.
-  const [selectedCircleIds, setSelectedCircleIds] = useState<string[]>(circleId ? [circleId] : []);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [target, setTarget] = useState<AgoraSessionTarget>({ kind: 'everyone' });
+  const [myForests, setMyForests] = useState<ForestSummary[]>([]);
   const [note, setNote] = useState('');
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +162,19 @@ export function LockInDoneScreen({
 
   const passFillStyle = useAnimatedStyle(() => ({ width: `${Math.min(passFill.value, 1) * 100}%` }));
 
+  // Your forests, for the Agora destination chips. A failed read just offers everyone + campfires.
+  useEffect(() => {
+    let live = true;
+    fetchForests()
+      .then((rows) => {
+        if (live) setMyForests(rows.filter((f) => f.my_status === 'active'));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+
   useEffect(() => {
     if (!GYM_VIDEO_CLIPS_ENABLED || !workoutRecap) return;
     fetchCheckInClips(checkInId)
@@ -184,7 +197,6 @@ export function LockInDoneScreen({
       ? ` · ${Math.round(xpProgressRatio(rankAfter.xp_into_tier, rankAfter.xp_for_next_tier) * 100)}% to ${formatRankTier(up.tier, up.division)}`
       : '';
 
-  const streakIncreased = streakAfter > streakBefore;
   // "Deep work · solo" (mock 81) — the goal, plus whatever qualifies it: the typed detail if there
   // is one, else the campfire it ran in, else solo.
   const goalLine = `${GOAL_TYPE_META[goalType].label} · ${goalDetail ?? circleName ?? 'solo'}`;
@@ -204,26 +216,9 @@ export function LockInDoneScreen({
     .filter(Boolean)
     .join(' · ');
 
-  function labelForCircle(id: string): string {
-    const group = groups.find((g) => g.id === id);
-    if (group) return `${group.emoji} ${group.name}`;
-    // useMyGroups hasn't answered yet (or the session's campfire isn't in it) — the name the
-    // session carried is still the right thing to show rather than a blank row.
-    return id === circleId && circleName ? circleName : 'this campfire';
-  }
-
-  const willPost = selectedCircleIds.length > 0;
   // postSessionToAgora carries at most four; the hint says what will actually ride along.
   const agoraPhotoCount = Math.min(photos.length, 4);
-  // With nothing selected the row used to read "Post to nowhere — pick one", which lands as a
-  // placeholder someone forgot to wire rather than as a choice (punchlist 17 P3). The label below
-  // switches instead of the value, so the empty state asks for the pick rather than narrating it.
-  const postTarget =
-    selectedCircleIds.length === 0
-      ? 'a campfire'
-      : selectedCircleIds.length === 1
-        ? labelForCircle(selectedCircleIds[0])
-        : `${selectedCircleIds.length} campfires`;
+  const targetKey = target.kind === 'everyone' ? 'everyone' : `${target.kind}:${target.id}`;
 
   // The note belongs to the lock-in, not to the act of posting — so it's saved on BOTH exits. A
   // private lock-in with a note is a journal entry to yourself and it's already visible in your
@@ -245,22 +240,27 @@ export function LockInDoneScreen({
       .catch(() => {});
   }
 
-  // Fired, never awaited: the photos re-upload to agora-photos before the post is written, and
-  // nobody should wait on that to leave a screen whose session is already banked. A failure is
-  // silent — the lock-in is safe, only the feed card is missing.
-  function finishToAgora() {
+  // To EVERYONE: fired, never awaited — the photos re-upload to agora-photos before the post is
+  // written, and nobody should wait on that to leave a screen whose session is already banked; a
+  // failure only loses the feed card. To a FOREST or CAMPFIRE: awaited, and a failure keeps you here
+  // with the error. That post was meant for one room, so it must never quietly go nowhere — and it
+  // never falls back to the whole square, which would widen its audience past what you picked.
+  async function postToTheAgora(): Promise<void> {
     if (!postToAgora || agoraFired.current || !profile) return;
-    agoraFired.current = true;
-    postSessionToAgora({
+    const post = postSessionToAgora({
       checkInId,
       userId: profile.id,
       caption: note.trim() || null,
       photoUris: photos.map((p) => p.uri),
-    }).catch(() => {});
-  }
-
-  function toggleCircle(id: string) {
-    setSelectedCircleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+      target,
+    });
+    if (target.kind === 'everyone') {
+      agoraFired.current = true;
+      post.catch(() => {});
+      return;
+    }
+    await post;
+    agoraFired.current = true;
   }
 
   async function handlePost() {
@@ -268,16 +268,11 @@ export function LockInDoneScreen({
     setError(null);
     try {
       await saveNote();
-      // Sequential, not Promise.all: post_check_in_to_circle writes a feed row and pushes that
-      // circle's members, and one failure shouldn't leave the rest in an unknown state.
-      for (const id of selectedCircleIds) {
-        await postCheckInToCircle(checkInId, id);
-      }
-      if (selectedCircleIds.length > 0) fireConfirm();
-      finishToAgora();
+      await postToTheAgora();
+      if (postToAgora) fireConfirm();
       onDone();
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not post to the campfire — try again.'));
+      setError(getErrorMessage(e, 'Could not post there — try again, or post to everyone.'));
     } finally {
       setPosting(false);
     }
@@ -293,7 +288,6 @@ export function LockInDoneScreen({
       // far better outcome than trapping them on this screen behind a retry.
     } finally {
       setPosting(false);
-      finishToAgora();
       onDone();
     }
   }
@@ -323,6 +317,11 @@ export function LockInDoneScreen({
         </SpearPlantBeat>
 
         <SpearPlantBeat reveal={reveal} beat="statsRest" style={styles.beat}>
+          {/* Mock 204 — where you stand on Friends, your uni and Global, and how it moved: the
+              leaderboard spots, big, straight under what the session earned. Renders nothing for
+              someone not on the board yet. */}
+          <PlacementMove prominent />
+
           {rankBefore && rankAfter && (
             <View style={[styles.rankChip, { borderColor: `${RANK_TIER_METAL[rankAfter.tier].text}66` }]}>
               <RankBadge tier={rankAfter.tier} division={rankAfter.division} size={18} />
@@ -361,19 +360,6 @@ export function LockInDoneScreen({
             </View>
           )}
 
-          {/* Mock 204 — season placement and its move since you last saw it. Renders nothing for
-              someone not on the board yet. */}
-          <PlacementMove />
-
-          {streakAfter > 0 && (
-            <View style={styles.streak}>
-              <NavGlyph name="flame" size={15} color={Colors.gold} />
-              <Text style={styles.streakText}>
-                {streakAfter}-day streak · {streakIncreased ? '+1 today' : 'kept alive'}
-              </Text>
-            </View>
-          )}
-
           {/* One line, not the old recap sprawl — the full per-exercise breakdown, PRs, brag line
               and clips all live behind "View". */}
           {workoutExercises.length > 0 && (
@@ -408,42 +394,6 @@ export function LockInDoneScreen({
         {error && <Text style={styles.error}>{error}</Text>}
 
         <View style={styles.post}>
-          {groups.length > 0 && (
-            <View style={styles.postTo}>
-              <Text style={styles.postToLabel}>{willPost ? 'Post to' : 'Pick'}</Text>
-              <Text style={styles.postToName} numberOfLines={1}>
-                {postTarget}
-              </Text>
-              <Pressable onPress={() => setPickerOpen((v) => !v)} hitSlop={8} accessibilityRole="button">
-                <Text style={styles.change}>{pickerOpen ? 'done' : 'change'}</Text>
-              </Pressable>
-            </View>
-          )}
-
-          {/* Still multi-post (migration 0059) — just not a decision every time. */}
-          {pickerOpen && groups.length > 0 && (
-            <View style={styles.circleGrid}>
-              {groups.map((group) => {
-                const on = selectedCircleIds.includes(group.id);
-                return (
-                  <Pressable
-                    key={group.id}
-                    onPress={() => toggleCircle(group.id)}
-                    disabled={posting}
-                    style={[styles.circleChip, on && styles.circleChipOn]}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: on }}
-                    accessibilityLabel={`Post to ${group.name}`}>
-                    {on && <UiGlyph name="check" size={12} color={Colors.navEmber2} />}
-                    <Text style={[styles.circleChipText, on && styles.circleChipTextOn]} numberOfLines={1}>
-                      {group.emoji} {group.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-
           {/* One field, two jobs: the lock-in's own caption and, with the switch below on, the
               Agora post's caption. Mock 297 orders it photos → caption → switch. */}
           <TextInput
@@ -458,7 +408,7 @@ export function LockInDoneScreen({
           <View style={styles.agoraRow}>
             <View style={styles.agoraText}>
               <Text style={styles.agoraTitle}>Post to the Agora</Text>
-              <Text style={styles.agoraSub}>Your feed · shared with friends</Text>
+              <Text style={styles.agoraSub}>Pick where it lands below</Text>
             </View>
             <Toggle
               value={postToAgora}
@@ -467,6 +417,34 @@ export function LockInDoneScreen({
               accessibilityLabel="Post this session to the Agora"
             />
           </View>
+          {postToAgora && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.whereScroll}
+              contentContainerStyle={styles.whereRow}
+              keyboardShouldPersistTaps="handled">
+              <WhereChip label="🏛️ Everyone" on={targetKey === 'everyone'} disabled={posting} onPress={() => setTarget({ kind: 'everyone' })} />
+              {myForests.map((f) => (
+                <WhereChip
+                  key={`forest:${f.id}`}
+                  label={`${f.emoji} ${f.name}`}
+                  on={targetKey === `forest:${f.id}`}
+                  disabled={posting}
+                  onPress={() => setTarget({ kind: 'forest', id: f.id })}
+                />
+              ))}
+              {groups.map((g) => (
+                <WhereChip
+                  key={`campfire:${g.id}`}
+                  label={`${g.emoji} ${g.name}`}
+                  on={targetKey === `campfire:${g.id}`}
+                  disabled={posting}
+                  onPress={() => setTarget({ kind: 'campfire', id: g.id })}
+                />
+              ))}
+            </ScrollView>
+          )}
           {postToAgora && photos.length > 0 && (
             <Text style={styles.agoraHint}>
               {agoraPhotoCount} photo{agoraPhotoCount === 1 ? '' : 's'} from this session attach automatically.
@@ -476,13 +454,13 @@ export function LockInDoneScreen({
 
         {/* The one ember action on this screen — the kit's primary, with its spinner while posting. */}
         <SpaceButton
-          label={willPost || postToAgora ? 'Post & finish' : 'Finish'}
+          label={postToAgora ? 'Post & finish' : 'Finish'}
           onPress={handlePost}
           loading={posting}
           style={styles.cta}
         />
         {/* Only when there's actually something to skip — otherwise it's the same button twice. */}
-        {willPost && (
+        {postToAgora && (
           <Pressable onPress={handleJustFinish} disabled={posting} style={styles.skip}>
             <Text style={styles.skipLabel}>Just finish</Text>
           </Pressable>
@@ -532,6 +510,24 @@ function XpCountUp({ end, running, instant }: { end: number; running: boolean; i
       +{(instant ? end : shown).toLocaleString()}
       <Text style={styles.statUnit}> XP</Text>
     </Text>
+  );
+}
+
+/** One destination in the "Post to the Agora" sub-choice. Single-select: a post lands in one place. */
+function WhereChip({ label, on, disabled, onPress }: { label: string; on: boolean; disabled: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.circleChip, on && styles.circleChipOn]}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: on }}
+      accessibilityLabel={`Post to ${label}`}>
+      {on && <UiGlyph name="check" size={12} color={Colors.navEmber2} />}
+      <Text style={[styles.circleChipText, on && styles.circleChipTextOn]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -741,24 +737,6 @@ const styles = StyleSheet.create({
     color: Colors.spaceDim,
     fontVariant: ['tabular-nums'],
   },
-  // A gold pill — the streak is a result, not a caption.
-  streak: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: '#5A4A1E',
-    backgroundColor: 'rgba(255,209,102,0.07)',
-  },
-  streakText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.gold,
-  },
   // SpaceRow's look: panel on a 1px line, an ember leading tile, a chevron.
   gymLine: {
     alignSelf: 'stretch',
@@ -820,34 +798,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
   },
-  postTo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
-  },
-  postToLabel: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12.5,
-    color: Colors.spaceDim,
-  },
-  postToName: {
-    flex: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12.5,
-    color: Colors.ink,
-  },
-  change: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11.5,
-    color: Colors.navEmber2,
-  },
-  circleGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-    marginBottom: 10,
-  },
   circleChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -883,6 +833,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     fontSize: 13,
+  },
+  // The destination chips under the switch — one scrolling row, single-select.
+  whereScroll: {
+    flexGrow: 0,
+    marginTop: 10,
+  },
+  whereRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
   },
   agoraRow: {
     flexDirection: 'row',
