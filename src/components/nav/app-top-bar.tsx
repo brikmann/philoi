@@ -4,12 +4,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useNavDrawer } from '@/components/nav/app-drawer';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
+import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useNotifications } from '@/hooks/use-notifications';
 import { fetchMyDmThreads } from '@/lib/api/dm';
 
-// THE TOP-RIGHT GLOBALS (mocks 301/302): brand left; Messages · Notifications · Menu right, on every
-// tab. The drawer behind ☰ holds everything that doesn't earn a slot on the bottom bar.
+// THE TOP-RIGHT GLOBALS (mocks 301/302): brand left; Shop · Messages · Notifications · Menu right, on
+// every tab. The drawer behind ☰ holds everything that doesn't earn a slot on the bottom bar — the
+// Shop is there too, but it's one tap from anywhere now rather than two.
 
 export function AppTopBar({ title, right }: { title?: string; right?: ReactNode }) {
   const router = useRouter();
@@ -50,6 +52,7 @@ export function AppTopBar({ title, right }: { title?: string; right?: ReactNode 
       )}
       <View style={styles.actions}>
         {right}
+        <GlobalButton icon={<PhiloiIcon name="shop" size={20} color={Colors.ink} />} label="Shop" onPress={() => router.push('/shop')} />
         <GlobalButton glyph="plane" label="Messages" badge={dmUnread} onPress={() => router.push('/messages')} />
         <GlobalButton glyph="bell" label="Notifications" badge={unread} onPress={() => router.push('/notifications')} />
         <GlobalButton glyph="menu" label="Menu" onPress={open} />
@@ -60,11 +63,14 @@ export function AppTopBar({ title, right }: { title?: string; right?: ReactNode 
 
 function GlobalButton({
   glyph,
+  icon,
   label,
   badge = 0,
   onPress,
 }: {
-  glyph: NavGlyphName;
+  glyph?: NavGlyphName;
+  /** For a global with no NavGlyph — the Shop wears the drawer's own PhiloiIcon, so the two match. */
+  icon?: ReactNode;
   label: string;
   badge?: number;
   onPress: () => void;
@@ -76,7 +82,7 @@ function GlobalButton({
       style={styles.btn}
       accessibilityRole="button"
       accessibilityLabel={badge > 0 ? `${label}, ${badge} unread` : label}>
-      <NavGlyph name={glyph} size={19} color={Colors.ink} />
+      {icon ?? (glyph ? <NavGlyph name={glyph} size={19} color={Colors.ink} /> : null)}
       {badge > 0 && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
