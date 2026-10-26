@@ -112,7 +112,6 @@ export function LockInDoneScreen({
   // set ids), so clips need their own fetch, keyed by this same checkInId. Recap modal only.
   const [clips, setClips] = useState<WorkoutSet[]>([]);
 
-  const [displayXp, setDisplayXp] = useState(0);
   // What this session ACTUALLY paid the Emberfall Pass — the ledger row the server's lock-in
   // trigger wrote (0227), never `hours × 250` worked out here. Null until it answers, and stays null
   // when nothing was credited (under 5 min, season not live): no Pass line at all, not a "+0".
@@ -173,36 +172,10 @@ export function LockInDoneScreen({
       });
   }, [checkInId, workoutRecap]);
 
-  // The "+XP" counts up as its stat group slams in — mock 92 states the rank as a chip rather than
-  // a filling bar, so the number IS the motion. It counts the EARNED xp rather than the running
-  // tier total, so what moves on screen is what the session actually produced. The spear-plant's
-  // whoosh and strike are the cues now; the count runs silent under them.
-  const xpEnd = Math.round(xpEarned);
-  const xpRaf = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
-  function countXp() {
-    const t0 = Date.now();
-    const step = () => {
-      const p = Math.min((Date.now() - t0) / XP_COUNT_MS, 1);
-      setDisplayXp(Math.round(xpEnd * p));
-      xpRaf.current = p < 1 ? requestAnimationFrame(step) : null;
-    };
-    xpRaf.current = requestAnimationFrame(step);
-  }
-  const reveal = useSpearPlant(countXp);
-
-  // A skip lands everything on its settled frame, the number included; reduce motion never counts.
-  const shownXp = reveal.skipped || reveal.still ? xpEnd : displayXp;
-  useEffect(() => {
-    if (!reveal.skipped && !reveal.still) return;
-    if (xpRaf.current !== null) cancelAnimationFrame(xpRaf.current);
-    xpRaf.current = null;
-  }, [reveal.skipped, reveal.still]);
-  useEffect(
-    () => () => {
-      if (xpRaf.current !== null) cancelAnimationFrame(xpRaf.current);
-    },
-    []
-  );
+  // The "+XP" counts up as its stat group slams in (XpCountUp below). Only the flag lives here: the
+  // per-frame number is the child's own state, so the count re-renders one Text, not this screen.
+  const [xpCounting, setXpCounting] = useState(false);
+  const reveal = useSpearPlant(() => setXpCounting(true));
 
   // "Diamond II · 75% to III" (mock 92's `.rankchip`). At max rank there is nothing above to chase,
   // so the chip states the rank alone rather than inventing a target.
@@ -344,10 +317,7 @@ export function LockInDoneScreen({
           <Text style={styles.bigName}>Nice work{firstName ? `, ${firstName}` : ''}</Text>
         </SpearPlantBeat>
         <SpearPlantBeat reveal={reveal} beat="statsMain" style={styles.beat}>
-          <Text style={styles.stat}>
-            +{shownXp.toLocaleString()}
-            <Text style={styles.statUnit}> XP</Text>
-          </Text>
+          <XpCountUp end={Math.round(xpEarned)} running={xpCounting} instant={reveal.skipped || reveal.still} />
           <Text style={styles.statLabel} numberOfLines={1}>
             {formatDurationClock(durationSeconds)} · {goalLine}
           </Text>
@@ -546,6 +516,30 @@ export function LockInDoneScreen({
   );
 }
 
+// The earned XP, counting up once its stat group lands. Its OWN component on purpose: the count
+// sets state every frame for 1.1s, and when that state lived on LockInDoneScreen it re-rendered the
+// whole screen 60 times a second — the hoplite's LottieView re-stringified its source each time —
+// which is what stuttered the spear-plant. A skip or reduce motion shows the final number at once.
+function XpCountUp({ end, running, instant }: { end: number; running: boolean; instant: boolean }) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    if (!running || instant) return;
+    const t0 = Date.now();
+    let raf = requestAnimationFrame(function step() {
+      const p = Math.min((Date.now() - t0) / XP_COUNT_MS, 1);
+      setShown(Math.round(end * p));
+      if (p < 1) raf = requestAnimationFrame(step);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [running, instant, end]);
+  return (
+    <Text style={styles.stat}>
+      +{(instant ? end : shown).toLocaleString()}
+      <Text style={styles.statUnit}> XP</Text>
+    </Text>
+  );
+}
+
 // The full gym recap, one tap away from the summary line. Everything the done screen used to
 // render inline: per-exercise rollups, PR tags, the honest-brag line and any clips.
 function GymRecapSheet({
@@ -634,10 +628,13 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  // Anchored, not centred (mock 311: stats at the top, the hoplite standing on the bottom). The pass
+  // credit, the placement and the campfire list all arrive after mount; with a centred column each
+  // arrival re-centred everything and jerked the hoplite and the stats mid-animation.
   scrollContent: {
     flexGrow: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingVertical: Spacing.two,
   },
   // Each stat group stretches like the scroll column it replaces, so the full-width cards inside
@@ -646,10 +643,11 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     alignItems: 'center',
   },
+  // `auto` takes up the free space above, so late stats grow into the gap instead of moving him.
   hoplite: {
     width: HOPLITE_SIZE,
     height: HOPLITE_SIZE,
-    marginTop: 4,
+    marginTop: 'auto',
   },
   // ── mock 92's hero stack ──
   kick: {

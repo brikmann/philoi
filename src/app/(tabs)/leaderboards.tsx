@@ -17,6 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
+import { EquippedCardBackdrop } from '@/components/economy/applied-art';
 import { HouseSeal } from '@/components/house/house-seal';
 import { IdentityLine } from '@/components/house/identity-line';
 import { AppTopBar } from '@/components/nav/app-top-bar';
@@ -34,7 +35,6 @@ import { fetchMyProgram } from '@/lib/api/house';
 import { rankVisibilityOf } from '@/lib/api/privacy';
 import { useAuth } from '@/lib/auth/auth-context';
 import { titleLabel } from '@/lib/economy/catalog';
-import type { Rarity } from '@/lib/economy/rarity';
 import { formatMetricValue } from '@/lib/stats/format';
 import type { PresenceRow } from '@/types/database';
 import type { MetricCatalogRow, MetricLeaderboardRow, MetricScope, MyProgramRow } from '@/types/house';
@@ -235,20 +235,6 @@ export default function LeaderboardTab() {
 
 const NO_LOADOUT: PublicLoadout = {};
 
-/**
- * How strongly an equipped Card tints the row. Small-scale on purpose (mock 307): a row is a
- * thumbnail of the card, so the tint stays faint — but a Legendary still has to read richer than a
- * Common at a glance, or the board stops being a reason to own one.
- */
-const CARD_TINT: Record<Rarity, number> = {
-  common: 0.08,
-  uncommon: 0.095,
-  rare: 0.11,
-  epic: 0.14,
-  legendary: 0.18,
-  mythic: 0.22,
-};
-
 /** '#RRGGBB' (or '#RGB') at an alpha. Anything else comes back as-is, opaque. */
 function withAlpha(hex: string, a: number): string {
   const h = hex.replace('#', '');
@@ -264,7 +250,11 @@ function withAlpha(hex: string, a: number): string {
  *
  *  · FLARE → `f`: the row's outline and glow, the rank number and the avatar border.
  *  · HALO  → a radial glow ring behind the avatar, in the halo's colour.
- *  · CARD  → a faint gradient of its colour into the panel, stronger with rarity.
+ *  · CARD  → the card's own art behind the row (EquippedCardBackdrop, as the profile and the Agora
+ *    draw it). Mock 307 asked for a faint tint of its colour, and at 8–22% on the space panel that
+ *    read as no card at all — "the leaderboard is plain". Only a worn card is drawn: the backdrop
+ *    falls back to the starter Hearth skin, which would paint every row the same.
+ *  · FLARE only → a faint gradient of the flare into the panel.
  *  · TITLE → under the name. EARNED titles are ★ + gold; anything acquired another way is italic in
  *    the flare colour. A purchase must never be able to look like an achievement.
  *
@@ -298,31 +288,22 @@ function BoardRow({
   const f = flare ?? (row.is_me ? Colors.navEmber : null);
   const rankColor = f ?? (row.rank === 1 ? Colors.gold : Colors.spaceDim);
   const card = loadout.card;
-  const tintColour = card?.art.from ?? f;
-  const tintAlpha = card ? CARD_TINT[card.rarity] : 0.14;
   const halo = loadout.halo?.art.from ?? null;
   const title = loadout.title ? { ...titleLabel(loadout.title), earned: loadout.title.acquisition === 'earned' } : null;
 
-  return (
-    <Pressable
-      style={[
-        styles.row,
-        f ? [styles.rowWorn, { borderColor: f, shadowColor: f }] : null,
-        row.is_me && styles.rowMe,
-      ]}
-      onPress={() => onPressRow(row)}
-      accessibilityRole="button"
-      accessibilityLabel={`${row.rank == null ? 'Not ranked yet' : row.rank}. ${row.is_me ? 'You' : row.display_name}${title ? `, ${title.earned ? 'earned title' : 'title'} ${title.name}` : ''}${presence?.locked_in ? ', locked in now' : ''}, ${value}${row.is_me ? '' : '. Head-to-head'}`}>
-      {tintColour ? (
+  const content = (
+    <>
+      {!card && f ? (
         <LinearGradient
           pointerEvents="none"
-          colors={[withAlpha(tintColour, tintAlpha), withAlpha(tintColour, 0)]}
+          colors={[withAlpha(f, 0.14), withAlpha(f, 0)]}
           locations={[0, 0.7]}
           start={{ x: 0, y: 0.3 }}
           end={{ x: 1, y: 0.7 }}
           style={styles.tint}
         />
       ) : null}
+
       <Text style={[styles.rank, { color: rankColor }]}>{row.rank ?? '—'}</Text>
       <Pressable onPress={() => onPressAvatar(row)} hitSlop={6} accessibilityRole="button" accessibilityLabel="Open profile">
         {halo ? (
@@ -371,6 +352,27 @@ function BoardRow({
         )}
       </View>
       <Text style={styles.value}>{value}</Text>
+    </>
+  );
+
+  return (
+    <Pressable
+      style={[
+        card ? styles.rowShell : styles.row,
+        f ? [styles.rowWorn, { borderColor: f, shadowColor: f }] : null,
+        row.is_me && styles.rowMe,
+      ]}
+      onPress={() => onPressRow(row)}
+      accessibilityRole="button"
+      accessibilityLabel={`${row.rank == null ? 'Not ranked yet' : row.rank}. ${row.is_me ? 'You' : row.display_name}${title ? `, ${title.earned ? 'earned title' : 'title'} ${title.name}` : ''}${presence?.locked_in ? ', locked in now' : ''}, ${value}${row.is_me ? '' : '. Head-to-head'}`}>
+      {card ? (
+        // `still`: a list of animated card scenes is twenty SVGs ticking at once.
+        <EquippedCardBackdrop cardId={card.id} radius={15} motion="still">
+          <View style={styles.rowInner}>{content}</View>
+        </EquippedCardBackdrop>
+      ) : (
+        content
+      )}
     </Pressable>
   );
 }
@@ -621,6 +623,21 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
     elevation: 4,
+  },
+  // A worn card: the backdrop draws the surface, so the shell keeps only the edge, and the row's
+  // layout moves inside the backdrop, which clips its own art to the radius. No overflow:hidden
+  // here — on iOS it would clip the flare's glow too.
+  rowShell: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  rowInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   // You, on top of whatever you wear: a heavier edge, so your row is findable at a scroll.
   rowMe: {

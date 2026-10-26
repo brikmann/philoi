@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import LottieView, { type AnimationObject } from 'lottie-react-native';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   cancelAnimation,
@@ -216,9 +216,25 @@ export function SpearPlantHoplite({
   patronKey?: string | null;
   style?: StyleProp<ViewStyle>;
 }) {
+  return <HopliteLottie parked={reveal.still || reveal.skipped} patronKey={patronKey ?? null} style={style} />;
+}
+
+// Memoised on primitives, with the colour filter memoised too: LottieView is a PureComponent that
+// JSON.stringifies an object source on every render it gets, so an unmemoised hoplite re-sent the
+// whole asset to native each time the done screen re-rendered (the caption field, the toggles).
+const HopliteLottie = memo(function HopliteLottie({
+  parked,
+  patronKey,
+  style,
+}: {
+  parked: boolean;
+  patronKey: string | null;
+  style?: StyleProp<ViewStyle>;
+}) {
   const flare = useEquipped('flare')?.flare;
   const source = (patronKey && HOPLITE_BY_PATRON[patronKey]) || HOPLITE_DEFAULT;
-  const parked = reveal.still || reveal.skipped;
+  const tint = flare ? flareDisplayColour(flare.effect, flare.colour) : null;
+  const colorFilters = useMemo(() => (tint ? [{ keypath: 'Burst', color: tint }] : undefined), [tint]);
   return (
     <LottieView
       // A skip remounts on the last frame rather than seeking a running native animation, which
@@ -230,8 +246,8 @@ export function SpearPlantHoplite({
       progress={parked ? 1 : undefined}
       loop={false}
       resizeMode="contain"
-      colorFilters={flare ? [{ keypath: 'Burst', color: flareDisplayColour(flare.effect, flare.colour) }] : undefined}
+      colorFilters={colorFilters}
       style={style}
     />
   );
-}
+});
