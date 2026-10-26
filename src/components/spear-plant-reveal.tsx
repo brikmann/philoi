@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import LottieView, { type AnimationObject } from 'lottie-react-native';
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -20,8 +20,9 @@ import { getRewardPreferencesSync } from '@/lib/reward-settings';
 import { playRewardSound } from '@/lib/sound';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// THE SPEAR-PLANT (design-mocks/311). A lock-in ends: a hoplite drives the spear into the ground,
-// the screen shakes on the strike, embers burst from the base, and the stats slam in above.
+// THE SPEAR-PLANT (design-mocks/311). A lock-in ends: the hoplite stands ALONE on the screen and
+// drives the spear into the ground, the screen shakes on the strike, embers burst from the base —
+// and only then do the stats come in, while he steps back into his place below them.
 //
 // TWO LAYERS, never baked together:
 //   • the hoplite + impact FX are a Lottie asset (assets/lottie/hoplite-spear-plant.json, built by
@@ -30,42 +31,66 @@ import { playRewardSound } from '@/lib/sound';
 //   • the stats are the done screen's own live views, popped in by <SpearPlantBeat> here. Numbers
 //     change every session, so none of them are ever in the asset.
 //
-// ONE CLOCK. Every beat, the shake and the tap-to-skip read a single shared value counting
-// milliseconds since the screen mounted, so nothing can drift from anything else and a skip is one
-// assignment: jump the clock to the end and every style lands on its settled frame together.
+// TWO HOPLITES, one seen at a time. The STAGE hoplite plays centre-screen at full size (rendered by
+// <SpearPlantShake> above the content, so nothing else is on screen with him), then glides and
+// shrinks into the SLOT — the <SpearPlantHoplite> box in the done screen's layout, measured in
+// window coordinates — as the stats slam in. The slot holds a parked copy (last frame) from mount,
+// invisible; when the intro ends the stage copy unmounts and the slot copy shows in the same commit,
+// on the same frame at the same rect, so the hand-off can't blink. After that he scrolls with the
+// screen like any other view.
 //
-// REDUCE MOTION parks the hoplite on its last frame (spear already planted), drops the shake, and
-// fades the stats in together with no slam.
+// ONE CLOCK. Every beat, the shake, the glide and the tap-to-skip read a single shared value
+// counting milliseconds since the screen mounted, so nothing can drift from anything else and a skip
+// is one assignment: jump the clock to the end and everything lands on its settled frame together.
+//
+// REDUCE MOTION skips the stage entirely: the slot copy shows parked (spear already planted), no
+// shake, and the stats fade in together with no slam.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
-/** Mock 311's beat sheet, in ms from mount. `stats*` are the three staggered slams. */
+/** The beat sheet, in ms from mount. The spear lands at `impact`; the stats wait for it. */
 export const SPEAR_PLANT_BEATS = {
   drive: 550,
   impact: 820,
-  statsHead: 950,
-  statsMain: 1050,
-  statsRest: 1250,
-  cta: 1500,
+  move: 1000,
+  statsHead: 1100,
+  statsMain: 1200,
+  statsRest: 1350,
+  cta: 1600,
 } as const;
-export type SpearPlantBeatName = Exclude<keyof typeof SPEAR_PLANT_BEATS, 'drive' | 'impact'>;
+export type SpearPlantBeatName = Exclude<keyof typeof SPEAR_PLANT_BEATS, 'drive' | 'impact' | 'move'>;
 
 const POP_MS = 500;
 const SHAKE_MS = 450;
+const MOVE_MS = 400;
 const STILL_FADE_MS = 300;
-// The last beat's pop finishes here; the clock runs to it and the skip catcher unmounts.
+// The last beat's pop finishes here; the clock runs to it, the stage hoplite hands off to the slot
+// and the skip catcher unmounts.
 const END_MS = SPEAR_PLANT_BEATS.cta + POP_MS;
+
+/** The stage hoplite's box, and where his centre sits (fraction of the screen's height). */
+const STAGE_SIZE = 260;
+const STAGE_CENTRE_Y = 0.44;
 
 // Mock 311's `pop` curve — cubic-bezier(.2,1.5,.4,1), the overshoot is the slam.
 const popEase = Easing.bezierFn(0.2, 1.5, 0.4, 1);
+// The glide into the slot: quick off the mark, gentle into place.
+const moveEase = Easing.bezierFn(0.4, 0, 0.2, 1);
 
 // The asset by patron. v1 ships one hoplite; the Heracles / Athena silhouettes land here keyed by
 // programs.patron_key, and every patron without its own art keeps the generic one.
 const HOPLITE_DEFAULT: AnimationObject = require('../../assets/lottie/hoplite-spear-plant.json');
 const HOPLITE_BY_PATRON: Partial<Record<string, AnimationObject>> = {};
 
+/** A box in window coordinates (measureInWindow). */
+type Rect = { x: number; y: number; w: number; h: number };
+
 export type SpearPlant = {
   clock: SharedValue<number>;
-  /** Reduce-motion is on: parked hoplite, no shake, plain fades. */
+  /** The results container's box — the stage the hoplite opens on. */
+  frame: SharedValue<Rect | null>;
+  /** The hoplite's settled box in the layout — where the stage copy glides to. */
+  slot: SharedValue<Rect | null>;
+  /** Reduce-motion is on: no stage, no shake, plain fades. */
   still: boolean;
   /** The intro is over (ran out or was skipped) — the screen is at rest. */
   settled: boolean;
@@ -82,6 +107,8 @@ export type SpearPlant = {
 export function useSpearPlant(onStatsLand?: () => void): SpearPlant {
   const still = useReducedMotion();
   const clock = useSharedValue(0);
+  const frame = useSharedValue<Rect | null>(null);
+  const slot = useSharedValue<Rect | null>(null);
   const [settled, setSettled] = useState(still);
   const [skipped, setSkipped] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -138,7 +165,7 @@ export function useSpearPlant(onStatsLand?: () => void): SpearPlant {
     setSkipped(true);
   }, [clock, land]);
 
-  return { clock, still, settled, skipped, skip };
+  return { clock, frame, slot, still, settled, skipped, skip };
 }
 
 /** A stat group that slams in on its beat (mock 311's `.st` pop): up 14px and from 0.9 scale. */
@@ -167,7 +194,10 @@ export function SpearPlantBeat({
   return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
 }
 
-/** The whole results container, shaken for 450ms from the impact frame (mock 311's `shake`). */
+/**
+ * The whole results container, shaken for 450ms from the impact frame (mock 311's `shake`), with
+ * the stage hoplite drawn on top of it for the intro.
+ */
 export function SpearPlantShake({
   reveal,
   style,
@@ -177,7 +207,8 @@ export function SpearPlantShake({
   style?: StyleProp<ViewStyle>;
   children: ReactNode;
 }) {
-  const { clock, still, settled, skip } = reveal;
+  const { clock, frame, still, settled, skip } = reveal;
+  const frameRef = useRef<View>(null);
   const shakeStyle = useAnimatedStyle(() => {
     if (still) return {};
     const t = (clock.value - SPEAR_PLANT_BEATS.impact) / SHAKE_MS;
@@ -191,7 +222,15 @@ export function SpearPlantShake({
   });
   return (
     <Animated.View style={[style, shakeStyle]}>
+      {/* The stage's own box, measured from a plain view that fills the container exactly. */}
+      <View
+        ref={frameRef}
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
+        onLayout={() => frameRef.current?.measureInWindow((x, y, w, h) => frame.set({ x, y, w, h }))}
+      />
       {children}
+      {!still && !settled && <StageHoplite reveal={reveal} />}
       {/* Tap anywhere to skip — people see this many times a day. Only mounted while the intro
           runs, so it also keeps a stray tap from landing on the post card before it's visible. */}
       {!settled && (
@@ -206,7 +245,42 @@ export function SpearPlantShake({
   );
 }
 
-/** The hoplite himself. The burst takes the equipped flare's colour; no flare keeps the ember art. */
+/**
+ * The intro's hoplite: full size, centre stage, alone — then, from the `move` beat, gliding and
+ * shrinking onto the slot. Transforms only (no layout props), so the glide runs on the UI thread.
+ */
+function StageHoplite({ reveal }: { reveal: SpearPlant }) {
+  const { clock, frame, slot } = reveal;
+  const glide = useAnimatedStyle(() => {
+    const f = frame.value;
+    // Not measured yet (the first layout pass): draw nothing rather than a hoplite in the corner.
+    if (!f) return { opacity: 0 };
+    const x0 = (f.w - STAGE_SIZE) / 2;
+    const y0 = f.h * STAGE_CENTRE_Y - STAGE_SIZE / 2;
+    const s = slot.value;
+    if (!s) return { opacity: 1, transform: [{ translateX: x0 }, { translateY: y0 }] };
+    // Scale is about the view's centre, so aim the centre at the slot's centre.
+    const x1 = s.x - f.x + s.w / 2 - STAGE_SIZE / 2;
+    const y1 = s.y - f.y + s.h / 2 - STAGE_SIZE / 2;
+    const k1 = s.w / STAGE_SIZE;
+    const p = moveEase(Math.min(Math.max((clock.value - SPEAR_PLANT_BEATS.move) / MOVE_MS, 0), 1));
+    return {
+      opacity: 1,
+      transform: [{ translateX: x0 + (x1 - x0) * p }, { translateY: y0 + (y1 - y0) * p }, { scale: 1 + (k1 - 1) * p }],
+    };
+  });
+  return (
+    <Animated.View pointerEvents="none" style={[styles.stage, glide]}>
+      <HopliteLottie parked={false} patronKey={null} style={styles.fill} />
+    </Animated.View>
+  );
+}
+
+/**
+ * The hoplite's place in the done screen's layout. Measures itself for the stage copy to land on,
+ * and holds the parked copy — mounted from the start but hidden until the intro is over, so the
+ * hand-off never waits on a Lottie decode.
+ */
 export function SpearPlantHoplite({
   reveal,
   patronKey,
@@ -216,12 +290,23 @@ export function SpearPlantHoplite({
   patronKey?: string | null;
   style?: StyleProp<ViewStyle>;
 }) {
-  return <HopliteLottie parked={reveal.still || reveal.skipped} patronKey={patronKey ?? null} style={style} />;
+  const { slot } = reveal;
+  const ref = useRef<View>(null);
+  const shown = reveal.still || reveal.settled;
+  return (
+    <View
+      ref={ref}
+      style={[style, !shown && styles.hidden]}
+      onLayout={() => ref.current?.measureInWindow((x, y, w, h) => slot.set({ x, y, w, h }))}>
+      <HopliteLottie parked patronKey={patronKey ?? null} style={styles.fill} />
+    </View>
+  );
 }
 
 // Memoised on primitives, with the colour filter memoised too: LottieView is a PureComponent that
 // JSON.stringifies an object source on every render it gets, so an unmemoised hoplite re-sent the
 // whole asset to native each time the done screen re-rendered (the caption field, the toggles).
+// The burst takes the equipped flare's colour; no flare keeps the ember art.
 const HopliteLottie = memo(function HopliteLottie({
   parked,
   patronKey,
@@ -237,10 +322,6 @@ const HopliteLottie = memo(function HopliteLottie({
   const colorFilters = useMemo(() => (tint ? [{ keypath: 'Burst', color: tint }] : undefined), [tint]);
   return (
     <LottieView
-      // A skip remounts on the last frame rather than seeking a running native animation, which
-      // the two platforms resolve differently. An intro that runs out keeps its view: it has
-      // already come to rest on that same frame.
-      key={parked ? 'parked' : 'playing'}
       source={source}
       autoPlay={!parked}
       progress={parked ? 1 : undefined}
@@ -250,4 +331,21 @@ const HopliteLottie = memo(function HopliteLottie({
       style={style}
     />
   );
+});
+
+const styles = StyleSheet.create({
+  stage: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: STAGE_SIZE,
+    height: STAGE_SIZE,
+  },
+  fill: {
+    width: '100%',
+    height: '100%',
+  },
+  hidden: {
+    opacity: 0,
+  },
 });
