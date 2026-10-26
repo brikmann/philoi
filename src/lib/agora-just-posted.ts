@@ -1,3 +1,4 @@
+import type { FeedKey } from '@/lib/api/feed-channels';
 import type { AgoraItem } from '@/types/database';
 
 // "Your post lands at the top of the feed immediately" (mock 306, frame 3).
@@ -7,9 +8,16 @@ import type { AgoraItem } from '@/types/database';
 // on top, highlighted. Re-fetching page 1 instead would be a full round trip and a lost scroll, and
 // a hand-built optimistic row would have to guess at every field the server freezes.
 //
-// A forest post never reaches the square (0274), so only square posts are announced.
+// A post lands where its lane put it: the square, or one campfire's channel (0277). `channel` says
+// which, so the feed only puts it on top when that is what it is showing — a campfire post on top
+// of Friends would be a post the next refresh takes away.
 
-export type JustPosted = { id: string; itemType: AgoraItem['item_type'] };
+export type JustPosted = {
+  id: string;
+  itemType: AgoraItem['item_type'];
+  /** The channel it was posted into. Omitted = the square. */
+  channel?: FeedKey;
+};
 
 const listeners = new Set<(p: JustPosted) => void>();
 

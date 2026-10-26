@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -24,17 +24,27 @@ import {
   type AchievementChoice,
 } from '@/components/agora/agora-pickers';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
+import { AGORA_VIDEO_ENABLED } from '@/constants/feature-flags';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { announceAgoraPost } from '@/lib/agora-just-posted';
 import { AGORA_VISIBILITIES, createAgoraPost } from '@/lib/api/agora';
-import { createForestPost, fetchForests } from '@/lib/api/forests';
+import {
+  AGORA_VIDEO_MAX_SECONDS,
+  AgoraVideoLimitError,
+  formatClipLength,
+  prepareAgoraVideo,
+  uploadAgoraVideo,
+  type PreparedAgoraVideo,
+} from '@/lib/api/agora-video';
+import { channelKey, createCampfirePost, fetchMyFeedChannels } from '@/lib/api/feed-channels';
+import { createForestPost } from '@/lib/api/forests';
 import { fetchProfileIdentity } from '@/lib/api/identity';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import { shortSchoolName } from '@/lib/universities';
-import type { AgoraVisibility } from '@/types/database';
-import type { Anthem, ForestSummary } from '@/types/social';
+import type { AgoraAttachInput, AgoraVisibility } from '@/types/database';
+import type { Anthem, FeedChannel } from '@/types/social';
 
 // Mock 162 panel 2 — "The post screen. Write freely (like FB / LinkedIn); the three icons are
 // media you attach."
@@ -50,11 +60,23 @@ import type { Anthem, ForestSummary } from '@/types/social';
 // below — nothing typed on this screen can end up being what the card claims.
 //
 // ONE SHEET, EVERY POST (mock 306 frame 2). Text up top, then the bespoke media row — Photo ·
-// Camera · Session · Reward · Anthem — then the Feed / Forest lane, then Post.
+// Camera · Session · Reward · Anthem — then the Feed / Campfire / Forest lane, then Post.
 //
 // FOREST POSTS (0274). The lane picks the forest; ?forestId= seeds it, so a forest's own "Post"
 // opens on that forest. The audience dial is hidden on a forest lane: a forest post's reach IS the
 // forest (open, or its members only), so a dial there would be a promise the server doesn't keep.
+//
+// CAMPFIRE POSTS (0277, mock 315). Same idea, one more kind: the lane can be a campfire you're in,
+// and the post lands in that campfire's channel on the Feed — its members' curated feed (gym comps,
+// clips). ?campfireId= seeds it, so a campfire channel's own composer opens on that campfire. No
+// dial there either: a campfire post's reach is its members, full stop.
+//
+// VIDEO (0279). One clip, ≤ 60s, recorded or picked — the same post, one more slot, not a separate
+// flow. It's compressed and given a poster frame on-device the moment it's picked (so Post isn't
+// also an encode), uploaded to R2 on Post, then sent as `{kind: 'video', key}` like any other
+// attachment. Trimming is the system's: iOS's picker editor trims to 60s; Android has none, so an
+// over-long pick is refused with a message instead. Attaching a clip pulls the audience in to
+// Friends — a clip reaches further than a photo, so the wider dial is a choice, never the default.
 //
 // ANTHEM IS TEXT, NOT AN ATTACHMENT. There is no `anthem` attach kind server-side and this pass is
 // client-only, so the anthem rides in the body as one closing line ("♪ Title — Artist" + link) —
@@ -87,19 +109,24 @@ function slotOf(choice: AchievementChoice): AttachSlot {
   return choice.kind === 'lockin' ? 'lockin' : 'achievement';
 }
 
-type Lane = { id: string; name: string };
+type Lane = { kind: 'forest' | 'campfire'; id: string; name: string };
 
 export default function AgoraComposeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
-  const params = useLocalSearchParams<{ forestId?: string; forestName?: string }>();
+  const params = useLocalSearchParams<{ forestId?: string; forestName?: string; campfireId?: string; campfireName?: string }>();
 
   // Null = the square.
   const [lane, setLane] = useState<Lane | null>(
-    params.forestId ? { id: params.forestId, name: params.forestName || 'this forest' } : null
+    params.campfireId
+      ? { kind: 'campfire', id: params.campfireId, name: params.campfireName || 'this campfire' }
+      : params.forestId
+        ? { kind: 'forest', id: params.forestId, name: params.forestName || 'this forest' }
+        : null
   );
   const [lanePicker, setLanePicker] = useState(false);
-  const [myForests, setMyForests] = useState<ForestSummary[] | null>(null);
+  // Your campfires, then your forests — the same list the Feed's channel row draws.
+  const [myChannels, setMyChannels] = useState<FeedChannel[] | null>(null);
 
   const [body, setBody] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -110,6 +137,13 @@ export default function AgoraComposeScreen() {
   const [anthem, setAnthem] = useState<Anthem | null>(null);
   const [withAnthem, setWithAnthem] = useState(false);
   const [posting, setPosting] = useState(false);
+  // The video slot. `preparing` is compress + poster (0…1); `uploading` is the PUT on Post (0…1).
+  const [video, setVideo] = useState<PreparedAgoraVideo | null>(null);
+  const [preparing, setPreparing] = useState<number | null>(null);
+  const [uploading, setUploading] = useState<number | null>(null);
+  // Bumped on every pick/remove, so a slow compress that finishes after you removed or replaced
+  // the clip doesn't land in the slot anyway.
+  const videoRun = useRef(0);
 
   // Campus is the sensible default audience (see migration 0128), but it resolves to NOBODY for an
   // account with no university set — can_see_agora needs a non-null match on both sides. Rather
@@ -121,7 +155,8 @@ export default function AgoraComposeScreen() {
     (c): c is { slot: AttachSlot; choice: AchievementChoice } => Boolean(c.choice)
   );
 
-  const canPost = Boolean(body.trim() || photoUri || chosen.length || withAnthem) && !posting;
+  const canPost =
+    Boolean(body.trim() || photoUri || chosen.length || withAnthem || video) && !posting && preparing === null;
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -140,10 +175,10 @@ export default function AgoraComposeScreen() {
 
   function openLanePicker() {
     setLanePicker(true);
-    if (myForests !== null) return;
-    fetchForests('active')
-      .then((rows) => setMyForests(rows.filter((f) => f.my_status === 'active')))
-      .catch(() => setMyForests([]));
+    if (myChannels !== null) return;
+    fetchMyFeedChannels()
+      .then((rows) => setMyChannels([...rows.filter((c) => c.kind === 'campfire'), ...rows.filter((c) => c.kind === 'forest')]))
+      .catch(() => setMyChannels([]));
   }
 
   async function pickPhoto() {
@@ -171,6 +206,67 @@ export default function AgoraComposeScreen() {
     setPhotoUri(result.assets[0].uri);
   }
 
+  function chooseVideoSource() {
+    // Exactly three buttons: Android's Alert silently drops a fourth.
+    Alert.alert('Add a video', `Up to ${AGORA_VIDEO_MAX_SECONDS} seconds.`, [
+      { text: 'Record', onPress: () => void pickVideo('camera') },
+      { text: 'Choose from library', onPress: () => void pickVideo('library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
+  async function pickVideo(from: 'camera' | 'library') {
+    const permission =
+      from === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        from === 'camera' ? 'Camera access needed' : 'Video access needed',
+        from === 'camera'
+          ? 'Philoi needs camera access to record a video for your post.'
+          : 'Philoi needs library access to attach a video.'
+      );
+      return;
+    }
+    const options: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ['videos'],
+      videoMaxDuration: AGORA_VIDEO_MAX_SECONDS,
+      // iOS: the system editor, which trims to videoMaxDuration. Android ignores it for video.
+      allowsEditing: Platform.OS === 'ios',
+    };
+    const result =
+      from === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+    const asset = result.canceled ? null : result.assets[0];
+    if (!asset) return;
+
+    const run = (videoRun.current += 1);
+    setVideo(null);
+    setPreparing(0);
+    // A clip reaches further than a photo: start it at Friends. Widening is one tap, and a choice.
+    if (!lane) setVisibility('friends');
+    try {
+      const prepared = await prepareAgoraVideo({ uri: asset.uri, durationMs: asset.duration }, (p) => {
+        if (run === videoRun.current) setPreparing(p);
+      });
+      if (run === videoRun.current) setVideo(prepared);
+    } catch (e) {
+      if (run !== videoRun.current) return;
+      Alert.alert(
+        e instanceof AgoraVideoLimitError ? 'Video too long' : 'Could not use that video',
+        e instanceof AgoraVideoLimitError ? e.message : getErrorMessage(e, 'Try a different clip.')
+      );
+    } finally {
+      if (run === videoRun.current) setPreparing(null);
+    }
+  }
+
+  function removeVideo() {
+    videoRun.current += 1;
+    setVideo(null);
+    setPreparing(null);
+  }
+
   function toggleAnthem() {
     if (withAnthem) {
       setWithAnthem(false);
@@ -190,18 +286,27 @@ export default function AgoraComposeScreen() {
     if (!canPost || !profile) return;
     setPosting(true);
     try {
-      const attachments = chosen.map(({ choice }) => ({
+      const attachments: AgoraAttachInput[] = chosen.map(({ choice }) => ({
         kind: choice.kind,
         ref_id: choice.refId,
         key: choice.key,
       }));
+      if (video) {
+        setUploading(0);
+        const key = await uploadAgoraVideo(video, setUploading);
+        attachments.push({ kind: 'video', ref_id: null, key });
+      }
       // The anthem line goes last and the typed text gives way to it, so the post still fits 1000.
       const typed = body.trim();
       const tail = withAnthem && anthem ? anthemLine(anthem) : '';
       const text = tail
         ? `${typed.slice(0, Math.max(0, MAX - tail.length - 2))}${typed ? '\n\n' : ''}${tail}`
         : body;
-      if (lane) {
+      if (lane?.kind === 'campfire') {
+        const id = await createCampfirePost({ campfireId: lane.id, userId: profile.id, body: text, photoUri, attachments });
+        // Lands on top only if the feed underneath is showing this campfire's channel.
+        announceAgoraPost({ id, itemType: 'post', channel: channelKey({ kind: 'campfire', id: lane.id }) });
+      } else if (lane) {
         await createForestPost({ forestId: lane.id, userId: profile.id, body: text, photoUri, attachments });
       } else {
         const id = await createAgoraPost({ body: text, photoUri, userId: profile.id, visibility, attachments });
@@ -214,6 +319,7 @@ export default function AgoraComposeScreen() {
       Alert.alert('Could not post', getErrorMessage(e, 'Something went wrong.'));
     } finally {
       setPosting(false);
+      setUploading(null);
     }
   }
 
@@ -258,7 +364,9 @@ export default function AgoraComposeScreen() {
             style={[styles.postBtn, !canPost && styles.postBtnOff]}
             accessibilityRole="button"
             accessibilityLabel="Post">
-            {posting ? (
+            {posting && uploading !== null ? (
+              <Text style={styles.postBtnText}>{Math.round(uploading * 100)}%</Text>
+            ) : posting ? (
               <ActivityIndicator size="small" color={Colors.onEmber} />
             ) : (
               <Text style={[styles.postBtnText, !canPost && styles.postBtnTextOff]}>Post</Text>
@@ -311,17 +419,58 @@ export default function AgoraComposeScreen() {
                   </Pressable>
                 </View>
               ) : null}
+
+              {video || preparing !== null ? (
+                <View style={styles.preview}>
+                  {video ? (
+                    <Image source={{ uri: video.posterUri }} style={styles.previewImage} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.previewImage, styles.previewPreparing]}>
+                      <ActivityIndicator color={Colors.navEmber2} />
+                      <Text style={styles.previewPreparingText}>
+                        Preparing video… {Math.round((preparing ?? 0) * 100)}%
+                      </Text>
+                    </View>
+                  )}
+                  {video ? (
+                    <View style={styles.previewLength}>
+                      <Ionicons name="play" size={10} color={Colors.ink} />
+                      <Text style={styles.previewLengthText}>{formatClipLength(video.durationS)}</Text>
+                    </View>
+                  ) : null}
+                  {posting && uploading !== null ? (
+                    <View style={styles.uploadTrack}>
+                      <View style={[styles.uploadFill, { width: `${Math.round(uploading * 100)}%` }]} />
+                    </View>
+                  ) : null}
+                  <Pressable
+                    style={styles.previewClear}
+                    onPress={removeVideo}
+                    disabled={posting}
+                    accessibilityLabel="Remove video">
+                    <Ionicons name="close" size={15} color={Colors.ink} />
+                  </Pressable>
+                </View>
+              ) : null}
             </View>
 
             {/*
               The media row. Each button owns one slot and touches nothing else. A filled slot
               stays tappable and REPLACES what is in it rather than offering a second one — "at
               most one of each", expressed as the only thing the button is able to do. Photo and
-              Camera are two ways to fill the same photo slot.
+              Camera are two ways to fill the same photo slot; Video holds one clip beside them.
             */}
             <View style={styles.media}>
               <AttachButton icon="photo" label="Photo" on={Boolean(photoUri)} onPress={() => void pickPhoto()} />
               <AttachButton icon="camera" label="Camera" on={false} onPress={() => void takePhoto()} />
+              {AGORA_VIDEO_ENABLED ? (
+                <AttachButton
+                  icon="video"
+                  label="Video"
+                  on={Boolean(video) || preparing !== null}
+                  onPress={chooseVideoSource}
+                />
+              ) : null}
               <AttachButton
                 icon="session"
                 label="Session"
@@ -352,7 +501,11 @@ export default function AgoraComposeScreen() {
             </View>
 
             {lane ? (
-              <Text style={styles.audienceHint}>Seen by everyone who can open this forest</Text>
+              <Text style={styles.audienceHint}>
+                {lane.kind === 'campfire'
+                  ? 'Seen by this campfire’s members, in its channel on the Feed'
+                  : 'Seen by everyone who can open this forest'}
+              </Text>
             ) : (
               <>
                 <View style={styles.audienceRow}>
@@ -381,6 +534,9 @@ export default function AgoraComposeScreen() {
                     ? (audience?.hint ?? '')
                     : 'Set your university in your profile to post to your campus.'}
                 </Text>
+                {(video || preparing !== null) && visibility === 'friends' ? (
+                  <Text style={styles.audienceHint}>Videos start at Friends. Widening it is your call.</Text>
+                ) : null}
               </>
             )}
 
@@ -406,19 +562,19 @@ export default function AgoraComposeScreen() {
           <Pressable style={styles.laneSheet} onPress={() => {}}>
             <Text style={styles.laneSheetTitle}>Post to</Text>
             <LaneOption label="Feed" sub="The square" on={!lane} onPress={() => chooseLane(null)} />
-            {myForests === null ? (
+            {myChannels === null ? (
               <ActivityIndicator color={Colors.textTertiary} style={styles.laneLoader} />
-            ) : myForests.length === 0 ? (
-              <Text style={styles.laneEmpty}>Join a forest from Agora → Forests to post into it.</Text>
+            ) : myChannels.length === 0 ? (
+              <Text style={styles.laneEmpty}>Join a campfire, or a forest from Agora → Forests, to post into it.</Text>
             ) : (
               <ScrollView style={styles.laneList}>
-                {myForests.map((f) => (
+                {myChannels.map((c) => (
                   <LaneOption
-                    key={f.id}
-                    label={`${f.emoji} ${f.name}`}
-                    sub={`Forest · ${f.member_count} members`}
-                    on={lane?.id === f.id}
-                    onPress={() => chooseLane({ id: f.id, name: f.name })}
+                    key={`${c.kind}:${c.id}`}
+                    label={`${c.emoji} ${c.name}`}
+                    sub={`${c.kind === 'campfire' ? 'Campfire' : 'Forest'} · ${c.member_count} members`}
+                    on={lane?.kind === c.kind && lane.id === c.id}
+                    onPress={() => chooseLane({ kind: c.kind, id: c.id, name: c.name })}
                   />
                 ))}
               </ScrollView>
@@ -577,6 +733,45 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: Radius.card,
     backgroundColor: Colors.disabled,
+  },
+  previewPreparing: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+  },
+  previewPreparingText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.muted,
+  },
+  previewLength: {
+    position: 'absolute',
+    bottom: Spacing.two,
+    left: Spacing.two,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: 'rgba(6,5,10,0.65)',
+  },
+  previewLengthText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    color: Colors.ink,
+  },
+  uploadTrack: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 4,
+    backgroundColor: 'rgba(6,5,10,0.6)',
+  },
+  uploadFill: {
+    height: 4,
+    backgroundColor: Colors.navEmber,
   },
   previewClear: {
     position: 'absolute',

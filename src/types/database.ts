@@ -11,6 +11,7 @@ import type {
 } from '@/types/house';
 import type {
   DisciplineMixRow,
+  FeedChannel,
   ForestDetail,
   ForestSummary,
   GrindAlike,
@@ -3077,7 +3078,15 @@ export type Database = {
       set_my_identity: { Args: { p_patch: IdentityPatch }; Returns: undefined };
       set_post_to_agora: { Args: { p_enabled: boolean }; Returns: undefined };
       post_session_to_agora: {
-        Args: { p_check_in_id: string; p_caption?: string | null; p_photo_paths?: string[]; p_visibility?: string };
+        Args: {
+          p_check_in_id: string;
+          p_caption?: string | null;
+          p_photo_paths?: string[];
+          p_visibility?: string;
+          // 0277 · where it goes. Both omitted = the Agora; at most one.
+          p_forest_id?: string | null;
+          p_campfire_id?: string | null;
+        };
         Returns: string;
       };
       get_forests: { Args: { p_sort?: string; p_query?: string | null; p_limit?: number }; Returns: ForestSummary[] };
@@ -3107,6 +3116,17 @@ export type Database = {
         Args: { p_forest_id: string; p_body?: string | null; p_photo_path?: string | null; p_attachments?: AgoraAttachInput[] };
         Returns: string;
       };
+      // Campfire channels (0277) — the Feed's per-campfire chips. Members only, server-gated.
+      get_my_feed_channels: { Args: Record<string, never>; Returns: FeedChannel[] };
+      get_campfire_feed: {
+        Args: { p_campfire_id: string; p_before_at?: string | null; p_before_id?: string | null; p_limit?: number };
+        Returns: AgoraItem[];
+      };
+      create_campfire_post: {
+        Args: { p_campfire_id: string; p_body?: string | null; p_photo_path?: string | null; p_attachments?: AgoraAttachInput[] };
+        Returns: string;
+      };
+      remove_campfire_post: { Args: { p_post_id: string }; Returns: undefined };
       create_campfire_in_forest: {
         Args: { p_forest_id: string; p_name: string; p_emoji: string; p_goal_type: string; p_cadence: string; p_privacy?: string };
         Returns: Group;
@@ -4137,7 +4157,7 @@ export type AgoraScope = 'friends' | 'campfires' | 'university' | 'global';
 export type AgoraVisibility = 'friends' | 'campus' | 'public';
 
 /** What a post can carry (mock 162 panels 4-5), plus the milestone rows the feed folds in. */
-export type AgoraAttachKind = 'milestone' | 'lockin' | 'rank' | 'streak' | 'pass' | 'cosmetic' | 'pr';
+export type AgoraAttachKind = 'milestone' | 'lockin' | 'rank' | 'streak' | 'pass' | 'cosmetic' | 'pr' | 'video';
 
 /**
  * What the composer SENDS: which achievement, never what it says. `create_agora_post` re-reads
@@ -4250,6 +4270,13 @@ export type AgoraAttachSnapshot = {
   reps?: number;
   e1rm?: number;
   achieved_at?: string;
+  // video (0279) — R2 keys from the upload ledger, never sent by the client. Played through
+  // agora-video-playback-url, which signs only for posts the viewer can open.
+  video_key?: string;
+  poster_key?: string;
+  duration_s?: number;
+  width?: number | null;
+  height?: number | null;
 };
 
 /** One card in the square — a freeform post, or a milestone that auto-surfaced into it. */

@@ -168,3 +168,21 @@ export type MatchDetail = {
   career_goal?: string | null;
   working_toward?: string | null;
 };
+
+// Feed channels (0277, mock 315) — get_my_feed_channels: a chip on the Feed after the scopes.
+/** One chip after the scopes. `kind` decides which feed RPC reads it. */
+export type FeedChannel = {
+  kind: 'campfire' | 'forest';
+  id: string;
+  name: string;
+  emoji: string;
+  member_count: number;
+  /** Newest post in the channel — the row's order (liveliest first). */
+  last_post_at: string | null;
+  /** A campfire's live challenge ending soonest (draft/pending/active) — the channel header's "⚔". */
+  challenge_id: string | null;
+  challenge_name: string | null;
+  challenge_metric: string | null;
+  challenge_ends_at: string | null;
+  joined_at: string;
+};

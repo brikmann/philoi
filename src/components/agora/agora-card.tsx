@@ -15,10 +15,12 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
 import { GymClipThumbnail } from '@/components/gym-clip-player';
-import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
+import { AGORA_VIDEO_ENABLED, GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { attachmentKey, attachmentView, formatVolume, itemAttachments } from '@/lib/agora-attachment';
 import type { AgoraAttachmentView, AgoraLiftView } from '@/lib/agora-attachment';
 import { agoraPhotoUrl } from '@/lib/api/agora';
+import { itemVideo } from '@/lib/api/agora-video';
+import { AgoraVideoTile } from '@/components/agora/agora-video-tile';
 import { formatRelativeTime } from '@/lib/format';
 import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
 import type { AgoraItem } from '@/types/database';
@@ -80,6 +82,9 @@ function AgoraCardInner({ item, loadout, onComment, onMore }: Props) {
   // post; the rest are frozen into the lockin snapshot, and all of them draw together below.
   const auto = attachments.some((a) => a.kind === 'lockin' && a.snapshot.auto);
   const extraPhotos = attachments.flatMap((a) => (a.kind === 'lockin' ? (a.snapshot.photos ?? []) : []));
+  // 0279 · a clip. Its own tile under the text and photos, not an attachment row.
+  const video = AGORA_VIDEO_ENABLED ? itemVideo(item) : null;
+  const mine = item.user_id === session?.user.id;
 
   function openAuthor() {
     // Your own name on your own post goes to YOUR profile. `friend-profile` reads the relationship
@@ -181,6 +186,10 @@ function AgoraCardInner({ item, loadout, onComment, onMore }: Props) {
           // still a real post and should read as one.
           onError={() => setPhotoFailed(true)}
         />
+      ) : null}
+
+      {video ? (
+        <AgoraVideoTile postId={item.id} video={video} onReport={mine ? undefined : () => onMore(item)} />
       ) : null}
 
       <View style={styles.actions}>

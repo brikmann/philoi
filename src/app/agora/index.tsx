@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -35,8 +36,10 @@ import {
   reportAgora,
   setMilestoneInAgora,
 } from '@/lib/api/agora';
+import { channelKey, fetchMyFeedChannels, parseFeedKey, type FeedChannel, type FeedKey } from '@/lib/api/feed-channels';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
+import { formatTimeLeft } from '@/lib/format';
 import { shortSchoolName } from '@/lib/universities';
 import type { AgoraItem, AgoraScope } from '@/types/database';
 
@@ -54,12 +57,40 @@ import type { AgoraItem, AgoraScope } from '@/types/database';
 // FEED · FORESTS (CODE_PROMPT_agora_forests.md). Forests are a tab of the Agora, not a new
 // destination: the feed is the commons, a forest is an interest world inside it that funnels into
 // campfires. The feed's scope chips belong to the feed tab alone.
+//
+// CHANNELS (0277, mock 315). After the four scope chips, the same row carries each of your
+// campfires and forests as its own channel, liveliest first, then "+ join". A campfire channel is
+// what was POSTED to that campfire — gym comps, clips — under a small header (members · its live
+// challenge), readable by its members only (server-gated). The last pick is remembered per account.
 
 type AgoraTab = 'feed' | 'forests';
 const TABS: { key: AgoraTab; label: string }[] = [
   { key: 'feed', label: 'Feed' },
   { key: 'forests', label: 'Forests' },
 ];
+
+/**
+ * The feed list's one non-post row: the channel header, Home's tracker card, the compose row and
+ * the empty/loading state. A row rather than ListEmptyComponent so the compose row is there on an
+ * empty channel too.
+ */
+type FeedSentinel = { sentinel: 'lead' };
+type FeedRow = FeedSentinel | AgoraItem;
+const LEAD_ROW: FeedSentinel = { sentinel: 'lead' };
+
+const SCOPE_KEYS = new Set<string>(AGORA_SCOPES.map((s) => s.key));
+const lastChannelKey = (userId: string) => `philoi_feed_channel_${userId}`;
+
+/** A key that names a scope, or a well-formed campfire/forest channel — anything else is dropped. */
+function asFeedKey(raw: string | null | undefined): FeedKey | null {
+  if (!raw) return null;
+  if (SCOPE_KEYS.has(raw)) return raw as FeedKey;
+  return parseFeedKey(raw as FeedKey) ? (raw as FeedKey) : null;
+}
+
+function isFeedSentinel(row: FeedRow | undefined): row is FeedSentinel {
+  return Boolean(row && 'sentinel' in row);
+}
 
 export default function AgoraScreen() {
   return <AgoraFeed />;
@@ -69,26 +100,37 @@ export default function AgoraScreen() {
  * The square itself. `/agora` mounts it as its own screen (back header); Home mounts it embedded,
  * with the global top bar + your-fire strip in place of that header (nav restructure, mock 302).
  *
- * Only `top` is pinned — on Home, just the global bar. Everything else scrolls away with the list so
- * the feed gets the screen: `scrollTop` (Home's fire strip + Flame Pass card), then the Feed · Forests
- * toggle and the scope chips, all drawn as the header of whichever list is showing. `feedHeader`
- * comes after them on the Feed tab only, above the compose row — Home's tracker card (mock 314).
+ * ONLY `top` IS PINNED — on Home, the global bar (Noah, 2026-10-26: nothing else sticks). Everything
+ * else is the list header of whichever tab is showing and scrolls away with it: `scrollTop` (Home's
+ * fire strip + Flame Pass card), then the Feed · Forests toggle and the scope/channel chips.
+ * `feedHeader` comes after them on the Feed tab only, above the compose row — Home's tracker card
+ * (mock 314).
  */
 export function AgoraFeed({
   embedded = false,
   top,
   scrollTop,
   feedHeader,
+  requestedChannel,
+  onRequestedChannelSeen,
 }: {
   embedded?: boolean;
   top?: ReactNode;
   scrollTop?: ReactNode;
   feedHeader?: ReactNode;
+  /** Open on this channel ("campfire:<id>") — a campfire screen's posts button, via Home's params. */
+  requestedChannel?: string;
+  /** Called once a requested channel has been applied, so the caller can clear its param. */
+  onRequestedChannelSeen?: () => void;
 }) {
   const router = useRouter();
   const { profile } = useAuth();
   const [tab, setTab] = useState<AgoraTab>('feed');
-  const [scope, setScope] = useState<AgoraScope>('friends');
+  // A scope, or one campfire/forest channel (0277). The name stays `scope`: the hook and the empty
+  // state treat both the same way.
+  const [scope, setScope] = useState<FeedKey>('friends');
+  const [channels, setChannels] = useState<FeedChannel[] | null>(null);
+  const channel = channels?.find((c) => channelKey(c) === scope) ?? null;
   const {
     items,
     loading,
@@ -107,7 +149,11 @@ export function AgoraFeed({
   const [freshId, setFreshId] = useState<string | null>(null);
   useEffect(
     () =>
-      onAgoraPost(({ id, itemType }) => {
+      onAgoraPost(({ id, itemType, channel: postedTo }) => {
+        // Only on top of the list it belongs in: a campfire post over Friends (or a square post
+        // over a campfire channel) would be a post the next refresh takes away.
+        const showing = parseFeedKey(scope) ? scope : null;
+        if ((postedTo ?? null) !== showing) return;
         setTab('feed');
         fetchAgoraItem(id, itemType)
           .then((item) => {
@@ -119,8 +165,61 @@ export function AgoraFeed({
             // It posted; the next refresh shows it. Not worth an alert over a working post.
           });
       }),
-    [prependItem]
+    [prependItem, scope]
   );
+
+  // Your channels — on focus, so a campfire joined (or left) elsewhere is right when you come back.
+  useFocusEffect(
+    useCallback(() => {
+      let live = true;
+      fetchMyFeedChannels()
+        .then((rows) => {
+          if (live) setChannels(rows);
+        })
+        .catch(() => {
+          // The scopes still work; the row just carries no channels this time.
+          if (live) setChannels((prev) => prev ?? []);
+        });
+      return () => {
+        live = false;
+      };
+    }, [])
+  );
+
+  // The last channel you were on, per account. Read once; written by changeScope.
+  const userId = profile?.id ?? null;
+  const restored = useRef(false);
+  useEffect(() => {
+    if (!userId || restored.current) return;
+    restored.current = true;
+    AsyncStorage.getItem(lastChannelKey(userId))
+      .then((raw) => {
+        const key = asFeedKey(raw);
+        // A request (a campfire's posts button) outranks the remembered pick.
+        if (key && !requestedChannel) setScope(key);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per account; the request has its own effect
+  }, [userId]);
+
+  // A remembered or requested channel you're no longer in (left the campfire) falls back to Friends.
+  useEffect(() => {
+    if (channels && parseFeedKey(scope) && !channel) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reconciling against the server's list
+      setScope('friends');
+    }
+  }, [channels, channel, scope]);
+
+  // A campfire screen's "posts" button: open on that channel, then let the caller clear the param.
+  useEffect(() => {
+    const key = asFeedKey(requestedChannel);
+    if (!key) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- driven by a route param, applied once
+    setTab('feed');
+    setScope(key);
+    onRequestedChannelSeen?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the callback is a fresh closure each render
+  }, [requestedChannel]);
 
   const [commentsFor, setCommentsFor] = useState<AgoraItem | null>(null);
   const [moreFor, setMoreFor] = useState<AgoraItem | null>(null);
@@ -141,10 +240,12 @@ export function AgoraFeed({
     track('agora_viewed', {});
   }, []);
 
-  function changeScope(next: AgoraScope) {
+  function changeScope(next: FeedKey) {
     if (next === scope) return;
     setScope(next);
-    track('agora_scope_changed', { scope: next });
+    // The channel id is not tracked — only which kind of thing was picked.
+    track('agora_scope_changed', { scope: parseFeedKey(next)?.kind ?? next });
+    if (userId) AsyncStorage.setItem(lastChannelKey(userId), next).catch(() => {});
   }
 
   const handleMore = useCallback(
@@ -222,11 +323,10 @@ export function AgoraFeed({
     return key === 'university' && profile?.university ? shortSchoolName(profile.university) : label;
   }
 
-  // Everything that scrolls away above the list (see the doc comment): drawn as the list header of
-  // whichever tab is showing, so swiping either one up leaves only the pinned `top`.
+  // The switcher — Feed · Forests and the scope/channel chips. Part of the scrolling header, never
+  // pinned (see the doc comment).
   const chrome = (
-    <>
-      {scrollTop}
+    <View>
       <View style={styles.tabs} accessibilityRole="tablist">
         {TABS.map((t) => {
           const on = tab === t.key;
@@ -262,9 +362,41 @@ export function AgoraFeed({
               </Text>
             </Pressable>
           ))}
+          {/* 0277 · your campfires and forests, each its own channel, then a way to find more. */}
+          {(channels ?? []).map((c) => {
+            const key = channelKey(c);
+            const on = scope === key;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => changeScope(key)}
+                style={[styles.filter, on && styles.filterOn]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={`${c.name}, ${c.kind}`}>
+                <Text style={[styles.filterText, on && styles.filterTextOn]} numberOfLines={1}>
+                  {c.emoji} {c.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+          <Pressable
+            onPress={() => router.push('/campfires')}
+            style={[styles.filter, styles.filterJoin]}
+            accessibilityRole="button"
+            accessibilityLabel="Join a campfire">
+            <Text style={styles.filterJoinText}>+ join</Text>
+          </Pressable>
         </ScrollView>
       ) : null}
-    </>
+    </View>
+  );
+  // Bled back out to full width: the list's gutter is the posts', the chrome has its own.
+  const scrollHeader = (
+    <View style={styles.chromeBleed}>
+      {scrollTop}
+      {chrome}
+    </View>
   );
 
   return (
@@ -285,23 +417,37 @@ export function AgoraFeed({
         )}
 
         {tab === 'forests' ? (
-          <ForestsBrowse header={chrome} />
+          <ForestsBrowse
+            header={
+              <>
+                {scrollTop}
+                {chrome}
+              </>
+            }
+          />
         ) : (
           <>
-            <FlatList
-              data={items}
-              keyExtractor={(i) => `${i.item_type}:${i.id}`}
+            <FlatList<FeedRow>
+              data={[LEAD_ROW, ...items]}
+              keyExtractor={(r) => (isFeedSentinel(r) ? r.sentinel : `${r.item_type}:${r.id}`)}
               contentContainerStyle={styles.list}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.amber} />
               }
               onEndReached={loadMore}
               onEndReachedThreshold={0.6}
-              ItemSeparatorComponent={() => <View style={styles.postSep} />}
-              ListHeaderComponent={
+              ItemSeparatorComponent={({ leadingItem }: { leadingItem: FeedRow }) =>
+                isFeedSentinel(leadingItem) ? null : <View style={styles.postSep} />
+              }
+              ListHeaderComponent={scrollHeader}
+              ListFooterComponent={
+                loadingMore ? <ActivityIndicator color={Colors.textTertiary} style={styles.footer} /> : null
+              }
+              renderItem={({ item: row }) => {
+                if (isFeedSentinel(row)) {
+                  return (
                 <>
-                  {/* Bled back out to full width: the list's gutter is the posts', the chrome has its own. */}
-                  <View style={styles.chromeBleed}>{chrome}</View>
+                  {channel ? <ChannelHeader channel={channel} /> : null}
                   {feedHeader}
                   {/*
                     The compose row (mock 306): one tap anywhere opens the one sheet. The two icons
@@ -312,7 +458,14 @@ export function AgoraFeed({
                     style={styles.composer}
                     onPress={() => {
                       track('agora_composer_opened', {});
-                      router.push('/agora/compose');
+                      // In a channel, the composer opens on that channel's lane.
+                      router.push(
+                        channel?.kind === 'campfire'
+                          ? { pathname: '/agora/compose', params: { campfireId: channel.id, campfireName: channel.name } }
+                          : channel?.kind === 'forest'
+                            ? { pathname: '/agora/compose', params: { forestId: channel.id, forestName: channel.name } }
+                            : '/agora/compose'
+                      );
                     }}
                     accessibilityRole="button"
                     accessibilityLabel="Write a post">
@@ -321,23 +474,30 @@ export function AgoraFeed({
                     ) : (
                       <View style={[styles.composerAvatar, styles.composerAvatarFallback]} />
                     )}
-                    <Text style={styles.composerHint}>Share something…</Text>
+                    <Text style={styles.composerHint} numberOfLines={1}>
+                      {channel ? `Post to ${channel.name}…` : 'Share something…'}
+                    </Text>
                     <NavGlyph name="photo" size={19} color={Colors.spaceDim} />
                     <NavGlyph name="session" size={19} color={Colors.spaceDim} />
                   </Pressable>
+                  {/* The list is never empty now (the two rows above are in it), so the empty
+                      state rides here instead of in ListEmptyComponent. */}
+                  {items.length === 0 ? (
+                    loading ? (
+                      <ActivityIndicator color={Colors.coral} style={styles.loader} />
+                    ) : (
+                      <EmptyScope
+                        scope={scope}
+                        channelName={channel?.name ?? null}
+                        error={error}
+                        hasUniversity={Boolean(profile?.university)}
+                      />
+                    )
+                  ) : null}
                 </>
-              }
-              ListEmptyComponent={
-                loading ? (
-                  <ActivityIndicator color={Colors.coral} style={styles.loader} />
-                ) : (
-                  <EmptyScope scope={scope} error={error} hasUniversity={Boolean(profile?.university)} />
-                )
-              }
-              ListFooterComponent={
-                loadingMore ? <ActivityIndicator color={Colors.textTertiary} style={styles.footer} /> : null
-              }
-              renderItem={({ item }) => {
+                  );
+                }
+                const item = row;
                 const card = (
                   <AgoraCard
                     item={item}
@@ -391,14 +551,19 @@ export function AgoraFeed({
  */
 function EmptyScope({
   scope,
+  channelName,
   error,
   hasUniversity,
 }: {
-  scope: AgoraScope;
+  scope: FeedKey;
+  channelName: string | null;
   error: string | null;
   hasUniversity: boolean;
 }) {
   if (error) return <Text style={styles.empty}>{error}</Text>;
+  if (parseFeedKey(scope)) {
+    return <Text style={styles.empty}>Nothing posted to {channelName ?? 'this channel'} yet. Post the first one.</Text>;
+  }
 
   const copy =
     scope === 'friends'
@@ -414,7 +579,72 @@ function EmptyScope({
   return <Text style={styles.empty}>{copy}</Text>;
 }
 
+/**
+ * A channel's header (mock 315): name · members · its live challenge. Tapping it opens the campfire
+ * (or forest) itself — the channel is the curated feed, the campfire is the room.
+ */
+function ChannelHeader({ channel }: { channel: FeedChannel }) {
+  const router = useRouter();
+  const meta = [
+    `${channel.member_count} ${channel.member_count === 1 ? 'member' : 'members'}`,
+    channel.challenge_id
+      ? `⚔ ${channel.challenge_name ?? 'Live challenge'}${channel.challenge_ends_at ? ` · ${formatTimeLeft(channel.challenge_ends_at)}` : ''}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return (
+    <Pressable
+      style={styles.channelHeader}
+      onPress={() =>
+        channel.kind === 'campfire'
+          ? router.push(`/group/${channel.id}`)
+          : router.push({ pathname: '/forest/[id]', params: { id: channel.id } } as never)
+      }
+      accessibilityRole="button"
+      accessibilityLabel={`${channel.name}, ${meta}. Open the ${channel.kind}`}>
+      <Text style={styles.channelName} numberOfLines={1}>
+        {channel.emoji} {channel.name}
+      </Text>
+      <Text style={styles.channelMeta} numberOfLines={1}>
+        {meta}
+      </Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  // Mock 315's `.chhdr` — an ember wash on a warm hairline, above the composer.
+  channelHeader: {
+    marginBottom: Spacing.twelve,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4a3718',
+    backgroundColor: 'rgba(255,122,47,0.10)',
+  },
+  channelName: {
+    fontFamily: Fonts.black,
+    fontSize: 14,
+    color: Colors.ink,
+  },
+  channelMeta: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.spaceDim,
+    marginTop: 2,
+  },
+  // "+ join": a quiet outline, never mistaken for a selected chip.
+  filterJoin: {
+    backgroundColor: 'transparent',
+    borderStyle: 'dashed',
+  },
+  filterJoinText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    color: Colors.navEmber2,
+  },
   safeArea: {
     flex: 1,
   },

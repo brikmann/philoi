@@ -32,7 +32,7 @@ export default function HomeScreen() {
 
   // A friend's "lock in?" nudge still deep-links to /?lockin=1 (0207 writes that route server-side
   // and installed builds read it). Starting a session lives on the Lock In tab now, so forward there.
-  const { lockin } = useLocalSearchParams<{ lockin?: string }>();
+  const { lockin, channel } = useLocalSearchParams<{ lockin?: string; channel?: string }>();
   useEffect(() => {
     if (lockin === '1') {
       router.setParams({ lockin: undefined });
@@ -43,6 +43,9 @@ export default function HomeScreen() {
   return (
     <AgoraFeed
       embedded
+      // A campfire's "posts" button (0277) opens Home on that campfire's channel chip.
+      requestedChannel={channel}
+      onRequestedChannelSeen={() => router.setParams({ channel: undefined })}
       feedHeader={
         <>
           {/* Mock 314: until any tracker is connected (or the card is dismissed), Home — the most-seen

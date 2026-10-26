@@ -28,6 +28,7 @@ export type NavGlyphName =
   // ── mock 306: the composer's media row + the Home Flame Pass card ──
   | 'photo'
   | 'camera'
+  | 'video'
   | 'session'
   | 'reward'
   | 'anthem'
@@ -137,6 +138,13 @@ const GLYPHS: Record<NavGlyphName, ReactNode> = {
       <Rect x="8" y="16" width="32" height="21" rx="4" {...S} />
       <Path d="M17 16 L20 11 H28 L31 16" {...S} />
       <Circle cx="24" cy="26.5" r="6" {...S} />
+    </G>
+  ),
+  // A clip (0279): the camera's body, with the lens turned into a camcorder's side wedge.
+  video: (
+    <G>
+      <Rect x="6" y="15" width="26" height="19" rx="4" {...S} />
+      <Path d="M32 21.5 L42 16 V33 L32 27.5" {...S} />
     </G>
   ),
   // A lock-in, attached: mock 306 draws it as a smaller cousin of the bar's flame, filled.

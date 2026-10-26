@@ -47,6 +47,15 @@ export const WHOOP_ENABLED = false;
 // this flag true still degrades to a failed capture rather than a bundle-load crash.
 export const GYM_VIDEO_CLIPS_ENABLED = true;
 
+// Agora video posts (migration 0279). The composer's Video button and the feed's video tile both
+// sit behind this. Flip it true only once ALL of these hold:
+//   • 0279 is applied (the upload ledger, the 'video' attach kind, the purge trigger + sweep cron);
+//   • agora-video-upload-url, agora-video-playback-url and the agora/-aware gym-clip-purge are
+//     deployed — from a clean tree, `functions deploy` ships the working tree;
+//   • Noah has decided the minors / default-visibility question (video starts at Friends today).
+// Same native modules as gym clips, already in shipped builds; still not an OTA flip (policy).
+export const AGORA_VIDEO_ENABLED = false;
+
 // Read-only Google Calendar (GCAL_INTEGRATION_SPEC.md) — the AI coach's deadline/free-busy
 // source. No native module is involved (the Google Sign-In SDK is already in the binary and is
 // what runs the consent sheet), so this is NOT a "needs an EAS rebuild" gate like the fitness

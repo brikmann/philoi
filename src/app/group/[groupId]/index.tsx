@@ -264,6 +264,15 @@ export default function GroupScreen() {
         </Pressable>
 
         <View style={styles.topActions}>
+          {/* 0277 · this campfire's channel on the Feed — what members POSTED here (gym comps,
+              clips), as opposed to the chat below. Opens Home on that chip. */}
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() => router.navigate({ pathname: '/', params: { channel: `campfire:${groupId}` } })}
+            accessibilityRole="button"
+            accessibilityLabel="Campfire posts">
+            <NavGlyph name="photo" size={18} color={Colors.ink} />
+          </Pressable>
           <Pressable
             style={[styles.iconBtn, styles.iconBtnLead]}
             onPress={() => setLeaderboardVisible(true)}

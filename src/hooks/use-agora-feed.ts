@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { fetchAgoraFeed } from '@/lib/api/agora';
+import { fetchFeedPage, type FeedKey } from '@/lib/api/feed-channels';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
-import type { AgoraItem, AgoraScope } from '@/types/database';
+import type { AgoraItem } from '@/types/database';
 
-// The square's data. One scope at a time, keyset-paginated.
+// The square's data. One scope — or one campfire/forest channel (0277) — at a time,
+// keyset-paginated. "Scope" below means either: a FeedKey is the page tag for both.
 //
 // Deliberately NOT cached across scopes. Switching Friends → Global and back re-fetches, because
 // the alternative is showing a stale page while the live one loads underneath it, and the whole
@@ -31,9 +32,9 @@ const NO_ITEMS: AgoraItem[] = [];
  * synchronously from an effect is the cascading-render pattern that rule exists to catch, and in
  * this codebase it is the shape of the bug that froze the gym lock-in.
  */
-type Page = { scope: AgoraScope; items: AgoraItem[]; exhausted: boolean; error: string | null };
+type Page = { scope: FeedKey; items: AgoraItem[]; exhausted: boolean; error: string | null };
 
-export function useAgoraFeed(scope: AgoraScope) {
+export function useAgoraFeed(scope: FeedKey) {
   const { session } = useAuth();
   const userId = session?.user.id ?? null;
 
@@ -61,7 +62,7 @@ export function useAgoraFeed(scope: AgoraScope) {
     if (!userId) return;
     const run = (runId.current += 1);
     try {
-      const rows = await fetchAgoraFeed(scope, null, PAGE);
+      const rows = await fetchFeedPage(scope, null, PAGE);
       if (run !== runId.current) return;
       setPage({ scope, items: rows, exhausted: rows.length < PAGE, error: null });
     } catch (e) {
@@ -98,7 +99,7 @@ export function useAgoraFeed(scope: AgoraScope) {
     setLoadingMore(true);
     try {
       const last = items[items.length - 1];
-      const rows = await fetchAgoraFeed(scope, { created_at: last.created_at, id: last.id }, PAGE);
+      const rows = await fetchFeedPage(scope, { created_at: last.created_at, id: last.id }, PAGE);
       if (run !== runId.current) return;
       setPage((prev) => {
         // The scope may have changed between the request and its answer; appending then would
