@@ -18,7 +18,13 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { trackAnonymous } from '@/lib/analytics';
-import { clearAccountHint, getAccountHint, type AccountHint, type AccountHintProvider } from '@/lib/auth/account-hint';
+import {
+  clearAccountHint,
+  getAccountHint,
+  takeResumeToken,
+  type AccountHint,
+  type AccountHintProvider,
+} from '@/lib/auth/account-hint';
 import {
   isAccountUnavailableError,
   isAppleSignInAvailable,
@@ -27,6 +33,7 @@ import {
   signInWithGoogle,
 } from '@/lib/auth/providers';
 import { getErrorMessage } from '@/lib/errors';
+import { supabase } from '@/lib/supabase';
 
 // design-mocks/01-splash.html's `@keyframes emb` — embers spawn full-size near the flame,
 // drift up ~120px, and shrink to .3 scale as they fade, each on its own ~3s ease-out loop.
@@ -158,9 +165,20 @@ export default function SignInScreen() {
   // No auto-submit, ever: "Continue as" is a deliberate tap, so nobody holding the phone gets
   // signed in by just opening the app. A different account coming back is accepted as-is —
   // auth-context overwrites the hint on the profile load.
+  //
+  // Resume first: a plain sign-out left this account's refresh token in the keychain, and restoring
+  // it is the actual one tap — no provider, no auth.philoi.app sheet. Only when there's no token, or
+  // it's spent/expired/revoked, does it fall through to relaunching the provider.
   function handleContinue(remembered: AccountHint) {
     trackAnonymous('welcome_back_continue', { provider: remembered.provider });
-    void run(SIGN_IN_FOR[remembered.provider], true);
+    void run(async () => {
+      const token = await takeResumeToken(remembered.user_id);
+      if (token) {
+        const { data, error: resumeError } = await supabase.auth.refreshSession({ refresh_token: token });
+        if (!resumeError && data.session) return;
+      }
+      await SIGN_IN_FOR[remembered.provider]();
+    }, true);
   }
 
   async function handleNotYou() {

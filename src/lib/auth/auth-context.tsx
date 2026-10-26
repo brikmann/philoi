@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session, User } from '@supabase/supabase-js';
 
 import { identify, track } from '@/lib/analytics';
-import { clearAccountHint, rememberAccount } from '@/lib/auth/account-hint';
+import { clearAccountHint, clearResumeToken, getAccountHint, rememberAccount, saveResumeToken } from '@/lib/auth/account-hint';
 import { signOutGoogle } from '@/lib/auth/providers';
 import { configureBilling, resetBilling } from '@/lib/billing';
 import { getErrorMessage } from '@/lib/errors';
@@ -125,6 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(row);
     // Fire-and-forget: the welcome-back hint must never slow or fail a profile load.
     void rememberAccount(user, row);
+    // A live session needs no resume token — and one kept for a previous account must not linger.
+    void clearResumeToken();
     identify(row.id, { handle: row.handle, university: row.university, display_name: row.display_name });
   }
 
@@ -234,6 +236,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Clear the native Google session too — otherwise the SDK's cached account survives
       // sign-out and "Continue with Google" logs straight back in with no account picker.
       await signOutGoogle();
+      // Plain sign-out keeps the session resumable: the refresh token goes to the keychain and the
+      // session is dropped locally only. supabase.auth.signOut() can't do that — even scope:'local'
+      // calls the server's logout, which revokes the token the resume needs.
+      // "Forget" never keeps one (see account-hint.ts).
+      if (userId && !options?.forget && (await keepResumable(userId))) return;
       // Callers fire this and forget (there's no confirmation step anymore), so swallow rather
       // than leave an unhandled rejection: the local state above is already gone, which is what
       // the user asked for, and the stored session is cleared by supabase-js regardless.
@@ -243,6 +250,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+/**
+ * Saves the resume token and drops the session from this device WITHOUT revoking it. False (with
+ * nothing kept) when it can't: no remembered account to greet, a failed keychain write, or an
+ * auth-js without `_removeSession` — the caller then signs out for real.
+ *
+ * `_removeSession` is auth-js internal (2.x; what signOut itself calls after the server logout). It
+ * clears the stored session and emits SIGNED_OUT, which is all a local sign-out is. Feature-checked
+ * rather than assumed, so an auth-js upgrade that renames it degrades to a real sign-out.
+ */
+async function keepResumable(userId: string): Promise<boolean> {
+  const hint = await getAccountHint();
+  if (hint?.user_id !== userId) return false;
+  // From auth-js's store, not React state: auto-refresh rotates the token, and the copy in state can
+  // trail the live one by a refresh — a stale token would only fail over to the provider sheet.
+  const { data } = await supabase.auth.getSession();
+  const refreshToken = data.session?.user.id === userId ? data.session.refresh_token : undefined;
+  if (!refreshToken) return false;
+  const removeSession = (supabase.auth as unknown as { _removeSession?: () => Promise<void> })._removeSession;
+  if (typeof removeSession !== 'function') return false;
+  if (!(await saveResumeToken(userId, refreshToken))) return false;
+  try {
+    await removeSession.call(supabase.auth);
+    return true;
+  } catch {
+    await clearResumeToken();
+    return false;
+  }
 }
 
 export function useAuth() {

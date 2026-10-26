@@ -6,9 +6,9 @@ import type { Profile } from '@/types/database';
 // "Who signed in on this device last" — the sign-in screen reads it to say "Welcome back, @handle"
 // and lead with the provider they used, so a lapsed session is one tap from home again.
 //
-// PUBLIC PROFILE FIELDS ONLY. No email, no token, nothing the session itself needs: the session
-// stays wherever supabase-js keeps it, and this is just who to greet and which button to put
-// first. SecureStore rather than AsyncStorage anyway, so it stays out of unencrypted backups.
+// PUBLIC PROFILE FIELDS ONLY in the hint. The one credential this file keeps is the RESUME TOKEN
+// below, stored under its own key and only between a plain sign-out and the next sign-in.
+// SecureStore rather than AsyncStorage, so neither leaves the keychain or lands in backups.
 //
 // One account, the most recent. A different account signing in overwrites it; "Not you?" on the
 // welcome-back screen and Settings' "Sign out & forget this device" delete it. Plain sign-out
@@ -83,10 +83,57 @@ export async function rememberAccount(user: User, profile: Profile): Promise<voi
   }
 }
 
+/** Forgets the account entirely: the greeting AND any resume token that would sign it back in. */
 export async function clearAccountHint(): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(ACCOUNT_HINT_KEY);
   } catch {
     // Best effort — a surviving hint only ever greets the account that wrote it.
+  }
+  await clearResumeToken();
+}
+
+// ── The resume token: what makes "Continue as @handle" actually one tap ─────────────────────────
+//
+// The hint alone could only relaunch the provider, and on iOS Google sign-in is web OAuth, so
+// "Continue" opened the same "Philoi wants to use auth.philoi.app" sheet as the plain button. A
+// plain sign-out now keeps the session's refresh token here and drops the session LOCALLY ONLY
+// (auth-context), so "Continue" restores it with refreshSession and no sheet at all.
+//
+// The deliberate trade: a plain sign-out leaves that session alive on the server until the token is
+// used or expires. Everything that means "forget me" — "Not you?", Settings' "Sign out & forget
+// this device", a disabled or vanished account — goes through clearAccountHint above, which wipes
+// it. Any live session also wipes it (auth-context, on profile load): a token is only ever kept
+// for the gap between signing out and coming back.
+const RESUME_KEY = 'philoi_resume_session';
+
+/** Keeps `refreshToken` for `userId`. False when the keychain write failed — sign out for real. */
+export async function saveResumeToken(userId: string, refreshToken: string): Promise<boolean> {
+  try {
+    await SecureStore.setItemAsync(RESUME_KEY, JSON.stringify({ user_id: userId, refresh_token: refreshToken }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Reads AND deletes the token — single use either way, since a refresh rotates it. */
+export async function takeResumeToken(userId: string): Promise<string | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(RESUME_KEY);
+    await SecureStore.deleteItemAsync(RESUME_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { user_id?: unknown; refresh_token?: unknown };
+    return parsed.user_id === userId && typeof parsed.refresh_token === 'string' ? parsed.refresh_token : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearResumeToken(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(RESUME_KEY);
+  } catch {
+    // Best effort.
   }
 }
