@@ -9,6 +9,7 @@ import { HouseSealInline } from '@/components/house/house-seal';
 import { LiveStatusBadge } from '@/components/live-status-badge';
 import { RankBadge } from '@/components/rank-badge';
 import { Crown } from '@/components/ui/crown';
+import { Icon, type IconName } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { BurningName } from '@/components/burning-name';
 import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
@@ -77,6 +78,8 @@ export type PodiumPersonItem = {
   tier: RankTierName;
   division: number;
   value: string;
+  /** A glyph before the value, in the position's metal — the flame on a weekly check-in count. */
+  valueIcon?: IconName;
   isMe?: boolean;
   /** Live status (0245), batched by the screen. */
   presence?: PresenceRow;
@@ -87,6 +90,7 @@ export type PodiumUniversityItem = {
   key: string;
   name: string;
   value: string;
+  valueIcon?: IconName;
   isMe?: boolean;
 };
 
@@ -234,6 +238,7 @@ function PodiumColumn({
         {item.kind === 'person' && <RankBadge tier={item.tier} division={item.division} size={15} />}
         {/* Score in the POSITION's metal (mock 95) — the podium's own colour language, which is why
             it isn't the amber every other number on this screen uses. */}
+        {item.valueIcon ? <Icon name={item.valueIcon} size={11} color={metal.mid} /> : null}
         <Text style={[styles.value, { color: metal.mid }]}>{item.value}</Text>
       </View>
 

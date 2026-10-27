@@ -674,7 +674,7 @@ function UseStage({
     case "RELIC":
       return (
         <View style={styles.hall}>
-          <IconText icon="trophy" style={styles.hallLabel} containerStyle={styles.hallLabelRow}>
+          <IconText icon="temple" style={styles.hallLabel} containerStyle={styles.hallLabelRow}>
             TROPHY HALL
           </IconText>
           <View style={styles.hallShelf}>

@@ -6,9 +6,10 @@ import { PinnedYouRow, Podium } from '@/components/economy/challenge-podium';
 import { DefeatedStrip, KingStatue } from '@/components/economy/king-statue';
 import { boxStamp } from '@/components/economy/share-card-stamp';
 import { ShareCardFrame, fitFontSize } from '@/components/share-card-frame';
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { useChallengePodium } from '@/hooks/use-challenge-podium';
-import { TIER_INTENSITY, TIER_MEDAL, ordinal, type PlacementTier } from '@/lib/challenge-reward-copy';
+import { TIER_INTENSITY, TIER_PLACE, isPodiumTier, ordinal, type PlacementTier } from '@/lib/challenge-reward-copy';
 import type { RankTierName, SocialChallengeRaceMetric } from '@/types/database';
 
 // §E — the challenge/placement story card (design-mocks/104, reworked to 171 + 172), fired from the
@@ -16,8 +17,9 @@ import type { RankTierName, SocialChallengeRaceMetric } from '@/types/database';
 //
 // Same frame as every other card (rays, purple ground, rank-in-hex philoi.app footer) so the share
 // set reads as one family. What is specific here is the PLACEMENT: the medal and the tier label
-// come from the same TIER_INTENSITY/TIER_MEDAL tables the reward screen uses, so the card and the
-// screen it was shared from can never disagree about how big the win was.
+// come from the same TIER_INTENSITY/TIER_PLACE tables (and the same 'medal' icon, tinted by the
+// tier) the reward screen uses, so the card and the screen it was shared from can never disagree
+// about how big the win was.
 //
 // TWO HEROES, ONE CARD, because a duel and a board race are different flexes:
 //
@@ -127,10 +129,10 @@ export const ChallengeWinShareCard = forwardRef<View, Props>(function ChallengeW
   ]
     .filter(Boolean)
     .join(' · ');
-  const medal = tier === 'rank1' || tier === 'rank2' || tier === 'rank3' ? TIER_MEDAL[tier].split(' ')[0] : null;
+  const medal = isPodiumTier(tier);
   const podiumKick =
     placement != null && fieldSize
-      ? `${medal ? `${medal} ` : ''}${ordinal(placement).toUpperCase()} OF ${fieldSize}${onPodium ? ' · PODIUM' : ''}`
+      ? `${ordinal(placement).toUpperCase()} OF ${fieldSize}${onPodium ? ' · PODIUM' : ''}`
       : intensity.label;
 
   return (
@@ -138,6 +140,7 @@ export const ChallengeWinShareCard = forwardRef<View, Props>(function ChallengeW
       ref={ref}
       kick={isDuel ? 'DUEL WON' : showPodium ? podiumKick : intensity.label}
       kickColor={isDuel ? '#9EC6FF' : intensity.accent}
+      kickIcon={!isDuel && showPodium && medal && placement != null && fieldSize ? 'medal' : undefined}
       // 🔴 NO LONGER `ground="season"`. This card was one of the three lighting itself from the
       // lava floor while the rank-up and unlock cards lit from above — see the frame's own note on
       // why the family had split. The molten ground now belongs to the season card alone.
@@ -191,11 +194,17 @@ export const ChallengeWinShareCard = forwardRef<View, Props>(function ChallengeW
       ) : (
         <>
           <Crown />
-          <Text style={[styles.placement, { color: intensity.accent }]} numberOfLines={1}>
-            {placement != null && fieldSize && fieldSize > 1
-              ? `${ordinal(placement)} of ${fieldSize}`
-              : TIER_MEDAL[tier]}
-          </Text>
+          <View style={styles.placementRow}>
+            {/* The medal the 🥇🥈🥉 used to be — only when the line is the bare podium place. */}
+            {medal && !(placement != null && fieldSize && fieldSize > 1) ? (
+              <Icon name="medal" size={36} color={intensity.accent} />
+            ) : null}
+            <Text style={[styles.placement, { color: intensity.accent }]} numberOfLines={1}>
+              {placement != null && fieldSize && fieldSize > 1
+                ? `${ordinal(placement)} of ${fieldSize}`
+                : TIER_PLACE[tier]}
+            </Text>
+          </View>
           {/* Two lines and a fitted size: a campfire name is user-written and routinely long
               ("Grind Szn — Econ Finals Push"), which is exactly what the old single-line clip
               mangled. */}
@@ -272,12 +281,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 26,
   },
+  placementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
   placement: {
     fontFamily: Fonts.bodyBold,
     fontSize: 38,
     textAlign: 'center',
     letterSpacing: -0.5,
-    marginTop: 10,
   },
   context: {
     fontFamily: Fonts.bodyBold,

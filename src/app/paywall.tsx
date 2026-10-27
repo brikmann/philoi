@@ -206,7 +206,7 @@ export default function PaywallScreen() {
               <Text style={styles.ctaNoteStrong}>You own {SEASON.name}.</Text> Every premium reward up to Level {level} is
               waiting.
             </Text>
-            <PrimaryButton label="Open the track"onPress={() => router.replace('/forge-pass')} />
+            <PrimaryButton label="Open the track" icon="flame" onPress={() => router.replace('/forge-pass')} />
           </>
         ) : (
           <View>
@@ -218,6 +218,7 @@ export default function PaywallScreen() {
                     ? 'Opens October 1'
                     : 'Season closed'
               }
+              icon={onSale ? 'flame' : undefined}
               onPress={onBuy}
               disabled={!onSale}
               loading={busy}

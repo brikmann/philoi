@@ -8,11 +8,6 @@ type EmptyStateProps = {
   glyph?: IconName;
   /** The glyph's tint. Defaults to ember. */
   glyphColor?: string;
-  /**
-   * @deprecated Pass `glyph` — an OS emoji draws differently per platform and ignores the theme.
-   * Still rendered, as text, when a caller has not moved over yet.
-   */
-  emoji?: string;
   /** Overrides the glyph with a custom graphic (e.g. a dim FlameSvg) — used when a single icon
    * doesn't carry enough of the brand's own visual identity for the moment. */
   icon?: React.ReactNode;
@@ -21,10 +16,10 @@ type EmptyStateProps = {
   action?: React.ReactNode;
 };
 
-export function EmptyState({ glyph = 'flame', glyphColor = Colors.ember, emoji, icon, title, body, action }: EmptyStateProps) {
+export function EmptyState({ glyph = 'flame', glyphColor = Colors.ember, icon, title, body, action }: EmptyStateProps) {
   return (
     <View style={styles.container}>
-      {icon ?? (emoji ? <Text style={styles.emoji}>{emoji}</Text> : <Icon name={glyph} size={44} color={glyphColor} />)}
+      {icon ?? <Icon name={glyph} size={44} color={glyphColor} />}
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.body}>{body}</Text>
       {action}
@@ -38,9 +33,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingVertical: Spacing.six,
     paddingHorizontal: Spacing.four,
-  },
-  emoji: {
-    fontSize: 40,
   },
   title: {
     fontFamily: Fonts.display,

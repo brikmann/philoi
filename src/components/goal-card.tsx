@@ -39,7 +39,7 @@ export function GoalCard({ goal, onLockIn, onArchive }: GoalCardProps) {
       </View>
 
       {goal.checked_in_today ? (
-        <SecondaryButton label="Locked in today" onPress={() => {}} disabled />
+        <SecondaryButton label="Locked in today" icon="check" onPress={() => {}} disabled />
       ) : (
         <PrimaryButton label="Lock in" onPress={onLockIn} />
       )}

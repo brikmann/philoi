@@ -6,6 +6,7 @@ import { HouseSealInline } from '@/components/house/house-seal';
 import { IdentityLine } from '@/components/house/identity-line';
 import { LiveStatusBadge } from '@/components/live-status-badge';
 import { RankBadge } from '@/components/rank-badge';
+import { Icon, type IconName } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { shortName } from '@/lib/format';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
@@ -43,7 +44,9 @@ export function LeaderboardPersonRow({
   tier,
   division,
   value,
+  valueIcon,
   secondaryValue,
+  secondaryValueIcon,
   isMe,
   loadout,
   presence,
@@ -56,8 +59,12 @@ export function LeaderboardPersonRow({
   tier: RankTierName;
   division: number;
   value: string;
+  /** A glyph before the value — the flame beside a weekly check-in count (the 🔥 it used to carry). */
+  valueIcon?: IconName;
   /** A smaller line under the value — the campfire roster's weekly-lock-in count (mock 94). */
   secondaryValue?: string;
+  /** The same, for the smaller line — the campfire panel's "N check-ins this week" sits there. */
+  secondaryValueIcon?: IconName;
   isMe: boolean;
   /** Batched at the list — see the note above. */
   loadout?: PublicLoadout;
@@ -106,8 +113,22 @@ export function LeaderboardPersonRow({
         <RankBadge tier={tier} division={division} size={24} />
       </View>
       <View style={styles.valueColumn}>
-        <Text style={styles.val}>{value}</Text>
-        {secondaryValue ? <Text style={styles.valSub}>{secondaryValue}</Text> : null}
+        {valueIcon ? (
+          <View style={styles.valRow}>
+            <Icon name={valueIcon} size={13} color={Colors.amber} />
+            <Text style={styles.val}>{value}</Text>
+          </View>
+        ) : (
+          <Text style={styles.val}>{value}</Text>
+        )}
+        {secondaryValue && secondaryValueIcon ? (
+          <View style={[styles.valRow, styles.valSubRow]}>
+            <Icon name={secondaryValueIcon} size={10} color={Colors.amber} />
+            <Text style={[styles.valSub, styles.valSubInRow]}>{secondaryValue}</Text>
+          </View>
+        ) : secondaryValue ? (
+          <Text style={styles.valSub}>{secondaryValue}</Text>
+        ) : null}
       </View>
     </View>
   );
@@ -147,6 +168,11 @@ const styles = StyleSheet.create({
   valueColumn: {
     alignItems: 'flex-end',
   },
+  valRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
   val: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
@@ -157,6 +183,13 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     color: Colors.textTertiary,
     marginTop: 1,
+  },
+  // The row carries the 1pt instead of the text, so the icon and the words share one baseline.
+  valSubRow: {
+    marginTop: 1,
+  },
+  valSubInRow: {
+    marginTop: 0,
   },
   gap: {
     textAlign: 'center',

@@ -389,6 +389,8 @@ export default function VersusScreen() {
                 {plan.duels.length > 0 ? (
                   <PrimaryButton
                     label={`Send the challenge · ${plan.duels.length}`}
+                    icon="versus"
+                    iconPosition="leading"
                     onPress={handleSend}
                     loading={sending}
                     pulse

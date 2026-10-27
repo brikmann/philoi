@@ -1232,7 +1232,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
 /**
  * The card's one line of context — "You beat Dee", "Push Week · Gym squad".
  *
- * Deliberately not the placement: TIER_MEDAL already prints that in 40px above it, and repeating
+ * Deliberately not the placement: the placement line (TIER_PLACE) already prints that in 40px above it, and repeating
  * "2nd" underneath reads like a bug. This is the WHAT, the medal is the HOW WELL.
  */
 function shareContextLine(c: SocialChallenge, opponentName: string | null): string {

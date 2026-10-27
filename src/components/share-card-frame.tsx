@@ -4,6 +4,7 @@ import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { Colors, Fonts } from '@/constants/theme';
 import { FlameLogo } from '@/components/ui/flame-logo';
+import { Icon, type IconName } from '@/components/ui/icon';
 import { RankBadge, RANK_BADGE_ASPECT } from '@/components/rank-badge';
 import type { RankTierName } from '@/types/database';
 
@@ -158,6 +159,8 @@ type ShareCardFrameProps = {
   /** The all-caps kicker at the top: STILL ON FIRE · LOCKED IN · RANKED UP · MYTHIC UNLOCKED. */
   kick: string;
   kickColor?: string;
+  /** A glyph before the kicker, in its colour — the podium card's medal. */
+  kickIcon?: IconName;
   ground?: ShareCardGround;
   /**
    * The ray field behind the hero. On by default — a card opts OUT, it does not opt in, so a new
@@ -196,6 +199,7 @@ export const ShareCardFrame = forwardRef<View, ShareCardFrameProps>(function Sha
   {
     kick,
     kickColor = Colors.amber,
+    kickIcon,
     // 🔴 PURPLE FOR EVERYTHING. Was the default already, but three cards overrode it to 'season'
     // and the set stopped reading as a set. The override survives on exactly one card now.
     ground = 'purple',
@@ -245,9 +249,18 @@ export const ShareCardFrame = forwardRef<View, ShareCardFrameProps>(function Sha
 
       {aura}
 
-      <Text style={[styles.kick, { color: kickColor }]} numberOfLines={1}>
-        {kick}
-      </Text>
+      {kickIcon ? (
+        <View style={styles.kickRow}>
+          <Icon name={kickIcon} size={14} color={kickColor} />
+          <Text style={[styles.kick, { color: kickColor }]} numberOfLines={1}>
+            {kick}
+          </Text>
+        </View>
+      ) : (
+        <Text style={[styles.kick, { color: kickColor }]} numberOfLines={1}>
+          {kick}
+        </Text>
+      )}
       <View style={styles.hero}>{children}</View>
       <ShareCardFooter handle={handle} tier={tier} division={division} />
     </View>
@@ -336,6 +349,12 @@ const styles = StyleSheet.create({
   },
   rays: {
     position: 'absolute',
+  },
+  kickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   kick: {
     fontFamily: Fonts.bodyBold,

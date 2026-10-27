@@ -168,6 +168,7 @@ export function LeaderboardPanel({ visible, onClose, groupId, myUserId, topInset
                       ? `${item.check_ins_this_week} check-ins this week`
                       : `${Math.round(item.score).toLocaleString()} XP all time`
                   }
+                  secondaryValueIcon={period === 'all' ? 'streak' : undefined}
                   isMe={item.user_id === myUserId}
                 />
               )}

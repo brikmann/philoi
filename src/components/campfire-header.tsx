@@ -7,6 +7,7 @@ import { CampfireBannerArt } from '@/components/campfire-banner-art';
 import { heatToState } from '@/components/heat-flame';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { EmberFill } from '@/components/ui/ember-fill';
+import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { RANK_TIER_LABEL, RANK_TIER_METAL } from '@/lib/rank-tiers';
 import type { CampfirePrivacy, Group, RankTierName } from '@/types/database';
@@ -163,9 +164,16 @@ export function CampfireHeader({
               reads "BURNT OUT" underneath; that is the relight nudge and the badge doesn't say it. */}
           <View style={styles.heatWrap} pointerEvents="none">
             <CampfireBadge emoji={group?.emoji ?? '🔥'} heat={heat} size={64} />
-            <Text style={styles.heatState}>
-              {HEAT_LABEL[state]} · {lockedInToday} OF {memberCount} TODAY
-            </Text>
+            {state === 'cold' ? (
+              // The dead fire wears its own glyph (logs, a curl of smoke, no flame) — the 🖤 it replaces.
+              <IconText icon="burnt-out" style={styles.heatState} containerStyle={styles.heatStateRow} iconSize={13}>
+                {HEAT_LABEL[state]} · {lockedInToday} OF {memberCount} TODAY
+              </IconText>
+            ) : (
+              <Text style={[styles.heatState, styles.heatStateGap]}>
+                {HEAT_LABEL[state]} · {lockedInToday} OF {memberCount} TODAY
+              </Text>
+            )}
           </View>
 
           <Text style={styles.name} numberOfLines={2}>
@@ -324,9 +332,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.9,
     color: Colors.heatLabel,
-    marginTop: 4,
     textShadowColor: 'rgba(0,0,0,0.85)',
     textShadowRadius: 6,
+  },
+  heatStateGap: {
+    marginTop: 4,
+  },
+  heatStateRow: {
+    marginTop: 4,
   },
   name: {
     fontFamily: Fonts.bodyBold,

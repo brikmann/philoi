@@ -21,7 +21,8 @@ import { UiGlyph, type UiGlyphName } from './ui-glyph';
 // presentation without warning. Every one of those slots now asks for a SEMANTIC name here.
 //
 // This file owns no art of its own except the handful of glyphs no family had yet (tree, sprout,
-// medal, sparkle, compass, chart, fog, clip, tap, crown, target). Everything else delegates to the
+// medal, sparkle, compass, chart, fog, clip, tap, crown, target, hammer, palette, temple, burnt-out).
+// Everything else delegates to the
 // family that already draws it — nav-glyph, ui-glyph and the glyphs-* sets — all on mock 304's 48
 // grid, 2.6 round stroke, single currentColor. One name = one drawing, app-wide.
 //
@@ -46,7 +47,11 @@ type OwnGlyphName =
   | 'clip'
   | 'tap'
   | 'crown'
-  | 'target';
+  | 'target'
+  | 'hammer'
+  | 'palette'
+  | 'temple'
+  | 'burntOut';
 
 const OWN: Record<OwnGlyphName, ReactNode> = {
   // 🌲 A forest — the pine, two tiers and a trunk.
@@ -126,6 +131,40 @@ const OWN: Record<OwnGlyphName, ReactNode> = {
       <Circle cx="24" cy="24" r="2.8" fill="currentColor" />
     </G>
   ),
+  // 🔨 The forge's hammer — a flat face, a tapered peen, a rounded handle, tipped to strike.
+  hammer: (
+    <G transform="rotate(-35 24 24)">
+      <Path d="M11 9.5 H29 L37 12.5 V16 L29 19 H11 Z" {...S} />
+      <Path d="M21 19 V37 C21 38.7 22.3 40 24 40 C25.7 40 27 38.7 27 37 V19" {...S} />
+    </G>
+  ),
+  // 🎨 Cosmetics — a painter's palette with its thumb notch and four wells of paint.
+  palette: (
+    <G>
+      <Path d="M24 8 C14.6 8 8 14.6 8 23 C8 32 15 39 23.5 39 C26.5 39 27.5 37 26.5 34.5 C25.6 32.2 26.8 30 29.5 30 H33 C37 30 40 27.2 40 23 C40 14.6 33 8 24 8 Z" {...S} />
+      <Circle cx="16.5" cy="24" r="2.4" fill="currentColor" />
+      <Circle cx="19.5" cy="16" r="2.4" fill="currentColor" />
+      <Circle cx="27.5" cy="14.5" r="2.4" fill="currentColor" />
+      <Circle cx="33.5" cy="20.5" r="2.4" fill="currentColor" />
+    </G>
+  ),
+  // 🏛 The Agora / the Trophy Hall — the drawer's colonnade (PhiloiIcon 'agora') redrawn on this
+  // grid: pediment, beam, four columns, a two-step base.
+  temple: (
+    <G>
+      <Path d="M8 17 L24 8 L40 17 Z" {...S} />
+      <Path d="M10 21.5 H38" {...S} />
+      <Path d="M14 21.5 V34.5 M20.7 21.5 V34.5 M27.3 21.5 V34.5 M34 21.5 V34.5" {...S} />
+      <Path d="M10 34.5 H38 M7 39.5 H41" {...S} />
+    </G>
+  ),
+  // 🖤 A burnt-out campfire — the crossed logs with no flame, one thin curl of smoke going up.
+  burntOut: (
+    <G>
+      <Path d="M9 33.5 L39 38.5 M9 38.5 L39 33.5" {...S} />
+      <Path d="M24 30 C20.5 26.5 27.5 23.5 24 19.5 C20.5 15.5 27.5 12.5 25 8.5" {...S} strokeWidth={2} />
+    </G>
+  ),
 };
 
 type Source =
@@ -187,6 +226,29 @@ const REGISTRY = {
   tap: { f: 'own', g: 'tap' },
   compass: { f: 'own', g: 'compass' },
   chart: { f: 'own', g: 'chart' },
+  gear: { f: 'ui', g: 'gear' },
+  sliders: { f: 'settings', g: 'sliders' },
+  info: { f: 'ui', g: 'info' },
+  refresh: { f: 'ui', g: 'refresh' },
+  more: { f: 'ui', g: 'more' },
+  back: { f: 'ui', g: 'back' },
+  forward: { f: 'ui', g: 'forward' },
+  down: { f: 'ui', g: 'down' },
+  filter: { f: 'ui', g: 'filter' },
+  external: { f: 'ui', g: 'external' },
+  key: { f: 'social', g: 'key' },
+  pin: { f: 'social', g: 'pin' },
+  copy: { f: 'social', g: 'copy' },
+  report: { f: 'social', g: 'report' },
+  block: { f: 'social', g: 'block' },
+  ban: { f: 'settings', g: 'ban' },
+  calendar: { f: 'settings', g: 'calendar' },
+  mail: { f: 'settings', g: 'mail' },
+  logout: { f: 'settings', g: 'logout' },
+  moon: { f: 'settings', g: 'moon' },
+  sun: { f: 'settings', g: 'sun' },
+  ticket: { f: 'nav', g: 'ticket' },
+  hammer: { f: 'own', g: 'hammer' },
 
   // ── disciplines ──
   study: { f: 'nav', g: 'book' },
@@ -202,9 +264,14 @@ const REGISTRY = {
   // ── social + media ──
   challenge: { f: 'social', g: 'swords' },
   friends: { f: 'compete', g: 'people' },
+  'person-add': { f: 'social', g: 'personAdd' },
   forest: { f: 'own', g: 'tree' },
   sprout: { f: 'own', g: 'sprout' },
+  'burnt-out': { f: 'own', g: 'burntOut' },
   everyone: { f: 'settings', g: 'globe' },
+  globe: { f: 'settings', g: 'globe' },
+  agora: { f: 'own', g: 'temple' },
+  temple: { f: 'own', g: 'temple' },
   photo: { f: 'nav', g: 'photo' },
   camera: { f: 'nav', g: 'camera' },
   video: { f: 'nav', g: 'video' },
@@ -217,6 +284,8 @@ const REGISTRY = {
   // ── rewards + cosmetics ──
   reward: { f: 'nav', g: 'reward' },
   box: { f: 'compete', g: 'box' },
+  bag: { f: 'reward', g: 'bag' },
+  palette: { f: 'own', g: 'palette' },
   medal: { f: 'own', g: 'medal' },
   crown: { f: 'own', g: 'crown' },
   sparkle: { f: 'own', g: 'sparkle' },

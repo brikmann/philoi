@@ -49,6 +49,8 @@ export default function GroupLeaderboardScreen() {
   // Always sort by the raw metric value; the tier hexagon is a badge only (§412).
   const sorted = [...rows].sort((a, b) => (metric === 'xp' ? b.score - a.score : b.check_ins_this_week - a.check_ins_this_week));
   const value = (row: LeaderboardRow) => (metric === 'xp' ? `${Math.round(row.score).toLocaleString()} XP` : `${row.check_ins_this_week} check-ins/wk`);
+  // The weekly count wears the flame it carried as a 🔥 before the icon sweep; XP stays bare.
+  const valueIcon = metric === 'xp' ? undefined : ('streak' as const);
   // Punchlist 2, §3: a campfire under 3 members falls back to the old plain-list format — never
   // a podium with empty slots. This ALSO fixes a real bug the podium path had on its own: with
   // exactly 3-9 members, `sorted.slice(3, VISIBLE_RANKS)` is an empty array (nothing past rank 3
@@ -65,6 +67,7 @@ export default function GroupLeaderboardScreen() {
         tier: row.tier,
         division: row.division,
         value: value(row),
+        valueIcon,
         isMe: row.user_id === session?.user.id,
       }))
     : [];
@@ -128,6 +131,7 @@ export default function GroupLeaderboardScreen() {
                 tier={item.tier}
                 division={item.division}
                 value={value(item)}
+                valueIcon={valueIcon}
                 isMe={item.user_id === session?.user.id}
               />
             </Pressable>
@@ -154,6 +158,7 @@ export default function GroupLeaderboardScreen() {
                   tier={pinned.tier}
                   division={pinned.division}
                   value={value(pinned)}
+                  valueIcon={valueIcon}
                   isMe
                 />
               </Pressable>

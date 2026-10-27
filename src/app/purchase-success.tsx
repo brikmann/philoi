@@ -210,7 +210,7 @@ export default function PurchaseSuccessScreen() {
 
       <RiseIn intro={intro} from={at(1600)} style={[styles.cta, { paddingBottom: insets.bottom + Spacing.four }]}>
         <View style={styles.ctaWrap}>
-          <PrimaryButton label="Start climbing"onPress={() => router.replace('/forge-pass')} />
+          <PrimaryButton label="Start climbing" icon="flame" onPress={() => router.replace('/forge-pass')} />
           <View style={styles.ctaShine} pointerEvents="none">
             <ShineSweep period={2600} opacity={0.45} />
           </View>

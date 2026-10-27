@@ -814,7 +814,7 @@ function CosmeticStep({ spec, name }: { spec: CosmeticSpec; name: string }) {
   const tint = RARITY_COLOR[rarity];
   return (
     <MiniScreen>
-      <MiniHeader icon="flare" title="Cosmetics" />
+      <MiniHeader icon="palette" title="Cosmetics" />
       <View style={styles.cosStage}>
         <CosmeticHero kind={spec.kind} name={name} />
       </View>

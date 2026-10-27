@@ -11,6 +11,7 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import { Icon, type IconName } from '@/components/ui/icon';
 import { Colors, EMBER_GRADIENT, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMotionActive } from '@/hooks/use-motion-active';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
@@ -52,6 +53,14 @@ type PrimaryButtonProps = {
    * drift again.
    */
   compact?: boolean;
+  /**
+   * A glyph beside the label, drawn in the label's own colour (⚔ on "Send the challenge", the flame
+   * on "Start climbing"). A real Icon rather than an emoji in the string: an Svg cannot sit inside
+   * a <Text> on Android, and an emoji ignores the near-black label ink the gradient needs.
+   */
+  icon?: IconName;
+  /** Which side of the label the icon sits on. Trailing by default — the emoji it replaces did. */
+  iconPosition?: 'leading' | 'trailing';
 };
 
 export function PrimaryButton({
@@ -62,6 +71,8 @@ export function PrimaryButton({
   variant = 'primary',
   pulse = false,
   compact = false,
+  icon,
+  iconPosition = 'trailing',
 }: PrimaryButtonProps) {
   // Gradient ids are global in react-native-svg — a shared literal renders every button after the
   // first as blank on Android.
@@ -96,6 +107,16 @@ export function PrimaryButton({
 
   // The ember gradient only paints on the default variant — cold and ghost keep their own fills.
   const showGradient = variant === 'primary' && !isDisabled && size.w > 0;
+
+  // Mirrors the label style stack below, so the icon is always the colour of the words beside it.
+  const labelColor = isCold
+    ? Colors.coldButtonText
+    : isGhost
+      ? Colors.muted
+      : isDisabled
+        ? Colors.disabledText
+        : Colors.onEmber;
+  const glyph = icon ? <Icon name={icon} size={compact ? 15 : 18} color={labelColor} /> : null;
 
   const button = (
     <Pressable
@@ -133,17 +154,21 @@ export function PrimaryButton({
       {loading ? (
         <ActivityIndicator color={isCold ? Colors.coldButtonText : isGhost ? Colors.muted : Colors.onEmber} />
       ) : (
-        <Text
-          numberOfLines={1}
-          style={[
-            styles.label,
-            compact && styles.labelCompact,
-            isCold && styles.labelCold,
-            isGhost && styles.labelGhost,
-            isDisabled && !isCold && !isGhost && styles.labelDisabled,
-          ]}>
-          {label}
-        </Text>
+        <View style={styles.labelRow}>
+          {iconPosition === 'leading' ? glyph : null}
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.label,
+              compact && styles.labelCompact,
+              isCold && styles.labelCold,
+              isGhost && styles.labelGhost,
+              isDisabled && !isCold && !isGhost && styles.labelDisabled,
+            ]}>
+            {label}
+          </Text>
+          {iconPosition === 'trailing' ? glyph : null}
+        </View>
       )}
     </Pressable>
   );
@@ -203,7 +228,14 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.85,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    maxWidth: '100%',
+  },
   label: {
+    flexShrink: 1,
     // Near-black ON the gradient (§3) — cream would halve the contrast against #FFD27A.
     color: Colors.onEmber,
     fontFamily: Fonts.bodyBold,

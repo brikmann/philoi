@@ -174,7 +174,7 @@ export function ReelChallengeSheet({ target, onClose, onSent }: Props) {
                 win. Winner climbs; both of you get better.
               </Text>
 
-              <PrimaryButton label="Send challenge" onPress={() => void send()} loading={sending} disabled={sending} />
+              <PrimaryButton label="Send challenge" icon="versus" onPress={() => void send()} loading={sending} disabled={sending} />
             </>
           )}
         </View>

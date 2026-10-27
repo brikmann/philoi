@@ -226,23 +226,6 @@ export function isPodiumTier(tier: PlacementTier): boolean {
 }
 
 /**
- * LEGACY — TIER_PLACE with the medal emoji spliced in. Still read by challenge-win-share-card,
- * which pulls the emoji off the front with split(' ')[0]; retire it once that card draws the
- * 'medal' icon like the reward screen does.
- */
-export const TIER_MEDAL: Record<PlacementTier, string> = {
-  rank1: '🥇 1st',
-  rank2: '🥈 2nd',
-  rank3: '🥉 3rd',
-  top1: 'TOP 1%',
-  top5: 'TOP 5%',
-  top10: 'TOP 10%',
-  top25: 'TOP 25%',
-  top50: 'TOP 50%',
-  below50: 'BOTTOM 50%',
-};
-
-/**
  * 1 -> "1st", 2 -> "2nd", 12 -> "12th", 23 -> "23rd".
  *
  * Hoisted out of challenge-reward-screen when the share card needed it too — "1st of 12" is the

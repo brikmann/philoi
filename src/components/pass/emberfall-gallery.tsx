@@ -368,7 +368,9 @@ function StrikeRender({ item }: { item: CatalogItem }) {
       <Ring colour={item.art.to} delay={0} />
       <Ring colour={item.art.to} delay={700} />
       <View style={[styles.strikeCore, { backgroundColor: EMBER.e2, shadowColor: item.art.to }]} />
-      <Text style={styles.sfxTag}>▶ sound</Text>
+      <IconText icon="play" style={styles.sfxTag} containerStyle={styles.sfxTagRow} iconSize={8} gap={3}>
+        sound
+      </IconText>
     </View>
   );
 }
@@ -620,9 +622,12 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
   },
-  sfxTag: {
+  // A bare ▶ flips to colour-emoji presentation on iOS, so the play mark is the glyph.
+  sfxTagRow: {
     position: 'absolute',
     bottom: -8,
+  },
+  sfxTag: {
     fontFamily: Fonts.bodyBold,
     fontSize: 8.5,
     color: EMBER.mut,
