@@ -1,11 +1,16 @@
 import type { IconName } from '@/components/ui/icon';
 import { fetchMyDmThreads } from '@/lib/api/dm';
+import { fetchMyFeedChannels } from '@/lib/api/feed-channels';
 import { fetchMyGroups } from '@/lib/api/groups';
 import { supabase } from '@/lib/supabase';
 
 // SOCIAL → CHATS, v1 (mock 320). One list over the chat surfaces that already exist: each campfire's
 // group chat (/group/[id] IS the chat) and every 1:1 DM thread (0206). No new model — a persistent
 // chat system (threads, members, read state for groups, its own push/moderation) is its own build.
+//
+// Forest rows are the forests you're in (get_my_feed_channels). A forest has no chat of its own
+// until 0284 lands, so its row opens the forest — its posts are its conversation today — and shows
+// its newest post time rather than a message line.
 //
 // Campfire rows carry no unread count: group chats have no per-member read state today, so the
 // row shows the last message and when, and nothing it would have to guess at.
@@ -20,6 +25,14 @@ export type SocialChat =
       lastLine: string | null;
       /** Drawn before lastLine when the last message was a photo / attachment rather than words. */
       lastIcon: IconName | null;
+    }
+  | {
+      kind: 'forest';
+      id: string;
+      name: string;
+      emoji: string;
+      memberCount: number;
+      lastAt: string | null;
     }
   | {
       kind: 'dm';
@@ -51,9 +64,13 @@ async function lastCampfireLine(groupId: string): Promise<{ at: string; line: st
   return { at: data.created_at as string, line: `${who}: ${said}`, icon };
 }
 
-/** Campfire chats + DMs, the most recently active first. A failed half degrades to the other half. */
+/** Campfire chats + forests + DMs, the most recently active first. A failed half degrades to the other half. */
 export async function fetchMySocialChats(userId: string): Promise<SocialChat[]> {
-  const [groups, threads] = await Promise.all([fetchMyGroups(userId).catch(() => []), fetchMyDmThreads().catch(() => [])]);
+  const [groups, threads, channels] = await Promise.all([
+    fetchMyGroups(userId).catch(() => []),
+    fetchMyDmThreads().catch(() => []),
+    fetchMyFeedChannels().catch(() => []),
+  ]);
 
   const campfires = await Promise.all(
     groups.map(async (g): Promise<SocialChat> => {
@@ -80,8 +97,12 @@ export async function fetchMySocialChats(userId: string): Promise<SocialChat[]> 
     unread: t.unread,
   }));
 
+  const forests: SocialChat[] = channels
+    .filter((c) => c.kind === 'forest')
+    .map((c) => ({ kind: 'forest', id: c.id, name: c.name, emoji: c.emoji, memberCount: c.member_count, lastAt: c.last_post_at }));
+
   // A chat nobody has spoken in yet sorts last, by name.
-  return [...campfires, ...dms].sort((a, b) => {
+  return [...campfires, ...forests, ...dms].sort((a, b) => {
     if (a.lastAt && b.lastAt) return b.lastAt.localeCompare(a.lastAt);
     if (a.lastAt || b.lastAt) return a.lastAt ? -1 : 1;
     return a.name.localeCompare(b.name);

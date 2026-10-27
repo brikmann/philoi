@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState, type ReactNode } from 'react';
@@ -22,11 +21,12 @@ import { formatRelativeTime } from '@/lib/format';
 //   • Feed — the immersive Agora (mock 317), its channels (All · Friends · Everyone · your rooms)
 //     across the top. No algorithm: the channel picks the sources, the server orders them newest
 //     first (get_agora_feed, 0280), and nothing is ranked or injected.
-//   • Chats — v1 routes to the chat surfaces that already exist: campfire group chats and DMs in one
-//     list, with the locked-in-with-you panel (0270's session threads) on top when it has something.
+//   • Chats — campfire group chats, your forests and DMs in one list, filtered by kind
+//     (All · DMs · Campfires · Forests), with the locked-in-with-you panel (0270's session threads)
+//     on top when it has something.
 //
-// Search didn't go away: the 🔍 beside Feed · Chats opens it (/search — people, programs,
-// exercises, forests, campfires), and installed builds' links to /search still land there.
+// Search is the top bar's 🔍 on every tab now (pre-submission E11), not a button on this row — so
+// the Feed · Chats toggle and search's own discovery categories never share a bar.
 //
 // ?channel=campfire:<id> (a campfire's "posts" button) opens the Feed on that channel.
 
@@ -37,7 +37,7 @@ export default function SocialScreen() {
   const params = useLocalSearchParams<{ channel?: string; pane?: string }>();
   const [pane, setPane] = useState<Pane>(params.pane === 'chats' ? 'chats' : 'feed');
 
-  const toggle = <PaneToggle pane={pane} onChange={setPane} onSearch={() => router.push('/search')} />;
+  const toggle = <PaneToggle pane={pane} onChange={setPane} />;
 
   if (pane === 'feed') {
     return (
@@ -52,7 +52,7 @@ export default function SocialScreen() {
   return <ChatsPane toggle={toggle} />;
 }
 
-function PaneToggle({ pane, onChange, onSearch }: { pane: Pane; onChange: (p: Pane) => void; onSearch: () => void }) {
+function PaneToggle({ pane, onChange }: { pane: Pane; onChange: (p: Pane) => void }) {
   return (
     <View style={styles.toggleRow}>
       {(['feed', 'chats'] as const).map((p) => {
@@ -68,12 +68,25 @@ function PaneToggle({ pane, onChange, onSearch }: { pane: Pane; onChange: (p: Pa
           </Pressable>
         );
       })}
-      <Pressable style={styles.search} onPress={onSearch} accessibilityRole="button" accessibilityLabel="Search people, programs and forests">
-        <Ionicons name="search" size={16} color={Colors.muted} />
-      </Pressable>
     </View>
   );
 }
+
+// Pre-submission B6: sort Chats by what kind of conversation it is. A filter on the one list —
+// no second fetch, no ranking.
+type ChatFilter = 'all' | 'dm' | 'campfire' | 'forest';
+const CHAT_FILTERS: { key: ChatFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'dm', label: 'DMs' },
+  { key: 'campfire', label: 'Campfires' },
+  { key: 'forest', label: 'Forests' },
+];
+const FILTER_EMPTY: Record<ChatFilter, { title: string; body: string; cta: string; route: string }> = {
+  all: { title: 'No chats yet', body: 'Join a campfire for a group chat, or message a friend from their profile.', cta: 'Find a campfire', route: '/campfires' },
+  dm: { title: 'No DMs yet', body: 'Message a friend from their profile — DMs are between friends.', cta: 'Find people', route: '/people' },
+  campfire: { title: 'No campfires yet', body: 'A campfire is a small group that locks in together, with its own chat.', cta: 'Find a campfire', route: '/campfires' },
+  forest: { title: 'No forests yet', body: 'Forests are bigger rooms around a class, a gym or a goal.', cta: 'Browse forests', route: '/forests' },
+};
 
 function ChatsPane({ toggle }: { toggle: ReactNode }) {
   const router = useRouter();
@@ -82,6 +95,9 @@ function ChatsPane({ toggle }: { toggle: ReactNode }) {
   const userId = profile?.id ?? null;
   const [chats, setChats] = useState<SocialChat[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<ChatFilter>('all');
+  const shown = chats && filter !== 'all' ? chats.filter((c) => c.kind === filter) : chats;
+  const empty = FILTER_EMPTY[filter];
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -101,6 +117,7 @@ function ChatsPane({ toggle }: { toggle: ReactNode }) {
 
   function open(chat: SocialChat) {
     if (chat.kind === 'campfire') router.push(`/group/${chat.id}`);
+    else if (chat.kind === 'forest') router.push({ pathname: '/forest/[id]', params: { id: chat.id } } as never);
     else router.push({ pathname: '/dm/[friendId]', params: { friendId: chat.friendId } });
   }
 
@@ -108,11 +125,26 @@ function ChatsPane({ toggle }: { toggle: ReactNode }) {
     <View style={[styles.chatsRoot, { paddingTop: insets.top }]}>
       <AppTopBar title="Social" />
       {toggle}
-      {chats === null ? (
+      <View style={styles.filterRow} accessibilityRole="tablist">
+        {CHAT_FILTERS.map((f) => {
+          const on = filter === f.key;
+          return (
+            <Pressable
+              key={f.key}
+              style={[styles.filter, on && styles.filterOn]}
+              onPress={() => setFilter(f.key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}>
+              <Text style={[styles.filterText, on && styles.filterTextOn]}>{f.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {shown === null ? (
         <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
       ) : (
         <FlatList
-          data={chats}
+          data={shown}
           keyExtractor={(c) => `${c.kind}:${c.id}`}
           contentContainerStyle={styles.list}
           ListHeaderComponent={<LiveFriendsChip style={styles.live} />}
@@ -129,10 +161,10 @@ function ChatsPane({ toggle }: { toggle: ReactNode }) {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>No chats yet</Text>
-              <Text style={styles.emptyBody}>Join a campfire for a group chat, or message a friend from their profile.</Text>
-              <Pressable style={styles.emptyBtn} onPress={() => router.push('/campfires')} accessibilityRole="button">
-                <Text style={styles.emptyBtnText}>Find a campfire</Text>
+              <Text style={styles.emptyTitle}>{empty.title}</Text>
+              <Text style={styles.emptyBody}>{empty.body}</Text>
+              <Pressable style={styles.emptyBtn} onPress={() => router.push(empty.route as never)} accessibilityRole="button">
+                <Text style={styles.emptyBtnText}>{empty.cta}</Text>
               </Pressable>
             </View>
           }
@@ -150,8 +182,8 @@ function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
       style={styles.row}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${chat.name}${chat.kind === 'campfire' ? ', campfire chat' : ''}${unread > 0 ? `, ${unread} unread` : ''}`}>
-      {chat.kind === 'campfire' ? (
+      accessibilityLabel={`${chat.name}${chat.kind === 'campfire' ? ', campfire chat' : chat.kind === 'forest' ? ', forest' : ''}${unread > 0 ? `, ${unread} unread` : ''}`}>
+      {chat.kind === 'campfire' || chat.kind === 'forest' ? (
         <View style={[styles.avatar, styles.campfireAvatar]}>
           <Text style={styles.campfireEmoji}>{chat.emoji}</Text>
         </View>
@@ -168,6 +200,11 @@ function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
           <IconText icon={chat.lastIcon} style={[styles.last, styles.lastShrink]} numberOfLines={1}>
             {chat.lastLine}
           </IconText>
+        ) : chat.kind === 'forest' ? (
+          <Text style={styles.last} numberOfLines={1}>
+            {chat.memberCount} {chat.memberCount === 1 ? 'member' : 'members'}
+            {chat.lastAt ? '' : ' · nothing posted yet'}
+          </Text>
         ) : (
           <Text style={[styles.last, unread > 0 && styles.lastUnread]} numberOfLines={1}>
             {chat.lastLine ?? (chat.kind === 'campfire' ? 'Nobody’s said anything yet' : 'Say hi')}
@@ -187,7 +224,7 @@ function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  // Mock 320's `.seg`: two pills, the active one ember, plus the search affordance.
+  // Mock 320's `.seg`: two pills, the active one ember.
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -216,15 +253,32 @@ const styles = StyleSheet.create({
   segTextOn: {
     color: '#1A1030',
   },
-  search: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.spacePanel,
+  // The kind filter: smaller and quieter than the Feed · Chats toggle above it, so the two rows
+  // read as a pane switch and a filter within it.
+  filterRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: Spacing.three,
+    marginBottom: Spacing.two,
+  },
+  filter: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderWidth: 1,
     borderColor: Colors.spaceLine,
+  },
+  filterOn: {
+    backgroundColor: Colors.spacePanel2,
+    borderColor: Colors.navEmber2,
+  },
+  filterText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12,
+    color: Colors.spaceDim,
+  },
+  filterTextOn: {
+    color: Colors.navEmber2,
   },
   chatsRoot: {
     flex: 1,

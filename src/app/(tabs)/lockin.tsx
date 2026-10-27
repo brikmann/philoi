@@ -53,8 +53,6 @@ export default function LockInTab() {
   const [picked, setPicked] = useState<Discipline>(DISCIPLINES[0]);
   const [goalLabel, setGoalLabel] = useState<string | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
-  // Bumped to re-read the goals after a delete the server refused.
-  const [goalsVersion, setGoalsVersion] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   // Seeded from the sticky default on the profile row (0273); absent before that migration = off.
   const [autoPost, setAutoPost] = useState(Boolean(profile?.post_to_agora));
@@ -77,7 +75,7 @@ export default function LockInTab() {
       return () => {
         live = false;
       };
-    }, [session, goalsVersion])
+    }, [session])
   );
 
   // Pre-submission C8: a goal you made can be deleted (archived) from its chip.
@@ -87,7 +85,13 @@ export default function LockInTab() {
         setGoals((cur) => cur.filter((g) => g.id !== goal.id));
         if (goalLabel === (goal.label ?? '').trim()) setGoalLabel(null);
       },
-      onFailed: () => setGoalsVersion((v) => v + 1),
+      // The server refused: re-read, so the chip comes back exactly as stored.
+      onFailed: () => {
+        if (!session) return;
+        fetchMyGoals(session.user.id)
+          .then(setGoals)
+          .catch(() => {});
+      },
     });
   }
 
