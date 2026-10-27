@@ -1,35 +1,21 @@
-import type { ReactElement, ReactNode } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, type ReactElement } from 'react';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { SpaceEmpty, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { shortName } from '@/lib/format';
 import type { MetricLeaderboardRow } from '@/types/house';
 
 // THE ONE BOARD LAYOUT. The Leaderboard tab's XP board, its Fitness board and an exercise board all
 // draw through this, so flipping XP | Fitness changes the numbers and nothing else: same gutter, same
-// row gap, same empty and loading states, and the same pinned "you" bar under the list — your row,
-// wherever you sit on the board, and the gap to the top. Each board renders its own row (BoardRow
-// or the fitness row) and may supply what the pinned bar shows when you aren't on the board.
+// row gap, same empty and loading states. Each board renders its own row (BoardRow or the fitness row).
+//
+// No pinned "you" bar (mock 329): the list opens on YOUR window instead — your row centred with
+// ~4 either side, highlighted inline. Near the top it clamps to #1, near the bottom to the last row,
+// so there's never a blank gap. Scroll freely from there; "Jumped to your spot" above the list
+// brings you back. The board is fetched whole, so the window is just a scroll position.
 
-/** "14 km behind Aisha." / "You're #1 — 9 km ahead of Jordan." — null when you aren't ranked. */
-export function standingLine(rows: MetricLeaderboardRow[], formatValue: (v: number) => string): string | null {
-  const me = rows.find((r) => r.is_me);
-  if (!me || me.rank == null) return null;
-  const top = rows[0];
-  if (me.rank === 1) {
-    const second = rows.find((r) => r.rank === 2);
-    if (!second) return "You're #1.";
-    const lead = me.value - second.value;
-    return lead > 0
-      ? `You're #1 — ${formatValue(lead)} ahead of ${shortName(second.display_name)}.`
-      : `You're #1, level with ${shortName(second.display_name)}.`;
-  }
-  const gap = top.value - me.value;
-  return gap > 0
-    ? `You're #${me.rank} · ${formatValue(gap)} behind ${shortName(top.display_name)}.`
-    : `You're #${me.rank} · level with ${shortName(top.display_name)} for #1.`;
-}
+/** Rows either side of yours where the window clamps to an end of the board. */
+const WINDOW_EDGE = 4;
 
 export function LeaderboardList({
   rows,
@@ -37,13 +23,12 @@ export function LeaderboardList({
   loading,
   error,
   onRefresh,
-  formatValue,
   renderRow,
   header,
   footer,
   emptyTitle,
   emptyBody,
-  pinnedFallback,
+  boardKey,
 }: {
   /** The whole board — where "you" is looked up, even when `data` is filtered (Live only). */
   rows: MetricLeaderboardRow[];
@@ -52,23 +37,72 @@ export function LeaderboardList({
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
-  /** Formats a value AND a gap ("14 km behind") — so it must take any number, not just a row's. */
-  formatValue: (value: number) => string;
   renderRow: (row: MetricLeaderboardRow) => ReactElement;
   header?: ReactElement | null;
   footer?: ReactElement | null;
   emptyTitle: string;
   emptyBody: string;
-  /** The pinned bar when you aren't on the board. Omitted = "You're not on this board yet." */
-  pinnedFallback?: ReactNode;
+  /** Changes when the board does (metric, scope, season) — the list re-centres on you each time. */
+  boardKey?: string;
 }) {
-  const me = rows.find((r) => r.is_me);
-  const standing = standingLine(rows, formatValue);
   const shown = data ?? rows;
+  const me = rows.find((r) => r.is_me);
+  const meIndex = shown.findIndex((r) => r.is_me);
+  const total = rows.filter((r) => r.rank != null).length;
+
+  const listRef = useRef<FlatList<MetricLeaderboardRow>>(null);
+  const retries = useRef(0);
+
+  const centreOnMe = useCallback(
+    (animated: boolean) => {
+      const list = listRef.current;
+      if (!list || meIndex < 0) return;
+      retries.current = 0;
+      if (meIndex <= WINDOW_EDGE) list.scrollToOffset({ offset: 0, animated });
+      else if (meIndex >= shown.length - 1 - WINDOW_EDGE) list.scrollToEnd({ animated });
+      else list.scrollToIndex({ index: meIndex, viewPosition: 0.5, animated });
+    },
+    [meIndex, shown.length],
+  );
+
+  // Once per board: when it lands with you on it, open on your window. A pull-to-refresh keeps the
+  // same key, so it never yanks you off wherever you'd scrolled to. The key flips a render BEFORE the
+  // hook starts its fetch, so the rows on screen at that moment are the old board's — wait for new ones.
+  const key = boardKey ?? '';
+  const lastKey = useRef<string | null>(null);
+  const staleRows = useRef<MetricLeaderboardRow[] | null>(null);
+  useEffect(() => {
+    if (lastKey.current !== key) {
+      lastKey.current = key;
+      staleRows.current = rows;
+    }
+    if (staleRows.current === null || rows === staleRows.current || loading || meIndex < 0) return;
+    // A frame for the new data to lay out before scrolling into it.
+    const id = requestAnimationFrame(() => {
+      staleRows.current = null;
+      centreOnMe(false);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [key, rows, loading, meIndex, centreOnMe]);
 
   return (
     <View style={styles.wrap}>
+      {me && meIndex >= 0 ? (
+        <Pressable
+          style={styles.jump}
+          onPress={() => centreOnMe(true)}
+          accessibilityRole="button"
+          accessibilityLabel={me.rank == null ? 'Jump to your spot, not ranked yet' : `Jump to your spot, number ${me.rank} of ${total}`}>
+          <Text style={styles.jumpText}>
+            ↕ Jumped to your spot ·{' '}
+            <Text style={styles.jumpRank}>
+              {me.rank == null ? 'not ranked yet' : `#${me.rank.toLocaleString()} of ${total.toLocaleString()}`}
+            </Text>
+          </Text>
+        </Pressable>
+      ) : null}
       <FlatList
+        ref={listRef}
         data={shown}
         keyExtractor={(r) => r.user_id}
         contentContainerStyle={styles.listContent}
@@ -77,6 +111,13 @@ export function LeaderboardList({
         renderItem={({ item }) => renderRow(item)}
         ItemSeparatorComponent={Separator}
         ListFooterComponent={shown.length > 0 ? footer : null}
+        // Rows aren't fixed-height, so a far rank isn't measured yet: jump to its estimated offset
+        // (which renders that stretch), then centre on the real row.
+        onScrollToIndexFailed={({ index, averageItemLength }) => {
+          listRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: false });
+          if (retries.current++ >= 3) return;
+          setTimeout(() => listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 60);
+        }}
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
@@ -87,19 +128,6 @@ export function LeaderboardList({
           )
         }
       />
-      {/* Pinned: you, wherever you are on the board, and the gap to the top. */}
-      {me ? (
-        <View style={styles.pinned}>
-          {renderRow(me)}
-          {standing ? <Text style={styles.standing}>{standing}</Text> : null}
-        </View>
-      ) : loading ? null : pinnedFallback !== undefined ? (
-        pinnedFallback ? <View style={styles.pinned}>{pinnedFallback}</View> : null
-      ) : rows.length > 0 ? (
-        <View style={styles.pinned}>
-          <Text style={styles.standing}>You&apos;re not on this board yet.</Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -122,19 +150,23 @@ const styles = StyleSheet.create({
   loader: {
     marginTop: Spacing.five,
   },
-  pinned: {
-    paddingHorizontal: SPACE_GUTTER,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.three,
-    borderTopWidth: 1,
-    borderTopColor: Colors.spaceLine,
-    backgroundColor: Colors.spaceBg,
-    gap: Spacing.one,
+  jump: {
+    marginHorizontal: SPACE_GUTTER,
+    marginBottom: Spacing.two,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255,176,90,0.35)',
+    backgroundColor: 'rgba(255,122,47,0.08)',
   },
-  standing: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
+  jumpText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11.5,
     color: Colors.navEmber2,
-    textAlign: 'center',
+  },
+  jumpRank: {
+    color: Colors.ink,
   },
 });

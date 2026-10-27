@@ -103,6 +103,7 @@ export function FitnessBoardPanel({
             refetch();
           }}
           formatValue={formatValue}
+          boardKey={`${stat?.key ?? ''}|${scope}`}
           valueCaption={stat ? windowCaption(stat) : undefined}
           onPressRow={(r) => goToProfile(r.user_id)}
           onPressVerification={stat?.metric.startsWith('ex:') ? setDisputeRow : undefined}

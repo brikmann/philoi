@@ -7,18 +7,16 @@ import { LeaderboardList } from '@/components/leaderboard-list';
 import { CompeteGlyph } from '@/components/ui/glyphs-compete';
 import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { useFitnessTracking } from '@/hooks/use-fitness-tracking';
 import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
 import { fetchUniversityShortNames } from '@/lib/api/groups';
 import type { MetricLeaderboardRow } from '@/types/house';
 
 // The list half of the Fitness board (mock 289) and an exercise board (mocks 294/295): rank ·
-// avatar · name over a compact "Kin · Laurier" line · value · ⚔. Your own row is highlighted in the
-// list AND pinned under it with where you stand ("14 km behind Aisha."), so the one number you
-// opened the board for never scrolls away.
+// avatar · name over a compact "Kin · Laurier" line · value · ⚔. Your own row is highlighted inline
+// and the list opens centred on it (mock 329), so the one number you opened the board for is in view.
 //
 // Rows are the XP board's BoardRow (see FitnessBoardRow) and the list is the XP board's
-// LeaderboardList, so both boards — pinned "you" bar included — read as one format.
+// LeaderboardList, so both boards — the auto-centre included — read as one format.
 
 // Short school names change about once a year; one read per process, shared by every board.
 let shortNamesCache: Record<string, string> | null = null;
@@ -59,6 +57,7 @@ export function FitnessBoard({
   footer,
   emptyTitle,
   emptyBody,
+  boardKey,
 }: {
   rows: MetricLeaderboardRow[];
   loading: boolean;
@@ -76,15 +75,12 @@ export function FitnessBoard({
   footer?: React.ReactElement | null;
   emptyTitle: string;
   emptyBody: string;
+  /** Changes with the metric/scope — the list re-centres on you (LeaderboardList). */
+  boardKey?: string;
 }) {
   const shortNames = useUniversityShortNames();
   // One get_public_loadouts call for the whole board — see the batching note in economy/public-identity.tsx.
   const loadouts = usePublicLoadouts(rows.map((r) => r.user_id));
-  // Mock 314: with no tracker connected, the slot you'd hold is the nudge — a "not tracked yet"
-  // row pinned where yours would be, and a Connect banner over the list. Both vanish for good once
-  // any tracker is on (use-fitness-tracking.ts); a real row of yours always wins over the slot.
-  const tracking = useFitnessTracking();
-  const untracked = !tracking.loading && !tracking.trackingOn;
 
   return (
     <LeaderboardList
@@ -92,7 +88,7 @@ export function FitnessBoard({
       loading={loading}
       error={error}
       onRefresh={onRefresh}
-      formatValue={formatValue}
+      boardKey={boardKey}
       header={
         <>
           <BoardTrackerBanner style={styles.banner} />
@@ -114,20 +110,6 @@ export function FitnessBoard({
           onVersus={() => onVersus(item)}
         />
       )}
-      pinnedFallback={
-        untracked ? (
-          <View style={[styles.row, styles.rowUntracked]} accessibilityLabel="You, not tracked yet">
-            <Text style={styles.pos}>—</Text>
-            <View style={styles.who}>
-              <Text style={styles.name}>You · not tracked yet</Text>
-            </View>
-            <View style={styles.valueColumn}>
-              <Text style={styles.val}>—</Text>
-            </View>
-            <View style={styles.versusSpacer} />
-          </View>
-        ) : undefined
-      }
     />
   );
 }
@@ -208,41 +190,8 @@ function FitnessBoardRow({
 }
 
 const styles = StyleSheet.create({
-  // SpaceRow's panel; your own row takes the ember edge the Leaderboard tab gives it.
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingVertical: 10,
-    paddingHorizontal: Spacing.twelve,
-    borderRadius: 13,
-    backgroundColor: Colors.spacePanel,
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-  },
-  // The empty slot: dimmed, never the ember "you" edge — it isn't a place you hold yet.
-  rowUntracked: {
-    opacity: 0.5,
-    borderStyle: 'dashed',
-  },
   banner: {
     marginBottom: Spacing.two,
-  },
-  pos: {
-    width: 20,
-    textAlign: 'center',
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12,
-    color: Colors.spaceFaint,
-  },
-  who: {
-    flex: 1,
-    minWidth: 0,
-  },
-  name: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.ink,
   },
   sub: {
     flexShrink: 1,
@@ -264,14 +213,6 @@ const styles = StyleSheet.create({
   },
   verifyInRow: {
     marginTop: 0,
-  },
-  valueColumn: {
-    alignItems: 'flex-end',
-  },
-  val: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.ink,
   },
   versus: {
     width: 28,

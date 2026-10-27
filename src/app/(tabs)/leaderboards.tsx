@@ -220,14 +220,14 @@ export default function LeaderboardTab() {
               {gate !== 'none' ? (
                 <GateNotice gate={gate} />
               ) : (
-                // The same list, pinned "you" bar and states the Fitness board draws (LeaderboardList).
+                // The same list, auto-centred on you, and states the Fitness board draws (LeaderboardList).
                 <LeaderboardList
                   rows={rows}
                   data={shownRows}
                   loading={loading}
                   error={error}
                   onRefresh={refetch}
-                  formatValue={format}
+                  boardKey={`${metricKey}|${scope}`}
                   emptyTitle={liveOnly ? 'Nobody live right now' : 'Nobody on this board yet'}
                   emptyBody={liveOnly ? 'Nobody on this board is locked in right now.' : 'Lock in and open it.'}
                   renderRow={(item) => (
