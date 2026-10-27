@@ -71,7 +71,11 @@ export function CampfireOptionsSheet({
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const leaderboard = useLeaderboard(groupId);
-  const { isAdmin, isOwner } = useCampfireRole(groupId);
+  const { isAdmin, isOwner: isOwnerRole, loading: roleLoading } = useCampfireRole(groupId);
+  // delete_group() checks groups.owner_id, so that is what decides Delete vs Leave too. The role
+  // alone read as "not owner" while loading or after a failed read, and an owner offered Leave hit
+  // the RLS no-op in leaveGroup — the "can't delete my campfire" bug.
+  const isOwner = isOwnerRole || (!!session && group?.owner_id === session.user.id);
   const [muting, setMuting] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -235,6 +239,7 @@ export function CampfireOptionsSheet({
 
             <Pressable
               style={({ pressed }) => [styles.row, styles.rowDanger, pressed && styles.rowPressed]}
+              disabled={roleLoading && !isOwner}
               onPress={() => setConfirmOpen(true)}>
               <View style={[styles.rowIcon, styles.rowIconDanger]}>
                 <PhiloiIcon name="leave" size={18} color={Colors.danger} />
@@ -245,6 +250,25 @@ export function CampfireOptionsSheet({
             </Pressable>
           </View>
         </View>
+
+        {/* INSIDE the sheet's Modal, not beside it. As a sibling, ConfirmDialog's Modal asked the
+            root view controller to present while it was already presenting this sheet — iOS drops
+            that silently, so Delete/Leave opened nothing and a campfire could not be deleted.
+            Nested, it presents from the sheet's own controller. */}
+        <ConfirmDialog
+          visible={confirmOpen}
+          title={isOwner ? 'Delete campfire' : 'Leave campfire'}
+          body={
+            isOwner
+              ? 'This permanently deletes this campfire for everyone. This cannot be undone.'
+              : "You'll stop seeing this campfire's feed and leaderboard."
+          }
+          confirmLabel={isOwner ? 'Delete' : 'Leave'}
+          destructive={isOwner}
+          busy={confirmBusy}
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={handleConfirmLeaveOrDelete}
+        />
       </Modal>
 
       <CampfireBannerPicker
@@ -254,21 +278,6 @@ export function CampfireOptionsSheet({
         groupId={groupId}
         currentBannerId={group?.banner_item_id ?? null}
         onChanged={onGroupChanged}
-      />
-
-      <ConfirmDialog
-        visible={confirmOpen}
-        title={isOwner ? 'Delete campfire' : 'Leave campfire'}
-        body={
-          isOwner
-            ? 'This permanently deletes this campfire for everyone. This cannot be undone.'
-            : "You'll stop seeing this campfire's feed and leaderboard."
-        }
-        confirmLabel={isOwner ? 'Delete' : 'Leave'}
-        destructive={isOwner}
-        busy={confirmBusy}
-        onCancel={() => setConfirmOpen(false)}
-        onConfirm={handleConfirmLeaveOrDelete}
       />
     </>
   );
