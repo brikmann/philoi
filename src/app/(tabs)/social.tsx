@@ -10,6 +10,8 @@ import { AppTopBar } from '@/components/nav/app-top-bar';
 import { Avatar } from '@/components/ui/avatar';
 import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useChatSupport } from '@/hooks/use-chat-support';
+import { fetchMyChats } from '@/lib/api/chat';
 import { fetchMySocialChats, type SocialChat } from '@/lib/api/social-chats';
 import { useAuth } from '@/lib/auth/auth-context';
 import { formatRelativeTime } from '@/lib/format';
@@ -99,10 +101,16 @@ function ChatsPane({ toggle }: { toggle: ReactNode }) {
   const shown = chats && filter !== 'all' ? chats.filter((c) => c.kind === filter) : chats;
   const empty = FILTER_EMPTY[filter];
 
+  // 0284 · with get_my_chats the list carries unread + mute for rooms too, and a forest row opens
+  // the forest's room chat. fetchMyChats answers null on a server without it, and the list is
+  // built exactly the old way — the switch is invisible either way.
+  const rich = useChatSupport() === true;
+
   const load = useCallback(async () => {
     if (!userId) return;
     try {
-      setChats(await fetchMySocialChats(userId));
+      const fromServer = await fetchMyChats(userId).catch(() => null);
+      setChats(fromServer ?? (await fetchMySocialChats(userId)));
     } catch {
       setChats((prev) => prev ?? []);
     }
@@ -117,7 +125,12 @@ function ChatsPane({ toggle }: { toggle: ReactNode }) {
 
   function open(chat: SocialChat) {
     if (chat.kind === 'campfire') router.push(`/group/${chat.id}`);
-    else if (chat.kind === 'forest') router.push({ pathname: '/forest/[id]', params: { id: chat.id } } as never);
+    else if (chat.kind === 'forest')
+      router.push(
+        (rich
+          ? { pathname: '/forest-chat/[id]', params: { id: chat.id } }
+          : { pathname: '/forest/[id]', params: { id: chat.id } }) as never
+      );
     else router.push({ pathname: '/dm/[friendId]', params: { friendId: chat.friendId } });
   }
 
@@ -176,7 +189,8 @@ function ChatsPane({ toggle }: { toggle: ReactNode }) {
 }
 
 function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
-  const unread = chat.kind === 'dm' ? chat.unread : 0;
+  // A DM always has a count; a room has one only from get_my_chats (0284).
+  const unread = chat.unread ?? 0;
   return (
     <Pressable
       style={styles.row}
@@ -196,11 +210,11 @@ function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
         <Text style={[styles.name, unread > 0 && styles.nameUnread]} numberOfLines={1}>
           {chat.name}
         </Text>
-        {chat.kind === 'campfire' && chat.lastIcon && chat.lastLine ? (
-          <IconText icon={chat.lastIcon} style={[styles.last, styles.lastShrink]} numberOfLines={1}>
+        {chat.kind !== 'dm' && chat.lastIcon && chat.lastLine ? (
+          <IconText icon={chat.lastIcon} style={[styles.last, styles.lastShrink, unread > 0 && styles.lastUnread]} numberOfLines={1}>
             {chat.lastLine}
           </IconText>
-        ) : chat.kind === 'forest' ? (
+        ) : chat.kind === 'forest' && !chat.lastLine ? (
           <Text style={styles.last} numberOfLines={1}>
             {chat.memberCount} {chat.memberCount === 1 ? 'member' : 'members'}
             {chat.lastAt ? '' : ' · nothing posted yet'}

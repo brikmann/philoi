@@ -15,6 +15,7 @@ import { Screen } from '@/components/ui/screen';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useCampfireStats } from '@/hooks/use-campfire-stats';
+import { useChatSupport, useMarkRoomReadWhileFocused } from '@/hooks/use-chat-support';
 import { useGroup } from '@/hooks/use-group';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { track } from '@/lib/analytics';
@@ -156,6 +157,10 @@ export default function GroupScreen() {
       refetchGroup();
     }, [refetchGroup])
   );
+
+  // 0284 · this screen IS the campfire's chat, so being on it is what clears the campfire's unread
+  // badge on Social → Chats (chat_reads). A no-op on a server without 0284.
+  useMarkRoomReadWhileFocused('campfire', groupId, useChatSupport());
 
   // The roster, fetched once here rather than twice below: the @-mention autocomplete and the
   // ping sheet both need it, and they are both inside the timeline.

@@ -49,6 +49,7 @@ const HIDDEN: string[] = [
   '/gcal-auth',
   // chat threads — the composer owns the bottom edge
   '/dm',
+  '/forest-chat',
   '/cindy',
   // modals
   '/goal',

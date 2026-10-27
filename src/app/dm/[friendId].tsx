@@ -11,6 +11,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ChatAttachmentList } from '@/components/chat/chat-attachments';
+import { ChatComposer } from '@/components/chat/chat-composer';
+import { ChatMessageSheet } from '@/components/chat/chat-message-sheet';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
@@ -18,12 +21,13 @@ import { EmberFill } from '@/components/ui/ember-fill';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
 import { SpaceIconButton } from '@/components/ui/space-kit';
-import { TextInput } from '@/components/ui/text-input';
 import { UiGlyph } from '@/components/ui/ui-glyph';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { useChatSupport } from '@/hooks/use-chat-support';
 import { useDmThread } from '@/hooks/use-dm-thread';
 import { usePublicLoadouts, useRefreshPublicLoadoutsOnFocus } from '@/hooks/use-public-loadouts';
 import { track } from '@/lib/analytics';
+import { chatDeleteMyMessage, reportChatMessage, type ChatAttachment } from '@/lib/api/chat';
 import { deleteMyDm, sendDm, type DmThreadMessage } from '@/lib/api/dm';
 import { fetchProfileById } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -31,6 +35,13 @@ import { blockUser } from '@/lib/api/agora';
 import { getErrorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/types/database';
+
+/**
+ * A DM row as 0284 widens it: `attachments` (absent on a pre-0284 server — `select('*')` simply
+ * doesn't return the column) and the 'media' kind for a message with no words. Kept here rather
+ * than on DmMessage so the shared type keeps describing what every server has.
+ */
+type DmRow = DmThreadMessage & { attachments?: ChatAttachment[] };
 
 function formatRelativeTime(isoDate: string) {
   const diffMs = Date.now() - new Date(isoDate).getTime();
@@ -87,9 +98,11 @@ export default function DmThreadScreen() {
     listRef.current?.scrollToEnd({ animated: true });
   }, []);
   const [friend, setFriend] = useState<Profile | null>(null);
-  const [draft, setDraft] = useState('');
-  const [sending, setSending] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  // 0284 on the server: the composer grows the Agora's attach row and a long-press opens the
+  // report/delete sheet. Anything but `true` (including "still asking") is the pre-0284 screen.
+  const rich = useChatSupport() === true;
+  const [sheetFor, setSheetFor] = useState<DmRow | null>(null);
 
   useEffect(() => {
     if (!friendId) return;
@@ -101,28 +114,18 @@ export default function DmThreadScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per resolved thread, not per render
   }, [thread.threadId]);
 
-  async function handleSend() {
-    const body = draft.trim();
-    if (!body || !thread.threadId) return;
-    setSending(true);
-    setDraft('');
-    try {
-      await sendDm(thread.threadId, body);
-      // The realtime INSERT is the sender's own echo and arrives on the same channel, but a
-      // refetch here means the bubble lands even if the socket is asleep — which on a cold
-      // Android resume it often is.
-      await thread.refetch();
-    } catch (e) {
-      // Put the text BACK in the box. A send that failed and also ate what you typed is the
-      // version of this bug people actually complain about.
-      setDraft(body);
-      Alert.alert('Could not send', getErrorMessage(e, 'Try again.'));
-    } finally {
-      setSending(false);
-    }
+  // The pre-0284 send. ChatComposer owns the draft, the put-it-back-on-failure rule and the
+  // alert; with 0284 it sends through chat_send itself and never calls this.
+  async function sendText(body: string) {
+    if (!thread.threadId) return;
+    await sendDm(thread.threadId, body);
   }
 
-  function handleMore(message: DmThreadMessage) {
+  function handleMore(message: DmRow) {
+    if (rich) {
+      setSheetFor(message);
+      return;
+    }
     const isOwn = message.sender_id === myUserId;
     if (isOwn) {
       Alert.alert('Message options', '', [
@@ -274,11 +277,16 @@ export default function DmThreadScreen() {
                     <EmptyState title="No messages yet" body={`Say something to ${name}.`} />
                   ) : null
                 }
-                renderItem={({ item }) => {
+                renderItem={({ item: row }) => {
+                  const item = row as DmRow;
                   // Skip a kind this build has no renderer for. 0206 reserves 'challenge',
                   // 'invite' and 'cheer' and nothing writes them yet — but OTA is closed, so the
                   // shipped behaviour for an unknown kind has to be "render nothing", decided now.
-                  if (item.kind !== 'text') return null;
+                  // 0284's 'media' (attachments, no words) is the one new kind this build draws.
+                  const kind = item.kind as string;
+                  const attachments = Array.isArray(item.attachments) ? item.attachments : [];
+                  if (kind !== 'text' && !(kind === 'media' && attachments.length > 0)) return null;
+                  const hasText = Boolean(item.body?.trim());
                   const isOwn = item.sender_id === myUserId;
                   // The joined author, with the header profile as the fallback: a row fetched
                   // before `friend` landed still has its own `profiles`, and `friend` still covers
@@ -310,6 +318,7 @@ export default function DmThreadScreen() {
                             <PublicTitle loadout={loadouts[item.sender_id] ?? {}} compact />
                           </View>
                         ) : null}
+                        {hasText ? (
                         <Pressable
                           onLongPress={() => handleMore(item)}
                           style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
@@ -323,10 +332,24 @@ export default function DmThreadScreen() {
                             </View>
                           )}
                           <Text style={styles.bubbleBody}>{item.body}</Text>
-                          <Text style={[styles.time, isOwn && styles.timeOwn]}>
-                            {formatRelativeTime(item.created_at)}
-                          </Text>
+                          {attachments.length === 0 ? (
+                            <Text style={[styles.time, isOwn && styles.timeOwn]}>
+                              {formatRelativeTime(item.created_at)}
+                            </Text>
+                          ) : null}
                         </Pressable>
+                        ) : null}
+                        {/* 0284 · what the message carries, under its words (or alone, for a
+                            'media' row). Long-press reaches the same sheet as the bubble's; the
+                            time moves under the last thing drawn. */}
+                        {attachments.length > 0 ? (
+                          <Pressable
+                            onLongPress={() => handleMore(item)}
+                            style={[styles.attachments, isOwn && styles.attachmentsOwn]}>
+                            <ChatAttachmentList attachments={attachments} />
+                            <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>
+                          </Pressable>
+                        ) : null}
                       </View>
                     </View>
                   );
@@ -335,44 +358,35 @@ export default function DmThreadScreen() {
             )}
 
             {/* The campfire composer: a pill field on a translucent shelf, and a send button that
-                is LIT only when there is something to send. */}
-            <View style={[styles.inputRow, { paddingBottom: Spacing.two + insets.bottom }]}>
-              {/* The campfire's "+" next to the composer, here a straight line to a 1:1 duel with
-                  this friend — the same params friend-profile's Challenge button sends, so it is
-                  the one challenge flow, not a fork of it. */}
-              <Pressable
-                onPress={handleChallenge}
-                disabled={!friendId}
-                hitSlop={6}
-                accessibilityRole="button"
-                accessibilityLabel={`Challenge ${name}`}
-                style={[styles.send, styles.plus]}>
-                <UiGlyph name="add" size={18} color={Colors.ink} />
-              </Pressable>
-              <TextInput
-                style={styles.input}
-                placeholder={`Message ${name}…`}
-                value={draft}
-                onChangeText={setDraft}
-                maxLength={2000}
-                multiline
-              />
-              <Pressable
-                onPress={handleSend}
-                disabled={sending || !draft.trim() || !thread.threadId}
-                accessibilityRole="button"
-                accessibilityLabel="Send">
-                {draft.trim() && thread.threadId && !sending ? (
-                  <EmberFill style={styles.send} radius={20} direction="diagonal">
-                    <UiGlyph name="send" size={17} color={Colors.onEmber} />
-                  </EmberFill>
-                ) : (
-                  <View style={[styles.send, styles.sendOff]}>
-                    <UiGlyph name="send" size={17} color={Colors.spaceFaint} />
-                  </View>
-                )}
-              </Pressable>
-            </View>
+                is LIT only when there is something to send — now ChatComposer, which adds the
+                Agora's attach row when the server has 0284 and is the old text box when not. */}
+            <ChatComposer
+              scope="dm"
+              roomId={thread.threadId}
+              userId={myUserId}
+              rich={rich}
+              placeholder={`Message ${name}…`}
+              bottomInset={insets.bottom}
+              onSendText={sendText}
+              // The realtime INSERT is the sender's own echo and arrives on the same channel, but a
+              // refetch here means the bubble lands even if the socket is asleep — which on a cold
+              // Android resume it often is.
+              onSent={thread.refetch}
+              leading={
+                // The campfire's "+" next to the composer, here a straight line to a 1:1 duel with
+                // this friend — the same params friend-profile's Challenge button sends, so it is
+                // the one challenge flow, not a fork of it.
+                <Pressable
+                  onPress={handleChallenge}
+                  disabled={!friendId}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Challenge ${name}`}
+                  style={[styles.send, styles.plus]}>
+                  <UiGlyph name="add" size={18} color={Colors.ink} />
+                </Pressable>
+              }
+            />
           </>
         )}
       </View>
@@ -382,6 +396,32 @@ export default function DmThreadScreen() {
         onClose={() => setMoreOpen(false)}
         onReport={() => router.push(`/report?userId=${friendId}`)}
         onBlock={handleBlock}
+      />
+
+      <ChatMessageSheet
+        visible={sheetFor !== null}
+        own={sheetFor?.sender_id === myUserId}
+        onClose={() => setSheetFor(null)}
+        onDelete={async () => {
+          if (!sheetFor) return;
+          try {
+            await chatDeleteMyMessage('dm', sheetFor.id);
+            await thread.refetch();
+          } catch (e) {
+            Alert.alert('Could not delete', getErrorMessage(e, 'Try again.'));
+            throw e;
+          }
+        }}
+        onReport={async (reason) => {
+          if (!sheetFor) return;
+          try {
+            await reportChatMessage('dm', sheetFor.id, reason);
+          } catch (e) {
+            Alert.alert('Could not report', getErrorMessage(e, 'Try again.'));
+            throw e;
+          }
+        }}
+        onBlock={() => void handleBlock()}
       />
     </Screen>
   );
@@ -527,29 +567,17 @@ const styles = StyleSheet.create({
   timeOwn: {
     color: 'rgba(255,255,255,0.75)',
   },
-  // ── the composer, likewise ───────────────────────────────────────────────────
-  // A translucent shelf rather than a hairline over an opaque bar, so the page's radial carries on
-  // behind it the way the banner does behind a campfire's.
-  inputRow: {
-    flexDirection: 'row',
+  // 0284 · the attachments column under a bubble (or alone, for a media-only message). Not a
+  // bubble itself: a photo or a shared session is its own panel and reads wrong inside the ember.
+  attachments: {
+    gap: 2,
+    marginTop: 4,
+    alignItems: 'flex-start',
+  },
+  attachmentsOwn: {
     alignItems: 'flex-end',
-    gap: Spacing.two,
-    paddingHorizontal: 14,
-    paddingTop: Spacing.two,
-    // paddingBottom is applied inline — it carries the safe-area inset.
-    backgroundColor: Colors.scrim,
   },
-  input: {
-    flex: 1,
-    maxHeight: 100,
-    backgroundColor: Colors.spacePanel2,
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-    borderRadius: Radius.pill,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    fontSize: 14,
-  },
+  // ── the composer's challenge button (the shelf itself is ChatComposer's now) ──
   send: {
     width: 40,
     height: 40,
@@ -558,13 +586,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   plus: {
-    backgroundColor: Colors.spacePanel2,
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-  },
-  // No glyph nudge any more: the old Ionicons paper plane sat low-left in its box, UiGlyph's
-  // `send` is drawn centred on the 48 grid.
-  sendOff: {
     backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
     borderColor: Colors.spaceLine,

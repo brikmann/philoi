@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,6 +14,7 @@ import { ScreenBackground } from '@/components/ui/screen-background';
 import { SPACE_GUTTER, SpaceButton, SpaceEmpty, SpaceHeader, SpaceIconButton, SpaceSection } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useChatSupport } from '@/hooks/use-chat-support';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { blockAgoraUser, reportAgora } from '@/lib/api/agora';
 import {
@@ -50,8 +51,11 @@ const FEED_PAGE = 20;
 
 export default function ForestScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `open=chat` is what 0284's forest_message push carries: an installed build without the room
+  // chat lands here (the forest page), a build with it goes on into the chat.
+  const { id, open } = useLocalSearchParams<{ id: string; open?: string }>();
   const { profile } = useAuth();
+  const chatSupported = useChatSupport() === true;
 
   const [forest, setForest] = useState<ForestDetail | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'missing' | 'failed'>('loading');
@@ -239,6 +243,21 @@ export default function ForestScreen() {
   const isMember = forest?.my_status === 'active';
   const isPending = forest?.my_status === 'pending';
   const postMine = postFor?.user_id === profile?.id;
+  // 0284 · the room chat, for members, on a server that has it. Nothing is drawn otherwise.
+  const canChat = chatSupported && isMember;
+
+  function openChat() {
+    if (!forest) return;
+    router.push({ pathname: '/forest-chat/[id]', params: { id: forest.id } } as never);
+  }
+
+  // Once per forest, not per render: back from the chat must land on the forest, not bounce in again.
+  const chatOpenedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (open !== 'chat' || !canChat || !forest || chatOpenedFor.current === forest.id) return;
+    chatOpenedFor.current = forest.id;
+    router.push({ pathname: '/forest-chat/[id]', params: { id: forest.id } } as never);
+  }, [open, canChat, forest, router]);
 
   return (
     <ScreenBackground>
@@ -247,9 +266,16 @@ export default function ForestScreen() {
           title="Forest"
           right={
             forest ? (
-              <SpaceIconButton onPress={() => setMenuOpen(true)} label="Forest options">
-                <UiGlyph name="more" size={18} color={Colors.ink} />
-              </SpaceIconButton>
+              <View style={styles.headerActions}>
+                {canChat ? (
+                  <SpaceIconButton onPress={openChat} label="Forest chat">
+                    <Icon name="chat" size={18} color={Colors.ink} />
+                  </SpaceIconButton>
+                ) : null}
+                <SpaceIconButton onPress={() => setMenuOpen(true)} label="Forest options">
+                  <UiGlyph name="more" size={18} color={Colors.ink} />
+                </SpaceIconButton>
+              </View>
             ) : undefined
           }
         />
@@ -583,6 +609,11 @@ export default function ForestScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
   safeArea: {
     flex: 1,
   },

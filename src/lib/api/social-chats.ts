@@ -25,6 +25,9 @@ export type SocialChat =
       lastLine: string | null;
       /** Drawn before lastLine when the last message was a photo / attachment rather than words. */
       lastIcon: IconName | null;
+      /** 0284's chat_reads pointer. Absent on the pre-0284 path, which has no read state for a room. */
+      unread?: number;
+      muted?: boolean;
     }
   | {
       kind: 'forest';
@@ -33,6 +36,11 @@ export type SocialChat =
       emoji: string;
       memberCount: number;
       lastAt: string | null;
+      /** 0284 · the room chat's newest line, when forests have one. Absent = the row says its member count. */
+      lastLine?: string | null;
+      lastIcon?: IconName | null;
+      unread?: number;
+      muted?: boolean;
     }
   | {
       kind: 'dm';
@@ -43,6 +51,7 @@ export type SocialChat =
       lastAt: string;
       lastLine: string | null;
       unread: number;
+      muted?: boolean;
     };
 
 /** The newest live message in one campfire, as "Name: text". RLS ("messages: read if member") gates it. */

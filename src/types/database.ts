@@ -3539,6 +3539,33 @@ export type Database = {
           out_unread: number;
         }[];
       };
+      // 0284 · persistent chat (src/lib/api/chat.ts). COMMITTED BEFORE APPLIED: every one of these
+      // may be absent on the server, so callers go through chatSupported() and treat PGRST202 as
+      // "the old path", never as an error. p_attachments is the 0140 element shape plus `meta`.
+      chat_send: {
+        Args: { p_scope: string; p_room_id: string; p_body?: string | null; p_attachments?: unknown };
+        Returns: string;
+      };
+      chat_mark_read: { Args: { p_scope: string; p_room_id: string }; Returns: undefined };
+      chat_set_muted: { Args: { p_scope: string; p_room_id: string; p_muted: boolean }; Returns: undefined };
+      chat_delete_my_message: { Args: { p_scope: string; p_message_id: string }; Returns: undefined };
+      report_chat_message: { Args: { p_scope: string; p_message_id: string; p_reason: string }; Returns: string };
+      get_my_chats: {
+        Args: Record<string, never>;
+        Returns: {
+          out_scope: 'dm' | 'campfire' | 'forest';
+          out_room_id: string;
+          out_friend_id: string | null;
+          out_name: string | null;
+          out_avatar_url: string | null;
+          out_last_at: string | null;
+          out_last_line: string | null;
+          out_last_sender_id: string | null;
+          out_last_sender_name: string | null;
+          out_unread: number;
+          out_muted: boolean;
+        }[];
+      };
       // The real friend graph (migration 0031_real_friend_graph.sql, PHILOI_UI_SPEC.md §4b/§16).
       search_people: {
         Args: { p_query: string; p_limit?: number };
