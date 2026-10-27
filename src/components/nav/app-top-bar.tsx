@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, usePathname, useRouter } from 'expo-router';
 import { useCallback, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -9,12 +9,14 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useNotifications } from '@/hooks/use-notifications';
 import { fetchMyDmThreads } from '@/lib/api/dm';
 
-// THE TOP-RIGHT GLOBALS (mocks 301/302): brand left; Shop · Messages · Notifications · Menu right, on
-// every tab. The drawer behind ☰ holds everything that doesn't earn a slot on the bottom bar — the
+// THE TOP-RIGHT GLOBALS (mocks 301/302): brand left; Search · Shop · Messages · Notifications · Menu
+// right, on every tab. Search is here rather than inside Social so it's findable from anywhere
+// (pre-submission fix E11) — it pushes its own screen. The drawer behind ☰ holds everything that doesn't earn a slot on the bottom bar — the
 // Shop is there too, but it's one tap from anywhere now rather than two.
 
 export function AppTopBar({ title, right }: { title?: string; right?: ReactNode }) {
   const router = useRouter();
+  const onSearch = usePathname() === '/search';
   const { open } = useNavDrawer();
   const { unread, refreshCount } = useNotifications();
   const [dmUnread, setDmUnread] = useState(0);
@@ -52,6 +54,7 @@ export function AppTopBar({ title, right }: { title?: string; right?: ReactNode 
       )}
       <View style={styles.actions}>
         {right}
+        {onSearch ? null : <GlobalButton glyph="search" label="Search" onPress={() => router.push('/search')} />}
         <GlobalButton icon={<PhiloiIcon name="shop" size={20} color={Colors.ink} />} label="Shop" onPress={() => router.push('/shop')} />
         <GlobalButton glyph="plane" label="Messages" badge={dmUnread} onPress={() => router.push('/messages')} />
         <GlobalButton glyph="bell" label="Notifications" badge={unread} onPress={() => router.push('/notifications')} />
@@ -121,7 +124,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   btn: {
     width: 36,

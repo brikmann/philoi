@@ -27,8 +27,6 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
       <Tabs.Screen name="social" options={{ title: 'Social' }} />
-      {/* Off the bar since mock 320 — Social's 🔍 opens it, and installed builds' /search links still land. */}
-      <Tabs.Screen name="search" options={{ title: 'Search', href: null }} />
       <Tabs.Screen name="lockin" options={{ title: 'Lock In' }} />
       <Tabs.Screen name="leaderboards" options={{ title: 'Leaderboard' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />

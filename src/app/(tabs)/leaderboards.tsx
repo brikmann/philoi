@@ -2,11 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
   Modal,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,8 +13,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BoardRow, NO_LOADOUT } from '@/components/board-row';
 import { FitnessBoardPanel } from '@/components/fitness/fitness-board-panel';
+import { LeaderboardList } from '@/components/leaderboard-list';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { PrivateClimb } from '@/components/private-climb';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { usePresence } from '@/hooks/use-presence';
 import { usePublicLoadouts, useRefreshPublicLoadoutsOnFocus } from '@/hooks/use-public-loadouts';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -204,7 +203,7 @@ export default function LeaderboardTab() {
                   <Text style={styles.metricText} numberOfLines={1}>
                     {stat ? `${stat.emoji} ${stat.label}` : 'Loading stats…'}
                   </Text>
-                  <Ionicons name="chevron-down" size={14} color={Colors.spaceDim} />
+                  <UiGlyph name="down" size={14} color={Colors.spaceDim} />
                 </Pressable>
                 <Pressable
                   style={[styles.live, liveOnly && styles.liveOn]}
@@ -221,21 +220,17 @@ export default function LeaderboardTab() {
               {gate !== 'none' ? (
                 <GateNotice gate={gate} />
               ) : (
-                <FlatList
+                // The same list, pinned "you" bar and states the Fitness board draws (LeaderboardList).
+                <LeaderboardList
+                  rows={rows}
                   data={shownRows}
-                  keyExtractor={(r) => r.user_id}
-                  contentContainerStyle={styles.list}
-                  refreshControl={<RefreshControl refreshing={loading && rows.length > 0} onRefresh={refetch} tintColor={Colors.navEmber} />}
-                  ListEmptyComponent={
-                    loading ? (
-                      <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
-                    ) : (
-                      <Text style={styles.empty}>
-                        {error ?? (liveOnly ? 'Nobody on this board is locked in right now.' : 'Nobody on this board yet — lock in and open it.')}
-                      </Text>
-                    )
-                  }
-                  renderItem={({ item }) => (
+                  loading={loading}
+                  error={error}
+                  onRefresh={refetch}
+                  formatValue={format}
+                  emptyTitle={liveOnly ? 'Nobody live right now' : 'Nobody on this board yet'}
+                  emptyBody={liveOnly ? 'Nobody on this board is locked in right now.' : 'Lock in and open it.'}
+                  renderRow={(item) => (
                     <BoardRow
                       row={item}
                       value={item.rank == null ? '—' : format(item.value)}
@@ -486,21 +481,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
     color: Colors.legend,
-  },
-  list: {
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-    gap: 6,
-  },
-  loader: {
-    marginTop: Spacing.five,
-  },
-  empty: {
-    marginTop: Spacing.five,
-    textAlign: 'center',
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.spaceDim,
   },
   gate: {
     margin: Spacing.three,

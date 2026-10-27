@@ -119,19 +119,16 @@ function AgoraCardInner({ item, loadout, onComment, onMore }: Props) {
         </Pressable>
 
         <Pressable style={styles.headText} onPress={openAuthor} accessibilityRole="button">
-          <BurningName
-            userId={item.user_id}
-            style={styles.name}
-            numberOfLines={1}
-            suffix={
-              <>
-                {/* The house seal sits with the name, before the handle (mock 288). */}
-                <HouseSealInline userId={item.user_id} size={14} />
-                {item.handle ? <Text style={styles.handle}> @{item.handle}</Text> : null}
-              </>
-            }>
+          {/* The whole name, wrapping rather than clipping; the house seal sits with it (mock 288),
+              the handle on its own line so a long name never shares its width. */}
+          <BurningName userId={item.user_id} style={styles.name} numberOfLines={2} suffix={<HouseSealInline userId={item.user_id} size={14} />}>
             {item.display_name}
           </BurningName>
+          {item.handle ? (
+            <Text style={styles.handle} numberOfLines={1}>
+              @{item.handle}
+            </Text>
+          ) : null}
           <PublicTitle loadout={loadout} compact />
           {/* House · program only — the campus pill below already names the school. */}
           <IdentityLine userId={item.user_id} showSchool={false} style={styles.identity} />

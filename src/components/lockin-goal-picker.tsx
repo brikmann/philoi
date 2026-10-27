@@ -16,6 +16,7 @@ import { fetchLockinTimeGoals } from '@/lib/api/challenges';
 import { fetchMyGoals } from '@/lib/api/goals';
 import { useAuth } from '@/lib/auth/auth-context';
 import { setSessionAudioChoice } from '@/lib/economy/equipped-audio';
+import { confirmRemoveGoal } from '@/lib/goal-remove';
 import { GOAL_TYPE_META, LOCK_IN_CATEGORY_META, goalTypeForChoice } from '@/lib/goal-types';
 import type { Challenge, FitnessActivity, Goal, LockInCategory, WorkoutEnergy } from '@/types/database';
 
@@ -141,6 +142,18 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
   // Grouped under the selected category, and only the NAMED ones — the category's own unnamed goal
   // is the tile already selected above, so a chip for it would be the same choice twice.
   const categoryGoals = myGoals.filter((g) => g.type === goalType && (g.label ?? '').trim().length > 0);
+
+  // Pre-submission C8: a goal you made can be deleted (archived) from its chip.
+  function removeGoal(goal: Goal) {
+    const label = (goal.label ?? '').trim();
+    confirmRemoveGoal(goal, {
+      onRemoved: () => {
+        setMyGoals((cur) => cur.filter((g) => g.id !== goal.id));
+        if (detail.trim().toLowerCase() === label.toLowerCase()) setDetail('');
+      },
+      onFailed: loadMyGoals,
+    });
+  }
 
   const effectiveCircleId = lockedCircleId ?? (withCampfire ? circleId : null);
   const canStart = !withCampfire || Boolean(effectiveCircleId);
@@ -321,6 +334,7 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
                 <Pressable
                   key={goal.id}
                   onPress={() => setDetail(selected ? '' : label)}
+                  onLongPress={() => removeGoal(goal)}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   accessibilityLabel={`${label}, a ${GOAL_TYPE_META[goalType].label} goal`}
@@ -331,6 +345,15 @@ export function LockinGoalPicker({ visible, onClose, lockedCircleId, lockedCircl
                     color={selected ? Colors.navEmber2 : Colors.spaceFaint}
                   />
                   <Text style={[styles.goalChipLabel, selected && styles.goalChipLabelSelected]}>{label}</Text>
+                  {/* Its own button inside the chip; a long-press on the chip does the same. */}
+                  <Pressable
+                    onPress={() => removeGoal(goal)}
+                    hitSlop={8}
+                    style={styles.goalChipRemove}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete the ${label} goal`}>
+                    <UiGlyph name="close" size={11} color={Colors.spaceFaint} />
+                  </Pressable>
                 </Pressable>
               );
             })}
@@ -637,6 +660,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
     color: Colors.spaceDim,
+  },
+  goalChipRemove: {
+    marginLeft: 2,
+    paddingLeft: 2,
   },
   goalChipLabelSelected: {
     color: Colors.navEmber2,

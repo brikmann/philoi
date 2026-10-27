@@ -18,7 +18,6 @@ import { IdentityCard } from '@/components/identity/identity-card';
 import { IdentityHeadline } from '@/components/identity/identity-headline';
 import { MomentumStrip } from '@/components/identity/momentum-strip';
 import { useProfileIdentity } from '@/components/identity/use-profile-identity';
-import { BioEditor } from '@/components/profile/bio-editor';
 import { CollectionEntry } from '@/components/profile/collection-entry';
 import { DisciplineRelicTracker } from '@/components/profile/discipline-relic-tracker';
 import { ProfileShowcase } from '@/components/profile/profile-showcase';
@@ -58,7 +57,7 @@ const AVATAR_SIZE = 66;
 export default function ProfileScreen() {
   const router = useRouter();
   const { userId: userIdParam } = useLocalSearchParams<{ userId?: string }>();
-  const { profile: myProfile, refreshProfile } = useAuth();
+  const { profile: myProfile } = useAuth();
   const { ranks: myRanks } = useMyRanks();
 
   const isOwn = !userIdParam || userIdParam === myProfile?.id;
@@ -109,7 +108,6 @@ export default function ProfileScreen() {
   // Your own profile opens on About; someone else's on Stats, since their About can be empty.
   const [tab, setTab] = useState<ProfileTab>(isOwn ? 'about' : 'stats');
   // null = closed. A string (even empty) means the editor is open with that draft.
-  const [bioDraft, setBioDraft] = useState<string | null>(null);
   // Your own house (0257). `undefined` = not known — loading, or the read failed (0264 not live,
   // offline) — and renders nothing; only a SUCCESSFUL "no program" (null) offers the claim card, so
   // a failed read can never tell someone who has a house to go and claim one.
@@ -244,19 +242,8 @@ export default function ProfileScreen() {
               </View>
             </Pressable>
           )}
-          {/* §3 — the bio. Editable in place on your own profile; on someone else's it renders
-              only when they wrote one, so an empty bio is absent rather than an empty slot. */}
-          {isOwn ? (
-            <Pressable onPress={() => setBioDraft(profile.bio ?? '')} hitSlop={6}>
-              <Text style={[styles.bio, !profile.bio && styles.bioEmpty]} numberOfLines={2}>
-                {profile.bio || '＋ add a bio'}
-              </Text>
-            </Pressable>
-          ) : profile.bio ? (
-            <Text style={styles.bio} numberOfLines={2}>
-              {profile.bio}
-            </Text>
-          ) : null}
+          {/* No bio (pre-submission F13): title, house, crests, rank and loadout already say who
+              someone is. profiles.bio stays in the schema, unread and unwritten. */}
         </ProfileHero>
 
         {/* Own profile only: ONE way into every editor (identity, loadout, program) — the sheet below. */}
@@ -429,17 +416,6 @@ export default function ProfileScreen() {
         {recentLockIns.length === 0 ? <Text style={styles.sheetLead}>No sessions to show.</Text> : null}
       </DetailSheet>
 
-      {/* §3 — opened by tapping the bio line. refreshProfile() pulls the saved value back through
-          auth context so the identity block re-renders from the server, not from local state. */}
-      {bioDraft !== null ? (
-        <BioEditor
-          initial={bioDraft}
-          onClose={() => setBioDraft(null)}
-          onSaved={() => {
-            void refreshProfile();
-          }}
-        />
-      ) : null}
     </SafeAreaView>
     </ScreenBackground>
   );
@@ -734,19 +710,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 14,
     color: Colors.achieverText,
-  },
-  bio: {
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
-    lineHeight: 17,
-    color: Colors.warmSubtext,
-    marginTop: 4,
-  },
-  // The prompt on your own empty bio — quieter than a written one, so it reads as an affordance
-  // rather than as text you forgot you wrote.
-  bioEmpty: {
-    color: Colors.textTertiary,
-    fontStyle: "italic",
   },
   safeArea: {
     flex: 1,

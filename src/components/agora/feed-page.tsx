@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AttachmentRow } from '@/components/agora/agora-card';
@@ -96,8 +96,8 @@ export function feedPageMedia(item: AgoraItem): FeedPageMedia {
   return 'card';
 }
 
-/** Room the bottom overlay (author row + caption) keeps clear on a card page. */
-const META_RESERVE = 190;
+/** Room the bottom overlay ("leave a nice one") keeps clear on a card page — the author row is in the card. */
+const META_RESERVE = 110;
 /** The rail's lane on the right; the caption wraps short of it. */
 const RAIL_LANE = 64;
 
@@ -175,7 +175,12 @@ function FeedPageInner(props: Props) {
       ) : media === 'photo' ? (
         <PhotoLayer paths={postPhotos(item)} width={width} height={height} topInset={topInset} />
       ) : (
-        <CardLayer item={item} topInset={topInset} onAttachment={openAttachment} />
+        <CardLayer
+          item={item}
+          topInset={topInset}
+          onAttachment={openAttachment}
+          author={<AuthorRow item={item} loadout={loadout} active={active} mine={props.mine} />}
+        />
       )}
 
       {/* The caption's legibility scrim — media only; the card page is already on the canvas. */}
@@ -201,7 +206,8 @@ function FeedPageInner(props: Props) {
       <Rail {...props} media={media} lift={lift} />
 
       <View style={styles.meta} pointerEvents="box-none">
-        <AuthorRow item={item} loadout={loadout} active={active} mine={props.mine} />
+        {/* A card page carries its author row inside the card; media pages wear it over the scrim. */}
+        {media !== 'card' ? <AuthorRow item={item} loadout={loadout} active={active} mine={props.mine} /> : null}
         {media !== 'card' && item.body ? (
           <Pressable onPress={() => setExpanded((e) => !e)} accessibilityRole="button" accessibilityHint="Shows the whole caption">
             <Text style={styles.caption} numberOfLines={expanded ? 12 : 3}>
@@ -397,15 +403,20 @@ function PhotoLayer({ paths, width, height, topInset }: { paths: string[]; width
   );
 }
 
-/** A session, a reward or text — the post's own content, centred on the canvas. */
+/**
+ * A session, a reward or text — a whole post, centred on the canvas: author · time · audience on
+ * top, then the post's own content. Never bare words floating on the page.
+ */
 function CardLayer({
   item,
   topInset,
   onAttachment,
+  author,
 }: {
   item: AgoraItem;
   topInset: number;
   onAttachment: (view: AgoraAttachmentView) => void;
+  author: ReactNode;
 }) {
   const attachments = itemAttachments(item).filter((a) => a.kind !== 'video');
   const textOnly = attachments.length === 0;
@@ -418,7 +429,8 @@ function CardLayer({
         end={{ x: 0.8, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.card, textOnly && styles.cardText]}>
+      <View style={styles.card}>
+        <View style={styles.cardAuthor}>{author}</View>
         {attachments.map((a) => {
           const view = attachmentView(a.kind, a.snapshot);
           if (!view) return null;
@@ -432,7 +444,7 @@ function CardLayer({
           );
         })}
         {item.body ? (
-          <Text style={textOnly ? styles.cardQuote : styles.cardBody} numberOfLines={textOnly ? 14 : 8}>
+          <Text style={textOnly ? styles.cardQuote : styles.cardBody} numberOfLines={textOnly ? 12 : 8}>
             {item.body}
           </Text>
         ) : null}
@@ -533,33 +545,33 @@ function AuthorRow({ item, loadout, active, mine }: { item: AgoraItem; loadout: 
         motion={active ? 'full' : 'reduced'}
       />
       <View style={styles.authorText}>
-        <BurningName
-          userId={item.user_id}
-          style={styles.name}
-          numberOfLines={1}
-          suffix={
-            <>
-              <HouseSealInline userId={item.user_id} size={14} />
-              {item.handle ? <Text style={styles.handle}> @{item.handle}</Text> : null}
-            </>
-          }>
+        {/* The whole name, wrapping to a second line rather than clipping. The handle gets its own
+            line so a long name never has to share its width with it. */}
+        <BurningName userId={item.user_id} style={styles.name} numberOfLines={2} suffix={<HouseSealInline userId={item.user_id} size={14} />}>
           {item.display_name}
         </BurningName>
+        {item.handle ? (
+          <Text style={styles.handle} numberOfLines={1}>
+            @{item.handle}
+          </Text>
+        ) : null}
         <PublicTitle loadout={loadout} compact />
         <IdentityLine userId={item.user_id} showSchool={false} style={styles.identity} />
-        <Text style={styles.when} numberOfLines={1}>
-          {formatRelativeTime(item.created_at)}
-          {/* Rank is EARNED — drawn in its own metal, never in a bought colour. */}
-          {tier ? (
-            <Text style={{ color: RANK_TIER_METAL[tier].text }}> · {formatRankTier(tier, item.rank_division ?? 1)}</Text>
-          ) : null}
-        </Text>
-      </View>
-      {/* Mock 320: who it was shared with, so poster and viewer both see the scope at a glance. */}
-      <View style={styles.audienceTag}>
-        <Text style={styles.audienceTagText} numberOfLines={1}>
-          {audienceTag(item)}
-        </Text>
+        <View style={styles.whenRow}>
+          <Text style={styles.when} numberOfLines={1}>
+            {formatRelativeTime(item.created_at)}
+            {/* Rank is EARNED — drawn in its own metal, never in a bought colour. */}
+            {tier ? (
+              <Text style={{ color: RANK_TIER_METAL[tier].text }}> · {formatRankTier(tier, item.rank_division ?? 1)}</Text>
+            ) : null}
+          </Text>
+          {/* Mock 320: who it was shared with, so poster and viewer both see the scope at a glance. */}
+          <View style={styles.audienceTag}>
+            <Text style={styles.audienceTagText} numberOfLines={1}>
+              {audienceTag(item)}
+            </Text>
+          </View>
+        </View>
       </View>
     </Pressable>
   );
@@ -783,11 +795,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.spaceLine,
     paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.one,
-    paddingBottom: Spacing.three,
-  },
-  cardText: {
     paddingTop: Spacing.three,
+    paddingBottom: Spacing.three,
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  cardAuthor: {
+    paddingBottom: Spacing.twelve,
+    marginBottom: Spacing.twelve,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.spaceLine,
   },
   cardBody: {
     fontFamily: Fonts.body,
@@ -827,6 +847,7 @@ const styles = StyleSheet.create({
   },
   authorText: {
     flexShrink: 1,
+    minWidth: 0,
   },
   name: {
     fontFamily: Fonts.bodyBold,
@@ -837,21 +858,28 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.muted,
+    marginTop: 1,
   },
   identity: {
     marginTop: 1,
   },
+  whenRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 2,
+  },
   when: {
+    flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 10.5,
     color: Colors.muted,
-    marginTop: 1,
   },
-  // Mock 320's `.aud` pill: green, small, pushed to the row's right edge.
+  // Mock 320's `.aud` pill: green, small, on the time line — off the name's row, so it never
+  // squeezes the name.
   audienceTag: {
-    marginLeft: 'auto',
-    maxWidth: 130,
-    alignSelf: 'flex-start',
+    maxWidth: 160,
     borderRadius: Radius.pill,
     paddingHorizontal: 8,
     paddingVertical: 3,

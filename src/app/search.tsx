@@ -22,7 +22,10 @@ import type { ExerciseLibraryRow, ProgramRow } from '@/types/house';
 import type { ForestSummary } from '@/types/social';
 
 // SEARCH (nav restructure, mocks 302/303) — find anything, over the search endpoints that already
-// exist: search_people, get_programs_for_university, search_exercise_library, get_forests (0274) and
+// exist. Its own screen, pushed from the 🔍 in the top bar on every tab (pre-submission fix E11):
+// a real page you go back from, not a tab swapped in over the one you were on. Its categories are a
+// DISCOVERY axis and live only here — they are not the feed's scope chips. Over the endpoints that
+// already exist: search_people, get_programs_for_university, search_exercise_library, get_forests (0274) and
 // the discoverable-campfires list. Nothing new server-side. Grind-alikes (0275) is the discovery
 // card on the empty state.
 
@@ -127,12 +130,16 @@ export default function SearchTab() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
-      {/* Off the bar since mock 320: reached from Social's 🔍, so it closes back to Social (a tab's
-          back would land on Home). */}
+      {/* A pushed screen: close goes back to wherever you opened it. A cold deep link has nothing
+          to go back to, so it lands on Social, where search used to live. */}
       <AppTopBar
         title="Search"
         right={
-          <Pressable onPress={() => router.navigate('/social')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back to Social">
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.navigate('/social'))}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Close search">
             <Ionicons name="close" size={20} color={Colors.ink} />
           </Pressable>
         }
@@ -348,8 +355,10 @@ function ResultRow({
 }
 
 const styles = StyleSheet.create({
+  // Opaque: a full screen of its own, not a translucent layer over the page you came from.
   safe: {
     flex: 1,
+    backgroundColor: Colors.spaceBg,
   },
   bar: {
     flexDirection: 'row',

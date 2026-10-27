@@ -407,7 +407,7 @@ export function ImmersiveFeed({
           onPick={changeScope}
           onCompose={compose}
         />
-        {channel ? <ChannelLine channel={channel} /> : null}
+        {channel ? <ChannelLine channel={channel} /> : <ScopeLine scope={scope} />}
       </View>
 
       <AgoraCommentsSheet
@@ -513,6 +513,24 @@ function Chip({
         {label}
       </Text>
     </Pressable>
+  );
+}
+
+// What each scope chip carries, said under the chips — "All" and "Everyone" read alike as words,
+// and they are different sources (0280's get_agora_feed). Every scope is newest first, unranked.
+const SCOPE_LINES: Partial<Record<FeedKey, string>> = {
+  all: 'Your friends + your campfires & forests · newest first',
+  friends: 'Only your friends · newest first',
+  everyone: 'Posts shared with everyone on Philoi · newest first',
+};
+
+function ScopeLine({ scope }: { scope: FeedKey }) {
+  const line = SCOPE_LINES[scope];
+  if (!line) return null;
+  return (
+    <Text style={[styles.channelLine, styles.scopeLine]} numberOfLines={1}>
+      {line}
+    </Text>
   );
 }
 
@@ -654,6 +672,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginLeft: Spacing.three,
     marginTop: 2,
+  },
+  scopeLine: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.spaceDim,
+    marginBottom: 2,
   },
   channelMeta: {
     fontFamily: Fonts.bodySemiBold,

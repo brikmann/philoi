@@ -28,10 +28,3 @@ export async function setJournalHidden(entryKey: string, hidden: boolean): Promi
   track('journal_entry_hidden', { hidden });
 }
 
-/** §3 — the profile bio. Returns the stored value so the caller renders what the server kept. */
-export async function setMyBio(bio: string | null): Promise<string | null> {
-  const { data, error } = await supabase.rpc('set_my_bio', { p_bio: bio });
-  if (error) throw error;
-  track('bio_updated', { cleared: !data });
-  return data ?? null;
-}

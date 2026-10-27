@@ -9,12 +9,14 @@ import { LockinGoalPicker } from '@/components/lockin-goal-picker';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
 import { Toggle } from '@/components/ui/toggle';
+import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveSession } from '@/lib/active-session-context';
 import { setPostToAgora } from '@/lib/api/agora';
 import { fetchMyGoals } from '@/lib/api/goals';
 import { useAuth } from '@/lib/auth/auth-context';
 import { setSessionAudioChoice } from '@/lib/economy/equipped-audio';
+import { confirmRemoveGoal } from '@/lib/goal-remove';
 import { GOAL_TYPE_META, goalTypeForChoice } from '@/lib/goal-types';
 import type { FitnessActivity, Goal, LockInCategory } from '@/types/database';
 
@@ -50,6 +52,8 @@ export default function LockInTab() {
   const [picked, setPicked] = useState<Discipline>(DISCIPLINES[0]);
   const [goalLabel, setGoalLabel] = useState<string | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
+  // Bumped to re-read the goals after a delete the server refused.
+  const [goalsVersion, setGoalsVersion] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   // Seeded from the sticky default on the profile row (0273); absent before that migration = off.
   const [autoPost, setAutoPost] = useState(Boolean(profile?.post_to_agora));
@@ -72,8 +76,19 @@ export default function LockInTab() {
       return () => {
         live = false;
       };
-    }, [session])
+    }, [session, goalsVersion])
   );
+
+  // Pre-submission C8: a goal you made can be deleted (archived) from its chip.
+  function removeGoal(goal: Goal) {
+    confirmRemoveGoal(goal, {
+      onRemoved: () => {
+        setGoals((cur) => cur.filter((g) => g.id !== goal.id));
+        if (goalLabel === (goal.label ?? '').trim()) setGoalLabel(null);
+      },
+      onFailed: () => setGoalsVersion((v) => v + 1),
+    });
+  }
 
   const goalType = picked.category ? goalTypeForChoice(picked.category, picked.activity ?? null) : null;
   const namedGoals = goalType
@@ -180,10 +195,20 @@ export default function LockInTab() {
                   <Pressable
                     key={g.id}
                     onPress={() => setGoalLabel(on ? null : label)}
+                    onLongPress={() => removeGoal(g)}
                     style={[styles.goalChip, on && styles.goalChipOn]}
                     accessibilityRole="button"
                     accessibilityState={{ selected: on }}>
                     <Text style={[styles.goalChipText, on && styles.goalChipTextOn]}>🎯 {label}</Text>
+                    {/* Its own button inside the chip; a long-press on the chip does the same. */}
+                    <Pressable
+                      onPress={() => removeGoal(g)}
+                      hitSlop={8}
+                      style={styles.goalChipRemove}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete the ${label} goal`}>
+                      <UiGlyph name="close" size={11} color={Colors.spaceFaint} />
+                    </Pressable>
                   </Pressable>
                 );
               })}
@@ -312,6 +337,10 @@ const styles = StyleSheet.create({
   },
   goalChipNew: {
     borderStyle: 'dashed',
+  },
+  goalChipRemove: {
+    marginLeft: 2,
+    paddingLeft: 2,
   },
   goalChipNewText: {
     color: Colors.navEmber2,

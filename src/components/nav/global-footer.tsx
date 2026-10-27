@@ -24,8 +24,6 @@ import { useAuth } from '@/lib/auth/auth-context';
 const TAB_PATHS: Record<string, TabKey> = {
   '/': 'index',
   '/social': 'social',
-  // Search lives inside Social now (mock 320) — on it, Social stays lit.
-  '/search': 'social',
   '/lockin': 'lockin',
   '/leaderboards': 'leaderboards',
   '/profile': 'profile',
