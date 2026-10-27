@@ -31,8 +31,20 @@
 -- Two kinds are chat-only: 'image' and 'file', both objects in the new PRIVATE `chat-media` bucket,
 -- plus 'anthem' (the sender's saved grind song, frozen from profile_identity).
 --
--- 'video' is deliberately NOT accepted yet. The clip path is 0279 + agora-video-upload-url, which
--- is committed-but-unapplied; DM video lands when that does, as one more kind in this function.
+-- 'video' rides the Agora's clip path (0279 — applied, and required first). The client signs an
+-- upload with the unchanged agora-video-upload-url, PUTs to R2, and sends `{kind:'video', key}`.
+-- chat_freeze_attachments accepts it only if agora_video_uploads issued that key to the sender and
+-- nothing has claimed it (no post_id, no chat_message_id); the snapshot is the ledger's facts. After
+-- the message row lands, chat_send CLAIMS the ledger row (chat_scope + chat_message_id), so the
+-- unclaimed sweep and the upload cap stop counting it and an Agora post can no longer attach it.
+-- One video per message. Playback is chat_video_sources + chat-video-playback-url, gated by the same
+-- membership question as the row's read policy. Deleting the message (soft or hard, or by cascade)
+-- deletes the ledger row, and 0279's purge trigger queues both R2 objects for gym-clip-purge.
+--
+-- ── Deploy order ──
+--
+-- Apply this file, THEN deploy chat-media-purge, chat-video-playback-url and the updated
+-- agora-video-upload-url (from a clean tree), and only then turn the client's chat-video flag on.
 --
 -- ── Installed builds ──
 --
@@ -49,7 +61,12 @@
 -- Key shape `<scope>/<room id>/<uploader id>/<uuid>.<ext>`. The bucket's read policy asks the same
 -- membership question the row's read policy asks, so a non-member can neither read the row nor
 -- sign a URL for its file. Media is HARD-deleted when its message is deleted or cascaded away
--- (#149), with storage.allow_delete_query set exactly as 0278 had to.
+-- (#149) — through a queue, not a SQL delete. `delete from storage.objects` drops the metadata row
+-- and leaves the bytes billed (and orphaned: the Storage API can no longer find them to remove).
+-- So the delete only QUEUES the key in chat_media_purges, and pg_cron kicks the chat-media-purge
+-- edge function, which removes it through the Storage API with the service role.
+--
+-- A deleted message is gone for readers too: both read policies exclude rows with deleted_at set.
 --
 -- ── Lock-in threads (0270) ──
 --
@@ -57,7 +74,10 @@
 -- persistence: every lock-in message between friends is mirrored into their DM thread (and the
 -- last two days of them backfilled), because lockin_messages is purged after two days and that
 -- purge was silently eating conversations. The mirror never pushes (the overlay already did) and
--- can never fail the overlay's send.
+-- can never fail the overlay's send. Nor does it spend the sender's DM rate limit: the mirror sets
+-- philoi.chat_mirror for its own insert, ugc_filter_dm skips the rate check only for a row that
+-- both carries lockin_message_id AND arrives under that flag, and every DM rate count (the trigger,
+-- dm_send, chat_send) leaves mirrored rows out. Real sends are limited exactly as before.
 --
 -- ── Push ──
 --
@@ -78,6 +98,22 @@ begin
   end if;
   if to_regprocedure('public.ugc_assert_clean(text)') is null then
     raise exception '0284 needs ugc_assert_clean — see 0242';
+  end if;
+  if to_regprocedure('public.ugc_filter_dm()') is null then
+    raise exception '0284 needs ugc_filter_dm — see 0242';
+  end if;
+  if to_regclass('public.agora_video_uploads') is null
+     or to_regprocedure('public.enqueue_agora_video_purge()') is null
+     or to_regprocedure('public.agora_post_claim_video()') is null
+     or to_regprocedure('public.sweep_agora_video_uploads()') is null then
+    raise exception '0284 needs the video ledger, its purge trigger, claim and sweep — see 0279';
+  end if;
+  if to_regclass('public.gym_clip_purges') is null then
+    raise exception '0284 needs gym_clip_purges — see 0266';
+  end if;
+  if to_regclass('cron.job') is null or to_regnamespace('net') is null
+     or to_regclass('vault.decrypted_secrets') is null then
+    raise exception '0284 needs pg_cron, pg_net and vault — see 0266';
   end if;
 end;
 $guard$;
@@ -225,7 +261,16 @@ alter table public.forest_messages enable row level security;
 
 drop policy if exists "forest_messages: read if member" on public.forest_messages;
 create policy "forest_messages: read if member" on public.forest_messages for select using (
-  is_forest_chat_member(forest_id) and not is_blocked_either_way(sender_id)
+  deleted_at is null and is_forest_chat_member(forest_id) and not is_blocked_either_way(sender_id)
+);
+
+-- 0206's DM read policy (live, 2026-10-27: `is_dm_member(thread_id) AND NOT
+-- is_blocked_either_way(sender_id)`) with ONE added condition: a deleted message is not readable.
+-- Until now chat_delete_my_message / a soft delete only hid the row from screens that chose to
+-- filter it; the body and attachments stayed one `select` away for the other member.
+drop policy if exists "dm_messages: read if member" on public.dm_messages;
+create policy "dm_messages: read if member" on public.dm_messages for select using (
+  deleted_at is null and is_dm_member(thread_id) and not is_blocked_either_way(sender_id)
 );
 
 -- Writes are RPC-only (chat_send), like dm_messages.
@@ -250,6 +295,39 @@ revoke all on public.chat_reads from public, anon, authenticated;
 
 -- Everyone already in a room starts read-up-to-now. Without this the first open of the new build
 -- would light every campfire with a count of everything ever said in it.
+-- A chat message can claim a clip from 0279's upload ledger, exactly as a post does. No FK — one
+-- column, two parents (dm_messages · forest_messages) — so the message tables' cleanup trigger
+-- (section 6) deletes the ledger row, and 0279's AFTER DELETE trigger queues the R2 purge.
+alter table public.agora_video_uploads
+  add column if not exists chat_scope text,
+  add column if not exists chat_message_id uuid;
+
+do $$
+begin
+  alter table public.agora_video_uploads
+    add constraint agora_video_uploads_chat_claim_check
+    check ((chat_scope is null) = (chat_message_id is null)
+           and (chat_scope is null or chat_scope in ('dm', 'forest')));
+exception
+  when duplicate_object then null;
+end;
+$$;
+
+-- One clip, one home: a post OR a chat message, never both (a post's delete would purge the
+-- message's video out from under it).
+do $$
+begin
+  alter table public.agora_video_uploads
+    add constraint agora_video_uploads_one_claim check (post_id is null or chat_message_id is null);
+exception
+  when duplicate_object then null;
+end;
+$$;
+
+-- One video per message, and the lookup chat_video_sources / the cleanup trigger make.
+create unique index if not exists agora_video_uploads_chat_message_idx
+  on public.agora_video_uploads (chat_message_id) where chat_message_id is not null;
+
 insert into public.chat_reads (scope, room_id, user_id, last_read_at)
 select 'campfire', gm.group_id, gm.user_id, now() from group_members gm
 on conflict do nothing;
@@ -298,6 +376,37 @@ create trigger on_forest_message_ugc_filter
 
 revoke all on function public.ugc_filter_forest_message() from public, anon, authenticated;
 
+-- Live body (pg_get_functiondef, 2026-10-27 — identical to 0242) with two changes, both about the
+-- lock-in mirror (section 9) and nothing else:
+--   · a mirrored row is exempt from the rate check — but only when it carries lockin_message_id AND
+--     arrives under philoi.chat_mirror, which only lockin_message_mirror_one sets, for its own
+--     insert. dm_messages has no INSERT policy, so no client can write either marker.
+--   · mirrored rows are left out of the count, so a busy lock-in thread cannot rate-limit the
+--     sender's real DMs. Real sends are counted and capped at 8 exactly as before.
+-- Same signature (trigger, no args): a true replacement; the trigger itself is untouched.
+create or replace function public.ugc_filter_dm()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_recent integer;
+begin
+  perform ugc_assert_clean(new.body);
+  if tg_op = 'INSERT'
+     and not (new.lockin_message_id is not null
+              and coalesce(current_setting('philoi.chat_mirror', true), '') = 'on') then
+    select count(*) into v_recent
+    from dm_messages
+    where sender_id = new.sender_id and created_at > now() - interval '10 seconds'
+      and lockin_message_id is null;
+    perform ugc_assert_rate(v_recent, 8);
+  end if;
+  return new;
+end;
+$function$;
+
 -- ─────────────────────────── 5. freezing attachments ───────────────────────────
 
 /**
@@ -306,6 +415,7 @@ revoke all on function public.ugc_filter_forest_message() from public, anon, aut
  *
  *   image / file → `key` must sit under <scope>/<room>/<sender>/ AND exist in chat-media. The
  *                  snapshot's mime + size come from storage's own metadata, never the client.
+ *   video        → a 0279 ledger key issued to the sender and unclaimed; at most one per message.
  *   anthem       → the sender's saved anthem, frozen.
  *   share kinds  → agora_attachment_snapshot, scoped to the sender.
  */
@@ -330,6 +440,7 @@ declare
   v_snap jsonb;
   v_meta jsonb;
   v_prefix text := p_scope || '/' || p_room_id::text || '/' || p_user::text || '/';
+  v_videos int := 0;
 begin
   if p_input is null or jsonb_typeof(p_input) <> 'array' then
     return '[]'::jsonb;
@@ -371,6 +482,27 @@ begin
       end if;
       v_out := v_out || jsonb_build_array(jsonb_build_object(
         'kind', v_kind, 'ref_id', null, 'key', v_key, 'snapshot', v_snap));
+
+    elsif v_kind = 'video' then
+      -- 0279's ledger is the only source of truth: a key it issued to THIS sender that no post and
+      -- no message has claimed. The facts are the ledger's, never the client's. chat_send claims
+      -- the row once the message exists; that UPDATE re-checks both nulls, which settles a race.
+      v_videos := v_videos + 1;
+      if v_videos > 1 then
+        raise exception 'One video per message.';
+      end if;
+      select jsonb_build_object(
+        'video_key', u.video_key, 'poster_key', u.poster_key,
+        'duration_s', u.duration_s, 'width', u.width, 'height', u.height
+      ) into v_snap
+        from agora_video_uploads u
+       where u.video_key = v_key and u.user_id = p_user
+         and u.post_id is null and u.chat_message_id is null;
+      if v_snap is null then
+        raise exception 'That video is already sent, or is not yours.';
+      end if;
+      v_out := v_out || jsonb_build_array(jsonb_build_object(
+        'kind', 'video', 'ref_id', null, 'key', v_key, 'snapshot', v_snap));
 
     elsif v_kind = 'anthem' then
       select jsonb_build_object('title', pi.anthem->>'title', 'artist', pi.anthem->>'artist',
@@ -415,6 +547,7 @@ as $$
     when p_attachments->0->>'kind' = 'image' then
       case when jsonb_array_length(p_attachments) > 1 then 'Sent photos' else 'Sent a photo' end
     when p_attachments->0->>'kind' = 'file' then 'Sent a file'
+    when p_attachments->0->>'kind' = 'video' then 'Sent a video'
     when p_attachments->0->>'kind' = 'lockin' then 'Shared a session'
     when p_attachments->0->>'kind' = 'anthem' then 'Shared their anthem'
     else 'Shared a win'
@@ -422,6 +555,26 @@ as $$
 $$;
 
 -- ─────────────────────────── 6. hard-delete media ───────────────────────────
+--
+-- Two stores, two queues, one trigger:
+--   · chat-media (photos, files) → chat_media_purges → chat-media-purge (Storage API remove). A SQL
+--     `delete from storage.objects` would drop the metadata row and strand the bytes, so SQL never
+--     touches storage.objects here — it only queues the key.
+--   · R2 clips (video) → delete the agora_video_uploads row → 0279's agora_video_uploads_purge
+--     trigger queues video + poster in gym_clip_purges → gym-clip-purge (already handles agora/).
+
+create table if not exists public.chat_media_purges (
+  id          bigserial primary key,
+  object_key  text not null,
+  queued_at   timestamptz not null default now(),
+  attempts    int not null default 0,
+  last_error  text
+);
+
+create index if not exists chat_media_purges_pending_idx on public.chat_media_purges (queued_at);
+
+alter table public.chat_media_purges enable row level security;   -- no policies: service role only
+revoke all on public.chat_media_purges from public, anon, authenticated;
 
 create or replace function public.chat_purge_media(p_attachments jsonb, p_sender uuid)
 returns void
@@ -429,20 +582,16 @@ language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  v_key text;
 begin
-  if to_regclass('storage.objects') is null then return; end if;
-  for v_key in
-    select a.value->>'key'
-      from jsonb_array_elements(coalesce(p_attachments, '[]'::jsonb)) a
-     where a.value->>'kind' in ('image', 'file') and a.value->>'key' is not null
-  loop
-    -- Only ever the sender's own segment: a forged key in the jsonb cannot aim this at anyone else.
-    continue when split_part(v_key, '/', 3) <> p_sender::text;
-    perform set_config('storage.allow_delete_query', 'true', true);
-    execute 'delete from storage.objects where bucket_id = $1 and name = $2' using 'chat-media', v_key;
-  end loop;
+  insert into chat_media_purges (object_key)
+  select a.value->>'key'
+    from jsonb_array_elements(coalesce(p_attachments, '[]'::jsonb)) a
+   where a.value->>'kind' in ('image', 'file')
+     -- Only the chat-media key shape chat_freeze_attachments admits...
+     and a.value->>'key' ~ '^(dm|forest)/[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\.(jpg|jpeg|png|webp|heic|pdf|txt|md|docx)$'
+     -- ...and only ever the sender's own segment: a forged key in the jsonb cannot aim this at
+     -- anyone else's file.
+     and split_part(a.value->>'key', '/', 3) = p_sender::text;
 end;
 $$;
 
@@ -452,13 +601,17 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_scope text := case tg_table_name when 'dm_messages' then 'dm' when 'forest_messages' then 'forest' end;
 begin
-  if tg_op = 'DELETE' then
+  if tg_op = 'DELETE' or (old.deleted_at is null and new.deleted_at is not null) then
     perform chat_purge_media(old.attachments, old.sender_id);
-    return old;
+    -- The claimed clip, if any. 0279's AFTER DELETE trigger on the ledger queues both R2 objects.
+    delete from agora_video_uploads u
+     where u.chat_scope = v_scope and u.chat_message_id = old.id;
   end if;
-  if old.deleted_at is null and new.deleted_at is not null then
-    perform chat_purge_media(old.attachments, old.sender_id);
+  if tg_op = 'DELETE' then
+    return old;
   end if;
   return new;
 end;
@@ -474,8 +627,83 @@ create trigger forest_messages_media_cleanup
   after update of deleted_at or delete on public.forest_messages
   for each row execute function public.chat_message_media_cleanup();
 
+-- Called by cron. Posts to chat-media-purge only when there is work (pg_net sends after commit).
+-- kick_gym_clip_purge's pattern (0266): the service key from Vault, the same project URL.
+create or replace function public.kick_chat_media_purge()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_key text;
+begin
+  if not exists (select 1 from chat_media_purges where attempts < 5) then
+    return;
+  end if;
+  select decrypted_secret into v_key from vault.decrypted_secrets where name = 'service_role_key';
+  if v_key is null then
+    raise warning 'kick_chat_media_purge: service_role_key not in Vault';
+    return;
+  end if;
+  perform net.http_post(
+    url := 'https://coaqgcquzywadrghzbfj.supabase.co/functions/v1/chat-media-purge',
+    headers := jsonb_build_object('Authorization', 'Bearer ' || v_key, 'Content-Type', 'application/json'),
+    body := '{}'::jsonb
+  );
+end;
+$$;
+
+select cron.unschedule('philoi-chat-media-purge')
+ where exists (select 1 from cron.job where jobname = 'philoi-chat-media-purge');
+select cron.schedule('philoi-chat-media-purge', '*/10 * * * *', 'select public.kick_chat_media_purge()');
+
 revoke all on function public.chat_purge_media(jsonb, uuid) from public, anon, authenticated;
 revoke all on function public.chat_message_media_cleanup() from public, anon, authenticated;
+revoke all on function public.kick_chat_media_purge() from public, anon, authenticated;
+
+-- 0279's sweep (live body, pg_get_functiondef 2026-10-27) with ONE change: a clip a chat message
+-- claimed is claimed, not abandoned — without `chat_message_id is null` the sweep would delete every
+-- DM video a day after it was sent. Same signature; the cron job (philoi-agora-video-sweep) is
+-- unchanged and keeps calling it.
+create or replace function public.sweep_agora_video_uploads()
+returns void
+language sql
+security definer
+set search_path to 'public'
+as $function$
+  delete from agora_video_uploads
+   where post_id is null and chat_message_id is null and issued_at < now() - interval '1 day';
+$function$;
+
+-- 0279's post claim (live body, pg_get_functiondef 2026-10-27) with ONE change: a clip already sent
+-- in a chat cannot also be posted to the Agora (the post's delete would purge the message's video).
+-- agora_video_uploads_one_claim would refuse it anyway; this refuses it with the friendly line.
+create or replace function public.agora_post_claim_video()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_key text;
+begin
+  for v_key in
+    select el.value->>'key'
+      from jsonb_array_elements(coalesce(new.attachments, '[]'::jsonb)) el
+     where el.value->>'kind' = 'video'
+  loop
+    update agora_video_uploads u
+       set post_id = new.id
+     where u.video_key = v_key and u.user_id = new.user_id and u.post_id is null
+       and u.chat_message_id is null;
+    if not found then
+      raise exception 'That video is already posted, or is not yours.';
+    end if;
+  end loop;
+  return null;
+end;
+$function$;
 
 -- ─────────────────────────── 7. push ───────────────────────────
 
@@ -573,7 +801,9 @@ $$;
 revoke all on function public.dm_notify(uuid, uuid, uuid, text) from public, anon, authenticated;
 
 -- Live body (pg_get_functiondef, 2026-10-27 — identical to 0206) with its notify block replaced by
--- dm_notify. Same signature, so CREATE OR REPLACE is safe; installed builds keep calling it.
+-- dm_notify, and its rate count leaving out lock-in mirror rows (section 9) — those are the overlay's
+-- sends, already limited there. Same signature, so CREATE OR REPLACE is safe; installed builds keep
+-- calling it.
 create or replace function public.dm_send(p_thread_id uuid, p_body text)
 returns uuid
 language plpgsql
@@ -614,7 +844,8 @@ begin
 
   select count(*) into v_recent
   from dm_messages m
-  where m.sender_id = v_me and m.created_at > now() - interval '10 seconds';
+  where m.sender_id = v_me and m.created_at > now() - interval '10 seconds'
+    and m.lockin_message_id is null;
   if v_recent >= 10 then
     raise exception 'Slow down a moment.';
   end if;
@@ -701,6 +932,7 @@ revoke all on function public.forest_chat_notify(uuid, uuid, text) from public, 
  * Send into a DM ('dm', thread id) or a forest room ('forest', forest id), with any mix of
  * attachments. Every gate dm_send applies to a DM applies here too, restated rather than routed
  * through dm_send because this insert carries attachments dm_send has no parameter for.
+ * A 'video' attachment is claimed from the 0279 ledger after the row exists (see the header).
  */
 create or replace function public.chat_send(
   p_scope text,
@@ -720,6 +952,7 @@ declare
   v_att jsonb;
   v_id uuid;
   v_recent int;
+  v_video_key text;
 begin
   if v_me is null then raise exception 'Not signed in.'; end if;
   if exists (select 1 from profiles p where p.id = v_me and p.is_disabled) then
@@ -740,7 +973,8 @@ begin
       raise exception 'You can only message friends.';
     end if;
     select count(*) into v_recent from dm_messages m
-     where m.sender_id = v_me and m.created_at > now() - interval '10 seconds';
+     where m.sender_id = v_me and m.created_at > now() - interval '10 seconds'
+       and m.lockin_message_id is null;
   elsif p_scope = 'forest' then
     if not is_forest_chat_member(p_room_id) then
       raise exception 'Join this forest to chat in it.';
@@ -782,6 +1016,21 @@ begin
 
     perform forest_chat_notify(p_room_id, v_me, coalesce(v_body, chat_attachments_phrase(v_att)));
   end if;
+
+  -- Claim the clip (chat_freeze_attachments allowed at most one). Both nulls are re-checked under
+  -- the row lock the UPDATE takes, so a second message — or a post — racing for the same key loses
+  -- here and the whole send rolls back.
+  for v_video_key in
+    select a.value->>'key' from jsonb_array_elements(v_att) a where a.value->>'kind' = 'video'
+  loop
+    update agora_video_uploads u
+       set chat_scope = p_scope, chat_message_id = v_id
+     where u.video_key = v_video_key and u.user_id = v_me
+       and u.post_id is null and u.chat_message_id is null;
+    if not found then
+      raise exception 'That video is already sent, or is not yours.';
+    end if;
+  end loop;
 
   return v_id;
 end;
@@ -849,7 +1098,8 @@ set search_path = public
 as $$
 begin
   if auth.uid() is null then raise exception 'Not signed in.'; end if;
-  -- The media goes with it: chat_message_media_cleanup fires on the deleted_at write.
+  -- The media goes with it: chat_message_media_cleanup fires on the deleted_at write, queues the
+  -- chat-media keys and deletes the claimed clip's ledger row (which queues its R2 purge).
   if p_scope = 'dm' then
     update dm_messages m set deleted_at = now()
      where m.id = p_message_id and m.sender_id = auth.uid() and m.deleted_at is null;
@@ -1051,18 +1301,51 @@ as $function$
   order by t.last_message_at desc;
 $function$;
 
+/**
+ * The R2 keys behind the given chat messages' videos — only for messages the CALLER can read.
+ * SECURITY DEFINER because the ledger has no policies; the membership question is restated from
+ * the two read policies above, word for word (deleted_at null, room member, not blocked either
+ * way), so a row the caller cannot `select` never yields a key here. Capped at 30 ids.
+ * Every column reference in the body is alias-qualified, so the RETURNS TABLE names shadow nothing.
+ */
+create or replace function public.chat_video_sources(p_scope text, p_message_ids uuid[])
+returns table (message_id uuid, video_key text, poster_key text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select u.chat_message_id, u.video_key, u.poster_key
+    from agora_video_uploads u
+    join dm_messages m on m.id = u.chat_message_id
+   where p_scope = 'dm' and u.chat_scope = 'dm'
+     and u.chat_message_id = any (p_message_ids[1:30])
+     and auth.uid() is not null
+     and m.deleted_at is null and is_dm_member(m.thread_id) and not is_blocked_either_way(m.sender_id)
+  union all
+  select u.chat_message_id, u.video_key, u.poster_key
+    from agora_video_uploads u
+    join forest_messages m on m.id = u.chat_message_id
+   where p_scope = 'forest' and u.chat_scope = 'forest'
+     and u.chat_message_id = any (p_message_ids[1:30])
+     and auth.uid() is not null
+     and m.deleted_at is null and is_forest_chat_member(m.forest_id) and not is_blocked_either_way(m.sender_id);
+$$;
+
 revoke all on function public.chat_send(text, uuid, text, jsonb) from public, anon;
 revoke all on function public.chat_mark_read(text, uuid) from public, anon;
 revoke all on function public.chat_set_muted(text, uuid, boolean) from public, anon;
 revoke all on function public.chat_delete_my_message(text, uuid) from public, anon;
 revoke all on function public.report_chat_message(text, uuid, text) from public, anon;
 revoke all on function public.get_my_chats() from public, anon;
+revoke all on function public.chat_video_sources(text, uuid[]) from public, anon;
 grant execute on function public.chat_send(text, uuid, text, jsonb) to authenticated;
 grant execute on function public.chat_mark_read(text, uuid) to authenticated;
 grant execute on function public.chat_set_muted(text, uuid, boolean) to authenticated;
 grant execute on function public.chat_delete_my_message(text, uuid) to authenticated;
 grant execute on function public.report_chat_message(text, uuid, text) to authenticated;
 grant execute on function public.get_my_chats() to authenticated;
+grant execute on function public.chat_video_sources(text, uuid[]) to authenticated;
 
 -- ─────────────────────────── 9. lock-in messages persist in the DM ───────────────────────────
 
@@ -1094,9 +1377,15 @@ begin
   on conflict (user_a, user_b) do update set user_a = excluded.user_a
   returning id into v_thread;
 
+  -- The overlay already rate-limited this send; the archive copy must not spend (or be refused by)
+  -- the DM limit. ugc_filter_dm exempts a row only with lockin_message_id set AND this flag on, and
+  -- the flag is switched off again straight after, so nothing later in the transaction inherits it.
+  -- (On an error the block's subtransaction rolls the flag back with everything else.)
+  perform set_config('philoi.chat_mirror', 'on', true);
   insert into dm_messages (thread_id, sender_id, body, kind, created_at, lockin_message_id)
   values (v_thread, p_msg.from_user, p_msg.body, 'text', p_msg.created_at, p_msg.id)
   on conflict (lockin_message_id) where lockin_message_id is not null do nothing;
+  perform set_config('philoi.chat_mirror', 'off', true);
 
   update dm_threads t
      set last_message_at = greatest(t.last_message_at, p_msg.created_at),
@@ -1107,7 +1396,7 @@ begin
    where t.id = v_thread;
 exception
   -- The overlay's send must never fail because its persistent copy could not be written (the UGC
-  -- rate trigger on dm_messages, say). The live message still lands; only the archive is missed.
+  -- word filter on dm_messages, say). The live message still lands; only the archive is missed.
   when others then
     raise warning '0284 lock-in mirror skipped %: %', p_msg.id, sqlerrm;
 end;
@@ -1187,6 +1476,186 @@ begin
   if chat_can_use_room('dm', 'not-a-uuid') or chat_can_use_room('nope', gen_random_uuid()::text) then
     raise exception '0284: chat_can_use_room admitted a malformed room';
   end if;
+  -- Deleted rows are unreadable — both policies, every other condition kept.
+  if (select pg_get_expr(p.polqual, p.polrelid) from pg_policy p
+       where p.polrelid = 'public.dm_messages'::regclass and p.polname = 'dm_messages: read if member')
+     !~ 'deleted_at IS NULL.*is_dm_member\(thread_id\).*NOT is_blocked_either_way\(sender_id\)' then
+    raise exception '0284: the DM read policy does not hide deleted messages';
+  end if;
+  if (select pg_get_expr(p.polqual, p.polrelid) from pg_policy p
+       where p.polrelid = 'public.forest_messages'::regclass and p.polname = 'forest_messages: read if member')
+     !~ 'deleted_at IS NULL.*is_forest_chat_member\(forest_id\).*NOT is_blocked_either_way\(sender_id\)' then
+    raise exception '0284: the forest read policy does not hide deleted messages';
+  end if;
+
+  if not exists (select 1 from cron.job where jobname = 'philoi-chat-media-purge')
+     or not exists (select 1 from cron.job where jobname = 'philoi-agora-video-sweep') then
+    raise exception '0284: a purge/sweep cron job is missing';
+  end if;
+
+  -- Grants live per signature, and revoking authenticated/public leaves anon: check all three.
+  if has_function_privilege('anon', 'public.chat_video_sources(text, uuid[])', 'execute')
+     or not has_function_privilege('authenticated', 'public.chat_video_sources(text, uuid[])', 'execute')
+     or has_function_privilege('authenticated', 'public.kick_chat_media_purge()', 'execute')
+     or has_function_privilege('anon', 'public.kick_chat_media_purge()', 'execute')
+     or has_function_privilege('authenticated', 'public.sweep_agora_video_uploads()', 'execute')
+     or has_function_privilege('authenticated', 'public.chat_purge_media(jsonb, uuid)', 'execute') then
+    raise exception '0284: grants are wrong';
+  end if;
+
+  -- One name, one signature: nothing here may have left an overload behind.
+  if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public'
+                and p.proname in ('chat_video_sources', 'chat_send', 'chat_freeze_attachments', 'dm_send',
+                                  'sweep_agora_video_uploads', 'agora_post_claim_video', 'ugc_filter_dm',
+                                  'chat_purge_media', 'kick_chat_media_purge')
+              group by p.proname having count(*) > 1) then
+    raise exception '0284: a function was overloaded instead of replaced';
+  end if;
+
   raise notice '0284 ok';
 end;
 $verify$;
+
+-- The real paths, as real users, undone by raising. Each "expect refused" is paired with an
+-- "expect accepted" on the same setup, so no check here would also pass under the bug it guards.
+-- philoi.suppress_push is set first; nothing below pushes, and pg_net would only send after commit.
+do $probe$
+declare
+  v_thread uuid;
+  v_a uuid;
+  v_b uuid;
+  v_out uuid;
+  v_key text;
+  v_poster text;
+  v_old text;
+  v_msg uuid;
+  v_img text;
+  v_forged text;
+  v_n int;
+  v_att jsonb;
+begin
+  perform set_config('philoi.suppress_push', 'on', true);
+
+  select t.id, t.user_a, t.user_b into v_thread, v_a, v_b from dm_threads t order by t.created_at limit 1;
+  select p.id into v_out from profiles p where p.id not in (v_a, v_b) order by p.created_at limit 1;
+  if v_thread is null or v_out is null then
+    raise notice '0284 probe skipped: no DM thread to probe with';
+    return;
+  end if;
+
+  begin
+    v_key := 'agora/' || v_a || '/' || gen_random_uuid() || '.mp4';
+    v_poster := replace(v_key, '.mp4', '_poster.jpg');
+    v_old := 'agora/' || v_a || '/' || gen_random_uuid() || '.mp4';
+    insert into agora_video_uploads (video_key, poster_key, user_id, bytes, duration_s, width, height, issued_at)
+    values (v_key, v_poster, v_a, 1000000, 12.4, 720, 1280, now() - interval '2 days'),
+           (v_old, replace(v_old, '.mp4', '_poster.jpg'), v_a, 1000000, 3.0, null, null, now() - interval '2 days');
+
+    -- Freezing: someone else's key is refused; the owner's is frozen from the ledger.
+    begin
+      perform chat_freeze_attachments(v_b, 'dm', v_thread, jsonb_build_array(jsonb_build_object('kind', 'video', 'key', v_key)));
+      raise exception '0284 probe: another user froze the clip';
+    exception when others then
+      if sqlerrm like '0284 probe:%' then raise; end if;
+    end;
+    v_att := chat_freeze_attachments(v_a, 'dm', v_thread, jsonb_build_array(jsonb_build_object('kind', 'video', 'key', v_key)));
+    if v_att->0->'snapshot'->>'poster_key' is distinct from v_poster
+       or (v_att->0->'snapshot'->>'duration_s')::numeric <> 12.4 then
+      raise exception '0284 probe: video snapshot not frozen from the ledger';
+    end if;
+    begin
+      perform chat_freeze_attachments(v_a, 'dm', v_thread, jsonb_build_array(
+        jsonb_build_object('kind', 'video', 'key', v_key), jsonb_build_object('kind', 'video', 'key', v_old)));
+      raise exception '0284 probe: two videos in one message';
+    exception when others then
+      if sqlerrm like '0284 probe:%' then raise; end if;
+    end;
+
+    -- A message carrying it, plus an own photo key and a forged one under the other member's segment.
+    v_img := 'dm/' || v_thread || '/' || v_a || '/' || gen_random_uuid() || '.jpg';
+    v_forged := 'dm/' || v_thread || '/' || v_b || '/' || gen_random_uuid() || '.jpg';
+    insert into dm_messages (thread_id, sender_id, body, kind, attachments)
+    values (v_thread, v_a, null, 'media', v_att || jsonb_build_array(
+      jsonb_build_object('kind', 'image', 'key', v_img), jsonb_build_object('kind', 'image', 'key', v_forged)))
+    returning id into v_msg;
+    update agora_video_uploads set chat_scope = 'dm', chat_message_id = v_msg where video_key = v_key;
+
+    -- Claimed is claimed: the owner's freeze now refuses it, and the sweep spares it but not the
+    -- equally old unclaimed one.
+    begin
+      perform chat_freeze_attachments(v_a, 'dm', v_thread, jsonb_build_array(jsonb_build_object('kind', 'video', 'key', v_key)));
+      raise exception '0284 probe: a claimed clip froze again';
+    exception when others then
+      if sqlerrm like '0284 probe:%' then raise; end if;
+    end;
+    perform sweep_agora_video_uploads();
+    if not exists (select 1 from agora_video_uploads where video_key = v_key) then
+      raise exception '0284 probe: the sweep took a chat-claimed clip';
+    end if;
+    if exists (select 1 from agora_video_uploads where video_key = v_old) then
+      raise exception '0284 probe: the sweep spared an abandoned clip';
+    end if;
+
+    -- Playback keys: the member gets them, a non-member does not.
+    perform set_config('request.jwt.claims', json_build_object('sub', v_b, 'role', 'authenticated')::text, true);
+    select count(*) into v_n from chat_video_sources('dm', array[v_msg]);
+    if v_n <> 1 then raise exception '0284 probe: member got % sources, expected 1', v_n; end if;
+    select count(*) into v_n from chat_video_sources('forest', array[v_msg]);
+    if v_n <> 0 then raise exception '0284 probe: a DM clip answered under the forest scope'; end if;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_out, 'role', 'authenticated')::text, true);
+    select count(*) into v_n from chat_video_sources('dm', array[v_msg]);
+    if v_n <> 0 then raise exception '0284 probe: a non-member got a DM clip'; end if;
+
+    -- Soft delete: unplayable, ledger row gone, both R2 objects and only the OWN photo queued.
+    update dm_messages set deleted_at = now() where id = v_msg;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_b, 'role', 'authenticated')::text, true);
+    select count(*) into v_n from chat_video_sources('dm', array[v_msg]);
+    if v_n <> 0 then raise exception '0284 probe: a deleted message still plays'; end if;
+    if exists (select 1 from agora_video_uploads where video_key = v_key) then
+      raise exception '0284 probe: the clip''s ledger row survived its message';
+    end if;
+    select count(*) into v_n from gym_clip_purges
+     where object_key in (v_key, v_poster) and purged_at is null and queued_at = now();
+    if v_n <> 2 then raise exception '0284 probe: % of 2 clip objects queued for purge', v_n; end if;
+    if not exists (select 1 from chat_media_purges where object_key = v_img and queued_at = now()) then
+      raise exception '0284 probe: the photo was not queued for purge';
+    end if;
+    if exists (select 1 from chat_media_purges where object_key = v_forged) then
+      raise exception '0284 probe: a forged key was queued for purge';
+    end if;
+
+    -- The DM rate limit: real sends fill it to 8 (the media message above already counts) and the
+    -- next is refused (positive control)...
+    while (select count(*) from dm_messages m
+            where m.sender_id = v_a and m.created_at > now() - interval '10 seconds'
+              and m.lockin_message_id is null) < 8 loop
+      insert into dm_messages (thread_id, sender_id, body, kind) values (v_thread, v_a, 'probe', 'text');
+    end loop;
+    begin
+      insert into dm_messages (thread_id, sender_id, body, kind) values (v_thread, v_a, 'probe', 'text');
+      raise exception '0284 probe: the 9th real DM was not rate limited';
+    exception when others then
+      if sqlerrm like '0284 probe:%' then raise; end if;
+    end;
+    -- ...a lock-in id WITHOUT the mirror flag is still refused (no client-forgeable bypass)...
+    begin
+      insert into dm_messages (thread_id, sender_id, body, kind, lockin_message_id)
+      values (v_thread, v_a, 'probe', 'text', gen_random_uuid());
+      raise exception '0284 probe: a lock-in id alone bypassed the rate limit';
+    exception when others then
+      if sqlerrm like '0284 probe:%' then raise; end if;
+    end;
+    -- ...and the mirror's own insert lands regardless.
+    perform set_config('philoi.chat_mirror', 'on', true);
+    insert into dm_messages (thread_id, sender_id, body, kind, lockin_message_id)
+    values (v_thread, v_a, 'probe', 'text', gen_random_uuid());
+    perform set_config('philoi.chat_mirror', 'off', true);
+
+    raise exception using errcode = 'P0284', message = 'rollback';
+  exception
+    when sqlstate 'P0284' then null;
+  end;
+  raise notice '0284 probe ok';
+end;
+$probe$;

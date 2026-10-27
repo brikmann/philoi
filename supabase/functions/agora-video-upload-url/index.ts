@@ -48,12 +48,21 @@ Deno.serve(async (req) => {
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    const { count, error: countError } = await admin
-      .from('agora_video_uploads')
-      .select('video_key', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .is('post_id', null)
-      .gte('issued_at', since);
+    // 0284 · a clip sent in a chat is claimed too, not "unposted". The column only exists once 0284
+    // is applied, and this function is live before that — so a server without it (42703, undefined
+    // column) counts the way 0279 did rather than failing every upload.
+    const unposted = (claimedByChat: boolean) => {
+      let q = admin
+        .from('agora_video_uploads')
+        .select('video_key', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .is('post_id', null)
+        .gte('issued_at', since);
+      if (claimedByChat) q = q.is('chat_message_id', null);
+      return q;
+    };
+    let { count, error: countError } = await unposted(true);
+    if (countError?.code === '42703') ({ count, error: countError } = await unposted(false));
     if (countError) return json({ error: countError.message }, 500);
     if ((count ?? 0) >= MAX_UNCLAIMED_PER_DAY) {
       return json({ error: 'Too many unposted videos today. Try again tomorrow.' }, 429);
