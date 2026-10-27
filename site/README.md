@@ -65,21 +65,44 @@ leads with connection; competition is an arena you opt into. In order:
    3-phone fan (Lock In · Home · Social reel) with floating cheer / ⚔ challenge / rank-up chips
 3. App gallery: Lock In, Social reel, Leaderboard
 4. Thesis: "Social media runs on comparison. philoi runs on connection."
-5. How it works (3 steps), then Features (6 cards)
+5. How it works (3 steps), then Features (6 cards) — each with a mini app-snippet on top
 6. Flex: equipped profile, the Shop, earned-vs-collected lanes, the Flame Pass band, and
    the flare showing on a leaderboard row and a post
-7. CTA band, then the footer with Privacy / Terms / Child safety / Delete account / Support
+7. Season pass: "We threw in a season pass, because everyone loves rewards." over Season 1's
+   real reward track (every fifth level, from `forge-pass.ts`), Free + Flame Pass lanes
+8. CTA band, then the footer with Privacy / Terms / Child safety / Delete account / Support
 
 The phones are illustrative HTML, not screenshots. Keep them truthful to the app:
 comment-only social (no likes or follower counts), and shop items use real names
 and rarities from `catalog.ts`. Items come from crates and drops, so tiles are
-tagged with their source, not given a price. The Flame Pass counts in **levels**.
-IAP copy must not say "free" or "limited time" or show a price.
+tagged with their source, not given a price. Medals are earned, so none sit in the
+Shop. The Flame Pass counts in **levels**. IAP copy must not say "limited time" or
+show a price, and "free" only as "Free track for everyone" (the always-free lane, not
+a trial).
 
 Desktop-first, with breakpoints at 880px (single column, centred hero) and 520px
 (side phones dim, chips move to the empty lower half of the centre phone, grids
-collapse). The halo spin and pulse dot are CSS-only and stop under
-`prefers-reduced-motion`.
+collapse). Motion is CSS plus one small inline script: one-shot scroll reveals, bobbing
+hero phones, drifting chips, a breathing glow, flame flicker, button sheen, shop shimmer,
+gallery tilt, the pass bar filling and levels popping in, and a nav that condenses on
+scroll. The script adds the hidden state itself, so without JS nothing is hidden, and
+`prefers-reduced-motion` switches all of it off.
+
+## Cosmetic art
+
+Every flame, flare, halo, card, medal, relic, crate, the house crest and the Lock In flame
+on the page is the app's own renderer (`ItemArt`, `BoxArt`, `HaloRing`, `PatronCrest`,
+`FlameLogo`) exported to inline SVG. Each sits between `<!--art:KEY-->` and `<!--/art-->`
+in `index.html`, with the keys listed in `_assets/cosmetic-art/art.jsx`. After an art or
+catalog change, or to add a key:
+
+```bash
+node site/_assets/cosmetic-art/export.mjs
+```
+
+It renders from `git archive HEAD src` (so it never ships a sibling session's uncommitted
+item), refills every marker in place, and is idempotent. The first run installs esbuild
+into a temp folder; the app's `package.json` is untouched.
 
 ## Availability
 

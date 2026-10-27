@@ -1,0 +1,18 @@
+import { View, Text } from './rn.js';
+const id = x => x;
+const sv = v => ({ value: v, get(){return v}, set(){} , modify(){}, addListener(){}, removeListener(){} });
+export const useSharedValue = sv; export const makeMutable = sv;
+export const useAnimatedStyle = () => ({}); export const useAnimatedProps = () => ({});
+export const useDerivedValue = (fn) => { try { return sv(fn()); } catch { return sv(0); } };
+export const useAnimatedReaction = () => {}; export const useFrameCallback = () => ({setActive(){}});
+export const withRepeat = id, withTiming = id, withSequence = (...a)=>a[0], withDelay = (d,x)=>x, withSpring = id;
+export const cancelAnimation = () => {}; export const runOnJS = f=>f; export const runOnUI = f=>f;
+export const useReducedMotion = () => true;
+export const interpolate = (x, i, o) => o[0]; export const interpolateColor = (x,i,o)=>o[0];
+export const Extrapolation = { CLAMP:'clamp', EXTEND:'extend', IDENTITY:'identity' }; export const Extrapolate = Extrapolation;
+const ease = new Proxy(function(){return id}, { get: () => (..._a) => id, apply: () => id });
+export const Easing = new Proxy({}, { get: () => ease });
+export const FadeIn = {}, FadeOut = {}, ReduceMotion = {System:0};
+const createAnimatedComponent = c => c;
+const Animated = { View, Text, createAnimatedComponent, Image: View, ScrollView: View };
+export default Animated; export { createAnimatedComponent };

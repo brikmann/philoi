@@ -1,0 +1,5 @@
+import React from 'react';
+const mk = tag => function SvgEl({children, style, onLayout, ...p}) { return React.createElement(tag, p, children); };
+function Svg({children, style, width, height, viewBox, ...p}) { return React.createElement('svg', {xmlns:'http://www.w3.org/2000/svg', width, height, viewBox, ...p}, children); }
+export default Svg; export { Svg };
+export const Circle=mk('circle'),ClipPath=mk('clipPath'),Defs=mk('defs'),Ellipse=mk('ellipse'),G=mk('g'),Line=mk('line'),LinearGradient=mk('linearGradient'),Path=mk('path'),RadialGradient=mk('radialGradient'),Rect=mk('rect'),Stop=mk('stop'),Polygon=mk('polygon'),Polyline=mk('polyline'),Text=mk('text'),TSpan=mk('tspan'),Mask=mk('mask'),Pattern=mk('pattern'),Use=mk('use'),Symbol=mk('symbol'),Filter=mk('filter'),FeGaussianBlur=mk('feGaussianBlur'),FeOffset=mk('feOffset'),FeMerge=mk('feMerge'),FeMergeNode=mk('feMergeNode'),FeColorMatrix=mk('feColorMatrix'),FeBlend=mk('feBlend'),ForeignObject=mk('foreignObject'),TextPath=mk('textPath');
