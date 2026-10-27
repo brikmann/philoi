@@ -23,6 +23,7 @@ import {
   AgoraLockInPicker,
   type AchievementChoice,
 } from '@/components/agora/agora-pickers';
+import { Icon, type IconName } from '@/components/ui/icon';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
 import { AGORA_VIDEO_ENABLED } from '@/constants/feature-flags';
 import { ScreenBackground } from '@/components/ui/screen-background';
@@ -253,8 +254,8 @@ export default function AgoraComposeScreen() {
     const run = (videoRun.current += 1);
     setVideo(null);
     setPreparing(0);
-    // A clip reaches further than a photo: start it at Friends. Widening is one tap, and a choice.
-    if (!lane) setVisibility('friends');
+    // A clip follows the post's audience like a photo does (Noah, 2026-10-27) — picking one doesn't
+    // narrow it. An Everyone post still confirms once on Post (below).
     try {
       const prepared = await prepareAgoraVideo({ uri: asset.uri, durationMs: asset.duration }, (p) => {
         if (run === videoRun.current) setPreparing(p);
@@ -526,14 +527,15 @@ export default function AgoraComposeScreen() {
             */}
             <Text style={styles.whoLabel}>WHO SEES IT</Text>
             <AudienceOption
-              icon="👥"
+              icon="friends"
               label="Friends only"
               sub="just the people you added"
               on={!lane && visibility === 'friends'}
               onPress={() => chooseSquare('friends')}
             />
             <AudienceOption
-              icon={lane?.kind === 'campfire' ? (lane.emoji ?? '🔥') : '🔥'}
+              icon="campfire"
+              emoji={lane?.kind === 'campfire' ? lane.emoji : null}
               label={lane?.kind === 'campfire' ? lane.name : 'A campfire'}
               sub={lane?.kind === 'campfire' ? 'the campfire’s members · change' : 'pick which'}
               on={lane?.kind === 'campfire'}
@@ -541,7 +543,8 @@ export default function AgoraComposeScreen() {
               chevron
             />
             <AudienceOption
-              icon={lane?.kind === 'forest' ? (lane.emoji ?? '🌲') : '🌲'}
+              icon="forest"
+              emoji={lane?.kind === 'forest' ? lane.emoji : null}
               label={lane?.kind === 'forest' ? lane.name : 'A forest'}
               sub={lane?.kind === 'forest' ? 'everyone in the forest · change' : 'pick which'}
               on={lane?.kind === 'forest'}
@@ -549,18 +552,16 @@ export default function AgoraComposeScreen() {
               chevron
             />
             <AudienceOption
-              icon="🌐"
+              icon="everyone"
               label="Everyone"
               sub="public on Philoi"
               on={!lane && visibility === 'public'}
               onPress={() => chooseSquare('public')}
             />
-            <Text style={styles.promise}>
-              ✓ {promise} No algorithm — people only see what they chose.
-            </Text>
-            {(video || preparing !== null) && !lane && visibility === 'friends' ? (
-              <Text style={styles.audienceHint}>Videos start at Friends. Widening it is your call.</Text>
-            ) : null}
+            <View style={styles.promiseRow}>
+              <Icon name="check" size={12} color="#39D98A" />
+              <Text style={styles.promise}>{promise} No algorithm — people only see what they chose.</Text>
+            </View>
 
             <Text style={styles.note}>Comment-only · no likes.</Text>
           </ScrollView>
@@ -589,7 +590,7 @@ export default function AgoraComposeScreen() {
               <Text style={styles.laneEmpty}>
                 {laneKind === 'campfire'
                   ? 'Join a campfire to post into it.'
-                  : 'Join a forest from Social → 🌲 Forests to post into it.'}
+                  : 'Join a forest from Social → Forests to post into it.'}
               </Text>
             ) : (
               <ScrollView style={styles.laneList}>
@@ -663,13 +664,16 @@ function AttachButton({
 /** One WHO SEES IT radio row (mock 320's `.aopt`): green border + filled dot when chosen. */
 function AudienceOption({
   icon,
+  emoji,
   label,
   sub,
   on,
   onPress,
   chevron = false,
 }: {
-  icon: string;
+  icon: IconName;
+  /** The room's own emoji once one is picked — its creator chose it, so it wins over the glyph. */
+  emoji?: string | null;
   label: string;
   sub: string;
   on: boolean;
@@ -684,7 +688,7 @@ function AudienceOption({
       accessibilityRole="radio"
       accessibilityState={{ checked: on }}
       accessibilityLabel={`${label}, ${sub}`}>
-      <Text style={styles.aoptIcon}>{icon}</Text>
+      {emoji ? <Text style={styles.aoptIcon}>{emoji}</Text> : <Icon name={icon} size={19} color={Colors.ink} />}
       <View style={styles.flex}>
         <Text style={styles.aoptName} numberOfLines={1}>
           {label}
@@ -967,19 +971,20 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#39D98A',
   },
+  promiseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: Spacing.one,
+  },
   promise: {
+    flexShrink: 1,
     textAlign: 'center',
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
     lineHeight: 16,
     color: '#39D98A',
-    marginTop: Spacing.one,
-  },
-  audienceHint: {
-    fontFamily: Fonts.body,
-    fontSize: 10.5,
-    color: Colors.textTertiary,
-    marginTop: 6,
   },
   note: {
     textAlign: 'center',

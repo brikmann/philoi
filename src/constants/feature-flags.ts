@@ -49,10 +49,11 @@ export const GYM_VIDEO_CLIPS_ENABLED = true;
 
 // Agora video posts (migration 0279). The composer's Video button and the feed's video tile both
 // sit behind this. Flip it true only once ALL of these hold:
-//   • 0279 is applied (the upload ledger, the 'video' attach kind, the purge trigger + sweep cron);
+//   • 0279 is applied (the upload ledger, the 'video' attach kind, the purge trigger + sweep cron) — done 2026-10-27;
 //   • agora-video-upload-url, agora-video-playback-url and the agora/-aware gym-clip-purge are
 //     deployed — from a clean tree, `functions deploy` ships the working tree;
-//   • Noah has decided the minors / default-visibility question (video starts at Friends today).
+//   • decided 2026-10-27: a video follows the post's audience like a photo; no minors rule beyond
+//     the 18+ signup attestation (no age data, as in 0275). An Everyone video confirms once on Post.
 // Same native modules as gym clips, already in shipped builds; still not an OTA flip (policy).
 export const AGORA_VIDEO_ENABLED = false;
 

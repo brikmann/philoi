@@ -1,4 +1,4 @@
-// Drains gym_clip_purges (0266): deletes every gym clip and thumbnail a workout set has lost —
+// Drains gym_clip_purges (0266, 0279): deletes every gym clip and thumbnail a workout set has lost —
 // removed, replaced, pulled after a failed PR review, or the set deleted — from R2. SQL can queue a
 // key but cannot reach R2, so pg_cron's kick_gym_clip_purge() posts here every 10 minutes when the
 // queue has work. Service-role only: the caller must present the service role key, never a user JWT.
@@ -31,7 +31,9 @@ Deno.serve(async (req) => {
 
   // Only ever touch keys under clips/ (what gym-clip-upload-url writes) or pr-clips/ (where
   // gym-clip-pin moves a PR-backing clip, outside the retention rule).
-  const isClipKey = (k: string) => k.startsWith('clips/') || k.startsWith('pr-clips/');
+  // agora/ is an Agora post's video + poster (0279, agora-video-upload-url), queued when its
+  // agora_video_uploads row goes — post deleted, taken down, account deleted, or never posted.
+  const isClipKey = (k: string) => k.startsWith('clips/') || k.startsWith('pr-clips/') || k.startsWith('agora/');
   const safe = rows.filter((r) => isClipKey(r.object_key));
   const unsafe = rows.filter((r) => !isClipKey(r.object_key));
 
@@ -50,7 +52,7 @@ Deno.serve(async (req) => {
       for (const r of safe) failed.set(r.object_key, msg);
     }
   }
-  for (const r of unsafe) failed.set(r.object_key, 'refused: key outside clips/ and pr-clips/');
+  for (const r of unsafe) failed.set(r.object_key, 'refused: key outside clips/, pr-clips/ and agora/');
 
   const now = new Date().toISOString();
   const done = rows.filter((r) => !failed.has(r.object_key)).map((r) => r.id);
