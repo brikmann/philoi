@@ -1187,6 +1187,7 @@ export type AnalyticsEventName =
   // The immersive Home feed (mock 317): a page paged into view, and the rail's share.
   | 'feed_page_viewed'
   | 'agora_shared'
+  | 'reel_challenge_opened'
   | 'agora_posted'
   | 'agora_session_autoposted'
   | 'forest_joined'
@@ -1940,7 +1941,42 @@ export type ChallengeShape = 'duel' | 'collective' | 'placement' | 'team_match';
  *  keeps centrally — each racer's number lives in their OWN personal goal (the mirror goal a
  *  campfire challenge adds to their lock-in menu), and challenge_racer_score reads it through
  *  campfire_challenge_goals. `count_unit` names what is being counted. */
-export type SocialChallengeRaceMetric = 'lockin_time' | 'volume' | 'distance' | 'ai' | 'xp' | 'grade' | 'count';
+export type SocialChallengeRaceMetric = 'lockin_time' | 'volume' | 'distance' | 'ai' | 'xp' | 'grade' | 'count' | 'verified_lift';
+
+/** agora_verified_lifts (0282): the verified lift a post shows the viewer. */
+export type VerifiedLiftRow = {
+  post_id: string;
+  workout_set_id: string;
+  owner_id: string;
+  exercise: string;
+  slug: string;
+  weight: number;
+  reps: number;
+  duration_s: number | null;
+  resolution: string | null;
+  /** A friend, not you, not blocked either way. */
+  can_challenge: boolean;
+  /** Your own live challenge on this clip, if you've already sent one. */
+  my_challenge_id: string | null;
+};
+
+/** get_lift_challenge (0282): a verified_lift race as its two racers see it. */
+export type LiftChallengeRow = {
+  challenge_id: string;
+  owner_id: string;
+  challenger_id: string;
+  exercise: string;
+  target_weight: number;
+  target_reps: number;
+  source_post_id: string | null;
+  source_set_id: string | null;
+  best_weight: number | null;
+  best_reps: number | null;
+  beaten: boolean;
+  status: string;
+  starts_at: string | null;
+  ends_at: string | null;
+};
 
 // ───────────────────────────── team mode (0173) ─────────────────────────────
 
@@ -3668,6 +3704,11 @@ export type Database = {
       };
       // Report-only PR verification (0266): files a 'PR dispute' report; three open disputes pull it.
       dispute_pr: { Args: { p_workout_set_id: string; p_note?: string | null }; Returns: DisputeResult };
+      // Challenge from the reel (0282). lib/api/reel-challenge.ts.
+      set_workout_set_clip_shown: { Args: { p_workout_set_id: string; p_shown: boolean }; Returns: WorkoutSet };
+      agora_verified_lifts: { Args: { p_post_ids: string[] }; Returns: VerifiedLiftRow[] };
+      create_reel_challenge: { Args: { p_post_id: string; p_window?: 'season' | '7d' | '14d' }; Returns: SocialChallenge };
+      get_lift_challenge: { Args: { p_challenge_id: string }; Returns: LiftChallengeRow[] };
       start_lock_in_session: {
         // Every argument optional and the new ones appended (0182), so an installed build calling
         // the old three still resolves against the same function.

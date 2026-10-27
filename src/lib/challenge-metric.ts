@@ -83,6 +83,14 @@ const METRICS: Record<SocialChallengeRaceMetric, MetricSpec> = {
     noun: 'reps',
     format: (v) => Math.round(v).toLocaleString('en-US'),
   },
+  verified_lift: {
+    // 0282 — challenge from the reel: beat one verified set. Like grade, a bar you clear rather
+    // than a pile you grow; public_name carries the exact target ("Beat 405 lb × 1 · Deadlift").
+    // challenge_racer_score encodes a set as weight + reps/1000, so the integer part is the weight.
+    label: 'Beat a verified lift',
+    noun: 'verified lift',
+    format: (v) => (v > 0 ? `${Math.floor(v).toLocaleString('en-US')} lb` : 'no clip yet'),
+  },
 };
 
 /**

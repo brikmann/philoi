@@ -3,7 +3,8 @@
 // straight from R2 with these). Access is owner OR circle-mate (workout_sets' own RLS — same
 // rule check_in_workout_sets/photos already use) OR friend (§23: "scope clips to
 // campfires/friends only" — friend access isn't part of workout_sets' general RLS, which stays
-// circle-scoped for the whole gym feature, so it's re-checked here specifically for video).
+// circle-scoped for the whole gym feature, so it's re-checked here specifically for video) OR,
+// since 0282, anyone who can open a post its owner chose to show the clip on.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { GetObjectCommand } from 'npm:@aws-sdk/client-s3@3';
 import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner@3';
@@ -60,7 +61,12 @@ Deno.serve(async (req) => {
         .eq('status', 'accepted')
         .or(`and(requester_id.eq.${user.id},recipient_id.eq.${ownerId}),and(requester_id.eq.${ownerId},recipient_id.eq.${user.id})`)
         .maybeSingle();
-      if (!friendRow) return json({ error: "You don't have access to this clip." }, 403);
+      if (!friendRow) {
+        // 0282 — the owner showed this clip on a post the caller can open (a verified PR on the
+        // reel). Asked AS THE CALLER, so the post's own visibility rule decides.
+        const { data: shown } = await userClient.rpc('can_play_shown_lift_clip', { p_workout_set_id: workoutSetId });
+        if (shown !== true) return json({ error: "You don't have access to this clip." }, 403);
+      }
       clip = raw;
     }
 

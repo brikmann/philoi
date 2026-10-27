@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AgoraCommentsSheet } from '@/components/agora/agora-comments-sheet';
 import { FeedPage, feedPageMedia } from '@/components/agora/feed-page';
+import { ReelChallengeSheet } from '@/components/agora/reel-challenge-sheet';
 import { HomeTrackerCard } from '@/components/fitness/tracker-prompts';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
@@ -34,6 +35,7 @@ import { onAgoraPost } from '@/lib/agora-just-posted';
 import { track } from '@/lib/analytics';
 import {
   AGORA_SCOPES,
+  addAgoraComment,
   blockAgoraUser,
   cheerAgoraItem,
   deleteAgoraPost,
@@ -42,6 +44,7 @@ import {
   setMilestoneInAgora,
 } from '@/lib/api/agora';
 import { channelKey, parseFeedKey, type FeedChannel, type FeedKey } from '@/lib/api/feed-channels';
+import type { VerifiedLift } from '@/lib/api/reel-challenge';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import { formatTimeLeft } from '@/lib/format';
@@ -215,6 +218,30 @@ export function ImmersiveFeed({
 
   const toggleMute = useCallback(() => setMuted((m) => !m), []);
 
+  // ── ⚔ and "leave a nice one" (mock 319) ──
+  const [challengeFor, setChallengeFor] = useState<{ item: AgoraItem; lift: VerifiedLift } | null>(null);
+  // Bumped after a send so the pages re-read their lift and ⚔ reads "sent".
+  const [liftVersion, setLiftVersion] = useState(0);
+  const onChallenge = useCallback((item: AgoraItem, lift: VerifiedLift) => {
+    track('reel_challenge_opened', { already_sent: lift.my_challenge_id != null });
+    setChallengeFor({ item, lift });
+  }, []);
+  const onLiftChallengeSent = useCallback(() => setLiftVersion((v) => v + 1), []);
+
+  const onNiceComment = useCallback(
+    async (item: AgoraItem, text: string) => {
+      try {
+        await addAgoraComment(item, text);
+        patchItem(item.id, { comments: item.comments + 1 });
+        return true;
+      } catch (e) {
+        Alert.alert('Could not comment', getErrorMessage(e, 'Something went wrong.'));
+        return false;
+      }
+    },
+    [patchItem]
+  );
+
   async function confirmRemove() {
     if (!removeFor || removing) return;
     const item = removeFor;
@@ -308,6 +335,9 @@ export function ImmersiveFeed({
                   onCheer={onCheer}
                   onShare={onShare}
                   onMore={onMore}
+                  onChallenge={onChallenge}
+                  onNiceComment={onNiceComment}
+                  liftVersion={liftVersion}
                 />
               );
             }
@@ -385,6 +415,7 @@ export function ImmersiveFeed({
         onClose={() => setCommentsFor(null)}
         onCountChange={(id, count) => patchItem(id, { comments: count })}
       />
+      <ReelChallengeSheet target={challengeFor} onClose={() => setChallengeFor(null)} onSent={onLiftChallengeSent} />
       <ReportBlockSheet visible={moreFor !== null} onClose={() => setMoreFor(null)} onReport={handleReport} onBlock={handleBlock} />
       <ConfirmDialog
         visible={removeFor !== null}

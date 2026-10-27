@@ -20,6 +20,14 @@ import type { PublicLoadout } from '@/hooks/use-public-loadouts';
 import { attachmentKey, attachmentView, itemAttachments, type AgoraAttachmentView } from '@/lib/agora-attachment';
 import { agoraPhotoUrl, audienceTag } from '@/lib/api/agora';
 import { formatClipLength, getAgoraVideoUrls, itemVideo, type AgoraVideoSnapshot, type AgoraVideoUrls } from '@/lib/api/agora-video';
+import {
+  formatLiftWeight,
+  getLiftClipUrls,
+  getVerifiedLift,
+  mayCarryLift,
+  parseResolution,
+  type VerifiedLift,
+} from '@/lib/api/reel-challenge';
 import { formatRelativeTime } from '@/lib/format';
 import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
 import type { AgoraItem } from '@/types/database';
@@ -46,7 +54,33 @@ import type { AgoraItem } from '@/types/database';
 //
 // COMMENT-FIRST, NO TALLIES (#259). The rail is comment · cheer · share. A cheer is a quiet
 // acknowledgement that reaches the author's bell (cheer_agora_post, first cheer only) — it shows
-// whether YOU cheered, never a count.
+// whether YOU cheered, never a count. Under the caption, "leave a nice one" drops a preset comment:
+// the lowest-friction thing to do on someone's post is to encourage them, not to rank them.
+//
+// A VERIFIED LIFT (mock 319, 0282). When the post carries a set whose clip verifies it — on file,
+// consented to review, shown by its owner — the page plays THAT clip and wears a green
+// "🏋️ 405 lb Deadlift ✓ this clip verifies it" badge, and a friend gets ⚔ on the rail: a pre-filled
+// head-to-head to beat that exact set. The server decides the badge (agora_verified_lifts); nothing
+// here decorates a post the server didn't vouch for.
+
+const NICE_ONES = ['respect 🫡', 'insane 💪', "let's go"] as const;
+
+/** The verified lift this post shows the viewer, or null. Asked only of posts that could carry one. */
+function useVerifiedLift(item: AgoraItem, version: number): VerifiedLift | null {
+  const eligible = mayCarryLift(item);
+  const [lift, setLift] = useState<VerifiedLift | null>(null);
+  useEffect(() => {
+    if (!eligible) return;
+    let alive = true;
+    getVerifiedLift(item.id).then((l) => {
+      if (alive) setLift(l);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [item.id, eligible, version]);
+  return eligible ? lift : null;
+}
 
 export type FeedPageMedia = 'video' | 'photo' | 'card';
 
@@ -87,13 +121,22 @@ type Props = {
   onCheer: (item: AgoraItem) => void;
   onShare: (item: AgoraItem) => void;
   onMore: (item: AgoraItem) => void;
+  /** ⚔ on a verified lift — opens the pre-filled challenge sheet. */
+  onChallenge: (item: AgoraItem, lift: VerifiedLift) => void;
+  /** "Leave a nice one" — posts the preset as a comment. Resolves false when it didn't land. */
+  onNiceComment: (item: AgoraItem, text: string) => Promise<boolean>;
+  /** Bumped after a challenge is sent, so the page re-reads its lift ("already sent"). */
+  liftVersion: number;
 };
 
 function FeedPageInner(props: Props) {
   const { item, loadout, width, height, topInset, active } = props;
   const router = useRouter();
-  const media = feedPageMedia(item);
   const video = itemVideo(item);
+  const lift = useVerifiedLift(item, props.liftVersion);
+  // A verified lift's clip IS the page's media — but only on a post without its own video, which
+  // the server already guarantees (agora_verified_lifts skips those).
+  const media: FeedPageMedia = lift && !video ? 'video' : feedPageMedia(item);
   const [expanded, setExpanded] = useState(false);
 
   const flare = loadout.flare?.flare;
@@ -112,6 +155,17 @@ function FeedPageInner(props: Props) {
         <VideoLayer
           postId={item.id}
           video={video}
+          active={active}
+          near={props.near}
+          autoplay={props.autoplay}
+          muted={props.muted}
+          onToggleMute={props.onToggleMute}
+        />
+      ) : media === 'video' && lift ? (
+        <VideoLayer
+          postId={item.id}
+          video={liftVideo(lift)}
+          liftSetId={lift.workout_set_id}
           active={active}
           near={props.near}
           autoplay={props.autoplay}
@@ -142,7 +196,9 @@ function FeedPageInner(props: Props) {
         )
       ) : null}
 
-      <Rail {...props} media={media} />
+      {lift ? <VerifiedBadge lift={lift} top={topInset + Spacing.two} /> : null}
+
+      <Rail {...props} media={media} lift={lift} />
 
       <View style={styles.meta} pointerEvents="box-none">
         <AuthorRow item={item} loadout={loadout} active={active} mine={props.mine} />
@@ -153,6 +209,7 @@ function FeedPageInner(props: Props) {
             </Text>
           </Pressable>
         ) : null}
+        {!props.mine ? <NiceOnes item={item} onSend={props.onNiceComment} /> : null}
         {/* A session posted WITH photos is a photo page; its summary still rides along, under the caption. */}
         {media !== 'card'
           ? itemAttachments(item)
@@ -178,9 +235,16 @@ function FeedPageInner(props: Props) {
 
 // ───────────────────────────── media ─────────────────────────────
 
+/** A verified lift's clip in the reel's snapshot shape — keys stay server-side, so they're blank. */
+function liftVideo(lift: VerifiedLift): AgoraVideoSnapshot {
+  const dims = parseResolution(lift.resolution);
+  return { video_key: '', poster_key: '', duration_s: lift.duration_s ?? 0, width: dims?.width ?? null, height: dims?.height ?? null };
+}
+
 function VideoLayer({
   postId,
   video,
+  liftSetId,
   active,
   near,
   autoplay,
@@ -189,13 +253,15 @@ function VideoLayer({
 }: {
   postId: string;
   video: AgoraVideoSnapshot;
+  /** Play this set's gym clip instead of the post's own Agora video (a verified lift, 0282). */
+  liftSetId?: string;
   active: boolean;
   near: boolean;
   autoplay: boolean;
   muted: boolean;
   onToggleMute: () => void;
 }) {
-  const [urls, setUrls] = useState<AgoraVideoUrls | null | undefined>(undefined);
+  const [urls, setUrls] = useState<(Omit<AgoraVideoUrls, 'posterUrl'> & { posterUrl: string | null }) | null | undefined>(undefined);
   // On a connection that doesn't autoplay, a tap starts this one clip. Reset when it leaves view.
   const [started, setStarted] = useState(false);
   if (!active && started) setStarted(false);
@@ -205,13 +271,13 @@ function VideoLayer({
   useEffect(() => {
     if (!active && !near) return;
     let alive = true;
-    getAgoraVideoUrls(postId).then((u) => {
+    (liftSetId ? getLiftClipUrls(liftSetId) : getAgoraVideoUrls(postId)).then((u) => {
       if (alive) setUrls(u);
     });
     return () => {
       alive = false;
     };
-  }, [postId, active, near]);
+  }, [postId, liftSetId, active, near]);
 
   // Portrait clips fill the page; landscape ones letterbox rather than crop two-thirds away.
   const portrait = video.width && video.height ? video.height >= video.width : true;
@@ -234,7 +300,9 @@ function VideoLayer({
       accessibilityRole="button"
       accessibilityLabel={playing ? (muted ? 'Unmute video' : 'Mute video') : `Play video, ${formatClipLength(video.duration_s)}`}>
       {urls ? (
-        <Image source={{ uri: urls.posterUrl }} style={StyleSheet.absoluteFill} contentFit={fit} transition={120} />
+        urls.posterUrl ? (
+          <Image source={{ uri: urls.posterUrl }} style={StyleSheet.absoluteFill} contentFit={fit} transition={120} />
+        ) : null
       ) : (
         <ActivityIndicator color={Colors.spaceDim} style={styles.loader} />
       )}
@@ -392,6 +460,58 @@ function StillRim({ colour }: { colour: string }) {
   );
 }
 
+/** Mock 319's green pill: the stat, and that THIS clip is what verifies it. */
+function VerifiedBadge({ lift, top }: { lift: VerifiedLift; top: number }) {
+  return (
+    <View
+      style={[styles.statBadge, { top }]}
+      pointerEvents="none"
+      accessibilityRole="text"
+      accessibilityLabel={`${formatLiftWeight(lift.weight)} ${lift.exercise}, ${lift.reps} reps. This clip verifies it.`}>
+      <Text style={styles.statBadgeStat} numberOfLines={1}>
+        🏋️ {formatLiftWeight(lift.weight)} {lift.exercise}
+        {lift.reps > 1 ? ` × ${lift.reps}` : ''}
+      </Text>
+      <Text style={styles.statBadgeVerified}>✓ this clip verifies it</Text>
+    </View>
+  );
+}
+
+/** "Leave a nice one" — one tap drops an encouraging comment. One per page visit. */
+function NiceOnes({ item, onSend }: { item: AgoraItem; onSend: Props['onNiceComment'] }) {
+  const [sent, setSent] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function send(text: string) {
+    if (busy || sent) return;
+    setBusy(true);
+    const ok = await onSend(item, text);
+    setBusy(false);
+    if (ok) setSent(text);
+  }
+
+  if (sent) {
+    return <Text style={styles.niceSent}>💬 You said “{sent}”</Text>;
+  }
+  return (
+    <View style={styles.niceRow}>
+      <Text style={styles.niceHint}>💬 Leave a nice one</Text>
+      {NICE_ONES.map((text) => (
+        <Pressable
+          key={text}
+          onPress={() => void send(text)}
+          disabled={busy}
+          style={styles.niceChip}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel={`Comment ${text}`}>
+          <Text style={styles.niceChipText}>{text}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 function AuthorRow({ item, loadout, active, mine }: { item: AgoraItem; loadout: PublicLoadout; active: boolean; mine: boolean }) {
   const router = useRouter();
   const tier = item.rank_tier && RANK_TIER_METAL[item.rank_tier] ? item.rank_tier : null;
@@ -469,7 +589,9 @@ function Rail({
   onCheer,
   onShare,
   onMore,
-}: Props & { media: FeedPageMedia }) {
+  onChallenge,
+  lift,
+}: Props & { media: FeedPageMedia; lift: VerifiedLift | null }) {
   // The author's FLAME colour rings their cheer — base coral when they have none equipped.
   const flame = publicFlameTint(loadout);
   const cheered = item.cheered;
@@ -497,6 +619,20 @@ function Rail({
         </View>
         <Text style={styles.railLabel}>{cheered ? 'cheered' : 'cheer'}</Text>
       </Pressable>
+
+      {/* ⚔ only on a verified, comparable lift a friend posted — the server's can_challenge. */}
+      {lift && lift.can_challenge && !mine ? (
+        <Pressable
+          style={styles.railItem}
+          onPress={() => onChallenge(item, lift)}
+          accessibilityRole="button"
+          accessibilityLabel={lift.my_challenge_id ? 'Challenge sent' : `Challenge ${item.display_name} to beat ${formatLiftWeight(lift.weight)}`}>
+          <View style={[styles.challenge, lift.my_challenge_id ? styles.challengeSent : null]}>
+            <Text style={styles.challengeGlyph}>⚔</Text>
+          </View>
+          <Text style={styles.railLabel}>{lift.my_challenge_id ? 'sent' : 'Challenge'}</Text>
+        </Pressable>
+      ) : null}
 
       <Pressable style={styles.railItem} onPress={() => onShare(item)} accessibilityRole="button" accessibilityLabel="Share">
         <Ionicons name="arrow-redo" size={26} color="#FFFFFF" style={styles.railShadow} />
@@ -544,6 +680,9 @@ export const FeedPage = memo(
     a.onCheer === b.onCheer &&
     a.onShare === b.onShare &&
     a.onMore === b.onMore &&
+    a.onChallenge === b.onChallenge &&
+    a.onNiceComment === b.onNiceComment &&
+    a.liftVersion === b.liftVersion &&
     a.onToggleMute === b.onToggleMute
 );
 
@@ -767,5 +906,79 @@ const styles = StyleSheet.create({
   // Your own post: the ring still shows your flame (it's your flex), but it isn't a button.
   cheerMine: {
     opacity: 0.6,
+  },
+  challenge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.navEmber,
+    borderWidth: 1.5,
+    borderColor: Colors.navEmber2,
+  },
+  challengeSent: {
+    opacity: 0.55,
+  },
+  challengeGlyph: {
+    fontSize: 19,
+    color: Colors.onEmber,
+  },
+  // Mock 319's verified-stat pill, top-left under the chrome. Green = the board's "✓ clip on file".
+  statBadge: {
+    position: 'absolute',
+    left: Spacing.three,
+    maxWidth: '72%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.green,
+    backgroundColor: 'rgba(10,7,22,0.78)',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  statBadgeStat: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: '#FFFFFF',
+  },
+  statBadgeVerified: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9.5,
+    color: Colors.green,
+  },
+  niceRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+  },
+  niceHint: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    color: Colors.navEmber2,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowRadius: 4,
+  },
+  niceChip: {
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255,176,90,0.45)',
+    backgroundColor: 'rgba(10,7,22,0.55)',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+  },
+  niceChipText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: '#FFFFFF',
+  },
+  niceSent: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.navEmber2,
   },
 });

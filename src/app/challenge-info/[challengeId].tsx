@@ -7,6 +7,7 @@ import { BoxArt } from '@/components/economy/box-art';
 import { ChallengeRewardScreen } from '@/components/economy/challenge-reward-screen';
 import { EmberIcon } from '@/components/economy/ember-icon';
 import { IncomingChallengeSheet } from '@/components/incoming-challenge-sheet';
+import { LiftChallengeCard } from '@/components/lift-challenge-card';
 import { ChallengeWinShareCard } from '@/components/economy/challenge-win-share-card';
 import { prefetchAvatars } from '@/components/economy/king-statue';
 import { PrizePoolPanel } from '@/components/economy/prize-pool-panel';
@@ -929,7 +930,14 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
   // The one paragraph that explains rather than lists — shared by both layouts.
   const noteEl = (
     <View style={styles.note}>
-      {duel ? (
+      {duel && c.race_metric === 'verified_lift' ? (
+        // 0282 · a bar to clear, not a pile to grow — "the most" would be the wrong rule.
+        <Text style={styles.noteText}>
+          <Text style={styles.noteStrong}>Winner +{c.payout_xp} XP.</Text> Post your own verified clip that beats
+          the set — heavier at the same reps, or more reps at the same weight — and it settles. No clip by the end
+          and the clip&apos;s owner holds. Winner climbs; both of you get better.
+        </Text>
+      ) : duel ? (
         <Text style={styles.noteText}>
           <Text style={styles.noteStrong}>Winner +{c.payout_xp} XP</Text> — scales with effort, capped to keep
           it fair. The loser gets a rematch, not a penalty. Whoever has the most{' '}
@@ -1080,6 +1088,14 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
             </Text>
           </View>
         )}
+
+        {c.race_metric === 'verified_lift' ? (
+          <LiftChallengeCard
+            challengeId={c.id}
+            myUserId={session?.user.id}
+            ownerName={(isCreator ? c.opponent_name : c.created_by_name) ?? 'them'}
+          />
+        ) : null}
 
         <Rules rows={rows} />
 
