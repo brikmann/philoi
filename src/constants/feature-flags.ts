@@ -48,14 +48,27 @@ export const WHOOP_ENABLED = false;
 export const GYM_VIDEO_CLIPS_ENABLED = true;
 
 // Agora video posts (migration 0279). The composer's Video button and the feed's video tile both
-// sit behind this. Flip it true only once ALL of these hold:
-//   • 0279 is applied (the upload ledger, the 'video' attach kind, the purge trigger + sweep cron) — done 2026-10-27;
+// sit behind this. On since 2026-10-27, once ALL of these held:
+//   • 0279 is applied (the upload ledger, the 'video' attach kind, the purge trigger + sweep cron);
 //   • agora-video-upload-url, agora-video-playback-url and the agora/-aware gym-clip-purge are
-//     deployed — from a clean tree, `functions deploy` ships the working tree;
-//   • decided 2026-10-27: a video follows the post's audience like a photo; no minors rule beyond
-//     the 18+ signup attestation (no age data, as in 0275). An Everyone video confirms once on Post.
-// Same native modules as gym clips, already in shipped builds; still not an OTA flip (policy).
-export const AGORA_VIDEO_ENABLED = false;
+//     deployed (from a `git archive HEAD` export — `functions deploy` ships the working tree);
+//   • decided: a video follows the post's audience like a photo; no minors rule beyond the 18+
+//     signup attestation (no age data, as in 0275). An Everyone video confirms once on Post.
+// Same native modules as gym clips, already in shipped builds; still not an OTA flip (policy) — it
+// reaches people with the next build.
+export const AGORA_VIDEO_ENABLED = true;
+
+// Video in DMs and forest rooms (0284's 'video' kind). The chat composer's Video button and the
+// bubble's video tile sit behind THIS AND AGORA_VIDEO_ENABLED AND chatSupported() — all three,
+// because a chat clip rides the Agora's upload path unchanged and has a playback path of its own.
+// Flip it true only once ALL of these hold:
+//   • 0284 is applied WITH its 'video' arm (chat_freeze_attachments freezing from the 0279 upload
+//     ledger) — the first cut of 0284 refused video outright;
+//   • agora-video-upload-url is deployed (the same edge function an Agora clip uploads through);
+//   • chat-video-playback-url is deployed (signs a clip only for a member of its room).
+// Off, a video someone sent from a newer build draws nothing, the same as any kind this build
+// doesn't know. Same native modules as Agora video; still not an OTA flip (policy).
+export const CHAT_VIDEO_ENABLED = false;
 
 // Read-only Google Calendar (GCAL_INTEGRATION_SPEC.md) — the AI coach's deadline/free-busy
 // source. No native module is involved (the Google Sign-In SDK is already in the binary and is

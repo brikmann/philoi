@@ -210,11 +210,17 @@ export function AttachmentRow({
   view,
   xp,
   onPress,
+  onLongPress,
 }: {
   view: AgoraAttachmentView;
   /** A session's frozen XP (0273 snapshot). Absent on anything posted before it. */
   xp?: number;
   onPress: () => void;
+  /**
+   * A chat bubble's message sheet (0284). The row is the innermost pressable, so it takes the
+   * responder — without this, a long-press on a shared session in a DM did nothing at all.
+   */
+  onLongPress?: () => void;
 }) {
   // The lift sits OUTSIDE the Pressable, not inside it. A clip tile is its own tap target, and in
   // React Native the innermost pressable takes the responder — nesting them would mean tapping a
@@ -223,27 +229,30 @@ export function AttachmentRow({
   if (view.lift) {
     return (
       <View style={styles.attachGroup}>
-        <AttachmentHeadRow view={view} xp={xp} onPress={onPress} />
+        <AttachmentHeadRow view={view} xp={xp} onPress={onPress} onLongPress={onLongPress} />
         <LiftDetail lift={view.lift} />
       </View>
     );
   }
-  return <AttachmentHeadRow view={view} xp={xp} onPress={onPress} />;
+  return <AttachmentHeadRow view={view} xp={xp} onPress={onPress} onLongPress={onLongPress} />;
 }
 
 function AttachmentHeadRow({
   view,
   xp,
   onPress,
+  onLongPress,
 }: {
   view: AgoraAttachmentView;
   xp?: number;
   onPress: () => void;
+  onLongPress?: () => void;
 }) {
   return (
     <Pressable
       style={[styles.attach, view.lift && styles.attachWithLift]}
       onPress={onPress}
+      onLongPress={onLongPress}
       accessibilityRole="button"
       accessibilityLabel={[view.eyebrow, view.title, view.subtitle].filter(Boolean).join(' · ')}>
       {/* A COLLECTIBLE DRAWS ITSELF (item-art.tsx). The square is the flex feed, so a posted relic

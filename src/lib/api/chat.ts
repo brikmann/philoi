@@ -6,6 +6,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 import type { IconName } from '@/components/ui/icon';
 import { track } from '@/lib/analytics';
+import type { AgoraVideoSnapshot } from '@/lib/api/agora-video';
 import type { SocialChat } from '@/lib/api/social-chats';
 import { fetchMyFeedChannels } from '@/lib/api/feed-channels';
 import { supabase } from '@/lib/supabase';
@@ -47,14 +48,18 @@ export type ChatAttachment = {
   snapshot: Record<string, unknown> | null;
 };
 
-export type ChatAttachKind = 'image' | 'file' | 'anthem' | Exclude<AgoraAttachKind, 'video'>;
+export type ChatAttachKind = 'image' | 'file' | 'anthem' | 'video' | Exclude<AgoraAttachKind, 'video'>;
 
 /** What the composer SENDS. chat_freeze_attachments re-reads everything it can and trusts only `meta`'s cosmetics. */
 export type ChatAttachInput = {
   kind: ChatAttachKind;
   ref_id: string | null;
   key: string | null;
-  /** image: width/height for the bubble's aspect · file: its display name. Never mime or size — storage owns those. */
+  /**
+   * image: width/height for the bubble's aspect · file: its display name. Never mime or size —
+   * storage owns those. A video sends no meta at all: its snapshot is frozen from the upload ledger
+   * agora-video-upload-url wrote, the same as an Agora clip's.
+   */
   meta?: { name?: string; width?: number; height?: number };
 };
 
@@ -66,6 +71,46 @@ export type ChatAttachInput = {
 export const CHAT_MEDIA_MAX_BYTES = 20 * 1024 * 1024;
 export const CHAT_MAX_ATTACHMENTS = 10;
 const CHAT_MEDIA_BUCKET = 'chat-media';
+
+/**
+ * What the File button may send: chat-media's `allowed_mime_types`, keyed by the extension
+ * chat_freeze_attachments' key pattern accepts (`\.(jpg|jpeg|png|webp|heic|pdf|txt|md|docx)$`).
+ *
+ * BOTH lists matter, and they have to agree. The bucket refuses a mimetype it doesn't list; the
+ * freeze refuses a key whose extension it doesn't list. So the mime we upload with is derived HERE
+ * from the extension, never taken from the picker — Android reports a .md as
+ * application/octet-stream, which the bucket would refuse, for a file it is happy to hold as
+ * text/markdown.
+ */
+const CHAT_FILE_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  heic: 'image/heic',
+};
+
+/** The mimetypes the document picker is asked to show. The extension check below is still the rule. */
+export const CHAT_FILE_PICKER_TYPES = [...new Set(Object.values(CHAT_FILE_TYPES)), 'text/x-markdown'];
+
+/**
+ * The extension + mime a picked document will be stored under, or null when chat-media won't take
+ * it. The name's extension wins; a name with none (some Android providers hand back "document")
+ * falls back to the picker's mimetype.
+ */
+export function chatFileType(name: string, pickerMime?: string | null): { ext: string; mime: string } | null {
+  const m = /\.([a-z0-9]+)$/i.exec(name.trim());
+  const ext = m?.[1]?.toLowerCase();
+  if (ext && CHAT_FILE_TYPES[ext]) return { ext, mime: CHAT_FILE_TYPES[ext] };
+  if (ext) return null;
+  const mime = pickerMime === 'text/x-markdown' ? 'text/markdown' : pickerMime;
+  const fromMime = Object.entries(CHAT_FILE_TYPES).find(([, v]) => v === mime);
+  return fromMime ? { ext: fromMime[0], mime: fromMime[1] } : null;
+}
 
 // ───────────────────────────── support detection ─────────────────────────────
 
@@ -193,6 +238,31 @@ export async function uploadChatImage(
   return { key, width: saved.width, height: saved.height };
 }
 
+/**
+ * Upload one picked document into chat-media, byte for byte, and return its KEY.
+ *
+ * Same key shape (and the same `.toLowerCase()`, for the same iPhone reason) as uploadChatImage.
+ * NOT re-encoded, even when it's an image: the File button is how you send the original — a
+ * diagram or a photo of notes that a JPEG pass would smear. Photo is the button that compresses.
+ */
+export async function uploadChatFile(
+  scope: ChatScope,
+  roomId: string,
+  userId: string,
+  uri: string,
+  type: { ext: string; mime: string }
+): Promise<string> {
+  const file = new File(uri);
+  if (file.size > CHAT_MEDIA_MAX_BYTES) throw new Error('That file is too large to send (20 MB max).');
+  const key = `${scope}/${roomId.toLowerCase()}/${userId.toLowerCase()}/${Crypto.randomUUID().toLowerCase()}.${type.ext}`;
+  const base64 = await file.base64();
+  const { error } = await supabase.storage
+    .from(CHAT_MEDIA_BUCKET)
+    .upload(key, decode(base64), { contentType: type.mime, upsert: false });
+  if (error) throw error;
+  return key;
+}
+
 /** Best-effort: the uploads of a send that then failed. The bucket's "delete own" policy allows it. */
 export async function discardChatUploads(keys: string[]): Promise<void> {
   if (keys.length === 0) return;
@@ -265,6 +335,26 @@ export async function chatMarkRead(scope: ChatRoomScope, roomId: string): Promis
   if (error && !noteMissing(error, status)) throw error;
 }
 
+/**
+ * Is this room muted for me? chat_reads is RPC-only (no select policy), so the answer comes off
+ * get_my_chats — the one read 0284 gives a client of its own mute bit. One call for a header
+ * button is fine; it's the same call the Chats list makes on every focus.
+ *
+ * null = can't say (no 0284, or the call failed): the caller draws no toggle rather than a guess.
+ * A room missing from the list (a DM nobody has spoken in yet — get_my_dm_threads drops those) has
+ * never been muted, because muting writes the very chat_reads row the list would find.
+ */
+export async function fetchChatMuted(scope: ChatRoomScope, roomId: string): Promise<boolean | null> {
+  if ((await chatSupported()) !== true) return null;
+  const { data, error, status } = await supabase.rpc('get_my_chats');
+  if (error) {
+    noteMissing(error, status);
+    return null;
+  }
+  const row = (data ?? []).find((r) => r.out_scope === scope && r.out_room_id === roomId);
+  return row ? Boolean(row.out_muted) : false;
+}
+
 export async function chatSetMuted(scope: ChatRoomScope, roomId: string, muted: boolean): Promise<void> {
   const { error } = await supabase.rpc('chat_set_muted', { p_scope: scope, p_room_id: roomId, p_muted: muted });
   if (error) throw error;
@@ -300,6 +390,7 @@ const PHRASE_ICON: Record<string, IconName> = {
   'Sent a photo': 'photo',
   'Sent photos': 'photo',
   'Sent a file': 'notes',
+  'Sent a video': 'video',
   'Shared a session': 'session',
   'Shared their anthem': 'music',
   'Shared a win': 'reward',
@@ -372,6 +463,95 @@ export async function fetchMyChats(userId: string): Promise<SocialChat[] | null>
       muted: r.out_muted ?? false,
     };
   });
+}
+
+// ───────────────────────────── video playback ─────────────────────────────
+
+/** A chat clip's frozen snapshot — the Agora's shape, because it was uploaded the Agora's way. */
+export type ChatVideoSnapshot = AgoraVideoSnapshot;
+
+/** The snapshot of a 'video' attachment, or null when it isn't a playable one. */
+export function chatVideoSnapshot(a: ChatAttachment): ChatVideoSnapshot | null {
+  const s = a.snapshot ?? {};
+  const videoKey = typeof s.video_key === 'string' ? s.video_key : null;
+  const posterKey = typeof s.poster_key === 'string' ? s.poster_key : null;
+  if (a.kind !== 'video' || !videoKey || !posterKey) return null;
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  return {
+    video_key: videoKey,
+    poster_key: posterKey,
+    duration_s: n(s.duration_s) ?? 0,
+    width: n(s.width),
+    height: n(s.height),
+  };
+}
+
+export type ChatVideoUrls = { videoUrl: string; posterUrl: string };
+
+// The Agora's playback cache, keyed by scope + message instead of post. Signed URLs last an hour;
+// refresh with ten minutes to spare so a clip never 403s mid-play.
+const VIDEO_MARGIN_MS = 10 * 60 * 1000;
+const videoCache = new Map<string, { urls: ChatVideoUrls | null; expiresAt: number }>();
+const videoWaiting = new Map<string, ((urls: ChatVideoUrls | null) => void)[]>();
+let videoFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Signed poster + video URLs for one chat message's clip, or null when this viewer can't open it
+ * (not in the room, deleted, or chat-video-playback-url isn't deployed yet).
+ *
+ * BATCHED like getAgoraVideoUrls: every tile that asks within ~40ms shares one call per scope, ≤30
+ * ids each — a thread scrolled into view is one round trip, not one per bubble. The edge function
+ * re-checks room membership per id, so nothing here is trusted.
+ */
+export function getChatVideoUrls(scope: ChatScope, messageId: string): Promise<ChatVideoUrls | null> {
+  const id = `${scope}:${messageId}`;
+  const hit = videoCache.get(id);
+  if (hit && hit.expiresAt - VIDEO_MARGIN_MS > Date.now()) return Promise.resolve(hit.urls);
+  return new Promise((resolve) => {
+    const list = videoWaiting.get(id) ?? [];
+    list.push(resolve);
+    videoWaiting.set(id, list);
+    if (!videoFlushTimer) videoFlushTimer = setTimeout(() => void flushVideoAsks(), 40);
+  });
+}
+
+async function flushVideoAsks() {
+  videoFlushTimer = null;
+  const batch = new Map(videoWaiting);
+  videoWaiting.clear();
+
+  const byScope = new Map<ChatScope, string[]>();
+  for (const id of batch.keys()) {
+    const [scope, messageId] = id.split(':') as [ChatScope, string];
+    byScope.set(scope, [...(byScope.get(scope) ?? []), messageId]);
+  }
+
+  for (const [scope, ids] of byScope) {
+    for (let i = 0; i < ids.length; i += 30) {
+      const chunk = ids.slice(i, i + 30);
+      let sources: Record<string, ChatVideoUrls> = {};
+      // A failed call is retried after a minute, not cached for the hour — the likeliest failure
+      // before launch is "not deployed yet", and that one fixes itself without a rebuild.
+      let expiresAt = Date.now() + 60 * 1000;
+      try {
+        const { data, error } = await supabase.functions.invoke('chat-video-playback-url', {
+          body: { scope, messageIds: chunk },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        sources = data?.sources ?? {};
+        if (data?.expiresAt) expiresAt = new Date(data.expiresAt).getTime();
+      } catch {
+        // Every tile in the chunk falls back to "Video unavailable".
+      }
+      for (const messageId of chunk) {
+        const id = `${scope}:${messageId}`;
+        const urls = sources[messageId] ?? null;
+        videoCache.set(id, { urls, expiresAt });
+        for (const resolve of batch.get(id) ?? []) resolve(urls);
+      }
+    }
+  }
 }
 
 // ───────────────────────────── forest room chat ─────────────────────────────

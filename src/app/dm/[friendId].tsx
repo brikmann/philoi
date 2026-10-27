@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatAttachmentList } from '@/components/chat/chat-attachments';
 import { ChatComposer } from '@/components/chat/chat-composer';
 import { ChatMessageSheet } from '@/components/chat/chat-message-sheet';
+import { ChatMuteButton } from '@/components/chat/chat-mute-button';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
@@ -23,7 +24,7 @@ import { Screen } from '@/components/ui/screen';
 import { SpaceIconButton } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { useChatSupport } from '@/hooks/use-chat-support';
+import { useChatSupport, useRoomMute } from '@/hooks/use-chat-support';
 import { useDmThread } from '@/hooks/use-dm-thread';
 import { usePublicLoadouts, useRefreshPublicLoadoutsOnFocus } from '@/hooks/use-public-loadouts';
 import { track } from '@/lib/analytics';
@@ -101,8 +102,12 @@ export default function DmThreadScreen() {
   const [moreOpen, setMoreOpen] = useState(false);
   // 0284 on the server: the composer grows the Agora's attach row and a long-press opens the
   // report/delete sheet. Anything but `true` (including "still asking") is the pre-0284 screen.
-  const rich = useChatSupport() === true;
+  const support = useChatSupport();
+  const rich = support === true;
   const [sheetFor, setSheetFor] = useState<DmRow | null>(null);
+  // 0284 · the thread's mute bit. Null (no button) until the server says, and always without 0284 —
+  // the pre-0284 DM has no per-thread mute to offer.
+  const mute = useRoomMute('dm', thread.threadId, support);
 
   useEffect(() => {
     if (!friendId) return;
@@ -242,6 +247,8 @@ export default function DmThreadScreen() {
           </View>
         </Pressable>
 
+        <ChatMuteButton muted={mute.muted} onToggle={() => void mute.toggle()} />
+
         <SpaceIconButton onPress={() => setMoreOpen(true)} label="More options">
           <UiGlyph name="more" size={18} color={Colors.ink} />
         </SpaceIconButton>
@@ -346,7 +353,12 @@ export default function DmThreadScreen() {
                           <Pressable
                             onLongPress={() => handleMore(item)}
                             style={[styles.attachments, isOwn && styles.attachmentsOwn]}>
-                            <ChatAttachmentList attachments={attachments} />
+                            <ChatAttachmentList
+                              attachments={attachments}
+                              scope="dm"
+                              messageId={item.id}
+                              onLongPress={() => handleMore(item)}
+                            />
                             <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>
                           </Pressable>
                         ) : null}

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatAttachmentList } from '@/components/chat/chat-attachments';
 import { ChatComposer } from '@/components/chat/chat-composer';
 import { ChatMessageSheet } from '@/components/chat/chat-message-sheet';
+import { ChatMuteButton } from '@/components/chat/chat-mute-button';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { EmberFill } from '@/components/ui/ember-fill';
@@ -14,7 +15,7 @@ import { Screen } from '@/components/ui/screen';
 import { SpaceIconButton } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { useChatSupport, useMarkRoomReadWhileFocused } from '@/hooks/use-chat-support';
+import { useChatSupport, useMarkRoomReadWhileFocused, useRoomMute } from '@/hooks/use-chat-support';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { blockUser } from '@/lib/api/agora';
 import {
@@ -106,6 +107,9 @@ export default function ForestChatScreen() {
 
   const isMember = forest?.my_status === 'active';
   const name = forest?.name ?? 'Forest';
+  // 0284 · the room's mute — a forest is a loud room, and its pushes are the first thing people
+  // want quieter. Only a member is offered it: chat_set_muted refuses anyone else.
+  const mute = useRoomMute('forest', isMember ? id : null, supported);
 
   async function block(userId: string) {
     if (!myUserId) return;
@@ -143,6 +147,7 @@ export default function ForestChatScreen() {
           ) : null}
         </View>
       </Pressable>
+      <ChatMuteButton muted={mute.muted} onToggle={() => void mute.toggle()} />
     </View>
   );
 
@@ -249,7 +254,12 @@ export default function ForestChatScreen() {
                           <Pressable
                             onLongPress={() => setSheetFor(item)}
                             style={[styles.attachments, isOwn && styles.attachmentsOwn]}>
-                            <ChatAttachmentList attachments={attachments} />
+                            <ChatAttachmentList
+                              attachments={attachments}
+                              scope="forest"
+                              messageId={item.id}
+                              onLongPress={() => setSheetFor(item)}
+                            />
                             <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>
                           </Pressable>
                         ) : null}

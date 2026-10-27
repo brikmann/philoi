@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ImmersiveFeed } from '@/components/agora/immersive-feed';
+import { MuteBell } from '@/components/chat/chat-mute-button';
 import { LiveFriendsChip } from '@/components/lockin-cheers/live-friends-chip';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { Avatar } from '@/components/ui/avatar';
@@ -191,12 +192,15 @@ function ChatsPane({ toggle }: { toggle: ReactNode }) {
 function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
   // A DM always has a count; a room has one only from get_my_chats (0284).
   const unread = chat.unread ?? 0;
+  // 0284 · get_my_chats' mute bit (a campfire's is its group_members.chat_muted, switched from the
+  // campfire's own sheet). Absent on the old path, which has no mute to show.
+  const muted = chat.muted === true;
   return (
     <Pressable
       style={styles.row}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${chat.name}${chat.kind === 'campfire' ? ', campfire chat' : chat.kind === 'forest' ? ', forest' : ''}${unread > 0 ? `, ${unread} unread` : ''}`}>
+      accessibilityLabel={`${chat.name}${chat.kind === 'campfire' ? ', campfire chat' : chat.kind === 'forest' ? ', forest' : ''}${unread > 0 ? `, ${unread} unread` : ''}${muted ? ', muted' : ''}`}>
       {chat.kind === 'campfire' || chat.kind === 'forest' ? (
         <View style={[styles.avatar, styles.campfireAvatar]}>
           <Text style={styles.campfireEmoji}>{chat.emoji}</Text>
@@ -227,9 +231,16 @@ function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
       </View>
       <View style={styles.meta}>
         {chat.lastAt ? <Text style={styles.when}>{formatRelativeTime(chat.lastAt)}</Text> : null}
-        {unread > 0 ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{unread > 9 ? '9+' : unread}</Text>
+        {unread > 0 || muted ? (
+          <View style={styles.metaMarks}>
+            {muted ? <MuteBell muted size={13} color={Colors.spaceFaint} /> : null}
+            {/* A muted room still counts what you missed — it just stops shouting about it, so the
+                badge goes quiet with it rather than disappearing. */}
+            {unread > 0 ? (
+              <View style={[styles.badge, muted && styles.badgeMuted]}>
+                <Text style={[styles.badgeText, muted && styles.badgeTextMuted]}>{unread > 9 ? '9+' : unread}</Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
       </View>
@@ -379,6 +390,19 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.black,
     fontSize: 10.5,
     color: '#1A1030',
+  },
+  badgeMuted: {
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  badgeTextMuted: {
+    color: Colors.spaceDim,
+  },
+  metaMarks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   empty: {
     marginTop: Spacing.five,
