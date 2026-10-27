@@ -61,6 +61,7 @@ export default function ForestScreen() {
   const [state, setState] = useState<'loading' | 'ready' | 'missing' | 'failed'>('loading');
   const [feed, setFeed] = useState<AgoraItem[]>([]);
   const [feedDone, setFeedDone] = useState(false);
+  const [feedError, setFeedError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -89,9 +90,19 @@ export default function ForestScreen() {
       setForest(f);
       setState('ready');
       if (f.can_read) {
-        // The feed failing alone leaves the rest of the forest usable — it just reads as quiet.
-        const rows = await fetchForestFeed(id, null, FEED_PAGE).catch(() => [] as AgoraItem[]);
+        // The feed failing alone leaves the rest of the forest usable — but it says it failed. Read
+        // as "Nothing posted yet", a failed load looked exactly like a post that never went out.
+        let rows: AgoraItem[];
+        try {
+          rows = await fetchForestFeed(id, null, FEED_PAGE);
+        } catch (e) {
+          if (run !== runId.current) return;
+          console.warn('[forest] feed failed to load', e);
+          setFeedError(getErrorMessage(e, 'Could not load the feed.'));
+          return;
+        }
         if (run !== runId.current) return;
+        setFeedError(null);
         setFeed(rows);
         setFeedDone(rows.length < FEED_PAGE);
       } else {
@@ -432,7 +443,11 @@ export default function ForestScreen() {
                     <UiGlyph name="edit" size={16} color={Colors.navEmber2} />
                   </Pressable>
                 ) : null}
-                {feed.length === 0 ? (
+                {feedError && feed.length === 0 ? (
+                  <Pressable onPress={() => void load()} accessibilityRole="button">
+                    <Text style={styles.quiet}>{`The feed didn’t load — ${feedError} Tap to retry.`}</Text>
+                  </Pressable>
+                ) : feed.length === 0 ? (
                   <Text style={styles.quiet}>{isMember ? 'Nothing posted yet. Be the first.' : 'Join to post here.'}</Text>
                 ) : (
                   feed.map((item) => (
