@@ -139,7 +139,8 @@ export type FlareEffect =
 // `padlock` (Locked In) and `holo` (Main Character) are the Meme Monday flames; `rizz` and `goat`
 // the Meme Monday halos (MEME_MONDAY.html is the art source for all four).
 export type FlameArchetype = 'ember' | 'volt' | 'toxic' | 'solar' | 'cosmic' | 'neutron' | 'forge' | 'padlock' | 'holo';
-export type CardArchetype = 'stone' | 'metal' | 'weave' | 'magma' | 'grid' | 'ash' | 'marble' | 'anvil';
+// `demon-time` is mock 321's blacked-out horned-skull card — a Meme Monday drop, not a material.
+export type CardArchetype = 'stone' | 'metal' | 'weave' | 'magma' | 'grid' | 'ash' | 'marble' | 'anvil' | 'demon-time';
 export type HaloArchetype = 'warm-ring' | 'ember-orbit' | 'prism' | 'fire-ring' | 'hades' | 'crown' | 'petals' | 'rizz' | 'goat';
 export type ParticleArchetype = 'rising' | 'swarm' | 'ash' | 'solar-arc' | 'lightning' | 'void-smoke';
 /** Mock 246's struck emblems. The two placement ones are the standing ladder (Top N% / podium). */
@@ -1124,6 +1125,12 @@ const MEME_DROPS: CatalogItem[] = [
     howToGet: 'A Meme Monday drop — buyable only during its week.',
     lore: 'Your grind, immortalized, as a gloriously dorky hand-drawn doodle of the lock-in screen.',
     art: { kind: 'banner', from: '#10131A', to: '#46E0E0' } }),
+  // Mock 321. Blacked out on purpose: the blood in the skull's forehead is the only colour on it, so
+  // `to` is the cold graphite the clocks and skull are drawn in, not a hue.
+  item({ id: 'card-meme-demon-time', name: 'Demon Time', type: 'CARD', rarity: 'legendary', acquisition: 'drop', archetype: 'demon-time',
+    howToGet: 'A Meme Monday drop — buyable only during its week.',
+    lore: 'Ready, aim, headshot.',
+    art: { kind: 'card', from: '#0b0b0d', to: '#c9ced6' } }),
 ];
 
 export const CATALOG: CatalogItem[] = [

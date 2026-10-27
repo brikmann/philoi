@@ -41,7 +41,8 @@ import { mix, shade, tint } from '@/lib/economy/colour';
 //   1. STATIC SVG, ANIMATED VIEWS. The material is drawn once and never re-renders. Only the hot
 //      layer moves — an opacity pulse, a translating sheen, a few dots — each an Animated.View
 //      driven on the UI thread.
-//   2. CAPPED COUNTS. ≤ 6 embers, 4 glints, 5 anvil shards; every scene is one cheap live layer
+//   2. CAPPED COUNTS. ≤ 6 embers, 4 glints, 5 anvil shards, 10 Demon Time second hands (one tiny
+//      rotated view each, ticking in steps, never sweeping); every scene is one cheap live layer
 //      except the two flourishes (Golden Anvil, Plasma Grid's arc).
 //   3. ONE DRIVER, MANY CONSUMERS. Every live layer reads a shared `useCosmeticClock` cadence, so
 //      a page of thirty Hearth cards is one timer, and the anvil's hammer, flash and shatter agree.
@@ -60,6 +61,7 @@ export type CardLook =
   | 'grid'
   | 'marble'
   | 'anvil'
+  | 'demon'
   | 'ember'
   | 'crown'
   | 'sovereign';
@@ -82,6 +84,7 @@ const CARD_LOOK: Record<string, CardLook> = {
   'card-plasma-grid': 'grid',
   'card-marble-of-olympus': 'marble',
   'card-golden-anvil': 'anvil',
+  'card-meme-demon-time': 'demon',
   'card-emberfall': 'ember',
   'card-emberfall-mythic': 'crown',
   'card-emberfall-sovereign': 'sovereign',
@@ -97,6 +100,7 @@ const FAMILY: Record<CardArchetype, readonly CardLook[]> = {
   ash: ['ember', 'crown', 'sovereign'],
   marble: ['marble'],
   anvil: ['anvil'],
+  'demon-time': ['demon'],
 };
 
 function isCardArchetype(a: unknown): a is CardArchetype {
@@ -338,8 +342,82 @@ function GoldEdge({ w }: { w: number }) {
   );
 }
 
+// ── DEMON TIME (mock 321) ── a horned skull over a scatter of devil-faced clocks, all in cold
+// graphite (`to`). The blood is a fixed red and the only colour on the card — never tinted, so
+// recolouring the item can't turn the one hit of red into something else.
+const DEMON_BLOOD = '#9e0f1c';
+
+/** Mock 321's ten clocks: size (px on a 200px-tall card), tilt, opacity, left / top as card fractions. */
+const DEMON_CLOCKS: { size: number; rot: number; op: number; x: number; y: number; laps: number }[] = [
+  { size: 44, rot: -12, op: 0.55, x: 0.06, y: 0.08, laps: 4 },
+  { size: 30, rot: 20, op: 0.4, x: 0.7, y: 0.06, laps: 3 },
+  { size: 36, rot: 8, op: 0.5, x: 0.8, y: 0.52, laps: 6 },
+  { size: 26, rot: -18, op: 0.35, x: 0.1, y: 0.6, laps: 5 },
+  { size: 22, rot: 30, op: 0.3, x: 0.46, y: 0.04, laps: 3 },
+  { size: 20, rot: -25, op: 0.28, x: 0.38, y: 0.74, laps: 6 },
+  { size: 24, rot: 14, op: 0.32, x: 0.62, y: 0.78, laps: 4 },
+  { size: 18, rot: 40, op: 0.25, x: 0.22, y: 0.3, laps: 5 },
+  { size: 16, rot: -10, op: 0.22, x: 0.88, y: 0.28, laps: 3 },
+  { size: 18, rot: 22, op: 0.24, x: 0.04, y: 0.4, laps: 4 },
+];
+
+/** A clock's size in card units, and its centre — the box's top-left is at (x, y). */
+function demonClock(c: (typeof DEMON_CLOCKS)[number], w: number) {
+  const s = c.size / 2;
+  return { s, cx: c.x * w + s / 2, cy: c.y * 100 + s / 2 };
+}
+
+/** The ticking second hand, centred on the origin and pointing at 12 — a thin spike. */
+const demonSecondHand = (s: number) => {
+  const r = s * 0.4;
+  return `M${f(-s * 0.012)} ${f(r * 0.12)} L${f(s * 0.012)} ${f(r * 0.12)} L0 ${f(-r * 0.84)} Z`;
+};
+
+/** A devil-faced clock, centred on the origin: two spike horns, the face, hands near midnight. */
+function DemonClockFace({ s, colour }: { s: number; colour: string }) {
+  const r = s * 0.4;
+  const horn = (k: 1 | -1) => `M${f(k * r * 0.78)} ${f(-r * 0.68)} L${f(k * r * 0.4)} ${f(-r * 0.66)} L${f(k * r * 1.1)} ${f(-r * 1.32)} Z`;
+  return (
+    <>
+      <Path d={`${horn(-1)} ${horn(1)}`} fill={colour} />
+      <Circle cx={0} cy={0} r={r} fill="none" stroke={colour} strokeWidth={s * 0.045} />
+      <Path d={`M${f(-s * 0.022)} 0 L${f(s * 0.022)} 0 L0 ${f(-r * 0.62)} Z`} fill={colour} />
+      <Path d={`M${f(-s * 0.02)} 0 L${f(s * 0.02)} 0 L${f(r * 0.44)} ${f(-r * 0.22)} Z`} fill={colour} />
+    </>
+  );
+}
+
+/** Mock 321's original horned skull, authored in a 200 × 210 frame. Not any existing character. */
+function DemonSkull({ bone }: { bone: string }) {
+  return (
+    <>
+      <G fill="none" stroke={bone} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+        <Path
+          d="M74 44 C56 36 40 22 33 2 C33 20 44 34 62 44 C50 32 44 20 45 8 C54 24 72 36 88 40 Z M126 44 C144 36 160 22 167 2 C167 20 156 34 138 44 C150 32 156 20 155 8 C146 24 128 36 112 40 Z"
+          fill={bone}
+          strokeWidth={1.5}
+        />
+        <Path d="M100 30 C139 30 162 58 162 94 C162 116 150 130 140 140 C137 150 136 158 128 162 C126 170 120 176 112 176 L112 160 L100 164 L88 160 L88 176 C80 176 74 170 72 162 C64 158 63 150 60 140 C50 130 38 116 38 94 C38 58 61 30 100 30 Z" />
+        <Path d="M82 162 L82 176 M94 163 L94 178 M106 163 L106 178 M118 162 L118 176" />
+      </G>
+      <G fill={bone}>
+        <Path d="M58 92 C58 78 72 74 82 80 C90 84 90 102 80 108 C66 114 58 106 58 92 Z" />
+        <Path d="M142 92 C142 78 128 74 118 80 C110 84 110 102 120 108 C134 114 142 106 142 92 Z" />
+        <Path d="M100 112 L92 132 C96 136 104 136 108 132 Z" />
+      </G>
+      {/* The bullet hole and its blood: the main trickle with a droplet at its foot, a smaller side drip. */}
+      <Path d="M98 60 Q96 92 99 118 Q100 128 101 134 Q103 128 104 118 Q106 92 103 60 Z" fill={DEMON_BLOOD} />
+      <Circle cx={101} cy={136} r={3.4} fill={DEMON_BLOOD} />
+      <Path d="M108 60 Q111 74 110 86 Q109 94 110 100" fill="none" stroke={DEMON_BLOOD} strokeWidth={3.4} strokeLinecap="round" />
+      <Circle cx={110} cy={102} r={2.6} fill={DEMON_BLOOD} />
+      <Circle cx={100} cy={58} r={9.5} fill="#060608" stroke="#4a4a52" strokeWidth={2.4} />
+      <Path d="M100 47 L100 44 M110 57 L114 55 M90 59 L86 60 M107 66 L110 69 M93 65 L90 68" stroke="#5a5a62" strokeWidth={1.6} strokeLinecap="round" />
+    </>
+  );
+}
+
 /**
- * The Golden Anvil's hammer in its own frame: the pivot (where the hand would be) at the origin,
+ * The Golden Anvil's hammer in its own frame:the pivot (where the hand would be) at the origin,
  * the head 70 units out along -x. The still tile and the live swing draw the same shape.
  */
 const HAMMER_LEN = 70;
@@ -627,6 +705,45 @@ function CardArt({ look, from, to, w, id }: { look: CardLook; from: string; to: 
       );
     }
 
+    // ── DEMON TIME ── blacked out: graphite falling to black from a light above the top edge, the
+    // clocks scattered behind, the skull centred over them. The second hands are the hot layer.
+    case 'demon': {
+      const bone = tint(to, 0.55);
+      let grain = '';
+      for (let y = 1.5; y < 100; y += 1.5) grain += `M0 ${f(y)} L${f(w)} ${f(y)} `;
+      return (
+        <>
+          <Defs>
+            <RadialGradient id={id('void')} cx="50%" cy="-10%" r="130%">
+              <Stop offset="0" stopColor={mix(from, to, 0.06)} />
+              <Stop offset="0.55" stopColor={from} />
+              <Stop offset="1" stopColor="#000000" />
+            </RadialGradient>
+            <RadialGradient id={id('aura')} cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor="#ffffff" stopOpacity={0.09} />
+              <Stop offset="1" stopColor="#ffffff" stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect x="0" y="0" width={w} height="100" fill={`url(#${id('void')})`} />
+          {DEMON_CLOCKS.map((c, i) => {
+            const { s, cx, cy } = demonClock(c, w);
+            return (
+              <G key={i} transform={`translate(${f(cx)} ${f(cy)}) rotate(${c.rot})`} opacity={c.op}>
+                <DemonClockFace s={s} colour={to} />
+              </G>
+            );
+          })}
+          {/* The mock's soft drop-shadow glow round the skull, as one radial pool. */}
+          <Ellipse cx={w / 2} cy={50} rx={58} ry={56} fill={`url(#${id('aura')})`} />
+          <G transform={`translate(${f(w / 2 - 50)} -2.5) scale(0.5)`} opacity={0.82}>
+            <DemonSkull bone={bone} />
+          </G>
+          <Path d={grain} stroke="#ffffff" strokeWidth={0.3} opacity={0.012} />
+          <Rect x="0.25" y="0.25" width={w - 0.5} height="99.5" rx="5" fill="none" stroke="#ffffff" strokeWidth={0.5} opacity={0.08} />
+        </>
+      );
+    }
+
     // ── 6 · EMBERFALL / ASH ── dark glass lit from above, ash settled on it; the embers fall live.
     case 'ember':
     case 'crown':
@@ -845,6 +962,17 @@ function CardHot({ look, to, w, id, part }: { look: CardLook; to: string; w: num
       );
     }
 
+    // Demon Time's still frame: every second hand parked on 12, in its clock's tilt.
+    case 'demon':
+      return a ? (
+        <G fill={tint(to, 0.55)}>
+          {DEMON_CLOCKS.map((c, i) => {
+            const { s, cx, cy } = demonClock(c, w);
+            return <Path key={i} d={demonSecondHand(s)} transform={`translate(${f(cx)} ${f(cy)}) rotate(${c.rot})`} opacity={c.op} />;
+          })}
+        </G>
+      ) : null;
+
     case 'ember':
     case 'crown':
     case 'sovereign':
@@ -940,6 +1068,9 @@ const GRID_HUM_MS = 1800;
 const GRID_ARC_MS = 4800;
 const EMBER_MS = 4000;
 const ANVIL_MS = 5000;
+// One loop of every Demon Time clock: a clock with `laps` 3 sweeps once per 16s, 6 once per 8s —
+// mock 321's 8–16s spread, and whole laps so the loop never seams.
+const DEMON_MS = 48_000;
 
 function CardLive({ look, from, to, w, width, height, uid, boost }: LayerProps) {
   const hotSvg = (part: 'a' | 'b', suffix: string, vw = w) => (
@@ -964,6 +1095,8 @@ function CardLive({ look, from, to, w, width, height, uid, boost }: LayerProps) 
       );
     case 'mesh':
       return <GlintLive width={width} height={height} />;
+    case 'demon':
+      return <DemonLive to={to} w={w} height={height} />;
     case 'magma':
       return (
         <>
@@ -1070,6 +1203,74 @@ function GlintLive({ width, height }: { width: number; height: number }) {
         <Glint key={i} clock={clock} left={x * width - g / 2} top={(y / 100) * height - g / 2} size={g} phase={(delay * 1000) / GLINT_MS} />
       ))}
     </>
+  );
+}
+
+/**
+ * Demon Time's second hands, ticking — mock 321's `steps(12)`: a hand jumps 30° and holds, never
+ * sweeps. Each clock runs its own lap count off the one shared clock, offset, so no two agree.
+ */
+function DemonLive({ to, w, height }: { to: string; w: number; height: number }) {
+  const clock = useCosmeticClock(DEMON_MS, true);
+  const k = height / 100;
+  const colour = tint(to, 0.55);
+  return (
+    <>
+      {DEMON_CLOCKS.map((c, i) => {
+        const { s, cx, cy } = demonClock(c, w);
+        return (
+          <DemonHand
+            key={i}
+            clock={clock}
+            left={(cx - s / 2) * k}
+            top={(cy - s / 2) * k}
+            size={s * k}
+            s={s}
+            rot={c.rot}
+            laps={c.laps}
+            phase={spread(i, 0.37)}
+            opacity={c.op}
+            colour={colour}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+function DemonHand({
+  clock,
+  left,
+  top,
+  size,
+  s,
+  rot,
+  laps,
+  phase,
+  opacity,
+  colour,
+}: {
+  clock: SharedValue<number>;
+  left: number;
+  top: number;
+  size: number;
+  s: number;
+  rot: number;
+  laps: number;
+  phase: number;
+  opacity: number;
+  colour: string;
+}) {
+  const style = useAnimatedStyle(() => {
+    const tick = Math.floor(((clock.value * laps + phase) % 1) * 12);
+    return { transform: [{ rotate: `${rot + tick * 30}deg` }] };
+  });
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top, width: size, height: size, opacity }, style]}>
+      <Svg width={size} height={size} viewBox={`${f(-s / 2)} ${f(-s / 2)} ${f(s)} ${f(s)}`}>
+        <Path d={demonSecondHand(s)} fill={colour} />
+      </Svg>
+    </Animated.View>
   );
 }
 
