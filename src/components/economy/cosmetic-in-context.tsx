@@ -99,7 +99,7 @@ export const IN_CONTEXT: Record<ItemType, { status: string; use: string }> = {
     use: "on display in your Trophy Hall",
   },
   TITLE: {
-    status: "under your name on your profile",
+    status: "in your Trophy Hall",
     use: "by your name on the leaderboard",
   },
   AUDIO: {

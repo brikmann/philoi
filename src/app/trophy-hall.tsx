@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,15 +12,15 @@ import { SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
-import { fetchTrophyHall, setProfileItemHidden, winRate } from '@/lib/api/trophy-hall';
+import { fetchPublicCollection, fetchTrophyHall, setProfileItemHidden, winRate } from '@/lib/api/trophy-hall';
 import { fetchProfileById } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
 import { badgeLabel } from '@/lib/economy/badges';
-import { getItem } from '@/lib/economy/catalog';
+import { getItem, titleLabel, TITLES_BEHAVIOUR } from '@/lib/economy/catalog';
 import { RARITY_COLOR } from '@/lib/economy/rarity';
 import { disciplineStandings, type DisciplineStanding } from '@/lib/economy/relic-ladders';
 import { extraGrantedBadges, formatPlacement, milestoneBadges, type BadgeState } from '@/lib/economy/milestone-badges';
-import type { HallSeason, TrophyHall } from '@/types/database';
+import type { HallSeason, PublicCollection, TrophyHall } from '@/types/database';
 
 // §4 — the full "See all" hall, grouped: season placements · relics · the milestone badge grid ·
 // the duel record.
@@ -38,6 +38,8 @@ export default function TrophyHallScreen() {
 
   const userId = userIdParam ?? myProfile?.id;
   const [hall, setHall] = useState<TrophyHall | null>(null);
+  // The owned titles (mock 325). They left the profile's name line, so this is where they live now.
+  const [collection, setCollection] = useState<PublicCollection | null>(null);
   const [ownerName, setOwnerName] = useState<string | null>(null);
   // The §4a-2 tap sheet — lore + the earn metric. One at a time, so tapping a second row swaps the
   // contents rather than stacking modals.
@@ -56,6 +58,12 @@ export default function TrophyHallScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!userId) return;
+    // Fails soft: no collection read, no titles group — the rest of the hall is unaffected.
+    fetchPublicCollection(userId).then(setCollection).catch(() => {});
+  }, [userId]);
 
   useEffect(() => {
     if (!userId || userId === myProfile?.id) return;
@@ -145,7 +153,7 @@ export default function TrophyHallScreen() {
 
         <ScrollView contentContainerStyle={styles.container}>
           <Text style={styles.blurb}>
-            Everything here was earned. None of it is in a box or a shop.
+            Everything here was earned — except the collected titles, which say so.
           </Text>
 
           {hall && hall.seasons.length > 0 ? (
@@ -177,6 +185,8 @@ export default function TrophyHallScreen() {
               ))}
             </View>
           ) : null}
+
+          {collection && userId ? <TitlesGroup userId={userId} collection={collection} isOwner={isOwner} /> : null}
 
           {showLadders ? (
             <View style={styles.group}>
@@ -278,6 +288,88 @@ export default function TrophyHallScreen() {
   );
 }
 
+/**
+ * Titles, split the way mock 325 splits them (CODE_PROMPT_ui_streamline.md §14).
+ *
+ * EARNED titles are achievements: the name and what it took ("Night Owl — log 15 lock-ins that
+ * start after midnight"). On your own hall the behavioural ones you haven't earned yet sit greyed
+ * beside them, the same "collection to complete" rule as the milestone grid.
+ *
+ * Every other title — box drops, the pass — is still owned and still equippable (that lane pays
+ * for the app), so it stays here as a quieter second row with the equipped one marked. It is the
+ * one non-earned thing in the hall, and the row's label says so.
+ */
+function TitlesGroup({ userId, collection, isOwner }: { userId: string; collection: PublicCollection; isOwner: boolean }) {
+  const router = useRouter();
+  const equipped = collection.loadout.title ?? null;
+  const owned = collection.items.flatMap((c) => {
+    const item = getItem(c.key);
+    if (!item || item.type !== 'TITLE') return [];
+    return [{ key: c.key, item, name: titleLabel({ ...item, seasonStamp: c.season_stamp }).name, hidden: c.hidden }];
+  });
+  const earned = owned.filter((t) => t.item.acquisition === 'earned');
+  const ownedKeys = new Set(owned.map((t) => t.key));
+  const locked = isOwner ? TITLES_BEHAVIOUR.filter((t) => !ownedKeys.has(t.id)) : [];
+  const worn = owned.filter((t) => t.item.acquisition !== 'earned');
+  if (earned.length === 0 && locked.length === 0 && worn.length === 0) return null;
+
+  return (
+    <View style={styles.group}>
+      <Text style={styles.groupLabel}>TITLES</Text>
+      {earned.map((t) => (
+        <View key={t.key} style={[styles.titleRow, t.hidden && styles.dimmed]}>
+          <UiGlyph name="check" size={14} color={Colors.gold} />
+          <View style={styles.titleText}>
+            <Text style={[styles.titleName, { color: t.item.art.to }]} numberOfLines={1}>
+              {t.name}
+            </Text>
+            <Text style={styles.titleHow} numberOfLines={2}>
+              {t.item.howToGet ?? 'Earned.'}
+            </Text>
+          </View>
+          {t.key === equipped ? <Text style={styles.titleWorn}>WORN</Text> : null}
+        </View>
+      ))}
+      {locked.map((t) => (
+        <View key={t.id} style={[styles.titleRow, styles.dimmed]}>
+          <UiGlyph name="lock" size={13} color={Colors.spaceFaint} />
+          <View style={styles.titleText}>
+            <Text style={[styles.titleName, { color: Colors.spaceDim }]} numberOfLines={1}>
+              {titleLabel(t).name}
+            </Text>
+            <Text style={styles.titleHow} numberOfLines={2}>
+              {t.howToGet}
+            </Text>
+          </View>
+        </View>
+      ))}
+      {worn.length > 0 ? (
+        <>
+          <Text style={styles.titleSubLabel}>Collected titles · equippable</Text>
+          <View style={styles.titleChips}>
+            {worn.map((t) => (
+              <View key={t.key} style={[styles.titleChip, t.key === equipped && styles.titleChipOn, t.hidden && styles.dimmed]}>
+                <Text style={[styles.titleChipText, { color: t.item.art.to }]} numberOfLines={1}>
+                  {t.name}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+      {isOwner ? (
+        <Pressable onPress={() => router.push('/loadout')} hitSlop={8} accessibilityRole="button" style={styles.titleEquip}>
+          <Text style={styles.hideLink}>Change your title in the loadout ›</Text>
+        </Pressable>
+      ) : null}
+      {/* The profile's old Collection entry, moved here: the closet is part of the flex, not the page. */}
+      <Pressable onPress={() => router.push({ pathname: '/collection', params: { userId } })} hitSlop={8} accessibilityRole="button">
+        <Text style={styles.hideLink}>Full collection ›</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 /** Locked tiles are greyed rather than absent — the grid is a collection to complete (§4). */
 function BadgeTile({ badge }: { badge: BadgeState }) {
   return (
@@ -343,6 +435,66 @@ const styles = StyleSheet.create({
   },
   dimmed: {
     opacity: 0.5,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.twelve,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+    borderRadius: 13,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  titleText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  titleName: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+  },
+  titleHow: {
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.spaceDim,
+    marginTop: 1,
+  },
+  titleWorn: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9,
+    letterSpacing: 0.5,
+    color: Colors.navEmber2,
+  },
+  titleSubLabel: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11,
+    color: Colors.spaceDim,
+    marginTop: Spacing.one,
+  },
+  titleChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  titleChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  titleChipOn: {
+    borderColor: Colors.navEmber2,
+  },
+  titleChipText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 11.5,
+  },
+  titleEquip: {
+    marginTop: Spacing.one,
   },
   // SpaceCard tone="gold" — a season placement is earned.
   season: {

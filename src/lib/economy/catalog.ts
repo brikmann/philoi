@@ -449,7 +449,7 @@ const TITLES_BOX: CatalogItem[] = [
 // economy_evaluate_relics). A matched pair: same rarity, same threshold, opposite ends of the night.
 // The windows don't overlap so a 3 AM session can't count for both — Night Owl owns midnight to
 // 5 AM local, Early Bird owns 5 AM to 9 AM, both in profiles.timezone.
-const TITLES_BEHAVIOUR: CatalogItem[] = [
+export const TITLES_BEHAVIOUR: CatalogItem[] = [
   // Was a common box drop; earned since 0222. Box copies already owned stay owned.
   item({ id: 'title-night-owl', name: '"Night Owl"', type: 'TITLE', rarity: 'rare', acquisition: 'earned',
     howToGet: 'Log 15 lock-ins that start after midnight.',
