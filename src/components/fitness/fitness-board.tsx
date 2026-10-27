@@ -5,6 +5,7 @@ import { BoardRow, NO_LOADOUT } from '@/components/board-row';
 import { BoardTrackerBanner } from '@/components/fitness/tracker-prompts';
 import { LeaderboardList } from '@/components/leaderboard-list';
 import { CompeteGlyph } from '@/components/ui/glyphs-compete';
+import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useFitnessTracking } from '@/hooks/use-fitness-tracking';
 import { usePublicLoadouts, type PublicLoadout } from '@/hooks/use-public-loadouts';
@@ -157,7 +158,9 @@ function FitnessBoardRow({
   // null for anything but an exercise metric. ✓ = a clip is on file for review — never a watch link.
   const verification =
     row.verified === null ? null : row.verified ? (
-      <Text style={[styles.verify, styles.verifyOk]}>✓ clip on file</Text>
+      <IconText icon="check" style={[styles.verify, styles.verifyOk, styles.verifyInRow]} containerStyle={styles.verifyRow} gap={3}>
+        clip on file
+      </IconText>
     ) : (
       <Text style={styles.verify}>no clip · unverified</Text>
     );
@@ -255,6 +258,12 @@ const styles = StyleSheet.create({
   },
   verifyOk: {
     color: Colors.green,
+  },
+  verifyRow: {
+    marginTop: 1,
+  },
+  verifyInRow: {
+    marginTop: 0,
   },
   valueColumn: {
     alignItems: 'flex-end',

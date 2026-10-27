@@ -21,6 +21,7 @@ import { AgoraCommentsSheet } from '@/components/agora/agora-comments-sheet';
 import { ForestsBrowse } from '@/components/forests/forests-browse';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { IconText } from '@/components/ui/icon';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -587,14 +588,11 @@ function EmptyScope({
  */
 function ChannelHeader({ channel }: { channel: FeedChannel }) {
   const router = useRouter();
-  const meta = [
-    `${channel.member_count} ${channel.member_count === 1 ? 'member' : 'members'}`,
-    channel.challenge_id
-      ? `⚔ ${channel.challenge_name ?? 'Live challenge'}${channel.challenge_ends_at ? ` · ${formatTimeLeft(channel.challenge_ends_at)}` : ''}`
-      : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const members = `${channel.member_count} ${channel.member_count === 1 ? 'member' : 'members'}`;
+  const challenge = channel.challenge_id
+    ? `${channel.challenge_name ?? 'Live challenge'}${channel.challenge_ends_at ? ` · ${formatTimeLeft(channel.challenge_ends_at)}` : ''}`
+    : null;
+  const meta = [members, challenge].filter(Boolean).join(' · ');
   return (
     <Pressable
       style={styles.channelHeader}
@@ -608,9 +606,16 @@ function ChannelHeader({ channel }: { channel: FeedChannel }) {
       <Text style={styles.channelName} numberOfLines={1}>
         {channel.emoji} {channel.name}
       </Text>
-      <Text style={styles.channelMeta} numberOfLines={1}>
-        {meta}
-      </Text>
+      <View style={styles.channelMetaRow}>
+        <Text style={styles.channelMeta} numberOfLines={1}>
+          {challenge ? `${members} · ` : members}
+        </Text>
+        {challenge ? (
+          <IconText icon="challenge" style={[styles.channelMeta, styles.channelMetaShrink]} numberOfLines={1} containerStyle={styles.channelMetaShrink}>
+            {challenge}
+          </IconText>
+        ) : null}
+      </View>
     </Pressable>
   );
 }
@@ -631,11 +636,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.ink,
   },
+  channelMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  channelMetaShrink: {
+    flexShrink: 1,
+  },
   channelMeta: {
     fontFamily: Fonts.body,
     fontSize: 11,
     color: Colors.spaceDim,
-    marginTop: 2,
   },
   // "+ join": a quiet outline, never mistaken for a selected chip.
   filterJoin: {

@@ -22,6 +22,7 @@ import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { RankBadge } from '@/components/rank-badge';
 import { SessionFlame } from '@/components/session-flame';
+import { Icon, IconText } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { BOXES, type BoxKey } from '@/lib/economy/boxes';
@@ -248,7 +249,9 @@ export function CosmeticHero({ kind, name }: { kind: CosmeticKind; name: string 
       return (
         <View style={styles.hero}>
           <ItemArt item={it} size={84} motion="on" />
-          <Text style={styles.heroLabel}>{kind === 'sfx' ? '▶ plays as you lock in, and as you finish' : '♪ plays while you grind'}</Text>
+          <IconText icon={kind === 'sfx' ? 'play' : 'music'} style={styles.heroLabel}>
+            {kind === 'sfx' ? 'plays as you lock in, and as you finish' : 'plays while you grind'}
+          </IconText>
         </View>
       );
 
@@ -311,7 +314,7 @@ export function RankLadder() {
           Flame Pass is what starts fresh each season.
         </Text>
       </View>
-      <Band label="⬆ ASCENSION — only a handful reach it" ascension />
+      <Band label="ASCENSION — only a handful reach it" ascension />
       {ASCENSION.map((r) => (
         <RankRow key={r.tier} tier={r.tier} effort={r.effort} ascension />
       ))}
@@ -326,6 +329,7 @@ export function RankLadder() {
 function Band({ label, ascension }: { label: string; ascension?: boolean }) {
   return (
     <View style={styles.band}>
+      {ascension ? <Icon name="up" size={9} color={Colors.amber} /> : null}
       <Text style={[styles.bandText, ascension && { color: Colors.amber }]} numberOfLines={1}>
         {label}
       </Text>

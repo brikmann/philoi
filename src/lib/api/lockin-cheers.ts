@@ -90,15 +90,16 @@ export async function fetchFriendsLockedIn(): Promise<FriendLockedIn[]> {
   }));
 }
 
-/** "🧠 Deep Work", "🏋️ Gym" — or a neutral line when they keep the activity private. */
+/** "Deep Work", "Gym" — or a neutral line when they keep the activity private. Plain words: this is
+ * spliced into sentences ("· Study · 42m in"), so a glyph belongs to the caller's row, not the string. */
 export function friendActivityLabel(f: Pick<FriendLockedIn, 'live' | 'goalType' | 'category' | 'activity'>): string {
   if (!f.live) return 'Not locked in';
-  if (f.category === 'deep_work') return '🧠 Deep Work';
-  if (f.category === 'study') return `${GOAL_TYPE_META.study.emoji} ${GOAL_TYPE_META.study.label}`;
-  if (f.category === 'fitness' && f.activity === 'cardio') return `${GOAL_TYPE_META.run.emoji} ${GOAL_TYPE_META.run.label}`;
-  if (f.category === 'fitness') return `${GOAL_TYPE_META.gym.emoji} ${GOAL_TYPE_META.gym.label}`;
+  if (f.category === 'deep_work') return 'Deep Work';
+  if (f.category === 'study') return GOAL_TYPE_META.study.label;
+  if (f.category === 'fitness' && f.activity === 'cardio') return GOAL_TYPE_META.run.label;
+  if (f.category === 'fitness') return GOAL_TYPE_META.gym.label;
   const meta = f.goalType ? GOAL_TYPE_META[f.goalType] : undefined;
-  return meta ? `${meta.emoji} ${meta.label}` : '🔥 Locked in';
+  return meta ? meta.label : 'Locked in';
 }
 
 /** "42m in", "1h 06m in". */

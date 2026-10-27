@@ -22,6 +22,7 @@ import { RewardRow, type RewardRowSpec } from '@/components/economy/reward-rows'
 import { FLAME_ASPECT_RATIO, FlameSvg } from '@/components/flame-icon';
 import { RankBadge } from '@/components/rank-badge';
 import { EmberText } from '@/components/ui/ember-text';
+import { Icon } from '@/components/ui/icon';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useInventory } from '@/hooks/use-inventory';
@@ -1079,6 +1080,7 @@ export function RankUpCelebration({
 
   const brandStyle = useRiseStyle(brandReveal);
   const tagStyle = useRiseStyle(tagReveal);
+  const cardTag = rankUpCardTag(tier, isDivisionBump);
   const tierStyle = useRiseStyle(tierReveal);
   const copyStyle = useRiseStyle(copyReveal);
   const footStyle = useRiseStyle(footReveal);
@@ -1312,9 +1314,10 @@ export function RankUpCelebration({
         <FlameSvg width={16 * FLAME_ASPECT_RATIO} height={16} />
         <Text style={styles.brandLabel}>Philoi</Text>
       </Animated.View>
-      <Animated.Text style={[styles.tag, { color: metal.inner }, tagStyle]}>
-        {rankUpCardTag(tier, isDivisionBump)}
-      </Animated.Text>
+      <Animated.View style={[styles.tagRow, tagStyle]}>
+        {cardTag.icon ? <Icon name={cardTag.icon} size={12} color={metal.inner} /> : null}
+        <Text style={[styles.tag, { color: metal.inner }]}>{cardTag.label}</Text>
+      </Animated.View>
 
       <View
         style={styles.badgeZone}
@@ -1453,11 +1456,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.ink,
   },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Spacing.two,
+  },
   tag: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
     letterSpacing: 4,
-    marginTop: Spacing.two,
   },
   badgeZone: {
     height: BADGE_SIZE * 1.5,

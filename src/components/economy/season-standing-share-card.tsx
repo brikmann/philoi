@@ -5,6 +5,7 @@ import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 import { EquippedFlameSvg } from '@/components/flame-icon';
 import { FlareEffectLayer } from '@/components/economy/flare-perimeter';
 import { SHARE_CARD_HEIGHT, SHARE_CARD_WIDTH, ShareCardFrame } from '@/components/share-card-frame';
+import { Icon, IconText, type IconName } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { passLevelLabel } from '@/lib/economy/forge-pass';
 import { RARITY_COLOR, RARITY_LABEL, type Rarity } from '@/lib/economy/rarity';
@@ -38,15 +39,15 @@ const BAND_HEADLINE: Record<string, string> = {
   p50: 'TOP 50%',
 };
 
-/** Reward-kind glyphs, matching mock 97's tiles. */
-const REWARD_ICON: Record<SeasonReward['kind'], string> = {
-  title: '🏅',
-  banner: '🎴',
-  card: '🎴',
-  particle: '✨',
-  medal: '🎖',
-  box: '🎁',
-  embers: '🔥',
+/** Reward-kind glyphs, matching mock 97's tiles — the app's own icons, not OS emoji, so the captured image reads the same on every phone. */
+const REWARD_ICON: Record<SeasonReward['kind'], IconName> = {
+  title: 'title',
+  banner: 'banner',
+  card: 'card',
+  particle: 'particle',
+  medal: 'medal',
+  box: 'box',
+  embers: 'ember',
 };
 
 function EmberfallAura() {
@@ -122,9 +123,9 @@ export const SeasonPlacementShareCard = forwardRef<View, ScreenProps>(function S
         <Text style={styles.inFlame}>{headline}</Text>
       </View>
 
-      <Text style={styles.place}>
-        🎓 {card.university} · #{card.rank.toLocaleString('en-US')} of {card.board_size.toLocaleString('en-US')}
-      </Text>
+      <IconText icon="campus" style={styles.place} containerStyle={styles.placeRow}>
+        {card.university} · #{card.rank.toLocaleString('en-US')} of {card.board_size.toLocaleString('en-US')}
+      </IconText>
       <Text style={styles.effort}>
         {card.hours_locked_in}h locked in · {passLevelLabel(card.pass_xp)} · {card.pass_xp.toLocaleString('en-US')} XP
       </Text>
@@ -189,7 +190,7 @@ function RewardRow({ reward }: { reward: SeasonReward }) {
   return (
     <View style={[styles.rewardRow, { borderColor: reward.permanent ? 'rgba(199,155,236,0.5)' : 'rgba(242,163,60,0.28)' }]}>
       <View style={[styles.rewardIcon, { backgroundColor: reward.permanent ? 'rgba(199,155,236,0.16)' : 'rgba(255,150,60,0.14)' }]}>
-        <Text style={styles.rewardGlyph}>{REWARD_ICON[reward.kind]}</Text>
+        <Icon name={REWARD_ICON[reward.kind]} size={17} color={tint} />
       </View>
       <View style={styles.rewardText}>
         <Text style={styles.rewardName} numberOfLines={1}>
@@ -220,12 +221,16 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(80,25,0,0.95)',
     textShadowRadius: 10,
   },
+  placeRow: {
+    justifyContent: 'center',
+    marginTop: 12,
+  },
   place: {
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 15,
     letterSpacing: 0.4,
     color: '#FFD9A0',
-    marginTop: 12,
     textAlign: 'center',
   },
   effort: {
@@ -270,9 +275,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  rewardGlyph: {
-    fontSize: 15,
   },
   rewardText: {
     flex: 1,

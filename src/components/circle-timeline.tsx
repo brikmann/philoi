@@ -25,6 +25,7 @@ import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { EmptyState } from '@/components/ui/empty-state';
+import { IconText } from '@/components/ui/icon';
 import { TextInput } from '@/components/ui/text-input';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { CHAT_ENABLED } from '@/constants/feature-flags';
@@ -588,9 +589,9 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
       if (row.data.system_event !== 'member_joined') return null;
       return (
         <View style={styles.systemRow}>
-          <Text style={styles.systemLine}>
-            <Text style={styles.systemName}>{row.data.profiles.display_name}</Text> joined 🔥
-          </Text>
+          <IconText icon="campfire" trailing style={styles.systemLine} iconColor={Colors.navEmber}>
+            <Text style={styles.systemName}>{row.data.profiles.display_name}</Text> joined
+          </IconText>
         </View>
       );
     }

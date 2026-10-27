@@ -165,7 +165,7 @@ export function LeaderboardPanel({ visible, onClose, groupId, myUserId, topInset
                   // old version read as if nothing had happened.
                   secondaryValue={
                     period === 'all'
-                      ? `🔥 ${item.check_ins_this_week}× this week`
+                      ? `${item.check_ins_this_week} check-ins this week`
                       : `${Math.round(item.score).toLocaleString()} XP all time`
                   }
                   isMe={item.user_id === myUserId}

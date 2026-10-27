@@ -54,8 +54,21 @@ const THEME_OPTIONS: { value: GoalType; icon: DisciplineIconName }[] = [
   { value: goalTypeForChoice('fitness', 'cardio'), icon: GOAL_TYPE_GLYPH.run },
 ];
 
+// The campfire's own stored emoji (groups.emoji), seeded from its theme. That column is CONTENT —
+// the owner can change it and it renders as the campfire's identity — so it stays an emoji. The
+// picker above draws bespoke DisciplineIcons; this is only the default value written on create.
+const THEME_EMOJI: Record<GoalType, string> = {
+  gym: '🏋️',
+  run: '🏃',
+  study: '📚',
+  job_applications: '📝',
+  read: '📖',
+  social_media: '📵',
+  custom: '🔥',
+};
+
 function themeEmoji(type: GoalType): string {
-  return type === 'custom' ? '🔥' : GOAL_TYPE_META[type].emoji;
+  return THEME_EMOJI[type];
 }
 
 /**

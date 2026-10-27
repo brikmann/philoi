@@ -72,7 +72,7 @@ type CoachMarkCopy = {
  */
 export const COACH_MARKS: Record<CoachMarkKey, CoachMarkCopy> = {
   home_lockin: {
-    line: "Your turn. Tap Lock in to start your first lock-in — I'll be right here. 🔥",
+    line: "Your turn. Tap Lock in to start your first lock-in — I'll be right here.",
   },
   campfire_fab: { line: 'Tap ＋ to post, challenge, or ping your crew.', round: true },
   challenge_create: { line: "Describe any goal — I'll scope it and stake a fair reward." },

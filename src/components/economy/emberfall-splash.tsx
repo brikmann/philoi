@@ -5,6 +5,7 @@ import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-nat
 
 import { FallingEmbers } from '@/components/pass/emberfall-art';
 import { ShineSweep } from '@/components/pass/pass-motion';
+import { IconText, type IconName } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { useSeason, type SeasonState } from '@/hooks/use-season';
 
@@ -69,6 +70,8 @@ function wordmarkSize(name: string, bannerWidth: number): { fontSize: number; li
 type Copy = {
   kicker: string;
   pill: string;
+  /** Drawn beside the pill's words — the flame while it burns, the hourglass in the claim window. */
+  pillIcon: IconName;
   tagline: string;
   tappable: boolean;
 };
@@ -79,21 +82,24 @@ function copyFor(s: SeasonState): Copy | null {
     case 'live':
       return {
         kicker: `◆ Season ${n} · Live`,
-        pill: s.endsAt !== null ? `🔥 ${daysPhrase(s.endsAt - s.now, 'left')}` : '🔥 Live now',
+        pill: s.endsAt !== null ? daysPhrase(s.endsAt - s.now, 'left') : 'Live now',
+        pillIcon: 'flame',
         tagline: 'Climb before the embers fade — top finishers are stamped forever.',
         tappable: false,
       };
     case 'claim-window':
       return {
         kicker: `◆ Season ${n} · Claim window`,
-        pill: `⏳ ${daysPhrase(s.endsAt! + s.claimWindowDays * DAY_MS - s.now, 'to claim')}`,
+        pill: daysPhrase(s.endsAt! + s.claimWindowDays * DAY_MS - s.now, 'to claim'),
+        pillIcon: 'hourglass',
         tagline: 'The climb is over — claim what you earned before the window shuts.',
         tappable: true,
       };
     case 'upcoming':
       return {
         kicker: `◆ Season ${n} · Soon`,
-        pill: `🔥 ${daysPhrase(s.startsAt! - s.now, 'opens')}`,
+        pill: daysPhrase(s.startsAt! - s.now, 'opens'),
+        pillIcon: 'flame',
         tagline: 'The embers are about to fall — be on the board when they do.',
         tappable: false,
       };
@@ -166,7 +172,9 @@ export function EmberfallSplash() {
         <View style={styles.row}>
           {range ? <Text style={styles.dates}>{range}</Text> : <View />}
           <View style={styles.pill}>
-            <Text style={styles.pillText}>{copy.pill}</Text>
+            <IconText icon={copy.pillIcon} style={styles.pillText}>
+              {copy.pill}
+            </IconText>
           </View>
         </View>
         <Text style={styles.tagline}>{copy.tagline}</Text>
@@ -174,7 +182,7 @@ export function EmberfallSplash() {
     </View>
   );
 
-  const label = `${season.name} season. ${copy.kicker.replace('◆ ', '')}. ${range ?? ''}. ${copy.pill.replace(/^\S+ /, '')}.`;
+  const label = `${season.name} season. ${copy.kicker.replace('◆ ', '')}. ${range ?? ''}. ${copy.pill}.`;
 
   // The shadow lives on an UNCLIPPED wrapper: iOS drops a shadow on a view with overflow hidden.
   return copy.tappable ? (

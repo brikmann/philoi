@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon, IconText } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import {
@@ -114,7 +115,7 @@ export function ReelChallengeSheet({ target, onClose, onSent }: Props) {
 
           <View style={styles.header}>
             <View style={styles.headerIcon}>
-              <Text style={styles.headerGlyph}>⚔</Text>
+              <Icon name="versus" size={18} color={Colors.onEmber} />
             </View>
             <Text style={styles.headerTitle} numberOfLines={1}>
               Challenge {who}
@@ -124,16 +125,16 @@ export function ReelChallengeSheet({ target, onClose, onSent }: Props) {
           <View style={styles.targetCard}>
             <View style={styles.thumb}>
               {thumb ? <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
-              <Text style={styles.thumbPlay}>▶</Text>
+              <Icon name="play" size={14} color="#FFFFFF" />
             </View>
             <View style={styles.targetText}>
               <Text style={styles.targetName} numberOfLines={1}>
                 {metricLine(lift)}
               </Text>
-              <Text style={styles.targetVerified}>
-                ✓ verified · {formatLiftWeight(lift.weight)}
+              <IconText icon="check" style={styles.targetVerified} gap={3}>
+                verified · {formatLiftWeight(lift.weight)}
                 {lift.reps > 1 ? ` × ${lift.reps}` : ''}
-              </Text>
+              </IconText>
             </View>
           </View>
 
@@ -173,7 +174,7 @@ export function ReelChallengeSheet({ target, onClose, onSent }: Props) {
                 win. Winner climbs; both of you get better.
               </Text>
 
-              <PrimaryButton label="Send challenge ⚔" onPress={() => void send()} loading={sending} disabled={sending} />
+              <PrimaryButton label="Send challenge" onPress={() => void send()} loading={sending} disabled={sending} />
             </>
           )}
         </View>
@@ -222,10 +223,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerGlyph: {
-    fontSize: 17,
-    color: Colors.onEmber,
-  },
   headerTitle: {
     flex: 1,
     fontFamily: Fonts.bodyBold,
@@ -250,12 +247,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.spacePanel2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  thumbPlay: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowRadius: 3,
   },
   targetText: {
     flex: 1,

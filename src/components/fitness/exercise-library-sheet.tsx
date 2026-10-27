@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { EmberSearchBar } from '@/components/ui/ember-search-bar';
+import { Icon, type IconName } from '@/components/ui/icon';
 import { SpaceButton, SpaceChip, SpaceSection, SpaceTile, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
 import { UiGlyph } from '@/components/ui/ui-glyph';
@@ -44,15 +45,17 @@ const MUSCLE_LABEL: Record<MuscleGroup, string> = {
   cardio: 'Cardio',
 };
 
-const MUSCLE_EMOJI: Record<MuscleGroup, string> = {
-  arms: '💪',
-  back: '🪢',
-  chest: '🏋️',
-  core: '🧱',
-  legs: '🦵',
-  shoulders: '🤸',
-  full_body: '🏗️',
-  cardio: '🏃',
+// The set has no per-muscle art, so a lift reads as the dumbbell and cardio as the lungs — the same
+// split the disciplines use (gym = dumbbell, run = lungs).
+const MUSCLE_ICON: Record<MuscleGroup, IconName> = {
+  arms: 'gym',
+  back: 'gym',
+  chest: 'gym',
+  core: 'gym',
+  legs: 'gym',
+  shoulders: 'gym',
+  full_body: 'gym',
+  cardio: 'run',
 };
 
 const UNITS: ExerciseUnit[] = ['weight', 'reps', 'time', 'distance'];
@@ -68,8 +71,8 @@ export function muscleLabel(group: string | null | undefined): string | null {
   return group && group in MUSCLE_LABEL ? MUSCLE_LABEL[group as MuscleGroup] : null;
 }
 
-function muscleEmoji(group: string | null | undefined): string {
-  return group && group in MUSCLE_EMOJI ? MUSCLE_EMOJI[group as MuscleGroup] : '🏋️';
+function muscleIcon(group: string | null | undefined): IconName {
+  return group && group in MUSCLE_ICON ? MUSCLE_ICON[group as MuscleGroup] : 'gym';
 }
 
 /** Mirrors exercise_slug() (0265) — only a fallback for when the library can't name a just-created row. */
@@ -151,7 +154,7 @@ export function ExerciseLibraryPanel({ onPick, onBack }: { onPick: (exercise: Pi
               onPress={() => onPick({ slug: r.slug, name: r.name, unit: r.unit, muscleGroup: r.muscle_group })}
               accessibilityRole="button">
               <SpaceTile>
-                <Text style={styles.resultEmoji}>{muscleEmoji(r.muscle_group)}</Text>
+                <Icon name={muscleIcon(r.muscle_group)} size={19} color={Colors.navEmber2} />
               </SpaceTile>
               <View style={styles.resultWho}>
                 <Text style={styles.resultName} numberOfLines={1}>
@@ -356,10 +359,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.spacePanel2,
     borderWidth: 1,
     borderColor: Colors.spaceLine,
-  },
-  resultEmoji: {
-    fontSize: 18,
-    textAlign: 'center',
   },
   resultWho: {
     flex: 1,

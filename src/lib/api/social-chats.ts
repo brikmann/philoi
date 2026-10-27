@@ -1,3 +1,4 @@
+import type { IconName } from '@/components/ui/icon';
 import { fetchMyDmThreads } from '@/lib/api/dm';
 import { fetchMyGroups } from '@/lib/api/groups';
 import { supabase } from '@/lib/supabase';
@@ -17,6 +18,8 @@ export type SocialChat =
       emoji: string;
       lastAt: string | null;
       lastLine: string | null;
+      /** Drawn before lastLine when the last message was a photo / attachment rather than words. */
+      lastIcon: IconName | null;
     }
   | {
       kind: 'dm';
@@ -30,7 +33,7 @@ export type SocialChat =
     };
 
 /** The newest live message in one campfire, as "Name: text". RLS ("messages: read if member") gates it. */
-async function lastCampfireLine(groupId: string): Promise<{ at: string; line: string } | null> {
+async function lastCampfireLine(groupId: string): Promise<{ at: string; line: string; icon: IconName | null } | null> {
   const { data, error } = await supabase
     .from('messages')
     // Hinted embed: see fetchMessages in lib/api/messages.ts for why a bare profiles(...) fails.
@@ -42,8 +45,10 @@ async function lastCampfireLine(groupId: string): Promise<{ at: string; line: st
     .maybeSingle();
   if (error || !data) return null;
   const who = (data.profiles as unknown as { display_name: string } | null)?.display_name ?? 'Someone';
-  const said = data.body?.trim() || (data.attach_kind === 'photo' ? '📷 Photo' : data.attach_kind ? '📎 Shared something' : '');
-  return { at: data.created_at as string, line: `${who}: ${said}` };
+  const body = data.body?.trim();
+  const said = body || (data.attach_kind === 'photo' ? 'Photo' : data.attach_kind ? 'Shared something' : '');
+  const icon: IconName | null = body ? null : data.attach_kind === 'photo' ? 'photo' : data.attach_kind ? 'clip' : null;
+  return { at: data.created_at as string, line: `${who}: ${said}`, icon };
 }
 
 /** Campfire chats + DMs, the most recently active first. A failed half degrades to the other half. */
@@ -53,7 +58,15 @@ export async function fetchMySocialChats(userId: string): Promise<SocialChat[]> 
   const campfires = await Promise.all(
     groups.map(async (g): Promise<SocialChat> => {
       const last = await lastCampfireLine(g.id);
-      return { kind: 'campfire', id: g.id, name: g.name, emoji: g.emoji, lastAt: last?.at ?? null, lastLine: last?.line ?? null };
+      return {
+        kind: 'campfire',
+        id: g.id,
+        name: g.name,
+        emoji: g.emoji,
+        lastAt: last?.at ?? null,
+        lastLine: last?.line ?? null,
+        lastIcon: last?.icon ?? null,
+      };
     })
   );
   const dms: SocialChat[] = threads.map((t) => ({

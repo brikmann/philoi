@@ -7,6 +7,7 @@ import { CardBackdropArt, cardLookForItem, type CardMotion } from '@/components/
 import { RankBadge } from '@/components/rank-badge';
 import { PatronCrest } from '@/components/story-sticker/patron-crest';
 import { FLAME_MIRROR_TRANSFORM, FLAME_PATH, FLAME_VIEWBOX } from '@/components/ui/flame-logo';
+import { IconText, type IconName } from '@/components/ui/icon';
 import { Fonts } from '@/constants/theme';
 import type { CatalogItem } from '@/lib/economy/catalog';
 import { mix } from '@/lib/economy/colour';
@@ -91,10 +92,12 @@ export const StorySticker = forwardRef<View, Props>(function StorySticker({ mode
   if (cosmetic) border = `${RARITY_COLOR[cosmetic.rarity]}99`;
   else if (ramp) border = `${ramp.mid}88`;
 
-  const statRow = [
-    prefs.showStreak && model.streakDays > 0 ? { key: 'streak', value: `🔥 ${model.streakDays}`, label: 'DAY STREAK' } : null,
+  type Stat = { key: string; value: string; label: string; icon?: IconName };
+  const stats: (Stat | null)[] = [
+    prefs.showStreak && model.streakDays > 0 ? { key: 'streak', value: String(model.streakDays), label: 'DAY STREAK', icon: 'streak' } : null,
     prefs.showCampus && model.campus ? { key: 'campus', value: model.campus.value, label: model.campus.label } : null,
-  ].filter((s): s is { key: string; value: string; label: string } => s !== null);
+  ];
+  const statRow = stats.filter((s): s is Stat => s !== null);
 
   const rank = model.rank;
   const showBadge = prefs.showRank && rank;
@@ -252,7 +255,13 @@ export const StorySticker = forwardRef<View, Props>(function StorySticker({ mode
           <View style={styles.stats}>
             {statRow.map((s) => (
               <View key={s.key} style={[styles.stat, cosmetic ? styles.statOnArt : null]}>
-                <Text style={[styles.statValue, shadow]}>{s.value}</Text>
+                {s.icon ? (
+                  <IconText icon={s.icon} iconColor={heroAccent} style={[styles.statValue, shadow]}>
+                    {s.value}
+                  </IconText>
+                ) : (
+                  <Text style={[styles.statValue, shadow]}>{s.value}</Text>
+                )}
                 <Text style={[styles.statLabel, cosmetic ? styles.onArt : null]}>{s.label}</Text>
               </View>
             ))}

@@ -23,7 +23,8 @@ function km(metres: number): string {
   return k >= 100 ? `${Math.round(k)} km` : `${k.toFixed(1)} km`;
 }
 
-/** "128 km", "18.5 h", "🔥 14", "Level 42", "225 lb". */
+/** "128 km", "18.5 h", "14 days", "Level 42", "225 lb". A string, so no glyph — a caller that wants the
+ *  streak flame draws an <Icon name="streak"> beside it. */
 export function formatMetricValue(unit: MetricUnit, value: number): string {
   const v = Number.isFinite(value) ? value : 0;
   switch (unit) {
@@ -35,8 +36,10 @@ export function formatMetricValue(unit: MetricUnit, value: number): string {
       return `${compact(v)} lb`;
     case 'xp':
       return `${compact(v)} XP`;
-    case 'days':
-      return `🔥 ${Math.round(v)}`;
+    case 'days': {
+      const d = Math.round(v);
+      return `${d} ${d === 1 ? 'day' : 'days'}`;
+    }
     case 'embers':
       return `${compact(v)} embers`;
     case 'pass_xp':

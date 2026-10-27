@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Tex
 
 import { FITNESS_SYNC_SOURCES, type SyncSource } from '@/components/fitness-sync-prompt';
 import { STRAVA_CONNECT_BUTTON } from '@/components/fitness/tracker-prompts';
+import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { SpaceHeader, SpaceSection, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
@@ -134,7 +135,7 @@ export default function FitnessTrackersScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         {tracking ? (
           <View style={styles.done}>
-            <Text style={styles.doneIcon}>✅</Text>
+            <Icon name="check-circle" size={22} color={Colors.green} />
             <View style={styles.info}>
               <Text style={styles.doneTitle}>You’re tracking</Text>
               <Text style={styles.detail}>Workouts auto-count. Nothing else to set up.</Text>
@@ -282,9 +283,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(57,217,138,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(57,217,138,0.35)',
-  },
-  doneIcon: {
-    fontSize: 20,
   },
   doneTitle: {
     fontFamily: Fonts.bodyBold,

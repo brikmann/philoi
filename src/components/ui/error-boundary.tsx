@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 type Props = {
@@ -40,7 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return (
       <View style={styles.container}>
-        <Text style={styles.emoji}>🌫️</Text>
+        <Icon name="fog" size={44} color={Colors.muted} />
         <Text style={styles.title}>This didn&apos;t load</Text>
         <Text style={styles.body}>Something went wrong showing this screen. It isn&apos;t you — try again.</Text>
         <Pressable style={styles.button} onPress={this.reset} accessibilityRole="button">
@@ -60,7 +61,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.six,
     paddingHorizontal: Spacing.four,
   },
-  emoji: { fontSize: 40 },
   title: {
     fontFamily: Fonts.display,
     fontSize: 20,

@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { FlameCompletionFeedItem } from '@/lib/api/daily-fire';
 
@@ -21,11 +21,11 @@ export function FlameCompletionCard({ item }: { item: FlameCompletionFeedItem })
   return (
     <Card style={styles.card}>
       <View style={styles.icon}>
-        <Ionicons name="flame" size={16} color={Colors.amber} />
+        <Icon name="flame" size={17} color={Colors.amber} />
       </View>
       <View style={styles.body}>
         <Text style={styles.text}>
-          <Text style={styles.name}>{item.display_name}</Text> completed their fire today 🔥
+          <Text style={styles.name}>{item.display_name}</Text> completed their fire today
         </Text>
         <Text style={styles.time}>{formatRelativeTime(item.posted_at)}</Text>
       </View>

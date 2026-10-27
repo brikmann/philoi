@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { Icon, IconText, type IconName } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { refreshFitnessTracking, useFitnessTracking } from '@/hooks/use-fitness-tracking';
@@ -34,7 +35,9 @@ export function HomeTrackerCard() {
   return (
     <View style={styles.homeCard}>
       <Pressable onPress={() => router.push(TRACKERS_ROUTE)} accessibilityRole="button" accessibilityLabel="Fitness trackers">
-        <Text style={styles.homeTitle}>🏃 Track your gym & runs</Text>
+        <IconText icon="run" style={styles.homeTitle} iconColor={Colors.navEmber2} gap={6}>
+          Track your gym & runs
+        </IconText>
         <Text style={styles.homeBody}>Connect a tracker so workouts auto-count toward your XP & boards.</Text>
       </Pressable>
       <HomeConnectButtons />
@@ -112,7 +115,7 @@ export function LockInTrackerPrompt({ activity, style }: { activity: 'strength' 
 
   return (
     <ConnectStrip
-      icon="🔗"
+      icon="link"
       title={activity === 'strength' ? 'Auto-count your gym time' : 'Auto-count your runs'}
       sub={`Connect ${sources}`}
       style={style}
@@ -129,7 +132,7 @@ export function BoardTrackerBanner({ style }: { style?: StyleProp<ViewStyle> }) 
 
   return (
     <ConnectStrip
-      icon="📊"
+      icon="chart"
       title="Connect a tracker to rank here"
       sub="Synced workouts count toward this board"
       dashed
@@ -147,7 +150,7 @@ function ConnectStrip({
   style,
   onPress,
 }: {
-  icon: string;
+  icon: IconName;
   title: string;
   sub: string;
   dashed?: boolean;
@@ -160,7 +163,7 @@ function ConnectStrip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${title}. Connect`}>
-      <Text style={styles.stripIcon}>{icon}</Text>
+      <Icon name={icon} size={22} color={Colors.navEmber2} />
       <View style={styles.stripText}>
         <Text style={styles.stripTitle}>{title}</Text>
         <Text style={styles.stripSub} numberOfLines={1}>
@@ -249,9 +252,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
-  },
-  stripIcon: {
-    fontSize: 20,
   },
   stripText: {
     flex: 1,

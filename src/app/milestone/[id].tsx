@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MilestoneShareCard } from '@/components/economy/milestone-share-card';
+import { IconText } from '@/components/ui/icon';
 import { SpaceButton, SpaceEmpty, SpaceHeader, SpaceIconButton, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -144,7 +145,13 @@ export default function MilestoneScreen() {
                 <View style={styles.pills}>
                   {chips.map((c) => (
                     <View key={c.key} style={styles.pill}>
-                      <Text style={styles.pillText}>{c.label}</Text>
+                      {c.icon ? (
+                        <IconText icon={c.icon} style={styles.pillText}>
+                          {c.label}
+                        </IconText>
+                      ) : (
+                        <Text style={styles.pillText}>{c.label}</Text>
+                      )}
                     </View>
                   ))}
                 </View>
@@ -170,16 +177,19 @@ export default function MilestoneScreen() {
                 onPress={handleCheer}
                 disabled={milestone.cheered}
                 accessibilityRole="button">
-                <Text style={[styles.secondaryText, milestone.cheered && styles.secondaryTextOn]}>
-                  {milestone.cheered ? '🔥 Cheered' : '🔥 Cheer'}
+                <IconText
+                  icon="cheer"
+                  iconColor={Colors.navEmber}
+                  style={[styles.secondaryText, milestone.cheered && styles.secondaryTextOn]}>
+                  {milestone.cheered ? 'Cheered' : 'Cheer'}
                   {milestone.cheers > 0 ? ` · ${milestone.cheers}` : ''}
-                </Text>
+                </IconText>
               </Pressable>
             ) : milestone.cheers > 0 ? (
               <View style={styles.secondary}>
-                <Text style={styles.secondaryText}>
-                  🔥 {milestone.cheers} {milestone.cheers === 1 ? 'cheer' : 'cheers'}
-                </Text>
+                <IconText icon="cheer" iconColor={Colors.navEmber} style={styles.secondaryText}>
+                  {milestone.cheers} {milestone.cheers === 1 ? 'cheer' : 'cheers'}
+                </IconText>
               </View>
             ) : null}
           </View>

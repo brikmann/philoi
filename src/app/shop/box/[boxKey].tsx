@@ -44,7 +44,7 @@ export default function BoxDetailScreen() {
   async function buyAndOpen(count: OpenCount) {
     const total = box.price * count;
     if (embers < total) {
-      Alert.alert('Not enough embers', `You need 🔥 ${total.toLocaleString('en-US')} for this. Lock in to earn more.`);
+      Alert.alert('Not enough embers', `You need ${total.toLocaleString('en-US')} embers for this. Lock in to earn more.`);
       return;
     }
     setBusy(true);

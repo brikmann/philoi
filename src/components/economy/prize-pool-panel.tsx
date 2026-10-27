@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BoxArt } from '@/components/economy/box-art';
 import { DropOddsLink, DropOddsSheet } from '@/components/economy/drop-odds';
 import { ItemArt } from '@/components/economy/item-art';
+import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useDropPool } from '@/hooks/use-drop-pool';
 import { campfireFinisherLabel } from '@/lib/challenge-reward-copy';
@@ -137,7 +138,9 @@ export function PrizePoolPanel({
 
           {pooled ? (
             <>
-              <Text style={styles.up}>🏅 Every contributor earns a badge</Text>
+              <IconText icon="medal" style={styles.up} containerStyle={styles.upRow}>
+                Every contributor earns a badge
+              </IconText>
               <View style={styles.champ}>
                 <View style={[styles.medal, { backgroundColor: medalColor(1) }]}>
                   <Text style={styles.medalText}>1</Text>
@@ -156,7 +159,11 @@ export function PrizePoolPanel({
               </View>
             </>
           ) : null}
-          {pooled ? null : <Text style={styles.up}>🏅 Every finisher earns a badge</Text>}
+          {pooled ? null : (
+            <IconText icon="medal" style={styles.up} containerStyle={styles.upRow}>
+              Every finisher earns a badge
+            </IconText>
+          )}
           {pooled ? null : (
           <>
           <View style={styles.champ}>
@@ -192,7 +199,9 @@ export function PrizePoolPanel({
               the bundle alone could promise an item the roll can no longer produce. */}
           {box && ready && items.length > 0 ? (
             <>
-              <Text style={styles.up}>🏆 {settled ? 'The top band took' : 'The top band also takes'} — what&apos;s in the box</Text>
+              <IconText icon="trophy" style={styles.up} containerStyle={styles.upRow}>
+                {settled ? 'The top band took' : 'The top band also takes'} — what&apos;s in the box
+              </IconText>
               <View style={styles.grid}>
                 {shown.map((item) => (
                   <View key={item.id} style={styles.it} accessibilityLabel={`${item.name}, ${titleCase(item.rarity)}`}>
@@ -271,14 +280,18 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     marginTop: 2,
   },
+  // A section kicker with its glyph — the spacing lives on the row so the icon centres on the words.
+  upRow: {
+    marginTop: 18,
+    marginBottom: 10,
+  },
   up: {
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
     letterSpacing: 1,
     textTransform: 'uppercase',
     color: Colors.muted,
-    marginTop: 18,
-    marginBottom: 10,
   },
   champ: {
     flexDirection: 'row',

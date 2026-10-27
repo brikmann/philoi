@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { forestSubline } from '@/components/forests/forest-bits';
+import { Icon } from '@/components/ui/icon';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { SPACE_GUTTER, SpaceButton, SpaceChip } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
@@ -237,7 +238,7 @@ function EmptyForests({
   if (failed) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyEmoji}>🌱</Text>
+        <Icon name="sprout" size={32} color={Colors.spaceDim} />
         <Text style={styles.emptyTitle}>Forests are still being planted</Text>
         <Text style={styles.emptyBody}>Couldn’t reach them just now. The feed works as normal.</Text>
         <SpaceButton label="Try again" variant="secondary" onPress={onRetry} style={styles.emptyBtn} />
@@ -251,7 +252,7 @@ function EmptyForests({
       : { title: 'No forests here yet', body: 'Plant the first one — your class, your sport, your 6am crew.' };
   return (
     <View style={styles.empty}>
-      <Text style={styles.emptyEmoji}>🌲</Text>
+      <Icon name="forest" size={32} color={Colors.spaceDim} />
       <Text style={styles.emptyTitle}>{copy.title}</Text>
       <Text style={styles.emptyBody}>{copy.body}</Text>
       <SpaceButton label="Create a forest" onPress={onCreate} style={styles.emptyBtn} />
@@ -444,9 +445,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     marginTop: Spacing.five,
   },
-  emptyEmoji: {
-    fontSize: 30,
-  },
+
   emptyTitle: {
     fontFamily: Fonts.bodyBold,
     fontSize: 15,

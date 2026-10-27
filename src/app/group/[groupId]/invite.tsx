@@ -46,7 +46,7 @@ export default function InviteScreen() {
     setSharing(true);
     try {
       track('invite_sent', { group_id: group.id, source: 'invite_screen' });
-      await Share.share({ message: `Join my Campfire on Philoi 🔥 Code: ${webLink.code} — or tap: ${webLink.webLink}` });
+      await Share.share({ message: `Join my Campfire on Philoi. Code: ${webLink.code} — or tap: ${webLink.webLink}` });
     } finally {
       setSharing(false);
     }

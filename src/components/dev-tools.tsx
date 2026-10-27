@@ -4,6 +4,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { showRankUp } from '@/components/rank-up-watcher';
 import { Card } from '@/components/ui/card';
+import { Icon } from '@/components/ui/icon';
 import { SecondaryButton } from '@/components/ui/secondary-button';
 import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -139,7 +140,7 @@ export function DevTools({ devOverride, setDevOverride, groups, isDev = false }:
 
       <Pressable style={styles.toggleRow} onPress={() => setBumpOn((v) => !v)}>
         <View style={[styles.toggleBox, bumpOn && styles.toggleBoxOn]}>
-          {bumpOn && <Text style={styles.toggleCheck}>✓</Text>}
+          {bumpOn && <Icon name="check" size={13} color={Colors.ink} />}
         </View>
         <Text style={styles.toggleLabel}>Division bump (no copy, lighter flash)</Text>
       </Pressable>
@@ -298,10 +299,6 @@ const styles = StyleSheet.create({
   toggleBoxOn: {
     backgroundColor: Colors.coral,
     borderColor: Colors.coral,
-  },
-  toggleCheck: {
-    fontSize: 12,
-    color: Colors.ink,
   },
   toggleLabel: {
     fontFamily: Fonts.body,

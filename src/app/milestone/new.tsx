@@ -4,6 +4,7 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleShee
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SettingsGlyph } from '@/components/ui/glyphs-settings';
+import { IconText } from '@/components/ui/icon';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { SpaceButton, SpaceHeader, SpaceIconButton, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
@@ -172,9 +173,16 @@ export default function NewMilestoneScreen() {
                           style={[styles.receiptChip, dropped.has(c.key) && styles.receiptChipOff]}
                           accessibilityRole="button"
                           accessibilityLabel={`${c.label}, ${dropped.has(c.key) ? 'trimmed' : 'attached'}`}>
-                          <Text style={[styles.receiptChipText, dropped.has(c.key) && styles.receiptChipTextOff]}>
-                            {c.label}
-                          </Text>
+                          {c.icon ? (
+                            <IconText
+                              icon={c.icon}
+                              iconColor={Colors.amber}
+                              style={[styles.receiptChipText, dropped.has(c.key) && styles.receiptChipTextOff]}>
+                              {c.label}
+                            </IconText>
+                          ) : (
+                            <Text style={[styles.receiptChipText, dropped.has(c.key) && styles.receiptChipTextOff]}>{c.label}</Text>
+                          )}
                         </Pressable>
                       ))}
                     </View>

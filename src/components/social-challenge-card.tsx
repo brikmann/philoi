@@ -8,6 +8,7 @@ import { GradeReportSheet } from '@/components/grade-report-sheet';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { PublicTitle } from '@/components/economy/loadout-bits';
 import { Avatar } from '@/components/ui/avatar';
+import { IconText } from '@/components/ui/icon';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { cancelSocialChallenge, respondToH2HChallenge } from '@/lib/api/social-challenges';
 import { getErrorMessage } from '@/lib/errors';
@@ -250,14 +251,16 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
               <View style={[styles.tugYou, { width: `${o.myPercent}%` }]} />
               <View style={styles.tugOpp} />
             </View>
-            <Text
-              style={[
-                styles.leadLabel,
-                { color: o.viewerAhead == null ? Colors.muted : o.viewerAhead ? Colors.amber : Colors.sky },
-              ]}>
-              {o.viewerAhead != null ? '🔥 ' : ''}
-              {o.leadText}
-            </Text>
+            {o.viewerAhead != null ? (
+              <IconText
+                icon="flame"
+                style={[styles.leadLabel, { color: o.viewerAhead ? Colors.amber : Colors.sky }]}
+                containerStyle={styles.leadRow}>
+                {o.leadText}
+              </IconText>
+            ) : (
+              <Text style={[styles.leadLabel, styles.leadLabelAlone, { color: Colors.muted }]}>{o.leadText}</Text>
+            )}
           </>
         )}
 
@@ -501,7 +504,11 @@ export function SocialChallengeCard({ challenge: c, myUserId, onChanged, isAdmin
             <Text style={styles.groupCountMuted}> / {memberCount} done</Text>
           </Text>
         )}
-        {everyoneDone && !awaitingAnswers && !c.pooled && <Text style={styles.groupDoneTag}>Everyone finished 🎉</Text>}
+        {everyoneDone && !awaitingAnswers && !c.pooled && (
+          <IconText icon="sparkle" style={styles.groupDoneTag} trailing>
+            Everyone finished
+          </IconText>
+        )}
       </View>
 
       {/* Same reasoning as the row above: `segments` is one pip per accepted member, filled when
@@ -918,10 +925,17 @@ const styles = StyleSheet.create({
   tugOpp: {
     flex: 1,
   },
+  leadRow: {
+    justifyContent: 'center',
+    marginTop: 7,
+  },
   leadLabel: {
+    flexShrink: 1,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11.5,
     textAlign: 'center',
+  },
+  leadLabelAlone: {
     marginTop: 7,
   },
   // ── grade meters ──

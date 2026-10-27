@@ -33,6 +33,7 @@ import {
   cosmeticRarity,
   type CosmeticKind,
 } from '@/components/tutorial/tour-art';
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { getItem } from '@/lib/economy/catalog';
@@ -62,8 +63,9 @@ import { RARITY_COLOR } from '@/lib/economy/rarity';
 // ─────────────────────────── REAL ART, NOT EMOJI (mock 239 v3) ───────────────────────────
 //
 // The miniatures are still the FRAME; the SUBJECT of each card — the flame, a ring, a crate cracking,
-// a fuse, a rank emblem — is the shipped renderer from tour-art.tsx. Emoji survive only as copy
-// (Cindy's bubbles) and as row icons, never as the thing a card is showing off.
+// a fuse, a rank emblem — is the shipped renderer from tour-art.tsx, and the chrome around it wears
+// the same bespoke icons as the real app. Emoji survive only as copy (Cindy's bubbles, a message in
+// a chat) and where a user picked them (a campfire's emoji), never as a button, a row or a header.
 //
 // ─────────────────────────── PLAYABLE, NOT A SLIDESHOW ───────────────────────────
 //
@@ -131,36 +133,36 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       // that the second tap is a COURSE. A tour whose whole promise is "here is what the app looks
       // like" cannot be the one screenshot that lies.
       cindy: [
-        'This is your flame — it *is* you. See the orange ⏱ Lock in button? Tap it.',
-        "Two taps, that's it. First: what are you doing? 📚 Studying is for a course, 📐 Deep Work is a project. Tap Studying.",
+        'This is your flame — it *is* you. See the orange Lock in button? Tap it.',
+        "Two taps, that's it. First: what are you doing? Studying is for a course, Deep Work is a project. Tap Studying.",
         'Then which one — your course, or Custom for anything else. (Fitness goes Cardio or Strength.)',
         "And you're locked in. Embers and XP are already stacking, and your streak is alive. 🔥",
       ],
       steps: [
         <MiniScreen key="f0">
-          <MiniHeader icon={<FlameGlyph />} title="Home" right="🔥 1,240" />
+          <MiniHeader art={<FlameGlyph />} title="Home" right="1,240" rightIcon="ember" />
           <View style={styles.flameWrap}>
             <TourFlame height={96} />
             <MiniMuted>4-day streak</MiniMuted>
           </View>
-          <MiniButton label="⏱ Lock in" />
+          <MiniButton icon="timer" label="Lock in" />
         </MiniScreen>,
         <MiniScreen key="f1">
-          <MiniHeader icon={<FlameGlyph />} title="Lock in for…" />
+          <MiniHeader art={<FlameGlyph />} title="Lock in for…" />
           {/* All three real cards, in the real order. Studying-for vs Deep-Work-on is the choice
               people hesitate over, so the tour cannot show a two-card screen that no longer exists. */}
-          <MiniRow glyph="📚" title="Studying" highlight />
-          <MiniRow glyph="📐" title="Deep Work" />
-          <MiniRow glyph="🏋️" title="Fitness" />
+          <MiniRow icon="study" title="Studying" highlight />
+          <MiniRow icon="deep-work" title="Deep Work" />
+          <MiniRow icon="gym" title="Fitness" />
         </MiniScreen>,
         <MiniScreen key="f2">
-          <MiniHeader glyph="📚" title="Studying" />
+          <MiniHeader icon="study" title="Studying" />
           <MiniRow title="KP390" highlight />
           <MiniRow title="EC120" />
-          <MiniRow glyph="＋" title="Custom" />
+          <MiniRow icon="plus" title="Custom" />
         </MiniScreen>,
         <MiniScreen center key="f3">
-          <MiniMuted>📚 KP390 · locked in</MiniMuted>
+          <MiniMuted icon="study">KP390 · locked in</MiniMuted>
           <TourFlame height={96} />
           <MiniMuted color={Colors.amber}>00:12</MiniMuted>
         </MiniScreen>,
@@ -176,7 +178,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="r">
-          <MiniHeader glyph="🏆" title="The ranks" right="10 tiers · for life" />
+          <MiniHeader icon="trophy" title="The ranks" right="10 tiers · for life" />
           <RankLadder />
         </MiniScreen>,
       ],
@@ -189,7 +191,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="p">
-          <MiniHeader glyph="👤" title={at} right="Diamond III" />
+          <MiniHeader nav="profile" title={at} right="Diamond III" />
           <Text style={styles.sectionLabel}>Discipline relics</Text>
           <View style={styles.relics}>
             {RELIC_SHELF.map((r) => (
@@ -205,7 +207,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
             ))}
             <View style={styles.relic}>
               <View style={[styles.relicTile, styles.relicLocked]}>
-                <Text style={styles.relicGlyph}>🔒</Text>
+                <Icon name="lock" size={16} color={Colors.muted} />
               </View>
               <Text style={styles.relicCap}>Secret</Text>
             </View>
@@ -224,9 +226,9 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="c">
-          <MiniHeader glyph="🏕️" title="Campfires" />
-          <MiniRow glyph="🏃" title="LRC" sub="🔥 4-day streak · 2 members" />
-          <MiniRow glyph="🐐" title="Goat" sub="🔥 1-day streak" />
+          <MiniHeader nav="campfires" title="Campfires" />
+          <MiniRow glyph="🏃" title="LRC" sub="4-day streak · 2 members" subIcon="streak" />
+          <MiniRow glyph="🐐" title="Goat" sub="1-day streak" subIcon="streak" />
           <View style={styles.spacer} />
           <MiniButton label="+ Start a campfire" />
         </MiniScreen>,
@@ -241,18 +243,18 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="ch0">
-          <MiniHeader glyph="🏃" title="LRC 👑" />
-          <MiniBanner label="📸 Shared a lock-in" colors={['#7a3f8f', '#f0a04b']} height={46} />
+          <MiniHeader glyph="🏃" title="LRC" titleIcon="crown" />
+          <MiniBanner icon="session" label="Shared a lock-in" colors={['#7a3f8f', '#f0a04b']} height={46} />
           <MiniBubble text="on it 💪" me />
           <View style={styles.spacer} />
-          <MiniButton label="＋" />
+          <MiniButton icon="plus" />
         </MiniScreen>,
         <MiniScreen key="ch1">
-          <MiniHeader glyph="＋" title="Add to the fire" />
-          <MiniRow glyph="📸" title="Post a photo" />
-          <MiniRow glyph="⚔️" title="Start a challenge" />
-          <MiniRow glyph="🔗" title="Share a lock-in" />
-          <MiniRow glyph="🔔" title="Ping a member" />
+          <MiniHeader icon="plus" title="Add to the fire" />
+          <MiniRow icon="camera" title="Post a photo" />
+          <MiniRow icon="challenge" title="Start a challenge" />
+          <MiniRow icon="share" title="Share a lock-in" />
+          <MiniRow icon="bell" title="Ping a member" />
         </MiniScreen>,
       ],
     },
@@ -265,14 +267,14 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="d0">
-          <MiniHeader glyph="⚔️" title="Duel" />
+          <MiniHeader nav="challenges" title="Duel" />
           <View style={styles.vs}>
             <View style={styles.pf}>
               <Text style={styles.pfText}>N</Text>
             </View>
             <Text style={styles.vsText}>VS</Text>
             <View style={styles.pf}>
-              <Text style={styles.pfText}>🐐</Text>
+              <Text style={styles.pfText}>M</Text>
             </View>
           </View>
           <MiniMuted>Most lock-ins · 3 days</MiniMuted>
@@ -286,10 +288,12 @@ export function tutorialCards(displayName: string | null, handle: string | null)
             </View>
             <Text style={styles.vsText}>VS</Text>
             <View style={styles.pf}>
-              <Text style={styles.pfText}>🐐</Text>
+              <Text style={styles.pfText}>M</Text>
             </View>
           </View>
-          <MiniMuted color={Colors.amber}>Challenge sent 🔥</MiniMuted>
+          <MiniMuted color={Colors.amber} icon="send" trailing>
+            Challenge sent
+          </MiniMuted>
           <MiniMuted>Waiting for them to accept…</MiniMuted>
         </MiniScreen>,
       ],
@@ -304,22 +308,22 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="g0">
-          <MiniHeader glyph="🎯" title="New goal" />
-          <MiniRow glyph="📚" title="Get 80% in CHEM 121" sub="Hard STEM course · by Dec 12" />
+          <MiniHeader icon="target" title="New goal" />
+          <MiniRow icon="study" title="Get 80% in CHEM 121" sub="Hard STEM course · by Dec 12" />
           <MiniRow
-            glyph="🧰"
+            icon="box"
             title="Legendary reward"
             sub="Staked by Cindy — earn it if you hit 80%"
             accent={RARITY_COLOR.legendary}
           />
           <View style={styles.spacer} />
-          <MiniButton label="🎯 Track this goal" />
+          <MiniButton icon="target" label="Track this goal" />
         </MiniScreen>,
         <MiniScreen key="g1">
-          <MiniHeader glyph="🏋️" title="Fitness" />
-          <MiniRow glyph="🔥" title="Train 3× this week" sub="Consistency challenge" />
+          <MiniHeader icon="gym" title="Fitness" />
+          <MiniRow icon="streak" title="Train 3× this week" sub="Consistency challenge" />
           <MiniRow
-            glyph="🔥"
+            icon="box"
             title="Rare crate on the streak"
             sub="Consistency + relics earn loot"
             accent={RARITY_COLOR.rare}
@@ -332,10 +336,10 @@ export function tutorialCards(displayName: string | null, handle: string | null)
             Everyone&apos;s body is different. 💪
           </Text>
           <View style={styles.spacer} />
-          <MiniButton label="🔥 Track consistency" />
+          <MiniButton icon="streak" label="Track consistency" />
         </MiniScreen>,
         <MiniScreen center key="g2">
-          <ShareCard big="300 SQUAT" sub="1.9× bodyweight 🔥" art={<RelicTile relicKey="relic-hercules-might" />} user={at} />
+          <ShareCard big="300 SQUAT" sub="1.9× bodyweight" art={<RelicTile relicKey="relic-hercules-might" />} user={at} />
           <MiniChip label="Your flex · 1.9× your bodyweight" color={RARITY_COLOR.legendary} />
           <MiniMuted>A PR is a flex, not a payout → Agora · Campfire · Story</MiniMuted>
         </MiniScreen>,
@@ -354,7 +358,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
           <MiniMuted color={Colors.amber}>Tap your flame to talk to me</MiniMuted>
         </MiniScreen>,
         <MiniScreen key="ac1">
-          <MiniHeader icon={<FlameGlyph />} title="Ask Cindy" />
+          <MiniHeader art={<FlameGlyph />} title="Ask Cindy" />
           <CindyDemo />
         </MiniScreen>,
       ],
@@ -369,23 +373,23 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="lb0">
-          <MiniHeader glyph="📊" title="Leaderboard" />
+          <MiniHeader nav="leaderboards" title="Leaderboard" />
           <MiniTabs names={['Friends', 'Campus', 'Inter-Uni']} active={0} />
           <MiniRow glyph="1" title="@ava" right="12,480" />
           <MiniRow glyph="2" title="You" right="11,905" highlight />
           <MiniRow glyph="3" title="@marcus" right="9,340" />
         </MiniScreen>,
         <MiniScreen key="lb1">
-          <MiniHeader glyph="📊" title="Leaderboard" />
+          <MiniHeader nav="leaderboards" title="Leaderboard" />
           <MiniTabs names={['Friends', 'Campus', 'Inter-Uni']} active={1} />
           <MiniRow glyph="1" title="@kwn_ari" right="48,900" />
           <MiniRow glyph="2" title="@devsam" right="44,210" />
           <MiniRow glyph="17" title="You" right="11,905" highlight />
         </MiniScreen>,
         <MiniScreen key="lb2">
-          <MiniHeader glyph="📊" title="Leaderboard" />
+          <MiniHeader nav="leaderboards" title="Leaderboard" />
           <MiniTabs names={['Friends', 'Campus', 'Inter-Uni']} active={2} />
-          <MiniRow glyph="🥇" title="Laurier" right="2.4M" highlight />
+          <MiniRow icon="medal" title="Laurier" right="2.4M" highlight />
           <MiniRow glyph="2" title="Waterloo" right="2.1M" />
           <MiniRow glyph="3" title="Western" right="1.6M" />
         </MiniScreen>,
@@ -402,12 +406,14 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="hs">
-          <MiniHeader glyph="🏛️" title="Campus board" right="Program · Uni · Global" />
+          <MiniHeader nav="leaderboards" title="Campus board" right="Program · Uni · Global" />
           <HouseRow rank="1" name="@ava" patronKey="athena" patron="Athena" house="Heir to Athena · Math" right="12,480" />
           <HouseRow rank="2" name="You" patronKey="heracles" patron="Heracles" house="Heir to Heracles · Kin" right="11,905" me />
           <HouseRow rank="3" name="@marcus" patronKey="hermes" patron="Hermes" house="Heir to Hermes · BBA" right="9,340" />
           <View style={styles.spacer} />
-          <MiniMuted color={Colors.amber}>Laurier Kin vs Waterloo Kin ⚔️</MiniMuted>
+          <MiniMuted color={Colors.amber} icon="versus" trailing>
+            Laurier Kin vs Waterloo Kin
+          </MiniMuted>
         </MiniScreen>,
       ],
     },
@@ -419,21 +425,21 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="ag">
-          <MiniHeader glyph="🏛️" title="The Agora" />
+          <MiniHeader nav="agora" title="The Agora" />
           <View style={styles.post}>
-            <MiniRow glyph="A" title="Ava · ranked up 🔥" sub="Platinum III → Diamond I · 2m" />
+            <MiniRow glyph="A" title="Ava · ranked up" sub="Platinum III → Diamond I · 2m" />
             <View style={styles.reacts}>
-              <MiniChip label="🔥 24" color={Colors.amber} />
-              <MiniChip label="👏 8" color={Colors.muted} />
-              <MiniChip label="💬 3" color={Colors.muted} />
+              <MiniChip icon="comment" label="comment" color={Colors.muted} />
+              <MiniChip icon="cheer" label="cheered" color={Colors.amber} />
+              <MiniChip icon="share" label="share" color={Colors.muted} />
             </View>
           </View>
           <View style={styles.post}>
-            <MiniRow glyph="M" title="Marcus" sub="locked in · 90 min 📚 · 6m" />
-            <MiniBanner label="📸 late night at the library" colors={['#2f5a8f', '#4fb0e5']} height={42} />
+            <MiniRow glyph="M" title="Marcus" sub="locked in · 90 min · 6m" subIcon="study" />
+            <MiniBanner icon="photo" label="late night at the library" colors={['#2f5a8f', '#4fb0e5']} height={42} />
             <View style={styles.reacts}>
-              <MiniChip label="🔥 41" color={Colors.amber} />
-              <MiniChip label="🫡 12" color={Colors.muted} />
+              <MiniChip icon="comment" label="comment" color={Colors.muted} />
+              <MiniChip icon="cheer" label="cheer" color={Colors.amber} />
             </View>
           </View>
         </MiniScreen>,
@@ -449,14 +455,16 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       steps: [
         <MiniScreen center key="s0">
           <ShareCard big="RANK UP" sub="Diamond II → Diamond III" art={<FlameGlyph size={36} />} user={at} kicker="PHILOI" />
-          <MiniButton label="📤 Share this" style={styles.shareBtn} />
+          <MiniButton icon="share" label="Share this" style={styles.shareBtn} />
         </MiniScreen>,
         <MiniScreen key="s1">
-          <MiniHeader glyph="📤" title="Share your win" />
-          <MiniRow glyph="📣" title="Post to the Agora" sub="Your whole campus sees it" />
-          <MiniRow glyph="🏕️" title="Send to your Campfire" sub="Hype up your crew" />
-          <MiniRow glyph="📸" title="Share to your story" sub="IG / Snap — the whole world" />
-          <MiniMuted color={Colors.amber}>Rank-ups hit different on socials 🔥</MiniMuted>
+          <MiniHeader icon="share" title="Share your win" />
+          <MiniRow icon="megaphone" title="Post to the Agora" sub="Your whole campus sees it" />
+          <MiniRow icon="campfire" title="Send to your Campfire" sub="Hype up your crew" />
+          <MiniRow icon="camera" title="Share to your story" sub="IG / Snap — the whole world" />
+          <MiniMuted color={Colors.amber} icon="flame" trailing>
+            Rank-ups hit different on socials
+          </MiniMuted>
         </MiniScreen>,
       ],
     },
@@ -478,9 +486,11 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="sh0">
-          <MiniHeader glyph="📦" title="Shop" right="🔥 1,240" />
+          <MiniHeader nav="shop" title="Shop" right="1,240" rightIcon="ember" />
           <CrateShelf boxes={['furnace', 'hestia', 'hephaestus']} />
-          <MiniMuted>The Furnace · 250 🔥</MiniMuted>
+          <MiniMuted icon="ember" trailing>
+            The Furnace · 250
+          </MiniMuted>
           <View style={styles.spacer} />
           <MiniButton label="Open ×10" />
         </MiniScreen>,
@@ -503,7 +513,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="cr0">
-          <MiniHeader glyph="✨" title="Opening ×10" right="0 / 10" />
+          <MiniHeader icon="sparkle" title="Opening ×10" right="0 / 10" />
           <View style={styles.grid}>
             {Array.from({ length: 10 }, (_, i) => (
               <FaceDownTile key={i} />
@@ -511,7 +521,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
           </View>
         </MiniScreen>,
         <MiniScreen key="cr1">
-          <MiniHeader glyph="✨" title="Your haul" right="10 pulls" />
+          <MiniHeader icon="sparkle" title="Your haul" right="10 pulls" />
           <HaulPreview name={at} />
         </MiniScreen>,
       ],
@@ -525,13 +535,13 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="in0">
-          <MiniHeader glyph="🎒" title="Inventory" />
+          <MiniHeader nav="inventory" title="Inventory" />
           <ItemGrid ids={INVENTORY_IDS} />
         </MiniScreen>,
         <MiniScreen center key="in1">
           <ItemHero id={INVENTORY_IDS[0]} size={64} />
           <MiniMuted color={Colors.ink}>{getItem(INVENTORY_IDS[0])?.name ?? 'Inferno Flare'} · Legendary</MiniMuted>
-          <MiniButton label="Equipped ✓" style={styles.shareBtn} />
+          <MiniButton icon="check" label="Equipped" style={styles.shareBtn} />
         </MiniScreen>,
       ],
     },
@@ -545,7 +555,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="fo0">
-          <MiniHeader glyph="🔨" title="The Forge" />
+          <MiniHeader nav="forge" title="The Forge" />
           <ForgeBefore forgeButton={<MiniButton label="Forge" style={styles.forgeBtn} />} />
         </MiniScreen>,
         <MiniScreen center key="fo1">
@@ -564,19 +574,21 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
       steps: [
         <MiniScreen key="st0">
-          <MiniHeader glyph="⚙️" title="Settings" />
+          <MiniHeader nav="settings" title="Settings" />
           <MiniToggle label="Notifications" on={false} />
           <MiniToggle label="Strava / Health" on={false} />
           <MiniToggle label="Google Calendar" on={false} />
           <MiniToggle label="Focus Nudge" on={false} />
         </MiniScreen>,
         <MiniScreen key="st1">
-          <MiniHeader glyph="⚙️" title="Settings" />
+          <MiniHeader nav="settings" title="Settings" />
           <MiniToggle label="Notifications" on />
           <MiniToggle label="Strava / Health" on />
           <MiniToggle label="Google Calendar" on />
           <MiniToggle label="Focus Nudge" on />
-          <MiniMuted color={Colors.green}>All set 🔥</MiniMuted>
+          <MiniMuted color={Colors.green} icon="check-circle">
+            All set
+          </MiniMuted>
         </MiniScreen>,
       ],
     },
@@ -612,7 +624,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       cindy: [
         "The Flame Pass is your key to Emberfall's premium reward track — and it sets your name on fire everywhere the campus looks. 🔥",
       ],
-      next: 'See the Flame Pass 🔥',
+      next: 'See the Flame Pass',
       secondary: 'Maybe later',
       buy: true,
       steps: [<FlamePassPreview key="fp" you={you} />],
@@ -802,7 +814,7 @@ function CosmeticStep({ spec, name }: { spec: CosmeticSpec; name: string }) {
   const tint = RARITY_COLOR[rarity];
   return (
     <MiniScreen>
-      <MiniHeader glyph="🎨" title="Cosmetics" />
+      <MiniHeader icon="flare" title="Cosmetics" />
       <View style={styles.cosStage}>
         <CosmeticHero kind={spec.kind} name={name} />
       </View>
@@ -903,7 +915,7 @@ const CINDY_A = "Love it 🤸 That's an Epic feat — nail it and here's a fair 
 function CindyReward() {
   return (
     <MiniRow
-      glyph="⚱️"
+      icon="reward"
       title="Vessel of Hestia"
       sub="Epic reward · on completion"
       accent={RARITY_COLOR.epic}
@@ -1074,7 +1086,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   relicLocked: { borderColor: '#3a2c58', opacity: 0.5 },
-  relicGlyph: { fontSize: 16 },
   rung: { position: 'absolute', bottom: 1, right: 3, fontSize: 8, fontFamily: Fonts.bodyBold },
   relicCap: { fontFamily: Fonts.body, fontSize: 8, color: Colors.muted },
   vs: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 6 },

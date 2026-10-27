@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EMBER, Laurel } from '@/components/pass/emberfall-art';
 import { CosmeticRender, cosmeticTitle } from '@/components/pass/emberfall-gallery';
+import { IconText } from '@/components/ui/icon';
 import { Fonts } from '@/constants/theme';
 import type { CatalogItem } from '@/lib/economy/catalog';
 import { cosmeticEffect } from '@/lib/economy/cosmetic-effect';
@@ -95,9 +96,13 @@ export function CosmeticDetail({ item, name, showLevel = true }: { item: Catalog
       <View style={styles.pills}>
         {level !== null ? (
           <View style={[styles.pill, level === 0 ? styles.pillNow : styles.pillLv]}>
-            <Text style={[styles.pillText, level === 0 && styles.pillTextNow]}>
-              {level === 0 ? '⚡ Instant with the pass' : `Unlocks at Lv ${level}`}
-            </Text>
+            {level === 0 ? (
+              <IconText icon="bolt" style={[styles.pillText, styles.pillTextNow]} gap={3}>
+                Instant with the pass
+              </IconText>
+            ) : (
+              <Text style={styles.pillText}>Unlocks at Lv {level}</Text>
+            )}
           </View>
         ) : null}
         <View style={[styles.pill, { backgroundColor: rarity }]}>

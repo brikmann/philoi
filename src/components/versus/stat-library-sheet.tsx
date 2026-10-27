@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon } from '@/components/ui/icon';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { MAX_COMPARE_STATS } from '@/components/versus/send-plan';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -52,11 +53,16 @@ export function StatLibrarySheet({ visible, catalog, selected, onToggle, onClose
               <Text style={styles.done}>Done</Text>
             </Pressable>
           </View>
-          <Text style={styles.sub}>
-            <Text style={styles.subSword}>⚔</Text> means it&apos;s also challengeable — an achievable, verifiable target you can
-            throw down for. The rest are compare-only.
-            {full ? ` That's ${MAX_COMPARE_STATS} — the most one head-to-head holds.` : ''}
-          </Text>
+          <View style={styles.subRow}>
+            <View style={styles.subSword}>
+              <Icon name="versus" size={13} color={Colors.danger} />
+            </View>
+            <Text style={styles.sub}>
+              means it&apos;s also challengeable — an achievable, verifiable target you can throw down for. The rest
+              are compare-only.
+              {full ? ` That's ${MAX_COMPARE_STATS} — the most one head-to-head holds.` : ''}
+            </Text>
+          </View>
 
           <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
             {groups.map((group) => (
@@ -81,7 +87,7 @@ export function StatLibrarySheet({ visible, catalog, selected, onToggle, onClose
                           <Text style={styles.chipEmoji}>{row.emoji}</Text>
                         )}
                         <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{row.label}</Text>
-                        {row.challengeable ? <Text style={styles.chipSword}>⚔</Text> : null}
+                        {row.challengeable ? <Icon name="versus" size={11} color={Colors.danger} /> : null}
                       </Pressable>
                     );
                   })}
@@ -137,14 +143,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.navEmber2,
   },
+  subRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+  },
   sub: {
+    flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,
     color: Colors.spaceDim,
   },
   subSword: {
-    color: Colors.danger,
+    marginTop: 1.5,
   },
   list: {
     marginTop: Spacing.two,
@@ -194,9 +206,5 @@ const styles = StyleSheet.create({
   },
   chipLabelOn: {
     color: Colors.navEmber2,
-  },
-  chipSword: {
-    fontSize: 10,
-    color: Colors.danger,
   },
 });

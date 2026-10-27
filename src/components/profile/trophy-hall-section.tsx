@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { TrophyTile } from '@/components/profile/trophy-tile';
+import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { winRate } from '@/lib/api/trophy-hall';
 import { getItem } from '@/lib/economy/catalog';
@@ -120,9 +121,9 @@ export function TrophyHallSection({
 
       {/* Honest about the gap without naming what fills it. */}
       {!isOwn && hall.hidden_count > 0 ? (
-        <Text style={styles.hiddenNote}>
-          🔒 {hall.hidden_count} {hall.hidden_count === 1 ? 'trophy' : 'trophies'} hidden by owner
-        </Text>
+        <IconText icon="lock" style={styles.hiddenNote}>
+          {hall.hidden_count} {hall.hidden_count === 1 ? 'trophy' : 'trophies'} hidden by owner
+        </IconText>
       ) : null}
     </View>
   );

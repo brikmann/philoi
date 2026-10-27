@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { formatLiftSet, getLiftChallenge, type LiftChallenge } from '@/lib/api/reel-challenge';
 
@@ -69,7 +70,9 @@ export function LiftChallengeCard({ challengeId, myUserId, ownerName }: Props) {
       <Text style={styles.target}>
         {lift.exercise} · <Text style={styles.targetNumber}>{target}</Text>
       </Text>
-      <Text style={styles.verified}>✓ verified on {iAmOwner ? 'your' : `${ownerName}'s`} clip</Text>
+      <IconText icon="check" style={styles.verified}>
+        verified on {iAmOwner ? 'your' : `${ownerName}'s`} clip
+      </IconText>
 
       <View style={[styles.status, lift.beaten && styles.statusBeaten]}>
         <Text style={styles.statusText}>{status}</Text>
@@ -77,7 +80,9 @@ export function LiftChallengeCard({ challengeId, myUserId, ownerName }: Props) {
 
       {lift.source_post_id && lift.source_set_id ? (
         <Pressable onPress={watchSource} accessibilityRole="button" style={styles.link} hitSlop={6}>
-          <Text style={styles.linkText}>▶ Watch the clip</Text>
+          <IconText icon="play" style={styles.linkText}>
+            Watch the clip
+          </IconText>
         </Pressable>
       ) : null}
     </View>

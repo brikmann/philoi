@@ -9,6 +9,7 @@ import { ImmersiveFeed } from '@/components/agora/immersive-feed';
 import { LiveFriendsChip } from '@/components/lockin-cheers/live-friends-chip';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { Avatar } from '@/components/ui/avatar';
+import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { fetchMySocialChats, type SocialChat } from '@/lib/api/social-chats';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -163,9 +164,15 @@ function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
         <Text style={[styles.name, unread > 0 && styles.nameUnread]} numberOfLines={1}>
           {chat.name}
         </Text>
-        <Text style={[styles.last, unread > 0 && styles.lastUnread]} numberOfLines={1}>
-          {chat.lastLine ?? (chat.kind === 'campfire' ? 'Nobody’s said anything yet' : 'Say hi 👋')}
-        </Text>
+        {chat.kind === 'campfire' && chat.lastIcon && chat.lastLine ? (
+          <IconText icon={chat.lastIcon} style={[styles.last, styles.lastShrink]} numberOfLines={1}>
+            {chat.lastLine}
+          </IconText>
+        ) : (
+          <Text style={[styles.last, unread > 0 && styles.lastUnread]} numberOfLines={1}>
+            {chat.lastLine ?? (chat.kind === 'campfire' ? 'Nobody’s said anything yet' : 'Say hi')}
+          </Text>
+        )}
       </View>
       <View style={styles.meta}>
         {chat.lastAt ? <Text style={styles.when}>{formatRelativeTime(chat.lastAt)}</Text> : null}
@@ -278,6 +285,9 @@ const styles = StyleSheet.create({
   },
   lastUnread: {
     color: Colors.ink,
+  },
+  lastShrink: {
+    flexShrink: 1,
   },
   meta: {
     alignItems: 'flex-end',

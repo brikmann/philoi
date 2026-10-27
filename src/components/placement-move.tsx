@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 
+import { Icon, IconText, type IconName } from '@/components/ui/icon';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { fetchMyPlacements } from '@/lib/api/leaderboard-social';
@@ -15,7 +16,7 @@ type Row = { scope: PlacementScope; current: number; total: number; seen: number
 
 // Mock 204's order: the people you know first, then your school, then everyone.
 const SCOPE_ORDER: PlacementScope[] = ['friends', 'uni', 'global'];
-const SCOPE_GLYPH: Record<PlacementScope, string> = { friends: '👥', uni: '🎓', global: '🌎' };
+const SCOPE_GLYPH: Record<PlacementScope, IconName> = { friends: 'friends', uni: 'campus', global: 'everyone' };
 
 // Mock 204's placement beat: where you stand on Friends, your uni and Global after this session,
 // and how each moved since the last time we showed you. Distinct from the tier-rank chip above it
@@ -73,7 +74,7 @@ export function PlacementMove({ style, prominent = false }: { style?: StyleProp<
   if (!rows || dial === 'private') return null;
   const anyClimb = rows.some((r) => r.seen !== null && r.current < r.seen);
   const allHeld = rows.every((r) => r.seen !== null && r.current === r.seen);
-  const kick = anyClimb ? '🔥 You climbed' : allHeld ? 'Holding your spot' : 'Where you stand';
+  const kick = anyClimb ? 'You climbed' : allHeld ? 'Holding your spot' : 'Where you stand';
   const uniLabel = profile?.university ?? 'Your uni';
 
   return (
@@ -109,7 +110,16 @@ function PlacementCard({
     <Animated.View
       entering={reduceMotion ? undefined : FadeIn.delay(350).duration(400)}
       style={[styles.card, prominent && styles.cardProminent, climbed && styles.cardClimbed, style]}>
-      <Text style={[styles.kick, prominent && styles.kickProminent, climbed && styles.kickClimbed]}>{kick}</Text>
+      {climbed ? (
+        <IconText
+          icon="flame"
+          style={[styles.kick, prominent && styles.kickProminent, styles.kickClimbed, styles.kickInRow]}
+          containerStyle={[styles.kickRow, prominent && styles.kickRowProminent]}>
+          {kick}
+        </IconText>
+      ) : (
+        <Text style={[styles.kick, prominent && styles.kickProminent]}>{kick}</Text>
+      )}
       {prominent ? <View style={styles.spots}>{children}</View> : children}
     </Animated.View>
   );
@@ -164,9 +174,9 @@ function PlacementRow({ row, label, index, prominent }: { row: Row; label: strin
   if (prominent) {
     return (
       <View style={[styles.spot, index > 0 && styles.spotDivider]} accessible accessibilityLabel={a11y}>
-        <Text style={styles.spotLabel} numberOfLines={1}>
-          {SCOPE_GLYPH[row.scope]} {label}
-        </Text>
+        <IconText icon={SCOPE_GLYPH[row.scope]} style={[styles.spotLabel, styles.shrink]} containerStyle={styles.spotLabelRow} numberOfLines={1}>
+          {label}
+        </IconText>
         <Text style={[styles.spotPos, climbed && styles.posClimbed]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
           #{shown.toLocaleString()}
         </Text>
@@ -195,7 +205,7 @@ function PlacementRow({ row, label, index, prominent }: { row: Row; label: strin
       accessible
       accessibilityLabel={a11y}>
       <View style={styles.icon}>
-        <Text style={styles.iconGlyph}>{SCOPE_GLYPH[row.scope]}</Text>
+        <Icon name={SCOPE_GLYPH[row.scope]} size={17} color={Colors.muted} />
       </View>
       <View style={styles.mid}>
         <Text style={styles.label} numberOfLines={1}>
@@ -268,6 +278,12 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     fontVariant: ['tabular-nums'],
   },
+  spotLabelRow: {
+    maxWidth: '100%',
+  },
+  shrink: {
+    flexShrink: 1,
+  },
   spotCaption: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 11,
@@ -300,6 +316,17 @@ const styles = StyleSheet.create({
   kickClimbed: {
     color: Colors.amber,
   },
+  // The climbed kick is a row (flame + words); its spacing moves off the Text onto the row.
+  kickRow: {
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  kickRowProminent: {
+    marginBottom: 10,
+  },
+  kickInRow: {
+    marginBottom: 0,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -317,9 +344,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.disabled,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  iconGlyph: {
-    fontSize: 15,
   },
   mid: {
     flex: 1,

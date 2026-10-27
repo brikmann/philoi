@@ -5,6 +5,7 @@ import { showRewardReveal } from '@/components/economy/reward-reveal';
 import { GymClipThumbnail } from '@/components/gym-clip-player';
 import { PlacementMove } from '@/components/placement-move';
 import { SpearPlantBeat, SpearPlantShake, useSpearPlant } from '@/components/spear-plant-reveal';
+import { Icon, IconText, type IconName } from '@/components/ui/icon';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { SpaceButton } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
@@ -309,7 +310,9 @@ export function LockInDoneScreen({
               </View>
             ) : null}
             <View style={[styles.bandCell, styles.bandCellRule]}>
-              <Text style={[styles.bandValue, styles.bandStreak]}>🔥 {streakAfter}</Text>
+              <IconText icon="streak" style={[styles.bandValue, styles.bandStreak]}>
+                {streakAfter}
+              </IconText>
               <Text style={styles.bandLabel}>Streak</Text>
             </View>
           </View>
@@ -386,7 +389,7 @@ export function LockInDoneScreen({
               style={styles.whereScroll}
               contentContainerStyle={styles.whereRow}
               keyboardShouldPersistTaps="handled">
-              <WhereChip label="🏛️ Everyone" on={targetKey === 'everyone'} disabled={posting} onPress={() => setTarget({ kind: 'everyone' })} />
+              <WhereChip label="Everyone" icon="everyone" on={targetKey === 'everyone'} disabled={posting} onPress={() => setTarget({ kind: 'everyone' })} />
               {myForests.map((f) => (
                 <WhereChip
                   key={`forest:${f.id}`}
@@ -490,7 +493,19 @@ function XpCountUp({ end, running, instant }: { end: number; running: boolean; i
 }
 
 /** One destination in the "Post to the Agora" sub-choice. Single-select: a post lands in one place. */
-function WhereChip({ label, on, disabled, onPress }: { label: string; on: boolean; disabled: boolean; onPress: () => void }) {
+function WhereChip({
+  label,
+  icon,
+  on,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  icon?: IconName;
+  on: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       onPress={onPress}
@@ -500,6 +515,7 @@ function WhereChip({ label, on, disabled, onPress }: { label: string; on: boolea
       accessibilityState={{ checked: on }}
       accessibilityLabel={`Post to ${label}`}>
       {on && <UiGlyph name="check" size={12} color={Colors.navEmber2} />}
+      {icon ? <Icon name={icon} size={14} color={on ? Colors.navEmber2 : Colors.spaceDim} /> : null}
       <Text style={[styles.circleChipText, on && styles.circleChipTextOn]} numberOfLines={1}>
         {label}
       </Text>

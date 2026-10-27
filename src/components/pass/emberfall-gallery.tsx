@@ -16,6 +16,7 @@ import { EquippedAvatarHalo } from '@/components/economy/applied-art';
 import { ItemArt } from '@/components/economy/item-art';
 import { EMBER, EmberfallSeal, Laurel } from '@/components/pass/emberfall-art';
 import { RisingEmbers, usePassMotion } from '@/components/pass/pass-motion';
+import { Icon, IconText } from '@/components/ui/icon';
 import { Fonts } from '@/constants/theme';
 import { getItem, titleLabel, type CatalogItem, type ItemType } from '@/lib/economy/catalog';
 import { LEVEL_ZERO_UNLOCK, PASS_LEVELS, passUnlockLevel } from '@/lib/economy/forge-pass';
@@ -152,7 +153,13 @@ function GalleryCard({
       accessibilityRole="button"
       accessibilityLabel={`${cosmeticTitle(item)}, ${RARITY_LABEL[item.rarity]}. Show details`}>
       <View style={[styles.unlock, level === 0 ? styles.unlockNow : styles.unlockLv]}>
-        <Text style={[styles.unlockText, level === 0 && styles.unlockTextNow]}>{level === 0 ? '⚡ Instant' : `Lv ${level}`}</Text>
+        {level === 0 ? (
+          <IconText icon="bolt" style={[styles.unlockText, styles.unlockTextNow]} gap={2}>
+            Instant
+          </IconText>
+        ) : (
+          <Text style={styles.unlockText}>Lv {level}</Text>
+        )}
       </View>
       <View style={[styles.rarity, { backgroundColor: rarity }]}>
         <Text style={styles.rarityText}>{RARITY_LABEL[item.rarity].toUpperCase()}</Text>
@@ -241,7 +248,11 @@ function AvatarFill({ name, size = 44 }: { name: string; size?: number }) {
         <Circle cx="50%" cy="50%" r="50%" fill={`url(#${grad})`} />
       </Svg>
       <View style={styles.avInitialWrap}>
-        <Text style={[styles.avInitial, { fontSize: size * 0.4 }]}>{name.charAt(0).toUpperCase() || '🔥'}</Text>
+        {name.charAt(0) ? (
+          <Text style={[styles.avInitial, { fontSize: size * 0.4 }]}>{name.charAt(0).toUpperCase()}</Text>
+        ) : (
+          <Icon name="flame" size={size * 0.45} color={EMBER.ink} />
+        )}
       </View>
     </View>
   );

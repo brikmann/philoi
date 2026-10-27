@@ -14,6 +14,7 @@ import { ProfileHero } from '@/components/economy/profile-hero';
 import { SeasonChip, isSeasonItem } from '@/components/economy/season-chip';
 import { EmberText } from '@/components/ui/ember-text';
 import { RewardGlyph } from '@/components/ui/glyphs-rewards';
+import { Icon } from '@/components/ui/icon';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { SPACE_GUTTER, SpaceButton, SpaceChip, SpaceEmpty, SpaceHeader, SpaceSection, SpaceTile } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
@@ -459,7 +460,7 @@ function ItemTile({
       <View style={[styles.rarityBar, { backgroundColor: RARITY_COLOR[item.rarity] }]} />
       {item.equipped && !showSfxSlots ? (
         <View style={styles.equipBadge}>
-          <Text style={styles.equipBadgeText}>✓</Text>
+          <Icon name="check" size={11} color={INK_ON_EMBER} />
         </View>
       ) : null}
       {showSfxSlots ? (
@@ -698,11 +699,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
-  },
-  equipBadgeText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 9,
-    color: INK_ON_EMBER,
   },
   // ▶ / ■ — which of the two lock-in stings this SFX is bound to. Sits where the plain ✓ would,
   // and replaces it: for a two-slot item "equipped" alone doesn't answer the question.

@@ -14,6 +14,7 @@ import { RankBadge } from '@/components/rank-badge';
 import { EmberSearchBar } from '@/components/ui/ember-search-bar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { Icon } from '@/components/ui/icon';
 import { SocialGlyph } from '@/components/ui/glyphs-social';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { SPACE_GUTTER, SpaceHeader, SpaceIconButton, SpaceSection } from '@/components/ui/space-kit';
@@ -199,7 +200,7 @@ function PeopleScreenContent() {
       <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
         {!loading && friends.length === 0 && (
           <EmptyState
-            emoji="👥"
+            icon={<Icon name="friends" size={40} color={Colors.muted} />}
             title="No friends yet"
             body="Add people by @username or name — friend requests you send or receive show up here once accepted."
           />

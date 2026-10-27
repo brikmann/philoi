@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { fetchMyLockInsPage, type MyRecentLockIn } from '@/lib/api/check-ins';
 import { getErrorMessage } from '@/lib/errors';
-import { GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 
 // SHARE A LOCK-IN (§7b, mock 101 frame 2's third + action).
 //
@@ -104,7 +105,7 @@ export function ShareLockInSheet({
                     accessibilityRole="button"
                     accessibilityLabel={`Share this ${durationLabel(l.duration_seconds)} lock-in`}>
                     <View style={styles.rowIcon}>
-                      <Text style={styles.rowGlyph}>{GOAL_TYPE_META[l.goal_type]?.emoji ?? '🔥'}</Text>
+                      <DisciplineIcon name={GOAL_TYPE_GLYPH[l.goal_type] ?? 'flame'} size={20} color={Colors.amber} />
                     </View>
                     <View style={styles.rowText}>
                       <Text style={styles.rowTitle} numberOfLines={1}>
@@ -215,9 +216,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.spacePanel,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  rowGlyph: {
-    fontSize: 17,
   },
   rowText: {
     flex: 1,

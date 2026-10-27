@@ -2,6 +2,7 @@ import { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ShareCardFrame } from '@/components/share-card-frame';
+import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { effortChips } from '@/lib/api/milestones';
 import type { MilestoneEffort, RankTierName } from '@/types/database';
@@ -70,7 +71,13 @@ export const MilestoneShareCard = forwardRef<View, Props>(function MilestoneShar
           <View style={styles.pills}>
             {chips.map((c) => (
               <View key={c.key} style={styles.pill}>
-                <Text style={styles.pillText}>{c.label}</Text>
+                {c.icon ? (
+                  <IconText icon={c.icon} style={styles.pillText}>
+                    {c.label}
+                  </IconText>
+                ) : (
+                  <Text style={styles.pillText}>{c.label}</Text>
+                )}
               </View>
             ))}
           </View>

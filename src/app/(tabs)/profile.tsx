@@ -28,6 +28,7 @@ import { useActiveSession } from '@/lib/active-session-context';
 import { useLoadout } from '@/lib/economy/loadout';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
+import { IconText } from '@/components/ui/icon';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyRanks } from '@/hooks/use-my-ranks';
@@ -466,7 +467,11 @@ function FitnessTrackersRow() {
       accessibilityLabel={`Fitness trackers${liveConnected ? ', on' : ''}`}>
       <Ionicons name="pulse-outline" size={15} color={Colors.ember} />
       <Text style={styles.grindText}>Fitness trackers</Text>
-      {liveConnected ? <Text style={styles.trackersOn}>✓ On</Text> : null}
+      {liveConnected ? (
+        <IconText icon="check" style={styles.trackersOn}>
+          On
+        </IconText>
+      ) : null}
       <Text style={styles.grindArrow}>→</Text>
     </Pressable>
   );

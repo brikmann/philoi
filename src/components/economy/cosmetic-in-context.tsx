@@ -20,6 +20,7 @@ import { CosmeticAvatar } from "@/components/economy/public-identity";
 import { FLAME_ASPECT_RATIO, FlameSvg } from "@/components/flame-icon";
 import { SealBadge } from "@/components/seal-badge";
 import { SessionFlame } from "@/components/session-flame";
+import { IconText } from "@/components/ui/icon";
 import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 import { useReduceMotion } from "@/hooks/use-reduce-motion";
 import type { PublicLoadout } from "@/hooks/use-public-loadouts";
@@ -555,9 +556,14 @@ function StatusStage({
       return (
         <View style={styles.bannerHeader}>
           <CampfireBannerArt itemKey={item.id} variant="screen" animated />
-          <Text style={styles.bannerHeaderName} numberOfLines={1}>
-            🔥 {name}&apos;s campfire
-          </Text>
+          <IconText
+            icon="campfire"
+            iconColor={Colors.ember}
+            style={[styles.bannerHeaderName, styles.shrink]}
+            containerStyle={styles.bannerHeaderRow}
+            numberOfLines={1}>
+            {name}&apos;s campfire
+          </IconText>
         </View>
       );
     case "MEDAL":
@@ -668,7 +674,9 @@ function UseStage({
     case "RELIC":
       return (
         <View style={styles.hall}>
-          <Text style={styles.hallLabel}>🏛 TROPHY HALL</Text>
+          <IconText icon="trophy" style={styles.hallLabel} containerStyle={styles.hallLabelRow}>
+            TROPHY HALL
+          </IconText>
           <View style={styles.hallShelf}>
             <ItemArt item={item} size={92} motion="on" />
           </View>
@@ -895,11 +903,16 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     justifyContent: "flex-end",
   },
+  bannerHeaderRow: {
+    padding: Spacing.three,
+  },
   bannerHeaderName: {
     fontFamily: Fonts.display,
     fontSize: 18,
     color: Colors.ink,
-    padding: Spacing.three,
+  },
+  shrink: {
+    flexShrink: 1,
   },
   chat: {
     width: 270,
@@ -997,12 +1010,14 @@ const styles = StyleSheet.create({
     width: 250,
     alignItems: "center",
   },
+  hallLabelRow: {
+    marginBottom: Spacing.two,
+  },
   hallLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
     letterSpacing: 1.6,
     color: Colors.amber,
-    marginBottom: Spacing.two,
   },
   hallShelf: {
     alignItems: "center",

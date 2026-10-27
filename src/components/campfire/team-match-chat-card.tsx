@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { IconText } from '@/components/ui/icon';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGatedInterval } from '@/hooks/use-motion-active';
@@ -126,13 +127,15 @@ function MatchCard({ match, loading, onOpen }: { match: TeamMatch; loading: bool
       </Pressable>
 
       <View style={styles.foot}>
-        <Text style={styles.footText} numberOfLines={1}>
-          {match.score_mode === 'live' && !final
-            ? `⏱ ${Math.floor(clock / 60)}' · ${match.ref_name ?? 'someone'} keeps score`
-            : final
-              ? `Winners take ${match.winner_reward_tier} · everyone earned something`
-              : 'Final score, both sides confirm'}
-        </Text>
+        {match.score_mode === 'live' && !final ? (
+          <IconText icon="timer" style={styles.footText} numberOfLines={1} containerStyle={styles.footLive}>
+            {`${Math.floor(clock / 60)}' · ${match.ref_name ?? 'someone'} keeps score`}
+          </IconText>
+        ) : (
+          <Text style={styles.footText} numberOfLines={1}>
+            {final ? `Winners take ${match.winner_reward_tier} · everyone earned something` : 'Final score, both sides confirm'}
+          </Text>
+        )}
         <Text style={styles.footCta}>{match.am_i_ref && !final ? 'Open scorekeeper' : 'Open'}</Text>
       </View>
 
@@ -201,6 +204,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
   },
   footText: { flex: 1, fontFamily: Fonts.body, fontSize: 10.5, color: Colors.spaceDim },
+  footLive: { flex: 1 },
   footCta: { fontFamily: Fonts.bodyBold, fontSize: 11, color: Colors.navEmber2 },
   joinRow: { flexDirection: 'row', gap: Spacing.two },
   joinBtn: {

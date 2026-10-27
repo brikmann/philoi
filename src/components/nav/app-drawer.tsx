@@ -4,6 +4,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon } from '@/components/ui/icon';
 import { PhiloiIcon, type PhiloiIconName } from '@/components/ui/philoi-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
@@ -237,7 +238,7 @@ function AppDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             <View style={styles.head}>
               <Text style={styles.headTitle}>Menu</Text>
               <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close menu">
-                <Text style={styles.close}>✕</Text>
+                <Icon name="close" size={16} color={Colors.textTertiary} />
               </Pressable>
             </View>
 
@@ -346,11 +347,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: Colors.ink,
   },
-  close: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 15,
-    color: Colors.textTertiary,
-  },
+
   scroll: {
     paddingBottom: Spacing.four,
   },

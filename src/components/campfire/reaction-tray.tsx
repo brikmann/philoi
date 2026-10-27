@@ -11,6 +11,7 @@ import {
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon } from '@/components/ui/icon';
 import { TextInput } from '@/components/ui/text-input';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
@@ -198,7 +199,7 @@ export function ReactionTray({
             style={styles.emo}
             accessibilityRole="button"
             accessibilityLabel="More emoji">
-            <Text style={styles.plus}>＋</Text>
+            <Icon name="plus" size={20} color={Colors.spaceDim} />
           </Pressable>
         </Animated.View>
       )}
@@ -320,11 +321,7 @@ const styles = StyleSheet.create({
   emoGlyph: {
     fontSize: 24,
   },
-  plus: {
-    fontSize: 20,
-    fontFamily: Fonts.bodyBold,
-    color: Colors.spaceDim,
-  },
+
   moreRow: {
     position: 'absolute',
     paddingVertical: 8,

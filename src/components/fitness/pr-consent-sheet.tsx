@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon, IconText } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { pinPrClip } from '@/lib/api/gym-clips';
@@ -69,7 +70,7 @@ export function PrConsentSheet({ workoutSetId, exerciseName, onClose }: PrConsen
           </Text>
 
           <View style={styles.who} accessibilityRole="text" accessibilityLabel="Who can watch: your friends and circle-mates">
-            <Text style={styles.whoIcon}>👥</Text>
+            <Icon name="friends" size={15} color={Colors.muted} />
             <Text style={styles.whoLabel}>Who can watch</Text>
             <Text style={styles.whoValue}>Friends + circle-mates</Text>
           </View>
@@ -77,7 +78,9 @@ export function PrConsentSheet({ workoutSetId, exerciseName, onClose }: PrConsen
           <View style={styles.showRow}>
             <View style={styles.showText}>
               <Text style={styles.showLabel}>Show the clip on my posts</Text>
-              <Text style={styles.showHint}>Friends can challenge it ⚔ — the clip is the proof.</Text>
+              <IconText icon="versus" style={styles.showHint}>
+                Friends can challenge it — the clip is the proof.
+              </IconText>
             </View>
             <Switch
               value={showOnPosts}
@@ -89,10 +92,11 @@ export function PrConsentSheet({ workoutSetId, exerciseName, onClose }: PrConsen
           </View>
 
           <View style={styles.shield}>
+            <Icon name={showOnPosts ? 'video' : 'shield'} size={14} color={Colors.green} />
             <Text style={styles.shieldText}>
               {showOnPosts
-                ? '🎬 When you share this PR, anyone who can see that post can watch the clip. Turn this off and it stays with your connections, and a moderator if a PR is disputed.'
-                : '🛡 Clips are never public and never shown to strangers — only your connections, and a moderator if a PR is disputed.'}
+                ? 'When you share this PR, anyone who can see that post can watch the clip. Turn this off and it stays with your connections, and a moderator if a PR is disputed.'
+                : 'Clips are never public and never shown to strangers — only your connections, and a moderator if a PR is disputed.'}
             </Text>
           </View>
 
@@ -162,9 +166,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: Spacing.twelve,
   },
-  whoIcon: {
-    fontSize: 13,
-  },
   whoLabel: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
@@ -198,11 +199,15 @@ const styles = StyleSheet.create({
     color: Colors.ink,
   },
   showHint: {
+    flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 11,
     color: Colors.muted,
   },
   shield: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
     marginTop: Spacing.two,
     backgroundColor: Colors.cardDark,
     borderWidth: 1,
@@ -211,6 +216,7 @@ const styles = StyleSheet.create({
     padding: Spacing.twelve,
   },
   shieldText: {
+    flex: 1,
     fontFamily: Fonts.body,
     fontSize: 11.5,
     lineHeight: 16,

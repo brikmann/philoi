@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
 
 import { StorySticker, STICKER_WIDTH, type StickerSkin } from '@/components/story-sticker/story-sticker';
+import { IconText, type IconName } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
@@ -178,7 +179,8 @@ export function StoryShareSheet({ visible, session, onClose }: Props) {
               />
               <ToggleRow
                 name="Day streak"
-                detail={model && model.streakDays > 0 ? `🔥 ${model.streakDays} days` : 'No streak yet'}
+                detail={model && model.streakDays > 0 ? `${model.streakDays} days` : 'No streak yet'}
+                detailIcon={model && model.streakDays > 0 ? 'streak' : undefined}
                 value={prefs.showStreak}
                 disabled={!model || model.streakDays <= 0}
                 onChange={(v) => setPrefs({ showStreak: v })}
@@ -251,12 +253,14 @@ function exercisesDetail(count: number, prs: number): string {
 function ToggleRow({
   name,
   detail,
+  detailIcon,
   value,
   disabled,
   onChange,
 }: {
   name: string;
   detail: string;
+  detailIcon?: IconName;
   value: boolean;
   disabled?: boolean;
   onChange: (v: boolean) => void;
@@ -265,7 +269,17 @@ function ToggleRow({
     <View style={[styles.toggleRow, disabled && styles.toggleDisabled]}>
       <View style={styles.toggleText}>
         <Text style={styles.toggleName}>{name}</Text>
-        <Text style={styles.toggleDetail}>{detail}</Text>
+        {detailIcon ? (
+          <IconText
+            icon={detailIcon}
+            iconColor={Colors.amber}
+            style={[styles.toggleDetail, styles.toggleDetailInRow]}
+            containerStyle={styles.toggleDetailRow}>
+            {detail}
+          </IconText>
+        ) : (
+          <Text style={styles.toggleDetail}>{detail}</Text>
+        )}
       </View>
       <Switch
         value={value && !disabled}
@@ -409,6 +423,12 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: Colors.textTertiary,
     marginTop: 2,
+  },
+  toggleDetailRow: {
+    marginTop: 2,
+  },
+  toggleDetailInRow: {
+    marginTop: 0,
   },
   actions: {
     paddingHorizontal: Spacing.four,

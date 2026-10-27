@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LockInTrackerPrompt } from '@/components/fitness/tracker-prompts';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
 import { AppTopBar } from '@/components/nav/app-top-bar';
+import { Icon, IconText } from '@/components/ui/icon';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
 import { Toggle } from '@/components/ui/toggle';
 import { UiGlyph } from '@/components/ui/ui-glyph';
@@ -199,7 +200,8 @@ export default function LockInTab() {
                     style={[styles.goalChip, on && styles.goalChipOn]}
                     accessibilityRole="button"
                     accessibilityState={{ selected: on }}>
-                    <Text style={[styles.goalChipText, on && styles.goalChipTextOn]}>🎯 {label}</Text>
+                    <Icon name="target" size={13} color={on ? Colors.gold : Colors.spaceDim} />
+                    <Text style={[styles.goalChipText, on && styles.goalChipTextOn]}>{label}</Text>
                     {/* Its own button inside the chip; a long-press on the chip does the same. */}
                     <Pressable
                       onPress={() => removeGoal(g)}
@@ -226,7 +228,9 @@ export default function LockInTab() {
 
             <View style={styles.row}>
               <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>📣 Post to Home when done</Text>
+                <IconText icon="share" style={styles.rowTitle} iconColor={Colors.ink}>
+                  Post to Home when done
+                </IconText>
                 <Text style={styles.rowSub}>{autoPostNote ?? 'Your session card goes to the feed.'}</Text>
               </View>
               <Toggle value={autoPost} onValueChange={(v) => void toggleAutoPost(v)} />

@@ -9,6 +9,7 @@ import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { EmberFill } from '@/components/ui/ember-fill';
+import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { SPACE_GUTTER, SpaceButton, SpaceEmpty, SpaceHeader, SpaceSection } from '@/components/ui/space-kit';
@@ -411,7 +412,7 @@ function ForgeFlow() {
                   {item.equipped ? <Text style={styles.cellWorn}>WORN</Text> : null}
                   {on ? (
                     <EmberFill style={styles.cellTick} radius={8}>
-                      <Text style={styles.cellTickText}>✓</Text>
+                      <Icon name="check" size={11} color={Colors.onEmber} />
                     </EmberFill>
                   ) : null}
                 </Pressable>
@@ -746,11 +747,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  cellTickText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 9,
-    color: Colors.onEmber,
   },
   empty: {
     backgroundColor: Colors.spacePanel,

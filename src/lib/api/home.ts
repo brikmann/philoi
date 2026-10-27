@@ -1,3 +1,4 @@
+import type { IconName } from '@/components/ui/icon';
 import { friendActivityLabel, cheerPresetMeta } from '@/lib/api/lockin-cheers';
 import { formatSessionDuration } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
@@ -98,7 +99,7 @@ export function weekHeadline(w: MyWeek): WeekHeadline {
     const more = w.thisWeekSeconds - w.lastWeekToDateSeconds;
     const pastAll = w.lastWeekSeconds > 0 && w.thisWeekSeconds > w.lastWeekSeconds;
     return {
-      title: 'You’re ahead of last week 🔥',
+      title: 'You’re ahead of last week',
       sub: pastAll
         ? `↑ already past all of last week · ${formatSessionDuration(w.thisWeekSeconds)} locked in`
         : `↑ ${formatSessionDuration(more)} more locked in than this point last week`,
@@ -152,12 +153,11 @@ type BackerRow = {
   out_at: string;
 };
 
-/** "Deep Work", "Studying", "Gym" — the activity word without its emoji. */
+/** "Deep Work", "Studying", "Gym" — the activity word, or null when it is masked. */
 function activityWord(goalType: string | null, category: string | null, activity: string | null): string | null {
   if (!goalType && !category) return null;
   const label = friendActivityLabel({ live: true, goalType: goalType as GoalType | null, category, activity });
-  const word = label.replace(/^\S+\s/, '');
-  return word === 'Locked in' ? null : word;
+  return label === 'Locked in' ? null : label;
 }
 
 function firstName(name: string): string {
@@ -277,11 +277,12 @@ export async function fetchFriendsRecentEffort(limit = 5): Promise<FriendEffort[
 const LB_PER_KG = 2.20462;
 
 /**
- * The row's second line: "🧠 locked in · Deep Work · 42m", "🏋️ new PR · 115 kg × 3",
- * "“orgo final in 3 days”". The activity is already masked server-side for a friend who hides it.
+ * The row's second line: [brain] "locked in · Deep Work · 42m", [dumbbell] "new PR · 115 kg × 3",
+ * "“orgo final in 3 days”". The glyph comes back beside the text, not inside it, so the row can draw
+ * the bespoke icon. The activity is already masked server-side for a friend who hides it.
  */
-export function effortLine(e: FriendEffort, unit: 'lb' | 'kg', now: number = Date.now()): string {
-  if (e.kind === 'post') return `“${e.body ?? ''}”`;
+export function effortLine(e: FriendEffort, unit: 'lb' | 'kg', now: number = Date.now()): { icon: IconName | null; text: string } {
+  if (e.kind === 'post') return { icon: null, text: `“${e.body ?? ''}”` };
   if (e.kind === 'pr') {
     const weight =
       e.weightLb != null && e.weightLb > 0
@@ -290,17 +291,27 @@ export function effortLine(e: FriendEffort, unit: 'lb' | 'kg', now: number = Dat
           : `${Math.round(e.weightLb)} lb`
         : null;
     const set = weight ? `${weight} × ${e.reps ?? 1}` : `${e.reps ?? 0} reps`;
-    return `🏋️ new PR · ${e.exercise ?? 'lift'} · ${set}`;
+    return { icon: 'gym', text: `new PR · ${e.exercise ?? 'lift'} · ${set}` };
   }
   const label = friendActivityLabel({ live: true, goalType: e.goalType, category: e.category, activity: e.activity });
-  const [emoji, ...rest] = label.split(' ');
-  const what = rest.join(' ');
+  const what = label;
   const masked = what === 'Locked in';
+  const icon = effortIcon(e);
   if (e.kind === 'live') {
     const mins = e.startedAt ? Math.max(0, Math.floor((now - new Date(e.startedAt).getTime()) / 60_000)) : 0;
     const time = mins < 60 ? `${mins}m` : formatSessionDuration(mins * 60);
-    return `${emoji} locked in${masked ? '' : ` · ${what}`} · ${e.paused ? 'paused' : time}`;
+    return { icon, text: `locked in${masked ? '' : ` · ${what}`} · ${e.paused ? 'paused' : time}` };
   }
   const dur = e.durationSeconds ? ` · ${formatSessionDuration(e.durationSeconds)}` : '';
-  return `${emoji} ${masked ? 'locked in' : what}${dur}`;
+  return { icon, text: `${masked ? 'locked in' : what}${dur}` };
+}
+
+function effortIcon(e: FriendEffort): IconName {
+  if (e.category === 'deep_work') return 'deep-work';
+  if (e.category === 'study') return 'study';
+  if (e.category === 'fitness') return e.activity === 'cardio' ? 'run' : 'gym';
+  if (e.goalType === 'gym') return 'gym';
+  if (e.goalType === 'run') return 'run';
+  if (e.goalType === 'study' || e.goalType === 'read') return 'study';
+  return 'flame';
 }

@@ -21,6 +21,7 @@ import { boxAccent } from '@/lib/economy/boxes';
 import { useRevealCue, type RewardRevealKind } from '@/components/economy/reward-reveal';
 import { UnlockReveal } from '@/components/economy/unlock-reveal';
 import { EquippedFlameSvg } from '@/components/flame-icon';
+import { Icon, IconText } from '@/components/ui/icon';
 import { DefeatedStrip, KingStatue } from '@/components/economy/king-statue';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useChallengePodium, type ChallengePodium } from '@/hooks/use-challenge-podium';
@@ -30,8 +31,9 @@ import { useFlameRamp } from '@/lib/economy/flame-ramp';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import {
   TIER_INTENSITY,
-  TIER_MEDAL,
+  TIER_PLACE,
   challengeHeadline,
+  isPodiumTier,
   ordinal,
   type PlacementTier,
   type RewardContext,
@@ -372,10 +374,27 @@ export function ChallengeRewardScreen({
               own line, in the tier's accent, because on a big campfire race it IS the result. */}
           {fieldLine(result) ? (
             <View style={[styles.fieldPill, { borderColor: intensity.accent }]}>
-              <Text style={[styles.fieldPillText, { color: intensity.accent }]}>{fieldLine(result)}</Text>
+              {isPodiumTier(result.tier) ? (
+                <IconText icon="medal" style={[styles.fieldPillText, { color: intensity.accent }]}>
+                  {fieldLine(result)}
+                </IconText>
+              ) : (
+                <Text style={[styles.fieldPillText, { color: intensity.accent }]}>{fieldLine(result)}</Text>
+              )}
             </View>
           ) : null}
-          <Text style={styles.subline}>{subline(result)}</Text>
+          {/* The medal leads the subline only when the field pill above isn't already wearing it. */}
+          {!fieldLine(result) && isPodiumTier(result.tier) ? (
+            <IconText
+              icon="medal"
+              iconColor={intensity.accent}
+              style={[styles.subline, styles.sublineInRow]}
+              containerStyle={styles.sublineRow}>
+              {subline(result)}
+            </IconText>
+          ) : (
+            <Text style={styles.subline}>{subline(result)}</Text>
+          )}
         </>
       )}
     </RewardRevealFrame>
@@ -407,7 +426,7 @@ function Rays({ accent, energy }: { accent: string; energy: number }) {
 }
 
 /**
- * "🥇 1st of 48" / "12th of 48 · TOP 25%" — the headline fact of a board race, or null when there
+ * "1st of 48" (beside the medal icon) / "12th of 48 · TOP 25%" — the headline fact of a board race, or null when there
  * is no field worth naming.
  *
  * NOT SHOWN FOR A DUEL. "1st of 2" is a worse way of saying "you won", and the duel already gets
@@ -415,43 +434,35 @@ function Rays({ accent, energy }: { accent: string; energy: number }) {
  */
 function fieldLine(r: ChallengeRewardResult): string | null {
   if (r.context !== 'board' || r.placement == null || r.fieldSize < 2) return null;
-  const medal = TIER_MEDAL[r.tier];
-  // The podium medals already carry the ordinal ("🥇 1st"), so they take the field count directly
-  // rather than repeating it — "🥇 1st of 48", not "🥇 1st · 1st of 48".
-  if (r.tier === 'rank1' || r.tier === 'rank2' || r.tier === 'rank3') return `${medal} of ${r.fieldSize}`;
-  return `${ordinal(r.placement)} of ${r.fieldSize} · ${medal}`;
+  const place = TIER_PLACE[r.tier];
+  // The podium places already are the ordinal ("1st"), so they take the field count directly
+  // rather than repeating it — "1st of 48", not "1st · 1st of 48".
+  if (isPodiumTier(r.tier)) return `${place} of ${r.fieldSize}`;
+  return `${ordinal(r.placement)} of ${r.fieldSize} · ${place}`;
 }
 
-/** "🥇 1st · You beat Dee · Most lock-in time · Semester" */
+/** "1st · You beat Dee · Most lock-in time · Semester" (the medal icon drawn beside it) */
 function subline(r: ChallengeRewardResult): string {
   // The medal moves up into the field pill when there is one, so it is stated once per screen.
-  const lead = fieldLine(r) ? null : TIER_MEDAL[r.tier];
+  const lead = fieldLine(r) ? null : TIER_PLACE[r.tier];
   // No duration (mock 267): "1561h" is a rule of the race, not a result, and it read as one.
   return [lead, r.opponentName ? `You beat ${r.opponentName}` : null, r.metricLabel]
     .filter(Boolean)
     .join(' · ');
 }
 
-/** "🥈 PODIUM · 2ND OF 5" on the podium, "4TH OF 6 · IN THE MIX" off it. */
+/** "PODIUM · 2ND OF 5" (after the medal icon) on the podium, "4TH OF 6 · IN THE MIX" off it. */
 function podiumEyebrow(r: ChallengeRewardResult): string {
   const label = TIER_INTENSITY[r.tier].label;
   if (r.placement == null) return label;
   const of = `${ordinal(r.placement).toUpperCase()} OF ${r.fieldSize}`;
-  const medal = podiumMedal(r);
-  return medal ? `${medal} ${label} · ${of}` : `${of} · ${label}`;
+  return isPodiumTier(r.tier) ? `${label} · ${of}` : `${of} · ${label}`;
 }
 
-/** The medal glyph alone ("🥈"), on the podium only. */
-function podiumMedal(r: ChallengeRewardResult): string | null {
-  if (r.tier !== 'rank1' && r.tier !== 'rank2' && r.tier !== 'rank3') return null;
-  return TIER_MEDAL[r.tier].split(' ')[0];
-}
-
-/** "🥈 2nd of 5" — the collapsed bar's lead. */
+/** "2nd of 5" (after the medal icon on the podium) — the collapsed bar's lead. */
 function placementShort(r: ChallengeRewardResult): string | null {
   if (r.placement == null) return null;
-  const medal = podiumMedal(r);
-  return `${medal ? `${medal} ` : ''}${ordinal(r.placement)} of ${r.fieldSize}`;
+  return `${ordinal(r.placement)} of ${r.fieldSize}`;
 }
 
 /**
@@ -495,7 +506,8 @@ function PodiumHero({
     return (
       <Animated.View entering={FadeIn.duration(260)} style={styles.collapsed}>
         <View style={styles.cbar}>
-          <Text style={styles.cbarText} numberOfLines={1}>
+          {lead && isPodiumTier(result.tier) ? <Icon name="medal" size={14} color={accent} /> : null}
+          <Text style={[styles.cbarText, styles.shrink]} numberOfLines={1}>
             {lead ? <Text style={{ color: accent }}>{lead}</Text> : null}
             {lead && rest ? ' · ' : ''}
             {rest}
@@ -507,7 +519,10 @@ function PodiumHero({
   const sub = [challengeName?.trim() || result.metricLabel, campfire].filter(Boolean).join(' · ');
   return (
     <View style={styles.stage}>
-      <Text style={[styles.eyebrow, { color: accent }]}>{podiumEyebrow(result)}</Text>
+      <View style={styles.eyebrowRow}>
+        {result.placement != null && isPodiumTier(result.tier) ? <Icon name="medal" size={12} color={accent} /> : null}
+        <Text style={[styles.eyebrow, { color: accent }]}>{podiumEyebrow(result)}</Text>
+      </View>
       <Text style={styles.headline}>{headline}</Text>
       {sub ? <Text style={styles.subline}>{sub}</Text> : null}
       {podium ? (
@@ -654,6 +669,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 14,
     maxWidth: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  shrink: {
+    flexShrink: 1,
   },
   cbarText: {
     fontFamily: Fonts.bodyBold,
@@ -680,11 +701,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: Spacing.two,
+  },
   eyebrow: {
     fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
     letterSpacing: 1.4,
-    marginTop: Spacing.two,
   },
   headline: {
     fontFamily: Fonts.bodyBold,
@@ -713,6 +739,14 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     textAlign: 'center',
     marginTop: 6,
+  },
+  sublineRow: {
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  sublineInRow: {
+    marginTop: 0,
+    flexShrink: 1,
   },
   shareBtn: {
     alignItems: 'center',

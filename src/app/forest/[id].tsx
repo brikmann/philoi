@@ -9,6 +9,7 @@ import { ForestAvatar, ForestSheet, SheetRow } from '@/components/forests/forest
 import { ForestCampfireSheet } from '@/components/forests/forest-campfire-sheet';
 import { ForestReportSheet } from '@/components/forests/forest-report-sheet';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Icon } from '@/components/ui/icon';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { SPACE_GUTTER, SpaceButton, SpaceEmpty, SpaceHeader, SpaceIconButton, SpaceSection } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
@@ -257,7 +258,7 @@ export default function ForestScreen() {
           <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
         ) : state !== 'ready' || !forest ? (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyEmoji}>🌲</Text>
+            <Icon name="forest" size={32} color={Colors.spaceDim} />
             <SpaceEmpty
               title={state === 'missing' ? 'This forest isn’t here anymore.' : 'Couldn’t reach this forest just now.'}
               action={
@@ -363,7 +364,11 @@ export default function ForestScreen() {
                       disabled={busy || (!c.is_member && !c.join_code && c.privacy !== 'gated')}
                       accessibilityRole="button"
                       accessibilityLabel={c.name}>
-                      <Text style={styles.campfireEmoji}>{c.emoji ?? '🔥'}</Text>
+                      {c.emoji ? (
+                        <Text style={styles.campfireEmoji}>{c.emoji}</Text>
+                      ) : (
+                        <Icon name="campfire" size={22} color={Colors.navEmber} />
+                      )}
                       <View style={styles.rowText}>
                         <Text style={styles.rowName} numberOfLines={1}>
                           {c.name}
@@ -828,9 +833,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.six,
     paddingHorizontal: Spacing.four,
-  },
-  emptyEmoji: {
-    fontSize: 30,
   },
   emptyBtn: {
     alignSelf: 'stretch',

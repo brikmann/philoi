@@ -1,3 +1,4 @@
+import type { IconName } from '@/components/ui/icon';
 import type { LockinGoalType } from '@/lib/api/social-challenges';
 import type { DuelMetric, MetricCatalogRow } from '@/types/house';
 
@@ -14,7 +15,10 @@ import type { DuelMetric, MetricCatalogRow } from '@/types/house';
 export type CompareStat = {
   key: string;
   label: string;
+  /** The catalog's own emoji (server data, drawn as-is). Empty when the stat carries `icon` instead. */
   emoji: string;
+  /** A client-built stat's glyph — set only where the app, not the catalog, names the stat. */
+  icon?: IconName;
   challengeable: boolean;
   duel_metric: DuelMetric | null;
   duel_goal_type: LockinGoalType | null;
@@ -45,7 +49,8 @@ export function statFromExerciseKey(key: string): CompareStat | null {
   return {
     key,
     label: words.charAt(0).toUpperCase() + words.slice(1),
-    emoji: '🏋️',
+    emoji: '',
+    icon: 'gym',
     // Matches versus(): an exercise metric is challengeable, but has no race to duel on.
     challengeable: true,
     duel_metric: null,

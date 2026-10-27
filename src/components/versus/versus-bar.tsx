@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { TIER_COLOR } from '@/lib/challenge-tier';
 import { formatMetricValue, splitShare } from '@/lib/stats/format';
@@ -37,10 +38,12 @@ export function VersusBar({ row, flagged = false }: VersusBarProps) {
     <View style={styles.row} accessibilityLabel={`${row.label}: you ${formatMetricValue(row.unit, row.a_value)}, them ${formatMetricValue(row.unit, row.b_value)}`}>
       <View style={styles.labels}>
         <Text style={[styles.value, row.leader === 'a' && styles.valueLead]}>{formatMetricValue(row.unit, row.a_value)}</Text>
-        <Text style={styles.metric} numberOfLines={1}>
-          {flagged ? <Text style={styles.sword}>⚔ </Text> : null}
-          {row.emoji} {row.label.toUpperCase()}
-        </Text>
+        <View style={styles.metricRow}>
+          {flagged ? <Icon name="versus" size={11} color={Colors.danger} /> : null}
+          <Text style={styles.metric} numberOfLines={1}>
+            {row.emoji} {row.label.toUpperCase()}
+          </Text>
+        </View>
         <Text style={[styles.value, styles.valueRight, row.leader === 'b' && styles.valueLeadThem]}>
           {formatMetricValue(row.unit, row.b_value)}
         </Text>
@@ -89,16 +92,20 @@ const styles = StyleSheet.create({
   valueLeadThem: {
     color: VERSUS_THEM_TEXT,
   },
-  metric: {
+  metricRow: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  metric: {
+    flexShrink: 1,
     textAlign: 'center',
     fontFamily: Fonts.bodySemiBold,
     fontSize: 9.5,
     letterSpacing: 0.3,
     color: Colors.spaceDim,
-  },
-  sword: {
-    color: Colors.danger,
   },
   bar: {
     flexDirection: 'row',

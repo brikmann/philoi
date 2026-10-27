@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
 import { Avatar } from '@/components/ui/avatar';
+import { Icon, IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { CampusVerificationError, sendCampusCode, verifyCampusCode } from '@/lib/api/campus-verification';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -123,7 +124,7 @@ export function CampusVerification({
         </Text>
 
         <View style={styles.schoolRow}>
-          <Text style={styles.schoolEmoji}>🎓</Text>
+          <Icon name="campus" size={18} color={Colors.amber} />
           <Text style={styles.schoolName} numberOfLines={1}>
             {university}
           </Text>
@@ -278,7 +279,7 @@ export function CampusVerifiedPanel({
           <Ionicons name="checkmark" size={44} color={VERIFIED_INK} />
         </View>
         <View style={styles.badgeCrest}>
-          <Text style={styles.badgeCrestText}>🎓</Text>
+          <Icon name="campus" size={18} color={VERIFIED_TEXT} />
         </View>
       </View>
 
@@ -291,19 +292,23 @@ export function CampusVerifiedPanel({
 
       <View style={styles.unlockedRow}>
         <View style={styles.unlocked}>
-          <Text style={styles.unlockedIcon}>🎓</Text>
+          <Icon name="campus" size={21} color={VERIFIED_INK} />
           <Text style={styles.unlockedText}>My Uni</Text>
-          <Text style={styles.unlockedState}>✓ UNLOCKED</Text>
+          <IconText icon="check" style={styles.unlockedState} iconSize={11} gap={3}>
+            UNLOCKED
+          </IconText>
         </View>
         <View style={styles.unlocked}>
-          <Text style={styles.unlockedIcon}>⚔️</Text>
+          <Icon name="versus" size={21} color={VERIFIED_INK} />
           <Text style={styles.unlockedText}>Vs Unis</Text>
-          <Text style={styles.unlockedState}>✓ UNLOCKED</Text>
+          <IconText icon="check" style={styles.unlockedState} iconSize={11} gap={3}>
+            UNLOCKED
+          </IconText>
         </View>
       </View>
 
       <View style={styles.trust}>
-        <Text style={styles.trustIcon}>🏆</Text>
+        <Icon name="trophy" size={15} color={Colors.gold} />
         <Text style={styles.trustText}>
           <Text style={styles.trustStrong}>Only verified students count</Text> on My Uni &amp; Vs Unis — so the
           campus rankings stay real.
@@ -317,7 +322,13 @@ export function CampusVerifiedPanel({
         <Text style={styles.profChipName} numberOfLines={1}>
           {profile.display_name ?? 'you'}
         </Text>
-        <Text style={styles.profChipVerified}>🎓 {university} ✓</Text>
+        <View style={styles.profChipVerifiedRow}>
+          <Icon name="campus" size={12} color={VERIFIED_TEXT} />
+          <Text style={styles.profChipVerified} numberOfLines={1}>
+            {university}
+          </Text>
+          <Icon name="check" size={11} color={VERIFIED_TEXT} />
+        </View>
       </View>
 
       {onContinue && (
@@ -352,9 +363,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderRadius: Radius.card,
     padding: Spacing.three,
-  },
-  schoolEmoji: {
-    fontSize: 16,
   },
   schoolName: {
     flex: 1,
@@ -499,9 +507,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeCrestText: {
-    fontSize: 15,
-  },
   verifiedTitle: {
     fontFamily: Fonts.displayHeavy,
     fontSize: 24,
@@ -539,9 +544,6 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 10,
   },
-  unlockedIcon: {
-    fontSize: 19,
-  },
   unlockedText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
@@ -565,9 +567,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.input,
     paddingVertical: 13,
     paddingHorizontal: 14,
-  },
-  trustIcon: {
-    fontSize: 13,
   },
   trustText: {
     flex: 1,
@@ -596,7 +595,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.ink,
   },
+  profChipVerifiedRow: {
+    flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
   profChipVerified: {
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 10.5,
     color: VERIFIED_TEXT,

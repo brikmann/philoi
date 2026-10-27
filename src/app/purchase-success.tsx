@@ -10,6 +10,7 @@ import { formatEmbers } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { EMBER, EmberfallSeal, EmberfallSky, FallingEmbers } from '@/components/pass/emberfall-art';
 import { ShineSweep } from '@/components/pass/pass-motion';
+import { IconText } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -209,7 +210,7 @@ export default function PurchaseSuccessScreen() {
 
       <RiseIn intro={intro} from={at(1600)} style={[styles.cta, { paddingBottom: insets.bottom + Spacing.four }]}>
         <View style={styles.ctaWrap}>
-          <PrimaryButton label="Start climbing 🔥" onPress={() => router.replace('/forge-pass')} />
+          <PrimaryButton label="Start climbing"onPress={() => router.replace('/forge-pass')} />
           <View style={styles.ctaShine} pointerEvents="none">
             <ShineSweep period={2600} opacity={0.45} />
           </View>
@@ -306,7 +307,13 @@ function UnlockedRow({ reward, confirmed }: { reward: PassReward | undefined; co
         </Text>
       </View>
       <View style={[styles.badge, !confirmed && styles.badgePending]}>
-        <Text style={[styles.badgeText, !confirmed && styles.badgeTextPending]}>{confirmed ? '⚡ NEW' : 'LANDING…'}</Text>
+        {confirmed ? (
+          <IconText icon="bolt" style={styles.badgeText} gap={2}>
+            NEW
+          </IconText>
+        ) : (
+          <Text style={[styles.badgeText, styles.badgeTextPending]}>LANDING…</Text>
+        )}
       </View>
     </View>
   );

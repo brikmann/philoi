@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Icon, IconText } from '@/components/ui/icon';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import type { CompareStat } from '@/components/versus/send-plan';
 import { Colors, Fonts, Radius } from '@/constants/theme';
@@ -31,9 +32,18 @@ export function CompareStatRow({ stat, flagged, isFirst, isLast, onToggleFlag, o
           <UiGlyph name="down" size={13} color={isLast ? Colors.spaceLine : Colors.spaceFaint} />
         </Pressable>
       </View>
-      <Text style={styles.label} numberOfLines={1}>
-        {stat.emoji} {stat.label}
-      </Text>
+      {stat.icon ? (
+        <View style={styles.labelRow}>
+          <Icon name={stat.icon} size={14} color={Colors.ink} />
+          <Text style={styles.label} numberOfLines={1}>
+            {stat.label}
+          </Text>
+        </View>
+      ) : (
+        <Text style={styles.label} numberOfLines={1}>
+          {stat.emoji} {stat.label}
+        </Text>
+      )}
 
       {stat.challengeable ? (
         <Pressable
@@ -43,7 +53,13 @@ export function CompareStatRow({ stat, flagged, isFirst, isLast, onToggleFlag, o
           accessibilityRole="switch"
           accessibilityState={{ checked: flagged }}
           accessibilityLabel={`Challenge on ${stat.label}`}>
-          <Text style={[styles.switchLabel, flagged && styles.switchLabelOn]}>{flagged ? '⚔ Challenge' : 'Compare only'}</Text>
+          {flagged ? (
+            <IconText icon="versus" style={[styles.switchLabel, styles.switchLabelOn]} gap={3}>
+              Challenge
+            </IconText>
+          ) : (
+            <Text style={styles.switchLabel}>Compare only</Text>
+          )}
           <View style={[styles.track, flagged && styles.trackOn]}>
             <View style={[styles.knob, flagged && styles.knobOn]} />
           </View>
@@ -74,6 +90,12 @@ const styles = StyleSheet.create({
   },
   moves: {
     gap: 1,
+  },
+  labelRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   label: {
     flex: 1,

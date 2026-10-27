@@ -9,6 +9,7 @@ import { MixOverlapBars } from '@/components/matchmaking/mix-overlap-bars';
 import { ReasonChips } from '@/components/matchmaking/reason-chips';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { SocialGlyph } from '@/components/ui/glyphs-social';
+import { IconText } from '@/components/ui/icon';
 import { SPACE_GUTTER, SpaceButton, SpaceEmpty, SpaceHeader, SpaceIconButton } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
@@ -82,7 +83,7 @@ export default function GrindAlikeDetailScreen() {
 
   const d = detail;
   const firstName = d.display_name.split(/\s+/)[0] || d.display_name;
-  const meta = [d.university, d.streak > 0 ? `🔥 ${d.streak}-day streak` : null].filter(Boolean).join(' · ');
+  const streakLine = d.streak > 0 ? `${d.streak}-day streak` : null;
 
   async function handleAddFriend() {
     if (busy || relation !== 'none') return;
@@ -145,7 +146,16 @@ export default function GrindAlikeDetailScreen() {
           <Text style={styles.name}>{d.display_name}</Text>
           {d.career_goal ? <Text style={styles.goal}>{d.career_goal}</Text> : null}
           {d.working_toward ? <Text style={styles.toward}>Working toward {d.working_toward}</Text> : null}
-          {meta ? <Text style={styles.meta}>{meta}</Text> : null}
+          {d.university || streakLine ? (
+            <View style={styles.metaRow}>
+              {d.university ? <Text style={styles.meta}>{streakLine ? `${d.university} · ` : d.university}</Text> : null}
+              {streakLine ? (
+                <IconText icon="streak" style={styles.meta} iconColor={Colors.amber}>
+                  {streakLine}
+                </IconText>
+              ) : null}
+            </View>
+          ) : null}
           {d.live ? <Text style={styles.live}>● locked in now</Text> : null}
         </View>
 
@@ -265,11 +275,17 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'center',
   },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 3,
+  },
   meta: {
     fontFamily: Fonts.body,
     fontSize: 11,
     color: Colors.spaceFaint,
-    marginTop: 3,
     textAlign: 'center',
   },
   live: {

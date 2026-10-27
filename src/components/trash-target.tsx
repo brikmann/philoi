@@ -1,6 +1,7 @@
 import { StyleSheet, Text } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 
 type TrashTargetProps = {
@@ -22,7 +23,7 @@ export function TrashTarget({ visible, hot, label }: TrashTargetProps) {
     <Animated.View
       pointerEvents="none"
       style={[styles.container, animatedStyle, hot && styles.containerHot]}>
-      <Text style={styles.icon}>🗑️</Text>
+      <Icon name="trash" size={28} color={hot ? Colors.ink : Colors.cream} />
       <Text style={[styles.label, hot && styles.labelHot]}>{label}</Text>
     </Animated.View>
   );
@@ -47,9 +48,6 @@ const styles = StyleSheet.create({
   },
   containerHot: {
     backgroundColor: Colors.coral,
-  },
-  icon: {
-    fontSize: 28,
   },
   label: {
     fontFamily: Fonts.bodyBold,

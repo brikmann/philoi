@@ -4,6 +4,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { CompeteGlyph } from '@/components/ui/glyphs-compete';
+import { IconText, type IconName } from '@/components/ui/icon';
 import { SpaceCard, SpaceTile } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { TextInput } from '@/components/ui/text-input';
@@ -203,15 +204,22 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
   // what it actually is, so the card explains the missing progress bar rather than looking broken.
   const sourceLine = chosenAuto
     ? needsReconnect
-      ? `⚡ Auto · ${AUTO_SOURCE_NAME[realSource]} (reconnect)`
-      : `⚡ Auto · ${AUTO_SOURCE_NAME[realSource]}`
+      ? `Auto · ${AUTO_SOURCE_NAME[realSource]} (reconnect)`
+      : `Auto · ${AUTO_SOURCE_NAME[realSource]}`
     : isGrade
       ? // A mark is reported once, not filled — so this names the button that settles it, and is
         // allowed a second line rather than truncating to "tap when y…".
-        "🏅 No auto-track — tap 'Report your grade' when you have your mark"
+        "No auto-track — tap 'Report your grade' when you have your mark"
       : challenge.difficulty_tier != null && challenge.verifiability !== 'auto'
-      ? "🏅 No auto-track — tap when you've done it"
-      : '✏️ Logged by hand';
+      ? "No auto-track — tap when you've done it"
+      : 'Logged by hand';
+  // The line's glyph, beside it rather than inside the string: auto = the bolt, an honour-scored
+  // feat or grade = the medal, a hand-logged number = the pencil.
+  const sourceIcon: IconName = chosenAuto
+    ? 'bolt'
+    : isGrade || (challenge.difficulty_tier != null && challenge.verifiability !== 'auto')
+      ? 'medal'
+      : 'edit';
 
   async function handleLog(value: number) {
     if (value <= 0) return;
@@ -391,9 +399,9 @@ export function ChallengeCard({ challenge, autoConnected = false, onLogged, onCh
           <Text style={styles.title} numberOfLines={1}>
             {personalGoalTitle(challenge)}
           </Text>
-          <Text style={styles.source} numberOfLines={isGrade ? 2 : 1}>
+          <IconText icon={sourceIcon} style={styles.source} containerStyle={styles.sourceRow} numberOfLines={isGrade ? 2 : 1}>
             {sourceLine}
-          </Text>
+          </IconText>
         </View>
         <View style={styles.cadenceChip}>
           <Text style={styles.cadenceChipText}>{cadenceLabel(challenge.period)}</Text>
@@ -687,11 +695,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.ink,
   },
+  sourceRow: {
+    marginTop: 2,
+  },
   source: {
+    flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 11,
     color: Colors.spaceDim,
-    marginTop: 2,
   },
   kebab: {
     paddingLeft: Spacing.one,

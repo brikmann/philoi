@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { MENTION_ALL } from '@/lib/mentions';
 import type { CampfireMember } from '@/types/database';
@@ -61,7 +62,7 @@ export function MentionAutocomplete({
         {showAll && (
           <Pressable style={styles.row} onPress={() => onPick(MENTION_ALL)} accessibilityRole="button">
             <View style={[styles.avatar, styles.avatarAll]}>
-              <Text style={styles.avatarAllGlyph}>📢</Text>
+              <Icon name="megaphone" size={16} color={Colors.navEmber2} />
             </View>
             <View style={styles.who}>
               <Text style={styles.name}>@all</Text>
@@ -144,9 +145,7 @@ const styles = StyleSheet.create({
   avatarAll: {
     backgroundColor: 'rgba(255,122,47,0.12)',
   },
-  avatarAllGlyph: {
-    fontSize: 14,
-  },
+
   avatarInitial: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,

@@ -9,6 +9,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { Icon, IconText, type IconName } from '@/components/ui/icon';
+import { PhiloiIcon, type PhiloiIconName } from '@/components/ui/philoi-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 
@@ -49,53 +51,100 @@ export function MiniScreen({
 /**
  * A miniature screen header — glyph, title, optional right-hand pill.
  *
- * `icon` replaces the glyph with real art (tour-art.tsx's FlameGlyph). Use it wherever the glyph
- * would be the SUBJECT of the card — the flame on Home, Cindy — rather than a section marker; a
- * tour selling the real flame cannot head its own screen with an emoji one.
+ * The chip takes, in order: `art` (real art — tour-art.tsx's FlameGlyph — wherever the glyph is the
+ * SUBJECT of the card: the flame on Home, Cindy; a tour selling the real flame cannot head its own
+ * screen with a stand-in), `nav` (the drawer's own icon for a main-menu destination, so the
+ * miniature wears the glyph of the row that opens the real screen), `icon` (the bespoke set), and
+ * only then `glyph` — plain text, kept for what someone picked themselves: a campfire's emoji is
+ * content, not chrome.
  */
 export function MiniHeader({
   glyph,
   icon,
+  nav,
+  art,
   title,
+  titleIcon,
   right,
+  rightIcon,
 }: {
   glyph?: string;
-  icon?: React.ReactNode;
+  icon?: IconName;
+  nav?: PhiloiIconName;
+  art?: React.ReactNode;
   title: string;
+  /** A badge after the title — the owner's crown. */
+  titleIcon?: IconName;
   right?: string;
+  /** Leads the right-hand pill — the ember coin before a balance. */
+  rightIcon?: IconName;
 }) {
+  const chip =
+    art ??
+    (nav ? (
+      <PhiloiIcon name={nav} size={14} color={Colors.amber} />
+    ) : icon ? (
+      <Icon name={icon} size={13} color={Colors.amber} />
+    ) : (
+      <Text style={styles.sqText}>{glyph}</Text>
+    ));
   return (
     <View style={styles.msHd}>
-      <View style={styles.sq}>{icon ?? <Text style={styles.sqText}>{glyph}</Text>}</View>
-      <Text style={styles.hdTitle} numberOfLines={1}>
-        {title}
-      </Text>
-      {right ? <Text style={styles.bal}>{right}</Text> : null}
+      <View style={styles.sq}>{chip}</View>
+      <View style={styles.hdTitleRow}>
+        <Text style={styles.hdTitle} numberOfLines={1}>
+          {title}
+        </Text>
+        {titleIcon ? <Icon name={titleIcon} size={12} color={Colors.amber} /> : null}
+      </View>
+      {right ? (
+        rightIcon ? (
+          <IconText icon={rightIcon} style={styles.bal} gap={3}>
+            {right}
+          </IconText>
+        ) : (
+          <Text style={styles.bal}>{right}</Text>
+        )
+      ) : null}
     </View>
   );
 }
 
-/** A list row — avatar/glyph, a title, an optional second line, an optional right value. */
+/**
+ * A list row — avatar/glyph, a title, an optional second line, an optional right value.
+ *
+ * `icon` is the bespoke glyph for a chrome row; `glyph` is plain text — an initial, a rank, or the
+ * emoji someone picked for their campfire.
+ */
 export function MiniRow({
   glyph,
+  icon,
   title,
   sub,
+  subIcon,
   right,
   accent,
   highlight,
 }: {
   glyph?: string;
+  icon?: IconName;
   title: string;
   sub?: string;
+  /** Leads the second line in ember — the streak flame, a discipline. */
+  subIcon?: IconName;
   right?: string;
   accent?: string;
   highlight?: boolean;
 }) {
   return (
     <View style={[styles.msRow, highlight && { borderColor: Colors.amber }]}>
-      {glyph ? (
+      {icon || glyph ? (
         <View style={[styles.av, accent ? { borderColor: accent } : null]}>
-          <Text style={styles.avText}>{glyph}</Text>
+          {icon ? (
+            <Icon name={icon} size={13} color={accent ?? Colors.ink} />
+          ) : (
+            <Text style={styles.avText}>{glyph}</Text>
+          )}
         </View>
       ) : null}
       <View style={styles.rowText}>
@@ -103,9 +152,15 @@ export function MiniRow({
           {title}
         </Text>
         {sub ? (
-          <Text style={styles.t2} numberOfLines={1}>
-            {sub}
-          </Text>
+          subIcon ? (
+            <IconText icon={subIcon} style={styles.t2} iconColor={Colors.ember} gap={3} numberOfLines={1}>
+              {sub}
+            </IconText>
+          ) : (
+            <Text style={styles.t2} numberOfLines={1}>
+              {sub}
+            </Text>
+          )
         ) : null}
       </View>
       {right ? <Text style={styles.rowRight}>{right}</Text> : null}
@@ -113,13 +168,29 @@ export function MiniRow({
   );
 }
 
-/** The amber CTA inside a preview. Inert — see the header. */
-export function MiniButton({ label, style }: { label: string; style?: StyleProp<ViewStyle> }) {
+/** The amber CTA inside a preview. Inert — see the header. An `icon` with no label is an icon button. */
+export function MiniButton({
+  label,
+  icon,
+  style,
+}: {
+  label?: string;
+  icon?: IconName;
+  style?: StyleProp<ViewStyle>;
+}) {
   return (
     <View style={[styles.msBtn, style]}>
-      <Text style={styles.msBtnText} numberOfLines={1}>
-        {label}
-      </Text>
+      {icon && !label ? (
+        <Icon name={icon} size={14} color={BTN_INK} />
+      ) : icon ? (
+        <IconText icon={icon} style={styles.msBtnText} numberOfLines={1}>
+          {label}
+        </IconText>
+      ) : (
+        <Text style={styles.msBtnText} numberOfLines={1}>
+          {label}
+        </Text>
+      )}
     </View>
   );
 }
@@ -152,9 +223,25 @@ export function MiniTile({
   );
 }
 
-/** A muted caption line. */
-export function MiniMuted({ children, color }: { children: React.ReactNode; color?: string }) {
-  return <Text style={[styles.msMut, color ? { color, fontFamily: Fonts.bodyBold } : null]}>{children}</Text>;
+/** A muted caption line. `icon` leads it, or closes it with `trailing`. */
+export function MiniMuted({
+  children,
+  color,
+  icon,
+  trailing,
+}: {
+  children: React.ReactNode;
+  color?: string;
+  icon?: IconName;
+  trailing?: boolean;
+}) {
+  const style = [styles.msMut, color ? { color, fontFamily: Fonts.bodyBold } : null];
+  if (!icon) return <Text style={style}>{children}</Text>;
+  return (
+    <IconText icon={icon} style={style} trailing={trailing} containerStyle={styles.centerRow}>
+      {children}
+    </IconText>
+  );
 }
 
 /** A chat bubble. `me` flips it to the sender's side. */
@@ -169,19 +256,27 @@ export function MiniBubble({ text, me }: { text: string; me?: boolean }) {
 /** A gradient-ish banner/media block with a label. */
 export function MiniBanner({
   label,
+  icon,
   colors,
   height = 58,
 }: {
   label: string;
+  icon?: IconName;
   colors: [string, string];
   height?: number;
 }) {
   return (
     <View style={[styles.banner, { height, backgroundColor: colors[0], borderColor: colors[1] }]}>
       <View style={[styles.bannerWash, { backgroundColor: colors[1] }]} />
-      <Text style={styles.bannerLabel} numberOfLines={1}>
-        {label}
-      </Text>
+      {icon ? (
+        <IconText icon={icon} style={styles.bannerLabel} numberOfLines={1}>
+          {label}
+        </IconText>
+      ) : (
+        <Text style={styles.bannerLabel} numberOfLines={1}>
+          {label}
+        </Text>
+      )}
     </View>
   );
 }
@@ -225,18 +320,24 @@ export function MiniTabs({ names, active }: { names: string[]; active: number })
 }
 
 /** A small outlined pill. */
-export function MiniChip({ label, color }: { label: string; color: string }) {
+export function MiniChip({ label, color, icon }: { label: string; color: string; icon?: IconName }) {
   return (
     <View style={[styles.chip, { borderColor: color }]}>
-      <Text style={[styles.chipText, { color }]} numberOfLines={1}>
-        {label}
-      </Text>
+      {icon ? (
+        <IconText icon={icon} style={[styles.chipText, { color }]} gap={3} numberOfLines={1}>
+          {label}
+        </IconText>
+      ) : (
+        <Text style={[styles.chipText, { color }]} numberOfLines={1}>
+          {label}
+        </Text>
+      )}
     </View>
   );
 }
 
 /**
- * The pulsing "👆 tap" hint that tells the user this preview is playable.
+ * The pulsing "tap" hint — the hand glyph and the word — that tells the user this preview is playable.
  *
  * Only rendered on cards that HAVE a next step. A hint pointing at nothing teaches the user that
  * the hint means nothing, and after that they stop tapping the ones that matter.
@@ -264,10 +365,15 @@ export function TapHint({ label = 'tap' }: { label?: string }) {
 
   return (
     <Animated.View style={[styles.tapHint, style]} pointerEvents="none">
-      <Text style={styles.tapHintText}>👆 {label}</Text>
+      <IconText icon="tap" style={styles.tapHintText}>
+        {label}
+      </IconText>
     </Animated.View>
   );
 }
+
+/** The dark ink on the amber CTA — its label and its icon share it. */
+const BTN_INK = '#241505';
 
 const styles = StyleSheet.create({
   ms: {
@@ -291,7 +397,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sqText: { fontSize: 11 },
-  hdTitle: { flex: 1, fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.ink },
+  hdTitleRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  hdTitle: { flexShrink: 1, fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.ink },
   bal: { fontFamily: Fonts.bodyBold, fontSize: 10, color: Colors.ember },
   msRow: {
     flexDirection: 'row',
@@ -325,7 +432,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: 'center',
   },
-  msBtnText: { fontFamily: Fonts.bodyBold, fontSize: 11, color: '#241505' },
+  msBtnText: { fontFamily: Fonts.bodyBold, fontSize: 11, color: BTN_INK },
   msTile: {
     borderWidth: 2,
     backgroundColor: '#1e1630',
@@ -333,6 +440,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   msMut: { fontFamily: Fonts.body, fontSize: 10, color: Colors.muted, textAlign: 'center' },
+  centerRow: { justifyContent: 'center' },
   bub: {
     alignSelf: 'flex-start',
     maxWidth: '86%',

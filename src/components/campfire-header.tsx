@@ -39,7 +39,7 @@ const TABS: { key: CampfireTab; label: string }[] = [
 const HEAT_LABEL: Record<ReturnType<typeof heatToState>, string> = {
   roaring: 'ROARING',
   simmering: 'EMBERS',
-  cold: '🖤 BURNT OUT',
+  cold: 'BURNT OUT',
 };
 
 const PRIVACY_LABEL: Record<CampfirePrivacy, string> = {

@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { RANK_TIER_LABEL, RANK_TIER_METAL } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
@@ -49,9 +50,9 @@ export function MomentumStrip({ identity, onRankPress }: { identity: ProfileIden
   return (
     <View style={styles.strip}>
       <View style={styles.tile}>
-        <Text style={[styles.big, { color: Colors.emberForward }]} numberOfLines={1}>
-          🔥 {streak.current}
-        </Text>
+        <IconText icon="streak" style={[styles.big, { color: Colors.emberForward }]} numberOfLines={1}>
+          {streak.current}
+        </IconText>
         <Text style={styles.cap} numberOfLines={1}>
           day streak
         </Text>

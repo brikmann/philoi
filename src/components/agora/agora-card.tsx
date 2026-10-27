@@ -11,6 +11,7 @@ import { PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { HouseSealInline } from '@/components/house/house-seal';
 import { IdentityLine } from '@/components/house/identity-line';
+import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
@@ -147,7 +148,9 @@ function AgoraCardInner({ item, loadout, onComment, onMore }: Props) {
 
         {auto ? (
           <View style={styles.autoTag} accessibilityLabel="Posted automatically">
-            <Text style={styles.autoTagText}>⚡ auto</Text>
+            <IconText icon="bolt" style={styles.autoTagText} gap={2}>
+              auto
+            </IconText>
           </View>
         ) : null}
 

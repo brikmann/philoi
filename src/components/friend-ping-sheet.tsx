@@ -36,7 +36,7 @@ type FriendPingSheetProps = {
  * saying so is both true and more useful than a tick.
  */
 const PING_RESULT_COPY: Record<string, string> = {
-  idle: 'Send a 🔥 “lock in?” right now',
+  idle: 'Send a “lock in?” right now',
   sent: 'Nudged — it buzzed their phone ✓',
   sent_no_push: "Nudged — it's in their bell, but nothing buzzed",
   rate_limited: 'Already nudged them in the last 10 minutes',
@@ -92,7 +92,7 @@ export function FriendPingSheet({
               <Text style={[styles.actSub, lastPing === 'rate_limited' && styles.actSubWarn]}>
                 {lockedIn
                   ? `Join ${friend?.display_name ?? 'their'}'s session right now`
-                  : (PING_RESULT_COPY[lastPing ?? 'idle'] ?? 'Send a 🔥 “lock in?” right now')}
+                  : (PING_RESULT_COPY[lastPing ?? 'idle'] ?? 'Send a “lock in?” right now')}
               </Text>
             </View>
             <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />

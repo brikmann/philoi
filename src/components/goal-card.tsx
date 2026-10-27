@@ -1,10 +1,12 @@
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
+import { DisciplineIcon } from '@/components/ui/discipline-icon';
+import { IconText } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { SecondaryButton } from '@/components/ui/secondary-button';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { GOAL_TYPE_META } from '@/lib/goal-types';
+import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import type { MyGoal } from '@/hooks/use-my-goals';
 
 type GoalCardProps = {
@@ -26,16 +28,18 @@ export function GoalCard({ goal, onLockIn, onArchive }: GoalCardProps) {
   return (
     <Card style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={styles.emoji}>{meta.emoji}</Text>
+        <DisciplineIcon name={GOAL_TYPE_GLYPH[goal.type]} size={28} color={Colors.amber} />
         <View style={styles.headerText}>
           <Text style={styles.name}>{goal.label || meta.label}</Text>
           <Text style={styles.cadence}>{goal.cadence}</Text>
         </View>
-        <Text style={styles.streak}>🔥 {goal.current_streak}</Text>
+        <IconText icon="streak" style={styles.streak} iconColor={Colors.amber}>
+          {goal.current_streak}
+        </IconText>
       </View>
 
       {goal.checked_in_today ? (
-        <SecondaryButton label="Locked in today ✅" onPress={() => {}} disabled />
+        <SecondaryButton label="Locked in today" onPress={() => {}} disabled />
       ) : (
         <PrimaryButton label="Lock in" onPress={onLockIn} />
       )}
@@ -55,9 +59,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-  },
-  emoji: {
-    fontSize: 28,
   },
   headerText: {
     flex: 1,

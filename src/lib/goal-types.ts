@@ -80,18 +80,18 @@ export function categoryForGoalType(type: GoalType): { category: LockInCategory;
   return { category: 'study', activity: null };
 }
 
-export const GOAL_TYPE_META: Record<GoalType, { label: string; emoji: string }> = {
-  gym: { label: 'Gym', emoji: '🏋️' },
+export const GOAL_TYPE_META: Record<GoalType, { label: string }> = {
+  gym: { label: 'Gym' },
   // Displayed as "Cardio", not "Run" — the goal covers cycling, rowing and the rest, and a
   // runner's label quietly tells everyone else this tile isn't for them. The GoalType VALUE stays
   // 'run': it is written to check_ins.goal_type on every historical row, so renaming it would be a
   // migration and a data rewrite to change one word on screen.
-  run: { label: 'Cardio', emoji: '🏃' },
-  study: { label: 'Study', emoji: '📚' },
-  job_applications: { label: 'Job apps', emoji: '📝' },
-  read: { label: 'Read', emoji: '📖' },
-  social_media: { label: 'Social media', emoji: '📵' },
-  custom: { label: 'Custom', emoji: '🎯' },
+  run: { label: 'Cardio' },
+  study: { label: 'Study' },
+  job_applications: { label: 'Job apps' },
+  read: { label: 'Read' },
+  social_media: { label: 'Social media' },
+  custom: { label: 'Custom' },
 };
 
 // The lock-in goal picker's exact set + grid order (design-mocks/07-lockin-goal-picker.html:
@@ -111,24 +111,8 @@ export const GOAL_CADENCE_PRESETS: Record<GoalType, string[]> = {
   custom: ['3x/week', '4x/week', 'Daily', 'Weekly'],
 };
 
-// Fire is an intensity metaphor applied to an object related to the goal, not a generic
-// campfire — the object is what's "on fire," not a fire pit. Hoisted here (was
-// lock-in-flame.tsx's private FLAME_THEME) since both the in-session flame AND the lock-in
-// goal picker's tile grid need the same emoji/label per goal type — real illustrated/Lottie
-// per-theme assets (a flaming dumbbell, a flaming pen mid-scribble, etc.) are a design-asset
-// need beyond what's buildable here; this registry is the swap-in point for them later.
-export const GOAL_TYPE_FLAME_META: Record<GoalType, { emoji: string; label: string }> = {
-  gym: { emoji: '🏋️', label: 'dumbbell' },
-  run: { emoji: '👟', label: 'shoe' },
-  study: { emoji: '✏️', label: 'pen' },
-  job_applications: { emoji: '📝', label: 'application' },
-  read: { emoji: '📖', label: 'book' },
-  social_media: { emoji: '📵', label: 'phone' },
-  custom: { emoji: '🎯', label: 'target' },
-};
-
-// Vector-icon equivalent of the above — used wherever the tool needs a real recolorable icon
-// instead of a fixed-color emoji: the lock-in goal picker's tiles (design-mocks/07) and the
+// The Ionicons per goal type — the older recolorable stand-in for the emoji GOAL_TYPE_META used to
+// carry (the emoji field is gone; goal-type slots draw GOAL_TYPE_GLYPH below): the lock-in goal picker's tiles (design-mocks/07) and the
 // "goal-as-fuel object" burning in the flame during a session (PHILOI_UI_SPEC.md §13,
 // design-mocks/09 — "bright cream #FFF3DC, large, and legible against the flame").
 export const GOAL_TYPE_ICON: Record<GoalType, keyof typeof Ionicons.glyphMap> = {

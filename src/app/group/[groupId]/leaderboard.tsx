@@ -48,7 +48,7 @@ export default function GroupLeaderboardScreen() {
 
   // Always sort by the raw metric value; the tier hexagon is a badge only (§412).
   const sorted = [...rows].sort((a, b) => (metric === 'xp' ? b.score - a.score : b.check_ins_this_week - a.check_ins_this_week));
-  const value = (row: LeaderboardRow) => (metric === 'xp' ? `${Math.round(row.score).toLocaleString()} XP` : `🔥 ${row.check_ins_this_week}× wk`);
+  const value = (row: LeaderboardRow) => (metric === 'xp' ? `${Math.round(row.score).toLocaleString()} XP` : `${row.check_ins_this_week} check-ins/wk`);
   // Punchlist 2, §3: a campfire under 3 members falls back to the old plain-list format — never
   // a podium with empty slots. This ALSO fixes a real bug the podium path had on its own: with
   // exactly 3-9 members, `sorted.slice(3, VISIBLE_RANKS)` is an empty array (nothing past rank 3

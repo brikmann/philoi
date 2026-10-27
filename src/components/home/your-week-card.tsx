@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { IconText, type IconName } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { formatDeltaChip, weekHeadline, type MyWeek } from '@/lib/api/home';
 import { formatSessionDuration } from '@/lib/format';
@@ -25,12 +26,18 @@ export function YourWeekCard({ week }: { week: MyWeek }) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.big}>{headline.title}</Text>
+      {headline.ahead ? (
+        <IconText icon="flame" trailing style={styles.big} iconColor={Colors.navEmber}>
+          {headline.title}
+        </IconText>
+      ) : (
+        <Text style={styles.big}>{headline.title}</Text>
+      )}
       <Text style={[styles.sub, headline.ahead && styles.subAhead]}>{headline.sub}</Text>
 
       <View style={styles.tiles}>
         <Tile value={formatSessionDuration(week.thisWeekSeconds)} chip={timeChip} label="LOCKED IN" />
-        <Tile value={`🔥 ${week.currentStreak}`} chip={streakBest ? '▲ best' : null} label="STREAK" />
+        <Tile value={String(week.currentStreak)} icon="streak" chip={streakBest ? '▲ best' : null} label="STREAK" />
         <Tile
           value={formatRankTier(week.tier, week.division)}
           valueColor={RANK_TIER_COLOR[week.tier]}
@@ -59,12 +66,15 @@ export function YourWeekCard({ week }: { week: MyWeek }) {
 
 function Tile({
   value,
+  icon,
   valueColor,
   chip,
   quiet,
   label,
 }: {
   value: string;
+  /** A glyph beside the value (the streak's flame). */
+  icon?: IconName;
   valueColor?: string;
   chip: string | null;
   /** A neutral word in the chip's slot when there's no good news to show. */
@@ -73,9 +83,15 @@ function Tile({
 }) {
   return (
     <View style={styles.tile}>
-      <Text style={[styles.tileValue, valueColor ? { color: valueColor } : null]} numberOfLines={1} adjustsFontSizeToFit>
-        {value}
-      </Text>
+      {icon ? (
+        <IconText icon={icon} style={[styles.tileValue, valueColor ? { color: valueColor } : null]} iconColor={Colors.amber} numberOfLines={1}>
+          {value}
+        </IconText>
+      ) : (
+        <Text style={[styles.tileValue, valueColor ? { color: valueColor } : null]} numberOfLines={1} adjustsFontSizeToFit>
+          {value}
+        </Text>
+      )}
       <Text style={[styles.tileChip, !chip && styles.tileQuiet]}>{chip ?? quiet ?? ' '}</Text>
       <Text style={styles.tileLabel}>{label}</Text>
     </View>

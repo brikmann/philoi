@@ -1,3 +1,4 @@
+import type { IconName } from '@/components/ui/icon';
 import { RANK_TIER_LABEL, RANK_TIER_ORDER } from '@/lib/rank-tiers';
 import type { RankTierName } from '@/types/database';
 
@@ -35,12 +36,13 @@ export const RANK_UP_COPY: Record<RankTierName, { head: string; sub: string }> =
 
 // The share card's tag line (design-mocks/84) — the small all-caps label above the badge that says
 // what KIND of moment this was. Lives here rather than in the celebration so the on-screen card
-// and the captured story image can never disagree about it.
-export function rankUpCardTag(tier: RankTierName, isDivisionBump: boolean): string {
-  if (isDivisionBump) return '🔥 DIVISION UP';
-  if (tier === 'primordial') return '🔥 PRIMORDIAL';
-  if (tier === 'hero') return '⚔ ASCENDED';
-  return 'RANK UP';
+// and the captured story image can never disagree about it. The glyph rides beside the words as a
+// bespoke icon (it used to be a 🔥 / ⚔ spliced into the string), so `label` is plain text.
+export function rankUpCardTag(tier: RankTierName, isDivisionBump: boolean): { label: string; icon: IconName | null } {
+  if (isDivisionBump) return { label: 'DIVISION UP', icon: 'flame' };
+  if (tier === 'primordial') return { label: 'PRIMORDIAL', icon: 'flame' };
+  if (tier === 'hero') return { label: 'ASCENDED', icon: 'challenge' };
+  return { label: 'RANK UP', icon: null };
 }
 
 // The DIVISION UP card's light two-liner (RANKUP_SPEC §9's intra-division bump) — deliberately NOT

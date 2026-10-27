@@ -127,12 +127,12 @@ const KIND_LABEL: Record<string, string> = {
   custom: 'Milestone',
 };
 
-/** "23h · 🔥 14-day streak" — the milestone receipts, compacted onto one line for a feed card. */
+/** "23h · 14-day streak" — the milestone receipts, compacted onto one line for a feed card. */
 function effortLine(effort: AgoraAttachSnapshot['effort']): string | null {
   if (!effort) return null;
   const parts: string[] = [];
   if (effort.hours !== undefined) parts.push(`${effort.hours}h locked in`);
-  if (effort.streak !== undefined) parts.push(`🔥 ${effort.streak}-day streak`);
+  if (effort.streak !== undefined) parts.push(`${effort.streak}-day streak`);
   if (effort.lockins !== undefined) parts.push(`${effort.lockins} lock-ins`);
   return parts.length > 0 ? parts.join(' · ') : null;
 }
@@ -209,7 +209,7 @@ export function attachmentView(
     case 'streak': {
       const days = snap.days ?? 0;
       return {
-        title: `${days}-day streak 🔥`,
+        title: `${days}-day streak`,
         subtitle:
           snap.longest && snap.longest > days ? `Personal best: ${snap.longest} days` : 'No dead days',
         eyebrow: 'STANDING',

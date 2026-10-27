@@ -16,6 +16,7 @@ import { BurningName } from '@/components/burning-name';
 import { CosmeticDetail, DetailSheet } from '@/components/pass/cosmetic-detail-sheet';
 import { EMBER, EmberfallSeal, EmberfallSky, FallingEmbers } from '@/components/pass/emberfall-art';
 import { useBreath } from '@/components/pass/pass-motion';
+import { Icon, IconText } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Fonts, Spacing } from '@/constants/theme';
@@ -372,15 +373,15 @@ export default function ForgePassScreen() {
           onPress={claimAll}
           accessibilityRole="button">
           {pendingCount > 0 && !busy ? <EmberBands /> : null}
-          <Text style={[styles.claimText, pendingCount === 0 && styles.claimTextOff]}>
-            {busy
-              ? 'Claiming…'
-              : pendingCount > 0
-                ? `Claim rewards (${pendingCount}) 🔥`
-                : phase === 'upcoming'
-                  ? `The climb opens with ${SEASON.name}`
-                  : 'All caught up — keep climbing'}
-          </Text>
+          {pendingCount > 0 && !busy ? (
+            <IconText icon="flame" trailing style={styles.claimText}>
+              Claim rewards ({pendingCount})
+            </IconText>
+          ) : (
+            <Text style={[styles.claimText, pendingCount === 0 && styles.claimTextOff]}>
+              {busy ? 'Claiming…' : phase === 'upcoming' ? `The climb opens with ${SEASON.name}` : 'All caught up — keep climbing'}
+            </Text>
+          )}
         </Pressable>
 
         <View style={styles.tabs}>
@@ -443,7 +444,9 @@ export default function ForgePassScreen() {
             <View style={styles.nodeSpace} />
             <View style={styles.pair}>
               <Text style={[styles.laneLabel, styles.laneFree]}>FREE</Text>
-              <Text style={[styles.laneLabel, styles.lanePass]}>🔥 FLAME PASS</Text>
+              <IconText icon="flame" style={[styles.laneLabel, styles.lanePass, styles.laneLabelInline]} containerStyle={styles.laneSlot}>
+                FLAME PASS
+              </IconText>
             </View>
           </View>
           <FlatList
@@ -492,10 +495,10 @@ export default function ForgePassScreen() {
         <View style={[styles.unlockWrap, { paddingBottom: Spacing.two }]}>
           <Pressable style={styles.unlock} onPress={onUnlock} accessibilityRole="button">
             <EmberBands />
-            <Text style={styles.unlockLock}>🔒</Text>
+            <Icon name="lock" size={18} color="#20100a" />
             <View style={styles.flex1}>
               <Text style={styles.unlockTitle}>Unlock the Flame Pass</Text>
-              <Text style={styles.unlockSub}>Every 🔥 reward on this track, and your name burns</Text>
+              <Text style={styles.unlockSub}>Every Flame Pass reward on this track, and your name burns</Text>
             </View>
             {price ? <Text style={styles.unlockPrice}>{price}</Text> : null}
           </Pressable>
@@ -657,12 +660,15 @@ function Chip({
         {chipLabel(lead)}
         {rest.length > 0 ? <Text style={styles.chipPlus}> +{rest.length}</Text> : null}
       </Text>
-      <Text style={[styles.chipState, state === 'ready' && styles.chipStateReady]}>{STATE_MARK[state]}</Text>
+      {state === 'ready' ? (
+        <Text style={[styles.chipState, styles.chipStateReady]}>●</Text>
+      ) : (
+        <Icon name={state === 'claimed' ? 'check' : 'lock'} size={10} color={MUTED} />
+      )}
     </Pressable>
   );
 }
 
-const STATE_MARK: Record<ChipState, string> = { claimed: '✓', ready: '●', locked: '🔒' };
 const STATE_LABEL: Record<ChipState, string> = { claimed: 'Claimed', ready: 'Ready to claim', locked: 'Locked' };
 
 /** Real art by catalog id / box key — never a stock icon. Motion off: a hundred rows of it scroll. */
@@ -677,7 +683,7 @@ function RewardArt({ reward, size }: { reward: PassReward; size: number }) {
       return item ? <ItemArt item={item} size={size} motion="off" /> : null;
     }
     case 'badge':
-      return <Text style={{ fontSize: size * 0.6 }}>🏅</Text>;
+      return <Icon name="medal" size={size * 0.75} color={EMBER.e2} />;
   }
 }
 
@@ -753,10 +759,17 @@ function LaneDetail({
 
   return (
     <View>
-      <Text style={styles.sheetKicker}>
-        LEVEL {level.level} · {lane === 'free' ? 'FREE' : '🔥 FLAME PASS'}
-        {level.milestone ? ' · ★ MILESTONE' : ''}
-      </Text>
+      {lane === 'free' ? (
+        <Text style={styles.sheetKicker}>
+          LEVEL {level.level} · FREE
+          {level.milestone ? ' · ★ MILESTONE' : ''}
+        </Text>
+      ) : (
+        <IconText icon="flame" style={styles.sheetKicker} containerStyle={styles.sheetKickerRow}>
+          LEVEL {level.level} · FLAME PASS
+          {level.milestone ? ' · ★ MILESTONE' : ''}
+        </IconText>
+      )}
       <Text style={styles.sheetState}>
         {state === 'claimed'
           ? 'Claimed ✓'
@@ -771,7 +784,9 @@ function LaneDetail({
 
       {needsPass ? (
         <Pressable style={styles.sheetCta} onPress={onUnlock} accessibilityRole="button">
-          <Text style={styles.sheetCtaText}>Unlock the Flame Pass 🔥</Text>
+          <IconText icon="flame" trailing style={styles.sheetCtaText}>
+            Unlock the Flame Pass
+          </IconText>
         </Pressable>
       ) : null}
     </View>
@@ -921,7 +936,7 @@ function AchievementList({ earned }: { earned: { key: string; period_key: string
             return (
               <View key={a.key} style={[styles.ach, complete && styles.achDone]}>
                 <View style={[styles.check, complete && styles.checkOn]}>
-                  {complete ? <Text style={styles.checkMark}>✓</Text> : null}
+                  {complete ? <Icon name="check" size={13} color="#20100a" /> : null}
                 </View>
                 <View style={styles.flex1}>
                   <Text style={styles.achLabel}>{a.label}</Text>
@@ -1271,6 +1286,13 @@ const styles = StyleSheet.create({
   lanePass: {
     color: EMBER.e2,
   },
+  laneSlot: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  laneLabelInline: {
+    flex: 0,
+  },
   track: {
     paddingHorizontal: 16,
   },
@@ -1512,9 +1534,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: EMBERFALL_TO,
   },
-  unlockLock: {
-    fontSize: 16,
-  },
   unlockTitle: {
     fontFamily: Fonts.black,
     fontSize: 13.5,
@@ -1551,6 +1570,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: EMBER.e2,
     textAlign: 'center',
+  },
+  sheetKickerRow: {
+    justifyContent: 'center',
   },
   sheetState: {
     fontFamily: Fonts.bodySemiBold,
@@ -1669,11 +1691,6 @@ const styles = StyleSheet.create({
   checkOn: {
     backgroundColor: EMBER.e1,
     borderColor: EMBER.e1,
-  },
-  checkMark: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: '#20100a',
   },
   achLabel: {
     fontFamily: Fonts.body,

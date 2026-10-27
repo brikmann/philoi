@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Icon, IconText } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { SpaceButton, SpaceCard, SpaceEmpty, SpaceHeader, SpaceSection, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
@@ -55,6 +56,9 @@ type Target = { id: string; name: string; avatarUrl: string | null; university: 
  * the server validates the name and derives verifiability from the race metric itself.
  */
 const DUEL_TIER = 'uncommon' as const;
+
+/** SpaceButton's primary label ink — the ⚔ beside "Compare" takes the same near-black. */
+const ON_EMBER_BTN = '#2A0F05';
 
 function parseKeys(raw: string | undefined): string[] {
   if (!raw) return [];
@@ -313,7 +317,12 @@ export default function VersusScreen() {
             <>
               <View style={styles.zone}>
                 <View style={styles.zoneHead}>
-                  <SpaceSection right={<Text style={styles.zoneLegend}>⚔ = challenge</Text>}>
+                  <SpaceSection
+                    right={
+                      <IconText icon="versus" style={styles.zoneLegend}>
+                        = challenge
+                      </IconText>
+                    }>
                     {`Comparing (${stats.length}/${MAX_COMPARE_STATS})`}
                   </SpaceSection>
                 </View>
@@ -344,7 +353,8 @@ export default function VersusScreen() {
 
               <View style={styles.cta}>
                 <SpaceButton
-                  label={flaggedCount > 0 ? `Compare · challenge on ${flaggedCount} ⚔` : 'Compare'}
+                  label={flaggedCount > 0 ? `Compare · challenge on ${flaggedCount}` : 'Compare'}
+                  leading={flaggedCount > 0 ? <Icon name="versus" size={16} color={ON_EMBER_BTN} /> : undefined}
                   onPress={handleCompare}
                   disabled={!target || stats.length === 0}
                   loading={comparing}
@@ -378,7 +388,7 @@ export default function VersusScreen() {
                     PrimaryButton carries the pulse. */}
                 {plan.duels.length > 0 ? (
                   <PrimaryButton
-                    label={`Send the challenge ⚔ · ${plan.duels.length}`}
+                    label={`Send the challenge · ${plan.duels.length}`}
                     onPress={handleSend}
                     loading={sending}
                     pulse
@@ -389,7 +399,9 @@ export default function VersusScreen() {
                 ))}
                 {flaggedCount === 0 ? (
                   <Pressable onPress={() => setStep('compose')} style={styles.flagHint} accessibilityRole="button">
-                    <Text style={styles.flagHintText}>Flag a stat ⚔ to turn this into a challenge</Text>
+                    <IconText icon="versus" style={styles.flagHintText}>
+                      Flag a stat to turn this into a challenge
+                    </IconText>
                   </Pressable>
                 ) : null}
               </View>
@@ -448,11 +460,15 @@ function SendPlanNote({ duels, cindy }: { duels: CompareStat[]; cindy: CompareSt
   return (
     <View style={styles.planNote}>
       {duels.length > 0 ? (
-        <Text style={styles.planText}>
-          <Text style={styles.planSword}>⚔ </Text>
-          {duels.length === 1 ? 'Becomes a 7-day duel: ' : `Become ${duels.length} separate 7-day duels: `}
-          <Text style={styles.planStrong}>{duels.map(duelPublicName).join(', ')}</Text>
-        </Text>
+        <View style={styles.planRow}>
+          <View style={styles.planSword}>
+            <Icon name="versus" size={13} color={Colors.danger} />
+          </View>
+          <Text style={[styles.planText, styles.planTextShrink]}>
+            {duels.length === 1 ? 'Becomes a 7-day duel: ' : `Become ${duels.length} separate 7-day duels: `}
+            <Text style={styles.planStrong}>{duels.map(duelPublicName).join(', ')}</Text>
+          </Text>
+        </View>
       ) : null}
       {cindy.length > 0 ? (
         <Text style={styles.planText}>
@@ -591,8 +607,16 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: Colors.spaceDim,
   },
+  planRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+  },
   planSword: {
-    color: Colors.danger,
+    marginTop: 1.5,
+  },
+  planTextShrink: {
+    flexShrink: 1,
   },
   planStrong: {
     fontFamily: Fonts.bodySemiBold,

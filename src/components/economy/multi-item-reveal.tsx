@@ -6,6 +6,7 @@ import { hueInk, itemHue } from "@/components/economy/cosmetic-in-context";
 import { formatEmbers } from "@/components/economy/economy-bits";
 import { ItemArt } from "@/components/economy/item-art";
 import { UnlockReveal } from "@/components/economy/unlock-reveal";
+import { IconText } from "@/components/ui/icon";
 import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 import { useReduceMotion } from "@/hooks/use-reduce-motion";
 import type { OpenResult } from "@/lib/api/inventory";
@@ -340,7 +341,9 @@ function SalvageReceipt({ dupes, total }: { dupes: Pull[]; total: number }) {
           {dupes.length} {dupes.length === 1 ? "duplicate" : "duplicates"}{" "}
           salvaged
         </Text>
-        <Text style={styles.receiptTotal}>+{formatEmbers(total)} 🔥</Text>
+        <IconText icon="ember" trailing style={styles.receiptTotal}>
+          +{formatEmbers(total)}
+        </IconText>
       </View>
       {dupes.map((d, i) => {
         const rarity = asRarity(d.result.rarity);

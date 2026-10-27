@@ -2,6 +2,7 @@ import { File } from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import * as Crypto from 'expo-crypto';
 
+import type { IconName } from '@/components/ui/icon';
 import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 import type {
@@ -407,23 +408,32 @@ export const AGORA_SCOPES: { key: AgoraScope; label: string }[] = [
   { key: 'everyone', label: 'Everyone' },
 ];
 
+export type AudienceTag = {
+  label: string;
+  /** A named room's own emoji — its creator picked it, so it is content and is drawn as-is. */
+  emoji: string | null;
+  /** The glyph drawn when there is no room emoji. */
+  icon: IconName;
+};
+
 /**
  * The tag a post wears (mock 320): who it was shared with. Read from the server's derived
- * `audience`, falling back to the visibility dial on a server without 0280.
+ * `audience`, falling back to the visibility dial on a server without 0280. Words plus an icon
+ * name — the caller draws the glyph, so no emoji rides in the label as chrome.
  */
-export function audienceTag(item: Pick<AgoraItem, 'audience' | 'audience_name' | 'audience_emoji' | 'visibility'>): string {
+export function audienceTag(item: Pick<AgoraItem, 'audience' | 'audience_name' | 'audience_emoji' | 'visibility'>): AudienceTag {
   const audience = item.audience ?? (item.visibility === 'public' ? 'everyone' : item.visibility);
   switch (audience) {
     case 'campfire':
-      return `${item.audience_emoji || '🔥'} ${item.audience_name ?? 'Campfire'}`;
+      return { label: item.audience_name ?? 'Campfire', emoji: item.audience_emoji || null, icon: 'campfire' };
     case 'forest':
-      return `${item.audience_emoji || '🌲'} ${item.audience_name ?? 'Forest'}`;
+      return { label: item.audience_name ?? 'Forest', emoji: item.audience_emoji || null, icon: 'forest' };
     case 'everyone':
-      return '🌐 Everyone';
+      return { label: 'Everyone', emoji: null, icon: 'everyone' };
     case 'campus':
-      return '🎓 Campus';
+      return { label: 'Campus', emoji: null, icon: 'campus' };
     default:
-      return '👥 Friends';
+      return { label: 'Friends', emoji: null, icon: 'friends' };
   }
 }
 

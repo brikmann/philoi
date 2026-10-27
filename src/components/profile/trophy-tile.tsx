@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ItemArt } from '@/components/economy/item-art';
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { getItem } from '@/lib/economy/catalog';
 import { RARITY_COLOR, RARITY_LABEL, rarityGlow } from '@/lib/economy/rarity';
@@ -54,7 +55,11 @@ export function TrophyTile({
       ) : null}
       <ItemArt item={item} size={34} />
       <Text style={[styles.rarity, { color: colour }]}>{RARITY_LABEL[item.rarity]}</Text>
-      {hidden ? <Text style={styles.hiddenMark}>🔒</Text> : null}
+      {hidden ? (
+        <View style={styles.hiddenMark}>
+          <Icon name="lock" size={11} color={Colors.textTertiary} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -113,6 +118,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 5,
     right: 5,
-    fontSize: 9,
   },
 });

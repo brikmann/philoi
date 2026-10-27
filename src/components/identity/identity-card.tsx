@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import type { Anthem, ProfileIdentity } from '@/types/social';
 
@@ -20,7 +21,7 @@ function AnthemChip({ anthem }: { anthem: Anthem }) {
   const body = (
     <View style={styles.anthem}>
       <View style={styles.art}>
-        <Text style={styles.artGlyph}>♪</Text>
+        <Icon name="music" size={16} color={Colors.ink} />
       </View>
       <View style={styles.anthemText}>
         <Text style={styles.anthemTitle} numberOfLines={1}>
@@ -175,10 +176,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  artGlyph: {
-    fontSize: 14,
-    color: Colors.ink,
-  },
+
   anthemText: {
     flex: 1,
     minWidth: 0,

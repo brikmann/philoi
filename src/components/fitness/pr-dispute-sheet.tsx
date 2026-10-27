@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { Icon } from '@/components/ui/icon';
 import { SpaceButton, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { disputePr } from '@/lib/api/stats';
@@ -73,10 +74,12 @@ export function PrDisputeSheet({
           <View style={styles.grabber} />
           {row ? (
             <>
-              <Text style={styles.title}>
-                {shortName(row.display_name)}&apos;s #{row.rank} · {value}
-                {row.verified ? ' ✓' : ''}
-              </Text>
+              <View style={styles.titleRow}>
+                <Text style={styles.title}>
+                  {shortName(row.display_name)}&apos;s #{row.rank} · {value}
+                </Text>
+                {row.verified ? <Icon name="check" size={18} color={Colors.green} /> : null}
+              </View>
               <Text style={styles.body}>
                 {row.verified ? 'Clip on file — their connections can watch to verify; never public.' : 'No clip on file — this PR is unverified.'}{' '}
                 Looks off? Dispute sends it to a moderator; a failed review pulls the PR.
@@ -92,7 +95,13 @@ export function PrDisputeSheet({
                     maxLength={280}
                     multiline
                   />
-                  <SpaceButton label="⚑ Dispute this PR" variant="danger" onPress={handleDispute} loading={busy} />
+                  <SpaceButton
+                    label="Dispute this PR"
+                    variant="danger"
+                    leading={<Icon name="flag" size={16} color={Colors.danger} />}
+                    onPress={handleDispute}
+                    loading={busy}
+                  />
                 </>
               ) : null}
               <SpaceButton
@@ -142,7 +151,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.spaceLine,
     marginTop: Spacing.two,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   title: {
+    flexShrink: 1,
     fontFamily: Fonts.black,
     fontSize: 18,
     color: Colors.ink,

@@ -16,6 +16,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Crown } from '@/components/ui/crown';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
 import { CompeteGlyph } from '@/components/ui/glyphs-compete';
+import { Icon, IconText } from '@/components/ui/icon';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { SpaceButton, SpaceEmpty, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
@@ -189,10 +190,12 @@ function Results({
             <Avatar label={r.member_name} size={28} lit={r.member_id === myUserId} />
           )}
           <View style={styles.resultWho}>
-            <Text style={styles.resultName} numberOfLines={1}>
-              {r.member_id === myUserId ? 'You' : r.member_name}
-              {r.is_winner ? ' 👑' : ''}
-            </Text>
+            <View style={styles.resultNameRow}>
+              <Text style={styles.resultName} numberOfLines={1}>
+                {r.member_id === myUserId ? 'You' : r.member_name}
+              </Text>
+              {r.is_winner ? <Icon name="crown" size={14} color={Colors.gold} /> : null}
+            </View>
               {r.percentile != null && rows.length > 2 ? (
               <Text style={styles.resultBand}>Top {Math.max(1, Math.round((1 - r.percentile) * 100))}%</Text>
             ) : null}
@@ -360,9 +363,9 @@ function PrizeCard({
         <Text style={styles.prizeStrong}>{scoped.embers.toLocaleString('en-US')} embers</Text> at the top band, and a
         permanent <Text style={styles.prizeStrong}>{campfire}</Text> title.
       </Text>
-      <View style={styles.scaled}>
-        <Text style={styles.scaledText}>🏅 {note}</Text>
-      </View>
+      <IconText icon="medal" style={styles.scaledText} containerStyle={styles.scaled} gap={5}>
+        {note}
+      </IconText>
     </View>
   );
 }
@@ -1545,7 +1548,13 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 1,
   },
+  resultNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   resultName: {
+    flexShrink: 1,
     fontFamily: Fonts.bodySemiBold,
     fontSize: 13,
     color: Colors.ink,
@@ -1769,6 +1778,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   scaledText: {
+    flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 10,
     color: Colors.spaceDim,

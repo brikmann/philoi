@@ -9,6 +9,7 @@ import { CampfireBannerArt } from '@/components/campfire-banner-art';
 import { CampfireOptionsSheet } from '@/components/campfire-options-sheet';
 import { CircleTimeline } from '@/components/circle-timeline';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { Icon } from '@/components/ui/icon';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Screen } from '@/components/ui/screen';
 import { UiGlyph } from '@/components/ui/ui-glyph';
@@ -245,14 +246,20 @@ export default function GroupScreen() {
           <View style={styles.fireTile}>
             <TileHalo colour={ramp.mid} />
             <View style={[styles.fireEmoji, { borderColor: ramp.mid }]}>
-              <Text style={styles.fireEmojiGlyph}>{group?.emoji ?? '🔥'}</Text>
+              {group?.emoji ? (
+                <Text style={styles.fireEmojiGlyph}>{group.emoji}</Text>
+              ) : (
+                <Icon name="campfire" size={22} color={Colors.navEmber} />
+              )}
             </View>
           </View>
           <View style={styles.fireText}>
-            <Text style={styles.fireName} numberOfLines={1}>
-              {group?.name ?? '…'}
-              {isOwner ? <Text style={styles.crown}> 👑</Text> : null}
-            </Text>
+            <View style={styles.fireNameRow}>
+              <Text style={[styles.fireName, styles.fireNameShrink]} numberOfLines={1}>
+                {group?.name ?? '…'}
+              </Text>
+              {isOwner ? <Icon name="crown" size={15} color={Colors.gold} /> : null}
+            </View>
             <View style={styles.fireSubRow}>
               <NavGlyph name="flame" size={11} color={Colors.navEmber2} />
               <Text style={styles.fireSub} numberOfLines={1}>
@@ -379,8 +386,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     color: Colors.ink,
   },
-  crown: {
-    fontSize: 13,
+  fireNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  fireNameShrink: {
+    flexShrink: 1,
   },
   // Was Colors.heatLabel — the ember-brown that belonged to the heat word this line no longer
   // carries. A members/streak line is status, so it takes the ordinary secondary text colour and

@@ -22,6 +22,7 @@ import { TrophyHallSection } from '@/components/profile/trophy-hall-section';
 import { useTrophyHall } from '@/hooks/use-trophy-hall';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
+import { IconText } from '@/components/ui/icon';
 import { SocialGlyph } from '@/components/ui/glyphs-social';
 import { SpaceHeader, SpaceIconButton, SpaceSection } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
@@ -321,7 +322,9 @@ export default function FriendProfileScreen() {
         {stats && (
           <View style={styles.stats}>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>🔥 {stats.current_streak}</Text>
+              <IconText icon="streak" style={styles.statValue} iconColor={Colors.amber}>
+                {stats.current_streak}
+              </IconText>
               <Text style={styles.statLabel}>day streak</Text>
             </View>
             <View style={styles.stat}>

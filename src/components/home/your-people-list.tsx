@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FriendFace } from '@/components/lockin-cheers/friend-faces';
+import { Icon, IconText } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { cheerAgoraItem } from '@/lib/api/agora';
 import { effortLine, type FriendEffort } from '@/lib/api/home';
@@ -83,15 +84,21 @@ export function YourPeopleList({
             style={({ pressed }) => [styles.row, pressed && styles.pressed]}
             onPress={() => router.push({ pathname: '/friend-profile', params: { userId: p.userId } })}
             accessibilityRole="button"
-            accessibilityLabel={`${p.name}${p.live ? ', locked in now' : ''}. ${line}`}>
+            accessibilityLabel={`${p.name}${p.live ? ', locked in now' : ''}. ${line.text}`}>
             <FriendFace name={p.name} avatarUrl={p.avatarUrl} size={36} live={p.live} />
             <View style={styles.text}>
               <Text style={styles.name} numberOfLines={1}>
                 {p.name}
               </Text>
-              <Text style={styles.line} numberOfLines={1}>
-                {line}
-              </Text>
+              {line.icon ? (
+                <IconText icon={line.icon} style={styles.line} numberOfLines={1} containerStyle={styles.lineRow}>
+                  {line.text}
+                </IconText>
+              ) : (
+                <Text style={styles.line} numberOfLines={1}>
+                  {line.text}
+                </Text>
+              )}
             </View>
             {busy === p.userId ? (
               <ActivityIndicator size="small" color={Colors.navEmber2} style={styles.spinner} />
@@ -102,7 +109,9 @@ export function YourPeopleList({
                 hitSlop={6}
                 accessibilityRole="button"
                 accessibilityLabel={`Cheer ${p.name}`}>
-                <Text style={styles.actText}>🔥 Cheer</Text>
+                <IconText icon="cheer" style={styles.actText}>
+                  Cheer
+                </IconText>
               </Pressable>
             ) : (
               <Pressable
@@ -111,7 +120,10 @@ export function YourPeopleList({
                 hitSlop={6}
                 accessibilityRole="button"
                 accessibilityLabel={`${done ? 'Cheered. ' : ''}Message ${p.name}`}>
-                <Text style={styles.ghostText}>{done ? '✓ 💬' : '💬'}</Text>
+                <View style={styles.ghostRow}>
+                  {done ? <Icon name="check" size={13} color={Colors.muted} /> : null}
+                  <Icon name="comment" size={14} color={Colors.muted} />
+                </View>
               </Pressable>
             )}
           </Pressable>
@@ -178,10 +190,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  ghostText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11.5,
-    color: Colors.muted,
+  lineRow: {
+    flexShrink: 1,
+  },
+  ghostRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   spinner: {
     width: 64,

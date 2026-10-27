@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon, IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { isPlacement, metricLabel } from '@/lib/challenge-metric';
 import {
@@ -357,12 +358,16 @@ export function ChallengeManageSheet({ challenge: c, myUserId, onClose, onChange
                 <TermRow label="Metric" value={<Text style={styles.termFixed}>{raceLabel}</Text>} />
                 <TermRow
                   label="Stakes"
-                  value={<Text style={styles.termFixed}>🏆 {isGroup ? 'up to ' : 'winner '}+{c.payout_xp} XP</Text>}
+                  value={
+                    <IconText icon="trophy" style={styles.termFixed}>
+                      {isGroup ? 'up to ' : 'winner '}+{c.payout_xp} XP
+                    </IconText>
+                  }
                 />
 
                 {!isGroup && (
                   <View style={styles.consent}>
-                    <Text style={styles.consentEmoji}>🤝</Text>
+                    <Icon name="hand" size={14} color={Colors.amber} />
                     <Text style={styles.consentText}>
                       Any change or cancel needs <Text style={styles.consentName}>{otherName}</Text>&apos;s consent.
                       They&apos;ll get a request to approve — nothing changes until they agree. Progress keeps
@@ -584,9 +589,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: Spacing.three,
     marginTop: Spacing.three,
-  },
-  consentEmoji: {
-    fontSize: 13,
   },
   consentText: {
     flex: 1,

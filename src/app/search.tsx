@@ -9,6 +9,7 @@ import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
 import { HouseSeal } from '@/components/house/house-seal';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { Avatar } from '@/components/ui/avatar';
+import { Icon, IconText } from '@/components/ui/icon';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { fetchSuggestedPeople, searchPeople, type PersonSearchResult, type SuggestedPerson } from '@/lib/api/friend-requests';
@@ -192,7 +193,9 @@ export default function SearchTab() {
               onPress={() => router.push('/grind-alikes' as never)}
               accessibilityRole="button"
               accessibilityLabel="Find your grind-alikes">
-              <Text style={styles.gaTitle}>🧭 Grind-alikes</Text>
+              <IconText icon="compass" style={styles.gaTitle}>
+                Grind-alikes
+              </IconText>
               <Text style={styles.gaBody}>People who lock in like you — same mix, goals, schedule.</Text>
               <Text style={styles.gaGo}>Find your people →</Text>
             </Pressable>
@@ -253,7 +256,11 @@ export default function SearchTab() {
         {results.exercises.map((e) => (
           <ResultRow
             key={e.slug}
-            emoji="🏋️"
+            leading={
+              <View style={styles.emojiTile}>
+                <Icon name="gym" size={20} color={Colors.ink} />
+              </View>
+            }
             title={e.name}
             sub={`Exercise board · ${e.lifters} ranked`}
             onPress={() =>

@@ -1,3 +1,4 @@
+import type { IconName } from '@/components/ui/icon';
 import { track } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 import type {
@@ -97,11 +98,18 @@ export const VISIBILITY_OPTIONS: { key: MilestoneVisibility; label: string }[] =
   { key: 'public', label: 'Public' },
 ];
 
-/** "23h locked in" · "🔥 14-day streak" · "18 lock-ins" — the receipt chips, in a stable order. */
-export function effortChips(effort: MilestoneEffort): { key: EffortKey; label: string }[] {
-  const chips: { key: EffortKey; label: string }[] = [];
+export type EffortChip = {
+  key: EffortKey;
+  label: string;
+  /** Drawn beside the label — never spliced into it, so the label stays clean for a11y text. */
+  icon?: IconName;
+};
+
+/** "23h locked in" · "14-day streak" (with the streak flame) · "18 lock-ins" — the receipt chips, in a stable order. */
+export function effortChips(effort: MilestoneEffort): EffortChip[] {
+  const chips: EffortChip[] = [];
   if (effort.hours !== undefined) chips.push({ key: 'hours', label: `${effort.hours}h locked in` });
-  if (effort.streak !== undefined) chips.push({ key: 'streak', label: `🔥 ${effort.streak}-day streak` });
+  if (effort.streak !== undefined) chips.push({ key: 'streak', label: `${effort.streak}-day streak`, icon: 'streak' });
   if (effort.lockins !== undefined) chips.push({ key: 'lockins', label: `${effort.lockins} lock-ins` });
   return chips;
 }

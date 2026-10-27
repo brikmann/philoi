@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGymClipQuota } from '@/hooks/use-gym-clip-quota';
 import { attachWorkoutSetClip, requestClipUploadUrls, uploadClipAsset } from '@/lib/api/gym-clips';
@@ -190,7 +191,11 @@ export function GymClipRecorder({ visible, workoutSetId, isPrPrompt, onClose, on
           <Pressable onPress={onClose} hitSlop={8} disabled={stage === 'processing'} accessibilityLabel="Close">
             <Ionicons name="close" size={26} color={Colors.ink} />
           </Pressable>
-          {isPrPrompt && stage === 'ready' && <Text style={styles.prBadge}>🏆 Film this PR?</Text>}
+          {isPrPrompt && stage === 'ready' && (
+            <IconText icon="trophy" style={styles.prBadgeText} containerStyle={styles.prBadge} gap={5}>
+              Film this PR?
+            </IconText>
+          )}
           {tier === 'free' && quota && (
             <Text style={styles.quotaText}>{quota.remaining} clip{quota.remaining === 1 ? '' : 's'} left this month</Text>
           )}
@@ -263,13 +268,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   prBadge: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 13,
-    color: Colors.ember,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: Radius.pill,
     paddingVertical: 5,
     paddingHorizontal: 11,
+  },
+  prBadgeText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13,
+    color: Colors.ember,
   },
   quotaText: {
     fontFamily: Fonts.body,

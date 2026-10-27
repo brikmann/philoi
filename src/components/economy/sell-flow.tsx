@@ -78,7 +78,7 @@ export function SellConfirmScreen({ item, payout, balance, busy, onConfirm, onCa
           </View>
 
           <View style={styles.foot}>
-            <PrimaryButton label={`Sell · 🔥 ${formatEmbers(payout)}`} onPress={onConfirm} loading={busy} />
+            <PrimaryButton label={`Sell · ${formatEmbers(payout)} embers`} onPress={onConfirm} loading={busy} />
             <PrimaryButton label="Keep it" variant="ghost" onPress={onCancel} disabled={busy} />
           </View>
         </SafeAreaView>

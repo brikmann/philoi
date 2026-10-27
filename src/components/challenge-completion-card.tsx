@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { DisciplineIcon } from '@/components/ui/discipline-icon';
+import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import type { FeedChallengeEvent } from '@/lib/api/challenges';
 import { formatRelativeTime } from '@/lib/format';
@@ -15,7 +16,7 @@ export function ChallengeCompletionCard({ event }: { event: FeedChallengeEvent }
       <View style={styles.body}>
         {event.is_completion ? (
           <Text style={styles.text}>
-            <Text style={styles.name}>{event.profiles.display_name}</Text> hit their {goal} challenge 🎉
+            <Text style={styles.name}>{event.profiles.display_name}</Text> hit their {goal} challenge
           </Text>
         ) : (
           <Text style={styles.text}>
@@ -26,6 +27,7 @@ export function ChallengeCompletionCard({ event }: { event: FeedChallengeEvent }
         )}
         <Text style={styles.time}>{formatRelativeTime(event.created_at)}</Text>
       </View>
+      {event.is_completion ? <Icon name="sparkle" size={18} color={Colors.ember} /> : null}
     </Card>
   );
 }

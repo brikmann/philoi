@@ -97,7 +97,7 @@ export default function MessagesScreen() {
                   {item.displayName}
                 </Text>
                 <Text style={[styles.last, item.unread > 0 && styles.lastUnread]} numberOfLines={1}>
-                  {item.lastBody ? `${item.lastSenderId === me ? 'You: ' : ''}${item.lastBody}` : 'Say hi 👋'}
+                  {item.lastBody ? `${item.lastSenderId === me ? 'You: ' : ''}${item.lastBody}` : 'Say hi'}
                 </Text>
               </View>
               {item.unread > 0 ? (

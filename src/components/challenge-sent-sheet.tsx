@@ -3,6 +3,7 @@ import { useId } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
+import { IconText } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, EMBER_GRADIENT, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -84,9 +85,9 @@ export function ChallengeSentSheet({
           <Text style={styles.meta}>
             Winner takes <Text style={styles.metaXp}>+{payoutXp} XP</Text>
           </Text>
-          <View style={styles.waiting}>
-            <Text style={styles.waitingText}>⏳ Waiting for {opponentName} to accept</Text>
-          </View>
+          <IconText icon="hourglass" style={styles.waitingText} containerStyle={styles.waiting} gap={5}>
+            Waiting for {opponentName} to accept
+          </IconText>
         </View>
 
         <View style={styles.footer}>
@@ -149,6 +150,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   waitingText: {
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
     color: Colors.textTertiary,

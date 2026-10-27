@@ -204,7 +204,32 @@ export const TIER_INTENSITY: Record<PlacementTier, { level: number; label: strin
   below50: { level: 0, label: 'NEEDS IGNITION', accent: '#8F84A6' },
 };
 
-/** The placement line under the headline — "🥇 1st · You beat Dee · Most lock-in time". */
+/**
+ * The placement, spelled — "1st" / "TOP 25%". The podium's medal is NOT in the string: the screen
+ * draws it as the bespoke 'medal' icon in the tier's accent beside the words (see isPodiumTier).
+ */
+export const TIER_PLACE: Record<PlacementTier, string> = {
+  rank1: '1st',
+  rank2: '2nd',
+  rank3: '3rd',
+  top1: 'TOP 1%',
+  top5: 'TOP 5%',
+  top10: 'TOP 10%',
+  top25: 'TOP 25%',
+  top50: 'TOP 50%',
+  below50: 'BOTTOM 50%',
+};
+
+/** A podium finish — the tiers that wear a medal. */
+export function isPodiumTier(tier: PlacementTier): boolean {
+  return tier === 'rank1' || tier === 'rank2' || tier === 'rank3';
+}
+
+/**
+ * LEGACY — TIER_PLACE with the medal emoji spliced in. Still read by challenge-win-share-card,
+ * which pulls the emoji off the front with split(' ')[0]; retire it once that card draws the
+ * 'medal' icon like the reward screen does.
+ */
 export const TIER_MEDAL: Record<PlacementTier, string> = {
   rank1: '🥇 1st',
   rank2: '🥈 2nd',

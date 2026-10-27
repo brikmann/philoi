@@ -14,6 +14,7 @@ import { PublicTitle, publicFlameTint } from '@/components/economy/loadout-bits'
 import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { HouseSealInline } from '@/components/house/house-seal';
 import { IdentityLine } from '@/components/house/identity-line';
+import { Icon, IconText } from '@/components/ui/icon';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
@@ -480,11 +481,13 @@ function VerifiedBadge({ lift, top }: { lift: VerifiedLift; top: number }) {
       pointerEvents="none"
       accessibilityRole="text"
       accessibilityLabel={`${formatLiftWeight(lift.weight)} ${lift.exercise}, ${lift.reps} reps. This clip verifies it.`}>
-      <Text style={styles.statBadgeStat} numberOfLines={1}>
-        🏋️ {formatLiftWeight(lift.weight)} {lift.exercise}
+      <IconText icon="gym" style={styles.statBadgeStat} numberOfLines={1} containerStyle={styles.statBadgeStatRow}>
+        {formatLiftWeight(lift.weight)} {lift.exercise}
         {lift.reps > 1 ? ` × ${lift.reps}` : ''}
-      </Text>
-      <Text style={styles.statBadgeVerified}>✓ this clip verifies it</Text>
+      </IconText>
+      <IconText icon="check" style={styles.statBadgeVerified} gap={2}>
+        this clip verifies it
+      </IconText>
     </View>
   );
 }
@@ -503,11 +506,17 @@ function NiceOnes({ item, onSend }: { item: AgoraItem; onSend: Props['onNiceComm
   }
 
   if (sent) {
-    return <Text style={styles.niceSent}>💬 You said “{sent}”</Text>;
+    return (
+      <IconText icon="comment" style={styles.niceSent}>
+        You said “{sent}”
+      </IconText>
+    );
   }
   return (
     <View style={styles.niceRow}>
-      <Text style={styles.niceHint}>💬 Leave a nice one</Text>
+      <IconText icon="comment" style={styles.niceHint}>
+        Leave a nice one
+      </IconText>
       {NICE_ONES.map((text) => (
         <Pressable
           key={text}
@@ -527,6 +536,7 @@ function NiceOnes({ item, onSend }: { item: AgoraItem; onSend: Props['onNiceComm
 function AuthorRow({ item, loadout, active, mine }: { item: AgoraItem; loadout: PublicLoadout; active: boolean; mine: boolean }) {
   const router = useRouter();
   const tier = item.rank_tier && RANK_TIER_METAL[item.rank_tier] ? item.rank_tier : null;
+  const tag = audienceTag(item);
 
   function openAuthor() {
     // Self goes to the Profile tab — friend-profile has no friendship row from you to yourself.
@@ -567,9 +577,15 @@ function AuthorRow({ item, loadout, active, mine }: { item: AgoraItem; loadout: 
           </Text>
           {/* Mock 320: who it was shared with, so poster and viewer both see the scope at a glance. */}
           <View style={styles.audienceTag}>
-            <Text style={styles.audienceTagText} numberOfLines={1}>
-              {audienceTag(item)}
-            </Text>
+            {tag.emoji ? (
+              <Text style={styles.audienceTagText} numberOfLines={1}>
+                {`${tag.emoji} ${tag.label}`}
+              </Text>
+            ) : (
+              <IconText icon={tag.icon} style={styles.audienceTagText} numberOfLines={1} gap={3}>
+                {tag.label}
+              </IconText>
+            )}
           </View>
         </View>
       </View>
@@ -640,7 +656,7 @@ function Rail({
           accessibilityRole="button"
           accessibilityLabel={lift.my_challenge_id ? 'Challenge sent' : `Challenge ${item.display_name} to beat ${formatLiftWeight(lift.weight)}`}>
           <View style={[styles.challenge, lift.my_challenge_id ? styles.challengeSent : null]}>
-            <Text style={styles.challengeGlyph}>⚔</Text>
+            <Icon name="challenge" size={20} color={Colors.onEmber} />
           </View>
           <Text style={styles.railLabel}>{lift.my_challenge_id ? 'sent' : 'Challenge'}</Text>
         </Pressable>
@@ -948,10 +964,7 @@ const styles = StyleSheet.create({
   challengeSent: {
     opacity: 0.55,
   },
-  challengeGlyph: {
-    fontSize: 19,
-    color: Colors.onEmber,
-  },
+
   // Mock 319's verified-stat pill, top-left under the chrome. Green = the board's "✓ clip on file".
   statBadge: {
     position: 'absolute',
@@ -966,6 +979,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(10,7,22,0.78)',
     paddingHorizontal: 11,
     paddingVertical: 6,
+  },
+  statBadgeStatRow: {
+    flexShrink: 1,
   },
   statBadgeStat: {
     flexShrink: 1,

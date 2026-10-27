@@ -25,6 +25,7 @@ import { HomeTrackerCard } from '@/components/fitness/tracker-prompts';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { IconText, type IconName } from '@/components/ui/icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAgoraFeed } from '@/hooks/use-agora-feed';
 import { useFeedChannel } from '@/hooks/use-feed-channel';
@@ -460,7 +461,9 @@ function ChannelChips({
       contentContainerStyle={styles.chips}>
       <Pressable onPress={onCompose} accessibilityRole="button" accessibilityLabel="Write a post">
         <LinearGradient colors={[Colors.navEmber, Colors.navEmber2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.postChip}>
-          <Text style={styles.postChipText}>＋ Post</Text>
+          <IconText icon="plus" style={styles.postChipText}>
+            Post
+          </IconText>
         </LinearGradient>
       </Pressable>
       {AGORA_SCOPES.map((s) => (
@@ -484,19 +487,21 @@ function ChannelChips({
         );
       })}
       <Chip label="+ join" dashed onPress={() => router.push('/campfires')} a11y="Join a campfire" />
-      <Chip label="🌲 Forests" dashed onPress={() => router.push('/forests')} a11y="Browse forests" />
+      <Chip label="Forests" icon="forest" dashed onPress={() => router.push('/forests')} a11y="Browse forests" />
     </ScrollView>
   );
 }
 
 function Chip({
   label,
+  icon,
   on = false,
   dashed = false,
   onPress,
   a11y,
 }: {
   label: string;
+  icon?: IconName;
   on?: boolean;
   dashed?: boolean;
   onPress: () => void;
@@ -509,9 +514,15 @@ function Chip({
       accessibilityRole="button"
       accessibilityState={{ selected: on }}
       accessibilityLabel={a11y}>
-      <Text style={[styles.chipText, on && styles.chipTextOn, dashed && styles.chipDashedText]} numberOfLines={1}>
-        {label}
-      </Text>
+      {icon ? (
+        <IconText icon={icon} style={[styles.chipText, on && styles.chipTextOn, dashed && styles.chipDashedText]} numberOfLines={1}>
+          {label}
+        </IconText>
+      ) : (
+        <Text style={[styles.chipText, on && styles.chipTextOn, dashed && styles.chipDashedText]} numberOfLines={1}>
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -537,17 +548,14 @@ function ScopeLine({ scope }: { scope: FeedKey }) {
 /** A channel's one-line header — members · its live challenge — opening the campfire or forest. */
 function ChannelLine({ channel }: { channel: FeedChannel }) {
   const router = useRouter();
-  const meta = [
-    `${channel.member_count} ${channel.member_count === 1 ? 'member' : 'members'}`,
-    channel.challenge_id
-      ? `⚔ ${channel.challenge_name ?? 'Live challenge'}${channel.challenge_ends_at ? ` · ${formatTimeLeft(channel.challenge_ends_at)}` : ''}`
-      : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const members = `${channel.member_count} ${channel.member_count === 1 ? 'member' : 'members'}`;
+  const challenge = channel.challenge_id
+    ? `${channel.challenge_name ?? 'Live challenge'}${channel.challenge_ends_at ? ` · ${formatTimeLeft(channel.challenge_ends_at)}` : ''}`
+    : null;
+  const meta = [members, challenge].filter(Boolean).join(' · ');
   return (
     <Pressable
-      style={styles.channelLine}
+      style={[styles.channelLine, styles.channelRow]}
       onPress={() =>
         channel.kind === 'campfire'
           ? router.push(`/group/${channel.id}`)
@@ -556,8 +564,13 @@ function ChannelLine({ channel }: { channel: FeedChannel }) {
       accessibilityRole="button"
       accessibilityLabel={`${channel.name}, ${meta}. Open the ${channel.kind}`}>
       <Text style={styles.channelMeta} numberOfLines={1}>
-        {meta} ›
+        {challenge ? `${members} · ` : `${members} ›`}
       </Text>
+      {challenge ? (
+        <IconText icon="challenge" style={[styles.channelMeta, styles.channelShrink]} numberOfLines={1} containerStyle={styles.channelShrink}>
+          {challenge} ›
+        </IconText>
+      ) : null}
     </Pressable>
   );
 }
@@ -678,6 +691,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.spaceDim,
     marginBottom: 2,
+  },
+  channelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  channelShrink: {
+    flexShrink: 1,
   },
   channelMeta: {
     fontFamily: Fonts.bodySemiBold,

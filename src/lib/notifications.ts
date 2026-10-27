@@ -195,7 +195,7 @@ export async function setGroupReminder(input: {
 
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
-      title: `${input.groupName} — don't break the streak 🔥`,
+      title: `${input.groupName} — don't break the streak`,
       body: "Your Campfire's counting on you. Lock in today.",
     },
     // DAILY, not CALENDAR — CALENDAR triggers are iOS-only in expo-notifications.

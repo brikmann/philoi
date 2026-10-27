@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { dismissCoachMark } from '@/components/coach-mark';
 import { EquippedFlameSvg } from '@/components/flame-icon';
+import { IconText, type IconName } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { SpaceHeader } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
@@ -95,11 +96,11 @@ function verdictFrom(reply: CoachReply): { tier: DifficultyTier; rationale: stri
   };
 }
 
-const WHAT_CHIPS: { label: string; what: QaWhat }[] = [
-  { label: 'Study 📚', what: 'study' },
-  { label: 'Gym 🏋️', what: 'gym' },
-  { label: 'A run 🏃', what: 'run' },
-  { label: 'Something else ✨', what: 'custom' },
+const WHAT_CHIPS: { label: string; what: QaWhat; icon: IconName }[] = [
+  { label: 'Study', what: 'study', icon: 'study' },
+  { label: 'Gym', what: 'gym', icon: 'gym' },
+  { label: 'A run', what: 'run', icon: 'run' },
+  { label: 'Something else', what: 'custom', icon: 'sparkle' },
 ];
 
 /** Tap-for-the-common-path examples for "how much, and by when". Each is just a sentence the parser reads. */
@@ -669,7 +670,7 @@ export default function CreateChallengeScreen() {
 
   // ─────────────────────────── chips for the open question ───────────────────────────
 
-  type Chip = { key: string; label: string; onPress: () => void; selected?: boolean };
+  type Chip = { key: string; label: string; onPress: () => void; selected?: boolean; icon?: IconName };
   const chips: Chip[] = (() => {
     if (mode === 'scoring' || mode === 'reading') return [];
     if (mode === 'consent') {
@@ -699,6 +700,7 @@ export default function CreateChallengeScreen() {
         return WHAT_CHIPS.map((c) => ({
           key: c.what,
           label: c.label,
+          icon: c.icon,
           onPress: () => answer(c.label, { what: c.what, customName: c.what === 'custom' ? null : answers.customName }),
         }));
       case 'custom_name':
@@ -764,7 +766,8 @@ export default function CreateChallengeScreen() {
           // rather than becoming an answer (the old form's Team tile, same door).
           {
             key: 'team',
-            label: 'Two teams ⚽',
+            label: 'Two teams',
+            icon: 'friends' as const,
             onPress: () => router.push({ pathname: '/challenge/team-match', params: answers.circle ? { circleId: answers.circle.id } : {} }),
           },
         ];
@@ -849,7 +852,13 @@ export default function CreateChallengeScreen() {
                 onPress={c.onPress}
                 style={({ pressed }) => [styles.chip, (c.selected || pressed) && styles.chipSel]}
                 accessibilityRole="button">
-                <Text style={[styles.chipText, c.selected && styles.chipTextSel]}>{c.label}</Text>
+                {c.icon ? (
+                  <IconText icon={c.icon} trailing gap={5} style={[styles.chipText, c.selected && styles.chipTextSel]}>
+                    {c.label}
+                  </IconText>
+                ) : (
+                  <Text style={[styles.chipText, c.selected && styles.chipTextSel]}>{c.label}</Text>
+                )}
               </Pressable>
             ))}
           </View>

@@ -8,6 +8,7 @@ import { EMBER, EmberTag, EmberfallSky, FallingEmbers, FlashText, GreekKeyDivide
 import { CosmeticDetailSheet } from '@/components/pass/cosmetic-detail-sheet';
 import { EmberfallGallery, trackHighlights } from '@/components/pass/emberfall-gallery';
 import { ShineSweep } from '@/components/pass/pass-motion';
+import { IconText } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { UiGlyph } from '@/components/ui/ui-glyph';
@@ -154,7 +155,7 @@ export default function PaywallScreen() {
         </Text>
         <Text style={[styles.hook, styles.hookGap]}>
           Harness the fire with your fellow students and earn shards of Hades&apos; power as{' '}
-          <Text style={styles.hi}>exclusive, permanent rewards</Text> — all for less than a cup of coffee. ☕
+          <Text style={styles.hi}>exclusive, permanent rewards</Text> — all for less than a cup of coffee.
         </Text>
 
         {/* ── 4 · the price ── */}
@@ -181,7 +182,9 @@ export default function PaywallScreen() {
                 ◆ {c}
               </Text>
             ))}
-            <Text style={styles.chip}>🔥 embers each level</Text>
+            <IconText icon="ember" style={styles.chipInk} containerStyle={styles.chipPill}>
+              embers each level
+            </IconText>
             <Text style={styles.chip}>+ more</Text>
           </View>
 
@@ -203,14 +206,14 @@ export default function PaywallScreen() {
               <Text style={styles.ctaNoteStrong}>You own {SEASON.name}.</Text> Every premium reward up to Level {level} is
               waiting.
             </Text>
-            <PrimaryButton label="Open the track 🔥" onPress={() => router.replace('/forge-pass')} />
+            <PrimaryButton label="Open the track"onPress={() => router.replace('/forge-pass')} />
           </>
         ) : (
           <View>
             <PrimaryButton
               label={
                 onSale
-                  ? `Purchase Flame Pass${price ? ` · ${price}` : ''} 🔥`
+                  ? `Purchase Flame Pass${price ? ` · ${price}` : ''}`
                   : phase === 'upcoming'
                     ? 'Opens October 1'
                     : 'Season closed'
@@ -412,6 +415,20 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 10,
     overflow: 'hidden',
+  },
+  // The ember chip: the same pill, but a row — the coin is a glyph, and a glyph cannot sit inside a Text.
+  chipPill: {
+    backgroundColor: 'rgba(22,14,34,0.75)',
+    borderWidth: 1,
+    borderColor: EMBER.line,
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  chipInk: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    color: EMBER.warm,
   },
   trust: {
     fontFamily: Fonts.body,

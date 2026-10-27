@@ -17,6 +17,7 @@ import {
   type RewardRevealKind,
 } from "@/components/economy/reward-rays";
 import { UnlockReveal } from "@/components/economy/unlock-reveal";
+import { Icon, type IconName } from "@/components/ui/icon";
 import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
 import type { CatalogItem } from "@/lib/economy/catalog";
 import { RARITY_ORDER } from "@/lib/economy/rarity";
@@ -106,12 +107,12 @@ export function useRevealCue(kind: RewardRevealKind): void {
   }, []);
 }
 
-const REWARD_GLYPH: Record<RewardLine["kind"], string> = {
-  embers: "🔥",
-  box: "🎁",
-  xp: "✦",
-  cosmetic: "◆",
-  rank: "⚔",
+const REWARD_GLYPH: Record<RewardLine["kind"], IconName> = {
+  embers: "ember",
+  box: "box",
+  xp: "sparkle",
+  cosmetic: "reward",
+  rank: "challenge",
 };
 
 // ─────────────────────────── the card ───────────────────────────
@@ -180,9 +181,7 @@ function RevealCard({
                   accessibilityLabel={`See ${line.label}`}
                 >
                   {line.art ?? (
-                    <Text style={styles.rewardGlyph}>
-                      {REWARD_GLYPH[line.kind]}
-                    </Text>
+                    <Icon name={REWARD_GLYPH[line.kind]} size={18} color={Colors.amber} />
                   )}
                   <Text style={styles.rewardLabel}>{line.label}</Text>
                   <Text style={styles.rewardSee}>See it ›</Text>
@@ -190,9 +189,7 @@ function RevealCard({
               ) : (
                 <View key={`${line.kind}-${i}`} style={styles.rewardRow}>
                   {line.art ?? (
-                    <Text style={styles.rewardGlyph}>
-                      {REWARD_GLYPH[line.kind]}
-                    </Text>
+                    <Icon name={REWARD_GLYPH[line.kind]} size={18} color={Colors.amber} />
                   )}
                   <Text style={styles.rewardLabel}>{line.label}</Text>
                 </View>
@@ -518,9 +515,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.card,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
-  },
-  rewardGlyph: {
-    fontSize: 16,
   },
   rewardSee: {
     fontFamily: Fonts.bodySemiBold,

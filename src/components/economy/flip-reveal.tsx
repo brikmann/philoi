@@ -14,6 +14,7 @@ import Animated, {
 import { EmberAmount } from '@/components/economy/economy-bits';
 import { ItemArt } from '@/components/economy/item-art';
 import { PreviewButton } from '@/components/economy/preview-button';
+import { Icon } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useRevealPreview, useRevealSting } from '@/hooks/use-audio-preview';
@@ -60,6 +61,8 @@ import { fireBoxOpen, fireReveal } from '@/lib/reward-feedback';
 /** Flip a shard's neighbours this far apart when "Reveal all" runs. Mock 185's ~90ms. */
 const REVEAL_ALL_STAGGER_MS = 90;
 const FLIP_MS = 420;
+/** The face-down shard's flame — dim on purpose, so the back never hints at what's under it. */
+const BACK_GLYPH = '#6a5f86';
 
 type Props = {
   results: OpenResult[];
@@ -246,7 +249,7 @@ function Shard({
       style={styles.cell}>
       {/* BACK — identical for every shard, whatever is under it (#84). */}
       <Animated.View style={[styles.face, styles.back, backStyle]}>
-        <Text style={styles.backGlyph}>🔥</Text>
+        <Icon name="flame" size={24} color={BACK_GLYPH} />
       </Animated.View>
 
       {/* FRONT */}
@@ -515,7 +518,7 @@ const styles = StyleSheet.create({
     backfaceVisibility: 'hidden',
   },
   back: { backgroundColor: '#1a1327', borderColor: '#3a2c58' },
-  backGlyph: { fontSize: 22, color: '#6a5f86' },
+  backGlyph: { fontSize: 22, color: BACK_GLYPH },
   front: { borderWidth: 2, shadowOpacity: 0.7, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, gap: 2 },
   tag: { fontFamily: Fonts.body, fontSize: 7.5, letterSpacing: 0.5 },
   dupe: { fontFamily: Fonts.body, fontSize: 8, color: Colors.amber },
