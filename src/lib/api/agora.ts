@@ -403,10 +403,18 @@ export const AGORA_SCOPES: { key: AgoraScope; label: string }[] = [
   // friends' posts + everything made for a campfire/forest you're in; Everyone = posts made for
   // everyone. Your rooms follow as their own chips. The server still answers 'campfires',
   // 'university' and 'global' for installed builds; this build no longer offers them.
-  { key: 'all', label: 'All' },
+  //
+  // Mock 326: two tabs, Friends · Discover. "All" read the same as "Everyone" and the two sat side by
+  // side; All is gone from the picker (the server still answers it, for installed builds).
+  //
+  // Mock 331: the whole tab is Discover now, so the wider pill is Everyone again — one name for the
+  // feed, not a "Discover" tab inside the Discover tab.
   { key: 'friends', label: 'Friends' },
   { key: 'everyone', label: 'Everyone' },
 ];
+
+/** Where a feed opens with nothing remembered, and where it falls back to (mock 326). */
+export const DEFAULT_FEED_SCOPE: AgoraScope = 'friends';
 
 export type AudienceTag = {
   label: string;

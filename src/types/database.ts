@@ -164,6 +164,13 @@ export type NotificationPrefs = {
   type_campfire_post?: boolean;
   type_forest_post?: boolean;
   // ── end WS8 block ─────────────────────────────────────────────────────────────
+
+  /**
+   * 0289 · "Show me global standings" — the one competition opt-in (connection-first). Absent =
+   * OFF: Standings opens on Friends only, and notify_event drops every placement push. On, the
+   * board's wider scopes appear and placement pushes go out, positive-only (a climb, never a drop).
+   */
+  competition?: boolean;
 };
 
 export type Profile = {
@@ -1174,6 +1181,8 @@ export type AnalyticsEventName =
   | 'milestone_shared'
   // The story-share sticker. `target` is instagram | save | system; `backdrop` is photo | cosmetic.
   | 'story_sticker_shared'
+  // "Share → Philoi" (mock 324, 0286): a post made from a photo / clip shared in from another app.
+  | 'shared_post_created'
   // The Agora (AGORA_SPEC) — appended block. No event carries a cheer or comment COUNT, only that
   // the action happened, for the same reason the economy events carry no balance.
   | 'agora_viewed'
@@ -3181,6 +3190,14 @@ export type Database = {
       set_my_match_settings: { Args: { p_patch: Partial<MatchSettings> }; Returns: MatchSettings };
       get_grind_alikes: { Args: { p_limit?: number; p_scope?: string | null }; Returns: GrindAlike[] };
       get_match_detail: { Args: { p_user: string }; Returns: MatchDetail | null };
+      // 0285 — interests + goals (shapes in lib/api/interests.ts)
+      get_interest_vocab: { Args: Record<string, never>; Returns: unknown };
+      get_my_interests: { Args: Record<string, never>; Returns: unknown };
+      set_my_interests: {
+        Args: { p_disciplines?: string[] | null; p_interest_tags?: string[] | null; p_goals?: string[] | null };
+        Returns: unknown;
+      };
+      get_suggested_forests: { Args: { p_limit?: number }; Returns: unknown };
       get_or_create_daily_fire: {
         Args: { p_day: string; p_day_start: string; p_day_end: string };
         Returns: DailyFire[];
@@ -3736,6 +3753,12 @@ export type Database = {
       agora_verified_lifts: { Args: { p_post_ids: string[] }; Returns: VerifiedLiftRow[] };
       create_reel_challenge: { Args: { p_post_id: string; p_window?: 'season' | '7d' | '14d' }; Returns: SocialChallenge };
       get_lift_challenge: { Args: { p_challenge_id: string }; Returns: LiftChallengeRow[] };
+      // 0286 — "Share → Philoi" (mock 324): the set behind a shared clip, the post's source + lift
+      // link, and which posts in a page came in through the share sheet.
+      log_shared_lift: { Args: { p_exercise_id: string; p_weight: number; p_reps: number }; Returns: WorkoutSet };
+      discard_shared_lift: { Args: { p_workout_set_id: string }; Returns: undefined };
+      finish_shared_post: { Args: { p_post_id: string; p_workout_set_id?: string | null }; Returns: undefined };
+      agora_shared_posts: { Args: { p_post_ids: string[] }; Returns: { post_id: string }[] };
       start_lock_in_session: {
         // Every argument optional and the new ones appended (0182), so an installed build calling
         // the old three still resolves against the same function.
@@ -3954,6 +3977,17 @@ export type Database = {
           out_division: number;
           out_rank_index: number;
           out_week_start_rank_index: number;
+        }[];
+      };
+      // Your people, this week (0288, mocks 331/332) — read-only, always the caller's own circle.
+      get_people_week_hours: {
+        Args: Record<string, never>;
+        Returns: {
+          out_this_week_seconds: number;
+          out_last_week_to_date_secs: number;
+          out_people: number;
+          out_active_today: number;
+          out_faces: { user_id: string; name: string; avatar_url: string | null }[] | null;
         }[];
       };
       get_my_backers_this_week: {

@@ -15,6 +15,9 @@ export type NavGlyphName =
   | 'home'
   | 'search'
   | 'social'
+  // ── mock 331: the connection-first bar ──
+  | 'compass'
+  | 'chat'
   | 'flame'
   | 'trophy'
   | 'person'
@@ -57,6 +60,17 @@ const GLYPHS: Record<NavGlyphName, ReactNode> = {
       <Path d="M8 12 H30 V27 H17 L11 32 V27 H8 Z" {...S} />
       <Path d="M30 18 H40 V33 H37 V38 L31 33 H20 V27" {...S} />
     </G>
+  ),
+  // Mock 331's Discover: a compass — the feed you wander, not a board you climb.
+  compass: (
+    <G>
+      <Circle cx="24" cy="24" r="16" {...S} />
+      <Path d="M31 17 L27 27 L17 31 L21 21 Z" {...S} />
+    </G>
+  ),
+  // Mock 331's Chat: one bubble — friends, forests and campfires in one list.
+  chat: (
+    <Path d="M40 29 C40 33 37 36 33 36 H17 L9 41 V14 C9 10 12 7 16 7 H33 C37 7 40 10 40 14 Z" {...S} />
   ),
   flame: (
     <Path

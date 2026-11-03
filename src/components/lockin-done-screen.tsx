@@ -1,32 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { showRewardReveal } from '@/components/economy/reward-reveal';
 import { GymClipThumbnail } from '@/components/gym-clip-player';
-import { PlacementMove } from '@/components/placement-move';
+import { PeopleWeekCard } from '@/components/home/people-week-card';
 import { SpearPlantBeat, SpearPlantShake, useSpearPlant } from '@/components/spear-plant-reveal';
 import { Icon, IconText, type IconName } from '@/components/ui/icon';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { SpaceButton } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
-import { Toggle } from '@/components/ui/toggle';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyGroups } from '@/hooks/use-my-groups';
-import { postSessionToAgora, setPostToAgora, type AgoraSessionTarget } from '@/lib/api/agora';
-import { fetchForests } from '@/lib/api/forests';
+import { postSessionToAgora } from '@/lib/api/agora';
 import { fetchLockInPassCredit, type LockInPassCredit } from '@/lib/api/forge-pass';
+import { fetchMyWeek, fetchPeopleWeek, weekHeadline, type MyWeek, type PeopleWeek } from '@/lib/api/home';
 import { fetchCheckInClips } from '@/lib/api/gym-clips';
 import { setCheckInCaption } from '@/lib/api/lock-ins';
 import { useAuth } from '@/lib/auth/auth-context';
 import { levelFromXp, SEASON } from '@/lib/economy/forge-pass';
 import { getErrorMessage } from '@/lib/errors';
-import { formatDurationClock } from '@/lib/format';
+import { formatDurationClock, formatSessionDuration } from '@/lib/format';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
-import { formatRankTier, isRankUp, nextRank, xpProgressRatio } from '@/lib/rank-tiers';
 import { fireConfirm } from '@/lib/reward-feedback';
-import type { ForestSummary } from '@/types/social';
 import type { GoalType, MyRank, WorkoutRecap, WorkoutSet } from '@/types/database';
 
 type LockInDoneScreenProps = {
@@ -35,6 +32,8 @@ type LockInDoneScreenProps = {
   durationSeconds: number;
   checkInId: string;
   xpEarned: number;
+  /** Still passed by the caller; unused since mock 332 — a rank-up has its own celebration first,
+   * and this screen no longer reports a rank (connection-first). */
   rankBefore?: MyRank;
   rankAfter?: MyRank;
   streakBefore: number;
@@ -54,9 +53,12 @@ type LockInDoneScreenProps = {
 
 const XP_COUNT_MS = 1100;
 
+/** Who a shared session reaches (mock 327): your friends, the whole square, or one campfire. */
+type Audience = { kind: 'friends' } | { kind: 'everyone' } | { kind: 'campfire'; id: string };
+
 // The "done" screen (design-mocks/81-done-screen.html) — built around the SAME big living flame
 // as the work session, stripped to the four things that matter: you locked in, for how long, the
-// XP it moved, and one tap to post.
+// XP it moved, and one question about posting.
 //
 // Everything else was pushed off this screen deliberately (punchlist 6 §3): the routine-naming
 // block now lives on the gym screen, the caption is folded into the post card as an optional
@@ -75,14 +77,23 @@ const XP_COUNT_MS = 1100;
 // A rank-up is still its OWN moment first: the caller shows RankUpCelebration's forge, and its
 // Continue lands here (lock-in/index.tsx), so this screen's rank line reads the climb calmly rather
 // than stacking the celebration's text on it. Same for a Pass prestige (showRewardReveal below).
+//
+// MOCK 327: posting is asked ONCE, here, and nowhere earlier in the flow — with the session, an
+// audience pill (Friends / Everyone / a campfire) and two answers. The old sticky auto-post switch
+// is gone: a session reaches the square only when you say so, every time.
+//
+// MOCK 332 (connection-first): the payoff is you, then your people — never a board. The band keeps
+// +XP and the streak; the rank cell, the "Holding your spot" rank line and the board placements
+// (PlacementMove: where you stand on Friends / uni / Global) are gone. In their place: YOU, THIS WEEK
+// (your week total, "ahead of last" only when true) and YOUR PEOPLE, THIS WEEK (0288's collective
+// hours + who's locked in today). Done is the primary answer and returns Home; sharing to your
+// people is the optional one.
 export function LockInDoneScreen({
   goalType,
   goalDetail,
   durationSeconds,
   checkInId,
   xpEarned,
-  rankBefore,
-  rankAfter,
   streakBefore,
   streakAfter,
   photos,
@@ -94,21 +105,18 @@ export function LockInDoneScreen({
   sharing = false,
 }: LockInDoneScreenProps) {
   const { groups } = useMyGroups();
-  const { profile, refreshProfile } = useAuth();
+  const { profile } = useAuth();
   // Mock 92 addresses you by name ("Nice work, Noah"). First name only, and the line still reads
   // correctly without one — a profile that hasn't loaded yet just gets "Nice work".
   const firstName = profile?.display_name?.split(' ')[0] ?? '';
-  const [target, setTarget] = useState<AgoraSessionTarget>({ kind: 'everyone' });
-  const [myForests, setMyForests] = useState<ForestSummary[]>([]);
+  const [audience, setAudience] = useState<Audience>({ kind: 'friends' });
+  const [audienceOpen, setAudienceOpen] = useState(false);
   const [note, setNote] = useState('');
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recapOpen, setRecapOpen] = useState(false);
-  // 0273 · "Post to the Agora" (mock 297). Pre-set from the sticky profile default, which is off
-  // until someone turns it on here or in Settings — a session never reaches the square unasked.
-  const [postToAgora, setPostToAgoraState] = useState(profile?.post_to_agora ?? false);
-  // Every exit calls finishToAgora, and "Post & finish" can be retried after a campfire error —
-  // the server dedupes per session too, but one fire per screen keeps the uploads from doubling.
+  // "Post to Agora" can be retried after a campfire error — the server dedupes per session too,
+  // but one fire per screen keeps the uploads from doubling.
   const agoraFired = useRef(false);
   // Phase-2 video clips (§23) — the rolled-up recap only has per-exercise totals (no individual
   // set ids), so clips need their own fetch, keyed by this same checkInId. Recap modal only.
@@ -120,6 +128,27 @@ export function LockInDoneScreen({
   const [passCredit, setPassCredit] = useState<LockInPassCredit | null>(null);
   // Mock 316: the caption field stays folded into the post row until asked for.
   const [captionOpen, setCaptionOpen] = useState(false);
+
+  // Mock 332 · you, then your people. Both read AFTER the check-in is written, so this session is
+  // already in both numbers. Either failing just leaves its block out — never a zero.
+  const [myWeek, setMyWeek] = useState<MyWeek | null>(null);
+  const [peopleWeek, setPeopleWeek] = useState<PeopleWeek | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchMyWeek()
+      .then((w) => {
+        if (!cancelled) setMyWeek(w);
+      })
+      .catch(() => {});
+    fetchPeopleWeek()
+      .then((w) => {
+        if (!cancelled) setPeopleWeek(w);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [checkInId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -160,19 +189,6 @@ export function LockInDoneScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the credit lands
   }, [passCredit]);
 
-  // Your forests, for the Agora destination chips. A failed read just offers everyone + campfires.
-  useEffect(() => {
-    let live = true;
-    fetchForests()
-      .then((rows) => {
-        if (live) setMyForests(rows.filter((f) => f.my_status === 'active'));
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, []);
-
   useEffect(() => {
     if (!GYM_VIDEO_CLIPS_ENABLED || !workoutRecap) return;
     fetchCheckInClips(checkInId)
@@ -186,9 +202,6 @@ export function LockInDoneScreen({
   // per-frame number is the child's own state, so the count re-renders one Text, not this screen.
   const [xpCounting, setXpCounting] = useState(false);
   const reveal = useSpearPlant(() => setXpCounting(true));
-
-  // Climbed = this stop moved the universal rank up a division or tier (the caller's own test).
-  const climbed = Boolean(rankBefore && rankAfter && isRankUp(rankBefore, rankAfter));
 
   // "DEEP WORK" under the time (mock 316) — the discipline, plus the typed detail when there is one.
   const goalLabel = `${GOAL_TYPE_META[goalType].label}${goalDetail ? ` · ${goalDetail}` : ''}`;
@@ -215,7 +228,11 @@ export function LockInDoneScreen({
     : note.trim()
       ? 'Caption added'
       : 'Add a caption';
-  const targetKey = target.kind === 'everyone' ? 'everyone' : `${target.kind}:${target.id}`;
+  const audienceKey = audience.kind === 'campfire' ? `campfire:${audience.id}` : audience.kind;
+  const audienceCampfire = audience.kind === 'campfire' ? groups.find((g) => g.id === audience.id) : undefined;
+  const audienceLabel =
+    audience.kind === 'friends' ? 'Friends' : audience.kind === 'everyone' ? 'Everyone' : (audienceCampfire?.name ?? 'Campfire');
+  const audienceIcon: IconName = audience.kind === 'campfire' ? 'campfire' : audience.kind;
 
   // The note belongs to the lock-in, not to the act of posting — so it's saved on BOTH exits. A
   // private lock-in with a note is a journal entry to yourself and it's already visible in your
@@ -227,31 +244,23 @@ export function LockInDoneScreen({
     await setCheckInCaption(checkInId, trimmed);
   }
 
-  // Flipping it here IS the sticky setting (spec: set once, stays on), not a one-session override
-  // that Settings has to be visited to make permanent. Fail-soft: the switch still governs this
-  // session even if the default didn't save.
-  function handleToggleAgora(value: boolean) {
-    setPostToAgoraState(value);
-    setPostToAgora(value)
-      .then(() => refreshProfile())
-      .catch(() => {});
-  }
-
-  // To EVERYONE: fired, never awaited — the photos re-upload to agora-photos before the post is
+  // To FRIENDS or EVERYONE: fired, never awaited — the photos re-upload to agora-photos before the post is
   // written, and nobody should wait on that to leave a screen whose session is already banked; a
-  // failure only loses the feed card. To a FOREST or CAMPFIRE: awaited, and a failure keeps you here
-  // with the error. That post was meant for one room, so it must never quietly go nowhere — and it
-  // never falls back to the whole square, which would widen its audience past what you picked.
+  // failure only loses the feed card. To a CAMPFIRE: awaited, and a failure keeps you here with the
+  // error. That post was meant for one room, so it must never quietly go nowhere — and it never
+  // falls back to the whole square, which would widen its audience past what you picked.
   async function postToTheAgora(): Promise<void> {
-    if (!postToAgora || agoraFired.current || !profile) return;
+    if (agoraFired.current || !profile) return;
     const post = postSessionToAgora({
       checkInId,
       userId: profile.id,
       caption: note.trim() || null,
       photoUris: photos.map((p) => p.uri),
-      target,
+      // Everyone is the public dial; a campfire post's dial is set server-side by its room.
+      visibility: audience.kind === 'everyone' ? 'public' : 'friends',
+      target: audience.kind === 'campfire' ? { kind: 'campfire', id: audience.id } : { kind: 'everyone' },
     });
-    if (target.kind === 'everyone') {
+    if (audience.kind !== 'campfire') {
       agoraFired.current = true;
       post.catch(() => {});
       return;
@@ -260,16 +269,19 @@ export function LockInDoneScreen({
     agoraFired.current = true;
   }
 
-  async function handlePost() {
+  // The two answers to the one question. Both save the note (saveNote) and both leave.
+  async function finish(share: boolean) {
     setPosting(true);
     setError(null);
     try {
       await saveNote();
-      await postToTheAgora();
-      if (postToAgora) fireConfirm();
+      if (share) {
+        await postToTheAgora();
+        fireConfirm();
+      }
       onDone();
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not post there — try again, or post to everyone.'));
+      setError(getErrorMessage(e, 'Could not post there — try again, or pick Friends.'));
     } finally {
       setPosting(false);
     }
@@ -301,14 +313,6 @@ export function LockInDoneScreen({
               <XpCountUp end={Math.round(xpEarned)} running={xpCounting} instant={reveal.skipped || reveal.still} />
               <Text style={styles.bandLabel}>XP</Text>
             </View>
-            {rankAfter ? (
-              <View style={[styles.bandCell, styles.bandCellRule]}>
-                <Text style={[styles.bandValue, climbed ? styles.bandUp : styles.bandHeld]}>{climbed ? '▲' : '—'}</Text>
-                <Text style={styles.bandLabel} numberOfLines={1}>
-                  {formatRankTier(rankAfter.tier, rankAfter.division)}
-                </Text>
-              </View>
-            ) : null}
             <View style={[styles.bandCell, styles.bandCellRule]}>
               <IconText icon="streak" style={[styles.bandValue, styles.bandStreak]}>
                 {streakAfter}
@@ -318,13 +322,14 @@ export function LockInDoneScreen({
           </View>
         </SpearPlantBeat>
 
-        {/* 5 · one rank line, two states — then the board spots and, for gym, the recap door. */}
+        {/* 5 · mock 332: you, this week — then your people — and, for gym, the recap door. */}
         <SpearPlantBeat reveal={reveal} beat="statsRest" style={styles.beat}>
-          {rankAfter ? <RankLine rank={rankAfter} climbed={climbed} /> : null}
-
-          {/* Mock 204 — where you stand on Friends, your uni and Global. Renders nothing for someone
-              not on a board yet. */}
-          <PlacementMove prominent style={styles.placement} />
+          {myWeek ? <YouThisWeek week={myWeek} streak={streakAfter} /> : null}
+          {peopleWeek && peopleWeek.people > 0 ? (
+            <View style={styles.people}>
+              <PeopleWeekCard week={peopleWeek} centered />
+            </View>
+          ) : null}
 
           {/* One line — the full per-exercise breakdown, PRs, brag line and clips live behind it. */}
           {workoutExercises.length > 0 && (
@@ -347,28 +352,45 @@ export function LockInDoneScreen({
         {error && <Text style={styles.error}>{error}</Text>}
 
         <View style={styles.post}>
+          <Text style={styles.postAsk}>Share it with your people?</Text>
           <View style={styles.agoraRow}>
+            <View style={styles.thumb}>
+              {photos[0] ? (
+                <Image source={{ uri: photos[0].uri }} style={styles.thumbImg} />
+              ) : (
+                <NavGlyph name="flame" size={20} color={Colors.navEmber2} />
+              )}
+            </View>
             {/* The subtitle is the door to the caption — one row, not a field nobody asked for. */}
             <Pressable
               style={styles.agoraText}
               onPress={() => setCaptionOpen(true)}
               disabled={posting}
               accessibilityRole="button"
-              accessibilityLabel={`Post to the Agora. ${postSub}`}>
-              <Text style={styles.agoraTitle}>Post to the Agora</Text>
+              accessibilityLabel={`${GOAL_TYPE_META[goalType].label}, ${formatSessionDuration(durationSeconds)}. ${postSub}`}>
+              <Text style={styles.agoraTitle} numberOfLines={1}>
+                {GOAL_TYPE_META[goalType].label} · {formatSessionDuration(durationSeconds)}
+              </Text>
               <Text style={styles.agoraSub} numberOfLines={1}>
                 {postSub}
               </Text>
             </Pressable>
-            <Toggle
-              value={postToAgora}
-              onValueChange={handleToggleAgora}
+            <Pressable
+              style={styles.audPill}
+              onPress={() => setAudienceOpen((o) => !o)}
               disabled={posting}
-              accessibilityLabel="Post this session to the Agora"
-            />
+              accessibilityRole="button"
+              accessibilityState={{ expanded: audienceOpen }}
+              accessibilityLabel={`Audience: ${audienceLabel}. Change`}>
+              <Icon name={audienceIcon} size={12} color={Colors.muted} />
+              <Text style={styles.audPillText} numberOfLines={1}>
+                {audienceLabel}
+              </Text>
+              <UiGlyph name={audienceOpen ? 'up' : 'down'} size={10} color={Colors.muted} />
+            </Pressable>
           </View>
 
-          {/* One field, two jobs: the lock-in's own caption and, with the switch on, the post's. */}
+          {/* One field, two jobs: the lock-in's own caption and, when shared, the post's. */}
           {captionOpen || note ? (
             <TextInput
               style={styles.note}
@@ -381,40 +403,41 @@ export function LockInDoneScreen({
             />
           ) : null}
 
-          {/* Where it lands — everyone, one of your forests, or one of your campfires' channels. */}
-          {postToAgora && (
+          {/* Who sees it — your friends, the whole square, or one of your campfires' channels. */}
+          {audienceOpen && (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.whereScroll}
               contentContainerStyle={styles.whereRow}
               keyboardShouldPersistTaps="handled">
-              <WhereChip label="Everyone" icon="everyone" on={targetKey === 'everyone'} disabled={posting} onPress={() => setTarget({ kind: 'everyone' })} />
-              {myForests.map((f) => (
-                <WhereChip
-                  key={`forest:${f.id}`}
-                  label={`${f.emoji} ${f.name}`}
-                  on={targetKey === `forest:${f.id}`}
-                  disabled={posting}
-                  onPress={() => setTarget({ kind: 'forest', id: f.id })}
-                />
-              ))}
+              <WhereChip label="Friends" icon="friends" on={audienceKey === 'friends'} disabled={posting} onPress={() => setAudience({ kind: 'friends' })} />
+              <WhereChip label="Everyone" icon="everyone" on={audienceKey === 'everyone'} disabled={posting} onPress={() => setAudience({ kind: 'everyone' })} />
               {groups.map((g) => (
                 <WhereChip
                   key={`campfire:${g.id}`}
                   label={`${g.emoji} ${g.name}`}
-                  on={targetKey === `campfire:${g.id}`}
+                  on={audienceKey === `campfire:${g.id}`}
                   disabled={posting}
-                  onPress={() => setTarget({ kind: 'campfire', id: g.id })}
+                  onPress={() => setAudience({ kind: 'campfire', id: g.id })}
                 />
               ))}
             </ScrollView>
           )}
+
+          <View style={styles.acts}>
+            {/* Mock 332: Done is the answer most people want, and it goes Home — never a board. */}
+            <SpaceButton label="Done" onPress={() => void finish(false)} disabled={posting} style={styles.actPost} />
+            <SpaceButton
+              label="Share to your people"
+              variant="secondary"
+              onPress={() => void finish(true)}
+              loading={posting}
+              style={styles.actSkip}
+            />
+          </View>
         </View>
 
-        {/* The one exit: posts when the switch is on, just finishes when it's off. The note is
-            saved either way (saveNote). */}
-        <SpaceButton label="Done" onPress={handlePost} loading={posting} style={styles.cta} />
         {/* Posting to the Agora and posting to a story are different audiences (mock 96's trigger
             table), so the story share stays — as a quiet link, not a second button. */}
         {onShare && (
@@ -439,36 +462,28 @@ export function LockInDoneScreen({
 }
 
 /**
- * Mock 316's rank line — one component, two states, never a screen of its own.
- *   climbed: "▲ Climbed to Gold III"     · 720 / 2100 to Gold IV · green bar
- *   held:    "Holding your spot · Gold II" · 460 / 2100 to Gold III · gold bar
- * The numbers are the server's universal rank (xp_into_tier / xp_for_next_tier) — the same source
- * Home and the Live Activity read. At the top of the climb there is no next step to name.
+ * Mock 332's `.me` — you, this week: the week's total (this session included), "ahead of last" only
+ * when it's true (weekHeadline — never a deficit), and the streak on the right. Ipsative: you
+ * against your own last week, nobody else.
  */
-function RankLine({ rank, climbed }: { rank: MyRank; climbed: boolean }) {
-  const name = formatRankTier(rank.tier, rank.division);
-  const up = nextRank(rank.tier, rank.division);
-  const ratio = up ? xpProgressRatio(rank.xp_into_tier, rank.xp_for_next_tier) : 1;
+function YouThisWeek({ week, streak }: { week: MyWeek; streak: number }) {
+  const headline = weekHeadline(week);
   return (
-    <View
-      style={[styles.rankLine, climbed ? styles.rankLineUp : styles.rankLineHeld]}
-      accessible
-      accessibilityLabel={`${climbed ? `Climbed to ${name}` : `Holding your spot at ${name}`}${
-        up ? `, ${rank.xp_into_tier} of ${rank.xp_for_next_tier} to ${formatRankTier(up.tier, up.division)}` : ''
-      }`}>
-      <View style={styles.rankTop}>
-        <Text style={[styles.rankTitle, climbed ? styles.rankTitleUp : styles.rankTitleHeld]} numberOfLines={1}>
-          {climbed ? `▲ Climbed to ${name}` : `Holding your spot · ${name}`}
-        </Text>
-        <Text style={styles.rankNext} numberOfLines={1}>
-          {up
-            ? `${Math.round(rank.xp_into_tier).toLocaleString()} / ${Math.round(rank.xp_for_next_tier).toLocaleString()} to ${formatRankTier(up.tier, up.division)}`
-            : 'Top of the climb'}
+    <View style={styles.me}>
+      <View style={styles.meLeft}>
+        <Text style={styles.meBig}>{formatSessionDuration(week.thisWeekSeconds)}</Text>
+        <Text style={styles.meLabel}>
+          YOU, THIS WEEK{headline.ahead ? <Text style={styles.meAhead}> — ahead of last</Text> : null}
         </Text>
       </View>
-      <View style={styles.rankTrack}>
-        <View style={[styles.rankFill, climbed ? styles.rankFillUp : styles.rankFillHeld, { width: `${ratio * 100}%` }]} />
-      </View>
+      {streak > 0 ? (
+        <View style={styles.meRight}>
+          <IconText icon="streak" style={styles.meStreak}>
+            {streak}
+          </IconText>
+          <Text style={styles.meLabel}>DAY STREAK</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -683,12 +698,6 @@ const styles = StyleSheet.create({
   bandXp: {
     color: Colors.gold,
   },
-  bandUp: {
-    color: Colors.green,
-  },
-  bandHeld: {
-    color: Colors.spaceDim,
-  },
   bandStreak: {
     color: Colors.navEmber2,
   },
@@ -700,64 +709,49 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     marginTop: 2,
   },
-  rankLine: {
+  // Mock 332's `.me`: one panel, your week on the left, the streak on the right.
+  me: {
     alignSelf: 'stretch',
-    marginTop: 12,
-    paddingVertical: 11,
-    paddingHorizontal: 13,
-    borderRadius: 13,
-    borderWidth: 1,
-  },
-  rankLineUp: {
-    borderColor: '#2a4d3a',
-    backgroundColor: 'rgba(57,217,138,0.10)',
-  },
-  rankLineHeld: {
-    borderColor: '#3a2d18',
-    backgroundColor: 'rgba(255,209,102,0.07)',
-  },
-  rankTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: 14,
+    marginTop: 12,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    backgroundColor: 'rgba(36,26,58,0.9)',
   },
-  rankTitle: {
-    flexShrink: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12.5,
+  meLeft: {
+    flex: 1,
   },
-  rankTitleUp: {
-    color: Colors.green,
-  },
-  rankTitleHeld: {
-    color: Colors.gold,
-  },
-  rankNext: {
-    marginLeft: 'auto',
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 10.5,
-    color: Colors.spaceDim,
+  meBig: {
+    fontFamily: Fonts.black,
+    fontSize: 26,
+    color: Colors.navEmber2,
     fontVariant: ['tabular-nums'],
   },
-  rankTrack: {
-    height: 7,
-    marginTop: 8,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.spacePanel2,
-    overflow: 'hidden',
+  meLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    color: Colors.spaceDim,
+    marginTop: 3,
   },
-  rankFill: {
-    height: '100%',
-    borderRadius: Radius.pill,
+  meAhead: {
+    color: Colors.green,
   },
-  rankFillUp: {
-    backgroundColor: Colors.green,
+  meRight: {
+    alignItems: 'flex-end',
   },
-  rankFillHeld: {
-    backgroundColor: Colors.gold,
+  meStreak: {
+    fontFamily: Fonts.black,
+    fontSize: 20,
+    color: Colors.gold,
   },
-  placement: {
-    marginTop: 12,
+  people: {
+    alignSelf: 'stretch',
+    marginTop: 14,
   },
   // SpaceRow's look: panel on a 1px line, an ember leading tile, a chevron.
   gymLine: {
@@ -851,10 +845,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.two,
   },
+  postAsk: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13.5,
+    color: Colors.ink,
+    marginBottom: 10,
+  },
   agoraRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+  },
+  thumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: Colors.spacePanel2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  audPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    maxWidth: 130,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    backgroundColor: Colors.spacePanel2,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  audPillText: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    color: Colors.muted,
+  },
+  acts: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    marginTop: 12,
+  },
+  actPost: {
+    flex: 1.4,
+  },
+  actSkip: {
+    flex: 1,
   },
   agoraText: {
     flex: 1,
@@ -869,9 +911,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.spaceDim,
     marginTop: 1,
-  },
-  cta: {
-    marginTop: 12,
   },
   skip: {
     alignSelf: 'center',

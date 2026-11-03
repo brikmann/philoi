@@ -25,8 +25,10 @@ const TAB_PATHS: Record<string, TabKey> = {
   '/': 'index',
   '/social': 'social',
   '/lockin': 'lockin',
-  '/leaderboards': 'leaderboards',
+  '/chat': 'chat',
   '/profile': 'profile',
+  // Mock 331: the board has no slot of its own any more — Standings is reached from You, so You lights.
+  '/leaderboards': 'profile',
 };
 
 /** Path prefixes with no footer. Matched as `path === p || path.startsWith(p + '/')`. */

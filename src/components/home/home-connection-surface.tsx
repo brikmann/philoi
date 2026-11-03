@@ -1,9 +1,11 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackersCard } from '@/components/home/backers-card';
+import { PeopleLikeYou } from '@/components/home/people-like-you';
+import { PeopleWeekCard } from '@/components/home/people-week-card';
 import { YourPeopleList } from '@/components/home/your-people-list';
 import { YourWeekCard } from '@/components/home/your-week-card';
 import { LockInCheersSheet } from '@/components/lockin-cheers/lockin-cheers-sheet';
@@ -16,19 +18,22 @@ import {
   fetchFriendsRecentEffort,
   fetchMyBackers,
   fetchMyWeek,
+  fetchPeopleWeek,
   weekHeadline,
   type Backer,
   type FriendEffort,
   type MyWeek,
+  type PeopleWeek,
 } from '@/lib/api/home';
 import { useAuth } from '@/lib/auth/auth-context';
 
 // HOME = YOU + YOUR PEOPLE (mock 318). Not a feed — the immersive feed lives on the Social tab now.
-// Three stacked sections under the greeting:
+// Stacked sections under the greeting:
 //   1. Your week — you vs your own last week (ipsative; nothing ranks you against anyone here);
+//   1b. Your people, this week — the collective hours of everyone you're connected to (mock 331, 0288);
 //   2. Who's backing you — the friends who cheered you this week;
 //   3. What your people are doing — friends' latest real effort, reverse-chron, with a Cheer.
-// The Leaderboard tab stays the arena; the only "rank" on Home is your own movement in §1.
+// No ranking language on Home: Standings lives behind You, opt-in. The only tier here is your own.
 
 const PEOPLE_LIMIT = 5;
 // Presence floor for the live dots, like the cheers hook's 30s poll; only while Home is focused.
@@ -49,6 +54,7 @@ export function HomeConnectionSurface() {
   const [cheersOpen, setCheersOpen] = useState(false);
 
   const [week, setWeek] = useState<MyWeek | null>(null);
+  const [peopleWeek, setPeopleWeek] = useState<PeopleWeek | null>(null);
   const [backers, setBackers] = useState<Backer[] | null>(null);
   const [people, setPeople] = useState<FriendEffort[] | null>(null);
   const [focused, setFocused] = useState(false);
@@ -69,6 +75,11 @@ export function HomeConnectionSurface() {
         .then(setWeek)
         .catch(() => {
           // §1 hides on a failed read rather than showing zeros that would read as "nothing this week".
+        }),
+      fetchPeopleWeek()
+        .then(setPeopleWeek)
+        .catch(() => {
+          // Keep what's on screen — a failed refresh shouldn't blank the collective.
         }),
       fetchMyBackers()
         .then(setBackers)
@@ -96,22 +107,34 @@ export function HomeConnectionSurface() {
   }, [load, refetchCheers]);
 
   const now = new Date();
-  const sub = week ? `${WEEKDAYS[now.getDay()]} · ${weekHeadline(week).short}` : WEEKDAYS[now.getDay()];
+  const headline = week ? weekHeadline(week) : null;
+  const sub = headline ? `${WEEKDAYS[now.getDay()]} · ${headline.short}` : WEEKDAYS[now.getDay()];
   const unit = profile?.weight_unit === 'kg' ? 'kg' : 'lb';
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
-      <AppTopBar title={greeting(profile?.display_name)} />
+      {/* Mock 328: the bar keeps the brand (flame + philoi) with the icons on the right; the greeting
+          sits under it at full width, so the icon row can never clip the name on a narrow phone. */}
+      <AppTopBar />
+      <View style={styles.greetingBlock}>
+        <Text style={styles.greeting}>{greeting(profile?.display_name)}</Text>
+        <Text style={[styles.greetingSub, headline?.ahead && styles.greetingSubAhead]}>{sub}</Text>
+      </View>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.navEmber2} />}>
-        <Text style={styles.greetingSub}>{sub}</Text>
-
         {week ? (
           <>
             <Text style={styles.sec}>Your week</Text>
             <YourWeekCard week={week} />
           </>
+        ) : null}
+
+        {/* Hidden until you have people — the cold start below (PeopleLikeYou) covers that case. */}
+        {peopleWeek && peopleWeek.people > 0 ? (
+          <View style={styles.peopleWeek}>
+            <PeopleWeekCard week={peopleWeek} />
+          </View>
         ) : null}
 
         {backers ? (
@@ -125,6 +148,8 @@ export function HomeConnectionSurface() {
           <>
             <Text style={styles.sec}>What your people are doing</Text>
             <YourPeopleList people={people} unit={unit} onMessageLive={() => setCheersOpen(true)} />
+            {/* Cold start (0285): nothing from your people yet → the people who grind like you. */}
+            {people.length === 0 ? <PeopleLikeYou /> : null}
           </>
         ) : null}
       </ScrollView>
@@ -156,11 +181,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.five,
   },
+  greetingBlock: {
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.one,
+  },
+  greeting: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 20,
+    color: Colors.ink,
+  },
   greetingSub: {
     fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.spaceDim,
-    marginTop: -Spacing.one,
+    marginTop: 2,
+  },
+  greetingSubAhead: {
+    color: Colors.green,
+  },
+  // Mock 331's `.people { margin-top: 14px }` — it sits under Your week without its own label.
+  peopleWeek: {
+    marginTop: 14,
   },
   sec: {
     fontFamily: Fonts.bodyBold,

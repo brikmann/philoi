@@ -22,7 +22,6 @@ import { useEntitlement } from '@/hooks/use-entitlement';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { useStravaConnection } from '@/hooks/use-strava-connection';
-import { setPostToAgora } from '@/lib/api/agora';
 import { setCoachConsent, setCoachPreference } from '@/lib/api/coach';
 import { setDailyGoalMode, setPublishFlameCompletion } from '@/lib/api/daily-fire';
 import { deleteMyAccount } from '@/lib/api/groups';
@@ -34,6 +33,7 @@ import { rankVisibilityOf, setRankVisibility } from '@/lib/api/privacy';
 import { setLiveStatusPrefs, type LiveStatusPrefs } from '@/lib/api/presence';
 import { setMyPhotoVisibility } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useCompetition } from '@/lib/competition';
 import { revokeAppleSignInBestEffort } from '@/lib/auth/providers';
 import { restorePurchases } from '@/lib/billing';
 import { getErrorMessage } from '@/lib/errors';
@@ -138,6 +138,21 @@ function SettingsToggleRow({
   );
 }
 
+function CompetitionToggleRow() {
+  const competition = useCompetition();
+  return (
+    <SettingsToggleRow
+      icon={{ nav: 'trophy' }}
+      label="Show me global standings"
+      description="Your program, your uni and everyone in Standings, plus a nightly push when you climb. Off keeps it to your friends."
+      value={competition.on}
+      onValueChange={(v) => {
+        competition.setOn(v).catch((e) => Alert.alert('Could not save', getErrorMessage(e, 'Try again in a moment.')));
+      }}
+    />
+  );
+}
+
 function SettingsRow({
   icon,
   label,
@@ -205,8 +220,6 @@ export default function SettingsScreen() {
   const [goalMode, setGoalMode] = useState<'auto' | 'manual'>(profile?.daily_goal_mode ?? 'auto');
   const [manualTarget, setManualTarget] = useState(profile?.daily_goal_manual_target ?? 1);
   const [publishCompletion, setPublishCompletion] = useState(profile?.publish_flame_completion ?? false);
-  // 0273 · the sticky default the lock-in done screen's "Post to the Agora" switch starts from.
-  const [postToAgora, setPostToAgoraState] = useState(profile?.post_to_agora ?? false);
   const [watchOptIn, setWatchOptInState] = useState(profile?.watch_opt_in ?? false);
   // 0217 · the season rank dial (0170's Private mode became its middle setting, 'friends').
   const [rankVisibility, setRankVisibilityState] = useState<RankVisibility>(rankVisibilityOf(profile));
@@ -264,14 +277,6 @@ export default function SettingsScreen() {
   function handleTogglePublishCompletion(value: boolean) {
     setPublishCompletion(value);
     setPublishFlameCompletion(value).catch(() => setPublishCompletion(!value));
-  }
-
-  // Refreshes the profile on success so the done screen opens on the new default without a relaunch.
-  function handleTogglePostToAgora(value: boolean) {
-    setPostToAgoraState(value);
-    setPostToAgora(value)
-      .then(() => refreshProfile?.())
-      .catch(() => setPostToAgoraState(!value));
   }
 
   function handleToggleWatchOptIn(value: boolean) {
@@ -541,13 +546,6 @@ export default function SettingsScreen() {
             value={publishCompletion}
             onValueChange={handleTogglePublishCompletion}
           />
-          <SettingsToggleRow
-            icon={{ set: 'megaphone' }}
-            label="Auto-post my sessions to the Agora"
-            description="Finished lock-ins post with their photos, friends only. Change it per session on the done screen."
-            value={postToAgora}
-            onValueChange={handleTogglePostToAgora}
-          />
         </View>
 
         <SpaceSection>Privacy</SpaceSection>
@@ -604,6 +602,13 @@ export default function SettingsScreen() {
             same RPC, so the two never disagree. It is its own card rather than a row in PRIVACY
             because it needs its copy on screen: who sees me, what do I see, and that rewards are
             identical in all three. */}
+        {/* 0289 · the one competition opt-in (connection-first). Off by default: Standings shows your
+            friends, and no placement push ever sends. The same switch onboarding offers. */}
+        <SpaceSection>Standings</SpaceSection>
+        <View style={styles.group}>
+          <CompetitionToggleRow />
+        </View>
+
         <SpaceSection>Rank visibility</SpaceSection>
         <SpaceCard>
           <RankVisibilityPicker value={rankVisibility} onChange={handleChangeRankVisibility} />

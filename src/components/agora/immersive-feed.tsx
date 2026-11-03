@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -23,11 +22,10 @@ import { AgoraCommentsSheet } from '@/components/agora/agora-comments-sheet';
 import { FeedPage, feedPageMedia } from '@/components/agora/feed-page';
 import { ReelChallengeSheet } from '@/components/agora/reel-challenge-sheet';
 import { HomeTrackerCard } from '@/components/fitness/tracker-prompts';
-import { AppTopBar } from '@/components/nav/app-top-bar';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Icon, IconText, type IconName } from '@/components/ui/icon';
-import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Icon } from '@/components/ui/icon';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAgoraFeed } from '@/hooks/use-agora-feed';
 import { useFeedChannel } from '@/hooks/use-feed-channel';
@@ -50,18 +48,22 @@ import { channelKey, parseFeedKey, type FeedChannel, type FeedKey } from '@/lib/
 import type { VerifiedLift } from '@/lib/api/reel-challenge';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
-import { formatTimeLeft } from '@/lib/format';
-import { shortSchoolName } from '@/lib/universities';
 import type { AgoraItem } from '@/types/database';
 
 // SOCIAL'S FEED = THE IMMERSIVE AGORA (mock 317 frame 1; it moved from Home to the Social tab in
-// mock 320, which draws its Feed · Chats toggle into the `header` slot). The square, full-screen: one post per page, paged
+// mock 320; mock 326 cleared its chrome). The square, full-screen: one post per page, paged
 // vertically with a snap, each page's media adapting to the post (feed-page.tsx). Driven by the
-// same feed query and channel chips as the classic /agora list — useAgoraFeed + useFeedChannel —
+// same feed query and remembered channel as the classic /agora list — useAgoraFeed + useFeedChannel —
 // so a channel picked here is the channel /agora opens on, and the reverse.
 //
-// Floating over every page: a translucent top bar (wordmark + the globals) and the channel chip
-// row. No status strip — your standing moved to the Lock In tab and your Profile (standing-band).
+// Floating over every page (mock 326): ONE slim translucent bar — the small wordmark, the Friends ·
+// Everyone tabs (mock 331: the tab itself is Discover), and post · chats · search — plus each page's
+// own rail. No global icon cluster, no room header (it lives in the chat thread), no status strip.
+//
+// ROOMS STAY REACHABLE (forest-post fix, 2026-10-27). Friends and Everyone carry no room posts by
+// design (0280), so with only the two tabs a post made to a campfire or forest had nowhere to be
+// seen. Under the bar, for anyone in a room: one slim row — All (friends + your rooms) · each
+// campfire · each forest. A channel selector, not a header: one line of small translucent chips.
 //
 // PERFORMANCE. Pages are exactly one viewport tall (getItemLayout, no measuring), the list keeps a
 // three-page window, and only the page in view is "active": it alone mounts a video player and runs
@@ -80,15 +82,12 @@ const rowKey = (r: FeedRow) => (r.kind === 'post' ? `${r.item.item_type}:${r.ite
 export function ImmersiveFeed({
   requestedChannel,
   onRequestedChannelSeen,
-  header,
-  title,
+  onOpenChats,
 }: {
   requestedChannel?: string;
   onRequestedChannelSeen?: () => void;
-  /** The top bar's title; omitted = the wordmark. */
-  title?: string;
-  /** Drawn in the floating chrome between the top bar and the chips — Social's Feed · Chats toggle. */
-  header?: ReactNode;
+  /** The top bar's 💬 — Social's Chats pane. */
+  onOpenChats: () => void;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -149,7 +148,14 @@ export function ImmersiveFeed({
         // (0280: All carries your rooms); a square post in any scope — except Everyone, which only
         // carries posts made for everyone.
         const room = parseFeedKey(scope) ? scope : null;
-        if (postedTo ? !(postedTo === room || scope === 'all') : room !== null) return;
+        if (postedTo && postedTo !== room && scope !== 'all') {
+          // A room post made from Friends or Everyone belongs in neither, so it used to land nowhere
+          // you could see — read as a post that never went out. Go to its room instead: the channel
+          // refetches, and the post is on top of it.
+          changeScope(postedTo as FeedKey);
+          return;
+        }
+        if (!postedTo && room !== null) return;
         fetchAgoraItem(id, itemType)
           .then((item) => {
             if (!item) return;
@@ -163,7 +169,7 @@ export function ImmersiveFeed({
             // It posted; the next refresh shows it.
           });
       }),
-    [prependItem, scope, firstPostIndex, size.height]
+    [prependItem, scope, changeScope, firstPostIndex, size.height]
   );
 
   // Which page is in view. Held in lazy state, so it is created once: FlatList rejects a changing
@@ -182,7 +188,6 @@ export function ImmersiveFeed({
   const [moreFor, setMoreFor] = useState<AgoraItem | null>(null);
   const [removeFor, setRemoveFor] = useState<AgoraItem | null>(null);
   const [removing, setRemoving] = useState(false);
-  const [switcherOpen, setSwitcherOpen] = useState(false);
 
   const onMore = useCallback(
     (item: AgoraItem) => {
@@ -197,11 +202,11 @@ export function ImmersiveFeed({
     (item: AgoraItem) => {
       if (item.cheered || item.user_id === profile?.id) return;
       // Optimistic: the ring lights on the tap. cheer_agora_post is idempotent, so a retry is safe.
-      patchItem(item.id, { cheered: true });
+      patchItem(item.id, { cheered: true, cheers: item.cheers + 1 });
       cheerAgoraItem(item)
         .then((cheers) => patchItem(item.id, { cheers }))
         .catch((e) => {
-          patchItem(item.id, { cheered: false });
+          patchItem(item.id, { cheered: false, cheers: item.cheers });
           Alert.alert('Could not cheer', getErrorMessage(e, 'Something went wrong.'));
         });
     },
@@ -386,9 +391,9 @@ export function ImmersiveFeed({
         />
       ) : null}
 
-      {/* ── The floating chrome ── */}
+      {/* ── The floating chrome (mock 326): ONE slim translucent bar, nothing else over the page ── */}
       <View
-        style={styles.chrome}
+        style={[styles.chrome, { paddingTop: insets.top }]}
         pointerEvents="box-none"
         onLayout={(e) => {
           const h = Math.round(e.nativeEvent.layout.height);
@@ -396,50 +401,20 @@ export function ImmersiveFeed({
         }}>
         <LinearGradient
           pointerEvents="none"
-          colors={['rgba(11,7,24,0.92)', 'rgba(11,7,24,0.55)', 'transparent']}
-          locations={[0, 0.6, 1]}
+          colors={['rgba(7,4,16,0.6)', 'transparent']}
           style={StyleSheet.absoluteFill}
         />
-        <View style={{ paddingTop: insets.top }}>
-          <AppTopBar title={title} />
-        </View>
-        {/* In a room (a campfire or forest channel) the chrome collapses to ONE compact header —
-            back · the room · its members · switch (pre-submission B5). The full scope + room chip
-            scroller and the Feed · Chats toggle are for browsing; once you're in a room they were
-            the top third of the screen. Switching rooms is a plain list sheet. */}
-        {channel ? (
-          <RoomHeader
-            channel={channel}
-            onBack={() => changeScope('all')}
-            onSwitch={() => setSwitcherOpen(true)}
-            onCompose={compose}
-          />
-        ) : (
-          <>
-            {header}
-            <ChannelChips
-              scope={scope}
-              channels={channels}
-              university={profile?.university ?? null}
-              onPick={changeScope}
-              onCompose={compose}
-            />
-            <ScopeLine scope={scope} />
-          </>
-        )}
+        <FeedTopBar
+          scope={scope}
+          onPick={changeScope}
+          onCompose={compose}
+          onChats={onOpenChats}
+          onSearch={() => router.push('/search')}
+        />
+        {/* Your rooms, one slim row (only if you're in one). No room header (mock 326 — that
+            belongs in the chat thread): the lit chip says which room this is; a tab leaves it. */}
+        {channels?.length ? <ChannelRow scope={scope} channels={channels} onPick={changeScope} /> : null}
       </View>
-
-      <ChannelListSheet
-        visible={switcherOpen}
-        scope={scope}
-        channels={channels}
-        university={profile?.university ?? null}
-        onPick={(key) => {
-          setSwitcherOpen(false);
-          changeScope(key);
-        }}
-        onClose={() => setSwitcherOpen(false)}
-      />
 
       <AgoraCommentsSheet
         item={commentsFor}
@@ -466,274 +441,151 @@ export function ImmersiveFeed({
 }
 
 /**
- * The chip row (mock 315/317): ＋ Post, the four scopes, your campfires and forests, then the ways to
- * find more. Translucent pills, so the page behind still reads through them.
+ * Mock 326's `.top`: the small wordmark · Friends | Everyone · and the few ways off the feed (post,
+ * chats, search) as quiet translucent circles. In a room channel neither tab is lit — either one
+ * leaves the room.
  */
-function ChannelChips({
+function FeedTopBar({
   scope,
-  channels,
-  university,
   onPick,
   onCompose,
+  onChats,
+  onSearch,
 }: {
   scope: FeedKey;
-  channels: FeedChannel[] | null;
-  university: string | null;
   onPick: (key: FeedKey) => void;
   onCompose: () => void;
-}) {
-  const router = useRouter();
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.chipBar}
-      contentContainerStyle={styles.chips}>
-      <Pressable onPress={onCompose} accessibilityRole="button" accessibilityLabel="Write a post">
-        <LinearGradient colors={[Colors.navEmber, Colors.navEmber2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.postChip}>
-          <IconText icon="plus" style={styles.postChipText}>
-            Post
-          </IconText>
-        </LinearGradient>
-      </Pressable>
-      {AGORA_SCOPES.map((s) => (
-        <Chip
-          key={s.key}
-          label={s.key === 'university' && university ? shortSchoolName(university) : s.label}
-          on={scope === s.key}
-          onPress={() => onPick(s.key)}
-        />
-      ))}
-      {(channels ?? []).map((c) => {
-        const key = channelKey(c);
-        return (
-          <Chip
-            key={key}
-            label={`${c.emoji} ${c.name}`}
-            on={scope === key}
-            onPress={() => onPick(key)}
-            a11y={`${c.name}, ${c.kind}`}
-          />
-        );
-      })}
-      <Chip label="+ join" dashed onPress={() => router.push('/campfires')} a11y="Join a campfire" />
-      <Chip label="Forests" icon="forest" dashed onPress={() => router.push('/forests')} a11y="Browse forests" />
-    </ScrollView>
-  );
-}
-
-function Chip({
-  label,
-  icon,
-  on = false,
-  dashed = false,
-  onPress,
-  a11y,
-}: {
-  label: string;
-  icon?: IconName;
-  on?: boolean;
-  dashed?: boolean;
-  onPress: () => void;
-  a11y?: string;
+  onChats: () => void;
+  onSearch: () => void;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.chip, on && styles.chipOn, dashed && styles.chipDashed]}
-      accessibilityRole="button"
-      accessibilityState={{ selected: on }}
-      accessibilityLabel={a11y}>
-      {icon ? (
-        <IconText icon={icon} style={[styles.chipText, on && styles.chipTextOn, dashed && styles.chipDashedText]} numberOfLines={1}>
-          {label}
-        </IconText>
-      ) : (
-        <Text style={[styles.chipText, on && styles.chipTextOn, dashed && styles.chipDashedText]} numberOfLines={1}>
-          {label}
-        </Text>
-      )}
-    </Pressable>
-  );
-}
-
-// What each scope chip carries, said under the chips — "All" and "Everyone" read alike as words,
-// and they are different sources (0280's get_agora_feed). Every scope is newest first, unranked.
-const SCOPE_LINES: Partial<Record<FeedKey, string>> = {
-  all: 'Your friends + your campfires & forests · newest first',
-  friends: 'Only your friends · newest first',
-  everyone: 'Posts shared with everyone on Philoi · newest first',
-};
-
-function ScopeLine({ scope }: { scope: FeedKey }) {
-  const line = SCOPE_LINES[scope];
-  if (!line) return null;
-  return (
-    <Text style={[styles.channelLine, styles.scopeLine]} numberOfLines={1}>
-      {line}
-    </Text>
-  );
-}
-
-/**
- * A room's compact header (B5): ‹ back to All · the room's own emoji · its name over members and
- * its live challenge (opening the campfire or forest) · ＋ post · switch rooms.
- */
-function RoomHeader({
-  channel,
-  onBack,
-  onSwitch,
-  onCompose,
-}: {
-  channel: FeedChannel;
-  onBack: () => void;
-  onSwitch: () => void;
-  onCompose: () => void;
-}) {
-  return (
-    <View style={styles.roomHeader}>
-      <Pressable onPress={onBack} hitSlop={8} style={styles.roomBtn} accessibilityRole="button" accessibilityLabel="Back to All">
-        <UiGlyph name="back" size={18} color={Colors.ink} />
-      </Pressable>
-      <View style={styles.roomTile}>
-        {/* The room's emoji is its creator's pick — content, so it stays an emoji. */}
-        {channel.emoji ? (
-          <Text style={styles.roomEmoji}>{channel.emoji}</Text>
-        ) : (
-          <Icon name={channel.kind === 'forest' ? 'forest' : 'campfire'} size={18} color={Colors.navEmber2} />
-        )}
+    <View style={styles.topBar}>
+      <View style={styles.mark}>
+        <NavGlyph name="flame" size={14} color={Colors.navEmber} />
+        <Text style={styles.markText}>philoi</Text>
       </View>
-      <View style={styles.roomText}>
-        <Text style={styles.roomName} numberOfLines={1}>
-          {channel.name}
-        </Text>
-        <ChannelLine channel={channel} inline />
+      <View style={styles.tabs} accessibilityRole="tablist">
+        {AGORA_SCOPES.map((s) => {
+          const on = scope === s.key;
+          return (
+            <Pressable
+              key={s.key}
+              onPress={() => onPick(s.key)}
+              hitSlop={4}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}>
+              {on ? (
+                <LinearGradient
+                  colors={[Colors.navEmber, Colors.navEmber2, Colors.gold]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.tab}>
+                  <Text style={[styles.tabText, styles.tabTextOn]}>{s.label}</Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.tab}>
+                  <Text style={styles.tabText}>{s.label}</Text>
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
       </View>
-      <Pressable onPress={onCompose} hitSlop={6} style={[styles.roomBtn, styles.roomPost]} accessibilityRole="button" accessibilityLabel={`Post to ${channel.name}`}>
-        <Icon name="plus" size={16} color={Colors.onEmber} />
-      </Pressable>
-      <Pressable onPress={onSwitch} hitSlop={6} style={styles.roomBtn} accessibilityRole="button" accessibilityLabel="Switch room">
-        <UiGlyph name="down" size={16} color={Colors.ink} />
-      </Pressable>
+      <View style={styles.topActions}>
+        <TopButton label="Write a post" onPress={onCompose}>
+          <Icon name="plus" size={14} color={Colors.ink} />
+        </TopButton>
+        <TopButton label="Chats" onPress={onChats}>
+          <Icon name="chat" size={14} color={Colors.ink} />
+        </TopButton>
+        <TopButton label="Search" onPress={onSearch}>
+          <NavGlyph name="search" size={14} color={Colors.ink} />
+        </TopButton>
+      </View>
     </View>
   );
 }
 
-/** Every scope and every room you're in, as a plain list — the switcher a room header opens. */
-function ChannelListSheet({
-  visible,
-  scope,
-  channels,
-  university,
-  onPick,
-  onClose,
-}: {
-  visible: boolean;
-  scope: FeedKey;
-  channels: FeedChannel[] | null;
-  university: string | null;
-  onPick: (key: FeedKey) => void;
-  onClose: () => void;
-}) {
-  const insets = useSafeAreaInsets();
+function TopButton({ label, onPress, children }: { label: string; onPress: () => void; children: ReactNode }) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.sheetBackdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, Spacing.three) }]}>
-          <Text style={styles.sheetTitle}>Show me</Text>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {AGORA_SCOPES.map((s) => (
-              <SheetRow
-                key={s.key}
-                label={s.key === 'university' && university ? shortSchoolName(university) : s.label}
-                sub={SCOPE_LINES[s.key] ?? null}
-                on={scope === s.key}
-                onPress={() => onPick(s.key)}
-              />
-            ))}
-            {(channels ?? []).length > 0 ? <Text style={styles.sheetGroup}>Your campfires & forests</Text> : null}
-            {(channels ?? []).map((c) => {
-              const key = channelKey(c);
-              return (
-                <SheetRow
-                  key={key}
-                  emoji={c.emoji}
-                  label={c.name}
-                  sub={`${c.kind === 'forest' ? 'Forest' : 'Campfire'} · ${c.member_count} ${c.member_count === 1 ? 'member' : 'members'}`}
-                  on={scope === key}
-                  onPress={() => onPick(key)}
-                />
-              );
-            })}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function SheetRow({
-  label,
-  sub,
-  emoji,
-  on,
-  onPress,
-}: {
-  label: string;
-  sub: string | null;
-  emoji?: string;
-  on: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={[styles.sheetRow, on && styles.sheetRowOn]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: on }}>
-      {emoji ? <Text style={styles.sheetEmoji}>{emoji}</Text> : null}
-      <View style={styles.sheetRowText}>
-        <Text style={[styles.sheetLabel, on && styles.sheetLabelOn]} numberOfLines={1}>
-          {label}
-        </Text>
-        {sub ? (
-          <Text style={styles.sheetSub} numberOfLines={1}>
-            {sub}
-          </Text>
-        ) : null}
-      </View>
-      {on ? <Icon name="check" size={16} color={Colors.navEmber} /> : null}
+    <Pressable onPress={onPress} hitSlop={6} style={styles.topBtn} accessibilityRole="button" accessibilityLabel={label}>
+      {children}
     </Pressable>
   );
 }
 
-/** A channel's one-line header — members · its live challenge — opening the campfire or forest. */
-function ChannelLine({ channel, inline = false }: { channel: FeedChannel; inline?: boolean }) {
-  const router = useRouter();
-  const members = `${channel.member_count} ${channel.member_count === 1 ? 'member' : 'members'}`;
-  const challenge = channel.challenge_id
-    ? `${channel.challenge_name ?? 'Live challenge'}${channel.challenge_ends_at ? ` · ${formatTimeLeft(channel.challenge_ends_at)}` : ''}`
-    : null;
-  const meta = [members, challenge].filter(Boolean).join(' · ');
+/**
+ * Under the bar: All (your friends + every room you're in, 0280) · your campfires · your forests.
+ * Campfires first, then forests — the order the composer's lane picker lists them in.
+ */
+function ChannelRow({
+  scope,
+  channels,
+  onPick,
+}: {
+  scope: FeedKey;
+  channels: FeedChannel[];
+  onPick: (key: FeedKey) => void;
+}) {
+  const rooms = [...channels.filter((c) => c.kind === 'campfire'), ...channels.filter((c) => c.kind === 'forest')];
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.channelBar}
+      contentContainerStyle={styles.channelRow}
+      accessibilityRole="tablist">
+      <ChannelChip label="All" on={scope === 'all'} onPress={() => onPick('all')} a11y="All: your friends and your rooms" />
+      {rooms.map((c) => {
+        const key = channelKey(c);
+        return (
+          <ChannelChip
+            key={key}
+            label={c.name}
+            emoji={c.emoji}
+            icon={c.kind}
+            on={scope === key}
+            onPress={() => onPick(key)}
+            a11y={`${c.kind === 'forest' ? 'Forest' : 'Campfire'}: ${c.name}`}
+          />
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+function ChannelChip({
+  label,
+  emoji,
+  icon,
+  on,
+  onPress,
+  a11y,
+}: {
+  label: string;
+  emoji?: string | null;
+  icon?: 'campfire' | 'forest';
+  on: boolean;
+  onPress: () => void;
+  a11y: string;
+}) {
   return (
     <Pressable
-      style={[styles.channelLine, styles.channelRow, inline && styles.channelInline]}
-      onPress={() =>
-        channel.kind === 'campfire'
-          ? router.push(`/group/${channel.id}`)
-          : router.push({ pathname: '/forest/[id]', params: { id: channel.id } } as never)
-      }
-      accessibilityRole="button"
-      accessibilityLabel={`${channel.name}, ${meta}. Open the ${channel.kind}`}>
-      <Text style={styles.channelMeta} numberOfLines={1}>
-        {challenge ? `${members} · ` : `${members} ›`}
-      </Text>
-      {challenge ? (
-        <IconText icon="challenge" style={[styles.channelMeta, styles.channelShrink]} numberOfLines={1} containerStyle={styles.channelShrink}>
-          {challenge} ›
-        </IconText>
+      onPress={onPress}
+      hitSlop={4}
+      style={[styles.channelChip, on && styles.channelChipOn]}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: on }}
+      accessibilityLabel={a11y}>
+      {/* A room's emoji is its creator's pick — content, so it stays an emoji. */}
+      {emoji ? (
+        <Text style={styles.channelChipText}>{emoji}</Text>
+      ) : icon ? (
+        <Icon name={icon} size={12} color={on ? Colors.navEmber : Colors.navEmber2} />
       ) : null}
+      <Text style={[styles.channelChipText, on && styles.channelChipTextOn]} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -793,187 +645,96 @@ const styles = StyleSheet.create({
     right: 0,
     paddingBottom: Spacing.two,
   },
-  chipBar: {
-    flexGrow: 0,
-    flexShrink: 0,
-  },
-  chips: {
-    gap: 6,
+  // Mock 326's `.top`: wordmark · tabs · buttons on one row, the page reading through.
+  topBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: Spacing.three,
-    paddingRight: Spacing.three + 8,
-    paddingVertical: Spacing.one,
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
   },
-  // Mock 317's `.ch` — a translucent pill, the page reading through it.
-  chip: {
-    flexShrink: 0,
+  mark: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 1,
+  },
+  markText: {
+    fontFamily: Fonts.black,
+    fontSize: 16,
+    letterSpacing: -0.5,
+    color: Colors.ink,
+  },
+  tabs: {
+    flexDirection: 'row',
+    gap: 3,
+    padding: 3,
     borderRadius: Radius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(26,18,48,0.8)',
+    backgroundColor: 'rgba(10,7,22,0.5)',
     borderWidth: 1,
     borderColor: Colors.spaceLine,
   },
-  chipOn: {
-    backgroundColor: Colors.navEmber,
+  tab: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+  },
+  tabText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    color: Colors.spaceDim,
+  },
+  tabTextOn: {
+    color: Colors.onEmber,
+  },
+  topActions: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  topBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(10,7,22,0.5)',
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  channelBar: {
+    flexGrow: 0,
+    marginTop: 6,
+  },
+  channelRow: {
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: Spacing.three,
+  },
+  channelChip: {
+    maxWidth: 160,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(10,7,22,0.5)',
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  channelChipOn: {
     borderColor: Colors.navEmber,
+    backgroundColor: 'rgba(10,7,22,0.75)',
   },
-  chipDashed: {
-    backgroundColor: 'rgba(26,18,48,0.55)',
-    borderStyle: 'dashed',
-  },
-  chipText: {
-    flexShrink: 0,
+  channelChipText: {
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 11,
     color: Colors.muted,
   },
-  chipTextOn: {
-    color: Colors.onEmber,
-  },
-  chipDashedText: {
-    color: Colors.navEmber2,
-  },
-  postChip: {
-    borderRadius: Radius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  postChipText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    color: Colors.onEmber,
-  },
-  roomHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.two,
-  },
-  roomBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(26,18,48,0.7)',
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-  },
-  roomPost: {
-    backgroundColor: Colors.navEmber,
-    borderColor: Colors.navEmber,
-  },
-  roomTile: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.spacePanel2,
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-  },
-  roomEmoji: {
-    fontSize: 17,
-  },
-  roomText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  roomName: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
+  channelChipTextOn: {
     color: Colors.ink,
-  },
-  sheetBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(6,5,10,0.55)',
-  },
-  sheet: {
-    maxHeight: '75%',
-    backgroundColor: Colors.spaceBg,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-    paddingTop: Spacing.three,
-    paddingHorizontal: Spacing.three,
-  },
-  sheetTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 16,
-    color: Colors.ink,
-    marginBottom: Spacing.two,
-  },
-  sheetGroup: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.5,
-    color: Colors.spaceFaint,
-    marginTop: Spacing.three,
-    marginBottom: Spacing.one,
-  },
-  sheetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingVertical: 10,
-    paddingHorizontal: Spacing.two,
-    borderRadius: 12,
-  },
-  sheetRowOn: {
-    backgroundColor: Colors.spacePanel,
-  },
-  sheetEmoji: {
-    fontSize: 18,
-  },
-  sheetRowText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  sheetLabel: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 14,
-    color: Colors.ink,
-  },
-  sheetLabelOn: {
-    color: Colors.navEmber2,
-  },
-  sheetSub: {
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.spaceDim,
-    marginTop: 1,
-  },
-  channelLine: {
-    alignSelf: 'flex-start',
-    marginLeft: Spacing.three,
-    marginTop: 2,
-  },
-  scopeLine: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.spaceDim,
-    marginBottom: 2,
-  },
-  channelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  channelInline: {
-    marginLeft: 0,
-    marginTop: 1,
-  },
-  channelShrink: {
-    flexShrink: 1,
-  },
-  channelMeta: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 11,
-    color: Colors.navEmber2,
   },
   utilityPage: {
     alignItems: 'center',

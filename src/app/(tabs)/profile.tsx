@@ -25,6 +25,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyRanks } from '@/hooks/use-my-ranks';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
+import { competitionOptedIn } from '@/lib/competition';
 import { fetchMyProgram } from '@/lib/api/house';
 import { RankMuted } from '@/components/rank-muted';
 import { fetchProfileById, fetchUserRank, type UserRank } from '@/lib/api/profile';
@@ -168,8 +169,11 @@ export default function ProfileScreen() {
           // 0170 · Private mode — a muted rank renders RankMuted under the card instead.
           footer={visibleRank ? <HeroRankStrip rank={visibleRank} /> : null}>
           {profile.university && (
-            // Your school's board is the Leaderboard tab's My Uni scope (ui_pass2 §8).
-            <Pressable onPress={() => router.push({ pathname: '/leaderboards', params: { scope: 'uni' } })}>
+            // Your school's board is Standings' My Uni scope (ui_pass2 §8) — but only for someone who
+            // opted into competition (connection-first). Otherwise the campus is just where you study.
+            <Pressable
+              disabled={!competitionOptedIn(myProfile)}
+              onPress={() => router.push({ pathname: '/leaderboards', params: { scope: 'uni' } })}>
               <View style={styles.uniRow}>
                 <Ionicons name="location" size={11} color={Colors.textTertiary} />
                 <Text style={styles.uniText}>{profile.university}</Text>
@@ -181,6 +185,15 @@ export default function ProfileScreen() {
         {/* Own profile only: ONE way into every editor (identity, loadout, program). */}
         {isOwn ? (
           <View style={styles.editRow}>
+            {/* Mock 331: the board left the bar and lives here, opt-in — it opens on your friends. */}
+            <Pressable
+              style={styles.editBtn}
+              onPress={() => router.push('/leaderboards')}
+              accessibilityRole="button"
+              accessibilityLabel="Standings">
+              <Ionicons name="podium-outline" size={13} color={Colors.achieverText} />
+              <Text style={styles.editBtnText}>Standings</Text>
+            </Pressable>
             <Pressable style={styles.editBtn} onPress={() => setEditOpen(true)} accessibilityRole="button" accessibilityLabel="Edit profile">
               <Ionicons name="create-outline" size={13} color={Colors.achieverText} />
               <Text style={styles.editBtnText}>Edit</Text>
@@ -340,6 +353,7 @@ const styles = StyleSheet.create({
   editRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    gap: Spacing.two,
     marginTop: Spacing.two,
   },
   editBtn: {

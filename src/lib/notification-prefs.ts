@@ -35,6 +35,8 @@ export type ResolvedNotificationPrefs = {
   /** 0205 · the nightly board-standing push. Hour-granular, resolved in the device timezone. */
   placement_enabled: boolean;
   placement_hour: number;
+  /** 0289 · the competition opt-in ("Show me global standings"). See lib/competition.ts. */
+  competition: boolean;
 };
 
 export const DEFAULT_NOTIFICATION_PREFS: ResolvedNotificationPrefs = {
@@ -58,6 +60,8 @@ export const DEFAULT_NOTIFICATION_PREFS: ResolvedNotificationPrefs = {
   // server default matches it exactly so an untouched blob and this object agree.
   placement_enabled: true,
   placement_hour: 21,
+  // 0289 · competition is opt-in. Off, the placement push above never sends whatever it says.
+  competition: false,
 };
 
 // ── the five spec categories (NOTIFICATIONS_SPEC, §F) ──
@@ -102,8 +106,9 @@ export const NOTIFICATION_CATEGORIES: {
   {
     key: 'cat_friends_social',
     label: 'Friends & social',
-    description: 'Requests, someone passing you on a board, friends joining',
-    covers: ['Friend requests and accepts', 'A friend passing you on a board', 'Friends joining Philoi'],
+    // 0289 · "a friend passing you on a board" is gone: no loss push sends, ever (connection-first).
+    description: 'Requests, friends joining, friends locking in',
+    covers: ['Friend requests and accepts', 'Friends joining Philoi'],
   },
   {
     key: 'cat_challenges',

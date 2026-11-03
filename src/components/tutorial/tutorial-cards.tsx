@@ -364,34 +364,32 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
     },
     {
+      // Connection-first (mock 331): Standings live behind You and open on your friends. The wider
+      // boards are a choice, so the tour names the switch instead of selling the race.
       key: 'leaderboard',
-      title: 'Leaderboard',
+      title: 'Standings',
       cindy: [
-        'This is Friends — you vs your crew. Tap Campus up top to widen it.',
-        'Campus — everyone at your school, ranked. Now tap Inter-Uni.',
-        'Inter-Uni — your whole school stacked against other universities. Rep your campus. 🏛️ (You can go private any time.)',
+        'Standings live in You. They start with your friends — how your crew is doing this week.',
+        'Want your program, your uni and everyone too? That’s one switch: Show me global standings.',
+        'It’s off unless you turn it on — Philoi never pushes you a rank you didn’t ask for.',
       ],
       steps: [
         <MiniScreen key="lb0">
-          <MiniHeader nav="leaderboards" title="Leaderboard" />
-          <MiniTabs names={['Friends', 'Campus', 'Inter-Uni']} active={0} />
+          <MiniHeader nav="leaderboards" title="Standings" />
+          <MiniTabs names={['Friends']} active={0} />
           <MiniRow glyph="1" title="@ava" right="12,480" />
           <MiniRow glyph="2" title="You" right="11,905" highlight />
           <MiniRow glyph="3" title="@marcus" right="9,340" />
         </MiniScreen>,
         <MiniScreen key="lb1">
-          <MiniHeader nav="leaderboards" title="Leaderboard" />
-          <MiniTabs names={['Friends', 'Campus', 'Inter-Uni']} active={1} />
-          <MiniRow glyph="1" title="@kwn_ari" right="48,900" />
-          <MiniRow glyph="2" title="@devsam" right="44,210" />
-          <MiniRow glyph="17" title="You" right="11,905" highlight />
+          <MiniHeader nav="leaderboards" title="Standings" />
+          <MiniRow icon="medal" title="Show me global standings" right="Off" />
+          <MiniRow glyph="·" title="Program · My Uni · Global" right="opt-in" />
         </MiniScreen>,
         <MiniScreen key="lb2">
-          <MiniHeader nav="leaderboards" title="Leaderboard" />
-          <MiniTabs names={['Friends', 'Campus', 'Inter-Uni']} active={2} />
-          <MiniRow icon="medal" title="Laurier" right="2.4M" highlight />
-          <MiniRow glyph="2" title="Waterloo" right="2.1M" />
-          <MiniRow glyph="3" title="Western" right="1.6M" />
+          <MiniHeader nav="leaderboards" title="Standings" />
+          <MiniTabs names={['Friends']} active={0} />
+          <MiniRow glyph="·" title="No rank pushes unless you opt in" highlight />
         </MiniScreen>,
       ],
     },

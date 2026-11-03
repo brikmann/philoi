@@ -223,35 +223,40 @@ export default function NotificationsSettingsScreen() {
           ) : null}
         </View>
 
-        {/* 0205 · the nightly placement push. Default ON at 9 PM — the one push that reports where
-            the day actually left you on the board. send_daily_placement() reads these two keys and
-            compares the hour in this device's timezone, the same one quiet hours uses. */}
-        <SpaceSection>Daily placement</SpaceSection>
-        <View style={styles.group}>
-          <View style={[styles.row, masterOff && styles.rowDisabled]}>
-            <Tile>
-              <NavGlyph name="trophy" size={18} color={Colors.navEmber2} />
-            </Tile>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Where you stand</Text>
-              <Text style={styles.rowDescription}>
-                Your place on the global board, once a day
-              </Text>
+        {/* 0205 · the nightly placement push. send_daily_placement() reads these two keys and
+            compares the hour in this device's timezone, the same one quiet hours uses.
+            0289 · it only exists for someone who opted into competition (Settings → Standings), and
+            it only ever reports a climb — so without the opt-in the section isn't drawn at all. */}
+        {prefs.competition ? (
+          <>
+            <SpaceSection>Daily placement</SpaceSection>
+            <View style={styles.group}>
+              <View style={[styles.row, masterOff && styles.rowDisabled]}>
+                <Tile>
+                  <NavGlyph name="trophy" size={18} color={Colors.navEmber2} />
+                </Tile>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowLabel}>Where you stand</Text>
+                  <Text style={styles.rowDescription}>
+                    A nudge when you climb your uni&apos;s board — never a drop
+                  </Text>
+                </View>
+                <Toggle
+                  value={!masterOff && prefs.placement_enabled}
+                  disabled={masterOff}
+                  onValueChange={(v) => update({ placement_enabled: v })}
+                />
+              </View>
+              {prefs.placement_enabled && !masterOff ? (
+                <Pressable style={styles.row} onPress={() => setHourPicker('placement_hour')} accessibilityRole="button">
+                  <Text style={styles.rowLabel}>Time</Text>
+                  <Text style={styles.rowValue}>{formatHour(prefs.placement_hour)}</Text>
+                  <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
+                </Pressable>
+              ) : null}
             </View>
-            <Toggle
-              value={!masterOff && prefs.placement_enabled}
-              disabled={masterOff}
-              onValueChange={(v) => update({ placement_enabled: v })}
-            />
-          </View>
-          {prefs.placement_enabled && !masterOff ? (
-            <Pressable style={styles.row} onPress={() => setHourPicker('placement_hour')} accessibilityRole="button">
-              <Text style={styles.rowLabel}>Time</Text>
-              <Text style={styles.rowValue}>{formatHour(prefs.placement_hour)}</Text>
-              <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
-            </Pressable>
-          ) : null}
-        </View>
+          </>
+        ) : null}
 
         <SpaceSection>Quiet hours</SpaceSection>
         <View style={styles.group}>

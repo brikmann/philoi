@@ -125,6 +125,62 @@ export function weekHeadline(w: MyWeek): WeekHeadline {
   };
 }
 
+// ───────────────────────────── 1b · your people, this week ─────────────────────────────
+
+/**
+ * The collective (mocks 331 + 332, migration 0288): lock-in time this week across everyone you're
+ * connected to — friends, campfire-mates, forest-mates — counted once each, plus who's locked in
+ * today. One number for all of you; nobody is ranked in it.
+ */
+export type PeopleWeek = {
+  thisWeekSeconds: number;
+  /** Your people's last week up to this same point — the delta is only ever drawn when positive. */
+  lastWeekToDateSeconds: number;
+  people: number;
+  activeToday: number;
+  faces: { userId: string; name: string; avatarUrl: string | null }[];
+};
+
+type PeopleWeekRow = {
+  out_this_week_seconds: number;
+  out_last_week_to_date_secs: number;
+  out_people: number;
+  out_active_today: number;
+  out_faces: { user_id: string; name: string; avatar_url: string | null }[] | null;
+};
+
+/** Null on a server without 0288 — the card just isn't drawn, the same as a failed read. */
+export async function fetchPeopleWeek(): Promise<PeopleWeek | null> {
+  const { data, error } = await supabase.rpc('get_people_week_hours');
+  if (error) {
+    if (error.code === 'PGRST202') return null;
+    throw error;
+  }
+  const r = ((data ?? []) as PeopleWeekRow[])[0];
+  if (!r) return null;
+  return {
+    // bigint arrives as a string over PostgREST once it outgrows a JS-safe int; Number() covers both.
+    thisWeekSeconds: Number(r.out_this_week_seconds ?? 0),
+    lastWeekToDateSeconds: Number(r.out_last_week_to_date_secs ?? 0),
+    people: r.out_people ?? 0,
+    activeToday: r.out_active_today ?? 0,
+    faces: (r.out_faces ?? []).map((f) => ({ userId: f.user_id, name: f.name, avatarUrl: f.avatar_url })),
+  };
+}
+
+/** "5,042 hrs" — whole hours once there's an hour to count, minutes before that. */
+export function formatPeopleHours(seconds: number): string {
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+  return `${Math.floor(seconds / 3600).toLocaleString('en-US')} hrs`;
+}
+
+/** "+1,240 hrs on last week" — only when your people are ahead of this point last week. */
+export function peopleWeekDelta(w: PeopleWeek): string | null {
+  const more = w.thisWeekSeconds - w.lastWeekToDateSeconds;
+  if (more < 3600) return null;
+  return `+${Math.floor(more / 3600).toLocaleString('en-US')} hrs on last week`;
+}
+
 // ───────────────────────────── 2 · who's backing you ─────────────────────────────
 
 export type Backer = {

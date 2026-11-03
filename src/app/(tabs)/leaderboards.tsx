@@ -24,11 +24,17 @@ import { useMetricCatalog, useMetricLeaderboard } from '@/hooks/use-metric-leade
 import { fetchMyProgram } from '@/lib/api/house';
 import { rankVisibilityOf } from '@/lib/api/privacy';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useCompetition } from '@/lib/competition';
 import { formatMetricValue } from '@/lib/stats/format';
 import type { MetricCatalogRow, MetricLeaderboardRow, MetricScope, MyProgramRow } from '@/types/house';
 
-// THE LEADERBOARD TAB — the new global board (nav restructure, mock 302). Clean and simple: one
-// scope toggle, one metric picker, ranked rows that each carry the person's Heir identity (house
+// STANDINGS — the board, opt-in (connection-first, mock 331). It has no bottom-bar slot any more:
+// you walk into it from You → Standings. It opens on FRIENDS, always; Program · My Uni · Global only
+// appear once you've turned on "Show me global standings" (lib/competition.ts), and until then their
+// place holds a quiet card offering that switch. The route keeps its `leaderboards` name because
+// pushes and server-written links deep-link /(tabs)/leaderboards.
+//
+// One scope toggle, one metric picker, ranked rows that each carry the person's Heir identity (house
 // seal + program line), you highlighted. Everything reads get_metric_leaderboard (0265) as-is.
 //
 // EVERY MEMBER IN SCOPE (0276): ranked people first, then everyone with nothing logged as "not
@@ -48,17 +54,19 @@ const BOARDS: { key: Board; label: string }[] = [
   { key: 'fitness', label: 'Fitness' },
 ];
 
+// Narrowest first: your people are the landing view, the wider world is a choice.
 const SCOPES: { key: MetricScope; label: string }[] = [
-  { key: 'global', label: 'Global' },
-  { key: 'my_uni', label: 'My Uni' },
-  { key: 'my_program', label: 'Program' },
   { key: 'friends', label: 'Friends' },
+  { key: 'my_program', label: 'Program' },
+  { key: 'my_uni', label: 'My Uni' },
+  { key: 'global', label: 'Global' },
 ];
 
 const DEFAULT_METRIC = 'season_xp';
 
 // Server-written pushes still name the OLD board's scopes (0253 sends {"scope":"uni"}); map them
-// onto this board's. 'camp' and 'vs' have no equivalent here and land on the Global default.
+// onto this board's. 'camp' and 'vs' have no equivalent here and land on the Friends default. A link
+// to a wider scope is only honoured once the viewer has opted into competition.
 const LINKED_SCOPE: Record<string, MetricScope> = {
   uni: 'my_uni',
   my_uni: 'my_uni',
@@ -74,7 +82,8 @@ export default function LeaderboardTab() {
   // The viewer's own visibility dial, honoured exactly as the old board did: private sees only their
   // own climb, friends-only sees only the Friends board.
   const dial = rankVisibilityOf(profile);
-  const [pickedScope, setPickedScope] = useState<MetricScope>('global');
+  const competition = useCompetition();
+  const [pickedScope, setPickedScope] = useState<MetricScope>('friends');
   const [board, setBoard] = useState<Board>('xp');
   const { scope: linkedScope, board: linkedBoard } = useLocalSearchParams<{ scope?: string; board?: string }>();
   useEffect(() => {
@@ -85,8 +94,10 @@ export default function LeaderboardTab() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- same: /fitness redirects here with ?board=fitness
     if (linkedBoard === 'fitness' || linkedBoard === 'xp') setBoard(linkedBoard);
   }, [linkedBoard]);
-  const scope: MetricScope = dial === 'friends' ? 'friends' : pickedScope;
-  const scopes = dial === 'friends' ? SCOPES.filter((s) => s.key === 'friends') : SCOPES;
+  // Friends-only when the dial says so OR competition is off — the wider scopes are opt-in.
+  const friendsOnly = dial === 'friends' || !competition.on;
+  const scope: MetricScope = friendsOnly ? 'friends' : pickedScope;
+  const scopes = friendsOnly ? SCOPES.filter((s) => s.key === 'friends') : SCOPES;
 
   const { catalog } = useMetricCatalog();
   const [metricKey, setMetricKey] = useState(DEFAULT_METRIC);
@@ -147,7 +158,15 @@ export default function LeaderboardTab() {
     <SafeAreaView edges={['top']} style={styles.safe}>
       <AppTopBar />
       <View style={styles.head}>
-        <Text style={styles.title}>Leaderboard</Text>
+        <Pressable
+          style={styles.titleRow}
+          onPress={() => router.navigate('/profile')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back to You">
+          <Ionicons name="chevron-back" size={20} color={Colors.spaceDim} />
+          <Text style={styles.title}>Standings</Text>
+        </Pressable>
         {dial === 'private' ? null : (
           <View style={styles.boardToggle}>
             {BOARDS.map((b) => {
@@ -187,6 +206,9 @@ export default function LeaderboardTab() {
               );
             })}
           </View>
+          {dial !== 'friends' && !competition.on ? (
+            <WiderOptIn saving={competition.saving} onOptIn={() => void competition.setOn(true).catch(() => {})} />
+          ) : null}
 
           {board === 'fitness' ? (
             <FitnessBoardPanel
@@ -266,6 +288,23 @@ function QuickLink({ label, onPress }: { label: string; onPress: () => void }) {
     <Pressable style={styles.quick} onPress={onPress} accessibilityRole="button">
       <Text style={styles.quickText}>{label}</Text>
     </Pressable>
+  );
+}
+
+/** The wider boards, offered — never landed on. One tap flips the same switch Settings holds. */
+function WiderOptIn({ saving, onOptIn }: { saving: boolean; onOptIn: () => void }) {
+  return (
+    <View style={styles.optIn}>
+      <Text style={styles.optInText}>Standings show your friends. Want your program, your uni and everyone too?</Text>
+      <Pressable
+        style={styles.optInBtn}
+        onPress={onOptIn}
+        disabled={saving}
+        accessibilityRole="button"
+        accessibilityLabel="Show me global standings">
+        <Text style={styles.optInBtnText}>{saving ? 'Turning on…' : 'Show me global standings'}</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -357,6 +396,39 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.two,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  optIn: {
+    marginHorizontal: Spacing.three,
+    marginTop: Spacing.two,
+    padding: Spacing.twelve,
+    borderRadius: 12,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    gap: Spacing.two,
+  },
+  optInText: {
+    fontFamily: Fonts.body,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
+  },
+  optInBtn: {
+    alignSelf: 'flex-start',
+    borderRadius: Radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: Colors.navEmber2,
+  },
+  optInBtnText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.navEmber2,
   },
   title: {
     fontFamily: Fonts.black,
