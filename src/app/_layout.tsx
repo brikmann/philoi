@@ -35,6 +35,7 @@ import { fetchMyActiveLockInSession } from '@/lib/api/lock-ins';
 import { registerPushToken } from '@/lib/notifications';
 import { track } from '@/lib/analytics';
 import { isCeremonyDone } from '@/lib/house/ceremony';
+import { isInterestsPending } from '@/lib/interests-flow';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
 import { isTutorialDone, isTutorialReplayRequested, markTutorialDone } from '@/lib/tutorial';
 import { posthog } from '@/lib/posthog';
@@ -452,6 +453,28 @@ function RootNavigator() {
     userId,
   ]);
 
+  // Interests → goals → matches (mock 323, 0285) — the last leg of first run, AFTER the claim.
+  // Only for an account setup-handle marked pending (an upgrading user is never sent here), and only
+  // on Home, for the ceremony gate's reasons. With a program it waits for the seal: until the
+  // ceremony is done the gate above owns this frame, so the two can't race for the same `/`. Both
+  // flags are re-read here rather than trusted from state — the seal and the interests screen each
+  // clear theirs in memory and replace to `/` in the same tick.
+  useEffect(() => {
+    if (!(appReady && session && !needsHandle && !needsConsent && !needsAccountDisabled && onboardingDone === true && pathname === '/')) {
+      return;
+    }
+    let cancelled = false;
+    Promise.all([isInterestsPending(userId), hasProgram ? isCeremonyDone(userId) : Promise.resolve(true)]).then(
+      ([pending, claimed]) => {
+        if (cancelled || !pending || !claimed) return;
+        router.replace('/interests' as never);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, onboardingDone, hasProgram, pathname, router, userId]);
+
   if (!appReady) {
     if (!stuck) return null;
     return (
@@ -546,6 +569,9 @@ function RootNavigator() {
             gesture — the pledge, or "Choose a different program", are the ways out. */}
         <Stack.Screen name="house/claim" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="house/change-program" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* Interests → goals → matches (mock 323). The gate above sends first run here after the claim;
+            Edit identity pushes ?edit=1. No back gesture — every step has its own Skip / Back. */}
+        <Stack.Screen name="interests" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />
         {/* The fitness board + any-exercise board (0265) and compare-anyone (0265). Each draws its
             own back header. */}
         <Stack.Screen name="fitness/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />

@@ -289,6 +289,21 @@ export default function EditIdentityScreen() {
               ) : null}
             </View>
 
+            {/* The structured signal (0285, mock 323): disciplines, interest hubs and goals from the
+                fixed vocabulary — what grind-alikes and forest suggestions run on. Its own screen and
+                its own save; matching reads it at query time, so a change re-matches on next load. */}
+            <Pressable
+              style={[styles.card, styles.grindRow]}
+              onPress={() => router.push({ pathname: '/interests', params: { edit: '1' } } as never)}
+              accessibilityRole="button"
+              accessibilityLabel="Edit what you're here to grind">
+              <View style={styles.flex}>
+                <Text style={styles.k}>What you&apos;re here to grind</Text>
+                <Text style={styles.grindSub}>Disciplines, interest hubs &amp; goals — what grind-alikes match you on</Text>
+              </View>
+              <UiGlyph name="forward" size={14} color={Colors.spaceDim} />
+            </Pressable>
+
             {/* The Agora's own three-way dial (0272 reuses can_see_milestone_for). Friends by default —
                 privacy-first, and what mock 283 shows. Streak always shows; rank follows its own dial. */}
             <Text style={styles.visLabel}>All optional · visible to</Text>
@@ -371,6 +386,17 @@ const styles = StyleSheet.create({
     borderColor: Colors.spaceLine,
     borderRadius: 14,
     padding: 13,
+  },
+  grindRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  grindSub: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.spaceDim,
+    marginTop: 4,
   },
   // SpaceSection's label, inside the card.
   k: {

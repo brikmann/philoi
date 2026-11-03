@@ -15,6 +15,7 @@ import { fetchProgramsForUniversity, setMyProgram } from '@/lib/api/house';
 import { setMyIdentity } from '@/lib/api/identity';
 import { getErrorMessage } from '@/lib/errors';
 import { invalidateIdentityBadge } from '@/lib/house/identity-badges';
+import { markInterestsPending } from '@/lib/interests-flow';
 import { markOnboardingDone } from '@/lib/onboarding';
 import { supabase } from '@/lib/supabase';
 import { markTutorialDone } from '@/lib/tutorial';
@@ -384,6 +385,9 @@ export default function SetupHandleScreen() {
       // The tour is offered from Settings now, never run here; marking it offered up front is what
       // lets the contextual coach-marks (which wait on this flag) speak from the first Home visit.
       await markTutorialDone(session.user.id).catch(() => {});
+      // Interests → goals → matches (mock 323) runs once after the claim; only an account that ran
+      // setup is sent there, never an upgrading one (lib/interests-flow).
+      await markInterestsPending(session.user.id).catch(() => {});
       await refreshProfile();
     } catch (e) {
       setError(getErrorMessage(e, 'Could not save your consent — try again.'));
