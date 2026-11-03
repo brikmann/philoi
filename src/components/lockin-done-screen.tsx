@@ -14,6 +14,7 @@ import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { postSessionToAgora } from '@/lib/api/agora';
+import { fetchMyFeedChannels } from '@/lib/api/feed-channels';
 import { fetchLockInPassCredit, type LockInPassCredit } from '@/lib/api/forge-pass';
 import { fetchMyWeek, fetchPeopleWeek, weekHeadline, type MyWeek, type PeopleWeek } from '@/lib/api/home';
 import { fetchCheckInClips } from '@/lib/api/gym-clips';
@@ -25,6 +26,7 @@ import { formatDurationClock, formatSessionDuration } from '@/lib/format';
 import { GOAL_TYPE_META } from '@/lib/goal-types';
 import { fireConfirm } from '@/lib/reward-feedback';
 import type { GoalType, MyRank, WorkoutRecap, WorkoutSet } from '@/types/database';
+import type { FeedChannel } from '@/types/social';
 
 type LockInDoneScreenProps = {
   goalType: GoalType;
@@ -53,8 +55,14 @@ type LockInDoneScreenProps = {
 
 const XP_COUNT_MS = 1100;
 
-/** Who a shared session reaches (mock 327): your friends, the whole square, or one campfire. */
-type Audience = { kind: 'friends' } | { kind: 'everyone' } | { kind: 'campfire'; id: string };
+/** Who a shared session reaches (mock 327): your friends, the whole square, or one of your rooms. */
+type Audience =
+  | { kind: 'friends' }
+  | { kind: 'everyone' }
+  | { kind: 'campfire'; id: string }
+  // Phase 6 · a forest you're in. post_session_to_agora has taken p_forest_id since 0277; the screen
+  // just never offered it, so a session could reach every room but the forests.
+  | { kind: 'forest'; id: string };
 
 // The "done" screen (design-mocks/81-done-screen.html) — built around the SAME big living flame
 // as the work session, stripped to the four things that matter: you locked in, for how long, the
@@ -105,6 +113,20 @@ export function LockInDoneScreen({
   sharing = false,
 }: LockInDoneScreenProps) {
   const { groups } = useMyGroups();
+  // Your forests, for the audience chips. Campfires come from useMyGroups as before; a failed read
+  // only leaves the forest chips out.
+  const [forests, setForests] = useState<FeedChannel[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchMyFeedChannels()
+      .then((cs) => {
+        if (!cancelled) setForests(cs.filter((c) => c.kind === 'forest'));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const { profile } = useAuth();
   // Mock 92 addresses you by name ("Nice work, Noah"). First name only, and the line still reads
   // correctly without one — a profile that hasn't loaded yet just gets "Nice work".
@@ -228,11 +250,18 @@ export function LockInDoneScreen({
     : note.trim()
       ? 'Caption added'
       : 'Add a caption';
-  const audienceKey = audience.kind === 'campfire' ? `campfire:${audience.id}` : audience.kind;
+  const audienceKey = audience.kind === 'campfire' || audience.kind === 'forest' ? `${audience.kind}:${audience.id}` : audience.kind;
   const audienceCampfire = audience.kind === 'campfire' ? groups.find((g) => g.id === audience.id) : undefined;
+  const audienceForest = audience.kind === 'forest' ? forests.find((f) => f.id === audience.id) : undefined;
   const audienceLabel =
-    audience.kind === 'friends' ? 'Friends' : audience.kind === 'everyone' ? 'Everyone' : (audienceCampfire?.name ?? 'Campfire');
-  const audienceIcon: IconName = audience.kind === 'campfire' ? 'campfire' : audience.kind;
+    audience.kind === 'friends'
+      ? 'Friends'
+      : audience.kind === 'everyone'
+        ? 'Everyone'
+        : audience.kind === 'forest'
+          ? (audienceForest?.name ?? 'Forest')
+          : (audienceCampfire?.name ?? 'Campfire');
+  const audienceIcon: IconName = audience.kind;
 
   // The note belongs to the lock-in, not to the act of posting — so it's saved on BOTH exits. A
   // private lock-in with a note is a journal entry to yourself and it's already visible in your
@@ -244,28 +273,24 @@ export function LockInDoneScreen({
     await setCheckInCaption(checkInId, trimmed);
   }
 
-  // To FRIENDS or EVERYONE: fired, never awaited — the photos re-upload to agora-photos before the post is
-  // written, and nobody should wait on that to leave a screen whose session is already banked; a
-  // failure only loses the feed card. To a CAMPFIRE: awaited, and a failure keeps you here with the
-  // error. That post was meant for one room, so it must never quietly go nowhere — and it never
-  // falls back to the whole square, which would widen its audience past what you picked.
+  // EVERY audience is awaited (Phase 6, forest-post fix): a share that fails keeps you here with the
+  // real error, never a "posted" that went nowhere. It used to be fire-and-forget for Friends and
+  // Everyone — the exact silent drop the forest bug was. A room post never falls back to the whole
+  // square, which would widen its audience past what you picked.
   async function postToTheAgora(): Promise<void> {
     if (agoraFired.current || !profile) return;
-    const post = postSessionToAgora({
+    await postSessionToAgora({
       checkInId,
       userId: profile.id,
       caption: note.trim() || null,
       photoUris: photos.map((p) => p.uri),
-      // Everyone is the public dial; a campfire post's dial is set server-side by its room.
+      // Everyone is the public dial; a room post's dial is set server-side by its room.
       visibility: audience.kind === 'everyone' ? 'public' : 'friends',
-      target: audience.kind === 'campfire' ? { kind: 'campfire', id: audience.id } : { kind: 'everyone' },
+      target:
+        audience.kind === 'campfire' || audience.kind === 'forest'
+          ? { kind: audience.kind, id: audience.id }
+          : { kind: 'everyone' },
     });
-    if (audience.kind !== 'campfire') {
-      agoraFired.current = true;
-      post.catch(() => {});
-      return;
-    }
-    await post;
     agoraFired.current = true;
   }
 
@@ -281,7 +306,7 @@ export function LockInDoneScreen({
       }
       onDone();
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not post there — try again, or pick Friends.'));
+      setError(getErrorMessage(e, 'Could not share it — try again.'));
     } finally {
       setPosting(false);
     }
@@ -420,6 +445,15 @@ export function LockInDoneScreen({
                   on={audienceKey === `campfire:${g.id}`}
                   disabled={posting}
                   onPress={() => setAudience({ kind: 'campfire', id: g.id })}
+                />
+              ))}
+              {forests.map((f) => (
+                <WhereChip
+                  key={`forest:${f.id}`}
+                  label={`${f.emoji} ${f.name}`}
+                  on={audienceKey === `forest:${f.id}`}
+                  disabled={posting}
+                  onPress={() => setAudience({ kind: 'forest', id: f.id })}
                 />
               ))}
             </ScrollView>

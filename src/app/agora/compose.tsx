@@ -376,7 +376,8 @@ export default function AgoraComposeScreen() {
   const promise = lane
     ? lane.kind === 'campfire'
       ? `Only ${lane.name}’s members see this & get the notification.`
-      : `Only people in ${lane.name} see this & its members get the notification.`
+      : // Forests are open rooms (can_read_forest): anyone who opens one can read it, so say that.
+        `Anyone who opens ${lane.name} can read this; its members get the notification.`
     : visibility === 'friends'
       ? 'Only your friends see this & get the notification.'
       : 'Anyone on Philoi can see this. Nobody gets a notification — it’s there for whoever looks.';
