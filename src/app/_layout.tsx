@@ -37,6 +37,7 @@ import { track } from '@/lib/analytics';
 import { isCeremonyDone } from '@/lib/house/ceremony';
 import { isInterestsPending } from '@/lib/interests-flow';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
+import { useShareIntakeRouting } from '@/lib/share-intake';
 import { isTutorialDone, isTutorialReplayRequested, markTutorialDone } from '@/lib/tutorial';
 import { posthog } from '@/lib/posthog';
 import { loadRewardPreferences } from '@/lib/reward-settings';
@@ -121,6 +122,10 @@ function RootNavigator() {
 
   const appReady = ready && interLoaded;
   const [stuck, setStuck] = useState(false);
+
+  // "Share → Philoi" (mock 324): a photo / clip from the OS share sheet opens the import composer —
+  // only once the app is usable, so it never lands on top of sign-in.
+  useShareIntakeRouting(appReady && Boolean(session) && !needsHandle && !needsConsent && !needsAccountDisabled);
 
   useEffect(() => {
     if (appReady) SplashScreen.hideAsync();
@@ -659,6 +664,8 @@ function RootNavigator() {
         <Stack.Screen name="agora/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="agora/[id]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="agora/compose" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="agora/import" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="share-intake" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* The social layer (0272–0275): identity, forests, grind-alikes. */}
         <Stack.Screen name="edit-identity" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="forest/[id]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />

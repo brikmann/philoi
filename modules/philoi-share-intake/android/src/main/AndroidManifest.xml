@@ -1,0 +1,3 @@
+<!-- The SEND intent-filter itself is on MainActivity (app.config.ts android.intentFilters): a
+     library manifest can't add a filter to the app's own activity without naming it by package. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />

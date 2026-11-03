@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { memo, useEffect, useState, type ReactNode } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 import { AttachmentRow } from '@/components/agora/agora-card';
 import { BurningName } from '@/components/burning-name';
@@ -29,8 +31,10 @@ import {
   parseResolution,
   type VerifiedLift,
 } from '@/lib/api/reel-challenge';
-import { formatRelativeTime } from '@/lib/format';
+import { isSharedPost } from '@/lib/api/shared-post';
+import { formatRelativeTime, formatSessionDuration } from '@/lib/format';
 import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
+import { getRewardPreferencesSync } from '@/lib/reward-settings';
 import type { AgoraItem } from '@/types/database';
 
 // ONE PAGE OF THE IMMERSIVE FEED (mock 317 frame 1). Every post fills the viewport, but the MEDIA
@@ -42,8 +46,13 @@ import type { AgoraItem } from '@/types/database';
 //               ONE player exists at a time, so a long scroll never stacks decoders.
 //   • photo   → fills the page, letterboxed over a blurred copy of itself so a landscape shot isn't
 //               cropped to a sliver; several photos swipe sideways.
-//   • card    → a session, a reward, or text: a centred card on the space-purple canvas. Same page
-//               size, not full-bleed media.
+//   • card    → a session, a reward, or text: a designed full-bleed fill on the space-purple canvas
+//               (mock 326) — a session's big duration under a flame, a reward's row, or the words
+//               set large. Never a box floating on the page.
+//
+// ONE BOTTOM CARD FOR EVERY PAGE (mock 326): author · title · audience tag, then the caption, over
+// the same scrim and beside the same rail, whatever the media is. A card page's body is the hero in
+// the middle, so its caption is the attachment's one-line summary instead.
 //
 // COSMETICS FLEX HERE (the monetisation point of the mock). Every page wears its AUTHOR's loadout:
 //   • the FLARE as a perimeter aura around the whole page — the real FlarePerimeter on the page in
@@ -66,9 +75,33 @@ import type { AgoraItem } from '@/types/database';
 
 const NICE_ONES = ['respect 🫡', 'insane 💪', "let's go"] as const;
 
-/** The verified lift this post shows the viewer, or null. Asked only of posts that could carry one. */
-function useVerifiedLift(item: AgoraItem, version: number): VerifiedLift | null {
-  const eligible = mayCarryLift(item);
+/**
+ * "↳ from your story" (mock 324, 0286): this post came in through Share → Philoi. Asked of every
+ * post (batched, one RPC per page of scrolling) — it can't be read off the row, because the feed
+ * RPCs aren't restated to carry the column.
+ */
+function useSharedPost(item: AgoraItem): boolean {
+  const [shared, setShared] = useState(false);
+  useEffect(() => {
+    if (item.item_type !== 'post') return;
+    let alive = true;
+    isSharedPost(item.id).then((s) => {
+      if (alive) setShared(s);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [item.id, item.item_type]);
+  return item.item_type === 'post' && shared;
+}
+
+/**
+ * The verified lift this post shows the viewer, or null. Asked only of posts that could carry one —
+ * which includes a shared post: a "Post with ⚔" that wasn't a PR carries its set with no attachment
+ * saying so (finish_shared_post links it directly).
+ */
+function useVerifiedLift(item: AgoraItem, version: number, shared: boolean): VerifiedLift | null {
+  const eligible = mayCarryLift(item) || (shared && !itemVideo(item));
   const [lift, setLift] = useState<VerifiedLift | null>(null);
   useEffect(() => {
     if (!eligible) return;
@@ -97,8 +130,8 @@ export function feedPageMedia(item: AgoraItem): FeedPageMedia {
   return 'card';
 }
 
-/** Room the bottom overlay ("leave a nice one") keeps clear on a card page — the author row is in the card. */
-const META_RESERVE = 110;
+/** Room a fill page keeps clear at the bottom for the bottom card (author · caption · nice ones). */
+const META_RESERVE = 190;
 /** The rail's lane on the right; the caption wraps short of it. */
 const RAIL_LANE = 64;
 
@@ -134,11 +167,14 @@ function FeedPageInner(props: Props) {
   const { item, loadout, width, height, topInset, active } = props;
   const router = useRouter();
   const video = itemVideo(item);
-  const lift = useVerifiedLift(item, props.liftVersion);
+  const shared = useSharedPost(item);
+  const lift = useVerifiedLift(item, props.liftVersion, shared);
   // A verified lift's clip IS the page's media — but only on a post without its own video, which
   // the server already guarantees (agora_verified_lifts skips those).
   const media: FeedPageMedia = lift && !video ? 'video' : feedPageMedia(item);
   const [expanded, setExpanded] = useState(false);
+  // A card page's body is its hero, so its caption is what the post carries, in one line.
+  const caption = media !== 'card' ? item.body : fillSummary(item);
 
   const flare = loadout.flare?.flare;
   const flareColour = flare ? flareDisplayColour(flare.effect, flare.colour) : null;
@@ -176,26 +212,21 @@ function FeedPageInner(props: Props) {
       ) : media === 'photo' ? (
         <PhotoLayer paths={postPhotos(item)} width={width} height={height} topInset={topInset} />
       ) : (
-        <CardLayer
-          item={item}
-          topInset={topInset}
-          onAttachment={openAttachment}
-          author={<AuthorRow item={item} loadout={loadout} active={active} mine={props.mine} />}
-        />
+        <FillLayer item={item} topInset={topInset} onAttachment={openAttachment} />
       )}
 
-      {/* The caption's legibility scrim — media only; the card page is already on the canvas. */}
-      {media !== 'card' ? (
-        <LinearGradient
-          pointerEvents="none"
-          colors={['transparent', 'rgba(11,7,24,0.55)', 'rgba(11,7,24,0.94)']}
-          locations={[0, 0.45, 1]}
-          style={styles.scrim}
-        />
-      ) : null}
+      {/* The bottom card's legibility scrim — the same on every page, so every card reads alike. */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={['transparent', 'rgba(9,6,20,0.5)', 'rgba(9,6,20,0.95)']}
+        locations={[0, 0.45, 1]}
+        style={styles.scrim}
+      />
 
       {flare && flareColour ? (
-        active ? (
+        // +1000 Aura's effect is a "+N AURA" counter read off the VIEWER's own session clock —
+        // feed furniture, not the author's flex (mock 326). On the feed it wears its rim only.
+        active && flare.effect !== 'aura-counter' ? (
           <FlarePerimeter colour={flare.colour} effect={flare.effect} tier={2} />
         ) : (
           <StillRim colour={flareColour} />
@@ -203,16 +234,20 @@ function FeedPageInner(props: Props) {
       ) : null}
 
       {lift ? <VerifiedBadge lift={lift} top={topInset + Spacing.two} /> : null}
+      {shared ? (
+        <View style={[styles.sharedTag, { top: topInset + Spacing.two }]} pointerEvents="none">
+          <Text style={styles.sharedTagText}>↳ from your story</Text>
+        </View>
+      ) : null}
 
       <Rail {...props} media={media} lift={lift} />
 
       <View style={styles.meta} pointerEvents="box-none">
-        {/* A card page carries its author row inside the card; media pages wear it over the scrim. */}
-        {media !== 'card' ? <AuthorRow item={item} loadout={loadout} active={active} mine={props.mine} /> : null}
-        {media !== 'card' && item.body ? (
+        <AuthorRow item={item} loadout={loadout} active={active} mine={props.mine} />
+        {caption ? (
           <Pressable onPress={() => setExpanded((e) => !e)} accessibilityRole="button" accessibilityHint="Shows the whole caption">
             <Text style={styles.caption} numberOfLines={expanded ? 12 : 3}>
-              {item.body}
+              {caption}
             </Text>
           </Pressable>
         ) : null}
@@ -404,52 +439,76 @@ function PhotoLayer({ paths, width, height, topInset }: { paths: string[]; width
   );
 }
 
+/** A card page's caption: its first attachment, said in one line ("Deep Work · 1h 8m"). */
+function fillSummary(item: AgoraItem): string | null {
+  for (const a of itemAttachments(item)) {
+    if (a.kind === 'video') continue;
+    const view = attachmentView(a.kind, a.snapshot);
+    if (view) return view.subtitle ? `${view.title} · ${view.subtitle}` : view.title;
+  }
+  return null;
+}
+
 /**
- * A session, a reward or text — a whole post, centred on the canvas: author · time · audience on
- * top, then the post's own content. Never bare words floating on the page.
+ * A session, a reward or text, filling the page (mock 326's `.fillbg` + `.fillcenter`): the canvas
+ * glows from the top, and the post's content sits centred in the band between the top bar and the
+ * bottom card. A session leads with its duration under a flame; any other attachment keeps its
+ * row; the person's own words come after, or ARE the page when there is nothing else.
  */
-function CardLayer({
+function FillLayer({
   item,
   topInset,
   onAttachment,
-  author,
 }: {
   item: AgoraItem;
   topInset: number;
   onAttachment: (view: AgoraAttachmentView) => void;
-  author: ReactNode;
 }) {
   const attachments = itemAttachments(item).filter((a) => a.kind !== 'video');
   const textOnly = attachments.length === 0;
   return (
-    <View style={[styles.cardStage, { paddingTop: topInset + Spacing.three }]}>
+    <View style={[styles.fillStage, { paddingTop: topInset + Spacing.three }]}>
       <LinearGradient
         pointerEvents="none"
-        colors={['#241A3A', Colors.spaceBg]}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
+        colors={['#2A1A4A', '#1A1233', '#120D22']}
+        locations={[0, 0.4, 1]}
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.card}>
-        <View style={styles.cardAuthor}>{author}</View>
-        {attachments.map((a) => {
-          const view = attachmentView(a.kind, a.snapshot);
-          if (!view) return null;
+      {attachments.map((a) => {
+        const view = attachmentView(a.kind, a.snapshot);
+        if (!view) return null;
+        const seconds = a.kind === 'lockin' ? (a.snapshot.duration_seconds ?? 0) : 0;
+        if (seconds > 0) {
           return (
-            <AttachmentRow
+            <Pressable
               key={attachmentKey(a)}
+              style={styles.sessionHero}
+              onPress={() => onAttachment(view)}
+              accessibilityRole="button"
+              accessibilityLabel={`${view.title}, ${formatSessionDuration(seconds)}. Open the session`}>
+              <NavGlyph name="flame" size={32} color={Colors.navEmber} />
+              <Text style={styles.sessionTime}>{formatSessionDuration(seconds)}</Text>
+              <Text style={styles.sessionLabel} numberOfLines={1}>
+                {view.title.toUpperCase()} · locked in
+              </Text>
+            </Pressable>
+          );
+        }
+        return (
+          <View key={attachmentKey(a)} style={styles.fillRow}>
+            <AttachmentRow
               view={view}
               xp={a.kind === 'lockin' ? a.snapshot.xp_earned : undefined}
               onPress={() => onAttachment(view)}
             />
-          );
-        })}
-        {item.body ? (
-          <Text style={textOnly ? styles.cardQuote : styles.cardBody} numberOfLines={textOnly ? 12 : 8}>
-            {item.body}
-          </Text>
-        ) : null}
-      </View>
+          </View>
+        );
+      })}
+      {item.body ? (
+        <Text style={textOnly ? styles.fillWords : styles.fillQuote} numberOfLines={textOnly ? 10 : 5}>
+          {textOnly ? item.body : `“${item.body}”`}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -567,27 +626,25 @@ function AuthorRow({ item, loadout, active, mine }: { item: AgoraItem; loadout: 
         ) : null}
         <PublicTitle loadout={loadout} compact />
         <IdentityLine userId={item.user_id} showSchool={false} style={styles.identity} />
-        <View style={styles.whenRow}>
-          <Text style={styles.when} numberOfLines={1}>
-            {formatRelativeTime(item.created_at)}
-            {/* Rank is EARNED — drawn in its own metal, never in a bought colour. */}
-            {tier ? (
-              <Text style={{ color: RANK_TIER_METAL[tier].text }}> · {formatRankTier(tier, item.rank_division ?? 1)}</Text>
-            ) : null}
+        <Text style={styles.when} numberOfLines={1}>
+          {formatRelativeTime(item.created_at)}
+          {/* Rank is EARNED — drawn in its own metal, never in a bought colour. */}
+          {tier ? (
+            <Text style={{ color: RANK_TIER_METAL[tier].text }}> · {formatRankTier(tier, item.rank_division ?? 1)}</Text>
+          ) : null}
+        </Text>
+      </View>
+      {/* Mock 326's `.tag`: who it was shared with, at the row's right end on every page. */}
+      <View style={styles.audienceTag}>
+        {tag.emoji ? (
+          <Text style={styles.audienceTagText} numberOfLines={1}>
+            {`${tag.emoji} ${tag.label}`}
           </Text>
-          {/* Mock 320: who it was shared with, so poster and viewer both see the scope at a glance. */}
-          <View style={styles.audienceTag}>
-            {tag.emoji ? (
-              <Text style={styles.audienceTagText} numberOfLines={1}>
-                {`${tag.emoji} ${tag.label}`}
-              </Text>
-            ) : (
-              <IconText icon={tag.icon} style={styles.audienceTagText} numberOfLines={1} gap={3}>
-                {tag.label}
-              </IconText>
-            )}
-          </View>
-        </View>
+        ) : (
+          <IconText icon={tag.icon} style={styles.audienceTagText} numberOfLines={1} gap={3}>
+            {tag.label}
+          </IconText>
+        )}
       </View>
     </Pressable>
   );
@@ -622,7 +679,6 @@ function Rail({
 }: Props & { media: FeedPageMedia; lift: VerifiedLift | null }) {
   // The author's FLAME colour rings their cheer — base coral when they have none equipped.
   const flame = publicFlameTint(loadout);
-  const cheered = item.cheered;
   return (
     <View style={styles.rail} pointerEvents="box-none">
       <Pressable style={styles.railItem} onPress={() => onComment(item)} accessibilityRole="button" accessibilityLabel={`Comments, ${item.comments}`}>
@@ -630,23 +686,7 @@ function Rail({
         <Text style={styles.railLabel}>{item.comments > 0 ? item.comments : 'comment'}</Text>
       </Pressable>
 
-      <Pressable
-        style={styles.railItem}
-        onPress={() => onCheer(item)}
-        disabled={mine || cheered}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: mine, selected: cheered }}
-        accessibilityLabel={mine ? 'Your post' : cheered ? 'Cheered' : 'Cheer'}>
-        <View
-          style={[
-            styles.cheer,
-            { borderColor: flame, backgroundColor: flame + (cheered ? '66' : '26') },
-            mine && styles.cheerMine,
-          ]}>
-          <NavGlyph name="flame" size={22} color={cheered ? '#FFFFFF' : flame} />
-        </View>
-        <Text style={styles.railLabel}>{cheered ? 'cheered' : 'cheer'}</Text>
-      </Pressable>
+      <CheerButton item={item} flame={flame} mine={mine} onCheer={onCheer} />
 
       {/* ⚔ only on a verified, comparable lift a friend posted — the server's can_challenge. */}
       {lift && lift.can_challenge && !mine ? (
@@ -677,6 +717,60 @@ function Rail({
         <Ionicons name="ellipsis-horizontal" size={22} color="#FFFFFF" style={styles.railShadow} />
       </Pressable>
     </View>
+  );
+}
+
+/**
+ * 🔥 (mock 326 — "it does nothing"). It used to be a disabled Pressable on your own post and on one
+ * you'd cheered, so on a feed of your own posts (a one-member room) every tap was swallowed, and a
+ * landed cheer only nudged a fill. Now every tap answers: the flame pops and buzzes, a first cheer
+ * lands optimistically (immersive-feed's onCheer — cheer_agora_post is idempotent), and your own
+ * post says it's yours rather than looking broken.
+ */
+function CheerButton({
+  item,
+  flame,
+  mine,
+  onCheer,
+}: {
+  item: AgoraItem;
+  flame: string;
+  mine: boolean;
+  onCheer: (item: AgoraItem) => void;
+}) {
+  const cheered = item.cheered;
+  const pop = useSharedValue(1);
+  const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
+
+  function press() {
+    pop.set(withSequence(
+      withTiming(mine || cheered ? 1.08 : 1.3, { duration: 110, easing: Easing.out(Easing.quad) }),
+      withSpring(1, { damping: 9, stiffness: 220 })
+    ));
+    if (getRewardPreferencesSync().haptics) {
+      Haptics.impactAsync(mine || cheered ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+    if (!mine && !cheered) onCheer(item);
+  }
+
+  return (
+    <Pressable
+      style={styles.railItem}
+      onPress={press}
+      accessibilityRole="button"
+      accessibilityState={{ selected: cheered }}
+      accessibilityLabel={mine ? 'Your post' : cheered ? 'Cheered' : 'Cheer'}>
+      <Animated.View
+        style={[
+          styles.cheer,
+          { borderColor: flame, backgroundColor: cheered ? flame : flame + '26' },
+          mine && styles.cheerMine,
+          popStyle,
+        ]}>
+        <NavGlyph name="flame" size={22} color={cheered ? '#FFFFFF' : flame} />
+      </Animated.View>
+      <Text style={styles.railLabel}>{mine ? 'yours' : cheered ? 'cheered' : 'cheer'}</Text>
+    </Pressable>
   );
 }
 
@@ -798,45 +892,56 @@ const styles = StyleSheet.create({
   dotOn: {
     backgroundColor: '#FFFFFF',
   },
-  cardStage: {
+  // Mock 326's `.fillcenter`: the band between the top bar and the bottom card, content centred.
+  fillStage: {
     ...StyleSheet.absoluteFill,
-    paddingHorizontal: Spacing.three,
-    paddingRight: RAIL_LANE,
-    paddingBottom: META_RESERVE,
+    alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingBottom: META_RESERVE,
   },
-  card: {
-    backgroundColor: Colors.spacePanel,
-    borderRadius: 20,
+  // `.sesscard`: the session's flame and duration, on a faint plate.
+  sessionHero: {
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: Colors.spaceLine,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.three,
-    shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    backgroundColor: 'rgba(10,7,22,0.4)',
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
   },
-  cardAuthor: {
-    paddingBottom: Spacing.twelve,
-    marginBottom: Spacing.twelve,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.spaceLine,
-  },
-  cardBody: {
-    fontFamily: Fonts.body,
-    fontSize: 15,
-    lineHeight: 22,
+  sessionTime: {
+    fontFamily: Fonts.black,
+    fontSize: 38,
+    letterSpacing: -1,
     color: Colors.ink,
-    marginTop: Spacing.twelve,
   },
-  // A text post IS its words — set large, like a quote card.
-  cardQuote: {
+  sessionLabel: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 21,
-    lineHeight: 30,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    color: Colors.muted,
+  },
+  fillRow: {
+    alignSelf: 'stretch',
+  },
+  // `.quote`: the person's line under the hero.
+  fillQuote: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 19,
+    lineHeight: 25,
+    textAlign: 'center',
+    color: Colors.ink,
+  },
+  // A text post IS its words — big type, the page's only content.
+  fillWords: {
+    fontFamily: Fonts.black,
+    fontSize: 26,
+    lineHeight: 33,
+    letterSpacing: -0.4,
+    textAlign: 'center',
     color: Colors.ink,
   },
   meta: {
@@ -862,7 +967,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   authorText: {
-    flexShrink: 1,
+    flexShrink: 2,
     minWidth: 0,
   },
   name: {
@@ -879,23 +984,18 @@ const styles = StyleSheet.create({
   identity: {
     marginTop: 1,
   },
-  whenRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 2,
-  },
   when: {
-    flexShrink: 1,
     fontFamily: Fonts.body,
     fontSize: 10.5,
     color: Colors.muted,
+    marginTop: 2,
   },
-  // Mock 320's `.aud` pill: green, small, on the time line — off the name's row, so it never
-  // squeezes the name.
+  // Mock 320's `.aud` pill, at the author row's right end (mock 326's `.tag`). It shrinks before the
+  // name does.
   audienceTag: {
-    maxWidth: 160,
+    marginLeft: 'auto',
+    flexShrink: 1,
+    maxWidth: 120,
     borderRadius: Radius.pill,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -966,6 +1066,22 @@ const styles = StyleSheet.create({
   },
 
   // Mock 319's verified-stat pill, top-left under the chrome. Green = the board's "✓ clip on file".
+  // "↳ from your story" — mock 324's `.src`, top right, opposite the verified badge.
+  sharedTag: {
+    position: 'absolute',
+    right: Spacing.three,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+    backgroundColor: 'rgba(10,7,22,0.75)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  sharedTagText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9,
+    color: Colors.muted,
+  },
   statBadge: {
     position: 'absolute',
     left: Spacing.three,

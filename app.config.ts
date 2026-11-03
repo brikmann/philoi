@@ -116,6 +116,15 @@ const config: ExpoConfig = {
         ],
         category: ['BROWSABLE', 'DEFAULT'],
       },
+      // "Share → Philoi" (mock 324, cross-post with Instagram): Philoi in the system share sheet for
+      // one photo or one clip. modules/philoi-share-intake reads the intent; the iOS half is the
+      // Share Extension in targets/share-intake. One of each, never SEND_MULTIPLE — a post carries
+      // one photo or one clip, and offering a multi-select share would drop all but one silently.
+      {
+        action: 'SEND',
+        data: [{ mimeType: 'image/*' }, { mimeType: 'video/*' }],
+        category: ['DEFAULT'],
+      },
     ],
     // Health Connect (§17/19b) — minimal, read-only, one entry per record type this app
     // actually reads. Expo's own `android.permissions` field merges these into the manifest
