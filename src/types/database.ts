@@ -3990,6 +3990,24 @@ export type Database = {
           out_faces: { user_id: string; name: string; avatar_url: string | null }[] | null;
         }[];
       };
+      get_people_active_now: {
+        Args: Record<string, never>;
+        Returns: {
+          out_count: number;
+          out_you_hidden: boolean;
+          out_sample:
+            | {
+                user_id: string;
+                name: string;
+                avatar_url: string | null;
+                goal_type: string | null;
+                category: string | null;
+                activity: string | null;
+                started_at: string;
+              }[]
+            | null;
+        }[];
+      };
       get_my_backers_this_week: {
         Args: Record<string, never>;
         Returns: {

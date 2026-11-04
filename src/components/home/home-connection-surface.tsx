@@ -4,9 +4,10 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackersCard } from '@/components/home/backers-card';
+import { LockedInNowStrip } from '@/components/home/locked-in-now-strip';
 import { PeopleLikeYou } from '@/components/home/people-like-you';
 import { PeopleWeekCard } from '@/components/home/people-week-card';
-import { YourPeopleList } from '@/components/home/your-people-list';
+import { PeopleWinsList } from '@/components/home/people-wins-list';
 import { YourWeekCard } from '@/components/home/your-week-card';
 import { LockInCheersSheet } from '@/components/lockin-cheers/lockin-cheers-sheet';
 import { AppTopBar } from '@/components/nav/app-top-bar';
@@ -15,29 +16,31 @@ import { useGatedInterval } from '@/hooks/use-motion-active';
 import { useLockInCheers } from '@/hooks/use-lockin-cheers';
 import { useActiveSession } from '@/lib/active-session-context';
 import {
-  fetchFriendsRecentEffort,
   fetchMyBackers,
   fetchMyWeek,
+  fetchPeopleActiveNow,
   fetchPeopleWeek,
-  weekHeadline,
+  fetchPeopleWins,
   type Backer,
-  type FriendEffort,
   type MyWeek,
+  type PeopleActiveNow,
   type PeopleWeek,
+  type PeopleWin,
 } from '@/lib/api/home';
 import { useAuth } from '@/lib/auth/auth-context';
 
-// HOME = YOU + YOUR PEOPLE (mock 318). Not a feed — the immersive feed lives on the Social tab now.
-// Stacked sections under the greeting:
-//   1. Your week — you vs your own last week (ipsative; nothing ranks you against anyone here);
-//   1b. Your people, this week — the collective hours of everyone you're connected to (mock 331, 0288);
-//   2. Who's backing you — the friends who cheered you this week;
-//   3. What your people are doing — friends' latest real effort, reverse-chron, with a Cheer.
-// No ranking language on Home: Standings lives behind You, opt-in. The only tier here is your own.
+// HOME = PULSE, THE EPICENTER (Phase 8.1, mock 334). You open the app and feel the room; the community
+// leads and your own progress sits under it. Stacked:
+//   1. Locked in right now — your people in a live session this minute, counted once (0290);
+//   2. Your people, this week — the collective hours, the Phase 3 read as-is (0288);
+//   3. What your people are building — wins from friends + your clubs, the Agora 'all' channel;
+//   4. Your week — you vs your own last week (ipsative, mock 318);
+//   5. Who's backing you — the friends who cheered you this week.
+// Nothing on Pulse renders a rank, position or "#N": Standings lives behind You, opt-in.
 
-const PEOPLE_LIMIT = 5;
-// Presence floor for the live dots, like the cheers hook's 30s poll; only while Home is focused.
-const PEOPLE_POLL_MS = 45_000;
+const WINS_LIMIT = 4;
+// The live strip's refresh floor, like the cheers hook's 30s poll; only while Pulse is focused.
+const LIVE_POLL_MS = 45_000;
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function greeting(name: string | null | undefined, now = new Date()): string {
@@ -56,18 +59,28 @@ export function HomeConnectionSurface() {
   const [week, setWeek] = useState<MyWeek | null>(null);
   const [peopleWeek, setPeopleWeek] = useState<PeopleWeek | null>(null);
   const [backers, setBackers] = useState<Backer[] | null>(null);
-  const [people, setPeople] = useState<FriendEffort[] | null>(null);
+  const [active, setActive] = useState<PeopleActiveNow | null>(null);
+  const [wins, setWins] = useState<PeopleWin[] | null>(null);
   const [focused, setFocused] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadPeople = useCallback(async () => {
+  const loadActive = useCallback(async () => {
     try {
-      setPeople(await fetchFriendsRecentEffort(PEOPLE_LIMIT));
+      setActive(await fetchPeopleActiveNow());
     } catch {
       // Keep what's on screen; the next focus or tick retries.
-      setPeople((prev) => prev ?? []);
     }
   }, []);
+
+  const meId = session?.user.id ?? null;
+  const loadWins = useCallback(async () => {
+    if (!meId) return;
+    try {
+      setWins(await fetchPeopleWins(meId, WINS_LIMIT));
+    } catch {
+      setWins((prev) => prev ?? []);
+    }
+  }, [meId]);
 
   const load = useCallback(async () => {
     await Promise.all([
@@ -84,9 +97,10 @@ export function HomeConnectionSurface() {
       fetchMyBackers()
         .then(setBackers)
         .catch(() => setBackers((prev) => prev ?? [])),
-      loadPeople(),
+      loadActive(),
+      loadWins(),
     ]);
-  }, [loadPeople]);
+  }, [loadActive, loadWins]);
 
   // Tabs stay mounted, so a mount-only read would show this morning's week all day.
   useFocusEffect(
@@ -97,7 +111,7 @@ export function HomeConnectionSurface() {
     }, [load])
   );
 
-  useGatedInterval(loadPeople, PEOPLE_POLL_MS, focused && !!session);
+  useGatedInterval(loadActive, LIVE_POLL_MS, focused && !!session);
 
   const refetchCheers = lockInCheers.refetch;
   const onRefresh = useCallback(async () => {
@@ -107,34 +121,56 @@ export function HomeConnectionSurface() {
   }, [load, refetchCheers]);
 
   const now = new Date();
-  const headline = week ? weekHeadline(week) : null;
-  const sub = headline ? `${WEEKDAYS[now.getDay()]} · ${headline.short}` : WEEKDAYS[now.getDay()];
-  const unit = profile?.weight_unit === 'kg' ? 'kg' : 'lb';
+  const place = profile?.university?.trim() || WEEKDAYS[now.getDay()];
+  const sub = active && active.count > 0 ? `${place} · your people are moving` : place;
+  const hasPeople = Boolean(peopleWeek && peopleWeek.people > 0);
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
-      {/* Mock 328: the bar keeps the brand (flame + philoi) with the icons on the right; the greeting
-          sits under it at full width, so the icon row can never clip the name on a narrow phone. */}
-      <AppTopBar />
+      {/* Mock 334: the screen is titled Pulse; the greeting sits under the bar at full width, so the
+          icon row can never clip the name on a narrow phone. */}
+      <AppTopBar title="Pulse" />
       <View style={styles.greetingBlock}>
         <Text style={styles.greeting}>{greeting(profile?.display_name)}</Text>
-        <Text style={[styles.greetingSub, headline?.ahead && styles.greetingSubAhead]}>{sub}</Text>
+        <Text style={styles.greetingSub}>{sub}</Text>
       </View>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.navEmber2} />}>
+        {/* Hidden until you have people — the cold start (PeopleLikeYou) covers that case. */}
+        {active && hasPeople ? (
+          <>
+            <Text style={styles.sec}>
+              {active.count > 0 ? <Text style={styles.liveDot}>● </Text> : null}
+              Locked in right now
+            </Text>
+            <LockedInNowStrip
+              active={active}
+              onPress={lockInCheers.friends.some((f) => f.live) ? () => setCheersOpen(true) : undefined}
+            />
+          </>
+        ) : null}
+
+        {peopleWeek && hasPeople ? (
+          <View style={styles.peopleWeek}>
+            <PeopleWeekCard week={peopleWeek} />
+          </View>
+        ) : null}
+
+        {wins ? (
+          <>
+            <Text style={styles.sec}>What your people are building</Text>
+            {wins.length > 0 || hasPeople ? <PeopleWinsList wins={wins} /> : null}
+            {/* Cold start (0285): no people and nothing from them yet → the people who grind like you. */}
+            {wins.length === 0 && !hasPeople ? <PeopleLikeYou /> : null}
+          </>
+        ) : null}
+
         {week ? (
           <>
             <Text style={styles.sec}>Your week</Text>
             <YourWeekCard week={week} />
           </>
-        ) : null}
-
-        {/* Hidden until you have people — the cold start below (PeopleLikeYou) covers that case. */}
-        {peopleWeek && peopleWeek.people > 0 ? (
-          <View style={styles.peopleWeek}>
-            <PeopleWeekCard week={peopleWeek} />
-          </View>
         ) : null}
 
         {backers ? (
@@ -143,22 +179,13 @@ export function HomeConnectionSurface() {
             <BackersCard backers={backers} />
           </>
         ) : null}
-
-        {people ? (
-          <>
-            <Text style={styles.sec}>What your people are doing</Text>
-            <YourPeopleList people={people} unit={unit} onMessageLive={() => setCheersOpen(true)} />
-            {/* Cold start (0285): nothing from your people yet → the people who grind like you. */}
-            {people.length === 0 ? <PeopleLikeYou /> : null}
-          </>
-        ) : null}
       </ScrollView>
 
       <LockInCheersSheet
         visible={cheersOpen}
         onClose={() => {
           setCheersOpen(false);
-          void loadPeople();
+          void loadActive();
         }}
         friends={lockInCheers.friends}
         meId={session?.user.id ?? null}
@@ -196,7 +223,7 @@ const styles = StyleSheet.create({
     color: Colors.spaceDim,
     marginTop: 2,
   },
-  greetingSubAhead: {
+  liveDot: {
     color: Colors.green,
   },
   // Mock 331's `.people { margin-top: 14px }` — it sits under Your week without its own label.

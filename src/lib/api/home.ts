@@ -1,8 +1,10 @@
 import type { IconName } from '@/components/ui/icon';
+import { attachmentView, itemAttachments } from '@/lib/agora-attachment';
+import { fetchAgoraFeed } from '@/lib/api/agora';
 import { friendActivityLabel, cheerPresetMeta } from '@/lib/api/lockin-cheers';
 import { formatSessionDuration } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
-import type { GoalType, RankTierName } from '@/types/database';
+import type { AgoraItem, GoalType, RankTierName } from '@/types/database';
 
 /**
  * HOME AS A CONNECTION SURFACE (mock 318, migration 0281) — you + your people, not a feed.
@@ -179,6 +181,133 @@ export function peopleWeekDelta(w: PeopleWeek): string | null {
   const more = w.thisWeekSeconds - w.lastWeekToDateSeconds;
   if (more < 3600) return null;
   return `+${Math.floor(more / 3600).toLocaleString('en-US')} hrs on last week`;
+}
+
+// ───────────────────────────── 1c · locked in right now ─────────────────────────────
+
+/**
+ * Pulse's live strip (mock 334, migration 0290): how many of your people are in a lock-in this
+ * minute, and the newest few. Same "your people" set as the collective; paused sessions don't count
+ * (forest_locked_in_now's rule). It's reciprocal — hide your own live status and `youHidden` comes
+ * back true with nobody in it, so the strip can say why rather than imply the room is empty.
+ */
+export type PeopleActiveNow = {
+  count: number;
+  youHidden: boolean;
+  sample: {
+    userId: string;
+    name: string;
+    avatarUrl: string | null;
+    /** "Studying", "Gym" — null when they hide what they're doing. */
+    what: string | null;
+    startedAt: string;
+  }[];
+};
+
+/** Null on a server without 0290 — the strip just isn't drawn. */
+export async function fetchPeopleActiveNow(): Promise<PeopleActiveNow | null> {
+  const { data, error } = await supabase.rpc('get_people_active_now');
+  if (error) {
+    if (error.code === 'PGRST202') return null;
+    throw error;
+  }
+  const r = (data ?? [])[0];
+  if (!r) return null;
+  return {
+    count: r.out_count ?? 0,
+    youHidden: Boolean(r.out_you_hidden),
+    sample: (r.out_sample ?? []).map((s) => ({
+      userId: s.user_id,
+      name: s.name,
+      avatarUrl: s.avatar_url,
+      what: activityWord(s.goal_type, s.category, s.activity),
+      startedAt: s.started_at,
+    })),
+  };
+}
+
+/** "Maya · Studying  ·  Jordan · Gym  +21" — two named, the rest a count. */
+export function activeNowLine(a: PeopleActiveNow): string {
+  const named = a.sample.slice(0, 2).map((s) => {
+    const who = firstName(s.name);
+    return s.what ? `${who} · ${s.what}` : who;
+  });
+  const rest = a.count - named.length;
+  return rest > 0 ? `${named.join('  ·  ')}  +${rest}` : named.join('  ·  ');
+}
+
+// ───────────────────────────── 1d · what your people are building ─────────────────────────────
+
+/**
+ * Pulse's wins list (mock 334): the Agora's 'all' channel — your friends' posts plus every post made
+ * for a campfire or forest you're in, reverse-chronological, no ranking (get_agora_feed, 0280) — read
+ * as one line each: who, what, when. Your own posts drop out (this is your people), and so does any
+ * post whose only achievement is a standing: nothing on Pulse renders a rank, position or level.
+ */
+export type PeopleWin = {
+  id: string;
+  itemType: 'post' | 'milestone';
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  title: string;
+  sub: string | null;
+  /** The campfire/forest it was made for, when it was made for one. */
+  room: string | null;
+  at: string;
+};
+
+const STANDING_KINDS = new Set(['rank', 'pass']);
+
+export function toPeopleWin(item: AgoraItem): PeopleWin | null {
+  const name = displayName(item.display_name, item.handle);
+  const who = firstName(name);
+  const atts = itemAttachments(item).filter((a) => !STANDING_KINDS.has(a.kind) && a.kind !== 'video');
+  const body = (item.body ?? '').trim();
+  const lead = atts[0];
+  const view = lead ? attachmentView(lead.kind, lead.snapshot) : null;
+  let title: string;
+  let sub: string | null = null;
+  if (lead && view) {
+    if (lead.kind === 'pr') title = `${who} hit a new ${view.title}`;
+    else if (lead.kind === 'lockin') title = `${who} locked in · ${view.title}`;
+    else if (lead.kind === 'milestone') title = `${who}: ${view.title}`;
+    else if (lead.kind === 'streak') title = `${who} is on a ${view.title}`;
+    else title = `${who} · ${view.title}`;
+    sub = body ? `“${body.slice(0, 80)}”` : view.subtitle;
+  } else if (body) {
+    title = who;
+    sub = `“${body.slice(0, 90)}”`;
+  } else {
+    // A standing-only or photo-only post: nothing to say here without saying a rank.
+    return null;
+  }
+  return {
+    id: item.id,
+    itemType: item.item_type,
+    userId: item.user_id,
+    name,
+    avatarUrl: item.avatar_url,
+    title,
+    sub,
+    room:
+      item.audience === 'campfire' || item.audience === 'forest'
+        ? `${item.audience_emoji ? `${item.audience_emoji} ` : ''}${item.audience_name ?? ''}`.trim() || null
+        : null,
+    at: item.created_at,
+  };
+}
+
+export async function fetchPeopleWins(meId: string, limit = 4): Promise<PeopleWin[]> {
+  const items = await fetchAgoraFeed('all', null, 20);
+  const out: PeopleWin[] = [];
+  for (const it of items) {
+    if (it.user_id === meId) continue;
+    const w = toPeopleWin(it);
+    if (w) out.push(w);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 // ───────────────────────────── 2 · who's backing you ─────────────────────────────
