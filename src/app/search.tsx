@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -54,7 +54,9 @@ const EMPTY: Results = { people: [], programs: [], exercises: [], campfires: [],
 export default function SearchTab() {
   const router = useRouter();
   const { profile } = useAuth();
-  const [query, setQuery] = useState('');
+  // Phase 8.3 · Discover's interest chips open this with the interest as the query (?q=Running).
+  const { q } = useLocalSearchParams<{ q?: string }>();
+  const [query, setQuery] = useState(() => (typeof q === 'string' ? q : ''));
   const [category, setCategory] = useState<Category>('all');
   // Results remember which query + category they answer, so "loading" is derived (results are
   // for something other than what's typed) rather than set synchronously inside the effect.

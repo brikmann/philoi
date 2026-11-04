@@ -15,7 +15,14 @@ import type { GrindAlike } from '@/types/social';
  * one. Opt-in is 0275's: if you haven't turned matching on, this is a single invitation row
  * instead, and nobody is listed. Add friend is the only action (no stranger contact).
  */
-export function PeopleLikeYou({ limit = 3 }: { limit?: number }) {
+export function PeopleLikeYou({
+  limit = 3,
+  lead = 'People who grind like you',
+}: {
+  limit?: number;
+  /** The block's own heading; null when the host screen already titles the section (Discover). */
+  lead?: string | null;
+}) {
   const router = useRouter();
   const [state, setState] = useState<'loading' | 'off' | 'ready' | 'hidden'>('loading');
   const [rows, setRows] = useState<GrindAlike[]>([]);
@@ -69,7 +76,7 @@ export function PeopleLikeYou({ limit = 3 }: { limit?: number }) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.lead}>People who grind like you</Text>
+      {lead ? <Text style={styles.lead}>{lead}</Text> : null}
       {rows.map((m) => {
         const done = sent.has(m.user_id);
         return (

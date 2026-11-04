@@ -83,11 +83,14 @@ export function ImmersiveFeed({
   requestedChannel,
   onRequestedChannelSeen,
   onOpenChats,
+  onBack,
 }: {
   requestedChannel?: string;
   onRequestedChannelSeen?: () => void;
   /** The top bar's 💬 — Social's Chats pane. */
   onOpenChats: () => void;
+  /** Phase 8.3 · Discover lands on Find your people; this takes the feed back there. */
+  onBack?: () => void;
 }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -410,6 +413,7 @@ export function ImmersiveFeed({
           onCompose={compose}
           onChats={onOpenChats}
           onSearch={() => router.push('/search')}
+          onBack={onBack}
         />
         {/* Your rooms, one slim row (only if you're in one). No room header (mock 326 — that
             belongs in the chat thread): the lit chip says which room this is; a tab leaves it. */}
@@ -451,19 +455,28 @@ function FeedTopBar({
   onCompose,
   onChats,
   onSearch,
+  onBack,
 }: {
   scope: FeedKey;
   onPick: (key: FeedKey) => void;
   onCompose: () => void;
   onChats: () => void;
   onSearch: () => void;
+  onBack?: () => void;
 }) {
   return (
     <View style={styles.topBar}>
-      <View style={styles.mark}>
-        <NavGlyph name="flame" size={14} color={Colors.navEmber} />
-        <Text style={styles.markText}>philoi</Text>
-      </View>
+      {onBack ? (
+        <Pressable onPress={onBack} hitSlop={10} style={styles.mark} accessibilityRole="button" accessibilityLabel="Back to Find your people">
+          <Icon name="back" size={14} color={Colors.ink} />
+          <Text style={styles.markText}>People</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.mark}>
+          <NavGlyph name="flame" size={14} color={Colors.navEmber} />
+          <Text style={styles.markText}>philoi</Text>
+        </View>
+      )}
       <View style={styles.tabs} accessibilityRole="tablist">
         {AGORA_SCOPES.map((s) => {
           const on = scope === s.key;

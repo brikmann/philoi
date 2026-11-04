@@ -1,15 +1,19 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ImmersiveFeed } from '@/components/agora/immersive-feed';
+import { FindYourPeople } from '@/components/discover/find-your-people';
 
-// DISCOVER (mock 331) — the public square, one name for one thing: the Agora feed is Discover. The
-// route keeps its `social` filename because a campfire's "posts" button and installed builds
-// deep-link /social?channel=campfire:<id>.
+// DISCOVER = FIND YOUR PEOPLE (Phase 8.3, mock 336). The route keeps its `social` filename because a
+// campfire's "posts" button and installed builds deep-link /social?channel=campfire:<id>.
 //
-// The immersive Agora (mock 317), full-bleed under one slim bar (mock 326): Friends · Everyone,
-// ＋ · 💬 (to the Chat tab) · 🔍. No algorithm and no like button: the tab picks the sources, the
-// server orders them newest first (get_agora_feed, 0280), and nothing is ranked or injected.
+// Two states, one tab:
+//   • 'people' — the landing: search, your interest chips, People like you, Clubs for you
+//     (components/discover/find-your-people.tsx). Match-first, not an infinite scroll.
+//   • 'feed'   — the immersive Agora (mocks 317/326), unchanged, one tap below the matches; its bar's
+//     ‹ People returns. No algorithm and no like button: the tab picks the sources, the server orders
+//     them newest first (get_agora_feed, 0280), and nothing is ranked or injected.
+// A ?channel= deep link means "show me that room's posts", so it opens straight onto the feed.
 //
 // The conversation list that used to be this tab's second pane is the Chat tab now ((tabs)/chat.tsx).
 // An old ?pane=chats link forwards there.
@@ -17,6 +21,7 @@ import { ImmersiveFeed } from '@/components/agora/immersive-feed';
 export default function DiscoverScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ channel?: string; pane?: string }>();
+  const [view, setView] = useState<'people' | 'feed'>(params.channel ? 'feed' : 'people');
 
   useEffect(() => {
     if (params.pane === 'chats') {
@@ -25,11 +30,21 @@ export default function DiscoverScreen() {
     }
   }, [params.pane, router]);
 
+  // The tab stays mounted, so a channel link that arrives later has to flip it onto the feed.
+  const [seenChannel, setSeenChannel] = useState(params.channel);
+  if (params.channel && params.channel !== seenChannel) {
+    setSeenChannel(params.channel);
+    setView('feed');
+  }
+
+  if (view === 'people') return <FindYourPeople onOpenFeed={() => setView('feed')} />;
+
   return (
     <ImmersiveFeed
       requestedChannel={params.channel}
       onRequestedChannelSeen={() => router.setParams({ channel: undefined })}
       onOpenChats={() => router.navigate('/chat' as never)}
+      onBack={() => setView('people')}
     />
   );
 }
