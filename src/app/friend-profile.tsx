@@ -21,6 +21,7 @@ import { usePresenceOf } from '@/hooks/use-presence';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/lib/auth/auth-context';
+import { competitionOptedIn } from '@/lib/competition';
 import { respondFriendRequest, sendFriendRequest } from '@/lib/api/friend-requests';
 import { fetchActiveChallengeMarker, fetchRelationshipWith, fetchUserBoardPosition } from '@/lib/api/leaderboard-social';
 import { RankMuted } from '@/components/rank-muted';
@@ -219,8 +220,9 @@ export default function FriendProfileScreen() {
           avatarUrl={profile.avatar_url}
           loadout={loadout}
           avatarSize={66}
+          // Phase 8.5 · rank and board position draw only for a viewer who opted into competition.
           footer={
-            rank && !rank.muted ? (
+            rank && !rank.muted && competitionOptedIn(myProfile) ? (
               <HeroRankStrip
                 rank={rank}
                 sub={boardPosition ? `#${boardPosition.rank.toLocaleString()} on ${boardPosition.board}` : null}
@@ -279,7 +281,7 @@ export default function FriendProfileScreen() {
 
         {/* 0170 · Private mode. A non-friend sees "Rank muted" where the hexagon, the XP bar and
             the board position would be. The name, handle and avatar above are untouched. */}
-        {rank?.muted && <RankMuted />}
+        {rank?.muted && competitionOptedIn(myProfile) && <RankMuted />}
 
         {marker && (
           <View style={styles.markerRow}>
@@ -293,7 +295,15 @@ export default function FriendProfileScreen() {
         <WorkingToward identity={identity} />
         <IdentityAbout identity={identity} />
         <ProfileStatsRow hall={theirHall} prCount={null} />
-        <ShowcaseWall userId={userId} isOwn={false} hall={theirHall} identity={identity} prs={[]} longest={showcase.longest} />
+        <ShowcaseWall
+          userId={userId}
+          isOwn={false}
+          hall={theirHall}
+          identity={identity}
+          prs={[]}
+          longest={showcase.longest}
+          showPlacements={competitionOptedIn(myProfile)}
+        />
         <TrophyHallLink userId={userId} />
       </ScrollView>
 

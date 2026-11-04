@@ -13,6 +13,7 @@ import { ClaimHouseCard } from '@/components/house/claim-house-card';
 import { heirTo } from '@/components/house/identity-line';
 import { IdentityAbout, WorkingToward } from '@/components/identity/identity-card';
 import { useProfileIdentity } from '@/components/identity/use-profile-identity';
+import { ProfileClubs } from '@/components/profile/profile-clubs';
 import { ProfileStatsRow, TrophyHallLink } from '@/components/profile/profile-flex';
 import { ShowcaseWall, useShowcaseData } from '@/components/profile/showcase-wall';
 import { useTrophyHall } from '@/hooks/use-trophy-hall';
@@ -38,8 +39,13 @@ import type { MyProgramRow } from '@/types/house';
 const AVATAR_SIZE = 66;
 
 // THE STREAMLINED PROFILE (mock 325, CODE_PROMPT_ui_streamline.md §E) — one scroll that shows the
-// flex the moment it opens: identity card → Working toward → About → inline stats → Showcase →
-// Trophy Hall. No About/Stats/Showcase tabs, and nothing that makes it a settings hub: grind-alikes
+// flex the moment it opens: identity card → Working toward → About → Your clubs → inline stats →
+// Showcase → Trophy Hall → (opt-in) Standings.
+//
+// IDENTITY-FIRST (Phase 8.5, mock 338): who you are and what you're chasing lead; the effort is
+// personal (hours, streak, relics — none ranked against anyone). Rank — the hero's tier hex, a
+// season placement tile — only draws for a viewer who opted into competition, and Standings is a
+// quiet dashed link at the very bottom, not a button beside Edit. No About/Stats/Showcase tabs, and nothing that makes it a settings hub: grind-alikes
 // live in the drawer and search, trackers in their own prompts, the loadout behind ✎ Edit.
 //
 // Doubles as the "Profile" tab (own profile, no params) and a pushed view of someone else's
@@ -124,6 +130,9 @@ export default function ProfileScreen() {
 
   if (!profile) return null;
 
+  // Phase 8.5 · the VIEWER's switch decides whether any rank draws here, on anyone's profile.
+  const competing = competitionOptedIn(myProfile);
+
   // The rank the strip draws, or null when there is none to draw (not loaded, or muted to you).
   const visibleRank =
     universalRank && !('muted' in universalRank && universalRank.muted) && universalRank.tier !== null
@@ -167,12 +176,12 @@ export default function ProfileScreen() {
           flareSurge={flareSurge}
           houseLine
           // 0170 · Private mode — a muted rank renders RankMuted under the card instead.
-          footer={visibleRank ? <HeroRankStrip rank={visibleRank} /> : null}>
+          footer={visibleRank && competing ? <HeroRankStrip rank={visibleRank} /> : null}>
           {profile.university && (
             // Your school's board is Standings' My Uni scope (ui_pass2 §8) — but only for someone who
             // opted into competition (connection-first). Otherwise the campus is just where you study.
             <Pressable
-              disabled={!competitionOptedIn(myProfile)}
+              disabled={!competing}
               onPress={() => router.push({ pathname: '/leaderboards', params: { scope: 'uni' } })}>
               <View style={styles.uniRow}>
                 <Ionicons name="location" size={11} color={Colors.textTertiary} />
@@ -185,22 +194,13 @@ export default function ProfileScreen() {
         {/* Own profile only: ONE way into every editor (identity, loadout, program). */}
         {isOwn ? (
           <View style={styles.editRow}>
-            {/* Mock 331: the board left the bar and lives here, opt-in — it opens on your friends. */}
-            <Pressable
-              style={styles.editBtn}
-              onPress={() => router.push('/leaderboards')}
-              accessibilityRole="button"
-              accessibilityLabel="Standings">
-              <Ionicons name="podium-outline" size={13} color={Colors.achieverText} />
-              <Text style={styles.editBtnText}>Standings</Text>
-            </Pressable>
             <Pressable style={styles.editBtn} onPress={() => setEditOpen(true)} accessibilityRole="button" accessibilityLabel="Edit profile">
               <Ionicons name="create-outline" size={13} color={Colors.achieverText} />
               <Text style={styles.editBtnText}>Edit</Text>
             </Pressable>
           </View>
         ) : null}
-        {universalRank && 'muted' in universalRank && universalRank.muted && <RankMuted />}
+        {competing && universalRank && 'muted' in universalRank && universalRank.muted && <RankMuted />}
 
         {/* No program yet → the claim card, since the house names the identity line. */}
         {isOwn && myProgram === null ? <ClaimHouseCard /> : null}
@@ -208,6 +208,7 @@ export default function ProfileScreen() {
         {/* ② the aspiration · ③ About · ④ stats inline · ⑤ the Showcase wall · the hall door. */}
         <WorkingToward identity={identity} />
         <IdentityAbout identity={identity} />
+        {isOwn ? <ProfileClubs /> : null}
         <ProfileStatsRow hall={hall} prCount={showcase.prCount} />
         {viewingUserId ? (
           <ShowcaseWall
@@ -217,9 +218,23 @@ export default function ProfileScreen() {
             identity={identity}
             prs={showcase.prs}
             longest={showcase.longest}
+            showPlacements={competing}
           />
         ) : null}
         {viewingUserId ? <TrophyHallLink userId={viewingUserId} /> : null}
+
+        {/* Mock 338: Standings is reachable, not a status line — a dashed tertiary link, last thing on
+            the page, that opens on your friends (Phase 2). */}
+        {isOwn ? (
+          <Pressable
+            style={({ pressed }) => [styles.standingsLink, pressed && styles.standingsLinkPressed]}
+            onPress={() => router.push('/leaderboards')}
+            accessibilityRole="button"
+            accessibilityLabel="See your standings, optional">
+            <Text style={styles.standingsText}>See your standings</Text>
+            <Text style={styles.standingsOptional}>optional ›</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
 
       <EditSheet visible={editOpen} title="Edit profile" onClose={() => setEditOpen(false)}>
@@ -416,6 +431,31 @@ const styles = StyleSheet.create({
     minHeight: 20,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
+  },
+  standingsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.four,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.spaceLine,
+  },
+  standingsLinkPressed: {
+    opacity: 0.7,
+  },
+  standingsText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
+  },
+  standingsOptional: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.spaceFaint,
   },
   uniRow: {
     flexDirection: 'row',

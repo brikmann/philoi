@@ -79,6 +79,7 @@ export function ShowcaseWall({
   identity,
   prs,
   longest,
+  showPlacements = true,
 }: {
   userId: string;
   isOwn: boolean;
@@ -86,6 +87,11 @@ export function ShowcaseWall({
   identity: ProfileIdentity | null;
   prs: ShowcasePr[];
   longest: ShowcaseSession | null;
+  /**
+   * Phase 8.5 · a season tile says "#3 of 40" — a placement — so it only draws for a viewer who
+   * opted into competition. Off, the medal still shows, as the relic it also is (art, no number).
+   */
+  showPlacements?: boolean;
 }) {
   const router = useRouter();
   const openHall = () => router.push({ pathname: '/trophy-hall', params: { userId } });
@@ -95,7 +101,7 @@ export function ShowcaseWall({
   if (!isOwn && identity?.recent_win?.kind === 'pr') {
     lifts.push({ key: 'win-pr', kind: 'win', label: identity.recent_win.label });
   }
-  const medals: Tile[] = (hall?.seasons ?? [])
+  const medals: Tile[] = (showPlacements ? (hall?.seasons ?? []) : [])
     .filter((s) => !s.hidden)
     .sort((a, b) => a.placement / Math.max(a.board_size, 1) - b.placement / Math.max(b.board_size, 1))
     .slice(0, 1)
@@ -106,7 +112,7 @@ export function ShowcaseWall({
       sub: `${seasonLabel(s.season_id)} · ${formatPlacement(s.placement, s.board_size).split(' · ').pop()}`,
     }));
   // A placement medal also rides hall.relics, so the season tile above would otherwise repeat it.
-  const medalKeys = new Set((hall?.seasons ?? []).map((s) => s.medal_key));
+  const medalKeys = new Set(medals.length > 0 ? (hall?.seasons ?? []).map((s) => s.medal_key) : []);
   const relics: Tile[] = hall
     ? featuredTrophies(hall.relics, MAX_TILES)
         .filter((t) => !medalKeys.has(t.key))
