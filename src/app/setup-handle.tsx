@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ProgramPicker } from '@/components/house/program-picker';
+import { PatronPicker } from '@/components/patron/patron-picker';
 import { FirstRunSpine, SPINE_ROW_HEIGHT } from '@/components/tutorial/first-run-spine';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
@@ -12,6 +13,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversities } from '@/lib/api/groups';
 import { fetchProgramsForUniversity, setMyProgram } from '@/lib/api/house';
+import { epicLockup, setMyPatron, type Patron } from '@/lib/api/patrons';
 import { setMyIdentity } from '@/lib/api/identity';
 import { getErrorMessage } from '@/lib/errors';
 import { invalidateIdentityBadge } from '@/lib/house/identity-badges';
@@ -51,17 +53,15 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 //
 //   1 username + display name, with the 18+/Terms consent folded into the bottom
 //   2 who you are — what you wanna be, what you're working toward, what you're into (optional)
-//   3 where you study   4 what you study (mock 291)
+//   3 where you study   4 what you study (mock 291)   5 your patron (Phase 9, mock 340)
 //
-// …and then a patron claims you. The consent write at the end releases this screen, and _layout's
-// ceremony gate takes a user with a program from Home straight into /house/claim ("You will represent
-// <school> as a <program> student"). Nothing else sits in the run any more: the twenty-card tour is
-// Settings → "Replay tutorial" only, and height, weight and campus verification moved out to the
-// screens that already own them (body-metrics.tsx, campus.tsx) — setup asks only what the claim needs.
+// PHASE 9 · the patron is a persona you PICK, not a house your program grants (0293). Step 5 is the
+// whole choice — one tap on a card, "You'll read as Heracles of Kinesiology", Continue — and there is
+// no claim ceremony after it any more (_layout's /house/claim gate is gone). It follows the program
+// step, or the school step directly when the school has no programs: the patron never depends on
+// the program. Skippable; the profile's Edit sheet picks it up later.
 //
-// Step 4 is Phase 1's PROGRAM field (ONBOARDING_FLOW_3phase.md) — data entry, not the ceremony. The
-// program names the user's house (programs.patron_key); the patron is shown here only as what the
-// pick implies, and it is revealed and pledged to in Phase 3 (/house/claim), the moment setup ends.
+// Step 4 is Phase 1's PROGRAM field (ONBOARDING_FLOW_3phase.md) — the pride badge, its own field.
 // The school comes FIRST because programs are listed per school (get_programs_for_university). The
 // step is skipped entirely — not shown, not counted — when the school has no programs (today only
 // Laurier and Waterloo have any), and quietly when the list can't be fetched (a server without 0257),
@@ -85,12 +85,12 @@ type Availability = 'idle' | 'checking' | 'available' | 'taken';
 // program that follow are the paperwork the claim reads. "Skip for now" beside it. A failed save is
 // swallowed: 0272 may not be live, and a headline must never hold an account hostage —
 // /edit-identity and the profile's own prompt pick it up later.
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 
-/** The full run. A school with no programs drops the last step the moment that is known. */
-const SETUP_STEPS = 4;
+/** The full run. A school with no programs drops the program step the moment that is known. */
+const SETUP_STEPS = 5;
 
-const PROGRAM_CONFIRM_NOTE = "Next, you'll meet your patron and pledge your loyalty.";
+const PROGRAM_CONFIRM_NOTE = 'Next, pick your patron — the persona you rep.';
 
 // The interest-tag limits, mirroring /edit-identity (and 0272's own checks).
 const MAX_TAG = 24;
@@ -128,6 +128,9 @@ export default function SetupHandleScreen() {
   // The list step 4 is drawing, fixed when step 3 is left — so going Back and picking a different
   // school can't swap the picker's rows out from under it.
   const [programStep, setProgramStep] = useState<{ university: string; rows: ProgramRow[] } | null>(null);
+  // Step 5 (Phase 9): the program you just confirmed, for the lockup preview, and the patron tapped.
+  const [chosenProgram, setChosenProgram] = useState<string | null>(null);
+  const [patron, setPatron] = useState<Patron | null>(null);
 
   // Step 2's identity fields. Only non-empty ones are sent, so skipping — or re-entering setup
   // and leaving them blank — never clears anything saved since.
@@ -193,7 +196,8 @@ export default function SetupHandleScreen() {
   const canContinueStudy = (Boolean(university) || notListed) && !resolvingDomain;
   // Known on step 3 only for a listed school whose prefetch has answered — the program step is last,
   // so nothing after it needs the answer fixed.
-  const programsKnownAbsent = step === 3 && Boolean(university && programsBySchool[university]?.length === 0);
+  const programsKnownAbsent =
+    (step === 3 && Boolean(university && programsBySchool[university]?.length === 0)) || (step === 5 && !programStep);
   const setupTotal = SETUP_STEPS - (programsKnownAbsent ? 1 : 0);
 
   // Only the cached schools can show a domain without a network call. Anything else shows "—",
@@ -292,12 +296,12 @@ export default function SetupHandleScreen() {
     const rows = resolvedUniversity ? await loadPrograms(resolvedUniversity) : [];
     setProgramStep(resolvedUniversity && rows.length > 0 ? { university: resolvedUniversity, rows } : null);
     setLoading(false);
-    if (rows.length > 0) setStep(4);
-    else await enterPhiloi();
+    // No programs at this school → straight to the patron; the patron never depends on a program.
+    setStep(rows.length > 0 ? 4 : 5);
   }
 
   /**
-   * Save the program, then enter Philoi — the patron claim follows from there.
+   * Save the program, then pick a patron (step 5).
    *
    * A failed save is NOT a dead end. The step is required only in the sense that a school with
    * programs doesn't offer a skip; letting a server error hold the whole account at step 4 would
@@ -318,6 +322,24 @@ export default function SetupHandleScreen() {
     } finally {
       setLoading(false);
     }
+    setChosenProgram(program.name);
+    setStep(5);
+  }
+
+  /** Save the patron (if one was tapped), then enter Philoi. A failed save is recoverable from Profile. */
+  async function handleConfirmPatron(persist: boolean) {
+    if (!session) return;
+    setLoading(true);
+    setError(null);
+    if (persist && patron) {
+      try {
+        await setMyPatron(session.user.id, patron.key);
+        await refreshProfile();
+      } catch (e) {
+        console.warn('[onboarding] could not save patron — continuing without one:', e);
+      }
+    }
+    setLoading(false);
     await enterPhiloi();
   }
 
@@ -580,6 +602,23 @@ export default function SetupHandleScreen() {
         </View>
       )}
 
+      {/* Your patron (Phase 9, mock 340) — a one-tap persona pick, no ceremony. */}
+      {step === 5 && (
+        <ScrollView style={styles.step} contentContainerStyle={styles.patronScroll} showsVerticalScrollIndicator={false}>
+          <Text style={styles.h}>Pick your patron</Text>
+          <Text style={styles.sub}>Your patron is just your vibe — pick the one that fits. Your program rides beside it.</Text>
+          <PatronPicker value={patron?.key ?? null} onChange={setPatron} />
+          {patron ? (
+            <Text style={styles.sub}>
+              You’ll read as <Text style={styles.bold}>{epicLockup(patron.name, chosenProgram)}</Text>
+            </Text>
+          ) : null}
+          <Pressable onPress={() => void handleConfirmPatron(false)} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.skipStepText}>Skip — I’ll pick later</Text>
+          </Pressable>
+        </ScrollView>
+      )}
+
       {/* OPTIONAL who-you-are (mock 283, CODE_PROMPT_identity_profile.md) — two fields, then the
           shared CTA. The prompt copy is the spec's: a statement of identity, not a form field. */}
       {step === 2 && (
@@ -680,20 +719,23 @@ export default function SetupHandleScreen() {
           step's Skip is a plain text link, not a second button, so it keeps the shared CTA. */}
       <View style={styles.nav}>
         {step > 1 && (
-          <Pressable style={styles.back} onPress={() => setStep((s) => (s - 1) as Step)}>
+          <Pressable
+            style={styles.back}
+            onPress={() => setStep((s) => (s === 5 && !programStep ? 3 : ((s - 1) as Step)))}>
             <Text style={styles.backLabel}>Back</Text>
           </Pressable>
         )}
-        {step < 4 && (
+        {step !== 4 && (
           <View style={styles.nextWrap}>
             <PrimaryButton
-              label={step === 3 && programsKnownAbsent ? 'Enter Philoi →' : 'Continue'}
+              label={step === 5 ? 'Enter Philoi →' : 'Continue'}
               loading={loading}
-              disabled={step === 1 ? !canContinueStep1 : step === 3 ? !canContinueStudy : false}
+              disabled={step === 1 ? !canContinueStep1 : step === 3 ? !canContinueStudy : step === 5 ? !patron : false}
               onPress={() => {
                 if (step === 1) handleContinueStep1();
                 else if (step === 2) handleContinueIdentity(true);
-                else handleContinueStudy();
+                else if (step === 3) handleContinueStudy();
+                else void handleConfirmPatron(true);
               }}
             />
           </View>
@@ -723,6 +765,10 @@ const styles = StyleSheet.create({
   step: {
     flex: 1,
     minHeight: 0,
+  },
+  patronScroll: {
+    gap: 10,
+    paddingBottom: Spacing.three,
   },
   h: {
     fontFamily: Fonts.display,

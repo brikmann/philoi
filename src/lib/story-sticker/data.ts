@@ -41,8 +41,12 @@ export type StickerRank = {
 
 export type StickerModel = {
   handle: string | null;
-  /** The academic program (0247) and the patron it answers to — "Heir of Athena · Philosophy". */
-  patron: { key: string; name: string; program: string } | null;
+  /**
+   * Phase 9 (0293) · the patron persona you CHOSE and your program, two independent facts — the
+   * card reads them as the epic lockup "Heracles of Kinesiology". Either may be missing; `key` is
+   * null when no patron is chosen, `program` when none is set.
+   */
+  patron: { key: string | null; name: string | null; program: string | null } | null;
   /** H:MM:SS — the hero. */
   clock: string;
   /** "Deep Work", "Gym", or the session's own detail. */
@@ -182,10 +186,15 @@ export function useStickerModel(session: StickerSession | null): { model: Sticke
     void Promise.all([
       soft(fetchMyRanks().then((rs) => rs.find((r) => r.scope === 'universal') ?? null), null),
       soft(
-        Promise.resolve(supabase.rpc('get_my_program')).then(({ data, error }) => {
-          const row = error ? null : data?.[0];
-          return row ? { key: row.patron_key, name: row.patron_name, program: row.name } : null;
-        }),
+        // get_identity_badges, not get_my_program: since 0293 the badge is the CHOSEN patron only,
+        // while get_my_program falls back to the program's old house for installed builds.
+        userId
+          ? Promise.resolve(supabase.rpc('get_identity_badges', { p_user_ids: [userId] })).then(({ data, error }) => {
+              const row = error ? null : data?.[0];
+              if (!row || (!row.patron_key && !row.program_name)) return null;
+              return { key: row.patron_key, name: row.patron_name, program: row.program_name };
+            })
+          : Promise.resolve(null),
         null
       ),
       userId ? soft(fetchUserBoardPosition(userId), null) : Promise.resolve(null),

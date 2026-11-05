@@ -34,7 +34,6 @@ import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { fetchMyActiveLockInSession } from '@/lib/api/lock-ins';
 import { registerPushToken } from '@/lib/notifications';
 import { track } from '@/lib/analytics';
-import { isCeremonyDone } from '@/lib/house/ceremony';
 import { isInterestsPending } from '@/lib/interests-flow';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
 import { useShareIntakeRouting } from '@/lib/share-intake';
@@ -95,17 +94,14 @@ const FALLBACK_METRICS = {
 const navTheme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: 'transparent' } };
 
 function RootNavigator() {
-  const { ready, error, session, profile, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
+  const { ready, error, session, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
   const { hasCircle, refetch: refetchHasCircle } = useHasAnyCircle();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
   // Null until the flag has been read. The gate below tests `=== false` for the same reason the
   // onboarding one does: a nullish value must never be mistaken for "not done" and bounce someone
   // into the tour on every launch while the read is still in flight.
   const [tutorialDone, setTutorialDone] = useState<boolean | null>(null);
-  // Phase 3's flag (lib/house/ceremony). Null while its read is in flight, same rule as the two above.
-  const [ceremonyDone, setCeremonyDone] = useState<boolean | null>(null);
   const userId = session?.user?.id ?? null;
-  const hasProgram = Boolean(profile?.program_id);
   const router = useRouter();
   const pathname = usePathname();
   const [interLoaded] = useInterFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_900Black });
@@ -175,7 +171,6 @@ function RootNavigator() {
     // tutorial" clears it and then navigates, and a stale in-memory `true` would make the replay
     // silently do nothing.
     isTutorialDone(userId).then(setTutorialDone);
-    isCeremonyDone(userId).then(setCeremonyDone);
     // userId too, not just pathname: before sign-in there is no id and the flag reads "done", and
     // a new account's session can arrive without a navigation — re-read the moment the user changes.
   }, [pathname, refetchHasCircle, userId]);
@@ -397,88 +392,28 @@ function RootNavigator() {
     };
   }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, onboardingDone, tutorialDone, pathname, router, userId]);
 
-  // 🔴 THE CEREMONY GATE — Phase 3, "claim your house" (ONBOARDING_FLOW_3phase.md, mocks 286/287).
-  // The END of setup now: the moment the consent write releases setup-handle, the user lands on `/`
-  // and this sends them into the claim. It no longer waits on the tutorial — the tour isn't part of
-  // the first run any more, and the tour gate above only redirects for an explicit replay, which a
-  // first run never has, so the two still can't fight over a frame.
-  //
-  // ONLY FOR A PROFILE WITH A PROGRAM. The ceremony reveals the house the program grants; with no
-  // program there is nothing to reveal, and nobody is pushed into picking one — the profile's
-  // "Claim your house" card is the invitation instead (it runs the ceremony after the pick itself).
-  //
-  // ONLY ON HOME (`/`). The first run lands there the instant setup releases its gate (and a replayed
-  // tour's Done/Skip replace to `/` too), so this catches it without ever yanking someone off the
-  // paywall, a deep link, or /house/change-program mid-pick (which the claim screen sends people to).
-  //
-  // Re-checked before redirecting, for the tutorial gate's reason: the seal marks the ceremony done
-  // (in memory first) and replaces to `/` in the same tick, while `ceremonyDone` still holds the
-  // snapshot `false`. The claim screen's no-house exit stands the gate down the same way
-  // (skipCeremonyThisSession), so a failed read can't loop Home → claim → Home. `cancelled` drops a
-  // check whose inputs moved on; the re-run with the new inputs decides afresh.
-  useEffect(() => {
-    if (
-      !(
-        appReady &&
-        session &&
-        !needsHandle &&
-        !needsConsent &&
-        !needsAccountDisabled &&
-        onboardingDone === true &&
-        ceremonyDone === false &&
-        hasProgram &&
-        pathname === '/'
-      )
-    ) {
-      return;
-    }
-    let cancelled = false;
-    isCeremonyDone(userId).then((done) => {
-      if (cancelled) return;
-      if (done) {
-        setCeremonyDone(true);
-        return;
-      }
-      router.replace('/house/claim');
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    appReady,
-    session,
-    needsHandle,
-    needsConsent,
-    needsAccountDisabled,
-    onboardingDone,
-    ceremonyDone,
-    hasProgram,
-    pathname,
-    router,
-    userId,
-  ]);
+  // Phase 9 (0293): THE HOUSE-CLAIM CEREMONY GATE IS GONE. A patron is a persona you pick in setup's
+  // step 5 (or later from Profile), not a house a program reveals, so nothing routes a first run into
+  // /house/claim any more. The screen still exists for a direct link; nothing sends anyone there.
 
-  // Interests → goals → matches (mock 323, 0285) — the last leg of first run, AFTER the claim.
-  // Only for an account setup-handle marked pending (an upgrading user is never sent here), and only
-  // on Home, for the ceremony gate's reasons. With a program it waits for the seal: until the
-  // ceremony is done the gate above owns this frame, so the two can't race for the same `/`. Both
-  // flags are re-read here rather than trusted from state — the seal and the interests screen each
-  // clear theirs in memory and replace to `/` in the same tick.
+  // Interests → goals → matches (mock 323, 0285) — the last leg of first run, straight after setup now
+  // that there's no claim ceremony between them (Phase 9). Only for an account setup-handle marked
+  // pending (an upgrading user is never sent here), and only on Home, so it never yanks someone off
+  // the paywall or a deep link. Re-read rather than trusted from state — the interests screen clears
+  // its flag in memory and replaces to `/` in the same tick.
   useEffect(() => {
     if (!(appReady && session && !needsHandle && !needsConsent && !needsAccountDisabled && onboardingDone === true && pathname === '/')) {
       return;
     }
     let cancelled = false;
-    Promise.all([isInterestsPending(userId), hasProgram ? isCeremonyDone(userId) : Promise.resolve(true)]).then(
-      ([pending, claimed]) => {
-        if (cancelled || !pending || !claimed) return;
-        router.replace('/interests' as never);
-      },
-    );
+    isInterestsPending(userId).then((pending) => {
+      if (cancelled || !pending) return;
+      router.replace('/interests' as never);
+    });
     return () => {
       cancelled = true;
     };
-  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, onboardingDone, hasProgram, pathname, router, userId]);
+  }, [appReady, session, needsHandle, needsConsent, needsAccountDisabled, onboardingDone, pathname, router, userId]);
 
   if (!appReady) {
     if (!stuck) return null;
@@ -574,6 +509,7 @@ function RootNavigator() {
             gesture — the pledge, or "Choose a different program", are the ways out. */}
         <Stack.Screen name="house/claim" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="house/change-program" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="house/patron" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* Interests → goals → matches (mock 323). The gate above sends first run here after the claim;
             Edit identity pushes ?edit=1. No back gesture — every step has its own Skip / Back. */}
         <Stack.Screen name="interests" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />

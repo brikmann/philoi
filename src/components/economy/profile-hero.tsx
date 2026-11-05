@@ -137,7 +137,8 @@ export function ProfileHero({
                   </Text>
                 ) : null}
                 {/* The school is the caller's own row (children), so not repeated here. */}
-                {houseLine ? <IdentityLine userId={userId} showSchool={false} style={styles.house} /> : null}
+                {/* Phase 9 · the epic lockup: "Heracles of Kinesiology". */}
+                {houseLine ? <IdentityLine userId={userId} form="epic" style={styles.house} /> : null}
                 {title ? <View style={styles.title}>{title}</View> : null}
                 {children}
               </View>

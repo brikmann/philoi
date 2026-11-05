@@ -10,7 +10,6 @@ import { useAuraTier } from '@/components/economy/applied-art';
 import { useFlareSurge } from '@/components/economy/flare-border';
 import { HeroRankStrip, ProfileHero } from '@/components/economy/profile-hero';
 import { ClaimHouseCard } from '@/components/house/claim-house-card';
-import { heirTo } from '@/components/house/identity-line';
 import { IdentityAbout, WorkingToward } from '@/components/identity/identity-card';
 import { useProfileIdentity } from '@/components/identity/use-profile-identity';
 import { ProfileClubs } from '@/components/profile/profile-clubs';
@@ -202,8 +201,8 @@ export default function ProfileScreen() {
         ) : null}
         {competing && universalRank && 'muted' in universalRank && universalRank.muted && <RankMuted />}
 
-        {/* No program yet → the claim card, since the house names the identity line. */}
-        {isOwn && myProgram === null ? <ClaimHouseCard /> : null}
+        {/* No patron chosen yet → the "Pick your patron" prompt (Phase 9; it hides itself once picked). */}
+        {isOwn ? <ClaimHouseCard /> : null}
 
         {/* ② the aspiration · ③ About · ④ stats inline · ⑤ the Showcase wall · the hall door. */}
         <WorkingToward identity={identity} />
@@ -257,17 +256,25 @@ export default function ProfileScreen() {
             router.push('/loadout');
           }}
         />
-        {myProgram ? (
-          <EditRow
-            icon="school-outline"
-            label="Change program"
-            sub={`${heirTo(myProgram.patron_name)} · ${myProgram.program_abbrev || myProgram.name}`}
-            onPress={() => {
-              setEditOpen(false);
-              router.push('/house/change-program');
-            }}
-          />
-        ) : null}
+        {/* Phase 9: patron and program are two independent picks. */}
+        <EditRow
+          icon="shield-half-outline"
+          label={myProfile?.patron_key ? 'Change patron' : 'Pick your patron'}
+          sub="The persona you rep — any of the twelve"
+          onPress={() => {
+            setEditOpen(false);
+            router.push('/house/patron' as never);
+          }}
+        />
+        <EditRow
+          icon="school-outline"
+          label={myProgram ? 'Change program' : 'Add your program'}
+          sub={myProgram ? myProgram.program_abbrev || myProgram.name : 'What you study — your pride badge'}
+          onPress={() => {
+            setEditOpen(false);
+            router.push('/house/change-program');
+          }}
+        />
       </EditSheet>
     </SafeAreaView>
     </ScreenBackground>

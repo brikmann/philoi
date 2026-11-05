@@ -188,10 +188,13 @@ export type Profile = {
    * Hipolabs. Null means the school has no known domain, so it can't be verified; that never
    * blocks onboarding, it only leaves the two campus boards locked. */
   university_domain: string | null;
-  /** The academic program picked at onboarding (0257) — it names the house (programs.patron_key);
-   * the patron is never stored or chosen on its own. Set via `set_my_program`. Absent on a server
-   * that predates 0257, so read it as falsy, not strictly null. */
+  /** The academic program picked at onboarding (0257) — the pride badge, independent of the patron
+   * since 0293. Set via `set_my_program`. Absent on a server that predates 0257, so read it as
+   * falsy, not strictly null. */
   program_id: string | null;
+  /** 0293 · the patron persona this person CHOSE (one of the twelve), set via `set_my_patron`. Not
+   * granted by the program. Absent on a server without 0293. */
+  patron_key?: string | null;
   /** The verified campus address. Verification-only — the user still signs in with Google/Apple,
    * and this is never an auth identity (see supabase/functions/send_uni_code). */
   university_email: string | null;
@@ -4007,6 +4010,10 @@ export type Database = {
       };
       set_room_standings: {
         Args: { p_kind: 'campfire' | 'forest'; p_id: string; p_enabled: boolean };
+        Returns: undefined;
+      };
+      set_my_patron: {
+        Args: { p_key: string | null };
         Returns: undefined;
       };
       get_chat_live_now: {

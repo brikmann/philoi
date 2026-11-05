@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { BurningName } from '@/components/burning-name';
 import { EMBER, EmberfallSeal, EmberfallSky, FallingEmbers } from '@/components/pass/emberfall-art';
-import { PatronCrest } from '@/components/story-sticker/patron-crest';
+import { PatronCrestTile } from '@/components/patron/patron-crest-tile';
 import {
   MiniBanner,
   MiniBubble,
@@ -394,20 +394,19 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       ],
     },
     {
-      // Phase 2's fourth beat (ONBOARDING_FLOW_3phase.md): "the boards & your house". Here, before
-      // the ceremony, so the patron that claims them in Phase 3 is something they were told about
-      // rather than a surprise. Concept card — nothing to tap.
+      // Phase 9 (0293): patrons are personas you pick, not houses a program grants. Concept card —
+      // nothing to tap. The key stays 'house' so a saved tour position still resolves.
       key: 'house',
-      title: 'Your house',
+      title: 'Your patron',
       cindy: [
-        'Climb your campus board — and every program is a Greek house. Kinesiology reps Heracles, Math reps Athena. Your patron\'s seal rides beside your name on every board. 🏛️',
+        "Your patron is your vibe — Zeus leads the room, Athena outthinks the problem, Heracles pushes past every limit. Pick the one that's you, whatever you study; its crest rides beside your name, with your program. 🏛️",
       ],
       steps: [
         <MiniScreen key="hs">
           <MiniHeader nav="leaderboards" title="Campus board" right="Program · Uni · Global" />
-          <HouseRow rank="1" name="@ava" patronKey="athena" patron="Athena" house="Heir to Athena · Math" right="12,480" />
-          <HouseRow rank="2" name="You" patronKey="heracles" patron="Heracles" house="Heir to Heracles · Kin" right="11,905" me />
-          <HouseRow rank="3" name="@marcus" patronKey="hermes" patron="Hermes" house="Heir to Hermes · BBA" right="9,340" />
+          <HouseRow rank="1" name="@ava" patronKey="athena" patron="Athena" house="Athena · Math" right="12,480" />
+          <HouseRow rank="2" name="You" patronKey="heracles" patron="Heracles" house="Heracles · Kin" right="11,905" me />
+          <HouseRow rank="3" name="@marcus" patronKey="hermes" patron="Hermes" house="Hermes · BBA" right="9,340" />
           <View style={styles.spacer} />
           <MiniMuted color={Colors.amber} icon="versus" trailing>
             Laurier Kin vs Waterloo Kin
@@ -845,7 +844,7 @@ function HouseRow({
   return (
     <View style={[styles.houseRow, me && styles.houseRowMe]}>
       <Text style={styles.houseRank}>{rank}</Text>
-      <PatronCrest patronKey={patronKey} name={patron} size={22} />
+      <PatronCrestTile patronKey={patronKey} name={patron} size={22} />
       <View style={styles.houseText}>
         <Text style={styles.houseName} numberOfLines={1}>
           {name}

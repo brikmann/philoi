@@ -1,13 +1,14 @@
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { PatronCrest } from '@/components/story-sticker/patron-crest';
+import { PatronCrestTile } from '@/components/patron/patron-crest-tile';
 import { useIdentityBadge } from '@/lib/house/identity-badges';
 
-// ── THE HOUSE SEAL (mock 288) ──
+// ── THE PATRON SEAL (mock 288 → Phase 9, mocks 340 / 341) ──
 //
 // The patron crest at name size, for the line a person's name sits on: boards, the Agora, campfire
-// rosters, profiles. One glance says which house someone reps. Not the Emberfall SealBadge that
-// BurningName pins — that one is a pass you finished; this one is the program you study.
+// rosters, profiles. One glance says which persona someone reps. Not the Emberfall SealBadge that
+// BurningName pins — that one is a pass you finished; this one is the patron they CHOSE (0293), drawn
+// as its rounded gradient crest tile (components/patron/patron-crest-tile).
 //
 // Given a `userId` it reads the batched identity badge (lib/house/identity-badges), so a list can
 // drop one in per row without plumbing anything. Given a `patronKey` it draws that house directly —
@@ -42,8 +43,8 @@ export function HouseSeal({
       style={[{ width: size, height: size }, style]}
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`House of ${name.replace(/^The\s+/i, 'the ')}`}>
-      <PatronCrest patronKey={key} name={name} size={size} />
+      accessibilityLabel={`Patron: ${name}`}>
+      <PatronCrestTile patronKey={key} name={name} size={size} />
     </View>
   );
 }

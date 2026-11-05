@@ -1,29 +1,38 @@
 import { StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
 
 import { Colors, Fonts } from '@/constants/theme';
+import { epicLockup } from '@/lib/api/patrons';
 import { useIdentityBadge } from '@/lib/house/identity-badges';
 import { shortUniversityName } from '@/lib/story-sticker/data';
 
-// ── THE IDENTITY LINE (mock 288) ──
+// ── THE IDENTITY LINE (mocks 288 → 338 / 341) ──
 //
-// "Heir to Heracles · Kin · Laurier" — house, program, school, on the line under a name. The
-// program is the one lit word (mock 288's `<b>`): it is the part a student chose, and the part that
-// tells two Heirs of Heracles at the same school apart from nobody.
+// Phase 9 (0293): the patron is a persona the person CHOSE, and the program rides beside it as the
+// pride badge — two independent facts, so each part stands on its own. Three reads of them:
+//
+//   'compact' (default) — tight spots: feed rows, member lists, the Agora handle — "Heracles · Kin"
+//                         (+ " · Laurier" unless showSchool is off)
+//   'plain'             — the profile's identity line — "Heracles · Kinesiology · Laurier"
+//   'epic'              — the profile hero + share cards — "Heracles of Kinesiology"
+//
+// No trait bracket, ever — `represents` is sort metadata. The program is the one lit word: it's what
+// tells two Heracleses at the same school apart.
 //
 // One <Text>, so it can stand alone OR nest inside a caller's own line (a board row's tier label
 // runs into it as one truncating sentence). `leading` is the separator for that case, drawn only
-// when there is something after it.
-//
-// Fails soft, like the seal: no badge yet (0264 not live, offline, in flight) and no `university`
-// fallback means it renders nothing, not an empty row.
+// when there is something after it. Fails soft: no badge yet and no `university` fallback renders
+// nothing, not an empty row.
 
-/** "Heir to Heracles", "Heir to the Moirai" — the house as a phrase. */
+/** @deprecated The "Heir to …" phrasing is gone with the house system (Phase 9). Kept for old call sites: the bare name. */
 export function heirTo(patronName: string): string {
-  return `Heir to ${patronName.replace(/^The\s+/i, 'the ')}`;
+  return patronName;
 }
+
+export type IdentityForm = 'compact' | 'plain' | 'epic';
 
 export function IdentityLine({
   userId,
+  form = 'compact',
   showSchool = true,
   university,
   leading,
@@ -31,7 +40,8 @@ export function IdentityLine({
   style,
 }: {
   userId: string | null | undefined;
-  /** Off where the school already shows beside it (the Agora's campus pill, a profile's uni row). */
+  form?: IdentityForm;
+  /** Off where the school already shows beside it (the Agora's campus pill, a profile's uni row). Epic never shows it. */
   showSchool?: boolean;
   /** The school the caller already has, used until the badge lands (or when it never does). */
   university?: string | null;
@@ -41,19 +51,29 @@ export function IdentityLine({
   style?: StyleProp<TextStyle>;
 }) {
   const badge = useIdentityBadge(userId);
-  const program = badge?.program_abbrev || badge?.program_name || null;
+  const patron = badge?.patron_name?.trim() || null;
+  const programFull = badge?.program_name || badge?.program_abbrev || null;
+  const programShort = badge?.program_abbrev || badge?.program_name || null;
   const schoolName = badge?.university || university;
-  const school = showSchool && schoolName ? shortUniversityName(schoolName) : null;
-  // A house without a program can't happen (the program names the house), but a program whose
-  // patron row failed to join can — so each part stands on its own.
-  const house = program && badge?.patron_name ? heirTo(badge.patron_name) : null;
+  const school = form !== 'epic' && showSchool && schoolName ? shortUniversityName(schoolName) : null;
 
-  if (!program && !school) return null;
+  if (form === 'epic') {
+    const line = epicLockup(patron, programFull);
+    if (!line) return null;
+    return (
+      <Text style={[styles.line, style]} numberOfLines={numberOfLines}>
+        {leading}
+        {line}
+      </Text>
+    );
+  }
 
+  const program = form === 'plain' ? programFull : programShort;
   const parts: { text: string; lit?: boolean }[] = [];
-  if (house) parts.push({ text: house });
+  if (patron) parts.push({ text: patron });
   if (program) parts.push({ text: program, lit: true });
   if (school) parts.push({ text: school });
+  if (parts.length === 0) return null;
 
   return (
     <Text style={[styles.line, style]} numberOfLines={numberOfLines}>

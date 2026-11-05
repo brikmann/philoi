@@ -5,7 +5,8 @@ import Svg, { Defs, G, LinearGradient as SvgGradient, Path, Stop } from 'react-n
 
 import { CardBackdropArt, cardLookForItem, type CardMotion } from '@/components/economy/card-art';
 import { RankBadge } from '@/components/rank-badge';
-import { PatronCrest } from '@/components/story-sticker/patron-crest';
+import { PatronCrestTile } from '@/components/patron/patron-crest-tile';
+import { epicLockup } from '@/lib/api/patrons';
 import { FLAME_MIRROR_TRANSFORM, FLAME_PATH, FLAME_VIEWBOX } from '@/components/ui/flame-logo';
 import { IconText, type IconName } from '@/components/ui/icon';
 import { Fonts } from '@/constants/theme';
@@ -173,20 +174,13 @@ export const StorySticker = forwardRef<View, Props>(function StorySticker({ mode
           <View style={styles.identity}>
           <View style={styles.who}>
             {model.handle ? <Text style={[styles.handle, shadow]}>@{model.handle}</Text> : null}
-            {model.patron ? (
-              <>
-                <PatronCrest patronKey={model.patron.key} name={model.patron.name} size={17} />
-                <Text style={[styles.heir, shadow, cosmetic ? styles.onArt : null]} numberOfLines={1}>
-                  Heir of {model.patron.name}
-                </Text>
-              </>
-            ) : null}
+            {model.patron?.key ? <PatronCrestTile patronKey={model.patron.key} name={model.patron.name} size={17} /> : null}
           </View>
-          {/* The program on its own line under the name, where the seed's longest
-              ("Geography & Environmental Management") fits whole instead of truncating beside the heir. */}
+          {/* Phase 9 · the epic lockup on its own line under the name — "Heracles of Kinesiology" — where
+              the seed's longest program ("Geography & Environmental Management") fits whole. */}
           {model.patron ? (
             <Text style={[styles.program, shadow, cosmetic ? styles.programOnArt : null]} numberOfLines={1}>
-              {model.patron.program}
+              {epicLockup(model.patron.name, model.patron.program)}
             </Text>
           ) : null}
           </View>

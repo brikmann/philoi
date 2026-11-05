@@ -11,14 +11,13 @@ import type { ProgramRow } from '@/types/house';
 
 // ── THE PROGRAM PICKER (mock 291) ──
 //
-// Two states in one component: SEARCH (type a few letters, see your school's programs, each showing
-// the house it grants) and CONFIRM (the medallion, "You will rep, as an Heir to {Patron}", the
-// program and school). Shared by onboarding's Program step and /house/change-program, so the two
-// can never word the choice differently.
+// Two states in one component: SEARCH (type a few letters, see your school's programs) and CONFIRM
+// (the program and school). Shared by onboarding's Program step and /house/change-program, so the
+// two can never word the choice differently.
 //
-// 🔴 THE PATRON IS NEVER PICKED. Every row is a PROGRAM; the house rides along as its consequence
-// (programs.patron_key). The confirm's way out is "Choose a different program" — never "patron" —
-// because changing the program is the only way the patron changes.
+// Phase 9 (0293): a program no longer grants a patron. It's the pride badge — its own field — and the
+// patron is a separate persona pick (components/patron/patron-picker). So no row here shows a crest
+// or an "Heir to …" line any more; programs.patron_key is legacy data this screen ignores.
 //
 // It owns no network. The host fetches the list (it needs to know whether there is one at all, to
 // skip the step) and saves the pick, so a failure is handled where the flow can route around it.
@@ -41,8 +40,7 @@ type Props = {
   subtitle?: string;
 };
 
-const DEFAULT_SUBTITLE =
-  'Your program names who you rep — the Greek patron whose honour & legacy you carry, an Heir beside those who came before you.';
+const DEFAULT_SUBTITLE = 'Your program places you with people near you — it rides beside your name as your pride badge.';
 
 export function ProgramPicker({
   university,
@@ -63,15 +61,12 @@ export function ProgramPicker({
   // Kept after "Choose a different program" so the list shows a ✓ on what they backed out of.
   const [lastPickedId, setLastPickedId] = useState<string | null>(initialProgramId ?? currentProgramId ?? null);
 
-  // Name, short label and house all match — "kin", "Kin" and "heracles" should all find Kinesiology.
+  // Name and short label match — "kin" and "Kin" should both find Kinesiology.
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return programs;
     return programs.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.program_abbrev?.toLowerCase().includes(q) ?? false) ||
-        p.patron_name.toLowerCase().includes(q)
+      (p) => p.name.toLowerCase().includes(q) || (p.program_abbrev?.toLowerCase().includes(q) ?? false)
     );
   }, [programs, query]);
 
@@ -79,14 +74,12 @@ export function ProgramPicker({
     return (
       <View style={styles.fill}>
         <View style={styles.bighouse}>
-          <HouseMedallion patronKey={picked.patron_key} patronName={picked.patron_name} />
-          <Text style={styles.join}>You will rep, as an Heir to</Text>
-          <Text style={styles.hname}>{picked.patron_name}</Text>
-          {picked.patron_title ? <Text style={styles.htitle}>{picked.patron_title}</Text> : null}
+          <Text style={styles.join}>You study</Text>
+          <Text style={styles.hname}>{picked.name}</Text>
           <Text style={styles.hprog}>
-            {picked.name} · {university}
+            {picked.program_abbrev ? `${picked.program_abbrev} · ` : ''}
+            {university}
           </Text>
-          <Text style={styles.legacy}>You carry this house&apos;s honour &amp; legacy — beside every Heir who came before you.</Text>
         </View>
 
         {confirmNote ? <Text style={styles.note}>{confirmNote}</Text> : null}
@@ -144,16 +137,10 @@ function ProgramResultRow({ program, on, onPress }: { program: ProgramRow; on: b
       style={({ pressed }) => [styles.row, on && styles.rowOn, pressed && styles.rowPressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${program.name}, Heir to ${program.patron_name}`}>
-      <View style={styles.seal}>
-        <PatronCrest patronKey={program.patron_key} name={program.patron_name} size={22} />
-      </View>
+      accessibilityLabel={program.name}>
       <View style={styles.rowText}>
         <Text style={styles.pn} numberOfLines={1}>
           {program.name}
-        </Text>
-        <Text style={styles.ph} numberOfLines={1}>
-          Heir to <Text style={styles.phPatron}>{program.patron_name}</Text>
         </Text>
       </View>
       {on ? (

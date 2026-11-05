@@ -1,51 +1,33 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
-import { fetchProgramsForUniversity } from '@/lib/api/house';
 
-// "Claim your house — pick your program." The on-ramp for anyone with no program: an account that
-// predates the house system, or one whose onboarding couldn't save it. Nobody is FORCED into the
-// ceremony (the root layout's gate only fires for a profile that already has a program); this card
-// is the invitation instead, and it runs the ceremony after the pick (?ceremony=1).
+// "Pick your patron." Phase 9 (0293): the on-ramp for anyone with no patron chosen — an account
+// that predates personas, or one that skipped setup's step 5. Program-independent: any of the twelve,
+// whatever you study, so it shows whether or not there's a program. Opens /house/patron; no ceremony.
 //
-// Self-contained so any surface can drop it in: it reads the profile itself and renders nothing
-// once there is a program — or when the school has none to pick from (only Laurier and Waterloo do
-// today), since a CTA that opens onto "no houses here yet" is a dead end. A failed lookup reads as
-// "none" too: the card is an invitation, and a broken one is worse than none.
-
+// Named ClaimHouseCard still so existing call sites keep working; it renders nothing once a patron
+// is chosen.
 export function ClaimHouseCard({ style }: { style?: StyleProp<ViewStyle> }) {
   const router = useRouter();
   const { profile } = useAuth();
-  const university = profile?.university ?? null;
-  const hasProgram = Boolean(profile?.program_id);
-  // Keyed by school so a profile edit to another school can't show the last school's answer.
-  const [available, setAvailable] = useState<{ university: string; has: boolean } | null>(null);
-
-  useEffect(() => {
-    if (hasProgram || !university) return;
-    fetchProgramsForUniversity(university)
-      .then((rows) => setAvailable({ university, has: rows.length > 0 }))
-      .catch(() => setAvailable({ university, has: false }));
-  }, [hasProgram, university]);
-
-  if (hasProgram || !university || available?.university !== university || !available.has) return null;
+  if (!profile || profile.patron_key) return null;
 
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.pressed, style]}
-      onPress={() => router.push({ pathname: '/house/change-program', params: { ceremony: '1' } })}
+      onPress={() => router.push('/house/patron' as never)}
       accessibilityRole="button"
-      accessibilityLabel="Claim your house — pick your program">
+      accessibilityLabel="Pick your patron">
       <View style={styles.icon}>
         <Ionicons name="shield-half-outline" size={18} color={Colors.ember} />
       </View>
       <View style={styles.text}>
-        <Text style={styles.title}>Claim your house</Text>
-        <Text style={styles.sub}>Pick your program — every one is a Greek house.</Text>
+        <Text style={styles.title}>Pick your patron</Text>
+        <Text style={styles.sub}>Zeus, Athena, Heracles… the persona you rep, beside your program.</Text>
       </View>
       <Ionicons name="chevron-forward" size={16} color={Colors.muted} />
     </Pressable>

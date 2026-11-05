@@ -6,7 +6,6 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
-import { HouseSeal } from '@/components/house/house-seal';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { Avatar } from '@/components/ui/avatar';
 import { Icon, IconText } from '@/components/ui/icon';
@@ -247,9 +246,9 @@ export default function SearchTab() {
         {programHits.map((p) => (
           <ResultRow
             key={p.program_id}
-            leading={<HouseSeal patronKey={p.patron_key} patronName={p.patron_name} size={30} />}
             title={p.name}
-            sub={`Heir to ${p.patron_name.replace(/^The\s+/i, 'the ')}`}
+            // Phase 9: a program is the pride badge, not a house — no patron on its row.
+            sub={p.program_abbrev ?? null}
             onPress={() => router.push('/house/change-program')}
           />
         ))}

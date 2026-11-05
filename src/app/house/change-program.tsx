@@ -12,26 +12,22 @@ import { getErrorMessage } from '@/lib/errors';
 import { invalidateIdentityBadge } from '@/lib/house/identity-badges';
 import type { ProgramRow } from '@/types/house';
 
-// ── CHANGE YOUR PROGRAM (and with it, your house) ──
+// ── CHANGE YOUR PROGRAM ──
 //
-// The one place outside onboarding where the program is picked: Settings / the profile, the claim
-// screen's "Choose a different program", and the "Claim your house" card for an existing user who
-// never had one. Same ProgramPicker as onboarding's step 5, so the choice reads identically.
+// The one place outside onboarding where the program is picked (the profile's ✎ Edit sheet). Same
+// ProgramPicker as onboarding's step 4, so the choice reads identically.
 //
-// 🔴 There is no "change patron" anywhere. The house follows the program (programs.patron_key).
-//
-//   ?then=claim   came from /house/claim — save (or back out) returns there, to the new house's lore.
-//   ?ceremony=1   an existing user's first pick (the Claim-your-house card) — save runs the ceremony.
-//   neither       a plain change from Settings — save goes back.
+// Phase 9 (0293): the program is the pride badge and nothing more — it no longer grants a patron,
+// so saving it never runs a ceremony. The patron is its own pick (/house/patron). `?then=claim`
+// (an installed-build link from the old claim screen) still backs out to it.
 
 type Load = { state: 'loading' } | { state: 'ready'; rows: ProgramRow[] } | { state: 'error'; message: string };
 
 export default function ChangeProgramScreen() {
   const router = useRouter();
-  const { then, ceremony } = useLocalSearchParams<{ then?: string; ceremony?: string }>();
+  const { then } = useLocalSearchParams<{ then?: string }>();
   const { session, profile, refreshProfile } = useAuth();
   const university = profile?.university ?? null;
-  const toClaim = then === 'claim' || ceremony === '1';
 
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [saving, setSaving] = useState(false);
@@ -73,18 +69,17 @@ export default function ChangeProgramScreen() {
       return;
     }
     setSaving(false);
-    if (toClaim) router.replace('/house/claim');
-    else leave();
+    leave();
   }
 
   // A school with no programs (only Laurier and Waterloo have them today), or no school at all.
   const empty =
     !university || (load.state === 'ready' && load.rows.length === 0) ? (
       <View style={styles.center}>
-        <Text style={styles.emptyTitle}>No houses at your school yet</Text>
+        <Text style={styles.emptyTitle}>No programs at your school yet</Text>
         <Text style={styles.emptyBody}>
           {university
-            ? `Programs — and the Greek houses they grant — are live at Laurier and Waterloo for now. ${university} is next.`
+            ? `Programs are live at Laurier and Waterloo for now. ${university} is next — your patron doesn't need one.`
             : 'Add your school in your profile first — your program is picked from its list.'}
         </Text>
       </View>
@@ -94,8 +89,7 @@ export default function ChangeProgramScreen() {
     // Top edge only: the global footer owns the bottom inset.
     <Screen padded={false} edges={['top']} style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      {/* leave() as the back action — backing out of a claim-driven change returns to the claim. */}
-      <SpaceHeader title={toClaim ? 'Claim your house' : 'Your program'} onBack={leave} />
+      <SpaceHeader title="Your program" onBack={leave} />
 
       <View style={styles.body}>
         {empty ??
@@ -114,7 +108,7 @@ export default function ChangeProgramScreen() {
               currentProgramId={profile?.program_id}
               onConfirm={(p) => void save(p)}
               saving={saving}
-              confirmLabel={toClaim ? 'Looks right — continue' : 'Save program'}
+              confirmLabel="Save program"
               title={profile?.program_id ? 'Change your program' : 'What do you study?'}
             />
           ))}
