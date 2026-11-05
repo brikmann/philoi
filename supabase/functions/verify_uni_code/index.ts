@@ -5,16 +5,11 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { MAX_ATTEMPTS, hashCode, timingSafeEqual } from '../_shared/uni-code.ts';
 
-// DEV EXEMPTION (migration 0197) — the ONE pairing allowed to verify a campus email that another
-// account already holds, so Noah can re-verify a test account against his only real inbox. A
-// single object, not a list, on purpose: a second exemption is a second decision. Every field must
-// match (id, account email, campus email — case-insensitive) AND the caller must be is_dev. The
-// unique index carries the same id × address pair, so this cannot drift wider than the database.
-const DEV_UNI_EMAIL_EXEMPTION = {
-  userId: 'bebfadf0-a898-4724-991e-62506e451ec8',
-  account: 'spikeythedoge@gmail.com',
-  uni: 'brik8334@mylaurier.ca',
-} as const;
+// DEV EXEMPTION (migration 0287, widening 0197) — the ONE campus email any number of accounts may
+// verify, so Noah can verify every test account against his only real inbox. A single address, not
+// a list, on purpose: a second exemption is a second decision. The unique index leaves out exactly
+// this address, so this cannot drift wider than the database.
+const DEV_UNI_EMAIL_EXEMPTION = 'brik8334@mylaurier.ca';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -99,22 +94,19 @@ Deno.serve(async (req) => {
     // text and nothing forced older rows to be, so an exact match would miss a stored Brik8334@.
     // Same folding the unique index uses.
     //
-    // The exempt pairing (0197) skips this check, and is also not counted as "taking" the address
-    // for anyone else — the unique index leaves that row out, so the pre-check must too or it would
-    // refuse what the database allows.
-    const isExempt =
-      user.id === DEV_UNI_EMAIL_EXEMPTION.userId &&
-      user.email?.trim().toLowerCase() === DEV_UNI_EMAIL_EXEMPTION.account &&
-      email === DEV_UNI_EMAIL_EXEMPTION.uni &&
-      profile?.is_dev === true;
-    let takenQuery = admin
-      .from('profiles')
-      .select('id')
-      .eq('university_email_verified', true)
-      .ilike('university_email', email)
-      .neq('id', user.id);
-    if (email === DEV_UNI_EMAIL_EXEMPTION.uni) takenQuery = takenQuery.neq('id', DEV_UNI_EMAIL_EXEMPTION.userId);
-    const { data: taken } = isExempt ? { data: null } : await takenQuery.maybeSingle();
+    // The exempt address (0287) skips this check entirely — the unique index leaves it out, so the
+    // pre-check must too or it would refuse what the database allows.
+    const { data: taken } =
+      email === DEV_UNI_EMAIL_EXEMPTION
+        ? { data: null }
+        : await admin
+            .from('profiles')
+            .select('id')
+            .eq('university_email_verified', true)
+            .ilike('university_email', email)
+            .neq('id', user.id)
+            .limit(1)
+            .maybeSingle();
     if (taken) {
       return json(
         { error: 'This school email is already linked to another Philoi account.', reason: 'email_taken' },
