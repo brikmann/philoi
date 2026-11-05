@@ -3990,6 +3990,10 @@ export type Database = {
           out_faces: { user_id: string; name: string; avatar_url: string | null }[] | null;
         }[];
       };
+      get_chat_live_now: {
+        Args: Record<string, never>;
+        Returns: { out_kind: 'dm' | 'campfire' | 'forest'; out_id: string; out_live: number }[];
+      };
       get_people_active_now: {
         Args: Record<string, never>;
         Returns: {

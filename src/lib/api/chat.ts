@@ -465,6 +465,26 @@ export async function fetchMyChats(userId: string): Promise<SocialChat[] | null>
   });
 }
 
+/**
+ * The hub's "active now" dots (Phase 8.4, mock 337, migration 0291): which conversations have someone
+ * in a live lock-in this minute, keyed `dm:<friend user id>`, `campfire:<id>`, `forest:<id>` → how
+ * many. Pulse's rule (active + not paused, shares live status), reciprocal. An empty map on a server
+ * without 0291 — the hub just draws no dots.
+ */
+export async function fetchChatLiveNow(): Promise<Map<string, number>> {
+  const { data, error } = await supabase.rpc('get_chat_live_now');
+  if (error) {
+    if (error.code === 'PGRST202') return new Map();
+    throw error;
+  }
+  return new Map((data ?? []).map((r) => [`${r.out_kind}:${r.out_id}`, r.out_live ?? 0]));
+}
+
+/** The key a SocialChat row's dot is looked up by — a DM by the friend, not the thread. */
+export function chatLiveKey(chat: SocialChat): string {
+  return chat.kind === 'dm' ? `dm:${chat.friendId}` : `${chat.kind}:${chat.id}`;
+}
+
 // ───────────────────────────── video playback ─────────────────────────────
 
 /** A chat clip's frozen snapshot — the Agora's shape, because it was uploaded the Agora's way. */

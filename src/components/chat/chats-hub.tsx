@@ -1,17 +1,29 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MuteBell } from '@/components/chat/chat-mute-button';
 import { LiveFriendsChip } from '@/components/lockin-cheers/live-friends-chip';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { Avatar } from '@/components/ui/avatar';
-import { IconText } from '@/components/ui/icon';
+import { Icon, IconText, type IconName } from '@/components/ui/icon';
+import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useChatSupport } from '@/hooks/use-chat-support';
-import { fetchMyChats } from '@/lib/api/chat';
+import { useGatedInterval } from '@/hooks/use-motion-active';
+import { chatLiveKey, fetchChatLiveNow, fetchMyChats } from '@/lib/api/chat';
 import { fetchMySocialChats, type SocialChat } from '@/lib/api/social-chats';
 import { useAuth } from '@/lib/auth/auth-context';
 import { formatRelativeTime } from '@/lib/format';
@@ -23,6 +35,16 @@ import { formatRelativeTime } from '@/lib/format';
 //
 // This was the Social tab's second pane (mock 320) until the connection-first bar split Social into
 // Discover (the feed) and Chat (this), so a conversation is one tap from anywhere.
+//
+// Phase 8.4 (mock 337): under All the list is two sections — Your campfires & forests, then Friends —
+// each row carrying a green active-now dot when someone in it is in a live lock-in (0291, Pulse's
+// rule). A search field filters by name and last line, on the list already loaded; ＋ opens the
+// existing ways in (message a friend, start a campfire, start a forest). No new messaging store.
+
+// The dots' refresh floor while the tab is focused — the same 45s Pulse's live strip uses.
+const LIVE_POLL_MS = 45_000;
+
+type ChatSection = { title: string | null; data: SocialChat[] };
 
 // Pre-submission B6: sort Chats by what kind of conversation it is. A filter on the one list —
 // no second fetch, no ranking.
@@ -48,30 +70,61 @@ export function ChatsHub() {
   const [chats, setChats] = useState<SocialChat[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<ChatFilter>('all');
-  const shown = chats && filter !== 'all' ? chats.filter((c) => c.kind === filter) : chats;
+  const [query, setQuery] = useState('');
+  const [live, setLive] = useState<Map<string, number>>(() => new Map());
+  const [newOpen, setNewOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
   const empty = FILTER_EMPTY[filter];
+
+  const sections = useMemo((): ChatSection[] | null => {
+    if (!chats) return null;
+    const q = query.trim().toLowerCase();
+    const matched = chats
+      .filter((c) => filter === 'all' || c.kind === filter)
+      .filter((c) => !q || c.name.toLowerCase().includes(q) || (c.lastLine ?? '').toLowerCase().includes(q));
+    if (filter !== 'all') return matched.length ? [{ title: null, data: matched }] : [];
+    const rooms = matched.filter((c) => c.kind !== 'dm');
+    const dms = matched.filter((c) => c.kind === 'dm');
+    return [
+      ...(rooms.length ? [{ title: 'Your campfires & forests', data: rooms }] : []),
+      ...(dms.length ? [{ title: 'Friends', data: dms }] : []),
+    ];
+  }, [chats, filter, query]);
 
   // 0284 · with get_my_chats the list carries unread + mute for rooms too, and a forest row opens
   // the forest's room chat. fetchMyChats answers null on a server without it, and the list is
   // built exactly the old way — the switch is invisible either way.
   const rich = useChatSupport() === true;
 
+  const loadLive = useCallback(async () => {
+    try {
+      setLive(await fetchChatLiveNow());
+    } catch {
+      // A dot is flavour — keep the last ones.
+    }
+  }, []);
+
   const load = useCallback(async () => {
     if (!userId) return;
+    void loadLive();
     try {
       const fromServer = await fetchMyChats(userId).catch(() => null);
       setChats(fromServer ?? (await fetchMySocialChats(userId)));
     } catch {
       setChats((prev) => prev ?? []);
     }
-  }, [userId]);
+  }, [userId, loadLive]);
 
   // On focus: back from a thread is when its unread count just dropped.
   useFocusEffect(
     useCallback(() => {
+      setFocused(true);
       void load();
+      return () => setFocused(false);
     }, [load])
   );
+
+  useGatedInterval(loadLive, LIVE_POLL_MS, focused && !!userId);
 
   function open(chat: SocialChat) {
     if (chat.kind === 'campfire') router.push(`/group/${chat.id}`);
@@ -86,7 +139,32 @@ export function ChatsHub() {
 
   return (
     <View style={[styles.chatsRoot, { paddingTop: insets.top }]}>
-      <AppTopBar title="Chat" />
+      <AppTopBar
+        title="Chat"
+        right={
+          <Pressable
+            onPress={() => setNewOpen(true)}
+            hitSlop={8}
+            style={styles.newBtn}
+            accessibilityRole="button"
+            accessibilityLabel="New conversation">
+            <Icon name="plus" size={16} color={Colors.ink} />
+          </Pressable>
+        }
+      />
+      <View style={styles.search}>
+        <NavGlyph name="search" size={14} color={Colors.spaceDim} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search conversations"
+          placeholderTextColor={Colors.spaceFaint}
+          style={styles.searchInput}
+          autoCorrect={false}
+          returnKeyType="search"
+          accessibilityLabel="Search conversations"
+        />
+      </View>
       <View style={styles.filterRow} accessibilityRole="tablist">
         {CHAT_FILTERS.map((f) => {
           const on = filter === f.key;
@@ -102,13 +180,16 @@ export function ChatsHub() {
           );
         })}
       </View>
-      {shown === null ? (
+      {sections === null ? (
         <ActivityIndicator color={Colors.navEmber} style={styles.loader} />
       ) : (
-        <FlatList
-          data={shown}
+        <SectionList
+          sections={sections}
           keyExtractor={(c) => `${c.kind}:${c.id}`}
           contentContainerStyle={styles.list}
+          stickySectionHeadersEnabled={false}
+          keyboardShouldPersistTaps="handled"
+          renderSectionHeader={({ section }) => (section.title ? <Text style={styles.sec}>{section.title}</Text> : null)}
           ListHeaderComponent={<LiveFriendsChip style={styles.live} />}
           refreshControl={
             <RefreshControl
@@ -122,6 +203,11 @@ export function ChatsHub() {
             />
           }
           ListEmptyComponent={
+            query.trim() ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyBody}>Nothing matches “{query.trim()}”.</Text>
+              </View>
+            ) : (
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>{empty.title}</Text>
               <Text style={styles.emptyBody}>{empty.body}</Text>
@@ -129,15 +215,62 @@ export function ChatsHub() {
                 <Text style={styles.emptyBtnText}>{empty.cta}</Text>
               </Pressable>
             </View>
+            )
           }
-          renderItem={({ item }) => <ChatRow chat={item} onPress={() => open(item)} />}
+          renderItem={({ item }) => <ChatRow chat={item} live={live.get(chatLiveKey(item)) ?? 0} onPress={() => open(item)} />}
         />
       )}
+      <NewChatSheet visible={newOpen} onClose={() => setNewOpen(false)} />
     </View>
   );
 }
 
-function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
+/**
+ * ＋ — the ways into a new conversation that already exist. A Modal sheet, not an Alert: Android caps
+ * an Alert at three buttons and would drop Cancel.
+ */
+function NewChatSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const go = (route: string) => {
+    onClose();
+    router.push(route as never);
+  };
+  const options: { icon: IconName; label: string; sub: string; route: string }[] = [
+    { icon: 'chat', label: 'Message a friend', sub: 'DMs are between friends', route: '/people' },
+    { icon: 'campfire', label: 'Start a campfire', sub: 'A small group that locks in together', route: '/group/create' },
+    { icon: 'forest', label: 'Start a forest', sub: 'A bigger room around a class, gym or goal', route: '/forest/create' },
+  ];
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.sheetBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, Spacing.three) }]}>
+          <Text style={styles.sheetTitle}>New conversation</Text>
+          {options.map((o) => (
+            <Pressable
+              key={o.route}
+              style={({ pressed }) => [styles.sheetRow, pressed && styles.pressed]}
+              onPress={() => go(o.route)}
+              accessibilityRole="button"
+              accessibilityLabel={o.label}>
+              <Icon name={o.icon} size={18} color={Colors.navEmber2} />
+              <View style={styles.rowText}>
+                <Text style={styles.name}>{o.label}</Text>
+                <Text style={styles.last}>{o.sub}</Text>
+              </View>
+            </Pressable>
+          ))}
+          <Pressable onPress={onClose} style={styles.sheetCancel} accessibilityRole="button">
+            <Text style={styles.sheetCancelText}>Cancel</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function ChatRow({ chat, live, onPress }: { chat: SocialChat; live: number; onPress: () => void }) {
   // A DM always has a count; a room has one only from get_my_chats (0284).
   const unread = chat.unread ?? 0;
   // 0284 · get_my_chats' mute bit (a campfire's is its group_members.chat_muted, switched from the
@@ -148,16 +281,20 @@ function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
       style={styles.row}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${chat.name}${chat.kind === 'campfire' ? ', campfire chat' : chat.kind === 'forest' ? ', forest' : ''}${unread > 0 ? `, ${unread} unread` : ''}${muted ? ', muted' : ''}`}>
-      {chat.kind === 'campfire' || chat.kind === 'forest' ? (
-        <View style={[styles.avatar, styles.campfireAvatar]}>
-          <Text style={styles.campfireEmoji}>{chat.emoji}</Text>
-        </View>
-      ) : chat.avatarUrl ? (
-        <Image source={{ uri: chat.avatarUrl }} style={styles.avatar} contentFit="cover" />
-      ) : (
-        <Avatar label={(chat.name || '?').slice(0, 2).toUpperCase()} size={44} />
-      )}
+      accessibilityLabel={`${chat.name}${chat.kind === 'campfire' ? ', campfire chat' : chat.kind === 'forest' ? ', forest' : ''}${live > 0 ? (chat.kind === 'dm' ? ', locked in now' : `, ${live} locked in now`) : ''}${unread > 0 ? `, ${unread} unread` : ''}${muted ? ', muted' : ''}`}>
+      <View>
+        {chat.kind === 'campfire' || chat.kind === 'forest' ? (
+          <View style={[styles.avatar, styles.campfireAvatar]}>
+            <Text style={styles.campfireEmoji}>{chat.emoji}</Text>
+          </View>
+        ) : chat.avatarUrl ? (
+          <Image source={{ uri: chat.avatarUrl }} style={styles.avatar} contentFit="cover" />
+        ) : (
+          <Avatar label={(chat.name || '?').slice(0, 2).toUpperCase()} size={44} />
+        )}
+        {/* 0291 · someone here is in a live lock-in right now. */}
+        {live > 0 ? <View style={styles.liveDot} /> : null}
+      </View>
       <View style={styles.rowText}>
         <Text style={[styles.name, unread > 0 && styles.nameUnread]} numberOfLines={1}>
           {chat.name}
@@ -179,6 +316,7 @@ function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
       </View>
       <View style={styles.meta}>
         {chat.lastAt ? <Text style={styles.when}>{formatRelativeTime(chat.lastAt)}</Text> : null}
+        {live > 0 && chat.kind !== 'dm' ? <Text style={styles.liveText}>{live} locked in</Text> : null}
         {unread > 0 || muted ? (
           <View style={styles.metaMarks}>
             {muted ? <MuteBell muted size={13} color={Colors.spaceFaint} /> : null}
@@ -197,6 +335,105 @@ function ChatRow({ chat, onPress }: { chat: SocialChat; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  newBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: Spacing.three,
+    marginBottom: Spacing.two,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 9,
+    fontFamily: Fonts.body,
+    fontSize: 13,
+    color: Colors.ink,
+  },
+  sec: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: Colors.spaceFaint,
+    marginTop: 10,
+    marginBottom: 4,
+    marginHorizontal: 2,
+  },
+  liveDot: {
+    position: 'absolute',
+    right: -1,
+    bottom: -1,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: Colors.green,
+    borderWidth: 2,
+    borderColor: Colors.spacePanel,
+  },
+  liveText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    color: Colors.green,
+  },
+  pressed: {
+    opacity: 0.8,
+  },
+  sheetBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(6,4,14,0.6)',
+  },
+  sheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: Colors.spacePanel,
+    borderTopWidth: 1,
+    borderColor: Colors.spaceLine,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
+    gap: Spacing.two,
+  },
+  sheetTitle: {
+    fontFamily: Fonts.black,
+    fontSize: 18,
+    color: Colors.ink,
+    marginBottom: Spacing.one,
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.twelve,
+    paddingVertical: 12,
+    paddingHorizontal: 13,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  sheetCancel: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  sheetCancelText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 13.5,
+    color: Colors.spaceDim,
+  },
   // The kind filter: small pills under the bar — a filter on the one list, never a second fetch.
   filterRow: {
     flexDirection: 'row',
